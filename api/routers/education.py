@@ -546,6 +546,9 @@ class PathStepIn(BaseModel):
     end_seconds: Optional[int] = None
     # Planned lesson ("to be recorded"): syllabus slot without a video yet.
     planned_title: Optional[str] = None
+    # Production script (JSON string): chapters + speaker notes + on-screen +
+    # worked example. Round-tripped by the admin editor so a Save never wipes it.
+    script: Optional[str] = None
 
 
 class PathStepsIn(BaseModel):
@@ -558,8 +561,17 @@ def get_paths(all: int = 0, _user: dict = Depends(require_paid)):
     `?all=1` additionally returns disabled (draft) paths, ADMIN ONLY — a paid
     non-admin passing it silently gets the member view, so drafts can never
     leak through a crafted query string."""
-    include_disabled = bool(all) and (_user or {}).get("role") == "admin"
-    return {"paths": svc.list_paths(include_disabled=include_disabled)}
+    is_admin = (_user or {}).get("role") == "admin"
+    paths = svc.list_paths(include_disabled=bool(all) and is_admin)
+    if not is_admin:
+        # Production material (per-lesson scripts, course dossier) is internal
+        # and bulky — members never receive it, so the payload stays lean and
+        # stage directions can't leak into a member-facing surface.
+        for p in paths:
+            p.pop("dossier", None)
+            for st in p.get("steps") or []:
+                st.pop("script", None)
+    return {"paths": paths}
 
 
 @router.post("/paths")
@@ -613,6 +625,7 @@ class PathApplyStepIn(BaseModel):
     start_seconds: Optional[int] = None
     end_seconds: Optional[int] = None
     planned_title: Optional[str] = None
+    script: Optional[str] = None
 
 
 class PathApplyIn(BaseModel):
@@ -626,6 +639,9 @@ class PathApplyIn(BaseModel):
     # it. A steps-only re-apply must never silently publish a draft (19
     # placeholder rows to every member) or unpublish a live course.
     enabled: Optional[bool] = None
+    # Course-level production dossier (JSON string): presenter brief, glossary,
+    # printable member artifacts. Absent/None preserves what is stored.
+    dossier: Optional[str] = None
     steps: list[PathApplyStepIn] = []
 
 

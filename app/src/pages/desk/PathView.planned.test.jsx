@@ -192,7 +192,7 @@ test('editor: planned row has a title input; attach-video converts it and the PU
   expect(steps[1]).toEqual({
     youtube_id: 'lib0000000c', module_label: 'M1 · Foundations',
     note: 'Record first — the on-ramp.', start_seconds: null, end_seconds: null,
-    planned_title: null,
+    planned_title: null, script: null,
   })
 })
 
@@ -217,6 +217,83 @@ test('editor: Add planned lesson appends a row; empty title blocks the save inli
   expect(steps[3]).toEqual({
     youtube_id: '', module_label: null, note: null,
     start_seconds: null, end_seconds: null,
-    planned_title: 'Advanced regime nuances',
+    planned_title: 'Advanced regime nuances', script: null,
   })
+})
+
+/* ── Production material: dossier + per-lesson scripts (admin-only) ──────── */
+
+const SCRIPT = JSON.stringify({
+  chapters: [
+    { marker: 'Six stations or nothing', speaker_notes: 'Open on the finished trade.',
+      on_screen: 'Split screen: chart beside journal', example_spec: 'NVDA daily, May 2023 (split-adjusted).' },
+    { marker: 'Regime and Scan', speaker_notes: 'Replay the dial.', on_screen: 'Dashboard' },
+    { marker: 'Setup and Size', speaker_notes: 'Do the math.', on_screen: 'Chart' },
+    { marker: 'Manage and Review', speaker_notes: 'Walk the exits.', on_screen: 'Journal' },
+    { marker: 'Your LOOP card', speaker_notes: 'Hand it over.', on_screen: 'LOOP CARD' },
+  ],
+})
+const DOSSIER = JSON.stringify({
+  title: "The Presenter's Brief",
+  subtitle: 'Read once before recording.',
+  sections: [{ heading: 'The system in one page', body: ['**Regime** then Scan then Setup.'] }],
+  glossary: [{ term: 'THE LOOP', definition: 'The six-station cycle.' }],
+  artifacts: [{ title: 'THE LOOP CARD', tagline: 'Six stations.',
+    sections: [{ heading: 'The six stations', items: ['1 REGIME — the dial'] }],
+    footer_rule: 'Run the loop in order.' }],
+})
+
+const withProduction = () => {
+  const d = draftCourse()
+  d.paths[0].dossier = DOSSIER
+  d.paths[0].steps[0].script = SCRIPT
+  d.paths[0].steps[1].script = SCRIPT
+  return d
+}
+
+test('admin sees the dossier and per-lesson scripts on the syllabus', () => {
+  mockPaths = withProduction()
+  renderSection(['/desk?path=uct-foundations'])
+  expect(screen.getByText("The Presenter's Brief")).toBeTruthy()
+  // both a recorded lesson and a planned one carry their script
+  expect(screen.getAllByText(/Recording script — 5 chapters/)).toHaveLength(2)
+  expect(screen.getAllByText('Six stations or nothing').length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/NVDA daily, May 2023/).length).toBeGreaterThan(0)
+  expect(screen.getByText('THE LOOP')).toBeTruthy() // glossary term
+  expect(screen.getByText('THE LOOP CARD')).toBeTruthy() // handout
+})
+
+test('a member sees no dossier and no scripts even if the fields arrive', () => {
+  mockRole = null
+  mockPaths = withProduction()
+  mockPaths.paths[0].enabled = 1 // published, so a member can open it
+  renderSection(['/desk?path=uct-foundations'])
+  expect(screen.getByRole('heading', { level: 2, name: 'UCT Foundations' })).toBeTruthy()
+  expect(screen.queryByText("The Presenter's Brief")).toBeNull()
+  expect(screen.queryByText(/Recording script/)).toBeNull()
+  expect(screen.queryByText('Six stations or nothing')).toBeNull()
+})
+
+test('a malformed script or dossier renders nothing instead of crashing', () => {
+  const d = draftCourse()
+  d.paths[0].dossier = '{not json'
+  d.paths[0].steps[0].script = 'nope'
+  mockPaths = d
+  renderSection(['/desk?path=uct-foundations'])
+  expect(screen.getByRole('heading', { level: 2, name: 'UCT Foundations' })).toBeTruthy()
+  expect(screen.queryByText(/Recording script/)).toBeNull()
+})
+
+test('the admin editor round-trips scripts — a Save cannot wipe them', async () => {
+  mockPaths = withProduction()
+  renderSection(['/desk?path=uct-foundations'])
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed' } })
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  })
+  const put = fetchFn.mock.calls.find(([, o]) => o?.method === 'PUT')
+  const steps = JSON.parse(put[1].body).steps
+  expect(steps[0].script).toBe(SCRIPT) // recorded lesson keeps its script
+  expect(steps[1].script).toBe(SCRIPT) // planned lesson keeps its script
 })

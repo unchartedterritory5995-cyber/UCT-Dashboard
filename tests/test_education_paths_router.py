@@ -400,3 +400,42 @@ def test_paths_apply_omitted_and_null_enabled_preserve_stored_state(push_client,
     assert r2.status_code == 200
     slugs = {p["slug"]: p["enabled"] for p in svc.list_paths(include_disabled=True)}
     assert slugs["live"] == 1 and slugs["draft"] == 0
+
+
+def test_get_paths_strips_script_and_dossier_for_members(paid_client, svc):
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program", "kind": "course", "enabled": True,
+         "dossier": '{"brief":"internal"}',
+         "steps": [{"youtube_id": "yt1", "script": '{"chapters":[]}'},
+                   {"youtube_id": "yt2"}]},
+    ])
+    body = paid_client.get("/api/education/paths").json()["paths"][0]
+    assert "dossier" not in body                      # course-level material withheld
+    assert all("script" not in s for s in body["steps"])  # per-lesson scripts withheld
+    assert body["steps"][0]["youtube_id"] == "yt1"    # everything else intact
+
+
+def test_get_paths_includes_script_and_dossier_for_admin(svc):
+    app = _app()
+    admin = {"id": "a1", "email": "a@t.dev", "role": "admin"}
+    app.dependency_overrides[edu_router.require_paid] = lambda: admin
+    app.dependency_overrides[get_current_user] = lambda: admin
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program", "kind": "course", "enabled": True,
+         "dossier": '{"brief":"internal"}',
+         "steps": [{"youtube_id": "yt1", "script": '{"chapters":[]}'}]},
+    ])
+    body = TestClient(app).get("/api/education/paths").json()["paths"][0]
+    assert body["dossier"] == '{"brief":"internal"}'
+    assert body["steps"][0]["script"] == '{"chapters":[]}'
+
+
+def test_paths_apply_accepts_script_and_dossier(push_client, svc):
+    r = push_client.post("/api/education/paths-apply", json={"paths": [
+        {"slug": "prog", "name": "Program", "kind": "course", "enabled": False,
+         "dossier": '{"brief":"x"}',
+         "steps": [{"planned_title": "L1", "script": '{"chapters":[1]}'}]},
+    ]})
+    assert r.status_code == 200
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["dossier"] == '{"brief":"x"}' and p["steps"][0]["script"] == '{"chapters":[1]}'

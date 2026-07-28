@@ -21,9 +21,9 @@ const pathFixture = () => ({
   kind: 'course',
   blurb: null,
   steps: [
-    { youtube_id: 'v0000000001', module_label: null, note: null, start_seconds: 1340, end_seconds: 2465, planned_title: null },
-    { youtube_id: 'v0000000002', module_label: null, note: null, start_seconds: 90, end_seconds: null, planned_title: null },
-    { youtube_id: 'v0000000003', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'v0000000001', module_label: null, note: null, start_seconds: 1340, end_seconds: 2465, planned_title: null, script: null },
+    { youtube_id: 'v0000000002', module_label: null, note: null, start_seconds: 90, end_seconds: null, planned_title: null, script: null },
+    { youtube_id: 'v0000000003', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null, script: null },
   ],
   videos,
 })
@@ -145,9 +145,9 @@ test('edited times land in the PUT as integer seconds (mm:ss AND bare seconds bo
   const put = fetchFn.mock.calls.find(([url, opts]) => opts?.method === 'PUT' && String(url).includes('/paths/1/steps'))
   expect(put).toBeTruthy()
   expect(JSON.parse(put[1].body).steps).toEqual([
-    { youtube_id: 'v0000000001', module_label: null, note: null, start_seconds: 1340, end_seconds: 2465, planned_title: null },
-    { youtube_id: 'v0000000002', module_label: null, note: null, start_seconds: 90, end_seconds: null, planned_title: null },
-    { youtube_id: 'v0000000003', module_label: null, note: null, start_seconds: 300, end_seconds: 600, planned_title: null },
+    { youtube_id: 'v0000000001', module_label: null, note: null, start_seconds: 1340, end_seconds: 2465, planned_title: null, script: null },
+    { youtube_id: 'v0000000002', module_label: null, note: null, start_seconds: 90, end_seconds: null, planned_title: null, script: null },
+    { youtube_id: 'v0000000003', module_label: null, note: null, start_seconds: 300, end_seconds: 600, planned_title: null, script: null },
   ])
 })
 
@@ -159,7 +159,7 @@ test('clearing a time input saves null (removes the clip window)', async () => {
   const put = fetchFn.mock.calls.find(([, opts]) => opts?.method === 'PUT')
   expect(JSON.parse(put[1].body).steps[0]).toEqual({
     youtube_id: 'v0000000001', module_label: null, note: null, start_seconds: null, end_seconds: null,
-    planned_title: null,
+    planned_title: null, script: null,
   })
 })
 

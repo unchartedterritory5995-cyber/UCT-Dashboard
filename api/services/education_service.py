@@ -163,6 +163,18 @@ _PATH_STEP_EXTRA_COLUMNS = (
     # NOT NULL) and are rendered as placeholders, never played. Attaching a
     # real video simply replaces youtube_id and clears planned_title.
     ("planned_title", "TEXT"),
+    # Production script for this lesson (JSON): the chapter markers with their
+    # speaker notes, on-screen directions and worked chart example. Internal
+    # recording material — the router strips it for non-admins so the
+    # member-facing /paths payload stays lean.
+    ("script", "TEXT"),
+)
+
+# Additive column on edu_paths: the course-level production dossier (JSON) —
+# presenter brief, glossary, and the printable member artifacts. Same
+# strip-for-members rule as `script`.
+_PATH_EXTRA_COLUMNS = (
+    ("dossier", "TEXT"),
 )
 
 
@@ -171,6 +183,10 @@ def _migrate_path_step_columns(c: sqlite3.Connection) -> None:
     for name, decl in _PATH_STEP_EXTRA_COLUMNS:
         if name not in have:
             c.execute(f"ALTER TABLE edu_path_steps ADD COLUMN {name} {decl}")
+    have_p = {r["name"] for r in c.execute("PRAGMA table_info(edu_paths)").fetchall()}
+    for name, decl in _PATH_EXTRA_COLUMNS:
+        if name not in have_p:
+            c.execute(f"ALTER TABLE edu_paths ADD COLUMN {name} {decl}")
 
 
 def _init_db() -> None:
@@ -656,7 +672,7 @@ def _validate_path_input(slug: str, name: str, kind: str | None) -> tuple[str, s
 
 def _path_steps_conn(c: sqlite3.Connection, path_id: int) -> list[dict]:
     rows = c.execute(
-        "SELECT youtube_id, module_label, note, start_seconds, end_seconds, planned_title "
+        "SELECT youtube_id, module_label, note, start_seconds, end_seconds, planned_title, script "
         "FROM edu_path_steps WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
         (path_id,),
     ).fetchall()
@@ -719,6 +735,9 @@ def _normalize_step(s: dict, i: int, ctx: str) -> dict:
         "start_seconds": start,
         "end_seconds": end,
         "planned_title": planned,
+        # Production script rides along untouched — the admin editor round-trips
+        # it so a Save can never silently destroy a lesson's recording script.
+        "script": (s.get("script") or None),
     }
 
 
@@ -845,9 +864,9 @@ def replace_path_steps(path_id: int, steps: list[dict]) -> int:
             c.execute(
                 """INSERT INTO edu_path_steps
                    (path_id, youtube_id, sort_order, module_label, note, start_seconds,
-                    end_seconds, planned_title)
+                    end_seconds, planned_title, script)
                    VALUES (:path_id, :youtube_id, :sort_order, :module_label, :note,
-                           :start_seconds, :end_seconds, :planned_title)""",
+                           :start_seconds, :end_seconds, :planned_title, :script)""",
                 s,
             )
         c.commit()
@@ -855,7 +874,7 @@ def replace_path_steps(path_id: int, steps: list[dict]) -> int:
 
 
 def _upsert_path_conn(c: sqlite3.Connection, slug: str, name: str, blurb: Optional[str],
-                      kind: str, sort_order: int, enabled) -> int:
+                      kind: str, sort_order: int, enabled, dossier=None) -> int:
     """Create-or-update an edu_paths row by slug on a CALLER-OWNED connection/
     transaction. No locking, no commit — same no-lock-helper idiom as
     `_upsert_category_conn`, so bulk_apply_paths can upsert N paths inside its
@@ -872,24 +891,23 @@ def _upsert_path_conn(c: sqlite3.Connection, slug: str, name: str, blurb: Option
     if row is None:
         en = 1 if (enabled is None or enabled) else 0
         cur = c.execute(
-            """INSERT INTO edu_paths (slug, name, blurb, kind, sort_order, enabled, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (slug, name, blurb, kind, sort_order, en, now, now),
+            """INSERT INTO edu_paths (slug, name, blurb, kind, sort_order, enabled,
+                                      created_at, updated_at, dossier)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (slug, name, blurb, kind, sort_order, en, now, now, dossier),
         )
         return cur.lastrowid
     path_id = row["id"]
-    if enabled is None:
-        c.execute(
-            """UPDATE edu_paths SET name = ?, blurb = ?, kind = ?, sort_order = ?,
-               updated_at = ? WHERE id = ?""",
-            (name, blurb, kind, sort_order, now, path_id),
-        )
-    else:
-        c.execute(
-            """UPDATE edu_paths SET name = ?, blurb = ?, kind = ?, sort_order = ?,
-               enabled = ?, updated_at = ? WHERE id = ?""",
-            (name, blurb, kind, sort_order, 1 if enabled else 0, now, path_id),
-        )
+    sets = ["name = ?", "blurb = ?", "kind = ?", "sort_order = ?", "updated_at = ?"]
+    args = [name, blurb, kind, sort_order, now]
+    if enabled is not None:
+        sets.append("enabled = ?")
+        args.append(1 if enabled else 0)
+    if dossier is not None:
+        sets.append("dossier = ?")
+        args.append(dossier)
+    args.append(path_id)
+    c.execute(f"UPDATE edu_paths SET {', '.join(sets)} WHERE id = ?", args)
     return path_id
 
 
@@ -918,22 +936,26 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
             # Tri-state: absent/None = preserve the stored published/draft bit
             # on upsert (new rows default enabled) — see _upsert_path_conn.
             "enabled": p.get("enabled"),
+            # Course-level production dossier (JSON string) — same tri-state
+            # rule as `enabled`: absent/None preserves what is stored.
+            "dossier": p.get("dossier"),
             "steps": steps,
         })
     path_count, step_count = 0, 0
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         for p in cleaned:
             path_id = _upsert_path_conn(c, p["slug"], p["name"], p["blurb"],
-                                        p["kind"], p["sort_order"], p["enabled"])
+                                        p["kind"], p["sort_order"], p["enabled"],
+                                        p.get("dossier"))
             c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (path_id,))
             for s in p["steps"]:
                 c.execute(
                     """INSERT INTO edu_path_steps
                        (path_id, youtube_id, sort_order, module_label, note, start_seconds,
-                        end_seconds, planned_title)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        end_seconds, planned_title, script)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (path_id, s["youtube_id"], s["sort_order"], s["module_label"], s["note"],
-                     s["start_seconds"], s["end_seconds"], s["planned_title"]),
+                     s["start_seconds"], s["end_seconds"], s["planned_title"], s["script"]),
                 )
                 step_count += 1
             path_count += 1

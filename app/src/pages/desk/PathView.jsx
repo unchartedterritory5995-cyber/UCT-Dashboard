@@ -83,6 +83,9 @@ const draftFromPath = (path) => ({
     // the title alone can't distinguish the shapes.
     planned: !!st.planned_title,
     planned_title: st.planned_title || '',
+    // The production script is NOT editable here — it rides along verbatim so
+    // a Save can never destroy a lesson's recording script.
+    script: st.script || null,
   })),
 })
 
@@ -228,7 +231,7 @@ export default function PathView({
       ...d,
       steps: [
         ...d.steps,
-        { youtube_id: '', module_label: '', note: '', start: '', end: '', planned: true, planned_title: '' },
+        { youtube_id: '', module_label: '', note: '', start: '', end: '', planned: true, planned_title: '', script: null },
       ],
     }))
   // Recording done → the slot becomes a real lesson: the picked video's id
@@ -274,6 +277,7 @@ export default function PathView({
           start_seconds: null,
           end_seconds: null,
           planned_title: title,
+          script: s.script || null,
         })
         continue
       }
@@ -294,6 +298,7 @@ export default function PathView({
         start_seconds: start,
         end_seconds: end,
         planned_title: null,
+        script: s.script || null,
       })
     }
     setBusy(true)
@@ -599,6 +604,8 @@ export default function PathView({
         )}
       </header>
 
+      {isAdmin && <DossierPanel dossier={path.dossier} />}
+
       <div className={p.syllabus}>
         {groups.map((g, gi) => (
           <div key={gi} className={p.group}>
@@ -617,7 +624,7 @@ export default function PathView({
             >
               {g.lessons.map((lesson) =>
                 lesson.planned ? (
-                  <PlannedRow key={`planned-${lesson.seq}`} step={lesson.step} />
+                  <PlannedRow key={`planned-${lesson.seq}`} step={lesson.step} isAdmin={isAdmin} />
                 ) : (
                   <LessonRow
                     key={`${lesson.index}-${lesson.video.youtube_id}`}
@@ -625,6 +632,7 @@ export default function PathView({
                     videos={path.videos}
                     progress={progress}
                     onPlay={onPlay}
+                    isAdmin={isAdmin}
                   />
                 ),
               )}
@@ -757,11 +765,130 @@ function AttachVideoSearch({ allVideos, rowIndex, onPick, disabled }) {
   )
 }
 
+// The course-level production dossier: the presenter's brief, the glossary of
+// firm terms, and the printable member artifacts. ADMIN-ONLY (the server
+// withholds it from members) and collapsed by default — it sits above the
+// syllabus because it is what a presenter reads BEFORE any lesson.
+function DossierPanel({ dossier }) {
+  let d = null
+  try {
+    d = typeof dossier === 'string' ? JSON.parse(dossier) : dossier
+  } catch {
+    return null
+  }
+  if (!d || (!d.sections?.length && !d.glossary?.length && !d.artifacts?.length)) return null
+  return (
+    <details className={p.dossier}>
+      <summary className={p.dossierSummary}>
+        <UIcon name="book" size={13} gold={false} />
+        {d.title || 'Production dossier'}
+        <span className={p.dossierMeta}>
+          {[
+            d.sections?.length ? `${d.sections.length} sections` : null,
+            d.glossary?.length ? `${d.glossary.length} terms` : null,
+            d.artifacts?.length ? `${d.artifacts.length} handouts` : null,
+          ].filter(Boolean).join(' · ')}
+        </span>
+      </summary>
+      {d.subtitle && <p className={p.dossierSub}>{d.subtitle}</p>}
+      {(d.sections || []).map((s, i) => (
+        <section key={i} className={p.dossierSec}>
+          <h4>{s.heading}</h4>
+          {(s.body || []).map((b, j) => (
+            <p key={j} className={p.dossierP}>{String(b).replace(/\*\*/g, '')}</p>
+          ))}
+        </section>
+      ))}
+      {d.glossary?.length > 0 && (
+        <section className={p.dossierSec}>
+          <h4>Glossary</h4>
+          {d.glossary.map((g, i) => (
+            <p key={i} className={p.dossierP}>
+              <b>{g.term}</b> — {g.definition}
+            </p>
+          ))}
+        </section>
+      )}
+      {d.artifacts?.length > 0 && (
+        <section className={p.dossierSec}>
+          <h4>Member handouts</h4>
+          {d.artifacts.map((a, i) => (
+            <details key={i} className={p.handout}>
+              <summary>{a.title}</summary>
+              {a.tagline && <p className={p.dossierSub}>{a.tagline}</p>}
+              {(a.sections || []).map((s, j) => (
+                <div key={j}>
+                  <h5 className={p.handoutH}>{s.heading}</h5>
+                  {(s.items || []).map((it, k) => (
+                    <p key={k} className={p.handoutItem}>{it}</p>
+                  ))}
+                </div>
+              ))}
+              {a.footer_rule && <p className={p.handoutRule}>{a.footer_rule}</p>}
+            </details>
+          ))}
+        </section>
+      )}
+    </details>
+  )
+}
+
+// Parse a stored production script (JSON string on the step) into chapters.
+// Never throws — a malformed script simply renders nothing.
+export const parseScript = (raw) => {
+  if (!raw) return null
+  try {
+    const j = typeof raw === 'string' ? JSON.parse(raw) : raw
+    const chapters = Array.isArray(j?.chapters) ? j.chapters : null
+    return chapters && chapters.length ? { ...j, chapters } : null
+  } catch {
+    return null
+  }
+}
+
+// The recording script for one lesson — chapter markers with their speaker
+// notes, on-screen direction and worked chart example. ADMIN-ONLY: this is
+// internal production material (the server withholds it from members), and it
+// stays collapsed so the syllabus keeps its shape.
+function ScriptPanel({ script }) {
+  const parsed = parseScript(script)
+  if (!parsed) return null
+  return (
+    <details className={p.scriptWrap}>
+      <summary className={p.scriptSummary}>
+        <UIcon name="edit" size={12} gold={false} />
+        Recording script — {parsed.chapters.length} chapters
+      </summary>
+      {parsed.chapters.map((c, i) => (
+        <div key={i} className={p.scriptCh}>
+          <div className={p.scriptHead}>
+            <span className={p.scriptN}>{i + 1}</span>
+            <b>{c.marker}</b>
+          </div>
+          {c.speaker_notes && <p className={p.scriptSay}>{c.speaker_notes}</p>}
+          {c.on_screen && (
+            <p className={p.scriptMeta}>
+              <span className={p.scriptTag}>ON SCREEN</span>
+              {c.on_screen}
+            </p>
+          )}
+          {c.example_spec && (
+            <p className={`${p.scriptMeta} ${p.scriptSpec}`}>
+              <span className={p.scriptTag}>EXAMPLE</span>
+              {c.example_spec}
+            </p>
+          )}
+        </div>
+      ))}
+    </details>
+  )
+}
+
 // A syllabus slot whose video hasn't been recorded yet: same ledger geometry
 // as LessonRow (index gutter, state column, body) but inert — a quiet
 // placeholder, not a button. It keeps the course honest about what's coming
 // without ever entering the play queue or the progress math.
-function PlannedRow({ step }) {
+function PlannedRow({ step, isAdmin }) {
   return (
     <li className={p.rowItem}>
       <div className={`${p.row} ${p.rowPlanned}`}>
@@ -775,11 +902,12 @@ function PlannedRow({ step }) {
         </span>
         <span className={p.plannedChip}>To record</span>
       </div>
+      {isAdmin && <ScriptPanel script={step.script} />}
     </li>
   )
 }
 
-function LessonRow({ lesson, videos, progress, onPlay }) {
+function LessonRow({ lesson, videos, progress, onPlay, isAdmin }) {
   const { video: v, step, index } = lesson
   const e = progress[v.youtube_id]
   const isDone = !!e?.done
@@ -834,6 +962,7 @@ function LessonRow({ lesson, videos, progress, onPlay }) {
         </span>
         {v.duration ? <span className={p.rowDuration}>{v.duration}</span> : null}
       </button>
+      {isAdmin && <ScriptPanel script={lesson.step?.script} />}
     </li>
   )
 }

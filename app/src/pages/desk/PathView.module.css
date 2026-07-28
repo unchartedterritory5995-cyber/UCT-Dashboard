@@ -668,3 +668,108 @@
   .attachMatch { min-height: var(--tap-min); }
   .addPlannedBtn { min-height: var(--tap-min); }
 }
+
+/* ── Production material (ADMIN-ONLY) — dossier + per-lesson scripts ──────
+   Internal recording material rendered inside the syllabus. Both collapse by
+   default so the members' ledger geometry is untouched when they eventually
+   see this course. The server withholds these fields from non-admins. */
+.dossier {
+  margin: var(--space-md) 0 var(--space-lg);
+  padding: 0 16px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+.dossier[open] { border-style: solid; border-color: var(--ut-gold-glow); }
+.dossierSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.dossierSummary:focus-visible { outline: 2px solid var(--ut-gold); }
+.dossierMeta { margin-left: auto; font-size: var(--text-xs); color: var(--text-muted); font-weight: 400; }
+.dossierSub { margin: 0 0 10px; font-size: var(--text-xs); color: var(--text-muted); }
+.dossierSec { margin: 0 0 var(--space-md); }
+.dossierSec h4 {
+  margin: var(--space-md) 0 6px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.dossierP { margin: 6px 0; font-size: 13px; line-height: 1.55; }
+.dossierP b { color: var(--ut-gold); }
+.handout {
+  margin: 6px 0;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.handout > summary {
+  padding: 9px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.handoutH {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.handoutItem { margin: 4px 0; font-size: 12.5px; line-height: 1.5; }
+.handoutRule {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--ut-gold);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Per-lesson recording script */
+.scriptWrap {
+  margin: 2px 0 10px 34px;
+  padding: 0 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+.scriptWrap[open] { border-style: solid; border-color: var(--ut-gold-glow); }
+.scriptSummary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.scriptSummary:hover { color: var(--text-bright); }
+.scriptSummary:focus-visible { outline: 2px solid var(--ut-gold); }
+.scriptCh { margin: 0 0 12px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; }
+.scriptHead { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; }
+.scriptN { font-size: 11px; color: var(--ut-gold); font-variant-numeric: tabular-nums; }
+.scriptHead b { color: var(--ut-gold); font-size: 13px; }
+.scriptSay { margin: 0 0 7px; font-size: 13px; line-height: 1.55; }
+.scriptMeta { margin: 0 0 5px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.scriptSpec { padding-left: 9px; border-left: 2px solid var(--border); }
+.scriptTag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--ut-gold);
+  border-radius: 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  color: var(--ut-gold);
+}
+@media (max-width: 640px) {
+  .scriptWrap { margin-left: 0; }
+}

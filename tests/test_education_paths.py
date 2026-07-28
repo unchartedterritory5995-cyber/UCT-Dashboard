@@ -457,7 +457,7 @@ def test_planned_step_stores_gap_sentinel_and_round_trips(svc):
     assert steps[0]["planned_title"] is None
     assert steps[1] == {"youtube_id": "gap:1", "module_label": "M3",
                         "note": "to record", "start_seconds": None,
-                        "end_seconds": None,
+                        "end_seconds": None, "script": None,
                         "planned_title": "Reading the Regime Dial"}
 
 
@@ -618,3 +618,76 @@ def test_bulk_apply_new_path_without_enabled_defaults_live(svc):
          "steps": [{"youtube_id": "ok123456789"}]},
     ])
     assert svc.list_paths()[0]["enabled"] == 1
+
+
+# ── Production script + course dossier (2026-07-27) ─────────────────────────
+
+def test_step_script_round_trips(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [
+        {"planned_title": "Lesson A", "script": '{"chapters":[{"marker":"Hook"}]}'},
+        {"youtube_id": "real1234567"},
+    ])
+    steps = svc.get_path(p["id"])["steps"]
+    assert steps[0]["script"] == '{"chapters":[{"marker":"Hook"}]}'
+    assert steps[1]["script"] is None
+
+
+def test_bulk_apply_carries_step_script_and_dossier(svc):
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program", "kind": "course", "enabled": False,
+         "dossier": '{"brief":"read me"}',
+         "steps": [{"planned_title": "L1", "script": '{"chapters":[1,2,3,4,5]}'}]},
+    ])
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["dossier"] == '{"brief":"read me"}'
+    assert p["steps"][0]["script"] == '{"chapters":[1,2,3,4,5]}'
+
+
+def test_bulk_apply_omitted_dossier_preserves_stored_one(svc):
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program", "kind": "course", "enabled": False,
+         "dossier": '{"brief":"keep me"}', "steps": [{"planned_title": "L1"}]},
+    ])
+    # A steps-only re-apply must not wipe the dossier (same tri-state rule as enabled).
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program v2", "kind": "course",
+         "steps": [{"planned_title": "L1"}, {"planned_title": "L2"}]},
+    ])
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["dossier"] == '{"brief":"keep me"}'
+    assert p["name"] == "Program v2" and p["enabled"] == 0
+
+
+def test_new_path_without_dossier_is_null(svc):
+    svc.bulk_apply_paths([
+        {"slug": "plain", "name": "Plain", "kind": "track",
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    assert svc.list_paths()[0]["dossier"] is None
+
+
+def test_init_db_alters_script_and_dossier_onto_pre_existing_tables(tmp_path, monkeypatch):
+    import sqlite3
+    from api.services import education_service as es
+    db = str(tmp_path / "edu-old2.db")
+    with contextlib.closing(sqlite3.connect(db)) as c:
+        c.executescript("""
+            CREATE TABLE edu_paths (id INTEGER PRIMARY KEY, slug TEXT UNIQUE,
+                name TEXT NOT NULL, blurb TEXT, kind TEXT NOT NULL DEFAULT 'track',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL, updated_at INTEGER);
+            CREATE TABLE edu_path_steps (id INTEGER PRIMARY KEY,
+                path_id INTEGER NOT NULL REFERENCES edu_paths(id) ON DELETE CASCADE,
+                youtube_id TEXT NOT NULL, sort_order INTEGER NOT NULL,
+                module_label TEXT, note TEXT);
+        """)
+        c.commit()
+    monkeypatch.setattr(es, "_DB_PATH", db)
+    es._init_db()
+    with contextlib.closing(es._connect()) as c:
+        step_cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_path_steps)")}
+        path_cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_paths)")}
+    assert "script" in step_cols and "planned_title" in step_cols
+    assert "dossier" in path_cols
