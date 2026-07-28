@@ -208,6 +208,115 @@ async def test_disconnect_revokes_and_purges(env):
     assert remaining == ["t-manual"]
 
 
+def _j2_account_rows(user_id: str) -> list[dict]:
+    conn = auth_db.get_connection()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM j2_accounts WHERE user_id = ?", (user_id,)
+        ).fetchall()]
+    finally:
+        conn.close()
+
+
+@pytest.mark.asyncio
+async def test_disconnect_removes_the_broker_created_account_when_empty(env):
+    """A broker-created j2_account is an artifact of the connection, not user
+    data. With nothing logged against it, disconnect must take it with the
+    connection — otherwise it lingers as a phantom account still stamped
+    balance_source='broker' with the last synced balances frozen on it, and
+    every broker surface keeps rendering a stale net-liq with no broker behind
+    it (the '$5,868.63 after disconnect' bug)."""
+    from api.services.journal_two.broker import service
+
+    await service.connect("u1")
+    await service.refresh_accounts("u1")
+
+    created = _j2_account_rows("u1")
+    assert len(created) == 1
+    assert created[0]["balance_source"] == "broker"
+
+    await service.disconnect("u1", purge_trades=False)
+
+    assert _j2_account_rows("u1") == []
+
+
+@pytest.mark.asyncio
+async def test_disconnect_moves_coach_history_off_the_removed_account(env):
+    """Compass chat is ABOUT an account, not content in it, so it must not keep
+    a phantom broker account alive — but deleting that account must not orphan
+    the conversation either. It follows the user to their surviving account."""
+    from api.services.journal_two.broker import service
+
+    await service.connect("u1")
+    await service.refresh_accounts("u1")
+    acct_id = _j2_account_rows("u1")[0]["id"]
+
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_chat_messages (id, user_id, account_id, role, content, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("m1", "u1", acct_id, "user", "how did I trade today?", "2026-07-25T12:00:00Z"),
+    )
+    conn.commit()
+    conn.close()
+
+    await service.disconnect("u1", purge_trades=False)
+
+    rows = _j2_account_rows("u1")
+    assert [r["id"] for r in rows] != [acct_id], "phantom broker account must be gone"
+
+    conn = auth_db.get_connection()
+    msg = conn.execute("SELECT account_id FROM j2_chat_messages WHERE id='m1'").fetchone()
+    conn.close()
+    assert msg is not None, "coach history must survive the disconnect"
+    assert msg["account_id"] != acct_id, "must not point at the deleted account"
+    assert msg["account_id"] in {r["id"] for r in rows}, "must point at a real account"
+
+
+@pytest.mark.asyncio
+async def test_disconnect_reverts_account_to_manual_when_it_still_holds_trades(env):
+    """When the user keeps their imported trades (purge_trades=False), the
+    account must SURVIVE to hold them — but it must stop impersonating a live
+    broker account: balance_source back to 'manual' and every broker_* balance
+    column cleared, so no stale equity/cash/buying-power can be rendered."""
+    from api.services.journal_two.broker import service
+
+    await service.connect("u1")
+    await service.refresh_accounts("u1")
+    acct_id = _j2_account_rows("u1")[0]["id"]
+
+    conn = auth_db.get_connection()
+    conn.execute(
+        """UPDATE j2_accounts
+              SET broker_total_equity = 5868.63, broker_cash = -15227.32,
+                  broker_buying_power = 9077.15, broker_market_value = 20796.20,
+                  broker_balance_synced_at = '2026-07-25T07:40:23Z'
+            WHERE id = ?""",
+        (acct_id,),
+    )
+    cols = ("id,user_id,position_id,symbol,side,shares,entry_price,entry_date,"
+            "exit_price,exit_date,original_stop,setup,notes,pnl_dollar,pnl_percent,"
+            "r_multiple,hold_days,result,context_at_entry,created_at,account_id,source")
+    conn.execute(
+        f"INSERT INTO j2_trades ({cols}) VALUES ({','.join(['?'] * 22)})",
+        ("t-kept", "u1", "pos", "AAPL", "Long", 10, 100.0, "2026-01-01T00:00:00Z",
+         110.0, "2026-01-02T00:00:00Z", 100.0, None, None, 100.0, 0.1, None, 1,
+         "Win", "{}", "2026-01-02T00:00:00Z", acct_id, "broker"),
+    )
+    conn.commit()
+    conn.close()
+
+    await service.disconnect("u1", purge_trades=False)
+
+    rows = _j2_account_rows("u1")
+    assert len(rows) == 1, "an account holding trades must never be deleted"
+    row = rows[0]
+    assert row["balance_source"] == "manual"
+    for col in ("broker_total_equity", "broker_cash", "broker_buying_power",
+                "broker_market_value", "broker_balance_synced_at"):
+        assert row[col] is None, f"{col} must be cleared on disconnect"
+
+
 @pytest.mark.asyncio
 async def test_status_shapes(env):
     from api.services.journal_two.broker import service

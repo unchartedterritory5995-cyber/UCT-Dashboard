@@ -9,13 +9,16 @@ Connection lifecycle:
                        user consent (router enforces the checkbox).
   refresh_accounts() → after the portal, list the user's brokerage
                        accounts and map each to a j2_account.
-  disconnect()       → revoke at SnapTrade + purge our credential rows
+  disconnect()       → revoke at SnapTrade + purge our credential rows,
+                       and undo the j2_accounts rows the connection created
                        (optionally also purge imported trade data).
   status()           → connection + per-account summary (no secret).
 """
 
 from __future__ import annotations
 
+import sqlite3
+from datetime import datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
@@ -25,6 +28,10 @@ from api.services.journal_two.broker import connections, snaptrade_client as sna
 
 class NoBrokerConnection(Exception):
     """User has not registered a SnapTrade identity yet."""
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 async def connect(
@@ -133,13 +140,24 @@ async def disconnect(user_id: str, *, purge_trades: bool = False) -> dict[str, A
         except snap.SnapError:
             pass  # best-effort; we still purge locally
 
-    # Drop per-account sync locks (bound _locks growth).
+    # Drop per-account sync locks (bound _locks growth). Capture the mapped
+    # j2_account ids in the same pass — j2_broker_accounts (which holds the
+    # mapping) is about to be deleted, so this is the last chance to read it.
+    linked_j2_ids: list[str] = []
     try:
         from api.services.journal_two.broker import sync as _sync_engine
         for ba in connections.list_broker_accounts(user_id):
             _sync_engine.release_lock(ba["id"])
+            if ba.get("j2AccountId"):
+                linked_j2_ids.append(ba["j2AccountId"])
     except Exception:
         pass
+    if not linked_j2_ids:  # lock-release import failed — read the mapping directly
+        linked_j2_ids = [
+            ba["j2AccountId"]
+            for ba in connections.list_broker_accounts(user_id)
+            if ba.get("j2AccountId")
+        ]
 
     purged = {"trades": 0, "positions": 0, "optionStrategies": 0}
     conn = get_connection()
@@ -151,7 +169,141 @@ async def disconnect(user_id: str, *, purge_trades: bool = False) -> dict[str, A
         conn.close()
 
     connections.delete_broker_user(user_id)
-    return {"disconnected": True, "purged": purged}
+    unlinked = _unlink_broker_accounts(user_id, linked_j2_ids)
+    return {"disconnected": True, "purged": purged, **unlinked}
+
+
+# Journal content the user authored or imported. A broker-created account with
+# none of these is a pure connection artifact — nothing is lost by removing it,
+# and leaving it behind is what strands a phantom account.
+_CONTENT_TABLES = (
+    "j2_trades", "j2_positions", "j2_option_strategies", "j2_notes",
+)
+
+# Coaching/derived rows are ABOUT an account rather than content in it, so they
+# never keep a phantom account alive — but they must not be orphaned either.
+# When the account goes, these follow the user to their surviving account.
+_REASSIGN_TABLES = (
+    "j2_chat_messages", "j2_coach_outputs", "j2_onboarding_responses",
+    "j2_verdicts", "j2_trade_reviews", "j2_interventions",
+    "j2_profile_suggestions", "j2_journal_rules",
+)
+
+
+def _account_is_empty(conn, user_id: str, account_id: str) -> bool:
+    for table in _CONTENT_TABLES:
+        try:
+            row = conn.execute(
+                f"SELECT 1 FROM {table} WHERE user_id = ? AND account_id = ? LIMIT 1",
+                (user_id, account_id),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            continue  # table/column not present in this schema revision
+        if row is not None:
+            return False
+    return True
+
+
+def _surviving_account_id(conn, user_id: str) -> str | None:
+    """The account a removed broker account's coaching history should follow.
+    Prefers an existing account; if the broker account was the user's ONLY one,
+    materializes their Default so the history has somewhere to land (the same
+    Default `get_or_migrate_default_account` would create on next page load)."""
+    row = conn.execute(
+        """
+        SELECT id FROM j2_accounts WHERE user_id = ?
+         ORDER BY (CASE WHEN name='Default' THEN 0 ELSE 1 END), created_at ASC
+         LIMIT 1
+        """,
+        (user_id,),
+    ).fetchone()
+    if row:
+        return row["id"]
+    try:
+        from api.services.journal_two import accounts as accounts_service
+        conn.commit()  # publish the delete before the migration helper reads
+        return accounts_service.get_or_migrate_default_account(user_id)["id"]
+    except Exception:
+        return None  # leave the rows put rather than lose them
+
+
+def _reassign_coaching_rows(conn, user_id: str, from_account_id: str) -> None:
+    """Move an emptied account's coaching history onto the user's surviving
+    account so deleting the phantom never silently drops their Compass
+    conversation. Best-effort per table — a missing table or a schema without
+    the column must not abort the disconnect."""
+    present = []
+    for table in _REASSIGN_TABLES:
+        try:
+            row = conn.execute(
+                f"SELECT 1 FROM {table} WHERE user_id = ? AND account_id = ? LIMIT 1",
+                (user_id, from_account_id),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            continue
+        if row is not None:
+            present.append(table)
+    if not present:
+        return  # nothing to preserve — don't materialize an account for no reason
+
+    target = _surviving_account_id(conn, user_id)
+    if not target or target == from_account_id:
+        return
+    for table in present:
+        conn.execute(
+            f"UPDATE {table} SET account_id = ? WHERE user_id = ? AND account_id = ?",
+            (target, user_id, from_account_id),
+        )
+
+
+def _unlink_broker_accounts(user_id: str, account_ids: list[str]) -> dict[str, int]:
+    """Undo what `map_snaptrade_account` created, for accounts whose broker
+    connection has just been removed.
+
+    A broker-created j2_account is an artifact of the connection, not something
+    the user authored. Left behind it keeps `balance_source='broker'` plus the
+    last-synced broker_* balances frozen on the row, and every broker surface
+    (balance_resolver, BrokerAccountHero, Today/Calendar/Analytics) keeps
+    rendering that stale net-liq with no connection able to refresh it.
+
+    So: delete the account when nothing was ever logged against it; otherwise
+    keep it (the user's trades live there — disconnect explicitly promises to
+    preserve them) but revert it to a plain manual account with every broker
+    balance column cleared, so it can never present broker numbers again."""
+    out = {"accountsRemoved": 0, "accountsReverted": 0}
+    if not account_ids:
+        return out
+    conn = get_connection()
+    try:
+        for account_id in account_ids:
+            if _account_is_empty(conn, user_id, account_id):
+                cur = conn.execute(
+                    "DELETE FROM j2_accounts WHERE id = ? AND user_id = ?",
+                    (account_id, user_id),
+                )
+                if cur.rowcount:
+                    _reassign_coaching_rows(conn, user_id, account_id)
+                out["accountsRemoved"] += cur.rowcount
+                continue
+            cur = conn.execute(
+                """
+                UPDATE j2_accounts
+                   SET balance_source = 'manual',
+                       broker_total_equity = NULL,
+                       broker_cash = NULL,
+                       broker_buying_power = NULL,
+                       broker_market_value = NULL,
+                       broker_balance_synced_at = NULL,
+                       updated_at = ?
+                 WHERE id = ? AND user_id = ?
+                """,
+                (_now_iso(), account_id, user_id),
+            )
+            out["accountsReverted"] += cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return out
 
 
 def _snap_uid_no_decrypt(user_id: str) -> str | None:

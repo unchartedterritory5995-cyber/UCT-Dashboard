@@ -121,14 +121,24 @@ def has_broker_user(user_id: str, conn: sqlite3.Connection | None = None) -> boo
 
 def delete_broker_user(user_id: str, conn: sqlite3.Connection | None = None) -> None:
     """Remove the SnapTrade identity + every broker-account mapping + the
-    raw activity ledger for this user. Does NOT delete imported trades —
-    that's a separate, explicit choice in the disconnect flow."""
+    per-connection derived ledgers (raw activities, daily equity snapshots,
+    cash flows) for this user. Does NOT delete imported trades — that's a
+    separate, explicit choice in the disconnect flow.
+
+    The derived ledgers are keyed on `broker_account_id`, so once the mapping
+    rows go they can never be read again (a reconnect mints fresh ids) — they
+    are dead weight that accumulates on every disconnect/reconnect cycle."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         conn.execute("BEGIN")
         conn.execute("DELETE FROM j2_broker_accounts WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM j2_broker_activities WHERE user_id = ?", (user_id,))
+        for table in ("j2_broker_equity_snapshots", "j2_broker_cash_flows"):
+            try:
+                conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+            except sqlite3.OperationalError:
+                pass  # table absent in this schema revision
         conn.execute("DELETE FROM j2_broker_users WHERE user_id = ?", (user_id,))
         conn.commit()
     except Exception:
