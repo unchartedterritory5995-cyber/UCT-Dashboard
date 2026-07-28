@@ -139,3 +139,17 @@ def test_cache_control_still_lets_the_edge_absorb_the_herd():
     # re-open the 524 overload class. s-maxage keeps CF in front of it.
     cc = flow_router._FLOW_CACHE_HEADERS["Cache-Control"]
     assert "s-maxage=60" in cc
+
+
+def test_the_version_header_survives_the_worker_proxy():
+    """flow_router runs on the FLOW-WORKER; web proxies /api/flow to it.
+
+    So `X-Flow-Version` only reaches the browser if flow_proxy forwards it. The
+    proxy strips hop-by-hop headers and passes everything else, which is why
+    this works today — but adding this header to _HOP (or switching that filter
+    to an allowlist) would make the whole fix silently inert: the client would
+    see no header, fall back to the old inference, and the stale-tape bug would
+    return with every test still green.
+    """
+    from api import flow_proxy
+    assert "x-flow-version" not in flow_proxy._HOP
