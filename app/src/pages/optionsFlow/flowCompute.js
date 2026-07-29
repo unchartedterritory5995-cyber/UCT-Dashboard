@@ -855,10 +855,12 @@ export function processFlowData(rows, erSoonSet) {
       if (cp === "C") {
         if (side === "AA" || side === "A") direction = "BULL";
         else if (side === "BB" && isSWP) direction = "BEAR"; // BB sweep call = selling calls = bearish
+        else if (!side && isSWP) direction = "BULL"; // blank-side SWEEP → presume ASK (matches Live Flow's sweep_empty_side_as_ask): sweeps cross the spread, ~85% buyer-initiated
         // B Call / BB Block Call = ambiguous/repositioning, no direction
       } else {
         if (side === "AA" || side === "A") direction = "BEAR";
         else if (side === "BB" && isSWP) direction = "BULL"; // BB sweep put = selling puts = bullish
+        else if (!side && isSWP) direction = "BEAR"; // blank-side SWEEP → presume ASK (buying puts = bearish)
         // B Put / BB Block Put = ambiguous/repositioning, no direction
       }
       // Lottery ticket filter: way OTM + short DTE = noise, not conviction

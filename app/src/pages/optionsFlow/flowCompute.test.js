@@ -78,6 +78,33 @@ describe('processFlowData — golden shape', () => {
   })
 })
 
+describe('blank-side sweep rescue (2026-07-28) — direction matches Live Flow', () => {
+  // Live Flow presumes ASK for blank-side SWEEPs (sweep_empty_side_as_ask); the
+  // Options Flow page must read the same direction. Before this, blank-side
+  // sweeps went neutral here → 74% of MU's call sweeps read non-directional.
+  const HDR = 'CreatedDate,CreatedTime,Symbol,Type,Volume,Price,Side,CallPut,Strike,Spot,Premium,ExpirationDate,Color,ImpliedVolatility,Dte,ER,StockEtf,Sector,Uoa,Weekly,MktCap,OI'
+  // Side column is EMPTY (blank), MAGENTA, big premium, vol>>OI, near-ATM mega-cap.
+  const row = (cp, ty, t, k) => `7/28/2026,${t},MU,${ty},2000,25,,${cp},${k},825,5000000,7/31/2026,MAGENTA,0.7,3,F,STOCK,Information Technology,F,F,500000000000,5`
+  const build = (rows) => processFlowData(parseCSV(HDR + '\n' + rows.join('\n')), null)
+
+  it('blank-side CALL sweeps read BULL (were neutral before)', () => {
+    const D = build([row('CALL', 'SWEEP', '10:00:00 AM', 826), row('CALL', 'SWEEP', '10:00:05 AM', 826), row('CALL', 'SWEEP', '10:00:10 AM', 826)])
+    const c = D.clean_confirmed.find(t => t.CP === 'C')
+    expect(c && c.D).toBe('BULL')
+  })
+
+  it('blank-side PUT sweeps read BEAR', () => {
+    const D = build([row('PUT', 'SWEEP', '10:00:00 AM', 824), row('PUT', 'SWEEP', '10:00:05 AM', 824), row('PUT', 'SWEEP', '10:00:10 AM', 824)])
+    const c = D.clean_confirmed.find(t => t.CP === 'P')
+    expect(c && c.D).toBe('BEAR')
+  })
+
+  it('blank-side BLOCK is NOT rescued (only sweeps cross the spread)', () => {
+    const D = build([row('CALL', 'BLOCK', '10:00:00 AM', 826), row('CALL', 'BLOCK', '10:00:05 AM', 826), row('CALL', 'BLOCK', '10:00:10 AM', 826)])
+    expect(D.clean_confirmed.find(t => t.CP === 'C' && t.D === 'BULL')).toBeFalsy()
+  })
+})
+
 describe('erSoonSet is display-only', () => {
   // The ER set is now cached for the session and therefore reaches the FIRST
   // aggregation, where before it often arrived late. That is only safe if it
