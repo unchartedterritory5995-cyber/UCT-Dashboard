@@ -1636,6 +1636,13 @@ export default function StockChart({
   const userViewMovedRef = useRef(false)
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
+  // Is the user's pointer physically over THIS chart? The ONLY trustworthy
+  // "am I the hovered chart" signal. LWC's crosshair subscription is not: an
+  // externally-applied crosshair (setCrosshairPosition, multi-chart sync) fires
+  // the same event shape as a real hover, so deriving hover from it made a
+  // synced chart declare itself hovered and then refuse every further sync
+  // update — the "other widget's crosshair freezes" bug.
+  const pointerOverRef = useRef(false)
   const focusRafRef = useRef(null)        // in-flight focus-zoom animation frame id
   const focusActiveRef = useRef(false)    // true while a setup-focus zoom owns the view (suppresses the year-range pin)
   const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
@@ -1718,6 +1725,11 @@ export default function StockChart({
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
   const legendHoveringRef = useRef(false)
+  // True while a SYNCED (external) crosshair is applied to this chart. The
+  // always-show-legend refreshers below must stand down for it exactly as they
+  // do for a local hover — otherwise they'd overwrite the synced bar's readout
+  // with the latest bar's several times a second.
+  const externalCrosshairAppliedRef = useRef(false)
   // Fastest available developing-bar close, written imperatively (NO re-render)
   // from the Massive bars WS — the SAME reliable feed the theme tracker + header
   // gain use. computeLatestCrosshair prefers this so the legend's price / change
@@ -7286,7 +7298,14 @@ export default function StockChart({
         volAvg = dm?.value ?? ((vma && vma.length) ? vma[vma.length - 1].value : null)
       }
 
-      legendHoveringRef.current = true
+      // ONLY a real local hover latches this. setCrosshairPosition (multi-chart
+      // sync) fires an identical-looking event, and latching on that made the
+      // synced chart think it was being hovered — after which its own
+      // "don't override the local user" guard blocked every further sync update
+      // and its crosshair froze one frame in. (applyingExternalRef can't cover
+      // this: it's cleared on rAF, a frame before this flush runs.) The legend
+      // still fills in below either way, so a synced chart shows the values.
+      if (pointerOverRef.current) legendHoveringRef.current = true
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -7375,7 +7394,7 @@ export default function StockChart({
   // Keep the off-chart legend fresh with the latest bar when the cursor isn't hovering.
   useEffect(() => {
     if (!alwaysShowLegend || !chartReady) return
-    if (legendHoveringRef.current) return
+    if (legendHoveringRef.current || externalCrosshairAppliedRef.current) return
     setCrosshairData(computeLatestCrosshair())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alwaysShowLegend, chartReady, ohlcData, overlayData])
@@ -7439,7 +7458,8 @@ export default function StockChart({
   useEffect(() => {
     if (!alwaysShowLegend || !chartReady) return undefined
     const id = setInterval(() => {
-      if (legendHoveringRef.current) return   // hover owns the legend — don't fight it
+      // Hover — or a synced crosshair — owns the legend; don't fight it.
+      if (legendHoveringRef.current || externalCrosshairAppliedRef.current) return
       // crosshairData lives on StockChart, so setting it re-renders this whole
       // (heavy) component. The old code set a FRESH object every 250ms
       // unconditionally → ~4 full re-renders/sec per chart, forever. With several
@@ -7537,9 +7557,12 @@ export default function StockChart({
   // No-op when externalCrosshair is null. Uses Lightweight Charts v5's
   // setCrosshairPosition / clearCrosshairPosition API. Wrapped in try/catch
   // so charts on older LWC versions silently skip rather than crash.
-  // Critical: this API does NOT trigger `param.point` on the subscribed
-  // crosshair handler, so the local-report effect above won't re-fire and
-  // create an infinite loop.
+  // ⚠️ This API DOES fire the subscribed crosshair handler with an event that
+  // looks exactly like a real hover (the old comment here claimed it doesn't,
+  // and that assumption is what froze synced crosshairs). Two guards keep it
+  // from feeding back: applyingExternalRef suppresses re-broadcasting the
+  // clear-echo, and the hover latch keys off pointerOverRef (real pointer
+  // presence) rather than the event.
   useEffect(() => {
     if (!chartRef.current || !candleSeriesRef.current) return
     // Never let the multi-chart sync override the LOCAL user's crosshair while
@@ -7548,11 +7571,15 @@ export default function StockChart({
     // broadcast snapped the hovered chart's crosshair to the current bar/price
     // the moment the mouse stopped moving.) When not hovering, the sync applies
     // normally so you still see the other chart's crosshair.
-    if (legendHoveringRef.current) return
+    // Keyed on REAL pointer presence, not legendHoveringRef: applying a synced
+    // crosshair fires an LWC event indistinguishable from a hover, so the old
+    // flag latched here and froze this chart's crosshair permanently.
+    if (pointerOverRef.current) return
     // Suppress clear-echo: applying a crosshair fires a point-less crosshair
     // event that must not be re-broadcast as a "mouse left" clear.
     applyingExternalRef.current = true
     if (!externalCrosshair?.time) {
+      externalCrosshairAppliedRef.current = false
       try { chartRef.current.clearCrosshairPosition() } catch {}
     } else {
       try {
@@ -7579,11 +7606,13 @@ export default function StockChart({
           // That day isn't loaded on this chart (e.g. the intraday window doesn't
           // reach back to the hovered daily bar) — clear rather than park the
           // crosshair on an unrelated bar.
+          externalCrosshairAppliedRef.current = false
           chartRef.current.clearCrosshairPosition()
         } else {
+          externalCrosshairAppliedRef.current = true
           chartRef.current.setCrosshairPosition(priceVal, snapTime, candleSeriesRef.current)
         }
-      } catch {}
+      } catch { externalCrosshairAppliedRef.current = false }
     }
     const raf = requestAnimationFrame(() => { applyingExternalRef.current = false })
     return () => cancelAnimationFrame(raf)
@@ -7977,14 +8006,26 @@ export default function StockChart({
     }
     const onUp = () => { viewPointerRef.current = null }
     const onWheel = () => { userViewMovedRef.current = true }
+    // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
+    // so they fire exactly for THIS container.
+    const onEnter = () => {
+      pointerOverRef.current = true
+      // The local user takes the crosshair back; any synced one is superseded.
+      externalCrosshairAppliedRef.current = false
+    }
+    const onLeave = () => { pointerOverRef.current = false }
     el.addEventListener('pointerdown', onDown, true)
     el.addEventListener('wheel', onWheel, { passive: true, capture: true })
+    el.addEventListener('mouseenter', onEnter)
+    el.addEventListener('mouseleave', onLeave)
     window.addEventListener('pointermove', onMove, true)
     window.addEventListener('pointerup', onUp, true)
     window.addEventListener('pointercancel', onUp, true)
     return () => {
       el.removeEventListener('pointerdown', onDown, true)
       el.removeEventListener('wheel', onWheel, true)
+      el.removeEventListener('mouseenter', onEnter)
+      el.removeEventListener('mouseleave', onLeave)
       window.removeEventListener('pointermove', onMove, true)
       window.removeEventListener('pointerup', onUp, true)
       window.removeEventListener('pointercancel', onUp, true)
