@@ -92,10 +92,14 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     return () => clearTimeout(t)
   }, [flagToast])
 
-  // ── Crosshair sync within the color group ──
-  // Stable per-widget id so we ignore our own broadcasts. Charts sharing a
-  // color group mirror each other's crosshair (same symbol; exact when the
-  // timeframes match, nearest-time when they differ).
+  // ── Crosshair sync across EVERY chart widget ──
+  // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
+  // scoped by color group or symbol (owner request 2026-07-29): two charts need
+  // no link at all to mirror each other's crosshair. The vertical line maps by
+  // ET calendar day so it works across timeframes, and the horizontal one tracks
+  // the source cursor's price level (see chart/crosshairSync.js). The bus still
+  // carries the emitter's color — kept for any future opt-in scoping — it just
+  // isn't filtered on. Matches the multi-chart grid, which was already global.
   const widgetIdRef = useRef(null)
   if (!widgetIdRef.current) widgetIdRef.current = `w${Math.random().toString(36).slice(2, 9)}`
   const [externalCrosshair, setExternalCrosshair] = useState(null)
@@ -106,10 +110,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
 
   useEffect(() => {
     if (!crosshairBus) return undefined
-    return crosshairBus.subscribe(({ color: c, sourceId, payload }) => {
-      if (c === activeColor && sourceId !== widgetIdRef.current) setExternalCrosshair(payload)
+    return crosshairBus.subscribe(({ sourceId, payload }) => {
+      if (sourceId !== widgetIdRef.current) setExternalCrosshair(payload)
     })
-  }, [crosshairBus, activeColor])
+  }, [crosshairBus])
   // Drop any stale external crosshair when this widget's own symbol changes.
   useEffect(() => { setExternalCrosshair(null) }, [sym])
 
