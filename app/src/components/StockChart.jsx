@@ -230,14 +230,6 @@ function formatLegendTime(time) {
   return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
-// Timeframe code → the short label shown in the flat legend's title line
-// ("HPE • Hewlett Packard Enterprise Company • W"). Unknown/custom codes fall
-// through to the raw code, which is already display-shaped (e.g. '45', '3D').
-const TF_LEGEND_LABEL = {
-  '1': '1m', '5': '5m', '15': '15m', '30': '30m', '60': '1h',
-  D: 'D', W: 'W', M: 'M',
-}
-
 // ─── Time-axis formatting ───────────────────────────────────────────────────
 // Intraday bar times are pre-shifted to ET (adjustTime adds _ET_OFFSET), so we
 // read the UTC parts of the shifted value to get ET wall-clock. Daily+ times are
@@ -1509,9 +1501,6 @@ export default function StockChart({
   //   horizontal → a flat, box-less two-line strip (.legendFlat)
   const legendFlat = verticalLegend && cs.header?.legendLayout === 'horizontal'
   const legendStacked = verticalLegend && !legendFlat
-  // Company name for the flat legend's title line. Same source the watermark uses,
-  // so a Model Book-curated name wins over the (possibly wrong) live lookup.
-  const legendCompany = watermarkMeta?.name || tickerMeta?.name || null
 
   useWatermarkDrag({
     containerRef,
@@ -1720,6 +1709,9 @@ export default function StockChart({
   // filter — or the current ext session leaks onto an RTH-only chart.
   const showExtendedRef = useRef(showExtended)
   showExtendedRef.current = showExtended
+  // Latest "is it pre/post market right now (ET clock)", same latest-ref reason.
+  // Assigned next to _inExtWindow's derivation further down.
+  const inExtWindowRef = useRef(false)
 
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
@@ -2910,6 +2902,7 @@ export default function StockChart({
   const _isDWM = ['D', 'W', 'M'].includes(resolvedTf)
   const _sessionActive = sessionView != null && _isDWM
   const _inExtWindow = marketSession === 'pre' || marketSession === 'post'
+  inExtWindowRef.current = _inExtWindow
   const _sessionLive = sym ? livePrices?.[sym] : null
   // Live extended-hours print (null until the feed flags a real pre/post trade).
   const sessionExtPrice = (_sessionLive && _sessionLive.ext_session
@@ -4065,6 +4058,22 @@ export default function StockChart({
     // >50% deviation from the last painted bar OR the poison-proof clean
     // server close. Mirror of the WS-bar path so they cannot diverge.
     if (!isSaneLivePrice(_p, lastBarRef.current?.close, lastServerCloseRef.current)) return
+    // ── GHOST-WICK GUARD (intraday, pre/post window) ──
+    // It IS pre/post market by the ET clock, yet this snapshot carries no
+    // extended session. That never means "the extended session ended" — it's a
+    // poll where Massive returned an empty `lastTrade`, so the server's `price`
+    // fell through to day.c / prevDay.c: the RTH or PRIOR close. isSaneLivePrice
+    // can't catch it (a prior close is well within 50% of the live price), and
+    // folding it into the developing pre-market candle is the reported bug — a
+    // wick shooting down to the SAME price every few seconds with the axis tag
+    // snapping to it, then both reverting on the next good poll. Dropped BEFORE
+    // latestLiveRef so the post-setData re-top (writer D) can't repaint it from
+    // there either. Bailing costs nothing: the next poll is ~2s away, and a
+    // ticker with no extended print genuinely hasn't traded, so its bar
+    // shouldn't move. (live_prices.py::_EXT_LAST now also re-serves the last
+    // known ext print, so this should rarely fire — it's the belt to that
+    // suspenders, and it holds if a future provider change reopens the hole.)
+    if (!['D', 'W', 'M'].includes(resolvedTf) && inExtWindowRef.current && !liveData.ext_session) return
     // day_high / day_low can also arrive zero or stale during the first ticks
     // after market open. Treat 0 / negative / non-finite as "not provided" so
     // the bar's H/L don't snap to 0.
@@ -8981,13 +8990,8 @@ export default function StockChart({
         >
           {legendFlat ? (
             <>
-              {/* Title line — ticker · company · timeframe, above the value strip. */}
-              <div className={styles.flHead}>
-                <span className={styles.flSym} style={legBase}>{(watermark || sym || '').toUpperCase()}</span>
-                {legendCompany && (<><span className={styles.flDot}>•</span><span className={styles.flCompany} style={legBase}>{legendCompany}</span></>)}
-                <span className={styles.flDot}>•</span>
-                <span className={styles.flTf} style={legBase}>{TF_LEGEND_LABEL[resolvedTf] || resolvedTf}</span>
-              </div>
+              {/* Values only — the ticker/company/timeframe live in the widget
+                  header already, so the strip sits where that title line was. */}
               <div className={styles.flRow}>
                 <span className={styles.legendTime} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
                 <span className={styles.legendLabel} style={legBase}>O <span className={styles.legendVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>

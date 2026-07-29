@@ -170,6 +170,20 @@ _EXVOL_WARM_LOCK = threading.Lock()
 # is never served today. Bounded by the watched-ticker universe; fine unpruned.
 _EXVOL_LAST: dict[str, tuple[int, int]] = {}
 
+# Last-known EXTENDED-hours print per ticker, {tk: (yyyymmdd, session, price)}.
+# Massive's snapshot intermittently comes back with an EMPTY `lastTrade` for a
+# thin pre/post name. Without this memo that poll shipped `ext_price: None` +
+# `ext_session: None` and a `price` that falls through to day.c / prevDay.c —
+# i.e. the RTH or PRIOR close. The chart's tick writer then folded that stale
+# close into the developing pre-market candle: a wick shooting down to the SAME
+# price every few seconds, the right-axis tag snapping to it, then both
+# reverting on the next good poll ("ghost wicks"). Re-serving the last known
+# ext print keeps the extended session continuously flagged, so a momentary
+# hole in the feed can never look like "we're back in regular hours at
+# yesterday's close". Date+session-stamped so a stale print never leaks into
+# the next session; bounded by the watched universe, fine unpruned.
+_EXT_LAST: dict[str, tuple[int, str, float]] = {}
+
 
 def _today_yyyymmdd() -> int:
     return int(datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d"))
@@ -355,6 +369,19 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             if lt_price and float(lt_price) > 0:
                 ext_price = round(float(lt_price), 2)
                 ext_session = session
+                _EXT_LAST[ticker] = (_today, session, ext_price)
+            else:
+                # Empty lastTrade on THIS poll only — see _EXT_LAST. Re-serve the
+                # last print from this same session so the ticker never reads as
+                # "no extended session" (which sends the chart back to the stale
+                # regular/prior close for one tick = the ghost wick).
+                prior = _EXT_LAST.get(ticker)
+                if prior is not None and prior[0] == _today and prior[1] == session:
+                    ext_session, ext_price = prior[1], prior[2]
+            # NOTE: `price` deliberately stays the frozen RTH/prior close in
+            # extended hours (see the price derivation above) — the locked-close
+            # axis tag and the Regular-Hours view depend on it. Consumers that
+            # want the live pre/post number read ext_price, gated on ext_session.
 
         # Extended hours: swap in the chart-matching aggregate total. day.v is 0
         # pre-market and RTH-only post-market, and min.av over-counts, so pre/post

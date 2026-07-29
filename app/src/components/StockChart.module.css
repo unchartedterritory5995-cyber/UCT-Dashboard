@@ -301,11 +301,11 @@
   white-space: nowrap;
 }
 
-/* Charts workspace, "Horizontal" legend layout — a flat two-line strip that sits
-   ON the canvas with NO background box: a title line (ticker · company · TF) over
-   a single wrapping row of values. Deliberately overrides the shared .legend box
-   (background/padding/radius) rather than forking it, so every color/position
-   rule the two layouts share keeps applying. */
+/* Charts workspace, "Horizontal" legend layout — a flat strip that sits ON the
+   canvas with NO background box: one wrapping row of values, no ticker/company/
+   timeframe title (the widget header already carries those). Deliberately
+   overrides the shared .legend box (background/padding/radius) rather than
+   forking it, so every color/position rule the two layouts share keeps applying. */
 .legendFlat {
   display: flex;
   flex-direction: column;
@@ -325,21 +325,6 @@
   box-shadow: none;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
 }
-.flHead {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  white-space: nowrap;
-  font-size: 11.5px;
-}
-.flSym { color: #e7e2d4; font-weight: 700; letter-spacing: 0.4px; }
-.flCompany { color: #d4cfc0; font-weight: 600; }
-.flTf { color: #d4cfc0; font-weight: 700; }
-.flDot { color: #7d786c; }
-:global([data-charts-theme='sunrise']) .flSym { color: #101b26; }
-:global([data-charts-theme='sunrise']) .flCompany,
-:global([data-charts-theme='sunrise']) .flTf { color: #1c2836; }
-:global([data-charts-theme='sunrise']) .flDot { color: #7a8592; }
 /* The value strip. Wraps only when it genuinely runs out of chart width. */
 .flRow {
   display: flex;
