@@ -17,6 +17,7 @@ import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
+import { etDayOf, snapSyncedBar } from './chart/crosshairSync'
 import useMarketOpen from '../hooks/useMarketOpen'
 import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
@@ -7310,8 +7311,21 @@ export default function StockChart({
       // can't self-fire in a loop when the parent sync context dispatches an
       // external crosshair back to this same chart.
       if (typeof onCrosshairMove === 'function' && param.time) {
+        // The CURSOR's price level, not the bar's close: linked charts must put
+        // their horizontal line on the same dollar value (hover $1300 on the
+        // daily → $1300 on the 30m), which the bar-close snap could never do.
+        let cursorPrice = null
+        try {
+          if (candleSeriesRef.current && param.point) {
+            cursorPrice = candleSeriesRef.current.coordinateToPrice(param.point.y)
+          }
+        } catch { /* older LWC / series mid-swap */ }
         onCrosshairMove({
           time: param.time,
+          // Normalized so a receiver on ANY timeframe can map it (see _etDayOf).
+          day: etDayOf(param.time),
+          t: typeof param.time === 'number' ? param.time : null,
+          cursorPrice: Number.isFinite(cursorPrice) ? cursorPrice : null,
           price: candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null,
         })
       }
@@ -7542,36 +7556,33 @@ export default function StockChart({
       try { chartRef.current.clearCrosshairPosition() } catch {}
     } else {
       try {
-        // Snap the incoming crosshair time to THIS chart's nearest bar so linked
-        // widgets on DIFFERENT timeframes sync correctly: hovering an intraday bar
-        // for a given day moves the daily chart's crosshair to that day's daily
-        // candle (and vice-versa). For same-TF the nearest bar IS the exact bar,
-        // so behavior is unchanged. Times are compared in the adjusted (ET) space
-        // both charts render in. Bars are time-sorted → binary search for nearest.
+        // VERTICAL: map the incoming bar to THIS chart's own series, across
+        // timeframes (see _etDayOf / _snapSyncedBar). Hovering a 30m bar moves
+        // the daily chart to that DAY's candle; hovering a daily candle moves the
+        // 30m chart to that day. Same-TF still lands on the exact bar.
         const T = externalCrosshair.time
-        let snapTime = T
-        let priceVal =
-          externalCrosshair.price?.close ??
-          externalCrosshair.price?.value ??
-          (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0)
-        const cbars = prevBarsRef.current
-        if (cbars && cbars.length && typeof T === 'number') {
-          let lo = 0, hi = cbars.length - 1
-          while (hi - lo > 1) {
-            const mid = (lo + hi) >> 1
-            if (adjustTime(cbars[mid].t) < T) lo = mid; else hi = mid
-          }
-          const bLo = cbars[lo], bHi = cbars[hi]
-          const nearest =
-            Math.abs(adjustTime(bLo.t) - T) <= Math.abs(adjustTime(bHi.t) - T) ? bLo : bHi
-          snapTime = adjustTime(nearest.t)
-          if (typeof nearest.c === 'number') priceVal = nearest.c
+        const day = externalCrosshair.day ?? etDayOf(T)
+        const tNum = Number.isFinite(externalCrosshair.t)
+          ? externalCrosshair.t
+          : (typeof T === 'number' ? T : null)
+        // HORIZONTAL: the source cursor's own price level, verbatim, so both
+        // charts read the SAME dollar value regardless of timeframe. (It used to
+        // snap to the local bar's close, which meant the two lines never agreed.)
+        // Older payloads without cursorPrice fall back to the bar data.
+        const priceVal = Number.isFinite(externalCrosshair.cursorPrice)
+          ? externalCrosshair.cursorPrice
+          : (externalCrosshair.price?.close ??
+             externalCrosshair.price?.value ??
+             (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0))
+        const snapTime = snapSyncedBar(prevBarsRef.current, adjustTime, day, tNum)
+        if (snapTime == null) {
+          // That day isn't loaded on this chart (e.g. the intraday window doesn't
+          // reach back to the hovered daily bar) — clear rather than park the
+          // crosshair on an unrelated bar.
+          chartRef.current.clearCrosshairPosition()
+        } else {
+          chartRef.current.setCrosshairPosition(priceVal, snapTime, candleSeriesRef.current)
         }
-        chartRef.current.setCrosshairPosition(
-          priceVal,
-          snapTime,
-          candleSeriesRef.current,
-        )
       } catch {}
     }
     const raf = requestAnimationFrame(() => { applyingExternalRef.current = false })
