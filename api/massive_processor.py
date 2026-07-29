@@ -86,13 +86,20 @@ INDEX_SYMBOLS = frozenset({
 # Trades on clean contracts (~$700M/day of real flow). The contaminated-
 # contract pattern (231 on a contract that ALSO has 202/204) is handled
 # at EOD via apply_cancel_patches.py, where we know the full day's prints.
+# 2026-07-28: verified against /v3/reference/conditions (options/trade). Codes
+# 201-207 ALL have update_rules.consolidated.updates_volume == False (the
+# cancel/late/out-of-sequence family) — added the missing 206. Code 208
+# ("Opening Trade and Late") is updates_volume == True → a real volume-updating
+# trade, correctly NOT dropped. Long-term (§4): derive this set from
+# updates_volume == False instead of maintaining it by hand.
 CANCEL_CONDITIONS = frozenset({
-    201,  # CANC -- Canceled
-    202,  # LATE -- Late report (inferred name; filter rationale: 6/26 data)
-    203,  # CNCL -- Last and Canceled
-    204,  # LCAN -- Late Cancel (inferred name; filter rationale: 6/26 data)
-    205,  # CNCO -- Opening Trade and Canceled
-    207,  # CNOL -- Only Trade and Canceled
+    201,  # Canceled
+    202,  # Late and Out Of Sequence
+    203,  # Last and Canceled
+    204,  # Late
+    205,  # Opening Trade and Canceled
+    206,  # Opening Trade, Late, and Out Of Sequence  (added 2026-07-28 — the §4 gap)
+    207,  # Only Trade and Canceled
 })
 
 # Multi-leg / spread / combo prints. Any of these on a print means the burst
