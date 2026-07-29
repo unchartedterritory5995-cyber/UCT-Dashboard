@@ -301,6 +301,13 @@ DEFAULT_THRESHOLDS = {
     # underlying inside the window = a spread, not N directional bets.
     "multileg_window_sec": 90.0,
     "multileg_min_legs": 3,
+    # Dominant-sweep exemption (2026-07-28): a single directional SWEEP whose
+    # premium is >= this fraction of the cluster's total is a directional bet
+    # riding alongside noise legs, not a spread — keep its Bull/Bear label.
+    # Mirrors massive_processor's size-weighted ML gate. 0 disables the exemption
+    # (restores the pre-2026-07-28 "demote every leg" behavior). Fixes MU 835C
+    # 7/28: a $5.17M ask sweep nulled because 10+ MU strikes printed in 90s.
+    "multileg_dominant_premium_frac": 0.6,
     # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
     # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
     # and the row would be dropped. If premium clears this floor, KEEP it as a
@@ -547,18 +554,35 @@ def _qualifies_curated(alert: dict, thresholds: dict,
         else:
             return False
 
+    # ── #3 OI-unknown premium-override exemption (2026-07-28) ─────────
+    # When OI is UNKNOWN (priorOI/volumeOIRatio null), V/OI is not LOW — it's
+    # uncomputable. premium_override already rescues these big OI-unknown
+    # sweeps/blocks into the tape (WHITE→MAGENTA); carry that intent into the
+    # curated V/OI checks below so they aren't re-dropped on a V/OI they can't
+    # have. (AMAT 452.5C 7/28: $2.34M ask sweep, OI unknown, was curated-filtered
+    # despite the override being enabled.) Distinct from a real LOW V/OI drop.
+    _ov = thresholds.get("premium_override", {}) or {}
+    _oi_unknown = (alert.get("priorOI") is None and alert.get("volumeOIRatio") is None)
+    _ovt = (alert.get("_type") or "").upper()
+    _oi_unknown_override = (
+        _ov.get("enabled", True) and _oi_unknown
+        and prem >= _ov.get("min_premium", 1_000_000)
+        and (not _ov.get("require_sweep_or_block", True)
+             or "SWEEP" in _ovt or "BLOCK" in _ovt or _ovt in ("BLK", "BL", "BT")))
+
     # ─── Optional HARD gate: V/OI (7/7) ───────────────────────────────
     # When admin panel has "V/OI required" ticked, V/OI < stack.vOI is a
     # short-circuit fail regardless of grade/hit_count confirmers. Lets
     # the panel enforce Ravi's stated priority of volume>OI without
     # changing the underlying 1-of-3 confirmer semantics.
-    if stack.get("voi_required", False) and v_oi < stack.get("vOI", 3.0):
+    if (stack.get("voi_required", False) and v_oi < stack.get("vOI", 3.0)
+            and not _oi_unknown_override):
         return False
 
     # ─── Count quality signals (V/OI, hits, grade) ────────────────────
     quality_signals = 0
-    if v_oi >= stack.get("vOI", 3.0):
-        quality_signals += 1
+    if v_oi >= stack.get("vOI", 3.0) or _oi_unknown_override:
+        quality_signals += 1   # OI-unknown override counts as V/OI-met (see #3 above)
     if hit_count >= stack.get("hit_count", 3):
         quality_signals += 1
     min_grade_n = _GRADE_NUMERIC.get(stack.get("grade", "B"), 2)
@@ -3981,8 +4005,9 @@ def _demote_multileg_structures(alerts: list) -> None:
         _t = _load_thresholds()
         window = float(_t.get("multileg_window_sec", 90.0) or 0)
         min_legs = int(_t.get("multileg_min_legs", 3) or 0)
+        dom_frac = float(_t.get("multileg_dominant_premium_frac", 0.6) or 0)
     except Exception:
-        window, min_legs = 90.0, 3
+        window, min_legs, dom_frac = 90.0, 3, 0.6
     if window <= 0 or min_legs <= 1 or not alerts:
         return
 
@@ -4012,8 +4037,16 @@ def _demote_multileg_structures(alerts: list) -> None:
             # Distinct CONTRACTS is the test, not print count — 5 fills on one
             # strike is accumulation (a real signal), not a spread.
             if len(contracts) >= min_legs:
+                # Dominant-sweep exemption: a single directional SWEEP whose
+                # premium is >= dom_frac of the cluster total is a directional bet
+                # riding alongside noise legs (MU 835C $5.17M among 10+ MU strikes),
+                # not a balanced spread leg — keep its Bull/Bear label.
+                cluster_prem = sum(float(c[1].get("alertPremium") or 0) for c in cluster) or 1.0
                 for _ts, a in cluster:
                     if (a.get("_direction") or "").strip() in ("Bull", "Bear"):
+                        if (dom_frac > 0 and "SWEEP" in (a.get("_type") or "").upper()
+                                and float(a.get("alertPremium") or 0) >= dom_frac * cluster_prem):
+                            continue  # dominant directional sweep — not a spread leg
                         a["_direction"] = None
                         a["_directionUnconfirmed"] = True
                         a["_multileg"] = True
@@ -4370,6 +4403,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "deep_otm_pct_sweep",        # deep-OTM cutoff for SWEEP type
         "multileg_window_sec",       # cluster window for structure detection
         "multileg_min_legs",         # distinct contracts that make it a structure
+        "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
