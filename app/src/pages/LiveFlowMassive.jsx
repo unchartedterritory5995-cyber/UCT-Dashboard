@@ -2184,6 +2184,12 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               onChange={e => setPath(["hide_sizeless"], e.target.checked)} />
             <span>Hide neutral “Not Clean” rows</span>
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
+            <input type="checkbox"
+              checked={thresholds.hide_block_only ?? false}
+              onChange={e => setPath(["hide_block_only"], e.target.checked)} />
+            <span>Hide block-only (require sweep)</span>
+          </label>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>

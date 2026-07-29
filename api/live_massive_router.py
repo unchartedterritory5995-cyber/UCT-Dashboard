@@ -470,7 +470,8 @@ def _cap_band_key(mkt_cap, cap_bands: dict) -> str:
 
 
 def _qualifies_curated(alert: dict, thresholds: dict,
-                       contract_totals: dict | None = None) -> bool:
+                       contract_totals: dict | None = None,
+                       contract_types: dict | None = None) -> bool:
     """Apply Curated-mode filter to a single alert.
     Returns True if the alert should be visible in Curated mode.
 
@@ -504,6 +505,18 @@ def _qualifies_curated(alert: dict, thresholds: dict,
         or "not clean" in (alert.get("alertName") or "").lower()
     ):
         return False
+
+    # Optional (2026-07-29): hide BLOCK-only alerts. A block on a contract that
+    # ALSO traded a sweep is a real signal (block+sweep); a block with no sweep on
+    # the strike is low-conviction and floods the feed. Sweeps and block+sweep
+    # contracts are unaffected. Toggle `hide_block_only`. Needs contract_types
+    # (per-contract sweep/block map) — no-ops if the caller didn't pass it.
+    if thresholds.get("hide_block_only") and contract_types is not None:
+        if "BLOCK" in (alert.get("_type") or "").upper():
+            _bk = (f"{alert.get('ticker','')}|{alert.get('cp','')}|"
+                   f"{alert.get('strike','')}|{alert.get('exp','')}")
+            if not contract_types.get(_bk, {}).get("sweep"):
+                return False
 
     prem = alert.get("alertPremium") or 0
     v_oi = alert.get("volumeOIRatio") or 0
@@ -2245,13 +2258,24 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
         # premium fails the tier floor can be rescued when the contract's
         # aggregated total clears it. Fixes NFLX-shape aggregation splitting.
         contract_totals: dict[str, float] = {}
+        # Per-contract sweep/block presence, for the `hide_block_only` gate — a
+        # block on a strike that ALSO traded a sweep is block+sweep (kept); a
+        # block with no sweep on the strike is block-only (hidden when toggled).
+        contract_types: dict[str, dict] = {}
         for a in all_alerts:
             k = (f"{a.get('ticker','')}|{a.get('cp','')}|"
                  f"{a.get('strike','')}|{a.get('exp','')}")
             contract_totals[k] = contract_totals.get(k, 0) + (a.get("alertPremium") or 0)
+            _at = (a.get("_type") or "").upper()
+            _ct = contract_types.setdefault(k, {"sweep": False, "block": False})
+            if "SWEEP" in _at:
+                _ct["sweep"] = True
+            if "BLOCK" in _at:
+                _ct["block"] = True
         kept = []
         for a in all_alerts:
-            if _qualifies_curated(a, thresholds, contract_totals=contract_totals):
+            if _qualifies_curated(a, thresholds, contract_totals=contract_totals,
+                                  contract_types=contract_types):
                 kept.append(a)
             else:
                 skipped_curated += 1
@@ -4396,6 +4420,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "heavy_block_premium",       # $10M+ BLOCK => drop direction, show as neutral hedge Size
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated
+        "hide_block_only",           # hide BLOCK-only alerts (keep block+sweep contracts)
         "spotless_itm_guard",        # fail closed on deep-ITM when spot is missing
         "sold_requires_opening",     # at-bid direction requires vol > OI (opening)
         "sold_min_vol_oi",           # the V/OI multiple that counts as opening
