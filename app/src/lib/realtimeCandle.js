@@ -42,6 +42,24 @@ export function getCandle(sym, tf) {
   return _state.get(String(sym).toUpperCase())?.[tf] || null;
 }
 
+/**
+ * Apply a live tick to the developing 1-minute candle.
+ *
+ * ⚠️ `vol` is the bar's volume SO FAR (cumulative), NOT a per-trade delta.
+ * The server builds it that way — api/services/realtime_candle.py does
+ * `cur["v"] += size` per trade — and api/routers/stream.py emits that running
+ * total verbatim as the tick's `vol`. This used to ADD it to the previous
+ * value, so every tick inside a minute re-added the whole running total:
+ *
+ *     tick 1  cum 1,000  ->  v = 1,000        correct
+ *     tick 2  cum 2,500  ->  v = 3,500        wrong
+ *     tick 3  cum 4,000  ->  v = 7,500        wrong  ...compounding
+ *
+ * On a busy name that reached tens of millions inside one bar — the phantom
+ * volume spike on the current/most-recent candle, which vanished as soon as
+ * authoritative bar data replaced it. Take the cumulative value as-is;
+ * Math.max keeps the bar monotonic if a tick ever arrives out of order.
+ */
 export function applyTick(sym, price, vol, ts) {
   if (price == null || ts == null) return;
   sym = String(sym).toUpperCase();
@@ -56,7 +74,7 @@ export function applyTick(sym, price, vol, ts) {
       c: price,
       h: Math.max(prev.h, price),
       l: Math.min(prev.l, price),
-      v: (prev.v || 0) + (vol || 0),
+      v: Math.max(prev.v || 0, vol || 0),
     };
   }
   _state.set(sym, symState);

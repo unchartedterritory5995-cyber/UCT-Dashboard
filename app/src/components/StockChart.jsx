@@ -913,6 +913,7 @@ export default function StockChart({
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
   onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
+  subscribeCrosshair = null, // optional (cb) => unsubscribe — IMPERATIVE sync channel. Preferred over externalCrosshair: the parent hands crosshair payloads straight to this chart with no React state in between, so a linked crosshair glides instead of stepping once per re-render.
   externalTimeRange = null, // {from, to} | null — apply external time range from sync context
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
@@ -1730,6 +1731,10 @@ export default function StockChart({
   // do for a local hover — otherwise they'd overwrite the synced bar's readout
   // with the latest bar's several times a second.
   const externalCrosshairAppliedRef = useRef(false)
+  // In-flight rAF that releases applyingExternalRef. Held in a ref (not an
+  // effect-scoped local) because the applier now runs off the sync bus, outside
+  // any effect's lifetime — each apply supersedes the previous frame's release.
+  const applyingExternalRafRef = useRef(null)
   // Fastest available developing-bar close, written imperatively (NO re-render)
   // from the Massive bars WS — the SAME reliable feed the theme tracker + header
   // gain use. computeLatestCrosshair prefers this so the legend's price / change
@@ -7200,6 +7205,31 @@ export default function StockChart({
       const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
       if (!priceData) { legendHoveringRef.current = false; setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null); return }
 
+      // ── Multi-chart sync: broadcast FIRST, before the legend math ──
+      // Everything below this point computes ~20 legend values and ends in a
+      // setCrosshairData React render. Emitting after all that put the linked
+      // charts a full render behind the cursor; emitting here hands them the
+      // frame immediately (their apply is imperative — no render at all).
+      if (typeof onCrosshairMove === 'function' && param.time) {
+        // The CURSOR's price level, not the bar's close: linked charts must put
+        // their horizontal line on the same dollar value (hover $1300 on the
+        // daily → $1300 on the 30m), which a bar-close snap could never do.
+        let cursorPrice = null
+        try {
+          if (candleSeriesRef.current && param.point) {
+            cursorPrice = candleSeriesRef.current.coordinateToPrice(param.point.y)
+          }
+        } catch { /* older LWC / series mid-swap */ }
+        onCrosshairMove({
+          time: param.time,
+          // Normalized so a receiver on ANY timeframe can map it (see etDayOf).
+          day: etDayOf(param.time),
+          t: typeof param.time === 'number' ? param.time : null,
+          cursorPrice: Number.isFinite(cursorPrice) ? cursorPrice : null,
+          price: priceData,
+        })
+      }
+
       const volSeriesData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
       // If volume is 0 or missing (developing bar), use session volume from live data
       let vol = volSeriesData?.value
@@ -7323,31 +7353,8 @@ export default function StockChart({
         compare: compareValue,
       })
 
-      // ── Multi-chart sync: report crosshair to parent (Task 5) ──
-      // Guard above (`if (!param.point) return`) ensures this only fires when
-      // the user is actively hovering THIS chart with the mouse. External
-      // `setCrosshairPosition` calls don't trigger `param.point`, so this
-      // can't self-fire in a loop when the parent sync context dispatches an
-      // external crosshair back to this same chart.
-      if (typeof onCrosshairMove === 'function' && param.time) {
-        // The CURSOR's price level, not the bar's close: linked charts must put
-        // their horizontal line on the same dollar value (hover $1300 on the
-        // daily → $1300 on the 30m), which the bar-close snap could never do.
-        let cursorPrice = null
-        try {
-          if (candleSeriesRef.current && param.point) {
-            cursorPrice = candleSeriesRef.current.coordinateToPrice(param.point.y)
-          }
-        } catch { /* older LWC / series mid-swap */ }
-        onCrosshairMove({
-          time: param.time,
-          // Normalized so a receiver on ANY timeframe can map it (see _etDayOf).
-          day: etDayOf(param.time),
-          t: typeof param.time === 'number' ? param.time : null,
-          cursorPrice: Number.isFinite(cursorPrice) ? cursorPrice : null,
-          price: candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null,
-        })
-      }
+      // (The multi-chart sync broadcast moved to the TOP of this function —
+      // linked charts must not wait on the legend math above.)
     }
 
     const flush = () => {
@@ -7553,58 +7560,55 @@ export default function StockChart({
     return () => { cancelAnimationFrame(raf); applyingExternalRangeRef.current = false }
   }, [externalTimeRange])
 
-  // ── Multi-chart sync: render external crosshair from parent (Task 5 Step 5) ──
-  // No-op when externalCrosshair is null. Uses Lightweight Charts v5's
-  // setCrosshairPosition / clearCrosshairPosition API. Wrapped in try/catch
-  // so charts on older LWC versions silently skip rather than crash.
-  // ⚠️ This API DOES fire the subscribed crosshair handler with an event that
-  // looks exactly like a real hover (the old comment here claimed it doesn't,
-  // and that assumption is what froze synced crosshairs). Two guards keep it
-  // from feeding back: applyingExternalRef suppresses re-broadcasting the
-  // clear-echo, and the hover latch keys off pointerOverRef (real pointer
-  // presence) rather than the event.
-  useEffect(() => {
+  // -- Multi-chart sync: render an external crosshair on THIS chart ----------
+  // Uses Lightweight Charts v5's setCrosshairPosition / clearCrosshairPosition.
+  // Wrapped in try/catch so charts on older LWC silently skip rather than crash.
+  //
+  // WARNING: setCrosshairPosition DOES fire the subscribed crosshair handler,
+  // with an event that looks exactly like a real hover (an older comment here
+  // claimed the opposite, and that assumption is what froze synced crosshairs).
+  // Two guards stop the feedback: applyingExternalRef swallows the clear-echo,
+  // and the hover latch keys off pointerOverRef (real pointer presence), not
+  // the event.
+  //
+  // Applying is IMPERATIVE by design -- no setState, no re-render, no effect
+  // scheduling -- so it can run straight off the sync bus at mouse-move rate.
+  // Routing it through React state re-rendered this entire component on every
+  // mouse move, which is what made a linked chart's crosshair step and skip
+  // instead of glide.
+  const applyExternalCrosshair = useCallback((payload) => {
     if (!chartRef.current || !candleSeriesRef.current) return
-    // Never let the multi-chart sync override the LOCAL user's crosshair while
-    // they're actively hovering THIS chart — the crosshair must only follow their
-    // own mouse. (Bug: with a 2nd synced widget carrying a live chart, its
-    // broadcast snapped the hovered chart's crosshair to the current bar/price
-    // the moment the mouse stopped moving.) When not hovering, the sync applies
-    // normally so you still see the other chart's crosshair.
-    // Keyed on REAL pointer presence, not legendHoveringRef: applying a synced
-    // crosshair fires an LWC event indistinguishable from a hover, so the old
-    // flag latched here and froze this chart's crosshair permanently.
+    // Never let the sync override the LOCAL user's crosshair while they're
+    // actively hovering THIS chart -- it must follow their own mouse.
     if (pointerOverRef.current) return
-    // Suppress clear-echo: applying a crosshair fires a point-less crosshair
-    // event that must not be re-broadcast as a "mouse left" clear.
     applyingExternalRef.current = true
-    if (!externalCrosshair?.time) {
+    if (!payload?.time) {
       externalCrosshairAppliedRef.current = false
-      try { chartRef.current.clearCrosshairPosition() } catch {}
+      try { chartRef.current.clearCrosshairPosition() } catch { /* older LWC */ }
     } else {
       try {
-        // VERTICAL: map the incoming bar to THIS chart's own series, across
-        // timeframes (see _etDayOf / _snapSyncedBar). Hovering a 30m bar moves
-        // the daily chart to that DAY's candle; hovering a daily candle moves the
-        // 30m chart to that day. Same-TF still lands on the exact bar.
-        const T = externalCrosshair.time
-        const day = externalCrosshair.day ?? etDayOf(T)
-        const tNum = Number.isFinite(externalCrosshair.t)
-          ? externalCrosshair.t
+        // VERTICAL: map the incoming bar onto THIS chart's own series, across
+        // timeframes (see crosshairSync.js). Hovering a 30m bar moves the daily
+        // chart to that DAY's candle; hovering a daily candle moves the 30m
+        // chart to that day. Same-timeframe still lands on the exact bar.
+        const T = payload.time
+        const day = payload.day ?? etDayOf(T)
+        const tNum = Number.isFinite(payload.t)
+          ? payload.t
           : (typeof T === 'number' ? T : null)
         // HORIZONTAL: the source cursor's own price level, verbatim, so both
-        // charts read the SAME dollar value regardless of timeframe. (It used to
-        // snap to the local bar's close, which meant the two lines never agreed.)
+        // charts read the SAME dollar value regardless of timeframe. (This used
+        // to snap to the local bar's close, so the two lines never agreed.)
         // Older payloads without cursorPrice fall back to the bar data.
-        const priceVal = Number.isFinite(externalCrosshair.cursorPrice)
-          ? externalCrosshair.cursorPrice
-          : (externalCrosshair.price?.close ??
-             externalCrosshair.price?.value ??
-             (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0))
+        const priceVal = Number.isFinite(payload.cursorPrice)
+          ? payload.cursorPrice
+          : (payload.price?.close ??
+             payload.price?.value ??
+             (typeof payload.price === 'number' ? payload.price : 0))
         const snapTime = snapSyncedBar(prevBarsRef.current, adjustTime, day, tNum)
         if (snapTime == null) {
-          // That day isn't loaded on this chart (e.g. the intraday window doesn't
-          // reach back to the hovered daily bar) — clear rather than park the
+          // That day isn't loaded here (e.g. the intraday window doesn't reach
+          // back to the hovered daily bar) -- clear rather than park the
           // crosshair on an unrelated bar.
           externalCrosshairAppliedRef.current = false
           chartRef.current.clearCrosshairPosition()
@@ -7614,15 +7618,33 @@ export default function StockChart({
         }
       } catch { externalCrosshairAppliedRef.current = false }
     }
-    const raf = requestAnimationFrame(() => { applyingExternalRef.current = false })
-    return () => cancelAnimationFrame(raf)
-  }, [externalCrosshair])
+    // Release the clear-echo suppressor on the next frame.
+    if (applyingExternalRafRef.current != null) cancelAnimationFrame(applyingExternalRafRef.current)
+    applyingExternalRafRef.current = requestAnimationFrame(() => {
+      applyingExternalRafRef.current = null
+      applyingExternalRef.current = false
+    })
+  }, [adjustTime])
 
-  // ── Right-click on a bar → fire callback or dispatch global event ──
-  // Behavior:
-  //   • If `onBarContextMenu` prop is supplied (explicit opt-in), fire it —
-  //     the consumer owns the flow (e.g. Journal 2.0 ChartModal).
-  //   • Otherwise, dispatch a global `uct:chart-contextmenu` CustomEvent on
+  // Prop form -- parents that hold the crosshair in React state.
+  useEffect(() => {
+    applyExternalCrosshair(externalCrosshair)
+  }, [externalCrosshair, applyExternalCrosshair])
+
+  // Bus form -- subscribe straight to the parent's sync bus. PREFERRED: this is
+  // the path that keeps linked crosshairs smooth (zero renders per move).
+  useEffect(() => {
+    if (typeof subscribeCrosshair !== 'function') return undefined
+    const off = subscribeCrosshair(applyExternalCrosshair)
+    return () => {
+      try { off?.() } catch { /* parent tore the bus down first */ }
+      // Sync switched off / bus swapped / symbol changed: drop any crosshair we
+      // had applied, or it stays frozen on screen. The old state-based path got
+      // this from the parent pushing null; an imperative subscription has to do
+      // it itself.
+      if (externalCrosshairAppliedRef.current) applyExternalCrosshair(null)
+    }
+  }, [subscribeCrosshair, applyExternalCrosshair, chartReady])
   //     `window`. The GlobalAddPositionProvider mounted at the app root
   //     catches it and shows the "+ Add to Portfolio" menu. Every StockChart
   //     across the dashboard gets the right-click-to-add flow for free,

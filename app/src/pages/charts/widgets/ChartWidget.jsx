@@ -102,20 +102,26 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // isn't filtered on. Matches the multi-chart grid, which was already global.
   const widgetIdRef = useRef(null)
   if (!widgetIdRef.current) widgetIdRef.current = `w${Math.random().toString(36).slice(2, 9)}`
-  const [externalCrosshair, setExternalCrosshair] = useState(null)
 
   const reportCrosshair = useCallback((payload) => {
     crosshairBus?.emit(activeColor, widgetIdRef.current, payload)
   }, [crosshairBus, activeColor])
 
-  useEffect(() => {
-    if (!crosshairBus) return undefined
+  // Hand the bus straight to StockChart, which applies each payload
+  // imperatively. Deliberately NOT React state: a setState per mouse move
+  // re-rendered this widget and the whole StockChart subtree just to move one
+  // line, and that render cost is what made the linked crosshair step/skip.
+  // Identity is stable per bus, so the subscription isn't torn down on renders.
+  // `sym` is in the deps purely so a ticker switch re-subscribes, which makes
+  // StockChart's teardown clear any crosshair still drawn for the old symbol
+  // (the state-based path did that with a null push on [sym]).
+  const subscribeCrosshair = useCallback((cb) => {
+    if (!crosshairBus) return () => {}
     return crosshairBus.subscribe(({ sourceId, payload }) => {
-      if (sourceId !== widgetIdRef.current) setExternalCrosshair(payload)
+      if (sourceId !== widgetIdRef.current) cb(payload)
     })
-  }, [crosshairBus])
-  // Drop any stale external crosshair when this widget's own symbol changes.
-  useEffect(() => { setExternalCrosshair(null) }, [sym])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crosshairBus, sym])
 
   // ── Hotkey dedupe: only the last-hovered chart widget handles keydowns ──
   // null-means-all preserves the legacy behavior until the first hover; after
@@ -645,7 +651,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           onTfChange={setTf}
           onOpenSettings={() => setSettingsOpen(true)}
           onCrosshairMove={reportCrosshair}
-          externalCrosshair={externalCrosshair}
+          subscribeCrosshair={subscribeCrosshair}
           hotkeysActive={hotkeysIsActive}
           /* The intraday EXT/RTH toggle now lives in the widget header (beside the
              clock), so suppress the duplicate button in the chart toolbar. */

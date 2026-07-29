@@ -116,24 +116,21 @@ function GridChartCell({
   // ── Crosshair sync (ref-bus pattern, ChartWidget parity) ──
   const cellIdRef = useRef(null)
   if (!cellIdRef.current) cellIdRef.current = `g${Math.random().toString(36).slice(2, 9)}`
-  const [externalCrosshair, setExternalCrosshair] = useState(null)
   const reportCrosshair = useCallback((payload) => {
     crosshairBus?.emit(cellIdRef.current, payload)
   }, [crosshairBus])
-  useEffect(() => {
-    // Empty cells never subscribe — no state churn at mousemove rate for a
-    // slot that has no chart to move a crosshair on.
-    if (!crosshairBus || !sym) return undefined
+  // Imperative bus hand-off (ChartWidget parity): StockChart applies each
+  // payload directly, so a 16-cell board costs ZERO re-renders per mouse move
+  // instead of one per cell — that render storm is what made synced crosshairs
+  // step and skip. Returning a no-op unsubscribe when the Sync toggle is off
+  // also means StockChart's applier is simply never called, so nothing can be
+  // left frozen on screen.
+  const subscribeCrosshair = useCallback((cb) => {
+    if (!crosshairBus || !sym) return () => {}
     return crosshairBus.subscribe(({ sourceId, payload }) => {
-      if (sourceId !== cellIdRef.current) setExternalCrosshair(payload)
+      if (sourceId !== cellIdRef.current) cb(payload)
     })
   }, [crosshairBus, sym])
-  // Drop stale external crosshairs when the symbol changes…
-  useEffect(() => { setExternalCrosshair(null) }, [sym])
-  // …and when the Sync toggle flips OFF (bus → null): StockChart only clears
-  // an applied external crosshair when the prop BECOMES null, so without this
-  // every non-hovered cell keeps a frozen crosshair line.
-  useEffect(() => { if (!crosshairBus) setExternalCrosshair(null) }, [crosshairBus])
 
   // ── Time-range sync (mirrors the crosshair ref-bus; echo-guarded in StockChart) ──
   const [externalTimeRange, setExternalTimeRange] = useState(null)
@@ -383,7 +380,7 @@ function GridChartCell({
             onOpenSettings={onOpenSettings}
             onBarContextMenu={handleBarContextMenu}
             onCrosshairMove={crosshairBus ? reportCrosshair : null}
-            externalCrosshair={externalCrosshair}
+            subscribeCrosshair={subscribeCrosshair}
             onTimeRangeChange={rangeBus ? reportRange : null}
             externalTimeRange={externalTimeRange}
             /* Grid lite profile — the workspace chart look without the
