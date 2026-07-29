@@ -5097,19 +5097,19 @@ export default function OptionsFlowDashboard() {
                 }
                 candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention,topCDisplayPrem,topCDisplayHits});
               });
-              candidates.sort((a,b)=>b.score-a.score);
+              // Default ranking = raw net premium (biggest flow wins). score is still
+              // computed above (its band-premium gates filter noise) but no longer ranks.
+              candidates.sort((a,b)=>(b.net-a.net) || (b.score-a.score));
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Both" ? candidates
                 : top5Filter==="Calls" ? candidates.filter(c=>c.dir==="BULL")
                 : top5Filter==="Puts" ? candidates.filter(c=>c.dir==="BEAR")
-                : candidates.filter(c=>c.hasUOA || c.volOI>=3 || (c.mktcap>0 && c.mktcap<10e9 && c.net>=c.mktcap*0.001));
-              const picks=[]; let megaC=0; const sectorC={};
-              for(const c of filtered){
-                if(picks.length>=10) break;
-                if(c.band==="Mega"){ if(megaC>=3) continue; megaC++; }
-                if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>3) continue; }
-                picks.push(c);
-              }
+                // Unusual keeps its cap-weighted (size-relative) ordering; Both/Calls/Puts rank by raw premium.
+                : candidates.filter(c=>c.hasUOA || c.volOI>=3 || (c.mktcap>0 && c.mktcap<10e9 && c.net>=c.mktcap*0.001)).sort((a,b)=>b.score-a.score);
+              // Biggest-flow view: no mega-3 / sector-3 diversity caps. They belonged to
+              // the old cap-weighted score and would trim the very big-cap conviction flow
+              // this view now exists to surface, so they are intentionally not applied.
+              const picks = filtered.slice(0,10);
               if(!picks.length) return null;
               const allContracts=picks.filter(p=>p.topC).map(p=>({sym:p.sym,cp:p.topC.cp,strike:p.topC.K,exp:p.topC.exp}));
               return (
@@ -5129,7 +5129,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontSize:9, color:P.dm }}>Cap-weighted · sweep required</span>
+                      <span style={{ fontSize:9, color:P.dm }}>{top5Filter==="Unusual"?"Cap-weighted · sweep required":"Ranked by net premium · sweep required"}</span>
                       <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
                         style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                           fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
