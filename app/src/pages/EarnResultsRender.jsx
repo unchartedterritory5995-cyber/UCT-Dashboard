@@ -46,20 +46,25 @@ function StatCol({ label, labelColor, children, minWidth = 0 }) {
   )
 }
 
-// A reported number (actual) with its surprise vs estimate as a colored chip.
-function Reported({ label, value, surp }) {
+// One metric stacked: the reported actual (with its surprise vs estimate) sits
+// directly ABOVE the estimate, so actual-vs-estimate reads at a glance. A
+// surprise that rounds to 0% shows no arrow (reads "in line", not "▼0%").
+function Metric({ act, est, surp, fmt }) {
   const s = pct(surp)
+  const showChip = s != null && Math.round(Number(surp)) !== 0
   const up = Number(surp) >= 0
   return (
-    <span style={{ marginRight: 16, fontSize: 16.5, color: '#f0ead8', fontVariantNumeric: 'tabular-nums' }}>
-      <span style={{ color: '#9aa08f', fontSize: 12, fontWeight: 700, marginRight: 6 }}>{label}</span>
-      <span style={{ fontWeight: 800 }}>{value}</span>
-      {s != null && (
-        <span style={{ marginLeft: 6, fontSize: 13, fontWeight: 800, color: up ? '#22c55e' : '#ef4444' }}>
-          {up ? '▲' : '▼'}{s}
-        </span>
-      )}
-    </span>
+    <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 20, fontWeight: 800, color: '#f0ead8' }}>{fmt(act)}</span>
+        {showChip && (
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: up ? '#22c55e' : '#ef4444' }}>
+            {up ? '▲' : '▼'}{s}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 13.5, color: '#8b8f84', marginTop: 3 }}>est {fmt(est)}</div>
+    </div>
   )
 }
 
@@ -108,18 +113,11 @@ function Row({ e }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 20, marginTop: 14, alignItems: 'flex-start' }}>
-        <StatCol label="REPORTED" labelColor="#c9a84c" minWidth={250}>
-          <div>
-            <Reported label="EPS" value={eps(e.eps_act)} surp={e.eps_surp} />
-            <Reported label="Rev" value={revB(e.rev_act)} surp={e.rev_surp} />
-          </div>
+        <StatCol label="EPS" labelColor="#c9a84c" minWidth={140}>
+          <Metric act={e.eps_act} est={e.eps_est} surp={e.eps_surp} fmt={eps} />
         </StatCol>
-        <StatCol label="VS ESTIMATE" labelColor="#8b8f84">
-          <div style={{ fontSize: 16.5, color: '#cfcfcf', fontVariantNumeric: 'tabular-nums' }}>
-            EPS <span style={{ fontWeight: 700 }}>{eps(e.eps_est)}</span>
-            <span style={{ color: '#5c5f56', margin: '0 8px' }}>·</span>
-            Rev <span style={{ fontWeight: 700 }}>{revB(e.rev_est)}</span>
-          </div>
+        <StatCol label="REVENUE" labelColor="#c9a84c" minWidth={150}>
+          <Metric act={e.rev_act} est={e.rev_est} surp={e.rev_surp} fmt={revB} />
         </StatCol>
         <StatCol label="GROWTH vs LAST YEAR" labelColor="#8b8f84" minWidth={180}>
           <div>

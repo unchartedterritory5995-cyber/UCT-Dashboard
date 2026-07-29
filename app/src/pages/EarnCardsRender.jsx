@@ -44,6 +44,17 @@ function StatCol({ label, labelColor, children, minWidth = 0 }) {
   )
 }
 
+// A label/value on its own line with the label in a fixed-width gutter, so EPS
+// and Revenue stack in a clean column instead of wrapping mid-phrase.
+function KV({ k, v, vColor = '#cfcfcf', vWeight = 700 }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, fontSize: 16, fontVariantNumeric: 'tabular-nums', lineHeight: 1.55 }}>
+      <span style={{ color: '#8b8f84', fontWeight: 700, minWidth: 66 }}>{k}</span>
+      <span style={{ fontWeight: vWeight, color: vColor }}>{v}</span>
+    </div>
+  )
+}
+
 function Growth({ label, v }) {
   const p = pct(v)
   if (p == null) return null
@@ -91,18 +102,12 @@ function Row({ e }) {
       </div>
       <div style={{ display: 'flex', gap: 20, marginTop: 14, alignItems: 'flex-start' }}>
         <StatCol label={`LAST QUARTER${lq.label ? ` · ${lq.label}` : ''}`} labelColor="#8b8f84">
-          <div style={{ fontSize: 16.5, color: '#cfcfcf', fontVariantNumeric: 'tabular-nums' }}>
-            EPS <span style={{ fontWeight: 700 }}>{eps(lq.eps)}</span>
-            <span style={{ color: '#5c5f56', margin: '0 8px' }}>·</span>
-            Revenue <span style={{ fontWeight: 700 }}>{revB(lq.rev_m)}</span>
-          </div>
+          <KV k="EPS" v={eps(lq.eps)} />
+          <KV k="Revenue" v={revB(lq.rev_m)} />
         </StatCol>
         <StatCol label={`WALL ST EXPECTS${e.up_label ? ` · ${e.up_label}` : ''}`} labelColor="#c9a84c">
-          <div style={{ fontSize: 16.5, color: '#f0ead8', fontVariantNumeric: 'tabular-nums' }}>
-            EPS <span style={{ fontWeight: 800, color: '#c9a84c' }}>{eps(e.eps_est)}</span>
-            <span style={{ color: '#5c5f56', margin: '0 8px' }}>·</span>
-            Revenue <span style={{ fontWeight: 800, color: '#c9a84c' }}>{revB(e.rev_est)}</span>
-          </div>
+          <KV k="EPS" v={eps(e.eps_est)} vColor="#c9a84c" vWeight={800} />
+          <KV k="Revenue" v={revB(e.rev_est)} vColor="#c9a84c" vWeight={800} />
         </StatCol>
         <StatCol label="GROWTH vs LAST YEAR" labelColor="#8b8f84" minWidth={220}>
           <div>
