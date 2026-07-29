@@ -4988,86 +4988,6 @@ export default function OptionsFlowDashboard() {
               const baseAd = (D.all_directional||[]).filter(_tabOk);
               const ad = capFilter==="All" ? baseAd : baseAd.filter(t=>capBand(t.mktcap)===capFilter);
               if (!ad.length) return null;
-              // ── STANDOUT CONTRACTS — a MODE of this panel (toggle next to "Unusual").
-              // Contract-level, ranked by net premium, NO ticker-purity gate — surfaces a
-              // killer strike even when its ticker nets to a coin-flip (e.g. GLW 110C hidden
-              // behind GLW's offsetting flow). Reuses clean_confirmed clustering + gradeCluster.
-              if (top5Filter === "Standout") {
-                const cl = {};
-                (D.clean_confirmed||[]).forEach(t => {
-                  if (!_tabOk(t)) return;
-                  if (capFilter!=="All" && capBand(t.mktcap)!==capFilter) return;
-                  const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-                  if (!cl[k]) cl[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, bull:0, bear:0,
-                    hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), maxOI:0, mktcap:t.mktcap||0 };
-                  const c = cl[k]; c.hits++;
-                  if (t.D==="BULL") c.bull+=t.P; else if (t.D==="BEAR") c.bear+=t.P;
-                  if (t.Ty==="SWP") c.hasSweep=true; if (t.Ty==="BLK") c.hasBlock=true;
-                  if (t.Co==="YELLOW"||t.Co==="MAGENTA") c.oiExceeded=true;
-                  if (t.D) c.dirs.add(t.D);
-                  if (t.OI>c.maxOI) c.maxOI=t.OI;
-                  if (t.mktcap>c.mktcap) c.mktcap=t.mktcap;
-                });
-                const soPicks = Object.values(cl).map(c => {
-                  let clean = c.dirs.size<=1;
-                  const td = c.bull+c.bear;
-                  if (!clean && td>0 && (c.bull/td>=0.8 || c.bear/td>=0.8)) clean = true;
-                  c.clean = clean;
-                  return { ...c, net:Math.abs(c.bull-c.bear), dir:c.bull>=c.bear?"BULL":"BEAR", grade:gradeCluster(c) };
-                }).filter(c => c.net>=1e6 && c.hasSweep && c.clean)
-                  .sort((a,b)=>b.net-a.net).slice(0,12);
-                return (
-                  <Card>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                        <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>TOP 10 FLOW PICKS</div>
-                        <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
-                          {["Both","Calls","Puts","Unusual","Standout"].map(f=>(
-                            <button key={f} onClick={()=>setTop5Filter(f)} style={{
-                              padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                              fontSize:9, fontWeight:700, fontFamily:"inherit",
-                              background:top5Filter===f?(f==="Unusual"?"#ff980022":P.ac+"22"):"transparent",
-                              color:top5Filter===f?(f==="Unusual"?"#ff9800":P.ac):P.dm
-                            }}>{f}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <span style={{ fontSize:9, color:P.dm }}>Biggest single-strike sweeps · net premium · ignores ticker balance</span>
-                    </div>
-                    {soPicks.length ? (
-                      <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                        {soPicks.map((c,i)=>{
-                          const dirC = c.dir==="BULL"?P.bu:P.be;
-                          const gradeC = c.grade==="A+"?P.ac:c.grade==="A"?P.bu:c.grade==="B+"?P.ye:P.dm;
-                          const cpC = c.cp==="C"?P.bu:P.be;
-                          return (
-                            <div key={c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp}
-                              onClick={()=>{ setChartModal({sym:c.sym}); setChartInterval("D"); }}
-                              style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
-                              <span style={{ fontSize:15, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
-                              <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:56, flexShrink:0 }}>{c.sym}</span>
-                              <Tag c={dirC}>{c.dir}</Tag>
-                              <div style={{ fontSize:11, width:150, flexShrink:0 }}>
-                                <span style={{ color:cpC, fontWeight:800 }}>{c.cp}</span>
-                                <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${c.K}</span>
-                                <span style={{ color:P.ac, marginLeft:4 }}>{c.exp}</span>
-                              </div>
-                              <div style={{ width:80, textAlign:"right", flexShrink:0 }}>
-                                <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(c.net)}</div>
-                              </div>
-                              <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{c.grade}</span>
-                              <span style={{ fontSize:10, color:c.hits>=5?P.ye:P.dm, fontWeight:700, width:40, flexShrink:0, textAlign:"center" }}>{c.hits}x</span>
-                              <span style={{ fontSize:10, color:P.dm, width:52, flexShrink:0, textAlign:"center" }}>{c.DTE}d</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize:11, color:P.dm, padding:"12px 4px" }}>No standout contracts (≥$1M net sweeps) for this filter.</div>
-                    )}
-                  </Card>
-                );
-              }
               // Pre-build TOTAL premium per (ticker,contract) from broader trade list
               // (includes B-side MAGENTA call buys etc. that don't get a direction
               // assigned per the strict A/AA-only rule, but are real flow on the strike).
@@ -5180,8 +5100,67 @@ export default function OptionsFlowDashboard() {
               // Default ranking = raw net premium (biggest flow wins). score is still
               // computed above (its band-premium gates filter noise) but no longer ranks.
               candidates.sort((a,b)=>(b.net-a.net) || (b.score-a.score));
+              // Standout mode: rebuild candidates at the CONTRACT level (each pick = one
+              // strike) in the SAME shape as the ticker picks, so the identical row renderer
+              // (NET+%, TOP CONTRACT, GRADE, OPEN INTEREST, status, notes) is reused verbatim.
+              // Gate is a flat $1M net + sweep + one-sided (clean) — NO ticker-purity/band gate,
+              // so a killer strike shows even when its ticker nets to a coin-flip (e.g. GLW 110C).
+              const standoutCandidates = top5Filter==="Standout" ? (()=>{
+                const soMap = {};
+                ad.forEach(t => {
+                  const ck = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+                  if (!soMap[ck]) soMap[ck] = { sym:t.S, bull:0, bear:0, n:0, swp:0, blk:0, swpAsk:0, swpBid:0,
+                    confirmed:0, band:capBand(t.mktcap), contracts:{}, hasER:!!t.er, minDTE:999, mktcap:t.mktcap||0,
+                    sector:t.sector||"", lastDate:null, hasUOA:false };
+                  const tk = soMap[ck];
+                  if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
+                  tk.n++;
+                  if(t.Ty==="SWP"){ tk.swp++; if(t.Si==="A"||t.Si==="AA") tk.swpAsk++; else if(t.Si==="B"||t.Si==="BB") tk.swpBid++; }
+                  else if(t.Ty==="BLK") tk.blk++;
+                  if(t.confirmed) tk.confirmed++;
+                  if(t.uoa) tk.hasUOA=true;
+                  if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
+                  const tDate=_parseDt(t.Dt);
+                  if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
+                  if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null,spot:0};
+                  const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
+                  if(t.OI>c.oi) c.oi=t.OI;
+                  if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                  if(t.price>0) c.prices.push(t.price);
+                  if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; if(t.Spot>0) c.spot=t.Spot; }
+                });
+                return Object.values(soMap).map(tk => {
+                  const total=tk.bull+tk.bear; if(total===0) return null;
+                  const net=Math.abs(tk.bull-tk.bear);
+                  const purity=Math.max(tk.bull,tk.bear)/total*100;
+                  const dir=tk.bull>=tk.bear?"BULL":"BEAR";
+                  const hasBoth=tk.swp>0&&tk.blk>0;
+                  const topC=Object.values(tk.contracts)[0];
+                  const bidRatio=topC&&topC.prem>0?topC.bidPrem/topC.prem:0;
+                  // Standout = clean, positional conviction. Exclude sub-$1M, no-sweep, two-sided
+                  // (purity<80 directional OR >25% bid-side = buying AND selling on the strike =
+                  // day-trade churn), and ultra-short expirations (<5 DTE = gamma scalp / day-trade).
+                  if(net<1e6 || tk.swp<1 || purity<80 || bidRatio>0.25 || tk.minDTE<5) return null;
+                  const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
+                  const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
+                  const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
+                  const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
+                  const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
+                  const oiRetention = topC&&topC.oi>0&&topC.lastOI>0 ? topC.lastOI/topC.oi : 1;
+                  let posStatus = "ACTIVE";
+                  if(exitRatio>0.5 || oiRetention<0.5) posStatus="CLOSED";
+                  else if(exitRatio>0.3 || oiRetention<0.7) posStatus="FADING";
+                  if(daysSince>=14 && posStatus==="ACTIVE") posStatus="HOLDING";
+                  const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
+                  let topCDisplayPrem = topC ? topC.prem : 0;
+                  let topCDisplayHits = topC ? topC.hits : 0;
+                  if (topC) { const k=tk.sym+"|"+topC.cp+"|"+topC.K+"|"+topC.exp; const totals=contractTotals[k]; if(totals){ topCDisplayPrem=totals.prem; topCDisplayHits=totals.hits; } }
+                  return {...tk,net,purity,dir,score:net,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention,topCDisplayPrem,topCDisplayHits};
+                }).filter(Boolean).sort((a,b)=>b.net-a.net);
+              })() : null;
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
-              const filtered = top5Filter==="Both" ? candidates
+              const filtered = top5Filter==="Standout" ? standoutCandidates
+                : top5Filter==="Both" ? candidates
                 : top5Filter==="Calls" ? candidates.filter(c=>c.dir==="BULL")
                 : top5Filter==="Puts" ? candidates.filter(c=>c.dir==="BEAR")
                 // Unusual keeps its cap-weighted (size-relative) ordering; Both/Calls/Puts rank by raw premium.
@@ -5209,7 +5188,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontSize:9, color:P.dm }}>{top5Filter==="Unusual"?"Cap-weighted · sweep required":"Ranked by net premium · sweep required"}</span>
+                      <span style={{ fontSize:9, color:P.dm }}>{top5Filter==="Unusual"?"Cap-weighted · sweep required":top5Filter==="Standout"?"Single-strike sweeps · ignores ticker balance":"Ranked by net premium · sweep required"}</span>
                       <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
                         style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                           fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
