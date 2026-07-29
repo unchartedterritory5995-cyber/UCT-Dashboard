@@ -444,10 +444,14 @@
 .rundownWrap :global(.rd-flowboard-headrow),
 .rundownWrap :global(.rd-flowboard-row) {
   display: grid;
+  /* 8 tracks: Stock · Strike · Exp · DTE · Vol/OI · Type · Side · Premium.
+     Type (sweep vs block) was added 2026-07-28 — the board had no way to say
+     which a row was, and the desk kept marking rows "block trade not a sweep". */
   grid-template-columns:
-    minmax(56px, 74px) minmax(104px, 150px) minmax(44px, 58px)
-    minmax(36px, 46px) minmax(38px, 50px) minmax(42px, 56px) minmax(64px, 1fr);
-  gap: 10px;
+    minmax(52px, 68px) minmax(96px, 140px) minmax(42px, 54px)
+    minmax(30px, 40px) minmax(40px, 56px) minmax(54px, 78px)
+    minmax(36px, 48px) minmax(58px, 1fr);
+  gap: 9px;
   /* center, NOT baseline: the cells below are overflow:hidden (for ellipsis), and an
      overflow-clipped box synthesizes its baseline from the bottom edge — with mixed
      font sizes across the row that would misalign every cell. */
@@ -1450,3 +1454,48 @@
   cursor: pointer; min-height: 32px;
 }
 :global(.rd-note-save:hover) { filter: brightness(1.08); }
+
+/* ── Flow board: trade type, confirmation state, accumulation streak ─────────
+   Added 2026-07-28 with the scored selection. Each of these answers a specific
+   note the desk put on the published panel.
+   NOTE the CSS-Modules rule already documented above: a bare class inside
+   :not()/compound selectors gets hashed and will never match the engine-injected
+   HTML, so every one of these stays inside a single :global(). */
+
+/* SWEEP lifts offers across exchanges; BLOCK is negotiated. Sweeps read live,
+   blocks read muted — the distinction is the point of the column. */
+.rundownWrap :global(.rd-order-type) {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #6b7480;
+}
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bull .rd-order-type),
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bear .rd-order-type) { color: #6b7480; }
+
+/* Vol/OI carries the confirmation read in its colour. Gold = volume cleared open
+   interest, so it cannot be a closing trade. Dim amber = volume UNDER open
+   interest, which cannot be told apart from someone closing — the ambiguity the
+   old board rendered as an empty cell. */
+.rundownWrap :global(.rd-order-tag.rd-oi-new) { color: #c9a84c; }
+.rundownWrap :global(.rd-order-tag.rd-oi-likely) { color: #9aa7b4; }
+.rundownWrap :global(.rd-order-tag.rd-oi-grew) { color: #9aa7b4; }
+.rundownWrap :global(.rd-order-tag.rd-oi-unconfirmed) { color: #8a6a3a; }
+.rundownWrap :global(.rd-order-tag.rd-oi-closing) { color: #e5534b; }
+
+/* Consecutive sessions leaning the same way. Rides the ticker rather than taking
+   a column — it is rare, and when it appears it is the most decisive thing on
+   the row. */
+.rundownWrap :global(.rd-order-streak) {
+  margin-left: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 3px;
+  vertical-align: middle;
+  opacity: 0.85;
+}
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bull .rd-order-streak) { color: #3fb950; }
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bear .rd-order-streak) { color: #e5534b; }
