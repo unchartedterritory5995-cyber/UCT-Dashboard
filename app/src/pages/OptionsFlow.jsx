@@ -5129,7 +5129,7 @@ export default function OptionsFlowDashboard() {
                   if(t.price>0) c.prices.push(t.price);
                   if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; if(t.Spot>0) c.spot=t.Spot; }
                 });
-                return Object.values(soMap).map(tk => {
+                const _perContract = Object.values(soMap).map(tk => {
                   const total=tk.bull+tk.bear; if(total===0) return null;
                   const net=Math.abs(tk.bull-tk.bear);
                   const purity=Math.max(tk.bull,tk.bear)/total*100;
@@ -5157,6 +5157,15 @@ export default function OptionsFlowDashboard() {
                   if (topC) { const k=tk.sym+"|"+topC.cp+"|"+topC.K+"|"+topC.exp; const totals=contractTotals[k]; if(totals){ topCDisplayPrem=totals.prem; topCDisplayHits=totals.hits; } }
                   return {...tk,net,purity,dir,score:net,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention,topCDisplayPrem,topCDisplayHits};
                 }).filter(Boolean).sort((a,b)=>b.net-a.net);
+                // One row per ticker: each ticker's biggest strike is the headline row; its
+                // other standout strikes roll into `_moreStrikes` (shown as a "+N more" note
+                // and expanded on row click).
+                const _headMap={}, _deduped=[];
+                for (const c of _perContract) {
+                  if (_headMap[c.sym]) _headMap[c.sym]._moreStrikes.push(c);
+                  else { c._moreStrikes=[]; _headMap[c.sym]=c; _deduped.push(c); }
+                }
+                return _deduped;
               })() : null;
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Standout" ? standoutCandidates
@@ -5271,6 +5280,7 @@ export default function OptionsFlowDashboard() {
                       else if(p.purity>=60) notes.push({t:`${Math.round(p.purity)}% lean — meaningful hedging`,w:4});
                       if(p.confirmed>=5) notes.push({t:`${p.confirmed} confirmed trades — sustained`,w:7});
                       else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
+                      if(p._moreStrikes && p._moreStrikes.length) notes.push({t:`+${p._moreStrikes.length} more strike${p._moreStrikes.length>1?"s":""}: ${p._moreStrikes.slice(0,3).map(m=>`${m.topC.cp}$${m.topC.K} ${m.topC.exp} ${fmt(m.net)}`).join(", ")}`,w:20});
                       notes.sort((a,b)=>b.w-a.w);
                       const topNotes = notes.slice(0,2).map(n=>n.t);
                       // Position activity note — prefer LIVE OI delta over bid-side ratio
@@ -5402,6 +5412,28 @@ export default function OptionsFlowDashboard() {
                           <span style={{ fontSize:9, color:P.dm+"66", flexShrink:0 }}>{top5Detail===p.sym?"▲":"▼"}</span>
                         </div>
                         {/* Expandable trade detail */}
+                        {top5Detail===p.sym && top5Filter==="Standout" && p._moreStrikes && p._moreStrikes.length>0 && (
+                          <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginLeft:24 }}>
+                            <div style={{ fontSize:9, fontWeight:700, color:P.ac, marginBottom:6 }}>OTHER STANDOUT STRIKES ON {p.sym} ({p._moreStrikes.length})</div>
+                            {p._moreStrikes.map((m,mi)=>{
+                              const mdC = m.dir==="BULL"?P.bu:P.be;
+                              const mgrade = m.purity>=95&&m.hasBoth&&m.confirmed>=3?"A+":m.purity>=85&&m.hasBoth?"A":m.purity>=75&&m.confirmed>=2?"B+":"B";
+                              const mgC = mgrade==="A+"?P.ac:mgrade==="A"?P.bu:mgrade==="B+"?P.ye:P.dm;
+                              return (
+                                <div key={mi} onClick={e=>{e.stopPropagation(); setChartModal({sym:m.sym}); setChartInterval("D");}}
+                                  style={{ display:"flex", alignItems:"center", gap:10, padding:"5px 6px", cursor:"pointer", borderBottom:"1px solid "+P.bd+"22" }}>
+                                  <Tag c={mdC}>{m.dir}</Tag>
+                                  <span style={{ fontSize:10, fontWeight:800, color:m.topC.cp==="C"?P.bu:P.be }}>{m.topC.cp}</span>
+                                  <span style={{ fontSize:10, fontWeight:700, color:P.wh }}>${m.topC.K}</span>
+                                  <span style={{ fontSize:10, color:P.ac }}>{m.topC.exp}</span>
+                                  <span style={{ fontSize:9, color:P.dm }}>{m.topCDisplayHits}x</span>
+                                  <span style={{ fontSize:11, fontWeight:900, color:mdC, marginLeft:"auto" }}>{fmt(m.net)}</span>
+                                  <span style={{ fontSize:10, fontWeight:900, color:mgC, padding:"1px 6px", borderRadius:3, background:mgC+"18", border:"1px solid "+mgC+"44" }}>{mgrade}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         {top5Detail===p.sym && (()=>{
                           const trades = ad.filter(t=>t.S===p.sym).sort((a,b)=>(b.P||0)-(a.P||0)).slice(0,5);
                           if(!trades.length) return null;
