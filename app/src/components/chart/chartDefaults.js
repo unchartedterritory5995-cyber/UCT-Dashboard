@@ -52,6 +52,12 @@ export const CHART_DEFAULTS = {
     showNextEarnings: true,
     showUctRating: true,
     showLegend: true,       // the on-chart OHLCV crosshair legend
+    // Shape of that legend on the Charts workspace: 'vertical' = the stacked
+    // label/value table down the left (the long-standing look); 'horizontal' =
+    // a flat two-line strip (ticker · company · TF, then the values) with NO
+    // background box. Surfaces that don't opt into the workspace legend
+    // (Model Book, popups, …) keep their own inline row regardless.
+    legendLayout: 'vertical', // 'vertical' | 'horizontal'
     // Per-item colors for the header/legend readouts. Each key is unset (absent) by
     // default = keep the item's built-in color; a hex here overrides that one item.
     // Day change is a pair (up-day / down-day). Keys: dayChangeUp, dayChangeDown,

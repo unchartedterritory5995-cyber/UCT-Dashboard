@@ -134,6 +134,11 @@ const HEADER_ROWS = [
   { key: 'showUctRating', label: 'UCT rating', swatches: [['hdrUctRating', 'UCT rating color']] },
   { key: 'showLegend', label: 'Chart legend', swatches: [['hdrLegend', 'Chart legend color']] },
 ]
+// Shape of the on-chart OHLCV legend. Horizontal is the flat, box-less strip.
+const LEGEND_LAYOUTS = [
+  { val: 'vertical', label: 'Vertical' },
+  { val: 'horizontal', label: 'Horizontal' },
+]
 
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null }) {
   const panelRef = useRef(null)
@@ -741,6 +746,24 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                   </div>
                 )
               })}
+              {/* Legend shape. Only meaningful while the legend is shown, and only
+                  the Charts workspace honors it (other surfaces keep their own
+                  inline row) — so it lives with the legend toggle, not on its own. */}
+              {header.showLegend !== false && (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Legend layout</span>
+                  <div className={styles.seg} role="tablist">
+                    {LEGEND_LAYOUTS.map(({ val, label }) => (
+                      <button
+                        key={val} type="button" role="tab"
+                        aria-selected={(header.legendLayout || 'vertical') === val}
+                        className={`${styles.segBtn} ${(header.legendLayout || 'vertical') === val ? styles.segBtnActive : ''}`}
+                        onClick={() => setHeader({ legendLayout: val })}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
           {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the

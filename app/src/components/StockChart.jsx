@@ -46,6 +46,32 @@ const LIVE_TICK_FRESH_MS = 6000
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
 const LAST_CANDLE_POS = 0.96
+// …but 4% of the plot is ~40px on a full-width chart and only ~12px inside a
+// narrow workspace widget, which parks the newest candle right on top of the
+// price-scale tags (most visibly the pre-market "Pre" label). So treat the gap
+// as a PIXEL minimum instead of a pure fraction: wide charts keep the exact
+// 0.96 anchor, narrow ones give the last candle real clearance. Capped so a
+// very thin widget doesn't spend a sixth of its width on blank space.
+const MIN_RIGHT_GAP_PX = 34
+const MAX_RIGHT_GAP_FRAC = 0.16
+function lastCandlePos(plotWidthPx) {
+  if (!Number.isFinite(plotWidthPx) || plotWidthPx <= 0) return LAST_CANDLE_POS
+  const gap = Math.min(MAX_RIGHT_GAP_FRAC, Math.max(1 - LAST_CANDLE_POS, MIN_RIGHT_GAP_PX / plotWidthPx))
+  return 1 - gap
+}
+// The candle plot's own width in px (excludes the right price axis). On a cold
+// mount the time scale can still report 0, and falling through to the fixed
+// fraction there would leave a freshly-opened narrow widget with no clearance —
+// so approximate from the container (minus a typical price axis) instead.
+// Null only when neither is measurable.
+function plotWidthOf(chart, containerEl = null) {
+  try {
+    const w = chart?.timeScale?.().width?.()
+    if (Number.isFinite(w) && w > 0) return w
+  } catch { /* not laid out */ }
+  const cw = containerEl?.clientWidth
+  return Number.isFinite(cw) && cw > 70 ? cw - 62 : null
+}
 
 // Per-timeframe default number of visible bars (Daily on the workspace is
 // overridden to ~126 ≈ 6 months via dailyDefaultBars).
@@ -82,7 +108,7 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
 // the right-click "Reset view" so all three land on the exact same window.
-function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null } = {}) {
+function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null } = {}) {
   // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
   // wants a wider window than the interactive default); dailyDefaultBars stays
   // Daily-only so the Charts workspace is untouched.
@@ -97,7 +123,7 @@ function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, left
   // visibleBars). LWC renders logical indices < 0 as leading whitespace.
   const from = barsLen - visibleBars - leftBarPad
   const hist = (barsLen - 1) - from
-  const to = hist > 0 ? from + hist / LAST_CANDLE_POS : barsLen + rightPadBars
+  const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : barsLen + rightPadBars
   return { from, to }
 }
 
@@ -202,6 +228,14 @@ function formatLegendTime(time) {
   if (typeof time === 'string') return time
   const d = new Date(time * 1000)
   return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+// Timeframe code → the short label shown in the flat legend's title line
+// ("HPE • Hewlett Packard Enterprise Company • W"). Unknown/custom codes fall
+// through to the raw code, which is already display-shaped (e.g. '45', '3D').
+const TF_LEGEND_LABEL = {
+  '1': '1m', '5': '5m', '15': '15m', '30': '30m', '60': '1h',
+  D: 'D', W: 'W', M: 'M',
 }
 
 // ─── Time-axis formatting ───────────────────────────────────────────────────
@@ -1466,6 +1500,19 @@ export default function StockChart({
     if (sameCompany) return withCuratedGaps({ ...tickerMeta, name: watermarkName })
     return { name: watermarkName, sector: watermarkSector || null, industry: watermarkIndustry || null }
   }, [watermarkName, watermarkSector, watermarkIndustry, tickerMeta])
+
+  // ── Crosshair-legend layout ────────────────────────────────────────────────
+  // Only surfaces that opt into the workspace legend (`verticalLegend`) follow the
+  // user's Chart Settings → Header → Legend layout choice; everywhere else
+  // (Model Book, popups, gallery charts…) keeps its own inline row untouched.
+  //   vertical   → the stacked label/value table  (.legendVertical)
+  //   horizontal → a flat, box-less two-line strip (.legendFlat)
+  const legendFlat = verticalLegend && cs.header?.legendLayout === 'horizontal'
+  const legendStacked = verticalLegend && !legendFlat
+  // Company name for the flat legend's title line. Same source the watermark uses,
+  // so a Model Book-curated name wins over the (possibly wrong) live lookup.
+  const legendCompany = watermarkMeta?.name || tickerMeta?.name || null
+
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
@@ -1590,6 +1637,15 @@ export default function StockChart({
   // True only while a Shift+drag measure is in progress — every handleScroll site
   // reads it so a data-poll re-applyOptions can't unlock the chart mid-measure.
   const measureLockRef = useRef(false)
+  // ── User view-interaction latch ──
+  // Set the moment the user pans/zooms this chart themselves; cleared on a
+  // symbol/timeframe switch and on an explicit "Reset view". Read by the
+  // pinned-right safety net in updateChart, which must correct DRIFT but never
+  // undo a deliberate pan (that was the "drag left and it snaps straight back"
+  // bug — the net re-fired on the next live data commit).
+  const userViewMovedRef = useRef(false)
+  const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
+  const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   const focusRafRef = useRef(null)        // in-flight focus-zoom animation frame id
   const focusActiveRef = useRef(false)    // true while a setup-focus zoom owns the view (suppresses the year-range pin)
   const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
@@ -1916,11 +1972,15 @@ export default function StockChart({
         const ts = chartRef.current?.timeScale(); if (!ts) return
         const len = lastBarCountRef.current || 0
         if (len > 1) {
-          const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
+          const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chartRef.current, containerRef.current) })
           ts.setVisibleLogicalRange({ from, to })
         } else {
           ts.resetTimeScale()
         }
+        // Explicit reset — the view is back at the canonical window, so the
+        // "user moved the view" latch is cleared and the pinned-right safety
+        // net is live again (see userViewMovedRef).
+        userViewMovedRef.current = false
       } catch {}
     }
     const autoScale = () => {
@@ -3366,35 +3426,24 @@ export default function StockChart({
     })
   }, [sessionTagsActive, filteredBars, marketSession, sessionExtPrice, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])
 
-  // Intraday (1m..1h) version of the two tags. There are no synthetic-candle bars
-  // to read the RTH close from, so the prev-day close comes straight off the live
-  // feed's official `prev_close`, and the Pre/Post tag off the live ext price.
-  // Independent of the Regular/Extended toggle (matches the daily behavior).
+  // Intraday (1m..1h) version of the Pre/Post tag. ONE tag only, by owner request:
+  // during pre/post the price scale carries just the orange Pre/Post price — no
+  // green last-price tag (suppressed below via `lastValueVisible`) and no green
+  // prev-close tag. Three stacked labels on top of each other were unreadable on a
+  // narrow widget, and only one of the three is the number that matters right now.
+  // At 9:30 `_inExtWindow` goes false, this returns null, and the normal last-price
+  // label comes straight back. D/W/M keeps BOTH tags (locked close + Pre/Post) —
+  // that's the session-preview design and it has room for them.
   const intradaySessionTagLines = useMemo(() => {
     if (!sessionTagsIntraday || !_sessionLive) return null
-    const prevClose = Number.isFinite(_sessionLive.prev_close) && _sessionLive.prev_close > 0 ? _sessionLive.prev_close : null
     const extPx = sessionExtPrice
-    const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
-    const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
-    const lines = []
-    if (prevClose != null) {
-      // Colour the prev-close tag by where pre/post price sits vs it (green when the
-      // extended session is trading above yesterday's close, red below).
-      const up = Number.isFinite(extPx) && extPx > 0 ? extPx >= prevClose : true
-      lines.push({
-        price: prevClose, color: up ? effUp : effDown, lineWidth: 1, lineStyle: 2,
-        axisLabelVisible: true, lineVisible: false, title: '', _sessionTag: 'rth',
-      })
-    }
-    if (Number.isFinite(extPx) && extPx > 0) {
-      lines.push({
-        price: extPx, color: SESSION_EXT_COLOR, lineWidth: 1, lineStyle: 0,
-        axisLabelVisible: true, lineVisible: false,
-        title: marketSession === 'post' ? 'Post' : 'Pre', _sessionTag: 'ext',
-      })
-    }
-    return lines.length ? lines : null
-  }, [sessionTagsIntraday, _sessionLive, sessionExtPrice, marketSession, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])
+    if (!Number.isFinite(extPx) || extPx <= 0) return null
+    return [{
+      price: extPx, color: SESSION_EXT_COLOR, lineWidth: 1, lineStyle: 0,
+      axisLabelVisible: true, lineVisible: false,
+      title: marketSession === 'post' ? 'Post' : 'Pre', _sessionTag: 'ext',
+    }]
+  }, [sessionTagsIntraday, _sessionLive, sessionExtPrice, marketSession])
 
   // User/journal price lines + the dynamic session tags (daily OR intraday — the
   // two are mutually exclusive by timeframe). Kept as one array so the price-line
@@ -5945,6 +5994,9 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
+      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety
+      // net that a user pan on the PREVIOUS symbol had latched off.
+      userViewMovedRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -5989,7 +6041,7 @@ export default function StockChart({
         // prior bars-from-right (flip tickers at the exact same historical view).
         let to, from
         if (keepPresentOnSymbolChange) {
-          to = (newBarCount - 1) + width * (1 - LAST_CANDLE_POS)
+          to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
@@ -6053,14 +6105,14 @@ export default function StockChart({
             // TF switch: keep the same zoom WIDTH and pin the newest candle to the fixed
             // right anchor, so the chart doesn't move — only the timeframe flips.
             const lastIdx = filteredBars.length - 1
-            const to = lastIdx + _pt.width * (1 - LAST_CANDLE_POS)
+            const to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
             const from = to - _pt.width
             chart.timeScale().setVisibleLogicalRange({ from, to })
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
             const { from: _from, to: _to } = computeDefaultLogicalRange(
-              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }
+              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
             )
             chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
           }
@@ -6110,11 +6162,11 @@ export default function StockChart({
         let from, to
         if (_pt.width > 0) {
           const lastIdx = filteredBars.length - 1
-          to = lastIdx + _pt.width * (1 - LAST_CANDLE_POS)
+          to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - _pt.width
         } else {
           ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }
+            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
           ))
         }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
@@ -6139,7 +6191,13 @@ export default function StockChart({
         // pos<0.85/pos>1.02 gate below, which a small nudge doesn't trip.
         const _padFloor = Math.max(1, preWidth * 0.03)
         const wasViewingLatest = preWidth > 0 && prePad >= -_padFloor && prePad <= Math.max(8, preWidth * 0.25)
-        if (wasViewingLatest) {
+        // …but ONLY when the user hasn't deliberately moved the view. This net
+        // corrects DRIFT (LWC/data-commit side effects); a pan or zoom that walks
+        // the newest candle left is the user's intent, and re-pinning it made the
+        // chart snap back to the default window on the very next live commit —
+        // i.e. panning left was impossible. The latch clears on symbol/timeframe
+        // change and on an explicit "Reset view" (see userViewMovedRef).
+        if (wasViewingLatest && !userViewMovedRef.current) {
           let fr = null
           try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
           if (fr) {
@@ -6149,7 +6207,7 @@ export default function StockChart({
             // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
             // off the right edge (pos > 1.02). Re-pin it to the standard load position.
             if (w > 0 && (pos < 0.85 || pos > 1.02)) {
-              const to2 = lastIdx + w * (1 - LAST_CANDLE_POS)
+              const to2 = lastIdx + w * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
               const from2 = to2 - w
               try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
             }
@@ -6249,10 +6307,15 @@ export default function StockChart({
   // Suppress the native last-value axis tag while the session tags are shown, so
   // the green tag we render (locked at the RTH close) isn't doubled by LWC's
   // built-in tag following the developing bar. Re-applied on series recreation.
+  // INTRADAY: same suppression while the Pre/Post tag is up, so pre/post shows
+  // exactly one price label. Gated on the tag actually existing (a pre-market
+  // session with no prints yet has none) — otherwise the scale would go bare.
+  const intradayExtTagActive = !!intradaySessionTagLines?.length
   useEffect(() => {
     if (!chartReady || !candleSeriesRef.current) return
-    try { candleSeriesRef.current.applyOptions({ lastValueVisible: !hideLastValue && !sessionTagsActive }) } catch { /* older LWC */ }
-  }, [sessionTagsActive, hideLastValue, chartReady, cs.chartType])
+    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive
+    try { candleSeriesRef.current.applyOptions({ lastValueVisible: on }) } catch { /* older LWC */ }
+  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType])
 
   // TradingView-style layering: keep the candle bodies ABOVE the MA / Bollinger /
   // VWAP overlays so those lines pass BEHIND the opaque bodies instead of drawing
@@ -7874,6 +7937,40 @@ export default function StockChart({
     // tear this down; cs.drawingDefaults is memoized so it won't churn on ticks.
   }, [chartReady, showDrawingTools, activeTool, frozen, canvasTheme, cs.drawingDefaults])
 
+  // ── Track deliberate user view interaction ────────────────────────────────
+  // LWC exposes no "the user panned" event (its range-change subscription fires
+  // for programmatic moves too, which is exactly what we must NOT count). So
+  // watch the input instead: a press that travels, or a wheel over the chart.
+  // Capture phase + window-level move/up so a drag that leaves the container
+  // still registers. Cheap: three refs, no state, no re-render.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return undefined
+    const onDown = (e) => {
+      lastPointerDownAtRef.current = Date.now()
+      viewPointerRef.current = { x: e.clientX, y: e.clientY }
+    }
+    const onMove = (e) => {
+      const p = viewPointerRef.current
+      if (!p) return
+      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) userViewMovedRef.current = true
+    }
+    const onUp = () => { viewPointerRef.current = null }
+    const onWheel = () => { userViewMovedRef.current = true }
+    el.addEventListener('pointerdown', onDown, true)
+    el.addEventListener('wheel', onWheel, { passive: true, capture: true })
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('pointerup', onUp, true)
+    window.addEventListener('pointercancel', onUp, true)
+    return () => {
+      el.removeEventListener('pointerdown', onDown, true)
+      el.removeEventListener('wheel', onWheel, true)
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('pointerup', onUp, true)
+      window.removeEventListener('pointercancel', onUp, true)
+    }
+  }, [])
+
   // ── Persist a user's volume-pane resize ───────────────────────────────────
   // LWC has no separator-drag event, so poll the actual volume-pane fraction; when
   // it diverges from what we last applied (the user dragged the separator), fire
@@ -7893,12 +7990,22 @@ export default function StockChart({
         if (!(total > 0)) return
         const actual = Math.round((hVol / total) * 100)
         const applied = lastAppliedVolPctRef.current
+        // ⚠️ ONLY a real separator DRAG may report a new height. The measured
+        // fraction does not always equal the stretch factors we set — LWC clamps
+        // panes to a minimum height, so on a short widget "apply 12 → measure 18"
+        // is normal. Without the drag gate that mismatch fed itself: measure 18 →
+        // persist 18 → prop feeds back → apply 18 → measure 24 → … and the volume
+        // pane ratcheted up until it hit the 45% clamp. That's the "volume pane
+        // randomly triples in size" bug, and because the pref is global it then
+        // hit every widget. A pointer press within the last 1.5s is the only
+        // thing that can move it; nothing else resizes the pane on its own.
+        const dragging = Date.now() - lastPointerDownAtRef.current < 1500
         // Detect + fire only — do NOT touch lastAppliedVolPctRef here. Leaving it at
         // the code-applied value keeps updateChart's gate (lastApplied === pct)
         // TRUE during the drag, so a data poll won't re-apply the old height and
         // snap the pane back. Once the persisted value feeds back as the prop,
         // updateChart applies it, lastApplied catches up, and this stops firing.
-        if (applied != null && Math.abs(actual - applied) >= 2 && actual >= 5 && actual <= 60) {
+        if (dragging && applied != null && Math.abs(actual - applied) >= 2 && actual >= 5 && actual <= 60) {
           onVolumePaneResize(actual)
         }
       } catch { /* not ready */ }
@@ -8076,11 +8183,12 @@ export default function StockChart({
               const ts = chartRef.current?.timeScale(); if (!ts) return
               const len = lastBarCountRef.current || 0
               if (len > 1) {
-                const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
+                const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chartRef.current, containerRef.current) })
                 ts.setVisibleLogicalRange({ from, to })
               } else {
                 ts.resetTimeScale()
               }
+              userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
@@ -8843,24 +8951,70 @@ export default function StockChart({
         // the base classes' own color; change%/overlays/indicators are intentionally
         // left to their semantic colors. undefined = keep the CSS-class default.
         const legBase = legendColor ? { color: legendColor } : undefined
+        const legUp = parseFloat(crosshairData.change) >= 0
+        // Day-change color: explicit setting wins; else the Sunset pair; else the
+        // default green/red. Shared by all three layouts (they all read the same
+        // Header setting — fixing one alone used to look like a no-op).
+        const legChgColor = legUp
+          ? (cs.header?.colors?.dayChangeUp || (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'))
+          : (cs.header?.colors?.dayChangeDown || (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d'))
+        // Oscillator/indicator chips, built once and rendered by BOTH the flat and
+        // the classic horizontal layouts so the two can never drift apart.
+        const legChips = [
+          crosshairData.rsi != null && ['rsi', cs.indicators?.rsi?.color || '#7b68ee', `RSI(${cs.indicators?.rsi?.period || 14}) ${crosshairData.rsi.toFixed(1)}`],
+          crosshairData.macd != null && ['macd', cs.indicators?.macd?.macdColor || '#2196F3', `MACD ${crosshairData.macd.toFixed(4)}`],
+          crosshairData.macdSig != null && ['macdSig', cs.indicators?.macd?.signalColor || '#FF9800', `SIG ${crosshairData.macdSig.toFixed(4)}`],
+          crosshairData.stochK != null && ['stochK', cs.indicators?.stoch?.kColor || '#FF6B6B', `%K ${crosshairData.stochK.toFixed(1)}`],
+          crosshairData.stochD != null && ['stochD', cs.indicators?.stoch?.dColor || '#4ECDC4', `%D ${crosshairData.stochD.toFixed(1)}`],
+          crosshairData.atr != null && ['atr', cs.indicators?.atr?.color || '#FFA726', `ATR(${cs.indicators?.atr?.period || 14}) ${crosshairData.atr.toFixed(4)}`],
+          crosshairData.sar != null && ['sar', cs.indicators?.sar?.color || '#ffeb3b', `SAR ${crosshairData.sar.toFixed(4)}`],
+          crosshairData.ichimokuTenkan != null && ['tk', cs.indicators?.ichimoku?.tenkanColor || '#26C6DA', `TK ${crosshairData.ichimokuTenkan.toFixed(2)}`],
+          crosshairData.ichimokuKijun != null && ['kj', cs.indicators?.ichimoku?.kijunColor || '#EF5350', `KJ ${crosshairData.ichimokuKijun.toFixed(2)}`],
+          (crosshairData.compare != null && compareSymbol) && ['cmp', '#fb923c', `${compareSymbol.toUpperCase()} ${crosshairData.compare > 0 ? '+' : ''}${crosshairData.compare.toFixed(2)}%`],
+        ].filter(Boolean)
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${verticalLegend ? ' ' + styles.legendVertical : ''}`}
+          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it. */
           style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}
         >
-          {verticalLegend ? (
+          {legendFlat ? (
+            <>
+              {/* Title line — ticker · company · timeframe, above the value strip. */}
+              <div className={styles.flHead}>
+                <span className={styles.flSym} style={legBase}>{(watermark || sym || '').toUpperCase()}</span>
+                {legendCompany && (<><span className={styles.flDot}>•</span><span className={styles.flCompany} style={legBase}>{legendCompany}</span></>)}
+                <span className={styles.flDot}>•</span>
+                <span className={styles.flTf} style={legBase}>{TF_LEGEND_LABEL[resolvedTf] || resolvedTf}</span>
+              </div>
+              <div className={styles.flRow}>
+                <span className={styles.legendTime} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
+                <span className={styles.legendLabel} style={legBase}>O <span className={styles.legendVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>
+                <span className={styles.legendLabel} style={legBase}>H <span className={styles.legendVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
+                <span className={styles.legendLabel} style={legBase}>L <span className={styles.legendVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
+                <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
+                <span className={styles.legendLabel} style={legBase}>Chg <span className={styles.legendVal} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.change}</span></span>
+                <span className={styles.legendLabel} style={legBase}>Chg% <span className={styles.legendVal} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.changePct}%</span></span>
+                {crosshairData.volume != null && (
+                  <span className={styles.legendLabel} style={legBase}>Vol <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
+                )}
+                {legChips.map(([key, color, text]) => (
+                  <span key={key} style={{ color }}>{text}</span>
+                ))}
+                {crosshairData.overlays.map((ov, i) => (
+                  <span key={'ov' + i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+                ))}
+              </div>
+            </>
+          ) : legendStacked ? (
             <>
               <span className={styles.vlHead} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
-              {/* VERTICAL legend variant. The horizontal branch below has the same
-                  readout — BOTH must honor the Header day-change colors, which is why
-                  fixing only one appeared to do nothing. Explicit setting wins; else
-                  the Sunset pair; else the default green/red. */}
-              <span className={styles.vlChange} style={{ color: (parseFloat(crosshairData.change) >= 0
-                ? (cs.header?.colors?.dayChangeUp || (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'))
-                : (cs.header?.colors?.dayChangeDown || (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d'))) }}>
-                {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
+              {/* VERTICAL legend variant. All three layouts share `legChgColor` so
+                  they can't disagree about the Header day-change colors (fixing one
+                  in isolation used to look like a no-op). */}
+              <span className={styles.vlChange} style={{ color: legChgColor }}>
+                {legUp ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
               <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
               <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
@@ -8873,16 +9027,9 @@ export default function StockChart({
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
                 <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
               ])}
-              {crosshairData.rsi != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.rsi?.color || '#7b68ee' }}>RSI({cs.indicators?.rsi?.period || 14}) {crosshairData.rsi.toFixed(1)}</span>)}
-              {crosshairData.macd != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.macd?.macdColor || '#2196F3' }}>MACD {crosshairData.macd.toFixed(4)}</span>)}
-              {crosshairData.macdSig != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.macd?.signalColor || '#FF9800' }}>SIG {crosshairData.macdSig.toFixed(4)}</span>)}
-              {crosshairData.stochK != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.stoch?.kColor || '#FF6B6B' }}>%K {crosshairData.stochK.toFixed(1)}</span>)}
-              {crosshairData.stochD != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.stoch?.dColor || '#4ECDC4' }}>%D {crosshairData.stochD.toFixed(1)}</span>)}
-              {crosshairData.atr != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.atr?.color || '#FFA726' }}>ATR({cs.indicators?.atr?.period || 14}) {crosshairData.atr.toFixed(4)}</span>)}
-              {crosshairData.sar != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.sar?.color || '#ffeb3b' }}>SAR {crosshairData.sar.toFixed(4)}</span>)}
-              {crosshairData.ichimokuTenkan != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.ichimoku?.tenkanColor || '#26C6DA' }}>TK {crosshairData.ichimokuTenkan.toFixed(2)}</span>)}
-              {crosshairData.ichimokuKijun != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.ichimoku?.kijunColor || '#EF5350' }}>KJ {crosshairData.ichimokuKijun.toFixed(2)}</span>)}
-              {crosshairData.compare != null && compareSymbol && (<span className={styles.vlFull} style={{ color: '#fb923c' }}>{compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%</span>)}
+              {legChips.map(([key, color, text]) => (
+                <span key={key} className={styles.vlFull} style={{ color }}>{text}</span>
+              ))}
             </>
           ) : (
           <>
@@ -8910,56 +9057,9 @@ export default function StockChart({
           {crosshairData.overlays.map((ov, i) => (
             <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
-          {crosshairData.rsi != null && (
-            <span style={{ color: cs.indicators?.rsi?.color || '#7b68ee' }}>
-              RSI({cs.indicators?.rsi?.period || 14}) {crosshairData.rsi.toFixed(1)}
-            </span>
-          )}
-          {crosshairData.macd != null && (
-            <span style={{ color: cs.indicators?.macd?.macdColor || '#2196F3' }}>
-              MACD {crosshairData.macd.toFixed(4)}
-            </span>
-          )}
-          {crosshairData.macdSig != null && (
-            <span style={{ color: cs.indicators?.macd?.signalColor || '#FF9800' }}>
-              SIG {crosshairData.macdSig.toFixed(4)}
-            </span>
-          )}
-          {crosshairData.stochK != null && (
-            <span style={{ color: cs.indicators?.stoch?.kColor || '#FF6B6B' }}>
-              %K {crosshairData.stochK.toFixed(1)}
-            </span>
-          )}
-          {crosshairData.stochD != null && (
-            <span style={{ color: cs.indicators?.stoch?.dColor || '#4ECDC4' }}>
-              %D {crosshairData.stochD.toFixed(1)}
-            </span>
-          )}
-          {crosshairData.atr != null && (
-            <span style={{ color: cs.indicators?.atr?.color || '#FFA726' }}>
-              ATR({cs.indicators?.atr?.period || 14}) {crosshairData.atr.toFixed(4)}
-            </span>
-          )}
-          {crosshairData.sar != null && (
-            <span style={{ color: cs.indicators?.sar?.color || '#ffeb3b' }}>
-              SAR {crosshairData.sar.toFixed(4)}
-            </span>
-          )}
-          {crosshairData.ichimokuTenkan != null && (
-            <span style={{ color: cs.indicators?.ichimoku?.tenkanColor || '#26C6DA' }}>
-              TK {crosshairData.ichimokuTenkan.toFixed(2)}
-            </span>
-          )}
-          {crosshairData.ichimokuKijun != null && (
-            <span style={{ color: cs.indicators?.ichimoku?.kijunColor || '#EF5350' }}>
-              KJ {crosshairData.ichimokuKijun.toFixed(2)}
-            </span>
-          )}
-          {crosshairData.compare != null && compareSymbol && (
-            <span style={{ color: '#fb923c' }}>
-              {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
-            </span>
-          )}
+          {legChips.map(([key, color, text]) => (
+            <span key={key} style={{ color }}>{text}</span>
+          ))}
           </>
           )}
         </div>

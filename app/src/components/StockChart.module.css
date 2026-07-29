@@ -40,19 +40,22 @@
   gap: 12px;
   padding: 2px 7px;
   border-radius: 3px;
-  background: var(--chart-panel-bg-soft-low, rgba(14, 15, 13, 0.55));
+  background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.78));
   /* Match the main chart legend: mono font + tan/gold label + value colors. */
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   pointer-events: none;
   user-select: none;
 }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
 /* The $ Vol / Avg strip sits directly under the range buttons (3M/6M/YTD/…), so it
    shares their color token — the two must always match, and both follow the canvas.
-   Not user-editable by design; the Indicators tab only toggles visibility. */
-.volLegLabel { color: var(--chart-panel-text-low, #a8a290); font-weight: 500; }
-.volLegVal { color: var(--chart-panel-text-low, #d4cfc0); font-weight: 600; font-variant-numeric: tabular-nums; }
+   Not user-editable by design; the Indicators tab only toggles visibility.
+   Both read the STRONG token (the plain one resolves to a dim #8a8578 on a dark
+   canvas, which made this strip and the range buttons hard to read); the label
+   steps back via opacity instead of a dimmer color, so contrast survives. */
+.volLegLabel { color: var(--chart-panel-text-strong-low, #e2dfd6); opacity: 0.72; font-weight: 600; }
+.volLegVal { color: var(--chart-panel-text-strong-low, #f2eee3); font-weight: 700; font-variant-numeric: tabular-nums; }
 :global([data-charts-theme='sunrise']) .volLegend { background: rgba(255, 255, 255, 0.55); }
 :global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
 :global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }
@@ -60,17 +63,21 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--chart-panel-text-low, #8a8578);
+  /* Strong token + opacity (see .volLegLabel): the plain token is a dim #8a8578
+     on a dark canvas, which is what made these buttons hard to pick out. */
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  opacity: 0.82;
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 2px 7px;
   border-radius: 4px;
-  transition: color 0.12s, background 0.12s;
+  transition: color 0.12s, background 0.12s, opacity 0.12s;
 }
 .rangeBtn:hover {
   color: var(--chart-panel-text-strong-low, #e2dfd6);
+  opacity: 1;
   background: var(--chart-panel-hover-low, rgba(255, 255, 255, 0.07));
 }
 
@@ -292,6 +299,54 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Charts workspace, "Horizontal" legend layout — a flat two-line strip that sits
+   ON the canvas with NO background box: a title line (ticker · company · TF) over
+   a single wrapping row of values. Deliberately overrides the shared .legend box
+   (background/padding/radius) rather than forking it, so every color/position
+   rule the two layouts share keeps applying. */
+.legendFlat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 3px;
+  top: 44px;
+  right: 8px;          /* let the value row use the full chart width before wrapping */
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);   /* legibility without a box, over candles */
+}
+:global([data-charts-theme='sunrise']) .legendFlat {
+  background: none;
+  box-shadow: none;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
+}
+.flHead {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+.flSym { color: #e7e2d4; font-weight: 700; letter-spacing: 0.4px; }
+.flCompany { color: #d4cfc0; font-weight: 600; }
+.flTf { color: #d4cfc0; font-weight: 700; }
+.flDot { color: #7d786c; }
+:global([data-charts-theme='sunrise']) .flSym { color: #101b26; }
+:global([data-charts-theme='sunrise']) .flCompany,
+:global([data-charts-theme='sunrise']) .flTf { color: #1c2836; }
+:global([data-charts-theme='sunrise']) .flDot { color: #7a8592; }
+/* The value strip. Wraps only when it genuinely runs out of chart width. */
+.flRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Multi-symbol comparison legend (top-left overlay) ──
