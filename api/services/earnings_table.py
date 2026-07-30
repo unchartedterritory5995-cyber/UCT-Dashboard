@@ -270,17 +270,26 @@ def _yf_forward_quarters(ticker, limit):
     return out[:limit]
 
 
-def _next_report_date(ticker):
+def _next_report_date(ticker, now=None):
     """The next scheduled earnings report date. FMP stable/earnings carries the
     upcoming report as a future row (epsActual null) with a real date and is on
     the current plan — use its earliest future date; fall back to the Finnhub
     calendar. Used to stamp a real date onto the nearest forward quarter when
-    the estimate source (yfinance) supplies none."""
+    the estimate source (yfinance) supplies none.
+
+    `now` (unix seconds) is the AS-OF clock, threaded from _build_quarterly. It
+    used to read date.today() directly, which silently ignored the injected
+    clock: every caller below already honors `now`, so "what is still in the
+    future" was answered against the real date while everything around it was
+    answered against the as-of date. Harmless in prod (they coincide) but it
+    made the seam untestable — a pinned-date test drifted into failure the day
+    its fixture's scheduled report slipped into the real past."""
     try:
         data = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
         if isinstance(data, list):
-            from datetime import date
-            today = date.today().isoformat()
+            from datetime import date, datetime, timezone
+            today = (date.today().isoformat() if now is None else
+                     datetime.fromtimestamp(now, tz=timezone.utc).date().isoformat())
             futures = sorted(
                 str(r.get("date") or "")[:10] for r in data
                 if r.get("epsActual") is None and r.get("revenueActual") is None
@@ -297,14 +306,14 @@ def _next_report_date(ticker):
         return None
 
 
-def _stamp_next_report_date(ticker, rows):
+def _stamp_next_report_date(ticker, rows, now=None):
     """Attach the real scheduled report date to the NEAREST forward quarter.
     Sanity-gated when the row carries a period end: the scheduled report must
     fall between the period end and ~120 days after it, else a wrong-symbol or
     stale calendar entry would mislabel the card."""
     if not rows or rows[0].get("report_date"):
         return rows
-    d = _next_report_date(ticker)
+    d = _next_report_date(ticker, now=now)
     if not d:
         return rows
     pe = rows[0].get("period_end")
@@ -319,7 +328,7 @@ def _stamp_next_report_date(ticker, rows):
     return rows
 
 
-def _forward_quarters(ticker, limit, reported_labels=frozenset()):
+def _forward_quarters(ticker, limit, reported_labels=frozenset(), now=None):
     """Forward-estimate quarters for the strip, coverage-maximizing chain:
     FMP analyst-estimates (depth, period-labeled, FMP Ultimate) → yfinance
     (broad backstop, 2 near quarters, no labels) → single Finnhub next-earnings
@@ -339,7 +348,7 @@ def _forward_quarters(ticker, limit, reported_labels=frozenset()):
         except Exception:
             rows = []
     if rows:
-        return _stamp_next_report_date(ticker, rows[:limit])
+        return _stamp_next_report_date(ticker, rows[:limit], now=now)
     try:
         nxt = _next_earnings(ticker)
     except Exception:
@@ -384,7 +393,7 @@ def _build_quarterly(ticker, now, fresh=False):
     # incrementing the last label in sequence, which never duplicates a
     # reported label by construction.
     label = last5[-1]["label"] if last5 else None
-    for q in _forward_quarters(ticker, _FWD_QUARTERS, frozenset(actual_by_label)):
+    for q in _forward_quarters(ticker, _FWD_QUARTERS, frozenset(actual_by_label), now=now):
         next_label = q.get("label") or _next_q_label(label)
         if next_label is None:
             qd = _parse_date(q.get("report_date") or q.get("period_end"))

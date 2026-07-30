@@ -233,7 +233,7 @@ def test_build_quarterly_yfinance_fallback(monkeypatch, tmp_path):
                         lambda t, limit: [{"date": None, "eps_estimate": 0.60, "rev_estimate": 1.1e9},
                                           {"date": None, "eps_estimate": 0.70, "rev_estimate": 1.2e9}])
     # stable/earnings supplies the nearest quarter's real report date.
-    monkeypatch.setattr(etmod, "_next_report_date", lambda t: "2026-08-01")
+    monkeypatch.setattr(etmod, "_next_report_date", lambda t, now=None: "2026-08-01")
     import calendar, time
     now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
     q = et._build_quarterly("ZZY", now)
@@ -375,7 +375,7 @@ def test_build_quarterly_cur_year_uses_et_not_utc(monkeypatch, tmp_path):
     import api.services.earnings_table as etmod
     seen = []
     monkeypatch.setattr(etmod.ee, "get_year_earnings", lambda t, y, fresh=False: seen.append(y) or [])
-    monkeypatch.setattr(etmod, "_forward_quarters", lambda t, limit, reported_labels=frozenset(): [])
+    monkeypatch.setattr(etmod, "_forward_quarters", lambda t, limit, reported_labels=frozenset(), now=None: [])
     import calendar, time
     now = calendar.timegm(time.strptime("2027-01-01 04:30", "%Y-%m-%d %H:%M"))  # 23:30 ET Dec 31 2026
     et._build_quarterly("ZZTZ", now)
@@ -394,7 +394,7 @@ def test_build_quarterly_threads_fresh_to_year_earnings(monkeypatch, tmp_path):
         return []
 
     monkeypatch.setattr(etmod.ee, "get_year_earnings", spy)
-    monkeypatch.setattr(etmod, "_forward_quarters", lambda t, limit, reported_labels=frozenset(): [])
+    monkeypatch.setattr(etmod, "_forward_quarters", lambda t, limit, reported_labels=frozenset(), now=None: [])
     import calendar, time
     now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
     et._build_quarterly("ZZFR", now, fresh=True)
