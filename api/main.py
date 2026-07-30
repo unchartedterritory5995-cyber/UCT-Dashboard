@@ -2995,6 +2995,25 @@ async def lifespan(app: FastAPI):
                 id="catalyst_morning_digest", max_instances=1, replace_existing=True)
             print("[scheduler] catalyst morning digest registered (8 AM ET weekdays)")
 
+        # -- Weekly calendar cards -> Discord ------------------------------
+        # Saturday 4:30 AM ET: render the week-ahead earnings + economic-events
+        # cards and post both in ONE message to #event-calendar.
+        # Pinned to America/New_York so it stays 4:30 LOCAL across the DST flip
+        # instead of drifting an hour in summer (lesson_apscheduler_cron_utc_trap).
+        if os.environ.get("CALENDAR_WEEK_POST_ENABLED", "0").lower() in ("1", "true", "yes"):
+            def _calendar_week_post_job():
+                try:
+                    from api.services.calendar_week_poster import run_scheduled_post
+                    run_scheduled_post()
+                except Exception as _e:
+                    print(f"[scheduler] weekly calendar post error: {_e}")
+
+            _scheduler.add_job(
+                _calendar_week_post_job,
+                trigger=CronTrigger(day_of_week="sat", hour=4, minute=30, timezone=_ET),
+                id="calendar_week_post", max_instances=1, replace_existing=True)
+            print("[scheduler] weekly calendar Discord post registered (Sat 4:30 AM ET)")
+
         # -- Pre-report Earnings Alerts (Phase E1) -------------------------
         # Gated on CALENDAR_ALERTS_ENABLED=1. Fires two windows:
         #   - Evening ~6 PM ET -- alert for tomorrow's BMO reporters

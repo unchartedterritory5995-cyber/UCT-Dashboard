@@ -14,100 +14,20 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-_ASSETS = os.path.join(os.path.dirname(__file__), "desk_assets")
+from api.services.calendar_png_common import (
+    ASSETS as _ASSETS,
+    BG_TOP as _BG_TOP, BG_BOT as _BG_BOT, GOLD as _GOLD, INK as _INK, DIM as _DIM,
+    PANEL as _PANEL, LINE as _LINE, BMO as _BMO, AMC as _AMC, TBD as _TBD,
+    font as _font, compass as _compass, round_mask as _round_mask,
+    logo_tile as _logo_tile, fmt_cap as _fmt_cap, truncate as _truncate,
+    gradient_bg as _gradient_bg_wh,
+)
 
 _W, _H = 1200, 630
 
-# Brand palette (mirrors the calendar dark theme + gold accent)
-_BG_TOP = (20, 22, 30)
-_BG_BOT = (9, 10, 14)
-_GOLD = (201, 168, 76)
-_INK = (233, 235, 240)
-_DIM = (150, 156, 168)
-_PANEL = (28, 31, 40)
-_LINE = (52, 56, 68)
-_BMO = (201, 168, 76)     # gold — before open
-_AMC = (110, 150, 220)    # blue — after close
-_TBD = (140, 146, 158)    # grey — session TBD
-
-
-def _font(name: str, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(os.path.join(_ASSETS, name), int(size))
-
 
 def _gradient_bg() -> Image.Image:
-    img = Image.new("RGB", (_W, _H))
-    dr = ImageDraw.Draw(img)
-    for y in range(_H):
-        t = y / _H
-        c = tuple(int(_BG_TOP[i] + (_BG_BOT[i] - _BG_TOP[i]) * t) for i in range(3))
-        dr.line([(0, y), (_W, y)], fill=c)
-    return img
-
-
-def _compass(size: int):
-    try:
-        mark = Image.open(os.path.join(_ASSETS, "compass-mark.png")).convert("RGBA")
-        return mark.resize((int(size), int(size)), Image.LANCZOS)
-    except Exception:
-        return None
-
-
-def _round_mask(size: int, radius: int) -> Image.Image:
-    m = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(m).rounded_rectangle([0, 0, size - 1, size - 1], radius=radius, fill=255)
-    return m
-
-
-def _logo_tile(sym: str, size: int, logo_path: str | None) -> Image.Image:
-    """A rounded logo tile, or a gold-ringed monogram when the logo is a miss."""
-    tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    if logo_path and os.path.exists(logo_path):
-        try:
-            logo = Image.open(logo_path).convert("RGBA")
-            # Fit-contain onto a white rounded plate so transparent logos read
-            plate = Image.new("RGBA", (size, size), (245, 246, 248, 255))
-            pad = int(size * 0.14)
-            inner = size - pad * 2
-            logo.thumbnail((inner, inner), Image.LANCZOS)
-            ox = (size - logo.width) // 2
-            oy = (size - logo.height) // 2
-            plate.paste(logo, (ox, oy), logo)
-            plate.putalpha(_round_mask(size, int(size * 0.22)))
-            return plate
-        except Exception:
-            pass
-    # Monogram fallback
-    dr = ImageDraw.Draw(tile)
-    dr.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(size * 0.22),
-                         fill=(38, 41, 52, 255), outline=_GOLD + (255,), width=2)
-    letter = (sym or "?")[:1].upper()
-    f = _font("DejaVuSans-Bold.ttf", int(size * 0.5))
-    w = dr.textlength(letter, font=f)
-    # textbbox for vertical centering
-    bb = dr.textbbox((0, 0), letter, font=f)
-    dr.text(((size - w) / 2, (size - (bb[3] - bb[1])) / 2 - bb[1]), letter,
-            font=f, fill=_GOLD + (255,))
-    return tile
-
-
-def _fmt_cap(mc_b) -> str | None:
-    if mc_b is None or mc_b <= 0:
-        return None
-    if mc_b >= 1000:
-        return f"${mc_b / 1000:.1f}T"
-    if mc_b >= 1:
-        return f"${round(mc_b)}B"
-    return f"${round(mc_b * 1000)}M"
-
-
-def _truncate(draw, text, font, max_w) -> str:
-    if draw.textlength(text, font=font) <= max_w:
-        return text
-    t = text
-    while t and draw.textlength(t + "…", font=font) > max_w:
-        t = t[:-1]
-    return (t + "…") if t else ""
+    return _gradient_bg_wh(_W, _H)
 
 
 def render_anticipated_png(week_label: str, entries: list[dict]) -> bytes:

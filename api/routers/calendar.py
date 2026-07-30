@@ -2525,3 +2525,77 @@ def sector_read(sector: str, week: str | None = None, user=Depends(get_current_u
 
     _sr.request_generation(sec, week_key, reporters)
     return _sr.status_for(sec, week_key)
+
+
+# ── Week-ahead cards + Discord post ───────────────────────────────────────────
+
+_WEEK_CARD_TTL_FUTURE = 1800      # 30 min — a forward week's schedule still moves
+_WEEK_CARD_TTL_PAST = 6 * 3600
+
+
+def _week_card_monday(week: str | None) -> date | None:
+    import re as _re
+    if week and _re.match(r"^\d{4}-\d{2}-\d{2}$", week):
+        try:
+            return _monday_of(date.fromisoformat(week))
+        except ValueError:
+            return None
+    return _week_dates()[0]
+
+
+def _render_week_card(kind: str, week: str | None):
+    """Shared body for the two preview endpoints. `kind` is 'earnings'|'econ'."""
+    from api.services import calendar_week_poster as _poster
+    from api.services.calendar_week_png import (
+        render_earnings_week_png, render_econ_week_png,
+    )
+
+    monday = _week_card_monday(week)
+    if monday is None:
+        return _Response(content="bad week", status_code=400, media_type="text/plain")
+    if abs((monday - _week_dates()[0]).days) // 7 > _WEEK_HORIZON_WEEKS:
+        return _Response(content="out of range", status_code=400, media_type="text/plain")
+
+    ck = f"calendar_week_card_{kind}_{monday.isoformat()}"
+    hit = cache.get(ck)
+    if hit is None:
+        earnings_days, econ_days = _poster.build_payloads(monday)
+        label = _poster.week_label(monday)
+        hit = (render_earnings_week_png(label, earnings_days) if kind == "earnings"
+               else render_econ_week_png(label, econ_days))
+        ttl = (_WEEK_CARD_TTL_PAST if monday + timedelta(days=4) < _today_et()
+               else _WEEK_CARD_TTL_FUTURE)
+        cache.set(ck, hit, ttl=ttl)
+    return _Response(content=hit, media_type="image/png",
+                     headers={"Cache-Control": "public, max-age=900"})
+
+
+@router.get("/api/calendar/week-earnings.png")
+def week_earnings_png(week: str | None = None):
+    """Preview of the Mon-Fri earnings card that gets posted to Discord."""
+    return _render_week_card("earnings", week)
+
+
+@router.get("/api/calendar/week-econ.png")
+def week_econ_png(week: str | None = None):
+    """Preview of the Mon-Fri economic-events card that gets posted to Discord."""
+    return _render_week_card("econ", week)
+
+
+@router.post("/api/calendar/post-week")
+def post_week_to_discord(target: str = "test", week: str | None = None,
+                         force: bool = False,
+                         user: dict = Depends(require_admin)):
+    """Render + post the week-ahead cards to Discord.
+
+    target=test (default) -> UCT Intelligence server / admin fallback.
+    target=live           -> #event-calendar; refuses if its webhook is unset.
+    force=1 bypasses the once-per-week dedup guard.
+    """
+    from api.services import calendar_week_poster as _poster
+    if target not in ("test", "live"):
+        return {"ok": False, "reason": "target must be 'test' or 'live'"}
+    monday = _week_card_monday(week)
+    if monday is None:
+        return {"ok": False, "reason": "bad week"}
+    return _poster.post_week(target=target, monday=monday, force=bool(force))
