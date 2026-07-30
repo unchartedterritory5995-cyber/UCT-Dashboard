@@ -130,8 +130,11 @@ def _build_table_compact(items, side="bull"):
         else:
             row = f"{sym}—"
 
-        date_str = _resolve_date_str(item)
-        row = f"{row} {date_str}" if date_str else row
+        # NOTE: no entry-date on the 2-column rows. The date pushed each row past
+        # the narrow inline-field width and wrapped it onto a 2nd line on DESKTOP
+        # (mobile is full-width so it stayed one line). Dropping it keeps every
+        # contract a single aligned line on both. The date range still shows on
+        # the summary embed. Single-column ≤10 rows (_build_table) keep the date.
         lines.append(row)
         if i < min(len(items), 10):
             lines.append(sep_line)
@@ -139,11 +142,13 @@ def _build_table_compact(items, side="bull"):
     return "\n".join(lines) if lines else "(empty)"
 
 
-def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact: bool = False) -> str:
+def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact: bool = False, show_date: bool = True) -> str:
     """
     Build a monospace table for Discord code blocks.
     compact=True: for inline fields (~18 char width) — ticker + strike/cp + prem only.
     compact=False: full row — ticker + exp + strike/cp + prem + date.
+    show_date=False: drop the trailing entry-date (used for the dense same-day
+      single-column layout, where the date lives on the header instead of each row).
     """
     prem_color = _GREEN_A if side == "bull" else _RED_A
     sep_raw = SEP_COMPACT if compact else SEP_FULL
@@ -182,8 +187,10 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact
             else:
                 contract = "—"
 
-            # Entry date (today's-date fallback ensures uniform rendering)
-            date_str = _resolve_date_str(item)
+            # Entry date (today's-date fallback ensures uniform rendering).
+            # Shown only when show_date — the multi-day (weekly) view uses it to
+            # mark which day each contract's flow hit; the same-day view drops it.
+            date_str = _resolve_date_str(item) if show_date else ""
 
             row = f"{sym}{contract} {date_str}" if date_str else f"{sym}{contract}"
 
@@ -248,6 +255,55 @@ def _conviction_grade(score: float) -> str:
     return "C"
 
 
+# ── Layout helpers ─────────────────────────────────────────────────────────
+
+def _is_multi_day(items: list[dict]) -> bool:
+    """True if the watchlist spans more than one entry-date (a weekly push).
+
+    A same-day push (all contracts from today) renders the dense 2-column layout
+    with no per-row date. A multi-day push shows the date, so we switch to a
+    single full-width column where the date fits on one line.
+    """
+    seen = set()
+    for it in items:
+        d = _resolve_date_str(it)
+        if d and d != "?":
+            seen.add(d)
+            if len(seen) > 1:
+                return True
+    return False
+
+
+def _side_embed(items: list[dict], color: int, title: str, side: str, multi_day: bool) -> dict:
+    """Build one bull/bear-style embed, layout chosen by span.
+
+    multi_day → single full-width column WITH per-row date (fits on one line;
+      marks which day each contract's flow hit).
+    same-day  → dense 2-column (>10) or single column (≤10), no per-row date —
+      the date lives on the header + summary instead.
+    """
+    if multi_day:
+        return {
+            "color": color,
+            "title": title,
+            "description": f"```ansi\n{_build_table(items, 20, side, show_date=True)}\n```",
+        }
+    if len(items) > 10:
+        return {
+            "color": color,
+            "title": title,
+            "fields": [
+                {"name": "​", "value": f"```ansi\n{_build_table_compact(items[:10], side)}\n```", "inline": True},
+                {"name": "​", "value": f"```ansi\n{_build_table_compact(items[10:20], side)}\n```", "inline": True},
+            ],
+        }
+    return {
+        "color": color,
+        "title": title,
+        "description": f"```ansi\n{_build_table(items, 10, side, show_date=False)}\n```",
+    }
+
+
 # ── Message builder (tiered embeds) ────────────────────────────────────────
 
 def build_messages(
@@ -298,6 +354,12 @@ def build_messages(
     date_str = date_range if date_range else now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
 
+    # Span decides the layout: a same-day push stays dense 2-column (no per-row
+    # date); a multi-day (weekly) push shows the date per row in a single column.
+    multi_day = _is_multi_day(
+        bull_sorted + bear_sorted + (unusual_bull or []) + (unusual_bear or [])
+    )
+
     messages = []
 
     if bull_sorted or bear_sorted:
@@ -324,43 +386,11 @@ def build_messages(
 
         # Embed 2: Bull watchlist (green sidebar)
         if bull_sorted:
-            if len(bull_sorted) > 10:
-                left = bull_sorted[:10]
-                right = bull_sorted[10:20]
-                embeds.append({
-                    "color": GREEN,
-                    "title": f"🟢 BULL WATCHLIST",
-                    "fields": [
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(left, 'bull')}\n```", "inline": True},
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(right, 'bull')}\n```", "inline": True},
-                    ],
-                })
-            else:
-                embeds.append({
-                    "color": GREEN,
-                    "title": f"🟢 BULL WATCHLIST",
-                    "description": f"```ansi\n{_build_table(bull_sorted, 10, 'bull')}\n```",
-                })
+            embeds.append(_side_embed(bull_sorted, GREEN, f"🟢 Bullish Flow — {date_str}", "bull", multi_day))
 
         # Embed 3: Bear watchlist (red sidebar)
         if bear_sorted:
-            if len(bear_sorted) > 10:
-                left = bear_sorted[:10]
-                right = bear_sorted[10:20]
-                embeds.append({
-                    "color": RED,
-                    "title": f"🔴 BEAR WATCHLIST",
-                    "fields": [
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(left, 'bear')}\n```", "inline": True},
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(right, 'bear')}\n```", "inline": True},
-                    ],
-                })
-            else:
-                embeds.append({
-                    "color": RED,
-                    "title": f"🔴 BEAR WATCHLIST",
-                    "description": f"```ansi\n{_build_table(bear_sorted, 10, 'bear')}\n```",
-                })
+            embeds.append(_side_embed(bear_sorted, RED, f"🔴 Bearish Flow — {date_str}", "bear", multi_day))
 
         # Footer on last embed
         embeds[-1]["footer"] = {"text": f"UCT Intelligence · {time_str}"}
@@ -385,42 +415,10 @@ def build_messages(
         unusual_embeds = []
 
         if ub_sorted:
-            if len(ub_sorted) > 10:
-                left = ub_sorted[:10]
-                right = ub_sorted[10:20]
-                unusual_embeds.append({
-                    "color": GOLD,
-                    "title": "⚡ UNUSUAL FLOW — BULL",
-                    "fields": [
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(left, 'bull')}\n```", "inline": True},
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(right, 'bull')}\n```", "inline": True},
-                    ],
-                })
-            else:
-                unusual_embeds.append({
-                    "color": GOLD,
-                    "title": "⚡ UNUSUAL FLOW — BULL",
-                    "description": f"```ansi\n{_build_table(ub_sorted, 10, 'bull')}\n```",
-                })
+            unusual_embeds.append(_side_embed(ub_sorted, GOLD, f"⚡ Unusual Bull Flow — {date_str}", "bull", multi_day))
 
         if ubear_sorted:
-            if len(ubear_sorted) > 10:
-                left = ubear_sorted[:10]
-                right = ubear_sorted[10:20]
-                unusual_embeds.append({
-                    "color": 0x9B59B6,
-                    "title": "⚡ UNUSUAL FLOW — BEAR",
-                    "fields": [
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(left, 'bear')}\n```", "inline": True},
-                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(right, 'bear')}\n```", "inline": True},
-                    ],
-                })
-            else:
-                unusual_embeds.append({
-                    "color": 0x9B59B6,
-                    "title": "⚡ UNUSUAL FLOW — BEAR",
-                    "description": f"```ansi\n{_build_table(ubear_sorted, 10, 'bear')}\n```",
-                })
+            unusual_embeds.append(_side_embed(ubear_sorted, 0x9B59B6, f"⚡ Unusual Bear Flow — {date_str}", "bear", multi_day))
 
         if unusual_embeds:
             unusual_embeds[-1]["footer"] = {"text": f"UCT Intelligence · {time_str}"}
