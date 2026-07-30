@@ -808,6 +808,20 @@ export default function OptionsFlowDashboard() {
     dataVersionRef.current = dataVersion;
   }, [dataVersion]);
 
+  // Curated "best alerts" thresholds — fetched so the Watchlist Auto-Fill +
+  // Scanner Suggestions quality gate matches the Live Massive curated feed AS
+  // IT IS TUNED (premium floors, V/OI, confirmers). Falls back to curated
+  // defaults if unset/unreachable. Same endpoint the curated tuning panel uses.
+  const [curatedThresholds, setCuratedThresholds] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/live/massive/thresholds")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d && d.thresholds) setCuratedThresholds(d.thresholds); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
   // changes, the csvFile URL changes, useEffect re-runs, fresh data arrives.
@@ -1463,6 +1477,39 @@ export default function OptionsFlowDashboard() {
     return "Unknown";
   };
 
+  // Curated "best alerts" quality gate — SHARED by the Watchlist Auto-Fill AND
+  // Scanner Suggestions so both match the Live Massive curated feed. Driven by
+  // the live curated thresholds (falls back to curated defaults if not loaded).
+  // Enforces: premium floor by tier x cap band, block-only EXCLUDED (the strike
+  // must have a sweep — block+sweep and sweeps kept, matches hide_block_only),
+  // a hard V/OI gate when the panel requires it, and >= min_signals of
+  // {V/OI, hits, grade} confirmers.
+  const passesCuratedGate = (c) => {
+    const th = curatedThresholds;
+    const cap = wlCapCheck(c);
+    const band = cap === "Mega" ? "mega" : cap === "Large" ? "large" : "mid_small";
+    const tier = c.dir === "BEAR" ? "bearish" : "bullish";
+    const tierFloors = th && th.premium_by_cap && th.premium_by_cap[tier];
+    const floor = tierFloors ? (tierFloors[band] ?? 0)
+      : (cap === "Mega" ? 750e3 : cap === "Large" ? 500e3 : 250e3);
+    if ((c.prem || 0) < floor) return false;
+    // block-only out — contract must have a sweep (block+sweep + sweeps kept)
+    if (!(c.trades || []).some(t => t.Ty === "SWP")) return false;
+    const stack = (th && th.stack) || {};
+    const vOI = stack.vOI ?? 3, hitN = stack.hit_count ?? 3;
+    const oiKnown = (c.maxOI || 0) > 0;
+    // hard V/OI gate only when the panel requires it (skip when OI unknown)
+    if ((stack.voi_required ?? false) && oiKnown && (c.volOI || 0) < vOI) return false;
+    // >= min_signals confirmers (unknown V/OI counts as met, like curated's override)
+    const gOrd = { D: 0, C: 1, B: 2, "B+": 3, A: 4, "A+": 5 };
+    const gMin = gOrd[stack.grade ?? "B"] ?? 2;
+    let conf = 0;
+    if (!oiKnown || (c.volOI || 0) >= vOI) conf++;
+    if ((c.hits || 0) >= hitN) conf++;
+    if ((gOrd[c.grade] ?? 0) >= gMin) conf++;
+    if (conf < (stack.min_signals ?? 1)) return false;
+    return true;
+  };
   const autoScore = (c) => {
     let s = 0;
     // Grade: 0.5–2.5
@@ -1699,22 +1746,9 @@ export default function OptionsFlowDashboard() {
     // still filled with AAPL/META/etc. Uses wlCapCheck which falls back to
     // capLookup for tickers with mktcap=0 (gap-fill rows).
     const capFilterOk = c => capFilter === "All" || wlCapCheck(c) === capFilter;
-    // Consistency with the Live Massive curated feed (2026-07-29): the Watchlist
-    // should surface the SAME "best alerts" quality bar. Gate CONV picks by the
-    // curated essentials BEFORE autoScore-ranking — premium floor by cap band
-    // (curated bullish/bearish floors), sweep-required (block-only excluded;
-    // block+sweep and sweeps kept — matches the curated hide_block_only rule),
-    // and V/OI >= 1 when OI is known. Mirrors _qualifies_curated's intent in JS;
-    // hardcoded to the current curated defaults (a follow-up can fetch live
-    // /thresholds so it also tracks panel tuning).
-    const passesCuratedGate = (c) => {
-      const _cap = wlCapCheck(c);
-      const _floor = _cap === "Mega" ? 750e3 : _cap === "Large" ? 500e3 : 250e3;
-      if ((c.prem || 0) < _floor) return false;
-      if (!(c.trades || []).some(t => t.Ty === "SWP")) return false;
-      if ((c.volOI || 0) < 1 && (c.maxOI || 0) > 0) return false;
-      return true;
-    };
+    // Curated "best alerts" quality bar (component-scope passesCuratedGate, driven
+    // by live curated thresholds) — same gate the Scanner Suggestions use, so the
+    // Watchlist matches the Live Massive curated feed. Block-only excluded here.
     const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c) && capFilterOk(c) && passesCuratedGate(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
@@ -8663,7 +8697,9 @@ export default function OptionsFlowDashboard() {
               // component-scope isETF().
               const _isStockSugg = (c) => !isETF(c.sym, c.stocketf);
               const _tabFilterSugg = dataMode === "stocks" ? _isStockSugg : ((c) => !_isStockSugg(c));
-              const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)) && dteOkSugg(c) && _tabFilterSugg(c))
+              // passesCuratedGate: same curated "best alerts" bar as the Watchlist
+              // Auto-Fill — block-only / sub-floor picks never reach Suggestions.
+              const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)) && dteOkSugg(c) && _tabFilterSugg(c) && passesCuratedGate(c))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
               const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
