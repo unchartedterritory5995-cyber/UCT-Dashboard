@@ -1699,7 +1699,23 @@ export default function OptionsFlowDashboard() {
     // still filled with AAPL/META/etc. Uses wlCapCheck which falls back to
     // capLookup for tickers with mktcap=0 (gap-fill rows).
     const capFilterOk = c => capFilter === "All" || wlCapCheck(c) === capFilter;
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c) && capFilterOk(c))).slice(0,20).map(c=>{
+    // Consistency with the Live Massive curated feed (2026-07-29): the Watchlist
+    // should surface the SAME "best alerts" quality bar. Gate CONV picks by the
+    // curated essentials BEFORE autoScore-ranking — premium floor by cap band
+    // (curated bullish/bearish floors), sweep-required (block-only excluded;
+    // block+sweep and sweeps kept — matches the curated hide_block_only rule),
+    // and V/OI >= 1 when OI is known. Mirrors _qualifies_curated's intent in JS;
+    // hardcoded to the current curated defaults (a follow-up can fetch live
+    // /thresholds so it also tracks panel tuning).
+    const passesCuratedGate = (c) => {
+      const _cap = wlCapCheck(c);
+      const _floor = _cap === "Mega" ? 750e3 : _cap === "Large" ? 500e3 : 250e3;
+      if ((c.prem || 0) < _floor) return false;
+      if (!(c.trades || []).some(t => t.Ty === "SWP")) return false;
+      if ((c.volOI || 0) < 1 && (c.maxOI || 0) > 0) return false;
+      return true;
+    };
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c) && capFilterOk(c) && passesCuratedGate(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -1713,7 +1729,7 @@ export default function OptionsFlowDashboard() {
         convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && wlTabFilter(c) && capFilterOk(c))).slice(0,20).map(c=>{
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && wlTabFilter(c) && capFilterOk(c) && passesCuratedGate(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
