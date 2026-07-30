@@ -201,6 +201,52 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact
 
     return "\n".join(lines) if lines else "(empty)"
 
+
+def _build_day_grouped(items: list[dict], side: str = "bull") -> str:
+    """Multi-day (weekly) layout: group contracts under a per-day header instead
+    of repeating the date on every row.
+
+    Each row drops back to the compact ~22-char width (fits one line on iPhone —
+    the flat per-row-date layout is ~30 chars and wraps on phones). The date moves
+    up to a dim ``── M/D ──`` header. Days are ordered newest-first; the incoming
+    score order is preserved within each day.
+    """
+    prem_color = _GREEN_A if side == "bull" else _RED_A
+
+    groups: dict[str, list[dict]] = {}
+    for it in items[:40]:
+        d = _resolve_date_str(it)
+        groups.setdefault(d, []).append(it)
+
+    def _daykey(d: str):
+        try:
+            m, day = d.split("/")
+            return (int(m), int(day))
+        except (ValueError, AttributeError):
+            return (0, 0)
+
+    lines: list[str] = []
+    for d in sorted(groups, key=_daykey, reverse=True):
+        lines.append(f"{_DIM}── {d} ──{_RESET}")
+        for it in groups[d]:
+            sym = (it.get("sym") or "???").ljust(6)
+            strike_val = it.get("strike")
+            if strike_val and str(strike_val).strip():
+                cp = (it.get("cp") or "?")[0].upper()
+                try:
+                    sv = float(strike_val)
+                    sn = str(int(sv)) if sv == int(sv) else f"{sv:g}"
+                except (ValueError, TypeError):
+                    sn = ""
+                exp = _fmt_exp(it.get("exp") or "")
+                prem = _fmt_short(float(it.get("prem") or 0))
+                lines.append(f"{sym}{exp.ljust(5)}{(sn + cp).ljust(6)}{prem_color}{prem.rjust(5)}{_RESET}")
+            else:
+                lines.append(f"{sym}—")
+
+    return "\n".join(lines) if lines else "(empty)"
+
+
 def _fmt(n: float) -> str:
     a = abs(n)
     if a >= 1e6:
@@ -286,7 +332,7 @@ def _side_embed(items: list[dict], color: int, title: str, side: str, multi_day:
         return {
             "color": color,
             "title": title,
-            "description": f"```ansi\n{_build_table(items, 20, side, show_date=True)}\n```",
+            "description": f"```ansi\n{_build_day_grouped(items, side)}\n```",
         }
     if len(items) > 10:
         return {
@@ -376,12 +422,20 @@ def build_messages(
         bear_blocks = bar_w - bull_blocks
         bar = "🟢" * bull_blocks + "🔴" * bear_blocks
         net_sign = "+" if net > 0 else ""
+        bear_pct = 100 - bull_pct
+        lean = "Bullish" if net > 0 else ("Bearish" if net < 0 else "Neutral")
+        lean_pct = bull_pct if net >= 0 else bear_pct
 
         embeds.append({
             "color": GOLD,
             "author": {"name": "UCT Options Flow"},
             "title": f"{net_emoji} {title_label} — {date_str}",
-            "description": f"**{net_sign}{_fmt(net)} NET**\n{bar}",
+            "description": f"**{net_sign}{_fmt(net)} NET**  ·  {lean_pct}% {lean}\n{bar}",
+            "fields": [
+                {"name": "🟢 Bull", "value": _fmt(total_bull), "inline": True},
+                {"name": "🔴 Bear", "value": _fmt(total_bear), "inline": True},
+                {"name": "📋 Tickers", "value": str(tk_count), "inline": True},
+            ],
         })
 
         # Embed 2: Bull watchlist (green sidebar)
