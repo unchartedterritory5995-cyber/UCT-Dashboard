@@ -42,6 +42,39 @@
   --info-bg: #6ba3be12;
   --info-border: #6ba3be30;
 
+  /* ── Popup-menu chrome (--menu-*) ─────────────────────────────────────────
+     The single palette worn by EVERY popup menu: chart settings, the
+     watchlist / theme-tracker / fundamentals / breadth settings panels, the
+     earnings-marker popover, the timeframe menu, ticker search, the color
+     picker, the leverage panel, and both right-click context menus.
+
+     THESE ARE DELIBERATELY THEME-INVARIANT. No [data-theme] block below
+     overrides them, and they no longer follow the chart canvas either (the
+     canvas-derived + gradient-glass menus were removed 2026-07-30, owner
+     decision): a menu is app chrome, so it must be the same recognizable dark
+     panel on every layout regardless of what the canvas is set to. Defining
+     them here rather than only in JS means menus that PORTAL to document.body
+     — and the several that were never handed theme vars at all — inherit the
+     palette for free.
+
+     `menuThemeVars()` in utils/dividerColor.js emits these same values as an
+     inline style on the menus that already spread it; the two must stay in
+     sync (MENU_THEME there is the JS mirror of this block). There is
+     intentionally NO --menu-surface: that var only ever carried the gradient
+     ramp, so every menu root resolves to the opaque --menu-bg. */
+  --menu-bg: #0e0e10;
+  --menu-bg-top: #17171a;
+  --menu-input-bg: #08080a;
+  --menu-border: rgba(255, 255, 255, 0.09);
+  --menu-divider: rgba(255, 255, 255, 0.06);
+  --menu-text: #ededed;
+  --menu-text-dim: #8a8a8f;
+  --menu-text-faint: #6b6b6b;
+  --menu-accent: #c9a84c;
+  --menu-accent-bg: rgba(201, 168, 76, 0.12);
+  --menu-hover: rgba(255, 255, 255, 0.055);
+  --menu-shadow: rgba(0, 0, 0, 0.7);
+
   /* Spacing scale */
   --space-xs: 4px;
   --space-sm: 8px;

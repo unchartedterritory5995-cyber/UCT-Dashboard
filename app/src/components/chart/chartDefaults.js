@@ -130,7 +130,9 @@ export const CHART_DEFAULTS = {
       macdColor: '#2196F3', signalColor: '#FF9800',
     },
     bb:   { enabled: false, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' },
-    vwap: { enabled: false, color: '#26C6DA' },
+    // opacity is a percent (5-100), composed with `color` into an rgba() at apply
+    // time — see VWAP_FIELDS in indicatorRegistry.js for why it isn't alpha-in-hex.
+    vwap: { enabled: false, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
     stoch: { enabled: false, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' },
     atr:   { enabled: false, period: 14, color: '#FFA726' },
     sar:   { enabled: false, step: 0.02, maxStep: 0.2, color: '#ffeb3b' },

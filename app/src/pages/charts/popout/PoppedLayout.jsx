@@ -16,7 +16,7 @@ import PopoutShell from './PopoutShell'
  * breakpoints, viewport lock), and a second copy of that config would be free to
  * drift out of sync with the main board.
  */
-export default function PoppedLayout({ theme, title, initialWidgets, onClose, onBlocked, renderGrid, computeRowHeight, initialRowHeight }) {
+export default function PoppedLayout({ theme, title, initialWidgets, onClose, onBlocked, renderGrid, computeRowHeight, initialRowHeight, merged = false }) {
   const [widgets, setWidgets] = useState(initialWidgets)
 
   // This board is viewport-locked to ITS window, not the one it came from, so it
@@ -38,10 +38,17 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
     const win = el?.ownerDocument?.defaultView
     if (!el || !win) return
     const measure = () => {
-      const w = win.innerWidth
-      const h = win.innerHeight
+      // Measure the BODY, not the window. `win.innerHeight` includes chrome the
+      // body doesn't get, and the merged/unmerged padding difference lives on this
+      // element — reading it directly is what keeps the shared row-height math and
+      // the real DOM in agreement (a mismatch clips the bottom widget's date axis).
+      // clientHeight/clientWidth include padding, which is exactly what
+      // computeRowHeight expects (it subtracts the padding itself).
+      const w = el.clientWidth || win.innerWidth
+      const h = el.clientHeight || win.innerHeight
+      const pad = merged ? 0 : 6
       if (w > 200) {
-        setGridWidth(w - 12)          // popoutBody padding (6px each side)
+        setGridWidth(w - pad * 2)
         setRowHeight(computeRowHeight(h))
       }
     }
@@ -57,7 +64,7 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
       } catch { /* window gone */ }
       if (ro) ro.disconnect()
     }
-  }, [bodyEl, computeRowHeight])
+  }, [bodyEl, computeRowHeight, merged])
 
   // onClose needs the widgets as they stand when the window actually closes, not
   // as they were when the handler was created.
@@ -108,7 +115,7 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
       onClose={handleClose}
       onBlocked={handleBlocked}
     >
-      <PopoutShell theme={theme} bodyRef={setBodyEl}>
+      <PopoutShell theme={theme} bodyRef={setBodyEl} merged={merged}>
         {renderGrid(widgets, handlers, rowHeight, gridWidth)}
       </PopoutShell>
     </PopoutWindow>

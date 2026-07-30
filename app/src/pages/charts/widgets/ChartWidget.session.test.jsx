@@ -36,6 +36,7 @@ vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => marketState }))
 const extState = { session: 'post', anchorDate: '2026-07-15' }
 vi.mock('../../../utils/extSession', () => ({
   getExtSession: () => extState,
+  getExtSessionCached: () => extState,
   anchorNoonSec: () => 0,
 }))
 

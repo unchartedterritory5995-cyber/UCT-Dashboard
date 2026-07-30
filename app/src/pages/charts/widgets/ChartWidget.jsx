@@ -5,7 +5,7 @@ import ShareToFloor from '../../../components/community/ShareToFloor'
 import ChartMarketClock from './ChartMarketClock'
 import { useWorkspace } from '../WorkspaceContext'
 import useMarketOpen from '../../../hooks/useMarketOpen'
-import { getExtSession } from '../../../utils/extSession'
+import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import AiSearchWidget from './AiSearchWidget'
@@ -184,7 +184,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // Extended session stays "post-market" from 4pm ET through 4am (post window +
   // overnight), then flips to "pre-market" at 4am. Re-evaluated on the 60s
   // useMarketOpen re-render. `mkt` still drives the 9:30 auto-revert above.
-  const _extSess = getExtSession()
+  const _extSess = getExtSessionCached()
   const extEnabled = _extSess.session === 'pre' || _extSess.session === 'post'
   const extLabel = _extSess.session === 'pre' ? 'Include pre-market' : 'Include post-market'
 

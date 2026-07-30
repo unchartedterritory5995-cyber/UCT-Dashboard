@@ -58,7 +58,11 @@ export default function ChartTabStrip({
       {tabs.map((tab, i) => {
         const active = i === activeIndex
         const editing = editingId === tab.id
-        const dot = !tab.isMain ? GROUP_DOT[tabColors?.[tab.id]] : null
+        // The color-group dot shows ONLY on the selected tab. Every tab carrying
+        // its own dot made the strip read as a row of status lights; the group
+        // color only matters for the chart you're looking at, and the cycle
+        // affordance is one click away (clicking a tab selects it).
+        const dot = active && !tab.isMain ? GROUP_DOT[tabColors?.[tab.id]] : null
         return (
           <div
             key={tab.id}

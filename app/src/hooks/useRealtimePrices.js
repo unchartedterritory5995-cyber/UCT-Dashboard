@@ -53,6 +53,30 @@ function _applyLiveChange(merged, rest) {
   }
 }
 
+// Freshen `ext_price` — the extended-hours last trade — from the stream.
+//
+// WHY: ext_price/ext_session are produced ONLY by the 15s-cached REST snapshot
+// (`lastTrade.p`); realtime_stream's _STREAM_FIELDS strips them, so nothing on the
+// SSE path could ever advance them. The chart's orange "Pre"/"Post" axis chip reads
+// ext_price, so pre-market it crawled at 15s while the watchlist's Price cell — fed
+// by the same Massive tick feed at ~1s — ran ahead of it. Same feed, same instant,
+// two different numbers on screen.
+//
+// PROVENANCE IS THE WHOLE POINT of doing this here rather than server-side: only
+// this merge knows whether `price` came from the STREAM (a real extended-hours
+// print) or from REST's fallback chain. That chain is `day.c || lastTrade.p ||
+// prevDay.c`, and post-market `day.c` is the REGULAR-session close — promoting that
+// to ext_price would paint the 4pm close as the live post-market price. So we only
+// promote a STREAMED price, and only while REST says we're in an extended session.
+// Exported for test: the "only a STREAMED price, only in an extended session" rule
+// is the guard that stops the regular-session close being painted as a live
+// post-market print, and it deserves a rail of its own.
+export function _applyLiveExtPrice(merged, rest, streamed) {
+  if (!rest || rest.ext_session == null) return
+  const px = Number(streamed?.price)
+  if (px > 0) merged.ext_price = px
+}
+
 function usePooledRealtimePrices(tickers = []) {
   // Massive REST polling always runs (2s) — provides session OHLC + volume
   const { prices: polledPrices, isLoading } = useLivePrices(tickers)
@@ -80,8 +104,10 @@ function usePooledRealtimePrices(tickers = []) {
     const result = {}
     for (const sym of tickerSet) {
       const rest = polledPrices[sym]
-      const merged = { ...rest, ...snap.prices[sym] }
+      const streamed = snap.prices[sym]
+      const merged = { ...rest, ...streamed }
       _applyLiveChange(merged, rest)
+      _applyLiveExtPrice(merged, rest, streamed)
       if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result
@@ -265,8 +291,10 @@ function useLegacyRealtimePrices(tickers = []) {
     const result = {}
     for (const sym of tickerSet) {
       const rest = polledPrices[sym]
-      const merged = { ...rest, ...streamPrices[sym] }
+      const streamed = streamPrices[sym]
+      const merged = { ...rest, ...streamed }
       _applyLiveChange(merged, rest)
+      _applyLiveExtPrice(merged, rest, streamed)
       if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result

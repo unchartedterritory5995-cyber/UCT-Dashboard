@@ -8,14 +8,20 @@ import styles from '../ChartsWorkspace.module.css'
  * every widget's CSS keys off, and a full-height flex column so the content
  * fills the window instead of collapsing to its intrinsic height.
  */
-export default function PopoutShell({ theme, bodyRef, children }) {
+export default function PopoutShell({ theme, bodyRef, merged = false, children }) {
   return (
     <div
       className={styles.workspace}
       data-charts-theme={theme}
       style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
     >
-      <div className={styles.popoutBody} ref={bodyRef}>{children}</div>
+      {/* `merged` must mirror the main board's body: the shared row-height math
+          drops the body padding in merged mode, so a popped body that KEPT its
+          6px would overflow by 12px and clip the bottom widget's date axis. */}
+      <div
+        className={`${styles.popoutBody} ${merged ? styles.popoutBodyMerged : ''}`}
+        ref={bodyRef}
+      >{children}</div>
     </div>
   )
 }

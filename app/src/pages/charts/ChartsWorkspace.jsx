@@ -24,6 +24,7 @@ import useMultiChartState from './grid/useMultiChartState'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import PoppedLayout from './popout/PoppedLayout'
+import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -46,9 +47,9 @@ const GRID_COLS = 24
 // rowHeight already scales vertically via the ResizeObserver below.
 const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
-const FIXED_ROWS = 20            // workspace is viewport-locked to this many rows
-const MARGIN_Y = 6                // px gap between widgets vertically
-const BODY_PAD = 6                // px padding around the grid (matches .workspaceBody)
+const FIXED_ROWS = _FIXED_ROWS   // viewport-locked row count (see ./rowHeight.js)
+const MARGIN_Y = _MARGIN_Y       // px gap between widgets vertically
+const BODY_PAD = _BODY_PAD       // px padding around the grid (matches .workspaceBody)
 
 // New users (and Reset) land on an EMPTY workspace + the "get started" panel.
 // Their most recent arrangement is persisted and restored on every later visit.
@@ -250,21 +251,12 @@ export default function ChartsWorkspace() {
   // it against ITS OWN window. Sharing the main tab's rowHeight would size a
   // board on a second monitor to the main window's height — the 20 rows would
   // either overflow it or leave dead space.
-  const computeRowHeight = useCallback((clientHeight) => {
-    // Merged view removes the body padding (below) so the blended surface fills
-    // to the outer edge — the row-height math must drop it too, or the grid
-    // overflows/clips by the padding it no longer has.
-    const bodyPad = merged ? 0 : BODY_PAD
-    const available = (clientHeight - bodyPad * 2) - gridGap * (FIXED_ROWS - 1)
-    // 20 rows rarely tile an arbitrary pixel height evenly. Unmerged we floor
-    // (the leftover hides in the dark margins). MERGED there are no margins, so
-    // flooring left a dead black strip at the bottom — round UP so the grid
-    // fills to the edge; the ≤(FIXED_ROWS-1)px excess is absorbed by the body's
-    // overflow:hidden (no scrollbar — the viewport-lock still holds).
-    return merged
-      ? Math.max(12, Math.ceil(available / FIXED_ROWS))
-      : Math.max(12, Math.floor(available / FIXED_ROWS))
-  }, [gridGap, merged])
+  // The formula lives in ./rowHeight.js so the popped board runs the identical math
+  // and so the "grid always fits inside the measured body" invariant is testable.
+  const computeRowHeight = useCallback(
+    (clientHeight) => rowHeightFor(clientHeight, merged),
+    [merged],
+  )
 
   useEffect(() => {
     const el = bodyRef.current
@@ -1239,6 +1231,7 @@ export default function ChartsWorkspace() {
             renderGrid={renderGrid}
             computeRowHeight={computeRowHeight}
             initialRowHeight={rowHeight}
+            merged={merged}
             onClose={(widgets) => handleDockLayout(pl.id, widgets)}
             onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); setPopoutNotice(POPUP_BLOCKED_MSG) }}
           />

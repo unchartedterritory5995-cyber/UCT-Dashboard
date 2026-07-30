@@ -19,7 +19,7 @@ import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
 import { etDayOf, snapSyncedBar } from './chart/crosshairSync'
 import useMarketOpen from '../hooks/useMarketOpen'
-import { getExtSession, anchorNoonSec } from '../utils/extSession'
+import { getExtSessionCached, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
 import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
@@ -501,6 +501,25 @@ function computeBarTime(tf, tickTimeSec) {
 
 const OHLC_TYPES = new Set(['candles', 'hollow', 'bars', 'hlc'])
 const VWAP_TFS = new Set(['1', '5', '15', '30', '60'])
+// Shared frozen empty so "shading off" is one stable identity across renders —
+// a fresh [] would defeat the band-change guard in updateChart.
+const EMPTY_BANDS = Object.freeze([])
+
+/** Compose a base color with a 0-100 opacity PERCENT into an rgba() string.
+ *
+ *  VWAP keeps opacity as its own setting instead of alpha-in-hex (the moving-average
+ *  convention) because its color can be forced by `vwapOverride`; a plain hex from
+ *  there would silently wipe the user's opacity. 100% returns the base color
+ *  untouched so nothing changes for anyone who never opens the setting, and an
+ *  unparseable color falls through unchanged rather than guessing a color. */
+function _withVwapOpacity(color, opacityPct) {
+  const pct = Number(opacityPct)
+  if (!Number.isFinite(pct) || pct >= 100) return color
+  const rgb = parseColor(color)
+  if (!rgb) return color
+  const a = Math.max(0, Math.min(1, pct / 100))
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`
+}
 
 function isOhlcType(chartType) {
   return !chartType || OHLC_TYPES.has(chartType)
@@ -1592,6 +1611,16 @@ export default function StockChart({
   // stable too — skipping the rebuild saves significant LWC canvas work on
   // charts with many lines + axis labels (e.g. the GEX chart with 8-12).
   const lastPriceLinesRef = useRef(undefined)
+  // The live session (Pre/Post + locked-close) tags own their OWN price lines,
+  // separate from priceLineRefs, so each applier only ever removes what it created.
+  // sessionTagSeriesRef pins WHICH series they were created on: a destroyed→recreated
+  // chart (grid cells do this) drops its price lines, so a series swap must force a
+  // rebuild instead of applyOptions-ing handles that belong to a dead series.
+  const sessionTagRefs = useRef([])
+  const sessionTagSeriesRef = useRef(null)
+  // Identity of the marker array last handed to the controller — see the guard in
+  // updateChart. Reset with the chart, since a new chart has no marker layer.
+  const lastMarkersSrcRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   // One-way axis-width ratchet: the widest right-axis column MEASURED this
   // sym/tf session. The static _axisMinWidth floor is an empirical calibration
@@ -2915,7 +2944,7 @@ export default function StockChart({
   // Extended session with the overnight-post extension: 'post' spans 4pm ET → 4am
   // (post-market + overnight), then 'pre' at 4am. anchorDate = the trading day
   // whose extended data to show (the just-closed day, even after midnight).
-  const _extSess = getExtSession()
+  const _extSess = getExtSessionCached()
   const marketSession = _extSess.session   // 'pre' | 'post' | 'rth'
   const _isDWM = ['D', 'W', 'M'].includes(resolvedTf)
   const _sessionActive = sessionView != null && _isDWM
@@ -3050,6 +3079,20 @@ export default function StockChart({
       return t >= lo && t <= hi
     })
   }, [exactDateRange, entryDate, exitDate, bars])
+
+  // Extended-hours shading bands. Memoized HERE rather than computed inside
+  // updateChart: the pass is O(bars) and updateChart runs on every settings/data
+  // change (and, before the session-tag split above, on every live tick), so an
+  // inline call re-walked the whole bar array — which extended hours makes ~2.5×
+  // longer — for a result that only changes when the bars do. Returns a stable []
+  // when shading is off, so the identity guard at the call site also catches the
+  // toggle flipping.
+  const _shadeOn = !!cs.extendedHoursShading && _intradayLike
+  const sessionShadeBands = useMemo(
+    () => (_shadeOn ? computeSessionBands(filteredBars, adjustTime) : EMPTY_BANDS),
+    [_shadeOn, filteredBars, adjustTime],
+  )
+  const lastShadeBandsRef = useRef(undefined)
 
   // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
   // primitive can hug just under the candle and click-matching has the dates. The
@@ -3445,8 +3488,15 @@ export default function StockChart({
   // At 9:30 `_inExtWindow` goes false, this returns null, and the normal last-price
   // label comes straight back. D/W/M keeps BOTH tags (locked close + Pre/Post) —
   // that's the session-preview design and it has room for them.
+  // PERF: deps are the SCALARS this actually reads, deliberately NOT `_sessionLive`.
+  // `_sessionLive` is `livePrices[sym]` — a freshly-allocated object on every quote
+  // publish (~1/s) — so depending on it churned this array's identity every tick,
+  // which churned `allPriceLines`, which churned `updateChart`, which re-ran the
+  // whole ~1900-line repaint body once a second in extended hours (the reported
+  // pre-market crosshair/pan stutter). `sessionExtPrice` is null unless
+  // `_sessionLive` exists, so the object check it replaced was redundant anyway.
   const intradaySessionTagLines = useMemo(() => {
-    if (!sessionTagsIntraday || !_sessionLive) return null
+    if (!sessionTagsIntraday) return null
     const extPx = sessionExtPrice
     if (!Number.isFinite(extPx) || extPx <= 0) return null
     return [{
@@ -3454,17 +3504,18 @@ export default function StockChart({
       axisLabelVisible: true, lineVisible: false,
       title: marketSession === 'post' ? 'Post' : 'Pre', _sessionTag: 'ext',
     }]
-  }, [sessionTagsIntraday, _sessionLive, sessionExtPrice, marketSession])
+  }, [sessionTagsIntraday, sessionExtPrice, marketSession])
 
-  // User/journal price lines + the dynamic session tags (daily OR intraday — the
-  // two are mutually exclusive by timeframe). Kept as one array so the price-line
-  // applier's reference-equality guard picks up ext-price changes.
+  // The dynamic session tags (daily OR intraday — mutually exclusive by timeframe).
+  // These are applied by their OWN effect below, NOT folded into `allPriceLines`:
+  // they move with the live ext price, and the price-line applier inside
+  // updateChart is reference-guarded, so sharing one array meant every ext-price
+  // change dragged the entire repaint body along with it.
   const activeSessionTags = sessionTagLines?.length ? sessionTagLines
     : (intradaySessionTagLines?.length ? intradaySessionTagLines : null)
-  const allPriceLines = useMemo(
-    () => (activeSessionTags ? [...(mergedPriceLines || []), ...activeSessionTags] : mergedPriceLines),
-    [mergedPriceLines, activeSessionTags],
-  )
+
+  // User/journal price lines only — stable across live ticks.
+  const allPriceLines = mergedPriceLines
 
   const ohlcData = useMemo(
     () => {
@@ -4749,11 +4800,15 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const shadeOn = !!cs.extendedHoursShading && _intradayLike
-      sessionShadeRef.current.setOptions({
-        enabled: shadeOn,
-        bands: shadeOn ? computeSessionBands(filteredBars, adjustTime) : [],
-      })
+      // `sessionShadeBands` is memoized on [filteredBars, adjustTime, shadeOn] — the
+      // band pass is O(bars) and this block runs on every updateChart, so computing
+      // it inline re-walked the whole (2.5×-longer, extended-hours) bar array on
+      // every repaint. setOptions also forces a primitive redraw, so re-setting
+      // identical bands was paying twice; skip when nothing changed.
+      if (lastShadeBandsRef.current !== sessionShadeBands) {
+        lastShadeBandsRef.current = sessionShadeBands
+        sessionShadeRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
+      }
     }
 
     // Price-scale mode (Normal/Log/Percent) is applied by a dedicated effect
@@ -5524,16 +5579,28 @@ export default function StockChart({
 
     // ── Session VWAP (intraday only) ──
     if (indicatorData.vwap.length) {
-      const vwapColor = vwapOverride?.color || cs.indicators?.vwap?.color || '#26C6DA'
-      const _vwapWidth = (boldCandles || modelBookLook) ? 0.5 : 1
+      const _vwapCfg = cs.indicators?.vwap || {}
+      // vwapOverride (Model Book intraday popup forces white) wins on color, but the
+      // user's opacity/style/width still apply — the override only ever means "recolor".
+      const _vwapBase = vwapOverride?.color || _vwapCfg.color || '#26C6DA'
+      const _vwapOpacity = Number.isFinite(Number(_vwapCfg.opacity)) ? Number(_vwapCfg.opacity) : 100
+      const vwapColor = _withVwapOpacity(_vwapBase, _vwapOpacity)
+      const _vwapStyleMap = { solid: 0, dotted: 1, dashed: 2 }   // LWC LineStyle enum
+      const _vwapLineStyle = _vwapStyleMap[_vwapCfg.lineStyle] ?? 0
+      // Unset width keeps the historical hairline (0.5 on the bold/Model Book look).
+      const _vwapWidth = Number(_vwapCfg.lineWidth) > 0
+        ? Number(_vwapCfg.lineWidth)
+        : ((boldCandles || modelBookLook) ? 0.5 : 1)
       if (!vwapSeriesRef.current) {
         vwapSeriesRef.current = chart.addSeries(LineSeries, {
-          color: vwapColor, lineWidth: _vwapWidth,
+          color: vwapColor, lineWidth: _vwapWidth, lineStyle: _vwapLineStyle,
           priceLineVisible: false, lastValueVisible: false,
           crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
         })
       } else {
-        vwapSeriesRef.current.applyOptions({ color: vwapColor, lineWidth: _vwapWidth })
+        vwapSeriesRef.current.applyOptions({
+          color: vwapColor, lineWidth: _vwapWidth, lineStyle: _vwapLineStyle,
+        })
       }
       _applyData(vwapSeriesRef.current, indicatorData.vwap)
     } else if (vwapSeriesRef.current) {
@@ -5936,9 +6003,19 @@ export default function StockChart({
     // ones — markers from the prior ticker leak into the new ticker's chart.
     // Always call setMarkers (even with []) so old markers clear when the new
     // ticker has none.
-    const allMarkers = [...(mergedMarkers || [])]
-      .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-    if (candleSeriesRef.current) {
+    // Guarded on the SOURCE array's identity (mergedMarkers is memoized, so it's
+    // stable across live ticks) — the sort + dynamic import + full marker-layer
+    // rebuild used to run on every repaint. A missing controller forces a rebuild,
+    // which is what covers the two cases the identity check can't see: the series
+    // was swapped (the swap nulls the controller, since it was bound to the old
+    // series) and a fresh chart. Never skip on either, or markers silently vanish.
+    const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
+      || !markersControllerRef.current
+      || _freshChart
+    if (candleSeriesRef.current && _markersDirty) {
+      lastMarkersSrcRef.current = mergedMarkers
+      const allMarkers = [...(mergedMarkers || [])]
+        .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
         if (!createSeriesMarkers || !candleSeriesRef.current) return
         if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
@@ -6297,12 +6374,50 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // ── Live session tags (Pre/Post chip + locked RTH close) ──────────────────
+  // Their own applier, deliberately OUTSIDE updateChart. These tags follow the live
+  // extended-hours price, so while they rode `allPriceLines` every ext-price change
+  // re-ran the entire repaint body (JSON.stringify of the settings blob, an O(n)
+  // render-plan diff, an O(n) session-band pass, a marker-layer rebuild) — the
+  // pre-market pan/crosshair stutter. Here a price move is a single applyOptions on
+  // an existing price line: no teardown, no axis rebuild, no bar-array work.
+  useEffect(() => {
+    const series = candleSeriesRef.current
+    if (!chartReady || !series) return
+    // A recreated series has no price lines of ours; drop the stale handles so the
+    // count check below rebuilds rather than applyOptions-ing into the void.
+    if (sessionTagSeriesRef.current !== series) {
+      sessionTagRefs.current = []
+      sessionTagSeriesRef.current = series
+    }
+    const tags = activeSessionTags || []
+    const opts = (t) => ({
+      price: t.price,
+      color: t.color || cs.textColor,
+      lineWidth: t.lineWidth || 1,
+      lineStyle: t.lineStyle ?? 2,
+      axisLabelVisible: t.axisLabelVisible ?? true,
+      lineVisible: t.lineVisible ?? true,   // ext tag = axis chip only, no line
+      title: t.title || '',
+    })
+    // Same tag count = same tags in the same roles (daily = [locked close, ext],
+    // intraday = [ext]); only their prices/titles move. Update in place.
+    if (sessionTagRefs.current.length === tags.length) {
+      tags.forEach((t, i) => { try { sessionTagRefs.current[i].applyOptions(opts(t)) } catch { /* series gone */ } })
+      return
+    }
+    for (const pl of sessionTagRefs.current) {
+      try { series.removePriceLine(pl) } catch { /* series gone */ }
+    }
+    sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
+  }, [chartReady, activeSessionTags, cs.textColor])
 
   // ── Custom-TF live developing bar ──
   // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
@@ -7210,7 +7325,13 @@ export default function StockChart({
       // setCrosshairData React render. Emitting after all that put the linked
       // charts a full render behind the cursor; emitting here hands them the
       // frame immediately (their apply is imperative — no render at all).
-      if (typeof onCrosshairMove === 'function' && param.time) {
+      // `!applyingExternalRef.current` stops the ECHO: setCrosshairPosition fires
+      // this same handler with an event indistinguishable from a real hover, so a
+      // receiver re-broadcast what it was just told. Two widgets made that a
+      // ping-pong (harmless only because the origin's pointerOverRef swallowed the
+      // return trip); at three or more it's an N² fan-out of full crosshair passes
+      // on every mouse move. Only a genuine local hover broadcasts.
+      if (!applyingExternalRef.current && typeof onCrosshairMove === 'function' && param.time) {
         // The CURSOR's price level, not the bar's close: linked charts must put
         // their horizontal line on the same dollar value (hover $1300 on the
         // daily → $1300 on the 30m), which a bar-close snap could never do.
@@ -7705,6 +7826,16 @@ export default function StockChart({
   const dragMeasureCanvasRef = useRef(null)
   const dragMeasureStateRef = useRef(null)   // { startX, startY, startPrice, startLogical } while dragging
   const [measureReadout, setMeasureReadout] = useState(null)  // { x, y, pct, bars, span, flip } | null
+
+  // The measure readout's gain/loss line wears the chart's OWN up/down candle
+  // colors rather than a fixed green/red, so recoloring your candles recolors the
+  // measurement with them. Same precedence chain as the session tags above
+  // (bold/Model Book palettes win, else the user's cs.candles), which is what keeps
+  // "the color of an up move" one answer across the whole chart.
+  const measureColors = useMemo(() => ({
+    up: boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor,
+    down: boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor,
+  }), [boldCandles, modelBookLook, mbUp, mbDown, cs.candles.upColor, cs.candles.downColor])
 
   // ── Ctrl+drag to draw a trendline (press A → drag → release B) ────────────
   const trendDragCanvasRef = useRef(null)
@@ -8544,6 +8675,10 @@ export default function StockChart({
         volumeSeriesRef.current = null
         overlaySeriesRefs.current = []
         priceLineRefs.current = []
+        sessionTagRefs.current = []
+        sessionTagSeriesRef.current = null
+        lastShadeBandsRef.current = undefined   // primitive goes with the chart; bands must re-apply
+        lastMarkersSrcRef.current = undefined
         // Reset every paint/framing latch alongside the chart they describe.
         // These survive a destroy→recreate cycle otherwise (StrictMode's
         // simulated remount, or any future remount path with warm caches):
@@ -9222,7 +9357,11 @@ export default function StockChart({
             ? '0 1px 2px rgba(255,255,255,0.95), 0 0 2px rgba(255,255,255,0.9)'
             : '0 1px 3px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)',
         }}>
-          <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
+          {/* Follows the chart's up/down candle colors (measureColors) — the
+              readout is a measurement OF the candles, so a custom candle palette
+              must carry through instead of a hardcoded green/red. The text-shadow
+              above is what keeps a light candle color legible on a light canvas. */}
+          <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? measureColors.up : measureColors.down }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
             <span style={{ marginLeft: 8 }}>
               ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)

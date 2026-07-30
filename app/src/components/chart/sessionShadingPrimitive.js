@@ -12,10 +12,18 @@ const POST_END = 20 * 60          // 20:00
 
 // Classify a bar's session from its ET-offset unix-seconds timestamp.
 // Returns 'pre' | 'post' | null (null = regular hours or closed = unshaded).
+//
+// PERF: minutes-past-midnight is derived arithmetically rather than through
+// `new Date(tSec * 1000).getUTCHours()`. This runs once per bar per band pass, and
+// on a deep extended-hours intraday chart that was thousands of Date allocations
+// per pass — measurable GC pressure in the middle of a pan. The timestamps are
+// already ET-offset unix seconds, so UTC-midnight modulo IS the Eastern clock;
+// `%` handles negative (pre-1970) values via the double-mod, which never occurs in
+// practice but keeps the function total.
 export function classifySession(tSec) {
   if (!Number.isFinite(tSec)) return null
-  const d = new Date(tSec * 1000)
-  const m = d.getUTCHours() * 60 + d.getUTCMinutes()
+  const secOfDay = ((Math.floor(tSec) % 86400) + 86400) % 86400
+  const m = Math.floor(secOfDay / 60)
   if (m >= PRE_START && m < RTH_START) return 'pre'
   if (m >= RTH_END && m < POST_END) return 'post'
   return null

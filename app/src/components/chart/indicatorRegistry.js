@@ -60,10 +60,23 @@ export const VOLUME_FIELDS = [
   { key: 'maLineWidth',  label: 'Volume MA width',  type: 'select', options: LINE_WIDTHS, showIf: (v) => Number(v.maPeriod) > 0 },
 ]
 
+/** Fields for session VWAP.
+ *  Opacity is its OWN key here rather than alpha baked into an 8-digit hex (the
+ *  moving-average convention): VWAP's color is also driven by `vwapOverride` from
+ *  the Model Book intraday popup, and a plain hex there must not silently lose the
+ *  user's opacity. StockChart composes color × opacity into an rgba() at apply time. */
+export const VWAP_FIELDS = [
+  { key: 'color',     label: 'Color',      type: 'color' },
+  { key: 'opacity',   label: 'Opacity %',  type: 'number', min: 5, max: 100, step: 5 },
+  { key: 'lineStyle', label: 'Line style', type: 'select', options: LINE_STYLES },
+  { key: 'lineWidth', label: 'Line width', type: 'select', options: LINE_WIDTHS },
+]
+
 /** The indicators the tab lists, in display order.
  *  `path` tells the tab where the values live in the settings blob:
- *    { kind: 'overlay', index }  → settings.overlays[index]
- *    { kind: 'section', key }    → settings[key]
+ *    { kind: 'overlay', index }    → settings.overlays[index]
+ *    { kind: 'section', key }      → settings[key]
+ *    { kind: 'indicator', key }    → settings.indicators[key]
  */
 export function listIndicators(settings) {
   const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
@@ -87,6 +100,17 @@ export function listIndicators(settings) {
     canToggle: true,
     enabledKey: 'visible',   // volume uses `visible`, overlays use `enabled`
   })
+  rows.push({
+    id: 'vwap',
+    // Intraday-only by construction — StockChart's VWAP_TFS gates it to 1/5/15/30/60,
+    // so the label says so rather than letting a daily chart look broken when it's on.
+    label: 'VWAP (intraday only)',
+    group: 'VWAP',
+    fields: VWAP_FIELDS,
+    path: { kind: 'indicator', key: 'vwap' },
+    values: settings?.indicators?.vwap || {},
+    canToggle: true,
+  })
   return rows
 }
 
@@ -100,6 +124,16 @@ export function patchFor(row, patch, settings) {
   if (row.path.kind === 'overlay') {
     const next = (settings.overlays || []).map((o, i) => (i === row.path.index ? { ...o, ...patch } : o))
     return { overlays: next }
+  }
+  // Two levels deep — the flat `indicators` map. Merged rather than replaced so a
+  // patch of one field can't drop the other indicators or the rest of this one's keys.
+  if (row.path.kind === 'indicator') {
+    return {
+      indicators: {
+        ...(settings.indicators || {}),
+        [row.path.key]: { ...(settings.indicators?.[row.path.key] || {}), ...patch },
+      },
+    }
   }
   return { [row.path.key]: { ...(settings[row.path.key] || {}), ...patch } }
 }

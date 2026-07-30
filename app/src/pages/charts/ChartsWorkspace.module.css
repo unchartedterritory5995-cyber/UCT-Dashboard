@@ -68,6 +68,14 @@
   position: relative;
 }
 
+/* Merged board in a popped window — same edge-to-edge treatment as
+   .workspaceBodyMerged, and REQUIRED for correctness: computeRowHeight() drops the
+   body padding when merged, so leaving the 6px here overflows the grid by 12px and
+   the bottom row's date axis disappears off the window. */
+.popoutBodyMerged {
+  padding: 0;
+}
+
 /* Popup-blocked warning — the one failure mode the user can't otherwise see,
    since a blocked window.open returns null silently. */
 .popoutNotice {

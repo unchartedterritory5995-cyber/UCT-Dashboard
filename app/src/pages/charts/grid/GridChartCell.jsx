@@ -23,7 +23,7 @@ import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import usePreferences from '../../../hooks/usePreferences'
-import { getExtSession } from '../../../utils/extSession'
+import { getExtSessionCached } from '../../../utils/extSession'
 import { CHART_TYPE_OPTIONS, mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
@@ -93,7 +93,7 @@ function GridChartCell({
   const [sessionView, setSessionView] = useState('regular')
   useEffect(() => { if (mkt.isOpen) setSessionView('regular') }, [mkt.isOpen])
   const isDWMtf = ['D', 'W', 'M'].includes(cell.tf)
-  const _extSess = getExtSession()
+  const _extSess = getExtSessionCached()
   const extEnabled = _extSess.session === 'pre' || _extSess.session === 'post'
   const extLabel = _extSess.session === 'pre' ? 'Include pre-market' : 'Include post-market'
   const extHoursOn = mergeChartSettings(prefs.chart_settings).extendedHoursShading ?? true

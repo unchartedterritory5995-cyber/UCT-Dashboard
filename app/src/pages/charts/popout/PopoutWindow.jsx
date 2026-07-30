@@ -53,6 +53,26 @@ export default function PopoutWindow({
     win.document.title = title
     relabelAddressBar(win)
 
+    // window.open's `height` is the CONTENT height, so the finished window is that
+    // plus its own chrome — anchored at top=0 with height=screen.availHeight, the
+    // bottom strip ends up under the Windows taskbar and the board's date axis is
+    // invisible. The chrome height isn't knowable until the window exists, so
+    // correct it here: shrink the content area by however much the outer window
+    // overhangs the work area. Best-effort — some browsers refuse resizeTo.
+    const fitToWorkArea = () => {
+      try {
+        const avail = win.screen?.availHeight
+        if (!avail || !win.outerHeight || typeof win.resizeTo !== 'function') return
+        const overhang = (win.screenY || 0) + win.outerHeight - avail
+        if (overhang > 0) win.resizeTo(win.outerWidth, win.outerHeight - overhang)
+      } catch { /* cross-origin-ish or resize refused — leave it */ }
+    }
+    fitToWorkArea()
+    // Chrome reports outerHeight a tick late on a fresh popup. The timer belongs to
+    // the OPENER, not the popup: `win` here can be any window-like object and only
+    // the opener's timers are guaranteed to exist and to be clearable on unmount.
+    const fitTimer = setTimeout(fitToWorkArea, 120)
+
     const mount = win.document.createElement('div')
     mount.className = 'uct-popout-root'
     win.document.body.appendChild(mount)
@@ -82,6 +102,7 @@ export default function PopoutWindow({
     return () => {
       done = true          // unmount is an intentional close, not a user close
       clearInterval(poll)
+      clearTimeout(fitTimer)
       window.removeEventListener('beforeunload', closeOrphan)
       stopSyncing()
       stopForwardingKeys()

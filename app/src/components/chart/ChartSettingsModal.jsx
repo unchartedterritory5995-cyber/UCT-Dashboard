@@ -633,7 +633,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           {activeTab === 'indicators' && (<>
           {/* Rendered ENTIRELY from indicatorRegistry — no per-indicator JSX. Adding an
               indicator later is a descriptor, not another block down here. */}
-          {['Moving averages', 'Volume'].map((group) => {
+          {['Moving averages', 'Volume', 'VWAP'].map((group) => {
             const rows = indRows.filter((r) => r.group === group)
             if (!rows.length) return null
             return (

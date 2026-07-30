@@ -4,10 +4,10 @@
   min-width: 210px;
   max-width: 260px;
   padding: 4px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-accent);
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
   border-radius: 8px;
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 18px 34px var(--menu-shadow, rgba(0, 0, 0, 0.7));
   font-family: var(--font-sans);
   font-size: 13px;
   display: flex;
@@ -34,12 +34,12 @@
   gap: 1px;
   margin: 1px 0 2px 10px;
   padding-left: 4px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
 }
 
 .submenuEmpty {
   padding: 6px 12px;
-  color: var(--text-muted);
+  color: var(--menu-text-dim, #8a8a8f);
   font-size: 12px;
 }
 
@@ -63,7 +63,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--menu-text-faint, #6b6b6b);
 }
 
 .item,
@@ -73,7 +73,7 @@
   gap: 6px;
   background: transparent;
   border: none;
-  color: var(--text-bright);
+  color: var(--menu-text, #ededed);
   font-family: inherit;
   font-size: 13px;
   padding: 8px 12px;
@@ -84,16 +84,16 @@
 }
 
 .item:hover {
-  background: var(--bg-hover);
+  background: var(--menu-hover, rgba(255, 255, 255, 0.055));
 }
 
 .itemPrimary {
-  color: var(--ut-gold);
+  color: var(--menu-accent, #c9a84c);
   font-weight: 600;
 }
 
 .itemPrimary:hover {
-  background: var(--ut-gold-dim);
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
 }
 
 .itemDanger {
@@ -109,7 +109,7 @@
   display: inline-block;
   width: 12px;
   flex: 0 0 12px;
-  color: var(--ut-gold);
+  color: var(--menu-accent, #c9a84c);
   font-weight: 700;
   text-align: center;
 }
@@ -120,7 +120,7 @@
 
 .separator {
   height: 1px;
-  background: var(--border);
+  background: var(--menu-divider, rgba(255, 255, 255, 0.06));
   margin: 4px 6px;
 }
 
@@ -144,7 +144,7 @@
 }
 
 .sheetMenu .item:active {
-  background: var(--bg-hover);
+  background: var(--menu-hover, rgba(255, 255, 255, 0.055));
 }
 
 .sheetMenu .sectionTitle {

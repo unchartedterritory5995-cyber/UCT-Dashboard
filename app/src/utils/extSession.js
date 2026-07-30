@@ -36,6 +36,38 @@ export function getExtSession(now = new Date()) {
   return { session: 'post', anchorDate: _etDateOf(anchor) }
 }
 
+// Render-path variant of getExtSession(). Two things it adds:
+//
+//  1. A 5s TTL. getExtSession() costs a `toLocaleString` + a Date reparse (+ a
+//     weekend walk-back), and the render paths that call it — StockChart and
+//     ChartWidget — re-render on every crosshair move and every live tick, so it
+//     was running hundreds of times a second during a drag for a value that can
+//     only change on a minute boundary.
+//  2. A STABLE object identity while the session is unchanged, so callers can put
+//     the result in a memo/effect dependency list without churning it. A fresh
+//     object per call is what makes "recompute cheaply" turn into "re-run the
+//     expensive thing downstream anyway".
+//
+// Boundary crossings (e.g. 9:30 rth) are picked up within the TTL on the next
+// render; the 60s useMarketOpen tick guarantees a render arrives.
+let _cacheAt = 0
+let _cacheVal = null
+export function getExtSessionCached() {
+  const t = Date.now()
+  // Math.abs, not a plain subtraction: a clock that moves BACKWARD (an NTP
+  // correction, a VM resume, a test setting a past system time) makes the delta
+  // negative, which a `< TTL` check reads as "still fresh" — and the cache never
+  // expires again for as long as the tab lives. Treating any large jump in either
+  // direction as expiry is the only version that can't wedge.
+  if (_cacheVal && Math.abs(t - _cacheAt) < 5000) return _cacheVal
+  const v = getExtSession()
+  _cacheAt = t
+  if (!_cacheVal || _cacheVal.session !== v.session || _cacheVal.anchorDate !== v.anchorDate) {
+    _cacheVal = v
+  }
+  return _cacheVal
+}
+
 // Unix seconds at ~noon ET of the anchor date — a safe input to computeBarTime so
 // the D/W/M bar key lands on the right trading day/week/month regardless of DST.
 export function anchorNoonSec(anchorDate) {
