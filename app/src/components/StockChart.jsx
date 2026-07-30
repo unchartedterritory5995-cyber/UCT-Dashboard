@@ -5186,22 +5186,24 @@ export default function StockChart({
         if (!_lb || _lb.time !== _lt) {
           liveBarRef.current = { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
         } else {
-          // Reconcile H/L to the server's TRADE-BASED bucket (the real tape — matches
-          // TC2000/TradingView), keeping ONLY the extension the live CLOSE actually
-          // reached. This HEALS ghost wicks: a spurious tick (a stale/quote print during
-          // the Finnhub→push handoff, or an out-of-sequence print) that spiked the H/L
-          // above/below what truly traded gets DISCARDED here, because the server bucket
-          // never confirms it and the snapped-back live close doesn't reach it. Previously
-          // this did Math.max/Math.min against the accumulated _lb.high/_lb.low, so a ghost,
-          // once baked in, was preserved forever (writer D re-tops from liveBarRef every
-          // SWR poll) — the "current candle shows a wick that never traded" bug. A REAL
-          // fast wick the server hasn't ingested yet is briefly under-shown, then reappears
-          // once the server bucket includes that trade (≤ one refresh) — converging to the
-          // true tape instead of accumulating fakes.
-          const _c = Number.isFinite(_lb.close) ? _lb.close : last.c
+          // Reconcile the developing bar's H/L against the server bucket, PRESERVING
+          // the accumulated live high/low. The live push feed IS the real-time tape
+          // (Massive WS) and is now ghost-FILTERED at the source — T-tick prints pass
+          // trade_conditions.classify (odd-lot / out-of-sequence / derivatively-priced
+          // dropped) and A per-second aggregates no longer fold H/L at all — so the
+          // accumulated _lb.high/_lb.low can be trusted. The server REST bucket LAGS the
+          // WS by seconds, so trusting it over the live feed is backwards:
+          //   Previously this did `Math.max(last.h, _lb.close)` (drop to the server high
+          //   bounded by the live close) to heal ghost wicks. But once ghosts are filtered
+          //   upstream that only DROPS a REAL fast wick the server hasn't ingested yet —
+          //   and Writer D/B re-extend it from the push bar on the very next tick, so the
+          //   real high FLICKERS on/off every ~2s reconcile cycle (the reported bug: a wick
+          //   the price genuinely traded to, blinking while the candle is developing, then
+          //   stable once it closes). Take the max/min of BOTH so a real live extension
+          //   stays put and a server correction (higher/lower) is still respected.
           _lb.open = last.o
-          _lb.high = Math.max(last.h, _c)
-          _lb.low = Math.min(last.l, _c)
+          _lb.high = Math.max(last.h, _lb.high)
+          _lb.low = Math.min(last.l, _lb.low)
         }
       }
     }
