@@ -47,7 +47,20 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       # New remote ref → diff against the known remote master instead.
       base="$remote_sha"
       case "$base" in 0000000000000000000000000000000000000000) base="origin/master" ;; esac
-      changed=$(git diff --name-only "$base".."$local_sha" 2>/dev/null)
+      # FAIL CLOSED (2026-07-30). If the diff can't be computed the guard must
+      # assume the worst, never wave the push through. Observed live: master had
+      # moved, $remote_sha was a commit this repo did not have yet, `git diff`
+      # errored, 2>/dev/null swallowed it, `changed` came back EMPTY — so the
+      # flow-file scan matched nothing, flow_touched stayed empty, and a push
+      # touching api/live_massive_router.py silently downgraded from "needs BOTH
+      # overrides" to the generic web override and was ACCEPTED. The guard
+      # disabled itself in exactly the state that follows a rejected push (stale
+      # remote ref), which is when it is most needed.
+      if ! changed=$(git diff --name-only "$base".."$local_sha" 2>/dev/null); then
+        echo "[uct pre-push] WARN: could not diff $base..$local_sha (stale remote ref?)" >&2
+        echo "[uct pre-push] treating this push as FLOW-TOUCHING (fail-closed). Run 'git fetch origin' for an accurate check." >&2
+        flow_touched="$flow_touched (undetermined — diff failed)"
+      fi
       for f in $changed; do
         for w in $FLOW_WATCHED; do
           [ "$f" = "$w" ] && flow_touched="$flow_touched $f"
