@@ -35,9 +35,19 @@ _RULES = [
     ("post market", "Post-Market Recaps", "Post-Market Recap", "POST-MARKET RECAP"),
     ("post-market", "Post-Market Recaps", "Post-Market Recap", "POST-MARKET RECAP"),
     ("sunday scan", "Sunday Scans", "Sunday Scans", "SUNDAY SCANS"),
-    ("workshop", "Workshops & Fireside Chats", "Workshop", "WORKSHOP"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+
+# HOST-AWARE shows: the SECTION is pinned (one shelf per show, no matter who
+# hosts) but the webinar name passes through verbatim as the title + eyebrow, so
+# "<Show> with <host>" keeps the host. That matters beyond cosmetics: the eyebrow
+# is what `desk_thumbnail._resolve_theme` keys the bespoke per-host cards off
+# (ChartMaster's plate, Zen's card), so flattening it to a fixed label silently
+# downgrades those to the default card. Checked BEFORE _RULES.
+_HOST_AWARE = [
+    ("evening update", "Evening Update"),
+    ("workshop", "Workshops & Fireside Chats"),
+]
 
 
 # Recordings whose webinar name starts with "test"/"demo" are dry runs — never
@@ -54,11 +64,9 @@ def _route(topic: str | None) -> tuple[str, str, str]:
     """(section, title_prefix, eyebrow_label) for a recording's webinar name."""
     t = (topic or "").strip()
     low = t.lower()
-    # "Evening Update" is HOST-AWARE: any "Evening Update from <host>" (TSDR,
-    # Bracco, …) shares the "Evening Update" section; the host rides in the title
-    # and the thumbnail eyebrow, so one template + one section serve every host.
-    if "evening update" in low:
-        return "Evening Update", t, t.upper()
+    for kw, section in _HOST_AWARE:
+        if kw in low:
+            return section, t, t.upper()
     for kw, section, prefix, eyebrow in _RULES:
         if kw in low:
             return section, prefix, eyebrow

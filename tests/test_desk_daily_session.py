@@ -282,6 +282,33 @@ def test_route_evening_update_is_host_aware():
         "Evening Update", "Evening Update from Bracco", "EVENING UPDATE FROM BRACCO")
 
 
+def test_route_workshop_is_host_aware():
+    # Workshops are per-HOST events. The section stays pinned (one shelf for every
+    # workshop) but the host MUST survive into the title + the eyebrow — the eyebrow
+    # is what `desk_thumbnail._resolve_theme` keys the bespoke per-host cards off.
+    # Flattening it to "WORKSHOP" silently downgraded ChartMaster/Zen to the default
+    # card and stripped the host from the published title (2026-07-29, video 307).
+    assert dds._route("Workshop with ChartMaster") == (
+        "Workshops & Fireside Chats", "Workshop with ChartMaster",
+        "WORKSHOP WITH CHARTMASTER")
+    assert dds._route("Workshop with Zen") == (
+        "Workshops & Fireside Chats", "Workshop with Zen", "WORKSHOP WITH ZEN")
+    # A bare "Workshop" still reads exactly as before.
+    assert dds._route("Workshop") == (
+        "Workshops & Fireside Chats", "Workshop", "WORKSHOP")
+
+
+def test_route_workshop_eyebrow_reaches_the_bespoke_thumbnail_theme():
+    # End-to-end on the seam that actually broke: the eyebrow _route emits must be
+    # the one that trips the per-host card. Asserts the ARTIFACT (resolved theme),
+    # not that the string merely contains the host name.
+    from api.services import desk_thumbnail as dt
+    _, _, eyebrow = dds._route("Workshop with ChartMaster")
+    assert dt._resolve_theme(None, eyebrow).layout == "plate"
+    _, _, zen_eyebrow = dds._route("Workshop with Zen")
+    assert dt._resolve_theme(None, zen_eyebrow).layout == "zen"
+
+
 def test_process_routes_by_webinar_name(edu_db, jobs_db):
     # "Sector Rotation Briefing" isn't a curated alias -> auto-derives its own section.
     jobs_db.enqueue("U2", "Sector Rotation Briefing", "2026-06-24T20:30:00Z", "http://dl", "tok")
