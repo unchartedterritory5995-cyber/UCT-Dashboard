@@ -2241,8 +2241,8 @@ const numToDrawStyle = (n) => (n === 0 ? 'solid' : 'dashed')
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
-  const base = danger ? '#ef4444' : '#e2dfd6'
-  const hover = danger ? 'rgba(239,68,68,0.12)' : 'rgba(201,168,76,0.12)'
+  const base = danger ? '#ef5350' : 'var(--menu-text, #ededed)'
+  const hover = danger ? 'rgba(239,83,80,0.14)' : 'var(--menu-hover, rgba(255,255,255,0.06))'
   const sz = big ? 16 : 13
   return (
     <button
@@ -2308,24 +2308,27 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   const rowStyle = sheet
     ? { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', minHeight: 44 }
     : { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }
-  const labelStyle = { fontSize: sheet ? 11 : 9, letterSpacing: 0.4, textTransform: 'uppercase', color: '#8a8674', minWidth: sheet ? 52 : 40 }
+  const labelStyle = { fontSize: sheet ? 11 : 9, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--menu-text-dim, #8a8a8f)', minWidth: sheet ? 52 : 40 }
   const sw = sheet ? 26 : 15         // color swatch size
   const wBtn = sheet ? 34 : 24       // width-button size
 
+  // Neutral-dark palette shared with the Chart Settings menu (--menu-* tokens).
   const shell = sheet
     ? {
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 21,
-        background: '#1a1c17', borderTop: '1px solid #2e3127',
+        background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', borderTop: '1px solid var(--menu-border, #242426)',
         borderTopLeftRadius: 14, borderTopRightRadius: 14,
         boxShadow: '0 -8px 28px rgba(0,0,0,0.55)',
         padding: '6px 0 max(14px, env(safe-area-inset-bottom))',
+        color: 'var(--menu-text, #ededed)',
         fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
       }
     : {
         position: 'fixed', left: pos.left, top: pos.top,
         visibility: pos.ready ? 'visible' : 'hidden', zIndex: 21,
-        minWidth: 176, background: '#1a1c17', border: '1px solid #2e3127',
-        borderRadius: 4, boxShadow: '0 4px 16px rgba(0,0,0,0.5)', padding: '4px 0',
+        minWidth: 182, background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', border: '1px solid var(--menu-border, #242426)',
+        borderRadius: 10, boxShadow: '0 12px 40px var(--menu-shadow, rgba(0,0,0,0.6))', padding: '5px 0',
+        color: 'var(--menu-text, #ededed)',
         fontFamily: "'Instrument Sans', sans-serif", fontSize: 11, userSelect: 'none',
       }
 
@@ -2337,7 +2340,7 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
     >
       {sheet && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3d31' }} />
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--menu-border, #2c2c30)' }} />
         </div>
       )}
       {/* Color & style — one row that opens the shared grid picker (color grid +
@@ -2346,21 +2349,21 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
         onClick={() => setColorOpen(o => !o)}
         style={{
           ...rowStyle, width: '100%', border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', color: '#e2dfd6', textAlign: 'left',
-          background: colorOpen ? 'rgba(201,168,76,0.12)' : 'none',
+          fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+          background: colorOpen ? 'var(--menu-accent-bg, rgba(240,178,58,0.12))' : 'none',
         }}
-        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-hover, rgba(255,255,255,0.06))' }}
         onMouseLeave={(e) => { if (!colorOpen) e.currentTarget.style.background = 'none' }}
       >
         <span style={labelStyle}>Color</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          <span style={{ width: sw, height: sw, borderRadius: '50%', background: curColor, border: '1px solid #3a3d31', boxShadow: '0 0 0 1px #1a1c17' }} />
+          <span style={{ width: sw, height: sw, borderRadius: '50%', background: curColor, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
           <span style={{ display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: dashed ? 'dashed' : 'solid', borderTopColor: curColor }} />
-          <span style={{ color: '#8a8674', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
+          <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
         </span>
       </button>
 
-      <div style={{ height: 1, background: '#2e3127', margin: '4px 0' }} />
+      <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
 
       <MenuAction
         label="Duplicate"
@@ -2368,22 +2371,6 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
         big={sheet}
         icon={<><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>}
       />
-      {canReorder && (
-        <MenuAction
-          label="Bring to front"
-          onClick={onBringFront}
-          big={sheet}
-          icon={<><rect x="4.5" y="2.5" width="9" height="9" rx="1" fill="rgba(226,223,214,0.18)" /><rect x="2.5" y="4.5" width="9" height="9" rx="1" /></>}
-        />
-      )}
-      {canReorder && (
-        <MenuAction
-          label="Send to back"
-          onClick={onSendBack}
-          big={sheet}
-          icon={<><rect x="2.5" y="4.5" width="9" height="9" rx="1" fill="rgba(226,223,214,0.18)" /><rect x="4.5" y="2.5" width="9" height="9" rx="1" /></>}
-        />
-      )}
       <MenuAction
         label={locked ? 'Unlock' : 'Lock'}
         onClick={onToggleLock}

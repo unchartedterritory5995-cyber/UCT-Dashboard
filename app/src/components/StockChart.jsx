@@ -9572,7 +9572,7 @@ export default function StockChart({
             undo={undo}
             redo={redo}
             snapshotHistory={snapshotHistory}
-            onSaveDefaults={(d) => handleUpdateChartSettings({ drawingDefaults: { ...cs.drawingDefaults, ...d } })}
+            onSaveDefaults={(d) => handleUpdateChartSettings({ ...cs, drawingDefaults: { ...cs.drawingDefaults, ...d } })}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
