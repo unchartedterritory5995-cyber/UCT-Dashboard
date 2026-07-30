@@ -26,15 +26,21 @@ contracts.
 ≥$5M bid sweeps, ~50% on blank. The only real fix is **coverage**: hold a fresh consolidated
 NBBO for more contracts.
 
-## 1. ⛔ BLOCKING PREREQUISITE — confirm the connection limit
+## 1. RESOLVED — connection limits (Massive reply, 2026-07-30)
 
-Massive confirmed **1,000 option contracts per WS connection**. The build hinges on how many
-connections we may open for the **options product**:
-- **3 per product** → room to add a 2nd options-Q connection; proceed.
-- **3 TOTAL across products** → we already run options-WS + stocks/bars-WS + dark-pool paths;
-  a 2nd options-Q socket may not fit without giving something up. **Do not build until answered.**
+Limits are **per asset class**, not shared across products:
+- **Individual plans: 1 WS per product** (1 options, 1 stocks) — **this is our current default.**
+- **Business plans: 3 per product, with up to 2 more available** (so up to 5 options WS).
+- Each connection: up to **1,000 contracts**; receives the **same consolidated NBBO independently**
+  (no dedup/coordination between connections). Options quotes are ~**300,000 msg/sec** firehose-wide.
 
-The exact question to send Massive is in the Appendix.
+Massive **confirmed the two-connection design is the correct way to scale past 1,000 contracts.**
+
+⚠️ **NEW GATE — this is now a BILLING/PLAN decision, not a technical one:** a 2nd options connection
+is **beyond our default allowance** and **requires upgrading to a Business plan (3/product) or
+purchasing add-on connections.** The build cannot ship until that plan change is made.
+→ **Next action: owner decides on the Business upgrade / add-on connections (cost).** Everything in
+§2–§8 is ready to implement the moment we have the 2nd connection allowance.
 
 ## 2. Current architecture (as of this plan)
 
@@ -67,7 +73,11 @@ conflict since each contract sits in exactly one connection.
 
 ## 5. Risks
 
-- **Connection limit** (the §1 gate).
+- **Plan/billing** (the §1 gate) — needs a Business upgrade or add-on connection first.
+- **Throughput** (confirmed by Massive): options quotes are ~**300,000 msg/sec** feed-wide. Our
+  1,000-contract subscription is a subset, but a 2nd Q connection roughly **doubles inbound quote
+  volume** on the single flow-worker event loop. This sharpens the event-loop risk below — validate
+  the loop absorbs it (watch ping-timeout flapping + the `nbbo_age_*` histogram) before flipping to 2.
 - **flow-worker event loop**: a 2nd recv loop adds CPU/memory to the single uvicorn loop — same
   surface as the ping-timeout flapping (the 45s `MASSIVE_WS_PING_TIMEOUT` + 60s stale watchdog).
   Mitigate: conn 1 is Q-only (lighter than trades); watch the event loop after enabling.
