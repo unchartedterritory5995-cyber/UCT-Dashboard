@@ -146,6 +146,23 @@ _SUNDAY_THEME = Theme(
     layout="sunday",
 )
 
+# Generic "Workshop with <host>" — the card ANY workshop gets when its host has
+# no bespoke artwork (ChartMaster's plate, Zen's mark). A workshop is a TEACHING
+# session, so the board is a slate-green chalkboard/drafting surface carrying an
+# ANNOTATED chart (level line, circled pivot, breakout arrow) rather than a plain
+# price chart — instruction, not tape. The HOST NAME is the hero, because that is
+# what distinguishes one workshop from another. Without this, a new host fell
+# through to the classic card and read as a Live Trading Session.
+_WORKSHOP_THEME = Theme(
+    bg_top=(20, 34, 32),
+    bg_bottom=(6, 11, 11),
+    wordmark=(226, 232, 228),
+    eyebrow=_GOLD,
+    date=(246, 240, 220),
+    tagline=(148, 164, 158),
+    layout="workshop",
+)
+
 _THEMES = {
     "default": _DEFAULT_THEME,
     "live": _DEFAULT_THEME,
@@ -156,6 +173,7 @@ _THEMES = {
     "zen": _ZEN_THEME,
     "sunday": _SUNDAY_THEME,
     "scans": _SUNDAY_THEME,
+    "workshop": _WORKSHOP_THEME,
 }
 
 
@@ -169,6 +187,11 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     # Zen workshop card. Matches "WORKSHOP WITH ZEN" and any "… Zen …" name.
     if re.search(r"\bzen\b", low):
         return _ZEN_THEME
+    # Any OTHER workshop — checked AFTER the bespoke per-host cards above so a
+    # host who HAS artwork keeps it, and everyone else still gets a workshop card
+    # instead of falling through to the Live Trading default.
+    if "workshop" in low:
+        return _WORKSHOP_THEME
     if "evening" in low:
         return _EVENING_THEME
     if "thought" in low:
@@ -1165,6 +1188,184 @@ def _render_zen(theme: Theme, date_text: str, eyebrow_label: str, *,
 
 
 # ---------------------------------------------------------------------------
+# Workshop (generic, any host) — chalkboard + annotated teaching chart
+# ---------------------------------------------------------------------------
+
+_WITH_RE = re.compile(r"\s+with\s+", re.I)
+
+
+def split_show_and_host(label: str) -> tuple:
+    """('WORKSHOP', 'BRACCO') from 'WORKSHOP WITH BRACCO'.
+
+    Host is '' when the name carries no "with <host>" clause, in which case the
+    whole label is the show. Splits on the FIRST "with" only, so a host called
+    "Bob with the Charts" survives intact."""
+    parts = _WITH_RE.split((label or "").strip(), maxsplit=1)
+    if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+        return parts[0].strip(), parts[1].strip()
+    return (label or "").strip(), ""
+
+
+def _graph_paper(size: tuple, S: int, cell: int = 48) -> Image.Image:
+    """Faint gold graph-paper grid — the drafting surface. Every 4th line is a
+    touch brighter (the major division), so it reads as chart paper rather than
+    a flat screen. Drawn on its own layer: translucent ink written straight onto
+    an RGBA base SETS alpha instead of blending (see the Sunday tiles bug)."""
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    step = cell * S
+    w, h = size
+    for i, x in enumerate(range(0, w + step, step)):
+        d.line([(x, 0), (x, h)], fill=(*_GOLD, 26 if i % 4 else 46), width=max(1, S // 2))
+    for i, y in enumerate(range(0, h + step, step)):
+        d.line([(0, y), (w, y)], fill=(*_GOLD, 26 if i % 4 else 46), width=max(1, S // 2))
+    return layer
+
+
+def _teaching_chart(size: tuple, S: int, seed: int,
+                    rect: tuple | None = None) -> Image.Image:
+    """An ANNOTATED chart — the thing a workshop actually puts on the board: a
+    base, a horizontal level, the breakout through it circled, and an arrow out.
+    Deliberately NOT the classic card's skyline: this is one marked-up idea, not
+    a market. Seeded so an episode always redraws identically.
+
+    `rect` = (x0, y0, x1, y1) bounds the diagram to its own band. It is a HARD
+    bound, not a hint: the whole point is that the chart is a figure ABOVE the
+    type, never a full-bleed wash running through the headline."""
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    rng = random.Random(seed)
+    w, h = size
+    if rect is None:
+        rect = (int(w * 0.08), int(h * 0.30), int(w * 0.92), int(h * 0.74))
+    x0, top_y, x1, base_y = rect
+
+    # Price path: a sideways base, then a breakout leg. Every step is bounded so
+    # the path can never wander off the canvas (the _gen_trend lesson).
+    n = 34
+    brk = int(n * 0.58)                       # where the base gives way
+    span = base_y - top_y
+    lvl = base_y - span * 0.34                # the resistance the base builds under
+    pts, y = [], base_y
+    for i in range(n):
+        if i < brk:
+            y += rng.uniform(-1, 1) * (span * 0.10)
+            y = min(base_y, max(lvl + span * 0.07, y))            # capped UNDER the level
+        else:
+            t = (i - brk) / max(1, n - 1 - brk)
+            y = lvl - (lvl - top_y) * (t ** 0.85) + rng.uniform(-1, 1) * (span * 0.03)
+            y = min(base_y, max(top_y, y))
+        pts.append((x0 + (x1 - x0) * i / (n - 1), y))
+
+    # The level line — dashed, spanning the base and a little past the break.
+    dash, gap = int(14 * S), int(10 * S)
+    x = x0
+    while x < x1:
+        d.line([(x, lvl), (min(x + dash, x1), lvl)], fill=(*_GOLD, 120), width=max(1, S))
+        x += dash + gap
+
+    d.line(pts, fill=(*_GOLD_HI, 150), width=max(1, int(2.2 * S)), joint="curve")
+
+    # Circle the breakout bar — the teaching mark.
+    bx, by = pts[brk]
+    r = int(26 * S)
+    d.ellipse([bx - r, by - r, bx + r, by + r], outline=(*_GOLD_HI, 175), width=max(1, int(2 * S)))
+
+    # The PATH ITSELF terminates in the arrowhead — a separate annotation arrow
+    # ran parallel to the breakout leg and just read as a doubled line.
+    ax, ay = pts[-1]
+    px, py = pts[-2]
+    dx, dy = ax - px, ay - py
+    mag = max(1e-6, (dx * dx + dy * dy) ** 0.5)
+    ux, uy = dx / mag, dy / mag                    # unit vector along the last leg
+    nx, ny = -uy, ux                               # its normal
+    a = int(13 * S)
+    d.polygon([(ax + ux * a, ay + uy * a),
+               (ax - ux * a * 0.5 + nx * a * 0.62, ay - uy * a * 0.5 + ny * a * 0.62),
+               (ax - ux * a * 0.5 - nx * a * 0.62, ay - uy * a * 0.5 - ny * a * 0.62)],
+              fill=(*_GOLD_HI, 190))
+    return layer
+
+
+def _render_workshop(theme: Theme, date_text: str, eyebrow_label: str, *,
+                     seed: int = 7) -> Image.Image:
+    """Generic workshop card: chalkboard + graph paper + one annotated chart,
+    with the HOST as the gold serif hero and the show name as the kicker above
+    it. Super-sampled 2x then downscaled, finished with grain — same idiom as
+    the zen/sunday cards."""
+    S = 2
+    W, H = _W * S, _H * S
+    size = (W, H)
+
+    def s(v):
+        return int(round(v * S))
+
+    show, host = split_show_and_host(eyebrow_label or "WORKSHOP")
+
+    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
+    img = Image.alpha_composite(img, _graph_paper(size, S))
+    # The diagram gets its OWN band in the upper half; the type owns the lower
+    # half. Overlapping them buried the circled pivot behind the headline.
+    chart_rect = (s(120), s(168), s(1160), s(322))
+    img = Image.alpha_composite(img, _radial(W // 2, s(250), s(360), _GOLD, 30, size))
+    img = Image.alpha_composite(img, _teaching_chart(size, S, seed, rect=chart_rect))
+    # Ground the type half so the words sit on something solid.
+    img = Image.alpha_composite(img, _band_scrim(size, s(360), s(720), 130, top_down=False))
+
+    cx = W // 2
+    mark = _compass(s(56))
+    if mark is not None:
+        img.alpha_composite(mark, (cx - s(28), s(40)))
+    _shadow_center(img, cx, s(106), _WORDMARK,
+                   _font("DejaVuSans-Bold.ttf", 23 * S), theme.wordmark, 7 * S)
+
+    draw = ImageDraw.Draw(img)
+    if host:
+        # Kicker (the show) small + tracked; the HOST is the hero.
+        kf, ktext = _fit_tracked(draw, show, "DejaVuSans-Bold.ttf",
+                                 26 * S, 15 * S, s(_W - 240), 8 * S)
+        _shadow_center(img, cx, s(392), ktext, kf, theme.eyebrow, 8 * S)
+        hf, htext = _fit_tracked(draw, host, "DejaVuSerif-Bold.ttf",
+                                 82 * S, 34 * S, s(_W - 160), 0)
+        _gold_center(img, cx, s(444), htext, hf)
+        rule_y = s(566)
+    else:
+        # No host in the name — the show itself is the hero.
+        hf, htext = _fit_tracked(draw, show, "DejaVuSerif-Bold.ttf",
+                                 72 * S, 32 * S, s(_W - 160), 0)
+        _gold_center(img, cx, s(420), htext, hf)
+        rule_y = s(552)
+
+    # Hairline rule with a diamond centre — the workshop card's own signature.
+    rw = s(190)
+    rl = ImageDraw.Draw(img)
+    rl.line([(cx - rw, rule_y), (cx - s(16), rule_y)], fill=(*_GOLD, 170), width=max(1, S))
+    rl.line([(cx + s(16), rule_y), (cx + rw, rule_y)], fill=(*_GOLD, 170), width=max(1, S))
+    dm = s(6)
+    rl.polygon([(cx, rule_y - dm), (cx + dm, rule_y), (cx, rule_y + dm), (cx - dm, rule_y)],
+               fill=(*_GOLD_HI, 220))
+
+    # Date plaque — the shared Evening/plate/zen pill idiom.
+    df = _font("DejaVuSans-Bold.ttf", 29 * S)
+    dt = date_text.upper()
+    dw = _tracked_w(draw, dt, df, 3 * S)
+    pill_cy = s(624)
+    pill = Image.new("RGBA", size, (0, 0, 0, 0))
+    ImageDraw.Draw(pill).rounded_rectangle(
+        [cx - dw / 2 - s(22), pill_cy - s(26), cx + dw / 2 + s(22), pill_cy + s(26)],
+        radius=s(26), fill=(0, 0, 0, 140), outline=(*_GOLD_HI, 255), width=s(2))
+    img.alpha_composite(pill)
+    _draw_tracked_center(ImageDraw.Draw(img), cx, pill_cy - s(16), dt, df, theme.date, 3 * S)
+
+    _shadow_center(img, cx, s(680), _TAGLINE,
+                   _font("DejaVuSans.ttf", 20 * S), theme.tagline, 0)
+
+    img = Image.alpha_composite(img, _vignette(0.55, size))
+    out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return _grain(out, alpha=4.5, seed=11 + seed)
+
+
+# ---------------------------------------------------------------------------
 # Sunday (Sunday Scans) — pre-dawn horizon + scanner results strip, super-sampled
 # ---------------------------------------------------------------------------
 
@@ -1313,6 +1514,8 @@ def render_session_thumbnail(
         img = _render_zen(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "sunday":
         img = _render_sunday(theme, date_text, eyebrow_label, seed=seed)
+    elif theme.layout == "workshop":
+        img = _render_workshop(theme, date_text, eyebrow_label, seed=seed)
     else:
         img = _render_classic(theme, date_text, eyebrow_label, seed=seed)
     buf = io.BytesIO()

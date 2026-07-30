@@ -218,6 +218,73 @@ def _notify_published(title: str, video_id: str, section: str = "Videos") -> Non
         pass
 
 
+def _closest_existing_section(new_name: str, existing: list[str]) -> str | None:
+    """The nearest existing section name to `new_name`, if they're close enough
+    to plausibly be the same thing typed two ways. This is the typo detector:
+    "Worshop with Zen" (a real 2026-07-20 webinar name) is one keystroke from
+    the workshop shelf, and without the hint a brand-new shelf just quietly
+    appears. Cutoff is deliberately loose — a false hint costs a glance, a
+    missed one costs a stray section nobody notices.
+
+    Scored per-TOKEN, not whole-string: a short typo'd topic ("Worshop with
+    Zen") against a long shelf name ("Workshops & Fireside Chats") only scores
+    ~0.48 end-to-end and would never clear a sane cutoff — but the tell-tale
+    word pair (worshop/workshops) scores 0.88. So we take the best of the two
+    signals and hold the token one to a high bar."""
+    import difflib
+
+    def _ratio(a: str, b: str) -> float:
+        return difflib.SequenceMatcher(None, a, b).ratio()
+
+    def _tokens(s: str) -> list[str]:
+        return [w for w in re.split(r"[^a-z0-9]+", s.lower()) if len(w) >= 4]
+
+    best, best_score = None, 0.0
+    src_tokens = _tokens(new_name)
+    for cand in existing:
+        if not cand or cand == new_name:
+            continue
+        whole = _ratio(new_name.lower(), cand.lower())
+        token = max((_ratio(a, b) for a in src_tokens for b in _tokens(cand)),
+                    default=0.0)
+        # Either signal can carry it, at its own bar; a near-identical WORD is
+        # the strong evidence, so it needs to be near-identical (0.85).
+        score = max(whole if whole >= 0.6 else 0.0,
+                    token if token >= 0.85 else 0.0)
+        if score > best_score:
+            best, best_score = cand, score
+    return best
+
+
+def _notify_new_section(section: str, topic: str | None) -> None:
+    """Ping the owner when a recording creates a Desk section that did not exist
+    before. There is no allowlist on publishing, so a misspelled webinar name
+    silently spawns its own shelf (and misses its show's curated routing). A new
+    shelf is ALWAYS worth a look: it is either a new show or a typo.
+    Best-effort — must never raise into the publish path."""
+    try:
+        from api.services import discord_notify
+        existing = [s for s in education_service.list_categories() if s != section]
+        near = _closest_existing_section(section, existing)
+        desc = (f"The recording **{topic or '(unnamed)'}** created a brand-new Desk "
+                f"section **{section}**.\n\nIf that's a new show, nothing to do. ")
+        if near:
+            desc += (f"If it's a typo, you probably meant **{near}** — rename it in "
+                     f"the Desk admin and fix the Zoom webinar/template name so the "
+                     f"next one routes correctly.")
+        else:
+            desc += ("If it's a typo, rename it in the Desk admin and fix the Zoom "
+                     "webinar/template name.")
+        discord_notify._send_webhook({
+            "title": "🆕 New Desk section created",
+            "description": desc,
+            "url": _DESK_VIDEOS_URL,
+            "color": 0xE0A800,
+        })
+    except Exception as e:
+        print(f"[desk-sessions] new-section alert failed (non-fatal): {e}")
+
+
 def check_missing_session_alert(now: datetime | None = None, *, publish: bool = True) -> bool:
     """Weekday EOD guard. Drains the queue once, then alerts the owner if today's
     session still isn't in The Desk — distinguishing a stuck/errored queue from a
@@ -299,13 +366,17 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                     print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
             created_now = vid not in education_service.existing_youtube_ids()
             if created_now:
+                new_section = False
                 try:
-                    education_service.register_category_if_missing(section, kind="show")
+                    new_section = education_service.register_category_if_missing(
+                        section, kind="show")
                 except Exception:
                     pass  # never break publish over meta registration
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
                     "category": section, "sort_order": 0})
+                if new_section:
+                    _notify_new_section(section, topic)
             # Link the published video to its Zoom recording so the (async)
             # transcript → chapters backfill can find it later.
             video_row_id = None

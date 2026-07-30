@@ -477,3 +477,53 @@ def test_sunday_scans_title_uses_the_pinned_prefix():
     section, prefix, eyebrow = dds._route("Sunday Scans")
     assert f"{prefix} — {dds._session_date_text('2026-07-26T14:00:00Z')}".startswith(
         "Sunday Scans — July 26, 2026")
+
+
+# ---------------------------------------------------------------------------
+# New-Desk-section alert — the typo net (2026-07-29)
+# ---------------------------------------------------------------------------
+
+def test_new_section_alert_fires_only_for_a_genuinely_new_section(edu_db, jobs_db, monkeypatch):
+    """A recording that opens a brand-new shelf pings the owner; a second one
+    into the SAME shelf stays quiet. Without the second half this would alert on
+    every single publish, which is the same as never alerting."""
+    sent = []
+    monkeypatch.setattr(dds, "_notify_new_section", lambda s, t: sent.append((s, t)))
+
+    jobs_db.enqueue("N1", "Fireside Chat", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    assert sent == [("Fireside Chat", "Fireside Chat")]
+
+    class _YT2(_FakeYT):
+        def upload_unlisted(self, path, title, description=""):
+            return "VIDY"
+    jobs_db.enqueue("N2", "Fireside Chat", "2026-06-25T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_YT2())
+    assert len(sent) == 1, "second recording into an EXISTING section must not alert"
+
+
+def test_register_category_reports_creation_then_existence(edu_db):
+    # The bool the alert rides on. A registrar that always returned None (or
+    # always True) would make the alert either dead or permanent.
+    assert edu.register_category_if_missing("Brand New Shelf", kind="show") is True
+    assert edu.register_category_if_missing("Brand New Shelf", kind="show") is False
+
+
+def test_new_section_alert_names_the_likely_typo_target():
+    # The whole reason the alert is useful: it must point AT the near-miss.
+    # "Worshop with Zen" was a real webinar name on 2026-07-20.
+    existing = ["Live Trading Sessions", "Workshops & Fireside Chats", "Sunday Scans"]
+    assert dds._closest_existing_section("Worshop with Zen", existing) == \
+        "Workshops & Fireside Chats"
+    # A genuinely unrelated new show has no near-miss to suggest.
+    assert dds._closest_existing_section("Options Bootcamp", existing) is None
+
+
+def test_new_section_alert_never_raises_into_the_publish_path(edu_db, monkeypatch):
+    # It runs inside the publish try-block; an exception here must not be able
+    # to error the job (the video is already uploaded by this point).
+    import api.services.discord_notify as dn
+    def _boom(_embed):
+        raise RuntimeError("discord down")
+    monkeypatch.setattr(dn, "_send_webhook", _boom)
+    dds._notify_new_section("Some Shelf", "Some Webinar")   # must not raise

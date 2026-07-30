@@ -386,3 +386,95 @@ def test_candle_skyline_never_escapes_the_canvas():
     img = Image.new("RGBA", (t._W, t._H), (0, 0, 0, 255))
     tops = t._candle_skyline(img, 518, 30, 160, seed=3)
     assert all(20 < y < 518 for _, y in tops)
+
+
+# ---------------------------------------------------------------------------
+# Generic workshop card (any host, no bespoke artwork) — 2026-07-29
+# ---------------------------------------------------------------------------
+
+def test_workshop_eyebrow_routes_to_workshop_not_the_live_trading_default():
+    # The whole point: before this card existed, a host with no artwork fell
+    # through to `classic` and the workshop looked like a Live Trading Session.
+    assert t._resolve_theme(None, "WORKSHOP WITH BRACCO").layout == "workshop"
+    assert t._resolve_theme(None, "WORKSHOP").layout == "workshop"
+
+
+def test_bespoke_host_cards_still_beat_the_generic_workshop_card():
+    # Ordering guard: ChartMaster/Zen are checked BEFORE the generic workshop
+    # match, so a host who HAS artwork keeps it.
+    assert t._resolve_theme(None, "WORKSHOP WITH CHARTMASTER").layout == "plate"
+    assert t._resolve_theme(None, "WORKSHOP WITH ZEN").layout == "zen"
+    # ...and non-workshop shows are untouched by the new branch.
+    assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
+    assert t._resolve_theme(None, "SUNDAY SCANS").layout == "sunday"
+    assert t._resolve_theme(None, "EVENING UPDATE FROM TSDR").layout == "evening"
+
+
+def test_split_show_and_host():
+    assert t.split_show_and_host("WORKSHOP WITH BRACCO") == ("WORKSHOP", "BRACCO")
+    assert t.split_show_and_host("Workshop with Zen") == ("Workshop", "Zen")
+    # No "with" clause -> the whole label is the show, host empty.
+    assert t.split_show_and_host("WORKSHOP") == ("WORKSHOP", "")
+    # Splits on the FIRST "with" only, so a host name containing "with" survives.
+    assert t.split_show_and_host("WORKSHOP WITH BOB WITH THE CHARTS") == \
+        ("WORKSHOP", "BOB WITH THE CHARTS")
+    assert t.split_show_and_host("") == ("", "")
+
+
+def test_workshop_render_is_1280x720_jpeg_and_distinct_from_classic():
+    ws = t.render_session_thumbnail("August 12, 2026", eyebrow_label="WORKSHOP WITH BRACCO")
+    img = Image.open(io.BytesIO(ws))
+    assert img.size == (1280, 720) and img.format == "JPEG"
+    assert 1000 < len(ws) < 2_000_000
+    classic = t.render_session_thumbnail("August 12, 2026",
+                                         eyebrow_label="LIVE TRADING SESSION")
+    assert ws != classic
+
+
+def test_workshop_card_is_greener_than_the_classic_card():
+    # The card must read as its own surface, not a re-tinted Live Trading card.
+    # Asserts the ARTIFACT (mean channel values of the rendered pixels).
+    def _mean_rgb(b):
+        im = Image.open(io.BytesIO(b)).convert("RGB").resize((64, 36))
+        px = list(im.getdata())
+        n = len(px)
+        return tuple(sum(p[i] for p in px) / n for i in range(3))
+    ws = _mean_rgb(t.render_session_thumbnail("August 12, 2026",
+                                              eyebrow_label="WORKSHOP WITH BRACCO"))
+    cl = _mean_rgb(t.render_session_thumbnail("August 12, 2026",
+                                              eyebrow_label="LIVE TRADING SESSION"))
+    # Compare HUE LEAN (green minus blue), not absolute green — the classic card
+    # is simply a brighter image, so an absolute-channel comparison would just be
+    # measuring exposure rather than the colour identity we actually care about.
+    assert ws[1] - ws[2] > 2.0, "workshop board should lean green, not blue"
+    assert (ws[1] - ws[2]) > (cl[1] - cl[2]), \
+        "workshop board should lean greener than the classic card"
+
+
+def test_workshop_teaching_chart_stays_inside_its_band():
+    # The diagram is bounded to its own rect so it can never run through the
+    # headline (it did in the first cut — the circled pivot sat behind the
+    # hero type). Assert no diagram ink lands in the type half.
+    S, size = 2, (1280 * 2, 720 * 2)
+    rect = (240, 336, 2320, 644)          # the 2x rect the renderer uses
+    layer = t._teaching_chart(size, S, seed=1234, rect=rect)
+    alpha = layer.split()[-1]
+    below = alpha.crop((0, rect[3] + 40, size[0], size[1]))
+    assert below.getbbox() is None, "teaching chart bled below its band into the type"
+    above = alpha.crop((0, 0, size[0], max(0, rect[1] - 40)))
+    assert above.getbbox() is None, "teaching chart bled above its band"
+
+
+def test_workshop_is_deterministic_for_the_same_episode():
+    a = t.render_session_thumbnail("August 12, 2026", eyebrow_label="WORKSHOP WITH BRACCO")
+    b = t.render_session_thumbnail("August 12, 2026", eyebrow_label="WORKSHOP WITH BRACCO")
+    assert a == b
+    c = t.render_session_thumbnail("August 13, 2026", eyebrow_label="WORKSHOP WITH BRACCO")
+    assert a != c
+
+
+def test_workshop_handles_a_very_long_host_without_clipping():
+    out = t.render_session_thumbnail(
+        "September 3, 2026",
+        eyebrow_label="WORKSHOP WITH ALEX JONES INDUSTRIAL AVERAGE")
+    assert Image.open(io.BytesIO(out)).size == (1280, 720)

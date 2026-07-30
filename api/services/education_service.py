@@ -557,7 +557,7 @@ def upsert_category(name: str, kind: str | None = None,
         return result
 
 
-def register_category_if_missing(name: str, kind: str = "library") -> None:
+def register_category_if_missing(name: str, kind: str = "library") -> bool:
     """Create a category meta row iff none exists yet — appended at the tail of
     its kind via the same create-path as `_upsert_category_conn`. NEVER updates
     an existing row (any field) — unlike `upsert_category()`, a repeat call on
@@ -566,14 +566,19 @@ def register_category_if_missing(name: str, kind: str = "library") -> None:
     exist yet?" registration, where the caller only wants a sane default kind
     for a brand-new name and must never fight an admin's correction on every
     subsequent matching recording. One `_WRITE_LOCK` acquisition (non-reentrant
-    — never call this while already holding the lock)."""
+    — never call this while already holding the lock).
+
+    Returns True iff a row was actually CREATED. Callers use that to notice a
+    brand-new Desk section appearing — which is either a genuinely new show or a
+    typo in the Zoom webinar name, and the owner wants to know either way."""
     nm = _validate_category_input(name, kind)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         row = c.execute("SELECT 1 FROM edu_categories WHERE name = ?", (nm,)).fetchone()
         if row is not None:
-            return
+            return False
         _upsert_category_conn(c, nm, kind=kind)
         c.commit()
+        return True
 
 
 def rename_category(old: str, new: str) -> int:
