@@ -57,6 +57,27 @@ def categorize(title: str) -> str:
 
 CAT_ORDER = [MINDSET, MARKET, SETUPS, TECH, RISK, SCAN, FLOW, INTERVIEWS, RECAPS, LIVE]
 
+# Retired from The Desk by owner decision — still public on the channel, so a
+# re-run of this generator would otherwise pull them straight back into the seed
+# and ensure_default_videos() would re-insert them on the next boot. Keep this
+# set in sync with the removal notes in education_channel_seed.py /
+# education_seed.py.
+RETIRED_IDS = {
+    # 2026-07-26: near-silent test recordings + a deleted YouTube upload.
+    "BMndiYMujQA", "KDZvB2NB0b4", "rC4J8QA7hM0",
+    # 2026-07-29: the PRE-MARKET STREAM archive (26 near-identical premarket
+    # scans, zero watch progress). tools/desk_premarket_purge.py cleared the
+    # prod rows. The 3 clip sources kept for the live "Setups Mastery" track
+    # (5cWcJ9GtqpY / JrPP0ofe408 / 1710-wEgJag) are NOT listed — they stay
+    # seeded, retitled, under Setups & Strategies.
+    "0C_apH-Q8yk", "GaelGp-hB90", "4k7yEhlw1lw", "nIudfbP1yJw", "3UVNpnWSOK4",
+    "nKg9kfqYILM", "UwtAwzHR3Ws", "OLoH42NWHRI", "OJgh_u_h1U4", "4yNUQ6YEtBY",
+    "4SkqBiBQAHA", "hCd0lSj6Xts", "Zt8OC2VlcEo", "D5i0kXTmzYA", "F-QBnHd9uQw",
+    "3aEIpOvvSqQ", "k472jODmxho", "95hCWoh9OKo", "GZ1rKjZ9Se8", "A4-OuptmrDs",
+    "e9Xn4HE6iXk", "SC2d4OtcFfE", "uaE3k0qlabg", "x5RCa1auDtU", "-YAF3vJTqh8",
+    "WNFs15BQ4mA",
+}
+
 
 def main():
     if len(sys.argv) < 2:
@@ -76,7 +97,7 @@ def main():
     for i, r in enumerate(rows):
         yt = (r.get("id") or "").strip()
         title = (r.get("title") or "").strip()
-        if not yt or len(yt) != 11 or yt in already or yt in seen:
+        if not yt or len(yt) != 11 or yt in already or yt in seen or yt in RETIRED_IDS:
             skipped += 1
             continue
         seen[yt] = {

@@ -161,6 +161,34 @@ def test_channel_seed_module_is_well_formed():
         seen.add(v["youtube_id"])
 
 
+def test_retired_premarket_streams_are_not_seeded():
+    """The PRE-MARKET STREAM archive was purged from prod 2026-07-29.
+
+    ensure_default_videos() re-inserts any seed youtube_id missing from the DB on
+    EVERY boot, so a single re-added seed entry silently resurrects a deleted
+    video — and in its ORIGINAL seed category, which for these was the
+    pre-taxonomy 'Live Sessions' shelf. This is the guard on that.
+    """
+    from tools.desk_premarket_purge import RETIRED, SURVIVORS
+    from api.services.education_seed import SEED_VIDEOS
+    from api.services.education_channel_seed import SEED_VIDEOS_CHANNEL
+    from api.services.education_extra_seed import SEED_VIDEOS_EXTRA
+
+    seeded = {v["youtube_id"] for v in (*SEED_VIDEOS, *SEED_VIDEOS_CHANNEL, *SEED_VIDEOS_EXTRA)}
+    assert len(RETIRED) == 26, "the retired list changed — update the purge tool's record too"
+    back = sorted(set(RETIRED) & seeded)
+    assert not back, f"retired premarket streams are seeded again (they WILL come back): {back}"
+
+    # The 3 clip sources MUST stay seeded — the live 'Setups Mastery' track
+    # points at them by youtube_id, and a fresh DB has to reproduce them.
+    by_id = {v["youtube_id"]: v for v in SEED_VIDEOS_CHANNEL}
+    for yt in SURVIVORS:
+        assert yt in by_id, f"clip source {yt} vanished from the channel seed"
+        v = by_id[yt]
+        assert v["category"] == "Setups & Strategies", f"{yt} is back on a show shelf"
+        assert "pre" not in v["title"].lower(), f"{yt} carries a premarket title again: {v['title']!r}"
+
+
 def test_extra_seed_module_is_well_formed():
     from api.services.education_extra_seed import SEED_VIDEOS_EXTRA
     assert len(SEED_VIDEOS_EXTRA) >= 50
