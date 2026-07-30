@@ -1,7 +1,9 @@
 # Plan: 2nd Q-pool WebSocket connection (double NBBO coverage)
 
-**Status:** scoped, NOT started. **Blocked on** the Massive connection-limit answer (see §1).
-**Owner context:** Ravi. **Service:** flow-worker (off-hours deploy only). **Date:** 2026-07-30.
+**Status:** **PARKED (2026-07-30, cost).** Massive confirmed the two-connection design is correct,
+but a 2nd options connection requires a **Business plan / add-on connections** — owner deferred on
+cost, staying on the current individual plan (1 options WS, 950-cap). Fully scoped and ready to
+build if the plan economics change. **Owner context:** Ravi. **Service:** flow-worker (off-hours).
 
 ## 0. Why (the problem this fixes)
 
