@@ -1522,6 +1522,9 @@ export default function StockChart({
   //   horizontal → a flat, box-less two-line strip (.legendFlat)
   const legendFlat = verticalLegend && cs.header?.legendLayout === 'horizontal'
   const legendStacked = verticalLegend && !legendFlat
+  // Width (px) of the right price axis — reserved so a horizontal legend wraps to
+  // the next row BEFORE it slides under the price scale (measured reactively below).
+  const [legendAxisReserve, setLegendAxisReserve] = useState(0)
 
   useWatermarkDrag({
     containerRef,
@@ -1564,6 +1567,26 @@ export default function StockChart({
     onSize()  // sync once on (re)subscribe
     return () => { try { ts.unsubscribeSizeChange(onSize) } catch { /* noop */ } }
   }, [chartReady, centerWatermarkOnPlot])
+
+  // Reserve the right price-axis width for the HORIZONTAL legend so a long MA row
+  // wraps to the next line before reaching the price scale (instead of the last
+  // chip sliding UNDER it). timeScale().width() = plot width, so the axis width
+  // change (bigger price labels → narrower plot) fires subscribeSizeChange.
+  useEffect(() => {
+    if (!chartReady) return undefined
+    const chart = chartRef.current
+    if (!chart) return undefined
+    let ts
+    try { ts = chart.timeScale() } catch { return undefined }
+    const onSize = () => {
+      let aw = 0
+      try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+      setLegendAxisReserve((prev) => (Math.abs(prev - aw) > 1 ? aw : prev))
+    }
+    try { ts.subscribeSizeChange(onSize) } catch { return undefined }
+    onSize()
+    return () => { try { ts.unsubscribeSizeChange(onSize) } catch { /* noop */ } }
+  }, [chartReady])
 
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
   const indexMaSeriesRef = useRef(null)   // 50-period SMA line drawn on the index pane (matches the price chart's 50 SMA color)
@@ -9270,8 +9293,18 @@ export default function StockChart({
         <div
           ref={legendRef}
           className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}`}
-          /* Drop below the index pane so the OHLCV legend never covers it. */
-          style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}
+          /* Drop below the index pane so the OHLCV legend never covers it; reserve
+             the right price-axis width so a horizontal legend wraps before it (the
+             vertical stack is narrow + single-file, so it never needs the reserve). */
+          style={{
+            ...(overlayBounds ? { top: overlayBounds.top + 6 } : null),
+            // max-width (NOT right) so the legend box stays shrink-to-fit for a short
+            // row, but a long MA row wraps at the plot's right edge instead of under
+            // the axis. 100% = container width; subtract left(8)+gap(6)+axis width.
+            ...(!legendStacked && legendAxisReserve > 0
+              ? { maxWidth: `calc(100% - ${14 + legendAxisReserve}px)` }
+              : null),
+          }}
         >
           {legendFlat ? (
             <>
