@@ -451,14 +451,28 @@ def _start_recent_cache_warmer():
     # if the entry drifts older than this floor (a cheap freshness guarantee when
     # there is genuinely no traffic). Default 120s.
     stale_floor = int(os.environ.get("MASSIVE_RECENT_WARM_STALE", "120"))
+    # Curated re-warm floor WHILE A VIEWER IS ACTIVE. The curated scan is ~70s at
+    # mid-day, so re-warming every 10s cycle just ran back-to-back scans — no
+    # freshness gain (age can't beat the scan time) but heavy flow-worker load that
+    # starved OTHER flow.db reads (the 2026-07-30 /api/flow/data 502s + 1d-stale).
+    # Gate on a short floor so the worker idles between scans; freshness is
+    # unchanged. The real <30s fix is the incremental scan (deferred, flag-gated).
+    curated_floor = int(os.environ.get("MASSIVE_RECENT_WARM_CURATED_FLOOR", "45"))
+    # /api/flow/data (Market Read CSV) pre-warm cadence — heavy builds, less
+    # time-sensitive than the tape; keeps 1/5/20d non-cold so users never eat a
+    # cold build (502) and the uncapped 1d stays current, not the prior-day copy.
+    flow_data_interval = int(os.environ.get("MASSIVE_FLOW_DATA_WARM_INTERVAL", "300"))
 
     def _loop():
         from api import live_massive_router as lmr
         # small settle so flow.db + indexes exist (mirrors _ensure_flow_indexes)
         time.sleep(int(os.environ.get("MASSIVE_RECENT_WARM_DELAY", "8")))
         last_day = None
+        last_flow_data_warm = 0.0
         def _stale(entry):
             return entry is None or (time.time() - entry[0]) > stale_floor
+        def _curated_stale(entry):
+            return entry is None or (time.time() - entry[0]) > curated_floor
         while True:
             try:
                 today = lmr._today_mdyyyy()
@@ -474,7 +488,12 @@ def _start_recent_cache_warmer():
                 ck = (today, 10000, "D", "recent", None, True)   # the costly curated key
                 nc = (today, 10000, "D", "recent", None, False)  # ALL FLOW (SSE keeps it live)
                 viewer_active = (time.time() - lmr.last_recent_view_ts()) < viewer_window
-                if new_day or viewer_active or _stale(lmr._recent_cache.get(ck)):
+                ck_entry = lmr._recent_cache.get(ck)
+                # While viewed, re-warm on the SHORT curated floor (idle between the
+                # ~70s scans); no viewer, fall back to the 120s stale floor.
+                warm_curated = new_day or (_curated_stale(ck_entry) if viewer_active
+                                           else _stale(ck_entry))
+                if warm_curated:
                     try:
                         lmr.warm_recent(**KEYS[0], bounded=False)
                     except Exception:
@@ -519,6 +538,23 @@ def _start_recent_cache_warmer():
                         lmr.worker_history(target_date=None, min_gap_minutes=2)
                     except Exception:
                         log.exception("[recent-warmer] worker-history warm failed")
+                # (5) /api/flow/data (Market Read CSV) default ranges 1/5/20d —
+                # pre-build OFF the request path so users never eat a COLD build
+                # after a restart (the 2026-07-30 502s) and the uncapped 1d stays
+                # CURRENT instead of serving the stale prior-day copy (the 7/29
+                # artifact). Reuses the router's own cache+build (no new query
+                # logic). Throttled (flow_data_interval) — these are heavy builds.
+                if new_day or (time.time() - last_flow_data_warm) > flow_data_interval:
+                    try:
+                        from api import flow_router as _fr
+                        for _d in (1, 5, 20):
+                            try:
+                                _fr._get_cached_or_build("stocks", _d)
+                            except Exception:
+                                log.exception("[recent-warmer] flow/data warm failed: days=%s", _d)
+                        last_flow_data_warm = time.time()
+                    except Exception:
+                        log.exception("[recent-warmer] flow/data warm import failed")
                 last_day = today
             except Exception:
                 log.exception("[recent-warmer] loop error")
