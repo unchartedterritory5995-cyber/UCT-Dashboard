@@ -55,14 +55,29 @@ _HOST_AWARE = [
 # stray test recording auto-posting (there's otherwise no allowlist).
 _SKIP_TOPIC_RE = re.compile(r"^\s*(test|demo)", re.I)
 
+# Twin of desk_session_announce._WS — see _route for why routing must collapse
+# runs of whitespace in a hand-typed webinar name.
+_WS = re.compile(r"\s+")
+
 
 def _is_test_recording(topic: str | None) -> bool:
     return bool(_SKIP_TOPIC_RE.match(topic or ""))
 
 
 def _route(topic: str | None) -> tuple[str, str, str]:
-    """(section, title_prefix, eyebrow_label) for a recording's webinar name."""
-    t = (topic or "").strip()
+    """(section, title_prefix, eyebrow_label) for a recording's webinar name.
+
+    The name is WHITESPACE-NORMALIZED first (runs of spaces collapsed), because
+    it is hand-typed into Zoom and every match below is a plain substring test.
+    "Evening  Update from TSDR" (a real double space, shipped 2026-07-27) failed
+    the `evening update` keyword, fell through to auto-derive, and **forked the
+    show into a second one-video shelf** next to the real "Evening Update".
+    `desk_session_announce._norm` already collapses whitespace for the announce
+    allowlist for exactly this reason — routing needs the same, and normalizing
+    `t` itself (not just `low`) also keeps the double space out of the published
+    title + thumbnail eyebrow.
+    """
+    t = _WS.sub(" ", (topic or "")).strip()
     low = t.lower()
     for kw, section in _HOST_AWARE:
         if kw in low:

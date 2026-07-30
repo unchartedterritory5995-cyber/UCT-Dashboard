@@ -282,6 +282,39 @@ def test_route_evening_update_is_host_aware():
         "Evening Update", "Evening Update from Bracco", "EVENING UPDATE FROM BRACCO")
 
 
+def test_route_collapses_a_double_space_instead_of_forking_the_shelf():
+    # The webinar name is hand-typed into Zoom. "Evening  Update from TSDR" (a REAL
+    # double space, 2026-07-27) missed the `evening update` substring, auto-derived,
+    # and created a SECOND one-video shelf beside the real "Evening Update" —
+    # the show was split in two on the Desk landing until 2026-07-30.
+    assert dds._route("Evening  Update from TSDR") == (
+        "Evening Update", "Evening Update from TSDR", "EVENING UPDATE FROM TSDR")
+    # Normalizing `t` itself keeps the double space out of the published title +
+    # the thumbnail eyebrow, not just out of the matching.
+    assert "  " not in dds._route("Evening  Update from TSDR")[1]
+    # Every other match arm is a substring test too — they all get the same benefit.
+    assert dds._route("Workshop   with Zen")[0] == "Workshops & Fireside Chats"
+    assert dds._route("  Sunday   Scans  ")[0] == "Sunday Scans"
+    assert dds._route("Live  Trading Today")[0] == "Live Trading Sessions"
+    # A tab/newline pasted from a calendar invite behaves the same as a space.
+    assert dds._route("Evening\tUpdate from TSDR")[0] == "Evening Update"
+    # Auto-derive still works, and its section is the CLEAN name.
+    assert dds._route("Brand   New  Show")[0] == "Brand New Show"
+
+
+def test_normalized_route_still_satisfies_the_public_announce_allowlist():
+    # The routing fix must not move a show OUT of (or INTO) the paywall guard on
+    # the PUBLIC TSDR Discord. desk_session_announce.show_allowed() is what gates
+    # it; assert the labels _route now emits still resolve the same way.
+    from api.services import desk_session_announce as ann
+
+    section, prefix, _ = dds._route("Evening  Update from TSDR")
+    assert ann.show_allowed(section, prefix) is True, "evening update must stay announceable"
+    # And the paywalled shows stay silent — the failure direction that matters.
+    lt_section, lt_prefix, _ = dds._route("Live Trading Today")
+    assert ann.show_allowed(lt_section, lt_prefix) is False, "live trading must never announce"
+
+
 def test_route_workshop_is_host_aware():
     # Workshops are per-HOST events. The section stays pinned (one shelf for every
     # workshop) but the host MUST survive into the title + the eyebrow — the eyebrow
