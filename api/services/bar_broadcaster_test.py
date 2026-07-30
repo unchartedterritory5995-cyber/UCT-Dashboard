@@ -145,128 +145,95 @@ async def test_push_minute_bar_drops_stale_out_of_order_bar_for_rollup_tfs(bb):
 # ── Phase 4.5: A-event (per-second aggregate) tests ─────────────────────────
 
 @pytest.mark.asyncio
-async def test_push_aggregate_A_event_updates_partial_without_finalizing(bb):
-    """Phase 4.5: pushing an A event updates the partial bucket and emits to subscribers."""
+async def test_push_aggregate_A_event_alone_does_not_seed_a_bar(bb):
+    """An A (per-second aggregate) event carries no per-trade condition codes, so it
+    must NOT seed a developing bar — an unfilterable print can't define o/h/l. Only
+    the filtered T path or the authoritative AM baseline may open a bucket."""
     q1 = bb.subscribe("AAPL", "1")
     q5 = bb.subscribe("AAPL", "5")
-
-    # 14:30:01 — first second of the 14:30 bucket (bucket_start = 14:30:00 = 1746468600000)
     a_bar = {"t": 1746468601000, "o": 150.10, "h": 150.55, "l": 149.95, "c": 150.40, "v": 100}
     bb.push_aggregate("AAPL", a_bar, "A")
-
-    # Must emit to tf=1 subscriber
-    msg1 = await asyncio.wait_for(q1.get(), timeout=0.1)
-    assert msg1["sym"] == "AAPL"
-    assert msg1["tf"] == "1"
-    assert msg1["bar"]["v"] == 100
-
-    # Must emit a partial to tf=5 subscriber
-    msg5 = await asyncio.wait_for(q5.get(), timeout=0.1)
-    assert msg5["tf"] == "5"
-    assert msg5["bar"]["t"] == 1746468600000  # bucket start, NOT the per-second t
-    assert msg5["bar"]["v"] == 100
+    # No bucket existed → an A alone emits nothing on either tf
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(q1.get(), timeout=0.05)
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(q5.get(), timeout=0.05)
 
 
 @pytest.mark.asyncio
-async def test_push_aggregate_A_events_fold_into_partial(bb):
-    """Phase 4.5: multiple A events in the same bucket accumulate OHLCV correctly.
-    Throttle windows are bypassed between events via _last_emit_ms.clear() so each
-    event emits, letting the test validate the accumulated partial state."""
+async def test_push_aggregate_A_event_updates_close_only_no_ghost_wick_no_volume(bb):
+    """On a bucket already seeded by a filtered T tick, an A event nudges ONLY the
+    close. It must NOT extend high/low (A's h/l include unfilterable ghost prints =
+    the transient ghost wick) and must NOT add volume (A's per-second volume double-
+    counts the same trades' T-tick sizes = the phantom volume spike)."""
     q5 = bb.subscribe("AAPL", "5")
-
-    # Three successive seconds in the 14:30 bucket
-    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
-    await asyncio.wait_for(q5.get(), timeout=0.1)  # drain first partial
-    bb._last_emit_ms.clear()  # bypass throttle window for next A event
-
-    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
-    msg2 = await asyncio.wait_for(q5.get(), timeout=0.1)
-    assert msg2["bar"]["h"] == 102.0   # extended high
-    assert msg2["bar"]["l"] == 99.5    # kept low from first
-    assert msg2["bar"]["c"] == 101.8   # close from latest second
-    assert msg2["bar"]["v"] == 350     # summed volume
-    bb._last_emit_ms.clear()  # bypass throttle window for third event
-
-    bb.push_aggregate("AAPL", {"t": 1746468603000, "o": 101.8, "h": 101.9, "l": 101.5, "c": 101.6, "v": 80}, "A")
-    msg3 = await asyncio.wait_for(q5.get(), timeout=0.1)
-    assert msg3["bar"]["v"] == 430     # three seconds summed
-    assert msg3["bar"]["o"] == 100.0   # open still from first A event
+    # Seed the 14:30 bucket with a filtered T tick @ 100.00, size 200
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "p": 100.00, "s": 200}, "T")
+    await asyncio.wait_for(q5.get(), timeout=0.1)
+    bb._last_emit_ms.clear()
+    # A event for the same bucket carries a GHOST high 102.0 + a low 99.5 + volume 150
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 99.5, "c": 101.8, "v": 150}, "A")
+    msg = await asyncio.wait_for(q5.get(), timeout=0.1)
+    assert msg["bar"]["c"] == 101.8    # close nudged by the A event
+    assert msg["bar"]["h"] == 100.00   # ghost high NOT folded (T owns h/l)
+    assert msg["bar"]["l"] == 100.00   # ghost low NOT folded
+    assert msg["bar"]["v"] == 200      # volume unchanged — no A double-count
 
 
 @pytest.mark.asyncio
-async def test_push_aggregate_AM_overwrites_partial_built_from_A_events(bb):
-    """Phase 4.5 critical race: AM arriving after A events replaces partial, no double-count.
-    Throttle windows are bypassed between A events via _last_emit_ms.clear() so all 3
-    A-event partials can be drained before AM fires."""
+async def test_push_aggregate_AM_seeds_and_is_authoritative_after_T_and_A(bb):
+    """AM overwrites the broadcast partial with authoritative full-minute OHLCV.
+    After a T tick + an A close-nudge, the AM close replaces the bucket — and no
+    double-count is even possible now that A adds no volume."""
     q5 = bb.subscribe("AAPL", "5")
-
-    # Push 3 A events into the 14:30 bucket (total A-volume = 450)
-    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "p": 100.0, "s": 200}, "T")
+    await asyncio.wait_for(q5.get(), timeout=0.1)
     bb._last_emit_ms.clear()
-    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 101.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
+    await asyncio.wait_for(q5.get(), timeout=0.1)
     bb._last_emit_ms.clear()
-    bb.push_aggregate("AAPL", {"t": 1746468603000, "o": 101.8, "h": 101.9, "l": 101.5, "c": 101.6, "v": 100}, "A")
-    # drain the 3 A-event partials
-    for _ in range(3):
-        await asyncio.wait_for(q5.get(), timeout=0.1)
-
-    # AM event arrives at minute close — authoritative volume for the full minute = 1000
-    # (not the 450 we already summed from A events)
+    # AM authoritative full-minute bar
     am_bar = {"t": 1746468600000, "o": 100.0, "h": 102.5, "l": 99.0, "c": 101.6, "v": 1000}
     bb.push_aggregate("AAPL", am_bar, "AM")
-    msg_am = await asyncio.wait_for(q5.get(), timeout=0.1)
-
-    # AM must overwrite: volume = 1000 (authoritative), NOT 450+1000=1450 (double-counted)
-    assert msg_am["bar"]["v"] == 1000, (
-        f"AM must replace A-partial; expected v=1000, got v={msg_am['bar']['v']}"
-    )
-    assert msg_am["bar"]["h"] == 102.5   # AM's authoritative high
-    assert msg_am["bar"]["l"] == 99.0    # AM's authoritative low
-    assert msg_am["bar"]["o"] == 100.0   # AM's authoritative open
+    msg = await asyncio.wait_for(q5.get(), timeout=0.1)
+    assert msg["bar"]["v"] == 1000   # authoritative, not 200+1000 double-count
+    assert msg["bar"]["h"] == 102.5
+    assert msg["bar"]["l"] == 99.0
+    assert msg["bar"]["o"] == 100.0
 
 
 @pytest.mark.asyncio
-async def test_push_aggregate_A_events_bucket_to_the_minute_for_1min(bb):
-    """Regression (per-second-candle fix): A events on tf='1' must fold into ONE
-    minute bar, not emit a fresh candle per second.
+async def test_push_aggregate_A_close_only_on_1min_no_per_second_candles(bb):
+    """Regression (per-second-candle fix + ghost-wick fix): on tf='1', A events do
+    NOT spawn a candle per second and do NOT fold a ghost high — they nudge the
+    close of the minute bucket the T path seeded, at the minute-floored time.
 
     tf='1' used to be a RAW pass-through in the AM/A path, so each per-second A
-    event was emitted verbatim — its own sub-minute `t` and one second's volume.
-    Downstream (StockChart Writer B) that appended a brand-new candle every tick
-    and collided second/minute-stamped writes in the volume series. tf='1' now
-    buckets to the minute exactly like 5/15/30/60."""
+    event was emitted verbatim (its own sub-minute `t` + one second's volume) —
+    the frontend appended a fresh candle every tick and the volume series collided."""
     q1 = bb.subscribe("AAPL", "1")
-
-    # Three successive seconds inside the 14:30 minute bucket (start = 1746468600000)
-    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
-    msg1 = await asyncio.wait_for(q1.get(), timeout=0.1)
-    assert msg1["tf"] == "1"
-    assert msg1["bar"]["t"] == 1746468600000   # minute bucket start, NOT the per-second 601000
-    assert msg1["bar"]["v"] == 200
+    # T tick seeds the 14:30 minute bucket
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "p": 100.0, "s": 200}, "T")
+    m0 = await asyncio.wait_for(q1.get(), timeout=0.1)
+    assert m0["bar"]["t"] == 1746468600000   # minute bucket start (not the per-second t)
     bb._last_emit_ms.clear()
-
-    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
-    msg2 = await asyncio.wait_for(q1.get(), timeout=0.1)
-    assert msg2["bar"]["t"] == 1746468600000   # SAME candle — not a new per-second one
-    assert msg2["bar"]["h"] == 102.0           # extended high across the seconds
-    assert msg2["bar"]["l"] == 99.5            # kept low from the first second
-    assert msg2["bar"]["v"] == 350            # volume folded, not reset per second
+    # A event with a GHOST high 105.0 — must update close only, at the SAME minute time
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 105.0, "l": 100.2, "c": 100.8, "v": 150}, "A")
+    m1 = await asyncio.wait_for(q1.get(), timeout=0.1)
+    assert m1["bar"]["t"] == 1746468600000   # SAME minute candle — not a per-second one
+    assert m1["bar"]["c"] == 100.8           # close nudged
+    assert m1["bar"]["h"] == 100.0           # ghost 105.0 NOT folded
+    assert m1["bar"]["v"] == 200             # no volume double-count
 
 
 @pytest.mark.asyncio
 async def test_push_aggregate_AM_finalizes_1min_bucket_authoritatively(bb):
-    """tf='1' gets the same two-track guarantee as 5/15/30/60: after A events
-    develop the minute, the AM close replaces the partial with the authoritative
-    minute volume (no A/AM double-count)."""
+    """AM on tf='1' emits the authoritative minute bar (seeds if no bucket yet)."""
     q1 = bb.subscribe("AAPL", "1")
-    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
-    await asyncio.wait_for(q1.get(), timeout=0.1)
-    bb._last_emit_ms.clear()
-    # AM for the same minute — authoritative full-minute volume = 1000, not 200+1000
     bb.push_aggregate("AAPL", {"t": 1746468600000, "o": 100.0, "h": 102.5, "l": 99.0, "c": 101.6, "v": 1000}, "AM")
     msg = await asyncio.wait_for(q1.get(), timeout=0.1)
     assert msg["bar"]["t"] == 1746468600000
-    assert msg["bar"]["v"] == 1000   # authoritative minute volume, not double-counted
+    assert msg["bar"]["v"] == 1000
     assert msg["bar"]["h"] == 102.5
 
 

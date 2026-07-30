@@ -4107,14 +4107,12 @@ export default function StockChart({
     // a stale value there would repaint an old developing bar over the fresh push bar = the
     // 30s seam the plan review flagged).
     if (barsPushActiveRef.current) return
-    // On D/W/M, writer E (the fast Massive 1-min tick, in the bars-WS onBar above)
-    // owns the developing candle. Defer to it while its tick is fresh so the two
-    // don't fight over the developing bar's close (Massive is fresher than
-    // Finnhub here); fall back to this Finnhub writer only if Massive goes stale.
-    if (!realtimeTfEligible) {
-      const _ft = liveTickRef.current
-      if (_ft && _ft.price != null && (Date.now() - _ft.ts) < LIVE_TICK_FRESH_MS) return
-    }
+    // NOTE: the D/W/M "defer the candle write to Writer E" early-return USED to sit
+    // here — above the latestLiveRef update below. That stranded latestLiveRef at the
+    // mount-time price on D/W/M (Writer A returned before ever updating it once Writer
+    // E's tick went fresh), and Writer D's post-setData re-top then stamped that stale
+    // price onto the daily candle every ~2s. The defer now runs AFTER latestLiveRef is
+    // refreshed (search "defer the candle WRITE to Writer E" below).
     // Defensive: drop ticks with bad price BEFORE they touch liveBarRef.
     // Mirror of onRealtimeBar's guard. A single NaN / 0 / extreme price baked
     // into liveBarRef.current.high or .low persists across setData() refreshes
@@ -4156,6 +4154,20 @@ export default function StockChart({
     latestLiveRef.current = { sym, price: _p, updated_at: liveData.updated_at,
       day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc,
       ext_session: !!liveData.ext_session }
+    // ── D/W/M: defer the candle WRITE to Writer E (the fast Massive 1-min tick) ──
+    // Writer E owns the D/W/M developing candle; defer to it while its tick is fresh
+    // so the two don't fight over the bar's close. CRITICAL: this runs AFTER the
+    // latestLiveRef update above (not before it, as it once did) — latestLiveRef must
+    // stay live because Writer D's post-setData re-top reads it. When it was stranded
+    // at the mount-time price, Writer D stamped that stale close onto the daily candle
+    // every ~2s (a live-volume-driven repaint) while Writer E corrected it: the "daily
+    // snaps back to the price it showed at open every other tick" bug. Now only the
+    // candle write is skipped; the ref tracks live, so Writer D re-tops with the
+    // current price. Falls through to Writer A's own D/W/M write if Massive goes stale.
+    if (!realtimeTfEligible) {
+      const _ft = liveTickRef.current
+      if (_ft && _ft.price != null && (Date.now() - _ft.ts) < LIVE_TICK_FRESH_MS) return
+    }
     if (!candleSeriesRef.current || !lastBarRef.current) return
     if (['D', 'W', 'M'].includes(resolvedTf)) {
       // Writer A yields the D/W/M developing bar to the session-preview memo path

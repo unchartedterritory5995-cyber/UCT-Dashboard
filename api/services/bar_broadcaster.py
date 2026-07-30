@@ -211,13 +211,19 @@ class BarBroadcaster:
         - _am_partials tracks the AM-authoritative bucket state — only AM events update it.
           Consecutive AM bars within the same bucket aggregate normally (correct multi-minute
           OHLCV). This track is never contaminated by A or T events.
-        - _partials is the broadcast partial that includes A/T sub-second flicker on top.
-          When AM fires for a minute, _partials is reset to the AM baseline (_am_partials),
-          discarding any A/T accumulation for that minute. This prevents double-counting.
-        - A events fold into _partials only (not _am_partials) for sub-second chart flicker.
-        - T events (Phase 4.6) update c=price, extend h/l, sum volume into _partials.
-          If no partial exists yet for the current minute bucket, one is created with
-          o=h=l=c=trade_p, v=trade_s anchored at bucket_start(trade_t, tf).
+        - _partials is the broadcast partial that includes T tick accumulation + A
+          close flicker on top. When AM fires for a minute, _partials is reset to the
+          AM baseline (_am_partials), discarding accumulation for that minute.
+        - A events nudge ONLY the developing CLOSE of an EXISTING bucket (sub-second
+          price flicker). They do NOT fold high/low or volume and do NOT seed a bucket:
+          an A event carries no per-trade condition codes, so its h/l (Massive computes
+          it over ALL prints of the second, ghosts included) can't be filtered like the
+          T path — folding it painted transient ghost wicks, and adding its volume
+          double-counted the T-tick sizes for the same trades (phantom volume spike).
+        - T events (Phase 4.6) update c=price, extend h/l (condition-filtered via
+          trade_conditions.classify), sum volume into _partials. If no partial exists
+          yet for the current minute bucket, one is created with o=h=l=c=trade_p,
+          v=trade_s anchored at bucket_start(trade_t, tf). The T path OWNS h/l + volume.
 
         Throttle (Phase 4.6): AM events always emit (throttle=False). A and T events are
         throttled to 10 Hz per (sym, tf). The _partials state is ALWAYS updated; only the
@@ -327,13 +333,27 @@ class BarBroadcaster:
                     # for the bucket so far. This is the authoritative source-of-truth reset.
                     next_partial = dict(next_am)
                 else:
-                    # A event: fold into the current broadcast partial for sub-second flicker
+                    # A event (per-second aggregate): nudge ONLY the developing
+                    # close (sub-second price flicker between AM closes). We
+                    # deliberately do NOT fold A's high/low or volume:
+                    #   • A's h/l are computed by Massive over ALL prints of that
+                    #     second (odd-lot / out-of-sequence / derivatively-priced
+                    #     included) and an A event carries NO condition codes, so —
+                    #     unlike the T path (classify() gates hl_ok) — it cannot be
+                    #     filtered. Folding it painted a ghost wick to a price that
+                    #     never traded, which the frontend's Math.max then preserved
+                    #     until the 30s SWR reconcile healed it ("wick appears, then
+                    #     vanishes seconds later").
+                    #   • A's volume double-counts the T-tick sizes for the SAME
+                    #     trades (both fold into this bucket between AM resets) — the
+                    #     phantom oversized developing-volume bar.
+                    # The condition-filtered T path owns h/l + volume; AM is the
+                    # authoritative minute reset. An A with no developing bucket yet
+                    # must NOT seed a bar (an unfilterable print can't define
+                    # o/h/l) — let the T path or the AM baseline seed it.
                     if prev is None or prev["t"] != new_start:
-                        # New bucket (no AM baseline yet for this bucket): start fresh
-                        next_partial = aggregate(None, {**bar, "t": new_start})
-                    else:
-                        # Same bucket: fold this second into the existing partial
-                        next_partial = aggregate(prev, bar)
+                        continue
+                    next_partial = {**prev, "c": bar["c"]}
                 self._partials[key] = next_partial
                 emit_bar = dict(next_partial)
             self._emit(sym, tf, emit_bar, throttle=throttle)
