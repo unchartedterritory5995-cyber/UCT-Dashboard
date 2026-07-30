@@ -432,7 +432,11 @@ def _start_recent_cache_warmer():
     if os.environ.get("MASSIVE_RECENT_WARM_ENABLED", "1") != "1":
         log.info("[recent-warmer] disabled (MASSIVE_RECENT_WARM_ENABLED!=1)")
         return
-    interval = int(os.environ.get("MASSIVE_RECENT_WARM_INTERVAL", "25"))
+    interval = int(os.environ.get("MASSIVE_RECENT_WARM_INTERVAL", "10"))
+    # While a viewer is active, the curated key is re-warmed EVERY cycle (below),
+    # so cadence ~= curated-scan-time + interval. Lowered 25->10 so the feed stays
+    # ~30s fresh instead of drifting to the 120s stale floor between viewer polls.
+    viewer_window = int(os.environ.get("MASSIVE_RECENT_WARM_VIEWER_WINDOW", "90"))
     KEYS = [
         # curated first: it's the DEFAULT view and the expensive one.
         dict(limit=10000, min_grade="D", sort_by="recent", tier=None, curated=True),
@@ -460,13 +464,26 @@ def _start_recent_cache_warmer():
                 today = lmr._today_mdyyyy()
                 new_day = (today != last_day)
                 # (1) /recent default keys — the tape, loaded on every page view.
-                ck = (today, 10000, "D", "recent", None, True)  # the costly curated key
-                if new_day or _stale(lmr._recent_cache.get(ck)):
-                    for k in KEYS:
-                        try:
-                            lmr.warm_recent(**k)  # single-flight; skips if a fill holds the lock
-                        except Exception:
-                            log.exception("[recent-warmer] recent warm failed: %s", k)
+                # CURATED (the default feed, the 2026-07-30 wedge target): while a
+                # viewer is active, refresh EVERY cycle via the UNBOUNDED lane
+                # (bounded=False) so the shared 2-slot fill semaphore can never
+                # starve it — the wedge was user-path fills logging "gave up waiting
+                # 20s for a semaphore slot" while the feed served a 6-min-stale
+                # snapshot. No viewers → fall back to the cheap 120s stale floor so
+                # a quiet session doesn't scan flow.db forever and fight the writer.
+                ck = (today, 10000, "D", "recent", None, True)   # the costly curated key
+                nc = (today, 10000, "D", "recent", None, False)  # ALL FLOW (SSE keeps it live)
+                viewer_active = (time.time() - lmr.last_recent_view_ts()) < viewer_window
+                if new_day or viewer_active or _stale(lmr._recent_cache.get(ck)):
+                    try:
+                        lmr.warm_recent(**KEYS[0], bounded=False)
+                    except Exception:
+                        log.exception("[recent-warmer] curated warm failed")
+                if new_day or _stale(lmr._recent_cache.get(nc)):
+                    try:
+                        lmr.warm_recent(**KEYS[1], bounded=False)
+                    except Exception:
+                        log.exception("[recent-warmer] non-curated warm failed")
                 # (2) /day-stats default key — the Market Read hero, also every page
                 # view. Same cold-scan class as /recent (~14s cold). No auto-push,
                 # so calling the route directly just fills its 30s cache.
@@ -508,8 +525,10 @@ def _start_recent_cache_warmer():
             time.sleep(interval)
 
     threading.Thread(target=_loop, daemon=True, name="recent-warmer").start()
-    log.info("[recent-warmer] armed (interval=%ss; warms /recent + /day-stats + "
-             "/by-contract [+ /worker-history on new-day])", interval)
+    log.info("[recent-warmer] armed (interval=%ss, viewer_window=%ss; curated "
+             "key re-warmed EVERY cycle on the UNBOUNDED lane while viewed; "
+             "warms /recent + /day-stats + /by-contract [+ /worker-history on new-day])",
+             interval, viewer_window)
 
 
 def main():

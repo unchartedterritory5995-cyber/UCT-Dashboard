@@ -1859,6 +1859,15 @@ _RECENT_FILL_LEASE_SEC = float(os.environ.get("MASSIVE_RECENT_FILL_LEASE_SEC", "
 _RECENT_SEM_WAIT_SEC = float(os.environ.get("MASSIVE_RECENT_SEM_WAIT_SEC", "20"))
 _recent_fill_started: dict = {}   # ck -> unix ts the current fill acquired the lock
 _recent_last_good: dict = {}      # ck -> last successful payload (never overwritten empty)
+# Viewer signal: unix ts of the last real (user, not warmer) /recent request for
+# TODAY. The flow-worker warmer reads this to run the tight unbounded curated
+# re-warm ONLY while someone is actually watching the tape — a quiet session
+# falls back to the cheap stale floor so it doesn't scan flow.db forever.
+_last_recent_view: float = 0.0
+
+
+def last_recent_view_ts() -> float:
+    return _last_recent_view
 # The key LiveFlowMassive.jsx actually loads (see flow_worker_main warmer KEYS):
 # curated, limit=10000, grade D, recent, no tier. The curated-health + watchdog
 # target THIS key so a wedge is visible even while flow.db (max_id) stays live.
@@ -1939,14 +1948,30 @@ def _warming_stub(today: str) -> dict:
     return {"status": st, "alerts": [], "warming": True}
 
 
-def _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated):
+def _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated, bounded=True):
     """Heavy compute → cache store, bounded by the global fill semaphore so at
     most MASSIVE_RECENT_FILL_CONCURRENCY curated scans run at once.
 
     Self-heal: acquire the semaphore with a BOUNDED wait so a full semaphore (two
     hung fills) can't block a fresh fill indefinitely — give up and let the caller
     release the lock. On success, also record the payload as last-good so the feed
-    can fall back to it instead of empty if a later fill wedges."""
+    can fall back to it instead of empty if a later fill wedges.
+
+    bounded=False → the UNBOUNDED warmer lane: skip the shared user fill semaphore
+    entirely. Used ONLY by the single-threaded flow-worker warmer. The semaphore
+    exists to cap a CONCURRENT herd of user-path fills (the web 524 surface); a
+    single serial warmer is not a herd, so bounding it just lets a herd holding
+    both slots (each canonical scan runs >20s) STARVE the warmer — the 2026-07-30
+    curated wedge, where the canonical curated fill logged "gave up waiting 20s for
+    a semaphore slot" every ~30s and the feed served a 6-min-stale snapshot.
+    Single-flight (the per-key lock) still prevents double-scanning a key a
+    request-path fill already owns, so this never runs two scans of one key."""
+    if not bounded:
+        payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
+        _recent_cache[ck] = (time.time(), payload)
+        if payload is not None:
+            _recent_last_good[ck] = payload
+        return payload
     got_sem = _recent_fill_sem.acquire(timeout=_RECENT_SEM_WAIT_SEC) if _RECENT_SELFHEAL \
         else (_recent_fill_sem.acquire() or True)
     if not got_sem:
@@ -1992,7 +2017,7 @@ def _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock
         logging.getLogger(__name__).exception("[massive] could not spawn /recent fill thread")
 
 
-def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None):
+def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None, bounded=True):
     """Synchronously fill a /recent key, PARTICIPATING in the per-key single-flight
     lock so the warmer never double-computes a key a request-path fill is already
     building (that would run two 80K scans at once and hammer the WS writer).
@@ -2000,6 +2025,10 @@ def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None):
     will populate the cache. Bounded by the global fill semaphore. Used by the
     boot / flow-worker warmers (recent_massive_alerts() itself no longer blocks —
     it returns a warming stub on a cold key — so warmers must call THIS).
+
+    bounded=False → skip the shared fill semaphore (see _compute_and_store): the
+    flow-worker warmer uses this for the canonical curated key so a user-path fill
+    herd can't starve it. The single-flight lock below is still honored.
     Returns (cache_key, n_alerts | None)."""
     today = target_date or _today_mdyyyy()
     ck = (today, limit, min_grade, sort_by, tier, curated)
@@ -2011,7 +2040,7 @@ def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None):
     if not got:
         return ck, None  # a live (within-lease) fill already owns this key
     try:
-        payload = _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated)
+        payload = _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated, bounded=bounded)
         return ck, (len(payload.get("alerts") or []) if payload else None)
     finally:
         _recent_fill_started.pop(ck, None)
@@ -2063,6 +2092,11 @@ def recent_massive_alerts(
     ck = (today, limit, min_grade, sort_by, tier, curated)
     is_today = (today == _today_mdyyyy())
     now = time.time()
+    if is_today:
+        # Viewer heartbeat for the flow-worker warmer (real requests only; the
+        # warmer calls warm_recent(), not this route, so it never self-stamps).
+        global _last_recent_view
+        _last_recent_view = now
     hit = _recent_cache.get(ck)
     # Today: 15s TTL (kept hot by the warmer, live tape). Historical: a long
     # BOUNDED TTL (6h) — NOT never-expire, so the T+1 backfill/gap-fill that
