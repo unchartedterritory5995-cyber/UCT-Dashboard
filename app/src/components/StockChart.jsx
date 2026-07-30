@@ -1818,7 +1818,12 @@ export default function StockChart({
     // larger. Safe on ANY bar without a date check: for a historical last bar
     // (e.g. Friday on a weekend) the feed carries that same last session's volume,
     // never a larger "today" value — so max() can't over-count it.
-    if (lp?.volume != null && Number.isFinite(lp.volume) && lp.volume > (vol || 0)) {
+    // ONLY on D/W/M, where the developing bar IS the day/week/month so the live
+    // feed's cumulative DAY volume equals that bar's volume. On intraday the day
+    // total is NOT the 5m/1m bucket's volume — applying it painted the whole day's
+    // ~30M onto the developing intraday bar (the phantom volume spike). Intraday
+    // per-bar volume ticks live via the push feed (Writer B/D from liveBarRef).
+    if (['D', 'W', 'M'].includes(resolvedTf) && lp?.volume != null && Number.isFinite(lp.volume) && lp.volume > (vol || 0)) {
       vol = lp.volume
     }
     // Change is close-vs-PREVIOUS-BAR-close ON THE CURRENT TIMEFRAME, so the
@@ -2535,18 +2540,26 @@ export default function StockChart({
   // full-fetch; only cost is one larger payload for already-fresh weekend
   // data — correctness over bandwidth.
   // Threshold is tf-proportional (was a flat 23h). 23h only caught a MISSING
-  // SESSION, but an INTRA-session stale cache (missing the last ~30-120 min, e.g.
-  // a prewarmed 5m entry that aged, or a stale-cache revisit) slipped through as
+  // SESSION, but an INTRA-session stale cache (missing the last few bars, e.g.
+  // a prewarmed entry that aged, or a stale-cache revisit) slipped through as
   // a DELTA — and the initial delta on load races/drops (the "missing candles
-  // until the next 30s poll" stall), leaving a gap that a live bar fuses into one
-  // giant candle. A large gap now forces a full (no-`since`) refetch that REPLACES
-  // the data (bypasses the flaky delta-merge) so it fills in ~300ms, not 30s.
-  // Small gaps (≤ a few bars) still delta — cheap, and classifyLiveBar's guard
-  // prevents any fuse meanwhile.
+  // until the next 30s poll" stall), leaving a gap that reads as a detached
+  // developing candle floating to the right of the fetched tail. A stale tail
+  // now forces a full (no-`since`) refetch that REPLACES the data (bypasses the
+  // flaky delta-merge) so it fills in ~300ms, not 30s — AND (via `_idbFresh`
+  // below, which keys off this flag) suppresses painting the stale IDB copy
+  // first, so there's no gap-flash before the network lands.
+  //
+  // 3× the tf interval, not 6× (and no 20-min floor): during RTH the newest
+  // COMPLETE bar sits ~1-2 intervals behind "now" (the current bucket is still
+  // developing), so 3× clears that fresh window without false positives, yet
+  // catches a real gap of even a single missing bar. The old 6×/20-min floor let
+  // a 1-min chart's tail sit up to 20 MIN behind before refetching — the visible
+  // gap-on-load / gap-on-tf-switch bug. Small ≤1-bar gaps still delta (cheap).
   const _tfSecStale = Math.max(60, (Number(resolvedTf) || 5) * 60)
   const idbStaleIntraday = isIntraday
     && typeof idbSinceRef.current === 'number'
-    && (Date.now() / 1000 - idbSinceRef.current) > Math.max(6 * _tfSecStale, 20 * 60)
+    && (Date.now() / 1000 - idbSinceRef.current) > Math.max(3 * _tfSecStale, 180)
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
@@ -2711,9 +2724,12 @@ export default function StockChart({
           // with a fused live-price spike. Mirrors idbStaleIntraday.
           const _et = entry?.lastT
           const _tfSecEntry = Math.max(60, (Number(tf) || 5) * 60)
+          // 3× interval (matches idbStaleIntraday above) — a warm-stored tail more
+          // than a few bars behind is refetched FULL so a later tf-switch paints
+          // current data instead of a detached developing candle over a stale tail.
           const entryStaleIntraday = !['D', 'W', 'M'].includes(tf)
             && typeof _et === 'number'
-            && (Date.now() / 1000 - _et) > Math.max(6 * _tfSecEntry, 20 * 60)
+            && (Date.now() / 1000 - _et) > Math.max(3 * _tfSecEntry, 180)
           // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h) — but
           // never skip a stale intraday entry just because it was saved
           // recently (savedAt tracks write time, not bar freshness).
@@ -3742,8 +3758,14 @@ export default function StockChart({
       // Developing (last) bar: prefer the live feed volume when it's ahead of the
       // fetched value (intraday volume only grows), so the pane tracks the
       // watchlist in real time. Historical bars keep their own volume.
-      const value = (i === lastIdx && Number.isFinite(liveVolForSym) && liveVolForSym > (b.v || 0))
-        ? liveVolForSym : b.v
+      // Overlay the live DAY volume ONLY on D/W/M (where the developing bar spans
+      // the whole day). On intraday the day total is NOT the bucket's volume —
+      // overlaying it painted the day's ~30M onto the developing 5m/1m bar (the
+      // phantom volume spike). Intraday per-bar live volume rides the push feed
+      // (Writer B writes data.bar.v; Writer D re-tops from liveBarRef.volume).
+      const useLiveDayVol = ['D', 'W', 'M'].includes(resolvedTf) &&
+        Number.isFinite(liveVolForSym) && liveVolForSym > (b.v || 0)
+      const value = (i === lastIdx && useLiveDayVol) ? liveVolForSym : b.v
       return {
         time: adjustTime(b.t),
         value,
@@ -3754,7 +3776,7 @@ export default function StockChart({
             : isUp ? upC : downC,
       }
     })
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym])
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
