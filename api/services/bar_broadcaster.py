@@ -15,11 +15,12 @@ Phase 4.6: handles T (per-trade ticks) for true tick-by-tick Bloomberg/TradingVi
   state is always updated; only the SSE emission is gated by the throttle.
 - AM events bypass the throttle (authoritative, infrequent, must always emit).
 
-When a fresh 1-min bar arrives:
-- Emit it to (sym, "1") subscribers as-is
-- For tf in (5, 15, 30): aggregate into the (sym, tf) in-progress bar and emit the
-  partial bucket bar to subscribers. When the new minute closes a bucket, the next minute
-  bar starts a new bucket. (60-min excluded in v1 — ET-anchor required.)
+When a fresh aggregate/trade event arrives:
+- For tf in (1, 5, 15, 30, 60): bucket it into the (sym, tf) in-progress bar and
+  emit the partial bucket bar to subscribers. "1" buckets to the minute (so A/T
+  sub-minute events develop ONE minute bar instead of spawning a candle per tick);
+  when a new minute closes a bucket the next event starts a new bucket. 60-min uses
+  the canonical ET-anchored bucket (bars_fetch.bucket_60_et_unix_seconds).
 
 Reference counting: subscribe() returns a Queue. Caller must call unsubscribe() with the
 same queue when done. on_last_unsubscribe is invoked when (sym, *) drops to zero
@@ -38,7 +39,7 @@ from api.services import trade_conditions
 
 _logger = logging.getLogger(__name__)
 
-ROLLUP_TFS = ("5", "15", "30", "60")  # "1" is pass-through. "60" added 2026-05-22 via canonical ET-anchored bucket (bars_fetch.bucket_60_et_unix_seconds).
+ROLLUP_TFS = ("5", "15", "30", "60")  # "1" is bucketed via ("1",)+ROLLUP_TFS in both the T and AM/A paths (was a raw pass-through until the per-second-candle fix). "60" added 2026-05-22 via canonical ET-anchored bucket (bars_fetch.bucket_60_et_unix_seconds).
 
 
 # ── Telemetry (GIL-atomic plain ints/floats, off the _lock hot path) ──
@@ -287,10 +288,22 @@ class BarBroadcaster:
             except (TypeError, ValueError):
                 pass
         throttle = (kind != "AM")  # AM always emits; A is throttled
-        # 1-min: pass-through
-        self._emit(sym, "1", bar, throttle=throttle)
-        # 5/15/30: bucket-aggregate
-        for tf in ROLLUP_TFS:
+        # 1-min + 5/15/30/60: two-track bucket-aggregate.
+        #
+        # "1" was historically a RAW pass-through here (`self._emit(sym, "1", bar)`),
+        # a leftover from Phase 4 when the only aggregate event was AM (= one bar
+        # per minute, so pass-through was correct). Phase 4.5 added A (per-SECOND)
+        # events but never updated this path: an A event's `t` is that second's
+        # window start and its `v` is that one second's volume, so the pass-through
+        # emitted a distinct (sym,"1") bar EVERY SECOND at a sub-minute timestamp.
+        # Downstream (StockChart Writer B) that appended a brand-new candle per tick
+        # and collided second/minute-stamped writes in the volume series (the
+        # phantom 1-min volume spike). The T-event path above already minute-buckets
+        # "1" via `("1",) + ROLLUP_TFS`; fold AM/A through the same loop so the
+        # 1-min chart develops ONE minute bar (AM authoritative baseline + A/T
+        # sub-second flicker) exactly like 5/15/30/60. bucket_start(_, "1") floors
+        # to the minute — a no-op for an already-minute-aligned AM bar.
+        for tf in ("1",) + ROLLUP_TFS:
             new_start = bucket_start(bar["t"], tf)
             key = (sym, tf)
             with self._lock:

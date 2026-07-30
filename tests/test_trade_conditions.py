@@ -76,6 +76,53 @@ def test_disabled_filter_passes_everything(monkeypatch):
     assert tc.classify([37]) == (True, True)
 
 
+# ── provider-load freeze guard (the 2026-07-16 NFLX ext-hours incident) ────────
+
+def test_provider_rules_exclude_form_t_by_hardcoded_id():
+    # Provider marks Form-T (12) high/low + last ineligible (RTH-consolidated
+    # rules do). The parser MUST strip it, or the post-market session refreezes.
+    results = [
+        {"id": 12, "name": "Form T",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False}}},
+        {"id": 37, "name": "Odd Lot Trade",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False}}},
+    ]
+    hl, last = tc._parse_provider_rules(results)
+    assert 12 not in hl and 12 not in last   # Form-T stays eligible
+    assert 37 in hl and 37 in last           # odd-lot still filtered
+
+
+def test_provider_rules_exclude_extended_hours_by_name_even_with_novel_id():
+    # THE hardening: if the feed ever numbers Form-T / extended-hours with an ID
+    # we don't hardcode, the NAME still exempts it — the freeze can't sneak back.
+    results = [
+        {"id": 999, "name": "Extended Trading Hours (Sold Out Of Sequence)",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False}}},
+        {"id": 888, "name": "Form T / Extended Hours",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False}}},
+    ]
+    hl, last = tc._parse_provider_rules(results)
+    assert not hl and not last               # both exempted by name
+
+
+def test_provider_rules_keep_genuine_ghosts_filtered():
+    # A real out-of-sequence ghost (not an extended-hours marker) must stay filtered.
+    results = [
+        {"id": 32, "name": "Sold (Out Of Sequence)",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False}}},
+    ]
+    hl, last = tc._parse_provider_rules(results)
+    assert 32 in hl and 32 in last
+
+
+def test_is_session_condition_matches_only_extended_markers():
+    assert tc._is_session_condition("Form T")
+    assert tc._is_session_condition("Extended Trading Hours")
+    assert not tc._is_session_condition("Sold (Out Of Sequence)")
+    assert not tc._is_session_condition("Odd Lot Trade")
+    assert not tc._is_session_condition(None)
+
+
 # ── bar_broadcaster T-path (Massive push feed) ─────────────────────────────────
 
 def _push(bb, sym, p, s=100, c=None, t=1_700_000_000_000):

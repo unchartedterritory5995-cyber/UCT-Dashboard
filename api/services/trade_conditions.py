@@ -48,7 +48,61 @@ FILTER_ENABLED = os.environ.get("TRADE_CONDITION_FILTER_ENABLED", "0") == "1"
 # whole session. RTH-vs-extended is a CLIENT decision (the Regular/Extended
 # toggle already gates ext prints by time), so this module must never drop them
 # — they are stripped from the ineligible sets whether hardcoded or provider-loaded.
+#
+# This was the 2026-07-16 NFLX incident: Form-T got filtered → the post-market
+# last-price cache froze and the live candle flickered. The IDs below protect the
+# hardcoded fallback; the provider-load path ALSO protects by NAME (see
+# _is_session_condition) so a differently-numbered Form-T on the feed can never
+# re-freeze the session.
 _SESSION_CODES = frozenset({12, 13})
+
+# Name markers that identify a session-classification (extended-hours / Form-T)
+# condition regardless of its numeric ID. Matched case-insensitively against the
+# provider's condition `name`. Deliberately narrow: "out of sequence" alone is a
+# genuine ghost (ids 32/33) and must stay filtered — only the extended-session
+# markers below exempt a code. Polygon names: 12 "Form T", 13 "Extended Trading
+# Hours (Sold Out Of Sequence)".
+_SESSION_NAME_MARKERS = ("form t", "extended")
+
+
+def _is_session_condition(name: str) -> bool:
+    """True if a provider condition NAME denotes the extended-hours session
+    (Form-T / extended trading hours) — those ride EVERY ext print, so they must
+    never be treated as ineligible or the whole session freezes."""
+    n = (name or "").lower()
+    return any(m in n for m in _SESSION_NAME_MARKERS)
+
+
+def _parse_provider_rules(results) -> tuple[set[int], set[int]]:
+    """Pure parse of the provider's condition list → (hl_ineligible, last_ineligible).
+
+    Extracted from load_from_provider so the session-code exemption is unit-
+    testable without a live HTTP call. Session-classification codes are removed
+    by BOTH their hardcoded SIP ids (_SESSION_CODES) AND any code the provider
+    NAMES as Form-T / extended-hours — belt and suspenders against the freeze.
+    """
+    hl: set[int] = set()
+    last: set[int] = set()
+    session_ids: set[int] = set(_SESSION_CODES)
+    for cond in results or []:
+        cid = cond.get("id")
+        if cid is None:
+            continue
+        try:
+            cid = int(cid)
+        except (TypeError, ValueError):
+            continue
+        if _is_session_condition(cond.get("name")):
+            session_ids.add(cid)
+        rules = (cond.get("update_rules") or {}).get("consolidated") or {}
+        if rules.get("updates_high_low") is False:
+            hl.add(cid)
+        if rules.get("updates_open_close") is False:
+            last.add(cid)
+    # Never filter the extended session (by id OR by name) — the freeze guard.
+    hl -= session_ids
+    last -= session_ids
+    return hl, last
 
 # Fallback sets (Massive/Polygon numeric condition IDs — see the Stock Trade
 # Conditions reference). A condition here means a print carrying it must NOT move
@@ -128,21 +182,10 @@ def load_from_provider() -> None:
         r = httpx.get(url, timeout=10.0)
         r.raise_for_status()
         results = r.json().get("results", []) or []
-        hl: set[int] = set()
-        last: set[int] = set()
-        for cond in results:
-            cid = cond.get("id")
-            if cid is None:
-                continue
-            rules = (cond.get("update_rules") or {}).get("consolidated") or {}
-            if rules.get("updates_high_low") is False:
-                hl.add(int(cid))
-            if rules.get("updates_open_close") is False:
-                last.add(int(cid))
-        # The provider's rules are RTH-consolidated, so they mark Form-T (12/13)
-        # ineligible. Extended hours is a client decision — never drop those here.
-        hl -= _SESSION_CODES
-        last -= _SESSION_CODES
+        # The provider's rules are RTH-consolidated, so they mark Form-T /
+        # extended-hours ineligible. _parse_provider_rules strips those (by id AND
+        # by name) — extended hours is a client decision, never dropped here.
+        hl, last = _parse_provider_rules(results)
         if hl or last:
             with _lock:
                 _hl_ineligible = hl
