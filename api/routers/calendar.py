@@ -582,6 +582,132 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
         return None
 
 
+# ── Past-day backfill (current week only) ─────────────────────────────────────
+
+_PAST_SESSION_CAP = 40   # same per-session cap as _build_live / _build_range_week
+
+
+def _backfill_past_days(days: dict, week_dates: list[date], today: date,
+                        cap_uni: set | None) -> int:
+    """Refill the current week's ALREADY-PASSED days from Finnhub's range calendar.
+
+    EarningsWhispers and Finviz are forward-looking SCHEDULES, not archives: once
+    a company reports, EW drops it from that date and Finviz's `Earnings` column
+    rolls to the next quarter, so `earningsdate_thisweek` stops matching it.
+    `_build_live` rebuilds the whole week on every cache miss, so Monday — then
+    Tuesday — progressively empties while the week is still open (2026-07-30: EW
+    served 2 names for Mon 7/27 and 6 for Tue 7/28 against Finnhub's 119 / 180).
+    The `live_total == 0` wire fallback never catches it, because today and
+    tomorrow are always full. Every OTHER week already reads the retentive
+    Finnhub range via `_build_range_week`; this brings the current week's history
+    to the same source.
+
+    TODAY and FUTURE days are deliberately untouched — the live schedule owns
+    them, and today's actuals are `_patch_today_actuals`' job.
+
+    Merge rule: a symbol the schedule still carries KEEPS its entry (EW resolves
+    the BMO/AMC session and carries the `ew` anticipation rank that drives
+    ordering); only its blank actuals/estimates are filled. Symbols the schedule
+    has dropped are added back.
+
+    One extra Finnhub range call per `calendar_weekly` miss (10-min TTL), so ~6/h.
+    Never raises — a provider failure leaves the live week exactly as it was.
+    Returns the number of entries added.
+    """
+    past = [d for d in week_dates if d < today]
+    if not past:
+        return 0
+
+    from_ds, to_ds = past[0].isoformat(), past[-1].isoformat()
+    added = 0
+    try:
+        rows = (_fh_get_month(from_ds, to_ds) or {}).get("earningsCalendar") or []
+        if not rows:
+            return 0
+
+        _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+        def _clean_eps(v):
+            if v is None:
+                return None
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                return None
+            if fv in _EPS_SENTINELS or abs(fv) > 200:
+                return None
+            return round(fv, 2)
+
+        def _keep(sym: str) -> bool:
+            # Same universe rule as _build_range_week, so a past day's count
+            # stays comparable with that same day viewed from another week.
+            if cap_uni:
+                return sym in cap_uni
+            return _is_us_symbol(sym)
+
+        past_ds = {d.isoformat() for d in past}
+        touched: set[str] = set()
+
+        for row in rows:
+            sym = (row.get("symbol") or "").strip().upper()
+            ds  = (row.get("date") or "").strip()
+            if not sym or ds not in past_ds or not _keep(sym):
+                continue
+            day = days.get(ds)
+            if day is None:
+                continue
+
+            rev_est_raw = row.get("revenueEstimate")
+            rev_act_raw = row.get("revenueActual")
+            fields = {
+                "eps_est": _clean_eps(row.get("epsEstimate")),
+                "eps_act": _clean_eps(row.get("epsActual")),
+                "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+            }
+
+            existing = next((e for e in _day_entries(day) if e.get("sym") == sym), None)
+            if existing is not None:
+                for k, v in fields.items():
+                    if existing.get(k) is None and v is not None:
+                        existing[k] = v
+                touched.add(ds)
+                continue
+
+            hour = (row.get("hour") or "").lower()
+            timing = hour if hour in ("bmo", "amc") else "tbd"
+            day.setdefault(timing, []).append({
+                "sym": sym, **fields,
+                "ew": 0, "mc_b": None, "time_et": None,
+            })
+            added += 1
+            touched.add(ds)
+
+        # Re-order + re-cap only the days the backfill touched. EW-ranked names
+        # stay on top (that ordering is what the live path serves); the ew=0
+        # tail takes _build_range_week's rule — estimate-bearing first, then
+        # alphabetical — so the cap cuts deterministically instead of by
+        # provider response order.
+        for ds in touched:
+            day = days[ds]
+            for bucket in ("bmo", "amc", "tbd"):
+                bucket_rows = day.get(bucket) or []
+                bucket_rows.sort(key=lambda e: (
+                    -(e.get("ew") or 0),
+                    e.get("eps_est") is None and e.get("rev_est") is None,
+                    e.get("sym") or "",
+                ))
+                day[bucket] = bucket_rows[:_PAST_SESSION_CAP]
+
+        if added:
+            _logger.info("Calendar: backfilled %d past-day reporters from Finnhub (%s -> %s)",
+                         added, from_ds, to_ds)
+    except Exception as exc:
+        _logger.warning("Calendar: past-day backfill failed: %s", exc)
+
+    return added
+
+
 # ── Company names (batched, non-blocking) ─────────────────────────────────────
 # EarningsCard renders entry.name — permanently blank until now. Names come
 # from the ticker_meta mem/disk cache ONLY (prewarmed for the cap universe);
@@ -1066,6 +1192,12 @@ def get_calendar(week: str | None = None):
     # ── 3. Empty shell if both earnings paths failed ──────────────────────────
     if days is None:
         days = {d.strftime("%Y-%m-%d"): _empty_day(d, today) for d in week_dates}
+
+    # ── 3b. Past days of THIS week come from the retentive Finnhub range ─────
+    #    EW/Finviz are forward-looking schedules — they drop a company from its
+    #    date once it reports, so Monday empties out mid-week. Runs AFTER the
+    #    wire-fallback decision above so it can never mask an empty live build.
+    _backfill_past_days(days, week_dates, today, cap_uni)
 
     # ── 4. Finnhub actuals patch for today's pending reporters ───────────────
     #    Catches companies that report BMO after the 7:35 AM wire run.
@@ -1733,8 +1865,14 @@ def _compute_enrichment_for_date(target: str) -> dict:
 
     cur_monday = _week_dates()[0]
     in_current_week = _monday_of(date.fromisoformat(target)) == cur_monday
-    ttl = (_ENRICH_TTL if in_current_week
-           else _ENRICH_TTL_PAST if is_past
+    # is_past wins over in_current_week: the 5-min TTL exists for the LIVE
+    # expected-move (options) field, and `_one` skips that entirely for a past
+    # date — beat_history + hist_stats of a day that already happened are
+    # stable. Before `_backfill_past_days` a past day in this week held ~1
+    # symbol so the wasted recompute was invisible; now it holds ~100, and a
+    # 5-min TTL would re-fire ~200 provider calls per past day per 5 minutes.
+    ttl = (_ENRICH_TTL_PAST if is_past
+           else _ENRICH_TTL if in_current_week
            else _ENRICH_TTL_FUTURE_WEEK)
 
     from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
