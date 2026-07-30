@@ -259,20 +259,18 @@ def _conviction_grade(score: float) -> str:
 
 # ── Layout helpers ─────────────────────────────────────────────────────────
 
-def _is_multi_day(items: list[dict]) -> bool:
-    """True if the watchlist spans more than one entry-date (a weekly push).
+def _date_range_is_multiday(date_range: str) -> bool:
+    """Show per-row dates only for a genuine WEEKLY push.
 
-    Both layouts are the single full-width column; the only difference is the
-    per-row date — a same-day push drops it, a multi-day push shows it.
+    Keyed off the user-selected range string (``date_range``), NOT the incidental
+    dates on individual rows — a daily watchlist still reads as one day even if a
+    stray next-session print sneaks in, so it stays dateless. A weekly range like
+    "7/25 - 7/29" carries a separator and turns per-row dates on. Empty/absent
+    range → daily (dateless), which is the clean default on mobile.
     """
-    seen = set()
-    for it in items:
-        d = _resolve_date_str(it)
-        if d and d != "?":
-            seen.add(d)
-            if len(seen) > 1:
-                return True
-    return False
+    if not date_range:
+        return False
+    return any(sep in date_range for sep in ("-", "–", "—", " to ", "thru", "through"))
 
 
 def _side_embed(items: list[dict], color: int, title: str, side: str, multi_day: bool) -> dict:
@@ -338,11 +336,10 @@ def build_messages(
     date_str = date_range if date_range else now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
 
-    # Span decides the layout: a same-day push stays dense 2-column (no per-row
-    # date); a multi-day (weekly) push shows the date per row in a single column.
-    multi_day = _is_multi_day(
-        bull_sorted + bear_sorted + (unusual_bull or []) + (unusual_bear or [])
-    )
+    # Per-row dates show only on a genuine weekly push (a date range with a
+    # separator); a daily watchlist stays dateless even if a stray next-session
+    # print carries a different date.
+    multi_day = _date_range_is_multiday(date_range)
 
     messages = []
 
@@ -366,7 +363,6 @@ def build_messages(
 
         embeds.append({
             "color": GOLD,
-            "author": {"name": "UCT Options Flow"},
             "title": f"{net_emoji} {title_label} — {date_str}",
             "description": (
                 f"**{net_sign}{_fmt(net)} NET**  ·  {lean_pct}% {lean}\n"
