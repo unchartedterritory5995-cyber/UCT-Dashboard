@@ -905,6 +905,9 @@ export default function StockChart({
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
   legendColor = null,         // workspace: override the base OHLCV legend text color (time + O/H/L/C/V). null = CSS default. Change%/overlay/indicator colors keep their own (semantic) colors.
+  savedColors = [],           // shared saved-color swatches (workspace) → the drawing color picker reuses the same list as Chart Settings
+  onSaveColor = null,         //   (hex) => void
+  onDeleteColor = null,       //   (hex) => void
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
@@ -9556,6 +9559,7 @@ export default function StockChart({
             setActiveTool={setActiveTool}
             color={drawColor}
             lineWidth={drawWidth}
+            lineStyle={cs.drawingDefaults?.style || 'solid'}
             magnet={magnet}
             drawings={cs.hideDrawings ? [] : drawings}
             addDrawing={addDrawing}
@@ -9568,6 +9572,10 @@ export default function StockChart({
             undo={undo}
             redo={redo}
             snapshotHistory={snapshotHistory}
+            onSaveDefaults={(d) => handleUpdateChartSettings({ drawingDefaults: { ...cs.drawingDefaults, ...d } })}
+            savedColors={savedColors}
+            onSaveColor={onSaveColor}
+            onDeleteColor={onDeleteColor}
           />
           <ChartToolbar
             ref={toolbarRef}

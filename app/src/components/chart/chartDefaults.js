@@ -121,7 +121,7 @@ export const CHART_DEFAULTS = {
     y: 0.5,
   },
 
-  drawingDefaults: { color: '#c9a84c', width: 1 },
+  drawingDefaults: { color: '#c9a84c', width: 1, style: 'solid' },
 
   indicators: {
     rsi:  { enabled: false, period: 14, color: '#7b68ee' },

@@ -649,6 +649,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           onSettingsPersist={writeActiveSettings}
           onSymbolChange={handleSymbolChange}
           onTfChange={setTf}
+          /* Share the same saved-color swatches with the drawing color picker. */
+          savedColors={savedColors}
+          onSaveColor={saveColor}
+          onDeleteColor={deleteColor}
           onOpenSettings={() => setSettingsOpen(true)}
           onCrosshairMove={reportCrosshair}
           subscribeCrosshair={subscribeCrosshair}

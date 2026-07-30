@@ -1,5 +1,7 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import ColorPanel from './ColorPanel'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -18,6 +20,11 @@ const ALT_TOOL = {
 }
 // Alt+Shift+<letter> → the power-user tools.
 const ALT_SHIFT_TOOL = { KeyP: 'priceRange', KeyD: 'dateRange', KeyE: 'eraser' }
+
+// How many bars past the last candle a drawing point may be placed/dragged (into
+// the empty right-pad — e.g. extending a trendline forward). Bounded so a stray
+// far-right click can't fling a point thousands of bars into the void.
+const FUTURE_BARS_CAP = 500
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
 const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa']
@@ -758,6 +765,10 @@ export default function ChartDrawingOverlay({
   undo = null,               // undo/redo/snapshotHistory — wired for the MAIN user-drawings
   redo = null,               //   overlay (useChartDrawings). Annotation overlays omit them
   snapshotHistory = null,    //   (no-op), so Ctrl+Z there does nothing.
+  onSaveDefaults = null,     // (”Save as default”) persist {color,width,style} to cs.drawingDefaults
+  savedColors = [],          // shared saved-color swatches (same list as Chart Settings)
+  onSaveColor = null,        //   → the drawing color picker (ColorPanel) reuses them
+  onDeleteColor = null,
   readOnly = false,          // display-only layer (multi-chart grid cells): skip the window
                              //   keydown handler entirely — a NOOP-wired instance would still
                              //   preventDefault Escape/Ctrl+Z/Ctrl+V app-wide, ×N cells.
@@ -851,12 +862,21 @@ export default function ChartDrawingOverlay({
 
   // ── Coordinate conversion: chart → pixel ──
   // Uses refs at call-time so always gets latest chart/series
-  const toPixel = useCallback((time, price) => {
+  const toPixel = useCallback((time, price, futureBars = null) => {
     const chart = chartRef?.current
     const series = seriesRef?.current
     if (!chart || !series) return null
     let x = null
-    if (time != null) {
+    // FUTURE point: drawn/dragged into the empty right-pad PAST the last candle
+    // (e.g. extending a trendline forward). It's anchored to the last bar's time +
+    // a whole-bar offset; LWC maps logical indices beyond the data onto the
+    // right-pad, so extrapolate there. Gated on `futureBars` so every in-data point
+    // takes the byte-identical original path below — no regression to existing
+    // drawings. Falls through to the normal mapping if extrapolation fails.
+    if (Number.isFinite(futureBars) && futureBars > 0 && bars?.length) {
+      try { x = chart.timeScale().logicalToCoordinate((bars.length - 1) + futureBars) } catch {}
+    }
+    if (x == null && time != null) {
       try { x = chart.timeScale().timeToCoordinate(time) } catch {}
       // Fallback: extrapolate from logical index. Uses the CONTAINING bar so a
       // daily-anchored drawing maps onto the right weekly/monthly bar (and vice
@@ -892,9 +912,9 @@ export default function ChartDrawingOverlay({
   const resolvePixels = useCallback((points) => {
     const H = sizeRef.current.h || 0
     return points.map(p => {
-      const px = toPixel(p.time, p.price)
+      const px = toPixel(p.time, p.price, p.futureBars)
       const y = (p.paneRelY != null && H) ? p.paneRelY * H : px?.y
-      return { x: px?.x, y, rawPrice: p.price, price: p.price, time: p.time }
+      return { x: px?.x, y, rawPrice: p.price, price: p.price, time: p.time, futureBars: p.futureBars }
     }).filter(p => p.x != null || p.y != null)
   }, [toPixel])
 
@@ -951,13 +971,21 @@ export default function ChartDrawingOverlay({
     if (!chart || !series || !bars?.length) return null
 
     let time = null
+    let futureBars = null
+    const lastIdx = bars.length - 1
+    // Given a raw logical index, resolve to either an in-data bar time OR (when the
+    // click is PAST the last candle, i.e. in the right-pad) a future point: anchor
+    // to the last bar's time + a bounded whole-bar offset. This is what lets a
+    // trendline endpoint be placed in the empty space to the right.
+    const fromLogical = (logical) => {
+      const rounded = Math.round(logical)
+      if (rounded > lastIdx) { time = bars[lastIdx].t; futureBars = Math.min(FUTURE_BARS_CAP, rounded - lastIdx) }
+      else { time = bars[Math.max(0, rounded)].t; futureBars = null }
+    }
     // Method 1: try coordinateToLogical (LWC v5)
     try {
       const logical = chart.timeScale().coordinateToLogical(pixelX)
-      if (logical != null) {
-        const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
-        time = bars[idx].t
-      }
+      if (logical != null) fromLogical(logical)
     } catch {}
 
     // Method 2: fallback — interpolate from visible range
@@ -969,9 +997,7 @@ export default function ChartDrawingOverlay({
           const endX = chart.timeScale().logicalToCoordinate(Math.floor(range.to))
           if (startX != null && endX != null && endX !== startX) {
             const pxPerBar = (endX - startX) / (Math.floor(range.to) - Math.ceil(range.from))
-            const logical = Math.ceil(range.from) + (pixelX - startX) / pxPerBar
-            const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
-            time = bars[idx].t
+            fromLogical(Math.ceil(range.from) + (pixelX - startX) / pxPerBar)
           }
         }
       } catch {}
@@ -993,7 +1019,8 @@ export default function ChartDrawingOverlay({
 
     // Allow partial coords: horizontal only needs price, vertical only needs time
     if (!time && price == null && paneRelY == null) return null
-    return paneRelY != null ? { time, price, paneRelY } : { time, price }
+    const fb = futureBars ? { futureBars } : null
+    return paneRelY != null ? { time, price, paneRelY, ...fb } : { time, price, ...fb }
   }, [chartRef, seriesRef, bars, pricePaneBottomPx])
 
   // Line mode (index pane): time → line value, for magnet-snap-to-line + advance %.
@@ -1721,22 +1748,29 @@ export default function ChartDrawingOverlay({
         return { price: (p.price ?? 0) + priceDelta }
       }
 
+      // Move a point by `timeDelta` bars along X, honoring FUTURE points (past the
+      // last candle): a future point's origin index is lastIdx + its futureBars, and
+      // dragging it further right keeps it in the right-pad; dragging it back into
+      // the data drops futureBars (returns to a real bar time). In-data points behave
+      // exactly as before.
+      const _lastIdx = bars.length - 1
+      const moveX = (p) => {
+        const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
+          ? _lastIdx + p.futureBars
+          : (timeToIndex.get(p.time) ?? 0)
+        const rawIdx = origIdx + timeDelta
+        if (rawIdx > _lastIdx) {
+          return { time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
+        }
+        return { time: bars[Math.max(0, rawIdx)]?.t || p.time, ...moveY(p) }
+      }
       let newPoints
       if (drag.handleIdx != null) {
         // Move single control point
-        newPoints = drag.originalPoints.map((p, i) => {
-          if (i !== drag.handleIdx) return p
-          const origIdx = timeToIndex.get(p.time) ?? 0
-          const newIdx = Math.max(0, Math.min(bars.length - 1, origIdx + timeDelta))
-          return { time: bars[newIdx]?.t || p.time, ...moveY(p) }
-        })
+        newPoints = drag.originalPoints.map((p, i) => (i !== drag.handleIdx ? p : moveX(p)))
       } else {
         // Move entire drawing
-        newPoints = drag.originalPoints.map(p => {
-          const origIdx = timeToIndex.get(p.time) ?? 0
-          const newIdx = Math.max(0, Math.min(bars.length - 1, origIdx + timeDelta))
-          return { time: bars[newIdx]?.t || p.time, ...moveY(p) }
-        })
+        newPoints = drag.originalPoints.map(moveX)
       }
 
       // First move of a drag → snapshot the pre-drag state ONCE so the whole drag
@@ -2128,6 +2162,10 @@ export default function ChartDrawingOverlay({
               setCtxMenu(null)
             }}
             onDelete={() => { removeDrawing(ctxMenu.drawingId); setSelectedId(null); setCtxMenu(null) }}
+            onSaveDefaults={onSaveDefaults ? (style) => onSaveDefaults(style) : null}
+            savedColors={savedColors}
+            onSaveColor={onSaveColor}
+            onDeleteColor={onDeleteColor}
             onClose={() => setCtxMenu(null)}
           />
         )
@@ -2196,8 +2234,10 @@ function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }
 
 // ─── Right-click context menu ───────────────────────────────────────────────
 
-const MENU_COLORS = ['#c9a84c', '#4ade80', '#ef4444', '#60a5fa', '#a78bfa', '#e2dfd6']
-const MENU_WIDTHS = [1, 2, 3, 4]
+// Drawings store lineStyle as a string ('solid' | 'dashed'); ColorPanel's `line`
+// prop uses the numeric code (0 solid / 2 dashed / 1 dotted). Map between them.
+const DRAW_STYLE_TO_NUM = { solid: 0, dashed: 2 }
+const numToDrawStyle = (n) => (n === 0 ? 'solid' : 'dashed')
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
@@ -2222,8 +2262,10 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onClose }) {
+function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose }) {
   const menuRef = useRef(null)
+  const [colorOpen, setColorOpen] = useState(false)
+  const [savedFlash, setSavedFlash] = useState(false)  // brief "Saved ✓" confirmation
   // Clamp to the viewport so the menu always lands right next to the cursor —
   // flips to the cursor's left/up edge when it would overflow (drawings near the
   // right edge of a full-width chart otherwise pushed it off-screen). Measured
@@ -2250,9 +2292,17 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   }, [onClose])
 
   const locked = !!drawing?.locked
-  const curColor = (drawing?.color || '').toLowerCase()
+  const curColor = drawing?.color || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
   const dashed = drawing?.lineStyle === 'dashed'
+  // Place the ColorPanel popout beside the menu (to its right; flip left if it would
+  // overflow). ~250px wide panel.
+  const panelW = 258
+  const menuW = sheet ? window.innerWidth : 190
+  const panelLeft = sheet
+    ? Math.max(8, (window.innerWidth - panelW) / 2)
+    : (pos.left + menuW + panelW + 8 > window.innerWidth ? Math.max(8, pos.left - panelW - 6) : pos.left + menuW)
+  const panelTop = sheet ? Math.max(8, window.innerHeight - 470) : Math.min(pos.top, Math.max(8, window.innerHeight - 440))
 
   // Touch bottom-sheet gets roomier rows + bigger tap targets than the anchored menu.
   const rowStyle = sheet
@@ -2290,55 +2340,25 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
           <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3d31' }} />
         </div>
       )}
-      {/* Color */}
-      <div style={rowStyle}>
+      {/* Color & style — one row that opens the shared grid picker (color grid +
+          opacity + custom hex + line width + line style), matching Chart Settings. */}
+      <button
+        onClick={() => setColorOpen(o => !o)}
+        style={{
+          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', color: '#e2dfd6', textAlign: 'left',
+          background: colorOpen ? 'rgba(201,168,76,0.12)' : 'none',
+        }}
+        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'rgba(201,168,76,0.08)' }}
+        onMouseLeave={(e) => { if (!colorOpen) e.currentTarget.style.background = 'none' }}
+      >
         <span style={labelStyle}>Color</span>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {MENU_COLORS.map(c => (
-            <button key={c} onClick={() => onSetColor(c)} title={c}
-              style={{
-                width: sw, height: sw, borderRadius: '50%', background: c, cursor: 'pointer', padding: 0,
-                border: curColor === c.toLowerCase() ? '2px solid #fff' : '1px solid #3a3d31',
-                boxShadow: curColor === c.toLowerCase() ? '0 0 0 1px #1a1c17' : 'none',
-              }} />
-          ))}
-        </div>
-      </div>
-      {/* Width */}
-      <div style={rowStyle}>
-        <span style={labelStyle}>Width</span>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {MENU_WIDTHS.map(w => (
-            <button key={w} onClick={() => onSetWidth(w)} title={`${w}px`}
-              style={{
-                width: wBtn, height: sheet ? 30 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
-                background: curWidth === w ? 'rgba(201,168,76,0.18)' : 'none',
-                border: curWidth === w ? '1px solid #c9a84c' : '1px solid #3a3d31', borderRadius: 3,
-              }}>
-              <span style={{ display: 'block', width: sheet ? 20 : 15, height: w, background: '#e2dfd6', borderRadius: 2 }} />
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* Style */}
-      <div style={rowStyle}>
-        <span style={labelStyle}>Style</span>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[['solid', 'Solid'], ['dashed', 'Dashed']].map(([v, lab]) => {
-            const on = dashed ? v === 'dashed' : v === 'solid'
-            return (
-              <button key={v} onClick={() => onSetStyle(v)}
-                style={{
-                  padding: sheet ? '7px 16px' : '3px 9px', fontSize: sheet ? 13 : 10, cursor: 'pointer', color: '#e2dfd6', fontFamily: 'inherit',
-                  background: on ? 'rgba(201,168,76,0.18)' : 'none',
-                  border: on ? '1px solid #c9a84c' : '1px solid #3a3d31', borderRadius: 3,
-                }}>
-                {lab}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          <span style={{ width: sw, height: sw, borderRadius: '50%', background: curColor, border: '1px solid #3a3d31', boxShadow: '0 0 0 1px #1a1c17' }} />
+          <span style={{ display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: dashed ? 'dashed' : 'solid', borderTopColor: curColor }} />
+          <span style={{ color: '#8a8674', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
+        </span>
+      </button>
 
       <div style={{ height: 1, background: '#2e3127', margin: '4px 0' }} />
 
@@ -2372,6 +2392,17 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
           ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
           : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
       />
+      {onSaveDefaults && (
+        <MenuAction
+          label={savedFlash ? 'Saved as default ✓' : 'Save as default'}
+          onClick={() => {
+            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid' })
+            setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
+          }}
+          big={sheet}
+          icon={<path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />}
+        />
+      )}
       <MenuAction
         label="Delete Drawing"
         onClick={onDelete}
@@ -2379,6 +2410,31 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
         big={sheet}
         icon={<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>}
       />
+
+      {colorOpen && createPortal(
+        <div
+          data-color-panel
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', left: panelLeft, top: panelTop, zIndex: 22 }}
+        >
+          <ColorPanel
+            title="Drawing"
+            value={curColor}
+            onChange={(hex) => onSetColor(hex)}
+            onClose={() => setColorOpen(false)}
+            savedColors={savedColors}
+            onSaveColor={onSaveColor}
+            onDeleteColor={onDeleteColor}
+            line={{
+              width: curWidth,
+              style: DRAW_STYLE_TO_NUM[drawing?.lineStyle] ?? 0,
+              onWidth: (w) => onSetWidth(w),
+              onStyle: (n) => onSetStyle(numToDrawStyle(n)),
+            }}
+          />
+        </div>,
+        document.body,
+      )}
     </div>
   )
 
