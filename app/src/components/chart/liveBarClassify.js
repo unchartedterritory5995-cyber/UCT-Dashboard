@@ -10,7 +10,7 @@
 // price painted onto the frozen Fri 6/12 daily while the real 6/15 session was
 // already complete). Here we recover the new session from the snapshot itself.
 
-import { computeBarTime } from './barTime'
+import { computeBarTime, PERIOD_SECONDS } from './barTime'
 
 const DWM = new Set(['D', 'W', 'M'])
 
@@ -37,7 +37,22 @@ export function classifyLiveBar({ tf, last, live, tickSec, nowSec }) {
   if (!isDWM) {
     if (tickSec) {
       const barTime = computeBarTime(tf, tickSec)
-      if (barTime !== last.time && barTime > last.time) return { kind: 'new', time: barTime }
+      if (barTime !== last.time && barTime > last.time) {
+        // Contiguity guard (mirror of the REST-floor branch below). Only plant a
+        // NEW bar for the IMMEDIATE next bucket. If barTime is MORE than one
+        // interval past last.time, the fetched tail is stale/holed (the buckets in
+        // between are missing) — planting here drops a lone developing candle
+        // detached from the tail AND advances the newest-bar time so the tail-age
+        // freshness gate thinks the cache is fresh, masking the hole so the delta
+        // poll never backfills it (the "candles missing until I flip timeframe"
+        // bug). SKIP instead; the full refetch (idbStaleIntraday / _hasIntradayGap)
+        // fills the gap, then the next tick plants contiguously. A session-boundary
+        // jump (overnight) is also skipped and likewise healed by the stale-tail
+        // refetch — correct, not a regression.
+        const period = PERIOD_SECONDS[tf] || 300
+        if (barTime - last.time > period) return { kind: 'skip' }
+        return { kind: 'new', time: barTime }
+      }
       return { kind: 'update' }
     }
     // REST floor: the tick has NO timestamp, so we can't confirm which bucket it

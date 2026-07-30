@@ -5,12 +5,29 @@ import { computeBarTime } from './barTime'
 // A weekday-session UTC second (Mon 2026-06-15 ~14:00 ET = 18:00 UTC).
 const MON_1400_ET = Math.floor(Date.UTC(2026, 5, 15, 18, 0, 0) / 1000)
 
-describe('classifyLiveBar — intraday (timestamp-driven, unchanged)', () => {
-  it('new bar when the tick crosses into a newer period', () => {
+describe('classifyLiveBar — intraday (timestamp-driven)', () => {
+  it('new bar when the tick crosses into the IMMEDIATE next period', () => {
     const last = { time: computeBarTime('60', MON_1400_ET), close: 7.0 }
     const d = classifyLiveBar({ tf: '60', last, live: {}, tickSec: MON_1400_ET + 3600 })
     expect(d.kind).toBe('new')
     expect(typeof d.time).toBe('number')
+  })
+
+  it('new bar for the immediate next 5m bucket (contiguous rollover)', () => {
+    const last = { time: computeBarTime('5', MON_1400_ET), close: 390 }
+    const d = classifyLiveBar({ tf: '5', last, live: {}, tickSec: MON_1400_ET + 5 * 60 })
+    expect(d.kind).toBe('new')
+  })
+
+  it('SKIP a timestamped tick that jumps MORE than one interval past a stale/holed tail', () => {
+    // last bar is 1h stale on a 5m chart; a live tick at "now" (12 buckets ahead)
+    // must NOT plant a lone candle detached over the hole — that advances the
+    // newest-bar time and masks the stale tail from the freshness gate, so the
+    // delta poll never backfills the missing bars. SKIP → the full refetch fills
+    // the gap, then the next tick plants contiguously.
+    const last = { time: computeBarTime('5', MON_1400_ET), close: 390 }
+    const d = classifyLiveBar({ tf: '5', last, live: {}, tickSec: MON_1400_ET + 60 * 60 })
+    expect(d.kind).toBe('skip')
   })
 
   it('update when the tick is in the same period', () => {

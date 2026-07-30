@@ -111,13 +111,21 @@ function _key(sym, tf) {
 // Without the bump, this detector heals affected users gradually on each
 // chart open instead of all at once.
 function _hasIntradayGap(bars, tf) {
-  if (!['15','30','60'].includes(tf)) return false
+  if (!['1','5','15','30','60'].includes(tf)) return false
   if (!bars || bars.length < 2) return false
 
-  // Max acceptable in-session gap. Tuned to catch a single missing bar
-  // without false-flagging the 30-min open-bar adjustment on hourly
-  // (09:30 → 10:00 = 1800s).
-  const MAX_OK_GAP_SEC = { '15': 3600, '30': 5400, '60': 7200 }[tf]
+  // Max acceptable in-session gap. Tuned to catch a real interior hole without
+  // false-flagging normal spacing or the 30-min open-bar adjustment on hourly
+  // (09:30 → 10:00 = 1800s). 1/5min added 2026-07-30: the delta-merge can leave
+  // an interior hole with a FRESH tail (a dropped/ts-shifted delta write), which
+  // the tail-age freshness gate is blind to — so the 30s poll re-issues a `since=`
+  // delta that can never backfill it, and only a TF-switch (full refetch) healed
+  // it. Detecting the hole here forces a full no-`since` refetch on load instead.
+  // 5min uses 600s (≥2 missing bars); 1min uses 900s (a clear multi-bar hole, not
+  // the routine sub-minute sparseness of a thin ticker). Real halts / genuinely
+  // sparse names just cost one harmless full refetch on open (idbGet runs per
+  // mount, not per render — no refetch loop).
+  const MAX_OK_GAP_SEC = { '1': 900, '5': 600, '15': 3600, '30': 5400, '60': 7200 }[tf]
 
   // Scan only the recent window. Old corruption is rarely user-visible and
   // a full-array scan adds avoidable latency on the hot cache-hit path.

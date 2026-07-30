@@ -6274,8 +6274,24 @@ export default function StockChart({
       const width = pr.to - pr.from
       const to = newBarCount - barsFromRight
       const from = to - width
-      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+      const lastIdx = newBarCount - 1
+      // The bars-from-right remap ASSUMES a PREPEND (older history added at the
+      // front, newest bar unchanged) → the view is invariant in bars-from-right.
+      // A full no-`since` REPLACE refetch (more common since the intraday freshness
+      // gate was tightened) can instead return a DIFFERENT count with a SLID window,
+      // making `barsFromRight` stale and pushing the computed window ENTIRELY into
+      // the empty right-pad — the chart then shows only the price axis until "Reset
+      // view" (the pinned-right net below is disabled once the user has panned). So
+      // apply the remap ONLY when it lands on REAL bars (the last bar stays in view:
+      // to > 0 AND from < lastIdx). Otherwise the mapping is invalid → re-pin the
+      // newest candle at its default on-screen position (keeping the zoom width) so
+      // the view is NEVER left blank.
+      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 0 && from < lastIdx) {
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
+      } else if (width > 0 && lastIdx > 0) {
+        const to2 = lastIdx + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
+        const from2 = to2 - width
+        try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch {}
       }
     }
 
@@ -6352,6 +6368,30 @@ export default function StockChart({
               try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
             }
           }
+        }
+      }
+    }
+
+    // ── NEVER-BLANK backstop (mechanism-agnostic) ──
+    // A blank chart — the visible logical range landing so far off the data that NO
+    // real candle is on screen (just the price axis) — is never intended, whatever
+    // produced it: a series-length REPLACE re-anchor near-miss, a same-count slid
+    // REPLACE with no re-anchor, or a far-ahead developing bar + shiftVisibleRange.
+    // Unlike the pinned-right net above, this fires EVEN after a user pan
+    // (userViewMovedRef), because it triggers ONLY when <0.5 of a real bar is
+    // visible — a legitimately scrolled-back or zoomed view always shows bars and is
+    // left untouched. Recovers what previously required a manual "Reset view".
+    if (!entryDate && !exactDateRange && filteredBars.length > 1) {
+      let fr = null
+      try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+      if (fr) {
+        const lastIdx2 = filteredBars.length - 1
+        const visibleReal = Math.min(fr.to, lastIdx2) - Math.max(fr.from, 0)
+        if (visibleReal < 0.5) {
+          const w = Math.max(1, fr.to - fr.from)
+          const to2 = lastIdx2 + w * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
+          const from2 = to2 - w
+          try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* mid-load */ }
         }
       }
     }
