@@ -55,7 +55,8 @@ def test_steal_after_lease_expires():
     lock, got = m._acquire_or_steal_fill(ck)
     assert got
     # Simulate the holder hanging past the lease (the finally-release never ran).
-    m._recent_fill_started[ck] = time.time() - 1.0   # > lease (0.3s)
+    # Lease value is (owning_lock, started_at) — the lock is the fill's identity.
+    m._recent_fill_started[ck] = (lock, time.time() - 1.0)   # > lease (0.3s)
     stolen, got2 = m._acquire_or_steal_fill(ck)
     assert got2 is True
     assert stolen is not lock                        # a FRESH lock was swapped in
@@ -69,7 +70,7 @@ def test_no_steal_when_selfheal_disabled(monkeypatch):
     ck = ("d", 3, "D", "recent", None, True)
     lock, got = m._acquire_or_steal_fill(ck)
     assert got
-    m._recent_fill_started[ck] = time.time() - 1.0
+    m._recent_fill_started[ck] = (lock, time.time() - 1.0)
     lock2, got2 = m._acquire_or_steal_fill(ck)
     assert got2 is False                             # kill-switch → legacy behaviour
     lock.release()
@@ -104,7 +105,7 @@ def test_warm_recent_steals_a_wedged_canonical_lock(monkeypatch):
     # Simulate a HUNG prior fill: canonical lock held + started past the lease.
     held = m._recent_lock_for(ck)
     assert held.acquire(blocking=False)
-    m._recent_fill_started[ck] = time.time() - 1.0   # > lease (0.3s in fixture)
+    m._recent_fill_started[ck] = (held, time.time() - 1.0)   # > lease (0.3s in fixture)
     _, n = m.warm_recent(limit=m._CANON_CURATED_LIMIT, min_grade="D",
                          sort_by="recent", tier=None, curated=True)
     assert n == 1                                    # stole the wedged key + filled it

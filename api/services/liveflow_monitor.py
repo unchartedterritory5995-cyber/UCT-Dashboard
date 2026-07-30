@@ -221,21 +221,34 @@ def _liveflow_alert_decision(prev: dict, cls: str, now: float,
 # calls HEALTHY. A legit quiet tape (curated key cached, fresh, 0 alerts) is NOT
 # a wedge — only a NOT-cached / stale / hung-fill key while flow.db advances.
 
+def _curated_wedge_reason(cur: dict,
+                          stale_sec: float = CURATED_STALE_SEC,
+                          hung_sec: float = CURATED_FILL_HUNG_SEC):
+    """The wedge condition that actually fired, as a short human phrase — or None
+    when the key is healthy.
+
+    Three DIFFERENT failures used to share one hardcoded "serving empty" alert. On
+    2026-07-30 the feed was serving 104 alerts ~9 minutes stale and the alert still
+    said "empty", pointing the responder at "restart flow-worker" — the wrong action
+    for a stale key. Name the condition so the alert routes to the right fix."""
+    if not isinstance(cur, dict):
+        return None                       # no signal → don't flag (blind handled elsewhere)
+    frs = cur.get("fill_running_sec")
+    if frs is not None and frs > hung_sec:
+        return "fill hung %.0fs" % frs    # a fill running past the hang window
+    if not cur.get("cached"):
+        return "key COLD — serving empty"  # warming stub while flow.db is live
+    age = cur.get("age_sec")
+    if age is not None and age > stale_sec:
+        return "stale %.0fs — refills aren't landing" % age
+    return None                           # cached + fresh (0 alerts = legit quiet tape)
+
+
 def _curated_is_wedged(cur: dict,
                        stale_sec: float = CURATED_STALE_SEC,
                        hung_sec: float = CURATED_FILL_HUNG_SEC) -> bool:
     """True when the canonical curated key looks wedged (not just a quiet tape)."""
-    if not isinstance(cur, dict):
-        return False                      # no signal → don't flag (blind handled elsewhere)
-    frs = cur.get("fill_running_sec")
-    if frs is not None and frs > hung_sec:
-        return True                       # a fill running past the hang window
-    if not cur.get("cached"):
-        return True                       # serving a warming stub while flow.db is live
-    age = cur.get("age_sec")
-    if age is not None and age > stale_sec:
-        return True                       # cached but the warmer's refills aren't landing
-    return False                          # cached + fresh (0 alerts = legit quiet tape)
+    return _curated_wedge_reason(cur, stale_sec, hung_sec) is not None
 
 
 def initial_curated_state() -> dict:
@@ -270,11 +283,13 @@ def _curated_alert_text(event: str, cur: dict, wedged_since, now: float) -> str:
     age = (cur or {}).get("age_sec")
     alerts = (cur or {}).get("alerts")
     if event == "curated_wedged":
+        reason = _curated_wedge_reason(cur or {}) or "unknown"
+        serving = ("serving %s alerts" % alerts) if alerts else "serving NOTHING"
         return ("\U0001F7E0 LIVE FLOW curated feed WEDGED -- flow.db is LIVE (max_id "
-                f"advancing) but /recent is serving empty (canonical key age={age}s, "
-                "cached=%s). Self-heal should steal the hung fill within the lease; if "
-                "it persists, restart flow-worker. (The 2026-07-28 blind spot.)"
-                % (cur or {}).get("cached"))
+                f"advancing) but the canonical curated key is {reason}; /recent is "
+                f"{serving}. Self-heal steals a hung fill after the lease -- if this "
+                "repeats, check whether another sort_by key is eating the fill slots "
+                "(GET /api/live/massive/status -> curated.fill_lock_held).")
     if event == "curated_still":
         return (f"\U0001F7E0 LIVE FLOW curated feed STILL wedged ({dur:.0f} min) -- "
                 "/recent empty while flow.db is live.")

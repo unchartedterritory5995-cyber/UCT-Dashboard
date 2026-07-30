@@ -1857,7 +1857,10 @@ _recent_fill_sem = threading.Semaphore(
 _RECENT_SELFHEAL = os.environ.get("MASSIVE_RECENT_SELFHEAL", "1") == "1"
 _RECENT_FILL_LEASE_SEC = float(os.environ.get("MASSIVE_RECENT_FILL_LEASE_SEC", "45"))
 _RECENT_SEM_WAIT_SEC = float(os.environ.get("MASSIVE_RECENT_SEM_WAIT_SEC", "20"))
-_recent_fill_started: dict = {}   # ck -> unix ts the current fill acquired the lock
+# ck -> (owning_lock, unix ts that lock was acquired). The LOCK OBJECT is the
+# fill's identity token: a steal swaps in a FRESH lock, so a stolen-from thread
+# can tell (by identity) that the lease no longer belongs to it. See _release_fill.
+_recent_fill_started: dict = {}
 _recent_last_good: dict = {}      # ck -> last successful payload (never overwritten empty)
 # Viewer signal: unix ts of the last real (user, not warmer) /recent request for
 # TODAY. The flow-worker warmer reads this to run the tight unbounded curated
@@ -1883,31 +1886,85 @@ def _recent_lock_for(key):
         return lk
 
 
-def _acquire_or_steal_fill(ck):
+def _sem_has_free_slot(sem) -> bool:
+    """Non-blocking probe: is there capacity to actually RUN a bounded fill now?"""
+    if sem.acquire(blocking=False):
+        sem.release()
+        return True
+    return False
+
+
+def _acquire_or_steal_fill(ck, bounded: bool = True):
     """Acquire the per-key fill lock to run a fill under. Returns (lock, True) when
     we hold a lock to fill with; (None, False) when a LIVE fill already owns the key.
 
     Self-heal: if the lock is held but its holder has been filling longer than the
     lease (a HUNG fill whose finally-release never ran), swap in a FRESH lock and
     take that — the orphaned hung thread later releases the old (now-detached) lock
-    harmlessly. This bounds a wedge to the lease instead of forever."""
-    lock = _recent_lock_for(ck)
-    if lock.acquire(blocking=False):
-        _recent_fill_started[ck] = time.time()
-        return lock, True
-    if _RECENT_SELFHEAL:
-        started = _recent_fill_started.get(ck)
-        if started is not None and (time.time() - started) > _RECENT_FILL_LEASE_SEC:
-            with _recent_cache_guard:
-                fresh = threading.Lock()
-                _recent_cache_locks[ck] = fresh
-            fresh.acquire()
-            _recent_fill_started[ck] = time.time()
+    harmlessly. This bounds a wedge to the lease instead of forever.
+
+    Runs entirely under `_recent_cache_guard` so "lock held ⇒ lease recorded" holds
+    as an invariant; a held lock with NO lease is therefore an orphan and is treated
+    as EXPIRED (fail toward recovery, never toward a permanent wedge).
+
+    `bounded` mirrors _compute_and_store: an UNBOUNDED fill (the flow-worker
+    warmer's lane) skips the semaphore, so semaphore capacity must not gate its
+    steal — only a bounded fill can be blocked by a full pool."""
+    with _recent_cache_guard:
+        lock = _recent_cache_locks.get(ck)
+        if lock is None:
+            lock = threading.Lock()
+            _recent_cache_locks[ck] = lock
+        if lock.acquire(blocking=False):
+            _recent_fill_started[ck] = (lock, time.time())
+            return lock, True
+        if not _RECENT_SELFHEAL:
+            return None, False
+        held = _recent_fill_started.get(ck)
+        started = held[1] if held else None
+        if started is not None and (time.time() - started) <= _RECENT_FILL_LEASE_SEC:
+            return None, False        # a live, within-lease fill owns this key
+        # Stealing reclaims the LOCK but never the hung holder's SEMAPHORE slot, so
+        # a BOUNDED steal into a saturated semaphore just starts another scan that
+        # can only time out — the 2026-07-30 amplification loop (an unwarmed
+        # sort_by=conviction key stealing every lease, forever, while every fill
+        # logged "gave up waiting 20s for a semaphore slot").
+        if bounded and not _sem_has_free_slot(_recent_fill_sem):
             logging.getLogger(__name__).warning(
-                "[massive] /recent fill lease expired (%.0fs) — stealing wedged key %s",
-                time.time() - started, ck)
-            return fresh, True
-    return None, False
+                "[massive] /recent key wedged %s but no fill slot free — not stealing: %s",
+                ("%.0fs" % (time.time() - started)) if started is not None else "(no lease)",
+                ck)
+            return None, False
+        fresh = threading.Lock()
+        _recent_cache_locks[ck] = fresh
+        fresh.acquire()
+        _recent_fill_started[ck] = (fresh, time.time())
+        logging.getLogger(__name__).warning(
+            "[massive] /recent fill lease expired (%s) — stealing wedged key %s",
+            ("%.0fs" % (time.time() - started)) if started is not None else "orphan/no-lease",
+            ck)
+        return fresh, True
+
+
+def _release_fill(ck, lock):
+    """Release a fill's per-key lock, clearing the lease ONLY if we still own it.
+
+    THE 2026-07-30 WEDGE: this pop used to be unconditional, so a stolen-from
+    (orphaned) fill erased the lease belonging to the fill that had stolen from it.
+    `_acquire_or_steal_fill` then saw lock-held + no-lease and returned "busy"
+    forever — the key became permanently un-stealable, `/status` reported
+    `fill_running_sec: None`, and the canonical curated key sat stale until the
+    orphan happened to finish. The warmer's every-cycle re-warm (56aa713f) hits the
+    same dead end, just more often. Compare by lock IDENTITY: a steal installs a
+    FRESH lock, so an orphan's lock can never match the current lease."""
+    with _recent_cache_guard:
+        held = _recent_fill_started.get(ck)
+        if held is not None and held[0] is lock:
+            _recent_fill_started.pop(ck, None)
+    try:
+        lock.release()
+    except Exception:
+        pass
 
 
 def _curated_health(today: str = None) -> dict:
@@ -1921,7 +1978,9 @@ def _curated_health(today: str = None) -> dict:
     ck = (today, _CANON_CURATED_LIMIT, "D", "recent", None, True)
     now = time.time()
     hit = _recent_cache.get(ck)
-    started = _recent_fill_started.get(ck)
+    held = _recent_fill_started.get(ck)
+    started = held[1] if held else None
+    lk = _recent_cache_locks.get(ck)
     alerts = len((hit[1].get("alerts") if hit else None) or []) if hit else 0
     return {
         "cached": hit is not None,
@@ -1929,6 +1988,10 @@ def _curated_health(today: str = None) -> dict:
         "alerts": alerts,
         "empty": alerts == 0,
         "fill_running_sec": round(now - started, 1) if started is not None else None,
+        # Distinguishes "no fill running" from "a fill OWNS this key" — during the
+        # 2026-07-30 wedge fill_running_sec read None for 9+ minutes while a hung
+        # fill held the lock, so an idle-healthy key and a wedged one looked alike.
+        "fill_lock_held": bool(lk is not None and lk.locked()),
         "has_last_good": ck in _recent_last_good,
         "selfheal": _RECENT_SELFHEAL,
     }
@@ -2002,11 +2065,9 @@ def _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock
         except Exception:
             logging.getLogger(__name__).exception("[massive] background /recent fill failed")
         finally:
-            _recent_fill_started.pop(ck, None)
-            try:
-                lock.release()
-            except Exception:
-                pass
+            # Identity-checked: if this fill was STOLEN from, the lease now belongs
+            # to the thief and must NOT be cleared here (see _release_fill).
+            _release_fill(ck, lock)
     try:
         threading.Thread(target=_run, daemon=True, name="massive-recent-fill").start()
     except Exception:
@@ -2036,15 +2097,22 @@ def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None, b
     # key so this warmer pass re-fills it. This is what makes the existing 25s
     # flow-worker warmer the PROACTIVE self-recovery — without the steal it would
     # skip a wedged key forever (warm_recent used a plain non-blocking acquire).
-    lock, got = _acquire_or_steal_fill(ck)
+    lock, got = _acquire_or_steal_fill(ck, bounded=bounded)
     if not got:
+        # A skip used to be SILENT, which is why the 2026-07-30 wedge left no trace
+        # in the logs: the warmer ran every cycle and quietly declined every pass
+        # while the canonical key went 500s+ stale. Say so.
+        held = _recent_fill_started.get(ck)
+        logging.getLogger(__name__).info(
+            "[massive] /recent warm skipped — a fill owns the key (%s): %s",
+            ("held %.0fs" % (time.time() - held[1])) if held else "no lease recorded",
+            ck)
         return ck, None  # a live (within-lease) fill already owns this key
     try:
         payload = _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated, bounded=bounded)
         return ck, (len(payload.get("alerts") or []) if payload else None)
     finally:
-        _recent_fill_started.pop(ck, None)
-        lock.release()
+        _release_fill(ck, lock)
 
 
 @router.get("/recent")
