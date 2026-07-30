@@ -584,7 +584,13 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
 
 # ── Past-day backfill (current week only) ─────────────────────────────────────
 
-_PAST_SESSION_CAP = 40   # same per-session cap as _build_live / _build_range_week
+# A FINISHED day is a record, not a forecast, so it is capped far looser than
+# the live path's 40. `_build_live`'s 40 bounds a forward SCHEDULE where EW's
+# anticipation rank decides who matters; once the day is over, truncating it
+# just hides names that already reported — measured 2026-07-30, a 40-cap showed
+# only 96 of Wed 7/29's 240 in-universe reporters. 150 clears the observed
+# per-session max (132) with headroom and still bounds the payload.
+_PAST_SESSION_CAP = 150
 
 
 def _backfill_past_days(days: dict, week_dates: list[date], today: date,
@@ -1449,7 +1455,10 @@ def refresh_calendar(user: dict = Depends(require_admin)):
 
 _REACTIONS_TTL = 30              # seconds — live during market hours
 _PAST_REACTIONS_TTL = 24 * 3600  # settled history only (see get_reactions)
-_PAST_REACTIONS_MAX_SYMS = 80
+# Sized to cover a whole finished day now that `_backfill_past_days` restores
+# every reporter (Wed 7/29: 214 with actuals). One Massive agg call per sym on a
+# bounded pool, cached 24 h — clipping at 80 left the tail with no gap %.
+_PAST_REACTIONS_MAX_SYMS = 250
 _past_reaction_locks: dict[str, threading.Lock] = {}
 
 

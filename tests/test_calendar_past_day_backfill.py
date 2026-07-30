@@ -154,19 +154,47 @@ def test_monday_morning_has_no_past_days_and_makes_no_provider_call():
     m.assert_not_called()
 
 
-def test_per_session_cap_survives_the_backfill():
-    """Same [:40] per-session cap as `_build_live` and `_build_range_week`."""
-    cap = {f"S{i:03d}" for i in range(60)} | {"KEEPME"}
+def test_a_finished_day_is_capped_far_looser_than_the_live_schedule():
+    """`_build_live`'s 40 bounds a forward SCHEDULE ranked by anticipation. Once
+    the day is over, truncating at 40 just hides names that already reported —
+    measured 7/30, it showed 96 of Wed's 240 in-universe reporters."""
+    assert cal._PAST_SESSION_CAP > 40
+
+    n = cal._PAST_SESSION_CAP + 20
+    cap = {f"S{i:04d}" for i in range(n)} | {"KEEPME"}
     days = {d.isoformat(): _live_day(d) for d in WEEK}
     days[MON.isoformat()] = _live_day(MON, bmo=["KEEPME"])
-    fh = {"earningsCalendar": [_fh_row(f"S{i:03d}", MON, "bmo") for i in range(60)]}
+    fh = {"earningsCalendar": [_fh_row(f"S{i:04d}", MON, "bmo") for i in range(n)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh):
         cal._backfill_past_days(days, WEEK, TODAY, cap)
 
     bmo = days[MON.isoformat()]["bmo"]
-    assert len(bmo) == 40
+    assert len(bmo) == cal._PAST_SESSION_CAP     # still bounded, just not at 40
     # The EW-ranked name is never cut by the backfill tail.
     assert bmo[0]["sym"] == "KEEPME"
+
+
+def test_a_real_days_reporters_all_fit_under_the_cap():
+    """The busiest day of the week that exposed this bug, at its real shape:
+    Wed 7/29 = 92 bmo / 132 amc / 16 unknown-session, all in cap_universe."""
+    shape = {"bmo": 92, "amc": 132, "": 16}
+    cap, rows = set(), []
+    for hour, n in shape.items():
+        for i in range(n):
+            sym = f"{hour or 'x'}{i:03d}".upper()
+            cap.add(sym)
+            rows.append(_fh_row(sym, MON, hour))
+    days = {d.isoformat(): _live_day(d) for d in WEEK}
+    with mock.patch.object(cal, "_fh_get_month", return_value={"earningsCalendar": rows}):
+        cal._backfill_past_days(days, WEEK, TODAY, cap)
+
+    mon = days[MON.isoformat()]
+    assert (len(mon["bmo"]), len(mon["amc"]), len(mon["tbd"])) == (92, 132, 16)
+
+
+def test_past_reactions_cover_a_whole_finished_day():
+    """Every reported name on a restored past day gets a gap %, not the first 80."""
+    assert cal._PAST_REACTIONS_MAX_SYMS >= 240
 
 
 # ── the load consequence of refilling those days ──────────────────────────────
