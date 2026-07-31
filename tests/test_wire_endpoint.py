@@ -98,3 +98,27 @@ def test_the_public_date_param_is_still_named_date(client):
         body = c.get("/api/calendar/wire?date=2026-07-31").json()
     assert body["market_date"] == "2026-07-31"
     assert len(body["rows"]) == 1
+
+
+# ── wire-status: the measurement Phase 2 is aimed by ─────────────────────────
+
+def test_status_counts_how_many_arrived_on_price_before_numbers(client):
+    """price_first vs actuals_first answers the spec's open question — how far
+    behind the structured providers land after a print."""
+    c, store, _ = client
+    store.upsert_print(_r("NVDA", 1000.0, trigger="price"))
+    store.upsert_print(_r("AMD", 1100.0, trigger="actuals", eps_act=1.0, confirmed=1))
+    store.upsert_print(_r("SBUX", 1200.0, trigger="price", eps_act=0.71, confirmed=1))
+    body = c.get("/api/calendar/wire-status?date=2026-07-31").json()
+    assert body["rows"] == 3
+    assert body["price_first"] == 2
+    assert body["actuals_first"] == 1
+    assert body["with_actuals"] == 2
+    assert body["still_pending"] == 1
+
+
+def test_status_on_an_empty_session_is_zeros_not_an_error(client):
+    c, _, _ = client
+    body = c.get("/api/calendar/wire-status?date=2026-07-31").json()
+    assert body["rows"] == 0
+    assert body["price_first"] == 0
