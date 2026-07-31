@@ -18,9 +18,41 @@ const countOf = wl => wl?.item_count ?? wl?.count ?? (Array.isArray(wl?.symbols)
 export default function WatchlistPicker({ onPick }) {
   const { user } = useAuth()
   const { flagged, flaggedName } = useFlagged()
-  const { data: myLists } = useSWR('/api/watchlists', fetcher)
+  const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher)
   const { data: communityLists } = useSWR('/api/watchlists/public', fetcher)
   const [q, setQ] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [createErr, setCreateErr] = useState('')
+
+  // Creating a list belongs HERE, on the "add a watchlist" screen — once the
+  // widget scopes to a single list there is nowhere for a new one to appear.
+  // Create → immediately pick it, so the user lands in the empty list with the
+  // add bar ready to fill it.
+  async function createList() {
+    const name = newName.trim()
+    if (!name || saving) return
+    setSaving(true)
+    setCreateErr('')
+    try {
+      const res = await fetch('/api/watchlists', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: '', is_public: false }),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      const created = await res.json()
+      if (!created?.id) throw new Error('no id')
+      mutateMine()
+      onPick({ key: `user:${created.id}`, name: created.name })
+    } catch {
+      setCreateErr('Could not create that list.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const query = q.trim().toLowerCase()
   const match = name => !query || String(name || '').toLowerCase().includes(query)
@@ -66,6 +98,35 @@ export default function WatchlistPicker({ onPick }) {
 
         {/* My Lists */}
         <div className={styles.section}>My Lists</div>
+        {user && (creating ? (
+          <div className={styles.newRow}>
+            <input
+              className={styles.newInput}
+              value={newName}
+              maxLength={60}
+              autoFocus
+              placeholder="List name"
+              aria-label="New watchlist name"
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); createList() }
+                if (e.key === 'Escape') { e.preventDefault(); setCreating(false); setNewName(''); setCreateErr('') }
+              }}
+            />
+            <button
+              type="button"
+              className={styles.newGo}
+              disabled={!newName.trim() || saving}
+              onClick={createList}
+            >{saving ? '…' : 'Create'}</button>
+          </div>
+        ) : (
+          <button type="button" className={`${styles.row} ${styles.newRowBtn}`} onClick={() => setCreating(true)}>
+            <span className={styles.rowIcon}><UIcon name="plus" size={13} gold={false} /></span>
+            <span className={styles.rowName}>New list…</span>
+          </button>
+        ))}
+        {createErr && <div className={styles.createErr}>{createErr}</div>}
         {showFlagged && (
           <button type="button" className={styles.row} onClick={() => onPick({ key: 'flagged', name: flaggedLabel })}>
             <span className={styles.rowIcon}><UIcon name="flag" size={13} gold={false} /></span>

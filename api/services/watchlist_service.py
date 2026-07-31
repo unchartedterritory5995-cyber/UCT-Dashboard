@@ -118,20 +118,31 @@ def add_item(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None
         row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
         if not row:
             return None
+        sym_u = sym.strip().upper()
+        # Idempotent per (watchlist, sym) — the quick-add bar and the per-list "+"
+        # make a repeat add one keystroke away, and bulk_add_items already skips
+        # duplicates. Return the row that exists rather than inserting a second
+        # one; never overwrite notes the user already wrote on it.
+        existing = conn.execute(
+            "SELECT id, notes FROM watchlist_items WHERE watchlist_id = ? AND sym = ?", (wl_id, sym_u)
+        ).fetchone()
+        if existing:
+            return {"id": existing["id"], "watchlist_id": wl_id, "sym": sym_u,
+                    "notes": existing["notes"] or "", "duplicate": True}
         item_id = str(uuid.uuid4())[:12]
         max_order = conn.execute(
             "SELECT COALESCE(MAX(sort_order), 0) FROM watchlist_items WHERE watchlist_id = ?", (wl_id,)
         ).fetchone()[0]
         conn.execute(
             "INSERT INTO watchlist_items (id, watchlist_id, sym, notes, sort_order) VALUES (?,?,?,?,?)",
-            (item_id, wl_id, sym.upper(), notes, max_order + 1),
+            (item_id, wl_id, sym_u, notes, max_order + 1),
         )
         conn.execute(
             "UPDATE watchlists SET updated_at = ? WHERE id = ?",
             (datetime.now(timezone.utc).isoformat(), wl_id),
         )
         conn.commit()
-        return {"id": item_id, "watchlist_id": wl_id, "sym": sym.upper(), "notes": notes}
+        return {"id": item_id, "watchlist_id": wl_id, "sym": sym_u, "notes": notes, "duplicate": False}
     finally:
         conn.close()
 

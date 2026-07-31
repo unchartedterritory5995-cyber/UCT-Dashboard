@@ -124,3 +124,49 @@
 :global([data-charts-theme='sunrise']) .title { color: #1c2836; }
 :global([data-charts-theme='sunrise']) .rowName { color: #243040; }
 :global([data-charts-theme='sunrise']) .row:hover { background: rgba(20, 35, 55, 0.06); }
+
+/* ── Create a list inline (the widget's only path to a new watchlist) ── */
+.newRowBtn { color: var(--ut-gold); }
+
+.newRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 6px;
+}
+
+.newInput {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--ut-gold);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-bright);
+  font-size: 12px;
+  outline: none;
+}
+
+.newGo {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ut-gold);
+  border-radius: 4px;
+  background: rgba(201, 168, 76, 0.16);
+  color: var(--ut-gold);
+  font-size: 11px;
+  cursor: pointer;
+}
+.newGo:disabled { opacity: 0.45; cursor: default; }
+
+.createErr {
+  padding: 2px 10px 6px;
+  font-size: 11px;
+  color: var(--loss, #ef4444);
+}
+
+@media (max-width: 1024px) {
+  .newInput, .newGo { min-height: 38px; }
+}

@@ -23,6 +23,8 @@ import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
+import AddSymbolBar from './watchlist/AddSymbolBar'
+import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -326,24 +328,10 @@ const WatchRow = React.memo(function WatchRow({
   )
 })
 
-function AddItemRow({ onAdd }) {
-  const [sym, setSym] = useState('')
-  return (
-    <form
-      className={styles.addItemRow}
-      onSubmit={e => { e.preventDefault(); if (sym.trim()) { onAdd(sym.trim()); setSym('') } }}
-    >
-      <input
-        className={styles.addItemInput}
-        placeholder="+ Ticker"
-        value={sym}
-        onChange={e => setSym(e.target.value.toUpperCase())}
-        maxLength={10}
-      />
-      <button type="submit" className={styles.addItemBtn}>Add</button>
-    </form>
-  )
-}
+// NOTE: the old `AddItemRow` (a bare "+ Ticker" input pinned to the BOTTOM of an
+// expanded list, no autocomplete) was replaced by two surfaces that both use the
+// predictive TickerCombobox: the pinned AddSymbolBar at the top of the panel, and
+// the per-list "+" that drops an add row in under a list's own header.
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null }) {
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
@@ -435,6 +423,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [sortBy, setSortBy] = useState(null) // null | 'sym' | 'price' | 'change' | '1d' | '1w' | '1m' | '3m' | 'ytd'
   const [sortDir, setSortDir] = useState('desc')
   const [filterText, setFilterText] = useState('')
+  const [addingToList, setAddingToList] = useState(null)  // list id whose inline "+" row is open
+  const addBarRef = useRef(null)                          // imperative focus() for the hotkey
 
   function toggleStar(listId, sym) {
     const key = `${listId}:${sym}`
@@ -932,14 +922,72 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     mutateCommunity()
   }
 
+  // Returns the created/existing item so callers can tell an add from a no-op
+  // re-add (the server dedupes per (list, sym) and flags it with `duplicate`).
+  // 'flagged' is not a real watchlist row — it routes through useFlagged, whose
+  // `toggle` would UNflag an existing symbol, so guard on isFlagged.
   async function handleAddItem(listId, sym) {
-    await fetch(`/api/watchlists/${listId}/items`, {
+    const clean = String(sym || '').trim().toUpperCase()
+    if (!clean) return null
+    if (listId === 'flagged') {
+      const already = isFlagged(clean)
+      if (!already) toggleFlag(clean)
+      return { sym: clean, duplicate: already }
+    }
+    const res = await fetch(`/api/watchlists/${listId}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sym, notes: '' }),
+      body: JSON.stringify({ sym: clean, notes: '' }),
     })
+    if (!res.ok) throw new Error(`add failed: ${res.status}`)
+    const item = await res.json().catch(() => null)
     mutateMine()
+    return item
   }
+
+  // Create a list from the add-bar picker (name only) and hand back the new row
+  // so the caller can retarget to it immediately.
+  async function handleCreateListInline(name) {
+    const trimmed = String(name || '').trim()
+    if (!trimmed) return null
+    const res = await fetch('/api/watchlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed, description: '', is_public: false }),
+    })
+    if (!res.ok) return null
+    const created = await res.json().catch(() => null)
+    if (!created?.id) return null
+    mutateMine()
+    mutateCommunity()
+    // Open it so the symbol about to land is visible.
+    setExpandedLists(prev => new Set(prev).add(created.id))
+    return created
+  }
+
+  // Targets for the pinned add bar: Flagged first, then the user's own lists.
+  // `syms` powers duplicate detection (quick-add disables, suggestions annotate).
+  const addTargets = useMemo(() => {
+    const out = [{
+      id: 'flagged',
+      name: flaggedName || 'Flagged',
+      syms: new Set(flagged.map(s => String(s).toUpperCase())),
+    }]
+    for (const wl of myLists || []) {
+      out.push({
+        id: wl.id,
+        name: wl.name,
+        syms: new Set((wl.items || []).map(i => String(i.sym).toUpperCase())),
+      })
+    }
+    // Pick mode scopes the widget to one list — only offer that list as a target.
+    if (pickList) {
+      const scoped = out.filter(t =>
+        pickList === 'flagged' ? t.id === 'flagged' : pickList === `user:${t.id}`)
+      if (scoped.length) return scoped
+    }
+    return out
+  }, [flagged, flaggedName, myLists, pickList])
 
   async function handleRemoveItem(listId, itemId) {
     await fetch(`/api/watchlists/${listId}/items/${itemId}`, { method: 'DELETE' })
@@ -1322,6 +1370,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           )}
           {isOwner && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              {!pickList && <button
+                className={`${styles.wlActionBtn}${addingToList === wl.id ? ' ' + styles.wlActionBtnActive : ''}`}
+                onClick={() => {
+                  setExpandedLists(prev => new Set(prev).add(wl.id))
+                  setAddingToList(cur => (cur === wl.id ? null : wl.id))
+                }}
+                title={`Add a symbol to ${wl.name}`}
+                aria-label={`Add a symbol to ${wl.name}`}
+              ><UIcon name="plus" size={13} /></button>}
               <button
                 className={`${styles.wlActionBtn}${wl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => handleTogglePublic(wl)}
@@ -1348,6 +1405,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {wl.description && <div className={styles.wlDesc}>{wl.description}</div>}
             {/* Old per-list filter/sort header removed — the global column header now
                 drives columns + sorting so every watchlist uses the same format. */}
+            {isOwner && addingToList === wl.id && (
+              <div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
+                <TickerCombobox
+                  compact
+                  autoFocus
+                  onPick={sym => handleAddItem(wl.id, sym)}
+                  onEscape={() => setAddingToList(null)}
+                  existingSyms={new Set(items.map(i => String(i.sym).toUpperCase()))}
+                  targetLabel={wl.name}
+                  placeholder={`Add to ${wl.name}…`}
+                />
+                <button
+                  className={styles.inlineAddClose}
+                  onClick={() => setAddingToList(null)}
+                  title="Done adding"
+                  aria-label="Done adding"
+                ><UIcon name="x" size={11} /></button>
+              </div>
+            )}
             {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
             {sortedItems.map(item => {
               const q = prices[item.sym]
@@ -1384,7 +1460,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 </React.Fragment>
             )
             })}
-            {isOwner && <AddItemRow onAdd={sym => handleAddItem(wl.id, sym)} />}
           </div>
           )})()}
       </div>
@@ -1424,6 +1499,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <span className={styles.flaggedHint}>Shift+F</span>
           {user && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              {!pickList && <button
+                className={`${styles.wlActionBtn}${addingToList === 'flagged' ? ' ' + styles.wlActionBtnActive : ''}`}
+                onClick={() => {
+                  setExpandedLists(prev => new Set(prev).add('flagged'))
+                  setAddingToList(cur => (cur === 'flagged' ? null : 'flagged'))
+                }}
+                title="Add a symbol to Flagged"
+                aria-label="Add a symbol to Flagged"
+              ><UIcon name="plus" size={13} /></button>}
               <button
                 className={`${styles.wlActionBtn}${isShared ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={toggleShare}
@@ -1435,6 +1519,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
         {open && (
           <div className={styles.wlItems}>
+            {addingToList === 'flagged' && (
+              <div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
+                <TickerCombobox
+                  compact
+                  autoFocus
+                  onPick={sym => handleAddItem('flagged', sym)}
+                  onEscape={() => setAddingToList(null)}
+                  existingSyms={new Set(flagged.map(s => String(s).toUpperCase()))}
+                  targetLabel="Flagged"
+                  placeholder="Add to Flagged…"
+                />
+                <button
+                  className={styles.inlineAddClose}
+                  onClick={() => setAddingToList(null)}
+                  title="Done adding"
+                  aria-label="Done adding"
+                ><UIcon name="x" size={11} /></button>
+              </div>
+            )}
             {flagged.length === 0 ? (
               <div className={styles.wlEmpty}>No flagged tickers. Press <strong>Shift+F</strong> on any chart.</div>
             ) : applyColSort(flagged).map(sym => renderTickerRow({ sym }))}
@@ -1445,7 +1548,24 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
 
   return (
-    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`} style={wlStyle} onPointerDown={markActiveWidget} onFocusCapture={markActiveWidget}>
+    <div
+      ref={pageRef}
+      className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}
+      style={wlStyle}
+      onPointerDown={markActiveWidget}
+      onFocusCapture={markActiveWidget}
+      // "a" focuses the add bar. Deliberately a CONTAINER handler, not a window
+      // one: it only fires when focus is already inside this panel, so a second
+      // Watchlist/Chart widget on the /charts workspace can never swallow it.
+      onKeyDown={e => {
+        if (e.key !== 'a' && e.key !== 'A') return
+        if (e.metaKey || e.ctrlKey || e.altKey) return
+        const t = e.target
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+        e.preventDefault()
+        addBarRef.current?.focus()
+      }}
+    >
       {settingsOpen && (
         <WatchlistSettingsPanel
           settings={wlSettings}
@@ -1487,6 +1607,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               onClick={() => setActiveTab('community')}
             >Community</button>
           </div>
+        )}
+
+        {/* Pinned add bar — the primary "put a ticker on a list" surface. Sits
+            above the scrolling body so it never scrolls away. Community lists
+            aren't yours to write to, so it's My-Lists-only. */}
+        {activeTab === 'mine' && user && (
+          <AddSymbolBar
+            ref={addBarRef}
+            targets={addTargets}
+            selectedSym={selectedSym}
+            onAdd={handleAddItem}
+            onCreateList={handleCreateListInline}
+            // Scoped to one list (a Charts widget) → nothing to pick between.
+            showPicker={!pickList}
+          />
         )}
 
         {/* Sub-header (hidden in single-list pick mode) */}
@@ -1569,8 +1704,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   : myLists
                 if (!pickList && myLists.length === 0) {
                   return (
-                    <div className={styles.wlEmpty} style={{ padding: '12px 8px', opacity: 0.5 }}>
-                      No custom lists yet. Create one above.
+                    <div className={styles.noListsEmpty}>
+                      <div className={styles.noListsText}>No custom lists yet.</div>
+                      <button className={styles.noListsBtn} onClick={() => setShowCreate(true)}>
+                        <UIcon name="plus" size={11} /> New list
+                      </button>
                     </div>
                   )
                 }

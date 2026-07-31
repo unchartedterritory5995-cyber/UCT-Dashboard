@@ -1285,43 +1285,64 @@
   padding: 8px 28px;
 }
 
-/* ── Add item row ── */
-.addItemRow {
+/* ── Per-list inline add row (opened by the "+" on a list header) ──
+   Replaces the old bottom-of-list `.addItemRow` bare input. Sits at the TOP of
+   the list's items so it's visible without scrolling past 50 tickers. */
+.inlineAddRow {
   display: flex;
-  gap: 6px;
-  padding: 6px 10px 8px 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px 6px 24px;
 }
 
-.addItemInput {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  background: var(--bg);
+.inlineAddClose {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 3px;
-  color: var(--text);
-  padding: 4px 8px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.addItemInput:focus { border-color: rgba(201, 168, 76, 0.4); }
-.addItemInput::placeholder { color: var(--text-muted); opacity: 0.5; }
-
-.addItemBtn {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 4px 10px;
-  background: rgba(201, 168, 76, 0.1);
-  border: 1px solid rgba(201, 168, 76, 0.25);
-  border-radius: 3px;
-  color: var(--ut-gold);
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s;
-  flex-shrink: 0;
 }
-.addItemBtn:hover { background: rgba(201, 168, 76, 0.2); }
+.inlineAddClose:hover { color: var(--text-bright); border-color: var(--ut-gold); }
+
+/* ── "No custom lists yet" — now an action, not dead text ── */
+.noListsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 14px 10px;
+}
+.noListsText {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.noListsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 4px;
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--ut-gold);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.noListsBtn:hover { background: rgba(201, 168, 76, 0.2); }
+
+@media (max-width: 1024px) {
+  .inlineAddClose { min-width: 32px; min-height: 32px; }
+  .noListsBtn { min-height: var(--tap-min); }
+}
 
 /* ── Create watchlist modal ── */
 .modalBackdrop {

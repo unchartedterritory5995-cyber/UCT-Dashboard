@@ -1,0 +1,118 @@
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 7px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transition: border-color 0.15s ease;
+}
+.wrap:focus-within {
+  border-color: var(--ut-gold);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  outline: none;
+}
+.input::placeholder {
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.compact .input { height: 24px; font-size: 10.5px; }
+
+/* ── Suggestion listbox ── */
+.list {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: -1px;
+  right: -1px;
+  z-index: 60;
+  margin: 0;
+  padding: 3px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+
+.opt {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.optActive { background: rgba(201, 168, 76, 0.14); }
+
+.optSym {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold);
+  flex-shrink: 0;
+}
+
+.optName {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.optAlready { opacity: 0.62; }
+.optAlreadyTag {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.optEmpty {
+  padding: 7px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Touch: meet the 44px tap-target convention (tokens.css --tap-min) */
+@media (max-width: 1024px) {
+  .input { height: var(--tap-min); font-size: 15px; }  /* 16px-ish avoids iOS zoom-on-focus */
+  .compact .input { height: var(--tap-min); font-size: 15px; }
+  .opt { min-height: var(--tap-min); align-items: center; }
+  .list { max-height: 50vh; }
+}
