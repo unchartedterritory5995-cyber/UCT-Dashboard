@@ -2860,6 +2860,34 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
 
+        # -- Earnings wire detector (Phase 1) -------------------------------
+        # Ships DARK. Polls one full-market snapshot per tick inside the print
+        # windows and upserts detected prints; GET /api/calendar/wire only reads
+        # the table. max_instances=1 so a slow tick can never stack on the next.
+        if _wire_enabled():
+            from api.services.wire import store as _wire_store
+            _wire_store._init_db()
+
+            def _wire_tick_job():
+                try:
+                    from api.services.wire.detector import run_wire_tick
+                    run_wire_tick()
+                except Exception as _e:
+                    print(f"[scheduler] wire detector error: {_e}")
+
+            # 20s cadence inside the two print windows (BMO 6-9 ET, AMC 16 ET).
+            _scheduler.add_job(
+                _wire_tick_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9,16",
+                                    second="*/20", timezone=_ET),
+                id="wire_detector", max_instances=1, replace_existing=True)
+            # Hourly safety net so a print outside the windows still lands.
+            _scheduler.add_job(
+                _wire_tick_job,
+                trigger=CronTrigger(day_of_week="mon-fri", minute=5, timezone=_ET),
+                id="wire_detector_slow", max_instances=1, replace_existing=True)
+            print("[scheduler] earnings wire detector registered (20s in print windows)")
+
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh
 
@@ -3939,6 +3967,18 @@ app.include_router(flow_scoreboard_router)
 app.include_router(flow_explain_router)
 app.include_router(schwab_router)
 app.include_router(calendar_router.router)
+from api.routers import wire as wire_router          # earnings wire (Phase 1)
+app.include_router(wire_router.router)
+
+
+def _wire_enabled() -> bool:
+    """The earnings wire ships DARK.
+
+    Strict `== "1"` rather than the looser ("1","true","yes") idiom used
+    elsewhere: this job polls providers every 20s during market hours, so the
+    failure direction must be OFF. A typo enables nothing.
+    """
+    return os.environ.get("WIRE_ENABLED", "") == "1"
 app.include_router(insider_router.router)
 app.include_router(auth_router.router)
 app.include_router(waitlist_router.router)
