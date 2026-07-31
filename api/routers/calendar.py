@@ -1289,7 +1289,14 @@ def _is_key_event(title: str) -> bool:
 
 
 def _is_fed_speaker(title: str) -> bool:
-    t = title.lower()
+    t = (title or "").lower().strip()
+    # STRUCTURAL first. FMP ships "Fed <Name> Speech" / "Fed <Name> Speaks" for
+    # every official, so matching the SHAPE stays correct as the FOMC roster
+    # turns over. The surname list below silently goes stale — it carried
+    # `barkin` but not `cook` or `musalem`, so on the week of 2026-08-03 three
+    # identical Fed-speech events split across the econ and fed buckets.
+    if t.startswith("fed ") and (t.endswith(" speech") or t.endswith(" speaks")):
+        return True
     return any(x in t for x in _FED_TERMS)
 
 
@@ -1300,6 +1307,44 @@ def _fmt_time(dt: datetime) -> str:
     return f"{h}:{m:02d} {ap}"
 
 
+# ForexFactory's JSON clock is US CENTRAL, not ET. Verified 2026-07-31 against
+# four known releases: FOMC statement 1:00 PM (2:00 ET), Core PCE / Advance GDP /
+# Unemployment Claims 7:30 AM (8:30 ET), CB Consumer Confidence 9:00 AM (10:00
+# ET). Converted through the ZONE, never a fixed -1 offset, so DST stays right.
+_FF_TZ = ZoneInfo("America/Chicago")
+
+# The live feed returns "7/30/2026 7:30:00 AM". It previously returned ISO-8601,
+# and `datetime.fromisoformat` raising on the new shape — inside a bare
+# `except: continue` — silently dropped ALL 92 events of a working 200-OK feed.
+_FF_DATE_FORMATS = (
+    "%m/%d/%Y %I:%M:%S %p",
+    "%m/%d/%Y %I:%M %p",
+    "%m/%d/%Y %H:%M:%S",
+)
+
+
+def _parse_ff_datetime(raw) -> datetime | None:
+    """A ForexFactory timestamp as an ET-aware datetime, or None.
+
+    Tolerates ISO-8601 (in case the feed reverts) and the US-style format it
+    currently ships. A naive value is CENTRAL — see `_FF_TZ`.
+    """
+    if not raw or not isinstance(raw, str):
+        return None
+    raw = raw.strip()
+    try:
+        dt = datetime.fromisoformat(raw)
+        return (dt if dt.tzinfo else dt.replace(tzinfo=_FF_TZ)).astimezone(_ET)
+    except ValueError:
+        pass
+    for fmt in _FF_DATE_FORMATS:
+        try:
+            return datetime.strptime(raw, fmt).replace(tzinfo=_FF_TZ).astimezone(_ET)
+        except ValueError:
+            continue
+    return None
+
+
 def _fetch_ff_events(week_start: str, week_end: str) -> dict:
     """Fetch USD economic events from ForexFactory for the given week range.
     Returns {YYYY-MM-DD: {econ: [...], fed: [...]}}
@@ -1307,6 +1352,7 @@ def _fetch_ff_events(week_start: str, week_end: str) -> dict:
     import requests
 
     result: dict[str, dict] = {}
+    parsed = unparsed = 0
 
     for url in _FF_URLS:
         try:
@@ -1335,11 +1381,12 @@ def _fetch_ff_events(week_start: str, week_end: str) -> dict:
             date_raw = ev.get("date", "")
             if not date_raw:
                 continue
-            try:
-                dt = datetime.fromisoformat(date_raw).astimezone(_ET)
-                ds = dt.strftime("%Y-%m-%d")
-            except Exception:
+            dt = _parse_ff_datetime(date_raw)
+            if dt is None:
+                unparsed += 1
                 continue
+            parsed += 1
+            ds = dt.strftime("%Y-%m-%d")
 
             if ds < week_start or ds > week_end:
                 continue
@@ -1368,21 +1415,81 @@ def _fetch_ff_events(week_start: str, week_end: str) -> dict:
                     "is_key":   _is_key_event(title),
                 })
 
+    # A feed whose every row fails to parse is the exact failure that hid for
+    # weeks behind a silent `continue`. Say so loudly instead of returning {}.
+    if unparsed and not parsed:
+        _logger.error(
+            "Calendar: ForexFactory date format unrecognised — %d rows, 0 parsed. "
+            "The feed shape changed; see _FF_DATE_FORMATS.", unparsed)
+    elif unparsed:
+        _logger.warning("Calendar: %d ForexFactory rows had unparseable dates", unparsed)
+
     return result
 
 
 def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
-    """Fetch real economic events from ForexFactory and inject into days in-place."""
+    """Real economic events, injected in-place. ForexFactory first, FMP for gaps.
+
+    FF only publishes `ff_calendar_thisweek.json` — `…_nextweek.json` 404s — so
+    every OTHER week had no econ source at all. FMP already backs the weekly
+    Discord card (`econ_calendar_fmp`), so the page uses the same fallback.
+
+    The fallback fills DAYS FF did not cover; it never replaces an FF day, since
+    FF is the richer source (it carries `actual` once a print releases).
+    """
+    ff: dict = {}
     try:
         ff = _fetch_ff_events(week_start, week_end)
-        for ds, buckets in ff.items():
-            if ds in days:
-                days[ds]["econ"] = buckets["econ"]
-                days[ds]["fed"]  = buckets["fed"]
-        total = sum(len(b["econ"]) + len(b["fed"]) for b in ff.values())
-        _logger.info("Calendar: FF econ loaded %d events across %d days", total, len(ff))
     except Exception as exc:
         _logger.warning("Calendar: FF econ fetch failed: %s", exc)
+
+    for ds, buckets in ff.items():
+        if ds in days:
+            days[ds]["econ"] = buckets["econ"]
+            days[ds]["fed"]  = buckets["fed"]
+    ff_total = sum(len(b["econ"]) + len(b["fed"]) for b in ff.values())
+
+    missing = [ds for ds in days
+               if not days[ds].get("econ") and not days[ds].get("fed")]
+    if not missing:
+        _logger.info("Calendar: FF econ loaded %d events across %d days",
+                     ff_total, len(ff))
+        return
+
+    try:
+        from api.services import econ_calendar_fmp
+        fmp = econ_calendar_fmp.fetch_us_econ_week(week_start, week_end) or {}
+    except Exception as exc:
+        _logger.warning("Calendar: FMP econ fallback failed: %s", exc)
+        fmp = {}
+
+    filled = 0
+    for ds in missing:
+        for row in fmp.get(ds) or []:
+            title = row.get("event") or ""
+            if not title:
+                continue
+            # FMP's own is_fed flag is unreliable — on the week of 8/3 it tagged
+            # "Fed Barkin Speech" but not "Fed Cook Speech" / "Fed Musalem
+            # Speech", so identical events split across two buckets. OR it with
+            # the calendar's own detector, the one the FF path already uses, so
+            # both sources bucket Fed speakers the same way.
+            if row.get("is_fed") or _is_fed_speaker(title):
+                days[ds]["fed"].append({
+                    "time": row.get("time"), "event": title, "note": "Fed",
+                })
+            else:
+                days[ds]["econ"].append({
+                    "time":     row.get("time"),
+                    "event":    title,
+                    "estimate": row.get("estimate"),
+                    "prior":    row.get("prior"),
+                    "actual":   None,          # FMP does not carry actuals
+                    "is_key":   _is_key_event(title),
+                })
+            filled += 1
+    _logger.info("Calendar: econ loaded — FF %d events / %d days, FMP filled %d "
+                 "across %d uncovered days", ff_total, len(ff), filled, len(missing))
 
 
 # ── IPO calendar endpoint ──────────────────────────────────────────────────────
