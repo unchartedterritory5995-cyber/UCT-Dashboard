@@ -27,14 +27,25 @@ def _ent(sym, mc=10.0):
     return {"sym": sym, "mc_b": mc, "logo_path": None}
 
 
-def _day(label, n_bmo=3, n_amc=3, overflow=0, total=None):
+def _day(label, n_bmo=3, n_amc=3, overflow=0, total=None, n_tbd=0):
     return {
         "label": label,
         "total": total,
         "bmo": [_ent(f"B{i}") for i in range(n_bmo)],
         "amc": [_ent(f"A{i}") for i in range(n_amc)],
+        "tbd": [_ent(f"T{i}") for i in range(n_tbd)],
         "overflow": overflow,
     }
+
+
+def _full_week(per_day=12):
+    """A realistic week. Poster tests must use this, not a 6-entry stub — the
+    thin-week floor exists precisely to refuse a week that small, so a toy
+    fixture now (correctly) fails to post."""
+    return [{"label": f"D{i}", "total": per_day * 3, "overflow": 0,
+             "bmo": [_ent(f"B{i}{j}") for j in range(per_day)],
+             "amc": [_ent(f"A{i}{j}") for j in range(per_day)],
+             "tbd": [_ent(f"T{i}{j}") for j in range(per_day)]} for i in range(5)]
 
 
 def _png_size(b: bytes) -> tuple[int, int]:
@@ -174,7 +185,7 @@ def test_empty_earnings_aborts_even_when_econ_is_healthy(_isolated_state):
 def test_a_quiet_macro_week_still_posts(_isolated_state):
     """Econ is judged SEPARATELY from earnings: a week with no major releases is
     real, and its card says so honestly. Only empty earnings blocks the post."""
-    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    payloads = (_full_week(), [{"label": "MON 3", "events": []}])
     with mock.patch.object(poster, "build_payloads", return_value=payloads), \
          mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
         out = poster.post_week(target="live", monday=MON)
@@ -183,20 +194,20 @@ def test_a_quiet_macro_week_still_posts(_isolated_state):
 
 
 def test_a_populated_week_posts_once_and_dedupes(_isolated_state):
-    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": [
+    payloads = (_full_week(), [{"label": "MON 3", "events": [
         {"time": "8:30 AM", "event": "CPI", "estimate": "0.2%", "prior": "0.3%"}]}])
     with mock.patch.object(poster, "build_payloads", return_value=payloads), \
          mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
         first = poster.post_week(target="live", monday=MON)
         second = poster.post_week(target="live", monday=MON)
 
-    assert first["ok"] and first["earnings"] == 6
+    assert first["ok"] and first["earnings"] == 120
     assert post_m.call_count == 1                  # the second run is deduped
     assert second.get("skipped") == "already_posted"
 
 
 def test_force_bypasses_the_dedup_guard(_isolated_state):
-    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    payloads = (_full_week(), [{"label": "MON 3", "events": []}])
     with mock.patch.object(poster, "build_payloads", return_value=payloads), \
          mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
         poster.post_week(target="live", monday=MON)
@@ -207,7 +218,7 @@ def test_force_bypasses_the_dedup_guard(_isolated_state):
 def test_test_and_live_dedupe_independently(_isolated_state, monkeypatch):
     """A dry run must not consume the week's live slot."""
     monkeypatch.setenv("DISCORD_EVENT_CALENDAR_TEST_WEBHOOK_URL", "https://test.example/hook")
-    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    payloads = (_full_week(), [{"label": "MON 3", "events": []}])
     with mock.patch.object(poster, "build_payloads", return_value=payloads), \
          mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
         poster.post_week(target="test", monday=MON)
@@ -217,7 +228,7 @@ def test_test_and_live_dedupe_independently(_isolated_state, monkeypatch):
 
 def test_a_discord_failure_does_not_record_the_week_as_posted(_isolated_state):
     """Otherwise a transient 500 would permanently silence that week."""
-    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    payloads = (_full_week(), [{"label": "MON 3", "events": []}])
     with mock.patch.object(poster, "build_payloads", return_value=payloads), \
          mock.patch.object(poster, "_post_two_images", return_value=False):
         out = poster.post_week(target="live", monday=MON)
@@ -345,7 +356,7 @@ def test_a_transparent_logo_still_gets_a_light_plate():
 def test_the_post_copy_says_what_it_is_and_where_it_came_from(_isolated_state):
     """Owner-set copy. The cards carry the counts and the week in their own
     headers, so the message body stays to the drop and the source."""
-    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    payloads = (_full_week(), [{"label": "MON 3", "events": []}])
     seen = {}
     with mock.patch.object(poster, "build_payloads", return_value=payloads), \
          mock.patch.object(poster, "_post_two_images",
@@ -560,3 +571,68 @@ def test_a_week_with_ew_data_stays_attention_driven():
                       {"sym": "DUK", "mc_b": 90.0, "ew": 0}])
     assert out["RBLX"]["marquee"] is True
     assert out["DUK"]["marquee"] is False
+
+
+# ── The thin week ─────────────────────────────────────────────────────────────
+
+def test_a_degraded_but_nonzero_week_is_refused(_isolated_state):
+    """THE GAP THE OWNER FLAGGED. Twice on 7/30 a degraded fetch posted: 43 of
+    208 after a partial provider recovery, and 65 of 398 during a metrics
+    outage. Both are nonzero, so the empty-earnings guard let them through."""
+    thin = ([{"label": "MON 3", "total": 200, "overflow": 197,
+              "bmo": [_ent("A")], "amc": [_ent("B")], "tbd": [_ent("C")]}],
+            [{"label": "MON 3", "events": []}])
+    with mock.patch.object(poster, "build_payloads", return_value=thin), \
+         mock.patch.object(poster, "_post_two_images") as post_m, \
+         mock.patch.object(poster, "_alert_admin") as alert_m:
+        out = poster.post_week(target="live", monday=MON)
+    assert out["ok"] is False and out["entries"] == 3
+    post_m.assert_not_called()
+    alert_m.assert_called_once()
+
+
+def test_the_floor_cannot_false_positive_on_a_real_holiday_week():
+    """Calibrated against actual data, not a guess: Christmas 2025 had 71 US
+    reporters, New Year 246, July 4th 210, Thanksgiving 478."""
+    assert poster.MIN_WEEK_ENTRIES < 71
+
+
+def test_a_thin_read_is_refetched_once_before_being_judged(_isolated_state):
+    """A transient blip should self-heal rather than cost the week its post."""
+    thin = ([{"label": "MON 3", "total": 200, "overflow": 0,
+              "bmo": [_ent("A")], "amc": [], "tbd": []}],
+            [{"label": "MON 3", "events": []}])
+    good = (_full_week(), [{"label": "MON 3", "events": []}])
+    with mock.patch.object(poster, "build_payloads",
+                           side_effect=[thin, good]) as build_m, \
+         mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
+        out = poster.post_week(target="live", monday=MON)
+    assert build_m.call_count == 2, "a thin read must be refetched once"
+    assert out["ok"] is True
+    post_m.assert_called_once()
+
+
+def test_a_healthy_week_is_not_refetched(_isolated_state):
+    """The retry is for degradation, not a tax on every run."""
+    good = (_full_week(), [{"label": "MON 3", "events": []}])
+    with mock.patch.object(poster, "build_payloads", return_value=good) as build_m, \
+         mock.patch.object(poster, "_post_two_images", return_value=True):
+        poster.post_week(target="live", monday=MON)
+    assert build_m.call_count == 1
+
+
+def test_a_refetch_that_comes_back_worse_keeps_the_better_read(_isolated_state):
+    """Never trade a usable read for a worse one. per_day=3 -> 45 entries, which
+    is BELOW the refetch bar (so the branch actually runs) and ABOVE the refuse
+    floor (so it still posts). At exactly REFETCH_BELOW this test was vacuous —
+    no refetch fired, so it passed even with the comparison deleted."""
+    ok_ish = (_full_week(per_day=3), [{"label": "MON 3", "events": []}])   # 45
+    worse = ([{"label": "MON 3", "total": 200, "overflow": 0,
+               "bmo": [_ent("A")], "amc": [], "tbd": []}],
+             [{"label": "MON 3", "events": []}])
+    with mock.patch.object(poster, "build_payloads",
+                           side_effect=[ok_ish, worse]), \
+         mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
+        out = poster.post_week(target="live", monday=MON)
+    assert out["ok"] is True
+    post_m.assert_called_once()

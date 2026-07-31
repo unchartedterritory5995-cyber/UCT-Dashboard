@@ -130,6 +130,23 @@ MARQUEE_MC_B_NO_EW = 50.0
 MIN_DRAW_MC_B = 1.0
 MIN_DRAW_EW = 3
 
+# ── Refusing a THIN week ──────────────────────────────────────────────────────
+# The empty-earnings guard only catches ZERO, and twice on 2026-07-30 a
+# DEGRADED-but-nonzero fetch sailed through: a partial provider recovery posted
+# 43 of 208, and a metrics outage drew 65 of 398. Both would have gone out
+# looking like a quiet week rather than a broken one.
+#
+# Calibrated against real holiday weeks rather than guessed, so a genuinely
+# light week can never trip it: Christmas 2025 still had 71 US reporters,
+# New Year 246, July 4th 210, Thanksgiving 478. Twenty is far below the
+# thinnest real trading week and far above a broken fetch.
+MIN_WEEK_ENTRIES = 20
+
+# Softer bar: below this, refetch ONCE before judging. Cannot false-positive —
+# the worst case is rebuilding the same numbers and posting them anyway — and it
+# self-heals the transient provider blip that caused the 43-of-208 post.
+REFETCH_BELOW = 60
+
 
 def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     """(earnings_days, econ_days) shaped for the renderers. Ranks each day's
@@ -316,8 +333,34 @@ def post_week(target: str = "test", monday: date | None = None,
 
         earnings_days, econ_days = build_payloads(monday)
 
+        def _entries(days_):
+            # .get throughout: the renderer tolerates a day without a `tbd`
+            # key, so the guard that decides whether to POST that day must too.
+            return sum(len(d.get("bmo") or []) + len(d.get("amc") or [])
+                       + len(d.get("tbd") or [])
+                       for d in days_)
+
+        # A thin read is usually a provider blip, so give it one more chance
+        # from a cold cache before deciding anything.
+        if _entries(earnings_days) < REFETCH_BELOW:
+            n_before = _entries(earnings_days)
+            _logger.warning("[week-post] thin week (%d entries) — refetching once",
+                            n_before)
+            try:
+                from api.services.cache import cache as _cache
+                _cache.invalidate("calendar_weekly")
+                _cache.invalidate(f"calendar_week_{ws}")
+                retry_earn, retry_econ = build_payloads(monday)
+                if _entries(retry_earn) > n_before:
+                    earnings_days, econ_days = retry_earn, retry_econ
+                    _logger.info("[week-post] refetch recovered %d -> %d entries",
+                                 n_before, _entries(earnings_days))
+            except Exception as exc:                    # noqa: BLE001
+                _logger.warning("[week-post] refetch failed: %s", exc)
+
         n_earn = sum(len(d["bmo"]) + len(d["amc"]) for d in earnings_days)
         n_econ = sum(len(d["events"]) for d in econ_days)
+        n_entries = _entries(earnings_days)
         # A trading week with ZERO reporters does not exist — that reading is
         # always a provider failure (observed 2026-07-30: a Finnhub 429 returned
         # an empty earnings set while econ came back fine, and an earlier
@@ -326,12 +369,15 @@ def post_week(target: str = "test", monday: date | None = None,
         # one message, so an empty EITHER side makes the whole post a lie.
         # Econ is judged separately: a genuinely quiet macro week is real, and
         # its card says so honestly.
-        if n_earn == 0:
-            _alert_admin(f"Weekly calendar post ABORTED for {ws} — the earnings "
-                         f"calendar came back EMPTY (provider failure; econ={n_econ}). "
-                         f"Nothing was posted.")
+        if n_earn == 0 or n_entries < MIN_WEEK_ENTRIES:
+            _alert_admin(
+                f"Weekly calendar post ABORTED for {ws} — only {n_entries} "
+                f"reporters resolved for the whole week (floor {MIN_WEEK_ENTRIES}; "
+                f"the thinnest real week on record, Christmas, had 71). "
+                f"Treating this as a provider failure, not a quiet week. "
+                f"econ={n_econ}. Nothing was posted.")
             return {"ok": False, "reason": "empty_calendar", "week_start": ws,
-                    "earnings": 0, "econ": n_econ}
+                    "earnings": n_earn, "econ": n_econ, "entries": n_entries}
 
         label = week_label(monday)
         earn_png = render_earnings_week_png(label, earnings_days)
@@ -350,7 +396,7 @@ def post_week(target: str = "test", monday: date | None = None,
         _logger.info("[week-post] posted %s to %s (%d earnings, %d econ)",
                      ws, resolved, n_earn, n_econ)
         return {"ok": True, "week_start": ws, "target": resolved,
-                "earnings": n_earn, "econ": n_econ}
+                "earnings": n_earn, "econ": n_econ, "entries": n_entries}
     except Exception as exc:                            # noqa: BLE001
         _logger.warning("[week-post] failed: %s", exc, exc_info=True)
         return {"ok": False, "reason": str(exc)}
