@@ -950,11 +950,11 @@ def _build_range_week(monday: date) -> dict:
             ))
             day[bucket] = day[bucket][:40]
 
-    # FF serves ONLY this week + next week — for any other week the two
-    # faireconomy fetches are pure request-path waste (2 × 12s timeouts on a
-    # cold month assembly). Skip them outside that range.
-    if abs((monday - _week_dates()[0]).days) <= 7:
-        _curate_econ_events(week_start, week_end, days)
+    # Called for EVERY week now. `_curate_econ_events` owns the source decision:
+    # it skips the (slow, this-week-only) ForexFactory fetches for far weeks and
+    # goes straight to FMP, which serves any range. The old guard here predated
+    # the FMP fallback and left every week beyond ±7 days with no econ at all.
+    _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
     _attach_date_moves(days)
 
@@ -1437,11 +1437,21 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
     The fallback fills DAYS FF did not cover; it never replaces an FF day, since
     FF is the richer source (it carries `actual` once a print releases).
     """
-    ff: dict = {}
+    # FF publishes only `ff_calendar_thisweek.json` (nextweek 404s), so for any
+    # other week its two fetches are pure request-path waste — 2 × 12s timeouts
+    # on a cold month assembly. Skip straight to FMP there.
     try:
-        ff = _fetch_ff_events(week_start, week_end)
-    except Exception as exc:
-        _logger.warning("Calendar: FF econ fetch failed: %s", exc)
+        ff_eligible = abs(
+            (date.fromisoformat(week_start) - _week_dates()[0]).days) <= 7
+    except (ValueError, TypeError):
+        ff_eligible = True
+
+    ff: dict = {}
+    if ff_eligible:
+        try:
+            ff = _fetch_ff_events(week_start, week_end)
+        except Exception as exc:
+            _logger.warning("Calendar: FF econ fetch failed: %s", exc)
 
     for ds, buckets in ff.items():
         if ds in days:

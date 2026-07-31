@@ -170,3 +170,31 @@ def test_fed_speakers_bucket_consistently_even_when_fmp_mislabels_them():
     assert sorted(e["event"] for e in days["2026-08-05"]["fed"]) == [
         "Fed Barkin Speech", "Fed Cook Speech"]
     assert days["2026-08-05"]["econ"] == [], "a Fed speaker leaked into econ"
+
+
+def test_a_far_week_skips_forexfactory_but_still_gets_fmp():
+    """The old call-site guard skipped econ entirely beyond ±7 days, because it
+    predated the FMP fallback. FF is still skipped there (its two fetches are
+    12s of request-path waste for a week it cannot serve) but FMP must run."""
+    days = _empty_days("2026-12-14", "2026-12-15")
+    fmp = {"2026-12-14": [{"time": "8:30 AM", "event": "CPI m/m", "estimate": "0.2%",
+                           "prior": "0.1%", "is_fed": False}]}
+    with mock.patch.object(cal, "_fetch_ff_events") as ff, \
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
+        cal._curate_econ_events("2026-12-14", "2026-12-18", days)
+    ff.assert_not_called()          # far week -> no wasted faireconomy fetches
+    assert [e["event"] for e in days["2026-12-14"]["econ"]] == ["CPI m/m"]
+
+
+def test_the_current_week_still_prefers_forexfactory():
+    """Near weeks must still try FF first — it carries `actual` once a print
+    releases, which FMP does not."""
+    monday = cal._week_dates()[0].isoformat()
+    days = _empty_days(monday)
+    ff = {monday: {"econ": [{"time": "8:30 AM", "event": "FF Event", "estimate": None,
+                             "prior": None, "actual": "0.4%", "is_key": True}], "fed": []}}
+    with mock.patch.object(cal, "_fetch_ff_events", return_value=ff) as ffm, \
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value={}):
+        cal._curate_econ_events(monday, monday, days)
+    ffm.assert_called_once()
+    assert days[monday]["econ"][0]["actual"] == "0.4%"
