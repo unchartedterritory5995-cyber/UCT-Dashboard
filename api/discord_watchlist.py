@@ -369,8 +369,7 @@ def build_messages(
             "title": f"{net_emoji} {title_label} — {date_str}",
             "description": (
                 f"**{net_sign}{_fmt(net)} NET**  ·  {lean_pct}% {lean}\n\n"
-                f"{bar}\n\n"
-                f"🟢 Bull {_fmt(total_bull)} · {bull_pct}%      🔴 Bear {_fmt(total_bear)} · {bear_pct}%"
+                f"{bar}"
             ),
         })
 
