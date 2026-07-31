@@ -433,11 +433,12 @@ def test_small_and_unwatched_is_what_actually_gets_dropped():
     assert not kept
 
 
-def test_an_unreadable_market_cap_is_kept_not_hidden():
-    """Fail toward showing: a metrics outage must not silently empty the card."""
+def test_the_draw_filter_is_cap_or_attention():
+    """Two ways onto the card and only two: enough size, or enough attention."""
     import inspect
     src = inspect.getsource(poster.build_payloads)
-    assert 'r["mc_b"] is None' in src and 'r["ew"] >= MIN_DRAW_EW' in src
+    assert '(r["mc_b"] or 0) >= MIN_DRAW_MC_B' in src
+    assert 'r["ew"] >= MIN_DRAW_EW' in src
 
 
 def test_session_badges_report_true_counts_not_filtered_ones(_isolated_state):
@@ -496,3 +497,31 @@ def test_build_payloads_keeps_a_watched_shell_and_drops_an_unwatched_one():
                       {"sym": "CZWI", "mc_b": 0.2, "ew": 0}])
     assert "AXTI" in out
     assert "CZWI" not in out
+
+
+def test_unresolvable_foreign_tickers_do_not_take_tiles():
+    """BAMXF, AMSSY, ALPIB and SCIA all drew tiles on 7/30 — foreign/OTC
+    listings whose cap day-metrics can't resolve. "Fail toward showing" is for
+    an OUTAGE, not for the ordinary unresolvable tail."""
+    out = _run_build([{"sym": "MSFT", "mc_b": 3351.0, "ew": 0},
+                      {"sym": "KO", "mc_b": 380.0, "ew": 0},
+                      {"sym": "PG", "mc_b": 335.0, "ew": 0},
+                      {"sym": "BAMXF", "mc_b": None, "ew": 0}])
+    assert "MSFT" in out
+    assert "BAMXF" not in out, "an unresolvable ticker must not displace a real one"
+
+
+def test_a_metrics_outage_alerts_instead_of_shipping_junk():
+    """If nothing resolves, the day empties and the empty-earnings guard alerts.
+    A "keep unknowns when the day looks unhealthy" heuristic was tried and
+    misfired exactly when the day was MOSTLY junk — the case it existed for."""
+    out = _run_build([{"sym": "JAPSY", "mc_b": None, "ew": 0},
+                      {"sym": "KIGRY", "mc_b": None, "ew": 0}])
+    assert out == {}
+
+
+def test_a_watched_name_survives_even_without_a_cap():
+    """Attention still vetoes: EW anticipation is its own evidence a name
+    matters, cap or no cap."""
+    out = _run_build([{"sym": "XYZ", "mc_b": None, "ew": 12}])
+    assert "XYZ" in out

@@ -168,9 +168,16 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             # companies beats one padded out with sub-$1B shells. They stay in
             # `total` and `+N more`, so the card never understates the day —
             # they just stop taking a tile from something people trade.
+            # An unreadable cap is DROPPED. On a US earnings calendar that is
+            # almost always a foreign/OTC listing — BAMXF, AMSSY, ALPIB, SCIA,
+            # JAPSY, KIGRY, PCRHY and friends all took tiles from real
+            # companies. A "keep it when the day looks unhealthy" heuristic was
+            # tried and misfired exactly when the day was MOSTLY junk, which is
+            # the case it existed to catch. If a genuine metrics outage empties
+            # the card, the empty-earnings guard alerts instead of posting —
+            # alerting beats shipping a card full of tickers nobody holds.
             ordered = [r for r in rows
-                       if r["mc_b"] is None
-                       or r["mc_b"] >= MIN_DRAW_MC_B
+                       if (r["mc_b"] or 0) >= MIN_DRAW_MC_B
                        or r["ew"] >= MIN_DRAW_EW]
             # Resolve logo paths ONLY for the names that actually get drawn —
             # a busy day now carries ~150 reporters and each lookup stats disk.
