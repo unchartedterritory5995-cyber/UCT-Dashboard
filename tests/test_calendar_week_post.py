@@ -482,8 +482,11 @@ def test_build_payloads_rings_a_watched_small_cap():
 
 
 def test_build_payloads_does_not_ring_a_big_but_unwatched_name():
-    """DUK/ATO/EVRG class: large, but nobody trades the print."""
-    out = _run_build([{"sym": "DUK", "mc_b": 90.0, "ew": 0}])
+    """DUK/ATO/EVRG class: large, but nobody trades the print. The fixture must
+    include a watched name — with NO ew anywhere the week reads as a range week
+    and correctly falls back to a plain size bar, which would ring DUK."""
+    out = _run_build([{"sym": "RBLX", "mc_b": 34.8, "ew": 33},
+                      {"sym": "DUK", "mc_b": 90.0, "ew": 0}])
     assert out["DUK"]["marquee"] is False
 
 
@@ -525,3 +528,24 @@ def test_a_watched_name_survives_even_without_a_cap():
     matters, cap or no cap."""
     out = _run_build([{"sym": "XYZ", "mc_b": None, "ew": 12}])
     assert "XYZ" in out
+
+
+def test_a_week_without_ew_data_falls_back_to_a_usable_size_bar():
+    """Range weeks carry no anticipation at all, so $200B is the only rule left
+    and it marks almost nothing — an Aug-3 preview ringed 4 of 111 tiles with
+    DIS, DDOG, APP, ABNB and AXON all unmarked. With no attention signal to
+    defer to, size carries the whole job and the bar drops."""
+    assert poster.MARQUEE_MC_B_NO_EW < poster.MARQUEE_MC_B
+    out = _run_build([{"sym": "DIS", "mc_b": 167.0, "ew": 0},
+                      {"sym": "DDOG", "mc_b": 95.6, "ew": 0}])
+    assert out["DIS"]["marquee"] is True
+    assert out["DDOG"]["marquee"] is True
+
+
+def test_a_week_with_ew_data_stays_attention_driven():
+    """One watched name proves EW is live for the week, so the strict $200B
+    fallback applies and a big-but-unwatched name does NOT ring."""
+    out = _run_build([{"sym": "RBLX", "mc_b": 34.8, "ew": 33},
+                      {"sym": "DUK", "mc_b": 90.0, "ew": 0}])
+    assert out["RBLX"]["marquee"] is True
+    assert out["DUK"]["marquee"] is False

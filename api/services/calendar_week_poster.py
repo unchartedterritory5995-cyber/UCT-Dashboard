@@ -113,6 +113,15 @@ MARQUEE_EW = 8
 # $200B keeps that fallback unambiguous. $50B re-rings the boring tier above.
 MARQUEE_MC_B = 200.0
 
+# …but when EW is absent for the WHOLE week (any week but the current one is
+# built from a range provider that carries no anticipation at all), $200B is the
+# only rule left and it marks almost nothing — an Aug-3 preview ringed 4 of 111
+# tiles, leaving DIS, DDOG, APP, ABNB, AXON and DKNG unmarked. With no attention
+# signal to defer to, size has to carry the whole job, so the bar drops to a
+# plain large-cap line. Applied ONLY when the week has no EW data anywhere;
+# a week that has it stays attention-driven.
+MARQUEE_MC_B_NO_EW = 50.0
+
 # ── What gets left out ────────────────────────────────────────────────────────
 # Drop a name only when it is BOTH small AND unwatched. Cap alone would have
 # deleted AXTI ($0.4B) despite 18 people following its print — "nobody cares
@@ -134,6 +143,17 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     payload = (get_calendar() if monday == cur_monday
                else get_calendar(week=monday.isoformat()))
     days = payload.get("days") or {}
+
+    # Does this week carry EW anticipation at all? Range weeks do not, and the
+    # ring rule has to know before it can decide what size threshold to use.
+    ew_available = any(
+        int(e.get("ew") or 0) > 0
+        for dd in days.values()
+        for b in ("bmo", "amc", "tbd")
+        for e in (dd.get(b) or []))
+    marquee_mc = MARQUEE_MC_B if ew_available else MARQUEE_MC_B_NO_EW
+    _logger.info("[week-post] ew_available=%s -> marquee cap $%.0fB",
+                 ew_available, marquee_mc)
 
     earnings_days: list[dict] = []
     econ_days: list[dict] = []
@@ -185,7 +205,7 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             for r in top:
                 r["logo_path"] = _logos.get_logo_path(r["sym"])
                 r["marquee"] = (r["ew"] >= MARQUEE_EW
-                                or (r["mc_b"] or 0) >= MARQUEE_MC_B)
+                                or (r["mc_b"] or 0) >= marquee_mc)
             return top + ordered[draw_cap:]
 
         bmo, amc = _rank("bmo"), _rank("amc")
