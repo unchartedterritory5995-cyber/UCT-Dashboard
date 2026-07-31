@@ -23,9 +23,9 @@ of 7/27 had 732).
 ## What it is
 
 A fourth view beside Table / Board / Month, persisted through the existing
-`usePreferences('calendar_view')`. Rows stream in newest-first, ranked by what
-deserves attention, and **each row upgrades in place** as better information
-arrives.
+`usePreferences('calendar_view')`. Rows stream in **newest-first and stay put**,
+carrying visual weight in proportion to how much they matter, and **each row
+upgrades in place** as better information arrives.
 
 ```
 16:02:11  NVDA   ▲ +6.4%
@@ -45,9 +45,46 @@ arrives.
 |---|---|---|
 | 1 | **Progressive rows** — price first, numbers fill in | Price is real-time with zero provider lag; the row is never blocked waiting on Finnhub |
 | 2 | **Ranked firehose**, with a My Stocks toggle | 250 rows is unusable unsorted; the 6 names actually moving must sit on top, the other 244 below but not lost |
+| 2a | *(refined)* **Position = time. Emphasis = significance.** | See "Ordering" — ranking by move would make rows jump as prices change |
 | 3 | **Alert on any outsized reaction**, not just owned names | The name that rips 12% on its print is exactly the one he did not know to watch |
 | 4 | **Multi-source race** (below) | Single-source means single-source latency |
 | 5 | **Show unconfirmed numbers, tagged** | The 90s before confirmation is the point; uncertainty goes on screen rather than being hidden |
+
+## Ordering, and reading the feed under load
+
+**These came out of a UX/dev review of the first draft of this spec and correct
+real flaws in it.**
+
+### Position = time. Emphasis = significance.
+
+The first draft said "ranked by move". That is wrong for a *wire*: rank changes
+as prices move, so rows would reorder underneath the reader, a row being tracked
+would jump, and it directly contradicts the upgrade-in-place promise of decision
+#1. Instead:
+
+- **Chronological, newest first, and a row never moves once placed.** Ordering is
+  by `first_seen_at`, which is immutable.
+- **Significance drives visual weight, not position** — a 12% mover renders large
+  and bright, a 0.3% mover renders quiet.
+- A compact **"top movers" strip pinned above the feed** carries the ranking job,
+  and it may reorder freely because nothing is being read line-by-line there.
+
+### The 16:00–16:05 flood
+
+Most AMC names print in a tight cluster. Inserting at the top shoves content down
+mid-read. **Insertion freezes while the user is hovering or scrolled off the top**,
+and a `↑ N new` pill releases it. Non-optional — without it the surface is
+unreadable at exactly the moment it matters.
+
+### Density
+
+Single dense line per row by default (time · sym · move · verdict · headline
+numbers), expanding on click. Three-line rows × 40 names is unscannable.
+
+### Empty state
+
+Before the first print the view is not blank: *"37 reporters after the close ·
+first prints ~16:05"*. Anticipation is part of the experience.
 
 ## The latency ladder
 
@@ -82,9 +119,22 @@ measured and tuned before any UI work is called done.
    non-negotiable here: LLM-generated market figures scored 29/181 correct in
    this project's own backtest (`lesson_llm_market_examples_need_data_grounding`).
 3. **Provenance per field.** Every figure carries its source and a confirmed flag.
-   On disagreement **the structured source wins** and the row shows it was corrected.
+   On disagreement **the structured source wins** and the row shows it was corrected —
+   **except where the disagreement is a legitimate reporting-basis difference.**
+   `@DeItaone` typically posts **adjusted** EPS while FMP may carry **GAAP**; a naive
+   "structured wins, flag corrected" rule would repeatedly mark a *correct* tweet as
+   wrong. Only a material difference beyond a basis tolerance is a correction; a
+   plausible adjusted-vs-GAAP gap is recorded as a basis difference and both are kept.
 4. **Targeted, never broadcast.** FMP and Perplexity fire per-symbol only for names
    already moving or tweeted — never across all 250. This is what bounds the bill.
+5. **A move only counts if it is liquid.** Extended-hours prints are thin: a name can
+   show +12% on 200 shares. An illiquid tick must not create a row, drive ranking, or
+   fire an alert. A move must clear a minimum trade/volume gate before it is real.
+   Without this the wire manufactures fake movers at exactly the moment it is trusted.
+6. **A tweet's numbers bind to ONE ticker.** A post mentioning `$NVDA` and `$AMD` must
+   never attach NVDA's EPS to AMD. Attribution requires a structural bind (single
+   subject cashtag that is also a today-reporter); ambiguous posts are dropped, not
+   guessed.
 
 ## Architecture
 
@@ -154,6 +204,49 @@ When |reaction| first crosses a threshold (start ~8%), fire through the existing
 `watchlist_alert_service.deliver_alert_payload` rail. Dedup per
 `(sym, market_date)` exactly like `catalyst_alerts_fired`. **Env-gated and shipped
 dark** until one real earnings night has been observed and the threshold tuned.
+
+**A threshold alone is not enough.** On a 250-name night an 8% bar fires 20+ times
+in half an hour, and an alert rail that noisy gets switched off permanently — the
+feature would then be worse than not having it. Three bounds ship together:
+
+- **a hard cap per window** (start ~5), so a wild night cannot spam
+- **a minimum market cap**, so a micro-cap ripping 30% on no volume is not an alert
+- **the liquidity gate** from rule 5 — a thin-tape move is not a move
+
+Every one of these is tunable by env var, and all of it stays dark until observed.
+
+## Operational constraints
+
+- **Runs on the WEB pod**, next to the catalyst engine and tweet poller — alerts need
+  `auth.db`, which is web-local. Not the flow-worker.
+- **`max_instances=1`** on the detector job: a slow tick must never stack on the next.
+- **Bounded per tick.** A flood can produce 40 movers at once; per-symbol FMP calls run
+  through a bounded pool with a per-tick budget, never one call per mover unthrottled.
+- **Daily cost ceiling** mirroring the catalyst engine (soft warn / hard stop), covering
+  TwitterAPI + FMP + any Perplexity gap-fill.
+- **`market_date` is the SESSION date in ET, holiday-aware** — not `date.today()`. It is
+  the primary key *and* the alert-dedup key, so a 06:00 BMO print and a late 18:00 print
+  must both land on the correct session or dedup silently breaks.
+- **Restart-safe.** A redeploy mid-window loses in-memory state only; the table is the
+  truth. On start the detector reloads existing rows and must **not** re-fire alerts for
+  prints already recorded.
+- ⚠️ **The push freeze lifts at 16:20 ET — inside the AMC print window.** During earnings
+  season, do not deploy web at 16:20; wait until the window is done.
+- Everything behind `WIRE_ENABLED`, alerts behind a separate `WIRE_ALERTS_ENABLED`, both
+  default off.
+
+## Delivery phases
+
+Deliberately phased so the thing that shapes later work gets measured first.
+
+| Phase | Contents | Rationale |
+|-------|----------|-----------|
+| **1** | store + detector + `GET /api/calendar/wire` + Wire view; **price and Finnhub/FMP only** | Usable immediately, and it **measures real source latency** — the open question that determines everything after it |
+| **2** | TwitterAPI source, deterministic parser (+ Haiku fallback), unconfirmed/provenance rendering, poll-cadence tightening | Built *against Phase 1's measured latency*, so the effort is aimed rather than speculative |
+| **3** | Alerts (dark) → observe a real night → tune threshold, cap, min-cap | Thresholds set from observed nights, never guessed |
+
+Perplexity (ladder rung 5) is **not committed**: Phase 1's latency measurement decides
+whether it earns its cost at all. If FMP lands fast for movers, the rung is dropped.
 
 ## Failure behaviour
 
