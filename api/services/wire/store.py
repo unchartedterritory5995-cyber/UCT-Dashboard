@@ -49,6 +49,9 @@ _FIELDS = ("market_date", "sym", "timing", "first_seen_at", "trigger",
            "eps_src", "rev_src", "confirmed", "peak_move_pct")
 
 
+_INITED = False
+
+
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
@@ -57,15 +60,33 @@ def _connect() -> sqlite3.Connection:
 
 
 def _init_db() -> None:
+    global _INITED
     parent = os.path.dirname(_DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
     with _connect() as conn:
         conn.executescript(_SCHEMA)
+    _INITED = True
+
+
+def _ensure_init() -> None:
+    """Create the schema on first use.
+
+    `_init_db()` is called from the scheduler block, which only runs when
+    WIRE_ENABLED=1 — but the Wire tab is visible to EVERY user, so in the
+    shipped-dark state the first read hit a table that did not exist and 500ed
+    the endpoint (prod, 2026-07-31). Every entry point goes through here, so the
+    dark state reads as an empty wire instead of an error.
+
+    Mirrors the lazy `_ensure_init()` used by catalyst_metadata.db.
+    """
+    if not _INITED:
+        _init_db()
 
 
 def upsert_print(row: dict) -> None:
     """Insert a new print, or upgrade an existing one IN PLACE."""
+    _ensure_init()
     vals = [row.get(f) for f in _FIELDS]
     with _WRITE_LOCK, _connect() as conn:
         conn.execute(
@@ -88,6 +109,7 @@ def upsert_print(row: dict) -> None:
 
 def get_prints(market_date: str) -> list[dict]:
     """This session's prints, oldest arrival first."""
+    _ensure_init()
     with _connect() as conn:
         rows = conn.execute(
             "SELECT * FROM wire_prints WHERE market_date=? ORDER BY first_seen_at ASC",
@@ -96,6 +118,7 @@ def get_prints(market_date: str) -> list[dict]:
 
 
 def get_print(market_date: str, sym: str) -> dict | None:
+    _ensure_init()
     with _connect() as conn:
         r = conn.execute(
             "SELECT * FROM wire_prints WHERE market_date=? AND sym=?",

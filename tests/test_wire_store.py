@@ -88,3 +88,26 @@ def test_an_upgrade_never_blanks_a_field_it_does_not_carry(store):
 def test_missing_day_is_empty_not_an_error(store):
     assert store.get_prints("2026-01-01") == []
     assert store.get_print("2026-01-01", "NVDA") is None
+
+
+# ── the DARK state: table never created ──────────────────────────────────────
+
+def test_reads_work_before_init_db_has_ever_run(tmp_path, monkeypatch):
+    """The Wire tab is visible to every user, but `_init_db()` only runs when
+    WIRE_ENABLED=1. So in the shipped-dark state the very first read hits a
+    table that does not exist — which 500ed the endpoint in production on
+    2026-07-31. Reads must lazily create the schema instead.
+    """
+    monkeypatch.setenv("WIRE_DB_PATH", str(tmp_path / "never_inited.db"))
+    import api.services.wire.store as s
+    importlib.reload(s)                      # deliberately NO _init_db() call
+    assert s.get_prints("2026-07-31") == []
+    assert s.get_print("2026-07-31", "NVDA") is None
+
+
+def test_writes_work_before_init_db_has_ever_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("WIRE_DB_PATH", str(tmp_path / "never_inited2.db"))
+    import api.services.wire.store as s
+    importlib.reload(s)
+    s.upsert_print(_row())
+    assert s.get_print("2026-07-31", "NVDA")["sym"] == "NVDA"
