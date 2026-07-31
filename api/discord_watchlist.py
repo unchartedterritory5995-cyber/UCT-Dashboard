@@ -370,7 +370,7 @@ def build_messages(
             "description": (
                 f"**{net_sign}{_fmt(net)} NET**  ·  {lean_pct}% {lean}\n\n"
                 f"{bar}\n\n"
-                f"🟢 Bull {_fmt(total_bull)}      🔴 Bear {_fmt(total_bear)}      📋 {tk_count} tickers"
+                f"🟢 Bull {_fmt(total_bull)} · {bull_pct}%      🔴 Bear {_fmt(total_bear)} · {bear_pct}%"
             ),
         })
 
