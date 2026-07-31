@@ -228,9 +228,11 @@ def post_week(target: str = "test", monday: date | None = None,
         earn_png = render_earnings_week_png(label, earnings_days)
         econ_png = render_econ_week_png(label, econ_days)
 
-        content = (f"**The Week Ahead — {label.replace('Week of ', '')}**\n"
-                   f"{n_earn} earnings on the board and {n_econ} economic events. "
-                   f"Full calendar: <https://uctintelligence.com/calendar>")
+        # The cards carry the counts and the week in their own headers, so the
+        # copy says what the drop is and where it comes from. Nothing else.
+        content = (f"**Earnings and Economic Events for the week ahead "
+                   f"({label.replace('Week of ', '')})**\n"
+                   f"UCTIntelligence.com")
         ok = _post_two_images(url, content, label, earn_png, econ_png)
         if not ok:
             return {"ok": False, "reason": "discord_post_failed", "week_start": ws}

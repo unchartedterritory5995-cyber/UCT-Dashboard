@@ -308,3 +308,18 @@ def test_a_transparent_logo_still_gets_a_light_plate():
     tile = logo_tile("X", 54, path)
     # A corner inside the rounded mask is the light plate, not transparent.
     assert tile.getpixel((27, 6))[:3] == (245, 246, 248)
+
+
+def test_the_post_copy_says_what_it_is_and_where_it_came_from(_isolated_state):
+    """Owner-set copy. The cards carry the counts and the week in their own
+    headers, so the message body stays to the drop and the source."""
+    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    seen = {}
+    with mock.patch.object(poster, "build_payloads", return_value=payloads), \
+         mock.patch.object(poster, "_post_two_images",
+                           side_effect=lambda u, c, l, a, b: seen.update({"c": c}) or True):
+        poster.post_week(target="live", monday=MON)
+
+    assert seen["c"] == (
+        "**Earnings and Economic Events for the week ahead (Aug 3-7, 2026)**\n"
+        "UCTIntelligence.com")
