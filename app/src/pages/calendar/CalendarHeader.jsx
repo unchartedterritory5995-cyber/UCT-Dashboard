@@ -252,6 +252,7 @@ const CAP_TIERS = [[0, 'All'], [1, '$1B+'], [10, '$10B+'], [100, '$100B+']]
 // mosaic, Table = the day-by-day data table, Month = the grid. Replaces the
 // muddy Feed/Week split + the Tiles|Rows density toggle.
 const VIEWS = [
+  ['wire', 'Wire', 'Live earnings results as they hit the tape'],
   ['board', 'Board', 'Five-day logo board — the week at a glance'],
   ['table', 'Table', 'Day-by-day data table — EPS & revenue estimates, expected move, beat history'],
   ['month', 'Month', 'Full month grid'],

@@ -1,0 +1,66 @@
+/* The Wire — dense, scannable rows. Three-line rows x 40 names is unscannable,
+   so the default is one line per print. */
+
+.wire {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 24px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 78px 66px 92px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border, #222);
+  font-size: 13px;
+  min-height: var(--tap-min, 44px);
+}
+
+.time {
+  color: var(--color-text-muted, #8a8a8a);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.sym {
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+.up   { color: #4ade80; font-variant-numeric: tabular-nums; }
+.down { color: #f87171; font-variant-numeric: tabular-nums; }
+
+.pending {
+  color: var(--color-text-muted, #8a8a8a);
+  font-style: italic;
+}
+
+.nums { font-variant-numeric: tabular-nums; }
+
+/* Significance = WEIGHT, never position. */
+.loud {
+  background: rgba(201, 168, 76, 0.10);
+  font-size: 14px;
+  border-left: 2px solid rgba(201, 168, 76, 0.55);
+}
+.mid   { background: rgba(201, 168, 76, 0.04); }
+.quiet { opacity: 0.72; }
+
+.empty {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--color-text-muted, #8a8a8a);
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 62px 56px 76px 1fr;
+    gap: 8px;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .time { font-size: 11px; }
+}

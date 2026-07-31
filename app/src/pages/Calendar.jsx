@@ -24,6 +24,7 @@ import { DEFAULT_FILTERS, applyFilters } from './calendar/filterLogic'
 import { tierWeek, FEATURED_CAP } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import FeedView from './calendar/FeedView'
+import WireView from './calendar/WireView'
 import TodaysBrief from './calendar/TodaysBrief'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
@@ -562,6 +563,8 @@ export default function Calendar() {
       {headerEl}
 
       <div className={styles.body}>
+        {view === 'wire' && <WireView />}
+
         {view === 'table' && (
           <>
             {isCurrentWeek && (
