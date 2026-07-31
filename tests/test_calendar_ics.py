@@ -272,7 +272,7 @@ def test_export_ics_mine_valid_token():
 # ── Phase 4: single-report .ics ("Add to calendar") ──────────────────────────
 def test_report_ics_single_event_bmo():
     mod = _import_router()
-    r = mod.export_single_report_ics(sym="PEP", date="2026-07-16", timing="bmo")
+    r = mod.export_single_report_ics(sym="PEP", date_str="2026-07-16", timing="bmo")
     assert r.status_code == 200
     body = r.body.decode() if isinstance(r.body, bytes) else r.body
     assert body.count("BEGIN:VEVENT") == 1
@@ -282,7 +282,7 @@ def test_report_ics_single_event_bmo():
 
 def test_report_ics_tbd_is_all_day():
     mod = _import_router()
-    r = mod.export_single_report_ics(sym="WAFD", date="2026-07-16", timing="tbd")
+    r = mod.export_single_report_ics(sym="WAFD", date_str="2026-07-16", timing="tbd")
     assert r.status_code == 200
     body = r.body.decode() if isinstance(r.body, bytes) else r.body
     assert "DTSTART;VALUE=DATE:20260716" in body
@@ -291,7 +291,7 @@ def test_report_ics_tbd_is_all_day():
 
 def test_report_ics_unknown_timing_falls_back_to_all_day():
     mod = _import_router()
-    r = mod.export_single_report_ics(sym="X", date="2026-07-16", timing="garbage")
+    r = mod.export_single_report_ics(sym="X", date_str="2026-07-16", timing="garbage")
     assert r.status_code == 200
     body = r.body.decode() if isinstance(r.body, bytes) else r.body
     assert "DTSTART;VALUE=DATE:20260716" in body   # not bmo/amc -> all-day
@@ -299,9 +299,9 @@ def test_report_ics_unknown_timing_falls_back_to_all_day():
 
 def test_report_ics_rejects_bad_input():
     mod = _import_router()
-    assert mod.export_single_report_ics(sym="TOOLONGSYM", date="2026-07-16").status_code == 400
-    assert mod.export_single_report_ics(sym="PEP", date="2026-13-05").status_code == 400
-    assert mod.export_single_report_ics(sym="PEP", date="notadate").status_code == 400
+    assert mod.export_single_report_ics(sym="TOOLONGSYM", date_str="2026-07-16").status_code == 400
+    assert mod.export_single_report_ics(sym="PEP", date_str="2026-13-05").status_code == 400
+    assert mod.export_single_report_ics(sym="PEP", date_str="notadate").status_code == 400
     # non-ASCII letters pass str.isalpha() but must be rejected (latin-1 header crash)
-    assert mod.export_single_report_ics(sym="日本", date="2026-07-16").status_code == 400
-    assert mod.export_single_report_ics(sym="café", date="2026-07-16").status_code == 400
+    assert mod.export_single_report_ics(sym="日本", date_str="2026-07-16").status_code == 400
+    assert mod.export_single_report_ics(sym="café", date_str="2026-07-16").status_code == 400

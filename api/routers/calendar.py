@@ -21,8 +21,9 @@ from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from api.services.cache import cache
+from api.services.serve_stale import ServeStale
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import calendar_personalization as _cp
 
@@ -1090,6 +1091,26 @@ def get_month_calendar(year: int = 0, month: int = 0):
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
+# The bound: past this we rebuild synchronously rather than keep serving old
+# data, so a refresh that keeps failing degrades into today's behaviour instead
+# of silently pinning everyone to a stale week.
+_WEEKLY_STALE_MAX_AGE = 30 * 60          # 30 min = 3x _CACHE_TTL
+_WEEKLY_STALE = ServeStale("calendar_weekly", max_age_seconds=_WEEKLY_STALE_MAX_AGE)
+
+
+def _weekly_payload_is_good(payload: dict | None) -> bool:
+    """Is this week worth remembering as the fallback?
+
+    A trading week with ZERO reporters does not exist — it is always a provider
+    failure — so an empty build must never become the payload every user sees
+    for the next window. Same rule `get_news` applies to its error placeholder.
+    """
+    if not payload or payload.get("source") in (None, "", "empty", "error", "out_of_range"):
+        return False
+    days = (payload.get("days") or {}).values()
+    return any(d.get("bmo") or d.get("amc") or d.get("tbd") for d in days)
+
+
 @router.get("/api/calendar")
 def get_calendar(week: str | None = None):
     """Weekly calendar. Optional ?week=YYYY-MM-DD pages to any week within
@@ -1131,10 +1152,22 @@ def get_calendar(week: str | None = None):
                 }
         # Malformed or current-week param → fall through to the current week.
 
-    cached = cache.get("calendar_weekly")
-    if cached is not None:
-        return cached
+    # Fresh cache → instant. Otherwise serve the last good week and rebuild
+    # behind the user: `_CACHE_TTL` is a HARD clock, so without this the first
+    # click after each 10-minute lapse eats the whole 4.5-8s provider rebuild
+    # (measured on prod — see tests/test_calendar_load_latency.py).
+    return _WEEKLY_STALE.serve(
+        "current",
+        fresh=lambda: cache.get("calendar_weekly"),
+        build=_build_current_week,
+        good=_weekly_payload_is_good,
+    )
 
+
+def _build_current_week() -> dict:
+    """The expensive path: EW + Finviz live, Finnhub past-day backfill, Finnhub
+    actuals patch, ForexFactory econ, names. 4.5-8s against live providers.
+    Writes the TTL cache itself, exactly as it did before serve-stale existed."""
     week_dates = _week_dates()
     today      = _today_et()
     week_start = week_dates[0].isoformat()
@@ -1445,6 +1478,12 @@ def refresh_calendar(user: dict = Depends(require_admin)):
         "is_current_week": True,
     }
     cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
+    # This freshly-rebuilt week also becomes the serve-stale fallback. Without
+    # it the admin's forced refresh would leave the PREVIOUS week in the slot,
+    # which then resurfaces the moment this entry lapses — a manual refresh
+    # would visibly un-apply itself 10 minutes later.
+    if _weekly_payload_is_good(result):
+        _WEEKLY_STALE.remember("current", result)
     totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]),
                    "tbd": len(d.get("tbd", [])), "econ": len(d["econ"])}
               for ds, d in days.items()}
@@ -1529,19 +1568,25 @@ def _past_reactions(target: str, day: dict) -> dict:
 
 
 @router.get("/api/calendar/reactions")
-def get_reactions(date: str | None = None):
+def get_reactions(date_str: str | None = Query(None, alias="date")):
     """Return post-print reaction %% for all reported tickers on a given date.
 
     Today/future: live todaysChangePerc via ONE Massive batch snapshot (30s TTL).
     Past dates: computed once from daily bars (24h TTL) — the live snapshot is
     meaningless for a print that happened days ago.
     Resolves the day from whichever week cache owns the date (paging-aware).
+
+    The arg is `date_str`, not `date`, and carries `alias="date"` so the public
+    `?date=` contract is unchanged: naming it `date` shadows the module's
+    `from datetime import date`, which made `date.fromisoformat(target)` below
+    raise `AttributeError: 'str' object has no attribute 'fromisoformat'` on
+    EVERY past date (a 500 live from 2026-07-09 to 2026-07-31).
     """
     import re as _re
-    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+    if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return {}
 
-    target = date or _today_et().isoformat()
+    target = date_str or _today_et().isoformat()
 
     cache_key = f"calendar_reactions_{target}"
     cached = cache.get(cache_key)
@@ -1617,7 +1662,7 @@ _METRICS_TTL = 120  # 2 min — stable enough for filtering purposes
 
 
 @router.get("/api/calendar/day-metrics")
-def get_day_metrics(date: str | None = None):
+def get_day_metrics(date_str: str | None = Query(None, alias="date")):
     """Return price, avg_vol, mc_b for every ticker on a given date.
 
     Primary: Finviz Elite v=152 screener (price, 30d avg vol, market cap in one call).
@@ -1627,10 +1672,10 @@ def get_day_metrics(date: str | None = None):
     TTL: 2 min — these fields don't need to update frequently.
     """
     import re as _re
-    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+    if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return {}
 
-    target = date or _today_et().isoformat()
+    target = date_str or _today_et().isoformat()
     cache_key = f"calendar_metrics_{target}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -1827,7 +1872,31 @@ def _bounded_em(fn, timeout: float = 15.0):
 _ENRICH_STATS: dict[str, dict] = {}
 
 
+# Enrichment has the SAME cold-cache defect as the week itself: `_ENRICH_TTL`
+# is 300s on a hard clock over a ~24s provider fan-out (measured cold on prod
+# 2026-07-31: 24.2s, warm 0.10s), and `useWeekEnrichment` asks for all five
+# weekdays in one batch — so every 5 minutes the next poll pays it again.
+_ENRICH_STALE_MAX_AGE = 30 * 60
+_ENRICH_STALE = ServeStale("calendar_enrichment", max_age_seconds=_ENRICH_STALE_MAX_AGE)
+
+
 def _compute_enrichment_for_date(target: str) -> dict:
+    """Serve-stale wrapper over `_build_enrichment_for_date`.
+
+    Only a NON-EMPTY payload is remembered. Every `{}` this can return is from
+    a CHEAP early exit (outside the compute window, no syms, week cache not warm
+    yet) — those cost nothing to redo, and remembering one would mask a day that
+    genuinely has reporters behind a permanent blank overlay.
+    """
+    return _ENRICH_STALE.serve(
+        target,
+        fresh=lambda: cache.get(f"calendar_enrichment_{target}"),
+        build=lambda: _build_enrichment_for_date(target),
+        good=bool,
+    )
+
+
+def _build_enrichment_for_date(target: str) -> dict:
     """Per-ticker expected move + 4-quarter beat history + hist_stats for one day.
 
     Bounded + cached so the core /api/calendar paints instantly and this
@@ -1979,12 +2048,12 @@ def calendar_enrichment_status():
 
 
 @router.get("/api/calendar/enrichment")
-def get_enrichment(date: str | None = None):
+def get_enrichment(date_str: str | None = Query(None, alias="date")):
     """Single-day enrichment overlay. See _compute_enrichment_for_date."""
     import re as _re
-    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+    if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return {}
-    target = date or _today_et().isoformat()
+    target = date_str or _today_et().isoformat()
     return _compute_enrichment_for_date(target)
 
 
@@ -2346,26 +2415,26 @@ def export_calendar_ics(
 
 
 @router.get("/api/calendar/report.ics")
-def export_single_report_ics(sym: str, date: str, timing: str = "tbd"):
+def export_single_report_ics(sym: str, date_str: str = Query(..., alias="date"),
+                             timing: str = "tbd"):
     """One earnings report as a downloadable calendar event ("Add to calendar"
     on a card/modal). No auth, no token — it's a single public event the user
     already sees. bmo/amc anchor to the session; anything else = honest all-day.
     Reuses the same _build_vevent as the full export (TBD → all-day)."""
     import re as _re
-    from datetime import date as _date_cls   # the `date` param shadows the import
     s = (sym or "").upper().strip()
     core = s.replace(".", "").replace("-", "")
     # ASCII letters ONLY — str.isalpha() is Unicode-broad (日本/café pass), and a
     # non-latin-1 sym crashes latin-1 header encoding → an unauth 500.
     if not s or len(core) > 6 or not (core.isascii() and core.isalpha()) \
-            or not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+            or not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return _Response(content="bad request", status_code=400, media_type="text/plain")
     try:
-        _date_cls.fromisoformat(date)   # reject 2026-13-05 etc.
+        date.fromisoformat(date_str)   # reject 2026-13-05 etc.
     except ValueError:
         return _Response(content="bad date", status_code=400, media_type="text/plain")
     t = timing if timing in ("bmo", "amc") else "tbd"
-    body = _build_vcalendar([_build_vevent(s, date, t)])
+    body = _build_vcalendar([_build_vevent(s, date_str, t)])
     return _Response(
         content=body,
         media_type="text/calendar; charset=utf-8",
