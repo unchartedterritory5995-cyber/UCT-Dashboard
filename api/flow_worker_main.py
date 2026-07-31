@@ -567,12 +567,51 @@ def _start_recent_cache_warmer():
              interval, viewer_window)
 
 
+def _start_rest_side_heal():
+    """Live REST NBBO side-heal for BIG blank-side prints — the Q-pool coverage
+    floor. A whale sweep/block whose contract churned out of the 950-cap Q-pool (or
+    whose NBBO went stale) lands blank-side -> "Not Clean" -> hidden from the
+    directional tiers. This bypasses the Q-pool: for TODAY's recent still-blank
+    prints >= MASSIVE_RESTHEAL_PREMIUM, it pulls the consolidated NBBO from Massive
+    REST /v3/quotes at the print's exact ns (reusing backfill_rest's tested leg-sum
+    match + midpoint classify) and writes the real side (ASK *or* BID) to flow.db.
+    Never guesses — only exact leg-sum matches with a fresh book heal.
+
+    Gated by MASSIVE_RESTHEAL_ENABLED (default OFF — ships dark). Cadence
+    MASSIVE_RESTHEAL_INTERVAL (default 60s). Idempotent: targets only still-blank
+    rows, so a persistently-blank print gets re-tried until it heals or ages out of
+    the recency window."""
+    if os.environ.get("MASSIVE_RESTHEAL_ENABLED", "0") != "1":
+        log.info("[restheal-live] disabled (MASSIVE_RESTHEAL_ENABLED!=1)")
+        return
+    interval = int(os.environ.get("MASSIVE_RESTHEAL_INTERVAL", "60"))
+    sources = [s.strip() for s in
+               os.environ.get("MASSIVE_RESTHEAL_SOURCES", "stocks").split(",") if s.strip()]
+
+    def _loop():
+        from api import backfill_rest as br
+        time.sleep(int(os.environ.get("MASSIVE_RESTHEAL_DELAY", "20")))
+        while True:
+            try:
+                for src in sources:
+                    br.run_recent(source=src)
+            except Exception:
+                log.exception("[restheal-live] cycle failed")
+            time.sleep(interval)
+
+    threading.Thread(target=_loop, daemon=True, name="rest-side-heal").start()
+    log.info("[restheal-live] armed (interval=%ss, sources=%s, floor=$%s, recency=%smin)",
+             interval, sources, os.environ.get("MASSIVE_RESTHEAL_PREMIUM", "1000000"),
+             os.environ.get("MASSIVE_RESTHEAL_RECENCY_MIN", "20"))
+
+
 def main():
     # This pod OWNS the consumer + flow.db and serves the flow routers.
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
     _start_consumer()
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
+    _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))

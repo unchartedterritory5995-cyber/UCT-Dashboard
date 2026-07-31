@@ -39,6 +39,7 @@ import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ STALENESS_NS = int(float(os.environ.get("MASSIVE_NBBO_STALENESS_SEC", "5")) * 1_
 # The backlog window is entirely EDT (June-July), so a fixed -4 is correct here.
 # flow.db CreatedTime is ET (verified 7/25: flow.db 9:32:21 == trade sip_ts at UTC-4).
 _ET = timezone(timedelta(hours=-4))
+# The live path (run_recent) runs year-round, so it uses a DST-aware ET instead of
+# the fixed -4 above (which is only correct for the summer backlog window).
+_ET_LIVE = ZoneInfo("America/New_York")
 
 PREM_FLOOR = float(os.environ.get("MASSIVE_BACKFILL_PREMIUM", "100000"))
 WORKERS = int(os.environ.get("MASSIVE_BACKFILL_WORKERS", "8"))
@@ -138,12 +142,18 @@ def _trading_days(from_mdy, to_mdy):
     return days
 
 
-def _load_targets(db, source, days):
+def _load_targets(db, source, days, min_time_sec=None, prem_floor=None):
     """Blank non-ML rows in the window, grouped by (occ, CreatedDate).
 
     Each entry: (dedup_key, price_rounded, volume, (h,m,s) ET second).
+
+    min_time_sec (seconds-since-ET-midnight): when set, only prints whose
+    CreatedTime is at/after it are kept — the live path uses this to heal only
+    the last few minutes of blanks each cycle instead of re-scanning the day.
+    prem_floor overrides the module PREM_FLOOR (live path uses a higher whale floor).
     """
     _prem = "CAST(REPLACE(REPLACE(COALESCE(Premium,''),'$',''),',','') AS REAL)"
+    floor = PREM_FLOOR if prem_floor is None else float(prem_floor)
     placeholders = ",".join("?" * len(days))
     con = sqlite3.connect(db.db_path, timeout=30)
     try:
@@ -156,12 +166,13 @@ def _load_targets(db, source, days):
                   AND UPPER(COALESCE(Type,'')) NOT LIKE 'ML/%'
                   AND {_prem} >= ?
                 ORDER BY {_prem} DESC""",
-            (source, *days, PREM_FLOOR),
+            (source, *days, floor),
         ).fetchall()
     finally:
         con.close()
 
     groups = defaultdict(list)
+    kept = 0
     for dedup_key, sym, cp, strike, exp, price, vol, cdate, ctime in rows:
         try:
             occ = _occ(sym, cp, strike, exp)
@@ -171,13 +182,21 @@ def _load_targets(db, source, days):
             sec = (t.hour, t.minute, t.second)
         except Exception:
             continue
+        if min_time_sec is not None and (t.hour * 3600 + t.minute * 60 + t.second) < min_time_sec:
+            continue
         groups[(occ, cdate)].append((dedup_key, p, v, sec))
-    return groups, len(rows)
+        kept += 1
+    return groups, kept
 
 
-def _process_group(occ, cdate, prints):
-    """Heal one contract-day. Returns (updates, stats)."""
-    d0 = datetime.strptime(cdate, "%m/%d/%Y").replace(tzinfo=_ET)
+def _process_group(occ, cdate, prints, tz=_ET):
+    """Heal one contract-day. Returns (updates, stats).
+
+    tz is the timezone used to bucket trades into ET seconds and to compute the
+    day window. The backlog run passes the fixed-EDT _ET (its window is all
+    summer); the live run passes the DST-aware _ET_LIVE.
+    """
+    d0 = datetime.strptime(cdate, "%m/%d/%Y").replace(tzinfo=tz)
     start_ns = int(d0.timestamp() * 1_000_000_000)
     end_ns = int((d0 + timedelta(hours=30)).timestamp() * 1_000_000_000)
     trades = _fetch_trades(occ, start_ns, end_ns)
@@ -188,7 +207,7 @@ def _process_group(occ, cdate, prints):
         ts, pr, sz = t.get("sip_timestamp"), t.get("price"), t.get("size")
         if ts is None or pr is None or sz is None:
             continue
-        et = datetime.fromtimestamp(int(ts) / 1e9, _ET)
+        et = datetime.fromtimestamp(int(ts) / 1e9, tz)
         legmap[((et.hour, et.minute, et.second), round(float(pr), 2))].append((int(sz), int(ts)))
 
     updates = []
@@ -255,3 +274,67 @@ def run(source="stocks", flush_every=500):
 
 def run_all():
     return {src: run(source=src) for src in ("stocks", "indexes")}
+
+
+# --- Live on-demand heal (Q-pool coverage floor) -----------------------------
+# Big prints land blank-side when their contract's NBBO churned out of the 950-cap
+# Q-pool or went stale. This reuses the backlog machinery — leg-sum match on
+# REST /v3/trades, then the consolidated NBBO from REST /v3/quotes at the print's
+# exact ns — to recover the side for TODAY's recent whale blanks, bypassing the
+# Q-pool entirely. Conservative: only exact leg-sum matches with a fresh book heal;
+# everything else stays honestly blank. Idempotent (targets only still-blank rows).
+
+RESTHEAL_PREMIUM = float(os.environ.get("MASSIVE_RESTHEAL_PREMIUM", "1000000"))
+RESTHEAL_RECENCY_MIN = int(os.environ.get("MASSIVE_RESTHEAL_RECENCY_MIN", "20"))
+
+
+def run_recent(source="stocks", recency_min=None, prem_floor=None, flush_every=200):
+    """Heal recent big blank-side prints for the CURRENT ET day.
+
+    Targets still-blank, non-ML prints >= prem_floor from the last recency_min
+    minutes and classifies each from the REST NBBO at its exact ns. Meant to run
+    on a short timer on the flow-worker (which owns flow.db + Massive REST access).
+    """
+    if not API_KEY:
+        return {"error": "no api key"}
+    from api.flow_db import FlowDB
+    recency = RESTHEAL_RECENCY_MIN if recency_min is None else int(recency_min)
+    floor = RESTHEAL_PREMIUM if prem_floor is None else float(prem_floor)
+    tz = _ET_LIVE
+    now = datetime.now(tz)
+    today = f"{now.month}/{now.day}/{now.year}"
+    now_sec = now.hour * 3600 + now.minute * 60 + now.second
+    min_time_sec = max(0, now_sec - recency * 60)
+
+    db = FlowDB()
+    groups, n_targets = _load_targets(db, source, [today], min_time_sec=min_time_sec,
+                                      prem_floor=floor)
+    tot = {"source": source, "day": today, "targets": n_targets,
+           "contracts": len(groups), "healed": 0, "matched": 0,
+           "nomatch": 0, "noquote": 0, "mid": 0}
+    if not groups:
+        return tot
+
+    pending = []
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        futs = {ex.submit(_process_group, occ, cd, pr, tz): 1
+                for (occ, cd), pr in groups.items()}
+        for fut in as_completed(futs):
+            try:
+                ups, st = fut.result()
+            except Exception:
+                continue
+            pending.extend(ups)
+            for k in ("matched", "nomatch", "noquote", "mid"):
+                tot[k] += st[k]
+            if len(pending) >= flush_every:
+                tot["healed"] += db.update_sides_by_dedup(pending)
+                pending = []
+    if pending:
+        tot["healed"] += db.update_sides_by_dedup(pending)
+
+    if tot["healed"] or tot["matched"]:
+        log.info("[restheal-live] %s: healed %d/%d blank whales (%d contracts, "
+                 "nomatch %d, noquote %d, mid %d)", source, tot["healed"],
+                 n_targets, len(groups), tot["nomatch"], tot["noquote"], tot["mid"])
+    return tot
