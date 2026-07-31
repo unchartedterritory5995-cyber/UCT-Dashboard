@@ -514,13 +514,24 @@ def test_unresolvable_foreign_tickers_do_not_take_tiles():
     assert "BAMXF" not in out, "an unresolvable ticker must not displace a real one"
 
 
-def test_a_metrics_outage_alerts_instead_of_shipping_junk():
-    """If nothing resolves, the day empties and the empty-earnings guard alerts.
-    A "keep unknowns when the day looks unhealthy" heuristic was tried and
-    misfired exactly when the day was MOSTLY junk — the case it existed for."""
-    out = _run_build([{"sym": "JAPSY", "mc_b": None, "ew": 0},
-                      {"sym": "KIGRY", "mc_b": None, "ew": 0}])
-    assert out == {}
+def test_unresolvable_tickers_are_dropped_only_while_metrics_are_UP():
+    """Zero-vs-nonzero is the test. One resolved cap proves the metrics layer
+    works, so anything it could not resolve is genuinely obscure."""
+    out = _run_build(
+        [{"sym": "MSFT", "mc_b": None, "ew": 0},
+         {"sym": "JAPSY", "mc_b": None, "ew": 0}],
+        metrics={"MSFT": {"mc_b": 3351.0}, "JAPSY": {"mc_b": None}})
+    assert "MSFT" in out and "JAPSY" not in out
+
+
+def test_a_metrics_outage_does_not_gut_the_card():
+    """THE 7/30 COLLAPSE: prod served 398 real entries and the card drew 65 —
+    Monday and Tuesday emptied entirely — because day-metrics was down, so every
+    name read as unresolvable. Ranking degrades; the card must not vanish."""
+    out = _run_build([{"sym": "AAA", "mc_b": None, "ew": 0},
+                      {"sym": "BBB", "mc_b": None, "ew": 0}],
+                     metrics={})
+    assert {"AAA", "BBB"} <= set(out)
 
 
 def test_a_watched_name_survives_even_without_a_cap():

@@ -170,6 +170,24 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
         except Exception as exc:                       # noqa: BLE001
             _logger.warning("[week-post] day-metrics failed for %s: %s", ds, exc)
 
+        # Did the metrics layer work AT ALL for this day? If it resolved even
+        # one cap it is up, so a name it could not resolve is genuinely obscure
+        # (foreign/OTC) and gets dropped. If it resolved NOTHING it is down, and
+        # dropping unknown caps would gut the card: measured against prod's own
+        # payload, 398 real entries collapsed to 65 — Monday and Tuesday emptied
+        # entirely — because every name looked unresolvable.
+        # Zero-vs-nonzero is the honest test. An earlier "under 50% resolved =
+        # unhealthy" version misfired on a day that was mostly junk, which is
+        # the case it existed to catch.
+        # Resolve the same way _rank does — a cap can arrive on the calendar
+        # chip OR from day-metrics, so checking only the metrics dict would read
+        # "down" whenever the chips were carrying the data.
+        metrics_up = any(
+            (e.get("mc_b") is not None)
+            or ((metrics.get((e.get("sym") or "").upper()) or {}).get("mc_b")
+                is not None)
+            for b in ("bmo", "amc", "tbd") for e in (day.get(b) or []))
+
         def _rank(bucket: str, draw_cap: int = MAX_PER_SESSION) -> list[dict]:
             rows = []
             for e in day.get(bucket) or []:
@@ -197,7 +215,8 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             # the card, the empty-earnings guard alerts instead of posting —
             # alerting beats shipping a card full of tickers nobody holds.
             ordered = [r for r in rows
-                       if (r["mc_b"] or 0) >= MIN_DRAW_MC_B
+                       if (r["mc_b"] is None and not metrics_up)
+                       or (r["mc_b"] or 0) >= MIN_DRAW_MC_B
                        or r["ew"] >= MIN_DRAW_EW]
             # Resolve logo paths ONLY for the names that actually get drawn —
             # a busy day now carries ~150 reporters and each lookup stats disk.
