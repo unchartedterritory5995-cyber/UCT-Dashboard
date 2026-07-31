@@ -600,9 +600,11 @@ def _start_rest_side_heal():
             time.sleep(interval)
 
     threading.Thread(target=_loop, daemon=True, name="rest-side-heal").start()
-    log.info("[restheal-live] armed (interval=%ss, sources=%s, floor=$%s, recency=%smin)",
+    log.info("[restheal-live] armed (interval=%ss, sources=%s, floor=$%s, recency=%smin, "
+             "staleness=%ss)",
              interval, sources, os.environ.get("MASSIVE_RESTHEAL_PREMIUM", "1000000"),
-             os.environ.get("MASSIVE_RESTHEAL_RECENCY_MIN", "20"))
+             os.environ.get("MASSIVE_RESTHEAL_RECENCY_MIN", "20"),
+             os.environ.get("MASSIVE_RESTHEAL_STALENESS_SEC", "120"))
 
 
 def main():
