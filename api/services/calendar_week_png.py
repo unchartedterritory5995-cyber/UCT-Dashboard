@@ -22,7 +22,7 @@ import io
 from PIL import ImageDraw
 
 from api.services.calendar_png_common import (
-    AMC, BMO, BOLD, DIM, FED, GOLD, INK, LINE, PANEL, REG,
+    AMC, BMO, BOLD, DIM, FED, GOLD, INK, LINE, PANEL, REG, TBD,
     centered_message, draw_footer, draw_frame, draw_header, font,
     gradient_bg, logo_tile, truncate,
 )
@@ -34,6 +34,10 @@ W = 1600
 GRID_COLS = 4
 GRID_ROWS = 3
 MAX_PER_SESSION = GRID_COLS * GRID_ROWS
+# Unconfirmed-session names get ONE row. They were invisible before — counted in
+# `+N more` but never drawn — which hid 144 reporters in a single week and, on a
+# light Friday, everything but 9 of 43. The board surfaces them the same way.
+MAX_TBD = GRID_COLS
 MAX_ECON_PER_DAY = 7
 
 _MARGIN = 40
@@ -138,11 +142,13 @@ def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
         n = max((min(len(d.get(key) or []), MAX_PER_SESSION) for d in shown), default=0)
         return max((n + GRID_COLS - 1) // GRID_COLS, 1)
     r_bmo, r_amc = _rows("bmo"), _rows("amc")
+    has_tbd = any(d.get("tbd") for d in shown)
     has_more = any(int(d.get("overflow") or 0) > 0 for d in shown)
 
     panel_h = (_DAY_HEAD_H
                + _SESSION_H + r_bmo * _CELL_H
                + 8 + _SESSION_H + r_amc * _CELL_H
+               + (8 + _SESSION_H + _CELL_H if has_tbd else 0)
                + (_MORE_H if has_more else 0) + 10)
     H = max(_MIN_H, _GRID_TOP + panel_h + _FOOTER_H)
 
@@ -151,7 +157,7 @@ def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
     draw_frame(dr, W, H)
     draw_header(img, dr, W, "THE WEEK AHEAD — EARNINGS", week_label)
 
-    if not any((d.get("bmo") or d.get("amc")) for d in shown):
+    if not any((d.get("bmo") or d.get("amc") or d.get("tbd")) for d in shown):
         centered_message(dr, W, H, "No scheduled reporters for this week.")
         draw_footer(img, dr, W, H)
         out = io.BytesIO()
@@ -176,6 +182,16 @@ def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
                 cy = y + (idx // GRID_COLS) * _CELL_H
                 _logo_cell(img, dr, cx, cy, e)
             y += rows * _CELL_H
+
+        if has_tbd:
+            tbd = (day.get("tbd") or [])[:MAX_TBD]
+            y += 8
+            y = _session_head(dr, x, y, "TIME TBD", TBD, len(day.get("tbd") or []))
+            if not tbd:
+                dr.text((x + _PAD, y + 4), "—", font=font(REG, 15), fill=DIM)
+            for idx, e in enumerate(tbd):
+                _logo_cell(img, dr, x + _PAD + idx * _CELL_W, y, e)
+            y += _CELL_H
 
         overflow = int(day.get("overflow") or 0)
         if overflow > 0:

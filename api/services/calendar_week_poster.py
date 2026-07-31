@@ -99,7 +99,7 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     path doesn't carry."""
     from api.routers.calendar import get_calendar, get_day_metrics, _week_dates
     from api.services import ticker_logos as _logos
-    from api.services.calendar_week_png import MAX_PER_SESSION
+    from api.services.calendar_week_png import MAX_PER_SESSION, MAX_TBD
 
     cur_monday = _week_dates()[0]
     payload = (get_calendar() if monday == cur_monday
@@ -121,7 +121,7 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
         except Exception as exc:                       # noqa: BLE001
             _logger.warning("[week-post] day-metrics failed for %s: %s", ds, exc)
 
-        def _rank(bucket: str) -> list[dict]:
+        def _rank(bucket: str, draw_cap: int = MAX_PER_SESSION) -> list[dict]:
             rows = []
             for e in day.get(bucket) or []:
                 sym = (e.get("sym") or "").upper()
@@ -136,20 +136,28 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
                       reverse=True)
             # Resolve logo paths ONLY for the names that actually get drawn —
             # a busy day now carries ~150 reporters and each lookup stats disk.
-            top = rows[:MAX_PER_SESSION]
+            top = rows[:draw_cap]
             for r in top:
                 r["logo_path"] = _logos.get_logo_path(r["sym"])
-            return top + rows[MAX_PER_SESSION:]
+            return top + rows[draw_cap:]
 
         bmo, amc = _rank("bmo"), _rank("amc")
         tbd_n = len(day.get("tbd") or [])
+        # Unconfirmed-session names are ranked and passed too. They used to be
+        # counted in `total` (so `+N more` was honest) but never drawn — which
+        # buried 144 reporters in a single week, and on a light Friday left 34
+        # of 43 names invisible while a $2B confirmed-BMO name showed.
+        tbd = _rank("tbd", MAX_TBD)
         total = len(day.get("bmo") or []) + len(day.get("amc") or []) + tbd_n
-        shown = min(len(bmo), MAX_PER_SESSION) + min(len(amc), MAX_PER_SESSION)
+        shown = (min(len(bmo), MAX_PER_SESSION)
+                 + min(len(amc), MAX_PER_SESSION)
+                 + min(len(tbd), MAX_TBD))
         earnings_days.append({
             "label": label,
             "total": total or None,
             "bmo": bmo,
             "amc": amc,
+            "tbd": tbd,
             "overflow": max(0, total - shown),
         })
 

@@ -355,3 +355,27 @@ def test_the_post_copy_says_what_it_is_and_where_it_came_from(_isolated_state):
     assert seen["c"] == (
         "**Earnings and Economic Events for the week ahead (Aug 3-7, 2026)**\n"
         "UCTIntelligence.com")
+
+
+def test_unconfirmed_session_names_are_drawn_not_just_counted():
+    """They used to be counted in `+N more` and rendered NOWHERE — 144 hidden
+    reporters in one week, and a light Friday showed 9 of 43 while a $2B
+    confirmed-BMO name displaced a bigger unconfirmed one."""
+    from api.services.calendar_week_png import MAX_TBD
+    with_tbd = [{"label": "MON 3", "total": 6, "overflow": 0,
+                 "bmo": [_ent("B0")], "amc": [_ent("A0")],
+                 "tbd": [_ent(f"T{i}") for i in range(4)]}]
+    without = [{"label": "MON 3", "total": 2, "overflow": 0,
+                "bmo": [_ent("B0")], "amc": [_ent("A0")], "tbd": []}]
+    # The TBD block adds real height — it is drawn, not silently dropped.
+    assert _png_size(render_earnings_week_png("W", with_tbd))[1] > \
+           _png_size(render_earnings_week_png("W", without))[1]
+    assert MAX_TBD >= 1
+
+
+def test_overflow_accounts_for_the_tbd_names_now_shown():
+    """`+N more` must not keep claiming names the card is already displaying."""
+    import inspect
+    from api.services import calendar_week_poster as p
+    src = inspect.getsource(p.build_payloads)
+    assert "min(len(tbd), MAX_TBD)" in src
