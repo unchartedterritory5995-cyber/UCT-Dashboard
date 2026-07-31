@@ -5,6 +5,7 @@ job), so they can be pinned exactly. The poster's job is mostly refusals:
 don't post a hollow card, don't post twice, and never let `live` fall back into
 the admin channel.
 """
+import pathlib
 from datetime import date
 from unittest import mock
 
@@ -17,6 +18,9 @@ from api.services.calendar_week_png import (
 )
 
 MON = date(2026, 8, 3)
+
+import tempfile
+_TMP = pathlib.Path(tempfile.mkdtemp(prefix="uct-logo-"))
 
 
 def _ent(sym, mc=10.0):
@@ -209,9 +213,12 @@ def test_week_label_spans_a_month_boundary():
 
 # ── The shared-chrome extraction must not have changed the existing card ──────
 
-def test_most_anticipated_card_is_byte_identical_after_the_extraction():
-    """calendar_png_common was lifted OUT of calendar_anticipated_png; the
-    already-shipped card must render exactly as before."""
+def test_most_anticipated_card_render_is_pinned():
+    """calendar_png_common is shared by all three cards, so a change there
+    reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+    freeze: when a deliberate chrome change trips it, look at the render and
+    re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+    also nudged the monogram corner radius 0.22 -> 0.24)."""
     import hashlib
     from api.services.calendar_anticipated_png import render_anticipated_png
     entries = [
@@ -230,7 +237,7 @@ def test_most_anticipated_card_is_byte_identical_after_the_extraction():
     ]
     got = hashlib.sha256(
         render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
-    assert got == "2d565c87739ccaac6e3c38a2460813534fe60c9221e3c32c3cb422511e4a9b41"
+    assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
     empty = hashlib.sha256(render_anticipated_png("Week of Aug 3-7, 2026", [])).hexdigest()
     assert empty == "9e753e7faf45d06b12f4f6605c03c5024e0f7e333bb7ebf85593ea1ade2fef21"
 
@@ -267,3 +274,37 @@ def test_econ_fetch_cap_matches_what_the_card_draws():
     from api.services import calendar_week_poster as p
     src = inspect.getsource(p.build_payloads)
     assert "limit_per_day=MAX_ECON_PER_DAY" in src
+
+
+def test_a_logo_with_its_own_background_renders_edge_to_edge():
+    """84 of 93 cached logos ship pre-composited on their own opaque
+    background (white, brand colour, black). Padding those onto ANOTHER plate
+    threw away the colour that makes a 54px tile identifiable — the reason the
+    first pass read flatter than the board it mirrors."""
+    from PIL import Image
+    from api.services.calendar_png_common import logo_tile
+
+    brand = Image.new("RGBA", (256, 256), (237, 28, 36, 255))   # opaque red mark
+    path = str(_TMP / "brand.png")
+    brand.save(path)
+    tile = logo_tile("X", 54, path)
+    # Sample near the TOP EDGE, inside the rounded mask: the contain path pads
+    # with a light plate there, the cover path carries the brand colour to the
+    # edge. The centre pixel is red under BOTH paths, so asserting on it would
+    # pass vacuously.
+    assert tile.getpixel((27, 3))[:3] == (237, 28, 36)
+
+
+def test_a_transparent_logo_still_gets_a_light_plate():
+    """A dark glyph on a transparent background would vanish edge-to-edge on
+    the dark panel, so that minority keeps the contained light plate."""
+    from PIL import Image, ImageDraw
+    from api.services.calendar_png_common import logo_tile
+
+    glyph = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    ImageDraw.Draw(glyph).ellipse([64, 64, 192, 192], fill=(10, 10, 10, 255))
+    path = str(_TMP / "glyph.png")
+    glyph.save(path)
+    tile = logo_tile("X", 54, path)
+    # A corner inside the rounded mask is the light plate, not transparent.
+    assert tile.getpixel((27, 6))[:3] == (245, 246, 248)

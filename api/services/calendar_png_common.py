@@ -64,27 +64,53 @@ def round_mask(size: int, radius: int) -> Image.Image:
     return m
 
 
+def _has_own_background(logo: Image.Image) -> bool:
+    """True when the artwork already carries its own opaque background.
+
+    84 of 93 cached logos do (white, brand colour, or black) — logo.dev and
+    friends ship square, pre-composited marks. Those must render EDGE-TO-EDGE:
+    forcing Honeywell's red or Coca-Cola's white onto another white plate throws
+    away the colour that makes the tile identifiable at 54px. The transparent
+    minority (Apple's black glyph, etc.) still needs a light plate, or a dark
+    mark would vanish against the dark card.
+    """
+    try:
+        return logo.getchannel("A").getextrema()[0] > 250
+    except (ValueError, OSError):
+        return False
+
+
 def logo_tile(sym: str, size: int, logo_path: str | None) -> Image.Image:
-    """A rounded logo tile, or a gold-ringed monogram when the logo is a miss."""
-    tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    """A rounded logo tile; gold-ringed monogram when the logo is a miss."""
+    radius = int(size * 0.24)
     if logo_path and os.path.exists(logo_path):
         try:
             logo = Image.open(logo_path).convert("RGBA")
-            # Fit-contain onto a white rounded plate so transparent logos read
-            plate = Image.new("RGBA", (size, size), (245, 246, 248, 255))
-            pad = int(size * 0.14)
-            inner = size - pad * 2
-            logo.thumbnail((inner, inner), Image.LANCZOS)
-            ox = (size - logo.width) // 2
-            oy = (size - logo.height) // 2
-            plate.paste(logo, (ox, oy), logo)
-            plate.putalpha(round_mask(size, int(size * 0.22)))
+            if _has_own_background(logo):
+                # Cover-fit so the mark's own background fills the tile.
+                scale = size / min(logo.width, logo.height)
+                new = (max(size, int(round(logo.width * scale))),
+                       max(size, int(round(logo.height * scale))))
+                logo = logo.resize(new, Image.LANCZOS)
+                left = (logo.width - size) // 2
+                top = (logo.height - size) // 2
+                plate = logo.crop((left, top, left + size, top + size))
+            else:
+                # Contain on a light plate — a transparent dark glyph needs it.
+                plate = Image.new("RGBA", (size, size), (245, 246, 248, 255))
+                pad = int(size * 0.14)
+                inner = size - pad * 2
+                logo.thumbnail((inner, inner), Image.LANCZOS)
+                plate.paste(logo, ((size - logo.width) // 2,
+                                   (size - logo.height) // 2), logo)
+            plate.putalpha(round_mask(size, radius))
             return plate
         except Exception:
             pass
     # Monogram fallback
+    tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     dr = ImageDraw.Draw(tile)
-    dr.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(size * 0.22),
+    dr.rounded_rectangle([0, 0, size - 1, size - 1], radius=radius,
                          fill=(38, 41, 52, 255), outline=GOLD + (255,), width=2)
     letter = (sym or "?")[:1].upper()
     f = font(BOLD, int(size * 0.5))
