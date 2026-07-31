@@ -30,7 +30,9 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 ## Nav Tabs (left sidebar)
 
-Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Watchlists · Support
+Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Support
+
+**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`. Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in `app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## UI Icons — `UIcon` (NO emoji)

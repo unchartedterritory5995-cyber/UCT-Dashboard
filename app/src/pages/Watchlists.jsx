@@ -1,4 +1,31 @@
 // app/src/pages/Watchlists.jsx
+//
+// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.
+//
+// This component has TWO modes and only ONE of them ships:
+//
+//   • SCOPED (`pickList` set) — the ONLY mode users ever see. Its sole render
+//     site is charts/widgets/WatchlistWidget.jsx, which ALWAYS passes
+//     pickList, so the widget is pinned to exactly one list.
+//   • UNSCOPED (`pickList` null) — the My Lists / Community tab bar, the
+//     Flagged + colour-tag groups, the multi-list stack, the per-list "+", the
+//     add bar's target picker. NONE of it can render. `/watchlists` was
+//     retired into /charts by 7640ef01 (Charts Hub V2) and now LegacyRedirects;
+//     no nav entry points at it. This is ~half the file.
+//
+// It is kept (not deleted) because deleting it is a large diff in a file the
+// partner also edits — do that as its own PR when the tree is quiet, not as a
+// side effect of a feature.
+//
+// The practical rules that follow:
+//   • Per-list behaviour (add a symbol, notes, reorder) → belongs here.
+//   • Anything ACROSS lists (create a list, switch lists, browse community) →
+//     belongs in charts/widgets/WatchlistPicker.jsx, the "Add a Watchlist"
+//     screen, which is the only surface that sees more than one list.
+//   • Verify in the running app. Rendering this component in a test with props
+//     you chose yourself will happily exercise code no user can reach — that
+//     mistake already cost one design rework (2026-07-31).
+//
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
