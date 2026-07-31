@@ -93,19 +93,33 @@ def week_label(monday: date) -> str:
             f"{end.strftime('%b')} {end.day}, {monday.year}")
 
 
-# A gold ring marks the week's heavyweights so the eye finds them without
-# reading every ticker. $50B is the line: it catches every name the owner named
-# as "really important" (SNOW $103B, DDOG $96B) and lands on a clean large-cap
-# boundary rather than a number reverse-engineered from one week's roster.
-MARQUEE_MC_B = 50.0
+# ── What earns a gold ring ────────────────────────────────────────────────────
+# ATTENTION first, size second. Market cap alone rang CAT, DUK, ATO and EVRG —
+# big companies whose prints nobody trades — while missing RBLX, RDDT, RIVN and
+# MSTR, which are exactly what a trader scans a week-ahead card for.
+#
+# EarningsWhispers ships an anticipation count per report: how many people are
+# actually watching it. That IS the signal, and it is available on the run that
+# matters — on a Saturday `_week_dates()` rolls to next Monday, so the live EW
+# path builds the card. Measured on a real week: AAPL 186, AMZN 171, RBLX 33,
+# RDDT 29, RIVN 19, MSTR 11, COIN 8.
+MARQUEE_EW = 8
 
-# Below this, a name is drawn only if nothing better is available — a sub-$1B
-# shell reporting is not news for this audience (ABTC $0.4B, CZWI $0.2B,
-# BMRC $0.5B all made the card before this). They still count toward the day
-# total and `+N more`, so the card never understates who is reporting; they
-# just stop taking a tile from a company people actually trade.
-# A cap we could NOT read is kept — fail toward showing, never hide silently.
+# Size is the FALLBACK, not the rule, and it has two jobs:
+#   1. EW zeroes a name's anticipation once it has reported, so META/MSFT/ARM/
+#      KLAC all read ew=0 on a mid-week rebuild — cap keeps them ringed.
+#   2. Range weeks (any week but the current one) carry no EW data at all, so
+#      without this a future-week preview would have no rings whatsoever.
+# $200B keeps that fallback unambiguous. $50B re-rings the boring tier above.
+MARQUEE_MC_B = 200.0
+
+# ── What gets left out ────────────────────────────────────────────────────────
+# Drop a name only when it is BOTH small AND unwatched. Cap alone would have
+# deleted AXTI ($0.4B) despite 18 people following its print — "nobody cares
+# about it" is an attention claim, so attention gets a veto.
+# A cap we could NOT read is kept: fail toward showing, never hide silently.
 MIN_DRAW_MC_B = 1.0
+MIN_DRAW_EW = 3
 
 
 def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
@@ -145,7 +159,8 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
                 mc = e.get("mc_b")
                 if mc is None:
                     mc = (metrics.get(sym) or {}).get("mc_b")
-                rows.append({"sym": sym, "mc_b": mc})
+                rows.append({"sym": sym, "mc_b": mc,
+                             "ew": int(e.get("ew") or 0)})
             # Unknown cap sinks below known caps rather than sorting as zero-ish
             rows.sort(key=lambda r: (r["mc_b"] is not None, r["mc_b"] or 0),
                       reverse=True)
@@ -154,13 +169,16 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             # `total` and `+N more`, so the card never understates the day —
             # they just stop taking a tile from something people trade.
             ordered = [r for r in rows
-                       if r["mc_b"] is None or r["mc_b"] >= MIN_DRAW_MC_B]
+                       if r["mc_b"] is None
+                       or r["mc_b"] >= MIN_DRAW_MC_B
+                       or r["ew"] >= MIN_DRAW_EW]
             # Resolve logo paths ONLY for the names that actually get drawn —
             # a busy day now carries ~150 reporters and each lookup stats disk.
             top = ordered[:draw_cap]
             for r in top:
                 r["logo_path"] = _logos.get_logo_path(r["sym"])
-                r["marquee"] = (r["mc_b"] or 0) >= MARQUEE_MC_B
+                r["marquee"] = (r["ew"] >= MARQUEE_EW
+                                or (r["mc_b"] or 0) >= MARQUEE_MC_B)
             return top + ordered[draw_cap:]
 
         bmo, amc = _rank("bmo"), _rank("amc")

@@ -395,22 +395,49 @@ def test_the_gold_ring_marks_the_weeks_heavyweights():
     assert a != b, "the marquee ring must actually change the render"
 
 
-def test_the_marquee_line_catches_the_names_the_owner_named():
-    """SNOW $103B and DDOG $96B are the binding cases — a $100B line would
-    have excluded both, which is how the threshold was chosen."""
-    assert poster.MARQUEE_MC_B <= 95.0
+def test_attention_rings_a_name_that_market_cap_alone_would_miss():
+    """The whole point of the rewrite. Measured on a real week: RBLX $35B/ew33,
+    RDDT $34B/ew29, MSTR $34B/ew11, COIN $43B/ew8 — all under any sane cap
+    line, all exactly what a trader scans a week-ahead card for."""
+    assert poster.MARQUEE_EW <= 8
+    small_but_watched = {"mc_b": 34.8, "ew": 33}
+    assert (small_but_watched["ew"] >= poster.MARQUEE_EW
+            or small_but_watched["mc_b"] >= poster.MARQUEE_MC_B)
 
 
-def test_sub_billion_shells_do_not_take_a_tile():
-    """ABTC $0.4B, CZWI $0.2B and BMRC $0.5B all made the card before this."""
-    assert 0 < poster.MIN_DRAW_MC_B <= 1.0
+def test_size_stays_a_fallback_so_a_reported_megacap_keeps_its_ring():
+    """EW zeroes anticipation once a name has REPORTED, so a mid-week rebuild
+    reads META/MSFT/ARM/KLAC at ew=0 — and range weeks carry no EW at all.
+    Without the cap fallback those lose their ring entirely."""
+    reported_megacap = {"mc_b": 1368.3, "ew": 0}          # META, post-print
+    assert reported_megacap["mc_b"] >= poster.MARQUEE_MC_B
+    # …but the fallback must stay unambiguous, not a second opinion on size:
+    # $50B would re-ring the CAT/DUK/ATO/EVRG tier this rewrite removed.
+    assert poster.MARQUEE_MC_B >= 150.0
+
+
+def test_attention_vetoes_the_size_floor():
+    """AXTI is $0.4B with 18 people following its print. 'Nobody cares about
+    it' is an attention claim, so attention gets a veto over the cap floor."""
+    assert poster.MIN_DRAW_EW >= 1
+    axti = {"mc_b": 0.4, "ew": 18}
+    kept = (axti["mc_b"] is None or axti["mc_b"] >= poster.MIN_DRAW_MC_B
+            or axti["ew"] >= poster.MIN_DRAW_EW)
+    assert kept, "a watched small cap must survive the shitco floor"
+
+
+def test_small_and_unwatched_is_what_actually_gets_dropped():
+    shell = {"mc_b": 0.2, "ew": 0}                          # CZWI
+    kept = (shell["mc_b"] is None or shell["mc_b"] >= poster.MIN_DRAW_MC_B
+            or shell["ew"] >= poster.MIN_DRAW_EW)
+    assert not kept
 
 
 def test_an_unreadable_market_cap_is_kept_not_hidden():
     """Fail toward showing: a metrics outage must not silently empty the card."""
     import inspect
     src = inspect.getsource(poster.build_payloads)
-    assert 'r["mc_b"] is None or r["mc_b"] >= MIN_DRAW_MC_B' in src
+    assert 'r["mc_b"] is None' in src and 'r["ew"] >= MIN_DRAW_EW' in src
 
 
 def test_session_badges_report_true_counts_not_filtered_ones(_isolated_state):
@@ -422,3 +449,50 @@ def test_session_badges_report_true_counts_not_filtered_ones(_isolated_state):
     rsrc = inspect.getsource(
         __import__("api.services.calendar_week_png", fromlist=["x"]).render_earnings_week_png)
     assert 'day.get(f"{key}_n")' in rsrc
+
+
+# ── Selection, exercised through the REAL build_payloads ─────────────────────
+# The constant-only assertions above document intent; these run the code. An
+# earlier version of this file asserted only on thresholds and hand-recomputed
+# the rule, so deleting `ew` from the marquee condition passed every test.
+
+def _run_build(entries, metrics=None):
+    """Drive build_payloads over one Monday with a stubbed calendar payload."""
+    from datetime import date as _d
+    mon = _d(2026, 8, 3)
+    days = {mon.isoformat(): {"bmo": entries, "amc": [], "tbd": []}}
+    for i in range(1, 5):
+        days[(mon + __import__("datetime").timedelta(days=i)).isoformat()] = {
+            "bmo": [], "amc": [], "tbd": []}
+    with mock.patch("api.routers.calendar.get_calendar",
+                    return_value={"days": days}), \
+         mock.patch("api.routers.calendar.get_day_metrics",
+                    return_value=metrics or {}), \
+         mock.patch("api.routers.calendar._week_dates", return_value=[mon]), \
+         mock.patch("api.services.ticker_logos.get_logo_path", return_value=None):
+        earn, _ = poster.build_payloads(mon)
+    return {e["sym"]: e for e in earn[0]["bmo"]}
+
+
+def test_build_payloads_rings_a_watched_small_cap():
+    """RBLX: $35B, 33 people watching. Cap alone never rings it."""
+    out = _run_build([{"sym": "RBLX", "mc_b": 34.8, "ew": 33}])
+    assert out["RBLX"]["marquee"] is True
+
+
+def test_build_payloads_does_not_ring_a_big_but_unwatched_name():
+    """DUK/ATO/EVRG class: large, but nobody trades the print."""
+    out = _run_build([{"sym": "DUK", "mc_b": 90.0, "ew": 0}])
+    assert out["DUK"]["marquee"] is False
+
+
+def test_build_payloads_still_rings_a_reported_megacap_on_size():
+    out = _run_build([{"sym": "META", "mc_b": 1368.3, "ew": 0}])
+    assert out["META"]["marquee"] is True
+
+
+def test_build_payloads_keeps_a_watched_shell_and_drops_an_unwatched_one():
+    out = _run_build([{"sym": "AXTI", "mc_b": 0.4, "ew": 18},
+                      {"sym": "CZWI", "mc_b": 0.2, "ew": 0}])
+    assert "AXTI" in out
+    assert "CZWI" not in out

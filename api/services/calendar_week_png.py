@@ -51,9 +51,9 @@ _MIN_H = 470
 
 _TILE = 54
 _CELL_W = (_PANEL_W - _PAD * 2) // GRID_COLS
-_CELL_H = _TILE + 32            # tile + ticker caption (+ marquee ring outset)
+_CELL_H = _TILE + 38            # tile + ticker caption (+ 6px marquee halo)
 _DAY_HEAD_H = 46
-_SESSION_H = 30
+_SESSION_H = 36                 # session label + halo headroom for row 1
 _MORE_H = 34
 _ECON_ROW_H = 76
 
@@ -113,13 +113,15 @@ def _logo_cell(img, dr, x: int, y: int, entry: dict) -> None:
     r = int(_TILE * 0.24)
 
     if marquee:
-        # The week's heavyweights get a gold ring so the eye finds them without
-        # reading every ticker. Drawn OUTSET so it never crops the mark, with a
-        # faint second ring for glow.
+        # A halo, not a hairline: three rings at falling alpha read as glow at
+        # the size Discord actually renders this, where a 1px accent vanishes.
+        # All OUTSET so the ring never crops the mark inside it.
+        for off, alpha, wgt in ((6, 26, 1), (5, 55, 1), (4, 110, 1)):
+            dr.rounded_rectangle(
+                [lx - off, y - off, lx + _TILE - 1 + off, y + _TILE - 1 + off],
+                radius=r + off, outline=GOLD + (alpha,), width=wgt)
         dr.rounded_rectangle([lx - 3, y - 3, lx + _TILE + 2, y + _TILE + 2],
-                             radius=r + 3, outline=GOLD + (70,), width=1)
-        dr.rounded_rectangle([lx - 2, y - 2, lx + _TILE + 1, y + _TILE + 1],
-                             radius=r + 2, outline=GOLD + (255,), width=2)
+                             radius=r + 3, outline=GOLD + (255,), width=3)
     else:
         # Hairline keeps a white-background mark from bleeding into the panel.
         dr.rounded_rectangle([lx, y, lx + _TILE - 1, y + _TILE - 1],
