@@ -47,6 +47,14 @@ BASE = os.environ.get("MASSIVE_REST_BASE", "https://api.massive.com").rstrip("/"
 API_KEY = os.environ.get("MASSIVE_API_KEY", "")
 UA = {"User-Agent": "UCT-Massive/1.0 (+https://uctintelligence.com)"}
 STALENESS_NS = int(float(os.environ.get("MASSIVE_NBBO_STALENESS_SEC", "5")) * 1_000_000_000)
+# Dedicated staleness for the LIVE heal (run_recent) — decoupled from the shared
+# MASSIVE_NBBO_STALENESS_SEC above, which the live WS classifier also reads
+# (massive_ws_worker) and must stay tight. Thin far-dated contracts (the blank-whale
+# case) legitimately go tens of seconds between NBBO updates; a sweep executes against
+# the LAST resting book, so a stale-but-unchanged NBBO is still the correct book to
+# classify against. Read at import -> restart to change.
+RESTHEAL_STALENESS_NS = int(float(
+    os.environ.get("MASSIVE_RESTHEAL_STALENESS_SEC", "120")) * 1_000_000_000)
 
 # The backlog window is entirely EDT (June-July), so a fixed -4 is correct here.
 # flow.db CreatedTime is ET (verified 7/25: flow.db 9:32:21 == trade sip_ts at UTC-4).
@@ -189,12 +197,15 @@ def _load_targets(db, source, days, min_time_sec=None, prem_floor=None):
     return groups, kept
 
 
-def _process_group(occ, cdate, prints, tz=_ET):
+def _process_group(occ, cdate, prints, tz=_ET, staleness_ns=STALENESS_NS):
     """Heal one contract-day. Returns (updates, stats).
 
     tz is the timezone used to bucket trades into ET seconds and to compute the
     day window. The backlog run passes the fixed-EDT _ET (its window is all
     summer); the live run passes the DST-aware _ET_LIVE.
+
+    staleness_ns bounds how old the REST NBBO may be vs the print's ns. The backlog
+    keeps the tight module default; the live run passes RESTHEAL_STALENESS_NS.
     """
     d0 = datetime.strptime(cdate, "%m/%d/%Y").replace(tzinfo=tz)
     start_ns = int(d0.timestamp() * 1_000_000_000)
@@ -211,7 +222,8 @@ def _process_group(occ, cdate, prints, tz=_ET):
         legmap[((et.hour, et.minute, et.second), round(float(pr), 2))].append((int(sz), int(ts)))
 
     updates = []
-    st = {"matched": 0, "nomatch": 0, "noquote": 0, "mid": 0}
+    st = {"matched": 0, "nomatch": 0, "noquote": 0, "noquote_none": 0,
+          "noquote_stale": 0, "mid": 0}
     for dedup_key, price, vol, sec in prints:
         legs = legmap.get((sec, price))
         if not legs or sum(s for s, _ in legs) != vol:
@@ -220,8 +232,13 @@ def _process_group(occ, cdate, prints, tz=_ET):
         st["matched"] += 1
         ns = max(t for _, t in legs)          # completing instant of the print
         q = _fetch_quote_at(occ, ns)
-        if q is None or (q[2] and (ns - q[2]) > STALENESS_NS):
-            st["noquote"] += 1                # no fresh book -> leave blank
+        if q is None:
+            st["noquote"] += 1
+            st["noquote_none"] += 1          # REST returned no quote at all
+            continue
+        if q[2] and (ns - q[2]) > staleness_ns:
+            st["noquote"] += 1
+            st["noquote_stale"] += 1         # quote exists but older than the guard
             continue
         side = _classify_side(price, q[0], q[1])
         if side:
@@ -311,13 +328,13 @@ def run_recent(source="stocks", recency_min=None, prem_floor=None, flush_every=2
                                       prem_floor=floor)
     tot = {"source": source, "day": today, "targets": n_targets,
            "contracts": len(groups), "healed": 0, "matched": 0,
-           "nomatch": 0, "noquote": 0, "mid": 0}
+           "nomatch": 0, "noquote": 0, "noquote_none": 0, "noquote_stale": 0, "mid": 0}
     if not groups:
         return tot
 
     pending = []
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        futs = {ex.submit(_process_group, occ, cd, pr, tz): 1
+        futs = {ex.submit(_process_group, occ, cd, pr, tz, RESTHEAL_STALENESS_NS): 1
                 for (occ, cd), pr in groups.items()}
         for fut in as_completed(futs):
             try:
@@ -325,7 +342,8 @@ def run_recent(source="stocks", recency_min=None, prem_floor=None, flush_every=2
             except Exception:
                 continue
             pending.extend(ups)
-            for k in ("matched", "nomatch", "noquote", "mid"):
+            for k in ("matched", "nomatch", "noquote", "noquote_none",
+                      "noquote_stale", "mid"):
                 tot[k] += st[k]
             if len(pending) >= flush_every:
                 tot["healed"] += db.update_sides_by_dedup(pending)
@@ -335,6 +353,7 @@ def run_recent(source="stocks", recency_min=None, prem_floor=None, flush_every=2
 
     if tot["healed"] or tot["matched"]:
         log.info("[restheal-live] %s: healed %d/%d blank whales (%d contracts, "
-                 "nomatch %d, noquote %d, mid %d)", source, tot["healed"],
-                 n_targets, len(groups), tot["nomatch"], tot["noquote"], tot["mid"])
+                 "nomatch %d, noquote %d [none %d, stale %d], mid %d)", source,
+                 tot["healed"], n_targets, len(groups), tot["nomatch"],
+                 tot["noquote"], tot["noquote_none"], tot["noquote_stale"], tot["mid"])
     return tot
