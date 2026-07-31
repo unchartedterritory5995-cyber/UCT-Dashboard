@@ -121,6 +121,10 @@ _THRESHOLDS_PATH = os.environ.get("CURATED_THRESHOLDS_PATH", "/data/curated_thre
 _thresholds_cache = None
 
 DEFAULT_THRESHOLDS = {
+    # Perf toggle (NOT a classification rule): reuse settled rows' classification
+    # to cut the ~70s curated scan that starves WS ingestion -> blank sides. Dark
+    # by default; flip live in the ?tune=1 panel. See _incr_classify.
+    "incremental_scan": False,
     "stack": {
         "min_signals": 1,         # min quality confirmers (out of 3); premium always required
         "vOI": 3.0,
@@ -451,6 +455,7 @@ def _save_thresholds(thresholds: dict) -> bool:
             json.dump(merged, f, indent=2)
         os.replace(tmp, _THRESHOLDS_PATH)  # atomic swap
         _thresholds_cache = merged
+        _incr_alert_cache_clear()   # thresholds changed -> classifications may differ; re-classify
         return True
     except Exception as e:
         print(f"[curated] Failed to save thresholds: {e}")
@@ -2209,6 +2214,55 @@ def recent_massive_alerts(
     return _warming_stub(today)
 
 
+# ─── Incremental classified-alert cache (behind the `incremental_scan` toggle) ──
+# _row_to_alert() over up to 80k rows is the ~70s cost of a curated scan; that
+# CPU pin starves the WS ingestion loop -> trades classified after their NBBO
+# rolled -> blank sides ("ingestion-lag corruption", 2026-07-31). This caches each
+# row's classification keyed by row id, FINGERPRINTED by hash(tuple(row)) so that
+# ANY change to the row (reclassify Side, OI/MktCap/Sector backfill, anything)
+# forces a re-classify; only byte-identical settled rows are reused -> a scan drops
+# from ~70s to a few seconds. Correctness needs no mutable-field enumeration and no
+# reclassify hook: the row hash catches every change. Cleared on new day + on any
+# /thresholds save. In-process (GIL-atomic dict); redundant concurrent misses just
+# re-classify the same row (last-write-wins, identical result). Toggle live via the
+# `incremental_scan` threshold (no restart). Memory: up to ~one day of rows, cleared
+# daily; flip the toggle off if it ever pressures RAM.
+_alert_cache: dict = {}            # row id -> (row_hash, _row_to_alert result | None)
+_alert_cache_day = None
+_alert_cache_lock = threading.Lock()
+
+
+def _incr_alert_cache_clear():
+    """Invalidate the whole classified cache (called on /thresholds save)."""
+    with _alert_cache_lock:
+        _alert_cache.clear()
+
+
+def _incr_prepare(today: str):
+    """Clear the cache on a new trading day so yesterday's ids can't leak."""
+    global _alert_cache_day
+    with _alert_cache_lock:
+        if _alert_cache_day != today:
+            _alert_cache.clear()
+            _alert_cache_day = today
+
+
+def _incr_classify(r):
+    """Cached _row_to_alert. Reuse the classification only when the row is
+    byte-unchanged since last seen (hash of its column values); re-classify on any
+    change. Returns a COPY so downstream mutation (net-flow demote, _hitCount) can't
+    pollute the cache. `r` is a sqlite3.Row."""
+    rid = r["id"]
+    h = hash(tuple(r))
+    ent = _alert_cache.get(rid)
+    if ent is not None and ent[0] == h:
+        cached = ent[1]
+        return dict(cached) if cached is not None else None
+    fresh = _row_to_alert(dict(r))
+    _alert_cache[rid] = (h, fresh)
+    return dict(fresh) if fresh is not None else None
+
+
 def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     """Heavy scan + classify for /recent, split out so the endpoint can cache
     the result. All params already resolved (today = concrete M/D/YYYY)."""
@@ -2315,8 +2369,14 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     skipped_unclassified = 0
     skipped_low_grade = 0
     skipped_off_tier = 0
+    # Incremental classify (dark by default; flip the `incremental_scan` threshold
+    # to reuse settled rows' classification and stop the ~70s CPU pin that starves
+    # WS ingestion -> blank sides). OFF path is byte-identical to the prior code.
+    _incremental = bool(_load_thresholds().get("incremental_scan", False))
+    if _incremental:
+        _incr_prepare(today)
     for r in rows:
-        a = _row_to_alert(dict(r))
+        a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
         if a is None:
             skipped_unclassified += 1
             continue
@@ -4531,6 +4591,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_window_sec",       # cluster window for structure detection
         "multileg_min_legs",         # distinct contracts that make it a structure
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
+        "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
