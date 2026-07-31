@@ -150,6 +150,38 @@ def test_an_empty_calendar_aborts_the_post_and_alerts(_isolated_state):
     alert_m.assert_called_once()
 
 
+def test_empty_earnings_aborts_even_when_econ_is_healthy(_isolated_state):
+    """THE 2026-07-30 BAD POST: a Finnhub 429 emptied the earnings set while
+    econ came back fine, and the old `earnings==0 AND econ==0` guard let it
+    through — the card shipped reading "No scheduled reporters for this week".
+    A trading week with zero reporters does not exist, so that reading is always
+    a provider failure; and both images ride in ONE message, so a hollow
+    earnings card makes the whole post a lie."""
+    broken = ([{"label": "MON 3", "total": None, "bmo": [], "amc": [], "overflow": 0}],
+              [{"label": "MON 3", "events": [
+                  {"time": "8:30 AM", "event": "CPI", "estimate": "0.2%",
+                   "prior": "0.3%"}]}])
+    with mock.patch.object(poster, "build_payloads", return_value=broken), \
+         mock.patch.object(poster, "_post_two_images") as post_m, \
+         mock.patch.object(poster, "_alert_admin") as alert_m:
+        out = poster.post_week(target="live", monday=MON)
+
+    assert out["ok"] is False and out["reason"] == "empty_calendar"
+    post_m.assert_not_called()
+    alert_m.assert_called_once()
+
+
+def test_a_quiet_macro_week_still_posts(_isolated_state):
+    """Econ is judged SEPARATELY from earnings: a week with no major releases is
+    real, and its card says so honestly. Only empty earnings blocks the post."""
+    payloads = ([_day("MON 3")], [{"label": "MON 3", "events": []}])
+    with mock.patch.object(poster, "build_payloads", return_value=payloads), \
+         mock.patch.object(poster, "_post_two_images", return_value=True) as post_m:
+        out = poster.post_week(target="live", monday=MON)
+    assert out["ok"] is True and out["econ"] == 0
+    post_m.assert_called_once()
+
+
 def test_a_populated_week_posts_once_and_dedupes(_isolated_state):
     payloads = ([_day("MON 3")], [{"label": "MON 3", "events": [
         {"time": "8:30 AM", "event": "CPI", "estimate": "0.2%", "prior": "0.3%"}]}])

@@ -217,12 +217,20 @@ def post_week(target: str = "test", monday: date | None = None,
 
         n_earn = sum(len(d["bmo"]) + len(d["amc"]) for d in earnings_days)
         n_econ = sum(len(d["events"]) for d in econ_days)
-        if n_earn == 0 and n_econ == 0:
-            # Refuse to publish a hollow card — alert instead so the silence is
-            # visible rather than being mistaken for a quiet week.
-            _alert_admin(f"Weekly calendar post ABORTED for {ws} — "
-                         f"both earnings and econ came back empty.")
-            return {"ok": False, "reason": "empty_calendar", "week_start": ws}
+        # A trading week with ZERO reporters does not exist — that reading is
+        # always a provider failure (observed 2026-07-30: a Finnhub 429 returned
+        # an empty earnings set while econ came back fine, and an earlier
+        # `n_earn == 0 AND n_econ == 0` guard let the post through with a card
+        # that read "No scheduled reporters for this week"). Both images ship in
+        # one message, so an empty EITHER side makes the whole post a lie.
+        # Econ is judged separately: a genuinely quiet macro week is real, and
+        # its card says so honestly.
+        if n_earn == 0:
+            _alert_admin(f"Weekly calendar post ABORTED for {ws} — the earnings "
+                         f"calendar came back EMPTY (provider failure; econ={n_econ}). "
+                         f"Nothing was posted.")
+            return {"ok": False, "reason": "empty_calendar", "week_start": ws,
+                    "earnings": 0, "econ": n_econ}
 
         label = week_label(monday)
         earn_png = render_earnings_week_png(label, earnings_days)
