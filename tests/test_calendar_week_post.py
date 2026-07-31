@@ -379,3 +379,46 @@ def test_overflow_accounts_for_the_tbd_names_now_shown():
     from api.services import calendar_week_poster as p
     src = inspect.getsource(p.build_payloads)
     assert "min(len(tbd), MAX_TBD)" in src
+
+
+# ── Signal: marquee ring + shitco floor ───────────────────────────────────────
+
+def test_the_gold_ring_marks_the_weeks_heavyweights():
+    """Owner asked for the important names to stand out. Applied liberally —
+    ~23% of drawn tiles on a real week — so it reads as a tier, not a trophy."""
+    ringed = {"sym": "AAPL", "mc_b": 3400.0, "logo_path": None, "marquee": True}
+    plain = {"sym": "AAPL", "mc_b": 3400.0, "logo_path": None, "marquee": False}
+    a = render_earnings_week_png("W", [{"label": "MON 3", "total": 1, "overflow": 0,
+                                        "bmo": [ringed], "amc": [], "tbd": []}])
+    b = render_earnings_week_png("W", [{"label": "MON 3", "total": 1, "overflow": 0,
+                                        "bmo": [plain], "amc": [], "tbd": []}])
+    assert a != b, "the marquee ring must actually change the render"
+
+
+def test_the_marquee_line_catches_the_names_the_owner_named():
+    """SNOW $103B and DDOG $96B are the binding cases — a $100B line would
+    have excluded both, which is how the threshold was chosen."""
+    assert poster.MARQUEE_MC_B <= 95.0
+
+
+def test_sub_billion_shells_do_not_take_a_tile():
+    """ABTC $0.4B, CZWI $0.2B and BMRC $0.5B all made the card before this."""
+    assert 0 < poster.MIN_DRAW_MC_B <= 1.0
+
+
+def test_an_unreadable_market_cap_is_kept_not_hidden():
+    """Fail toward showing: a metrics outage must not silently empty the card."""
+    import inspect
+    src = inspect.getsource(poster.build_payloads)
+    assert 'r["mc_b"] is None or r["mc_b"] >= MIN_DRAW_MC_B' in src
+
+
+def test_session_badges_report_true_counts_not_filtered_ones(_isolated_state):
+    """header total must equal session badges + `+N more`. Badging the filtered
+    draw list made a day read "BMO 2" while 4 companies reported."""
+    import inspect
+    src = inspect.getsource(poster.build_payloads)
+    assert '"bmo_n": len(day.get("bmo") or [])' in src
+    rsrc = inspect.getsource(
+        __import__("api.services.calendar_week_png", fromlist=["x"]).render_earnings_week_png)
+    assert 'day.get(f"{key}_n")' in rsrc

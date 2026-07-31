@@ -51,7 +51,7 @@ _MIN_H = 470
 
 _TILE = 54
 _CELL_W = (_PANEL_W - _PAD * 2) // GRID_COLS
-_CELL_H = _TILE + 30            # tile + ticker caption
+_CELL_H = _TILE + 32            # tile + ticker caption (+ marquee ring outset)
 _DAY_HEAD_H = 46
 _SESSION_H = 30
 _MORE_H = 34
@@ -106,17 +106,30 @@ def _session_head(dr, x: int, y: int, text: str, color, count: int) -> int:
 
 def _logo_cell(img, dr, x: int, y: int, entry: dict) -> None:
     sym = (entry.get("sym") or "").upper()
+    marquee = bool(entry.get("marquee"))
     lx = x + (_CELL_W - _TILE) // 2
     tile = logo_tile(sym, _TILE, entry.get("logo_path"))
     img.paste(tile, (lx, y), tile)
-    # Hairline keeps a white-background mark from bleeding into the dark panel.
-    dr.rounded_rectangle([lx, y, lx + _TILE - 1, y + _TILE - 1],
-                         radius=int(_TILE * 0.24), outline=(255, 255, 255, 26), width=1)
+    r = int(_TILE * 0.24)
+
+    if marquee:
+        # The week's heavyweights get a gold ring so the eye finds them without
+        # reading every ticker. Drawn OUTSET so it never crops the mark, with a
+        # faint second ring for glow.
+        dr.rounded_rectangle([lx - 3, y - 3, lx + _TILE + 2, y + _TILE + 2],
+                             radius=r + 3, outline=GOLD + (70,), width=1)
+        dr.rounded_rectangle([lx - 2, y - 2, lx + _TILE + 1, y + _TILE + 1],
+                             radius=r + 2, outline=GOLD + (255,), width=2)
+    else:
+        # Hairline keeps a white-background mark from bleeding into the panel.
+        dr.rounded_rectangle([lx, y, lx + _TILE - 1, y + _TILE - 1],
+                             radius=r, outline=(255, 255, 255, 26), width=1)
 
     tf = font(BOLD, 12)
     label = truncate(dr, sym, tf, _CELL_W - 2)
     tw = dr.textlength(label, font=tf)
-    dr.text((x + (_CELL_W - tw) / 2, y + _TILE + 7), label, font=tf, fill=INK)
+    dr.text((x + (_CELL_W - tw) / 2, y + _TILE + 7), label, font=tf,
+            fill=GOLD if marquee else INK)
 
 
 def _more_box(dr, x: int, y: int, n: int) -> None:
@@ -174,7 +187,12 @@ def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
             entries = (day.get(key) or [])[:MAX_PER_SESSION]
             if key == "amc":
                 y += 8
-            y = _session_head(dr, x, y, label, color, len(day.get(key) or []))
+            # Badge the TRUE reporter count, not the length of the filtered
+            # draw list, so header total = session badges + `+N more`.
+            n_true = day.get(f"{key}_n")
+            if n_true is None:
+                n_true = len(day.get(key) or [])
+            y = _session_head(dr, x, y, label, color, n_true)
             if not entries:
                 dr.text((x + _PAD, y + 4), "—", font=font(REG, 15), fill=DIM)
             for idx, e in enumerate(entries):
@@ -186,7 +204,10 @@ def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
         if has_tbd:
             tbd = (day.get("tbd") or [])[:MAX_TBD]
             y += 8
-            y = _session_head(dr, x, y, "TIME TBD", TBD, len(day.get("tbd") or []))
+            n_tbd = day.get("tbd_n")
+            if n_tbd is None:
+                n_tbd = len(day.get("tbd") or [])
+            y = _session_head(dr, x, y, "TIME TBD", TBD, n_tbd)
             if not tbd:
                 dr.text((x + _PAD, y + 4), "—", font=font(REG, 15), fill=DIM)
             for idx, e in enumerate(tbd):

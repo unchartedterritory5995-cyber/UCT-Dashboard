@@ -93,6 +93,21 @@ def week_label(monday: date) -> str:
             f"{end.strftime('%b')} {end.day}, {monday.year}")
 
 
+# A gold ring marks the week's heavyweights so the eye finds them without
+# reading every ticker. $50B is the line: it catches every name the owner named
+# as "really important" (SNOW $103B, DDOG $96B) and lands on a clean large-cap
+# boundary rather than a number reverse-engineered from one week's roster.
+MARQUEE_MC_B = 50.0
+
+# Below this, a name is drawn only if nothing better is available — a sub-$1B
+# shell reporting is not news for this audience (ABTC $0.4B, CZWI $0.2B,
+# BMRC $0.5B all made the card before this). They still count toward the day
+# total and `+N more`, so the card never understates who is reporting; they
+# just stop taking a tile from a company people actually trade.
+# A cap we could NOT read is kept — fail toward showing, never hide silently.
+MIN_DRAW_MC_B = 1.0
+
+
 def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     """(earnings_days, econ_days) shaped for the renderers. Ranks each day's
     reporters by market cap, using day-metrics for the caps the live calendar
@@ -134,12 +149,19 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             # Unknown cap sinks below known caps rather than sorting as zero-ish
             rows.sort(key=lambda r: (r["mc_b"] is not None, r["mc_b"] or 0),
                       reverse=True)
+            # Hard floor, not a fallback tail: a light session showing two real
+            # companies beats one padded out with sub-$1B shells. They stay in
+            # `total` and `+N more`, so the card never understates the day —
+            # they just stop taking a tile from something people trade.
+            ordered = [r for r in rows
+                       if r["mc_b"] is None or r["mc_b"] >= MIN_DRAW_MC_B]
             # Resolve logo paths ONLY for the names that actually get drawn —
             # a busy day now carries ~150 reporters and each lookup stats disk.
-            top = rows[:draw_cap]
+            top = ordered[:draw_cap]
             for r in top:
                 r["logo_path"] = _logos.get_logo_path(r["sym"])
-            return top + rows[draw_cap:]
+                r["marquee"] = (r["mc_b"] or 0) >= MARQUEE_MC_B
+            return top + ordered[draw_cap:]
 
         bmo, amc = _rank("bmo"), _rank("amc")
         tbd_n = len(day.get("tbd") or [])
@@ -158,6 +180,13 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             "bmo": bmo,
             "amc": amc,
             "tbd": tbd,
+            # TRUE reporter counts per session — the draw lists are filtered, so
+            # badging their length made a day read "BMO 2" when 4 companies
+            # report. The header total, the session badges and `+N more` must
+            # all reconcile, or the card quietly contradicts itself.
+            "bmo_n": len(day.get("bmo") or []),
+            "amc_n": len(day.get("amc") or []),
+            "tbd_n": tbd_n,
             "overflow": max(0, total - shown),
         })
 
