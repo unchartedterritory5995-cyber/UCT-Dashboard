@@ -573,9 +573,10 @@ def _start_rest_side_heal():
     whose NBBO went stale) lands blank-side -> "Not Clean" -> hidden from the
     directional tiers. This bypasses the Q-pool: for TODAY's recent still-blank
     prints >= MASSIVE_RESTHEAL_PREMIUM, it pulls the consolidated NBBO from Massive
-    REST /v3/quotes at the print's exact ns (reusing backfill_rest's tested leg-sum
-    match + midpoint classify) and writes the real side (ASK *or* BID) to flow.db.
-    Never guesses — only exact leg-sum matches with a fresh book heal.
+    REST /v3/quotes at the print's stored ns (ts_ns = the cluster's first_ts_ns;
+    leg-sum reconstruction only for pre-7/25 rows that lack it) and midpoint-classifies
+    the real side (ASK *or* BID) into flow.db. Never guesses — only a fresh book
+    yields a side; otherwise the row stays honestly blank.
 
     Gated by MASSIVE_RESTHEAL_ENABLED (default OFF — ships dark). Cadence
     MASSIVE_RESTHEAL_INTERVAL (default 60s). Idempotent: targets only still-blank

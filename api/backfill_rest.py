@@ -55,6 +55,10 @@ STALENESS_NS = int(float(os.environ.get("MASSIVE_NBBO_STALENESS_SEC", "5")) * 1_
 # classify against. Read at import -> restart to change.
 RESTHEAL_STALENESS_NS = int(float(
     os.environ.get("MASSIVE_RESTHEAL_STALENESS_SEC", "120")) * 1_000_000_000)
+# ts_ns sanity floor: a real 2020s nanosecond epoch is ~1.7e18. Anything below this
+# (0/null/garbage, or a value mistakenly stored in ms) is rejected and that row falls
+# back to the leg-sum reconstruction.
+_NS_FLOOR = 10 ** 18
 
 # The backlog window is entirely EDT (June-July), so a fixed -4 is correct here.
 # flow.db CreatedTime is ET (verified 7/25: flow.db 9:32:21 == trade sip_ts at UTC-4).
@@ -167,7 +171,7 @@ def _load_targets(db, source, days, min_time_sec=None, prem_floor=None):
     try:
         rows = con.execute(
             f"""SELECT dedup_key, Symbol, CallPut, Strike, ExpirationDate,
-                       Price, Volume, CreatedDate, CreatedTime
+                       Price, Volume, CreatedDate, CreatedTime, ts_ns
                 FROM flow
                 WHERE source = ? AND CreatedDate IN ({placeholders})
                   AND (Side IS NULL OR Side = '')
@@ -181,7 +185,7 @@ def _load_targets(db, source, days, min_time_sec=None, prem_floor=None):
 
     groups = defaultdict(list)
     kept = 0
-    for dedup_key, sym, cp, strike, exp, price, vol, cdate, ctime in rows:
+    for dedup_key, sym, cp, strike, exp, price, vol, cdate, ctime, ts_ns in rows:
         try:
             occ = _occ(sym, cp, strike, exp)
             p = round(float(price), 2)
@@ -192,27 +196,19 @@ def _load_targets(db, source, days, min_time_sec=None, prem_floor=None):
             continue
         if min_time_sec is not None and (t.hour * 3600 + t.minute * 60 + t.second) < min_time_sec:
             continue
-        groups[(occ, cdate)].append((dedup_key, p, v, sec))
+        groups[(occ, cdate)].append((dedup_key, p, v, sec, ts_ns))
         kept += 1
     return groups, kept
 
 
-def _process_group(occ, cdate, prints, tz=_ET, staleness_ns=STALENESS_NS):
-    """Heal one contract-day. Returns (updates, stats).
-
-    tz is the timezone used to bucket trades into ET seconds and to compute the
-    day window. The backlog run passes the fixed-EDT _ET (its window is all
-    summer); the live run passes the DST-aware _ET_LIVE.
-
-    staleness_ns bounds how old the REST NBBO may be vs the print's ns. The backlog
-    keeps the tight module default; the live run passes RESTHEAL_STALENESS_NS.
-    """
+def _build_legmap(occ, cdate, tz):
+    """Fetch the contract-day's trades and index legs by (ET second, rounded price)
+    -> [(size, ts_ns), ...]. Only needed to reconstruct a print's ns for rows that
+    have NO stored ts_ns (the pre-7/25 backlog)."""
     d0 = datetime.strptime(cdate, "%m/%d/%Y").replace(tzinfo=tz)
     start_ns = int(d0.timestamp() * 1_000_000_000)
     end_ns = int((d0 + timedelta(hours=30)).timestamp() * 1_000_000_000)
     trades = _fetch_trades(occ, start_ns, end_ns)
-
-    # index legs by (ET second, price) -> [(size, ts_ns), ...]
     legmap = defaultdict(list)
     for t in trades:
         ts, pr, sz = t.get("sip_timestamp"), t.get("price"), t.get("size")
@@ -220,17 +216,40 @@ def _process_group(occ, cdate, prints, tz=_ET, staleness_ns=STALENESS_NS):
             continue
         et = datetime.fromtimestamp(int(ts) / 1e9, tz)
         legmap[((et.hour, et.minute, et.second), round(float(pr), 2))].append((int(sz), int(ts)))
+    return legmap
 
+
+def _process_group(occ, cdate, prints, tz=_ET, staleness_ns=STALENESS_NS):
+    """Heal one contract-day. Returns (updates, stats).
+
+    For each print we need its exact nanosecond to look up the NBBO. LIVE rows store
+    it (ts_ns = the cluster's first_ts_ns, the same instant the live classifier uses)
+    -> use it directly, no /v3/trades fetch, no leg-sum reconstruction. Only rows with
+    NO stored ts_ns (the pre-7/25 backlog) fall back to the leg-sum cluster match
+    (lazy legmap, built once per contract only if actually needed).
+
+    tz buckets trades into ET seconds + computes the day window (fixed-EDT _ET for the
+    backlog, DST-aware _ET_LIVE for the live run). staleness_ns bounds how old the REST
+    NBBO may be vs the print's ns (tight module default for the backlog;
+    RESTHEAL_STALENESS_NS for the live run).
+    """
     updates = []
     st = {"matched": 0, "nomatch": 0, "noquote": 0, "noquote_none": 0,
           "noquote_stale": 0, "mid": 0}
-    for dedup_key, price, vol, sec in prints:
-        legs = legmap.get((sec, price))
-        if not legs or sum(s for s, _ in legs) != vol:
-            st["nomatch"] += 1               # no clean leg-sum cluster -> leave blank
-            continue
+    legmap = None  # built lazily only for rows lacking a stored ts_ns
+    for dedup_key, price, vol, sec, ts_ns in prints:
+        # Prefer the stored print ns; reconstruct via leg-sum only when it's absent.
+        if ts_ns is not None and int(ts_ns) > _NS_FLOOR:
+            ns = int(ts_ns)
+        else:
+            if legmap is None:
+                legmap = _build_legmap(occ, cdate, tz)
+            legs = legmap.get((sec, price))
+            if not legs or sum(s for s, _ in legs) != vol:
+                st["nomatch"] += 1           # no clean leg-sum cluster -> leave blank
+                continue
+            ns = max(t for _, t in legs)      # completing instant of the print
         st["matched"] += 1
-        ns = max(t for _, t in legs)          # completing instant of the print
         q = _fetch_quote_at(occ, ns)
         if q is None:
             st["noquote"] += 1
