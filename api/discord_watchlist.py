@@ -355,7 +355,7 @@ def build_messages(
         bar_w = 12
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
-        bar = "🟢" * bull_blocks + "🔴" * bear_blocks
+        bar = "🟩" * bull_blocks + "🟥" * bear_blocks
         net_sign = "+" if net > 0 else ""
         bear_pct = 100 - bull_pct
         lean = "Bullish" if net > 0 else ("Bearish" if net < 0 else "Neutral")
