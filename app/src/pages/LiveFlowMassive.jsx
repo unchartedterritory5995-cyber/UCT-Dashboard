@@ -2190,6 +2190,12 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               onChange={e => setPath(["hide_block_only"], e.target.checked)} />
             <span>Hide block-only (require sweep)</span>
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
+            <input type="checkbox"
+              checked={thresholds.incremental_scan ?? false}
+              onChange={e => setPath(["incremental_scan"], e.target.checked)} />
+            <span>Incremental scan (perf - fixes blank sides)</span>
+          </label>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
