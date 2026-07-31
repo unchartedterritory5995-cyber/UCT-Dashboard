@@ -122,3 +122,18 @@ def test_never_raises_and_returns_empty_on_failure():
 def test_no_api_key_is_a_quiet_no_op():
     with mock.patch.dict("os.environ", {}, clear=True):
         assert fmp.fetch_us_econ_week("2026-08-03", "2026-08-07") == {}
+
+
+def test_marquee_releases_are_flagged_is_key_for_the_cards_accent_rail():
+    """The card's gold rail must be driven by real importance, not styling."""
+    out = _fetch([
+        _row("Non Farm Payrolls", "2026-08-07 12:30:00", "High"),
+        _row("Factory Orders MoM", "2026-08-07 14:00:00", "Medium"),
+        _row("Fed Chair Powell Speaks", "2026-08-07 18:00:00", "Low"),
+    ])
+    by = {e["event"]: e for e in out["2026-08-07"]}
+    assert by["Non Farm Payrolls"]["is_key"] is True
+    assert by["Factory Orders MoM"]["is_key"] is False
+    # A Fed speaker gets its OWN accent, so it must not double as is_key.
+    assert by["Fed Chair Powell Speaks"]["is_fed"] is True
+    assert by["Fed Chair Powell Speaks"]["is_key"] is False

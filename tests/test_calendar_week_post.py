@@ -240,3 +240,30 @@ def test_econ_cap_constant_is_respected():
               for i in range(MAX_ECON_PER_DAY + 5)]
     assert render_econ_week_png("W", [{"label": "MON 3", "events": events}])[:8] \
         == b"\x89PNG\r\n\x1a\n"
+
+
+# ── The logo-forward redesign's contract ──────────────────────────────────────
+
+def test_a_session_is_a_full_grid_with_no_ragged_row():
+    """The logo block reads as a block; a ragged last row breaks the rhythm
+    that makes the card scannable."""
+    from api.services.calendar_week_png import GRID_COLS, GRID_ROWS
+    assert MAX_PER_SESSION == GRID_COLS * GRID_ROWS
+
+
+def test_the_renderer_survives_a_missing_logo():
+    """Coverage is ~99.5% but never 100 — a miss must fall back to a monogram,
+    not blow up the Saturday post."""
+    days = [{"label": "MON 3", "total": 2, "overflow": 0,
+             "bmo": [{"sym": "NOSUCH", "mc_b": 1.0, "logo_path": None},
+                     {"sym": "ALSONONE", "mc_b": 1.0, "logo_path": "/nope/x.png"}],
+             "amc": []}]
+    assert render_earnings_week_png("W", days)[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_econ_fetch_cap_matches_what_the_card_draws():
+    """Otherwise the ranking picks an event the renderer then cuts."""
+    import inspect
+    from api.services import calendar_week_poster as p
+    src = inspect.getsource(p.build_payloads)
+    assert "limit_per_day=MAX_ECON_PER_DAY" in src

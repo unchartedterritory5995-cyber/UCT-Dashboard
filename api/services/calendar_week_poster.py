@@ -155,12 +155,16 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
 
         events = []
         for ev in (day.get("econ") or []):
+            # `is_key` drives the card's accent rail — the calendar already
+            # computes it for the current week, so reuse it rather than
+            # re-deriving importance in the renderer.
             events.append({"time": ev.get("time"), "event": ev.get("event"),
                            "estimate": ev.get("estimate"), "prior": ev.get("prior"),
-                           "is_fed": False})
+                           "is_fed": False, "is_key": bool(ev.get("is_key"))})
         for ev in (day.get("fed") or []):
             events.append({"time": ev.get("time"), "event": ev.get("event"),
-                           "estimate": None, "prior": None, "is_fed": True})
+                           "estimate": None, "prior": None,
+                           "is_fed": True, "is_key": False})
         econ_days.append({"label": label, "ds": ds, "events": events})
 
     # ForexFactory's `ff_calendar_nextweek.json` 404s, so the calendar payload
@@ -169,9 +173,13 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     # covers arbitrary ranges. Only fires when the payload gave us nothing, so
     # the current week keeps its existing ForexFactory data.
     if not any(d["events"] for d in econ_days):
+        from api.services.calendar_week_png import MAX_ECON_PER_DAY
         from api.services.econ_calendar_fmp import fetch_us_econ_week
+        # Same cap the renderer draws, so the importance ranking picks exactly
+        # the events that make the card instead of ranking a 9th that's cut.
         fmp = fetch_us_econ_week(monday.isoformat(),
-                                 (monday + timedelta(days=4)).isoformat())
+                                 (monday + timedelta(days=4)).isoformat(),
+                                 limit_per_day=MAX_ECON_PER_DAY)
         if fmp:
             for d in econ_days:
                 d["events"] = fmp.get(d["ds"], [])

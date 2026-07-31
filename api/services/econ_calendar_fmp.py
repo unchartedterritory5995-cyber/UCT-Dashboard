@@ -134,7 +134,8 @@ def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict
             {"time": _fmt_time(dt), "event": title,
              "estimate": _clean(row.get("estimate")),
              "prior": _clean(row.get("previous")),
-             "is_fed": is_fed},
+             "is_fed": is_fed,
+             "is_key": rank == _KEY_RANK and not is_fed},
         ))
 
     result: dict[str, list[dict]] = {}
