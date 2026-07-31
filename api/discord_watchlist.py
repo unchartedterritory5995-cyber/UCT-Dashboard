@@ -351,15 +351,14 @@ def build_messages(
         net_color = _GREEN_A if net > 0 else _RED_A
         title_label = label or "WATCHLIST"
 
-        # Build bull/bear visual bar with emoji circles (softer than squares)
-        bar_w = 34
+        # Bull/bear split bar: green/red SQUARE emoji. Emoji is the ONLY way to
+        # keep the bar COLORED on mobile (ANSI blocks render WHITE on phones).
+        # Width kept phone-friendly so it does not wrap. Squares are not perfectly
+        # seamless (rounded emoji) -- that is the cross-platform cost.
+        bar_w = 14
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
-        # Clean continuous bar via ANSI full-blocks in a code block (bright
-        # green + bright red). Solid colored bar on DESKTOP. NOTE: mobile Discord
-        # ignores ANSI color in code blocks -> a monochrome bar there.
-        _blk = "█"
-        bar = f"```ansi\n{_GREEN_A}{_blk * bull_blocks}{_RED_A}{_blk * bear_blocks}{_RESET}\n```"
+        bar = "🟩" * bull_blocks + "🟥" * bear_blocks
         net_sign = "+" if net > 0 else ""
         bear_pct = 100 - bull_pct
         lean = "Bullish" if net > 0 else ("Bearish" if net < 0 else "Neutral")
@@ -369,8 +368,8 @@ def build_messages(
             "color": GOLD,
             "title": f"{net_emoji} {title_label} — {date_str}",
             "description": (
-                f"**{net_sign}{_fmt(net)} NET**  ·  {lean_pct}% {lean}\n"
-                f"{bar}\n"
+                f"**{net_sign}{_fmt(net)} NET**  ·  {lean_pct}% {lean}\n\n"
+                f"{bar}\n\n"
                 f"🟢 Bull {_fmt(total_bull)}      🔴 Bear {_fmt(total_bear)}      📋 {tk_count} tickers"
             ),
         })
