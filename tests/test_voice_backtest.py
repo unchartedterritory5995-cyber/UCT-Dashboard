@@ -3,11 +3,24 @@ P5-D — analyze_setup_in_period (backtest-on-demand) tests.
 """
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from api.services.auth_db import init_db
 from api.services.auth_service import create_user
 from api.services.voice_backtest import analyze_setup_in_period
+
+# Fixed reference clock. EVERY call below passes `now=_NOW`, so nothing in this
+# file reads wall-clock time and the literal fixture dates are pinned relative
+# to it forever.
+#
+# Why: this file broke on 2026-08-01 with 5 failures and no code change
+# (`lesson_weekday_only_test_time_bombs`). The fixtures are dated 2026-05-01 and
+# the assertions use a rolling `days=90` window; on 2026-08-01 the window start
+# walked past 2026-05-01 and every `days=`-based test began reporting 0 trades.
+# Re-dating the literal would only reset the fuse, so the clock is injected
+# instead.
+_NOW = datetime(2026, 5, 15, tzinfo=timezone.utc)
 
 
 def _user():
@@ -41,7 +54,7 @@ def test_no_trades_returns_friendly_message():
     uid = _user()
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=[]):
-        out = analyze_setup_in_period(uid, days=90)
+        out = analyze_setup_in_period(uid, days=90, now=_NOW)
     assert out["ok"] is True
     assert out["trade_count"] == 0
     assert "No closed" in out["narration"]
@@ -51,7 +64,7 @@ def test_no_matching_setup_returns_zero():
     uid = _user()
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=[_trade(setup="Bull Flag")]):
-        out = analyze_setup_in_period(uid, setup="Pullback", days=90)
+        out = analyze_setup_in_period(uid, setup="Pullback", days=90, now=_NOW)
     assert out["trade_count"] == 0
 
 
@@ -66,7 +79,7 @@ def test_win_rate_and_avg_r():
     ]
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
-        out = analyze_setup_in_period(uid, setup="Bull Flag", days=90)
+        out = analyze_setup_in_period(uid, setup="Bull Flag", days=90, now=_NOW)
     assert out["trade_count"] == 3
     assert out["wins"] == 2
     assert out["losses"] == 1
@@ -84,7 +97,7 @@ def test_profit_factor_undefined_when_no_losses():
     trades = [_trade(result="win", r=2.0, pnl_d=400)]
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
-        out = analyze_setup_in_period(uid, days=90)
+        out = analyze_setup_in_period(uid, days=90, now=_NOW)
     assert out["profit_factor"] is None
 
 
@@ -97,7 +110,7 @@ def test_breakeven_trades_dont_count_as_win_or_loss():
     ]
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
-        out = analyze_setup_in_period(uid, days=90)
+        out = analyze_setup_in_period(uid, days=90, now=_NOW)
     assert out["wins"] == 1
     assert out["losses"] == 1
     assert out["breakeven"] == 1
@@ -117,7 +130,7 @@ def test_date_range_filter():
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
         out = analyze_setup_in_period(
-            uid, start_date="2026-02-01", end_date="2026-04-30",
+            uid, start_date="2026-02-01", end_date="2026-04-30", now=_NOW,
         )
     assert out["trade_count"] == 1  # only the March trade
 
@@ -131,7 +144,7 @@ def test_regime_filter():
     ]
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
-        out = analyze_setup_in_period(uid, days=90, regime="AMBER")
+        out = analyze_setup_in_period(uid, days=90, regime="AMBER", now=_NOW)
     assert out["trade_count"] == 2
     assert out["wins"] == 1
     assert out["losses"] == 1
@@ -145,7 +158,49 @@ def test_only_closed_trades_count():
     trades = [open_trade, _trade(result="win", r=1.5)]
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
-        out = analyze_setup_in_period(uid, days=90)
+        out = analyze_setup_in_period(uid, days=90, now=_NOW)
+    assert out["trade_count"] == 1
+
+
+# ── Clock seam ────────────────────────────────────────────────────────────
+
+def test_days_window_anchors_on_injected_clock_not_wall_time():
+    """The rolling `days` window measures back from `now`, not wall time.
+
+    This is the regression gate for the 2026-08-01 time bomb. Asserting BOTH
+    directions is what makes it real: the same fixture must be INSIDE a 90-day
+    window anchored at _NOW and OUTSIDE one anchored ten years later. A build
+    that ignores `now` and reads the wall clock fails the first assertion on
+    any date past ~2026-07-30, and fails the second on every date forever.
+    """
+    uid = _user()
+    trades = [_trade(exit_date="2026-05-01", result="win", r=1.0)]
+    with patch("api.services.journal_two.trades.list_trades_for_user",
+               return_value=trades):
+        inside = analyze_setup_in_period(uid, days=90, now=_NOW)
+        far_future = analyze_setup_in_period(
+            uid, days=90, now=_NOW + timedelta(days=3650),
+        )
+
+    assert inside["trade_count"] == 1
+    assert inside["end_date"] == "2026-05-15"     # == _NOW, not today
+    assert inside["start_date"] == "2026-02-14"   # == _NOW - 90d
+
+    # Ten years on, the same trade is far outside the rolling window.
+    assert far_future["trade_count"] == 0
+    assert far_future["end_date"] == "2036-05-12"
+
+
+def test_explicit_end_date_still_wins_over_injected_clock():
+    """`end_date` outranks `now` — injecting a clock must not break the
+    explicit-range path that the by-month/date-filter tests rely on."""
+    uid = _user()
+    with patch("api.services.journal_two.trades.list_trades_for_user",
+               return_value=[_trade(exit_date="2026-03-10")]):
+        out = analyze_setup_in_period(
+            uid, start_date="2026-03-01", end_date="2026-03-31", now=_NOW,
+        )
+    assert out["end_date"] == "2026-03-31"
     assert out["trade_count"] == 1
 
 
@@ -161,7 +216,7 @@ def test_by_month_breakdown():
     with patch("api.services.journal_two.trades.list_trades_for_user",
                return_value=trades):
         out = analyze_setup_in_period(
-            uid, start_date="2026-03-01", end_date="2026-04-30",
+            uid, start_date="2026-03-01", end_date="2026-04-30", now=_NOW,
         )
     by_month = {m["month"]: m for m in out["by_month"]}
     assert "2026-03" in by_month

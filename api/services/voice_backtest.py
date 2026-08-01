@@ -72,6 +72,7 @@ def analyze_setup_in_period(
     end_date: str | None = None,
     regime: str | None = None,
     account_id: str | None = None,
+    now: datetime | None = None,
 ) -> dict:
     """Aggregate closed trades over a date range. Returns stats + by-month.
 
@@ -81,6 +82,12 @@ def analyze_setup_in_period(
     Filters:
       - setup: case-insensitive exact match against trade.setup
       - regime: matches the regime label in context_at_entry
+
+    `now` overrides the reference clock the relative `days` window is measured
+    back from (default: wall-clock UTC). It is the ONLY place this function
+    reads the time, so injecting it fixes the whole window — a caller passing
+    `now` can never get a half-honored clock. Test-facing seam; the voice tool
+    does not expose it.
     """
     if account_id is None:
         try:
@@ -90,7 +97,10 @@ def analyze_setup_in_period(
             account_id = None
 
     # Date range
-    end_iso = _parse_date(end_date) or datetime.now(timezone.utc).date().isoformat()
+    end_iso = (
+        _parse_date(end_date)
+        or (now or datetime.now(timezone.utc)).date().isoformat()
+    )
     if start_date:
         start_iso = _parse_date(start_date) or end_iso
     elif days:
