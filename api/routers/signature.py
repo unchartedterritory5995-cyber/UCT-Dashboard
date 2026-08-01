@@ -34,8 +34,6 @@ THE FOUR RULES THIS MODULE EXISTS TO ENFORCE
 from __future__ import annotations
 
 import asyncio
-import csv
-import io
 import logging
 import os
 import re
@@ -50,7 +48,7 @@ from api.services.cache import cache
 from api.services.serve_stale import ServeStale
 from api.services.signature import ledger, rules
 from api.services.signature.darkpool_levels import fetch_dp_levels
-from api.services.signature.flow_breakout import fcb_signals
+from api.services.signature.flow_breakout import _bar_date_iso, fcb_signals, flow_by_date
 from api.services.signature.gex_walls import fetch_gex_walls
 from api.services.signature.rules import parse_money
 
@@ -195,43 +193,43 @@ def _flow_base_url() -> str:
     return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
 
 
-def _read_flow_rows(sym: str, source: str) -> list[dict] | None:
-    """One read of ONE flow source. Rows, or **None when the read FAILED**.
+def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[dict]] | None:
+    """One STREAMED read of ONE flow source, or **None when the read FAILED**.
 
     An unreachable flow service and a genuinely quiet tape both produce zero
-    signals, but only one of them is an answer. Handing back `[]` for a failure
+    signals, but only one of them is an answer. Handing back `{}` for a failure
     would let the caller remember "no signal" as a good payload for the next 30
     minutes (`lesson_market_cap_cache_poison`: never cache a failed fetch as a
     value).
+
+    **Streamed, not materialized.** The surface serves gzipped CSV
+    (`flow_router.get_flow_ticker` → `_build_gzipped_symbol_csv`) UNCAPPED — a
+    liquid name's history is 22 columns over months of tape. `resp.text` +
+    `csv.DictReader` held the whole decoded body AND a full 22-key dict per row
+    on an anyio worker, on the request path, for three fields the join actually
+    reads. `httpx.stream` + `iter_lines` into the shared parser holds one row at
+    a time and keeps three keys, inside the bar window it is about to join
+    against.
 
     **No credential is forwarded.** `/api/flow/ticker/{symbol}` declares no auth
     dependency on either service, so sending the caller's session cookie to an
     env-configurable base URL would buy nothing and hand a live credential to
     whatever `_flow_base_url()` happens to resolve to.
-
-    The surface serves **gzipped CSV**, not JSON (`flow_router.get_flow_ticker`
-    → `_build_gzipped_symbol_csv`); httpx transparently decodes the
-    Content-Encoding, so `resp.text` is the CSV. `ai_search._ctx_flow_ticker`
-    reads the same surface the same way.
     """
     url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
     try:
-        resp = httpx.get(url, params={"source": source}, timeout=15.0)
+        with httpx.stream("GET", url, params={"source": source}, timeout=15.0) as resp:
+            if resp.status_code != 200:
+                logger.warning("signature: flow read for %s (%s) returned HTTP %s",
+                               sym, source, resp.status_code)
+                return None
+            return flow_by_date(resp.iter_lines(), cutoff_iso=cutoff_iso)
     except Exception as exc:                       # noqa: BLE001
         logger.warning("signature: flow read for %s (%s) failed: %s", sym, source, exc)
         return None
-    if resp.status_code != 200:
-        logger.warning("signature: flow read for %s (%s) returned HTTP %s",
-                       sym, source, resp.status_code)
-        return None
-    try:
-        return list(csv.DictReader(io.StringIO(resp.text)))
-    except Exception as exc:                       # noqa: BLE001
-        logger.warning("signature: flow rows for %s (%s) did not parse: %s", sym, source, exc)
-        return None
 
 
-def _fetch_flow_rows(sym: str) -> list[dict] | None:
+def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]] | None:
     """Read flow via the proxied surface so flow-worker's fresh DB answers.
 
     **Two sources, tried in order.** `/api/flow/ticker` defaults to
@@ -252,14 +250,19 @@ def _fetch_flow_rows(sym: str) -> list[dict] | None:
     whose second read died must be retried next request, not remembered as
     signal-free for the next 30 minutes.
     """
-    rows = _read_flow_rows(sym, "stocks")
-    if rows is None or rows:
-        return rows
-    return _read_flow_rows(sym, "indexes")
+    by_date = _read_flow_source(sym, "stocks", cutoff_iso)
+    if by_date is None or by_date:
+        return by_date
+    return _read_flow_source(sym, "indexes", cutoff_iso)
 
 
 def _flow_join_stats(rows) -> dict:
     """Count what the flow→bar join is actually able to USE.
+
+    `rows` is every row that SURVIVED the streamed parse — i.e. rows with a
+    readable date inside the bar window. Rows outside the window were never
+    going to join anything, so counting them would only dilute the numbers
+    below.
 
     Both of these fail silently toward "no signal", because the compute just
     sums a smaller number — there is no error anywhere:
@@ -291,8 +294,8 @@ def _flow_join_stats(rows) -> dict:
             "parsed_to_zero": parsed_to_zero, "unknown_sides": unknown_sides}
 
 
-def _log_flow_join(sym: str, rows) -> None:
-    stats = _flow_join_stats(rows)
+def _log_flow_join(sym: str, by_date) -> None:
+    stats = _flow_join_stats(r for rows in by_date.values() for r in rows)
     logger.info("signature: fcb flow join %s rows_in=%d side_matched=%d parsed_to_zero=%d",
                 sym, stats["rows_in"], stats["side_matched"], stats["parsed_to_zero"])
     if stats["unknown_sides"]:
@@ -307,23 +310,18 @@ def _fcb_good(p) -> bool:
 
 def _fcb_build(sym: str) -> dict:
     try:
+        # Bars FIRST: the flow window is derived from them. Reading flow with no
+        # cutoff would pull a symbol's entire filed history to join against 60
+        # daily bars — the exact waste the streamed parser exists to avoid.
         bars = _fetch_bars(sym)
-        rows = _fetch_flow_rows(sym)
-        if rows is None:
+        cutoff_iso = _bar_date_iso(bars[0]["t"]) if bars else ""
+        by_date = _fetch_flow_by_date(sym, cutoff_iso)
+        if by_date is None:
             # No "signals" key at all: good() is `"signals" in p`, so this
             # envelope is refused by the slot and retried next request.
             return {"sym": sym, "version": rules.VERSIONS["fcb"],
                     "error": "flow unavailable", "asOf": time.time()}
-        _log_flow_join(sym, rows)
-        by_date: dict[str, list[dict]] = {}
-        for r in rows:
-            d = r.get("CreatedDate") or ""
-            try:  # flow dates are M/D/YYYY — normalize to ISO to match _bar_date_iso
-                m, day, y = d.split("/")
-                iso = f"{int(y):04d}-{int(m):02d}-{int(day):02d}"
-            except (ValueError, AttributeError):
-                continue
-            by_date.setdefault(iso, []).append(r)
+        _log_flow_join(sym, by_date)
         signals = fcb_signals(bars, by_date, include_last=False)  # NEVER the forming session
     except Exception as exc:                       # noqa: BLE001 — see rule 1
         logger.exception("signature: flow-breakout build failed for %s", sym)

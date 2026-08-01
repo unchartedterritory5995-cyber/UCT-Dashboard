@@ -6,10 +6,71 @@ Nothing here may ever evaluate a forming bar in a user-request path.
 """
 from __future__ import annotations
 
+import csv
 from datetime import datetime, timezone
 
 from api.services.signature import rules
 from api.services.signature.rules import parse_money
+
+# The only three fields the flow→bar join reads. The flow CSV ships 22 columns
+# (`flow_db.COLUMNS`); keeping full row dicts for a 90-day SPY history is a
+# ~155MB transient on a 512MB pod, most of it never read.
+FLOW_COLS = ("CreatedDate", "CallPut", "Premium")
+
+
+def flow_by_date(lines, *, cutoff_iso: str = "") -> dict[str, list[dict]]:
+    """Stream a flow CSV into `{iso_date: [{CreatedDate, CallPut, Premium}]}`.
+
+    Takes an ITERABLE OF LINES (what `httpx.Response.iter_lines()` yields) and
+    feeds `csv.reader` directly, so nothing bigger than one row is ever held.
+
+    It lives HERE, next to `_bar_date_iso`, because the whole point of it is
+    that the two agree — and because both flow readers need it. The router and
+    the nightly sweep each grew their own copy of this normalization; they were
+    the same eight lines with the same trap, and one of them had already
+    diverged into materializing the whole body. Two copies of a silent-failure
+    rule is one copy too many.
+
+    Three things are load-bearing:
+
+    * **Columns are resolved BY NAME from the header.** Upstream owns the column
+      order (`flow_db.COLUMNS`); a positional read keeps working right up until
+      someone inserts a column, and then parses a Symbol string as a premium —
+      silently, toward no signal. A header missing one of the three RAISES
+      rather than returning an empty join.
+    * **The date key must agree with `_bar_date_iso`.** The flow table's
+      `CreatedDate` is M/D/YYYY; the bar side is YYYYMMDD/ISO/epoch. If the two
+      normalizations drift, the join matches nothing and the indicator ships
+      silently dead — there is no error anywhere, just zero signals.
+    * **`cutoff_iso` drops rows older than the oldest bar** the caller fetched.
+      ISO dates sort chronologically, so the comparison is a plain string one.
+    """
+    reader = csv.reader(lines)
+    header = next(reader, None)
+    if header is None:
+        return {}
+
+    idx = {}
+    for name in FLOW_COLS:
+        try:
+            idx[name] = header.index(name)
+        except ValueError as exc:
+            raise ValueError(f"flow CSV header is missing {name!r}: {header!r}") from exc
+    width = max(idx.values()) + 1
+
+    by_date: dict[str, list[dict]] = {}
+    for row in reader:
+        if len(row) < width:
+            continue
+        try:
+            m, day, y = row[idx["CreatedDate"]].split("/")
+            iso = f"{int(y):04d}-{int(m):02d}-{int(day):02d}"
+        except (ValueError, AttributeError):
+            continue
+        if cutoff_iso and iso < cutoff_iso:
+            continue
+        by_date.setdefault(iso, []).append({name: row[i] for name, i in idx.items()})
+    return by_date
 
 
 def _is_call(v) -> bool:

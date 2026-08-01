@@ -165,6 +165,17 @@ def _bull_flow(day="6/21/2026"):
             {"CreatedDate": day, "CallPut": "P", "Premium": "50000"}]
 
 
+def _bull_by_date(day="6/21/2026"):
+    """What the flow read now hands back: already keyed by ISO session date.
+
+    The M/D/YYYY→ISO normalization moved into the shared streamed parser
+    (`flow_breakout.flow_by_date`), so the router no longer re-derives it and
+    stubs here hand over the joined shape directly.
+    """
+    m, d, y = day.split("/")
+    return {f"{int(y):04d}-{int(m):02d}-{int(d):02d}": _bull_flow(day)}
+
+
 def test_bars_are_read_with_the_daily_store_key(client, monkeypatch):
     """bars_sqlite's daily rows are stored under tf="D". "1D" (the product
     label) matches nothing and returns 0 rows — a silent, permanent no-signal."""
@@ -189,7 +200,7 @@ def test_a_signal_is_recorded_with_the_product_facing_timeframe(client, monkeypa
     one way can never find a row written the other."""
     from api.services.signature import ledger
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: _bull_flow())
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", lambda sym, cutoff_iso="": _bull_by_date())
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     c = TestClient(client)
@@ -214,7 +225,7 @@ def test_the_forming_session_never_yields_a_signal_on_this_path(client, monkeypa
     from api.services.signature import ledger
     bars = _bars(n=21, breakout_at=20)          # the breakout IS the last bar
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: bars)
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: _bull_flow())
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", lambda sym, cutoff_iso="": _bull_by_date())
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     r = TestClient(client).get("/api/signature/flow-breakout?sym=NVDA")
@@ -236,7 +247,7 @@ def test_a_ledger_refusal_does_not_500_and_does_not_drop_the_signals(client, mon
 
     monkeypatch.setattr(ledger, "record_signal", boom)
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: _bull_flow())
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", lambda sym, cutoff_iso="": _bull_by_date())
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     with caplog.at_level(logging.ERROR, logger="api.routers.signature"):
@@ -420,8 +431,8 @@ def test_an_unrecognized_call_put_value_logs_at_warning(client, monkeypatch, cap
     indicator's compute is STRICT. A new upstream encoding therefore drops
     premium on the floor silently — it must at least be shouted about."""
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: [
-        {"CreatedDate": "6/21/2026", "CallPut": "CS", "Premium": "$1.2M"}])
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", lambda sym, cutoff_iso="": {
+        "2026-06-21": [{"CreatedDate": "6/21/2026", "CallPut": "CS", "Premium": "$1.2M"}]})
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     with caplog.at_level(logging.INFO, logger="api.routers.signature"):
@@ -432,20 +443,37 @@ def test_an_unrecognized_call_put_value_logs_at_warning(client, monkeypatch, cap
     assert any("rows_in=1" in r.getMessage() for r in caplog.records), caplog.text
 
 
-def _flow_probe(monkeypatch, body="CreatedDate,CallPut,Premium\r\n6/21/2026,C,$1.2M\r\n"):
-    """Capture what _fetch_flow_rows actually puts on the wire."""
+def _flow_probe(monkeypatch, body="CreatedDate,CallPut,Premium\r\n6/21/2026,C,$1.2M\r\n",
+                status=200):
+    """Capture what the flow read actually puts on the wire.
+
+    Patches `httpx.stream`, not `httpx.get`: the read is STREAMED — the surface
+    serves an uncapped per-symbol history and materializing it as one string on
+    an anyio worker is what this path stopped doing. `iter_lines()` yields lines
+    WITHOUT their terminators, which is what the shared parser is fed.
+    """
     import httpx as _httpx
     seen = {}
 
     class _Resp:
-        status_code = 200
-        text = body
+        status_code = status
 
-    def fake_get(url, headers=None, timeout=None, **kw):
-        seen.update(url=url, headers=headers, timeout=timeout, kwargs=kw)
-        return _Resp()
+        def iter_lines(self):
+            yield from body.splitlines()
 
-    monkeypatch.setattr(_httpx, "get", fake_get)
+    class _Ctx:
+        def __enter__(self):
+            return _Resp()
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_stream(method, url, params=None, headers=None, timeout=None, **kw):
+        seen.update(method=method, url=url, params=params, headers=headers,
+                    timeout=timeout, kwargs=kw)
+        return _Ctx()
+
+    monkeypatch.setattr(_httpx, "stream", fake_stream)
     return seen
 
 
@@ -486,13 +514,24 @@ def test_flow_is_read_from_the_proxied_surface_and_forwards_no_credential(monkey
     monkeypatch.setenv("SIGNATURE_FLOW_BASE", "http://flow.test:8080")
     seen = _flow_probe(monkeypatch)
 
-    rows = sig._fetch_flow_rows("NVDA")
+    by_date = sig._fetch_flow_by_date("NVDA")
 
+    assert seen["method"] == "GET"
     assert seen["url"] == "http://flow.test:8080/api/flow/ticker/NVDA"
+    assert seen["params"] == {"source": "stocks"}
     assert seen["timeout"] == 15.0
     assert not (seen["headers"] or {}), f"no credential may ride along: {seen['headers']}"
     assert "cookie" not in str(seen).lower()
-    assert [r["Premium"] for r in rows] == ["$1.2M"]
+    assert [r["Premium"] for r in by_date["2026-06-21"]] == ["$1.2M"]
+
+
+def _real_header_body(rows):
+    from api.flow_db import COLUMNS
+
+    def row(**kv):
+        return ",".join(str(kv.get(c, "")) for c in COLUMNS)
+
+    return ",".join(COLUMNS) + "\r\n" + "\r\n".join(row(**r) for r in rows) + "\r\n"
 
 
 def test_the_csv_fixture_is_built_from_the_real_flow_header(monkeypatch):
@@ -504,23 +543,61 @@ def test_the_csv_fixture_is_built_from_the_real_flow_header(monkeypatch):
 
     assert {"CreatedDate", "CallPut", "Premium"} <= set(COLUMNS)
 
-    def row(**kv):
-        return ",".join(str(kv.get(c, "")) for c in COLUMNS)
+    _flow_probe(monkeypatch, body=_real_header_body([
+        dict(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="C", Premium="$1.2M"),
+        dict(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="PUT", Premium=""),
+        dict(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="CS", Premium="900000"),
+    ]))
 
-    body = ",".join(COLUMNS) + "\r\n" + "\r\n".join([
-        row(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="C", Premium="$1.2M"),
-        row(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="PUT", Premium=""),
-        row(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="CS", Premium="900000"),
-    ]) + "\r\n"
-    _flow_probe(monkeypatch, body=body)
-
-    rows = sig._fetch_flow_rows("NVDA")
+    rows = sig._fetch_flow_by_date("NVDA")["2026-06-21"]
     assert len(rows) == 3
-    assert list(rows[0]) == COLUMNS, "DictReader must key off the real header"
     assert rows[0]["Premium"] == "$1.2M" and rows[0]["CallPut"] == "C"
     assert sig._flow_join_stats(rows) == {
         "rows_in": 3, "side_matched": 2, "parsed_to_zero": 1, "unknown_sides": {"CS": 1},
     }
+
+
+def test_the_router_read_keeps_three_keys_out_of_the_twenty_two(monkeypatch):
+    """The surface's per-symbol CSV is UNCAPPED: a liquid name is months of tape
+    across 22 columns. Holding a full row dict per line — on an anyio worker, on
+    the request path — for the three fields the join reads is the transient this
+    read exists not to make. Pinned against the real header so an upstream
+    column addition cannot quietly widen it again."""
+    _flow_probe(monkeypatch, body=_real_header_body([
+        dict(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="C", Premium="$1.2M",
+             Strike="180", Expiry="2026-07-17")]))
+
+    row = sig._fetch_flow_by_date("NVDA")["2026-06-21"][0]
+
+    assert set(row) == {"CreatedDate", "CallPut", "Premium"}, row
+    assert "Symbol" not in row and "Strike" not in row
+
+
+def test_the_router_read_drops_rows_outside_the_bar_window(monkeypatch):
+    """The cutoff is applied DURING the stream, so out-of-window rows are never
+    held at all — and the join never sees a session the bars cannot match."""
+    _flow_probe(monkeypatch, body=_real_header_body([
+        dict(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="C", Premium="$1.2M"),
+        dict(CreatedDate="1/2/2026", Symbol="NVDA", CallPut="P", Premium="900000"),
+    ]))
+
+    assert list(sig._fetch_flow_by_date("NVDA", "2026-06-01")) == ["2026-06-21"]
+    assert sorted(sig._fetch_flow_by_date("NVDA")) == ["2026-01-02", "2026-06-21"]
+
+
+def test_the_window_handed_to_the_flow_read_is_the_oldest_bar(client, monkeypatch):
+    """Bars are fetched FIRST because the flow window comes from them. A missing
+    (or wrong) cutoff silently pulls a symbol's whole filed history to join
+    against 60 daily bars — no error, just the waste this path removed."""
+    got = []
+    monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+    monkeypatch.setattr(sig, "_fetch_flow_by_date",
+                        lambda sym, cutoff_iso="": got.append(cutoff_iso) or {})
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    TestClient(client).get("/api/signature/flow-breakout?sym=NVDA")
+
+    assert got == ["2026-06-01"]
 
 
 def test_a_failed_flow_read_is_not_served_as_no_signal(client, monkeypatch):
@@ -528,7 +605,7 @@ def test_a_failed_flow_read_is_not_served_as_no_signal(client, monkeypatch):
     output (`signals: []`) — but one is an answer and the other is a failure.
     Remembering the failure would pin 'no signal' for the next 30 minutes."""
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: None)
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", lambda sym, cutoff_iso="": None)
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     r = TestClient(client).get("/api/signature/flow-breakout?sym=NVDA")
@@ -538,21 +615,17 @@ def test_a_failed_flow_read_is_not_served_as_no_signal(client, monkeypatch):
     assert sig._FCB_STALE.peek("NVDA") == (None, None)
 
 
-def test_a_flow_read_that_errors_returns_none_not_an_empty_list(client, monkeypatch):
+def test_a_flow_read_that_errors_returns_none_not_an_empty_mapping(client, monkeypatch):
     import httpx as _httpx
 
-    def blow(url, headers=None, timeout=None, **kw):
+    def blow(*a, **kw):
         raise _httpx.ConnectError("connection refused")
 
-    monkeypatch.setattr(_httpx, "get", blow)
-    assert sig._fetch_flow_rows("NVDA") is None
+    monkeypatch.setattr(_httpx, "stream", blow)
+    assert sig._fetch_flow_by_date("NVDA") is None
 
-    class _Resp:
-        status_code = 502
-        text = "bad gateway"
-
-    monkeypatch.setattr(_httpx, "get", lambda *a, **kw: _Resp())
-    assert sig._fetch_flow_rows("NVDA") is None
+    _flow_probe(monkeypatch, body="bad gateway", status=502)
+    assert sig._fetch_flow_by_date("NVDA") is None
 
 
 # ── the TTL cache in front of the stale slot (fix F2) ──────────────────────
@@ -568,10 +641,10 @@ def _counting_builder(monkeypatch, route):
     elif route == "flow-breakout":
         monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
 
-        def fake(sym):
+        def fake(sym, cutoff_iso=""):
             calls.append(sym)
-            return _bull_flow()
-        monkeypatch.setattr(sig, "_fetch_flow_rows", fake)
+            return _bull_by_date()
+        monkeypatch.setattr(sig, "_fetch_flow_by_date", fake)
     else:
         async def fake(sym):
             calls.append(sym)

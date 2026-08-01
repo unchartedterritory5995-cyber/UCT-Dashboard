@@ -38,7 +38,6 @@ session, the sweep re-evaluates it, and the ledger's UNIQUE key refuses it —
 """
 from __future__ import annotations
 
-import csv
 import logging
 import os
 from datetime import datetime
@@ -47,18 +46,15 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from api.services.signature import ledger
-from api.services.signature.flow_breakout import _bar_date_iso, fcb_signals
+from api.services.signature.flow_breakout import (
+    FLOW_COLS, _bar_date_iso, fcb_signals, flow_by_date,
+)
 
 log = logging.getLogger("signature.sweep")
 
 _ET = ZoneInfo("America/New_York")
 
 _DEFAULT_SYMBOLS = "SPY,QQQ,NVDA,TSLA,AAPL,MSFT,AMD,META,AMZN,GOOGL"
-
-# The only three fields the join reads. The flow CSV ships 22 columns
-# (`flow_db.COLUMNS`); keeping full row dicts for a 90-day SPY history is a
-# ~155MB transient on a 512MB pod, most of it never read.
-_FLOW_COLS = ("CreatedDate", "CallPut", "Premium")
 
 # Generous because this streams a whole symbol history on a scheduler thread,
 # not a chart read on an anyio worker. The request path's 15s stays 15s.
@@ -92,59 +88,6 @@ def _expected_session() -> int:
     return _expected_latest_session_yyyymmdd()
 
 
-def _flow_by_date(lines, *, cutoff_iso: str = "") -> dict[str, list[dict]]:
-    """Stream a flow CSV into `{iso_date: [{CreatedDate, CallPut, Premium}]}`.
-
-    Takes an ITERABLE OF LINES (what `httpx.Response.iter_lines()` yields) and
-    feeds `csv.reader` directly, so nothing bigger than one row is ever held.
-
-    Two things are load-bearing:
-
-    * **Columns are resolved BY NAME from the header.** Upstream owns the column
-      order (`flow_db.COLUMNS`); a positional read keeps working right up until
-      someone inserts a column, and then parses a Symbol string as a premium —
-      silently, toward no signal. A header missing one of the three RAISES
-      rather than returning an empty join.
-    * **The date key must agree with `flow_breakout._bar_date_iso`.** The flow
-      table's `CreatedDate` is M/D/YYYY; the bar side is YYYYMMDD/ISO/epoch. If
-      the two normalizations drift, the join matches nothing and the indicator
-      ships silently dead — there is no error anywhere, just zero signals.
-
-    NOTE: `api/routers/signature.py::_fcb_build` does the same M/D/YYYY→ISO
-    normalization INLINE (it is not a helper there, so there is nothing to
-    import). They are duplicated on purpose rather than one module reaching into
-    the other's privates; they must change together, and
-    `test_flow_dates_are_keyed_the_same_way_bar_dates_are` pins THIS side
-    against `_bar_date_iso` so a drift is caught here regardless.
-    """
-    reader = csv.reader(lines)
-    header = next(reader, None)
-    if header is None:
-        return {}
-
-    idx = {}
-    for name in _FLOW_COLS:
-        try:
-            idx[name] = header.index(name)
-        except ValueError as exc:
-            raise ValueError(f"flow CSV header is missing {name!r}: {header!r}") from exc
-    width = max(idx.values()) + 1
-
-    by_date: dict[str, list[dict]] = {}
-    for row in reader:
-        if len(row) < width:
-            continue
-        try:
-            m, day, y = row[idx["CreatedDate"]].split("/")
-            iso = f"{int(y):04d}-{int(m):02d}-{int(day):02d}"
-        except (ValueError, AttributeError):
-            continue
-        if cutoff_iso and iso < cutoff_iso:      # ISO dates sort chronologically
-            continue
-        by_date.setdefault(iso, []).append({name: row[i] for name, i in idx.items()})
-    return by_date
-
-
 def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[dict]]:
     """One streamed read of ONE flow source.
 
@@ -170,7 +113,7 @@ def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[
         if resp.status_code != 200:
             raise RuntimeError(
                 f"flow read for {sym} ({source}) returned HTTP {resp.status_code}")
-        return _flow_by_date(resp.iter_lines(), cutoff_iso=cutoff_iso)
+        return flow_by_date(resp.iter_lines(), cutoff_iso=cutoff_iso)
 
 
 def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]]:

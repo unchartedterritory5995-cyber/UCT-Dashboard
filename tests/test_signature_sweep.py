@@ -397,18 +397,18 @@ def test_only_the_three_joined_columns_survive_and_the_window_is_enforced():
         {"CreatedDate": "6/1/2026", "CreatedTime": "10:00", "Symbol": "NVDA",
          "CallPut": "PUT", "Premium": "100"},                       # before the window
     ])
-    by_date = sweep_mod._flow_by_date(lines, cutoff_iso="2026-07-01")
+    by_date = sweep_mod.flow_by_date(lines, cutoff_iso="2026-07-01")
 
     assert list(by_date) == ["2026-07-03"]
     assert by_date["2026-07-03"] == [{"CreatedDate": "7/3/2026",
                                       "CallPut": "CALL", "Premium": "900000"}]
-    assert set(by_date["2026-07-03"][0]) == set(sweep_mod._FLOW_COLS)
+    assert set(by_date["2026-07-03"][0]) == set(sweep_mod.FLOW_COLS)
 
 
 def test_without_a_cutoff_every_date_is_kept():
     lines = _csv_lines([{"CreatedDate": "6/1/2026", "CallPut": "PUT", "Premium": "1"},
                         {"CreatedDate": "7/3/2026", "CallPut": "CALL", "Premium": "2"}])
-    assert sorted(sweep_mod._flow_by_date(lines)) == ["2026-06-01", "2026-07-03"]
+    assert sorted(sweep_mod.flow_by_date(lines)) == ["2026-06-01", "2026-07-03"]
 
 
 def test_the_columns_are_resolved_by_NAME_not_position():
@@ -418,7 +418,7 @@ def test_the_columns_are_resolved_by_NAME_not_position():
     shuffled = ("Premium", "Symbol", "CallPut", "CreatedDate")
     lines = _csv_lines([{"CreatedDate": "7/3/2026", "Symbol": "NVDA",
                          "CallPut": "CALL", "Premium": "900000"}], cols=shuffled)
-    assert sweep_mod._flow_by_date(lines)["2026-07-03"] == [
+    assert sweep_mod.flow_by_date(lines)["2026-07-03"] == [
         {"CreatedDate": "7/3/2026", "CallPut": "CALL", "Premium": "900000"}]
 
 
@@ -426,11 +426,11 @@ def test_a_header_missing_a_joined_column_raises_rather_than_returning_nothing()
     lines = _csv_lines([{"CreatedDate": "7/3/2026", "Premium": "1"}],
                        cols=("CreatedDate", "Premium"))
     with pytest.raises(Exception):
-        sweep_mod._flow_by_date(lines)
+        sweep_mod.flow_by_date(lines)
 
 
 def test_an_empty_body_is_not_a_crash():
-    assert sweep_mod._flow_by_date([]) == {}
+    assert sweep_mod.flow_by_date([]) == {}
 
 
 # ── the flow date join ──────────────────────────────────────────────────────
@@ -444,20 +444,20 @@ def test_flow_dates_are_keyed_the_same_way_bar_dates_are():
     the indicator ships silently dead — there is no error anywhere.
     """
     lines = _csv_lines([{"CreatedDate": "7/3/2026", "CallPut": "CALL", "Premium": "1"}])
-    assert list(sweep_mod._flow_by_date(lines)) == [_bar_date_iso(20260703)]
+    assert list(sweep_mod.flow_by_date(lines)) == [_bar_date_iso(20260703)]
 
 
 def test_flow_dates_are_zero_padded_and_garbage_is_skipped():
     lines = _csv_lines([{"CreatedDate": "7/3/2026"}, {"CreatedDate": "12/25/2026"},
                         {"CreatedDate": ""}, {"CreatedDate": "not-a-date"}])
-    by_date = sweep_mod._flow_by_date(lines)
+    by_date = sweep_mod.flow_by_date(lines)
     assert sorted(by_date) == ["2026-07-03", "2026-12-25"]
 
 
 def test_rows_on_the_same_day_are_grouped_not_replaced():
     lines = _csv_lines([{"CreatedDate": "7/3/2026", "Premium": "1"},
                         {"CreatedDate": "7/3/2026", "Premium": "2"}])
-    assert len(sweep_mod._flow_by_date(lines)["2026-07-03"]) == 2
+    assert len(sweep_mod.flow_by_date(lines)["2026-07-03"]) == 2
 
 
 # ── the real flow read ──────────────────────────────────────────────────────
