@@ -81,7 +81,7 @@ def _dte_of(exp, ref: date | None = None) -> str:
 
 
 # ── cap bands (match the OptionsFlow Leaderboard cap filter) ───────────────
-_CAP_LABELS = {"all": "", "mega": "Mega Cap", "large": "Large Cap",
+_CAP_LABELS = {"all": "All Caps", "mega": "Mega Cap", "large": "Large Cap",
                "mid_small": "Mid-Small Cap"}
 
 
@@ -400,7 +400,7 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int,
     def s(v):
         return int(v * SS)
 
-    ROWH, TOP, SECH = 34, 150, 32
+    ROWH, TOP, SECH = 34, 126, 32
     sections = [("▲  TOP BULLISH", agg["bulls"], _BULL),
                 ("▼  TOP BEARISH", agg["bears"], _BEAR)]
     body = sum(SECH + max(1, len(rows)) * ROWH for _, rows, _ in sections)
@@ -432,15 +432,11 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int,
     except Exception:  # noqa: BLE001
         pass
     tx = 94
-    tx += txt(tx, 24, "UCT Intelligence", f_title, _GOLD) + 12
-    tx += txt(tx, 24, "· Weekly Conviction", f_title, _GOLD_DIM) + 12
-    txt(tx, 32, "— " + _week_range(window), f_date, _DIM)
-
-    sub = (f"{days}-day window   ·   still-open (OI ≥ 75% of peak)   ·   "
-           f"DTE ≥ {min_dte}d"
-           + (f"   ·   {cap_label}" if cap_label else "")
-           + f"   ·   {agg['n_names']} names")
-    txt(36, 78, sub, f_sum, _TXT)
+    tx += txt(tx, 18, "UCT Intelligence", f_title, _GOLD) + 12
+    tx += txt(tx, 18, "· Weekly Conviction", f_title, _GOLD_DIM) + 12
+    if cap_label:
+        txt(tx, 18, "· " + cap_label, f_title, _GOLD_DIM)
+    txt(94, 58, _week_range(window), f_date, _DIM)
 
     # column headers
     cols = [("TICKER", 36, "l"), ("BULL", 290, "r"), ("BEAR", 408, "r"),
