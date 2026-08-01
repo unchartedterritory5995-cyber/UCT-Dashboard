@@ -12,7 +12,10 @@ wrong once in this repo:
   must stay a plain `def`.
 * an auth-down GEX envelope is never remembered by `good()`, so without a
   negative cache every request pays the cold ~20s Schwab call on an anyio
-  worker.
+  worker — and that cache must never outrank a payload we can still serve.
+* `fresh()` is what makes the stale slot a fallback instead of a treadmill:
+  ServeStale kicks a rebuild behind EVERY caller it serves stale, so without a
+  TTL cache in front, N requests = N provider builds.
 """
 import inspect
 import logging
@@ -47,6 +50,20 @@ def _free_user():
     return {"id": "u2", "role": "user", "plan": "free"}
 
 
+def _settle(seconds=0.4):
+    """Give a ServeStale background kick time to land (or prove it never fired)."""
+    time.sleep(seconds)
+
+
+def _wait_for(pred, timeout=3.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if pred():
+            return True
+        time.sleep(0.01)
+    return False
+
+
 # ── the brief's three ───────────────────────────────────────────────────────
 
 def test_anon_gets_402(client):
@@ -78,7 +95,7 @@ def test_a_free_user_is_refused_on_every_route(client, monkeypatch):
     of three routes passes any single-route test."""
     client.dependency_overrides[get_current_user_with_plan] = _free_user
     monkeypatch.setattr(sig, "_dpl_build", lambda sym: {"levels": []})
-    monkeypatch.setattr(sig, "_fcb_build", lambda sym, cookie: {"signals": []})
+    monkeypatch.setattr(sig, "_fcb_build", lambda sym: {"signals": []})
     monkeypatch.setattr(sig, "_gxw_build", lambda sym: {"levels": []})
     c = TestClient(client)
     for path in ("darkpool-levels", "flow-breakout", "gex-walls"):
@@ -110,12 +127,19 @@ def test_a_padded_symbol_is_stripped_before_validation_then_uppercased(client, m
     assert seen == ["NVDA"]
 
 
-def test_an_empty_or_oversized_symbol_is_422(client):
+def test_an_empty_or_oversized_symbol_is_422(client, monkeypatch):
+    """"." / ".." / "-" all satisfy a bare `[A-Za-z.\\-]+` class, and httpx
+    COLLAPSES dot segments — a ".." symbol would retarget the flow request one
+    path level up. A symbol must START with a letter."""
+    monkeypatch.setattr(sig, "_dpl_build", lambda sym: {"sym": sym, "levels": []})
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
     c = TestClient(client)
-    for bad in ("", "   ", "TOOLONGSYMBOL", "NV DA", "NV;DA"):
+    for bad in ("", "   ", "TOOLONGSYMBOL", "NV DA", "NV;DA", ".", "..", "-", "-NV", ".NV"):
         assert c.get("/api/signature/darkpool-levels",
                      params={"sym": bad}).status_code == 422, bad
+    for good in ("NVDA", "BRK.B", "BRK-B", "nvda"):
+        assert c.get("/api/signature/darkpool-levels",
+                     params={"sym": good}).status_code != 422, good
 
 
 # ── FCB: the bars key, the ledger tf, and the raw barTime ──────────────────
@@ -165,7 +189,7 @@ def test_a_signal_is_recorded_with_the_product_facing_timeframe(client, monkeypa
     one way can never find a row written the other."""
     from api.services.signature import ledger
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym, cookie: _bull_flow())
+    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: _bull_flow())
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     c = TestClient(client)
@@ -190,7 +214,7 @@ def test_the_forming_session_never_yields_a_signal_on_this_path(client, monkeypa
     from api.services.signature import ledger
     bars = _bars(n=21, breakout_at=20)          # the breakout IS the last bar
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: bars)
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym, cookie: _bull_flow())
+    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: _bull_flow())
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     r = TestClient(client).get("/api/signature/flow-breakout?sym=NVDA")
@@ -212,7 +236,7 @@ def test_a_ledger_refusal_does_not_500_and_does_not_drop_the_signals(client, mon
 
     monkeypatch.setattr(ledger, "record_signal", boom)
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym, cookie: _bull_flow())
+    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: _bull_flow())
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     with caplog.at_level(logging.ERROR, logger="api.routers.signature"):
@@ -396,7 +420,7 @@ def test_an_unrecognized_call_put_value_logs_at_warning(client, monkeypatch, cap
     indicator's compute is STRICT. A new upstream encoding therefore drops
     premium on the floor silently — it must at least be shouted about."""
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym, cookie: [
+    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: [
         {"CreatedDate": "6/21/2026", "CallPut": "CS", "Premium": "$1.2M"}])
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
@@ -408,30 +432,95 @@ def test_an_unrecognized_call_put_value_logs_at_warning(client, monkeypatch, cap
     assert any("rows_in=1" in r.getMessage() for r in caplog.records), caplog.text
 
 
-def test_flow_is_read_from_the_proxied_surface_with_the_caller_cookie(client, monkeypatch):
-    """web's own flow.db is a FROZEN pre-cutover copy — a local read would
-    serve stale-forever flow. The proxied surface is auth'd, so the caller's
-    cookie has to ride along."""
+def _flow_probe(monkeypatch, body="CreatedDate,CallPut,Premium\r\n6/21/2026,C,$1.2M\r\n"):
+    """Capture what _fetch_flow_rows actually puts on the wire."""
     import httpx as _httpx
     seen = {}
 
     class _Resp:
         status_code = 200
-        text = ("CreatedDate,CallPut,Premium\r\n"
-                "6/21/2026,C,$1.2M\r\n"
-                "6/21/2026,P,50000\r\n")
+        text = body
 
-    def fake_get(url, headers=None, timeout=None):
-        seen.update(url=url, headers=headers or {}, timeout=timeout)
+    def fake_get(url, headers=None, timeout=None, **kw):
+        seen.update(url=url, headers=headers, timeout=timeout, kwargs=kw)
         return _Resp()
 
     monkeypatch.setattr(_httpx, "get", fake_get)
-    rows = sig._fetch_flow_rows("NVDA", "uct_session=abc123")
+    return seen
 
-    assert seen["url"] == f"{sig._FLOW_BASE}/api/flow/ticker/NVDA"
-    assert seen["headers"].get("cookie") == "uct_session=abc123"
+
+def test_the_flow_base_falls_back_to_the_app_port_not_a_hardcoded_8080(monkeypatch):
+    """8080 is a guess: local dev runs uvicorn on 8000 (so FCB would be 100%
+    dead), and on Railway the pod's port comes from $PORT. Mirrors
+    ai_search._flow_base_url, the only other consumer of this surface."""
+    from api import flow_proxy
+    monkeypatch.delenv("SIGNATURE_FLOW_BASE", raising=False)
+    monkeypatch.setattr(flow_proxy, "PROXY_ENABLED", False)
+    monkeypatch.setenv("PORT", "9931")
+    assert sig._flow_base_url() == "http://127.0.0.1:9931"
+
+    monkeypatch.delenv("PORT", raising=False)
+    assert sig._flow_base_url() == "http://127.0.0.1:8000"   # uvicorn's default
+
+
+def test_the_flow_base_skips_the_self_request_when_the_proxy_is_on(monkeypatch):
+    """With the read proxy enabled a self-request is only forwarded to the
+    worker anyway — at the cost of a second hop and another held anyio worker."""
+    from api import flow_proxy
+    monkeypatch.delenv("SIGNATURE_FLOW_BASE", raising=False)
+    monkeypatch.setattr(flow_proxy, "PROXY_ENABLED", True)
+    monkeypatch.setattr(flow_proxy, "WORKER_INTERNAL_URL", "http://flow-worker.internal:9000")
+    assert sig._flow_base_url() == "http://flow-worker.internal:9000"
+
+    monkeypatch.setenv("SIGNATURE_FLOW_BASE", "http://override.test:1234/")
+    assert sig._flow_base_url() == "http://override.test:1234", "the override wins"
+
+
+def test_flow_is_read_from_the_proxied_surface_and_forwards_no_credential(monkeypatch):
+    """web's own flow.db is a FROZEN pre-cutover copy — a local read would serve
+    stale-forever flow. /api/flow/ticker declares no auth dependency on either
+    service, so forwarding the caller's session cookie to an env-configurable
+    base URL would buy nothing and leak a live credential."""
+    from api import flow_proxy
+    monkeypatch.setattr(flow_proxy, "PROXY_ENABLED", False)
+    monkeypatch.setenv("SIGNATURE_FLOW_BASE", "http://flow.test:8080")
+    seen = _flow_probe(monkeypatch)
+
+    rows = sig._fetch_flow_rows("NVDA")
+
+    assert seen["url"] == "http://flow.test:8080/api/flow/ticker/NVDA"
     assert seen["timeout"] == 15.0
-    assert [r["Premium"] for r in rows] == ["$1.2M", "50000"]
+    assert not (seen["headers"] or {}), f"no credential may ride along: {seen['headers']}"
+    assert "cookie" not in str(seen).lower()
+    assert [r["Premium"] for r in rows] == ["$1.2M"]
+
+
+def test_the_csv_fixture_is_built_from_the_real_flow_header(monkeypatch):
+    """A hand-typed 3-column fixture proves only that the parser can read the
+    fixture. The surface emits flow_db.COLUMNS — 22 columns, in that order — so
+    the join is exercised against the REAL header here (house lesson:
+    lesson_injected_dependency_hides_the_fetch)."""
+    from api.flow_db import COLUMNS
+
+    assert {"CreatedDate", "CallPut", "Premium"} <= set(COLUMNS)
+
+    def row(**kv):
+        return ",".join(str(kv.get(c, "")) for c in COLUMNS)
+
+    body = ",".join(COLUMNS) + "\r\n" + "\r\n".join([
+        row(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="C", Premium="$1.2M"),
+        row(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="PUT", Premium=""),
+        row(CreatedDate="6/21/2026", Symbol="NVDA", CallPut="CS", Premium="900000"),
+    ]) + "\r\n"
+    _flow_probe(monkeypatch, body=body)
+
+    rows = sig._fetch_flow_rows("NVDA")
+    assert len(rows) == 3
+    assert list(rows[0]) == COLUMNS, "DictReader must key off the real header"
+    assert rows[0]["Premium"] == "$1.2M" and rows[0]["CallPut"] == "C"
+    assert sig._flow_join_stats(rows) == {
+        "rows_in": 3, "side_matched": 2, "parsed_to_zero": 1, "unknown_sides": {"CS": 1},
+    }
 
 
 def test_a_failed_flow_read_is_not_served_as_no_signal(client, monkeypatch):
@@ -439,7 +528,7 @@ def test_a_failed_flow_read_is_not_served_as_no_signal(client, monkeypatch):
     output (`signals: []`) — but one is an answer and the other is a failure.
     Remembering the failure would pin 'no signal' for the next 30 minutes."""
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
-    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym, cookie: None)
+    monkeypatch.setattr(sig, "_fetch_flow_rows", lambda sym: None)
     client.dependency_overrides[get_current_user_with_plan] = _paid_user
 
     r = TestClient(client).get("/api/signature/flow-breakout?sym=NVDA")
@@ -452,15 +541,222 @@ def test_a_failed_flow_read_is_not_served_as_no_signal(client, monkeypatch):
 def test_a_flow_read_that_errors_returns_none_not_an_empty_list(client, monkeypatch):
     import httpx as _httpx
 
-    def blow(url, headers=None, timeout=None):
+    def blow(url, headers=None, timeout=None, **kw):
         raise _httpx.ConnectError("connection refused")
 
     monkeypatch.setattr(_httpx, "get", blow)
-    assert sig._fetch_flow_rows("NVDA", None) is None
+    assert sig._fetch_flow_rows("NVDA") is None
 
     class _Resp:
         status_code = 502
         text = "bad gateway"
 
     monkeypatch.setattr(_httpx, "get", lambda *a, **kw: _Resp())
-    assert sig._fetch_flow_rows("NVDA", None) is None
+    assert sig._fetch_flow_rows("NVDA") is None
+
+
+# ── the TTL cache in front of the stale slot (fix F2) ──────────────────────
+
+def _counting_builder(monkeypatch, route):
+    """Install a counting stub at each route's provider seam."""
+    calls = []
+    if route == "darkpool-levels":
+        def fake(sym):
+            calls.append(sym)
+            return {"sym": sym, "version": "dpl-v1", "levels": [], "asOf": 1.0}
+        monkeypatch.setattr(sig, "fetch_dp_levels", fake)
+    elif route == "flow-breakout":
+        monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+
+        def fake(sym):
+            calls.append(sym)
+            return _bull_flow()
+        monkeypatch.setattr(sig, "_fetch_flow_rows", fake)
+    else:
+        async def fake(sym):
+            calls.append(sym)
+            return {"sym": sym.upper(), "levels": [], "spot": 500.0,
+                    "version": "gxw-v1", "asOf": 1.0}
+        monkeypatch.setattr(sig, "fetch_gex_walls", fake)
+    return calls
+
+
+@pytest.mark.parametrize("route", ["darkpool-levels", "flow-breakout", "gex-walls"])
+def test_two_requests_inside_the_ttl_drive_exactly_one_build(client, monkeypatch, route):
+    """Measured before the fix: 10 requests = 10 provider builds. ServeStale
+    serves the stale payload and then KICKS a rebuild behind every caller, so
+    without a TTL cache on `fresh()` the slot is a treadmill, not a fallback —
+    for GEX that is a ~20s Schwab /chains call per request, forever."""
+    calls = _counting_builder(monkeypatch, route)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    assert c.get(f"/api/signature/{route}?sym=NVDA").status_code == 200
+    assert c.get(f"/api/signature/{route}?sym=NVDA").status_code == 200
+
+    assert len(calls) == 1, f"{route}: second request rebuilt ({calls})"
+    _settle()                       # a background kick would land inside this
+    assert len(calls) == 1, f"{route}: a refresh was kicked inside the TTL ({calls})"
+
+
+@pytest.mark.parametrize("route,ttl_attr", [
+    ("darkpool-levels", "_DPL_TTL_S"),
+    ("flow-breakout", "_FCB_TTL_S"),
+])
+def test_the_ttl_is_the_only_thing_holding_the_fresh_window(client, monkeypatch, route, ttl_attr):
+    """Mutation rail for the test above: with the TTL collapsed to 0 the second
+    request MUST rebuild. Without this, a stubbed builder that is simply never
+    called twice would pass the one-build test for the wrong reason."""
+    monkeypatch.setattr(sig, ttl_attr, 0)
+    calls = _counting_builder(monkeypatch, route)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    c.get(f"/api/signature/{route}?sym=NVDA")
+    sig._DPL_STALE._slots.clear()
+    sig._FCB_STALE._slots.clear()   # force the cold path, not the stale one
+    c.get(f"/api/signature/{route}?sym=NVDA")
+    assert len(calls) == 2
+
+
+def test_the_gex_fresh_window_reads_the_rules_constant(client, monkeypatch):
+    """GXW_TTL_S was dead code before this wiring. Pin that the router reads it
+    rather than re-hardcoding 600 (owner tuning must be a one-file diff)."""
+    from api.services.cache import cache
+    from api.services.signature import rules as sig_rules
+
+    seen = {}
+    monkeypatch.setattr(cache, "set", lambda k, v, ttl: seen.update({k: ttl}))
+
+    async def fake(sym):
+        return {"sym": "SPY", "levels": [], "version": "gxw-v1", "asOf": 1.0}
+
+    monkeypatch.setattr(sig, "fetch_gex_walls", fake)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    TestClient(client).get("/api/signature/gex-walls?sym=SPY")
+
+    assert seen == {"sig:gxw:SPY": sig_rules.GXW_TTL_S}
+
+
+# ── the negative cache must never outrank a payload we can serve (fix F1) ──
+
+def test_the_negative_cache_never_outranks_a_servable_payload(client, monkeypatch):
+    """ServeStale checks fresh() BEFORE the stale slot. A negative entry that
+    returned unconditionally would therefore hand an ERROR to a user whose
+    walls payload is seconds old — and self-perpetuate, because every request
+    it answered skipped the stale path, so only the ~1-in-60s that fell through
+    on expiry ever saw walls again."""
+    from api.services.cache import cache
+    state = {"mode": "healthy"}
+    calls = []
+    healthy = {"sym": "SPY", "levels": [{"kind": "callWall", "price": 510.0}],
+               "spot": 500.0, "version": "gxw-v1", "asOf": 1.0}
+
+    async def adapter(sym):
+        calls.append(state["mode"])
+        if state["mode"] == "healthy":
+            return dict(healthy)
+        return {"sym": "SPY", "levels": [], "error": "Schwab not authenticated",
+                "version": "gxw-v1", "asOf": 2.0}
+
+    monkeypatch.setattr(sig, "fetch_gex_walls", adapter)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    # 1. cold + healthy → TTL cache AND the stale slot now hold real walls.
+    assert c.get("/api/signature/gex-walls?sym=SPY").json()["levels"] == healthy["levels"]
+
+    # Schwab's token dies, and the 10-min fresh window lapses.
+    state["mode"] = "down"
+    cache.invalidate(sig._ck("gxw", "SPY"))
+
+    # 2. serves the stale walls, kicks a refresh that fails → negative-cached.
+    assert c.get("/api/signature/gex-walls?sym=SPY").json()["levels"] == healthy["levels"]
+    assert _wait_for(lambda: "SPY" in sig._GXW_NEG_CACHE), "the outage must be remembered"
+    cache.invalidate(sig._ck("gxw", "SPY"))
+
+    # 3. THE regression: a seconds-old good payload still outranks the outage.
+    body = c.get("/api/signature/gex-walls?sym=SPY").json()
+    assert body.get("levels") == healthy["levels"], body
+    assert not body.get("error"), body
+
+
+def test_the_negative_cache_still_answers_a_caller_with_nothing(client, monkeypatch):
+    """The other half of the ordering rule: once the stale payload ages out (or
+    never existed), the cold caller DOES get the remembered envelope instead of
+    paying the ~20s timeout again."""
+    calls, fake = _auth_down()
+    monkeypatch.setattr(sig, "fetch_gex_walls", fake)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    assert c.get("/api/signature/gex-walls?sym=SPY").json()["error"]
+    sig._GXW_STALE._slots.clear()                    # nothing servable remains
+    assert c.get("/api/signature/gex-walls?sym=SPY").json()["error"]
+    assert calls == ["SPY"]
+
+
+def test_a_raise_while_book_keeping_is_not_a_500(client, monkeypatch, caplog):
+    """The neg-cache write runs on the COLD path, the one with no try/except
+    above it (serve_stale.py:143) — so a raise there is a 500 exactly like a
+    raise from the provider (rule 1)."""
+    async def down(sym):
+        return {"sym": "SPY", "levels": [], "error": "Schwab not authenticated",
+                "version": "gxw-v1", "asOf": 1.0}
+
+    def boom(sym, payload):
+        raise RuntimeError("dictionary changed size during iteration")
+
+    monkeypatch.setattr(sig, "fetch_gex_walls", down)
+    monkeypatch.setattr(sig, "_gxw_remember_error", boom)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    with caplog.at_level(logging.ERROR, logger="api.routers.signature"):
+        r = TestClient(client, raise_server_exceptions=False).get(
+            "/api/signature/gex-walls?sym=SPY")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["error"] == "Schwab not authenticated"
+    assert any("bookkeeping" in rec.getMessage() for rec in caplog.records), caplog.text
+
+
+# ── the router has to be MOUNTED, and the bars read has to be REAL ─────────
+
+def test_the_router_is_mounted_on_the_real_app():
+    """A router that imports clean but is never included 404s in production —
+    this repo has already shipped that once (broker_sync, a dropped
+    include_router that surfaced as 405 on POST). Every test above builds its
+    own FastAPI app, so none of them would notice."""
+    from api.main import app
+
+    paths = {r.path for r in app.routes}
+    assert {"/api/signature/darkpool-levels",
+            "/api/signature/flow-breakout",
+            "/api/signature/gex-walls"} <= paths
+
+
+def test_fetch_bars_reads_the_real_store_under_the_D_key(tmp_path, monkeypatch):
+    """One test must make the REAL fetch (lesson_injected_dependency_hides_the_
+    fetch: 996 green tests shipped in 0 of 24 charts). Everything else here
+    stubs get_bars, so only this one can catch a store that disagrees with the
+    key we pass."""
+    from api.services import bars_sqlite
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
+    bars_sqlite.bump_db_epoch()
+    try:
+        bars_sqlite.init_db()
+        seeded = [{"t": (date(2026, 6, 1) + timedelta(days=i)).isoformat(),
+                   "o": 95.0, "h": 100.0, "l": 90.0, "c": 95.5, "v": 1000}
+                  for i in range(5)]
+        assert bars_sqlite.put_bars("SIGX", "D", seeded, date_tf=True) == 5
+
+        out = sig._fetch_bars("sigx", 60)
+        assert [b["t"] for b in out] == [20260601, 20260602, 20260603, 20260604, 20260605]
+        assert out[0]["c"] == 95.5 and out[0]["v"] == 1000
+        # The key is the whole point: the product label finds nothing HERE, in
+        # the real store, not just in a stub's assertion.
+        assert bars_sqlite.get_bars("SIGX", "1D", 60) == []
+    finally:
+        bars_sqlite.bump_db_epoch()

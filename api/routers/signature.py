@@ -6,14 +6,16 @@ engine). Flow data is read via the PROXIED /api/flow/ticker/{sym} surface so
 the fresh flow.db on flow-worker answers — web's own copy is a FROZEN
 pre-cutover snapshot.
 
-THE THREE RULES THIS MODULE EXISTS TO ENFORCE
----------------------------------------------
+THE FOUR RULES THIS MODULE EXISTS TO ENFORCE
+--------------------------------------------
 1. **No build may raise.** `ServeStale.serve` calls `build()` on the cold path
    with no try/except (serve_stale.py:143), so anything a build raises is a
-   500 on a user's chart. Every `_*_build` below therefore catches Exception,
-   logs it with a traceback, and returns an envelope `good()` rejects — so a
-   failure is visible, is never remembered as the last good payload, and is
-   retried by the very next request.
+   500 on a user's chart. Every `_*_build` below catches Exception, logs it
+   with a traceback, and returns an envelope `good()` rejects — so a failure is
+   visible, is never remembered as the last good payload, and is retried by the
+   very next request. That covers the BOOKKEEPING too, not just the provider
+   call: a raise while writing a cache is just as fatal as a raise while
+   reading a provider.
 2. **A ledger refusal is not a user-facing failure.** `record_signal` raises by
    design on any field it cannot key. The signals are already computed and
    correct; refusing to WRITE one must never refuse to SHOW it, so recording is
@@ -22,6 +24,12 @@ THE THREE RULES THIS MODULE EXISTS TO ENFORCE
    with `asyncio.run`, which raises RuntimeError inside an `async def`. Sync
    handlers also run in the anyio threadpool, which is where these blocking
    provider reads belong.
+4. **Every route is TTL-cached in FRONT of the stale slot.** `fresh()` is not
+   decoration: without it every single request drives a full provider rebuild
+   (measured: 10 requests = 10 builds), because ServeStale serves the stale
+   payload and then kicks a refresh behind EVERY caller. The TTL cache is what
+   makes the stale slot a fallback instead of a treadmill — the shape
+   serve_stale.py documents and calendar.py already uses.
 """
 from __future__ import annotations
 
@@ -31,12 +39,14 @@ import io
 import logging
 import os
 import re
+import threading
 import time
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.cache import cache
 from api.services.serve_stale import ServeStale
 from api.services.signature import ledger, rules
 from api.services.signature.darkpool_levels import fetch_dp_levels
@@ -48,23 +58,38 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/signature", tags=["signature"])
 
-# No \s in the class: a symbol is stripped BEFORE it is validated (see
+# Must START with a letter. ".", "..", "-" are all valid to a bare
+# `[A-Za-z.\-]+` class, and httpx COLLAPSES dot segments — a "symbol" of ".."
+# would silently retarget the flow request a path level up. No real ticker
+# begins with a dot or a dash.
+# No \s in the class either: a symbol is stripped BEFORE it is validated (see
 # _sym_or_422), never validated with padding still attached.
-_SYM_RE = re.compile(r"^[A-Za-z.\-]{1,10}$")
-_FLOW_BASE = os.environ.get("SIGNATURE_FLOW_BASE", "http://127.0.0.1:8080")
+_SYM_RE = re.compile(r"^[A-Za-z][A-Za-z.\-]{0,9}$")
 
 _DPL_STALE = ServeStale("sig_dpl", max_age_seconds=1800)
 _FCB_STALE = ServeStale("sig_fcb", max_age_seconds=1800)
 _GXW_STALE = ServeStale("sig_gxw", max_age_seconds=rules.GXW_MAX_AGE_S)
 
+# Fresh-window TTLs. GEX reads rules.GXW_TTL_S (owner-tunable alongside the rest
+# of the indicator's numbers); the other two are router-local because they are
+# properties of this SURFACE rather than of the compute: dark-pool levels move
+# only when the nightly confirmed-print ledger does, and a breakout is a
+# closed-bar event — neither can change between two requests minutes apart.
+_DPL_TTL_S = 600
+_FCB_TTL_S = 300
+
 # ── GEX negative cache ──────────────────────────────────────────────────────
 # `good()` for GEX is "not error", so an auth-down envelope is NEVER remembered
-# by ServeStale. Without this dict, every request during a Schwab auth outage —
-# a routine, hours-long production state — takes the cold path and blocks an
-# anyio worker for the full ~20s /chains timeout, and the single-flight lock
-# just queues the rest of them behind it. 60s of memory turns that storm back
-# into one call per symbol per minute while keeping the outage self-healing.
+# by ServeStale. Without this dict, every cold request during a Schwab auth
+# outage — a routine, hours-long production state — blocks an anyio worker for
+# the full ~20s /chains timeout, and the single-flight lock just queues the
+# rest behind it. 60s of memory turns that storm into one call per symbol per
+# minute while keeping the outage self-healing.
+#
+# It is strictly a COLD-PATH shield — see _gxw_negative_hit for the ordering
+# rule that stops it outranking a payload we can still serve.
 _GXW_NEG_CACHE: dict[str, tuple[dict, float]] = {}
+_GXW_NEG_LOCK = threading.Lock()
 _GXW_NEG_TTL_S = 60.0
 _GXW_NEG_MAX_KEYS = 256
 
@@ -85,9 +110,10 @@ def _sym_or_422(sym: str) -> str:
 
     The strip comes FIRST because callers do pass padded strings and the regex
     has no whitespace class — validating first would 422 a perfectly good
-    symbol. The upper comes last because it is the ServeStale key AND the
-    ledger's stored symbol; the gex adapter stamps its own sym.upper() but that
-    is downstream of a request we would already have rejected.
+    symbol. The upper comes last because it is the cache key, the ServeStale
+    key AND the ledger's stored symbol; the gex adapter stamps its own
+    sym.upper() but that is downstream of a request we would already have
+    rejected.
     """
     s = (sym or "").strip()
     if not _SYM_RE.match(s):
@@ -95,11 +121,22 @@ def _sym_or_422(sym: str) -> str:
     return s.upper()
 
 
+def _ck(kind: str, sym: str) -> str:
+    return f"sig:{kind}:{sym}"
+
+
 # ── Dark Pool Levels ────────────────────────────────────────────────────────
+
+def _dpl_good(p) -> bool:
+    return bool(p and p.get("levels") is not None)
+
 
 def _dpl_build(sym: str) -> dict:
     try:
-        return fetch_dp_levels(sym)
+        payload = fetch_dp_levels(sym)
+        if _dpl_good(payload):
+            cache.set(_ck("dpl", sym), payload, ttl=_DPL_TTL_S)
+        return payload
     except Exception as exc:                       # noqa: BLE001 — see rule 1
         logger.exception("signature: dark-pool levels build failed for %s", sym)
         # `levels: None` (not []) is load-bearing: good() is
@@ -131,7 +168,34 @@ def _fetch_bars(sym: str, count: int = 60) -> list[dict]:
     return out
 
 
-def _fetch_flow_rows(sym: str, cookie: str | None) -> list[dict] | None:
+def _flow_base_url() -> str:
+    """Where /api/flow/ticker actually lives, resolved PER CALL.
+
+    Mirrors `ai_search._flow_base_url` — the only other consumer of this
+    surface — with an explicit override in front:
+
+    * `SIGNATURE_FLOW_BASE` wins when set (an escape hatch needing no deploy).
+    * When the read proxy is on, go STRAIGHT to `WORKER_INTERNAL_URL`: a
+      self-request would only be forwarded there anyway, at the cost of an
+      extra hop and one more held anyio worker.
+    * Otherwise the local app on `$PORT`, defaulting to **8000** (uvicorn's).
+      A hardcoded 8080 is wrong in local dev and a guess anywhere else, and it
+      fails SILENTLY: the connection is refused, the flow read returns None,
+      and the breakout is simply never confirmed.
+    """
+    override = os.environ.get("SIGNATURE_FLOW_BASE")
+    if override:
+        return override.rstrip("/")
+    try:
+        from api import flow_proxy
+        if flow_proxy.PROXY_ENABLED and flow_proxy.WORKER_INTERNAL_URL:
+            return flow_proxy.WORKER_INTERNAL_URL
+    except Exception:                              # noqa: BLE001
+        pass
+    return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
+
+
+def _fetch_flow_rows(sym: str) -> list[dict] | None:
     """Read flow via the proxied surface so flow-worker's fresh DB answers.
 
     Returns the parsed rows, or **None when the read FAILED** — an unreachable
@@ -140,15 +204,19 @@ def _fetch_flow_rows(sym: str, cookie: str | None) -> list[dict] | None:
     caller remember "no signal" as a good payload for the next 30 minutes
     (`lesson_market_cap_cache_poison`: never cache a failed fetch as a value).
 
+    **No credential is forwarded.** `/api/flow/ticker/{symbol}` declares no auth
+    dependency on either service, so sending the caller's session cookie to an
+    env-configurable base URL would buy nothing and hand a live credential to
+    whatever `_flow_base_url()` happens to resolve to.
+
     The surface serves **gzipped CSV**, not JSON (`flow_router.get_flow_ticker`
     → `_build_gzipped_symbol_csv`); httpx transparently decodes the
     Content-Encoding, so `resp.text` is the CSV. `ai_search._ctx_flow_ticker`
     reads the same surface the same way.
     """
-    url = f"{_FLOW_BASE}/api/flow/ticker/{sym}"
+    url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
     try:
-        headers = {"cookie": cookie} if cookie else {}
-        resp = httpx.get(url, headers=headers, timeout=15.0)
+        resp = httpx.get(url, timeout=15.0)
     except Exception as exc:                       # noqa: BLE001
         logger.warning("signature: flow read for %s failed: %s", sym, exc)
         return None
@@ -205,10 +273,14 @@ def _log_flow_join(sym: str, rows) -> None:
                        sym, sorted(stats["unknown_sides"].items()))
 
 
-def _fcb_build(sym: str, cookie: str | None) -> dict:
+def _fcb_good(p) -> bool:
+    return bool(p and "signals" in p)
+
+
+def _fcb_build(sym: str) -> dict:
     try:
         bars = _fetch_bars(sym)
-        rows = _fetch_flow_rows(sym, cookie)
+        rows = _fetch_flow_rows(sym)
         if rows is None:
             # No "signals" key at all: good() is `"signals" in p`, so this
             # envelope is refused by the slot and retried next request.
@@ -242,46 +314,94 @@ def _fcb_build(sym: str, cookie: str | None) -> dict:
         except Exception:                          # noqa: BLE001
             logger.exception("signature: ledger refused fcb %s bar=%r — signal still served",
                              sym, s.get("barTime"))
-    return {"sym": sym, "version": rules.VERSIONS["fcb"], "signals": signals,
-            "asOf": time.time()}
+    payload = {"sym": sym, "version": rules.VERSIONS["fcb"], "signals": signals,
+               "asOf": time.time()}
+    try:
+        cache.set(_ck("fcb", sym), payload, ttl=_FCB_TTL_S)
+    except Exception:                              # noqa: BLE001 — see rule 1
+        logger.exception("signature: fcb cache write failed for %s", sym)
+    return payload
 
 
 # ── GEX Walls ───────────────────────────────────────────────────────────────
 
+def _gxw_good(p) -> bool:
+    return bool(p and not p.get("error"))
+
+
 def _gxw_negative_hit(sym: str) -> dict | None:
+    """The remembered auth-down envelope — but ONLY when nothing better exists.
+
+    ServeStale checks `fresh()` BEFORE the stale slot, so a negative entry
+    returned unconditionally would OUTRANK a perfectly good walls payload
+    seconds old — and it would keep doing so, because every request it answered
+    skipped the stale path entirely. The only requests that ever saw walls
+    would be the ~1-in-60s that fell through on expiry, so during a long outage
+    a user with a fine cached overlay would watch it vanish.
+
+    So: peek the stale slot first and stand down if it can still serve. This
+    cache is for the COLD herd — the callers who have nothing — and nobody else.
+    """
     hit = _GXW_NEG_CACHE.get(sym)
     if not hit:
         return None
     payload, at = hit
     if time.time() - at > _GXW_NEG_TTL_S:
-        _GXW_NEG_CACHE.pop(sym, None)
+        with _GXW_NEG_LOCK:
+            _GXW_NEG_CACHE.pop(sym, None)
         return None
+    value, age = _GXW_STALE.peek(sym)
+    if value is not None and age is not None and age <= _GXW_STALE.max_age:
+        return None                                # a servable payload outranks us
     return payload
 
 
 def _gxw_remember_error(sym: str, payload: dict) -> None:
-    _GXW_NEG_CACHE[sym] = (payload, time.time())
-    if len(_GXW_NEG_CACHE) > _GXW_NEG_MAX_KEYS:    # bounded: the key is user input
-        for key in sorted(_GXW_NEG_CACHE, key=lambda k: _GXW_NEG_CACHE[k][1])[:-_GXW_NEG_MAX_KEYS]:
-            _GXW_NEG_CACHE.pop(key, None)
+    # Locked: the prune below ITERATES the dict, so a concurrent writer would
+    # raise "dictionary changed size during iteration" — on the cold path,
+    # which is a 500 (rule 1).
+    with _GXW_NEG_LOCK:
+        _GXW_NEG_CACHE[sym] = (payload, time.time())
+        if len(_GXW_NEG_CACHE) > _GXW_NEG_MAX_KEYS:   # bounded: the key is user input
+            oldest_first = sorted(_GXW_NEG_CACHE, key=lambda k: _GXW_NEG_CACHE[k][1])
+            for key in oldest_first[:-_GXW_NEG_MAX_KEYS]:
+                _GXW_NEG_CACHE.pop(key, None)
 
 
 def _gxw_build(sym: str) -> dict:
+    # `asyncio.run` creates a NEW event loop for every build. That is safe
+    # today and MUST STAY safe: nothing reachable from `get_gex_data` may touch
+    # a module-level asyncio primitive (`schwab_service._CHAIN_SEMAPHORE`,
+    # `_TOKEN_REFRESH_LOCK` — created at import and bound to the first loop
+    # that awaits them). A cross-loop await raises "attached to a different
+    # loop", which arrives here indistinguishable from a Schwab outage: it
+    # would be logged as one, negative-cached as one, and chased as one.
     try:
         payload = asyncio.run(fetch_gex_walls(sym))
     except Exception as exc:                       # noqa: BLE001 — see rule 1
         logger.exception("signature: gex walls build failed for %s", sym)
         payload = {"sym": sym.upper(), "levels": [], "version": rules.VERSIONS["gxw"],
                    "error": f"gex walls unavailable: {exc}", "asOf": time.time()}
-    if payload.get("error"):
-        _gxw_remember_error(sym, payload)
-    else:
-        # Recovery must be immediate — a healthy build clears the memory of the
-        # outage rather than waiting out its TTL. NOTE: an empty `levels` list
-        # with no error is a NORMAL, healthy state (no wall inside the ±15%
-        # band), not a failure, and is remembered as a good payload.
-        _GXW_NEG_CACHE.pop(sym, None)
+    # Bookkeeping gets a guard of its own: it runs on the same cold path as the
+    # build, so a raise HERE is a 500 just the same (rule 1).
+    try:
+        if _gxw_good(payload):
+            cache.set(_ck("gxw", sym), payload, ttl=rules.GXW_TTL_S)
+            # Recovery is immediate, not TTL-bound. NOTE: an empty `levels`
+            # list with no error is a NORMAL, healthy state (no wall inside the
+            # ±15% band), not a failure — it is cached and remembered.
+            with _GXW_NEG_LOCK:
+                _GXW_NEG_CACHE.pop(sym, None)
+        else:
+            _gxw_remember_error(sym, payload)
+    except Exception:                              # noqa: BLE001
+        logger.exception("signature: gex bookkeeping failed for %s", sym)
     return payload
+
+
+def _gxw_fresh(sym: str) -> dict | None:
+    hit = cache.get(_ck("gxw", sym))
+    return hit if hit is not None else _gxw_negative_hit(sym)
 
 
 # ── routes (all sync `def` — see rule 3) ────────────────────────────────────
@@ -289,16 +409,15 @@ def _gxw_build(sym: str) -> dict:
 @router.get("/darkpool-levels")
 def darkpool_levels(sym: str = Query(...), _user: dict = Depends(require_paid)):
     s = _sym_or_422(sym)
-    return _DPL_STALE.serve(s, fresh=lambda: None, build=lambda: _dpl_build(s),
-                            good=lambda p: bool(p and p.get("levels") is not None))
+    return _DPL_STALE.serve(s, fresh=lambda: cache.get(_ck("dpl", s)),
+                            build=lambda: _dpl_build(s), good=_dpl_good)
 
 
 @router.get("/flow-breakout")
-def flow_breakout(request: Request, sym: str = Query(...), _user: dict = Depends(require_paid)):
+def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
     s = _sym_or_422(sym)
-    cookie = request.headers.get("cookie")
-    return _FCB_STALE.serve(s, fresh=lambda: None, build=lambda: _fcb_build(s, cookie),
-                            good=lambda p: bool(p and "signals" in p))
+    return _FCB_STALE.serve(s, fresh=lambda: cache.get(_ck("fcb", s)),
+                            build=lambda: _fcb_build(s), good=_fcb_good)
 
 
 @router.get("/gex-walls")
@@ -308,5 +427,5 @@ def gex_walls(sym: str = Query(...), _user: dict = Depends(require_paid)):
     # queued behind the single-flight build re-checks fresh() inside the lock,
     # so the herd collapses onto the ONE call that just failed instead of each
     # paying its own ~20s timeout.
-    return _GXW_STALE.serve(s, fresh=lambda: _gxw_negative_hit(s), build=lambda: _gxw_build(s),
-                            good=lambda p: bool(p and not p.get("error")))
+    return _GXW_STALE.serve(s, fresh=lambda: _gxw_fresh(s),
+                            build=lambda: _gxw_build(s), good=_gxw_good)

@@ -43,17 +43,26 @@ def _reset_calendar_serve_stale():
 def _reset_signature_serve_stale():
     """Clear the Signature router's cross-test module state.
 
-    Same hazard as the Calendar fixture above, plus one of its own: the GEX
-    negative cache remembers an auth-down envelope for 60s, so without this a
-    test that drives an outage would hand its error payload to the next test
-    that expects to drive a build of its own — and the "rebuilt after the TTL"
-    test would pass for the wrong reason.
+    Same hazard as the Calendar fixture above, plus two of its own:
+    * the three routes are TTL-cached in the process-wide `cache` singleton for
+      5-10 MINUTES, so without clearing the `sig:` keys the first test to build
+      a symbol answers for every later test that expects to drive its own;
+    * the GEX negative cache remembers an auth-down envelope for 60s, so a test
+      that drives an outage would hand its error payload to the next test —
+      and the "rebuilt after the TTL" test would pass for the wrong reason.
 
     Looked up via sys.modules rather than imported, so this fixture never
-    drags the router into unrelated tests as a side effect of itself."""
+    drags the router into unrelated tests as a side effect of itself. The
+    cache prefix is cleared unconditionally: `api.services.cache` is cheap and
+    already imported everywhere, and the keys are namespaced to `sig:`."""
     import sys
 
     def _clear():
+        try:
+            from api.services.cache import cache
+            cache.delete_prefix("sig:")
+        except Exception:
+            pass
         mod = sys.modules.get("api.routers.signature")
         if mod is None:
             return
