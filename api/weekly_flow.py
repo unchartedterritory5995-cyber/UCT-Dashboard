@@ -281,7 +281,9 @@ def _still_open_keys(contract_keys: set, frac: float) -> set:
         conn.close()
     out = set()
     for k in keys:
-        p, lat = peak.get(k, 0), latest.get(k, 0)
+        p = peak.get(k, 0)
+        lv = latest.get(k)                       # get_latest_oi_batch → (oi, snap_date)
+        lat = lv[0] if isinstance(lv, (tuple, list)) else (lv or 0)
         if p > 0 and lat >= frac * p:
             out.add(k)
     return out
