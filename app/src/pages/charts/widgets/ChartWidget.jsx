@@ -18,6 +18,7 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
+import { VOLUME_PANE_SURFACE_FIXED } from '../../../components/chart/indicatorRegistry'
 import TimeframeMenu from './TimeframeMenu'
 import LeverageInverseControl from './LeverageInverseControl'
 import { tfLabel, tfSortKey } from '../../../components/chart/timeframes'
@@ -774,6 +775,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}
         themeVars={menuVars}
+        /* This widget passes volumeSeparatePane + volumePaneHeightPct below, and
+           StockChart lets those props WIN over volume.separatePane /
+           volume.paneHeightPct. Tell the modal so those two settings render inert
+           here instead of looking live and doing nothing. */
+        volumePaneFixed={VOLUME_PANE_SURFACE_FIXED}
       />
     </div>
   )

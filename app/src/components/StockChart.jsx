@@ -27,6 +27,7 @@ import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
+import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
@@ -1482,6 +1483,16 @@ export default function StockChart({
   const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
   // Volume in its own pane (no bottom band reserved on the price scale).
   const volInSeparatePane = volumeSeparatePane || !!cs.volume?.separatePane
+  // When the SURFACE passes these props they WIN over the saved prefs — the OR
+  // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
+  // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
+  // its price-scale margins for a separate pane, and sets the height by dragging the
+  // separator), so tell the settings panel to render those two controls inert rather
+  // than leaving them looking live. DERIVED from the props that do the forcing, so it
+  // can never drift from the actual behavior.
+  const volumePaneFixed = (volumeSeparatePane || volumePaneHeightPct != null)
+    ? VOLUME_PANE_SURFACE_FIXED
+    : null
   const resolvedOverlays = useMemo(
     () => {
       const base = overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled)
@@ -9650,6 +9661,7 @@ export default function StockChart({
             magnet={magnet}
             setMagnet={setMagnet}
             chartSettings={cs}
+            volumePaneFixed={volumePaneFixed}
             onUpdateSettings={handleUpdateChartSettings}
             showExtended={isIntraday && !hideExtHoursToolbarToggle ? showExtended : null}
             onToggleExtended={isIntraday && !hideExtHoursToolbarToggle ? handleToggleExtended : null}
@@ -9780,6 +9792,7 @@ export default function StockChart({
               repeatMode={repeatMode}
               setRepeatMode={handleSetRepeatMode}
               chartSettings={cs}
+              volumePaneFixed={volumePaneFixed}
               onUpdateSettings={handleUpdateChartSettings}
               lineStyle={drawLineStyle}
               setLineStyle={setAnnLineStyle}
@@ -9868,6 +9881,7 @@ export default function StockChart({
               repeatMode={repeatMode}
               setRepeatMode={handleSetRepeatMode}
               chartSettings={cs}
+              volumePaneFixed={volumePaneFixed}
               onUpdateSettings={handleUpdateChartSettings}
               magnet={magnet}
               setMagnet={setMagnet}

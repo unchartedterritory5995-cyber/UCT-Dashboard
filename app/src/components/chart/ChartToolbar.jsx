@@ -108,7 +108,12 @@ const CROSSHAIR_STYLES = [
 
 // ─── Settings Panel (inline in chart) ────────────────────────────────────────
 
-function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
+// `volumePaneFixed` = a reason string when the SURFACE hosting this chart owns the
+// volume layout (it passes StockChart's volumeSeparatePane / volumePaneHeightPct,
+// which win over the saved prefs). StockChart derives it from those very props, so
+// the two can't drift. Non-null ⇒ the two volume-pane controls render inert with the
+// reason instead of writing a pref this chart will ignore.
+function ChartSettingsPanel({ chartSettings, onUpdateSettings, volumePaneFixed = null }) {
   const cs = chartSettings
   const isPaid = useIsPaid()
 
@@ -347,18 +352,31 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             <input type="checkbox" checked={cs.volume.hvcEnabled} onChange={e => update('volume.hvcEnabled', e.target.checked)} />
             HVC
           </label>
-          <label className={styles.sCheck} title="Show volume in its own pane below price instead of overlaid on the chart">
-            <input type="checkbox" checked={!!cs.volume.separatePane} onChange={e => update('volume.separatePane', e.target.checked)} />
+          <label
+            className={styles.sCheck}
+            style={volumePaneFixed ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+            title={volumePaneFixed || 'Show volume in its own pane below price instead of overlaid on the chart'}
+          >
+            <input type="checkbox" disabled={!!volumePaneFixed}
+              checked={!!cs.volume.separatePane} onChange={e => update('volume.separatePane', e.target.checked)} />
             Separate pane
           </label>
           <ColorPicker label="Up" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
           <ColorPicker label="Dn" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
         </div>
-        {cs.volume.separatePane && (
+        {/* Shown whenever volume actually renders in a pane — which on a
+            volumePaneFixed surface is ALWAYS, regardless of the saved toggle.
+            Hiding it there would leave the user hunting for a control that the
+            chart simply doesn't take its height from; showing it inert says so. */}
+        {(cs.volume.separatePane || volumePaneFixed) && (
           <div className={styles.sRow} style={{ marginTop: 6 }}>
-            <label className={styles.sCheck} style={{ gap: 6 }} title="Height of the separate volume pane (% of chart)">
+            <label
+              className={styles.sCheck}
+              style={volumePaneFixed ? { gap: 6, opacity: 0.45, cursor: 'not-allowed' } : { gap: 6 }}
+              title={volumePaneFixed || 'Height of the separate volume pane (% of chart)'}
+            >
               Pane height
-              <input type="range" min={8} max={45} step={1}
+              <input type="range" min={8} max={45} step={1} disabled={!!volumePaneFixed}
                 value={cs.volume.paneHeightPct ?? 22}
                 onChange={e => update('volume.paneHeightPct', parseInt(e.target.value))} />
               <span style={{ minWidth: 28, textAlign: 'right' }}>{cs.volume.paneHeightPct ?? 22}%</span>
@@ -801,6 +819,9 @@ function ChartToolbar({
   hidePatterns = false,
   hideCompare = false,
   hideCountdown = false,
+  // Reason string when this chart's SURFACE fixes the volume pane (see
+  // ChartSettingsPanel). null on surfaces where the saved prefs actually apply.
+  volumePaneFixed = null,
   lineStyle = 'solid',           // 'solid' | 'dashed' — current line style (Model Book annotations)
   setLineStyle = null,           // when provided, shows a Solid/Dashed control
   fontSize = 13,                 // current text-annotation font size
@@ -1088,7 +1109,7 @@ function ChartToolbar({
               {ICONS.settings}
             </button>
             {showSettings && (
-              <ChartSettingsPanel chartSettings={chartSettings} onUpdateSettings={onUpdateSettings} />
+              <ChartSettingsPanel chartSettings={chartSettings} onUpdateSettings={onUpdateSettings} volumePaneFixed={volumePaneFixed} />
             )}
           </div>
         )}

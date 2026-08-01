@@ -140,7 +140,13 @@ const LEGEND_LAYOUTS = [
   { val: 'horizontal', label: 'Horizontal' },
 ]
 
-export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null }) {
+export default function ChartSettingsModal({
+  open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // Reason string when the SURFACE that opened this modal fixes the volume pane
+  // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
+  // Renders the separate-pane toggle inert rather than letting it look live.
+  volumePaneFixed = null,
+}) {
   const panelRef = useRef(null)
   const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
@@ -322,7 +328,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     next.preset = 'custom'
     onChange?.(next)
   }
-  const indRows = listIndicators(settings)
+  const indRows = listIndicators(settings, { volumePaneFixed })
   const indRowById = (id) => indRows.find((r) => r.id === id)
 
   const targetValue = (t) => {
@@ -662,9 +668,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                             <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
                             {f.type === 'color' && colorSwatch(`ind:${row.id}:${f.key}`, f.label, val)}
                             {f.type === 'toggle' && (
+                              /* `disabled` is load-bearing, not decoration: a disabled
+                                 <button> fires no click, so an inert field can't write
+                                 a pref the surface will ignore. The number/select
+                                 branches below already honored f.disabled — the toggle
+                                 didn't, which is how a "not applicable here" field
+                                 could still look (and act) live. */
                               <button
                                 type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
-                                className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''}`}
+                                disabled={dis} title={f.disabled || undefined}
+                                className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
                                 onClick={() => set({ [f.key]: val === false })}
                               ><span className={styles.toggleKnob} /></button>
                             )}

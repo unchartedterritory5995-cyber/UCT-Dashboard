@@ -316,6 +316,10 @@
 }
 .toggleOn { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.22)); border-color: var(--menu-accent, #c9a84c); }
 .toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
+/* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
+   — matches .indNum:disabled / .indSelect:disabled so inert reads the same
+   everywhere in this tab. The reason rides the row's title. */
+.toggleOff, .toggleOff:hover { opacity: 0.4; cursor: not-allowed; border-color: var(--menu-border, #2e2e30); }
 
 /* A row's right-side controls sitting together (e.g. size dropdown + swatch). */
 .fieldControls { display: flex; align-items: center; gap: 10px; }
