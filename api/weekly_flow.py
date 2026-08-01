@@ -18,6 +18,10 @@ Env (flow-worker):
   WEEKLY_FLOW_TOP_N           names per side (default 10)
   WEEKLY_FLOW_MIN_DTE         short-term cutoff, exclude DTE < this (default 30)
   WEEKLY_FLOW_STILL_OPEN_FRAC current OI must be >= frac * peak OI (default 0.75)
+  WEEKLY_FLOW_SORT_BULL       net (default) | premium | pct
+  WEEKLY_FLOW_SORT_BEAR       net (default) | premium (Bear $) | pct
+  WEEKLY_FLOW_CAP             all (default) | mega | large | mid_small
+  WEEKLY_FLOW_CRON_CAPS       comma list the Fri cron posts (default all,mid_small)
 """
 from __future__ import annotations
 
@@ -508,7 +512,7 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         frac = float(os.getenv("WEEKLY_FLOW_STILL_OPEN_FRAC", "0.75"))
         cap = (cap or os.getenv("WEEKLY_FLOW_CAP", "all")).strip().lower()
         sort_bull = (sort_bull or os.getenv("WEEKLY_FLOW_SORT_BULL", "net")).strip().lower()
-        sort_bear = (sort_bear or os.getenv("WEEKLY_FLOW_SORT_BEAR", "premium")).strip().lower()
+        sort_bear = (sort_bear or os.getenv("WEEKLY_FLOW_SORT_BEAR", "net")).strip().lower()
 
         trades, window = load_directional_trades(n_days, min_dte, cap)
         agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
@@ -530,4 +534,17 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         return res
     except Exception as e:  # noqa: BLE001
         log.exception("[weekly-flow] run failed")
+        return {"ok": False, "reason": f"error: {e}"}
+
+
+def run_weekly_cron() -> dict:
+    """Scheduled Friday push (P2) — posts ONE card per cap in WEEKLY_FLOW_CRON_CAPS
+    (default 'all,mid_small': the big board + the mid-small board). Each goes
+    through run_weekly (gated by WEEKLY_FLOW_ENABLED). Never raises."""
+    try:
+        caps = [c.strip().lower() for c in
+                os.getenv("WEEKLY_FLOW_CRON_CAPS", "all,mid_small").split(",") if c.strip()]
+        return {"posts": [run_weekly(cap=cap) for cap in (caps or ["all"])]}
+    except Exception as e:  # noqa: BLE001
+        log.exception("[weekly-flow] cron failed")
         return {"ok": False, "reason": f"error: {e}"}

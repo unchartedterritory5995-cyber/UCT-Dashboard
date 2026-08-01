@@ -4636,9 +4636,9 @@ def weekly_flow_trigger(
     _auth: dict = Depends(require_flow_admin),
 ):
     """Manual trigger for the Weekly Conviction Flow card (top-10 bull/bear
-    still-open flow over N days, DTE-filtered; bulls by Net, bears by Bear $).
-    ?cap=mid_small for the mid-small-cap variant; ?sort_bear=net etc. to preview a
-    different sort. ?post=0 (default) returns the PNG preview; ?post=1 posts.
+    still-open flow over N days, DTE-filtered; bulls + bears by Net by default).
+    ?cap=mid_small for the mid-small-cap variant; ?sort_bear=premium etc. to
+    preview a different sort. ?post=0 (default) returns the PNG preview; ?post=1 posts.
     Bypasses WEEKLY_FLOW_ENABLED. Runs on the flow-worker (flow.db + OI snapshots)."""
     from api import weekly_flow as wf
     kw = dict(days=days, cap=cap, sort_bull=sort_bull, sort_bear=sort_bear)

@@ -423,6 +423,27 @@ def _start_flow_schedulers():
                 log.info("[startup] Alpha Gold EOD summary disabled (ALPHA_GOLD_EOD_ENABLED != 1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
+
+        try:
+            # Weekly Conviction Flow → Discord (P2). Fri 16:15 ET; posts one card
+            # per cap in WEEKLY_FLOW_CRON_CAPS (default all + mid_small). Dark
+            # until armed. Runs HERE (flow.db + OI snapshots). Explicit-ET trigger.
+            # ⚠ Same watch-path caveat as alpha_gold_eod: weekly_flow.py rides
+            # this file's builds until it's added to the worker watch paths.
+            if os.getenv("WEEKLY_FLOW_ENABLED", "0") == "1":
+                from apscheduler.triggers.cron import CronTrigger as _WFCron
+                from api import weekly_flow as _wf
+                sched.add_job(_wf.run_weekly_cron,
+                              trigger=_WFCron(day_of_week="fri", hour=16, minute=15,
+                                              timezone=ZoneInfo("America/New_York")),
+                              id="weekly_flow_push", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] Weekly Conviction Flow cron registered (Fri 16:15 ET)")
+            else:
+                log.info("[startup] Weekly Conviction Flow disabled (WEEKLY_FLOW_ENABLED != 1)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Weekly Flow scheduling failed: %s", e)
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "
