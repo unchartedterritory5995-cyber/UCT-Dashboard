@@ -2,6 +2,21 @@
 
 **Date:** 2026-07-31
 **Status:** Phase 1 built (dark, marker-only). Phase 2 designed, not built.
+
+> **PIVOT (2026-07-31 eve) — marker → clean-directional EXCLUSION gate.** Live
+> testing showed (a) the net-volume marker never fired (a big bid-sell almost
+> always sits on a net-short contract, so `net_before ≤ 0`), and (b) a single
+> net number *cannot* disentangle simultaneous open+close on one contract —
+> MSFT 470C was writing AND profit-taking at once. Owner's call: stop trying to
+> label the ambiguous prints; **drop them from curated so it stays clean
+> directional flow.** New behavior: the ledger tracks **gross ASK-side volume**
+> (not net); a bid-side sell with `gross_ask_before ≥ tradeSize ×
+> close_min_long_frac` (default 0.5) is **demoted to "UCT Size - Not Clean"**
+> (leaves the directional tiers/curated), keeping clean writes + ask-buys.
+> Functions renamed: `_build_session_long_ledger` / `_demote_contaminated_sell`;
+> threshold `close_min_long_frac` (was `close_net_frac`); toggle relabeled
+> "Clean directional (drop mixed bid-sells)". The sections below describe the
+> original marker design for context.
 **Files:** `api/live_massive_router.py`, `app/src/pages/LiveFlowMassive.jsx`, `tests/test_flow_classification.py`
 
 ## Problem

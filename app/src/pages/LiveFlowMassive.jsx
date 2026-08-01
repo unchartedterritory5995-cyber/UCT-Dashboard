@@ -1317,18 +1317,18 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
                 <span style={{ color: alphaAccent, fontWeight: 700 }}>{dirIsBull ? "Bull" : "Bear"}</span></>)
             : alert.alertName}
         </span>
-        {/* Open/close detector (Phase 1, dark): non-destructive "possible close"
-            marker. Shows only when the backend stamps _likelyClose (gated by the
-            close_detector_enabled threshold). Direction label is unchanged. */}
-        {alert._likelyClose && (
+        {/* Clean-directional gate (dark): a bid-side sell contaminated by earlier
+            ask-buying is demoted to "Not Clean" (backend _closeExcluded). This
+            tag explains WHY the row dropped out of the directional tiers. */}
+        {alert._closeExcluded && (
           <span
-            title={`Possible close / profit-take: this contract built a net-long position (~${(alert._sessionNetBefore ?? 0).toLocaleString?.() ?? alert._sessionNetBefore} contracts) earlier this session, so this bid-side sell is likely unwinding longs, not a new bearish bet. Marker only — direction unchanged.`}
+            title={`Dropped from clean directional flow: this contract had ~${(alert._grossLongBefore ?? 0).toLocaleString?.() ?? alert._grossLongBefore} contracts of ask-buying earlier today, so this bid-side sell is likely a mix of profit-taking + writing — not clean directional conviction.`}
             style={{
               marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#d9a441",
               border: "1px solid #6b5417", borderRadius: 3, padding: "0 4px",
               whiteSpace: "nowrap", flexShrink: 0, cursor: "help",
             }}>
-            {"⚠ close?"}
+            {"⚠ mixed"}
           </span>
         )}
       </span>
@@ -2211,11 +2211,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <span>Incremental scan (perf - fixes blank sides)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
-                 title="Mark a bid-side SELL that's likely closing a same-day long (profit-take) rather than opening a bearish position — shows a ⚠ close? badge. Marker only; direction unchanged.">
+                 title="Clean directional flow only: drop bid-side sells contaminated by earlier ask-buying on the same contract (likely profit-take / mixed, not clean conviction) from the directional tiers — they surface as neutral 'Not Clean'. Clean writes and ask-side buys are kept.">
             <input type="checkbox"
               checked={thresholds.close_detector_enabled ?? false}
               onChange={e => setPath(["close_detector_enabled"], e.target.checked)} />
-            <span>Close detector (⚠ mark bid-side profit-takes)</span>
+            <span>Clean directional (drop mixed bid-sells)</span>
           </label>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 8 }}>

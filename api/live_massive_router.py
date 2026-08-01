@@ -126,14 +126,13 @@ DEFAULT_THRESHOLDS = {
     # to cut the ~70s curated scan that starves WS ingestion -> blank sides. Dark
     # by default; flip live in the ?tune=1 panel. See _incr_classify.
     "incremental_scan": False,
-    # Open/close (profit-take) detector — Phase 1 (DARK, marker-only, additive).
-    # When on, a bid-side SELL whose contract already built a NET-LONG position
-    # earlier this session (net_before >= this print's size * close_net_frac) is
-    # stamped _likelyClose = a probable close/profit-take, NOT a new directional
-    # bet. Phase 1 only MARKS it (direction unchanged) so it can be validated vs
-    # next-day OI. See _build_session_flow_ledger / _mark_likely_close.
+    # Clean-directional gate (DARK). When on, a bid-side SELL on a contract that
+    # already had heavy ASK-buying earlier this session (gross_ask_before >= this
+    # print's size * close_min_long_frac) is CONTAMINATED (mix of writing +
+    # profit-taking) → dropped from directional curated as a neutral "Not Clean"
+    # row, keeping curated to clean directional flow. See _demote_contaminated_sell.
     "close_detector_enabled": False,
-    "close_net_frac": 1.0,
+    "close_min_long_frac": 0.5,
     "stack": {
         "min_signals": 1,         # min quality confirmers (out of 3); premium always required
         "vOI": 3.0,
@@ -971,85 +970,84 @@ def _derive_direction(cp: str, side: str, type_: str = "", vol=None, oi=None):
     return None
 
 
-# ─── Open/close (profit-take) detector — session flow ledger ───────────────
-# Phase 1 (DARK, additive). Direction today is derived from the fill side alone
-# (_derive_direction), so a bid-side SELL is always stamped bearish (call) /
-# bullish-unwind (put) even when it's really CLOSING a long built earlier the
-# SAME session — a profit-take, not a new position. The T-1 OI "opening test"
-# in _derive_direction can't see intraday round-trips (it reads yesterday's OI:
-# a morning buy-to-open then afternoon sell-to-close both read vol > T-1 OI =
-# "opening"). This ledger tracks per-(contract, session) signed net volume from
-# the tape itself, so a same-day close is distinguishable from an open.
+# ─── Clean-directional gate — session long-build ledger ────────────────────
+# Direction is derived from the fill side alone (_derive_direction), so a
+# bid-side SELL is labeled bearish (call) / bullish-unwind (put). But a sell on
+# a contract that already had heavy ASK-buying earlier the SAME session is
+# CONTAMINATED — a mix of new writing AND profit-taking (buyers exiting the
+# longs they built). The tape can't cleanly split open from close (OI is a daily
+# NET; MSFT 470C 8/7 was writing AND profit-taking at once), so rather than
+# try to label such a print, we DROP it from clean directional curated. A
+# genuine write on a contract with no prior buying stays directional; ask-side
+# buys always do.
 #
-# Phase 1 only MARKS the suspect prints (a["_likelyClose"]) so the signal can be
-# validated vs next-day OI before it's trusted to move any label. Gated by the
-# close_detector_enabled threshold (default False). Phase 2 feeds it into
-# _derive_direction + replaces the T-1 OI opening test.
+# This ledger tracks per-(contract, session) cumulative ASK-side (long-building)
+# volume. Gated by close_detector_enabled (default False); tune sensitivity with
+# close_min_long_frac. See _demote_contaminated_sell.
 
-def _signed_flow_vol(side, volume) -> float:
-    """Realized buy/sell pressure for one print: at/above ask lifts (+),
-    at/below bid hits (−), blank/mid is unsigned (0). Independent of the
-    strict-bid DIRECTION gate — this measures actual flow, not conviction."""
-    s = (side or "").strip().upper()
-    try:
-        v = float(volume or 0)
-    except (TypeError, ValueError):
-        return 0.0
-    if s in ("A", "AA"):
-        return v
-    if s in ("B", "BB"):
-        return -v
-    return 0.0
-
-
-def _build_session_flow_ledger(rows) -> dict:
-    """net_before[row_id] = cumulative signed session volume on that row's
-    contract from every print with a SMALLER id (id is monotonic with ingest
-    time, so smaller id ≈ earlier in the session). Rows may arrive in any order.
-    Pure + testable. Contract = (ticker, cp, strike, exp).
-
-    Fed the FULL day's sided prints per contract (see _compute_recent), so a
-    profit-take's earlier position-building is visible — not just the curated /
-    above-floor prints. Blank/mid prints are excluded upstream (they contribute
-    0 anyway), which also keeps the row count down."""
-    per: dict = {}   # contract_key -> list[(id, signed_vol)]
+def _build_session_long_ledger(rows) -> dict:
+    """gross_ask_before[row_id] = cumulative ASK-side (long-building) volume on
+    the row's contract from every print with a SMALLER id (id ≈ session time).
+    Rows may arrive in any order; only A/AA volume counts (B/BB/blank add 0, but
+    bid rows still need to appear so their gross_ask_before is recorded). Fed the
+    FULL day's sided prints per contract (see _compute_recent). Pure + testable.
+    Contract = (ticker, cp, strike, exp)."""
+    per: dict = {}   # contract_key -> list[(id, ask_vol)]
     for r in rows:
         rid = r["id"]
         if rid is None:
             continue
+        s = (r["Side"] or "").strip().upper()
+        try:
+            v = float(r["Volume"] or 0)
+        except (TypeError, ValueError):
+            v = 0.0
+        ask_v = v if s in ("A", "AA") else 0.0       # only long-building counts
         key = (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])
-        per.setdefault(key, []).append((rid, _signed_flow_vol(r["Side"], r["Volume"])))
-    net_before: dict = {}
+        per.setdefault(key, []).append((rid, ask_v))
+    gross_before: dict = {}
     for items in per.values():
-        items.sort(key=lambda t: t[0])          # id ascending = time ascending
+        items.sort(key=lambda t: t[0])               # id ascending = time ascending
         run = 0.0
-        for rid, sv in items:
-            net_before[rid] = run                # net STRICTLY BEFORE this print
-            run += sv
-    return net_before
+        for rid, av in items:
+            gross_before[rid] = run                  # ask volume STRICTLY BEFORE this print
+            run += av
+    return gross_before
 
 
-def _mark_likely_close(a: dict, net_before_map: dict, thresholds: dict) -> None:
-    """Phase 1 marker (DARK). Stamp a["_likelyClose"] on a bid-side print whose
-    contract accumulated a NET-LONG position earlier this session (net_before > 0
-    AND >= this print's size × close_net_frac) → the sell is likely unwinding
-    longs (profit-take), not opening a short. Direction is UNCHANGED. No-op
-    unless close_detector_enabled."""
+def _demote_contaminated_sell(a: dict, gross_before_map: dict, thresholds: dict) -> None:
+    """Clean-directional gate. A bid-side SELL on a contract that had meaningful
+    prior ASK-buying (gross_ask_before >= tradeSize × close_min_long_frac) is a
+    likely close / mixed print — not clean new directional conviction — so strip
+    its direction: it drops out of the directional tiers + curated and surfaces
+    as a neutral "UCT Size - Not Clean" row (hideable via hide_sizeless). Ask-side
+    buys and clean writes (no prior buying) are untouched. No-op unless
+    close_detector_enabled."""
     if not thresholds.get("close_detector_enabled", False):
         return
+    if (a.get("_direction") or "") not in ("Bull", "Bear"):
+        return                                        # already non-directional
     if (a.get("_side") or "").strip().upper() not in ("B", "BB"):
-        return
-    nb = net_before_map.get(a.get("id"), 0.0)
-    if nb <= 0:
-        return
+        return                                        # only bid-side sells
+    gross = gross_before_map.get(a.get("id"), 0.0)
+    if gross <= 0:
+        return                                        # no prior long-building → clean write
     try:
-        frac = float(thresholds.get("close_net_frac", 1.0) or 0)
+        frac = float(thresholds.get("close_min_long_frac", 0.5) or 0)
         vol = float(a.get("tradeSize") or 0)
     except (TypeError, ValueError):
-        frac, vol = 1.0, 0.0
-    if frac > 0 and nb >= vol * frac:
-        a["_likelyClose"] = True
-        a["_sessionNetBefore"] = round(nb)
+        frac, vol = 0.5, 0.0
+    if frac > 0 and gross >= vol * frac:
+        # Contaminated → demote to the existing neutral "Not Clean" shape so it
+        # leaves the directional tiers/curated (mirrors _row_to_alert's None-
+        # direction Keep-as-Size path at "UCT Size - Not Clean").
+        a["_direction"] = None
+        a["_directionUnconfirmed"] = True
+        a["_closeExcluded"] = True                    # diagnostic: why it dropped
+        a["_grossLongBefore"] = round(gross)          # diagnostic: prior ask-buying
+        a["alertName"] = "UCT Size - Not Clean"
+        a["_tierKey"] = "size"
+        a["_tierPriority"] = TIER_PRIORITY["size"]
 
 
 def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None):
@@ -2459,13 +2457,13 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
              LIMIT ?
         """, (today, override_sql_floor, sql_limit))
         rows = cur.fetchall()
-        # Open/close detector (dark): FULL-TAPE session net-volume ledger — built
-        # from EVERY sided print today on each contract (NOT just the curated/
-        # above-floor rows fetched above), so a profit-take's earlier position-
-        # building is visible. Reuses the open connection. Only sided prints
-        # (A/AA/B/BB) matter — blank/mid contribute 0, so they're filtered in SQL
-        # for a big row-count cut. Runs only when the detector is enabled. Perf:
-        # a narrow 7-col projection; cache it (watermark) if it ever strains RTH.
+        # Clean-directional gate (dark): FULL-TAPE session long-build ledger —
+        # cumulative ASK-side volume per contract from EVERY sided print today
+        # (NOT just the curated/above-floor rows fetched above), so a sell's
+        # earlier long-building is visible. Reuses the open connection; only
+        # sided prints (A/AA/B/BB) are pulled (blank/mid never build/close a
+        # trackable long). Runs only when enabled. Perf: a narrow 7-col
+        # projection; cache it (watermark) if it ever strains RTH.
         _close_th = _load_thresholds()
         if _close_th.get("close_detector_enabled", False):
             _lc = conn.execute(f"""
@@ -2474,9 +2472,9 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
                  WHERE {source_clause} AND CreatedDate = ?
                    AND Side IN ('A','AA','B','BB')
             """, (today,))
-            _net_before = _build_session_flow_ledger(_lc.fetchall())
+            _gross_before = _build_session_long_ledger(_lc.fetchall())
         else:
-            _net_before = {}
+            _gross_before = {}
     finally:
         conn.close()
 
@@ -2494,21 +2492,22 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     _incremental = bool(_load_thresholds().get("incremental_scan", False))
     if _incremental:
         _incr_prepare(today)
-    # Open/close detector: _close_th + _net_before (full-tape ledger) were built
-    # above while the flow.db connection was open; _mark_likely_close stamps
-    # surviving bid-side alerts below.
+    # Clean-directional gate: _close_th + _gross_before (full-tape long ledger)
+    # were built above while the flow.db connection was open; a contaminated
+    # bid-sell is demoted to Not-Clean below, BEFORE the grade/tier filters so it
+    # is filtered on its new "size"/Not-Clean tier, not its original Bear.
     for r in rows:
         a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
         if a is None:
             skipped_unclassified += 1
             continue
+        _demote_contaminated_sell(a, _gross_before, _close_th)
         if grade_threshold.get(a["grade"], 0) < min_threshold:
             skipped_low_grade += 1
             continue
         if tier and a.get("_tierKey") != tier:
             skipped_off_tier += 1
             continue
-        _mark_likely_close(a, _net_before, _close_th)
         all_alerts.append(a)
 
     if sort_by == "conviction":
@@ -4715,8 +4714,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_min_legs",         # distinct contracts that make it a structure
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
-        "close_detector_enabled",    # open/close detector Phase 1: mark bid-side closes (dark)
-        "close_net_frac",            # net-long multiple of print size that flags a likely close
+        "close_detector_enabled",    # clean-directional gate: drop contaminated bid-sells (dark)
+        "close_min_long_frac",       # prior-ask multiple of print size that flags a mixed sell
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
