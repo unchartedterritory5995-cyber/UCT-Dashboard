@@ -407,8 +407,8 @@ def _start_flow_schedulers():
             # ("No changes to watched files") and the worker keeps the old code.
             # Edits to alpha_gold_eod.py must PIGGYBACK on a watched file (this one
             # / live_massive_router.py) or add it to the worker's watch paths.
-            # (alpha_gold_eod.py edits piggyback on this file until it's added to
-            # the flow-worker's Railway watch paths.)
+            # (alpha_gold_eod.py edits piggyback here until it's added to the
+            # flow-worker's Railway watch paths — then this stops being needed.)
             if os.getenv("ALPHA_GOLD_EOD_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _AGCron
                 from api import alpha_gold_eod as _age

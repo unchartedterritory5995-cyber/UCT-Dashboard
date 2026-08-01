@@ -169,9 +169,9 @@ def _rollup(alerts: list[dict]) -> list[dict]:
 # ── render ─────────────────────────────────────────────────────────────────
 _COLS = [
     ("time", "TIME", 36, "l"), ("ticker", "TICKER", 114, "l"), ("exp", "EXP", 226, "l"),
-    ("dte", "DTE", 332, "r"), ("strike", "STRIKE", 438, "r"), ("cp", "C/P", 446, "l"),
-    ("spot", "SPOT", 606, "r"), ("money", "%ITM/OTM", 752, "r"), ("prem", "PREMIUM", 900, "r"),
-    ("voi", "V/OI", 974, "r"), ("dir", "DIR", 994, "l"),
+    ("strike", "STRIKE", 404, "r"), ("cp", "C/P", 412, "l"), ("dte", "DTE", 500, "r"),
+    ("spot", "SPOT", 620, "r"), ("money", "%ITM/OTM", 762, "r"), ("prem", "PREMIUM", 902, "r"),
+    ("voi", "V/OI", 976, "r"), ("dir", "DIR", 996, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 150, 32
 _SS = 2  # supersample then downscale for crisp text
