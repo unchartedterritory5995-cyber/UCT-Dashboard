@@ -139,10 +139,14 @@ def _bar_date_iso(bar_time) -> str:
         return ""                            # garbage -> no flow match, never raises
 
 
-def fcb_signals(bars, flow_by_date, *, include_last=False):
+def fcb_signals(bars, by_date, *, include_last=False):
+    """`by_date` is the ALREADY-parsed `{iso_date: [rows]}` join map — i.e. the
+    RESULT of `flow_by_date()` above, not the function. It is named `by_date`
+    precisely so it cannot shadow that module-level function inside this body.
+    """
     signals = []
     for b in detect_breakouts(bars, include_last=include_last):
-        rows = flow_by_date.get(_bar_date_iso(b["barTime"]), [])
+        rows = by_date.get(_bar_date_iso(b["barTime"]), [])
         conf = flow_confirms(rows, b["direction"])
         if conf["confirmed"]:
             signals.append({**b, **{k: conf[k] for k in ("callPrem", "putPrem")},

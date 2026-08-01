@@ -168,8 +168,11 @@ def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
             # toward NOT trusting the last bar.
             fresh_last = bool(bars) and _bar_date_iso(bars[-1]["t"]) == expected_iso
             cutoff_iso = _bar_date_iso(bars[0]["t"]) if bars else ""
-            flow_by_date = fetch_flow(sym, cutoff_iso)
-            signals = fcb_signals(bars, flow_by_date, include_last=fresh_last)
+            # `by_date`, not `flow_by_date`: the latter is the module-level
+            # parser imported at the top of this file, and binding a local over
+            # it here would leave the import shadowed for the rest of the body.
+            by_date = fetch_flow(sym, cutoff_iso)
+            signals = fcb_signals(bars, by_date, include_last=fresh_last)
         except Exception:                              # noqa: BLE001 — see docstring
             log.exception("signature sweep failed for %s", sym)
             errors += 1
