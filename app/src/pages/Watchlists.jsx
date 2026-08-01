@@ -53,6 +53,7 @@ import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import AddSymbolBar from './watchlist/AddSymbolBar'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
+import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
@@ -180,7 +181,8 @@ function ratingColor(r) {
   if (r >= 40) return '#c9a84c'
   return '#ff3b47'
 }
-const WL_COLS_LS = 'uct.watchlist.cols'
+// WL_COLS_LS is imported from ./watchlist/watchlistTemplates (single source of truth,
+// shared with the create-from-template flow in the picker).
 const COL_PRESETS = {
   'Price View': new Set(),
   'Performance': new Set(['1d', '1w', '1m', '3m', 'ytd']),
@@ -949,6 +951,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     mutateCommunity()
   }
 
+  // Admin-only: publish/unpublish a list to the picker's Prebuilt (curated UCT) tab.
+  async function handleTogglePrebuilt(wl) {
+    await fetch(`/api/watchlists/${wl.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_prebuilt: !wl.is_prebuilt }),
+    })
+    mutateMine()
+    mutateCommunity()
+  }
+
   // Returns the created/existing item so callers can tell an add from a no-op
   // re-add (the server dedupes per (list, sym) and flags it with `duplicate`).
   // 'flagged' is not a real watchlist row — it routes through useFlagged, whose
@@ -1035,6 +1048,34 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const dragColRef = useRef(null)                      // key of the header column being drag-reordered
   const colHidden = colCfg.hidden || {}
   const colSort = colCfg.sort || null                  // {key, dir} | null
+
+  // ── Watchlist "look" templates (appearance + columns; NO symbols) ──
+  // Charts-style Templates ▾ / + Save as Template strip in the single-list widget
+  // header. Applying a template sets THIS widget's appearance (patchSettings) and the
+  // shared column layout (saveColCfg). Saving captures the current look.
+  const { templates: wlTemplates, saveTemplate: saveWlTemplate, removeTemplate: removeWlTemplate } = useWatchlistTemplates()
+  const [tplMenuOpen, setTplMenuOpen] = useState(false)
+  const [tplSaveOpen, setTplSaveOpen] = useState(false)
+  const [tplName, setTplName] = useState('')
+  const applyWlTemplate = useCallback((tpl) => {
+    if (!tpl) return
+    if (tpl.settings) patchSettings(tpl.settings)   // replaces every appearance key
+    if (tpl.cols) {
+      const next = { ...(colCfg || {}) }
+      if (Array.isArray(tpl.cols.order)) next.order = tpl.cols.order
+      if (tpl.cols.hidden) next.hidden = tpl.cols.hidden
+      if (tpl.cols.widths) next.widths = tpl.cols.widths
+      saveColCfg(next)
+    }
+    setTplMenuOpen(false)
+  }, [patchSettings, colCfg, saveColCfg])
+  const handleSaveWlTemplate = useCallback(() => {
+    const name = tplName.trim()
+    if (!name) return
+    saveWlTemplate({ name, settings: wlSettings, cols: colCfg })
+    setTplName('')
+    setTplSaveOpen(false)
+  }, [tplName, saveWlTemplate, wlSettings, colCfg])
 
   // ── Sort-order freeze ──────────────────────────────────────────────────────
   // When sorting by a live column (% Chg / Price / Volume) the rows would jump
@@ -1406,6 +1447,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 title={`Add a symbol to ${wl.name}`}
                 aria-label={`Add a symbol to ${wl.name}`}
               ><UIcon name="plus" size={13} /></button>}
+              {user?.role === 'admin' && (
+                <button
+                  className={`${styles.wlActionBtn}${wl.is_prebuilt ? ' ' + styles.wlActionBtnActive : ''}`}
+                  onClick={() => handleTogglePrebuilt(wl)}
+                  title={wl.is_prebuilt ? 'Unpublish from Prebuilt (UCT)' : 'Publish to Prebuilt (UCT)'}
+                ><UIcon name="star" size={13} /></button>
+              )}
               <button
                 className={`${styles.wlActionBtn}${wl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => handleTogglePublic(wl)}
@@ -1611,6 +1659,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         {/* Pick mode (widget scoped to one list) shows a back header instead of the
             My Lists / Community tabs. */}
         {pickList ? (
+          <>
           <div className={styles.pickHeader}>
             <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">‹ Lists</button>
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
@@ -1623,6 +1672,64 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               title="Watchlist settings"
             ><UIcon name="gear" size={14} /></button>
           </div>
+
+          {/* Templates strip — apply a saved look (appearance + columns) or save the
+              current one. Mirrors the charts widget's Templates ▾ / + Save as Template. */}
+          <div className={styles.pickToolbar}>
+            <div className={styles.pickToolGroup}>
+              <button
+                type="button"
+                className={styles.pickToolBtn}
+                onClick={() => { setTplMenuOpen(o => !o); setTplSaveOpen(false) }}
+              >Templates{wlTemplates.length ? ` (${wlTemplates.length})` : ''} ▾</button>
+              {tplMenuOpen && (
+                <>
+                  <div className={styles.tplBackdrop} onClick={() => setTplMenuOpen(false)} />
+                  <div className={styles.tplMenu}>
+                    {wlTemplates.length === 0 ? (
+                      <div className={styles.tplMenuEmpty}>No templates yet. Save one to reuse this look.</div>
+                    ) : wlTemplates.map(t => (
+                      <div key={t.id} className={styles.tplMenuRow}>
+                        <button type="button" className={styles.tplMenuApply} onClick={() => applyWlTemplate(t)}>{t.name}</button>
+                        <button
+                          type="button"
+                          className={styles.tplMenuDel}
+                          title="Delete template"
+                          onClick={() => removeWlTemplate(t.id)}
+                        ><UIcon name="trash" size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className={styles.pickToolGroup}>
+              <button
+                type="button"
+                className={styles.pickToolBtn}
+                onClick={() => { setTplSaveOpen(o => !o); setTplMenuOpen(false) }}
+              >+ Save as Template</button>
+              {tplSaveOpen && (
+                <>
+                  <div className={styles.tplBackdrop} onClick={() => setTplSaveOpen(false)} />
+                  <div className={`${styles.tplMenu} ${styles.tplSaveMenu}`}>
+                    <div className={styles.tplSaveLabel}>Save current look</div>
+                    <input
+                      className={styles.tplSaveInput}
+                      placeholder="Template name…"
+                      value={tplName}
+                      maxLength={60}
+                      autoFocus
+                      onChange={e => setTplName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveWlTemplate(); if (e.key === 'Escape') setTplSaveOpen(false) }}
+                    />
+                    <button type="button" className={styles.tplSaveBtn} disabled={!tplName.trim()} onClick={handleSaveWlTemplate}>Save template</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          </>
         ) : (
           <div className={styles.tabBar}>
             <button

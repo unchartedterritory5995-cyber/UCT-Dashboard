@@ -60,10 +60,34 @@ def list_user_watchlists(user_id: str) -> list[dict]:
 
 
 def list_public_watchlists(limit: int = 50) -> list[dict]:
+    """Community lists: public, but NOT the admin-curated prebuilt ones (those get
+    their own tab via list_prebuilt_watchlists)."""
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT * FROM watchlists WHERE is_public = 1 ORDER BY updated_at DESC LIMIT ?", (limit,)
+            "SELECT * FROM watchlists WHERE is_public = 1 AND (is_prebuilt = 0 OR is_prebuilt IS NULL) "
+            "ORDER BY updated_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        results = []
+        for r in rows:
+            wl = dict(r)
+            wl["items"] = _get_items(conn, wl["id"])
+            wl["item_count"] = len(wl["items"])
+            wl["owner_name"] = _get_display_name(conn, wl["user_id"])
+            results.append(wl)
+        return results
+    finally:
+        conn.close()
+
+
+def list_prebuilt_watchlists(limit: int = 50) -> list[dict]:
+    """Admin-curated UCT watchlists shown in the picker's Prebuilt tab. Flagged with
+    is_prebuilt = 1 (and kept is_public = 1 so they open via the community: key)."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM watchlists WHERE is_prebuilt = 1 ORDER BY name ASC LIMIT ?", (limit,)
         ).fetchall()
         results = []
         for r in rows:
@@ -83,10 +107,15 @@ def update_watchlist(user_id: str, wl_id: str, data: dict) -> dict | None:
         row = conn.execute("SELECT * FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
         if not row:
             return None
-        allowed = {"name", "description", "is_public"}
+        allowed = {"name", "description", "is_public", "is_prebuilt"}
         updates = {k: v for k, v in data.items() if k in allowed}
         if "is_public" in updates:
             updates["is_public"] = int(updates["is_public"])
+        if "is_prebuilt" in updates:
+            updates["is_prebuilt"] = int(updates["is_prebuilt"])
+            # A prebuilt list must be publicly readable so every user can open it.
+            if updates["is_prebuilt"]:
+                updates["is_public"] = 1
         if not updates:
             return get_watchlist(wl_id, user_id)
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()

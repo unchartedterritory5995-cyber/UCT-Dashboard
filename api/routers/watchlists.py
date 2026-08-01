@@ -23,6 +23,7 @@ class WatchlistUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_public: Optional[bool] = None
+    is_prebuilt: Optional[bool] = None  # admin-only (enforced in the route)
 
 
 class WatchlistItem(BaseModel):
@@ -157,6 +158,12 @@ def list_public(user: dict = Depends(get_current_user)):
     return watchlist_service.list_public_watchlists()
 
 
+@router.get("/api/watchlists/prebuilt")
+def list_prebuilt(user: dict = Depends(get_current_user)):
+    """Admin-curated UCT watchlists (the picker's Prebuilt tab). Any logged-in user."""
+    return watchlist_service.list_prebuilt_watchlists()
+
+
 @router.post("/api/watchlists")
 def create_watchlist(body: WatchlistCreate, user: dict = Depends(get_current_user)):
     return watchlist_service.create_watchlist(user["id"], body.name, body.description, body.is_public)
@@ -180,6 +187,9 @@ def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
 @router.put("/api/watchlists/{wl_id}")
 def update_watchlist(wl_id: str, body: WatchlistUpdate, user: dict = Depends(get_current_user)):
     data = {k: v for k, v in body.model_dump().items() if v is not None}
+    # Publishing to the Prebuilt tab is admin-only.
+    if "is_prebuilt" in data and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required to publish a prebuilt watchlist")
     result = watchlist_service.update_watchlist(user["id"], wl_id, data)
     if not result:
         raise HTTPException(status_code=404, detail="Watchlist not found")
