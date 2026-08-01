@@ -47,6 +47,10 @@ const ICONS = {
   eye:        I(<><path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" /><circle cx="8" cy="8" r="1.8" /></>),
   eyeOff:     I(<><path d="M1 8s2.6-4.5 7-4.5c1 0 1.9.2 2.7.6M15 8s-2.6 4.5-7 4.5c-1 0-1.9-.2-2.7-.6" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>),
   camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
+  // The button this sits on opens the Share popover (copy image / download /
+  // copy link), not a screenshot-to-disk action. The camera icon said "save",
+  // which is why the clipboard copy went unfound.
+  share:      I(<><circle cx="12" cy="3.5" r="1.8" /><circle cx="12" cy="12.5" r="1.8" /><circle cx="4" cy="8" r="1.8" /><path d="M5.6 7.1l4.8-2.7M5.6 8.9l4.8 2.7" /></>),
   replay:     I(<><circle cx="8" cy="8" r="6" /><polyline points="8,5 8,8 10,10" /><path d="M3 8 A5 5 0 0 1 8 3" strokeDasharray="2 1" /></>),
 }
 
@@ -952,10 +956,20 @@ function ChartToolbar({
           </span>
         )}
 
-        {/* ── Screenshot ── */}
+        {/* ── Share ── */}
+        {/* The tooltip named ONE of the three things this opens. The popover is
+            "Share Chart": Download PNG, Copy to Clipboard, Copy Share URL — and
+            the clipboard copy (paste straight into a tweet, Discord, or a
+            Substack draft) is the one people actually want and the one nobody
+            found, because a camera labelled "Download" reads as save-to-disk. */}
         {onScreenshot && (
-          <button className={styles.btn} onClick={onScreenshot} title="Download chart as PNG">
-            {ICONS.camera}
+          <button
+            className={styles.btn}
+            onClick={onScreenshot}
+            aria-label="Share chart"
+            title="Share chart — copy image, download PNG, or copy link"
+          >
+            {ICONS.share}
           </button>
         )}
 
