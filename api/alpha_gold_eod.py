@@ -6,6 +6,10 @@ ALPHA_GOLD_EOD_ENABLED; the flow-worker schedules it ~16:05 ET on weekdays. A
 PUSH_SECRET endpoint (`POST /api/live/massive/alpha-gold-eod`) triggers it
 manually — ?post=0 returns the rendered PNG for preview, ?post=1 posts it.
 
+Card v2 (2026-07-31): STOCKS + ETFs sections (source=='indexes' → ETF), one row
+per (ticker, direction) rolled up with a ×N repeat count (mixed-direction tickers
+show two rows), NO premium shown. Sorted premium-desc internally.
+
 The Discord post is a hand-rolled multipart/form-data over stdlib urllib (NO
 requests/httpx dependency — httpx is absent on the flow-worker), reusing the
 Cloudflare-safe User-Agent that _post_massive_discord needs.
@@ -14,8 +18,8 @@ Env:
   ALPHA_GOLD_EOD_ENABLED      "1" to arm the scheduled post (default off)
   ALPHA_GOLD_EOD_WEBHOOK_URL  Discord webhook; falls back to the LiveFlow/admin
                               webhook so it can NEVER default to a public channel
-  ALPHA_GOLD_EOD_TOP_N        max rows on the card (default 30; "+N more" footer)
-  ALPHA_GOLD_EOD_SKIP_EMPTY   "1" (default) = don't post on a zero-alert day
+  ALPHA_GOLD_EOD_TOP_N        max rows per section (default 30)
+  ALPHA_GOLD_EOD_SKIP_EMPTY   "1" (default) = don't post a zero-alert day
 """
 from __future__ import annotations
 
@@ -67,16 +71,10 @@ def get_alpha_gold_today(today: str | None = None) -> list[dict]:
 
 
 # ── formatting helpers ─────────────────────────────────────────────────────
-def _fmt_prem(v) -> str:
-    v = float(v or 0)
-    if v >= 1e9:
-        return f"${v / 1e9:.2f}B"
-    m = v / 1e6
-    return f"${m:.2f}M" if m < 10 else f"${m:.1f}M"
-
-
-def _prem_m(v) -> float:
-    return float(v or 0) / 1e6
+def _is_etf(a: dict) -> bool:
+    """ETF/index product vs single stock — the same split as the feed's
+    Stocks/ETFs toggle (source=='indexes' → ETF; live_massive_router ~L543)."""
+    return (a.get("source") or "").strip().lower() == "indexes"
 
 
 def _money(a: dict) -> str:
@@ -127,23 +125,39 @@ def _date_text(day_mdyyyy: str) -> str:
         return str(day_mdyyyy)
 
 
-def _totals(alerts: list[dict]) -> dict:
-    bull = [a for a in alerts if _dir(a) == "bull"]
-    bear = [a for a in alerts if _dir(a) == "bear"]
-    bp = sum(_prem_m(a.get("alertPremium")) for a in bull)
-    rp = sum(_prem_m(a.get("alertPremium")) for a in bear)
-    return {"n": len(alerts), "total": sum(_prem_m(a.get("alertPremium")) for a in alerts),
-            "nb": len(bull), "nr": len(bear), "bp": bp, "rp": rp, "net": bp - rp}
+def _counts(alerts: list[dict]) -> dict:
+    return {"n": len(alerts),
+            "nb": sum(1 for a in alerts if _dir(a) == "bull"),
+            "nr": sum(1 for a in alerts if _dir(a) == "bear")}
+
+
+def _rollup(alerts: list[dict]) -> list[dict]:
+    """One row per (ticker, direction): keep the biggest-premium print as the
+    representative and stamp _n = how many prints rolled up. Input is premium-desc
+    (get_alpha_gold_today sorts it), so first-seen = biggest and order is preserved.
+    Mixed-direction tickers yield TWO rows (one per direction)."""
+    seen: dict = {}
+    order: list[dict] = []
+    for a in alerts:
+        key = (a.get("ticker"), _dir(a))
+        if key in seen:
+            seen[key]["_n"] += 1
+        else:
+            rep = dict(a)
+            rep["_n"] = 1
+            seen[key] = rep
+            order.append(rep)
+    return order
 
 
 # ── render ─────────────────────────────────────────────────────────────────
 _COLS = [
-    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 120, "l"), ("cp", "C/P", 210, "l"),
-    ("strike", "STRIKE", 345, "r"), ("exp", "EXP", 362, "l"), ("spot", "SPOT", 560, "r"),
-    ("money", "%ITM/OTM", 700, "r"), ("prem", "PREMIUM", 862, "r"), ("voi", "V/OI", 935, "r"),
-    ("type", "TYPE", 952, "l"), ("dir", "DIR", 1058, "l"),
+    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 120, "l"), ("cp", "C/P", 258, "l"),
+    ("strike", "STRIKE", 405, "r"), ("exp", "EXP", 423, "l"), ("spot", "SPOT", 635, "r"),
+    ("money", "%ITM/OTM", 792, "r"), ("voi", "V/OI", 880, "r"), ("type", "TYPE", 900, "l"),
+    ("dir", "DIR", 1008, "l"),
 ]
-_W, _ROWH, _TOP = 1150, 34, 168
+_W, _ROWH, _TOP, _SECH = 1150, 34, 150, 32
 _SS = 2  # supersample then downscale for crisp text
 
 
@@ -156,94 +170,109 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
     def s(v):
         return int(v * _SS)
 
-    rows = alerts[:max(0, top_n)]
-    extra = len(alerts) - len(rows)
-    tot = _totals(alerts)
-    H = _TOP + max(1, len(rows)) * _ROWH + 54
+    stocks = [a for a in alerts if not _is_etf(a)]
+    etfs = [a for a in alerts if _is_etf(a)]
+    sections = []
+    for label, group in (("STOCKS", stocks), ("ETFs", etfs)):
+        if group:
+            sections.append((label, group, _rollup(group)[:max(0, top_n)]))
+
+    grand = _counts(alerts)
+    body_h = sum(_SECH + max(1, len(rows)) * _ROWH for _, _, rows in sections) or _ROWH
+    H = _TOP + body_h + 54
 
     img = Image.new("RGB", (s(_W), s(H)), _BG)
     d = ImageDraw.Draw(img)
     f_title, f_date = font("DejaVuSans-Bold.ttf", 30), font("DejaVuSans.ttf", 19)
     f_sum = font("DejaVuSans-Bold.ttf", 17)
     f_hdr = font("DejaVuSans-Bold.ttf", 12)
+    f_sec = font("DejaVuSans-Bold.ttf", 14)
     f_row, f_rowb = font("DejaVuSans.ttf", 15), font("DejaVuSans-Bold.ttf", 15)
+    f_n = font("DejaVuSans-Bold.ttf", 12)
     f_foot = font("DejaVuSans.ttf", 12)
 
     def txt(x, y, t, fnt, fill, align="l"):
         t = str(t)
+        w = d.textlength(t, font=fnt)
         if align == "r":
-            w = d.textlength(t, font=fnt)
             d.text((x * _SS - w, y * _SS), t, font=fnt, fill=fill)
         else:
             d.text((s(x), s(y)), t, font=fnt, fill=fill)
+        return w / _SS
 
-    # header band + title
-    d.rectangle([0, 0, s(_W), s(_TOP - 24)], fill=_BAND)
-    d.text((s(36), s(30)), "★", font=f_title, fill=_GOLD)
-    txt(72, 30, "ALPHA GOLD", f_title, _GOLD)
+    # title band
+    d.rectangle([0, 0, s(_W), s(_TOP - 26)], fill=_BAND)
+    d.text((s(36), s(28)), "★", font=f_title, fill=_GOLD)
+    txt(72, 28, "ALPHA GOLD", f_title, _GOLD)
     tw = d.textlength("ALPHA GOLD", font=f_title) / _SS
-    txt(72 + tw + 14, 38, "—  " + date_text, f_date, _DIM)
+    txt(72 + tw + 14, 36, "—  " + date_text, f_date, _DIM)
 
-    # summary line
-    sx = 36
-
+    # grand summary (no premium)
     def chunk(x, t, fill):
-        txt(x, 80, t, f_sum, fill)
-        return x + d.textlength(str(t), font=f_sum) / _SS + 8
+        return x + txt(x, 76, t, f_sum, fill) + 8
 
-    sx = chunk(sx, f"{tot['n']} alerts", _TXT)
+    sx = 36
+    sx = chunk(sx, f"{grand['n']} prints", _TXT)
     sx = chunk(sx, "·", _DIM)
-    sx = chunk(sx, f"${tot['total']:.1f}M premium", _GOLD)
-    sx = chunk(sx, "·", _DIM)
-    sx = chunk(sx, f"▲ {tot['nb']} Bull", _BULL)
+    sx = chunk(sx, f"▲ {grand['nb']} Bull", _BULL)
     sx = chunk(sx, "/", _DIM)
-    sx = chunk(sx, f"▼ {tot['nr']} Bear", _BEAR)
+    sx = chunk(sx, f"▼ {grand['nr']} Bear", _BEAR)
     sx = chunk(sx, "·", _DIM)
-    net = tot["net"]
-    chunk(sx, f"Net {'+' if net >= 0 else '−'}${abs(net):.1f}M {'Bull' if net >= 0 else 'Bear'}",
-          _BULL if net >= 0 else _BEAR)
+    sx = chunk(sx, f"{len(stocks)} stocks", _TXT)
+    sx = chunk(sx, "/", _DIM)
+    chunk(sx, f"{len(etfs)} ETFs", _TXT)
 
-    # column headers + divider
+    # column headers
     for key, hdr, x, al in _COLS:
-        txt(x, _TOP - 42, hdr, f_hdr, _DIM, al)
-    d.rectangle([s(36), s(_TOP - 20), s(_W - 36), s(_TOP - 20) + 1], fill=_DIV)
+        txt(x, _TOP - 30, hdr, f_hdr, _DIM, al)
+    d.rectangle([s(36), s(_TOP - 10), s(_W - 36), s(_TOP - 10) + 1], fill=_DIV)
 
-    # rows
-    for i, a in enumerate(rows):
-        y = _TOP - 12 + i * _ROWH
-        if i % 2 == 1:
-            d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(_ROWH)], fill=_ROWALT)
-        is_bull = _dir(a) == "bull"
-        dcol = _BULL if is_bull else _BEAR
-        cp = (a.get("cp") or "").upper()
-        strike = a.get("strike")
-        spot = a.get("spot")
-        vals = {
-            "time": (_time_et(a), _DIM, f_row, "l"),
-            "ticker": (a.get("ticker") or "", _GOLD, f_rowb, "l"),
-            "cp": (cp or "—", (_BULL if cp == "C" else _BEAR), f_rowb, "l"),
-            "strike": (f"${strike:g}" if strike else "—", _TXT, f_row, "r"),
-            "exp": (_exp_short(a.get("exp")), _DIM, f_row, "l"),
-            "spot": (f"{spot:.2f}" if spot else "—", _DIM, f_row, "r"),
-            "money": (_money(a), _TXT, f_row, "r"),
-            "prem": (_fmt_prem(a.get("alertPremium")), _GOLD, f_rowb, "r"),
-            "voi": (_voi(a), _TXT, f_row, "r"),
-            "type": ((a.get("_type") or "").strip(), _DIM, f_row, "l"),
-        }
-        for key, hdr, x, al in _COLS:
-            if key == "dir":
-                arw = "▲" if is_bull else "▼"
-                txt(x, y, f"{arw} {'BULL' if is_bull else 'BEAR'}", f_rowb, dcol, "l")
-            else:
-                t, fill, fnt, al2 = vals[key]
-                txt(x, y, t, fnt, fill, al2)
+    y = _TOP + 4
+    for label, group, rows in sections:
+        gc = _counts(group)
+        d.rectangle([0, s(y - 4), s(_W), s(y - 4) + s(_SECH - 6)], fill=_BAND)
+        lx = txt(40, y, label, f_sec, _GOLD)
+        txt(40 + lx + 12, y + 2, f"·  {gc['n']} prints  ·  ▲ {gc['nb']}  /  ▼ {gc['nr']}",
+            f_hdr, _DIM)
+        y += _SECH
+        for i, a in enumerate(rows):
+            if i % 2 == 1:
+                d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(_ROWH)], fill=_ROWALT)
+            is_bull = _dir(a) == "bull"
+            dcol = _BULL if is_bull else _BEAR
+            cp = (a.get("cp") or "").upper()
+            strike, spot = a.get("strike"), a.get("spot")
+            for key, hdr, x, al in _COLS:
+                if key == "ticker":
+                    w = txt(x, y, a.get("ticker") or "", f_rowb, _GOLD)
+                    if a.get("_n", 1) > 1:
+                        txt(x + w + 6, y + 1, f"×{a['_n']}", f_n, _DIM)
+                elif key == "dir":
+                    txt(x, y, f"{'▲' if is_bull else '▼'} {'BULL' if is_bull else 'BEAR'}",
+                        f_rowb, dcol)
+                elif key == "cp":
+                    txt(x, y, cp or "—", f_rowb, _BULL if cp == "C" else _BEAR)
+                elif key == "strike":
+                    txt(x, y, f"${strike:g}" if strike else "—", f_row, _TXT, "r")
+                elif key == "time":
+                    txt(x, y, _time_et(a), f_row, _DIM)
+                elif key == "exp":
+                    txt(x, y, _exp_short(a.get("exp")), f_row, _DIM)
+                elif key == "spot":
+                    txt(x, y, f"{spot:.2f}" if spot else "—", f_row, _DIM, "r")
+                elif key == "money":
+                    txt(x, y, _money(a), f_row, _TXT, "r")
+                elif key == "voi":
+                    txt(x, y, _voi(a), f_row, _TXT, "r")
+                elif key == "type":
+                    txt(x, y, (a.get("_type") or "").strip(), f_row, _DIM)
+            y += _ROWH
+        y += 6
 
     # footer
     d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
-    foot = "UCT Intelligence  ·  Alpha Gold — the day's top-conviction $1M+ ask sweeps"
-    if extra > 0:
-        foot += f"   ( +{extra} more )"
-    txt(36, H - 32, foot, f_foot, _DIM)
+    txt(36, H - 32, "UCT Intelligence  ·  Alpha Gold — top-conviction $1M+ ask sweeps  ·  "
+                    "one row per ticker (×N = repeat prints)", f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
     out = img.resize((_W, H), Image.LANCZOS)
@@ -254,16 +283,11 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
 
 # ── Discord post (hand-rolled multipart over stdlib urllib) ────────────────
 def _summary_line(alerts: list[dict], date_text: str) -> str:
-    t = _totals(alerts)
-    net = t["net"]
-    sign = "+" if net >= 0 else "-"
-    lead = alerts[0] if alerts else None
-    line = (f"⭐ **Alpha Gold — {date_text}**  ·  {t['n']} alerts  ·  "
-            f"${t['total']:.1f}M  ·  {t['nb']}▲ / {t['nr']}▼  ·  "
-            f"net {sign}${abs(net):.1f}M {'bull' if net >= 0 else 'bear'}")
-    if lead:
-        line += f"\nTop: {lead.get('ticker')} {lead.get('cp')} ${lead.get('strike'):g} · {_fmt_prem(lead.get('alertPremium'))}"
-    return line
+    c = _counts(alerts)
+    ns = sum(1 for a in alerts if not _is_etf(a))
+    ne = c["n"] - ns
+    return (f"⭐ **Alpha Gold — {date_text}**  ·  {c['n']} prints  ·  "
+            f"{c['nb']}▲ / {c['nr']}▼  ·  {ns} stocks / {ne} ETFs")
 
 
 def _post_discord_image(webhook: str, png: bytes, content: str,
