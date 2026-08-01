@@ -10,8 +10,13 @@ Invariants (enforced HERE, not in callers — wire/store.py precedent):
   upstream hands one session in three encodings, and a key that spells the
   same session two ways breaks fire-once silently.
 - a signal this store cannot key, or cannot serialize, is REFUSED at the
-  door. There is no rewrite path, so a bad row is bad forever — raising is
-  the only correction this store has.
+  door, and every refusal is a ValueError. There is no rewrite path, so a bad
+  row is bad forever — raising is the only correction this store has.
+- False means EXACTLY ONE thing: this signal is already recorded. A dropped
+  write must never be reported as a duplicate (see record_signal).
+
+`tf` is the product-facing timeframe the surface shows — "1D", never the
+bars-store key "D". They are different rows; callers write "1D".
 """
 from __future__ import annotations
 
@@ -30,6 +35,11 @@ _WRITE_LOCK = threading.Lock()
 # writes: a single non-reentrant lock covering both would deadlock.
 _INIT_LOCK = threading.Lock()
 _INITED = False
+
+# SQLite's INTEGER is signed 64-bit; past it the driver raises OverflowError.
+_INT64_LIMIT = 2 ** 63
+# Every column the schema declares NOT NULL and stores as TEXT.
+_KEY_TEXT_FIELDS = ("indicator", "version", "sym", "tf", "direction")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS signature_signals (
@@ -102,9 +112,14 @@ def _normalize_bar_time(bar_time) -> int:
             raise ValueError(f"unparseable bar_time: {bar_time!r}") from exc
         return d.year * 10_000 + d.month * 100 + d.day
     try:
-        return int(float(bar_time))
+        n = int(float(bar_time))
     except (TypeError, ValueError, OverflowError) as exc:
         raise ValueError(f"unparseable bar_time: {bar_time!r}") from exc
+    if not -_INT64_LIMIT <= n < _INT64_LIMIT:
+        # sqlite3 raises OverflowError from inside execute() for these — a
+        # refusal shaped differently from every other refusal here.
+        raise ValueError(f"bar_time out of range for INTEGER: {bar_time!r}")
+    return n
 
 
 def record_signal(indicator: str, version: str, sym: str, tf: str, direction: str,
@@ -112,15 +127,36 @@ def record_signal(indicator: str, version: str, sym: str, tf: str, direction: st
     """Record a signal. True if a NEW row landed, False if it already existed.
 
     Normalization and validation happen BEFORE anything touches the database, so
-    a refused signal leaves no trace at all — not even a created file.
+    a refused signal leaves no trace at all — not even a created file. Every
+    refusal raises ValueError; False means ONLY "already recorded".
+
+    The NOT NULL columns are validated here rather than left to the schema
+    because sqlite3.IntegrityError is the parent of both the UNIQUE failure and
+    the NOT NULL failure: a `version=None` (what `rules.VERSIONS.get(typo)`
+    hands you) would otherwise be swallowed as a duplicate, silently dropping
+    the write AND suppressing every retry of it under fire-once.
     """
+    for name, val in zip(_KEY_TEXT_FIELDS,
+                         (indicator, version, sym, tf, direction)):
+        if not isinstance(val, str) or not val:
+            raise ValueError(f"{name} must be a non-empty str, got {val!r}")
+
     key_time = _normalize_bar_time(bar_time)
-    px = float(price)
+    try:
+        px = float(price)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"unusable price: {price!r}") from exc
     if not math.isfinite(px):
         # A NaN cannot be corrected later and breaks json.dumps(allow_nan=False)
         # for every future read of the whole list — one row, whole surface.
         raise ValueError(f"non-finite price: {price!r}")
-    meta_json = json.dumps(meta, allow_nan=False) if meta else None
+
+    if meta is not None and not isinstance(meta, dict):
+        raise ValueError(f"meta must be a dict or None, got {meta!r}")
+    try:
+        meta_json = json.dumps(meta, allow_nan=False) if meta else None
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"meta is not JSON-serializable: {meta!r}") from exc
 
     _ensure_init()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
@@ -134,7 +170,12 @@ def record_signal(indicator: str, version: str, sym: str, tf: str, direction: st
             )
             c.commit()
             return True
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as exc:
+            # ONLY the dedup collision may become False. Every other integrity
+            # failure (NOT NULL, FK) is a dropped write, and reporting a drop as
+            # "already recorded" is the one lie fire-once cannot survive.
+            if "UNIQUE constraint failed" not in str(exc):
+                raise
             return False
 
 

@@ -124,6 +124,75 @@ def test_epoch_and_numeric_string_forms_pass_through_unchanged(tmp_ledger):
     assert len(rows) == 1 and rows[0]["bar_time"] == 1753900000
 
 
+# ── Every field the schema declares NOT NULL is validated at the door ────
+
+_GOOD = dict(indicator="fcb", version="fcb-v1", sym="NVDA", tf="1D",
+             direction="bull", bar_time=20260730, price=182.5)
+
+
+def test_a_missing_or_non_str_key_field_is_refused_and_inserts_nothing(tmp_ledger):
+    """`sqlite3.IntegrityError` is the parent of BOTH the UNIQUE failure and the
+    NOT NULL failure. Caught broadly, `record_signal("fcb", None, ...)` — which
+    `rules.VERSIONS.get(wrong_key)` produces — returns False, i.e. "already
+    recorded", while nothing was written. The signal is dropped AND fire-once
+    then suppresses every retry of it. In an append-only store that is
+    unfixable: there is no row to correct."""
+    for field in ("indicator", "version", "sym", "tf", "direction"):
+        for bad in (None, "", 123):
+            with pytest.raises(ValueError):
+                ledger.record_signal(**dict(_GOOD, **{field: bad}))
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_a_not_null_violation_raises_instead_of_reporting_a_duplicate(tmp_ledger, monkeypatch):
+    """The other half of the fix: the catch itself must be narrowed to UNIQUE.
+
+    The field guards above make a NULL unreachable through the front door, so
+    this drives one through the normalization seam. A broad
+    `except IntegrityError: return False` reports this dropped write as a
+    duplicate; the store must let it out."""
+    monkeypatch.setattr(ledger, "_normalize_bar_time", lambda bt: None)
+    with pytest.raises(sqlite3.IntegrityError, match="NOT NULL"):
+        ledger.record_signal(*BASE, 182.5)
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_a_genuine_duplicate_still_reports_false(tmp_ledger):
+    """The narrowed catch must still swallow the UNIQUE case it exists for."""
+    assert ledger.record_signal(*BASE, 182.5) is True
+    assert ledger.record_signal(*BASE, 182.5) is False
+    assert _rows_on_disk(tmp_ledger) == 1
+
+
+def test_a_bar_time_too_large_for_the_column_is_refused(tmp_ledger):
+    """SQLite's INTEGER tops out at 2^63-1; a bigger key raises OverflowError
+    from the driver at INSERT time — not ValueError, and not a clean refusal.
+    Every refusal this store makes must look the same to a caller."""
+    for bad in (10**25, "1e30", 1e30, -(10**25)):
+        with pytest.raises(ValueError):
+            ledger.record_signal("fcb", "fcb-v1", "NVDA", "1D", "bull", bad, 182.5)
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_a_price_that_is_not_a_number_is_refused_as_a_valueerror(tmp_ledger):
+    """`float(None)` and `float([])` are TypeErrors — a caller guarding on
+    ValueError would be blindsided."""
+    for bad in (None, [], {}, "abc", object()):
+        with pytest.raises(ValueError):
+            ledger.record_signal(*BASE, bad)
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_meta_must_be_a_dict_or_none(tmp_ledger):
+    """A list or a bare string is JSON-serializable, so without this guard it
+    lands in meta_json silently and every reader that does
+    `json.loads(row["meta_json"])["callPrem"]` breaks on a row nobody can fix."""
+    for bad in ([1, 2], "notadict", 5, ("a", "b")):
+        with pytest.raises(ValueError):
+            ledger.record_signal(*BASE, 182.5, bad)
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
 # ── The UNIQUE key: exactly six columns, no more, no fewer ────────────────
 
 def test_every_component_of_the_unique_key_creates_a_new_row(tmp_ledger):
@@ -222,8 +291,10 @@ def test_non_finite_price_is_refused_before_insert(tmp_ledger):
 
 
 def test_meta_that_cannot_round_trip_as_json_is_refused_before_insert(tmp_ledger):
+    """ValueError specifically: `json.dumps({"legs": {1, 2}})` raises TypeError,
+    and every refusal this store makes must look the same to a caller."""
     for bad in ({"prem": float("nan")}, {"prem": float("inf")}, {"legs": {1, 2}}):
-        with pytest.raises((ValueError, TypeError)):
+        with pytest.raises(ValueError):
             ledger.record_signal(*BASE, 182.5, bad)
     assert _rows_on_disk(tmp_ledger) == 0
 
