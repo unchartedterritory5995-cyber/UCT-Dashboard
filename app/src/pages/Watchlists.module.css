@@ -1311,6 +1311,15 @@
 }
 .inlineAddClose:hover { color: var(--text-bright); border-color: var(--ut-gold); }
 
+/* Add failed — the row has to say so, not just clear itself. */
+.inlineAddErr {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+  color: #ff3b47;
+  white-space: nowrap;
+}
+
 /* ── "No custom lists yet" — now an action, not dead text ── */
 .noListsEmpty {
   display: flex;

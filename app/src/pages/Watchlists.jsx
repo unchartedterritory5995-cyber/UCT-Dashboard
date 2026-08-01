@@ -435,6 +435,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [sortDir, setSortDir] = useState('desc')
   const [filterText, setFilterText] = useState('')
   const [addingToList, setAddingToList] = useState(null)  // list id whose inline "+" row is open
+  const [addErr, setAddErr] = useState(null)              // { listId, msg } — last failed add
 
   function toggleStar(listId, sym) {
     const key = `${listId}:${sym}`
@@ -966,6 +967,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return item
   }
 
+  // `handleAddItem` THROWS on a non-ok POST. Every inline add row goes through this
+  // wrapper so that throw always has a catcher and the failure is spoken out loud —
+  // the pinned AddSymbolBar used to own that job (try/catch → aria-live "Could not
+  // add NVDA"), and it was deleted without the duty being handed over. Without this,
+  // a 500 is an unhandled rejection: the combobox clears, the ticker never appears,
+  // and nothing on screen ever says why.
+  async function addSymbolTo(listId, sym) {
+    const clean = String(sym || '').trim().toUpperCase()
+    setAddErr(null)
+    try {
+      return await handleAddItem(listId, clean)
+    } catch {
+      setAddErr({ listId, msg: `Could not add ${clean}` })
+      return null
+    }
+  }
+
   async function handleRemoveItem(listId, itemId) {
     await fetch(`/api/watchlists/${listId}/items/${itemId}`, { method: 'DELETE' })
     mutateMine()
@@ -1432,7 +1450,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <TickerCombobox
                   compact
                   autoFocus
-                  onPick={sym => handleAddItem(wl.id, sym)}
+                  onPick={sym => addSymbolTo(wl.id, sym)}
                   onEscape={() => setAddingToList(null)}
                   existingSyms={new Set(items.map(i => String(i.sym).toUpperCase()))}
                   targetLabel={wl.name}
@@ -1444,6 +1462,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   title="Done adding"
                   aria-label="Done adding"
                 ><UIcon name="x" size={11} /></button>
+                {addErr?.listId === wl.id && (
+                  <span className={styles.inlineAddErr} role="status">{addErr.msg}</span>
+                )}
               </div>
             )}
             {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
@@ -1546,7 +1567,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <TickerCombobox
                   compact
                   autoFocus
-                  onPick={sym => handleAddItem('flagged', sym)}
+                  onPick={sym => addSymbolTo('flagged', sym)}
                   onEscape={() => setAddingToList(null)}
                   existingSyms={new Set(flagged.map(s => String(s).toUpperCase()))}
                   targetLabel="Flagged"
@@ -1558,6 +1579,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   title="Done adding"
                   aria-label="Done adding"
                 ><UIcon name="x" size={11} /></button>
+                {addErr?.listId === 'flagged' && (
+                  <span className={styles.inlineAddErr} role="status">{addErr.msg}</span>
+                )}
               </div>
             )}
             {flagged.length === 0 ? (
