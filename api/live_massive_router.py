@@ -24,7 +24,8 @@ Tier derivation from row characteristics:
   MAGENTA + V/OI >= 5                          →  Unusual
   MAGENTA                                       →  Bullish/Bearish
   YELLOW + DTE >= 180                          →  Bull/Bear LEAPS (lower priority)
-  YELLOW                                        →  Bullish/Bearish (accumulation)
+  YELLOW ($1M+ ask sweep) → promoted to MAGENTA (Alpha Gold / Size) via override
+  YELLOW                                        →  Bullish/Bearish
   Type=ML/                                      →  Algo (multi-leg, non-directional)
 
 Why this lives separately:
@@ -1025,14 +1026,21 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     # colored sections in LiveFlow.jsx (green vs red).
     dir_tier = "bullish" if direction == "Bull" else "bearish"
 
-    # ─── Premium override (rescue high-conviction WHITE rows) ──────────
-    # Massive's classifier assigns Color = WHITE when cum_vol/OI < 1.0.
-    # If OI is unknown (e.g. fresh strike, Schwab snapshot miss), the
-    # ratio defaults to 0 → WHITE → row filtered out of /live-massive.
-    # But a $3M ASK sweep is institutional-grade regardless of what OI
-    # says. This rule promotes those rows to MAGENTA-equivalent classify-
-    # ation so they surface. Tunable via thresholds.premium_override.
-    if color == "WHITE":
+    # ─── Premium override (rescue high-conviction WHITE + YELLOW rows) ──
+    # Massive's classifier assigns Color from cum_vol/OI: WHITE (< 1.0),
+    # YELLOW (> 1.0), MAGENTA (>= 1.5). A big-dollar print gets
+    # under-ranked by that ratio alone in two ways:
+    #   WHITE  — OI unknown (fresh strike / Schwab miss) → ratio 0 → WHITE
+    #            → filtered out entirely, even a $3M ASK sweep.
+    #   YELLOW — vol DID exceed OI (confirmed new positioning) but the
+    #            ratio landed just under 1.5×, so the row is walled out of
+    #            the MAGENTA branch where Alpha Gold / Size live → a $6M
+    #            ASK sweep (e.g. INTC 90C, CRWV 80C at V/OI 1.1-1.3×) gets
+    #            buried as a generic directional row.
+    # A $1M+ ASK sweep is institutional-grade whether its V/OI is 1.1× or
+    # 5×. This rule promotes BOTH cases to MAGENTA so they reach the real
+    # tiers (Alpha Gold / Size). Tunable via thresholds.premium_override.
+    if color in ("WHITE", "YELLOW"):
         try:
             override = _load_thresholds().get("premium_override", {})
         except Exception:
@@ -1190,8 +1198,12 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     if color == "YELLOW":
         if is_leaps:
             return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
-        # YELLOW = cumulative accumulation
-        return (f"UCT {direction}ish Accumulation", dir_tier, TIER_PRIORITY[dir_tier])
+        # YELLOW = vol>OI (new positioning) but under the 1.5× MAGENTA line
+        # AND below the premium-override floor → a generic directional row.
+        # NOT "accumulation" — that word is reserved for the by-contract
+        # rollup (see _accumulation_grade / accumulation_shape) that detects
+        # repeated same-strike hits intraday / across days.
+        return (f"UCT {direction}ish", dir_tier, TIER_PRIORITY[dir_tier])
 
     # WHITE rows that reached here didn't qualify for premium-override
     # promotion (premium too low, or wrong type). Skip — caller filters None.
