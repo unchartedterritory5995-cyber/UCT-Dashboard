@@ -637,7 +637,10 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
                   aria-hidden to role="img" + <title>, which is the ONLY premium
                   signal a screen reader gets here — the row's own title attr is
                   unreliable to AT and the disabled checkbox is out of tab order.
-                  NavBar's premium-lock icon sets it for the same reason. */}
+                  NavBar goes the OTHER way on purpose: its lock is aria-hidden
+                  with no title because its row already says "— unlock with Pro"
+                  in the accessible name. This row's label is just the indicator
+                  name, so the icon has to carry it. */}
               {!isPaid && <UIcon name="lock" size={10} gold title="Premium" />}
             </label>
           ))}

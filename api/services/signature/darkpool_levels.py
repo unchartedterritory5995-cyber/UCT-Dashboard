@@ -140,9 +140,14 @@ def fetch_dp_levels(sym: str) -> dict:
     Reads the WHOLE window (``get_ticker_prints_window``), not the row-capped
     drilldown read: a 200-row cap ordered date DESC covers only the newest few
     dates on a heavy ticker, so the oldest dates -- and any level living on them
-    -- would be silently missing from the aggregate. ``datesCovered`` reports how
-    many distinct dates actually backed the result so a short window is visible
-    rather than implied.
+    -- would be silently missing from the aggregate.
+
+    ``datesCovered`` counts the distinct dates present in the prints that were
+    READ, not the dates that survived into ``levels``. It answers "how much tape
+    did this window actually contain" -- which is the question a short window
+    needs answering, and the one the read above exists to make honest. It is
+    NOT a provenance count for the returned levels: a print dropped for landing
+    in a sub-floor cluster still contributes its date here.
     """
     from api import darkpool_db  # local import: keeps this module pure-testable
 
