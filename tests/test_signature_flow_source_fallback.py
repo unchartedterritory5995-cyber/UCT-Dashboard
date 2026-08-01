@@ -62,7 +62,18 @@ def flow_source_server(monkeypatch):
     seen = []
 
     class _H(BaseHTTPRequestHandler):
-        protocol_version = "HTTP/1.1"
+        # HTTP/1.0 + an explicit `Connection: close`, NOT HTTP/1.1 keep-alive.
+        # These tests are the only ones here that make TWO sequential requests
+        # (the stocks miss, then the indexes retry), which is exactly what a
+        # keep-alive connection is stateful across. With 1.1 the server thread
+        # sits in its keep-alive loop after responding and the client closes
+        # underneath it, so teardown races the next connect — observed on
+        # Windows as WinError 10054/10053 and, under full-suite load,
+        # intermittently as a failed second read. Closing per response makes
+        # every exchange a discrete transaction with nothing to race.
+        # Content-Length is still sent, so the client never has to infer the
+        # body length from the close.
+        protocol_version = "HTTP/1.0"
 
         def do_GET(self):
             parsed = urlparse(self.path)
@@ -76,6 +87,7 @@ def flow_source_server(monkeypatch):
                 self.send_response(state["status"])
                 self.send_header("Content-Type", "text/plain")
                 self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
                 self.end_headers()
                 self.wfile.write(body)
                 return
@@ -87,6 +99,7 @@ def flow_source_server(monkeypatch):
             self.send_header("Content-Type", "text/csv")
             self.send_header("Content-Encoding", "gzip")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(body)
 
