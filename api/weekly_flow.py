@@ -494,7 +494,8 @@ def _webhook() -> str:
 
 
 def run_weekly(*, force: bool = False, post: bool = True, days: int | None = None,
-               cap: str | None = None) -> dict:
+               cap: str | None = None, sort_bull: str | None = None,
+               sort_bear: str | None = None) -> dict:
     """Build + optionally post the weekly conviction card. `force` bypasses the
     WEEKLY_FLOW_ENABLED gate (manual trigger). post=False returns the PNG under
     'png' for preview. `cap` = all/mega/large/mid_small. Never raises."""
@@ -506,8 +507,8 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         min_dte = int(os.getenv("WEEKLY_FLOW_MIN_DTE", "30"))
         frac = float(os.getenv("WEEKLY_FLOW_STILL_OPEN_FRAC", "0.75"))
         cap = (cap or os.getenv("WEEKLY_FLOW_CAP", "all")).strip().lower()
-        sort_bull = os.getenv("WEEKLY_FLOW_SORT_BULL", "net").strip().lower()
-        sort_bear = os.getenv("WEEKLY_FLOW_SORT_BEAR", "premium").strip().lower()
+        sort_bull = (sort_bull or os.getenv("WEEKLY_FLOW_SORT_BULL", "net")).strip().lower()
+        sort_bear = (sort_bear or os.getenv("WEEKLY_FLOW_SORT_BEAR", "premium")).strip().lower()
 
         trades, window = load_directional_trades(n_days, min_dte, cap)
         agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)

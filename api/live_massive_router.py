@@ -4631,17 +4631,20 @@ def weekly_flow_trigger(
     post: int = Query(0, description="1 = post to Discord; 0 = return the rendered PNG preview"),
     days: int = Query(None, description="window in trading days (default env WEEKLY_FLOW_DAYS / 5)"),
     cap: str = Query("all", description="cap band: all | mega | large | mid_small"),
+    sort_bull: str = Query(None, description="override bull sort: net | premium | pct"),
+    sort_bear: str = Query(None, description="override bear sort: net | premium | pct"),
     _auth: dict = Depends(require_flow_admin),
 ):
     """Manual trigger for the Weekly Conviction Flow card (top-10 bull/bear
     still-open flow over N days, DTE-filtered; bulls by Net, bears by Bear $).
-    ?cap=mid_small for the mid-small-cap variant. ?post=0 (default) returns the
-    PNG preview; ?post=1 posts. Bypasses WEEKLY_FLOW_ENABLED. Runs on the
-    flow-worker (flow.db + OI snapshots) — hit via the site (proxied)."""
+    ?cap=mid_small for the mid-small-cap variant; ?sort_bear=net etc. to preview a
+    different sort. ?post=0 (default) returns the PNG preview; ?post=1 posts.
+    Bypasses WEEKLY_FLOW_ENABLED. Runs on the flow-worker (flow.db + OI snapshots)."""
     from api import weekly_flow as wf
+    kw = dict(days=days, cap=cap, sort_bull=sort_bull, sort_bear=sort_bear)
     if post:
-        return wf.run_weekly(force=True, post=True, days=days, cap=cap)
-    res = wf.run_weekly(force=True, post=False, days=days, cap=cap)
+        return wf.run_weekly(force=True, post=True, **kw)
+    res = wf.run_weekly(force=True, post=False, **kw)
     png = res.get("png")
     if not png:
         return res
