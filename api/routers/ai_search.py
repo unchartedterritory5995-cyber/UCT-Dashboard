@@ -714,19 +714,60 @@ def _summarize_flow_rows(sym: str, rows: list[dict], today: str) -> str:
 _flow_ctx_memo: dict = {}
 
 
+def _read_flow_rows(sym: str, source: str) -> list[dict] | None:
+    """One read of ONE flow source. Parsed rows, or **None when the read FAILED**.
+
+    An unreachable flow service and a genuinely quiet tape both summarize to the
+    same empty string, but only one of them is an answer — and the caller has to
+    tell them apart to know whether asking the other source is warranted
+    (`lesson_market_cap_cache_poison`: never treat a failed fetch as a value).
+    """
+    import csv as _csv
+    import io as _io
+    import httpx
+    try:
+        r = httpx.get(f"{_flow_base_url()}/api/flow/ticker/{sym}",
+                      params={"source": source}, timeout=2.5)
+    except Exception:
+        return None
+    if r.status_code != 200 or not r.text:
+        return None
+    try:
+        return list(_csv.DictReader(_io.StringIO(r.text)))
+    except Exception:
+        return None
+
+
 def _ctx_flow_ticker(sym: str) -> str:
+    """One desk-context line of a ticker's flow, read from BOTH sources it may
+    be filed under.
+
+    `/api/flow/ticker` defaults to `source=stocks`, but the flow DB files
+    index/ETF symbols — SPY, QQQ, IWM, every XL*, ~200 names — under
+    `source=indexes`, and asking the wrong one returns a header with no rows: a
+    200, no error, and an empty summary. On this path that means the model
+    answers "what did the flow say on SPY" ungrounded, on exactly the symbols
+    people ask about first, with nothing anywhere to alert on.
+
+    So: ask `stocks`, and only if the parse yields ZERO rows ask `indexes` once.
+    Deliberately not a hardcoded symbol list — membership is upstream's to
+    change and a list would drift out of date without ever failing. A real stock
+    still costs exactly one request, which matters on a 2.5s budget inside a
+    user-facing answer.
+
+    A FAILED read short-circuits: a 500 is not an empty tape, so it is never
+    re-asked against the other source nor reported as a quiet one.
+    """
     import time as _time
     hit = _flow_ctx_memo.get(sym)
     if hit and _time.time() - hit[0] < 60:
         return hit[1]
     text = ""
     try:
-        import csv as _csv
-        import io as _io
-        import httpx
-        r = httpx.get(f"{_flow_base_url()}/api/flow/ticker/{sym}", timeout=2.5)
-        if r.status_code == 200 and r.text:
-            rows = list(_csv.DictReader(_io.StringIO(r.text)))
+        rows = _read_flow_rows(sym, "stocks")
+        if rows is not None and not rows:
+            rows = _read_flow_rows(sym, "indexes")
+        if rows:
             text = _summarize_flow_rows(sym, rows, _et_day_mdyyyy())
     except Exception:
         text = ""
