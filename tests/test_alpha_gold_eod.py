@@ -41,11 +41,21 @@ def test_money_and_voi():
     assert age._voi(_a(volumeOIRatio=None)) == "—"
 
 
-def test_counts_by_print():
-    alerts = [_a(_direction="Bull"), _a(_direction="Bear", cp="P"),
-              _a(_direction="Bull")]
+def test_fmt_prem():
+    assert age._fmt_prem(6_580_000) == "$6.58M"
+    assert age._fmt_prem(12_000_000) == "$12.0M"      # >=10M drops a decimal
+    assert age._fmt_prem(1_500_000_000) == "$1.50B"
+    assert age._fmt_prem(None) == "$0.00M"
+
+
+def test_counts_with_premium():
+    alerts = [_a(_direction="Bull", alertPremium=6_000_000),
+              _a(_direction="Bear", cp="P", alertPremium=2_000_000),
+              _a(_direction="Bull", alertPremium=1_000_000)]
     c = age._counts(alerts)
-    assert c == {"n": 3, "nb": 2, "nr": 1}
+    assert c["n"] == 3 and c["nb"] == 2 and c["nr"] == 1
+    assert round(c["total"], 2) == 9.0
+    assert round(c["net"], 2) == 5.0                  # 7M bull - 2M bear
 
 
 def test_rollup_dedups_and_counts():
@@ -71,14 +81,15 @@ def test_rollup_mixed_direction_is_two_rows():
     assert by_dir == {"bull": 1, "bear": 2}
 
 
-def test_summary_line_has_counts_no_premium():
-    line = age._summary_line([_a(source="stocks"), _a(source="indexes", cp="P",
-                                                      _direction="Bear")],
+def test_summary_line_has_premium_and_counts():
+    line = age._summary_line([_a(source="stocks", alertPremium=6_580_000),
+                              _a(source="indexes", cp="P", _direction="Bear",
+                                 alertPremium=1_000_000)],
                              "July 31, 2026")
     assert "Alpha Gold" in line
     assert "2 prints" in line
+    assert "$" in line                        # premium is back
     assert "1 stocks / 1 ETFs" in line
-    assert "$" not in line                    # no premium anywhere
 
 
 def test_render_card_returns_png():

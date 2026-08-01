@@ -77,6 +77,14 @@ def _is_etf(a: dict) -> bool:
     return (a.get("source") or "").strip().lower() == "indexes"
 
 
+def _fmt_prem(v) -> str:
+    v = float(v or 0)
+    if v >= 1e9:
+        return f"${v / 1e9:.2f}B"
+    m = v / 1e6
+    return f"${m:.2f}M" if m < 10 else f"${m:.1f}M"
+
+
 def _money(a: dict) -> str:
     lbl = a.get("moneynessLabel") or ""
     pct = a.get("moneynessPct")
@@ -126,9 +134,12 @@ def _date_text(day_mdyyyy: str) -> str:
 
 
 def _counts(alerts: list[dict]) -> dict:
-    return {"n": len(alerts),
-            "nb": sum(1 for a in alerts if _dir(a) == "bull"),
-            "nr": sum(1 for a in alerts if _dir(a) == "bear")}
+    bull = [a for a in alerts if _dir(a) == "bull"]
+    bear = [a for a in alerts if _dir(a) == "bear"]
+    bp = sum((a.get("alertPremium") or 0) for a in bull) / 1e6
+    rp = sum((a.get("alertPremium") or 0) for a in bear) / 1e6
+    return {"n": len(alerts), "nb": len(bull), "nr": len(bear),
+            "total": bp + rp, "net": bp - rp}
 
 
 def _rollup(alerts: list[dict]) -> list[dict]:
@@ -152,10 +163,10 @@ def _rollup(alerts: list[dict]) -> list[dict]:
 
 # ── render ─────────────────────────────────────────────────────────────────
 _COLS = [
-    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 120, "l"), ("cp", "C/P", 258, "l"),
-    ("strike", "STRIKE", 405, "r"), ("exp", "EXP", 423, "l"), ("spot", "SPOT", 635, "r"),
-    ("money", "%ITM/OTM", 792, "r"), ("voi", "V/OI", 880, "r"), ("type", "TYPE", 900, "l"),
-    ("dir", "DIR", 1008, "l"),
+    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 116, "l"), ("cp", "C/P", 232, "l"),
+    ("strike", "STRIKE", 338, "r"), ("exp", "EXP", 354, "l"), ("spot", "SPOT", 548, "r"),
+    ("money", "%ITM/OTM", 680, "r"), ("prem", "PREMIUM", 838, "r"), ("voi", "V/OI", 910, "r"),
+    ("type", "TYPE", 928, "l"), ("dir", "DIR", 1016, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 150, 32
 _SS = 2  # supersample then downscale for crisp text
@@ -214,13 +225,15 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
     sx = 36
     sx = chunk(sx, f"{grand['n']} prints", _TXT)
     sx = chunk(sx, "·", _DIM)
+    sx = chunk(sx, f"${grand['total']:.1f}M premium", _GOLD)
+    sx = chunk(sx, "·", _DIM)
     sx = chunk(sx, f"▲ {grand['nb']} Bull", _BULL)
     sx = chunk(sx, "/", _DIM)
     sx = chunk(sx, f"▼ {grand['nr']} Bear", _BEAR)
     sx = chunk(sx, "·", _DIM)
-    sx = chunk(sx, f"{len(stocks)} stocks", _TXT)
-    sx = chunk(sx, "/", _DIM)
-    chunk(sx, f"{len(etfs)} ETFs", _TXT)
+    net = grand["net"]
+    chunk(sx, f"Net {'+' if net >= 0 else '−'}${abs(net):.1f}M {'Bull' if net >= 0 else 'Bear'}",
+          _BULL if net >= 0 else _BEAR)
 
     # column headers
     for key, hdr, x, al in _COLS:
@@ -232,7 +245,8 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
         gc = _counts(group)
         d.rectangle([0, s(y - 4), s(_W), s(y - 4) + s(_SECH - 6)], fill=_BAND)
         lx = txt(40, y, label, f_sec, _GOLD)
-        txt(40 + lx + 12, y + 2, f"·  {gc['n']} prints  ·  ▲ {gc['nb']}  /  ▼ {gc['nr']}",
+        txt(40 + lx + 12, y + 2,
+            f"·  {gc['n']} prints  ·  ${gc['total']:.1f}M  ·  ▲ {gc['nb']}  /  ▼ {gc['nr']}",
             f_hdr, _DIM)
         y += _SECH
         for i, a in enumerate(rows):
@@ -262,6 +276,8 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
                     txt(x, y, f"{spot:.2f}" if spot else "—", f_row, _DIM, "r")
                 elif key == "money":
                     txt(x, y, _money(a), f_row, _TXT, "r")
+                elif key == "prem":
+                    txt(x, y, _fmt_prem(a.get("alertPremium")), f_rowb, _GOLD, "r")
                 elif key == "voi":
                     txt(x, y, _voi(a), f_row, _TXT, "r")
                 elif key == "type":
@@ -286,8 +302,10 @@ def _summary_line(alerts: list[dict], date_text: str) -> str:
     c = _counts(alerts)
     ns = sum(1 for a in alerts if not _is_etf(a))
     ne = c["n"] - ns
-    return (f"⭐ **Alpha Gold — {date_text}**  ·  {c['n']} prints  ·  "
-            f"{c['nb']}▲ / {c['nr']}▼  ·  {ns} stocks / {ne} ETFs")
+    net = c["net"]
+    return (f"⭐ **Alpha Gold — {date_text}**  ·  {c['n']} prints  ·  ${c['total']:.1f}M  ·  "
+            f"{c['nb']}▲ / {c['nr']}▼  ·  net {'+' if net >= 0 else '-'}${abs(net):.1f}M  ·  "
+            f"{ns} stocks / {ne} ETFs")
 
 
 def _post_discord_image(webhook: str, png: bytes, content: str,

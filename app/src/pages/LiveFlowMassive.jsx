@@ -1951,7 +1951,7 @@ function qualifiesCurated(alert, thresholds) {
 // Renders all Curated-mode threshold controls + live-preview math against
 // the current alert window. Hidden from non-admin users; gated by URL param
 // rather than auth because this is internal-only.
-function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, autoPushCfg, onAutoPush }) {
+function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, autoPushCfg, onAutoPush, targetDate }) {
   // Collapse toggle — the panel is tall; let admins fold it to just the header
   // bar (Save/Reset stay accessible) so it doesn't eat the whole page. Persisted.
   const [collapsed, setCollapsed] = useState(() => {
@@ -2093,6 +2093,35 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               <input type="checkbox" checked={!!autoPushCfg.size_sweep_enabled}
                 onChange={e => onAutoPush && onAutoPush({ size_sweep_enabled: e.target.checked })} /> Size B sweeps &ge; $3M
             </label>
+          </div>
+          {/* Manual EOD push — post the WHOLE day's Alpha Gold as one summary
+              card image (distinct from the per-alert → push buttons). Posts the
+              day being viewed (targetDate) or today; uses the admin session. */}
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${P.dm}` }}>
+            <button
+              onClick={async () => {
+                const dayLabel = targetDate || "today";
+                if (!window.confirm(`Post the Alpha Gold EOD summary card (${dayLabel}) to Discord?`)) return;
+                try {
+                  const p = new URLSearchParams({ post: "1" });
+                  if (targetDate) p.set("target_date", targetDate);
+                  const r = await fetch(`/api/live/massive/alpha-gold-eod?${p.toString()}`, { method: "POST" });
+                  const j = await r.json();
+                  window.alert(j.posted
+                    ? `Posted ${j.count} Alpha Gold to Discord ✓`
+                    : `Not posted — ${j.reason || j.detail || "unknown"}`);
+                } catch (e) { window.alert("Push failed: " + e); }
+              }}
+              style={{
+                padding: "5px 12px", fontSize: 11, fontWeight: 700,
+                background: P.ac, color: P.bg, border: "none", borderRadius: 3,
+                cursor: "pointer", letterSpacing: 0.3,
+              }}>
+              ★ Push Alpha Gold EOD summary → Discord
+            </button>
+            <span style={{ fontSize: 10, color: P.dm, marginLeft: 10 }}>
+              posts the whole day's list as one image
+            </span>
           </div>
         </div>
       )}
@@ -4015,6 +4044,7 @@ export default function LiveFlowMassive() {
           alerts={visibleAlerts}
           autoPushCfg={autoPushCfg}
           onAutoPush={saveAutoPushCfg}
+          targetDate={targetDate}
         />
       )}
 
