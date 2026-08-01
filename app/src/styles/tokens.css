@@ -42,6 +42,35 @@
   --info-bg: #6ba3be12;
   --info-border: #6ba3be30;
 
+  /* ── Chart indicator tokens (--ind-*) ─────────────────────────────────────
+     DOM CHROME ONLY — legend chips, dialogs, the Style tab. The CANVAS gets
+     its colours from `app/src/components/chart/designTokens.js`, which is the
+     source of truth: chart colours come from the JS presets in
+     chartDefaults.js (classic/oled/tradingview/light), NOT from the
+     [data-theme] blocks below, so a CSS var can never reach a plotted
+     indicator. These exist purely so surrounding HTML can match the canvas
+     without re-implementing the ramp. Keep the two in sync.
+
+     --ind-warn is a NEW amber and is deliberately NOT --warn: --warn is
+     aliased to --ut-gold (#c9a84c) above, so reusing it would conflate
+     "warning" with "premium brand" — the exact thing the design spec forbids.
+     Chosen by maximising CIEDE2000 distance from every other semantic role
+     (dE00 21.9 from the gold) at WCAG contrast >= 7.15 on every dark canvas.
+     A test in designTokens.test.js fails if warn ever equals premium again. */
+  --ind-warn: #ff8100;
+  --ind-warn-bg: #ff810015;
+  --ind-warn-border: #ff810035;
+
+  /* The named opacity ramp (mirror of ALPHA in designTokens.js). Use as
+     `rgb(from var(--ind-warn) r g b / var(--ind-alpha-band))` or in
+     color-mix(); replaces the ad-hoc 8-digit-hex alpha suffixes. */
+  --ind-alpha-fill-faint: 0.08;
+  --ind-alpha-fill: 0.12;
+  --ind-alpha-band: 0.16;
+  --ind-alpha-emphasis: 0.24;
+  --ind-alpha-glow: 0.35;
+  --ind-alpha-solid: 1;
+
   /* ── Popup-menu chrome (--menu-*) ─────────────────────────────────────────
      The single palette worn by EVERY popup menu: chart settings, the
      watchlist / theme-tracker / fundamentals / breadth settings panels, the
@@ -242,6 +271,15 @@
   --info: #1f5d7a;
   --info-bg: #1f5d7a12;
   --info-border: #1f5d7a30;
+
+  /* Indicator amber, darkened for the white canvas. Deliberately hue-shifted
+     (30° -> 20°) rather than merely darkened: the light --ut-gold (#7a5c16) is
+     a dark olive, so a same-hue darkening of #ff8100 would collapse back onto
+     it (dE00 16.6). This lands at dE00 25.4 from the light gold, contrast 4.53
+     on white. Mirrors IND_TOKENS.light.warn in designTokens.js. */
+  --ind-warn: #d14803;
+  --ind-warn-bg: #d1480314;
+  --ind-warn-border: #d1480338;
 
   /* Tick-flash tint (read inside Theme Tracker / watchlist keyframes). */
   --tick-up-bg: rgba(10, 92, 34, 0.26);
