@@ -769,6 +769,41 @@ def test_the_negative_cache_still_answers_a_caller_with_nothing(client, monkeypa
     assert calls == ["SPY"]
 
 
+def test_a_dpl_cache_write_that_raises_does_not_discard_a_good_payload(
+        client, monkeypatch, caplog):
+    """The levels were computed and are correct. A raise from the CACHE WRITE is
+    a bookkeeping failure — it must not be caught by the provider's handler and
+    reported back as "dark pool levels unavailable", which would replace a good
+    answer with an error envelope and, because good() then refuses it, leave the
+    stale slot empty too."""
+    from api.services.cache import cache
+
+    levels = [{"rank": 1, "price": 180.0}]
+    monkeypatch.setattr(sig, "fetch_dp_levels",
+                        lambda sym: {"sym": sym, "levels": levels, "version": "dpl-v1"})
+
+    real_set = cache.set
+
+    def boom(key, value, ttl=None):
+        if key.startswith("sig:dpl:"):
+            raise RuntimeError("cache backend down")
+        return real_set(key, value, ttl)
+
+    monkeypatch.setattr(cache, "set", boom)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    with caplog.at_level(logging.ERROR, logger="api.routers.signature"):
+        r = TestClient(client, raise_server_exceptions=False).get(
+            "/api/signature/darkpool-levels?sym=NVDA")
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["levels"] == levels, body
+    assert not body.get("error"), body
+    assert sig._DPL_STALE.peek("NVDA")[0]["levels"] == levels
+    assert any("cache write" in rec.getMessage() for rec in caplog.records), caplog.text
+
+
 def test_a_raise_while_book_keeping_is_not_a_500(client, monkeypatch, caplog):
     """The neg-cache write runs on the COLD path, the one with no try/except
     above it (serve_stale.py:143) — so a raise there is a 500 exactly like a

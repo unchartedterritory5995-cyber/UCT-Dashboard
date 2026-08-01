@@ -132,9 +132,6 @@ def _dpl_good(p) -> bool:
 def _dpl_build(sym: str) -> dict:
     try:
         payload = fetch_dp_levels(sym)
-        if _dpl_good(payload):
-            cache.set(_ck("dpl", sym), payload, ttl=_DPL_TTL_S)
-        return payload
     except Exception as exc:                       # noqa: BLE001 — see rule 1
         logger.exception("signature: dark-pool levels build failed for %s", sym)
         # `levels: None` (not []) is load-bearing: good() is
@@ -142,6 +139,18 @@ def _dpl_build(sym: str) -> dict:
         # the last GOOD payload and served for the next 30 minutes.
         return {"sym": sym, "version": rules.VERSIONS["dpl"], "levels": None,
                 "error": f"dark pool levels unavailable: {exc}", "asOf": time.time()}
+    # Bookkeeping gets a guard of its own — the shape FCB and GXW already use.
+    # Inside the provider's try, a raise from the CACHE WRITE would have been
+    # caught by the provider's handler and reported as "dark pool levels
+    # unavailable": a payload we had computed correctly, thrown away and
+    # replaced with an error envelope, over a failure that has nothing to do
+    # with the levels. Rule 1 wants the write guarded, not the answer discarded.
+    try:
+        if _dpl_good(payload):
+            cache.set(_ck("dpl", sym), payload, ttl=_DPL_TTL_S)
+    except Exception:                              # noqa: BLE001
+        logger.exception("signature: dpl cache write failed for %s", sym)
+    return payload
 
 
 # ── Flow-Confirmed Breakout ─────────────────────────────────────────────────
