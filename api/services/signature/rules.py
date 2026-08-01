@@ -13,7 +13,12 @@ DPL_MIN_CLUSTER_NOTIONAL = 10_000_000.0
 DPL_TOP_K = 5
 
 FCB_LOOKBACK = 20
-FCB_VOL_MULT = 1.25
+# 1.5x, not the 1.25x this shipped as in the branch: the owner's call on
+# 2026-08-01, pre-launch. Convention for a volume-confirmed breakout runs
+# 1.25x-2.0x; 1.25 sat at the loose end and bought a fatter ledger at the cost
+# of marginal arrows on the chart. 1.5 is the middle. It is still a judgement,
+# not a measurement — there is no backtest behind any number in this file.
+FCB_VOL_MULT = 1.5
 FCB_MIN_CALL_PREM = 500_000.0
 FCB_DOMINANCE = 1.75
 
@@ -22,7 +27,11 @@ GXW_MAX_DIST_PCT = 0.15
 GXW_TTL_S = 600
 GXW_MAX_AGE_S = 1800
 
-VERSIONS = {"dpl": "dpl-v1", "fcb": "fcb-v1", "gxw": "gxw-v1"}
+# `fcb-v2` because FCB_VOL_MULT changed OUTPUT. The ledger's uniqueness key
+# includes the version, so the bump is what keeps rows written under the old
+# gate attributable to `fcb-v1` instead of silently being re-read as evidence
+# for a rule that never produced them.
+VERSIONS = {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1"}
 
 _SUFFIX = {"K": 1e3, "M": 1e6, "B": 1e9}
 

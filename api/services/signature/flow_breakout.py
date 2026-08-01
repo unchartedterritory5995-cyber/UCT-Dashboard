@@ -1,4 +1,4 @@
-"""UCT Signature: Flow-Confirmed Breakout (fcb-v1). Daily timeframe, v1.
+"""UCT Signature: Flow-Confirmed Breakout (fcb-v2). Daily timeframe, v1.
 
 Closed-bar discipline: a bar is only evaluated once a later bar exists,
 EXCEPT when the nightly sweep (post-close) passes include_last=True.

@@ -15,7 +15,7 @@ def test_parse_money_garbage_is_zero():
 
 
 def test_versions_are_pinned_strings():
-    assert VERSIONS["fcb"] == "fcb-v1"
+    assert VERSIONS["fcb"] == "fcb-v2"
 
 
 def test_parse_money_non_finite_is_zero():
@@ -26,14 +26,18 @@ def test_parse_money_non_finite_is_zero():
 
 
 def test_all_constants_match_owner_spec():
+    """The constants rail. FCB_VOL_MULT is 1.5 and the fcb version is v2 as of
+    the owner's 2026-08-01 pre-launch tightening (was 1.25 / fcb-v1); the two
+    move TOGETHER because the multiple changes output and the ledger's
+    uniqueness key includes the version."""
     import api.services.signature.rules as r
     expected = {"DPL_WINDOW_DAYS": 20, "DPL_BIN_PCT": 0.0025,
                 "DPL_MIN_CLUSTER_NOTIONAL": 10_000_000.0, "DPL_TOP_K": 5,
-                "FCB_LOOKBACK": 20, "FCB_VOL_MULT": 1.25,
+                "FCB_LOOKBACK": 20, "FCB_VOL_MULT": 1.5,
                 "FCB_MIN_CALL_PREM": 500_000.0, "FCB_DOMINANCE": 1.75,
                 "GXW_DTE": "week", "GXW_MAX_DIST_PCT": 0.15,
                 "GXW_TTL_S": 600, "GXW_MAX_AGE_S": 1800}
     for k, v in expected.items():
         got = getattr(r, k)
         assert got == v and type(got) is type(v), f"{k}: {got!r} != {v!r}"
-    assert r.VERSIONS == {"dpl": "dpl-v1", "fcb": "fcb-v1", "gxw": "gxw-v1"}
+    assert r.VERSIONS == {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1"}

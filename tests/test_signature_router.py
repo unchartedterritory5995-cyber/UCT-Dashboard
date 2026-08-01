@@ -208,7 +208,7 @@ def test_a_signal_is_recorded_with_the_product_facing_timeframe(client, monkeypa
     assert r.status_code == 200, r.text
     body = r.json()
     assert [s["direction"] for s in body["signals"]] == ["bull"]
-    assert body["version"] == "fcb-v1" and body["sym"] == "NVDA"
+    assert body["version"] == "fcb-v2" and body["sym"] == "NVDA"
 
     rows = ledger.get_signals("NVDA")
     assert len(rows) == 1
@@ -216,7 +216,7 @@ def test_a_signal_is_recorded_with_the_product_facing_timeframe(client, monkeypa
     # barTime went in RAW (20260621); the ledger normalizes all three encodings
     # itself, so the router must not pre-format it into something else.
     assert rows[0]["bar_time"] == 20260621
-    assert rows[0]["indicator"] == "fcb" and rows[0]["version"] == "fcb-v1"
+    assert rows[0]["indicator"] == "fcb" and rows[0]["version"] == "fcb-v2"
 
 
 def test_the_forming_session_never_yields_a_signal_on_this_path(client, monkeypatch):

@@ -27,6 +27,15 @@
 
 All thresholds live in `api/services/signature/rules.py` as named constants so tuning is a one-file diff:
 
+> **⚠️ AMENDED 2026-08-01, pre-launch — this plan is a historical record, `rules.py` is the source
+> of truth.** The owner tightened **`FCB_VOL_MULT` 1.25 → 1.5** and bumped the FCB rule version
+> **`fcb-v1` → `fcb-v2`** (the multiple changes output; the ledger's uniqueness key includes the
+> version, so rows written under the old gate stay attributable to `fcb-v1`). The table below and
+> every code/test snippet further down still show **1.25 / `fcb-v1`** — they are a transcript of
+> what was written during the build and are deliberately left unedited. Read the shipped numbers
+> from `api/services/signature/rules.py`, and the reasoning from
+> `docs/superpowers/specs/2026-08-signature-indicators-copy.md` §4 and §7(a).
+
 | Indicator | Rule (v1 draft — owner tunes) |
 |---|---|
 | **Dark Pool Levels** (`dpl-v1`) | Window: last **20** distinct trading dates in `darkpool_trades` for the ticker. Cluster prints into price bins of width **0.25%** of the median print price. Keep clusters with total notional ≥ **$10M**; rank by total notional; return top **5**. Level price = notional-weighted mean of the cluster. Non-repainting by construction: reads only the nightly-confirmed `darkpool_trades` table (never `darkpool_today`). |

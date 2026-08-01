@@ -31,7 +31,7 @@ def test_forming_last_bar_is_never_evaluated_without_flag():
 
 def test_low_volume_breakout_rejected():
     bars = _bars_flat_then_break()
-    bars[25]["v"] = 1_000_000  # exactly avg, below 1.25x
+    bars[25]["v"] = 1_000_000  # exactly avg, below 1.5x
     assert detect_breakouts(bars) == []
 
 
@@ -51,7 +51,7 @@ def test_fcb_join_requires_both_legs():
     # swapped callPrem/putPrem would record inverted evidence permanently.
     assert fcb_signals(bars, good_flow) == [{
         "barTime": 86400 * 25, "direction": "bull", "close": 104.0,
-        "callPrem": 900_000.0, "putPrem": 0.0, "version": "fcb-v1",
+        "callPrem": 900_000.0, "putPrem": 0.0, "version": "fcb-v2",
     }]
     assert fcb_signals(bars, {}) == []
 
@@ -168,11 +168,21 @@ def test_bear_leg_reads_the_put_side():
     assert flow_confirms(rows, "bull")["confirmed"] is False
 
 
-def test_volume_exactly_at_the_multiple_fires():
-    """1.25x avg is IN (gate is `< vol_mult * avg`, not `<=`)."""
+def test_volume_exactly_at_the_multiple_fires_and_just_under_does_not():
+    """1.5x avg is IN (gate is `< vol_mult * avg`, not `<=`); 1.49x is OUT.
+
+    Both halves live in one test on purpose. Either alone leaves the constant
+    free to drift: "fires at 1.5x" passes for any multiple <= 1.5, and "rejects
+    1.49x" passes for any multiple > 1.49. Together they pin FCB_VOL_MULT to
+    exactly 1.5 — the owner's 2026-08-01 pre-launch tightening from 1.25.
+    """
     bars = _bars_flat_then_break()
-    bars[25]["v"] = 1_250_000  # exactly 1.25 x the 1M average
+    bars[25]["v"] = 1_500_000  # exactly 1.5 x the 1M average
     assert len(detect_breakouts(bars)) == 1
+
+    bars = _bars_flat_then_break()
+    bars[25]["v"] = 1_490_000  # 1.49x — one tick under the gate
+    assert detect_breakouts(bars) == []
 
 
 def test_premium_exactly_at_the_floor_confirms():

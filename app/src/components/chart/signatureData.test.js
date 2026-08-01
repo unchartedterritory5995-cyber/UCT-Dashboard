@@ -122,7 +122,7 @@ describe('real /api/signature envelopes', () => {
   })
 
   it('an FCB error envelope has no signals key at all → []', () => {
-    expect(flowToMarkers({ sym: 'AAPL', version: 'fcb-v1', error: 'flow unavailable' })).toEqual([])
+    expect(flowToMarkers({ sym: 'AAPL', version: 'fcb-v2', error: 'flow unavailable' })).toEqual([])
   })
 })
 
@@ -157,9 +157,9 @@ describe('FCB barTime encodings', () => {
   })
 
   it('flowToMarkers converts a real YYYYMMDD payload to ISO marker times', () => {
-    const m = flowToMarkers({ sym: 'AAPL', version: 'fcb-v1', asOf: 1753900000, signals: [
-      { barTime: 20260730, direction: 'bull', close: 212.4, callPrem: 2.1e6, putPrem: 3e5, version: 'fcb-v1' },
-      { barTime: 20260722, direction: 'bear', close: 198.2, callPrem: 1e5, putPrem: 4.4e6, version: 'fcb-v1' },
+    const m = flowToMarkers({ sym: 'AAPL', version: 'fcb-v2', asOf: 1753900000, signals: [
+      { barTime: 20260730, direction: 'bull', close: 212.4, callPrem: 2.1e6, putPrem: 3e5, version: 'fcb-v2' },
+      { barTime: 20260722, direction: 'bear', close: 198.2, callPrem: 1e5, putPrem: 4.4e6, version: 'fcb-v2' },
     ]})
     expect(m).toEqual([
       { time: '2026-07-22', position: 'aboveBar', color: LOSS, shape: 'arrowDown', text: 'FCB', size: 1 },

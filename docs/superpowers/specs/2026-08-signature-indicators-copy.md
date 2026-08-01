@@ -1,7 +1,15 @@
 # UCT Signature Indicators — Owner Review Pack
 
-**Status:** awaiting owner approval. **Nothing in this document is live copy.**
-**Branch:** `feat/phase-a-signature` · **Date:** 2026-08-01 · **Phase A, Tasks 0–12 complete, unshipped.**
+**Status:** numbers, blurbs and tooltips **APPROVED 2026-08-01**; landing copy (§6) is **NOT**
+approved and is **not live copy**. **Branch:** `feat/phase-a-signature` · **Date:** 2026-08-01 ·
+**Phase A, Tasks 0–12 complete, unshipped.**
+
+> **Owner amendment, 2026-08-01 (pre-launch).** `FCB_VOL_MULT` was tightened **1.25 → 1.5** and
+> the FCB rule version bumped **`fcb-v1` → `fcb-v2`** (the multiple changes output, and the
+> ledger's uniqueness key includes the version, so rows written under the old gate stay
+> attributable to `fcb-v1`). §2, §4, §5 and §7(a) below reflect the shipped 1.5. This was a
+> judgement call between the two ends of a convention, **not** a measurement — the honesty floor
+> immediately below still applies to it and to every other number here.
 
 This is the document you read before Phase A ships. It contains (1) the plain-language honesty
 blurb for each of the three indicators, citing the exact numbers that are in the code today;
@@ -84,13 +92,13 @@ is the thing a user is actually looking at on the chart.
 
 ---
 
-## 2. Flow-Confirmed Breakout (`fcb-v1`)
+## 2. Flow-Confirmed Breakout (`fcb-v2`)
 
 ### 2a. How it's computed — honesty blurb
 
 > Flow-Confirmed Breakout marks a daily breakout only when the options tape agreed with it on the
 > same day. Two things must both be true. First, the price leg: the session must close above the
-> highest high of the prior **20** sessions, on volume of at least **1.25×** the 20-session average
+> highest high of the prior **20** sessions, on volume of at least **1.5×** the 20-session average
 > (a downside signal is the mirror — close below the prior 20-session low). Second, the flow leg:
 > that same session's options tape must show at least **$500,000** in call premium **and** at least
 > **1.75×** as much call premium as put premium (again mirrored for the downside). If either leg
@@ -98,7 +106,7 @@ is the thing a user is actually looking at on the chart.
 > only in v1 — the toggle simply does nothing on intraday charts rather than showing you a signal
 > the rule was never designed for.
 
-**Verbatim source of every number:** `rules.py` — `FCB_LOOKBACK = 20`, `FCB_VOL_MULT = 1.25`,
+**Verbatim source of every number:** `rules.py` — `FCB_LOOKBACK = 20`, `FCB_VOL_MULT = 1.5`,
 `FCB_MIN_CALL_PREM = 500_000.0`, `FCB_DOMINANCE = 1.75`. Detector:
 `api/services/signature/flow_breakout.py`.
 
@@ -211,7 +219,7 @@ It is the only copy an unpaid user reads on this surface.
 ## 4. The v1 rules table — for tuning
 
 Every constant lives in one file, `api/services/signature/rules.py`, so tuning is a one-file diff
-and a redeploy. Version strings (`dpl-v1` / `fcb-v1` / `gxw-v1`) are stamped onto every payload and
+and a redeploy. Version strings (`dpl-v1` / `fcb-v2` / `gxw-v1`) are stamped onto every payload and
 every ledger row — **if you change a number that changes output, the version string should bump**,
 because the ledger's uniqueness key includes it and old rows must stay attributable to the rule
 that produced them.
@@ -230,7 +238,7 @@ that produced them.
 | Constant | Value | In trader terms | Tune-me note |
 |---|---|---|---|
 | `FCB_LOOKBACK` | `20` | The breakout window: close must clear the highest high (or lowest low) of the prior 20 sessions. | Conventional monthly-range breakout. **Do not set this to 0** — the detector divides by it (known footgun, unreachable today, documented). |
-| `FCB_VOL_MULT` | `1.25` | Volume gate: the breakout bar needs 1.25× its own 20-session average volume. | **Flagged as permissive.** Convention for a volume-confirmed breakout runs 1.25×–2.0×; 1.25 is the loose end. Loose means more signals, more ledger rows, faster evidence — and more marginal arrows on the chart. Direction of error is deliberate; see §7(a). |
+| `FCB_VOL_MULT` | `1.5` | Volume gate: the breakout bar needs 1.5× its own 20-session average volume. | **Owner's chosen middle (tightened from 1.25 on 2026-08-01).** Convention for a volume-confirmed breakout runs 1.25×–2.0×; 1.5 sits in the centre of that band rather than at either end. It trades some ledger volume for a cleaner chart — fewer marginal arrows, fewer rows to tighten against later. Still a judgement, not a measurement; the ledger (§5) is what will eventually replace it with one. Revisit at 4–6 weeks of record. |
 | `FCB_MIN_CALL_PREM` | `$500,000` | The flow floor: the session needs at least half a million in call premium (put premium for a bear signal). | **Flagged — same absolute-vs-relative problem as the dark-pool floor.** $500k is a quiet hour on SPY and a standout day on a mid-cap. It scopes the indicator toward liquid names. |
 | `FCB_DOMINANCE` | `1.75` | One-sidedness: calls must outweigh puts by 1.75× (mirrored for bears). | This is the "the tape actually agreed" test and it is the part of the rule I'd defend hardest. 1.5 would let mixed days through; 2.0 would make it rare. Moderate sensitivity. |
 | bar scan depth | `60` daily bars | How much chart history gets arrows: ~40 evaluable sessions after the 20-bar lookback. | **Lives in `api/routers/signature.py`, not `rules.py`** (`_fetch_bars(sym, count=60)`). If you want a year of arrows on the chart, this is the number, and moving it into `rules.py` should happen at the same time. |
@@ -264,7 +272,7 @@ The receipts clock starts at deploy, not later.
 
 From the moment Phase A ships, every Flow-Confirmed Breakout signal is written to an **append-only**
 SQLite ledger (`signature_signals` in `/data/signal_ledger.db`). Each row stores the indicator, the
-rule version that produced it (`fcb-v1`), the symbol, the timeframe (`1D`), the direction, the bar
+rule version that produced it (`fcb-v2`), the symbol, the timeframe (`1D`), the direction, the bar
 it fired on, the price, the call/put premium that confirmed it — and `first_seen_at`, a timestamp
 stamped once at insert and never modified. There is **no UPDATE path in the module**: a row cannot
 be edited or backdated, only added, and a duplicate is refused by a uniqueness key rather than
@@ -348,15 +356,20 @@ before Phase B: count how many of the top 200 traded tickers produce at least on
 current floor. If that number is small and you want broader coverage, the fix is a liquidity-
 relative floor, not a smaller constant.
 
-**Flow-Confirmed Breakout — recommendation: APPROVE AS-IS FOR LAUNCH, revisit at 4–6 weeks of
-ledger.** The number to look at is `FCB_VOL_MULT = 1.25`, which sits at the permissive end of the
-conventional 1.25×–2.0× range. Shipping loose is the deliberate choice and here's the argument:
-the ledger's entire value is accumulating real timestamped signals, and a tight gate produces
-almost nothing to accumulate. Loose now means we have a population to tighten *against* in six
-weeks, using our own record instead of somebody's convention. The cost is some marginal arrows on
-the chart in the meantime. If you'd rather the chart look sharper from day one at the cost of a
-thinner ledger, 1.5 is the defensible alternative — **that's your call, not mine, and there's no
-data either way yet.**
+**Flow-Confirmed Breakout — DECIDED 2026-08-01: `FCB_VOL_MULT = 1.5`, version `fcb-v2`. Revisit
+at 4–6 weeks of ledger.** The recommendation put to the owner was to ship at 1.25 — the permissive
+end of the conventional 1.25×–2.0× range — on the argument that the ledger's whole value is
+accumulating real timestamped signals and a tight gate produces almost nothing to accumulate. The
+stated alternative was 1.5: a sharper chart from day one at the cost of a thinner record. **The
+owner took 1.5.** That is the shipped number.
+
+Recording it honestly, because this is the doc that has to stay true: there was no data either way
+then and there is none now. 1.5 is the centre of a convention, chosen over the loose end — a
+defensible judgement between two defensible judgements, not a finding. What actually changes is
+the accrual rate: fewer signals per week means the 4–6 week review lands on a smaller population,
+so treat that review as a first look rather than a verdict. The version bump to `fcb-v2` is what
+keeps the two populations separable when it happens — every row already in the ledger stays
+stamped `fcb-v1` and can never be silently pooled with rows the new gate produced.
 
 **GEX Walls — recommendation: APPROVE AS-IS.** The ±15% band matches the underlying service's own
 default, so we're not inventing a second opinion about what "near spot" means. 7-day expiries is
@@ -455,15 +468,15 @@ branch's ship.
 
 **From the plan:**
 
-- [ ] **DPL numbers approved** (`DPL_WINDOW_DAYS=20`, `DPL_BIN_PCT=0.0025`, `DPL_MIN_CLUSTER_NOTIONAL=$10M`, `DPL_TOP_K=5`)
-- [ ] **FCB numbers approved** (`FCB_LOOKBACK=20`, `FCB_VOL_MULT=1.25`, `FCB_MIN_CALL_PREM=$500k`, `FCB_DOMINANCE=1.75`)
-- [ ] **GXW numbers approved** (`GXW_DTE="week"`, `GXW_MAX_DIST_PCT=0.15`, `GXW_TTL_S=600`, `GXW_MAX_AGE_S=1800`)
-- [ ] **Blurbs approved** (all three "how it's computed" paragraphs + all three repaint/freshness statements)
+- [x] **DPL numbers approved** (`DPL_WINDOW_DAYS=20`, `DPL_BIN_PCT=0.0025`, `DPL_MIN_CLUSTER_NOTIONAL=$10M`, `DPL_TOP_K=5`)
+- [x] **FCB numbers approved** (`FCB_LOOKBACK=20`, **`FCB_VOL_MULT=1.5`** — tightened from 1.25, version now `fcb-v2`, `FCB_MIN_CALL_PREM=$500k`, `FCB_DOMINANCE=1.75`)
+- [x] **GXW numbers approved** (`GXW_DTE="week"`, `GXW_MAX_DIST_PCT=0.15`, `GXW_TTL_S=600`, `GXW_MAX_AGE_S=1800`)
+- [x] **Blurbs approved** (all three "how it's computed" paragraphs + all three repaint/freshness statements)
 - [ ] **Landing copy approved for ship** (recommendation: HOLD — leave unchecked)
 
 **Additional decisions surfaced during the build:**
 
-- [ ] **Tooltips approved** — DPL refinement, FCB refinement, GEX refinement (take/leave each)
+- [x] **Tooltips approved** — DPL, FCB and GEX refinements all TAKEN (shipped strings in `signatureToggles.js`)
 - [ ] **(d) Multi-chart grid cells** — ship-as-is-and-watch (recommended) vs. build `disableSignature` now
 - [ ] **(e) Settings group position** — promote to 4th (recommended) vs. leave at 10th
 - [ ] **(f) DP notional-only titles** — accept for v1 (recommended) vs. add price text

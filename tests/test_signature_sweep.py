@@ -298,7 +298,7 @@ def test_the_row_carries_the_product_facing_timeframe_and_the_raw_bar_time(tmp_l
     row = ledger.get_signals("NVDA")[0]
     assert row["tf"] == "1D"
     assert row["bar_time"] == _SESSIONS[25]
-    assert row["indicator"] == "fcb" and row["version"] == "fcb-v1"
+    assert row["indicator"] == "fcb" and row["version"] == "fcb-v2"
     assert row["direction"] == "bull" and row["sym"] == "NVDA"
 
 
