@@ -401,6 +401,12 @@ def _start_flow_schedulers():
             # only registers when armed. Runs HERE (owns flow.db + the classifier
             # in-process). timezone EXPLICIT on the trigger (the recurring ET-vs-
             # UTC CronTrigger gotcha above). 16:05 ET so the day's tape is settled.
+            #
+            # ⚠ DEPLOY GOTCHA: api/alpha_gold_eod.py is NOT in the flow-worker's
+            # Railway watch paths — a commit touching ONLY that file is SKIPPED
+            # ("No changes to watched files") and the worker keeps the old code.
+            # Edits to alpha_gold_eod.py must PIGGYBACK on a watched file (this one
+            # / live_massive_router.py) or add it to the worker's watch paths.
             if os.getenv("ALPHA_GOLD_EOD_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _AGCron
                 from api import alpha_gold_eod as _age
