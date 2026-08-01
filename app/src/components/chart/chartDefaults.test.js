@@ -100,9 +100,15 @@ describe('signature indicator toggles', () => {
       .toEqual(new Set(Object.values(SIGNATURE_TOGGLE)))
   })
 
-  it('each toolbar row survives the same merge its update() write lands in', () => {
-    // Walks every rendered row through the real persistence path, so the gate
-    // covers the round-trip and not just the key spelling.
+  it('mergeChartSettings keeps merging the signature section at all', () => {
+    // NOT drift coverage — be clear about what this does and doesn't buy. The
+    // merge SPREADS `signature`, so any key round-trips and a renamed toolbar
+    // key sails straight through here (verified: this case stays green under a
+    // WRITE-side key mutation). The two gates above are what catch drift.
+    //
+    // What this DOES guard is the section vanishing from the merge's return —
+    // drop the `signature:` line from mergeChartSettings and every row below
+    // reads undefined. That is the regression this case exists for.
     for (const [key] of SIGNATURE_ROWS) {
       const merged = mergeChartSettings(JSON.stringify({ signature: { [key]: true } }))
       expect(merged.signature[key]).toBe(true)

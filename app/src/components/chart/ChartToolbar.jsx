@@ -633,7 +633,12 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
                 checked={cs.signature?.[key] ?? false}
                 onChange={e => update(`signature.${key}`, e.target.checked)} />
               {label}
-              {!isPaid && <UIcon name="lock" size={10} gold />}
+              {/* `title` is load-bearing, not decoration: it flips UIcon from
+                  aria-hidden to role="img" + <title>, which is the ONLY premium
+                  signal a screen reader gets here — the row's own title attr is
+                  unreliable to AT and the disabled checkbox is out of tab order.
+                  NavBar's premium-lock icon sets it for the same reason. */}
+              {!isPaid && <UIcon name="lock" size={10} gold title="Premium" />}
             </label>
           ))}
         </div>
