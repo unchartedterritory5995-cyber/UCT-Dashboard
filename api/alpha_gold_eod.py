@@ -164,9 +164,9 @@ def _rollup(alerts: list[dict]) -> list[dict]:
 # ── render ─────────────────────────────────────────────────────────────────
 _COLS = [
     ("time", "TIME", 36, "l"), ("ticker", "TICKER", 116, "l"), ("cp", "C/P", 232, "l"),
-    ("strike", "STRIKE", 338, "r"), ("exp", "EXP", 354, "l"), ("spot", "SPOT", 548, "r"),
-    ("money", "%ITM/OTM", 680, "r"), ("prem", "PREMIUM", 838, "r"), ("voi", "V/OI", 910, "r"),
-    ("type", "TYPE", 928, "l"), ("dir", "DIR", 1016, "l"),
+    ("exp", "EXP", 312, "l"), ("strike", "STRIKE", 468, "r"), ("spot", "SPOT", 612, "r"),
+    ("money", "%ITM/OTM", 770, "r"), ("prem", "PREMIUM", 912, "r"), ("voi", "V/OI", 986, "r"),
+    ("dir", "DIR", 1006, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 150, 32
 _SS = 2  # supersample then downscale for crisp text
@@ -211,12 +211,21 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
             d.text((s(x), s(y)), t, font=fnt, fill=fill)
         return w / _SS
 
-    # title band
+    # title band + UCT compass logo
     d.rectangle([0, 0, s(_W), s(_TOP - 26)], fill=_BAND)
-    d.text((s(36), s(28)), "★", font=f_title, fill=_GOLD)
-    txt(72, 28, "ALPHA GOLD", f_title, _GOLD)
-    tw = d.textlength("ALPHA GOLD", font=f_title) / _SS
-    txt(72 + tw + 14, 36, "—  " + date_text, f_date, _DIM)
+    try:
+        _logo = Image.open(os.path.join(_ASSETS, "compass-mark.png")).convert("RGBA")
+        # asset is white-backed → knock near-white pixels to transparent
+        _logo.putdata([(r, g, b, 0 if (r > 242 and g > 242 and b > 242) else a)
+                       for (r, g, b, a) in _logo.getdata()])
+        _logo = _logo.resize((s(48), s(48)), Image.LANCZOS)
+        img.paste(_logo, (s(32), s(18)), _logo)
+    except Exception:
+        pass
+    tx = 94
+    tx += txt(tx, 24, "UCT Intelligence", f_title, _GOLD) + 12
+    tx += txt(tx, 24, "· Top Flow", f_title, _GOLD_DIM) + 12
+    txt(tx, 32, "— " + date_text, f_date, _DIM)
 
     # grand summary (no premium)
     def chunk(x, t, fill):
@@ -229,11 +238,7 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
     sx = chunk(sx, "·", _DIM)
     sx = chunk(sx, f"▲ {grand['nb']} Bull", _BULL)
     sx = chunk(sx, "/", _DIM)
-    sx = chunk(sx, f"▼ {grand['nr']} Bear", _BEAR)
-    sx = chunk(sx, "·", _DIM)
-    net = grand["net"]
-    chunk(sx, f"Net {'+' if net >= 0 else '−'}${abs(net):.1f}M {'Bull' if net >= 0 else 'Bear'}",
-          _BULL if net >= 0 else _BEAR)
+    chunk(sx, f"▼ {grand['nr']} Bear", _BEAR)
 
     # column headers
     for key, hdr, x, al in _COLS:
@@ -280,15 +285,12 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
                     txt(x, y, _fmt_prem(a.get("alertPremium")), f_rowb, _GOLD, "r")
                 elif key == "voi":
                     txt(x, y, _voi(a), f_row, _TXT, "r")
-                elif key == "type":
-                    txt(x, y, (a.get("_type") or "").strip(), f_row, _DIM)
             y += _ROWH
         y += 6
 
     # footer
     d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
-    txt(36, H - 32, "UCT Intelligence  ·  Alpha Gold — top-conviction $1M+ ask sweeps  ·  "
-                    "one row per ticker (×N = repeat prints)", f_foot, _DIM)
+    txt(36, H - 32, "UCT Intelligence", f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
     out = img.resize((_W, H), Image.LANCZOS)
@@ -302,20 +304,18 @@ def _summary_line(alerts: list[dict], date_text: str) -> str:
     c = _counts(alerts)
     ns = sum(1 for a in alerts if not _is_etf(a))
     ne = c["n"] - ns
-    net = c["net"]
-    return (f"⭐ **Alpha Gold — {date_text}**  ·  {c['n']} prints  ·  ${c['total']:.1f}M  ·  "
-            f"{c['nb']}▲ / {c['nr']}▼  ·  net {'+' if net >= 0 else '-'}${abs(net):.1f}M  ·  "
-            f"{ns} stocks / {ne} ETFs")
+    return (f"🎯 **UCT Intelligence · Top Flow — {date_text}**  ·  {c['n']} prints  ·  "
+            f"${c['total']:.1f}M  ·  {c['nb']}▲ / {c['nr']}▼  ·  {ns} stocks / {ne} ETFs")
 
 
 def _post_discord_image(webhook: str, png: bytes, content: str,
-                        filename: str = "alpha_gold.png") -> tuple[bool, str]:
+                        filename: str = "top_flow.png") -> tuple[bool, str]:
     """POST the PNG as a Discord image attachment via hand-built multipart/form-data
     over stdlib urllib (urllib has no files= helper). Cloudflare-safe UA required."""
     boundary = "----uctAlphaGold7f3b9c1e"
     payload_json = json.dumps({
         "content": content[:1900],
-        "username": "UCT Alpha Gold",
+        "username": "UCT Intelligence · Top Flow",
         "allowed_mentions": {"parse": []},
     })
     parts: list[bytes] = []

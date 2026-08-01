@@ -86,7 +86,7 @@ def test_summary_line_has_premium_and_counts():
                               _a(source="indexes", cp="P", _direction="Bear",
                                  alertPremium=1_000_000)],
                              "July 31, 2026")
-    assert "Alpha Gold" in line
+    assert "Top Flow" in line                 # renamed from Alpha Gold
     assert "2 prints" in line
     assert "$" in line                        # premium is back
     assert "1 stocks / 1 ETFs" in line
