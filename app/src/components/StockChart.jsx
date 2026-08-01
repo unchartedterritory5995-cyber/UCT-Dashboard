@@ -4818,7 +4818,16 @@ export default function StockChart({
     }
 
     if (!chart) {
-      chart = createChart(containerRef.current, { ...chartOpts, autoSize: true })
+      // Pinned 5.2.0 default is `true`, which re-orders draw order within a pane on
+      // hover. This chart stacks candles + MA overlays + VWAP + BB + Donchian + SAR
+      // + comparison in pane 0, so hovering would silently restack them (and later,
+      // float a band's constituent line above its own fill). Keep 5.1.0 rendering;
+      // opt in deliberately if we ever want the hit-testing that comes with it.
+      chart = createChart(containerRef.current, {
+        ...chartOpts,
+        autoSize: true,
+        hoveredSeriesOnTop: false,
+      })
       chartRef.current = chart
       setChartReady(true)
     } else {
