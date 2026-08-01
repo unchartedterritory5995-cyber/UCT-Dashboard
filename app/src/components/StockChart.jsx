@@ -43,6 +43,23 @@ import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
+// ── Indicator points → Lightweight Charts data ───────────────────────────────
+// `chart/indicators.js` returns arrays ALIGNED to the bars, NaN-padded before
+// the first computable bar. LWC rejects `value: NaN` outright, so a non-finite
+// point has to become a WHITESPACE item — `{ time }` with no `value` — which is
+// how you tell LWC "this bar exists, this series has nothing on it". Without
+// this conversion a NaN leaks into the renderer and shows up as a line diving
+// to zero, or a pane autoscaling to include 0.
+const indPoint = (time, value) => (Number.isFinite(value) ? { time, value } : { time })
+// True for an LWC whitespace item (no value, and no OHLC either — candle and
+// volume data go through the same _applyData).
+const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === undefined
+// MACD histogram bar colours. These used to be baked into each point by
+// computeMACD; colour is a render concern, so the sign test lives here now.
+// `m >= s` (the old test) is exactly `histogram >= 0`.
+const MACD_HIST_UP = 'rgba(76,175,80,0.75)'
+const MACD_HIST_DOWN = 'rgba(244,67,54,0.75)'
+
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
@@ -3878,7 +3895,7 @@ export default function StockChart({
   const indicatorData = useMemo(() => {
     const ind = cs.indicators || {}
     const rsiRaw = ind.rsi?.enabled
-      ? computeRSI(filteredBars, ind.rsi.period).map(p => ({ time: adjustTime(p.time), value: p.value }))
+      ? computeRSI(filteredBars, ind.rsi.period)
       : []
     const bbRaw = ind.bb?.enabled
       ? computeBB(filteredBars, ind.bb.period, ind.bb.stdDev)
@@ -3916,50 +3933,79 @@ export default function StockChart({
     const donchianRaw = ind.donchian?.enabled
       ? computeDonchian(filteredBars, ind.donchian.period)
       : { upper: [], middle: [], lower: [] }
+    // Every compute output is bar-aligned and NaN-padded; `indPoint` turns each
+    // not-yet-computable position into an LWC whitespace item here, once, so no
+    // downstream _applyData can hand the renderer a `value: NaN`.
+    const line = (pts) => pts.map(p => indPoint(adjustTime(p.time), p.value))
     return {
-      rsi: rsiRaw,
+      rsi: line(rsiRaw),
       bb: {
-        upper:  bbRaw.upper.map(p  => ({ time: adjustTime(p.time), value: p.value })),
-        middle: bbRaw.middle.map(p => ({ time: adjustTime(p.time), value: p.value })),
-        lower:  bbRaw.lower.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        upper:  line(bbRaw.upper),
+        middle: line(bbRaw.middle),
+        lower:  line(bbRaw.lower),
       },
-      vwap: vwapRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      vwap: line(vwapRaw),
       macd: (() => {
         const macdCfg = ind.macd
         if (!macdCfg?.enabled) return { macd: [], signal: [], histogram: [] }
         const raw = computeMACD(filteredBars, macdCfg.fastPeriod, macdCfg.slowPeriod, macdCfg.signalPeriod)
+        // ⚠️ B1 pixel-parity hold. The MACD line is mathematically defined from
+        // bar (slowPeriod-1) — `signalPeriod-1` bars before the signal line —
+        // and computeMACD now returns it there, matching the Python lane (the
+        // golden fixtures caught the two disagreeing on those bars). This chart
+        // has ALWAYS started the MACD line together with its signal, so B1 keeps
+        // that look by masking the line's head back to the signal's first bar.
+        // Dropping the mask draws the line ~8 bars earlier at the very start of
+        // history: correct, but a visible change, so it needs owner sign-off in
+        // B3 rather than riding along with a refactor.
+        const sigStart = raw.signal.findIndex(p => Number.isFinite(p.value))
+        const macdHeld = sigStart <= 0
+          ? raw.macd
+          : raw.macd.map((p, i) => (i < sigStart ? { time: p.time, value: NaN } : p))
         return {
-          macd:      raw.macd.map(p      => ({ time: adjustTime(p.time), value: p.value })),
-          signal:    raw.signal.map(p    => ({ time: adjustTime(p.time), value: p.value })),
-          histogram: raw.histogram.map(p => ({ time: adjustTime(p.time), value: p.value, color: p.color })),
+          macd:      line(macdHeld),
+          signal:    line(raw.signal),
+          // Bar colour by sign — identical to the `m >= s` test computeMACD used
+          // to bake into each point, now that it no longer ships colour.
+          histogram: raw.histogram.map(p => (
+            Number.isFinite(p.value)
+              ? { time: adjustTime(p.time), value: p.value, color: p.value >= 0 ? MACD_HIST_UP : MACD_HIST_DOWN }
+              : { time: adjustTime(p.time) }
+          )),
         }
       })(),
       stoch: {
-        k: stochRaw.k.map(p => ({ time: adjustTime(p.time), value: p.value })),
-        d: stochRaw.d.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        k: line(stochRaw.k),
+        d: line(stochRaw.d),
       },
-      atr: atrRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
-      sar: sarRaw.map(p => ({ time: adjustTime(p.time), value: p.value, isUptrend: p.isUptrend })),
+      atr: line(atrRaw),
+      // SAR carries `isUptrend` alongside the value (a preserved quirk — see
+      // indicators.js); a padded point stays pure whitespace.
+      sar: sarRaw.map(p => (
+        Number.isFinite(p.value)
+          ? { time: adjustTime(p.time), value: p.value, isUptrend: p.isUptrend }
+          : { time: adjustTime(p.time) }
+      )),
       ichimoku: {
-        tenkan: ichimokuRaw.tenkan.map(p => ({ time: adjustTime(p.time), value: p.value })),
-        kijun:  ichimokuRaw.kijun.map(p  => ({ time: adjustTime(p.time), value: p.value })),
-        spanA:  ichimokuRaw.spanA.map(p  => ({ time: adjustTime(p.time), value: p.value })),
-        spanB:  ichimokuRaw.spanB.map(p  => ({ time: adjustTime(p.time), value: p.value })),
-        chikou: ichimokuRaw.chikou.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        tenkan: line(ichimokuRaw.tenkan),
+        kijun:  line(ichimokuRaw.kijun),
+        spanA:  line(ichimokuRaw.spanA),
+        spanB:  line(ichimokuRaw.spanB),
+        chikou: line(ichimokuRaw.chikou),
       },
-      mfi:       mfiRaw.map(p       => ({ time: adjustTime(p.time), value: p.value })),
-      cci:       cciRaw.map(p       => ({ time: adjustTime(p.time), value: p.value })),
-      williamsR: williamsRRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      mfi:       line(mfiRaw),
+      cci:       line(cciRaw),
+      williamsR: line(williamsRRaw),
       adx: {
-        adx:     adxRaw.adx.map(p     => ({ time: adjustTime(p.time), value: p.value })),
-        plusDI:  adxRaw.plusDI.map(p  => ({ time: adjustTime(p.time), value: p.value })),
-        minusDI: adxRaw.minusDI.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        adx:     line(adxRaw.adx),
+        plusDI:  line(adxRaw.plusDI),
+        minusDI: line(adxRaw.minusDI),
       },
-      obv: obvRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      obv: line(obvRaw),
       donchian: {
-        upper:  donchianRaw.upper.map(p  => ({ time: adjustTime(p.time), value: p.value })),
-        middle: donchianRaw.middle.map(p => ({ time: adjustTime(p.time), value: p.value })),
-        lower:  donchianRaw.lower.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        upper:  line(donchianRaw.upper),
+        middle: line(donchianRaw.middle),
+        lower:  line(donchianRaw.lower),
       },
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime, vwapOverride])
@@ -4632,7 +4678,13 @@ export default function StockChart({
       // A redundant setData here is what wiped the developing bar every tick in
       // extended hours; leaving the series as-is preserves the live-writer bar.
       if (_noop) return
-      if (_incr && data.length) {
+      // A trailing WHITESPACE point means this series has nothing ON the newest
+      // bar — Ichimoku's chikou is the real case: it plots each close 26 bars
+      // BACK, so its head value sits 26 bars from the right and `update()` with
+      // the newest (empty) point would leave that head frozen at the last full
+      // paint. Fall through to setData for those; every other series still takes
+      // the incremental path, which is the 30s-full-repaint fix.
+      if (_incr && data.length && !isWhitespacePoint(data[data.length - 1])) {
         try { series.update(data[data.length - 1]); return } catch { /* fall through to full setData */ }
       }
       try { series.setData(data) } catch {}
@@ -5848,7 +5900,8 @@ export default function StockChart({
       } else {
         sarSeriesRef.current.applyOptions({ color: sarColor })
       }
-      _applyData(sarSeriesRef.current, indicatorData.sar.map(p => ({ time: p.time, value: p.value })))
+      // Strip `isUptrend` before LWC sees it; whitespace points stay whitespace.
+      _applyData(sarSeriesRef.current, indicatorData.sar.map(p => indPoint(p.time, p.value)))
     } else if (sarSeriesRef.current) {
       try { chart.removeSeries(sarSeriesRef.current) } catch {}
       sarSeriesRef.current = null
