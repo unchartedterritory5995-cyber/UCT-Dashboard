@@ -2210,6 +2210,13 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               onChange={e => setPath(["incremental_scan"], e.target.checked)} />
             <span>Incremental scan (perf - fixes blank sides)</span>
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
+                 title="Mark a bid-side SELL that's likely closing a same-day long (profit-take) rather than opening a bearish position — shows a ⚠ close? badge. Marker only; direction unchanged.">
+            <input type="checkbox"
+              checked={thresholds.close_detector_enabled ?? false}
+              onChange={e => setPath(["close_detector_enabled"], e.target.checked)} />
+            <span>Close detector (⚠ mark bid-side profit-takes)</span>
+          </label>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
