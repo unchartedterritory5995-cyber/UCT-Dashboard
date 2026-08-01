@@ -1,8 +1,8 @@
 # UCT Signature Indicators — Owner Review Pack
 
-**Status:** numbers, blurbs and tooltips **APPROVED 2026-08-01**; landing copy (§6) is **NOT**
-approved and is **not live copy**. **Branch:** `feat/phase-a-signature` · **Date:** 2026-08-01 ·
-**Phase A, Tasks 0–12 complete, unshipped.**
+**Status:** numbers, blurbs and tooltips **APPROVED 2026-08-01**; landing copy (§6) **APPROVED AND
+SHIPPED 2026-08-01** — it is live public copy, of record. **Branch:** `feat/phase-a-signature` ·
+**Date:** 2026-08-01 · **Phase A, Tasks 0–12 complete, unshipped.**
 
 > **Owner amendment, 2026-08-01 (pre-launch).** `FCB_VOL_MULT` was tightened **1.25 → 1.5** and
 > the FCB rule version bumped **`fcb-v1` → `fcb-v2`** (the multiple changes output, and the
@@ -15,7 +15,7 @@ This is the document you read before Phase A ships. It contains (1) the plain-la
 blurb for each of the three indicators, citing the exact numbers that are in the code today;
 (2) the repaint statement for each, with its mechanism; (3) the toolbar tooltip strings that are
 shipped in the branch right now, plus proposed refinements; (4) the full v1 rules table for
-tuning; (5) a DRAFT landing-page section that does **not** ship without your explicit "ship it";
+tuning; (5) the landing-page section, **approved and shipped 2026-08-01** — live public copy;
 (6) what the signal ledger starts recording on deploy day; (7) the approval checklist.
 
 **Read this first — the honesty floor for the whole pack.**
@@ -287,12 +287,14 @@ not write to it — they are level sets, not signals, and there is nothing to ti
 
 ---
 
-## 6. DRAFT landing-page section
+## 6. Landing-page section — LIVE
 
-> ## DRAFT — DO NOT SHIP
-> **This copy does not go on any public page without an explicit "ship it" from the owner.**
-> House rule `feedback_explicit_ship_gate`: "looks great" is not deploy approval. This section is
-> also **not in this branch's ship** — Phase A ships the indicators; the landing copy can lag.
+> ## SHIPPED 2026-08-01 — this is live public copy
+> **The owner approved this section IN FULL, including both flagged lines, on 2026-08-01
+> ("do it all now") — the explicit "ship it" that `feedback_explicit_ship_gate` requires.**
+> It is live on the COMING SOON holding page (`app/src/pages/ComingSoon.jsx`, `<Receipts />`),
+> which is the public front door at `/` while `VITE_COMING_SOON=1`. The text below is the copy
+> of record: **the page and this section must be changed together.**
 
 ---
 
@@ -326,7 +328,7 @@ instead.
 
 ---
 
-> **Notes on the draft, for the owner:**
+> **Notes as put to the owner — kept as the record of what was known at the decision:**
 > - There is **no accuracy claim, no win rate, no backtest, no countdown, no "limited spots"** in
 >   the above. That is the whole point of the section and I'd defend every omission.
 > - The last paragraph — "we are not showing you a win rate today, because we haven't earned the
@@ -335,7 +337,10 @@ instead.
 > - "Most indicators are a formula with a marketing department" is the one line with real voice on
 >   it. It's also the one line most likely to be read as a shot at a competitor. Cut it and the
 >   section still works.
-> - **My recommendation is to HOLD this** — see §7(c).
+> - **My recommendation was to HOLD this** — see §7(c). **The owner overrode it and took the
+>   section in full, both flagged lines included.** Both are now live promises: the win-rate line
+>   has to be honoured when the ledger has a population, and the "marketing department" line is on
+>   a public page under the firm's name.
 
 ---
 
@@ -388,7 +393,19 @@ middle, never from the mechanism clause.
 
 ### (c) Landing copy — ship or hold
 
-**Recommendation: HOLD.** Two reasons, in order of weight. First, the section's centrepiece claim
+**DECIDED 2026-08-01: SHIPPED IN FULL** — headline, lede, all three indicator paragraphs, the
+ledger paragraph and the tagline, verbatim, on the COMING SOON page. The owner's call was "do it
+all now", against the recommendation below and including both flagged lines.
+
+Recording the cost honestly, because this is the doc that has to stay true: the HOLD argument was
+that the ledger is empty on launch day, and shipping did not change that — "we started the record
+instead" is, today, an assertion about a table with no rows in it. It is *true*, and it is the one
+claim on the page that time makes stronger rather than weaker, but until the ledger has a
+population it cannot be shown, only stated. The follow-through is now a commitment, not an option:
+**when the 4–6 week `fcb-v2` review lands (§7a), this section is what has to be revisited** — either
+it earns the number it promised, or the promise gets restated.
+
+**The recommendation, kept: HOLD.** Two reasons, in order of weight. First, the section's centrepiece claim
 is the ledger, and on launch day the ledger is empty — the copy is strongest after it has four to
 six weeks of real rows behind it, because then "we started the record instead" is a thing we can
 show rather than a thing we assert. Second, the landing page isn't in this branch's ship anyway,
@@ -466,8 +483,8 @@ so the first consumer doesn't accidentally ship `2026-07-30` into a tooltip.
 
 ## 8. Approval checklist
 
-Nothing ships until the numbers and blurbs are approved. Landing copy can lag — it isn't in this
-branch's ship.
+Nothing ships until the numbers and blurbs are approved. The landing copy was expected to lag;
+on 2026-08-01 the owner took it in the same ship, so it is in this branch after all.
 
 **From the plan:**
 
@@ -475,7 +492,9 @@ branch's ship.
 - [x] **FCB numbers approved** (`FCB_LOOKBACK=20`, **`FCB_VOL_MULT=1.5`** — tightened from 1.25, version now `fcb-v2`, `FCB_MIN_CALL_PREM=$500k`, `FCB_DOMINANCE=1.75`)
 - [x] **GXW numbers approved** (`GXW_DTE="week"`, `GXW_MAX_DIST_PCT=0.15`, `GXW_TTL_S=600`, `GXW_MAX_AGE_S=1800`)
 - [x] **Blurbs approved** (all three "how it's computed" paragraphs + all three repaint/freshness statements)
-- [ ] **Landing copy approved for ship** (recommendation: HOLD — leave unchecked)
+- [x] **Landing copy approved for ship** — shipped 2026-08-01 per owner "do it all now". Full §6
+      section (both flagged lines included) is live on the COMING SOON page; recommendation had
+      been HOLD, see §7(c).
 
 **Additional decisions surfaced during the build:**
 

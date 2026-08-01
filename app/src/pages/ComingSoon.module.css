@@ -14,10 +14,28 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--bg, #0e0f0d);
   color: var(--text, #b6b09d);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  isolation: isolate;
+}
+
+/* The first screen, and the clipping box for everything drawn on it.
+
+   The decorations below are all `position: absolute; inset: 0`, so their box is
+   whatever positioned ancestor holds them. While that was .page they were one
+   screen tall by construction; now that the page continues past the fold into
+   .receipts, they need a box that still stops at the fold — otherwise the curve
+   stretches (preserveAspectRatio="none") down the whole document and drags the
+   markers off the copy with it. Hence the wrapper, and hence `overflow: hidden`
+   living here rather than on .page: the page has to be free to grow. */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   isolation: isolate;
 }
 
@@ -657,6 +675,68 @@
   border-bottom-color: var(--ut-gold, #c9a84c);
 }
 
+/* ── Receipts ───────────────────────────────────────────────────────────────
+
+   The owner-approved indicators section (shipped 2026-08-01). It sits BELOW the
+   hero, not inside it: the holding page's first screen is untouched, and this is
+   what a visitor who keeps reading gets.
+
+   Same 660px left column as .center, so the two blocks share a left edge and the
+   page keeps reading as one measure rather than as two layouts stacked. Type is
+   the same family throughout — size, weight and ink separate the roles, exactly
+   as they do above. */
+.receipts {
+  border-top: 1px solid var(--border, #2e3127);
+  padding: clamp(44px, 8vh, 96px) clamp(20px, 5vw, 56px) clamp(40px, 6vh, 72px);
+}
+
+.receiptsInner {
+  max-width: 660px;
+  margin-right: auto;
+}
+
+.receiptsHead {
+  margin: 0;
+  max-width: 19ch;
+  font-size: clamp(26px, 3.4vw, 42px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+  color: var(--text-heading, #f0ead8);
+}
+
+/* The one line here with a voice on it. Set a step above the body so it lands
+   as the section's claim rather than as its first paragraph. */
+.receiptsLede {
+  margin: clamp(16px, 2.2vw, 22px) 0 0;
+  max-width: 46ch;
+  font-size: clamp(15px, 1.6vw, 18px);
+  line-height: 1.55;
+  color: var(--text-bright, #e0dac8);
+}
+
+.receiptsCopy {
+  margin: clamp(14px, 1.8vw, 20px) 0 0;
+  font-size: clamp(13.5px, 1.45vw, 15.5px);
+  line-height: 1.72;
+  letter-spacing: 0.1px;
+  color: var(--text, #b6b09d);
+}
+
+/* The three product nouns, and the only place on the page they are named.
+   Gold as well as bold: it lets the eye find the three of them in a block of
+   body copy without breaking the paragraphs into cards. */
+.receiptsName {
+  font-weight: 700;
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* Rides .tagline (same gold rule, same setting as the hero's) and only opens
+   the gap the sign-off needs after the last paragraph. */
+.receiptsSignoff {
+  margin-top: clamp(26px, 3.6vw, 36px);
+}
+
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 
 .foot {
@@ -875,8 +955,12 @@
 }
 
 @media (max-width: 640px) and (max-height: 720px) {
-  /* Short phones: let the page scroll rather than crushing the type. */
-  .page { overflow-y: auto; }
+  /* Short phones: let the hero grow past one screen rather than crushing the
+     type. The document scrolls now (.page stopped being the clipping box when
+     .receipts was added below it), so the hero must not clip what it can't fit
+     — nothing bleeds out of it at this size anyway: the rose and both curve
+     markers are already `display: none` on a phone. */
+  .hero { min-height: 0; overflow: visible; }
   .center { justify-content: flex-start; }
 }
 
