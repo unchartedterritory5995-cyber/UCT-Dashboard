@@ -20,11 +20,18 @@
 // the hook looked up a different key. Nothing throws, nothing logs.
 // `chartDefaults.test.js` pins all three sets together; extend them as a unit.
 
+// The tooltips are the OWNER-APPROVED refinements (2026-08-01), and the house
+// rule they satisfy is: a "non-repainting" claim must state its MECHANISM.
+// "Non-repainting." as a bare word is an assertion a user has to take on faith
+// and a future reader has no way to check against the code. Each string now
+// names the thing that makes it true — confirmed prints for DPL, closed bars
+// for flow — so the claim is falsifiable. GEX deliberately makes NO
+// non-repainting claim: it is a live chain read and it says so.
 /** @type {ReadonlyArray<[key: string, label: string, tooltip: string]>} */
 export const SIGNATURE_ROWS = [
-  ['darkPoolLevels', 'Dark Pool Levels', 'Top dark-pool notional levels (20 sessions, confirmed prints only). Non-repainting.'],
-  ['gexWalls', 'GEX Walls', 'Call/Put walls + zero gamma from the live options chain. Cached 10 min.'],
-  ['flowSignals', 'Flow Signals', 'Breakouts confirmed by same-session options flow. Confirmed bars only. Non-repainting.'],
+  ['darkPoolLevels', 'Dark Pool Levels', 'Top 5 dark-pool notional levels from the last 20 sessions. Non-repainting: computed from confirmed prints only.'],
+  ['gexWalls', 'GEX Walls', 'Call/Put walls + zero gamma from the live options chain (expiries within 7 days, strikes within 15% of spot). Live level set, cached 10 min.'],
+  ['flowSignals', 'Flow Signals', 'Daily breakouts confirmed by same-session options flow. Non-repainting: evaluated on closed bars only.'],
 ]
 
 // Free users see the rows DISABLED rather than hidden — the panel's decision of

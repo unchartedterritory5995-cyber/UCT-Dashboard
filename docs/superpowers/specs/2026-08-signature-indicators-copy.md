@@ -74,13 +74,13 @@ that ourselves is worth more than having a customer discover it.
 
 ### 1c. Toolbar tooltip
 
-**Shipped today** (`app/src/components/chart/signatureToggles.js`, exact string):
+**Previous string** (`app/src/components/chart/signatureToggles.js`, replaced 2026-08-01):
 
 ```
 Top dark-pool notional levels (20 sessions, confirmed prints only). Non-repainting.
 ```
 
-**Proposed refinement (RECOMMENDED — needs your yes):**
+**TAKEN 2026-08-01 — this is the live string:**
 
 ```
 Top 5 dark-pool notional levels from the last 20 sessions. Non-repainting: computed from confirmed prints only.
@@ -135,13 +135,13 @@ being written into an append-only ledger with no correction path.
 
 ### 2c. Toolbar tooltip
 
-**Shipped today** (exact string):
+**Previous string** (replaced 2026-08-01):
 
 ```
 Breakouts confirmed by same-session options flow. Confirmed bars only. Non-repainting.
 ```
 
-**Proposed refinement (RECOMMENDED — needs your yes):**
+**TAKEN 2026-08-01 — this is the live string:**
 
 ```
 Daily breakouts confirmed by same-session options flow. Non-repainting: evaluated on closed bars only.
@@ -186,13 +186,13 @@ The shipped tooltip already gets this right, which is why the proposed change be
 
 ### 3c. Toolbar tooltip
 
-**Shipped today** (exact string):
+**Previous string** (replaced 2026-08-01):
 
 ```
 Call/Put walls + zero gamma from the live options chain. Cached 10 min.
 ```
 
-**Proposed refinement (OPTIONAL — the shipped string is already honest):**
+**TAKEN 2026-08-01 — this is the live string:**
 
 ```
 Call/Put walls + zero gamma from the live options chain (expiries within 7 days, strikes within 15% of spot). Live level set, cached 10 min.
@@ -200,8 +200,8 @@ Call/Put walls + zero gamma from the live options chain (expiries within 7 days,
 
 Why you might not want it: it is long for a hover tooltip. Why you might: it is the only surface
 where a user learns the ±15% band exists, and "Live level set" is the phrase that tells them not
-to expect the other two indicators' stability. **My recommendation: take it.** If it's too long,
-the fallback is `Call/Put walls + zero gamma from the live options chain. Live level set, cached 10 min.`
+to expect the other two indicators' stability. **Taken.** (The shorter fallback, if length ever
+becomes a problem in use: `Call/Put walls + zero gamma from the live options chain. Live level set, cached 10 min.`)
 
 ### 3d. Locked, unrelated to your decision
 
