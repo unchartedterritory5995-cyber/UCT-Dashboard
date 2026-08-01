@@ -906,6 +906,31 @@ def register_screener_jobs(scheduler):
     return True
 
 
+def register_signature_sweep_job(scheduler):
+    """Register the nightly closed-bar UCT Signature sweep (16:45 ET weekdays).
+
+    Post-close by 45 minutes so the session's final daily bar is settled in the
+    bars store — the sweep evaluates it with `include_last=True`, which is the
+    one thing the request path must never do. This is what makes the signal
+    ledger accrue from launch day for every symbol on the list, whether or not
+    anybody opened its chart.
+
+    `timezone=_ET` is load-bearing, not decoration: a naive/UTC cron passes
+    every structural check and then runs an hour off for half the year, which
+    for a post-close job means sweeping while the tape is still open
+    (lesson_apscheduler_cron_utc_trap). Returns True if the job was registered.
+    """
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services.signature.sweep import sweep_job
+
+    scheduler.add_job(
+        sweep_job,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=45, timezone=_ET),
+        id="signature_sweep", max_instances=1, replace_existing=True,
+    )
+    return True
+
+
 def register_wire_watchdog_job(scheduler):
     """Server-side missed-run watchdog for the morning wire (review-panel fix).
 
@@ -2717,6 +2742,13 @@ async def lifespan(app: FastAPI):
             register_wire_watchdog_job(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
+
+        # -- Nightly closed-bar Signature sweep (Phase A) -------------------
+        try:
+            register_signature_sweep_job(_scheduler)
+            print("[startup] signature sweep scheduled (weekdays 16:45 ET)")
+        except Exception as e:
+            print(f"[scheduler] signature sweep registration error: {e}")
 
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
