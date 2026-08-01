@@ -208,6 +208,39 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         </div>
       </div>
 
+      {/* UCT Signature — premium overlays. Sits 4th, right after Candles:
+          it is the panel's headline feature and was buried at 10th, below
+          Watermark and Volume, where nobody scrolled to it (owner decision
+          (e), 2026-08-01). Pure position change — same JSX, same state keys,
+          same gate.
+          Free users get the rows disabled with
+          a lock, not hidden: the affordance is the sales pitch. The authoritative
+          gate is the backend's 402 (and the fetch hook's own isPaid check) — this
+          only decides what the panel offers. */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>UCT Signature</span>
+        <div className={styles.sRow}>
+          {SIGNATURE_ROWS.map(([key, label, tip]) => (
+            <label key={key} className={styles.sCheck} title={isPaid ? tip : SIGNATURE_LOCKED_TITLE}>
+              <input type="checkbox"
+                disabled={!isPaid}
+                checked={cs.signature?.[key] ?? false}
+                onChange={e => update(`signature.${key}`, e.target.checked)} />
+              {label}
+              {/* `title` is load-bearing, not decoration: it flips UIcon from
+                  aria-hidden to role="img" + <title>, which is the ONLY premium
+                  signal a screen reader gets here — the row's own title attr is
+                  unreliable to AT and the disabled checkbox is out of tab order.
+                  NavBar goes the OTHER way on purpose: its lock is aria-hidden
+                  with no title because its row already says "— unlock with Pro"
+                  in the accessible name. This row's label is just the indicator
+                  name, so the icon has to carry it. */}
+              {!isPaid && <UIcon name="lock" size={10} gold title="Premium" />}
+            </label>
+          ))}
+        </div>
+      </div>
+
       {/* Background & Grid */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Background</span>
@@ -616,34 +649,6 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               <option value="light">Light</option>
             </select>
           </label>
-        </div>
-      </div>
-
-      {/* UCT Signature — premium overlays. Free users get the rows disabled with
-          a lock, not hidden: the affordance is the sales pitch. The authoritative
-          gate is the backend's 402 (and the fetch hook's own isPaid check) — this
-          only decides what the panel offers. */}
-      <div className={styles.sGroup}>
-        <span className={styles.sLabel}>UCT Signature</span>
-        <div className={styles.sRow}>
-          {SIGNATURE_ROWS.map(([key, label, tip]) => (
-            <label key={key} className={styles.sCheck} title={isPaid ? tip : SIGNATURE_LOCKED_TITLE}>
-              <input type="checkbox"
-                disabled={!isPaid}
-                checked={cs.signature?.[key] ?? false}
-                onChange={e => update(`signature.${key}`, e.target.checked)} />
-              {label}
-              {/* `title` is load-bearing, not decoration: it flips UIcon from
-                  aria-hidden to role="img" + <title>, which is the ONLY premium
-                  signal a screen reader gets here — the row's own title attr is
-                  unreliable to AT and the disabled checkbox is out of tab order.
-                  NavBar goes the OTHER way on purpose: its lock is aria-hidden
-                  with no title because its row already says "— unlock with Pro"
-                  in the accessible name. This row's label is just the indicator
-                  name, so the icon has to carry it. */}
-              {!isPaid && <UIcon name="lock" size={10} gold title="Premium" />}
-            </label>
-          ))}
         </div>
       </div>
 

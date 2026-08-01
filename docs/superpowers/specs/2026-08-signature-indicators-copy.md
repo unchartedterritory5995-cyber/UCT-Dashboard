@@ -418,10 +418,13 @@ ship checklist as an explicit post-deploy watch item, not left as a vibe.**
 
 ### (e) The UCT Signature settings group sits 10th of 13 — leave it or promote it?
 
-**Current order:** Preset · Type · Candles · Background · Watermark · Moving Averages · Volume ·
-Indicators · Display · **UCT Signature** · Swing labels · Markers · Crosshair.
+**DECIDED 2026-08-01: PROMOTED to 4th.** Shipped order: Preset · Type · Candles ·
+**UCT Signature** · Background · Watermark · Moving Averages · Volume · Indicators · Display ·
+Swing labels · Markers · Crosshair. (Previous order had UCT Signature between Display and Swing
+labels.) The relocation was a pure JSX move — same markup, same state keys, same premium gate;
+chart + hooks suites green at 466 tests.
 
-**Recommendation: PROMOTE IT to 4th, immediately after Candles.** A user has to scroll past nine
+**The reasoning, kept:** **PROMOTE IT to 4th, immediately after Candles.** A user has to scroll past nine
 sections to discover the premium feature we just built, and free users — the ones the disabled-row
 merchandising decision was made for — are the least likely to scroll that far. Moving it above
 Background/Watermark puts it in the first screenful without displacing the three controls people
@@ -478,7 +481,7 @@ branch's ship.
 
 - [x] **Tooltips approved** — DPL, FCB and GEX refinements all TAKEN (shipped strings in `signatureToggles.js`)
 - [ ] **(d) Multi-chart grid cells** — ship-as-is-and-watch (recommended) vs. build `disableSignature` now
-- [ ] **(e) Settings group position** — promote to 4th (recommended) vs. leave at 10th
+- [x] **(e) Settings group position** — PROMOTED to 4th, immediately after Candles
 - [ ] **(f) DP notional-only titles** — accept for v1 (recommended) vs. add price text
 - [ ] **(g) `lastDate` ISO** — keep ISO on wire, format at render (recommended)
 
