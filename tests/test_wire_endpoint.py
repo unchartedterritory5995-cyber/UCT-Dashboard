@@ -122,3 +122,31 @@ def test_status_on_an_empty_session_is_zeros_not_an_error(client):
     body = c.get("/api/calendar/wire-status?date=2026-07-31").json()
     assert body["rows"] == 0
     assert body["price_first"] == 0
+
+
+def test_status_reports_liveness_so_enabled_but_never_ticked_is_visible(client):
+    """The state worth catching on an earnings morning: flag on, detector dead."""
+    import os
+    from unittest import mock as _m
+    from api.services.wire import detector
+    c, _, _w = client
+    detector.LAST_TICK.update({"at": None, "scanned": 0, "written": 0, "error": None})
+    with _m.patch.dict(os.environ, {"WIRE_ENABLED": "1"}):
+        body = c.get("/api/calendar/wire-status").json()
+    assert body["enabled"] is True
+    assert body["last_tick_age_s"] is None, "never ticked must read as None, not 0"
+    assert body["last_tick"] is None
+
+
+def test_status_reports_a_recent_tick(client):
+    import time as _t
+    from api.services.wire import detector
+    c, _, _w = client
+    detector.LAST_TICK.update({"at": _t.time(), "scanned": 37, "written": 2, "error": None})
+    try:
+        body = c.get("/api/calendar/wire-status").json()
+        assert body["last_tick_age_s"] is not None and body["last_tick_age_s"] < 5
+        assert body["last_tick"]["scanned"] == 37
+        assert body["last_tick"]["written"] == 2
+    finally:
+        detector.LAST_TICK.update({"at": None, "scanned": 0, "written": 0, "error": None})

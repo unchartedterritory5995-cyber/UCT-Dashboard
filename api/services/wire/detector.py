@@ -22,6 +22,12 @@ from api.services.wire.session import market_session_date
 
 _logger = logging.getLogger(__name__)
 
+# Liveness, for `GET /api/calendar/wire-status`. Without this the only way to
+# answer "is the detector actually running?" is log archaeology on a pod whose
+# logs are flooded by yfinance/stream noise — and "enabled but never ticked" is
+# exactly the state you need to catch on an earnings morning.
+LAST_TICK: dict = {"at": None, "scanned": 0, "written": 0, "error": None}
+
 
 def _market_snapshot() -> dict:
     """One all-tickers call: extended-hours-aware `last_price`, `prev_close`,
@@ -81,4 +87,6 @@ def run_wire_tick(now_ts: float | None = None) -> dict:
     except Exception as exc:
         _logger.warning("wire: tick failed: %s", exc)
         result["error"] = str(exc)
+    LAST_TICK.update({"at": time.time(), "scanned": result["scanned"],
+                      "written": result["written"], "error": result.get("error")})
     return result

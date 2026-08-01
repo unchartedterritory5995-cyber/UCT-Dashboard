@@ -99,8 +99,21 @@ def wire_status(date_str: str | None = Query(None, alias="date")):
     """
     md = date_str if (date_str and _DATE_RE.match(date_str)) else market_session_date()
     rows = store.get_prints(md)
+
+    # Liveness. `enabled` is read from the LIVE process env, so this also proves
+    # whether a WIRE_ENABLED change actually reached the running pod. A detector
+    # that is enabled but has never ticked is the state worth catching.
+    import os
+    import time as _time
+    from api.services.wire.detector import LAST_TICK
+    last_at = LAST_TICK.get("at")
+
     return {
         "market_date":    md,
+        "enabled":        os.environ.get("WIRE_ENABLED", "") == "1",
+        "last_tick_age_s": round(_time.time() - last_at, 1) if last_at else None,
+        "last_tick":      {k: LAST_TICK.get(k) for k in ("scanned", "written", "error")}
+                          if last_at else None,
         "rows":           len(rows),
         "with_actuals":   sum(1 for r in rows if r.get("eps_act") is not None),
         "price_first":    sum(1 for r in rows if r.get("trigger") == "price"),
