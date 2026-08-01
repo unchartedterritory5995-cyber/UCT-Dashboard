@@ -115,6 +115,11 @@ def _exp_short(exp) -> str:
     return "/".join(parts[:2]) if len(parts) >= 2 else str(exp or "")
 
 
+def _dte(a: dict) -> str:
+    d = a.get("dte")
+    return f"{int(d)}d" if d is not None else "—"
+
+
 def _dir(a: dict) -> str:
     d = (a.get("_direction") or "").lower()
     if d.startswith("bull"):
@@ -163,10 +168,10 @@ def _rollup(alerts: list[dict]) -> list[dict]:
 
 # ── render ─────────────────────────────────────────────────────────────────
 _COLS = [
-    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 116, "l"), ("cp", "C/P", 232, "l"),
-    ("exp", "EXP", 312, "l"), ("strike", "STRIKE", 468, "r"), ("spot", "SPOT", 612, "r"),
-    ("money", "%ITM/OTM", 770, "r"), ("prem", "PREMIUM", 912, "r"), ("voi", "V/OI", 986, "r"),
-    ("dir", "DIR", 1006, "l"),
+    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 114, "l"), ("exp", "EXP", 226, "l"),
+    ("dte", "DTE", 332, "r"), ("strike", "STRIKE", 438, "r"), ("cp", "C/P", 446, "l"),
+    ("spot", "SPOT", 606, "r"), ("money", "%ITM/OTM", 752, "r"), ("prem", "PREMIUM", 900, "r"),
+    ("voi", "V/OI", 974, "r"), ("dir", "DIR", 994, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 150, 32
 _SS = 2  # supersample then downscale for crisp text
@@ -277,6 +282,8 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
                     txt(x, y, _time_et(a), f_row, _DIM)
                 elif key == "exp":
                     txt(x, y, _exp_short(a.get("exp")), f_row, _DIM)
+                elif key == "dte":
+                    txt(x, y, _dte(a), f_row, _DIM, "r")
                 elif key == "spot":
                     txt(x, y, f"{spot:.2f}" if spot else "—", f_row, _DIM, "r")
                 elif key == "money":
