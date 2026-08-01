@@ -1322,7 +1322,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
             tag explains WHY the row dropped out of the directional tiers. */}
         {alert._closeExcluded && (
           <span
-            title={`Dropped from clean directional flow: this contract had ~${(alert._grossLongBefore ?? 0).toLocaleString?.() ?? alert._grossLongBefore} contracts of ask-buying earlier today, so this bid-side sell is likely a mix of profit-taking + writing — not clean directional conviction.`}
+            title={`Dropped from clean directional flow: this contract saw ~${(alert._grossAskSession ?? 0).toLocaleString?.() ?? alert._grossAskSession} contracts of ask-buying on this contract today, so it's two-way (mixed) flow — this bid-side sell isn't clean bearish conviction.`}
             style={{
               marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#d9a441",
               border: "1px solid #6b5417", borderRadius: 3, padding: "0 4px",

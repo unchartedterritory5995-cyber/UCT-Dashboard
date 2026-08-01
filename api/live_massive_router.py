@@ -126,11 +126,11 @@ DEFAULT_THRESHOLDS = {
     # to cut the ~70s curated scan that starves WS ingestion -> blank sides. Dark
     # by default; flip live in the ?tune=1 panel. See _incr_classify.
     "incremental_scan": False,
-    # Clean-directional gate (DARK). When on, a bid-side SELL on a contract that
-    # already had heavy ASK-buying earlier this session (gross_ask_before >= this
-    # print's size * close_min_long_frac) is CONTAMINATED (mix of writing +
-    # profit-taking) → dropped from directional curated as a neutral "Not Clean"
-    # row, keeping curated to clean directional flow. See _demote_contaminated_sell.
+    # Clean-directional gate (DARK). When on, a bid-side SELL on a MIXED contract
+    # — total session ASK-buying >= this print's size * close_min_long_frac — is
+    # two-way flow, not clean bearish conviction → dropped from directional
+    # curated as a neutral "Not Clean" row, keeping curated to clean directional
+    # flow. See _demote_contaminated_sell.
     "close_detector_enabled": False,
     "close_min_long_frac": 0.5,
     "stack": {
@@ -970,58 +970,52 @@ def _derive_direction(cp: str, side: str, type_: str = "", vol=None, oi=None):
     return None
 
 
-# ─── Clean-directional gate — session long-build ledger ────────────────────
+# ─── Clean-directional gate — session ask-build ledger ─────────────────────
 # Direction is derived from the fill side alone (_derive_direction), so a
 # bid-side SELL is labeled bearish (call) / bullish-unwind (put). But a sell on
-# a contract that already had heavy ASK-buying earlier the SAME session is
-# CONTAMINATED — a mix of new writing AND profit-taking (buyers exiting the
-# longs they built). The tape can't cleanly split open from close (OI is a daily
-# NET; MSFT 470C 8/7 was writing AND profit-taking at once), so rather than
-# try to label such a print, we DROP it from clean directional curated. A
-# genuine write on a contract with no prior buying stays directional; ask-side
-# buys always do.
+# a contract that ALSO saw heavy ASK-buying this session is a MIXED, two-way
+# contract — you can't cleanly call its sells bearish conviction (the tape can't
+# split open from close; MSFT 470C 8/7 was writing AND profit-taking at once).
+# So rather than try to label such a print, we DROP it from clean directional
+# curated. A genuine write on a contract with no buying stays directional;
+# ask-side buys always do.
 #
-# This ledger tracks per-(contract, session) cumulative ASK-side (long-building)
-# volume. Gated by close_detector_enabled (default False); tune sensitivity with
-# close_min_long_frac. See _demote_contaminated_sell.
+# The ledger is ORDER-INDEPENDENT: it maps each row to its contract's TOTAL
+# session ASK-side volume (not just the ask before the sell) — a contract that's
+# bought late is still mixed, and an intraday sell refines to "Not Clean" as the
+# day's buying accumulates. Gated by close_detector_enabled (default False);
+# tune sensitivity with close_min_long_frac. See _demote_contaminated_sell.
 
 def _build_session_long_ledger(rows) -> dict:
-    """gross_ask_before[row_id] = cumulative ASK-side (long-building) volume on
-    the row's contract from every print with a SMALLER id (id ≈ session time).
-    Rows may arrive in any order; only A/AA volume counts (B/BB/blank add 0, but
-    bid rows still need to appear so their gross_ask_before is recorded). Fed the
-    FULL day's sided prints per contract (see _compute_recent). Pure + testable.
-    Contract = (ticker, cp, strike, exp)."""
-    per: dict = {}   # contract_key -> list[(id, ask_vol)]
+    """gross_ask[row_id] = TOTAL ASK-side (long-building) volume on the row's
+    contract across the whole session (ORDER-INDEPENDENT) — only A/AA counts;
+    B/BB/blank add 0 but their rows still map to the contract total so a bid-sell
+    can be looked up. Fed the FULL day's sided prints per contract (see
+    _compute_recent). Pure + testable. Contract = (ticker, cp, strike, exp)."""
+    totals: dict = {}     # contract_key -> total ask vol
+    row_key: dict = {}    # row_id -> contract_key
     for r in rows:
         rid = r["id"]
         if rid is None:
             continue
-        s = (r["Side"] or "").strip().upper()
-        try:
-            v = float(r["Volume"] or 0)
-        except (TypeError, ValueError):
-            v = 0.0
-        ask_v = v if s in ("A", "AA") else 0.0       # only long-building counts
         key = (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])
-        per.setdefault(key, []).append((rid, ask_v))
-    gross_before: dict = {}
-    for items in per.values():
-        items.sort(key=lambda t: t[0])               # id ascending = time ascending
-        run = 0.0
-        for rid, av in items:
-            gross_before[rid] = run                  # ask volume STRICTLY BEFORE this print
-            run += av
-    return gross_before
+        row_key[rid] = key
+        if (r["Side"] or "").strip().upper() in ("A", "AA"):
+            try:
+                v = float(r["Volume"] or 0)
+            except (TypeError, ValueError):
+                v = 0.0
+            totals[key] = totals.get(key, 0.0) + v
+    return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
-def _demote_contaminated_sell(a: dict, gross_before_map: dict, thresholds: dict) -> None:
-    """Clean-directional gate. A bid-side SELL on a contract that had meaningful
-    prior ASK-buying (gross_ask_before >= tradeSize × close_min_long_frac) is a
-    likely close / mixed print — not clean new directional conviction — so strip
-    its direction: it drops out of the directional tiers + curated and surfaces
-    as a neutral "UCT Size - Not Clean" row (hideable via hide_sizeless). Ask-side
-    buys and clean writes (no prior buying) are untouched. No-op unless
+def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) -> None:
+    """Clean-directional gate. A bid-side SELL on a MIXED contract — one whose
+    TOTAL session ASK-buying is >= tradeSize × close_min_long_frac — can't be
+    called clean bearish conviction (two-way flow), so strip its direction: it
+    drops out of the directional tiers + curated and surfaces as a neutral
+    "UCT Size - Not Clean" row (hideable via hide_sizeless). Ask-side buys and
+    clean writes (contracts with no buying) are untouched. No-op unless
     close_detector_enabled."""
     if not thresholds.get("close_detector_enabled", False):
         return
@@ -1029,22 +1023,22 @@ def _demote_contaminated_sell(a: dict, gross_before_map: dict, thresholds: dict)
         return                                        # already non-directional
     if (a.get("_side") or "").strip().upper() not in ("B", "BB"):
         return                                        # only bid-side sells
-    gross = gross_before_map.get(a.get("id"), 0.0)
+    gross = gross_ask_map.get(a.get("id"), 0.0)
     if gross <= 0:
-        return                                        # no prior long-building → clean write
+        return                                        # no ask-buying at all → clean write
     try:
         frac = float(thresholds.get("close_min_long_frac", 0.5) or 0)
         vol = float(a.get("tradeSize") or 0)
     except (TypeError, ValueError):
         frac, vol = 0.5, 0.0
     if frac > 0 and gross >= vol * frac:
-        # Contaminated → demote to the existing neutral "Not Clean" shape so it
-        # leaves the directional tiers/curated (mirrors _row_to_alert's None-
-        # direction Keep-as-Size path at "UCT Size - Not Clean").
+        # Mixed → demote to the existing neutral "Not Clean" shape so it leaves
+        # the directional tiers/curated (mirrors _row_to_alert's None-direction
+        # Keep-as-Size path at "UCT Size - Not Clean").
         a["_direction"] = None
         a["_directionUnconfirmed"] = True
         a["_closeExcluded"] = True                    # diagnostic: why it dropped
-        a["_grossLongBefore"] = round(gross)          # diagnostic: prior ask-buying
+        a["_grossAskSession"] = round(gross)          # diagnostic: contract's session ask
         a["alertName"] = "UCT Size - Not Clean"
         a["_tierKey"] = "size"
         a["_tierPriority"] = TIER_PRIORITY["size"]

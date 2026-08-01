@@ -189,24 +189,25 @@ def _frow(rid, side, vol, sym="X", cp="CALL", strike=100, exp="8/1/2026"):
             "ExpirationDate": exp, "Side": side, "Volume": vol}
 
 
-def test_long_ledger_counts_prior_ask_only():
-    # Only ASK (long-building) volume before each print; bids add 0.
+def test_long_ledger_total_ask_per_contract():
+    # gross_ask = TOTAL ask-side volume on the contract (order-independent);
+    # bids add 0, but every row (incl. bids) maps to the contract total.
     rows = [_frow(1, "A", 500), _frow(2, "BB", 300),
             _frow(3, "A", 200), _frow(4, "BB", 100)]
     g = m._build_session_long_ledger(rows)
-    assert g[1] == 0         # nothing before
-    assert g[2] == 500       # ask 500 before (the bid doesn't build a long)
-    assert g[3] == 500       # bid@2 added nothing
-    assert g[4] == 700       # 500 + 200 ask before
+    assert g[1] == 700       # 500 + 200 ask total (bids don't build a long)
+    assert g[2] == 700       # a bid row maps to its contract's total ask
+    assert g[4] == 700
 
 
-def test_long_ledger_separates_contracts_and_orders_by_id():
-    rows = [_frow(3, "BB", 100, sym="AAA"),        # shuffled input
+def test_long_ledger_separates_contracts():
+    rows = [_frow(3, "BB", 100, sym="AAA"),
             _frow(1, "A", 500, sym="AAA"),
             _frow(2, "A", 999, sym="BBB")]
     g = m._build_session_long_ledger(rows)
-    assert g[3] == 500       # only AAA's prior ask, sorted by id
-    assert g[2] == 0
+    assert g[3] == 500       # AAA's total ask only (not BBB's 999)
+    assert g[1] == 500
+    assert g[2] == 999       # BBB's own total
 
 
 _GTH = {"close_detector_enabled": True, "close_min_long_frac": 0.5}
@@ -225,7 +226,7 @@ def test_contaminated_sell_demoted_to_not_clean():
     assert a["_tierKey"] == "size"
     assert a["_directionUnconfirmed"] is True
     assert a["_closeExcluded"] is True
-    assert a["_grossLongBefore"] == 6000
+    assert a["_grossAskSession"] == 6000
 
 
 def test_clean_write_no_prior_buying_kept():
