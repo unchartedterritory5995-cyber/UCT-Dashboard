@@ -389,7 +389,9 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         if not wh:
             res.update(posted=False, reason="no webhook (set ALPHA_GOLD_EOD_WEBHOOK_URL)")
             return res
-        ok, detail = _post_discord_image(wh, png, _summary_line(alerts, date_text))
+        # Post the image ONLY — no text line above it (owner preference). The card
+        # already carries the title + totals. (_summary_line kept for reuse/tests.)
+        ok, detail = _post_discord_image(wh, png, "")
         res.update(posted=ok, detail=detail)
         log.info("[alpha-gold-eod] %s — %d alerts, posted=%s (%s)",
                  day, len(alerts), ok, detail)
