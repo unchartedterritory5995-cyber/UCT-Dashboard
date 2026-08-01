@@ -1,40 +1,53 @@
 """Nightly closed-bar FCB sweep -> signal ledger.
 
-Runs POST-close (16:45 ET weekdays), so `include_last=True` is honest: the
-session's final daily bar is confirmed. This is what makes the ledger accrue
-from launch day independent of user chart views — the request path only ever
-records a signal for a symbol somebody happened to open, and only for bars that
-are already closed-and-superseded.
+Runs POST-close (20:05 ET weekdays) and walks a fixed symbol list whether or not
+a user ever opened a chart. This is what makes the ledger accrue from launch
+day: the request path only records a signal for a symbol somebody happened to
+look at, and only for bars already closed-and-superseded.
 
-Three shapes here are deliberate:
+Five shapes here are deliberate:
 
-1. **One symbol cannot end the pass, and neither can one signal.** A dead
+1. **`include_last` is EARNED, not assumed.** `bars.db` stores today's
+   *evolving* partial daily bar and refreshes it from user fetches, not from a
+   clock (`bars_fetch._needs_fresh`: "today's bar keeps evolving"). So "the last
+   row in the store" is not the same thing as "the closed session". The sweep
+   trusts the last bar only when it matches the session the bars store's own
+   NYSE-aware calendar says should exist; otherwise it evaluates exactly what
+   the request path would. The ledger is append-only with no rewrite path, so a
+   signal recorded off a 15:52 snapshot that the real close took back is
+   permanent — the conservative direction is the only safe one.
+2. **One symbol cannot end the pass, and neither can one signal.** A dead
    provider and a ledger refusal are both routine. `record_signal` RAISES by
-   design on any field it cannot key (see `ledger.record_signal`), so recording
-   is wrapped PER SIGNAL — a per-symbol guard alone would abandon every later
-   signal for that symbol on the first refusal.
-2. **`errors` counts everything that did not land** — a symbol whose fetch blew
-   up AND a signal the ledger refused. The return value is the receipt for the
-   pass; a refusal that showed up only in the log would let a broken sweep read
-   as a clean one.
-3. **A failed flow READ is an error, never an empty tape.** `_fetch_flow_rows`
-   returns None on failure; handing `{}` to the compute would score an outage as
-   "scanned, no signals" (`lesson_market_cap_cache_poison`: never remember a
-   failed fetch as a value).
+   design on any field it cannot key, so recording is wrapped PER SIGNAL — a
+   per-symbol guard alone would abandon every later signal for that symbol on
+   the first refusal.
+3. **The receipt distinguishes the ways a pass can be empty.** `recorded: 0`
+   means "quiet night" OR "every store was behind" OR "everything was refused";
+   `symbols`/`scanned`/`errors`/`stale` make those different numbers.
+4. **A failed flow READ is an error, never an empty tape.** Handing `{}` to the
+   compute would score an outage as "scanned, no signals"
+   (`lesson_market_cap_cache_poison`: never remember a failed fetch as a value).
+5. **The flow read never materializes what it will not use.** SPY/QQQ carry a
+   90-day uncapped history over 22 columns; this streams the gzipped CSV and
+   keeps three fields, inside the bar window it is about to join against.
 
-There is no market-holiday guard and none is needed: on a holiday the bars store
-still ends at the last session's bar, the sweep re-evaluates it, and the
-ledger's UNIQUE key refuses it — `recorded` is 0 and nothing is written twice.
+There is no market-holiday guard and none is needed: on a holiday the calendar
+rolls BACK to the last real session, the store's newest bar is that same
+session, the sweep re-evaluates it, and the ledger's UNIQUE key refuses it —
+`recorded` is 0 and nothing is written twice.
 """
 from __future__ import annotations
 
+import csv
 import logging
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import httpx
+
 from api.services.signature import ledger
-from api.services.signature.flow_breakout import fcb_signals
+from api.services.signature.flow_breakout import _bar_date_iso, fcb_signals
 
 log = logging.getLogger("signature.sweep")
 
@@ -42,66 +55,165 @@ _ET = ZoneInfo("America/New_York")
 
 _DEFAULT_SYMBOLS = "SPY,QQQ,NVDA,TSLA,AAPL,MSFT,AMD,META,AMZN,GOOGL"
 
+# The only three fields the join reads. The flow CSV ships 22 columns
+# (`flow_db.COLUMNS`); keeping full row dicts for a 90-day SPY history is a
+# ~155MB transient on a 512MB pod, most of it never read.
+_FLOW_COLS = ("CreatedDate", "CallPut", "Premium")
+
+# Generous because this streams a whole symbol history on a scheduler thread,
+# not a chart read on an anyio worker. The request path's 15s stays 15s.
+_FLOW_TIMEOUT_S = 60.0
+
 
 def _sweep_date_iso(now: datetime | None = None) -> str:
     """The ET session date this pass belongs to.
 
     The clock is a parameter so this is testable at an instant rather than only
-    after 8 PM: the pod runs UTC, and any run past 20:00 ET (a retry, a manual
-    backfill) would stamp TOMORROW onto tonight's receipts with a bare
-    `date.today()`.
+    after 8 PM: the pod runs UTC, and a 20:05 ET job is already past midnight
+    UTC in winter — a bare `date.today()` would stamp TOMORROW onto tonight's
+    receipts.
     """
     return (now.astimezone(_ET) if now is not None else datetime.now(_ET)).date().isoformat()
 
 
-def _flow_by_date(rows) -> dict[str, list[dict]]:
-    """Group flow rows by ISO session date.
+def _expected_session() -> int:
+    """The most recent session (YYYYMMDD) the bars store should have data for.
 
-    The flow table's `CreatedDate` is M/D/YYYY; `flow_breakout._bar_date_iso`
-    normalizes a bar timestamp to ISO. Both sides of the join have to agree or
-    it matches nothing and the indicator ships silently dead — there is no error
-    anywhere, just zero signals forever.
+    Delegates to the bars store's OWN calendar rather than re-deriving one:
+    `bars_fetch._expected_latest_session_yyyymmdd` already handles weekends, the
+    pre-open roll and the NYSE holiday walk-back, and it is the same function
+    the store's staleness logic uses. Two calendars that disagreed would make
+    this gate fire on days the store itself considers current.
 
-    NOTE: `api/routers/signature.py::_fcb_build` does this same normalization
-    INLINE (it is not a helper there, so there is nothing to import). The two
-    are duplicated on purpose rather than one file reaching into the other's
-    private internals; they must be changed together, and
-    `test_flow_dates_are_keyed_the_same_way_bar_dates_are` pins this side
+    Imported lazily — `bars_fetch` is heavy and this is a scheduler path, not an
+    import-time dependency of the compute.
+    """
+    from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+    return _expected_latest_session_yyyymmdd()
+
+
+def _flow_by_date(lines, *, cutoff_iso: str = "") -> dict[str, list[dict]]:
+    """Stream a flow CSV into `{iso_date: [{CreatedDate, CallPut, Premium}]}`.
+
+    Takes an ITERABLE OF LINES (what `httpx.Response.iter_lines()` yields) and
+    feeds `csv.reader` directly, so nothing bigger than one row is ever held.
+
+    Two things are load-bearing:
+
+    * **Columns are resolved BY NAME from the header.** Upstream owns the column
+      order (`flow_db.COLUMNS`); a positional read keeps working right up until
+      someone inserts a column, and then parses a Symbol string as a premium —
+      silently, toward no signal. A header missing one of the three RAISES
+      rather than returning an empty join.
+    * **The date key must agree with `flow_breakout._bar_date_iso`.** The flow
+      table's `CreatedDate` is M/D/YYYY; the bar side is YYYYMMDD/ISO/epoch. If
+      the two normalizations drift, the join matches nothing and the indicator
+      ships silently dead — there is no error anywhere, just zero signals.
+
+    NOTE: `api/routers/signature.py::_fcb_build` does the same M/D/YYYY→ISO
+    normalization INLINE (it is not a helper there, so there is nothing to
+    import). They are duplicated on purpose rather than one module reaching into
+    the other's privates; they must change together, and
+    `test_flow_dates_are_keyed_the_same_way_bar_dates_are` pins THIS side
     against `_bar_date_iso` so a drift is caught here regardless.
     """
-    by_date: dict[str, list[dict]] = {}
-    for r in rows:
-        d = r.get("CreatedDate") or ""
+    reader = csv.reader(lines)
+    header = next(reader, None)
+    if header is None:
+        return {}
+
+    idx = {}
+    for name in _FLOW_COLS:
         try:
-            m, day, y = d.split("/")
+            idx[name] = header.index(name)
+        except ValueError as exc:
+            raise ValueError(f"flow CSV header is missing {name!r}: {header!r}") from exc
+    width = max(idx.values()) + 1
+
+    by_date: dict[str, list[dict]] = {}
+    for row in reader:
+        if len(row) < width:
+            continue
+        try:
+            m, day, y = row[idx["CreatedDate"]].split("/")
             iso = f"{int(y):04d}-{int(m):02d}-{int(day):02d}"
         except (ValueError, AttributeError):
             continue
-        by_date.setdefault(iso, []).append(r)
+        if cutoff_iso and iso < cutoff_iso:      # ISO dates sort chronologically
+            continue
+        by_date.setdefault(iso, []).append({name: row[i] for name, i in idx.items()})
     return by_date
 
 
-def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
-    """Pure orchestration: fetch, detect, record. Returns the pass receipt.
+def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]]:
+    """Read one symbol's flow off the proxied surface, streamed.
 
-    `scanned` counts symbols that made it through the compute — a symbol whose
-    fetch raised is an error, not a scan. `recorded` counts NEW ledger rows only
-    (`record_signal` returns False for one already recorded, which is the normal
-    steady state on a re-run).
+    The surface serves **gzipped CSV** (`flow_router.get_flow_ticker` →
+    `_build_gzipped_symbol_csv`); httpx decodes the Content-Encoding, so
+    `iter_lines()` yields decoded CSV text without the body ever being
+    materialized as one string.
+
+    **No credential is forwarded** — `/api/flow/ticker/{symbol}` declares no auth
+    on either service, so sending one to an env-configurable base URL would buy
+    nothing and hand a live credential to whatever `_flow_base_url()` resolves
+    to. `_flow_base_url` is imported from the router so URL resolution
+    (`SIGNATURE_FLOW_BASE` → proxy → `$PORT`) keeps exactly one definition.
+
+    Raises on a failed read. The caller counts that as an error; degrading to
+    `{}` would score an outage as a quiet tape.
     """
-    scanned = recorded = errors = 0
+    from api.routers.signature import _flow_base_url
+
+    url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
+    with httpx.stream("GET", url, timeout=_FLOW_TIMEOUT_S) as resp:
+        if resp.status_code != 200:
+            raise RuntimeError(f"flow read for {sym} returned HTTP {resp.status_code}")
+        return _flow_by_date(resp.iter_lines(), cutoff_iso=cutoff_iso)
+
+
+def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
+    """Pure orchestration: fetch, gate, detect, record. Returns the pass receipt.
+
+    `fetch_flow(sym, cutoff_iso)` takes the window because only this function
+    knows which bars were actually fetched — see `_fetch_flow_by_date`.
+
+    Receipt keys:
+      symbols  — how many were asked for
+      scanned  — how many reached the compute (a symbol whose fetch raised did not)
+      recorded — NEW ledger rows only (`record_signal` returns False for one
+                 already recorded, which is the normal steady state on a re-run)
+      errors   — everything that did not land: a symbol whose fetch raised, and
+                 any signal the ledger refused
+      stale    — symbols whose newest bar was not the expected session, i.e.
+                 whose last bar was deliberately NOT evaluated
+    """
+    expected_iso = _bar_date_iso(_expected_session())
+    symbols = list(symbols)
+    scanned = recorded = errors = stale = 0
+
     for sym in symbols:
+        fresh_last = False
         try:
             bars = fetch_bars(sym)
-            flow_by_date = fetch_flow(sym)
-            # include_last=True: post-close, the final daily bar is confirmed.
-            # This is the ONE thing the request path cannot do.
-            signals = fcb_signals(bars, flow_by_date, include_last=True)
+            # Compared as ISO so every bar-time encoding (YYYYMMDD int, ISO
+            # string, epoch) goes through the one decoder the flow join uses —
+            # and garbage decodes to "", which is never equal, i.e. it fails
+            # toward NOT trusting the last bar.
+            fresh_last = bool(bars) and _bar_date_iso(bars[-1]["t"]) == expected_iso
+            cutoff_iso = _bar_date_iso(bars[0]["t"]) if bars else ""
+            flow_by_date = fetch_flow(sym, cutoff_iso)
+            signals = fcb_signals(bars, flow_by_date, include_last=fresh_last)
         except Exception:                              # noqa: BLE001 — see docstring
             log.exception("signature sweep failed for %s", sym)
             errors += 1
             continue
+
         scanned += 1
+        if not fresh_last:
+            stale += 1
+            log.warning("signature sweep: %s bars store is behind the expected session "
+                        "%s — its last bar was NOT evaluated", sym, expected_iso)
+
         for s in signals:
             try:
                 if ledger.record_signal("fcb", s["version"], sym, "1D", s["direction"],
@@ -113,25 +225,22 @@ def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
                 log.exception("signature sweep: ledger refused %s bar=%r — signal LOST",
                               sym, s.get("barTime"))
                 errors += 1
-    return {"scanned": scanned, "recorded": recorded, "errors": errors}
+
+    return {"symbols": len(symbols), "scanned": scanned, "recorded": recorded,
+            "errors": errors, "stale": stale}
 
 
 def sweep_job() -> None:
-    """The scheduled entry (weekdays 16:45 ET). Never raises into the scheduler."""
+    """The scheduled entry (weekdays 20:05 ET). Never raises into the scheduler."""
     try:
-        from api.routers.signature import _fetch_bars, _fetch_flow_rows
+        from api.routers.signature import _fetch_bars
 
         symbols = [s.strip().upper() for s in
                    os.environ.get("SIGNATURE_SWEEP_SYMBOLS", _DEFAULT_SYMBOLS).split(",")
                    if s.strip()]
 
-        def fetch_flow(sym):
-            # None means the READ failed — raise so the symbol lands in
-            # `errors` instead of being scored as a quiet tape.
-            rows = _fetch_flow_rows(sym)
-            if rows is None:
-                raise RuntimeError(f"flow read failed for {sym}")
-            return _flow_by_date(rows)
+        def fetch_flow(sym, cutoff_iso=""):
+            return _fetch_flow_by_date(sym, cutoff_iso)
 
         res = run_sweep(symbols, fetch_bars=_fetch_bars, fetch_flow=fetch_flow,
                         now_iso=_sweep_date_iso())

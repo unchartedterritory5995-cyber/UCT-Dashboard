@@ -907,17 +907,24 @@ def register_screener_jobs(scheduler):
 
 
 def register_signature_sweep_job(scheduler):
-    """Register the nightly closed-bar UCT Signature sweep (16:45 ET weekdays).
+    """Register the nightly closed-bar UCT Signature sweep (20:05 ET weekdays).
 
-    Post-close by 45 minutes so the session's final daily bar is settled in the
-    bars store — the sweep evaluates it with `include_last=True`, which is the
-    one thing the request path must never do. This is what makes the signal
-    ledger accrue from launch day for every symbol on the list, whether or not
-    anybody opened its chart.
+    The sweep evaluates the session's FINAL daily bar — the one thing the
+    request path must never do — which is what makes the signal ledger accrue
+    from launch day for every symbol on the list, whether or not anybody opened
+    its chart.
+
+    **20:05, not 16:45.** `bars.db` holds today's *evolving* partial daily bar
+    and refreshes it from user fetches, not from a clock; `_needs_fresh` keeps
+    re-fetching it through extended hours, which run to 20:00 ET. Sweeping at
+    16:45 would read a bar still being written. The sweep has its own freshness
+    gate as well (`sweep._expected_session`), so a store that is still behind
+    just yields a `stale` count instead of a wrong signal — but the schedule
+    should not be creating that condition on purpose. 20:05 also sits after the
+    house settle line: dark-pool ingest 19:20, side heal 19:30.
 
     `timezone=_ET` is load-bearing, not decoration: a naive/UTC cron passes
-    every structural check and then runs an hour off for half the year, which
-    for a post-close job means sweeping while the tape is still open
+    every structural check and then runs an hour off for half the year
     (lesson_apscheduler_cron_utc_trap). Returns True if the job was registered.
     """
     from apscheduler.triggers.cron import CronTrigger
@@ -925,7 +932,7 @@ def register_signature_sweep_job(scheduler):
 
     scheduler.add_job(
         sweep_job,
-        trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=45, timezone=_ET),
+        trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=5, timezone=_ET),
         id="signature_sweep", max_instances=1, replace_existing=True,
     )
     return True
@@ -2746,7 +2753,7 @@ async def lifespan(app: FastAPI):
         # -- Nightly closed-bar Signature sweep (Phase A) -------------------
         try:
             register_signature_sweep_job(_scheduler)
-            print("[startup] signature sweep scheduled (weekdays 16:45 ET)")
+            print("[startup] signature sweep scheduled (weekdays 20:05 ET)")
         except Exception as e:
             print(f"[scheduler] signature sweep registration error: {e}")
 
