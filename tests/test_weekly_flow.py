@@ -67,6 +67,33 @@ def test_aggregate_ranks_by_net(monkeypatch):
     assert agg["bulls"][0]["top"]["K"] == 210
 
 
+def test_cap_ok():
+    assert wf._cap_ok(300e9, "mega") and not wf._cap_ok(50e9, "mega")
+    assert wf._cap_ok(50e9, "large") and not wf._cap_ok(5e9, "large")
+    assert wf._cap_ok(5e9, "mid_small") and not wf._cap_ok(50e9, "mid_small")
+    assert not wf._cap_ok(0, "mid_small")          # unknown mktcap excluded
+    assert wf._cap_ok(0, "all") and wf._cap_ok(1e12, None)
+
+
+def test_separate_sorts_bulls_net_bears_bear_dollars(monkeypatch):
+    monkeypatch.setattr(wf, "_still_open_keys", lambda keys, frac: set(keys))
+    monkeypatch.setattr(wf, "_contract_key",
+                        lambda t: f'{t["S"]}|{t["CP"]}|{t["K"]}|{t["E"]}')
+    # X: bear $30M, bull $18M → net −12M ; Y: bear $20M, bull $2M → net −18M
+    trades = [
+        {"S": "X", "CP": "P", "K": 100, "E": "9/18/2026", "P": 30_000_000, "D": "BEAR"},
+        {"S": "X", "CP": "C", "K": 100, "E": "9/18/2026", "P": 18_000_000, "D": "BULL"},
+        {"S": "Y", "CP": "P", "K": 50, "E": "9/18/2026", "P": 20_000_000, "D": "BEAR"},
+        {"S": "Y", "CP": "C", "K": 50, "E": "9/18/2026", "P": 2_000_000, "D": "BULL"},
+    ]
+    # Bears by Bear $ → X first (30M > 20M) even though its net is smaller
+    by_bear = wf.aggregate(trades, 10, 0.75, sort_bull="net", sort_bear="premium")
+    assert [e["sym"] for e in by_bear["bears"]] == ["X", "Y"]
+    # Bears by Net → Y first (−18M more negative than −12M) — the different lens
+    by_net = wf.aggregate(trades, 10, 0.75, sort_bull="net", sort_bear="net")
+    assert [e["sym"] for e in by_net["bears"]] == ["Y", "X"]
+
+
 def test_render_returns_png():
     agg = {"bulls": [{"sym": "BE", "bull": 26e6, "bear": 1e6, "net": 25e6, "bullPct": 96,
                       "top": {"cp": "C", "K": 210, "exp": "9/18/2026"}}],

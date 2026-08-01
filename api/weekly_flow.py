@@ -76,6 +76,23 @@ def _dte_of(exp, ref: date | None = None) -> str:
     return f"{(d - (ref or date.today())).days}d" if d else "—"
 
 
+# ── cap bands (match the OptionsFlow Leaderboard cap filter) ───────────────
+_CAP_LABELS = {"all": "", "mega": "Mega Cap", "large": "Large Cap",
+               "mid_small": "Mid-Small Cap"}
+
+
+def _cap_ok(mktcap: float, cap: str | None) -> bool:
+    if not cap or cap == "all":
+        return True
+    if cap == "mega":
+        return mktcap > 200e9
+    if cap == "large":
+        return 10e9 <= mktcap <= 200e9
+    if cap == "mid_small":
+        return 0 < mktcap < 10e9        # excludes unknown (0) mktcap
+    return True
+
+
 # ── classification — PORT of flowCompute.js processFlowData (decision B) ───
 def _side_norm(s: str) -> str:
     s = (s or "").upper().strip()
@@ -155,7 +172,8 @@ def _last_n_dates(conn, n: int) -> list[str]:
     return dated[-n:] if n > 0 else dated
 
 
-def load_directional_trades(days: int, min_dte: int, today: date | None = None) -> tuple[list[dict], list[str]]:
+def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
+                            today: date | None = None) -> tuple[list[dict], list[str]]:
     """Port of flowCompute.js `filtered` + `all_directional`, plus the weekly
     DTE≥min_dte cut. Returns (trades, window_dates). Each trade dict carries the
     fields the aggregation + card need."""
@@ -193,6 +211,9 @@ def load_directional_trades(days: int, min_dte: int, today: date | None = None) 
             continue
         color = _color_norm(r["Color"])
         if color in ("ORANGE", "ARB"):     # dark-pool + arb noise dropped
+            continue
+        mktcap = _pfloat(r["MktCap"])
+        if not _cap_ok(mktcap, cap):       # cap-band filter (mega/large/mid_small)
             continue
         exp = r["ExpirationDate"] or ""
         exp_d = _parse_mdy(exp)
@@ -300,9 +321,18 @@ def _contract_key(t: dict) -> str:
 
 
 # ── aggregate per ticker + rank ────────────────────────────────────────────
-def aggregate(trades: list[dict], top_n: int, still_open_frac: float) -> dict:
+# Independent sort keys per side (all used reverse=True). net negated for bears
+# so the most-negative net ranks first; pct tiebreaks on directional premium.
+_BULL_SORT = {"net": lambda e: e["net"], "premium": lambda e: e["bull"],
+              "pct": lambda e: (e["bullPct"], e["bull"])}
+_BEAR_SORT = {"net": lambda e: -e["net"], "premium": lambda e: e["bear"],
+              "pct": lambda e: (100 - e["bullPct"], e["bear"])}
+
+
+def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
+              sort_bull: str = "net", sort_bear: str = "premium") -> dict:
     """Filter to still-open contracts, sum bull/bear premium per ticker, split
-    and rank top-N each by directional premium."""
+    and rank top-N each (bulls by sort_bull, bears by sort_bear)."""
     keys = {_contract_key(t) for t in trades}
     open_keys = _still_open_keys(keys, still_open_frac)
     trades = [t for t in trades if _contract_key(t) in open_keys]
@@ -327,12 +357,10 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float) -> dict:
         e["top"] = max(e["contracts"].values(), key=lambda c: c["prem"], default=None)
 
     names = list(tk.values())
-    # Sort by NET premium (conviction): most-positive net = top bulls, most-
-    # negative = top bears. Rewards one-sided big bets over two-way battlegrounds.
     bulls = sorted((e for e in names if e["net"] > 0),
-                   key=lambda e: e["net"], reverse=True)[:top_n]
+                   key=_BULL_SORT.get(sort_bull, _BULL_SORT["net"]), reverse=True)[:top_n]
     bears = sorted((e for e in names if e["net"] < 0),
-                   key=lambda e: e["net"])[:top_n]
+                   key=_BEAR_SORT.get(sort_bear, _BEAR_SORT["premium"]), reverse=True)[:top_n]
     return {"bulls": bulls, "bears": bears, "open_contracts": len(open_keys),
             "n_names": len(names)}
 
@@ -356,7 +384,8 @@ def _week_range(window: list[str]) -> str:
             + f", {b.year}")
 
 
-def render_card(agg: dict, window: list[str], days: int, min_dte: int) -> bytes:
+def render_card(agg: dict, window: list[str], days: int, min_dte: int,
+                cap_label: str = "") -> bytes:
     from PIL import Image, ImageDraw, ImageFont
 
     SS = 2
@@ -404,7 +433,9 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int) -> bytes:
     txt(tx, 32, "— " + _week_range(window), f_date, _DIM)
 
     sub = (f"{days}-day window   ·   still-open (OI ≥ 75% of peak)   ·   "
-           f"DTE ≥ {min_dte}d   ·   {agg['n_names']} names")
+           f"DTE ≥ {min_dte}d"
+           + (f"   ·   {cap_label}" if cap_label else "")
+           + f"   ·   {agg['n_names']} names")
     txt(36, 78, sub, f_sum, _TXT)
 
     # column headers
@@ -462,10 +493,11 @@ def _webhook() -> str:
             or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
 
 
-def run_weekly(*, force: bool = False, post: bool = True, days: int | None = None) -> dict:
+def run_weekly(*, force: bool = False, post: bool = True, days: int | None = None,
+               cap: str | None = None) -> dict:
     """Build + optionally post the weekly conviction card. `force` bypasses the
     WEEKLY_FLOW_ENABLED gate (manual trigger). post=False returns the PNG under
-    'png' for preview. Never raises."""
+    'png' for preview. `cap` = all/mega/large/mid_small. Never raises."""
     try:
         if os.getenv("WEEKLY_FLOW_ENABLED", "0") != "1" and not force:
             return {"ok": False, "reason": "disabled (WEEKLY_FLOW_ENABLED != 1)"}
@@ -473,11 +505,14 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         top_n = int(os.getenv("WEEKLY_FLOW_TOP_N", "10"))
         min_dte = int(os.getenv("WEEKLY_FLOW_MIN_DTE", "30"))
         frac = float(os.getenv("WEEKLY_FLOW_STILL_OPEN_FRAC", "0.75"))
+        cap = (cap or os.getenv("WEEKLY_FLOW_CAP", "all")).strip().lower()
+        sort_bull = os.getenv("WEEKLY_FLOW_SORT_BULL", "net").strip().lower()
+        sort_bear = os.getenv("WEEKLY_FLOW_SORT_BEAR", "premium").strip().lower()
 
-        trades, window = load_directional_trades(n_days, min_dte)
-        agg = aggregate(trades, top_n, frac)
-        png = render_card(agg, window, n_days, min_dte)
-        res = {"ok": True, "days": n_days, "names": agg["n_names"],
+        trades, window = load_directional_trades(n_days, min_dte, cap)
+        agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
+        png = render_card(agg, window, n_days, min_dte, _CAP_LABELS.get(cap, ""))
+        res = {"ok": True, "days": n_days, "cap": cap, "names": agg["n_names"],
                "bulls": len(agg["bulls"]), "bears": len(agg["bears"]),
                "open_contracts": agg["open_contracts"]}
         if not post:
