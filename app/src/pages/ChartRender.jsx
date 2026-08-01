@@ -79,6 +79,46 @@ export default function ChartRender() {
   // Identity-stable: settingsOverride is a memo dep on StockChart.
   const csOverride = useMemo(() => ownerSettings || null, [ownerSettings])
 
+  // Company / price / change, when the caller did not supply them.
+  //
+  // The manual export's header reads "SPY (State Street SPDR S&P 500 ETF Trust)
+  // D $747.03 +0.72%" because composeScreenshot has the live chart's own state
+  // to hand. The Sunday Scan pipeline passes only sym+tf, so the same header
+  // rendered as a bare "SPY Daily" - the two charts sat side by side in one
+  // issue with different headers.
+  //
+  // Fetched HERE rather than threaded through the pipeline: render_many's specs
+  // are (sym, tf) tuples, and widening that plumbing to carry presentation data
+  // would put newsletter-formatting concerns inside the renderer's call
+  // signature. The page already knows how to ask for its own facts.
+  const [meta, setMeta] = useState({ company: '', price: null, chg: null })
+  useEffect(() => {
+    if (!sym) return undefined
+    let alive = true
+    const want = { company: company || '', price: price > 0 ? price : null, chg: Number.isFinite(chg) ? chg : null }
+    if (want.company && want.price != null && want.chg != null) { setMeta(want); return undefined }
+    Promise.allSettled([
+      want.company ? Promise.resolve(null) : fetch(`/api/ticker-meta/${encodeURIComponent(sym)}`).then((r) => (r.ok ? r.json() : null)),
+      (want.price != null && want.chg != null)
+        ? Promise.resolve(null)
+        : fetch(`/api/bars/${encodeURIComponent(sym)}?tf=D&bars=2`).then((r) => (r.ok ? r.json() : null)),
+    ]).then(([m, b]) => {
+      if (!alive) return
+      const bars = b?.value?.bars || b?.value || []
+      const last = Array.isArray(bars) && bars.length ? bars[bars.length - 1] : null
+      const prev = Array.isArray(bars) && bars.length > 1 ? bars[bars.length - 2] : null
+      const c = last?.c ?? last?.close
+      const pc = prev?.c ?? prev?.close
+      setMeta({
+        company: want.company || m?.value?.name || m?.value?.company || '',
+        price: want.price != null ? want.price : (Number.isFinite(c) ? c : null),
+        chg: want.chg != null ? want.chg
+          : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
+      })
+    })
+    return () => { alive = false }
+  }, [sym, company, price, chg])
+
   // Signal readiness once the chart has had time to fetch bars + paint. No
   // onReady hook on StockChart, so a paint-settle delay is the pragmatic guard.
   //
@@ -118,11 +158,13 @@ export default function ChartRender() {
       <div id="chart-export" style={{ width: w, background: pageBg }}>
         <div style={{ height: 40, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 14, position: 'relative' }}>
           <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 18 }}>{sym}</span>
-          {company && <span style={{ marginLeft: 8, color: '#9aa08f', fontSize: 13 }}>({company})</span>}
-          <span style={{ marginLeft: 12 }}>{TF_LABEL[tf] || tf}</span>
+          {meta.company && <span style={{ marginLeft: 8, color: '#9aa08f', fontSize: 13 }}>({meta.company})</span>}
+          {/* RAW code ('D'), not 'Daily' - composeScreenshot draws opts.tf
+              verbatim, and these two headers sit in the same issue. */}
+          <span style={{ marginLeft: 12 }}>{tf}</span>
           {/* NOT hardcoded #fff — white on a cream canvas is an invisible price. */}
-          {price > 0 && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>${price.toFixed(2)}</span>}
-          {Number.isFinite(chg) && <span style={{ marginLeft: 8, color: chg >= 0 ? '#22c55e' : '#ef4444' }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>}
+          {meta.price != null && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>${meta.price.toFixed(2)}</span>}
+          {meta.chg != null && <span style={{ marginLeft: 8, color: meta.chg >= 0 ? '#22c55e' : '#ef4444' }}>{meta.chg >= 0 ? '+' : ''}{meta.chg.toFixed(2)}%</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
