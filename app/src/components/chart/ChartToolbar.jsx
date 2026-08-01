@@ -6,6 +6,8 @@ import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import PatternToolbarButton from './PatternToolbarButton'
+import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
+import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import styles from './ChartToolbar.module.css'
 
@@ -108,6 +110,7 @@ const CROSSHAIR_STYLES = [
 
 function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   const cs = chartSettings
+  const isPaid = useIsPaid()
 
   const update = useCallback((path, value) => {
     const next = { ...cs }
@@ -613,6 +616,26 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               <option value="light">Light</option>
             </select>
           </label>
+        </div>
+      </div>
+
+      {/* UCT Signature — premium overlays. Free users get the rows disabled with
+          a lock, not hidden: the affordance is the sales pitch. The authoritative
+          gate is the backend's 402 (and the fetch hook's own isPaid check) — this
+          only decides what the panel offers. */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>UCT Signature</span>
+        <div className={styles.sRow}>
+          {SIGNATURE_ROWS.map(([key, label, tip]) => (
+            <label key={key} className={styles.sCheck} title={isPaid ? tip : SIGNATURE_LOCKED_TITLE}>
+              <input type="checkbox"
+                disabled={!isPaid}
+                checked={cs.signature?.[key] ?? false}
+                onChange={e => update(`signature.${key}`, e.target.checked)} />
+              {label}
+              {!isPaid && <UIcon name="lock" size={10} gold />}
+            </label>
+          ))}
         </div>
       </div>
 
