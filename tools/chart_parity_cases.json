@@ -1,0 +1,127 @@
+{
+  "note": [
+    "Case list for tools/chart_parity.py — the Phase B Flip A parity gate.",
+    "",
+    "Each case is a URL for the headless /r/chart route: a committed bar fixture",
+    "(`fixedbars`), one chart preset, and a PARTIAL chart_settings blob describing",
+    "exactly the indicator under test. The harness base64url-encodes preset+settings",
+    "into ?indicators= and screenshots the #chart-export element on two builds.",
+    "",
+    "The four live cases are the Flip A pilot. The rest are NAME-ONLY placeholders:",
+    "B3 fills in each one's settings blob when it migrates that indicator, so the",
+    "list already states the full obligation instead of quietly shrinking to what",
+    "was easy. `--include-placeholders` runs them; the default run skips them.",
+    "",
+    "Tolerance is 0 everywhere and should stay 0 — see report.md's 'Reading this'.",
+    "A per-case `tolerance` must be accompanied by `toleranceReason`.",
+    "",
+    "DO NOT change `defaults.fixedbars`, `w`, `h` or the preset without re-capturing",
+    "every stored baseline: they are part of what a baseline PNG means."
+  ],
+
+  "defaults": {
+    "sym": "PARITY",
+    "tf": "D",
+    "fixedbars": "ramp200",
+    "w": 1200,
+    "h": 620,
+    "bars": 200,
+    "preset": "classic_flat",
+    "tolerance": 0
+  },
+
+  "presets": {
+    "classic_flat": {
+      "_why": "The 'Classic Dark' preset (= CHART_DEFAULTS) with the four MA overlays and the watermark removed, so the indicator under test is the dominant ink on the canvas and a diff is attributable to it rather than to an EMA that happens to cross it. Volume keeps its own pane because a pane-count change is itself a regression worth catching.",
+      "chartType": "candles",
+      "background": "#0e0f0d",
+      "bgMode": "solid",
+      "textColor": "#706b5e",
+      "textSize": 11,
+      "grid": { "color": "rgba(46,49,39,0.25)", "visible": true },
+      "crosshair": { "color": "#706b5e", "style": 1, "width": 1, "magnet": false },
+      "candleColorMode": "netchange",
+      "candles": {
+        "upColor": "#1ae51a", "downColor": "#c41f2d",
+        "upBorder": "#1ae51a", "downBorder": "#c41f2d",
+        "upWick": "#1ae51a", "downWick": "#c41f2d",
+        "thinBars": true
+      },
+      "overlays": [],
+      "volume": {
+        "visible": true, "upColor": "#1ae51a", "downColor": "#c41f2d",
+        "hvcEnabled": true, "separatePane": true, "paneHeightPct": 22,
+        "labelVisible": true, "maPeriod": 50, "barStyle": "columns"
+      },
+      "watermark": { "visible": false },
+      "swingLabels": { "enabled": false },
+      "markers": { "earnings": false, "splits": false, "dividends": false, "news": false },
+      "signature": { "darkPoolLevels": false, "gexWalls": false, "flowSignals": false },
+      "heikinAshi": false,
+      "logScale": false,
+      "percentScale": false,
+      "showPatterns": false,
+      "comparisonSymbols": []
+    }
+  },
+
+  "cases": [
+    {
+      "name": "bb_only",
+      "why": "Overlay on the price pane — the migration must land the three bands on the same pixels, in the same order, with the same fill.",
+      "settings": {
+        "indicators": {
+          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+        }
+      }
+    },
+    {
+      "name": "rsi_only",
+      "why": "Single-line separate pane — proves pane creation, height and the 30/70 guides survive the move.",
+      "settings": {
+        "indicators": {
+          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+        }
+      }
+    },
+    {
+      "name": "macd_only",
+      "why": "Three outputs in one pane, one of them a sign-coloured histogram. The B1 note in indicators.js says StockChart masks the MACD line's head back to the signal's first bar — this case is what proves that mask is still there.",
+      "settings": {
+        "indicators": {
+          "macd": {
+            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          }
+        }
+      }
+    },
+    {
+      "name": "bb_rsi_macd",
+      "why": "All three at once: an overlay plus TWO extra panes. Catches pane-ordering and pane-height regressions that no single-indicator case can see.",
+      "settings": {
+        "indicators": {
+          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
+          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" },
+          "macd": {
+            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          }
+        }
+      }
+    },
+
+    { "name": "vwap_only", "status": "placeholder", "settings": {} },
+    { "name": "stoch_only", "status": "placeholder", "settings": {} },
+    { "name": "atr_only", "status": "placeholder", "settings": {} },
+    { "name": "sar_only", "status": "placeholder", "settings": {} },
+    { "name": "ichimoku_only", "status": "placeholder", "settings": {} },
+    { "name": "mfi_only", "status": "placeholder", "settings": {} },
+    { "name": "cci_only", "status": "placeholder", "settings": {} },
+    { "name": "williams_r_only", "status": "placeholder", "settings": {} },
+    { "name": "adx_only", "status": "placeholder", "settings": {} },
+    { "name": "obv_only", "status": "placeholder", "settings": {} },
+    { "name": "donchian_only", "status": "placeholder", "settings": {} },
+    { "name": "volume_profile_only", "status": "placeholder", "settings": {} }
+  ]
+}

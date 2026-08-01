@@ -8,15 +8,90 @@
 //
 // Public route (no AuthGuard). /api/bars is public, so no session is needed.
 // A ?token= (checked against VITE_CHART_RENDER_TOKEN) blocks casual abuse.
+//
+// ─── ALSO: this route is the CHART PARITY GATE surface (Phase B1, Task 7) ────
+//
+// `tools/chart_parity.py` drives this page to prove a migrated indicator renders
+// pixel-identically to the legacy one. Three things here are load-bearing for
+// that and must not be "simplified" away:
+//
+//   1. `window.__chartReady` — the harness waits on it. It must stay FALSE until
+//      settings AND (in fixed-bars mode) the bar fixture have landed, or a
+//      screenshot can be taken mid-theme and the gate goes intermittently red.
+//   2. `#chart-export` — the harness screenshots that ELEMENT, not the page.
+//   3. `?fixedbars=` + `?indicators=` — see the param block below. Live bars make
+//      two runs differ, which is the whole reason the repo had no diffing before.
+//
+// Adding a new *always-on* dynamic element inside #chart-export (a clock, a
+// "last updated", a random tip) breaks the gate for every case at once. If you
+// need one, freeze it under `?fixedbars=` like the footer stamp already is.
+//
+// None of it changes this page's existing behaviour: with neither param present
+// the route resolves exactly as before, which is what keeps the Sunday Scans /
+// Substack renderer out of the blast radius.
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart from '../components/StockChart'
+import { mergeSettingsOverride } from '../components/chart/chartDefaults'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
 const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
+
+/** `?indicators=` is base64url so a settings blob survives a URL untouched. */
+function decodeSettingsParam(raw) {
+  if (!raw) return null
+  try {
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+    const bin = atob(padded)
+    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0))
+    const parsed = JSON.parse(new TextDecoder().decode(bytes))
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null
+  } catch {
+    // A malformed param must not blank the chart — it degrades to "no override",
+    // and the harness catches the miss because the diff is then non-zero.
+    return null
+  }
+}
+
+// ─── Hermetic mode (fixed-bars parity captures only) ─────────────────────────
+// With `?fixedbars=` the page must render the SAME pixels on every run, on any
+// machine, forever. Bars come from the committed fixture, but the page still
+// reaches for /api/ticker-meta (watermark sector/industry), /api/auth/preferences
+// (chart_settings) and /api/r/chart-settings — every one of which is a live value
+// that can differ between the baseline capture and the candidate capture and show
+// up as a "regression" that is really just the server having changed its mind.
+//
+// So in fixed-bars mode every /api/ call is short-circuited to a 503 with an empty
+// JSON body. Each of those call sites already treats a non-ok response as "no data"
+// (`r.ok ? r.json() : null`, or SWR's error path), so the page settles on schema
+// defaults + whatever `?indicators=` pins — which is exactly the state a parity
+// case is supposed to describe. It also means the gate runs against a bare
+// `vite dev` with no backend at all.
+//
+// The patch is process-wide and one-way, so it is installed ONLY when
+// `?fixedbars=` is present: a headless capture never navigates anywhere else,
+// but a human who did would find /api dead until reload.
+let _hermeticInstalled = false
+function installHermeticFetch() {
+  if (_hermeticInstalled || typeof window === 'undefined' || !window.fetch) return
+  _hermeticInstalled = true
+  const real = window.fetch.bind(window)
+  window.fetch = (input, init) => {
+    const url = String(typeof input === 'string' ? input : (input?.url || input || ''))
+    if (url.includes('/api/')) {
+      return Promise.resolve(new Response('{}', {
+        status: 503,
+        statusText: 'parity-hermetic',
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    }
+    return real(input, init)
+  }
+}
 
 export default function ChartRender() {
   const [sp] = useSearchParams()
@@ -37,6 +112,22 @@ export default function ChartRender() {
   const barsOverride = (() => { const v = parseInt(sp.get('bars') || '', 10); return Number.isFinite(v) && v > 0 ? Math.min(1200, v) : null })()
   const extParam = sp.get('ext')
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
+
+  // ── Parity-gate params (see the header comment) ────────────────────────────
+  //   ?indicators=<base64url JSON>  a PARTIAL chart_settings blob, deep-merged
+  //            over whatever settings this page already resolved. This is how a
+  //            parity case says "BB on, period 20, this exact colour" without a
+  //            logged-in session or a stored preference anywhere.
+  //   ?fixedbars=<name>  render the committed bar fixture at
+  //            src/pages/parityBars/<name>.json instead of fetching live data,
+  //            and go hermetic (no /api/ at all). Live bars move between the
+  //            baseline capture and the candidate capture, so without this the
+  //            diff measures the tape, not the code.
+  const indicatorsParam = useMemo(() => decodeSettingsParam(sp.get('indicators')), [sp])
+  // Sanitised: this value indexes a dynamic import, so it may only ever name a
+  // file, never traverse to one.
+  const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
+  if (fixedBars) installHermeticFetch()
 
   const lvl = (k) => { const v = parseFloat(sp.get(k) || ''); return Number.isFinite(v) && v > 0 ? v : null }
   const entry = lvl('entry'), stop = lvl('stop'), t1 = lvl('t1'), t2 = lvl('t2')
@@ -67,6 +158,10 @@ export default function ChartRender() {
   useEffect(() => {
     let alive = true
     const done = (v) => { if (alive) { setOwnerSettings(v); setSettingsSettled(true) } }
+    // A parity case pins its OWN settings and must not inherit his live theme —
+    // otherwise every stored baseline silently expires the next time he changes
+    // a colour in Settings.
+    if (fixedBars) { done(null); return () => { alive = false } }
     fetch(`/api/r/chart-settings?token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => done(j?.chart_settings || null))
@@ -74,10 +169,38 @@ export default function ChartRender() {
       // the chart itself.
       .catch(() => done(null))
     return () => { alive = false }
-  }, [token])
+  }, [token, fixedBars])
 
   // Identity-stable: settingsOverride is a memo dep on StockChart.
-  const csOverride = useMemo(() => ownerSettings || null, [ownerSettings])
+  // Precedence: schema defaults < owner blob < ?indicators=. mergeSettingsOverride
+  // is the same deep-merge the multi-chart grid uses for per-cell overrides, so
+  // `{indicators: {bb: {enabled: true}}}` turns BB on without erasing the rest of
+  // the indicators section.
+  const csOverride = useMemo(() => {
+    if (!ownerSettings && !indicatorsParam) return null
+    if (!indicatorsParam) return ownerSettings
+    return mergeSettingsOverride(ownerSettings || {}, indicatorsParam)
+  }, [ownerSettings, indicatorsParam])
+
+  // The committed bar fixture. Dynamic import (not fetch) so it needs no static
+  // route and costs the normal bundle nothing — Vite splits it into its own chunk
+  // that only a ?fixedbars= load ever pulls.
+  const [fixtureBars, setFixtureBars] = useState(null)
+  const [fixtureSettled, setFixtureSettled] = useState(!fixedBars)
+  useEffect(() => {
+    if (!fixedBars) { setFixtureBars(null); setFixtureSettled(true); return undefined }
+    let alive = true
+    setFixtureSettled(false)
+    import(`./parityBars/${fixedBars}.json`)
+      .then((m) => {
+        if (!alive) return
+        const b = (m?.default?.bars || m?.bars)
+        setFixtureBars(Array.isArray(b) && b.length ? b : null)
+        setFixtureSettled(true)
+      })
+      .catch(() => { if (alive) { setFixtureBars(null); setFixtureSettled(true) } })
+    return () => { alive = false }
+  }, [fixedBars])
 
   // Company / price / change, when the caller did not supply them.
   //
@@ -97,6 +220,22 @@ export default function ChartRender() {
     let alive = true
     const want = { company: company || '', price: price > 0 ? price : null, chg: Number.isFinite(chg) ? chg : null }
     if (want.company && want.price != null && want.chg != null) { setMeta(want); return undefined }
+    // Fixed-bars mode reads the header straight off the fixture. Two runs of the
+    // same case therefore print the same price and the same change, which a live
+    // /api/bars lookup would not.
+    if (fixedBars) {
+      if (!fixtureSettled) return undefined
+      const last = fixtureBars?.length ? fixtureBars[fixtureBars.length - 1] : null
+      const prev = fixtureBars?.length > 1 ? fixtureBars[fixtureBars.length - 2] : null
+      const c = last?.c, pc = prev?.c
+      setMeta({
+        company: want.company,
+        price: want.price != null ? want.price : (Number.isFinite(c) ? c : null),
+        chg: want.chg != null ? want.chg
+          : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
+      })
+      return undefined
+    }
     Promise.allSettled([
       want.company ? Promise.resolve(null) : fetch(`/api/ticker-meta/${encodeURIComponent(sym)}`).then((r) => (r.ok ? r.json() : null)),
       (want.price != null && want.chg != null)
@@ -117,20 +256,22 @@ export default function ChartRender() {
       })
     })
     return () => { alive = false }
-  }, [sym, company, price, chg])
+  }, [sym, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
 
   // Signal readiness once the chart has had time to fetch bars + paint. No
   // onReady hook on StockChart, so a paint-settle delay is the pragmatic guard.
   //
   // Gated on the settings landing first — otherwise the screenshot can be taken
   // while the chart is still wearing the default theme, and the fix would land
-  // intermittently (the worst kind of "it works on my machine").
+  // intermittently (the worst kind of "it works on my machine"). The bar fixture
+  // is gated for the same reason: until it lands StockChart is showing a spinner,
+  // and a parity baseline of a spinner passes forever.
   useEffect(() => {
     window.__chartReady = false
-    if (!settingsSettled) return undefined
+    if (!settingsSettled || !fixtureSettled) return undefined
     const t = setTimeout(() => { window.__chartReady = true }, 3500)
     return () => clearTimeout(t)
-  }, [sym, tf, settingsSettled])
+  }, [sym, tf, settingsSettled, fixtureSettled])
 
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
@@ -142,9 +283,11 @@ export default function ChartRender() {
   // footer blend seamlessly"). Hardcoding #0a0a0a/#161616 was invisible while
   // the export was always dark; the moment the owner's light theme arrives, a
   // near-black header strip over a cream chart reads as a broken image.
-  const pageBg = ownerSettings?.background || '#0a0a0a'
-  const chromeBg = ownerSettings?.background || '#161616'
-  const chromeText = ownerSettings?.textColor || '#888'
+  // Reads the MERGED blob, not the owner's alone, so a parity case that pins a
+  // background gets matching chrome instead of a near-black strip over it.
+  const pageBg = csOverride?.background || '#0a0a0a'
+  const chromeBg = csOverride?.background || '#161616'
+  const chromeText = csOverride?.textColor || '#888'
 
   return (
     <div style={{ background: pageBg, minHeight: '100vh' }}>
@@ -194,18 +337,27 @@ export default function ChartRender() {
             visibleBarsOverride={barsOverride}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}
+            barsOverride={fixtureBars}
+            barsOverridePending={!!fixedBars && !fixtureSettled}
             volumeSeparatePane
             alwaysShowLegend
             liveUpdates={false}
           />
         </div>
         <div style={{ height: 20, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 10 }}>
-          {/* Traders read ET — a "03:20 UTC" stamp on a 7:35am letter reads broken. */}
+          {/* Traders read ET — a "03:20 UTC" stamp on a 7:35am letter reads broken.
+              FROZEN in fixed-bars mode: a wall-clock stamp inside #chart-export
+              changes every minute, so it alone would make two captures of an
+              unchanged chart differ. This is the one dynamic element in the
+              export, and it is why the parity gate needs a mode at all rather
+              than just a fixture. */}
           <span>
-            {new Intl.DateTimeFormat('en-US', {
-              timeZone: 'America/New_York', month: 'short', day: 'numeric',
-              hour: 'numeric', minute: '2-digit',
-            }).format(new Date())} ET
+            {fixedBars
+              ? `parity fixture · ${fixedBars}`
+              : `${new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York', month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit',
+              }).format(new Date())} ET`}
           </span>
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
