@@ -153,7 +153,16 @@ export default function ChartRender() {
       <style>{`#chart-export [class*="toolbar" i],
         #chart-export [class*="scaleToggle" i],
         #chart-export [class*="resetView" i],
-        #chart-export [class*="homeBtn" i]{display:none !important}
+        #chart-export [class*="homeBtn" i],
+        /* alwaysShowLegend seeds BOTH legends from the latest bar. The volume
+           strip is wanted; the OHLC/MA one is not - composeScreenshot drops it
+           (commit "drop the OHLC/MA legend"), so showing it here would put an
+           element in the newsletter charts that the hand-made ones never carry.
+           Matched on the class PREFIX: CSS modules hash these names, so
+           [class*="legend"] is the only form that survives the build - and it
+           must not also catch volLegend, hence the explicit re-show below. */
+        #chart-export [class*="legend" i]{display:none !important}
+        #chart-export [class*="volLegend" i]{display:flex !important}
         #chart-export{font-family:'Instrument Sans',-apple-system,Segoe UI,sans-serif}`}</style>
       <div id="chart-export" style={{ width: w, background: pageBg }}>
         <div style={{ height: 40, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 14, position: 'relative' }}>
@@ -186,6 +195,7 @@ export default function ChartRender() {
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}
             volumeSeparatePane
+            alwaysShowLegend
             liveUpdates={false}
           />
         </div>
