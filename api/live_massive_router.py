@@ -126,6 +126,14 @@ DEFAULT_THRESHOLDS = {
     # to cut the ~70s curated scan that starves WS ingestion -> blank sides. Dark
     # by default; flip live in the ?tune=1 panel. See _incr_classify.
     "incremental_scan": False,
+    # Open/close (profit-take) detector — Phase 1 (DARK, marker-only, additive).
+    # When on, a bid-side SELL whose contract already built a NET-LONG position
+    # earlier this session (net_before >= this print's size * close_net_frac) is
+    # stamped _likelyClose = a probable close/profit-take, NOT a new directional
+    # bet. Phase 1 only MARKS it (direction unchanged) so it can be validated vs
+    # next-day OI. See _build_session_flow_ledger / _mark_likely_close.
+    "close_detector_enabled": False,
+    "close_net_frac": 1.0,
     "stack": {
         "min_signals": 1,         # min quality confirmers (out of 3); premium always required
         "vOI": 3.0,
@@ -961,6 +969,87 @@ def _derive_direction(cp: str, side: str, type_: str = "", vol=None, oi=None):
         if side_is_ask: return "Bear"   # PUT bought = bearish bet
         if side_is_bid: return "Bull"   # PUT sold = bullish bet
     return None
+
+
+# ─── Open/close (profit-take) detector — session flow ledger ───────────────
+# Phase 1 (DARK, additive). Direction today is derived from the fill side alone
+# (_derive_direction), so a bid-side SELL is always stamped bearish (call) /
+# bullish-unwind (put) even when it's really CLOSING a long built earlier the
+# SAME session — a profit-take, not a new position. The T-1 OI "opening test"
+# in _derive_direction can't see intraday round-trips (it reads yesterday's OI:
+# a morning buy-to-open then afternoon sell-to-close both read vol > T-1 OI =
+# "opening"). This ledger tracks per-(contract, session) signed net volume from
+# the tape itself, so a same-day close is distinguishable from an open.
+#
+# Phase 1 only MARKS the suspect prints (a["_likelyClose"]) so the signal can be
+# validated vs next-day OI before it's trusted to move any label. Gated by the
+# close_detector_enabled threshold (default False). Phase 2 feeds it into
+# _derive_direction + replaces the T-1 OI opening test.
+
+def _signed_flow_vol(side, volume) -> float:
+    """Realized buy/sell pressure for one print: at/above ask lifts (+),
+    at/below bid hits (−), blank/mid is unsigned (0). Independent of the
+    strict-bid DIRECTION gate — this measures actual flow, not conviction."""
+    s = (side or "").strip().upper()
+    try:
+        v = float(volume or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if s in ("A", "AA"):
+        return v
+    if s in ("B", "BB"):
+        return -v
+    return 0.0
+
+
+def _build_session_flow_ledger(rows) -> dict:
+    """net_before[row_id] = cumulative signed session volume on that row's
+    contract from every print with a SMALLER id (id is monotonic with ingest
+    time, so smaller id ≈ earlier in the session). Rows may arrive in any order.
+    Pure + testable. Contract = (ticker, cp, strike, exp).
+
+    NOTE (Phase 1 approximation): fed only the curated scan's fetched rows
+    (MAGENTA/YELLOW/WHITE≥override-floor), so it captures the significant
+    directional flow but not sub-floor WHITE churn. Good enough to eyeball the
+    marker; Phase 2 can widen to the full tape if the signal proves out."""
+    per: dict = {}   # contract_key -> list[(id, signed_vol)]
+    for r in rows:
+        rid = r["id"]
+        if rid is None:
+            continue
+        key = (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])
+        per.setdefault(key, []).append((rid, _signed_flow_vol(r["Side"], r["Volume"])))
+    net_before: dict = {}
+    for items in per.values():
+        items.sort(key=lambda t: t[0])          # id ascending = time ascending
+        run = 0.0
+        for rid, sv in items:
+            net_before[rid] = run                # net STRICTLY BEFORE this print
+            run += sv
+    return net_before
+
+
+def _mark_likely_close(a: dict, net_before_map: dict, thresholds: dict) -> None:
+    """Phase 1 marker (DARK). Stamp a["_likelyClose"] on a bid-side print whose
+    contract accumulated a NET-LONG position earlier this session (net_before > 0
+    AND >= this print's size × close_net_frac) → the sell is likely unwinding
+    longs (profit-take), not opening a short. Direction is UNCHANGED. No-op
+    unless close_detector_enabled."""
+    if not thresholds.get("close_detector_enabled", False):
+        return
+    if (a.get("_side") or "").strip().upper() not in ("B", "BB"):
+        return
+    nb = net_before_map.get(a.get("id"), 0.0)
+    if nb <= 0:
+        return
+    try:
+        frac = float(thresholds.get("close_net_frac", 1.0) or 0)
+        vol = float(a.get("tradeSize") or 0)
+    except (TypeError, ValueError):
+        frac, vol = 1.0, 0.0
+    if frac > 0 and nb >= vol * frac:
+        a["_likelyClose"] = True
+        a["_sessionNetBefore"] = round(nb)
 
 
 def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None):
@@ -2387,6 +2476,12 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     _incremental = bool(_load_thresholds().get("incremental_scan", False))
     if _incremental:
         _incr_prepare(today)
+    # Open/close detector (Phase 1, dark): build the session net-volume ledger
+    # from the fetched tape once (id = time proxy); _mark_likely_close stamps
+    # surviving bid-side alerts below. No cost when close_detector_enabled off.
+    _close_th = _load_thresholds()
+    _net_before = (_build_session_flow_ledger(rows)
+                   if _close_th.get("close_detector_enabled", False) else {})
     for r in rows:
         a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
         if a is None:
@@ -2398,6 +2493,7 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
         if tier and a.get("_tierKey") != tier:
             skipped_off_tier += 1
             continue
+        _mark_likely_close(a, _net_before, _close_th)
         all_alerts.append(a)
 
     if sort_by == "conviction":
@@ -4604,6 +4700,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_min_legs",         # distinct contracts that make it a structure
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
+        "close_detector_enabled",    # open/close detector Phase 1: mark bid-side closes (dark)
+        "close_net_frac",            # net-long multiple of print size that flags a likely close
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:

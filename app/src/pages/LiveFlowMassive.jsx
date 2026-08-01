@@ -1317,6 +1317,20 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
                 <span style={{ color: alphaAccent, fontWeight: 700 }}>{dirIsBull ? "Bull" : "Bear"}</span></>)
             : alert.alertName}
         </span>
+        {/* Open/close detector (Phase 1, dark): non-destructive "possible close"
+            marker. Shows only when the backend stamps _likelyClose (gated by the
+            close_detector_enabled threshold). Direction label is unchanged. */}
+        {alert._likelyClose && (
+          <span
+            title={`Possible close / profit-take: this contract built a net-long position (~${(alert._sessionNetBefore ?? 0).toLocaleString?.() ?? alert._sessionNetBefore} contracts) earlier this session, so this bid-side sell is likely unwinding longs, not a new bearish bet. Marker only — direction unchanged.`}
+            style={{
+              marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#d9a441",
+              border: "1px solid #6b5417", borderRadius: 3, padding: "0 4px",
+              whiteSpace: "nowrap", flexShrink: 0, cursor: "help",
+            }}>
+            {"⚠ close?"}
+          </span>
+        )}
       </span>
 
       {/* Admin-only POSTED + PUSH — the manual-push feedback loop. POSTED shows
