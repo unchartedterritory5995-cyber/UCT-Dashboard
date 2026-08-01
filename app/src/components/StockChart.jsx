@@ -30,9 +30,12 @@ import ChartToolbar from './chart/ChartToolbar'
 import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
+import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { usePatternDetections } from '../hooks/usePatternDetections'
+import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
+import { useIsPaid } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
@@ -1434,9 +1437,20 @@ export default function StockChart({
   // Curated book charts opt out of the viewer's personal Journal 2.0 overlay so
   // their own BUY/SELL trade markers don't bleed onto setup examples.
   const j2 = hideJournalOverlay ? EMPTY_J2 : j2Raw
+
+  // ── Signature indicators (dark-pool levels · GEX walls · flow-confirmed breakouts) ──
+  // Sits with the other overlay data hooks that feed the two merge memos below.
+  // Everything is `[]` unless the viewer is paid AND that toggle is on — the hook
+  // nulls its SWR keys otherwise, so an off/unpaid chart makes no request at all
+  // (the usePatternDetections suppression idiom). Each array is memoized on its
+  // payload, so the reference-guarded appliers below don't rebuild per tick.
+  const isPaidUser = useIsPaid()
+  const { dpLines, dpZones, gexLines, flowMarkers } =
+    useSignatureIndicators(sym, cs.signature, isPaidUser, resolvedTf)
+
   const mergedMarkers = useMemo(
     () => {
-      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers]
+      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...flowMarkers]
       // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
       // use date strings (sortable lexicographically), intraday uses unix seconds.
       return all.sort((a, b) => {
@@ -1449,11 +1463,11 @@ export default function StockChart({
         return String(ta).localeCompare(String(tb))
       })
     },
-    [markers, j2.markers, chartEventMarkers, newsMarkers],
+    [markers, j2.markers, chartEventMarkers, newsMarkers, flowMarkers],
   )
   const mergedPriceLines = useMemo(
-    () => [...(priceLines || []), ...(j2.priceLines || [])],
-    [priceLines, j2.priceLines],
+    () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines],
+    [priceLines, j2.priceLines, dpLines, gexLines],
   )
 
   // Prop overrides — memoized to prevent unstable references
@@ -1488,6 +1502,9 @@ export default function StockChart({
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const swingPointsRef = useRef([])       // latest swing pivots — redrawn into the PNG screenshot
+  const zonesCtlRef = useRef(null)        // dark-pool level-zones series primitive controller
+  const zonesAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const lastDpZonesRef = useRef(undefined) // identity guard — see the setZones call
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
@@ -4929,6 +4946,7 @@ export default function StockChart({
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
       swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
       earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
+      zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
     }
 
     if (!candleSeriesRef.current) {
@@ -6112,6 +6130,30 @@ export default function StockChart({
       swingCtrlRef.current.setPoints(swingPoints)
     }
 
+    // ── Dark-pool level zones (custom v5 series primitive, behind the series) ──
+    // Attached to the CANDLE series, not the volume series: the band edges are
+    // placed with priceToCoordinate, which maps against the series' own scale —
+    // on the volume series these prices would map against the VOLUME scale.
+    if (candleSeriesRef.current) {
+      if (!zonesCtlRef.current) zonesCtlRef.current = createLevelZonesPrimitive({})
+      if (!zonesAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(zonesCtlRef.current.primitive)
+          zonesAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      // setZones forces a primitive redraw and this block runs on EVERY
+      // updateChart, so re-setting an identical list pays for a repaint that
+      // draws the same pixels — the lastShadeBandsRef guard, one primitive over.
+      // `dpZones` is the single channel for data AND visibility: the hook nulls
+      // its SWR key when the toggle is off or the viewer is unpaid, so "off" is
+      // already `[]` (the primitive's own off switch) with a stable identity.
+      if (lastDpZonesRef.current !== dpZones) {
+        lastDpZonesRef.current = dpZones
+        zonesCtlRef.current.setZones(dpZones)
+      }
+    }
+
     // ── Earnings "E" badge (custom v5 series primitive) ──
     if (candleSeriesRef.current) {
       if (!earnBadgeRef.current) earnBadgeRef.current = createEarningsBadgePrimitive({})
@@ -6476,7 +6518,7 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -8793,6 +8835,8 @@ export default function StockChart({
         prevChartTypeRef.current = null
         wmAttachedRef.current = false
         sessionShadeAttachedRef.current = false
+        zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
+        lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
         lastCfgSigRef.current = null
         prevBarsRef.current = null
         prevPaintBarsRef.current = null
