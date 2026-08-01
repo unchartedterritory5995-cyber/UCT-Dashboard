@@ -1962,6 +1962,9 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
     try { localStorage.setItem("uct_massive_tune_collapsed", nv ? "1" : "0"); } catch {}
     return nv;
   });
+  // Weekly Conviction manual controls (lookback + cap) — rendered in the AUTO-PUSH box.
+  const [wfDays, setWfDays] = useState(5);
+  const [wfCap, setWfCap] = useState("all");
   if (!thresholds) {
     return (
       <div style={{
@@ -2122,6 +2125,55 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <span style={{ fontSize: 10, color: P.dm, marginLeft: 10 }}>
               posts the whole day's list as one image
             </span>
+          </div>
+          {/* Weekly Conviction Flow — manual preview/push with adjustable lookback
+              (5/20/60d) + cap (all / mid-small). Hits POST /weekly-flow. */}
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${P.dm}`,
+            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>WEEKLY CONVICTION</span>
+            {[5, 20, 60].map(dd => {
+              const on = wfDays === dd;
+              return (
+                <button key={dd} onClick={() => setWfDays(dd)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{dd}d</button>
+              );
+            })}
+            <span style={{ width: 6 }} />
+            {[["all", "All"], ["mid_small", "Mid-Small"]].map(([c, lbl]) => {
+              const on = wfCap === c;
+              return (
+                <button key={c} onClick={() => setWfCap(c)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
+              );
+            })}
+            <button
+              onClick={async () => {
+                try {
+                  const r = await fetch(`/api/live/massive/weekly-flow?post=0&days=${wfDays}&cap=${wfCap}`, { method: "POST" });
+                  if (!r.ok) { window.alert("Preview failed: HTTP " + r.status); return; }
+                  const b = await r.blob();
+                  if (b.type.startsWith("image")) window.open(URL.createObjectURL(b));
+                  else window.alert("No image — " + (await b.text()));
+                } catch (e) { window.alert("Preview failed: " + e); }
+              }}
+              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                background: "transparent", color: P.wh, border: `1px solid ${P.bd}` }}>👁 Preview</button>
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Post the Weekly Conviction card (${wfDays}d · ${wfCap}) to Discord?`)) return;
+                try {
+                  const r = await fetch(`/api/live/massive/weekly-flow?post=1&days=${wfDays}&cap=${wfCap}`, { method: "POST" });
+                  const j = await r.json();
+                  window.alert(j.posted ? `Posted (${wfDays}d ${wfCap}) ✓ — ${j.names} names`
+                    : `Not posted — ${j.reason || j.detail || "unknown"}`);
+                } catch (e) { window.alert("Push failed: " + e); }
+              }}
+              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                background: P.ac, color: P.bg, border: "none" }}>★ Push → Discord</button>
           </div>
         </div>
       )}
