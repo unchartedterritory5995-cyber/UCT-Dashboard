@@ -1444,9 +1444,17 @@ export default function StockChart({
   // nulls its SWR keys otherwise, so an off/unpaid chart makes no request at all
   // (the usePatternDetections suppression idiom). Each array is memoized on its
   // payload, so the reference-guarded appliers below don't rebuild per tick.
+  //
+  // OFF on a date-framed historical chart (`exactDateRange`: Model Book years,
+  // Setup Library / Bottoms examples). Those truncate `filteredBars` at the
+  // framed year-end (see the exactSliceEnd slice), and lightweight-charts does
+  // NOT drop a marker past the end — it snaps it to the nearest bar — so a 2026
+  // FCB signal would plant a confident arrow on the last candle of a 2016
+  // teaching chart. An undefined cfg nulls all three SWR keys, which also saves
+  // three paid fetches on every curated-chart view.
   const isPaidUser = useIsPaid()
   const { dpLines, dpZones, gexLines, flowMarkers } =
-    useSignatureIndicators(sym, cs.signature, isPaidUser, resolvedTf)
+    useSignatureIndicators(sym, exactDateRange ? undefined : cs.signature, isPaidUser, resolvedTf)
 
   const mergedMarkers = useMemo(
     () => {

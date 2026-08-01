@@ -78,6 +78,12 @@ const OPTS = {
   refreshInterval: 120_000,
   revalidateOnFocus: false,
   dedupingInterval: 30_000,
+  // A 402 (plan lapsed mid-session with a toggle still on) is a PERMANENT
+  // condition, and SWR's default is to retry an error forever on exponential
+  // backoff — with no isDocumentVisible guard in this build, that keeps hitting
+  // a paid gate from a tab nobody is looking at. Two retries covers a transient
+  // blip; anything past that needs a reload, not a poll.
+  errorRetryCount: 2,
 }
 
 /**

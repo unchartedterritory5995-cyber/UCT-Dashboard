@@ -6,9 +6,12 @@
 // hook — a rename on either side turns every toggle into a permanent no-op with
 // no error anywhere. Comparing against `Object.keys(CHART_DEFAULTS.signature)`
 // (not a hard-coded list) is what makes this a real gate.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { createElement } from 'react'
+import { renderHook, waitFor } from '@testing-library/react'
+import { SWRConfig } from 'swr'
 import { CHART_DEFAULTS } from '../components/chart/chartDefaults'
-import { signatureUrls, SIGNATURE_TOGGLE } from './useSignatureIndicators'
+import { signatureUrls, SIGNATURE_TOGGLE, useSignatureIndicators } from './useSignatureIndicators'
 
 const ALL_NULL = { dpl: null, gxw: null, fcb: null }
 
@@ -62,6 +65,53 @@ describe('signature request suppression', () => {
       dpl: '/api/signature/darkpool-levels?sym=BRK-B',
       gxw: '/api/signature/gex-walls?sym=BRK-B',
       fcb: '/api/signature/flow-breakout?sym=BRK-B',
+    })
+  })
+
+  // StockChart passes `exactDateRange ? undefined : cs.signature` — an undefined
+  // cfg is the OFF SWITCH for date-framed historical charts (Model Book years,
+  // Setup Library / Bottoms examples), where filteredBars is truncated at the
+  // framed year-end and lightweight-charts would SNAP a present-day FCB marker
+  // onto the final candle of a decade-old teaching chart. StockChart is never
+  // rendered in vitest, so this pins the contract the call site depends on at
+  // the hook level: no fetches, and empty arrays for every consumer.
+  describe('undefined cfg (the date-framed-chart off switch)', () => {
+    const wrapper = ({ children }) => createElement(
+      SWRConfig,
+      { value: { provider: () => new Map(), dedupingInterval: 0 } },
+      children,
+    )
+    let origFetch
+    beforeEach(() => { origFetch = globalThis.fetch })
+    afterEach(() => { globalThis.fetch = origFetch; vi.restoreAllMocks() })
+
+    it('fires zero fetches and returns all-empty arrays', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      const { result } = renderHook(
+        () => useSignatureIndicators('AAPL', undefined, true, 'D'),
+        { wrapper },
+      )
+      // Let SWR's mount effects run — a suppressed key must stay suppressed
+      // across them, not merely on the first synchronous render.
+      await new Promise((r) => setTimeout(r, 0))
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+      expect(result.current).toEqual({
+        dpLines: [], dpZones: [], gexLines: [], flowMarkers: [],
+      })
+    })
+
+    it('…and the same harness DOES fetch when cfg is present', async () => {
+      // Positive control: without this, the assertion above would also pass if
+      // the hook never fetched at all.
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ levels: [] }) })
+      renderHook(
+        () => useSignatureIndicators('AAPL', { darkPoolLevels: true }, true, 'D'),
+        { wrapper },
+      )
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+        '/api/signature/darkpool-levels?sym=AAPL',
+        expect.objectContaining({ credentials: 'include' }),
+      ))
     })
   })
 
