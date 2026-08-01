@@ -39,11 +39,22 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function WatchlistSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
+export default function WatchlistSettingsPanel({
+  settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null,
+  templates = [], onApplyTemplate, onSaveTemplate, onDeleteTemplate,
+}) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)               // settings-menu position (left of the watchlist)
   const [activeTarget, setActiveTarget] = useState(null)  // { target, label } — which color is being edited
   const [colorPos, setColorPos] = useState(null)     // ColorPanel position (right of the menu)
+  const [tplName, setTplName] = useState('')         // "save current look" name field
+
+  const saveTpl = () => {
+    const name = tplName.trim()
+    if (!name) return
+    onSaveTemplate?.(name)
+    setTplName('')
+  }
 
   // Place the settings menu to the LEFT of the watchlist (flip to the right if there's
   // no room), portaled so the watchlist's overflow can't clip it.
@@ -208,6 +219,41 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
           <Row label="Company logos">
             <Toggle on={s.showLogos} onClick={() => set({ showLogos: !s.showLogos })} label="Toggle company logos" />
           </Row>
+
+          {/* Templates — save this look (canvas/colors + columns) and reapply it to
+              any watchlist later. No symbols are stored. */}
+          <div className={styles.sectionLabel}>Templates</div>
+          {templates.length > 0 && (
+            <div className={styles.tplList}>
+              {templates.map(t => (
+                <div key={t.id} className={styles.tplRow}>
+                  <button
+                    type="button"
+                    className={styles.tplApply}
+                    title={`Apply “${t.name}”`}
+                    onClick={() => onApplyTemplate?.(t)}
+                  >{t.name}</button>
+                  <button
+                    type="button"
+                    className={styles.tplDel}
+                    title="Delete template"
+                    onClick={() => onDeleteTemplate?.(t.id)}
+                  ><UIcon name="trash" size={12} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className={styles.tplSaveRow}>
+            <input
+              className={styles.tplInput}
+              placeholder="Save current look…"
+              value={tplName}
+              maxLength={60}
+              onChange={e => setTplName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveTpl() }}
+            />
+            <button type="button" className={styles.tplSaveBtn} disabled={!tplName.trim()} onClick={saveTpl}>Save</button>
+          </div>
         </div>
       </div>
 

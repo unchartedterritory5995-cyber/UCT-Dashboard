@@ -190,3 +190,85 @@
   transition: transform 0.15s ease;
 }
 .toggleOn .knob { transform: translateX(16px); background: #1ae51a; }
+
+/* ── Templates section ── */
+.tplList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0 8px;
+}
+.tplRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tplApply {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--menu-text, var(--text-bright, #e0dac8));
+  background: var(--menu-input-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--menu-border, var(--border, #2a3340));
+  border-radius: 5px;
+  padding: 5px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.12s, color 0.12s;
+}
+.tplApply:hover {
+  border-color: var(--menu-accent, var(--ut-gold, #c9a84c));
+  color: var(--menu-accent, var(--ut-gold, #c9a84c));
+}
+.tplDel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--menu-text-dim, var(--text-muted, #8b8674));
+  cursor: pointer;
+}
+.tplDel:hover { color: #ff3b47; background: rgba(255, 59, 71, 0.1); }
+.tplSaveRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.tplInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--menu-input-bg, var(--bg-elevated, #16181c));
+  border: 1px solid var(--menu-border, var(--border, #2a3340));
+  border-radius: 5px;
+  color: var(--menu-text, var(--text-bright, #e0dac8));
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 9px;
+  outline: none;
+}
+.tplInput:focus { border-color: var(--menu-accent, var(--ut-gold, #c9a84c)); }
+.tplInput::placeholder { color: var(--menu-text-dim, var(--text-muted, #8b8674)); }
+.tplSaveBtn {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  background: var(--menu-accent, var(--ut-gold, #c9a84c));
+  border: 1px solid var(--menu-accent, var(--ut-gold, #c9a84c));
+  border-radius: 5px;
+  color: #14100a;
+  cursor: pointer;
+}
+.tplSaveBtn:hover:not(:disabled) { filter: brightness(1.08); }
+.tplSaveBtn:disabled { opacity: 0.45; cursor: default; }
