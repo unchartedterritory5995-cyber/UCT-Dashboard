@@ -71,6 +71,11 @@ def _parse_mdy(s: str):
         return None
 
 
+def _dte_of(exp, ref: date | None = None) -> str:
+    d = _parse_mdy(exp)
+    return f"{(d - (ref or date.today())).days}d" if d else "—"
+
+
 # ── classification — PORT of flowCompute.js processFlowData (decision B) ───
 def _side_norm(s: str) -> str:
     s = (s or "").upper().strip()
@@ -322,10 +327,12 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float) -> dict:
         e["top"] = max(e["contracts"].values(), key=lambda c: c["prem"], default=None)
 
     names = list(tk.values())
-    bulls = sorted((e for e in names if e["bull"] > e["bear"]),
-                   key=lambda e: e["bull"], reverse=True)[:top_n]
-    bears = sorted((e for e in names if e["bear"] > e["bull"]),
-                   key=lambda e: e["bear"], reverse=True)[:top_n]
+    # Sort by NET premium (conviction): most-positive net = top bulls, most-
+    # negative = top bears. Rewards one-sided big bets over two-way battlegrounds.
+    bulls = sorted((e for e in names if e["net"] > 0),
+                   key=lambda e: e["net"], reverse=True)[:top_n]
+    bears = sorted((e for e in names if e["net"] < 0),
+                   key=lambda e: e["net"])[:top_n]
     return {"bulls": bulls, "bears": bears, "open_contracts": len(open_keys),
             "n_names": len(names)}
 
@@ -401,8 +408,9 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int) -> bytes:
     txt(36, 78, sub, f_sum, _TXT)
 
     # column headers
-    cols = [("TICKER", 36, "l"), ("BULL", 300, "r"), ("BEAR", 420, "r"),
-            ("BULL%", 500, "r"), ("NET", 640, "r"), ("TOP CONTRACT", 700, "l")]
+    cols = [("TICKER", 36, "l"), ("BULL", 290, "r"), ("BEAR", 408, "r"),
+            ("BULL%", 486, "r"), ("NET", 610, "r"), ("EXP", 656, "l"),
+            ("STRIKE", 800, "r"), ("C/P", 808, "l"), ("DTE", 1000, "r")]
     for hdr, x, al in cols:
         txt(x, TOP - 30, hdr, f_hdr, _DIM, al)
     d.rectangle([s(36), s(TOP - 10), s(_W - 36), s(TOP - 10) + 1], fill=_DIV)
@@ -419,17 +427,20 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int) -> bytes:
             if i % 2 == 1:
                 d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(ROWH)], fill=_ROWALT)
             txt(36, y, e["sym"], f_rowb, _GOLD)
-            txt(300, y, _fmt_prem(e["bull"]) if e["bull"] else "—", f_row, _BULL, "r")
-            txt(420, y, _fmt_prem(e["bear"]) if e["bear"] else "—", f_row, _BEAR, "r")
-            txt(500, y, f'{e["bullPct"]}%', f_row, _TXT, "r")
+            txt(290, y, _fmt_prem(e["bull"]) if e["bull"] else "—", f_row, _BULL, "r")
+            txt(408, y, _fmt_prem(e["bear"]) if e["bear"] else "—", f_row, _BEAR, "r")
+            txt(486, y, f'{e["bullPct"]}%', f_row, _TXT, "r")
             net = e["net"]
-            txt(640, y, f'{"+" if net >= 0 else "−"}{_fmt_prem(abs(net))}', f_rowb,
+            txt(610, y, f'{"+" if net >= 0 else "−"}{_fmt_prem(abs(net))}', f_rowb,
                 _BULL if net >= 0 else _BEAR, "r")
             tc = e.get("top")
             if tc:
                 k = int(tc["K"]) if float(tc["K"]).is_integer() else tc["K"]
-                exp = "/".join(str(tc["exp"]).split("/")[:2])
-                txt(700, y, f'{tc["cp"]} ${k} {exp}', f_row, _DIM)
+                cp = tc["cp"]
+                txt(656, y, "/".join(str(tc["exp"]).split("/")[:2]), f_row, _DIM)   # EXP
+                txt(800, y, f"${k}", f_row, _TXT, "r")                              # STRIKE
+                txt(808, y, cp, f_rowb, _BULL if cp == "C" else _BEAR)             # C/P
+                txt(1000, y, _dte_of(tc["exp"]), f_row, _DIM, "r")                  # DTE
             y += ROWH
         y += 6
 

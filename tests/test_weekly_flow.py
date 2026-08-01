@@ -50,7 +50,7 @@ def test_lottery_kill():
     assert wf._direction("C", "A", True, 100, 130, 5e9, 5) == "BULL"
 
 
-def test_aggregate_ranks_by_directional_premium(monkeypatch):
+def test_aggregate_ranks_by_net(monkeypatch):
     monkeypatch.setattr(wf, "_still_open_keys", lambda keys, frac: set(keys))
     monkeypatch.setattr(wf, "_contract_key",
                         lambda t: f'{t["S"]}|{t["CP"]}|{t["K"]}|{t["E"]}')
@@ -61,7 +61,7 @@ def test_aggregate_ranks_by_directional_premium(monkeypatch):
         {"S": "AAPL", "CP": "P", "K": 160, "E": "10/16/2026", "P": 12_400_000, "D": "BEAR"},
     ]
     agg = wf.aggregate(trades, top_n=10, still_open_frac=0.75)
-    assert [e["sym"] for e in agg["bulls"]] == ["BE", "INTC"]   # by bull premium
+    assert [e["sym"] for e in agg["bulls"]] == ["BE", "INTC"]   # by NET (26.6M > 22.5M)
     assert agg["bears"][0]["sym"] == "AAPL"
     assert agg["bulls"][0]["net"] > 0
     assert agg["bulls"][0]["top"]["K"] == 210
