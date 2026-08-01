@@ -78,6 +78,7 @@ from api.routers import regime as regime_router
 from api.routers import admin_chart_health as admin_chart_health_router
 from api.routers import chart_news as chart_news_router
 from api.routers import indicator_alerts as indicator_alerts_router
+from api.routers import signature as signature_router
 from api.routers import backtest as backtest_router
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
@@ -4059,6 +4060,7 @@ app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
 app.include_router(desk_zoom_webhook_router.router)
+app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 
 
 # -- Massive WS consumer health endpoint --------------------------------

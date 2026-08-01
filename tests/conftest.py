@@ -37,3 +37,34 @@ def _reset_calendar_serve_stale():
     _clear()
     yield
     _clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_signature_serve_stale():
+    """Clear the Signature router's cross-test module state.
+
+    Same hazard as the Calendar fixture above, plus one of its own: the GEX
+    negative cache remembers an auth-down envelope for 60s, so without this a
+    test that drives an outage would hand its error payload to the next test
+    that expects to drive a build of its own — and the "rebuilt after the TTL"
+    test would pass for the wrong reason.
+
+    Looked up via sys.modules rather than imported, so this fixture never
+    drags the router into unrelated tests as a side effect of itself."""
+    import sys
+
+    def _clear():
+        mod = sys.modules.get("api.routers.signature")
+        if mod is None:
+            return
+        for name in ("_DPL_STALE", "_FCB_STALE", "_GXW_STALE"):
+            slot = getattr(mod, name, None)
+            if slot is not None:
+                slot._slots.clear()
+        neg = getattr(mod, "_GXW_NEG_CACHE", None)
+        if neg is not None:
+            neg.clear()
+
+    _clear()
+    yield
+    _clear()
