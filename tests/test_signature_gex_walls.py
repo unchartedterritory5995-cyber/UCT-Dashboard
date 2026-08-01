@@ -1,11 +1,17 @@
 import copy
+import json
 
 from api.services.signature import rules
 from api.services.signature.gex_walls import shape_walls, fetch_gex_walls
 
+# The ONLY regimes gex_service can emit (classify_gex_state, gex_service.py:195-210).
+# Fixtures use these so nothing in the repo documents a regime enum that
+# cannot occur in production.
+REAL_REGIMES = ("bullish", "bearish", "choppy", "unbound")
+
 
 def _gex(spot=500.0):
-    return {"spot": spot, "regime": "positive",
+    return {"spot": spot, "regime": "choppy",
             "callWall": {"strike": 510.0, "gex": 1e9},
             "putWall": {"strike": 480.0, "gex": -8e8},
             "zeroGamma": 495.0}
@@ -15,7 +21,7 @@ def test_shapes_three_levels():
     out = shape_walls(_gex())
     kinds = {l["kind"]: l["price"] for l in out["levels"]}
     assert kinds == {"callWall": 510.0, "putWall": 480.0, "zeroGamma": 495.0}
-    assert out["regime"] == "positive" and out["version"] == "gxw-v1"
+    assert out["regime"] == "choppy" and out["version"] == "gxw-v1"
 
 
 def test_far_levels_dropped():
@@ -43,7 +49,7 @@ def test_exact_levels_payload_is_pinned():
             {"kind": "zeroGamma", "price": 495.0},
         ],
         "spot": 500.0,
-        "regime": "positive",
+        "regime": "choppy",
         "version": "gxw-v1",
     }
 
@@ -166,6 +172,109 @@ def test_missing_regime_is_an_empty_string_not_none():
     g = _gex()
     del g["regime"]
     assert shape_walls(g)["regime"] == ""
+
+
+# ── Non-finite must never reach the wire (FastAPI serializes allow_nan=False) ──
+
+def test_nan_spot_yields_an_empty_json_serializable_payload():
+    """gex_service's own gate is `if spot <= 0` (gex_service.py:290) and
+    `nan <= 0` is False -- so a NaN underlyingPrice sails straight through to
+    here. A bare NaN in the response is NOT a walls-only failure: FastAPI's
+    JSONResponse uses allow_nan=False, and a browser `r.json()` on `NaN`
+    throws, killing the WHOLE chart-overlay hook.
+
+    json.dumps(..., allow_nan=False) is the load-bearing assertion -- the
+    empty level list alone passes even with the bug, because every NaN
+    comparison in the band gate is already False."""
+    for bad_spot in (float("nan"), float("inf"), float("-inf")):
+        g = _gex()
+        g["spot"] = bad_spot
+        out = shape_walls(g)
+        assert out["levels"] == [], bad_spot
+        json.dumps(out, allow_nan=False)     # raises ValueError if NaN/inf leaked
+
+
+def test_a_nan_strike_drops_only_that_level():
+    """One poisoned wall must not take the other levels down with it, and the
+    full envelope must still serialize."""
+    g = _gex()
+    g["callWall"]["strike"] = float("nan")
+    out = shape_walls(g)
+
+    assert [l["kind"] for l in out["levels"]] == ["putWall", "zeroGamma"]
+    assert out["spot"] == 500.0
+    json.dumps(out, allow_nan=False)
+
+    g2 = _gex()
+    g2["zeroGamma"] = float("inf")
+    out2 = shape_walls(g2)
+    assert [l["kind"] for l in out2["levels"]] == ["callWall", "putWall"]
+    json.dumps(out2, allow_nan=False)
+
+
+# ── One fixture built from the REAL get_gex_data return ──────────────────
+
+def _real_gex():
+    """The actual gex_service.get_gex_data payload shape (gex_service.py:493-525),
+    including the fields this module ignores.
+
+    Note `levels` here is gex_service's OWN semantic dict (classify_gex_state
+    returns Dict[str, dict] keyed call_wall/put_wall/zero_gamma) -- a DIFFERENT
+    thing under the SAME key as our output. Values are internally consistent
+    with classify_gex_state for this spot/walls: asymmetry (1e9-9.5e8)/1e9 =
+    5.0% <= 15% -> "choppy"."""
+    return {
+        "ticker": "SPY", "spot": 500.0, "totalGex": 5.0e9,
+        "callGex": 1.4e10, "putGex": -9.0e9, "zeroGamma": 495.0,
+        "netDelta": -1234567,
+        "callWall": {"strike": 510.0, "gex": 1.0e9},
+        "putWall": {"strike": 480.0, "gex": -9.5e8},
+        "strikes": [{"strike": 480.0, "gex": -9.5e8, "callGex": 1e7, "putGex": -9.6e8},
+                    {"strike": 495.0, "gex": -1.0e6, "callGex": 5e7, "putGex": -5.1e7},
+                    {"strike": 510.0, "gex": 1.0e9, "callGex": 1.0e9, "putGex": -2e6}],
+        "dteFilter": "week", "wallBandPct": 0.15, "wallBandCapped": False,
+        "adjusted": False, "attributionDays": 0, "avgConfidence": 0.0,
+        "coveragePct": 0.0, "contractsWithDp": 0, "contractsWithoutDp": 812,
+        "levels": {
+            "call_wall": {"strike": 510.0, "gex": 1.0e9, "above_spot": True,
+                          "at_wall": False, "distance_pct": 2.0,
+                          "label": "Ceiling", "role": "resistance"},
+            "put_wall": {"strike": 480.0, "gex": -9.5e8, "above_spot": False,
+                         "at_wall": False, "distance_pct": 4.0,
+                         "label": "Floor", "role": "support"},
+            "zero_gamma": {"strike": 495.0, "above_spot": False,
+                           "distance_pct": 1.0, "near": True, "spot_below": False,
+                           "label": "Gamma Flip", "role": "gamma_flip"},
+        },
+        "regime": "choppy", "asymmetryPct": 5.0,
+        "warnings": {"below_danger_active": False, "spot_near_danger": True},
+    }
+
+
+def test_real_payload_is_reduced_to_the_contract_and_nothing_leaks():
+    """gex_service already HAS a `levels` key -- its semantic Ceiling/Floor/
+    Magnet dict. shape_walls must REPLACE it with the [{kind, price}] list the
+    overlay consumes, never pass the upstream one through, and never carry any
+    other upstream field (strikes/warnings/netDelta) into the envelope."""
+    out = shape_walls(_real_gex())
+
+    assert out["levels"] == [
+        {"kind": "callWall", "price": 510.0},
+        {"kind": "putWall", "price": 480.0},
+        {"kind": "zeroGamma", "price": 495.0},
+    ]
+    assert set(out) == {"levels", "spot", "regime", "version"}
+    assert out["regime"] == "choppy" and out["regime"] in REAL_REGIMES
+    assert out["spot"] == 500.0 and out["version"] == "gxw-v1"
+    json.dumps(out, allow_nan=False)
+
+
+def test_every_real_regime_passes_through_verbatim():
+    """The overlay renders this string; it is never remapped or defaulted."""
+    for regime in REAL_REGIMES:
+        g = _real_gex()
+        g["regime"] = regime
+        assert shape_walls(g)["regime"] == regime
 
 
 def test_shape_walls_does_not_mutate_its_input():
