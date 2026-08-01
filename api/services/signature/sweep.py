@@ -145,8 +145,8 @@ def _flow_by_date(lines, *, cutoff_iso: str = "") -> dict[str, list[dict]]:
     return by_date
 
 
-def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]]:
-    """Read one symbol's flow off the proxied surface, streamed.
+def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[dict]]:
+    """One streamed read of ONE flow source.
 
     The surface serves **gzipped CSV** (`flow_router.get_flow_ticker` →
     `_build_gzipped_symbol_csv`); httpx decodes the Content-Encoding, so
@@ -165,10 +165,34 @@ def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]]
     from api.routers.signature import _flow_base_url
 
     url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
-    with httpx.stream("GET", url, timeout=_FLOW_TIMEOUT_S) as resp:
+    with httpx.stream("GET", url, params={"source": source},
+                      timeout=_FLOW_TIMEOUT_S) as resp:
         if resp.status_code != 200:
-            raise RuntimeError(f"flow read for {sym} returned HTTP {resp.status_code}")
+            raise RuntimeError(
+                f"flow read for {sym} ({source}) returned HTTP {resp.status_code}")
         return _flow_by_date(resp.iter_lines(), cutoff_iso=cutoff_iso)
+
+
+def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]]:
+    """Read one symbol's flow, trying BOTH sources the flow DB files under.
+
+    `/api/flow/ticker` defaults to `source=stocks`, but index/ETF symbols — SPY,
+    QQQ, IWM, every XL*, ~200 names — are filed under `source=indexes`. Asking
+    the wrong one returns a header with no rows: a 200, no error, an empty join.
+    The sweep's DEFAULT symbol list LEADS with SPY and QQQ, so stocks-only meant
+    the ledger's two headline names could never accrue a single row.
+
+    Ask `stocks`; only if the parse yields ZERO rows, ask `indexes` once. Not a
+    hardcoded symbol list — membership is upstream's to change, and a list would
+    drift out of date without ever failing. A real stock costs one request.
+
+    A failed read RAISES out of here before any retry: a 500 is not an empty
+    tape, and the caller counts it as an error rather than a quiet night.
+    """
+    by_date = _read_flow_source(sym, "stocks", cutoff_iso)
+    if by_date:
+        return by_date
+    return _read_flow_source(sym, "indexes", cutoff_iso)
 
 
 def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:

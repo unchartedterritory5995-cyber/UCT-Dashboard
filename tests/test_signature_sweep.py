@@ -520,7 +520,12 @@ def test_the_real_flow_read_streams_gzipped_csv_and_forwards_no_credential(flow_
 
     assert by_date == {"2026-07-03": [{"CreatedDate": "7/3/2026",
                                        "CallPut": "CALL", "Premium": "900000"}]}
-    assert seen["path"] == "/api/flow/ticker/NVDA"
+    # `?source=stocks` is explicit, not inherited from the endpoint default:
+    # the reader tries BOTH sources (index/ETF symbols are filed under
+    # `indexes`), so which one produced these rows has to be on the wire.
+    # Source-fallback behaviour itself lives in
+    # `test_signature_flow_source_fallback.py`.
+    assert seen["path"] == "/api/flow/ticker/NVDA?source=stocks"
     assert not {"cookie", "authorization"} & set(seen["headers"])
 
 

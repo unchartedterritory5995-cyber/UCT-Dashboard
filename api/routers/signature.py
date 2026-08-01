@@ -195,14 +195,14 @@ def _flow_base_url() -> str:
     return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
 
 
-def _fetch_flow_rows(sym: str) -> list[dict] | None:
-    """Read flow via the proxied surface so flow-worker's fresh DB answers.
+def _read_flow_rows(sym: str, source: str) -> list[dict] | None:
+    """One read of ONE flow source. Rows, or **None when the read FAILED**.
 
-    Returns the parsed rows, or **None when the read FAILED** — an unreachable
-    flow service and a genuinely quiet tape both produce zero signals, but only
-    one of them is an answer. Handing back `[]` for a failure would let the
-    caller remember "no signal" as a good payload for the next 30 minutes
-    (`lesson_market_cap_cache_poison`: never cache a failed fetch as a value).
+    An unreachable flow service and a genuinely quiet tape both produce zero
+    signals, but only one of them is an answer. Handing back `[]` for a failure
+    would let the caller remember "no signal" as a good payload for the next 30
+    minutes (`lesson_market_cap_cache_poison`: never cache a failed fetch as a
+    value).
 
     **No credential is forwarded.** `/api/flow/ticker/{symbol}` declares no auth
     dependency on either service, so sending the caller's session cookie to an
@@ -216,18 +216,46 @@ def _fetch_flow_rows(sym: str) -> list[dict] | None:
     """
     url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
     try:
-        resp = httpx.get(url, timeout=15.0)
+        resp = httpx.get(url, params={"source": source}, timeout=15.0)
     except Exception as exc:                       # noqa: BLE001
-        logger.warning("signature: flow read for %s failed: %s", sym, exc)
+        logger.warning("signature: flow read for %s (%s) failed: %s", sym, source, exc)
         return None
     if resp.status_code != 200:
-        logger.warning("signature: flow read for %s returned HTTP %s", sym, resp.status_code)
+        logger.warning("signature: flow read for %s (%s) returned HTTP %s",
+                       sym, source, resp.status_code)
         return None
     try:
         return list(csv.DictReader(io.StringIO(resp.text)))
     except Exception as exc:                       # noqa: BLE001
-        logger.warning("signature: flow rows for %s did not parse: %s", sym, exc)
+        logger.warning("signature: flow rows for %s (%s) did not parse: %s", sym, source, exc)
         return None
+
+
+def _fetch_flow_rows(sym: str) -> list[dict] | None:
+    """Read flow via the proxied surface so flow-worker's fresh DB answers.
+
+    **Two sources, tried in order.** `/api/flow/ticker` defaults to
+    `source=stocks`, but the flow DB files index/ETF symbols — SPY, QQQ, IWM,
+    every XL*, ~200 names — under `source=indexes`, and asking the wrong one
+    returns a header with no rows: a 200, no error, and a join that matches
+    nothing. That is the silent-death shape this indicator is most exposed to,
+    and it lands on exactly the symbols people chart first.
+
+    So: ask `stocks`, and only if the parse yields ZERO rows ask `indexes` once.
+    Deliberately not a hardcoded symbol list — membership is upstream's to
+    change, and a list would drift out of date without ever failing. A real
+    stock still costs exactly one request.
+
+    A FAILED read short-circuits: a 500 is not an empty tape, so it is never
+    retried against the other source and never reported as a quiet one. If the
+    fallback read itself fails, that failure is returned too — an index symbol
+    whose second read died must be retried next request, not remembered as
+    signal-free for the next 30 minutes.
+    """
+    rows = _read_flow_rows(sym, "stocks")
+    if rows is None or rows:
+        return rows
+    return _read_flow_rows(sym, "indexes")
 
 
 def _flow_join_stats(rows) -> dict:
