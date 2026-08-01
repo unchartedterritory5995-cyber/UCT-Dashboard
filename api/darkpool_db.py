@@ -569,6 +569,93 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
     return out
 
 
+def _print_row(row) -> dict:
+    """Shape one darkpool_trades row into the print dict callers expect.
+
+    Mirrors the row shape get_ticker_prints returns (date short M/D, dateLong,
+    dateRaw, price, notional, pctAvgVol, volume, type).
+    """
+    date_str = row[0]
+    # Convert M/D/YYYY to short M/D for compact display
+    date_short = date_str
+    try:
+        parts = date_str.split("/")
+        if len(parts) >= 2:
+            date_short = f"{int(parts[0])}/{int(parts[1])}"
+    except (ValueError, IndexError):
+        pass
+    # Full date for tooltip
+    date_long = date_str
+    try:
+        sortable = parse_date_to_sortable(date_str)
+        y, m, d = sortable.split("-")
+        months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        date_long = f"{months[int(m)-1]} {int(d)}, {y}"
+    except (ValueError, IndexError):
+        pass
+    return {
+        "date": date_short,
+        "dateLong": date_long,
+        "dateRaw": date_str,
+        "price": _float(row[2]),
+        "notional": _float(row[3]),
+        "pctAvgVol": _float(row[4]) or 0,
+        "volume": _float(row[5]),
+        "type": row[6] or "",
+    }
+
+
+def get_ticker_prints_window(ticker: str, days: int = 30) -> list:
+    """Return EVERY print for a ticker over the last N trading days — no row cap.
+
+    Same guards, same date handling (``_resolve_dates``) and same row shape as
+    ``get_ticker_prints``, but without its ``LIMIT``. That limit exists to bound
+    a display drilldown; for an aggregate (clustering prints into levels) it
+    silently truncates the window on a high-volume ticker: ordered date DESC,
+    200 rows can cover only the newest handful of dates, so the OLDEST dates —
+    and any level that lives on them — vanish from the aggregate entirely. A
+    partial window would produce a confidently-wrong #1 level, so this read
+    takes the whole window.
+
+    Rows come back newest-date-first, then notional desc, matching
+    ``get_ticker_prints``' ordering.
+    """
+    if not ticker:
+        return []
+    ticker = ticker.upper().strip()
+    if not ticker.replace(".", "").isalnum():
+        return []
+    if days <= 0 or days > 365:
+        days = 30
+
+    conn = get_conn()
+    try:
+        recent = _resolve_dates(conn, days)
+        if not recent:
+            return []
+        placeholders = ",".join("?" for _ in recent)
+        cur = conn.execute(
+            f"""
+            SELECT date, timestamp, price, notional, pct_avg30, volume, type, message
+            FROM darkpool_trades
+            WHERE ticker = ?
+              AND date IN ({placeholders})
+              AND notional IS NOT NULL
+            """,
+            (ticker, *recent),
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    rows = sorted(
+        rows,
+        key=lambda r: (parse_date_to_sortable(r[0]), r[3] or 0),
+        reverse=True,
+    )
+    return [_print_row(r) for r in rows]
+
+
 # Auto-init tables on import (idempotent, fast — just CREATE IF NOT EXISTS).
 # The CSV seed is intentionally NOT triggered here — main.py runs it in a
 # background thread on startup to mirror the flow DB pattern.

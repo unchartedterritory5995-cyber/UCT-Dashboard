@@ -7,6 +7,7 @@ nightly-confirmed ledger of prints.
 """
 from __future__ import annotations
 
+import math
 import re
 import time
 
@@ -52,9 +53,15 @@ def cluster_levels(prints, *, bin_pct=None, min_notional=None, top_k=None):
     min_notional = rules.DPL_MIN_CLUSTER_NOTIONAL if min_notional is None else min_notional
     top_k = rules.DPL_TOP_K if top_k is None else top_k
 
+    # Non-finite input is garbage and must never reach a level. `x > 0` already
+    # rejects NaN, but inf passes it: an inf notional makes wsum inf and price
+    # inf/inf = NaN, and a NaN emitted as the rank-1 level is a 500 -- FastAPI's
+    # JSONResponse serializes with allow_nan=False. Fail by DROPPING the bad
+    # print, never by poisoning the cluster it would have joined.
     rows = [
         p for p in prints
         if (p.get("price") or 0) > 0 and (p.get("notional") or 0) > 0
+        and math.isfinite(float(p["price"])) and math.isfinite(float(p["notional"]))
     ]
     if not rows:
         return []
@@ -86,8 +93,10 @@ def cluster_levels(prints, *, bin_pct=None, min_notional=None, top_k=None):
     for p in sorted(rows, key=lambda r: r["price"]):
         price = float(p["price"])
         if cur is None or price > cur["anchor"] + bin_w:
-            cur = {"anchor": price, "notional": 0.0, "wsum": 0.0, "count": 0, "lastDate": ""}
+            cur = {"anchor": price, "cmin": price, "cmax": price,
+                   "notional": 0.0, "wsum": 0.0, "count": 0, "lastDate": ""}
             clusters.append(cur)
+        cur["cmax"] = price  # prices ascend, so the last one seen is the highest
         cur["notional"] += float(p["notional"])
         cur["wsum"] += price * float(p["notional"])
         cur["count"] += 1
@@ -99,16 +108,24 @@ def cluster_levels(prints, *, bin_pct=None, min_notional=None, top_k=None):
     for b in clusters:
         if b["notional"] < min_notional:
             continue
-        # Notional-weighted centre of the cluster. The reported zone is exactly
-        # one bin wide, centred on it, so lo < price < hi always holds.
+        # Notional-weighted centre of the cluster.
         price = b["wsum"] / b["notional"]
+        # The zone is exactly one bin wide, but centring it on the WEIGHTED mean
+        # would let a lopsided cluster's zone drift off its own prints: a cluster
+        # a full bin wide with 90% of its notional at the low end reports a zone
+        # whose hi sits BELOW its own highest print. It also makes neighbouring
+        # zones overlap. So clamp the centre to keep every contributing print
+        # inside [lo, hi]. The cluster spans at most bin_w (anchor rule), so the
+        # clamp window is never empty and the weighted price stays strictly
+        # inside the zone.
+        centre = min(max(price, b["cmax"] - bin_w / 2), b["cmin"] + bin_w / 2)
         levels.append({
             "price": price,
             "notional": b["notional"],
             "printCount": b["count"],
             "lastDate": b["lastDate"],
-            "lo": price - bin_w / 2,
-            "hi": price + bin_w / 2,
+            "lo": centre - bin_w / 2,
+            "hi": centre + bin_w / 2,
         })
     levels.sort(key=lambda l: l["notional"], reverse=True)
     levels = levels[:top_k]
@@ -118,14 +135,24 @@ def cluster_levels(prints, *, bin_pct=None, min_notional=None, top_k=None):
 
 
 def fetch_dp_levels(sym: str) -> dict:
-    """I/O wrapper: read confirmed prints, cluster, envelope."""
+    """I/O wrapper: read confirmed prints, cluster, envelope.
+
+    Reads the WHOLE window (``get_ticker_prints_window``), not the row-capped
+    drilldown read: a 200-row cap ordered date DESC covers only the newest few
+    dates on a heavy ticker, so the oldest dates -- and any level living on them
+    -- would be silently missing from the aggregate. ``datesCovered`` reports how
+    many distinct dates actually backed the result so a short window is visible
+    rather than implied.
+    """
     from api import darkpool_db  # local import: keeps this module pure-testable
 
-    prints = darkpool_db.get_ticker_prints(sym, days=rules.DPL_WINDOW_DAYS, limit=200)
+    prints = darkpool_db.get_ticker_prints_window(sym, days=rules.DPL_WINDOW_DAYS)
+    dates = {d for d in (_normalize_date(p) for p in prints) if d}
     return {
         "sym": sym.upper(),
         "version": rules.VERSIONS["dpl"],
         "windowDays": rules.DPL_WINDOW_DAYS,
+        "datesCovered": len(dates),
         "levels": cluster_levels(prints),
         "asOf": time.time(),
     }
