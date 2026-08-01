@@ -180,6 +180,12 @@ export const CHART_DEFAULTS = {
   // flow signals). All OFF by default — they are opt-in, so an existing user's
   // chart is unchanged until they turn one on.
   signature: { darkPoolLevels: false, gexWalls: false, flowSignals: false },
+  // Engine state (Phase B). Nothing writes these yet -- they exist first so a
+  // read-merge-write cycle from an un-migrated surface can never destroy engine
+  // data. mergeChartSettings' return is an explicit allow-list: a key absent
+  // from it is silently dropped on EVERY read.
+  settingsVersion: 1,
+  indicatorInstances: [],
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
@@ -384,6 +390,8 @@ export function mergeChartSettings(userSettings) {
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
+    settingsVersion: Number.isFinite(parsed.settingsVersion) ? parsed.settingsVersion : CHART_DEFAULTS.settingsVersion,
+    indicatorInstances: Array.isArray(parsed.indicatorInstances) ? parsed.indicatorInstances : [],
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
     volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)
@@ -427,6 +435,17 @@ export function mergeSettingsOverride(base, partial) {
       const ind = { ...base.indicators }
       for (const [ik, iv] of Object.entries(v)) ind[ik] = { ...(base.indicators?.[ik] || {}), ...(iv || {}) }
       out.indicators = ind
+    } else if (k === 'indicatorInstances') {
+      // Merge by instanceId. The generic path below replaces arrays wholesale, which
+      // in a grid cell would delete every instance the override didn't happen to
+      // mention. Must stay ABOVE that fall-through.
+      const byId = new Map((out.indicatorInstances || []).map(i => [i.instanceId, i]))
+      for (const patch of (Array.isArray(v) ? v : [])) {
+        if (!patch?.instanceId) continue
+        const prev = byId.get(patch.instanceId)
+        byId.set(patch.instanceId, prev ? { ...prev, ...patch, inputs: { ...prev.inputs, ...patch.inputs } } : patch)
+      }
+      out.indicatorInstances = [...byId.values()]
     } else if (_OVERRIDE_SECTION_KEYS.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {
       out[k] = { ...(base[k] || {}), ...v }
     } else {

@@ -34,6 +34,23 @@ describe('mergeSettingsOverride', () => {
     expect(out.indicators.macd).toEqual(base.indicators.macd)
   })
 
+  it('merges indicatorInstances by instanceId, never positionally', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      indicatorInstances: [
+        { instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } },
+        { instanceId: 'b2', defId: 'macd', inputs: {} },
+      ],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'b2', defId: 'macd', inputs: { fastPeriod: 8 } }],
+    })
+    // the override patches b2 and LEAVES a1 alone — a wholesale array replace
+    // would silently delete the user's other indicators in that grid cell
+    expect(out.indicatorInstances).toHaveLength(2)
+    expect(out.indicatorInstances.find(i => i.instanceId === 'a1').inputs.period).toBe(14)
+    expect(out.indicatorInstances.find(i => i.instanceId === 'b2').inputs.fastPeriod).toBe(8)
+  })
+
   it('arrays replace wholesale', () => {
     const out = mergeSettingsOverride(base, { comparisonSymbols: ['QQQ'] })
     expect(out.comparisonSymbols).toEqual(['QQQ'])
@@ -51,6 +68,12 @@ describe('mergeSettingsOverride', () => {
   // markers, positionCalc all arrived over time) but not to that list, a
   // section override would silently DROP the user's sibling sub-settings. This
   // walks every object section generically so the lists can never drift apart.
+  //
+  // ARRAY sections are out of scope for this guard, deliberately — "merge one
+  // level" is not their contract. An array-valued section needs its OWN targeted
+  // case naming its identity key (see the indicatorInstances by-id test above);
+  // this loop cannot infer that key, and guessing one would make the guard pass
+  // vacuously. Skipping is honest here, NOT a weakening.
   it('every object-valued CHART_DEFAULTS section merges one level, never replaces', () => {
     const full = mergeChartSettings(null)
     for (const [key, val] of Object.entries(CHART_DEFAULTS)) {

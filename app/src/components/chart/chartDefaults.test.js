@@ -134,3 +134,30 @@ describe('signature indicator toggles', () => {
     }
   })
 })
+
+describe('engine settings passthrough (settingsVersion + indicatorInstances)', () => {
+  // Same allow-list hazard as `signature` above, landed BEFORE any writer
+  // exists: mergeChartSettings' return is an explicit key list, so a key it
+  // does not name is silently destroyed on every read-merge-write cycle. These
+  // pin the merge lines, not just the defaults.
+  it('settingsVersion and indicatorInstances survive a merge round-trip', () => {
+    const merged = mergeChartSettings(JSON.stringify({
+      settingsVersion: 2,
+      indicatorInstances: [{ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } }],
+    }))
+    expect(merged.settingsVersion).toBe(2)
+    expect(merged.indicatorInstances).toHaveLength(1)
+    expect(merged.indicatorInstances[0]).toEqual({ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } })
+  })
+
+  it('defaults them when absent — engine state starts empty, not undefined', () => {
+    const merged = mergeChartSettings(null)
+    expect(merged.settingsVersion).toBe(1)
+    expect(merged.indicatorInstances).toEqual([])
+  })
+
+  it('a non-array indicatorInstances is coerced, never trusted', () => {
+    const merged = mergeChartSettings(JSON.stringify({ indicatorInstances: { nope: true } }))
+    expect(merged.indicatorInstances).toEqual([])
+  })
+})
