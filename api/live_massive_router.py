@@ -4603,6 +4603,29 @@ def force_push_discord(
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc().splitlines()[-3:]}
 
 
+@router.post("/alpha-gold-eod")
+def alpha_gold_eod_trigger(
+    post: int = Query(0, description="1 = post the card to Discord; 0 = return the rendered PNG for preview"),
+    target_date: str = Query(None, description="M/D/YYYY or ISO; defaults to today"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manual trigger for the end-of-day Alpha Gold summary card. Bypasses the
+    ALPHA_GOLD_EOD_ENABLED gate (force=True). Default ?post=0 renders + returns the
+    PNG (preview, no Discord); ?post=1 posts it to the configured webhook. Runs on
+    the flow-worker (live flow.db) — hit it through the site (flow proxy forwards)."""
+    from api import alpha_gold_eod as age
+    day = _resolve_date(target_date) if target_date else None
+    if post:
+        return age.run_eod_summary(force=True, post=True, today=day)
+    res = age.run_eod_summary(force=True, post=False, today=day)
+    png = res.get("png")
+    if not png:
+        return res
+    from fastapi import Response
+    return Response(content=png, media_type="image/png",
+                    headers={"X-Alpha-Gold-Count": str(res.get("count", 0))})
+
+
 @router.get("/pushed")
 def get_pushed(alert_date: str = Query(None, description="alert_date to filter (defaults to all recent)")):
     """Read-only list of alerts pushed to Discord (manual + auto). Feeds the

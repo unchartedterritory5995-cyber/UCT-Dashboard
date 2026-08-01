@@ -395,6 +395,26 @@ def _start_flow_schedulers():
                 log.info("[startup] OI snapshot cron skipped (SCHWAB_APP_KEY unset)")
         except Exception as e:  # noqa: BLE001
             log.warning("OI snapshot scheduling failed: %s", e)
+
+        try:
+            # End-of-day Alpha Gold summary → Discord image. Dark by default;
+            # only registers when armed. Runs HERE (owns flow.db + the classifier
+            # in-process). timezone EXPLICIT on the trigger (the recurring ET-vs-
+            # UTC CronTrigger gotcha above). 16:05 ET so the day's tape is settled.
+            if os.getenv("ALPHA_GOLD_EOD_ENABLED", "0") == "1":
+                from apscheduler.triggers.cron import CronTrigger as _AGCron
+                from api import alpha_gold_eod as _age
+                sched.add_job(_age.run_eod_summary,
+                              trigger=_AGCron(day_of_week="mon-fri", hour=16, minute=5,
+                                              timezone=ZoneInfo("America/New_York")),
+                              id="alpha_gold_eod_summary", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] Alpha Gold EOD summary cron registered (16:05 ET weekdays)")
+            else:
+                log.info("[startup] Alpha Gold EOD summary disabled (ALPHA_GOLD_EOD_ENABLED != 1)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Alpha Gold EOD scheduling failed: %s", e)
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "
