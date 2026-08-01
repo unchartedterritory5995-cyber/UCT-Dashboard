@@ -51,3 +51,19 @@ describe('header per-item colors', () => {
     expect(cs.header.showLegend).toBe(true)
   })
 })
+
+describe('signature indicator toggles', () => {
+  // mergeChartSettings' return object is a hard ALLOW-LIST: a key it doesn't
+  // re-emit is silently destroyed on every read. These pin the merge line, not
+  // just the default.
+  it('signature toggles survive a merge round-trip', () => {
+    const merged = mergeChartSettings(JSON.stringify({ signature: { darkPoolLevels: true } }))
+    expect(merged.signature.darkPoolLevels).toBe(true)
+    expect(merged.signature.gexWalls).toBe(false)   // default fills in
+  })
+
+  it('signature defaults exist and are off', () => {
+    const merged = mergeChartSettings(null)
+    expect(merged.signature).toEqual({ darkPoolLevels: false, gexWalls: false, flowSignals: false })
+  })
+})

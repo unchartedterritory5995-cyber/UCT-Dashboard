@@ -176,6 +176,10 @@ export const CHART_DEFAULTS = {
   },
   countdown: false,
   showPatterns: false,
+  // The three UCT signature overlays (dark-pool price levels, GEX walls, options
+  // flow signals). All OFF by default — they are opt-in, so an existing user's
+  // chart is unchanged until they turn one on.
+  signature: { darkPoolLevels: false, gexWalls: false, flowSignals: false },
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
@@ -379,6 +383,7 @@ export function mergeChartSettings(userSettings) {
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
+    signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
     volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)
@@ -409,6 +414,7 @@ export const CHART_TYPE_OPTIONS = [
 const _OVERRIDE_SECTION_KEYS = [
   'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
   'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
+  'signature',
 ]
 export function mergeSettingsOverride(base, partial) {
   if (!partial) return base
