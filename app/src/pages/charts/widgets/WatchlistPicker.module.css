@@ -246,6 +246,10 @@
 }
 .createBtn:hover:not(:disabled) { filter: brightness(1.08); }
 .createBtn:disabled { opacity: 0.5; cursor: default; }
+.createErr {
+  font-size: 11px;
+  color: var(--color-danger, #f87171);
+}
 
 /* Centered empty state for Prebuilt / Community tabs */
 .emptyWrap {

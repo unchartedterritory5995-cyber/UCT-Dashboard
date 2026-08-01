@@ -40,6 +40,7 @@ export default function WatchlistPicker({ onPick }) {
   const [newName, setNewName] = useState('')
   const [tplId, setTplId] = useState('')
   const [busy, setBusy] = useState(false)
+  const [createErr, setCreateErr] = useState('')
 
   const query = q.trim().toLowerCase()
   const match = name => !query || String(name || '').toLowerCase().includes(query)
@@ -50,11 +51,14 @@ export default function WatchlistPicker({ onPick }) {
   const community = (Array.isArray(communityLists) ? communityLists : []).filter(wl => match(wl.name))
   const prebuilt = (Array.isArray(prebuiltLists) ? prebuiltLists : []).filter(wl => match(wl.name))
 
+  const closeCreate = useCallback(() => { setCreating(false); setNewName(''); setCreateErr('') }, [])
+
   const submitCreate = useCallback(async (e) => {
     e?.preventDefault?.()
     const name = newName.trim()
     if (!name || busy) return
     setBusy(true)
+    setCreateErr('')
     try {
       const res = await fetch('/api/watchlists', {
         method: 'POST',
@@ -62,12 +66,19 @@ export default function WatchlistPicker({ onPick }) {
         credentials: 'include',
         body: JSON.stringify({ name }),
       })
-      if (!res.ok) return
+      if (!res.ok) throw new Error(String(res.status))
       const wl = await res.json()
+      // A 2xx with no id is still a FAILED create — picking it would scope the
+      // widget to `user:undefined`, a phantom list that can never load.
+      if (!wl?.id) throw new Error('no id')
       mutateMine()
       const tpl = templates.find(t => t.id === tplId)
       // Seed the new list's look from the chosen template (appearance + columns).
       onPick({ key: `user:${wl.id}`, name: wl.name, settings: tpl?.settings, cols: tpl?.cols })
+    } catch {
+      // Never fail silently: the user typed a name and pressed Create, so a dead
+      // button with no message reads as the app being broken.
+      setCreateErr('Could not create that list.')
     } finally {
       setBusy(false)
     }
@@ -156,11 +167,12 @@ export default function WatchlistPicker({ onPick }) {
                 <input
                   className={styles.createInput}
                   placeholder="Watchlist name…"
+                  aria-label="New watchlist name"
                   value={newName}
                   maxLength={60}
                   autoFocus
                   onChange={e => setNewName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Escape') { setCreating(false); setNewName('') } }}
+                  onKeyDown={e => { if (e.key === 'Escape') closeCreate() }}
                 />
                 {templates.length > 0 && (
                   <label className={styles.createTplRow}>
@@ -171,8 +183,9 @@ export default function WatchlistPicker({ onPick }) {
                     </select>
                   </label>
                 )}
+                {createErr && <div className={styles.createErr} role="alert">{createErr}</div>}
                 <div className={styles.createActions}>
-                  <button type="button" className={styles.createCancel} onClick={() => { setCreating(false); setNewName('') }}>Cancel</button>
+                  <button type="button" className={styles.createCancel} onClick={closeCreate}>Cancel</button>
                   <button type="submit" className={styles.createBtn} disabled={!newName.trim() || busy}>{busy ? 'Creating…' : 'Create'}</button>
                 </div>
               </form>
