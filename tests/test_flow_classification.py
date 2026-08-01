@@ -260,3 +260,16 @@ def test_close_detector_disabled_is_noop():
     a = _calert(3, "BB", 200)
     m._mark_likely_close(a, {3: 800.0}, {"close_detector_enabled": False})
     assert "_likelyClose" not in a
+
+
+def test_ledger_accumulates_small_buys_then_flags_sell():
+    # The case the FULL-TAPE ledger unlocks vs the curated-only approximation:
+    # a long built via several smaller ask-buys earlier, then sold. The sell
+    # sees the whole accumulated long and flags as a likely close.
+    rows = [_frow(1, "A", 200), _frow(2, "A", 300),
+            _frow(3, "A", 250), _frow(4, "BB", 700)]
+    nb = m._build_session_flow_ledger(rows)
+    assert nb[4] == 750                          # 200+300+250 net long before the sell
+    a = _calert(4, "BB", 700)
+    m._mark_likely_close(a, nb, _CTH)
+    assert a.get("_likelyClose") is True         # 750 >= 700 × 1.0

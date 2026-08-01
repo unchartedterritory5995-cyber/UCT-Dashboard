@@ -1008,10 +1008,10 @@ def _build_session_flow_ledger(rows) -> dict:
     time, so smaller id ≈ earlier in the session). Rows may arrive in any order.
     Pure + testable. Contract = (ticker, cp, strike, exp).
 
-    NOTE (Phase 1 approximation): fed only the curated scan's fetched rows
-    (MAGENTA/YELLOW/WHITE≥override-floor), so it captures the significant
-    directional flow but not sub-floor WHITE churn. Good enough to eyeball the
-    marker; Phase 2 can widen to the full tape if the signal proves out."""
+    Fed the FULL day's sided prints per contract (see _compute_recent), so a
+    profit-take's earlier position-building is visible — not just the curated /
+    above-floor prints. Blank/mid prints are excluded upstream (they contribute
+    0 anyway), which also keeps the row count down."""
     per: dict = {}   # contract_key -> list[(id, signed_vol)]
     for r in rows:
         rid = r["id"]
@@ -2459,6 +2459,24 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
              LIMIT ?
         """, (today, override_sql_floor, sql_limit))
         rows = cur.fetchall()
+        # Open/close detector (dark): FULL-TAPE session net-volume ledger — built
+        # from EVERY sided print today on each contract (NOT just the curated/
+        # above-floor rows fetched above), so a profit-take's earlier position-
+        # building is visible. Reuses the open connection. Only sided prints
+        # (A/AA/B/BB) matter — blank/mid contribute 0, so they're filtered in SQL
+        # for a big row-count cut. Runs only when the detector is enabled. Perf:
+        # a narrow 7-col projection; cache it (watermark) if it ever strains RTH.
+        _close_th = _load_thresholds()
+        if _close_th.get("close_detector_enabled", False):
+            _lc = conn.execute(f"""
+                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume
+                  FROM flow
+                 WHERE {source_clause} AND CreatedDate = ?
+                   AND Side IN ('A','AA','B','BB')
+            """, (today,))
+            _net_before = _build_session_flow_ledger(_lc.fetchall())
+        else:
+            _net_before = {}
     finally:
         conn.close()
 
@@ -2476,12 +2494,9 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     _incremental = bool(_load_thresholds().get("incremental_scan", False))
     if _incremental:
         _incr_prepare(today)
-    # Open/close detector (Phase 1, dark): build the session net-volume ledger
-    # from the fetched tape once (id = time proxy); _mark_likely_close stamps
-    # surviving bid-side alerts below. No cost when close_detector_enabled off.
-    _close_th = _load_thresholds()
-    _net_before = (_build_session_flow_ledger(rows)
-                   if _close_th.get("close_detector_enabled", False) else {})
+    # Open/close detector: _close_th + _net_before (full-tape ledger) were built
+    # above while the flow.db connection was open; _mark_likely_close stamps
+    # surviving bid-side alerts below.
     for r in rows:
         a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
         if a is None:
