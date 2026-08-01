@@ -48,6 +48,8 @@ def flow_confirms(flow_rows, direction, *, min_prem=None, dominance=None):
                      for r in flow_rows if _is_call(r.get("CallPut"))), 0.0)
     put_prem = sum((parse_money(r.get("Premium"))
                     for r in flow_rows if _is_put(r.get("CallPut"))), 0.0)
+    # max(..., 1.0) floors the OPPOSITE side: a zero or (from bad upstream data)
+    # negative put sum must not make the dominance ratio trivially satisfiable.
     if direction == "bull":
         confirmed = call_prem >= min_prem and call_prem >= dominance * max(put_prem, 1.0)
     else:
@@ -55,8 +57,25 @@ def flow_confirms(flow_rows, direction, *, min_prem=None, dominance=None):
     return {"confirmed": confirmed, "callPrem": call_prem, "putPrem": put_prem}
 
 
-def _bar_date_iso(bar_time: int) -> str:
-    return datetime.fromtimestamp(int(bar_time), tz=timezone.utc).date().isoformat()
+def _bar_date_iso(bar_time) -> str:
+    """Session date for a bar timestamp, tolerant of BOTH store encodings.
+
+    bars_sqlite stores daily/weekly/monthly ts as a YYYYMMDD integer
+    (20260731) and intraday ts as unix seconds. Decoding a YYYYMMDD key as
+    an epoch silently yields 1970-08-23 for EVERY 2026 session, so the flow
+    join would match nothing and the indicator would ship dead.
+    """
+    try:
+        s = str(bar_time).strip()
+        if "-" in s:                        # already ISO (the /api/bars JSON shape)
+            return s[:10]
+        n = int(float(s))
+        if 10_000_000 <= n <= 99_999_999:   # YYYYMMDD calendar key
+            d = str(n)
+            return f"{d[:4]}-{d[4:6]}-{d[6:]}"
+        return datetime.fromtimestamp(n, tz=timezone.utc).date().isoformat()
+    except (ValueError, TypeError, OverflowError, OSError):
+        return ""                            # garbage -> no flow match, never raises
 
 
 def fcb_signals(bars, flow_by_date, *, include_last=False):
