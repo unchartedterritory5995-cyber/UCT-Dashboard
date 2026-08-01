@@ -265,7 +265,15 @@ export async function composeScreenshot(chart, opts = {}) {
   ctx.font = `${px(11)}px ${FONT}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC', px(16), HEADER_H + ch + FOOTER_H / 2);
+  // ET, not UTC. ChartRender's footer already reasons this out ("a 03:20 UTC
+  // stamp on a 7:35am letter reads broken"), and these two images sit in the
+  // same issue - one stamped UTC and one ET is the tell that they came from
+  // different tools.
+  const _stamp = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  }).format(new Date()) + ' ET';
+  ctx.fillText(_stamp, px(16), HEADER_H + ch + FOOTER_H / 2);
   ctx.textAlign = 'right';
   ctx.fillText('uctintelligence.com', totalW - px(16), HEADER_H + ch + FOOTER_H / 2);
   ctx.textAlign = 'left';

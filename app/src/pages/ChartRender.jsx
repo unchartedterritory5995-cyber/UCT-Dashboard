@@ -170,6 +170,12 @@ export default function ChartRender() {
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
           </span>
         </div>
+        {/* volInSeparatePane = volumeSeparatePane || cs.volume.separatePane.
+            His SAVED separatePane is false, but the workspace widget passes the
+            PROP, so his live chart — and every chart he exports by hand — puts
+            volume in its own pane. This page passed neither and drew it overlaid
+            on the price grid. The prop also gates showVolLegend, which is why
+            the "$ Vol / Avg 50D" strip was missing from newsletter charts. */}
         <div style={{ width: w, height: chartH }}>
           <StockChart
             sym={sym}
@@ -179,6 +185,7 @@ export default function ChartRender() {
             visibleBarsOverride={barsOverride}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}
+            volumeSeparatePane
             liveUpdates={false}
           />
         </div>
