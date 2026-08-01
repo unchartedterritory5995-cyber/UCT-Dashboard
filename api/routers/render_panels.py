@@ -343,3 +343,49 @@ def render_tweets(token: str = "", n: int = 5, hours: int = 18):
         "created_at": t.get("created_at"),
     } for t in picked]
     return {"tweets": out}
+
+
+# ── chart settings for the headless chart export ─────────────────────────────
+# /r/chart runs logged OUT, so it never had access to the owner's saved
+# `chart_settings` and silently rendered the schema DEFAULTS - a dark theme with
+# default overlays, while he runs a light one. Every chart in the Sunday Scans
+# issue therefore looked like a different product from the ones he exports out of
+# the app himself, which is exactly the difference he asked to close.
+#
+# (Same root cause as the extendedHoursShading bug on this route: a headless page
+# inherits `?? default` for every setting nobody thought to pass it.)
+#
+# Returns the OWNER's blob, not the caller's - there is no caller identity here.
+# The owner is the first address in ADMIN_EMAILS, matching how every other
+# owner-facing feature on this box resolves "him" (desk_daily_session,
+# compass_health). Absent/unset -> {} and the page keeps today's defaults, so a
+# misconfigured env degrades to the old behaviour instead of failing the render.
+
+@router.get("/r/chart-settings")
+def chart_settings_for_render(token: str = ""):
+    """The owner's saved chart_settings blob, for the headless chart page.
+
+    Read-only. Exposes only the `chart_settings` key - preferences hold other
+    per-user state (layouts, calendar view, watchlist columns) and this route is
+    effectively public, so it returns ONE key rather than the whole dict.
+    """
+    _check_token(token)
+
+    emails = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
+    if not emails:
+        return {"chart_settings": None, "reason": "ADMIN_EMAILS unset"}
+
+    try:
+        from api.services.auth_service import get_user_by_email, get_user_preferences
+        user = get_user_by_email(emails[0])
+        if not user:
+            return {"chart_settings": None, "reason": "owner not found"}
+        raw = (get_user_preferences(user["id"]) or {}).get("chart_settings")
+        if not raw:
+            return {"chart_settings": None, "reason": "no saved chart_settings"}
+        # Stored as a JSON STRING in pref_value; hand back parsed so the page can
+        # spread it straight into the StockChart override without re-parsing.
+        import json as _json
+        return {"chart_settings": _json.loads(raw) if isinstance(raw, str) else raw}
+    except Exception as e:  # noqa: BLE001 -- a broken lookup must not fail the render
+        return {"chart_settings": None, "reason": f"{type(e).__name__}"}

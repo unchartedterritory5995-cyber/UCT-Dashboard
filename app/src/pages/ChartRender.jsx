@@ -9,7 +9,7 @@
 // Public route (no AuthGuard). /api/bars is public, so no session is needed.
 // A ?token= (checked against VITE_CHART_RENDER_TOKEN) blocks casual abuse.
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart from '../components/StockChart'
 import uctLogo from '../components/intro/assets/compass-mark.png'
@@ -50,21 +50,64 @@ export default function ChartRender() {
     return L
   }, [entry, stop, t1, t2])
 
+  // The owner's saved chart settings.
+  //
+  // This page runs LOGGED OUT, so it has no session and never saw his
+  // `chart_settings` — it silently rendered the schema defaults. He runs a light
+  // theme; every Sunday Scans chart came out near-black (rgb(14,15,13)), which
+  // is why the newsletter charts never looked like the ones he exports from the
+  // app himself. Same shape as the extendedHoursShading bug this route already
+  // had: a headless page inherits `?? default` for everything nobody passes it.
+  //
+  // Fetched (not a URL param) so the caller needs to know nothing about chart
+  // settings — the Friday job's URL is unchanged and every future theme edit
+  // reaches the newsletter with no pipeline change.
+  const [ownerSettings, setOwnerSettings] = useState(null)
+  const [settingsSettled, setSettingsSettled] = useState(false)
+  useEffect(() => {
+    let alive = true
+    const done = (v) => { if (alive) { setOwnerSettings(v); setSettingsSettled(true) } }
+    fetch(`/api/r/chart-settings?token=${encodeURIComponent(token)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => done(j?.chart_settings || null))
+      // Fails OPEN to today's defaults: a settings lookup must never cost him
+      // the chart itself.
+      .catch(() => done(null))
+    return () => { alive = false }
+  }, [token])
+
+  // Identity-stable: settingsOverride is a memo dep on StockChart.
+  const csOverride = useMemo(() => ownerSettings || null, [ownerSettings])
+
   // Signal readiness once the chart has had time to fetch bars + paint. No
   // onReady hook on StockChart, so a paint-settle delay is the pragmatic guard.
+  //
+  // Gated on the settings landing first — otherwise the screenshot can be taken
+  // while the chart is still wearing the default theme, and the fix would land
+  // intermittently (the worst kind of "it works on my machine").
   useEffect(() => {
     window.__chartReady = false
+    if (!settingsSettled) return undefined
     const t = setTimeout(() => { window.__chartReady = true }, 3500)
     return () => clearTimeout(t)
-  }, [sym, tf])
+  }, [sym, tf, settingsSettled])
 
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
 
   const chartH = h - 60  // 40px header + 20px footer
 
+  // Chrome follows the chart's own canvas colour, exactly as composeScreenshot
+  // does ("fill EVERYTHING with the chart's own background... so the header/
+  // footer blend seamlessly"). Hardcoding #0a0a0a/#161616 was invisible while
+  // the export was always dark; the moment the owner's light theme arrives, a
+  // near-black header strip over a cream chart reads as a broken image.
+  const pageBg = ownerSettings?.background || '#0a0a0a'
+  const chromeBg = ownerSettings?.background || '#161616'
+  const chromeText = ownerSettings?.textColor || '#888'
+
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100vh' }}>
+    <div style={{ background: pageBg, minHeight: '100vh' }}>
       {/* Hide the floating drawing toolbar overlay in the export (it's not part
           of the real composeScreenshot canvas capture). */}
       <style>{`#chart-export [class*="toolbar" i],
@@ -72,12 +115,13 @@ export default function ChartRender() {
         #chart-export [class*="resetView" i],
         #chart-export [class*="homeBtn" i]{display:none !important}
         #chart-export{font-family:'Instrument Sans',-apple-system,Segoe UI,sans-serif}`}</style>
-      <div id="chart-export" style={{ width: w, background: '#0a0a0a' }}>
-        <div style={{ height: 40, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 16px', color: '#888', fontSize: 14, position: 'relative' }}>
+      <div id="chart-export" style={{ width: w, background: pageBg }}>
+        <div style={{ height: 40, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 14, position: 'relative' }}>
           <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 18 }}>{sym}</span>
           {company && <span style={{ marginLeft: 8, color: '#9aa08f', fontSize: 13 }}>({company})</span>}
           <span style={{ marginLeft: 12 }}>{TF_LABEL[tf] || tf}</span>
-          {price > 0 && <span style={{ marginLeft: 12, color: '#fff' }}>${price.toFixed(2)}</span>}
+          {/* NOT hardcoded #fff — white on a cream canvas is an invisible price. */}
+          {price > 0 && <span style={{ marginLeft: 12, color: chromeText, fontWeight: 600 }}>${price.toFixed(2)}</span>}
           {Number.isFinite(chg) && <span style={{ marginLeft: 8, color: chg >= 0 ? '#22c55e' : '#ef4444' }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
@@ -92,10 +136,11 @@ export default function ChartRender() {
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             forceExtendedHours={forceExt}
+            settingsOverride={csOverride}
             liveUpdates={false}
           />
         </div>
-        <div style={{ height: 20, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 16px', color: '#666', fontSize: 10 }}>
+        <div style={{ height: 20, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 10 }}>
           {/* Traders read ET — a "03:20 UTC" stamp on a 7:35am letter reads broken. */}
           <span>
             {new Intl.DateTimeFormat('en-US', {
