@@ -4709,7 +4709,10 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
         "close_detector_enabled",    # clean-directional gate: drop contaminated bid-sells (dark)
-        "close_min_long_frac",       # prior-ask multiple of print size that flags a mixed sell
+        "close_min_long_frac",       # ask-vol multiple of print size that flags a mixed sell
+        "close_net_frac",            # DEPRECATED (renamed -> close_min_long_frac). Kept in the
+                                     # allowlist ONLY so old saved threshold blobs still POST
+                                     # without a 400; the code no longer reads it.
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
