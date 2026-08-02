@@ -1399,7 +1399,7 @@ function _dateToMDY(d) {
   return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
-function DateRail({ targetDate, onDateChange, onRange }) {
+function DateRail({ targetDate, onDateChange, onRange, rangeDays }) {
   const [dates, setDates] = useState(null);      // ascending M/D/YYYY, null = loading/failed
   const [calOpen, setCalOpen] = useState(false);
   const [calMonth, setCalMonth] = useState(null); // {y, m} shown in the popover
@@ -1661,7 +1661,13 @@ function DateRail({ targetDate, onDateChange, onRange }) {
         }}
       >
         {selDate
-          ? `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()}/${selDate.getFullYear()} ▾`
+          ? (rangeDays > 1
+              ? `${(() => {   // multi-day range: show start → end · Nd
+                  const idx = allDays.indexOf(targetDate);
+                  const sd = idx >= 0 ? _mdyToDate(allDays[Math.max(0, idx - (rangeDays - 1))]) : null;
+                  return sd ? `${sd.getMonth() + 1}/${sd.getDate()}` : `${rangeDays}d`;
+                })()} → ${selDate.getMonth() + 1}/${selDate.getDate()} · ${rangeDays}d ▾`
+              : `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()}/${selDate.getFullYear()} ▾`)
           : "📅 HISTORY ▾"}
       </button>
 
@@ -1678,7 +1684,7 @@ function Header({ status, loadPending, warming, workerLive,
                   hideNoSide, onHideNoSideChange,
                   curated, onCuratedChange,
                   tickerFilter, contractFilter, onClearFilters,
-                  targetDate, onDateChange, onRange, onOiFetch, oiFetchState,
+                  targetDate, onDateChange, onRange, rangeDays, onOiFetch, oiFetchState,
                   nullOICount }) {
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
@@ -1719,7 +1725,7 @@ function Header({ status, loadPending, warming, workerLive,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
-        <DateRail targetDate={targetDate} onDateChange={onDateChange} onRange={onRange} />
+        <DateRail targetDate={targetDate} onDateChange={onDateChange} onRange={onRange} rangeDays={rangeDays} />
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
@@ -4187,6 +4193,7 @@ export default function LiveFlowMassive() {
         targetDate={targetDate}
         onDateChange={setTargetDate}
         onRange={applyRange}
+        rangeDays={viewMode === "contract" ? lookbackDays : 1}
         onOiFetch={handleOiFetch}
         oiFetchState={oiFetchState}
         nullOICount={alerts.filter(a => a.priorOI == null).length}
