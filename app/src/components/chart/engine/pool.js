@@ -247,7 +247,19 @@ function lineTypeValue(member, LineType) {
  * spacing included — the point is that re-asserting one of these leaves the
  * series in EXACTLY the state a freshly-created one would be in, and a
  * "tidied-up" `rgba(46, 220, 135, 0.4)` would be a different string for no
- * reason. `pool.test.js` pins them against the installed bundle.
+ * reason.
+ *
+ * They are LITERALS here because this module is pure — importing the renderer to
+ * read them would put `lightweight-charts` on every consumer of the pool. The
+ * drift that buys is pinned in `pool.test.js` ("LWC_DEFAULTS is pinned against
+ * the INSTALLED lightweight-charts"), which reads `defaultOptions` off the real
+ * `LineSeries`/`AreaSeries`/`BaselineSeries`/`HistogramSeries` definitions and
+ * fails, by name and with both values, the moment a dependency bump moves one.
+ * Before that block existed this comment claimed a pin that did not exist: the
+ * test hand-copied the same eleven literals a second time and asserted one copy
+ * against the other, so an upstream change would have left both stale, the suite
+ * green, and every bare `area`/`baseline` plot "restoring" a value the renderer
+ * no longer uses.
  */
 const LWC_DEFAULTS = Object.freeze({
   line: Object.freeze({ color: '#2196f3' }),

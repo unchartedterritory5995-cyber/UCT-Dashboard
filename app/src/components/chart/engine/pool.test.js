@@ -15,6 +15,12 @@ import {
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { PLOT_STYLES } from './defSchema'
 import * as registry from './nativeRegistry'
+// The INSTALLED renderer, imported for one purpose: to read its real series
+// defaults. This is the only `lightweight-charts` import under `engine/` outside
+// `binder.js`, and it is a TEST-only import — the modules under test stay pure.
+import {
+  LineSeries, AreaSeries, BaselineSeries, HistogramSeries, version as lwcVersion,
+} from 'lightweight-charts'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 //
@@ -519,7 +525,12 @@ describe('the COMPLETE series option set — one key set per pool key, every cal
   })
 
   it('an option no plot declares is restored to LWC\'s OWN default, not to a guess', () => {
-    // Verified against the installed lightweight-charts 5.2.0 style defaults.
+    // Readable restatement of the values, so the expected picture is visible at
+    // the point of use. It is NOT the drift guard — it hand-copies the same
+    // literals `pool.js` does, so an upstream change leaves both stale and this
+    // green. The guard is 'LWC_DEFAULTS is pinned against the INSTALLED
+    // lightweight-charts' at the bottom of this file, which reads the real
+    // `defaultOptions`. Keep both: this one says WHAT, that one says STILL TRUE.
     const line = seriesOptionsForPlot(bareplot('line'), {})
     expect(line.color).toBe('#2196f3')          // lineStyleDefaults.color
     expect(line.lineStyle).toBe(0)              // LineStyle.Solid
@@ -650,5 +661,109 @@ describe('bindingKey / guideSignature', () => {
     expect(guideSignature([{ ...base[0], color: '#000' }])).not.toBe(guideSignature(base))
     expect(guideSignature([{ ...base[0], width: 2 }])).not.toBe(guideSignature(base))
     expect(guideSignature([])).toBe(guideSignature(null))
+  })
+})
+
+// ─── The drift rail for LWC_DEFAULTS ─────────────────────────────────────────
+//
+// C-1's whole guarantee is "an option no plot declares is restored to LWC's OWN
+// default" — so that a pooled series re-purposed by a plot that is silent about
+// an option ends up in EXACTLY the state a freshly-created one would be in.
+// `pool.js` spells those defaults out as literals, because it is a pure module
+// and must not import the renderer.
+//
+// Until this block existed, `pool.js`'s docstring claimed "`pool.test.js` pins
+// them against the installed bundle" and the test underneath it hand-copied the
+// same eleven literals a second time. It asserted one hand-copy against another:
+// green by construction, and blind to the only thing it claimed to guard. Bump
+// `lightweight-charts` to a version where `areaStyleDefaults.topColor` moves and
+// BOTH copies stay stale, the suite stays green, and every bare area/baseline
+// plot re-asserts a WRONG "LWC default" onto a pooled series — quietly turning
+// the guarantee into "restore to lightweight-charts 5.2.0's default".
+//
+// These read `defaultOptions` off the installed series definitions, so a
+// dependency bump that moves a default fails here, by name, with both values.
+describe('LWC_DEFAULTS is pinned against the INSTALLED lightweight-charts', () => {
+  const REAL = {
+    line: LineSeries.defaultOptions,
+    histogram: HistogramSeries.defaultOptions,
+    area: AreaSeries.defaultOptions,
+    baseline: BaselineSeries.defaultOptions,
+  }
+
+  /** poolKey → the option keys whose value must be LWC's own default when the
+   *  plot declares nothing. The eleven COLOURS `LWC_DEFAULTS` hard-codes. */
+  const LWC_COLOURS = {
+    line: ['color'],
+    histogram: ['color'],
+    area: ['lineColor', 'topColor', 'bottomColor'],
+    baseline: [
+      'topLineColor', 'bottomLineColor',
+      'topFillColor1', 'topFillColor2', 'bottomFillColor1', 'bottomFillColor2',
+    ],
+  }
+
+  /** The same contract for the non-colour options the line family resets. */
+  const LWC_SHAPE = {
+    line: ['lineStyle', 'lineType', 'pointMarkersVisible'],
+    area: ['lineStyle', 'lineType', 'pointMarkersVisible'],
+    baseline: ['lineStyle', 'lineType', 'pointMarkersVisible'],
+  }
+
+  it('the installed bundle actually exposes defaults (an empty read would pass vacuously)', () => {
+    expect(typeof lwcVersion === 'function' ? lwcVersion() : lwcVersion).toBeTypeOf('string')
+    for (const [pk, defaults] of Object.entries(REAL)) {
+      expect(defaults, `${pk}: no defaultOptions on the series definition`).toBeTypeOf('object')
+      expect(Object.keys(defaults || {}).length, pk).toBeGreaterThan(0)
+    }
+    // Every key this block asserts on must EXIST upstream. A renamed option
+    // would otherwise compare undefined-to-undefined and pass silently.
+    for (const [pk, keys] of Object.entries({ ...LWC_COLOURS })) {
+      for (const key of keys) {
+        expect(REAL[pk][key], `lightweight-charts ${pk}.${key} is gone`).toBeTypeOf('string')
+      }
+    }
+    for (const [pk, keys] of Object.entries(LWC_SHAPE)) {
+      for (const key of keys) {
+        expect(REAL[pk][key], `lightweight-charts ${pk}.${key} is gone`).toBeDefined()
+      }
+    }
+    // Eleven colours, stated as a number so a table edit that drops one is loud.
+    expect(Object.values(LWC_COLOURS).reduce((n, k) => n + k.length, 0)).toBe(11)
+  })
+
+  for (const [pk, keys] of Object.entries(LWC_COLOURS)) {
+    for (const key of keys) {
+      it(`a bare ${pk} plot's \`${key}\` is the installed bundle's own default`, () => {
+        const emitted = seriesOptionsForPlot(bareplot(pk), {})
+        expect(
+          emitted[key],
+          `pool.js hard-codes ${pk}.${key}; lightweight-charts ` +
+          `${typeof lwcVersion === 'function' ? lwcVersion() : lwcVersion} now says ` +
+          `${JSON.stringify(REAL[pk][key])}. Update LWC_DEFAULTS — a stale copy means a ` +
+          `pooled series is "reset" to a value the renderer no longer uses.`,
+        ).toBe(REAL[pk][key])
+      })
+    }
+  }
+
+  for (const [pk, keys] of Object.entries(LWC_SHAPE)) {
+    for (const key of keys) {
+      it(`a bare ${pk} plot's \`${key}\` is the installed bundle's own default`, () => {
+        expect(seriesOptionsForPlot(bareplot(pk), {})[key]).toBe(REAL[pk][key])
+      })
+    }
+  }
+
+  it('`lineWidth` is the ONE deliberate divergence, and it is stated here', () => {
+    // Not a drift: every indicator line in `StockChart.jsx` is created at 1, so 1
+    // is what "the author did not say" must mean for a Flip A migration to stay
+    // pixel-identical. LWC's own default is 3. Asserting the divergence keeps it
+    // a decision rather than an oversight — and fails if LWC ever ships 1, at
+    // which point the comment in `pool.js` stops being true.
+    expect(REAL.line.lineWidth).toBe(3)
+    for (const pk of ['line', 'area', 'baseline']) {
+      expect(seriesOptionsForPlot(bareplot(pk), {}).lineWidth, pk).toBe(1)
+    }
   })
 })
