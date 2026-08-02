@@ -29,13 +29,20 @@ backend)::
 
 **Determinism self-check** (same build twice — must report 0 changed pixels)::
 
-    python tools/chart_parity.py --base-a http://localhost:5173
+    python tools/chart_parity.py --base-a http://localhost:5173 --same-build
 
 **Prove the gate can fail** (one hex digit on one indicator's colour)::
 
-    python tools/chart_parity.py --base-a http://localhost:5173 \
+    python tools/chart_parity.py --base-a http://localhost:5173 --same-build \
         --cases rsi_only \
         --perturb-b '{"indicators": {"rsi": {"color": "#7b68ef"}}}'
+
+``--same-build`` is not ceremony. Both of those capture BOTH sides from one
+server, and an A-vs-A run cannot fail on a build difference — it used to be the
+silent default, which is how a determinism check reads like a legacy-vs-engine
+result to whoever finds the report later. The tool also ASKS each base what it is
+serving (see ``read_build_identity``) and refuses to run when the two answers
+match and nothing else tells the sides apart.
 
 **The real gate** (legacy build vs engine build, two servers)::
 
@@ -65,10 +72,14 @@ from __future__ import annotations
 import argparse
 import base64
 import copy
+import hashlib
 import json
 import os
+import re
 import sys
+import urllib.error
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from PIL import Image, ImageChops  # Pillow is already a dependency (requirements.txt)
@@ -186,6 +197,125 @@ def case_url(base: str, case: dict, token: str, extra_settings: dict | None = No
     return f"{base.rstrip('/')}/r/chart?{urllib.parse.urlencode(params)}"
 
 
+# ─── build identity ──────────────────────────────────────────────────────────
+#
+# NOTHING IN THIS TOOL USED TO ASSERT WHICH BUILD A BASE URL SERVES, and that is
+# not a hypothetical. The re-review of this branch opened with a clean green
+# parity run against `http://localhost:5173` — a dev server that was serving the
+# `phase-b1-foundations` worktree, a branch with no engine in it at all. Every
+# case reported 0 changed pixels and exit 0, because two captures of the same
+# wrong build are identical. The number was real; it just was not about this
+# branch. It was caught by reading the server process's command line, which is
+# not a thing a gate may depend on a human remembering to do.
+#
+# So each base is asked what it is serving, BEFORE any capture:
+#
+#   * a production build advertises hashed assets in `index.html`
+#     (`/assets/index-<hash>.js`) — the hash IS the identity, and two `dist`
+#     trees that differ anywhere differ here.
+#   * a `vite dev` server advertises `/src/main.jsx` and `/@vite/client`, which
+#     are IDENTICAL across every worktree — exactly the case that fooled the
+#     re-review. So dev servers are identified by CONTENT: a handful of modules
+#     on the chart's own render path are fetched and hashed. `binder.js` and
+#     `pool.js` do not exist on a pre-engine branch, and "absent" is as good an
+#     identity as any hash.
+#
+# The identities go into `report.json` and `report.md`, so every parity number
+# this tool has ever printed is attributable after the fact.
+
+BUILD_PROBE_PATHS = (
+    "/src/pages/ChartRender.jsx",
+    "/src/components/StockChart.jsx",
+    "/src/components/chart/engine/binder.js",
+    "/src/components/chart/engine/pool.js",
+    "/src/components/chart/engine/instances.js",
+)
+
+_ASSET_RE = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.I)
+
+
+class BuildIdentityError(RuntimeError):
+    """A base could not be asked what it serves. Fatal: an unattributable green
+    is the exact failure this whole section exists to make impossible."""
+
+
+def _http_get(url: str, timeout: int = 20) -> tuple[int, bytes]:
+    req = urllib.request.Request(url, headers={"User-Agent": "chart-parity/1"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:  # a 404 is an ANSWER, not a failure
+        return e.code, e.read() or b""
+
+
+def read_build_identity(base: str) -> dict:
+    """What is this base serving? Returns a dict with a short stable ``id``."""
+    root = base.rstrip("/")
+    html = None
+    for path in ("/index.html", "/"):
+        try:
+            status, body = _http_get(root + path)
+        except Exception as e:  # noqa: BLE001 — connection refused, DNS, timeout
+            raise BuildIdentityError(f"{root}{path}: {type(e).__name__}: {e}") from e
+        if status == 200 and body:
+            html = body.decode("utf-8", "replace")
+            break
+    if html is None:
+        raise BuildIdentityError(f"{root}: no index.html (is the server up?)")
+
+    assets = sorted({
+        u.rsplit("/", 1)[-1]
+        for u in _ASSET_RE.findall(html)
+        if "/assets/" in u and u.rsplit(".", 1)[-1].lower() in ("js", "css")
+    })
+
+    probes = {}
+    for path in BUILD_PROBE_PATHS:
+        try:
+            status, body = _http_get(root + path)
+        except Exception as e:  # noqa: BLE001
+            raise BuildIdentityError(f"{root}{path}: {type(e).__name__}: {e}") from e
+        probes[path] = (
+            f"{status}:{hashlib.sha256(body).hexdigest()[:12]}" if status == 200 else str(status)
+        )
+
+    canonical = json.dumps({"assets": assets, "probes": probes}, sort_keys=True)
+    kind = "dist" if assets else "dev"
+    return {
+        "url": root,
+        "kind": kind,
+        "assets": assets,
+        "probes": probes,
+        # Does this base HAVE an engine to rehearse? Only answerable on a dev
+        # server, where the source tree is served path-for-path. A bundled build
+        # answers the SPA fallback (index.html) for every `/src/...` path, so
+        # "absent" would be a false alarm there — hence three states, and only
+        # `absent` is ever enforced. See the rehearsal guard in `main`.
+        "engine_source": _engine_source(root) if kind == "dev" else "unknown (bundled build)",
+        "id": hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12],
+    }
+
+
+def _engine_source(root: str) -> str:
+    """`present` / `absent` — is `engine/instances.js` a real module on this dev
+    server? A Vite dev server answers a path it does not have with the SPA
+    fallback, so 200 alone is not an answer; the body has to be JS."""
+    try:
+        status, body = _http_get(root + "/src/components/chart/engine/instances.js")
+    except Exception:  # noqa: BLE001
+        return "absent"
+    if status != 200:
+        return "absent"
+    head = body.lstrip()[:200].lower()
+    return "absent" if (b"<!doctype" in head or b"<html" in head) else "present"
+
+
+def identity_line(label: str, ident: dict) -> str:
+    what = ", ".join(ident["assets"]) if ident["assets"] else "no hashed assets (dev server)"
+    return (f"- {label}: `{ident['url']}` · build **{ident['id']}** ({ident['kind']}) — {what}"
+            f" · engine source: {ident['engine_source']}")
+
+
 # ─── capture ─────────────────────────────────────────────────────────────────
 
 def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000) -> None:
@@ -263,10 +393,20 @@ def write_report(report: dict, out_dir: Path) -> None:
     lines = [
         "# Chart parity gate",
         "",
-        f"- A (baseline): `{report['base_a']}`",
-        f"- B (candidate): `{report['base_b']}`",
+        # The build identities are FIRST because they are what makes every number
+        # below attributable. A parity result whose builds are unknown is a
+        # sentence with no subject.
+        identity_line("A (baseline)", report["build_a"]),
+        identity_line("B (candidate)", report["build_b"]),
         f"- cases: {len(report['results'])} · failures: {report['failures']}",
     ]
+    if report.get("same_build"):
+        lines.append(
+            "- ⚠️ **A and B are the SAME build** "
+            f"(`{report['build_a']['id']}`) — this run cannot fail on a build difference. "
+            "It is a determinism self-check, a deliberate perturbation, or the one-build "
+            "engine rehearsal; it is NOT a legacy-build-vs-engine-build result."
+        )
     if report.get("perturb_b"):
         lines.append(f"- ⚠️ **B was deliberately perturbed**: `{json.dumps(report['perturb_b'])}` "
                      "— this run is a self-test of the gate, not a parity result.")
@@ -322,8 +462,16 @@ def main() -> int:
     ap.add_argument("--base-a", default=os.environ.get("CHART_PARITY_BASE_A", "http://localhost:5173"),
                     help="baseline frontend (the legacy build)")
     ap.add_argument("--base-b", default=None,
-                    help="candidate frontend (the engine build). Omit to capture BOTH sides "
-                         "from --base-a, which is the determinism self-check.")
+                    help="candidate frontend (the engine build). Omitting it captures BOTH "
+                         "sides from --base-a, which is an A-vs-A run and therefore REQUIRES "
+                         "--same-build.")
+    ap.add_argument("--same-build", action="store_true",
+                    help="declare that A and B are intentionally the SAME build — a determinism "
+                         "self-check, or a --perturb-b self-test on one server. Required when "
+                         "--base-b is omitted, and required when the two bases turn out to "
+                         "report the same build identity with nothing else telling them apart. "
+                         "The engine rehearsal (a case with `instancesB`) and "
+                         "--instances-side none|both are self-declaring and do not need it.")
     ap.add_argument("--cases", nargs="*", help="subset of case names")
     ap.add_argument("--include-placeholders", action="store_true",
                     help="also run cases marked status=placeholder (B3 fills those in)")
@@ -368,6 +516,14 @@ def main() -> int:
             "and look like a pass. Use --instances-side b (the rehearsal) or both."
         )
 
+    if args.base_b is None and not args.same_build:
+        raise SystemExit(
+            "--base-b was omitted, so BOTH sides would be captured from --base-a. That is an "
+            "A-vs-A run and it cannot fail on a build difference — say so with --same-build.\n"
+            "It used to default silently, which is how a determinism self-check reads like a "
+            "legacy-vs-engine result in a report six months later."
+        )
+
     perturb = json.loads(args.perturb_b) if args.perturb_b else None
     perturb_inst = json.loads(args.perturb_b_instances) if args.perturb_b_instances else None
     base_a = args.base_a
@@ -381,8 +537,94 @@ def main() -> int:
     if not cases:
         raise SystemExit("no runnable cases (every match was a placeholder?)")
 
+    # THE OTHER EARLY RETURN IN `case_instances`, and it is the same failure class
+    # as the one rejected above. `--perturb-b-instances` patches a case's
+    # `instancesB`; a case that HAS no `instancesB` returns None before the
+    # perturbation is reached, so the run renders two identical sides, reports
+    # `0 · 🟢 pass` and exits 0 — while the report banner says "B's engine
+    # INSTANCES were deliberately perturbed". Four of the five default cases are
+    # that shape, and naming one is exactly what a B3 engineer does to sanity-check
+    # the harness before migrating an indicator.
+    if perturb_inst:
+        inert = [c["name"] for c in cases if not c.get("instancesB")]
+        if inert:
+            raise SystemExit(
+                "--perturb-b-instances has nothing to perturb on: "
+                + ", ".join(sorted(inert))
+                + ".\nThose cases carry no `instancesB`, so both sides render the LEGACY "
+                  "indicator, the perturbation is never applied, and the run would report 0 "
+                  "changed pixels and read exactly like a pass. Name a case that has "
+                  "`instancesB` (see `engine_rsi_vs_legacy` in chart_parity_cases.json)."
+            )
+
+    # WHICH BUILD IS EACH SIDE SERVING? Asked before a single pixel is captured,
+    # because a green from two servers running the same code — or from ONE server
+    # running the wrong worktree — is indistinguishable from a real parity pass.
+    try:
+        ident_a = read_build_identity(base_a)
+        ident_b = ident_a if base_b == base_a else read_build_identity(base_b)
+    except BuildIdentityError as e:
+        raise SystemExit(
+            f"cannot read a build identity from the base(s): {e}\n"
+            "Every number this tool prints is a claim about a specific build, so it refuses "
+            "to measure one it cannot name. Check the server is up and serving the app."
+        ) from e
+
+    same_build = ident_a["id"] == ident_b["id"]
+    # Two things legitimately make an A-vs-A BUILD a real comparison:
+    #   * a perturbation — side B was deliberately changed;
+    #   * the engine rehearsal — a case's `instancesB` goes to side B only, so the
+    #     two sides differ by one URL parameter and the diff measures the
+    #     migration rather than the distance between two checkouts.
+    differentiated = bool(perturb or perturb_inst) or (
+        args.instances_side == "b" and any(c.get("instancesB") for c in cases)
+    )
+    # `--instances-side none|both` IS a declaration: both of them say, in the flag
+    # itself, "this run is a determinism check of one render path".
+    declared_same = args.same_build or args.instances_side in ("none", "both")
+
+    # THE TRAP, CLOSED FROM THE OTHER SIDE. `--base-b` being the same build is
+    # legitimate for the engine rehearsal — but only if that build HAS an engine.
+    # Point the rehearsal at a pre-engine worktree and `?instances=` arms nothing,
+    # both sides render the legacy indicator, and the case reports 0 changed
+    # pixels and 🟢 pass. That is not a hypothetical: it is what the re-review's
+    # first parity run did against a `phase-b1-foundations` dev server, and the
+    # only thing that caught it was a human reading the server's command line.
+    rehearsing = args.instances_side in ("b", "both") and any(c.get("instancesB") for c in cases)
+    if rehearsing:
+        engineless = [i for i in ({"a": ident_a, "b": ident_b}).values()
+                      if i["engine_source"] == "absent"]
+        if engineless:
+            raise SystemExit(
+                "this run renders engine instances, but "
+                + ", ".join(sorted({i["url"] for i in engineless}))
+                + " has no `app/src/components/chart/engine/` to render them WITH.\n"
+                  "`?instances=` would arm nothing, both sides would draw the legacy indicator, "
+                  "and the case would report 0 changed pixels and read as a clean pass. That is "
+                  "exactly how a green was once reported against a pre-engine worktree.\n"
+                  "BOTH sides are checked, not just the one that receives the instances: an "
+                  "`instancesB` case means ONE build rendering two ways, so a side that cannot "
+                  "render the engine at all makes the comparison something other than what the "
+                  "case claims to measure. Point --base-a/--base-b at the branch under test."
+            )
+
+    if same_build and not declared_same and not differentiated:
+        raise SystemExit(
+            f"A and B serve the SAME build ({ident_a['id']}), and nothing else tells the two "
+            f"sides apart.\n"
+            f"  A: {ident_a['url']} ({ident_a['kind']}, {ident_a['id']})\n"
+            f"  B: {ident_b['url']} ({ident_b['kind']}, {ident_b['id']})\n"
+            "Every case would report 0 changed pixels no matter what the code does. If that is "
+            "what you meant — a determinism self-check — pass --same-build. If it is not, one "
+            "of the two servers is serving the wrong worktree: a clean green against a build "
+            "with no engine in it is how this check came to exist."
+        )
+
     report = {
         "base_a": base_a, "base_b": base_b,
+        "build_a": ident_a, "build_b": ident_b,
+        "same_build": same_build,
+        "same_build_declared": bool(args.same_build),
         "self_check": args.base_b is None,
         "perturb_b": perturb,
         "perturb_b_instances": perturb_inst,
@@ -391,6 +633,8 @@ def main() -> int:
         "tolerance_reason": args.tolerance_reason,
         "results": [], "failures": 0,
     }
+    print(identity_line("A (baseline) ", ident_a))
+    print(identity_line("B (candidate)", ident_b))
 
     with sync_playwright() as p:
         # --force-color-profile=srgb: without it Chromium converts the composited

@@ -33,8 +33,14 @@ harness itself is unreliable and no parity result from it can be trusted** — s
 and fix that first.
 
 ```bash
-python tools/chart_parity.py --base-a http://localhost:5173
+python tools/chart_parity.py --base-a http://localhost:5173 --same-build
 ```
+
+`--same-build` is **required** here, and it is not ceremony. Omitting `--base-b`
+used to default it to `--base-a` silently, so an A-vs-A run — which cannot fail on
+a build difference — produced a report indistinguishable from a real
+legacy-vs-engine result. Declaring it puts `same_build: true` in `report.json` and
+a ⚠️ line at the top of `report.md`, where the next reader will see it.
 
 ### 2. Prove it can still fail
 
@@ -42,7 +48,7 @@ Perturb one indicator's colour by one hex digit on the B side only. This is a
 self-test of the gate, not a parity result — the report labels it as such.
 
 ```bash
-python tools/chart_parity.py --base-a http://localhost:5173 \
+python tools/chart_parity.py --base-a http://localhost:5173 --same-build \
     --cases rsi_only \
     --perturb-b '{"indicators": {"rsi": {"color": "#7b68ef"}}}'
 ```
@@ -129,7 +135,68 @@ nothing to perturb: the run would report 0 changed pixels and read exactly like 
 pass. A self-test that can report 0 is the failure mode this whole document is
 about, so it is refused rather than footnoted.
 
+`--perturb-b-instances` on a case that carries no `instancesB` is refused for the
+same reason and was the SECOND half of that class, left open when the first was
+closed: `case_instances` returns before the perturbation on `if not raw`, which is
+**four of the five default cases**. `--cases rsi_only --perturb-b-instances …`
+rendered, reported `| rsi_only | 0 | 0.0% | 0 | 🟢 pass |` and exited 0 while the
+banner above it said the instances had been deliberately perturbed. An unnamed
+default run still went red overall, because `engine_rsi_vs_legacy` is in the set —
+so the reachable misuse was naming a case, which is exactly what you do when you
+sanity-check the harness before migrating an indicator.
+
 ---
+
+## Which build am I measuring? — the four refusals
+
+Every number this tool prints is a claim about a specific build, and until
+2026-08-02 nothing in it checked that claim. **The re-review of Phase B2 opened
+with a clean 🟢 green against a dev server that was serving the
+`phase-b1-foundations` worktree** — a branch with no engine in it at all. Every
+case reported 0 changed pixels and exit 0, because two captures of the same wrong
+build are identical. It was caught by a human reading the server process's
+command line, which is not something a gate may depend on.
+
+So before a single pixel is captured, the harness **asks each base what it is
+serving** (`read_build_identity`) and **records both answers** in `report.json`
+and at the top of `report.md`:
+
+```
+- A (baseline): `http://localhost:5317` · build **aada0c2b2d75** (dev) — no hashed assets (dev server) · engine source: present
+- B (candidate): `http://localhost:5317` · build **aada0c2b2d75** (dev) — no hashed assets (dev server) · engine source: present
+```
+
+* a **`dist` build** advertises hashed assets in `index.html`
+  (`/assets/index-<hash>.js`) — the hash *is* the identity.
+* a **`vite dev` server** advertises `/src/main.jsx` and `/@vite/client`, which
+  are byte-identical in every worktree — precisely why the b1 server passed for a
+  b2 one. Dev servers are identified by CONTENT instead: a handful of modules on
+  the chart's render path are fetched and hashed. Measured, the two worktrees
+  come out `aada0c2b2d75` vs `32303a40d616`.
+
+**Four things now refuse to run.** All four were reproduced against live servers;
+none of them is theoretical.
+
+| refusal | the vacuous green it replaces |
+|---|---|
+| `--perturb-b-instances` on a case with no `instancesB` | 4 of the 5 default cases have none, so the perturbation is never applied: `0 px · 🟢 pass · exit 0` under a banner reading "B's engine INSTANCES were deliberately perturbed". |
+| `--base-b` omitted without `--same-build` | A-vs-A masquerading as A-vs-B forever after, in a report nobody can re-date. |
+| A and B report the SAME build id, with nothing else telling the sides apart | every case reports 0 no matter what the code does. |
+| an `instancesB` case pointed at a base with no `engine/` source | **the original trap.** `?instances=` arms nothing, both sides draw the legacy indicator, 0 px, 🟢. |
+
+The last one is checked on **both** sides even though only side B receives the
+instances: an `instancesB` case means *one build rendering two ways*, so a side
+that cannot render the engine makes the comparison something other than what the
+case claims to measure. It is only enforced when the source tree is observable
+(a dev server); a bundled build reports `engine source: unknown (bundled build)`
+and is taken at its word.
+
+**A run that is legitimately A-vs-A does not need any of this argued.** The
+engine rehearsal (a case with `instancesB`) and `--instances-side none|both` are
+self-declaring; everything else says `--same-build`.
+
+---
+
 
 ## What `window.__chartReady` waits on
 
