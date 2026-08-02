@@ -354,6 +354,20 @@ def main() -> int:
     if args.tolerance > 0 and not args.tolerance_reason.strip():
         raise SystemExit("--tolerance > 0 requires --tolerance-reason (it goes in the report)")
 
+    # A SELF-TEST THAT CANNOT FAIL IS THE FAILURE MODE THIS TOOL EXISTS TO CATCH.
+    # `--instances-side none` sends the engine instances to NEITHER side, and
+    # `case_instances` returns before the perturbation is ever applied — so the
+    # run reports 0 changed pixels and reads exactly like a pass, when in fact
+    # nothing was perturbed and nothing was proven. Rejected here rather than
+    # noted in the report, because the whole point of the "prove it can fail"
+    # step is that a 0 from it is impossible.
+    if args.perturb_b_instances and args.instances_side == "none":
+        raise SystemExit(
+            "--perturb-b-instances is meaningless with --instances-side none: no side gets the "
+            "instances, so there is nothing to perturb and the run would report 0 changed pixels "
+            "and look like a pass. Use --instances-side b (the rehearsal) or both."
+        )
+
     perturb = json.loads(args.perturb_b) if args.perturb_b else None
     perturb_inst = json.loads(args.perturb_b_instances) if args.perturb_b_instances else None
     base_a = args.base_a

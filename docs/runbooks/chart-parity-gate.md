@@ -123,6 +123,12 @@ That number is also the proof the engine is what drew side B: it moved because
 the INSTANCE moved. Running the settings perturb on the same case reports 0,
 which is the same fact seen from the other side.
 
+`--perturb-b-instances` together with `--instances-side none` is **rejected at
+argparse**. That combination sends the instances to neither side, so there is
+nothing to perturb: the run would report 0 changed pixels and read exactly like a
+pass. A self-test that can report 0 is the failure mode this whole document is
+about, so it is refused rather than footnoted.
+
 ---
 
 ## What `window.__chartReady` waits on

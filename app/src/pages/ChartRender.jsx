@@ -140,13 +140,20 @@ export default function ChartRender() {
   //            diff measures the tape, not the code.
   //   ?instances=<base64url JSON array>  the ENGINE's indicator instances. Present
   //            and non-empty ⇒ this render also sets `engineEnabled: true`, so ONE
-  //            param says "draw these through the engine" and there is no way to
-  //            arm the engine without giving it something to draw.
+  //            param says "draw these through the engine".
   //            It is a param of its OWN rather than two more keys inside
   //            `?indicators=` deliberately: `engineEnabled` is the switch between
-  //            two whole render paths, and StockChart reads it `=== true` precisely
-  //            so a stray settings value can never flip it. Smuggling the flag
-  //            through the settings blob would hand that back.
+  //            two whole render paths, and a parity case should have to say
+  //            "draw these, through the engine" as one indivisible thing rather
+  //            than assembling it out of two settings keys.
+  //            ⚠️ IT IS NOT A LOCK. An earlier version of this comment claimed the
+  //            flag could not be armed without instances; it can. `?indicators=`
+  //            is merged with `mergeSettingsOverride`, which writes primitives
+  //            through untouched, so `?indicators={"engineEnabled":true}` arms the
+  //            engine with an empty instance list. That is harmless — zero
+  //            instances is zero lightweight-charts calls, and `binder.sync` is
+  //            independently strict about the flag — but the claim was wrong and
+  //            this comment is load-bearing documentation.
   const indicatorsParam = useMemo(() => decodeSettingsParam(sp.get('indicators')), [sp])
   const instancesParam = useMemo(() => decodeInstancesParam(sp.get('instances')), [sp])
   // Sanitised: this value indexes a dynamic import, so it may only ever name a
