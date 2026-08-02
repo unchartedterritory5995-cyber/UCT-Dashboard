@@ -20,6 +20,7 @@ import bars200 from '../../../../pages/parityBars/ramp200.json'
 
 const H = vi.hoisted(() => ({
   addSeriesCalls: [],
+  removedSeries: [],
   visibilityCalls: [],
   binderCreated: [],
   binderApis: [],
@@ -27,6 +28,7 @@ const H = vi.hoisted(() => ({
   crosshairHandlers: [],
   reset() {
     H.addSeriesCalls.length = 0
+    H.removedSeries.length = 0
     H.visibilityCalls.length = 0
     H.binderCreated.length = 0
     H.binderApis.length = 0
@@ -78,7 +80,11 @@ vi.mock('lightweight-charts', () => {
       H.addSeriesCalls.push({ ctor: 'custom', options, paneIndex, series: s })
       return s
     },
-    removeSeries: () => {}, applyOptions: () => {},
+    // RECORDED, like `addSeries`. `addSeriesCalls` is cumulative across
+    // rerenders — it logs the CALL, not the chart's current contents — so
+    // "the line went away" is only assertable if removal is observed too.
+    removeSeries: (s) => { H.removedSeries.push(s) },
+    applyOptions: () => {},
     priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
     timeScale: () => timeScale,
     // The crosshair handler is CAPTURED, not swallowed. Everything the legend
@@ -244,7 +250,13 @@ describe('StockChart × indicator engine — the flag ON', () => {
     const noInstances = H.addSeriesCalls.length
     cleanup(); H.reset()
 
-    draw({ engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    // ⚠️ `indicators.rsi.enabled` IS THE CROSSOVER STATE, not decoration. Under
+    // Flip A the legacy toggle is still the switch (`StockChart.jsx`, the
+    // `legacyEnabled` projection): it reserves the band `computePaneMargins`
+    // hands the engine, and an instance whose toggle is off is treated as hidden
+    // so Ctrl+I and the toolbar checkbox keep working. Every case in this file
+    // that draws an engine instance therefore states the toggle.
+    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
     // RSI declares one data-bearing plot (its two guide plots are price lines on
     // that same series, not series of their own).
     expect(H.addSeriesCalls.length).toBe(noInstances + 1)
@@ -417,7 +429,7 @@ describe('an engine series is inserted where its legacy twin would have been', (
       engineEnabled: true,
       indicatorInstances: [RSI_INSTANCE],
       volume: { show: true },
-      indicators: { bb: { enabled: true } },
+      indicators: { rsi: { enabled: true }, bb: { enabled: true } },
     })
 
     const engineIdx = idxWhere(o => o.priceScaleId === 'rsi')
@@ -441,9 +453,12 @@ describe('an engine series is inserted where its legacy twin would have been', (
     draw({
       engineEnabled: true,
       indicatorInstances: [RSI_INSTANCE],
-      indicators: { bb: { enabled: true }, macd: { enabled: true }, obv: { enabled: true } },
+      indicators: { rsi: { enabled: true }, bb: { enabled: true }, macd: { enabled: true }, obv: { enabled: true } },
     })
     const engineIdx = idxWhere(o => o.priceScaleId === 'rsi')
+    // -1 is LESS THAN every index, so without this the loop below passes when the
+    // engine drew nothing at all.
+    expect(engineIdx, 'the engine drew nothing').toBeGreaterThan(-1)
     for (const scale of ['macd', 'obv']) {
       const legacyIdx = idxWhere(o => o.priceScaleId === scale)
       expect(legacyIdx, `${scale} did not draw`).toBeGreaterThan(-1)
@@ -458,7 +473,7 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
     .map(c => c.series)
 
   it('hides and re-shows an engine-bound series with the toggle', () => {
-    draw({ engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
     const [engineSeries] = engineSeriesOf()
     expect(engineSeries, 'the engine bound no series — the rest of this test is vacuous').toBeTruthy()
 
@@ -483,7 +498,7 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
     // on the next data poll — ~1×/sec in extended hours — and re-asserts the
     // complete option set, `visible` included. If the toggle's state does not
     // reach the binder, that paint silently shows the indicator again.
-    const settings = { engineEnabled: true, indicatorInstances: [RSI_INSTANCE] }
+    const settings = { engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] }
     const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
     expect(H.syncCalls.at(-1).indicatorsHidden).toBe(false)
 
@@ -730,24 +745,132 @@ describe('the settings round-trip — what a user changes after the flip', () =>
   })
 
   it('toggling the legacy switch OFF and back ON never leaves TWO RSI lines', () => {
-    // ⚠️ FLIP-A SEMANTICS, PINNED DELIBERATELY. `cs.indicators.rsi.enabled` is
-    // the LEGACY authority: it drives `computePaneMargins` (the band) and the
-    // legacy block. The ENGINE draws from the instance, so switching the legacy
-    // toggle off does NOT remove an engine-drawn RSI — it removes its reserved
-    // band, and placement falls back to `{top:0.82, bottom:0}`. Making the two
-    // agree is the Flip-B projection (`csForPaneMargins`, plan Task 9); what
-    // must hold TODAY, in every combination, is that the user never ends up
+    // ⚠️ FLIP-A SEMANTICS, PINNED DELIBERATELY — see the band suite below for the
+    // half this one cannot see. `cs.indicators.rsi.enabled` is still the SWITCH:
+    // off means no band AND no line; on means the engine's line in the legacy
+    // band. What must hold in EVERY combination is that the user never ends up
     // looking at two RSI lines or at an orphaned legacy one.
     const off = { indicators: { rsi: { enabled: false } } }
     const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
     expect(rsiSeries()).toHaveLength(1)
+    const first = rsiSeries()[0].series
 
+    // `rsiSeries()` counts addSeries CALLS and never shrinks, so "the line went
+    // away" has to be read off the REMOVAL and off what the binder still holds.
     view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
-    expect(rsiSeries(), 'legacy toggle off: still exactly one, the engine one').toHaveLength(1)
-    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds a series').toHaveLength(0)
+    expect(H.removedSeries, 'the engine\'s RSI line is still on the chart').toContain(first)
+    expect(rsiSeries(), 'and nothing drew a replacement').toHaveLength(1)
 
     view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
-    expect(rsiSeries(), 'toggled back on: the legacy block must not add a second').toHaveLength(1)
-    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws it again').toHaveLength(1)
+    expect(rsiSeries(), 'toggled back on: exactly one more, and the legacy block did not add its own').toHaveLength(2)
+  })
+})
+
+// ─── THE RESERVED BAND, AND THE FOUR DOORS THAT WRITE THE LEGACY TOGGLE ─────
+//
+// The carried item, gated. `computePaneMargins` reserves RSI's band from
+// `cs.indicators.rsi.enabled` (`paneMargins.js:47`) — so with the toggle off the
+// layout reserves NOTHING and `resolvePlacement` falls through to
+// `{top:0.82, bottom:0}` (`placement.js:103`), which overlaps volume's
+// `{top:0.85, bottom:0}`. That is not "a line in the wrong band": it is an RSI
+// drawn ON TOP OF the volume bars, and Ctrl+I / the toolbar checkbox / the two
+// right-click items were all one keystroke away from it.
+//
+// ⛔ THIS SUITE IS TASK 10's TRIPWIRE. Flip B moves the authority the other way
+// (`csForPaneMargins` projects the instance list onto the blob
+// `computePaneMargins` reads); every assertion below that names the toggle-OFF
+// state has to be rewritten when it lands, which is the point — the deferred
+// semantic can no longer change with the whole suite green.
+describe('the reserved band — an engine-drawn RSI is never painted over the volume bars', () => {
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+  const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
+  const settings = (over) => ({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE], ...over })
+
+  /** Two `scaleMargins`, as fractions from the TOP and from the BOTTOM of the
+   *  pane: band A spans [top, 1-bottom]. They overlap when each starts before
+   *  the other ends. */
+  const overlaps = (a, b) => a.top < (1 - b.bottom) && b.top < (1 - a.bottom)
+
+  /** What placement resolves for THIS instance, through the ctx the binder was
+   *  actually handed — not a reconstruction of it. */
+  const placementFor = (instance) => {
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx, 'the binder was never synced — this test is vacuous').toBeTruthy()
+    return ctx.resolvePlacement(instance, registry.getDefinition('rsi'), ctx)
+  }
+
+  it('the toggle ON: the engine lands in the band the LAYOUT reserved, clear of volume', () => {
+    draw(settings())
+    const ctx = H.syncCalls.at(-1)
+    expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(1)
+    expect(ctx.paneMargins.volume, 'no volume band — the overlap check would be vacuous').toBeTruthy()
+
+    // The band itself, pinned. Counts alone let Task 9's projection change the
+    // deferred semantic with 956 tests green (review I-1).
+    expect(ctx.paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
+    const band = placementFor(RSI_INSTANCE).scaleOptions.scaleMargins
+    expect(band).toEqual({ top: 0.85, bottom: 0 })
+    expect(overlaps(band, ctx.paneMargins.volume),
+      'the engine\'s RSI band overlaps the volume band').toBe(false)
+  })
+
+  it('the toggle OFF: no band is reserved, and the engine therefore draws NOTHING', () => {
+    // ⛔ THE TASK 9 / TASK 10 TRIPWIRE. `csForPaneMargins` makes `paneMargins.rsi`
+    // a real band here (the instance, not the toggle, reserves it) and the
+    // authority flip makes the engine draw into it — so BOTH assertions below go
+    // red the moment Flip B lands, which is exactly what "the deferred semantic
+    // cannot change silently" means.
+    draw(settings({ indicators: { rsi: { enabled: false } } }))
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx.paneMargins.rsi,
+      'a band is reserved for an rsi the legacy toggle says is off').toBeUndefined()
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(rsiSeries()).toHaveLength(0)
+  })
+
+  it('…because the band it WOULD get sits on top of the volume bars', () => {
+    // The mechanism, stated as an assertion rather than a comment: the fallback
+    // `resolvePlacement` reaches with nothing reserved is `{top:0.82, bottom:0}`,
+    // and volume owns `{top:0.85, bottom:0}`. This is the exact picture the fix
+    // above prevents, and it fails if either number moves.
+    draw(settings({ indicators: { rsi: { enabled: false } } }))
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx.paneMargins.volume, 'no volume band — vacuous').toEqual({ top: 0.85, bottom: 0 })
+    const would = placementFor(RSI_INSTANCE).scaleOptions.scaleMargins
+    expect(would).toEqual({ top: 0.82, bottom: 0 })
+    expect(overlaps(would, ctx.paneMargins.volume)).toBe(true)
+  })
+
+  it('Ctrl+I hides an engine-drawn RSI — the keystroke, and what the keystroke writes', () => {
+    // `keyboardShortcuts.js:99` → `StockChart.jsx:3495` writes
+    // `cs.indicators.rsi.enabled`. Before this fix round that reached
+    // `computePaneMargins` and nothing else: the band went, the engine's line
+    // stayed, and it stayed ON TOP OF the volume bars.
+    //
+    // Two halves, because they are two different failures. `onSettingsPersist`
+    // is how the write is observed at all — a `settingsOverride` chart re-applies
+    // its override on the next render, so the keystroke's effect has to be read
+    // from what it PERSISTED and then rendered back.
+    const persisted = []
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+    )
+    expect(rsiSeries(), 'nothing drawn to hide — vacuous').toHaveLength(1)
+
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
+
+    expect(persisted.length, 'Ctrl+I persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
+    const next = persisted.at(-1)
+    expect(next.indicators.rsi.enabled, 'Ctrl+I did not flip the toggle').toBe(false)
+    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
+      .toEqual([RSI_INSTANCE])
+
+    view.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    expect(rsiSeries(), 'Ctrl+I left the engine\'s RSI on the chart').toHaveLength(0)
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
   })
 })

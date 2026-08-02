@@ -36,6 +36,7 @@ import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { normalizeInstances, engineOwnedDefIds } from './chart/engine/instances'
+import { ENGINE_MIGRATED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
 import { engineChips, chipsBySlot } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
@@ -58,27 +59,11 @@ const EMPTY_OWNED = Object.freeze(new Set())
 // runs once per animation frame and must allocate nothing.
 const EMPTY_ENGINE_SLOTS = Object.freeze({})
 
-/**
- * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
- * exactly those whose legacy block below carries `&& !engineOwned.has('<id>')`.
- *
- * `engineOwnedDefIds` answers "which legacy blocks stand down", and the binder
- * separately draws whatever instances it is handed. Those are two decisions, and
- * before this they could disagree: an instance of a definition whose legacy block
- * has no guard meant the ENGINE drew it *and* the legacy block drew it, on the
- * same scale, in the same band — a silently double-drawn indicator, which reads
- * as a slightly bolder line and nothing else. The documented B3 obligation was
- * "add one line per migrated indicator", and nothing FAILED if B3 forgot one.
- *
- * Filtering the instance list through this set makes the pairing structural: a
- * definition that is not here is drawn by its legacy block only, exactly as it
- * always has been, and a definition that IS here has a test asserting that its
- * legacy block stands down (`stockChartWiring.test.jsx`). B3's step is now: add
- * the guard AND add the id — and the test fails if only the id lands.
- *
- * ⚠️ EXPORTED FOR THAT TEST, which iterates it. Keep it a Set of definition ids.
- */
-export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi']))
+// THE DOUBLE-DRAW RAIL, and the toolbar's "am I still connected to anything?"
+// predicate. Both live in `engine/flipState.js` because `ChartToolbar` is
+// rendered BY this file and cannot import from it — see that module's header.
+// Re-exported here so the ledger + wiring tests keep their import path.
+export { ENGINE_MIGRATED_DEF_IDS }
 // ── Indicator points → Lightweight Charts data ───────────────────────────────
 // `chart/indicators.js` returns arrays ALIGNED to the bars, NaN-padded before
 // the first computable bar. LWC rejects `value: NaN` outright, so a non-finite
@@ -5581,9 +5566,42 @@ export default function StockChart({
     // legacy block still draws too is a double-drawn indicator, and nothing about
     // that is visible until a user reports a "bold" line. The filter makes the
     // pairing structural instead of a thing B3 has to remember.
+    //
+    // ── FLIP A: THE LEGACY TOGGLE IS STILL THE SWITCH ────────────────────────
+    //
+    // …and the instance is only the RENDERER. FOUR controls write
+    // `cs.indicators.<id>.enabled`: the toolbar checkbox (`ChartToolbar.jsx:396`),
+    // Ctrl+I (`keyboardShortcuts.js:99` → `:3495`), the right-click
+    // **Indicators ▸** submenu (`:2214`) and right-click **Hide RSI** (`:2251`).
+    // Without this line every one of them SILENTLY HALF-WORKED once the engine
+    // owned the drawing: the flag reached `computePaneMargins` and nothing else,
+    // so turning RSI off removed its reserved BAND and left the line behind —
+    // and `resolvePlacement` then fell through to `{top:0.82, bottom:0}`
+    // (`placement.js:103`), which OVERLAPS volume's `{top:0.85, bottom:0}`. The
+    // user pressed Ctrl+I and got an RSI drawn on top of the volume bars.
+    //
+    // `hidden`, not "dropped from the list": `engineOwnedDefIds` counts hidden
+    // instances, so the legacy block stays stood down and no toggle can hand the
+    // drawing back to it mid-session. (It has no data to draw either way —
+    // `indicatorData.rsi` is `[]` while the flag is off — but ownership is a rail,
+    // not a coincidence.) The binder releases the series to the POOL, so this is
+    // an applyOptions-and-park, never the mass `removeSeries` of #2049.
+    //
+    // ⛔ DELETED BY TASK 10, together with the test that pins it. Flip B moves the
+    // authority the other way: `csForPaneMargins` projects the INSTANCE list onto
+    // the blob `computePaneMargins` reads, and `instanceControls` routes those
+    // four writes at the instance. The two rules are mirror images and cannot
+    // coexist — whoever lands Flip B removes this one.
+    //
+    // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
+    // needs its own answer here before it joins `ENGINE_MIGRATED_DEF_IDS` — VWAP
+    // is the one in the pilot set (`vwapOverride` forces it on independently of
+    // the toggle), and it is Task 11's, not this line's.
+    const legacyEnabled = (defId) => !!cs.indicators?.[defId]?.enabled
     const engineInstances = engineOn
       ? normalizeInstances(cs.indicatorInstances, engineRegistry).kept
         .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
+        .map(i => (i.hidden || legacyEnabled(i.defId) ? i : { ...i, hidden: true }))
       : EMPTY_INSTANCES
     // Mirrored for the crosshair legend (B3 carry #2). The handler needs each
     // instance's INPUTS to print `RSI(7)` and to colour the chip the way the

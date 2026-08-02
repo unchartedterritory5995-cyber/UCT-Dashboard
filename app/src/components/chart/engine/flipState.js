@@ -1,0 +1,71 @@
+// app/src/components/chart/engine/flipState.js
+//
+// ─── WHICH DEFINITIONS THE ENGINE IS CURRENTLY DRAWING ──────────────────────
+//
+// READ-ONLY, and deliberately so. Nothing here writes a settings blob or an
+// instance: that is Task 9's `instanceControls.js`, and this module must not
+// grow into it. What lives here is the one QUESTION two different readers ask —
+// StockChart's render pass, and any control that needs to know whether it still
+// controls anything.
+//
+// It exists at all because `ChartToolbar` is the second reader. The toolbar is
+// rendered BY `StockChart`, so `StockChart` cannot export the answer to it
+// without an import cycle, and a hand-copied second list of migrated ids is
+// exactly the defect this branch has already fixed twice (`7b28e5d8`, and the
+// legend slot rail in this same fix round). One list, two importers.
+
+import { normalizeInstances } from './instances'
+
+const EMPTY = Object.freeze(new Set())
+
+/**
+ * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
+ * exactly those whose legacy block in `StockChart.jsx` carries
+ * `&& !engineOwned.has('<id>')`.
+ *
+ * `engineOwnedDefIds` answers "which legacy blocks stand down", and the binder
+ * separately draws whatever instances it is handed. Those are two decisions, and
+ * before this they could disagree: an instance of a definition whose legacy block
+ * has no guard meant the ENGINE drew it *and* the legacy block drew it, on the
+ * same scale, in the same band — a silently double-drawn indicator, which reads
+ * as a slightly bolder line and nothing else. The documented B3 obligation was
+ * "add one line per migrated indicator", and nothing FAILED if B3 forgot one.
+ *
+ * Filtering the instance list through this set makes the pairing structural: a
+ * definition that is not here is drawn by its legacy block only, exactly as it
+ * always has been, and a definition that IS here has a test asserting that its
+ * legacy block stands down (`stockChartWiring.test.jsx`). B3's step is now: add
+ * the guard AND add the id — and the test fails if only the id lands.
+ *
+ * ⚠️ EXPORTED FOR THAT TEST, which iterates it, and re-exported by `StockChart`
+ * so its importers do not have to move. Keep it a Set of definition ids.
+ */
+export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi']))
+
+/**
+ * The migrated definitions this settings blob hands to the engine.
+ *
+ * "Hands to the engine", not "paints this frame": a HIDDEN instance is still the
+ * engine's, because the legacy block stays stood down for it and re-showing it
+ * draws from the instance. A control asking "am I still connected to anything?"
+ * wants that answer, not the paint one.
+ *
+ * Normalised, not read raw — an instance the validator drops (a tombstone, an
+ * undeclared input, an unknown definition) owns nothing and is drawn by nobody,
+ * so a control that greyed itself out for one would be lying in the other
+ * direction. Same rule, same function, as the render pass.
+ *
+ * @param {object} cs        merged chart settings
+ * @param {object} registry  the engine registry (`getDefinition`/`listDefinitions`)
+ * @returns {Set<string>} frozen-empty when the engine is off or holds nothing
+ */
+export function engineDrawnDefIds(cs, registry) {
+  if (!cs || cs.engineEnabled !== true) return EMPTY
+  const raw = cs.indicatorInstances
+  if (!Array.isArray(raw) || raw.length === 0) return EMPTY
+  const ids = new Set()
+  for (const inst of normalizeInstances(raw, registry).kept) {
+    if (ENGINE_MIGRATED_DEF_IDS.has(inst.defId)) ids.add(inst.defId)
+  }
+  return ids.size ? ids : EMPTY
+}
