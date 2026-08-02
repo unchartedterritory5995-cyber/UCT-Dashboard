@@ -4653,6 +4653,32 @@ def weekly_flow_trigger(
                     headers={"X-Weekly-Names": str(res.get("names", 0))})
 
 
+@router.post("/standing-flow")
+def standing_flow_trigger(
+    post: int = Query(0, description="1 = post to Discord; 0 = return the rendered PNG preview"),
+    days: int = Query(None, description="rolling window in trading days (default env STANDING_FLOW_DAYS / 60)"),
+    cap: str = Query("all", description="cap band: all | mega | large | mid_small"),
+    top_n: int = Query(None, description="names per side (default env STANDING_FLOW_TOP_N / 10)"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manual trigger for the Standing Conviction card — rolling still-open,
+    top-N-by-premium board over a longer window (default ~60 trading days / 6
+    weeks) with FIRST-SEEN + AGE columns. ?days=90 widens the window; ?cap=mid_small
+    for the mid-small variant. ?post=0 (default) returns the PNG; ?post=1 posts.
+    Bypasses STANDING_FLOW_ENABLED. Runs on the flow-worker (flow.db + OI snapshots)."""
+    from api import weekly_flow as wf
+    kw = dict(days=days, cap=cap, top_n=top_n)
+    if post:
+        return wf.run_standing(force=True, post=True, **kw)
+    res = wf.run_standing(force=True, post=False, **kw)
+    png = res.get("png")
+    if not png:
+        return res
+    from fastapi import Response
+    return Response(content=png, media_type="image/png",
+                    headers={"X-Standing-Names": str(res.get("names", 0))})
+
+
 @router.get("/pushed")
 def get_pushed(alert_date: str = Query(None, description="alert_date to filter (defaults to all recent)")):
     """Read-only list of alerts pushed to Discord (manual + auto). Feeds the

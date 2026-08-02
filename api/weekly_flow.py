@@ -344,7 +344,7 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
     tk: dict = {}
     for t in trades:
         e = tk.setdefault(t["S"], {"sym": t["S"], "bull": 0.0, "bear": 0.0,
-                                   "contracts": {}})
+                                   "contracts": {}, "first": None})
         if t["D"] == "BULL":
             e["bull"] += t["P"]
         else:
@@ -353,6 +353,12 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
         c = e["contracts"].setdefault(ck, {"cp": t["CP"], "K": t["K"], "exp": t["E"],
                                            "prem": 0.0, "dir": t["D"]})
         c["prem"] += t["P"]
+        # earliest print date for this name in the window → "first seen" / age
+        # (used by the Standing Conviction card; weekly ignores it). Trades from
+        # the test path carry no "Dt" and stay None — harmless.
+        dt = _parse_mdy(t.get("Dt", ""))
+        if dt and (e["first"] is None or dt < e["first"]):
+            e["first"] = dt
 
     for e in tk.values():
         e["net"] = e["bull"] - e["bear"]
@@ -485,6 +491,112 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int,
     return buf.getvalue()
 
 
+def render_standing_card(agg: dict, window: list[str], top_n: int,
+                         ref_date: date | None = None, cap_label: str = "") -> bytes:
+    """Standing Conviction card — same still-open, top-N-by-premium board as the
+    weekly one, over a longer rolling window, with FIRST-SEEN + AGE columns so a
+    name whose flow has been open for weeks reads as long-standing conviction.
+    Separate from render_card so the weekly card + its wiring guard stay put."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    SS = 2
+    ref = ref_date or date.today()
+
+    def font(name, pt):
+        return ImageFont.truetype(os.path.join(_ASSETS, name), int(pt * SS))
+
+    def s(v):
+        return int(v * SS)
+
+    ROWH, TOP, SECH = 34, 126, 32
+    sections = [("▲  TOP BULLISH", agg["bulls"], _BULL),
+                ("▼  TOP BEARISH", agg["bears"], _BEAR)]
+    body = sum(SECH + max(1, len(rows)) * ROWH for _, rows, _ in sections)
+    H = TOP + body + 54
+
+    img = Image.new("RGB", (s(_W), s(H)), _BG)
+    d = ImageDraw.Draw(img)
+    f_title = font("DejaVuSans-Bold.ttf", 30)
+    f_date = font("DejaVuSans.ttf", 17)
+    f_hdr = font("DejaVuSans-Bold.ttf", 12)
+    f_sec = font("DejaVuSans-Bold.ttf", 15)
+    f_row, f_rowb = font("DejaVuSans.ttf", 15), font("DejaVuSans-Bold.ttf", 15)
+    f_foot = font("DejaVuSans.ttf", 12)
+
+    def txt(x, y, t, fnt, fill, align="l"):
+        t = str(t)
+        w = d.textlength(t, font=fnt)
+        d.text(((x * SS - w) if align == "r" else s(x), s(y)), t, font=fnt, fill=fill)
+        return w / SS
+
+    d.rectangle([0, 0, s(_W), s(TOP - 26)], fill=_BAND)
+    try:
+        lg = Image.open(os.path.join(_ASSETS, "compass-mark.png")).convert("RGBA")
+        lg.putdata([(r, g, b, 0 if (r > 242 and g > 242 and b > 242) else a)
+                    for (r, g, b, a) in lg.getdata()])
+        lg = lg.resize((s(48), s(48)), Image.LANCZOS)
+        img.paste(lg, (s(32), s(18)), lg)
+    except Exception:  # noqa: BLE001
+        pass
+    tx = 94
+    tx += txt(tx, 18, "UCT Intelligence", f_title, _GOLD) + 12
+    tx += txt(tx, 18, "· Standing Conviction", f_title, _GOLD_DIM) + 12
+    if cap_label:
+        txt(tx, 18, "· " + cap_label, f_title, _GOLD_DIM)
+    rng = _week_range(window)
+    txt(94, 60, f"{rng}   ·   still open · top {top_n} by premium", f_date, _DIM)
+
+    # TICKER · BULL · BEAR · NET · TOP CONTRACT (EXP/STRIKE/C-P) · SINCE · AGE
+    cols = [("TICKER", 36, "l"), ("BULL", 258, "r"), ("BEAR", 366, "r"),
+            ("NET", 480, "r"), ("EXP", 528, "l"), ("STRIKE", 650, "r"),
+            ("C/P", 658, "l"), ("SINCE", 812, "r"), ("AGE", 1000, "r")]
+    for hdr, x, al in cols:
+        txt(x, TOP - 30, hdr, f_hdr, _DIM, al)
+    d.rectangle([s(36), s(TOP - 10), s(_W - 36), s(TOP - 10) + 1], fill=_DIV)
+
+    y = TOP + 4
+    for label, rows, col in sections:
+        d.rectangle([0, s(y - 4), s(_W), s(y - 4) + s(SECH - 6)], fill=_BAND)
+        txt(40, y, label, f_sec, col)
+        y += SECH
+        if not rows:
+            txt(40, y, "—", f_row, _DIM)
+            y += ROWH
+        for i, e in enumerate(rows):
+            if i % 2 == 1:
+                d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(ROWH)], fill=_ROWALT)
+            txt(36, y, e["sym"], f_rowb, _GOLD)
+            txt(258, y, _fmt_prem(e["bull"]) if e["bull"] else "—", f_row, _BULL, "r")
+            txt(366, y, _fmt_prem(e["bear"]) if e["bear"] else "—", f_row, _BEAR, "r")
+            net = e["net"]
+            txt(480, y, f'{"+" if net >= 0 else "−"}{_fmt_prem(abs(net))}', f_rowb,
+                _BULL if net >= 0 else _BEAR, "r")
+            tc = e.get("top")
+            if tc:
+                k = int(tc["K"]) if float(tc["K"]).is_integer() else tc["K"]
+                txt(528, y, "/".join(str(tc["exp"]).split("/")[:2]), f_row, _DIM)   # EXP
+                txt(650, y, f"${k}", f_row, _TXT, "r")                              # STRIKE
+                txt(658, y, tc["cp"], f_rowb, _BULL if tc["cp"] == "C" else _BEAR)  # C/P
+            first = e.get("first")
+            if first:
+                txt(812, y, f"{first.strftime('%b')} {first.day}", f_row, _TXT, "r")  # SINCE
+                txt(1000, y, f"{(ref - first).days}d", f_row, _DIM, "r")              # AGE
+            else:
+                txt(812, y, "—", f_row, _DIM, "r")
+                txt(1000, y, "—", f_row, _DIM, "r")
+            y += ROWH
+        y += 6
+
+    d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
+    txt(36, H - 32, "UCT Intelligence", f_foot, _DIM)
+    txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
+
+    out = img.resize((_W, H), Image.LANCZOS)
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 # ── orchestration ──────────────────────────────────────────────────────────
 def _webhook() -> str:
     return (os.getenv("WEEKLY_FLOW_WEBHOOK_URL")
@@ -543,4 +655,59 @@ def run_weekly_cron() -> dict:
         return {"posts": [run_weekly(cap=cap) for cap in (caps or ["all"])]}
     except Exception as e:  # noqa: BLE001
         log.exception("[weekly-flow] cron failed")
+        return {"ok": False, "reason": f"error: {e}"}
+
+
+def _standing_webhook() -> str:
+    return (os.getenv("STANDING_FLOW_WEBHOOK_URL", "").strip() or _webhook())
+
+
+def run_standing(*, force: bool = False, post: bool = True, days: int | None = None,
+                 cap: str | None = None, top_n: int | None = None) -> dict:
+    """Build + optionally post the Standing Conviction card — a rolling
+    still-open, top-N-by-premium board over a longer window (default 60 trading
+    days ≈ 6 weeks) with a FIRST-SEEN / AGE column. Reuses the weekly engine
+    (flow.db scan + OI still-open) with sort=premium both sides. `force` bypasses
+    STANDING_FLOW_ENABLED; post=False returns the PNG under 'png'. Never raises."""
+    try:
+        if os.getenv("STANDING_FLOW_ENABLED", "0") != "1" and not force:
+            return {"ok": False, "reason": "disabled (STANDING_FLOW_ENABLED != 1)"}
+        n_days = days if days is not None else int(os.getenv("STANDING_FLOW_DAYS", "60"))
+        top_n = top_n if top_n is not None else int(os.getenv("STANDING_FLOW_TOP_N", "10"))
+        min_dte = int(os.getenv("STANDING_FLOW_MIN_DTE", "30"))
+        frac = float(os.getenv("STANDING_FLOW_STILL_OPEN_FRAC", "0.75"))
+        cap = (cap or os.getenv("STANDING_FLOW_CAP", "all")).strip().lower()
+
+        trades, window = load_directional_trades(n_days, min_dte, cap)
+        agg = aggregate(trades, top_n, frac, sort_bull="premium", sort_bear="premium")
+        png = render_standing_card(agg, window, top_n, cap_label=_CAP_LABELS.get(cap, ""))
+        res = {"ok": True, "days": n_days, "cap": cap, "names": agg["n_names"],
+               "bulls": len(agg["bulls"]), "bears": len(agg["bears"]),
+               "open_contracts": agg["open_contracts"]}
+        if not post:
+            res["png"] = png
+            return res
+        wh = _standing_webhook()
+        if not wh:
+            res.update(posted=False, reason="no webhook (set STANDING_FLOW_WEBHOOK_URL)")
+            return res
+        ok, detail = _post_discord_image(wh, png, "", filename="standing_flow.png")
+        res.update(posted=ok, detail=detail)
+        log.info("[standing-flow] %dd — %d names, posted=%s (%s)",
+                 n_days, agg["n_names"], ok, detail)
+        return res
+    except Exception as e:  # noqa: BLE001
+        log.exception("[standing-flow] run failed")
+        return {"ok": False, "reason": f"error: {e}"}
+
+
+def run_standing_cron() -> dict:
+    """Scheduled Standing Conviction push — one card per cap in
+    STANDING_FLOW_CRON_CAPS (default 'all'). Gated by STANDING_FLOW_ENABLED."""
+    try:
+        caps = [c.strip().lower() for c in
+                os.getenv("STANDING_FLOW_CRON_CAPS", "all").split(",") if c.strip()]
+        return {"posts": [run_standing(cap=cap) for cap in (caps or ["all"])]}
+    except Exception as e:  # noqa: BLE001
+        log.exception("[standing-flow] cron failed")
         return {"ok": False, "reason": f"error: {e}"}
