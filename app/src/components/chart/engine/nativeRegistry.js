@@ -122,10 +122,14 @@ const periodInput = (key, label, dflt, min, max) => ({
 // and line styles from each render block in StockChart.jsx (~5704-6101). A test
 // asserts the CHART_DEFAULTS half key by key, so a drift there fails loudly.
 //
-// ⚠️ `lineStyle` on four guides below is LWC LineStyle 3 (LargeDashed), which
-// `PLOT_LINE_STYLES` (solid|dashed|dotted) cannot name. Those plots therefore
-// declare NO lineStyle rather than claiming a style they don't have — see the
-// task report; extending the vocabulary is a B3 decision, not a silent one.
+// ⚠️ THREE GUIDES BELOW ARE `largeDashed` (LWC LineStyle 3): RSI's 50, MACD's 0
+// and CCI's 0. They used to declare NO lineStyle, because `PLOT_LINE_STYLES` was
+// solid|dashed|dotted and the note here said extending it was a B3 decision. The
+// Task 8 rehearsal took that decision by measuring it: an omitted `lineStyle` on
+// a `createPriceLine` does not mean "keep what's there", it means "use LWC's
+// default", and LWC's price-line default is Dashed — so RSI's 50 came out
+// 2-on/2-off against the shipped 6-on/6-off, **379 changed pixels**. The
+// vocabulary now names the style, and these three say what they draw.
 
 const RAW_DEFS = [
   // ── RSI ──────────────────────────────────────────────────────────────────
@@ -141,7 +145,7 @@ const RAW_DEFS = [
       // 70/30 and 50 are separate plots because they are separate price lines with
       // different alphas and line styles — one `hlines` plot carries one style.
       { key: 'bands', label: '70 / 30', style: 'hlines', levels: [70, 30], color: 'rgba(123,104,238,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
-      { key: 'midline', label: '50', style: 'hlines', levels: [50], color: 'rgba(123,104,238,0.2)', width: 1, role: 'context' },
+      { key: 'midline', label: '50', style: 'hlines', levels: [50], color: 'rgba(123,104,238,0.2)', width: 1, lineStyle: 'largeDashed', role: 'context' },
     ]),
 
   // ── MACD ─────────────────────────────────────────────────────────────────
@@ -162,7 +166,7 @@ const RAW_DEFS = [
       // (MACD_HIST_UP / MACD_HIST_DOWN at `p.value >= 0`). Declaring it is what
       // let B1 take the per-point colour back out of the compute output.
       { key: 'histogram', label: 'Histogram', style: 'histogram', colorMode: 'sign', precision: 5, role: 'secondary' },
-      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, role: 'context' },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
     ]),
 
   // ── Bollinger Bands ──────────────────────────────────────────────────────
@@ -298,7 +302,7 @@ const RAW_DEFS = [
     [
       { key: 'cci', label: 'CCI', style: 'line', color: '$color', width: 1, role: 'primary' },
       { key: 'bands', label: '±100', style: 'hlines', levels: [100, -100], color: 'rgba(251,191,36,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
-      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(251,191,36,0.2)', width: 1, role: 'context' },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(251,191,36,0.2)', width: 1, lineStyle: 'largeDashed', role: 'context' },
     ]),
 
   // ── Williams %R ──────────────────────────────────────────────────────────

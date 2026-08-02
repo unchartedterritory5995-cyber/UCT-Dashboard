@@ -8,6 +8,7 @@ import {
   firstBindNeedsSetData,
   seriesOptionsForPlot,
   resolvePlotForInstance,
+  lineStyleValue,
 } from './pool'
 import * as registry from './nativeRegistry'
 
@@ -326,9 +327,37 @@ describe('seriesOptionsForPlot', () => {
     })
   })
 
-  it('an UNDECLARED lineStyle stays undeclared — four shipped guides use one the schema cannot name', () => {
+  it('an UNDECLARED lineStyle stays undeclared — absent means "leave the series alone"', () => {
     expect('lineStyle' in seriesOptionsForPlot(plotOf('rsi', 'rsi'), {})).toBe(false)
     expect(seriesOptionsForPlot(plotOf('bb', 'upper'), {}).lineStyle).toBe(2)   // dashed
+  })
+
+  // ⚠️ THE REGRESSION THIS PAIR EXISTS FOR. Every test above passes `{}` as the
+  // ctx, so none of them ever exercised the branch PRODUCTION uses: the binder
+  // passes the real `LWC.LineStyle`, whose members are capitalised
+  // (`Solid/Dotted/Dashed/LargeDashed`) while a plot declares `'dashed'`. The
+  // lookup used to be `LineStyle[plot.lineStyle]` — `undefined` on every call —
+  // so with the real enum in hand EVERY declared line style was silently
+  // dropped, and the numeric fallback that should have caught it was unreachable
+  // because a truthy enum always won the `||`. Found by the Task 8 rehearsal.
+  const REAL_LWC_LINE_STYLE = { 0: 'Solid', Solid: 0, 1: 'Dotted', Dotted: 1, 2: 'Dashed', Dashed: 2, 3: 'LargeDashed', LargeDashed: 3, 4: 'SparseDotted', SparseDotted: 4 }
+
+  it('maps a declared style THROUGH the real LWC enum, whose members are capitalised', () => {
+    const ctx = { LineStyle: REAL_LWC_LINE_STYLE }
+    expect(seriesOptionsForPlot(plotOf('bb', 'upper'), ctx).lineStyle).toBe(2)
+    expect(seriesOptionsForPlot(plotOf('ichimoku', 'spanB'), ctx).lineStyle)
+      .toBe(seriesOptionsForPlot(plotOf('ichimoku', 'spanB'), {}).lineStyle)
+  })
+
+  it('the LIBRARY\'s number wins over the frozen one when they disagree', () => {
+    // The frozen map is the fallback for a caller with no enum, not a second
+    // source of truth. If LWC ever renumbers, the enum is the answer.
+    const shifted = { Solid: 90, Dotted: 91, Dashed: 92, LargeDashed: 93 }
+    expect(seriesOptionsForPlot(plotOf('bb', 'upper'), { LineStyle: shifted }).lineStyle).toBe(92)
+    expect(lineStyleValue('largeDashed', shifted)).toBe(93)
+    expect(lineStyleValue('largeDashed', null)).toBe(3)
+    expect(lineStyleValue('nonsense', shifted)).toBeUndefined()
+    expect(lineStyleValue(undefined, shifted)).toBeUndefined()
   })
 
   it('a histogram gets a price format and NOT line options', () => {

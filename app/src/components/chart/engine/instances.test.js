@@ -5,6 +5,7 @@ import {
   LEGACY_ID_PREFIX,
   validateInstance,
   normalizeInstances,
+  engineOwnedDefIds,
   instanceTombstone,
   isInstanceTombstone,
 } from './instances'
@@ -510,5 +511,96 @@ describe('golden blobs', () => {
       expect(migrateLegacyToInstances(preset.settings), name).toEqual([])
       expect(migrateLegacyToInstances(mergeChartSettings(preset.settings)), name).toEqual([])
     }
+  })
+})
+
+// ─── engineOwnedDefIds — which legacy render block stands down ───────────────
+//
+// The crossover arbiter. Under Flip A the legacy TOGGLE has to stay on (it is
+// what `computePaneMargins` reads to reserve the band the engine renders into),
+// so without this the legacy block would draw a second copy of the same
+// indicator on the same scale. Every rule here is a way of getting an indicator
+// wrong: too eager and it vanishes, too shy and it doubles.
+
+const inst = (over = {}) => ({ instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: false, ...over })
+
+describe('engineOwnedDefIds', () => {
+  it('an instance owns its definition', () => {
+    expect([...engineOwnedDefIds([inst()])]).toEqual(['rsi'])
+  })
+
+  it('nothing owns anything when there are no instances', () => {
+    for (const empty of [[], null, undefined, 'nope', {}, 42]) {
+      expect(engineOwnedDefIds(empty).size, JSON.stringify(empty)).toBe(0)
+    }
+  })
+
+  it('two instances of one definition own it once', () => {
+    const owned = engineOwnedDefIds([inst(), inst({ instanceId: 'user:rsi-2' })])
+    expect([...owned]).toEqual(['rsi'])
+  })
+
+  it('owns only what it has an instance of — every other legacy block still draws', () => {
+    const owned = engineOwnedDefIds([inst(), inst({ instanceId: 'legacy:macd', defId: 'macd' })])
+    expect(owned.has('rsi')).toBe(true)
+    expect(owned.has('macd')).toBe(true)
+    expect(owned.has('stoch')).toBe(false)
+    expect(owned.has('bb')).toBe(false)
+  })
+
+  it('a HIDDEN instance still owns its definition', () => {
+    // Ownership is authority, not paint. `planBindings` skips a hidden instance,
+    // so the engine draws nothing — and if hiding handed authority back, the
+    // legacy block would light up and the indicator the user just hid would
+    // still be on the chart.
+    expect(engineOwnedDefIds([inst({ hidden: true })]).has('rsi')).toBe(true)
+  })
+
+  it('an UNKNOWN defId owns nothing — the legacy block must keep drawing', () => {
+    // The binder cannot render an instance with no definition, so silencing the
+    // legacy block on its behalf would erase the indicator outright. Fail toward
+    // the path that still draws.
+    expect(engineOwnedDefIds([inst({ defId: 'not-a-real-indicator' })]).size).toBe(0)
+    expect(engineOwnedDefIds([inst({ defId: 'volumeProfile' })]).size).toBe(0)
+  })
+
+  it('a TOMBSTONE owns nothing — it is a record that an instance is GONE', () => {
+    expect(engineOwnedDefIds([instanceTombstone('legacy:rsi')]).size).toBe(0)
+    // Belt and braces: even a malformed corpse that kept its defId.
+    expect(engineOwnedDefIds([{ instanceId: 'legacy:rsi', defId: 'rsi', deleted: true }]).size).toBe(0)
+  })
+
+  it('skips junk rather than throwing — this runs inside the paint', () => {
+    const owned = engineOwnedDefIds([
+      null, undefined, 'rsi', 7, [], { defId: 'rsi' }, { instanceId: 'x' },
+      { instanceId: '', defId: 'rsi' }, { instanceId: 'ok', defId: '' },
+      inst(),
+    ])
+    expect([...owned]).toEqual(['rsi'])
+  })
+
+  it('a registry that throws owns nothing', () => {
+    const angry = { getDefinition: () => { throw new Error('boom') } }
+    expect(() => engineOwnedDefIds([inst()], angry)).not.toThrow()
+    expect(engineOwnedDefIds([inst()], angry).size).toBe(0)
+  })
+
+  it('honours a custom registry — ownership follows the definitions in play', () => {
+    const only = (id) => ({ getDefinition: (d) => (d === id ? getDefinition(id) : null) })
+    const list = [inst(), inst({ instanceId: 'legacy:macd', defId: 'macd' })]
+    expect([...engineOwnedDefIds(list, only('rsi'))]).toEqual(['rsi'])
+    expect([...engineOwnedDefIds(list, only('macd'))]).toEqual(['macd'])
+  })
+
+  it('every migrated instance of a real blob owns its definition', () => {
+    // The end-to-end shape B3 relies on: migrate a settings blob, and the set of
+    // owned defIds is exactly the set of legacy toggles that were on.
+    const cs = raw({
+      rsi: { enabled: true, period: 14, color: '#7b68ee' },
+      macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+      bb: { enabled: false, period: 20, stdDev: 2 },
+    })
+    const owned = engineOwnedDefIds(migrateLegacyToInstances(cs))
+    expect([...owned].sort()).toEqual(['macd', 'rsi'])
   })
 })

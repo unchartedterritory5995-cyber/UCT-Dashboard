@@ -19,8 +19,11 @@
 //      settings AND (in fixed-bars mode) the bar fixture have landed, or a
 //      screenshot can be taken mid-theme and the gate goes intermittently red.
 //   2. `#chart-export` — the harness screenshots that ELEMENT, not the page.
-//   3. `?fixedbars=` + `?indicators=` — see the param block below. Live bars make
-//      two runs differ, which is the whole reason the repo had no diffing before.
+//   3. `?fixedbars=` + `?indicators=` + `?instances=` — see the param block below.
+//      Live bars make two runs differ, which is the whole reason the repo had no
+//      diffing before. `?instances=` is what lets ONE build render the same
+//      indicator two ways (legacy vs engine) so the parity diff measures the
+//      MIGRATION and not the difference between two builds.
 //
 // Adding a new *always-on* dynamic element inside #chart-export (a clock, a
 // "last updated", a random tip) breaks the gate for every case at once. If you
@@ -40,21 +43,33 @@ const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
 const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
 
-/** `?indicators=` is base64url so a settings blob survives a URL untouched. */
-function decodeSettingsParam(raw) {
-  if (!raw) return null
+/** base64url → JSON, so a whole blob survives a URL untouched. Returns
+ *  `undefined` on anything malformed: a bad param must not blank the chart — it
+ *  degrades to "no override", and the harness catches the miss because the diff
+ *  is then non-zero. */
+function decodeB64UrlJson(raw) {
+  if (!raw) return undefined
   try {
     const b64 = raw.replace(/-/g, '+').replace(/_/g, '/')
     const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
     const bin = atob(padded)
     const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0))
-    const parsed = JSON.parse(new TextDecoder().decode(bytes))
-    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null
+    return JSON.parse(new TextDecoder().decode(bytes))
   } catch {
-    // A malformed param must not blank the chart — it degrades to "no override",
-    // and the harness catches the miss because the diff is then non-zero.
-    return null
+    return undefined
   }
+}
+
+/** `?indicators=` — a PARTIAL chart_settings OBJECT. */
+function decodeSettingsParam(raw) {
+  const parsed = decodeB64UrlJson(raw)
+  return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null
+}
+
+/** `?instances=` — an ARRAY of engine indicator instances. */
+function decodeInstancesParam(raw) {
+  const parsed = decodeB64UrlJson(raw)
+  return (Array.isArray(parsed) && parsed.length) ? parsed : null
 }
 
 // ─── Hermetic mode (fixed-bars parity captures only) ─────────────────────────
@@ -123,7 +138,17 @@ export default function ChartRender() {
   //            and go hermetic (no /api/ at all). Live bars move between the
   //            baseline capture and the candidate capture, so without this the
   //            diff measures the tape, not the code.
+  //   ?instances=<base64url JSON array>  the ENGINE's indicator instances. Present
+  //            and non-empty ⇒ this render also sets `engineEnabled: true`, so ONE
+  //            param says "draw these through the engine" and there is no way to
+  //            arm the engine without giving it something to draw.
+  //            It is a param of its OWN rather than two more keys inside
+  //            `?indicators=` deliberately: `engineEnabled` is the switch between
+  //            two whole render paths, and StockChart reads it `=== true` precisely
+  //            so a stray settings value can never flip it. Smuggling the flag
+  //            through the settings blob would hand that back.
   const indicatorsParam = useMemo(() => decodeSettingsParam(sp.get('indicators')), [sp])
+  const instancesParam = useMemo(() => decodeInstancesParam(sp.get('instances')), [sp])
   // Sanitised: this value indexes a dynamic import, so it may only ever name a
   // file, never traverse to one.
   const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
@@ -176,11 +201,22 @@ export default function ChartRender() {
   // is the same deep-merge the multi-chart grid uses for per-cell overrides, so
   // `{indicators: {bb: {enabled: true}}}` turns BB on without erasing the rest of
   // the indicators section.
+  //
+  // `?instances=` lands LAST and as its own merge step. `mergeSettingsOverride`
+  // merges `indicatorInstances` by instanceId (never wholesale), so this adds the
+  // engine's instances without disturbing anything the settings blob said.
   const csOverride = useMemo(() => {
-    if (!ownerSettings && !indicatorsParam) return null
-    if (!indicatorsParam) return ownerSettings
-    return mergeSettingsOverride(ownerSettings || {}, indicatorsParam)
-  }, [ownerSettings, indicatorsParam])
+    if (!ownerSettings && !indicatorsParam && !instancesParam) return null
+    let out = ownerSettings
+    if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
+    if (instancesParam) {
+      out = mergeSettingsOverride(out || {}, {
+        engineEnabled: true,
+        indicatorInstances: instancesParam,
+      })
+    }
+    return out
+  }, [ownerSettings, indicatorsParam, instancesParam])
 
   // The committed bar fixture. Dynamic import (not fetch) so it needs no static
   // route and costs the normal bundle nothing — Vite splits it into its own chunk

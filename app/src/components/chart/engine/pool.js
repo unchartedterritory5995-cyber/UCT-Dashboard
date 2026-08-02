@@ -180,10 +180,46 @@ export function resolvePlotForInstance(plot, inputs) {
 
 // ─── plot style → LWC series options ─────────────────────────────────────────
 
-/** LWC's `LineStyle` enum by name. Numeric because the values are stable API
- *  constants and a pure module must not import the renderer; the binder passes
- *  the real enum in when it has one, and these agree with it. */
+/** LWC's `LineStyle` enum by SCHEMA name. Numeric because the values are stable
+ *  API constants and a pure module must not import the renderer; the binder
+ *  passes the real enum in when it has one, and these agree with it. */
 const LINE_STYLE = Object.freeze({ solid: 0, dotted: 1, dashed: 2, largeDashed: 3 })
+
+/** Schema name → the LWC enum's own MEMBER name. The two vocabularies differ in
+ *  case, and that difference was silently eating every declared line style. */
+const LINE_STYLE_MEMBER = Object.freeze({
+  solid: 'Solid', dotted: 'Dotted', dashed: 'Dashed', largeDashed: 'LargeDashed',
+})
+
+/**
+ * A schema line-style name → the numeric value LWC wants, or `undefined` for
+ * "leave it alone".
+ *
+ * ⚠️ WHY THIS IS A FUNCTION AND NOT A SUBSCRIPT. It used to be
+ * `styles[plot.lineStyle]`, with `styles` being the REAL `LWC.LineStyle` the
+ * binder passes in. That enum is keyed `Solid/Dotted/Dashed/LargeDashed` —
+ * capitalised — while a plot declares `'dashed'`. So the lookup was
+ * `LineStyle['dashed']`, which is `undefined` on every call, and the guard
+ * `!== undefined` then dropped the option entirely. In production (where the
+ * real enum is always passed) EVERY declared line style was being discarded: BB
+ * and Donchian's dashed edges, Ichimoku's spans, the SAR — all of them would
+ * have rendered solid the moment B3 migrated them, and the numeric fallback map
+ * that was supposed to prevent exactly this was unreachable because a truthy
+ * `ctx.LineStyle` always won.
+ *
+ * Surfaced by the Task 8 rehearsal while diagnosing a different style bug. RSI's
+ * own line declares no style, so the rehearsal's pixels never touched this — it
+ * was a B3 parity failure already sitting in the tree.
+ *
+ * The enum is still consulted first (it is the library's own answer), by its own
+ * member name; the frozen numbers are the fallback for a caller with no enum.
+ */
+export function lineStyleValue(name, LineStyle) {
+  const member = LINE_STYLE_MEMBER[name]
+  if (!member) return undefined
+  const fromEnum = LineStyle && LineStyle[member]
+  return Number.isInteger(fromEnum) ? fromEnum : LINE_STYLE[name]
+}
 
 /**
  * The options a plot implies, as one object.
@@ -212,7 +248,6 @@ export function seriesOptionsForPlot(plot, ctx) {
   const pk = poolKey(plot)
   if (!pk) return null
 
-  const styles = (ctx && ctx.LineStyle) || LINE_STYLE
   const base = { priceLineVisible: false, lastValueVisible: false }
   if (ctx && typeof ctx.scaleId === 'string') base.priceScaleId = ctx.scaleId
 
@@ -238,11 +273,11 @@ export function seriesOptionsForPlot(plot, ctx) {
   }
 
   base.lineWidth = Number.isFinite(plot.width) ? plot.width : 1
-  // An UNDECLARED lineStyle stays undeclared. Four shipped guides use LWC
-  // LineStyle 3 (LargeDashed), which the schema's vocabulary cannot name, so
-  // those plots declare nothing rather than lie — and a binder that defaulted
-  // them to solid would change four lines. Absent means "leave it alone".
-  if (plot.lineStyle && styles[plot.lineStyle] !== undefined) base.lineStyle = styles[plot.lineStyle]
+  // An UNDECLARED lineStyle stays undeclared: absent means "leave it alone", and
+  // a series option LWC is not given keeps whatever the series already had.
+  // (A `createPriceLine` option works the OTHER way — see `binder.guideSpecs`.)
+  const declared = lineStyleValue(plot.lineStyle, ctx && ctx.LineStyle)
+  if (declared !== undefined) base.lineStyle = declared
   if (plot.style === 'stepline' && ctx && ctx.LineType) base.lineType = ctx.LineType.WithSteps
 
   return base

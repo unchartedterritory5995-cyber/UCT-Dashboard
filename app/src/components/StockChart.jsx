@@ -35,7 +35,7 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
-import { normalizeInstances } from './chart/engine/instances'
+import { normalizeInstances, engineOwnedDefIds } from './chart/engine/instances'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
@@ -47,6 +47,11 @@ import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
+// Shared empties for the engine's flag-OFF path. Module-scope and frozen so the
+// dark render allocates nothing per paint and nobody can mutate the "no engine"
+// answer into a "some engine" one.
+const EMPTY_INSTANCES = Object.freeze([])
+const EMPTY_OWNED = Object.freeze(new Set())
 // ── Indicator points → Lightweight Charts data ───────────────────────────────
 // `chart/indicators.js` returns arrays ALIGNED to the bars, NaN-padded before
 // the first computable bar. LWC rejects `value: NaN` outright, so a non-finite
@@ -5529,6 +5534,28 @@ export default function StockChart({
     // start the engine on that surface alone. The flag is read strictly at the one
     // place it decides anything.
     const engineOn = cs.engineEnabled === true
+    // Normalised on the way in: a tombstone or a malformed record must never
+    // reach the planner. Cheap enough to do per paint at v1 instance counts, and
+    // it only ever runs with the engine ON.
+    const engineInstances = engineOn
+      ? normalizeInstances(cs.indicatorInstances, engineRegistry).kept
+      : EMPTY_INSTANCES
+    // ── WHICH LEGACY BLOCKS STAND DOWN ────────────────────────────────────────
+    //
+    // Flip A puts the engine's series in the SAME band on the SAME scale as the
+    // legacy block, and that band exists only while `cs.indicators[key].enabled`
+    // is true (`computePaneMargins` reads exactly that). So the legacy toggle has
+    // to stay ON for the layout to be identical — which means the legacy block
+    // would draw a SECOND copy on top. `engineOwnedDefIds` is the arbiter: an
+    // instance of definition `X` means the engine draws X, and X's legacy block
+    // guards on `!engineOwned.has('X')`.
+    //
+    // Today exactly one block carries that guard (RSI, the Task-8 rehearsal).
+    // B3 adds `&& !engineOwned.has('<key>')` to one more block per indicator it
+    // migrates, and deletes the block outright once every surface has flipped.
+    // With the flag off the set is empty and every legacy block behaves exactly
+    // as it always has.
+    const engineOwned = engineOn ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineOn && !engineRef.current) {
       engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
@@ -5537,10 +5564,7 @@ export default function StockChart({
       engineRef.current.binder.sync({
         enabled: engineOn,
         cs,
-        // Normalised on the way in: a tombstone or a malformed record must never
-        // reach the planner. Cheap enough to do per paint at v1 instance counts,
-        // and it only ever runs with the engine ON.
-        instances: normalizeInstances(cs.indicatorInstances, engineRegistry).kept,
+        instances: engineInstances,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
@@ -5839,7 +5863,12 @@ export default function StockChart({
     }
 
     // ── RSI sub-pane ──
-    if (indicatorData.rsi.length) {
+    // `!engineOwned.has('rsi')` — the crossover guard (see `engineOwnedDefIds`).
+    // An engine instance of `rsi` draws this indicator, so the legacy block stands
+    // down; the `else if` below then removes the legacy series, which is what
+    // keeps a mid-session flip from leaving two RSI lines on one scale. With the
+    // engine off the set is empty and this reads exactly as it always did.
+    if (indicatorData.rsi.length && !engineOwned.has('rsi')) {
       const rsiColor = cs.indicators?.rsi?.color || '#7b68ee'
       const rsiTgt = ensureIndTarget('rsi', [rsiSeriesRef])
       if (!rsiSeriesRef.current) {

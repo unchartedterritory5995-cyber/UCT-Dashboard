@@ -504,3 +504,68 @@ export function normalizeInstances(list, registry) {
 
   return { kept, removed, dropped }
 }
+
+// ─── ownership: which legacy render blocks must stand down ───────────────────
+
+/**
+ * The definition ids the ENGINE is the authority for on this chart.
+ *
+ * ⛔ THE CROSSOVER PROBLEM THIS SOLVES. Under Flip A the engine renders into the
+ * SAME band, on the SAME price scale, as the legacy block it replaces — and that
+ * band's geometry comes from `computePaneMargins`, which reads
+ * `cs.indicators[key].enabled`. So the legacy toggle has to stay ON for the
+ * layout to be identical, and if the legacy toggle is on then the legacy block
+ * draws too. Two RSI lines on one scale is not a parity result; it is a
+ * different picture that happens to contain the right one.
+ *
+ * The answer is ownership, per indicator: an instance of definition `X` means
+ * "the engine draws X here", and X's legacy block guards on
+ * `!engineOwned.has('X')`. That is the same shape B3 uses for real — it adds the
+ * guard to one more block per indicator it migrates, and deletes the block
+ * outright when the last surface has flipped.
+ *
+ * ─── THE THREE RULES, AND WHY EACH ONE FAILS THE WAY IT DOES ────────────────
+ *
+ *  · A HIDDEN instance still OWNS its definition. `planBindings` skips a hidden
+ *    instance, so the engine draws nothing — and if hiding also handed authority
+ *    back, the legacy block would light up and the indicator the user just hid
+ *    would still be on the chart. Ownership is authority, not paint.
+ *
+ *  · A defId THE REGISTRY DOES NOT KNOW owns nothing. The binder cannot draw an
+ *    instance with no definition (it `continue`s past it), so silencing the
+ *    legacy block on its behalf would erase the indicator entirely. Fail toward
+ *    the path that still renders.
+ *
+ *  · A TOMBSTONE (`{instanceId, deleted: true}`) owns nothing — it has no
+ *    `defId`, and it is a record that an instance is GONE. `normalizeInstances`
+ *    already routes those to `removed`, but this function re-checks rather than
+ *    trusting its caller to have filtered, because the cost of being wrong here
+ *    is an indicator that silently disappears.
+ *
+ * PURE, allocation-light, and safe on garbage: anything that is not a usable
+ * instance is skipped rather than throwing, because this runs inside the paint.
+ *
+ * @param {unknown} instances  normalised instances (`normalizeInstances().kept`)
+ * @param {object|Function} [registry]
+ * @returns {Set<string>} definition ids whose legacy render block must stand down
+ */
+export function engineOwnedDefIds(instances, registry) {
+  const owned = new Set()
+  if (!Array.isArray(instances)) return owned
+  const reg = resolveRegistry(registry)
+
+  for (const inst of instances) {
+    if (!isPlainObject(inst)) continue
+    let tombstone = false
+    try { tombstone = isInstanceTombstone(inst) } catch { /* booby-trapped getter */ }
+    if (tombstone) continue
+    if (!isNonEmptyString(inst.instanceId)) continue
+    if (!isNonEmptyString(inst.defId)) continue
+    let def = null
+    try { def = reg.get(inst.defId) } catch { /* a registry that throws owns nothing */ }
+    if (!def) continue
+    owned.add(inst.defId)
+  }
+
+  return owned
+}

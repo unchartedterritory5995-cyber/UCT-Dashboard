@@ -49,6 +49,7 @@ import {
   firstBindNeedsSetData,
   seriesOptionsForPlot,
   bindingKey,
+  lineStyleValue,
 } from './pool'
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
@@ -77,20 +78,32 @@ function toPoints(column, bars, adjustTime) {
   return out
 }
 
-/** One `hlines` plot → one `createPriceLine` spec per level. */
-function guideSpecs(plot) {
+/**
+ * One `hlines` plot → one `createPriceLine` spec per level.
+ *
+ * ⚠️ A `createPriceLine` OPTION IS NOT A SERIES OPTION. Omitting `lineStyle` from
+ * `applyOptions` leaves the series' current style alone; omitting it here takes
+ * LWC's OWN price-line default, which is `Dashed` (2). So "declare nothing and
+ * nothing changes" — true one level up in `seriesOptionsForPlot` — is false for a
+ * guide, and it cost 379 pixels on RSI's 50 line before the Task 8 rehearsal
+ * measured it. Every guide the shipped code draws now NAMES its style, and this
+ * maps it through the same `lineStyleValue` the series options use so the two can
+ * never disagree about what `'largeDashed'` means.
+ *
+ * A style the vocabulary does not know is still left undeclared rather than
+ * guessed — `defSchema` rejects one at registration, so this is the second lock.
+ *
+ * The hand-rolled if-chain this replaced could not express LargeDashed at all.
+ */
+function guideSpecs(plot, LineStyle) {
   const specs = []
+  const style = lineStyleValue(plot.lineStyle, LineStyle)
   for (const price of (plot.levels || [])) {
     if (!Number.isFinite(price)) continue
     const spec = { price, axisLabelVisible: false }
     if (plot.color) spec.color = plot.color
     spec.lineWidth = Number.isFinite(plot.width) ? plot.width : 1
-    // An UNDECLARED lineStyle stays undeclared — four shipped guides use LWC
-    // LargeDashed, which the schema's vocabulary cannot name, and defaulting them
-    // to solid would change four lines. See `pool.seriesOptionsForPlot`.
-    if (plot.lineStyle === 'dashed') spec.lineStyle = 2
-    else if (plot.lineStyle === 'dotted') spec.lineStyle = 1
-    else if (plot.lineStyle === 'solid') spec.lineStyle = 0
+    if (style !== undefined) spec.lineStyle = style
     specs.push(spec)
   }
   return specs
@@ -217,7 +230,7 @@ export function createBinder({ chart, LWC }) {
         for (const handle of guideHandles) attempt(() => series.removePriceLine(handle))
         guideHandles = []
         for (const plot of b.guides) {
-          for (const spec of guideSpecs(plot)) {
+          for (const spec of guideSpecs(plot, LWC.LineStyle)) {
             const made = attempt(() => series.createPriceLine(spec))
             if (made.ok && made.value) guideHandles.push(made.value)
           }

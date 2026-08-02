@@ -42,6 +42,20 @@ backend)::
     python tools/chart_parity.py --base-a http://localhost:5173 \
                                  --base-b http://localhost:5174
 
+**The engine rehearsal** — a case carrying ``instancesB`` renders the LEGACY
+indicator on side A and the ENGINE's on side B, from ONE build, so the diff
+measures the migration and not the difference between two checkouts::
+
+    python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy
+    # determinism of each render path on its own, run these FIRST:
+    python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy \
+        --instances-side none      # legacy vs legacy — must be 0
+    python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy \
+        --instances-side both      # engine vs engine — must be 0
+    # prove it can fail (the engine reads its colour from the INSTANCE):
+    python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy \
+        --perturb-b-instances '{"color": "#7b68ef"}'
+
 Exit code is 1 when any case exceeds its tolerance, so this is usable as a
 gate and not just a report. Output (PNGs + report.md + report.json) lands in
 ``tools/chart_parity_out/`` — gitignored.
@@ -108,12 +122,47 @@ def load_cases(path: Path, names: list[str] | None, include_placeholders: bool):
     return cases
 
 
-def b64url(obj: dict) -> str:
+def b64url(obj) -> str:
     raw = json.dumps(obj, separators=(",", ":"), sort_keys=True).encode("utf-8")
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
-def case_url(base: str, case: dict, token: str, extra_settings: dict | None = None) -> str:
+def case_instances(case: dict, side: str, mode: str, perturb_inputs: dict | None):
+    """The `?instances=` payload for one side, or None.
+
+    A case's ``instancesB`` list is what makes the ENGINE draw the indicator
+    instead of the legacy block, on the SAME build. That is deliberate: side A
+    and side B differ by one URL parameter and nothing else, so a non-zero diff
+    is attributable to the migration rather than to two builds of the app.
+
+    ``mode`` decides which sides get it, and exists so the case can be
+    determinism-checked on its own terms before its A-vs-B number is believed:
+
+      ``b``    (default) A = legacy, B = engine — the rehearsal.
+      ``none`` A = legacy, B = legacy — proves the LEGACY render is deterministic.
+      ``both`` A = engine, B = engine — proves the ENGINE render is deterministic.
+                An engine render that differs from itself would make a 0 in
+                ``b`` mode meaningless and a non-0 unattributable.
+    """
+    raw = case.get("instancesB")
+    if not raw:
+        return None
+    if mode == "none":
+        return None
+    if mode == "b" and side != "b":
+        return None
+    if not perturb_inputs or side != "b":
+        return raw
+    # The gate's self-test for an ENGINE case. `--perturb-b` patches chart
+    # SETTINGS, and the engine reads its colour from the instance's own inputs —
+    # so on this case a settings perturbation would change nothing and the
+    # "prove it can fail" step would silently pass. This is the reachable knob.
+    return [{**i, "inputs": {**(i.get("inputs") or {}), **perturb_inputs}} for i in raw]
+
+
+def case_url(base: str, case: dict, token: str, extra_settings: dict | None = None,
+             side: str = "a", instances_mode: str = "b",
+             perturb_instances: dict | None = None) -> str:
     settings = deep_merge(case["_settings"], extra_settings or {})
     params = {
         "sym": case.get("sym", "PARITY"),
@@ -123,6 +172,9 @@ def case_url(base: str, case: dict, token: str, extra_settings: dict | None = No
         "fixedbars": case["fixedbars"],
         "indicators": b64url(settings),
     }
+    instances = case_instances(case, side, instances_mode, perturb_instances)
+    if instances:
+        params["instances"] = b64url(instances)
     if case.get("bars"):
         params["bars"] = case["bars"]
     if case.get("ext") is not None:
@@ -218,6 +270,12 @@ def write_report(report: dict, out_dir: Path) -> None:
     if report.get("perturb_b"):
         lines.append(f"- ⚠️ **B was deliberately perturbed**: `{json.dumps(report['perturb_b'])}` "
                      "— this run is a self-test of the gate, not a parity result.")
+    if report.get("perturb_b_instances"):
+        lines.append(f"- ⚠️ **B's engine INSTANCES were deliberately perturbed**: "
+                     f"`{json.dumps(report['perturb_b_instances'])}` — self-test, not a parity result.")
+    if report.get("instances_side") and report["instances_side"] != "b":
+        lines.append(f"- engine instances applied to: **{report['instances_side']}** "
+                     "(a determinism self-check of one render path, not a legacy-vs-engine result).")
     if report.get("tolerance_reason"):
         lines.append(f"- tolerance override: **{report['global_tolerance']}** px — "
                      f"_{report['tolerance_reason']}_")
@@ -280,6 +338,15 @@ def main() -> int:
                     help="JSON settings patch applied to the B capture ONLY. The gate's own "
                          "self-test: change one colour by one hex digit and the diff must be "
                          "nonzero. A gate never shown to fail is not a gate.")
+    ap.add_argument("--perturb-b-instances", default="",
+                    help="JSON patch merged into every side-B instance's `inputs`. The same "
+                         "self-test for an ENGINE case: the engine reads its colour from the "
+                         "instance, not from chart settings, so --perturb-b alone cannot move "
+                         "an engine-drawn line and would pass vacuously.")
+    ap.add_argument("--instances-side", choices=["b", "none", "both"], default="b",
+                    help="which side gets a case's `instancesB`. b = legacy vs engine (the "
+                         "rehearsal); none = legacy vs legacy; both = engine vs engine. The "
+                         "last two are determinism self-checks of one render path.")
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--ready-timeout", type=int, default=60_000)
     args = ap.parse_args()
@@ -288,6 +355,7 @@ def main() -> int:
         raise SystemExit("--tolerance > 0 requires --tolerance-reason (it goes in the report)")
 
     perturb = json.loads(args.perturb_b) if args.perturb_b else None
+    perturb_inst = json.loads(args.perturb_b_instances) if args.perturb_b_instances else None
     base_a = args.base_a
     base_b = args.base_b or args.base_a
     out_dir = Path(args.out)
@@ -303,6 +371,8 @@ def main() -> int:
         "base_a": base_a, "base_b": base_b,
         "self_check": args.base_b is None,
         "perturb_b": perturb,
+        "perturb_b_instances": perturb_inst,
+        "instances_side": args.instances_side,
         "global_tolerance": args.tolerance,
         "tolerance_reason": args.tolerance_reason,
         "results": [], "failures": 0,
@@ -342,7 +412,9 @@ def main() -> int:
                     page = ctx.new_page()
                     try:
                         url = case_url(base, case, args.token,
-                                       perturb if side == "b" else None)
+                                       perturb if side == "b" else None,
+                                       side=side, instances_mode=args.instances_side,
+                                       perturb_instances=perturb_inst)
                         shots[side] = out_dir / side / f"{case['name']}.png"
                         capture(page, url, shots[side], args.ready_timeout)
                         entry[f"url_{side}"] = url

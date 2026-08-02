@@ -7,6 +7,11 @@
     "exactly the indicator under test. The harness base64url-encodes preset+settings",
     "into ?indicators= and screenshots the #chart-export element on two builds.",
     "",
+    "A case may also carry `instancesB`: a list of ENGINE indicator instances sent",
+    "as `?instances=` to side B only (`--instances-side` moves it to both/neither).",
+    "That is how one build renders the same indicator two ways — legacy on A, engine",
+    "on B — so the diff measures the migration rather than two checkouts of the app.",
+    "",
     "The four live cases are the Flip A pilot. The rest are NAME-ONLY placeholders:",
     "B3 fills in each one's settings blob when it migrates that indicator, so the",
     "list already states the full obligation instead of quietly shrinking to what",
@@ -109,6 +114,26 @@
           }
         }
       }
+    },
+
+    {
+      "name": "engine_rsi_vs_legacy",
+      "why": "THE DARK REHEARSAL. Side A draws RSI through the hand-written StockChart block; side B draws it through the ENGINE (`instancesB` → `?instances=`, which also arms `engineEnabled`), and StockChart's per-indicator ownership check stands the legacy block down so exactly ONE RSI line exists on each side. Same build, same fixture, one URL parameter apart — so a non-zero diff is the migration and nothing else. `indicators.rsi.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into.",
+      "settings": {
+        "indicators": {
+          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:rsi",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": { "period": 14, "color": "#7b68ee" },
+          "placement": { "target": "pane" },
+          "hidden": false
+        }
+      ]
     },
 
     { "name": "vwap_only", "status": "placeholder", "settings": {} },

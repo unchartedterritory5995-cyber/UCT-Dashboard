@@ -113,8 +113,26 @@ export const REPAINT_MODES = Object.freeze(['non-repainting', 'preview-repaints'
 /** Per-plot role — drives legend order, default widths, visual-budget linter. */
 export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'signal'])
 
-/** Line styles, matching `indicatorRegistry.LINE_STYLES` values. */
-export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted'])
+/**
+ * Line styles an AUTHOR may declare on a plot.
+ *
+ * ⚠️ NOT the same list as `indicatorRegistry.LINE_STYLES`, and it stopped being
+ * so deliberately. That one is the USER-FACING picker (solid / dashed / dotted)
+ * for the styles a user can choose; this one has to be able to name every style
+ * the SHIPPED code actually draws, because a definition that cannot say what the
+ * legacy block does is a definition that renders something else.
+ *
+ * `largeDashed` (LWC `LineStyle.LargeDashed` = 3) is the case that forced the
+ * split. Three shipped guides use it — RSI's 50, MACD's 0, CCI's 0 — and the
+ * three-name vocabulary could not express it, so those plots declared nothing.
+ * "Declare nothing" is safe for a SERIES option (LWC keeps the current value)
+ * and is NOT safe for a `createPriceLine` option: an omitted `lineStyle` there
+ * takes LWC's own default, which is `Dashed`. The Task 8 rehearsal measured the
+ * result — **379 changed pixels** on one guide line, a 6-on/6-off dash rendered
+ * as 2-on/2-off. No user picker gains an entry: these three guides are authored,
+ * not user-styled.
+ */
+export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted', 'largeDashed'])
 
 /** Non-parametric colour modes. `column:<key>` is the parametric third form. */
 export const COLOR_MODES = Object.freeze(['fixed', 'sign'])

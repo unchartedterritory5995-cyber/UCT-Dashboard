@@ -76,6 +76,53 @@ Useful flags: `--cases a b c` · `--include-placeholders` · `--out DIR` ·
 `--token` (when the build sets `VITE_CHART_RENDER_TOKEN`) · `--headed` ·
 `--ready-timeout MS`.
 
+### 4. ONE build, two render paths — the engine rehearsal
+
+Two builds is the wrong instrument for a migration that is already in the tree:
+every unrelated commit between them shows up in the diff. A case carrying
+`instancesB` sends those instances to side B as `?instances=`, which also arms
+`engineEnabled` — so side A draws the LEGACY indicator, side B draws the
+ENGINE's, from the same `dist`, one URL parameter apart.
+
+```bash
+cd app && npm run build
+python <scratch>/spa_server.py app/dist 5185          # SPA fallback for BrowserRouter
+B=http://127.0.0.1:5185
+
+python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy
+```
+
+**Do the two determinism runs FIRST.** A 0 is only meaningful once each render
+path is known to agree with itself:
+
+```bash
+--instances-side none    # legacy vs legacy — must be 0
+--instances-side both    # engine  vs engine — must be 0
+```
+
+`indicators.<key>.enabled` stays **TRUE on both sides**, deliberately.
+`computePaneMargins` reads it, and it is what reserves the band the engine
+renders into; turn it off for side B and the whole chart re-lays-out. What stops
+the legacy block drawing a second copy is `engineOwnedDefIds`
+(`engine/instances.js`) — an instance of definition `X` means the engine draws
+X, and X's legacy block in `StockChart.jsx` guards on `!engineOwned.has('X')`.
+B3 adds that guard to one more block per indicator it migrates.
+
+### Proving an ENGINE case can fail
+
+`--perturb-b` patches chart SETTINGS, and an engine-drawn line reads its colour
+from the **instance**, not from settings — so on an engine case `--perturb-b`
+changes nothing and the fail-proof step passes **vacuously**. Use:
+
+```bash
+python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy \
+    --perturb-b-instances '{"color": "#7b68ef"}'      # → 1,004 px, exit 1
+```
+
+That number is also the proof the engine is what drew side B: it moved because
+the INSTANCE moved. Running the settings perturb on the same case reports 0,
+which is the same fact seen from the other side.
+
 ---
 
 ## What `window.__chartReady` waits on
@@ -140,6 +187,11 @@ On the `rsi_only` case (a 1px anti-aliased line, ~1,500 candidate pixels), with
 | `#7b68ee` → `#7b68ef` (blue +1) | 1,004 |
 | `#7b68ee` → `#7b68de` (one hex digit, blue −16) | 1,455 |
 | `background` `#0e0f0d` → `#0e0f0e` (blue +1, full canvas) | 673,703 |
+| RSI's 50 guide as `Dashed` instead of `LargeDashed` (one row, 6-on/6-off → 2-on/2-off) | **379** |
+
+That last row is the Task 8 rehearsal's first result and is worth keeping in
+mind for scale: a whole guide line rendering with the wrong dash pattern is
+0.05% of the canvas. Nothing about a small number here means a small mistake.
 
 So the gate resolves a single least-significant bit on a single channel. That was
 not true of the first version: it reduced the RGB difference to greyscale before
@@ -161,6 +213,9 @@ Cases are declarative — no Python change needed.
   "settings": { "indicators": { "atr": { "enabled": true, "period": 14, "color": "#FFA726" } } }
 }
 ```
+
+A case that renders through the ENGINE on side B adds `instancesB` — see
+`engine_rsi_vs_legacy`, and section 4 above for how to run it.
 
 `defaults` supplies `sym`/`tf`/`fixedbars`/`w`/`h`/`bars`/`preset`; `presets.classic_flat`
 supplies the palette (Classic Dark with the MA overlays and watermark removed so

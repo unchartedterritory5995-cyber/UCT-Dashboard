@@ -22,11 +22,13 @@ const H = vi.hoisted(() => ({
   addSeriesCalls: [],
   visibilityCalls: [],
   binderCreated: [],
+  binderApis: [],
   syncCalls: [],
   reset() {
     H.addSeriesCalls.length = 0
     H.visibilityCalls.length = 0
     H.binderCreated.length = 0
+    H.binderApis.length = 0
     H.syncCalls.length = 0
   },
 }))
@@ -102,11 +104,13 @@ vi.mock('../binder', async (importOriginal) => {
     createBinder: (deps) => {
       const real = actual.createBinder(deps)
       H.binderCreated.push(deps)
-      return {
+      const api = {
         sync: (ctx) => { H.syncCalls.push(ctx); return real.sync(ctx) },
         teardown: real.teardown,
         bindings: real.bindings,
       }
+      H.binderApis.push(api)
+      return api
     },
   }
 })
@@ -235,6 +239,88 @@ describe('StockChart × indicator engine — the flag ON', () => {
     expect(added).toHaveLength(1)
     expect(added[0].ctor).toBe('LineSeries')   // pool key = the LWC constructor
     expect(added[0].paneIndex).toBe(0)         // Flip A: a band inside pane 0
+  })
+})
+
+// ─── the crossover: ONE RSI on the chart, never two (Task 8) ────────────────
+//
+// Flip A renders the engine's RSI into the SAME band on the SAME price scale as
+// the legacy block, and that band exists only while `cs.indicators.rsi.enabled`
+// is true — `computePaneMargins` reads exactly that. So the legacy toggle has to
+// STAY ON for the layout to be identical, which means the legacy block would
+// draw a second copy unless something stands it down. `engineOwnedDefIds` is
+// that something, and this is where the component honours it.
+//
+// The pixel gate (`--cases engine_rsi_vs_legacy`, 0 changed pixels) is the real
+// proof; two RSI lines would trivially fail it. This is the version that runs on
+// every commit.
+describe('legacy suppression — an engine instance stands its legacy block down', () => {
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+  const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
+
+  it('draws exactly one RSI series with the engine OFF (the shipped behaviour)', () => {
+    draw(RSI_ON)
+    expect(rsiSeries()).toHaveLength(1)
+  })
+
+  it('STILL draws exactly one when the engine owns it — and it is the ENGINE\'s', () => {
+    draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+
+    const drawn = rsiSeries()
+    expect(drawn, 'two RSI lines on one scale is not parity, it is a different picture').toHaveLength(1)
+
+    // Which one survived is the whole question. Identified by the binder's own
+    // holdings rather than by call order, because "the engine's series is not the
+    // last addSeries" is already a documented property of this call site.
+    const owned = H.binderApis[0].bindings().map(b => b.series)
+    expect(owned).toHaveLength(1)
+    expect(drawn[0].series).toBe(owned[0])
+  })
+
+  it('leaves every OTHER legacy indicator alone — ownership is per definition', () => {
+    // An RSI instance must not silence MACD. If it did, B3's first migration
+    // would blank fourteen indicators at once.
+    const both = { indicators: { ...RSI_ON.indicators, macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } } }
+    draw(both)
+    const legacyMacd = H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'macd').length
+    expect(legacyMacd).toBeGreaterThan(0)
+    cleanup(); H.reset()
+
+    draw({ ...both, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    expect(rsiSeries()).toHaveLength(1)
+    expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'macd').length).toBe(legacyMacd)
+  })
+
+  it('a HIDDEN instance draws NOTHING — it does not hand the legacy block back', () => {
+    // Ownership is authority, not paint: the engine skips a hidden instance, and
+    // if hiding also released authority the user would hide RSI and watch the
+    // legacy copy appear in its place.
+    draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [{ ...RSI_INSTANCE, hidden: true }] })
+    expect(rsiSeries()).toHaveLength(0)
+  })
+
+  it('an instance the VALIDATOR drops owns nothing — ownership follows the binder', () => {
+    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the
+    // whole record and the binder never sees it. If ownership were read off the
+    // RAW blob instead of the normalised list, the legacy block would stand down
+    // for an instance nobody is going to draw and RSI would vanish from the
+    // chart — the worst outcome available here, because the settings still say
+    // it is on.
+    draw({
+      ...RSI_ON,
+      engineEnabled: true,
+      indicatorInstances: [{ ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }],
+    })
+    expect(H.binderApis[0].bindings(), 'the binder must have refused it').toHaveLength(0)
+    expect(rsiSeries()).toHaveLength(1)
+  })
+
+  it('an instance of an UNKNOWN definition owns nothing — legacy keeps drawing', () => {
+    // The binder cannot render it, so standing the legacy block down on its
+    // behalf would erase RSI from the chart entirely.
+    draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [{ ...RSI_INSTANCE, defId: 'not-an-indicator' }] })
+    expect(rsiSeries()).toHaveLength(1)
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
   })
 })
 
