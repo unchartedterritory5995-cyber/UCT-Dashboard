@@ -80,6 +80,13 @@ def _dte_of(exp, ref: date | None = None) -> str:
     return f"{(d - (ref or date.today())).days}d" if d else "—"
 
 
+def _exp_short(exp) -> str:
+    """M/D/YYYY -> M/D/YY. Keeps the year — standing-conviction contracts span
+    2026-2028, so a bare M/D can't tell a Jan '27 from a Jan '28."""
+    p = str(exp).split("/")
+    return f"{int(p[0])}/{int(p[1])}/{p[2][2:]}" if len(p) == 3 and p[2] else str(exp)
+
+
 # ── cap bands (match the OptionsFlow Leaderboard cap filter) ───────────────
 _CAP_LABELS = {"all": "All Caps", "mega": "Mega Cap", "large": "Large Cap",
                "mid_small": "Mid-Small Cap"}
@@ -344,7 +351,8 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
     tk: dict = {}
     for t in trades:
         e = tk.setdefault(t["S"], {"sym": t["S"], "bull": 0.0, "bear": 0.0,
-                                   "contracts": {}, "first": None})
+                                   "contracts": {}, "first": None, "first_spot": 0.0,
+                                   "last_dt": None, "last_spot": 0.0})
         if t["D"] == "BULL":
             e["bull"] += t["P"]
         else:
@@ -353,12 +361,17 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
         c = e["contracts"].setdefault(ck, {"cp": t["CP"], "K": t["K"], "exp": t["E"],
                                            "prem": 0.0, "dir": t["D"]})
         c["prem"] += t["P"]
-        # earliest print date for this name in the window → "first seen" / age
-        # (used by the Standing Conviction card; weekly ignores it). Trades from
-        # the test path carry no "Dt" and stay None — harmless.
+        # earliest/latest print date + the underlying spot at each, for the
+        # Standing Conviction card's "since"/age + since-open performance (spot at
+        # first print vs latest spot on the tape). Weekly ignores these; test
+        # trades carry no "Dt"/"Spot" and stay None/0 — harmless.
         dt = _parse_mdy(t.get("Dt", ""))
-        if dt and (e["first"] is None or dt < e["first"]):
-            e["first"] = dt
+        sp = t.get("Spot", 0.0) or 0.0
+        if dt:
+            if e["first"] is None or dt < e["first"]:
+                e["first"], e["first_spot"] = dt, sp
+            if e["last_dt"] is None or dt > e["last_dt"]:
+                e["last_dt"], e["last_spot"] = dt, sp
 
     for e in tk.values():
         e["net"] = e["bull"] - e["bear"]
@@ -546,10 +559,12 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
     rng = _week_range(window)
     txt(94, 60, f"{rng}   ·   still open · top {top_n} by premium", f_date, _DIM)
 
-    # TICKER · BULL · BEAR · NET · TOP CONTRACT (EXP/STRIKE/C-P) · SINCE · AGE
-    cols = [("TICKER", 36, "l"), ("BULL", 258, "r"), ("BEAR", 366, "r"),
-            ("NET", 480, "r"), ("EXP", 528, "l"), ("STRIKE", 650, "r"),
-            ("C/P", 658, "l"), ("SINCE", 812, "r"), ("AGE", 1000, "r")]
+    # TICKER · BULL · BEAR · NET · TOP CONTRACT (EXP/STRIKE/C-P) · SINCE · PERF · AGE
+    # PERF = underlying spot at first print vs latest spot on the tape (since-open move)
+    cols = [("TICKER", 36, "l"), ("BULL", 240, "r"), ("BEAR", 350, "r"),
+            ("NET", 468, "r"), ("EXP", 512, "l"), ("STRIKE", 648, "r"),
+            ("C/P", 656, "l"), ("SINCE", 806, "r"), ("PERF", 912, "r"),
+            ("AGE", 1000, "r")]
     for hdr, x, al in cols:
         txt(x, TOP - 30, hdr, f_hdr, _DIM, al)
     d.rectangle([s(36), s(TOP - 10), s(_W - 36), s(TOP - 10) + 1], fill=_DIV)
@@ -566,24 +581,32 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
             if i % 2 == 1:
                 d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(ROWH)], fill=_ROWALT)
             txt(36, y, e["sym"], f_rowb, _GOLD)
-            txt(258, y, _fmt_prem(e["bull"]) if e["bull"] else "—", f_row, _BULL, "r")
-            txt(366, y, _fmt_prem(e["bear"]) if e["bear"] else "—", f_row, _BEAR, "r")
+            txt(240, y, _fmt_prem(e["bull"]) if e["bull"] else "—", f_row, _BULL, "r")
+            txt(350, y, _fmt_prem(e["bear"]) if e["bear"] else "—", f_row, _BEAR, "r")
             net = e["net"]
-            txt(480, y, f'{"+" if net >= 0 else "−"}{_fmt_prem(abs(net))}', f_rowb,
+            txt(468, y, f'{"+" if net >= 0 else "−"}{_fmt_prem(abs(net))}', f_rowb,
                 _BULL if net >= 0 else _BEAR, "r")
             tc = e.get("top")
             if tc:
                 k = int(tc["K"]) if float(tc["K"]).is_integer() else tc["K"]
-                txt(528, y, "/".join(str(tc["exp"]).split("/")[:2]), f_row, _DIM)   # EXP
-                txt(650, y, f"${k}", f_row, _TXT, "r")                              # STRIKE
-                txt(658, y, tc["cp"], f_rowb, _BULL if tc["cp"] == "C" else _BEAR)  # C/P
+                txt(512, y, _exp_short(tc["exp"]), f_row, _DIM)                     # EXP (yr)
+                txt(648, y, f"${k}", f_row, _TXT, "r")                              # STRIKE
+                txt(656, y, tc["cp"], f_rowb, _BULL if tc["cp"] == "C" else _BEAR)  # C/P
             first = e.get("first")
             if first:
-                txt(812, y, f"{first.strftime('%b')} {first.day}", f_row, _TXT, "r")  # SINCE
+                txt(806, y, f"{first.strftime('%b')} {first.day}", f_row, _TXT, "r")  # SINCE
                 txt(1000, y, f"{(ref - first).days}d", f_row, _DIM, "r")              # AGE
             else:
-                txt(812, y, "—", f_row, _DIM, "r")
+                txt(806, y, "—", f_row, _DIM, "r")
                 txt(1000, y, "—", f_row, _DIM, "r")
+            # PERF — underlying's move from first-seen spot to latest spot on the tape
+            fs, ls = e.get("first_spot", 0) or 0, e.get("last_spot", 0) or 0
+            if fs > 0 and ls > 0:
+                pf = (ls / fs - 1) * 100
+                txt(912, y, f'{"+" if pf >= 0 else "−"}{abs(pf):.1f}%', f_row,
+                    _BULL if pf >= 0 else _BEAR, "r")
+            else:
+                txt(912, y, "—", f_row, _DIM, "r")
             y += ROWH
         y += 6
 
