@@ -112,6 +112,37 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     expect(periodBox(row).value).toBe('7')
   })
 
+  it('a VALID instance of an UN-MIGRATED definition leaves that row fully live', async () => {
+    // The `ENGINE_MIGRATED_DEF_IDS` filter is what stops a stored instance from
+    // greying a control that still works. MACD is the case that can see it: its
+    // row IS wired to `engineInert` (all four B3 pilots are, so Tasks 10-11
+    // inherit the treatment) but MACD is NOT in `ENGINE_MIGRATED_DEF_IDS`, so
+    // its legacy block still draws it from the blob and its controls still work.
+    // Drop the filter and the row greys out while the chart keeps obeying it — a
+    // working control that looks dead, which is the same lie as a dead control
+    // that looks working, in the other direction.
+    //
+    // ⚠️ Stoch does NOT work as this test's subject: its row has no `disabled`
+    // at all, so the mutation is invisible there and the test passes vacuously.
+    // That is exactly what the first draft of this test did.
+    const user = userEvent.setup()
+    mount(settingsWith({
+      indicators: { rsi: { enabled: true }, macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
+      engineEnabled: true,
+      indicatorInstances: [{
+        instanceId: 'legacy:macd', defId: 'macd', defVersion: 1,
+        inputs: { fastPeriod: 5 }, placement: { target: 'pane' }, hidden: false,
+      }],
+    }), vi.fn())
+    await openPanel(user)
+    const row = rowFor('MACD')
+    const boxes = within(row).getAllByRole('spinbutton')
+    expect(boxes[0].disabled, 'an un-migrated definition greyed its own live control').toBe(false)
+    expect(boxes[0].getAttribute('title')).not.toMatch(ENGINE_TITLE)
+    // …and it shows the BLOB, not the instance: the blob is what draws it.
+    expect(boxes[0].value).toBe('12')
+  })
+
   it('a LIVE row is untouched: no instance ⇒ the blob is still what it shows', async () => {
     const user = userEvent.setup()
     mount(settingsWith({
