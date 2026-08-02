@@ -86,6 +86,34 @@ const LEFT_AXIS_OPTIONS = Object.freeze({
  *  instance exists, which is exactly the B3 crossover state. */
 const FALLBACK_BAND = Object.freeze({ top: 0.82, bottom: 0 })
 
+/**
+ * The id of the scale the CANDLES own — what a price overlay must bind to.
+ *
+ * ⚠️ THIS USED TO BE `null`, MEANING "the main price scale", AND THE BINDER READ
+ * IT AS "don't mention `priceScaleId`". On a CREATED series those two agree, because
+ * LWC resolves an absent `priceScaleId` to its default. On a POOLED one they do
+ * not: `applyOptions` without the key leaves the series wherever its previous
+ * tenant was, and `scaleOptions: null` (correct — a price overlay must assert
+ * nothing on the candles' axis) means nothing corrects it afterwards. Measured on
+ * the exact B3 pilot pair: RSI off + BB on in one settings write left BB's upper
+ * band on the `rsi` scale, still `{autoScale:false, min:0, max:100}`, clipped off
+ * the top of the RSI band and invisible, with no error anywhere.
+ *
+ * WHY `'right'` IS THE RIGHT CONSTANT, verified in the installed 5.2.0 bundle:
+ * `_private__addSeriesToPane` resolves an absent id with
+ * `_internal_defaultVisiblePriceScaleId()`, which returns the visible one when
+ * exactly one of left/right is visible. `StockChart` configures `rightPriceScale`
+ * (visible, LWC's default) and never touches `leftPriceScale` (hidden, LWC's
+ * default) — so the candles resolve to `'right'`, and naming it explicitly is
+ * byte-identical to omitting it on a create while being the FIX on a re-purpose.
+ *
+ * ⛔ If a surface ever hides the right price scale, the candles move to `'left'`
+ * and this constant strands every engine price overlay on an empty axis. Nothing
+ * in the app does that today (one `rightPriceScale` block, no `visible` key); a
+ * surface that wants to would have to teach placement which scale it painted.
+ */
+export const MAIN_PRICE_SCALE_ID = 'right'
+
 // ─── colour ──────────────────────────────────────────────────────────────────
 
 const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i
@@ -228,7 +256,12 @@ export function resolvePlacement(instance, def, ctx) {
   // margins come from `_mainMargins` and, when the user has dragged the axis,
   // from the remembered `vertMarginsRef` placement. An indicator writing
   // scaleMargins there would move the candles, so this path asserts nothing.
-  if (target === 'price') return { paneIndex: 0, scaleId: null, scaleOptions: null }
+  //
+  // `scaleId` is the CONCRETE id, never null — see `MAIN_PRICE_SCALE_ID`. "Assert
+  // nothing" is `scaleOptions`, and only `scaleOptions`; a null scale ID was read
+  // one layer down as "leave `priceScaleId` alone", which is how a pooled overlay
+  // kept its previous tenant's named scale.
+  if (target === 'price') return { paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null }
 
   // 'volume' is the migrator's record of "this oscillator is in
   // `cs.volumeOverlayIndicators`" (`instances.js:250-255`). It is still a pane

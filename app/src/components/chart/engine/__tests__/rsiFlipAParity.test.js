@@ -50,6 +50,35 @@ const LEGACY_SERIES_OPTIONS = {
   crosshairMarkerVisible: false,
 }
 
+/**
+ * The options the engine states that the legacy block does NOT — every one of
+ * them equal to the value a freshly-created LWC series already has, verbatim from
+ * `lightweight-charts@5.2.0`'s `seriesOptionsDefaults` + `lineStyleDefaults`.
+ *
+ * The engine emits a COMPLETE option set for a plot's pool key on every bind,
+ * because `applyOptions` MERGES and a partial object let a re-purposed series
+ * inherit its previous tenant's styling (an RSI line drawn with SAR's point
+ * markers, an MFI drawn with Stochastic %D's dashes). Those extra keys are the
+ * price of that, and their correctness is exactly this claim: **each one restates
+ * a default, so a CREATED series is byte-identical to the legacy one and a
+ * RE-PURPOSED one is reset to it.** If a value here ever stops matching LWC's
+ * default, the create path has started drawing something the legacy block did
+ * not — which is what the 0-pixel rehearsal would then fail on.
+ *
+ * `pointMarkersRadius` is the one entry with no LWC default: the option is
+ * optional and only read when `pointMarkersVisible` is true
+ * (`pointMarkersVisible ? (pointMarkersRadius || lineWidth/2 + 2) : undefined`),
+ * so on a non-markers plot it is inert and exists only to keep the key set
+ * uniform. It cannot be omitted-to-reset either — LWC's `merge` skips `undefined`.
+ */
+const LWC_LINE_DEFAULTS_RESTATED = {
+  visible: true,          // seriesOptionsDefaults.visible
+  lineStyle: 0,           // lineStyleDefaults.lineStyle    = LineStyle.Solid
+  lineType: 0,            // lineStyleDefaults.lineType     = LineType.Simple
+  pointMarkersVisible: false, // lineStyleDefaults.pointMarkersVisible
+  pointMarkersRadius: 3,  // no LWC default — inert while pointMarkersVisible is false
+}
+
 /** `applyIndScale('rsi', …, { autoScale: false, minimum: 0, maximum: 100 })` —
  *  `:5883`, expanded through `applyIndScale`'s non-`left` branch (`:5502-5510`).
  *  The fixed range reaches the scale on the CREATE branch only in the shipped
@@ -130,10 +159,15 @@ describe('RSI Flip A — the engine makes the legacy calls, argument for argumen
     // Flip A draws into a BAND inside pane 0, not a real pane. A `1` here is the
     // B5 change arriving early, and it would move every other series down.
     expect(paneIndex).toBe(0)
-    // toEqual, not toMatchObject: an EXTRA option is a regression too. An engine
-    // series carrying, say, `lastValueVisible: true` puts an axis tag on the
-    // chart that the hand-written block never drew.
-    expect(options).toEqual(LEGACY_SERIES_OPTIONS)
+    // Two halves, and the second is the one that matters. Every legacy option,
+    // with the legacy value — and then an EXHAUSTIVE account of everything else
+    // the engine states, each entry a restatement of the default a fresh series
+    // already had. `toEqual` on the whole object is what makes it exhaustive: an
+    // engine series carrying, say, `lastValueVisible: true` puts an axis tag on
+    // the chart that the hand-written block never drew, and an extra key that is
+    // NOT in `LWC_LINE_DEFAULTS_RESTATED` fails here rather than in a pixel diff.
+    expect(options).toMatchObject(LEGACY_SERIES_OPTIONS)
+    expect(options).toEqual({ ...LEGACY_SERIES_OPTIONS, ...LWC_LINE_DEFAULTS_RESTATED })
   })
 
   it('asserts the FULL price-scale set — band margins AND the 0-100 fixed range', () => {

@@ -7,9 +7,13 @@ import {
   planBindings,
   firstBindNeedsSetData,
   seriesOptionsForPlot,
+  signColorsForPlot,
+  plotAlpha,
   resolvePlotForInstance,
   lineStyleValue,
 } from './pool'
+import { MAIN_PRICE_SCALE_ID } from './placement'
+import { PLOT_STYLES } from './defSchema'
 import * as registry from './nativeRegistry'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -317,7 +321,7 @@ describe('resolvePlotForInstance — the user\'s value, not the definition\'s de
 describe('seriesOptionsForPlot', () => {
   it('a line carries colour, width and the three "do not decorate" flags', () => {
     const o = seriesOptionsForPlot(plotOf('rsi', 'rsi'), { scaleId: 'rsi' })
-    expect(o).toEqual({
+    expect(o).toMatchObject({
       priceScaleId: 'rsi',
       color: '#7b68ee',
       lineWidth: 1,
@@ -327,9 +331,15 @@ describe('seriesOptionsForPlot', () => {
     })
   })
 
-  it('an UNDECLARED lineStyle stays undeclared — absent means "leave the series alone"', () => {
-    expect('lineStyle' in seriesOptionsForPlot(plotOf('rsi', 'rsi'), {})).toBe(false)
-    expect(seriesOptionsForPlot(plotOf('bb', 'upper'), {}).lineStyle).toBe(2)   // dashed
+  it('an UNDECLARED lineStyle is RESTORED to Solid, never left inherited', () => {
+    // ⚠️ THIS TEST USED TO ASSERT THE OPPOSITE ("absent means leave the series
+    // alone"), and that sentence is true only of a series nobody else has owned.
+    // `binder` re-binds a re-purposed series with `applyOptions`, which MERGES:
+    // a Stochastic %D (dashed) released into the pool and taken by an MFI (which
+    // declares no style) left the MFI rendering dashed. An option the new plot
+    // does not name is the previous tenant's option until something overwrites it.
+    expect(seriesOptionsForPlot(plotOf('rsi', 'rsi'), {}).lineStyle).toBe(0)     // solid
+    expect(seriesOptionsForPlot(plotOf('bb', 'upper'), {}).lineStyle).toBe(2)    // dashed
   })
 
   // ⚠️ THE REGRESSION THIS PAIR EXISTS FOR. Every test above passes `{}` as the
@@ -389,6 +399,241 @@ describe('seriesOptionsForPlot', () => {
         }
       }
     }
+  })
+})
+
+// ─── M-6: the option set, asserted the way the SCALE set already was ────────
+//
+// The branch had FOUR tests asserting the complete price-scale option object on
+// create, on update and on re-purpose — and ZERO asserting the SERIES option
+// object on any of them. Three critical defects fell through that hole at once
+// (leaked `pointMarkersVisible` / `lineStyle` / `visible`; a pooled overlay
+// keeping the previous tenant's named scale; a histogram with no per-point
+// colour). This is the series-side equivalent, and it is TABLE-DRIVEN OVER THE
+// SCHEMA VOCABULARY so a plot style added in B3 cannot silently skip it.
+
+/** Every style a definition may declare, straight from the schema — not a
+ *  hand-copied list. `hlines` is here too, and its expectation is `null`. */
+const EVERY_STYLE = PLOT_STYLES
+
+/** A minimal plot per style. Deliberately DECLARES NOTHING beyond what the style
+ *  needs, because "what does the engine emit when the author is silent" is the
+ *  entire question a leak turns on. */
+const bareplot = (style) => {
+  const p = { key: 'x', style }
+  if (style === 'hlines') p.levels = [50]
+  if (style === 'band') p.edges = { upper: 'u', lower: 'l' }
+  return p
+}
+
+/** The key set each pool key must ALWAYS produce, whatever the plot says. */
+const COMPLETE_KEYS = {
+  line: [
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId',
+    'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
+    'pointMarkersVisible', 'pointMarkersRadius', 'color',
+  ],
+  histogram: ['priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'color', 'priceFormat'],
+  area: [
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId',
+    'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
+    'pointMarkersVisible', 'pointMarkersRadius',
+    'lineColor', 'topColor', 'bottomColor',
+  ],
+  baseline: [
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId',
+    'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
+    'pointMarkersVisible', 'pointMarkersRadius',
+    'topLineColor', 'bottomLineColor',
+    'topFillColor1', 'topFillColor2', 'bottomFillColor1', 'bottomFillColor2',
+  ],
+}
+
+describe('the COMPLETE series option set — one key set per pool key, every call', () => {
+  it('covers every style the schema allows — no style is untested by omission', () => {
+    // If B3 adds a style to PLOT_STYLES and not to this file, this fails first,
+    // with the name of the style nobody wrote an expectation for.
+    for (const style of EVERY_STYLE) {
+      const pk = poolKey(bareplot(style))
+      expect(pk === null || Object.hasOwn(COMPLETE_KEYS, pk), `style ${style} → poolKey ${pk}`).toBe(true)
+    }
+  })
+
+  it('a BARE plot of every style emits its pool key\'s FULL key set', () => {
+    for (const style of EVERY_STYLE) {
+      const plot = bareplot(style)
+      const pk = poolKey(plot)
+      const o = seriesOptionsForPlot(plot, { scaleId: 's' })
+      if (pk === null) { expect(o, style).toBeNull(); continue }
+      expect(Object.keys(o).sort(), style).toEqual([...COMPLETE_KEYS[pk]].sort())
+    }
+  })
+
+  it('a FULLY-DECORATED plot emits the SAME key set — never more, never fewer', () => {
+    // The leak was never "too few keys on this plot"; it was "different keys on
+    // two plots that share a series". Equal key sets is what makes an
+    // `applyOptions` merge unable to carry anything across a re-purpose.
+    for (const style of EVERY_STYLE) {
+      const pk = poolKey(bareplot(style))
+      if (pk === null) continue
+      const decorated = {
+        ...bareplot(style),
+        color: '#123456', width: 4, lineStyle: 'largeDashed', precision: 7, opacity: 'band',
+        colorMode: 'sign', colorUp: '#0f0', colorDown: '#f00',
+      }
+      expect(Object.keys(seriesOptionsForPlot(decorated, { scaleId: 's' })).sort(), style)
+        .toEqual([...COMPLETE_KEYS[pk]].sort())
+    }
+  })
+
+  it('every SHIPPED plot emits its pool key\'s full key set too', () => {
+    for (const def of registry.listDefinitions()) {
+      for (const plot of def.plots) {
+        const pk = poolKey(plot)
+        const o = seriesOptionsForPlot(plot, { scaleId: 'x' })
+        if (pk === null) { expect(o, `${def.id}.${plot.key}`).toBeNull(); continue }
+        expect(Object.keys(o).sort(), `${def.id}.${plot.key}`).toEqual([...COMPLETE_KEYS[pk]].sort())
+      }
+    }
+  })
+
+  it('`priceScaleId` is ALWAYS present — a pooled series must never keep the old scale', () => {
+    // C-2's other half. `placement` now returns a concrete id for price overlays,
+    // and this is the belt: with no scale id at all the answer is the candles'
+    // scale, never "leave `priceScaleId` off the object".
+    for (const ctx of [undefined, {}, { scaleId: null }, { scaleId: '' }, { scaleId: 7 }]) {
+      const o = seriesOptionsForPlot(plotOf('bb', 'upper'), ctx)
+      expect(o.priceScaleId, JSON.stringify(ctx)).toBe(MAIN_PRICE_SCALE_ID)
+    }
+    expect(seriesOptionsForPlot(plotOf('rsi', 'rsi'), { scaleId: 'rsi' }).priceScaleId).toBe('rsi')
+  })
+
+  it('`visible` follows the declutter toggle, so a re-bind cannot un-hide a series', () => {
+    // Alt+Shift+I applies `visible:false` to every engine series. The binder
+    // re-asserts the full set on every paint (~1/s in extended hours), so without
+    // this the next paint would silently show the indicator again.
+    const plot = plotOf('rsi', 'rsi')
+    expect(seriesOptionsForPlot(plot, {}).visible).toBe(true)
+    expect(seriesOptionsForPlot(plot, { indicatorsHidden: false }).visible).toBe(true)
+    expect(seriesOptionsForPlot(plot, { indicatorsHidden: true }).visible).toBe(false)
+  })
+
+  it('an option no plot declares is restored to LWC\'s OWN default, not to a guess', () => {
+    // Verified against the installed lightweight-charts 5.2.0 style defaults.
+    const line = seriesOptionsForPlot(bareplot('line'), {})
+    expect(line.color).toBe('#2196f3')          // lineStyleDefaults.color
+    expect(line.lineStyle).toBe(0)              // LineStyle.Solid
+    expect(line.lineType).toBe(0)               // LineType.Simple
+    expect(line.pointMarkersVisible).toBe(false)
+    expect(seriesOptionsForPlot(bareplot('histogram'), {}).color).toBe('#26a69a')
+
+    const area = seriesOptionsForPlot(bareplot('area'), {})
+    expect(area.lineColor).toBe('#33D778')
+    expect(area.topColor).toBe('rgba( 46, 220, 135, 0.4)')
+    expect(area.bottomColor).toBe('rgba( 40, 221, 100, 0)')
+
+    const baseline = seriesOptionsForPlot(bareplot('baseline'), {})
+    expect(baseline.topLineColor).toBe('rgba(38, 166, 154, 1)')
+    expect(baseline.bottomLineColor).toBe('rgba(239, 83, 80, 1)')
+  })
+
+  it('a `stepline` says WithSteps and everything else says Simple — never inherited', () => {
+    const step = { key: 'x', style: 'stepline' }
+    expect(seriesOptionsForPlot(step, { LineType: { Simple: 0, WithSteps: 1, Curved: 2 } }).lineType).toBe(1)
+    expect(seriesOptionsForPlot(step, {}).lineType, 'no enum in hand ⇒ the frozen fallback').toBe(1)
+    expect(seriesOptionsForPlot(plotOf('rsi', 'rsi'), {}).lineType).toBe(0)
+  })
+})
+
+// ─── I-2: area and baseline get colour options those types actually have ────
+
+describe('per-type colour mapping — `color` is one field, the four types spell it four ways', () => {
+  it('an AREA takes lineColor + a gradient derived from it, never `color`', () => {
+    // `AreaStyleOptions` (5.2.0 typings) has topColor / bottomColor / lineColor
+    // and NO `color`. Emitting `color` validated, registered, pooled — and then
+    // dropped the author's colour and rendered in LWC's palette.
+    const o = seriesOptionsForPlot({ key: 'x', style: 'area', color: '#ff0000' }, {})
+    expect('color' in o).toBe(false)
+    expect(o.lineColor).toBe('#ff0000')
+    expect(o.topColor).toBe('rgba(255, 0, 0, 0.4)')
+    expect(o.bottomColor).toBe('rgba(255, 0, 0, 0)')
+  })
+
+  it('a BASELINE takes topLineColor, never `color`', () => {
+    const o = seriesOptionsForPlot({ key: 'x', style: 'baseline', color: '#00ff00' }, {})
+    expect('color' in o).toBe(false)
+    expect(o.topLineColor).toBe('#00ff00')
+    // STATED LIMIT: the bottom half needs a second colour the v1 vocabulary
+    // cannot express, so it is re-asserted at LWC's default rather than guessed.
+    expect(o.bottomLineColor).toBe('rgba(239, 83, 80, 1)')
+  })
+
+  it('an unparseable colour still reaches the line and leaves the fill transparent', () => {
+    const o = seriesOptionsForPlot({ key: 'x', style: 'area', color: 'rebeccapurple' }, {})
+    expect(o.lineColor).toBe('rebeccapurple')
+    expect(o.topColor).toBe('rebeccapurple')
+    expect(o.bottomColor).toBe('rgba(0, 0, 0, 0)')
+  })
+})
+
+// ─── I-4: `plots[].opacity` was validated, documented, and read by nothing ──
+
+describe('plots[].opacity — the schema advertised it, now something resolves it', () => {
+  it('an ALPHA ramp step name dims the colour', () => {
+    const o = seriesOptionsForPlot({ key: 'x', style: 'line', color: '#ffffff', opacity: 'band' }, {})
+    expect(o.color).toBe('rgba(255, 255, 255, 0.16)')     // ALPHA.band
+  })
+
+  it('a number in [0,1] dims it too, and MULTIPLIES through an existing alpha', () => {
+    expect(seriesOptionsForPlot({ key: 'x', style: 'line', color: '#ffffff', opacity: 0.5 }, {}).color)
+      .toBe('rgba(255, 255, 255, 0.5)')
+    expect(seriesOptionsForPlot({ key: 'x', style: 'line', color: 'rgba(255,0,0,0.4)', opacity: 0.5 }, {}).color)
+      .toBe('rgba(255, 0, 0, 0.2)')
+  })
+
+  it('an unknown ramp step leaves the colour ALONE rather than inventing an alpha', () => {
+    expect(plotAlpha({ opacity: 'not-a-step' })).toBeNull()
+    expect(seriesOptionsForPlot({ key: 'x', style: 'line', color: '#ffffff', opacity: 'not-a-step' }, {}).color)
+      .toBe('#ffffff')
+  })
+
+  it('no opacity ⇒ the colour is untouched, byte for byte', () => {
+    expect(plotAlpha({})).toBeNull()
+    expect(seriesOptionsForPlot(plotOf('rsi', 'rsi'), {}).color).toBe('#7b68ee')
+  })
+
+  it('it reaches an area\'s FILL as well as its line', () => {
+    const o = seriesOptionsForPlot({ key: 'x', style: 'area', color: '#ffffff', opacity: 0.5 }, {})
+    expect(o.lineColor).toBe('rgba(255, 255, 255, 0.5)')
+    expect(o.topColor).toBe('rgba(255, 255, 255, 0.2)')   // 0.5 × the 0.4 gradient top
+  })
+})
+
+// ─── C-3: MACD's histogram draws green above zero and red below ─────────────
+
+describe('signColorsForPlot — colorMode "sign" is two colours or it is nothing', () => {
+  it('MACD\'s histogram carries StockChart\'s own two colours', () => {
+    expect(signColorsForPlot(plotOf('macd', 'histogram')))
+      .toEqual({ up: 'rgba(76,175,80,0.75)', down: 'rgba(244,67,54,0.75)' })
+  })
+
+  it('every OTHER shipped plot has none — sign colouring is not the default', () => {
+    for (const def of registry.listDefinitions()) {
+      for (const plot of def.plots) {
+        if (def.id === 'macd' && plot.key === 'histogram') continue
+        expect(signColorsForPlot(plot), `${def.id}.${plot.key}`).toBeNull()
+      }
+    }
+  })
+
+  it('a mode that is not "sign" — including column:<key> — returns null', () => {
+    expect(signColorsForPlot({ style: 'line', colorMode: 'fixed', colorUp: '#0f0', colorDown: '#f00' })).toBeNull()
+    expect(signColorsForPlot({ style: 'line', colorMode: 'column:foo' })).toBeNull()
+  })
+
+  it('opacity dims both sides', () => {
+    expect(signColorsForPlot({ style: 'histogram', colorMode: 'sign', colorUp: '#ffffff', colorDown: '#000000', opacity: 0.5 }))
+      .toEqual({ up: 'rgba(255, 255, 255, 0.5)', down: 'rgba(0, 0, 0, 0.5)' })
   })
 })
 

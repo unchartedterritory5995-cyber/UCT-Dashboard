@@ -45,6 +45,15 @@
 // `series` is carried opaquely. This module never calls a method on it, which is
 // what keeps "pure" true while still letting the plan say "reuse THAT one".
 
+// Two pure imports, no renderer. `ALPHA`/`withAlpha` are the app's ONE
+// definition of the opacity ramp and of "dim this colour" (a second copy is the
+// bug `designTokens` exists to prevent); `MAIN_PRICE_SCALE_ID` is placement's
+// answer to "which scale do the candles own", consumed here so that the
+// complete option set can name `priceScaleId` even when a caller supplies no
+// placement at all.
+import { ALPHA, withAlpha } from '../designTokens'
+import { MAIN_PRICE_SCALE_ID } from './placement'
+
 /** The four LWC series constructors any v1 plot can need. */
 export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline'])
 
@@ -185,6 +194,10 @@ export function resolvePlotForInstance(plot, inputs) {
  *  passes the real enum in when it has one, and these agree with it. */
 const LINE_STYLE = Object.freeze({ solid: 0, dotted: 1, dashed: 2, largeDashed: 3 })
 
+/** LWC's `LineType` enum by its OWN member name (there is no schema name for it —
+ *  `stepline` is a plot STYLE, and it is the only thing that moves this option). */
+const LINE_TYPE = Object.freeze({ Simple: 0, WithSteps: 1, Curved: 2 })
+
 /** Schema name → the LWC enum's own MEMBER name. The two vocabularies differ in
  *  case, and that difference was silently eating every declared line style. */
 const LINE_STYLE_MEMBER = Object.freeze({
@@ -221,66 +234,240 @@ export function lineStyleValue(name, LineStyle) {
   return Number.isInteger(fromEnum) ? fromEnum : LINE_STYLE[name]
 }
 
+/** Same shape for `LineType`, whose members are already the names we use. */
+function lineTypeValue(member, LineType) {
+  const fromEnum = LineType && LineType[member]
+  return Number.isInteger(fromEnum) ? fromEnum : LINE_TYPE[member]
+}
+
+/**
+ * LWC's OWN defaults for every colour option this module can set, verbatim from
+ * `lightweight-charts@5.2.0` (`lineStyleDefaults`, `histogramStyleDefaults`,
+ * `areaStyleDefaults`, `baselineStyleDefaults`). Copied byte-for-byte, odd
+ * spacing included — the point is that re-asserting one of these leaves the
+ * series in EXACTLY the state a freshly-created one would be in, and a
+ * "tidied-up" `rgba(46, 220, 135, 0.4)` would be a different string for no
+ * reason. `pool.test.js` pins them against the installed bundle.
+ */
+const LWC_DEFAULTS = Object.freeze({
+  line: Object.freeze({ color: '#2196f3' }),
+  histogram: Object.freeze({ color: '#26a69a' }),
+  area: Object.freeze({
+    lineColor: '#33D778',
+    topColor: 'rgba( 46, 220, 135, 0.4)',
+    bottomColor: 'rgba( 40, 221, 100, 0)',
+  }),
+  baseline: Object.freeze({
+    topLineColor: 'rgba(38, 166, 154, 1)',
+    bottomLineColor: 'rgba(239, 83, 80, 1)',
+    topFillColor1: 'rgba(38, 166, 154, 0.28)',
+    topFillColor2: 'rgba(38, 166, 154, 0.05)',
+    bottomFillColor1: 'rgba(239, 83, 80, 0.05)',
+    bottomFillColor2: 'rgba(239, 83, 80, 0.28)',
+  }),
+})
+
+/** The engine's own default line width. NOT LWC's (which is 3): every indicator
+ *  line in `StockChart.jsx` is created at 1, so 1 is what "the author didn't
+ *  say" has to mean for a Flip A migration to stay pixel-identical. */
+const DEFAULT_LINE_WIDTH = 1
+
+/** SAR's dot radius (`StockChart.jsx:5889-5894`). Also the inert value handed to
+ *  every non-`markers` line — see the key-set note below. */
+const DEFAULT_DOT_RADIUS = 3
+
+/** The alpha an `area`'s fill takes at the top of its gradient when the author
+ *  declares no `opacity`. It is LWC's own default area gradient (0.4 → 0), so an
+ *  area plot that only names a colour gets that colour in the shape the library
+ *  already draws rather than a shape this module invented. */
+const AREA_FILL_ALPHA = 0.4
+
+/** A fully transparent colour, for the bottom of an area gradient whose colour
+ *  could not be parsed (a CSS keyword like `red`, say). Transparent is the safe
+ *  direction: the fill disappears, the line still draws. */
+const TRANSPARENT = 'rgba(0, 0, 0, 0)'
+
+/**
+ * `plots[].opacity` → a multiplier in [0, 1], or `null` for "the author said
+ * nothing".
+ *
+ * `defSchema` validates this field as an ALPHA-ramp STEP NAME or a number in
+ * [0, 1] and does not enumerate the ramp (it stays dependency-free on purpose).
+ * This is the consumer that gives that validation meaning: until now the field
+ * was validated, documented as "the binder resolves it", and read by nothing —
+ * a capability the schema advertised and the engine did not have.
+ *
+ * A step name the ramp does not know returns `null` rather than an invented
+ * alpha: the colour is left exactly as authored. That is the same posture the
+ * rest of the module takes toward an unrecognised value, and it is visible (the
+ * plot renders at full strength) rather than silently wrong.
+ */
+export function plotAlpha(plot) {
+  const o = plot && plot.opacity
+  if (o === undefined || o === null) return null
+  if (typeof o === 'number') return (Number.isFinite(o) && o >= 0 && o <= 1) ? o : null
+  if (typeof o === 'string' && Object.prototype.hasOwnProperty.call(ALPHA, o)) return ALPHA[o]
+  return null
+}
+
+/** The plot's colour with its `opacity` folded in, or `fallback` when it declares
+ *  none. `withAlpha` MULTIPLIES through, so `rgba(…,0.4)` at `opacity: 'band'`
+ *  dims rather than brightens — the same rule `designTokens` applies to a
+ *  `token:role@step` reference. */
+function effectiveColor(plot, fallback) {
+  const raw = (typeof plot.color === 'string' && plot.color) ? plot.color : fallback
+  if (raw === null || raw === undefined) return null
+  const alpha = plotAlpha(plot)
+  if (alpha === null || alpha >= 1) return raw
+  return withAlpha(raw, alpha) || raw
+}
+
 /**
  * The options a plot implies, as one object.
  *
- * Mirrors what each shipped render block passes to `addSeries` — the three
- * "don't decorate this" flags (`priceLineVisible` / `lastValueVisible` /
- * `crosshairMarkerVisible`) are on every indicator series in `StockChart.jsx`,
- * and a pooled series that inherited them from a previous tenant and never got
- * them re-asserted would be one axis label away from a visible diff.
+ * ─── THE RULE: A COMPLETE SET, EVERY BIND ───────────────────────────────────
  *
- * `priceScaleId` IS one of these options, which is the whole #2049 escape: it is
- * mutable (→ `moveSeriesToScale`), so re-binding a pooled series to a different
- * scale is an `applyOptions`, not a remove-and-recreate.
+ * **Every key this function can EVER set for a given pool key is set on EVERY
+ * call, with either the declared value or the value a freshly-created series
+ * would have had.** Not "the options this plot happens to declare".
  *
- * NOT here, and deliberately: `autoscaleInfoProvider: () => null` (a FUNCTION —
- * it cannot be compared between passes, so re-applying it every bind would make
- * every options object unequal to the last and defeat any future no-op check;
- * the price overlays that need it get it from their placement) and `colorMode:
- * 'sign'` per-point colouring (MACD's histogram: the up/down colours are
- * hardcoded in `StockChart.jsx` and no definition declares them — a B3 carry).
+ * That is not style — it is the whole correctness of pooling. `binder.js` re-binds
+ * a re-purposed series with `applyOptions`, which MERGES: any option the previous
+ * tenant set and the new plot does not name SURVIVES. A partial object made every
+ * re-purpose inherit its predecessor, and it was measured, not theorised:
+ *
+ *   sar → rsi          leaked `pointMarkersVisible: true` — an RSI line with a
+ *                      dot on every bar
+ *   stoch.d → mfi.mfi  leaked `lineStyle: 2` — MFI rendered dashed
+ *   any → any          leaked `visible: false` after Alt+Shift+I, and the
+ *                      hide-all effect does not re-run to correct it
+ *
+ * The branch already took exactly this posture for price-SCALE options (trap #2,
+ * `placement.resolvePlacement` returns the complete object on every resolve) and
+ * had never taken it for SERIES options. This closes that asymmetry, and
+ * `pool.test.js` walks the whole plot vocabulary asserting the key set so a new
+ * plot style cannot silently skip it.
+ *
+ * The corollary is why cross-type leaks are impossible: the pool key IS the LWC
+ * constructor, so a series can only ever be re-purposed by a plot with the same
+ * pool key — and every plot with that pool key produces the same key set.
+ *
+ * ─── PER-TYPE COLOUR MAPPING ────────────────────────────────────────────────
+ *
+ * `plot.color` is ONE field; the four constructors spell colour four ways, and
+ * `AreaStyleOptions`/`BaselineStyleOptions` have no `color` at all (checked
+ * against 5.2.0's `typings.d.ts`). Emitting `color` for them validated,
+ * registered, pooled — and then dropped the author's colour on the floor and
+ * rendered in LWC's palette. So: line/histogram → `color`, area → `lineColor`
+ * plus a gradient derived from it, baseline → `topLineColor`.
+ *
+ * KNOWN v1 LIMIT, stated rather than discovered: a baseline's BOTTOM half needs a
+ * second colour the vocabulary cannot express, so its four other colour options
+ * are re-asserted at LWC's defaults. A definition that needs a two-sided baseline
+ * needs a schema field first.
+ *
+ * ─── WHAT IS DELIBERATELY NOT HERE ──────────────────────────────────────────
+ *
+ * `autoscaleInfoProvider: () => null` — a FUNCTION. It cannot be compared between
+ * passes, so re-applying it every bind would make every options object unequal to
+ * the last and defeat any future no-op check. The price overlays that need it are
+ * a B3 carry.
+ *
+ * `pointMarkersRadius` is set on every line-family bind, including plots that
+ * draw no markers, purely to keep the key set uniform. It is INERT whenever
+ * `pointMarkersVisible` is false — LWC reads it as
+ * `pointMarkersVisible ? (pointMarkersRadius || lineWidth/2 + 2) : undefined`.
+ * It cannot be "reset by omission" either way: LWC's `merge` SKIPS `undefined`
+ * values, so there is no such thing as writing a key back to absent.
  *
  * @param {object} plot
- * @param {{scaleId?: string, LineStyle?: object}} [ctx]
+ * @param {{scaleId?: string, LineStyle?: object, LineType?: object,
+ *          indicatorsHidden?: boolean}} [ctx]
  */
 export function seriesOptionsForPlot(plot, ctx) {
   const pk = poolKey(plot)
   if (!pk) return null
+  const c = ctx || {}
 
-  const base = { priceLineVisible: false, lastValueVisible: false }
-  if (ctx && typeof ctx.scaleId === 'string') base.priceScaleId = ctx.scaleId
+  // `priceScaleId` is RESOLVED, never omitted — that is the #2049 escape (it is
+  // mutable → `moveSeriesToScale`) and, since `placement` now returns a concrete
+  // id for price overlays too, there is no path left that means "leave it".
+  // `visible` is the one option whose value is neither the plot's nor LWC's: it is
+  // the declutter toggle's, threaded in so a re-bind agrees with the hide-all
+  // effect instead of fighting it.
+  const base = {
+    priceLineVisible: false,
+    lastValueVisible: false,
+    visible: c.indicatorsHidden !== true,
+    priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
+  }
 
   if (pk === 'histogram') {
     // A histogram has no line width, no line style and no crosshair marker.
-    // Passing them would be describing a series that isn't there.
-    if (plot.color) base.color = plot.color
+    // Passing them would be describing a series that isn't there — and since a
+    // histogram can only ever be re-purposed by another histogram, there is
+    // nothing of that kind for it to inherit.
+    base.color = effectiveColor(plot, LWC_DEFAULTS.histogram.color)
     base.priceFormat = { type: 'price', precision: Number.isFinite(plot.precision) ? plot.precision : 2 }
     return base
   }
 
+  // ── everything else is one of LWC's line-shaped series ──
+  const markers = plot.style === 'markers'
   base.crosshairMarkerVisible = false
-  if (plot.color) base.color = plot.color
+  // SAR: dots, not a line — `lineWidth: 0` plus point markers
+  // (`StockChart.jsx:5889-5894`). The plot's `width` is the DOT RADIUS there,
+  // which is why SAR declares 3 and not 1.
+  base.lineWidth = markers ? 0 : (Number.isFinite(plot.width) ? plot.width : DEFAULT_LINE_WIDTH)
+  const declared = lineStyleValue(plot.lineStyle, c.LineStyle)
+  base.lineStyle = declared === undefined ? lineStyleValue('solid', c.LineStyle) : declared
+  base.lineType = lineTypeValue(plot.style === 'stepline' ? 'WithSteps' : 'Simple', c.LineType)
+  base.pointMarkersVisible = markers
+  base.pointMarkersRadius = (markers && Number.isFinite(plot.width)) ? plot.width : DEFAULT_DOT_RADIUS
 
-  if (plot.style === 'markers') {
-    // SAR: dots, not a line — `lineWidth: 0` plus point markers
-    // (`StockChart.jsx:5889-5894`). The plot's `width` is the DOT RADIUS here,
-    // which is why it is 3 in the definition and not 1.
-    base.lineWidth = 0
-    base.pointMarkersVisible = true
-    base.pointMarkersRadius = Number.isFinite(plot.width) ? plot.width : 3
+  if (pk === 'area') {
+    const color = effectiveColor(plot, null)
+    if (color === null) return Object.assign(base, LWC_DEFAULTS.area)
+    base.lineColor = color
+    base.topColor = withAlpha(color, AREA_FILL_ALPHA) || color
+    base.bottomColor = withAlpha(color, 0) || TRANSPARENT
     return base
   }
 
-  base.lineWidth = Number.isFinite(plot.width) ? plot.width : 1
-  // An UNDECLARED lineStyle stays undeclared: absent means "leave it alone", and
-  // a series option LWC is not given keeps whatever the series already had.
-  // (A `createPriceLine` option works the OTHER way — see `binder.guideSpecs`.)
-  const declared = lineStyleValue(plot.lineStyle, ctx && ctx.LineStyle)
-  if (declared !== undefined) base.lineStyle = declared
-  if (plot.style === 'stepline' && ctx && ctx.LineType) base.lineType = ctx.LineType.WithSteps
+  if (pk === 'baseline') {
+    Object.assign(base, LWC_DEFAULTS.baseline)
+    const color = effectiveColor(plot, null)
+    if (color !== null) base.topLineColor = color
+    return base
+  }
 
+  base.color = effectiveColor(plot, LWC_DEFAULTS.line.color)
   return base
+}
+
+/**
+ * The per-point colours a `colorMode: 'sign'` plot draws with, or `null`.
+ *
+ * MACD's histogram is the shipped case: `StockChart.jsx:4002` emits
+ * `{time, value, color: p.value >= 0 ? MACD_HIST_UP : MACD_HIST_DOWN}` — green
+ * above zero, red below. `colorMode: 'sign'` is how a definition SAYS that, and
+ * `colorUp`/`colorDown` are the two colours it needs (a mode without them is
+ * unrenderable, which is why `defSchema` requires them together).
+ *
+ * Everything else — including `colorMode: 'column:<key>'`, which is a legal
+ * schema value with no v1 consumer — returns null and draws in the series colour.
+ */
+export function signColorsForPlot(plot) {
+  if (!plot || plot.colorMode !== 'sign') return null
+  const alpha = plotAlpha(plot)
+  const dim = (raw) => {
+    if (typeof raw !== 'string' || !raw) return null
+    if (alpha === null || alpha >= 1) return raw
+    return withAlpha(raw, alpha) || raw
+  }
+  const up = dim(plot.colorUp)
+  const down = dim(plot.colorDown)
+  return (up && down) ? { up, down } : null
 }
 
 // ─── registry resolution ─────────────────────────────────────────────────────

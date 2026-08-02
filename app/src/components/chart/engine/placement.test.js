@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePlacement, resolvePreset, PRESET_SURFACES } from './placement'
+import { resolvePlacement, resolvePreset, PRESET_SURFACES, MAIN_PRICE_SCALE_ID } from './placement'
 import * as registry from './nativeRegistry'
 import { computePaneMargins } from '../paneMargins'
 import { PRESETS, CHART_DEFAULTS } from '../chartDefaults'
@@ -201,12 +201,30 @@ describe('resolvePlacement — the full scale option set, every time (trap #2)',
 // ─── price overlays ──────────────────────────────────────────────────────────
 
 describe('resolvePlacement — price overlays never touch the main scale', () => {
-  it('leaves the scale id unset so the series lands on the default price scale', () => {
+  it('names the CANDLES\' scale explicitly — never null, which read as "leave it"', () => {
+    // ⚠️ THIS ASSERTION USED TO BE `typeof p.scaleId !== 'string'`, and that was
+    // the seam a critical defect lived in. `null` was intended as "the main price
+    // scale, assert nothing"; `pool.seriesOptionsForPlot` read it as "omit
+    // `priceScaleId`". On a CREATED series those agree (LWC resolves an absent id
+    // to its default). On a POOLED one they do not — `applyOptions` without the
+    // key leaves the series on the previous tenant's NAMED scale, and
+    // `scaleOptions: null` means nothing corrects it. Reproduced on the exact B3
+    // pilot pair: RSI off + BB on in one write put BB's upper band on the `rsi`
+    // scale, still fixed at 0-100, clipped invisible.
     for (const id of ['bb', 'vwap', 'sar', 'ichimoku', 'donchian']) {
       const p = resolvePlacement(inst(id), def(id), ctxFor(csWith()))
       expect(p.paneIndex).toBe(0)
-      expect(typeof p.scaleId).not.toBe('string')
+      expect(p.scaleId, id).toBe(MAIN_PRICE_SCALE_ID)
     }
+  })
+
+  it('that scale id is the one LWC would have chosen for a series that named none', () => {
+    // The constant is only correct because `_internal_defaultVisiblePriceScaleId()`
+    // returns the visible scale when exactly one of left/right is visible, and the
+    // app configures `rightPriceScale` while never touching `leftPriceScale`
+    // (hidden by default). Pinning the value here is what turns "we checked once"
+    // into something that fails if anyone edits it to `'left'` or `''`.
+    expect(MAIN_PRICE_SCALE_ID).toBe('right')
   })
 
   it('asserts NO scale options — the main scale belongs to the candle series', () => {
@@ -219,7 +237,9 @@ describe('resolvePlacement — price overlays never touch the main scale', () =>
 
   it('an instance may override the definition\'s target', () => {
     const p = resolvePlacement(inst('rsi', { placement: { target: 'price' } }), def('rsi'), ctxFor(csWith('rsi')))
-    expect(typeof p.scaleId).not.toBe('string')
+    expect(p.scaleId).toBe(MAIN_PRICE_SCALE_ID)
+    // An RSI moved onto the price pane must NOT drag its 0-100 fixed range onto
+    // the candles' axis — "assert nothing" is `scaleOptions`, and only that.
     expect(p.scaleOptions).toBeNull()
   })
 })

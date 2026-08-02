@@ -214,8 +214,15 @@ function parseHex(hex) {
  * Apply an alpha to a colour. Handles hex (3/4/6/8-digit) and rgb()/rgba().
  * An alpha already carried by the colour is multiplied through, so
  * `#ff000080@band` dims rather than brightens. Returns null if unparseable.
+ *
+ * EXPORTED for `engine/pool.js`, which needs the same multiply-through rule for
+ * two things `resolveToken` cannot express: a `plots[].opacity` applied to an
+ * already-resolved literal colour (the ref may have been a raw `#rrggbb`, never a
+ * `token:` at all), and an area/baseline plot's FILL, which is the line's colour
+ * at a lower alpha. A second implementation of "dim this colour" is exactly the
+ * kind of drift this module exists to prevent.
  */
-function withAlpha(color, alpha) {
+export function withAlpha(color, alpha) {
   const hex = parseHex(color)
   if (hex) {
     const [r, g, b, a] = hex

@@ -719,6 +719,22 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     errors.push(`${path}.levels: style "hlines" requires a non-empty levels array, got ${fmt(plot.levels)}`)
   }
 
+  // ─ the two colours `colorMode: 'sign'` needs ─
+  //
+  // NOT substitutable ($-refs stay confined to SUBSTITUTABLE_PLOT_FIELDS, which
+  // the spec locks at color/width/levels) and validated exactly like `color`
+  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`;
+  // this half is what stops `colorUp: 3` registering.
+  for (const field of ['colorUp', 'colorDown']) {
+    if (plot[field] === undefined) continue
+    if (!isNonEmptyString(plot[field])) {
+      errors.push(
+        `${path}.${field}: expected a non-empty colour string (the colour bars on that side of ` +
+        `zero are drawn in), got ${fmt(plot[field])}`,
+      )
+    }
+  }
+
   // ─ enumerated presentation fields ─
 
   if (plot.lineStyle !== undefined) {
@@ -755,6 +771,23 @@ function validateColorModes(plots, columnKeys, errors) {
     const mode = plot.colorMode
     if (typeof mode !== 'string') {
       errors.push(`${path}: expected a string, got ${fmt(mode)}`)
+      return
+    }
+    // `'sign'` means "colour every point by whether its value is above or below
+    // zero", which takes TWO colours the plot has to name. Same rule, and the
+    // same reason, as `band` requiring `edges`: without them the mode is
+    // unrenderable, so a definition that declares it and stops registers happily
+    // and then draws one flat colour — which is precisely the MACD histogram
+    // defect this requirement was added to make impossible. `color` is not a
+    // substitute: it is the SERIES colour, and a signed plot never uses it.
+    if (mode === 'sign') {
+      const missing = ['colorUp', 'colorDown'].filter(f => !isNonEmptyString(plot[f]))
+      if (missing.length) {
+        errors.push(
+          `${path}: colour mode "sign" colours each point by the sign of its value, so the plot ` +
+          `must declare both colorUp and colorDown — missing ${list(missing)}`,
+        )
+      }
       return
     }
     if (COLOR_MODES.includes(mode)) return

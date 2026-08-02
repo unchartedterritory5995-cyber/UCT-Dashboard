@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createBinder } from './binder'
+import { resolvePlacement as realPlacement, MAIN_PRICE_SCALE_ID } from './placement'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import * as registry from './nativeRegistry'
 
@@ -342,6 +343,157 @@ describe('every bind re-asserts the FULL scale option set — trap #2', () => {
     fake.reset()
     binder.sync(ctxFor([inst('stoch')]))
     expect(fake.count('priceScale.applyOptions')).toBe(2)
+  })
+})
+
+// ─── every bind re-asserts the FULL SERIES option set — the C-1/C-2/C-3 family ─
+//
+// The mirror of the block above, and the one that was missing. `applyOptions`
+// MERGES, so a partial options object let a re-purposed series keep every option
+// its previous tenant set and the new plot does not name. These three are the
+// reviewer's own probes, kept verbatim as rails.
+
+describe('a re-purposed series is left in the state a FRESH one would be in', () => {
+  it('SAR → RSI: the point markers do not survive the re-purpose', () => {
+    // SAR is a LineSeries with `lineWidth: 0` + point markers. RSI's line
+    // declares neither, so before this every bar of the RSI line wore a dot.
+    binder.sync(ctxFor([inst('sar')]))
+    const series = fake.seriesCreated[0]
+    expect(series.__options.pointMarkersVisible, 'the setup is vacuous without this').toBe(true)
+
+    binder.sync(ctxFor([inst('rsi')]))
+    expect(fake.count('addSeries'), 'it must be the SAME series — otherwise nothing was pooled').toBe(1)
+    expect(series.__options.pointMarkersVisible).toBe(false)
+    expect(series.__options.lineWidth).toBe(1)
+  })
+
+  it('Stochastic %D → ATR: the dashes do not survive it either', () => {
+    // Two tenants on the way out and two on the way in, so BOTH Stochastic lines
+    // are re-purposed rather than one of them being released — the pool is FIFO,
+    // so %D lands on the second incoming binding.
+    binder.sync(ctxFor([inst('stoch')]))
+    const dSeries = fake.seriesCreated[1]                 // %K first, %D second
+    expect(dSeries.__options.lineStyle, 'setup: %D ships dashed').toBe(2)
+
+    binder.sync(ctxFor([inst('mfi'), inst('atr')]))       // neither declares a style
+    expect(fake.count('addSeries'), 'both were pooled, nothing recreated').toBe(2)
+    expect(dSeries.__options.lineStyle).toBe(0)           // LineStyle.Solid
+  })
+
+  it('a HIDDEN chart re-binds hidden — the toggle is not undone by the next paint', () => {
+    // Alt+Shift+I applies `visible:false` to every engine series through the
+    // binding map. `updateChart` runs again roughly once a second in extended
+    // hours, and `visible` is part of the option set, so the value has to come
+    // from the toggle rather than from LWC's default.
+    binder.sync({ ...ctxFor([inst('rsi')]), indicatorsHidden: true })
+    expect(fake.seriesCreated[0].__options.visible).toBe(false)
+
+    binder.sync({ ...ctxFor([inst('rsi')]), indicatorsHidden: true })
+    expect(fake.seriesCreated[0].__options.visible).toBe(false)
+
+    binder.sync(ctxFor([inst('rsi')]))
+    expect(fake.seriesCreated[0].__options.visible).toBe(true)
+  })
+
+  it('the pooled series ends up byte-identical to one created from scratch', () => {
+    // The general statement of the three above: whatever the previous tenant was,
+    // the re-purposed series' options must equal the options a brand-new series
+    // for the same plot would have been born with.
+    const fresh = createFakeChart()
+    createBinder({ chart: fresh.chart, LWC: fresh.LWC }).sync(ctxFor([inst('rsi')]))
+    const bornWith = fresh.callsOf('addSeries')[0].args[1]
+
+    binder.sync(ctxFor([inst('sar')]))
+    binder.sync(ctxFor([inst('rsi')]))
+
+    expect(fake.count('addSeries')).toBe(1)
+    expect(fake.seriesCreated[0].__options).toEqual(bornWith)
+  })
+})
+
+describe('C-2 — a pooled PRICE OVERLAY does not keep the previous tenant\'s named scale', () => {
+  // The REAL placement adapter, not the fake: the defect was in what placement
+  // returned for a price target (`scaleId: null`) meeting how the pool read it
+  // ("omit `priceScaleId`"). A fake that always returns a string cannot see it.
+  const realCtx = (instances) => ({
+    ...ctxFor(instances),
+    resolvePlacement: realPlacement,
+    paneMargins: { rsi: { top: 0.85, bottom: 0 } },
+    volOverlaySet: new Set(),
+    volSeparatePane: false,
+    VOL_PANE_INDEX: 1,
+  })
+
+  it('RSI off + BB on in ONE settings write — the exact B3 pilot transition', () => {
+    binder.sync(realCtx([inst('rsi')]))
+    const series = fake.seriesCreated[0]
+    expect(series.__options.priceScaleId).toBe('rsi')
+
+    binder.sync(realCtx([inst('bb')]))
+
+    // Pooled, not recreated (that is the #2049 escape working) …
+    expect(fake.count('removeSeries')).toBe(0)
+    expect(fake.seriesCreated).toContain(series)
+    // … and re-bound to the CANDLES' scale. Left on `rsi` it would inherit that
+    // scale's `{autoScale:false, min:0, max:100}` and a $250 band would render
+    // clipped off the top, invisible, with no error anywhere.
+    for (const s of fake.seriesCreated) expect(s.__options.priceScaleId).toBe(MAIN_PRICE_SCALE_ID)
+  })
+
+  it('and asserts NOTHING on that scale — the candles own its margins', () => {
+    binder.sync(realCtx([inst('bb')]))
+    expect(fake.count('priceScale.applyOptions'), 'writing scaleMargins here moves the candles').toBe(0)
+  })
+})
+
+describe('C-3 — MACD\'s histogram is coloured per bar, by sign', () => {
+  it('emits StockChart\'s own green above zero and red below', () => {
+    binder.sync(ctxFor([inst('macd')]))
+
+    const hist = fake.callsOf('addSeries').find(c => c.args[0] === fake.LWC.HistogramSeries)
+    expect(hist, 'no histogram was created — the rest of this test is vacuous').toBeTruthy()
+    const points = fake.callsOf('setData').find(c => c.id === hist.result.__id).args[0]
+
+    const drawn = points.filter(p => p.value !== undefined)
+    expect(drawn.length).toBeGreaterThan(0)
+    for (const p of drawn) {
+      expect(p.color).toBe(p.value >= 0 ? 'rgba(76,175,80,0.75)' : 'rgba(244,67,54,0.75)')
+    }
+    // Both sides actually occur in this fixture — otherwise the loop above could
+    // pass while only ever seeing one colour.
+    expect(new Set(drawn.map(p => p.color)).size).toBe(2)
+    // A whitespace point has no bar to colour.
+    expect(points.filter(p => p.value === undefined).every(p => !('color' in p))).toBe(true)
+  })
+
+  it('a plot with no colorMode emits {time, value} and nothing else', () => {
+    binder.sync(ctxFor([inst('rsi')]))
+    const points = fake.callsOf('setData')[0].args[0]
+    expect(points.every(p => !('color' in p))).toBe(true)
+  })
+})
+
+describe('M-1 — a binding that cannot resolve gives its series BACK', () => {
+  it('a placement that stops resolving releases the series it was carrying', () => {
+    // Dropping it from `held` without `removeSeries` leaves it drawing the
+    // previous tenant's numbers forever: the pool cannot see it and `teardown()`
+    // cannot reach it. Unreachable with the native registry today; it is a Phase C
+    // catalog definition away from being live, and it fails the wrong way.
+    binder.sync(ctxFor([inst('rsi')]))
+    const series = fake.seriesCreated[0]
+    fake.reset()
+
+    binder.sync(ctxFor([inst('rsi')], { placement: () => null }))
+
+    expect(fake.count('removeSeries')).toBe(1)
+    expect(fake.callsOf('removeSeries')[0].args[0]).toBe(series)
+    expect(binder.bindings()).toHaveLength(0)
+  })
+
+  it('and a CREATE that cannot resolve removes nothing (there is nothing to give back)', () => {
+    binder.sync(ctxFor([inst('rsi')], { placement: () => null }))
+    expect(fake.count('removeSeries')).toBe(0)
+    expect(fake.count('addSeries')).toBe(0)
   })
 })
 

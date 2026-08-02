@@ -48,6 +48,7 @@ import {
   planBindings,
   firstBindNeedsSetData,
   seriesOptionsForPlot,
+  signColorsForPlot,
   bindingKey,
   lineStyleValue,
 } from './pool'
@@ -67,13 +68,29 @@ const SERIES_CTOR = {
  * not-yet-computable position becomes a WHITESPACE item (`{time}` with no
  * `value`) — the same conversion `StockChart`'s `indPoint` does at its render
  * boundary, and the only correct way to hand these arrays to a series.
+ *
+ * ─── PER-POINT COLOUR (`colorMode: 'sign'`) ─────────────────────────────────
+ *
+ * `signColors` is `{up, down}` or null. MACD's histogram is the shipped case and
+ * the reason this parameter exists: `StockChart.jsx:4002` emits a `color` on
+ * every point (`value >= 0 ? MACD_HIST_UP : MACD_HIST_DOWN`), so the legacy
+ * histogram is green above zero and red below. Emitting `{time, value}` only —
+ * which is what this did — draws the whole pane in ONE flat colour, LWC's
+ * histogram default, because no definition declares a series colour for it
+ * either. That is a `macd_only` parity failure waiting for B3's third pilot.
+ *
+ * `>= 0` is green, matching the legacy comparison exactly. A whitespace point
+ * carries no colour, which is correct: there is no bar to colour.
  */
-function toPoints(column, bars, adjustTime) {
+function toPoints(column, bars, adjustTime, signColors) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
     const time = adjustTime(bars[i].t)
     const v = column ? column[i] : NaN
-    out[i] = Number.isFinite(v) ? { time, value: v } : { time }
+    if (!Number.isFinite(v)) { out[i] = { time }; continue }
+    out[i] = signColors
+      ? { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
+      : { time, value: v }
   }
   return out
 }
@@ -187,14 +204,33 @@ export function createBinder({ chart, LWC }) {
     for (const b of release) attempt(() => chart.removeSeries(b.series))
 
     // ── 4. Bind ──
+    //
+    // A binding that cannot resolve draws nothing (fail-closed), but if it was
+    // CARRYING a series — `source` 'same' or 'pooled' — that series must go back
+    // to the renderer here. Dropping it from `held` without `removeSeries` would
+    // leave it on the chart, unreachable by the pool AND by `teardown()`: still
+    // drawing the previous tenant's numbers, for the life of the chart. Not
+    // reachable with the native registry today (every def has a string id and
+    // `normalizeInstances` validates `placement.target`), and it fails in the
+    // wrong direction for a Phase C catalog definition, so it is closed now.
+    const orphan = (b) => { if (b.series) attempt(() => chart.removeSeries(b.series)) }
+
     const next = []
     for (const b of bind) {
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
-      if (!placement.ok || !placement.value) continue
+      if (!placement.ok || !placement.value) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions } = placement.value
 
-      const options = seriesOptionsForPlot(b.plot, { scaleId, LineStyle: LWC.LineStyle, LineType: LWC.LineType })
-      if (!options) continue
+      const options = seriesOptionsForPlot(b.plot, {
+        scaleId,
+        LineStyle: LWC.LineStyle,
+        LineType: LWC.LineType,
+        // The declutter toggle (Alt+Shift+I). `visible` is part of the complete
+        // option set, so without this the engine would re-show a hidden series on
+        // the next paint — roughly once a second in extended hours.
+        indicatorsHidden: ctx.indicatorsHidden === true,
+      })
+      if (!options) { orphan(b); continue }
 
       let series = b.series
       let guideHandles = (b.from && b.from.guideHandles) || []
@@ -217,7 +253,14 @@ export function createBinder({ chart, LWC }) {
       }
 
       // ── TRAP #2: the FULL set, every bind, create branch or not ──
-      attempt(() => series.priceScale().applyOptions(scaleOptions))
+      //
+      // `scaleOptions === null` means ASSERT NOTHING — a price overlay lands on
+      // the candles' own axis and writing `scaleMargins` there would move the
+      // candles. It used to reach `applyOptions(null)` anyway; that is a traced
+      // no-op in 5.2.0 (`merge(dst, {rightPriceScale: null})` iterates nothing)
+      // but it fired a full price-scale update on every bind and contradicted
+      // placement's own docstring, so the guard says out loud what was meant.
+      if (scaleOptions) attempt(() => series.priceScale().applyOptions(scaleOptions))
 
       // ── TRAP #3: the previous tenant's guides ──
       //
@@ -238,7 +281,7 @@ export function createBinder({ chart, LWC }) {
       }
 
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
-      const points = toPoints(columns.get(b.key), bars, adjustTime)
+      const points = toPoints(columns.get(b.key), bars, adjustTime, signColorsForPlot(b.plot))
       if (firstBindNeedsSetData(b, planMode)) {
         attempt(() => series.setData(points))
       } else if (typeof ctx.applyData === 'function') {

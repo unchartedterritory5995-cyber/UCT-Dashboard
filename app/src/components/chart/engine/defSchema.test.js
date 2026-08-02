@@ -304,10 +304,33 @@ describe('keys — the public namespace', () => {
 })
 
 describe('colorMode — compute never returns colour strings', () => {
-  it('accepts "fixed" and "sign"', () => {
-    for (const mode of ['fixed', 'sign']) {
-      const d = rsiDef(); d.plots[0].colorMode = mode
-      ok(d)
+  it('accepts "fixed", and "sign" WHEN it names both of its colours', () => {
+    ok((() => { const d = rsiDef(); d.plots[0].colorMode = 'fixed'; return d })())
+    const d = rsiDef()
+    Object.assign(d.plots[0], { colorMode: 'sign', colorUp: '#4caf50', colorDown: '#f44336' })
+    ok(d)
+  })
+
+  it('REJECTS "sign" with no colours — the mode is unrenderable without them', () => {
+    // Same rule, and the same reason, as `band` requiring `edges`. MACD's
+    // histogram declared `colorMode: 'sign'` and nothing else; the binder had no
+    // per-point colour to emit, so the engine drew the whole pane in ONE flat LWC
+    // default where the legacy block draws green above zero and red below. A mode
+    // that cannot be half-declared cannot fail that way again.
+    for (const partial of [{}, { colorUp: '#4caf50' }, { colorDown: '#f44336' }]) {
+      const d = rsiDef()
+      Object.assign(d.plots[0], { colorMode: 'sign' }, partial)
+      const e = errs(d).join(' ')
+      expect(e, JSON.stringify(partial)).toMatch(/colorUp|colorDown/)
+    }
+  })
+
+  it('rejects a non-string colorUp / colorDown', () => {
+    for (const field of ['colorUp', 'colorDown']) {
+      const d = rsiDef()
+      Object.assign(d.plots[0], { colorMode: 'sign', colorUp: '#4caf50', colorDown: '#f44336' })
+      d.plots[0][field] = 3
+      expect(errs(d).join(' ')).toMatch(new RegExp(`${field}.*expected a non-empty colour`))
     }
   })
 

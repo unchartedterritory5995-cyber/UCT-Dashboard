@@ -165,7 +165,18 @@ const RAW_DEFS = [
       // colorMode 'sign' IS the up/down bar colouring StockChart derives inline
       // (MACD_HIST_UP / MACD_HIST_DOWN at `p.value >= 0`). Declaring it is what
       // let B1 take the per-point colour back out of the compute output.
-      { key: 'histogram', label: 'Histogram', style: 'histogram', colorMode: 'sign', precision: 5, role: 'secondary' },
+      //
+      // ⚠️ colorUp / colorDown are `StockChart.jsx:69-70` VERBATIM. Declaring the
+      // mode without them used to be legal, and the binder had no per-point
+      // colour at all, so an engine-drawn MACD histogram came out in one flat LWC
+      // default across the whole pane where the legacy one is green above zero
+      // and red below. The schema now refuses a `sign` plot that names neither,
+      // so the mode cannot be half-declared again.
+      {
+        key: 'histogram', label: 'Histogram', style: 'histogram', colorMode: 'sign',
+        colorUp: 'rgba(76,175,80,0.75)', colorDown: 'rgba(244,67,54,0.75)',
+        precision: 5, role: 'secondary',
+      },
       { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
     ]),
 
