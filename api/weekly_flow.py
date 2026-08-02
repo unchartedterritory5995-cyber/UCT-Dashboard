@@ -553,7 +553,7 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
         pass
     tx = 94
     tx += txt(tx, 18, "UCT Intelligence", f_title, _GOLD) + 12
-    tx += txt(tx, 18, "· Standing Conviction", f_title, _GOLD_DIM) + 12
+    tx += txt(tx, 18, "· Open Flow", f_title, _GOLD_DIM) + 12
     if cap_label:
         txt(tx, 18, "· " + cap_label, f_title, _GOLD_DIM)
     rng = _week_range(window)

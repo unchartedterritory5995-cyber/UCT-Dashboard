@@ -2183,7 +2183,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               (Mid-Small / Large). Hits POST /standing-flow. */}
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${P.dm}`,
             display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>STANDING CONVICTION</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>OPEN FLOW</span>
             {[30, 60, 90].map(dd => {
               const on = sfDays === dd;
               return (
@@ -2217,7 +2217,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                 background: "transparent", color: P.wh, border: `1px solid ${P.bd}` }}>👁 Preview</button>
             <button
               onClick={async () => {
-                if (!window.confirm(`Post the Standing Conviction card (${sfDays}d · ${sfCap}) to Discord?`)) return;
+                if (!window.confirm(`Post the Open Flow card (${sfDays}d · ${sfCap}) to Discord?`)) return;
                 try {
                   const r = await fetch(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}`, { method: "POST" });
                   const j = await r.json();
