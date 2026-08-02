@@ -3246,21 +3246,28 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         try:
             conn.row_factory = sqlite3.Row
             subqueries, params = [], []
-            date_ph = ",".join("?" for _ in target_dates)
             _tk_clause = " AND Symbol = ? " if only_ticker else " "
+            # Per-DAY cap (not one global newest-N LIMIT): a global cap let the
+            # busiest recent days eat the whole budget, so a 20-day lookback only
+            # reached ~3 days back (max days_active=3). Capping per (source, date)
+            # guarantees every day in the window is represented → true multi-day
+            # accumulation. Same total row budget → no extra _row_to_alert cost /
+            # no timeout regression.
+            per_day = max(2000, cap // max(1, len(target_dates)))
             for s in sources:
-                subqueries.append(
-                    f"SELECT * FROM ({select_cols} FROM flow "
-                    f"WHERE source = ? AND CreatedDate IN ({date_ph}) AND {color_gate}"
-                    f"{_tk_clause}"
-                    f"ORDER BY id DESC LIMIT ?)"
-                )
-                params.append(s)
-                params.extend(target_dates)
-                params.append(override_sql_floor)
-                if only_ticker:
-                    params.append(only_ticker.strip().upper())
-                params.append(cap)
+                for dt in target_dates:
+                    subqueries.append(
+                        f"SELECT * FROM ({select_cols} FROM flow "
+                        f"WHERE source = ? AND CreatedDate = ? AND {color_gate}"
+                        f"{_tk_clause}"
+                        f"ORDER BY id DESC LIMIT ?)"
+                    )
+                    params.append(s)
+                    params.append(dt)
+                    params.append(override_sql_floor)
+                    if only_ticker:
+                        params.append(only_ticker.strip().upper())
+                    params.append(per_day)
             cur = conn.execute(" UNION ALL ".join(subqueries), params)
             rows = cur.fetchall()
         finally:
