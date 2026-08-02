@@ -126,14 +126,42 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test-setup.js',
-    // The full suite (~1000 tests under jsdom + echarts/recharts) peaks near
+    pool: 'forks',
+    // The full suite (~3,100 tests under jsdom + echarts/recharts) peaks near
     // the default ~4GB worker heap and OOMs a fork mid-run ("Ineffective
     // mark-compacts near heap limit"), producing false-positive failures.
     // Give the test workers more headroom so `vitest run` completes cleanly.
-    pool: 'forks',
-    poolOptions: {
-      forks: { execArgv: ['--max-old-space-size=8192'] },
-    },
+    //
+    // ⚠️ This MUST stay top-level. It lived under `poolOptions.forks.execArgv`
+    // until 2026-08-01, and Vitest 4 REMOVED `poolOptions` — the block was
+    // accepted silently (only a deprecation line in the log) while the heap
+    // flag never reached a single worker. A config that cannot fail loudly is
+    // a config that stops being true; measured, restoring it took a red run
+    // from 2 timeouts to 1.
+    execArgv: ['--max-old-space-size=8192'],
+    // Cap the fork pool at half the machine.
+    //
+    // Vitest defaults to `availableParallelism() - 1` (= 23 forks on this
+    // 24-core box), and that oversubscribes badly once every fork is carrying
+    // its own jsdom. The SAME 377 files, same work, measured end to end:
+    //
+    //   workers   cumulative test time   jsdom env time   wall    result
+    //   23 (dflt)        308–336s             431–470s    47–49s  RED
+    //   18 (75%)            257s                 424s     52.6s   RED
+    //   12 (50%)            155s                 303s     53.1s   green
+    //    6 (25%)             97s                 198s     67.5s   green
+    //
+    // Cumulative test time TRIPLES from 25% to default while wall time barely
+    // moves — that extra "parallelism" is thrashing, not throughput. Starved
+    // workers are what pushed tests past `testTimeout`: at the default, six
+    // tests across FIVE unrelated files (ModelBook ×2, PathView.admin,
+    // BreadthWidget, PositionsTable, TradesTable) have been observed timing
+    // out at 5000ms in a single run — none of them slow, all of them starved.
+    // So this is not two bad tests; it is a pool that measures the scheduler
+    // instead of the code. 50% is the knee: green, and no slower than 75%.
+    //
+    // A percentage (not a literal) so a 4-core CI box scales down with it.
+    maxWorkers: '50%',
     server: {
       deps: {
         // Alias the broken @picovoice/porcupine-web package to our test stub
