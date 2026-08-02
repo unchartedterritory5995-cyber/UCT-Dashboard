@@ -59,6 +59,14 @@ import {
   getDefinition as getNativeDefinition,
   listDefinitions as listNativeDefinitions,
 } from './nativeRegistry'
+import { instanceTombstone, isInstanceTombstone } from '../chartDefaults'
+
+// Re-exported so engine code has ONE import for everything instance-shaped. The
+// definitions live in `chartDefaults` because that is where `mergeSettingsOverride`
+// lives — the merge is the only thing that can CREATE a tombstone, and putting the
+// shape anywhere else would make that module import the whole engine (and with it
+// `indicators.js`) for a two-line predicate.
+export { instanceTombstone, isInstanceTombstone }
 
 /** Every migrated instance's id starts with this. It is a namespace, not
  *  decoration: B3 needs to tell "this came from the 15 legacy toggles" from
@@ -185,6 +193,11 @@ export function migrateLegacyToInstances(cs, registry) {
 
   const existing = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
   const out = existing.map(cloneInstance)
+  // A TOMBSTONE COUNTS AS TAKEN. Deleting an indicator does not flip its legacy
+  // toggle (the toggle is what the pre-B3 renderer still reads), so on the very
+  // next read the migrator would see `enabled: true` with no live instance and
+  // helpfully put it back — "I turned it off and it came back on refresh".
+  // Reserving the id is what stops that; a test pins it.
   const taken = new Set(
     out.filter(i => isPlainObject(i) && isNonEmptyString(i.instanceId)).map(i => i.instanceId),
   )
@@ -424,24 +437,54 @@ export function validateInstance(inst, registry, ctx) {
  * FIRST WINS on a duplicate id. Arbitrary but it has to be one or the other, and
  * keeping the first preserves the order the user built.
  *
+ * TOMBSTONES GET THEIR OWN BUCKET. `{instanceId, deleted: true}` is a normal part
+ * of the stored data (see `chartDefaults.instanceTombstone`), so it is neither
+ * KEPT — it has no definition to render — nor DROPPED, because `dropped` means
+ * "something went wrong and here is why" and filling it with routine records is
+ * how that bucket stops being worth reading. It is `removed`. A tombstone is not
+ * run through `validateInstance` at all: it has no `defId` by design, and asking
+ * an instance validator about a record of a non-instance would only ever produce
+ * a misleading error.
+ *
  * @param {unknown} list  `cs.indicatorInstances`, whatever it turned out to be
  * @param {object|Function} [registry]
- * @returns {{kept: object[], dropped: {inst: unknown, reason: string, errors: string[]}[]}}
+ * @returns {{kept: object[], removed: object[], dropped: {inst: unknown, reason: string, errors: string[]}[]}}
  */
 export function normalizeInstances(list, registry) {
   const kept = []
+  const removed = []
   const dropped = []
 
   // Absent is normal — most blobs have no instances at all. Not a finding.
-  if (list === null || list === undefined) return { kept, dropped }
+  if (list === null || list === undefined) return { kept, removed, dropped }
 
   if (!Array.isArray(list)) {
     const errors = [`indicatorInstances: expected an array, got ${fmt(list)}`]
-    return { kept, dropped: [{ inst: list, reason: errors[0], errors }] }
+    return { kept, removed, dropped: [{ inst: list, reason: errors[0], errors }] }
   }
 
   const seenIds = new Set()
   for (const inst of list) {
+    let isTombstone = false
+    try { isTombstone = isInstanceTombstone(inst) } catch { /* booby-trapped getter */ }
+    if (isTombstone) {
+      // The id is the only thing a tombstone has to say. Without one it names
+      // nothing and cannot be honoured by any merge — that IS a defect.
+      let id = null
+      try { id = inst.instanceId } catch { /* fall through to the error below */ }
+      if (isNonEmptyString(id)) {
+        removed.push(inst)
+      } else {
+        const errors = [
+          `instanceId: required non-empty string on a removal record ` +
+          `({instanceId, deleted: true}) — a tombstone without an id names nothing, ` +
+          `got ${fmt(id)}`,
+        ]
+        dropped.push({ inst, reason: errors[0], errors })
+      }
+      continue
+    }
+
     let result
     try {
       result = validateInstance(inst, registry, { seenIds })
@@ -459,5 +502,5 @@ export function normalizeInstances(list, registry) {
     }
   }
 
-  return { kept, dropped }
+  return { kept, removed, dropped }
 }

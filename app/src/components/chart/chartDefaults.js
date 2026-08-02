@@ -412,6 +412,44 @@ export const CHART_TYPE_OPTIONS = [
   ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],
 ]
 
+// ─── Removing an indicator instance: the tombstone ───────────────────────────
+//
+// The instance merge below is a UNION BY ID, which is what stops a grid cell
+// holding a stale blob from deleting an instance another cell just added. The
+// same property makes OMISSION meaningless as a delete signal: "absent from this
+// patch" and "deleted" look identical, and treating them the same reintroduces
+// the exact data loss the union exists to prevent.
+//
+// So a removal is stated, not implied. `{instanceId, deleted: true}` is a
+// TOMBSTONE: it stays in the array, and it wins over any later patch that does
+// not explicitly clear it. That last part is the whole point — the writer that
+// resurrects a deleted instance is not a buggy one, it is an ordinary grid cell
+// whose snapshot predates the delete and which names the instance in full on its
+// next unrelated write. Nothing short of a persisted marker survives that.
+//
+// Reversal is an EXPLICIT `deleted: false` (a re-add), so the undo is a user
+// action rather than a race.
+//
+// KNOWN LIMIT, stated rather than discovered: tombstones accumulate — one per
+// distinct id ever deleted. Re-deleting the same id does not grow the list, and
+// the ids are few (fourteen legacy ones are deterministic), so this is bounded in
+// practice. Compaction needs a writer that can prove no stale snapshot survives;
+// that is a B4 question, not a reason to make deletion lossy now.
+const INSTANCE_DELETED_FIELD = 'deleted'
+
+/** The stored form of "this instance is gone". Minimal on purpose: a delete must
+ *  not keep the user's old settings lying around in the blob, and "undelete
+ *  restores what you had" is a promise nothing else here makes. */
+export function instanceTombstone(instanceId) {
+  return { instanceId, [INSTANCE_DELETED_FIELD]: true }
+}
+
+/** Explicit `true` only. A truthy-but-not-true value is malformed data, and
+ *  guessing that it meant deletion is how a chart loses an indicator to a typo. */
+export function isInstanceTombstone(inst) {
+  return !!inst && typeof inst === 'object' && inst[INSTANCE_DELETED_FIELD] === true
+}
+
 // ─── Per-instance settings override (multi-chart grid cells) ─────────────────
 // Deep-merges a PARTIAL settings blob over an already-merged base (the user's
 // global chart_settings). Primitives replace; the section objects
@@ -443,7 +481,19 @@ export function mergeSettingsOverride(base, partial) {
       for (const patch of (Array.isArray(v) ? v : [])) {
         if (!patch?.instanceId) continue
         const prev = byId.get(patch.instanceId)
-        byId.set(patch.instanceId, prev ? { ...prev, ...patch, inputs: { ...prev.inputs, ...patch.inputs } } : patch)
+        const merged = prev ? { ...prev, ...patch, inputs: { ...prev.inputs, ...patch.inputs } } : { ...patch }
+        // A tombstone collapses whatever it merged with — that is what makes a
+        // stale writer's full instance (which carries no `deleted` key, so the
+        // spread leaves the previous `true` standing) fail to resurrect it, and
+        // it keeps the corpse from re-accumulating that writer's payload.
+        if (merged[INSTANCE_DELETED_FIELD] === true) {
+          byId.set(patch.instanceId, instanceTombstone(patch.instanceId))
+          continue
+        }
+        // An explicit `deleted: false` is the re-add. Drop the field once it has
+        // done its job so a revived instance is stored as a plain one.
+        if (INSTANCE_DELETED_FIELD in merged) delete merged[INSTANCE_DELETED_FIELD]
+        byId.set(patch.instanceId, merged)
       }
       out.indicatorInstances = [...byId.values()]
     } else if (_OVERRIDE_SECTION_KEYS.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {

@@ -67,11 +67,16 @@ function queueWrite(key, task) {
  * blob out of a possibly-stale `cs` and hand it over. Union-by-id means such a
  * writer cannot delete an instance it never knew about.
  *
- * The flip side, stated plainly: union-by-id also cannot express a REMOVAL, and
- * last-write-wins still governs any scalar both writers name. This is add
- * protection, not a CRDT. It is the right trade for now because losing an add is
- * silent and unrecoverable while a resurrected delete is visible and can simply
- * be redone — and because nothing writes instances in B2 at all.
+ * REMOVAL is expressed with a TOMBSTONE, not by omission — `instanceTombstone(id)`
+ * in the patch (`chartDefaults.js`). Omission cannot mean deletion here: a patch
+ * that simply lacks an instance is indistinguishable from one written by a cell
+ * that never heard of it, which is the case the union exists to protect. The
+ * tombstone persists in the array precisely so the NEXT unrelated write from a
+ * cell whose snapshot predates the delete — which names the instance in full —
+ * cannot bring it back.
+ *
+ * The flip side, stated plainly: last-write-wins still governs any scalar both
+ * writers name. This is add-and-delete protection, not a CRDT.
  */
 function resolveWriteValue(key, current, next) {
   if (key !== CHART_SETTINGS_KEY) return next

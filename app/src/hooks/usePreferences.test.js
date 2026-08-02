@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import usePreferences, { parsePref } from './usePreferences'
+import { instanceTombstone, isInstanceTombstone } from '../components/chart/chartDefaults'
 
 // ─── The bug under test ──────────────────────────────────────────────────────
 //
@@ -191,12 +192,11 @@ describe('setPrefMerged — the write path that stops losing them', () => {
     expect(lastPost().background).toBe('#000000')
   })
 
-  it('KNOWN LIMIT: an instance cannot be REMOVED through the merged path', async () => {
-    // Union-by-id has no way to express a deletion, so a removal comes back.
-    // Deliberate for now: losing an add is silent and unrecoverable, while a
-    // resurrected delete is visible and can be redone. An explicit removal path
-    // (a tombstone, or a full write that opts out of the merge) is B3's problem
-    // — nothing writes instances in B2.
+  it('OMITTING an instance does not remove it — omission is not a removal', async () => {
+    // Union-by-id treats an absent instance as "this writer never heard of it",
+    // which is the whole reason a stale whole-blob write cannot delete another
+    // cell's add. Removal therefore has to be something the patch SAYS — see the
+    // tombstone block below.
     server.chart_settings = JSON.stringify({
       indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 } }],
     })
@@ -264,6 +264,75 @@ describe('setPrefMerged — the write path that stops losing them', () => {
     })
     await act(async () => { await result.current.setPrefMerged('chart_settings', cur => ({ ...cur, countdown: true })) })
     await waitFor(() => expect(parsePref(result.current.prefs.chart_settings, {}).countdown).toBeUndefined())
+  })
+})
+
+describe('setPrefMerged — removing an instance', () => {
+  // The settings-side mirror of a series release. Task 4 shipped add-and-edit
+  // protection and left removal unrepresentable; B3 needs it the moment a user
+  // toggles a migrated indicator off, and "toggled it off, it came back" is a
+  // worse bug than the one the merge was written to fix.
+
+  const rsi = { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 } }
+  const macd = { instanceId: 'legacy:macd', defId: 'macd', inputs: { fastPeriod: 12 } }
+
+  beforeEach(() => {
+    server.chart_settings = JSON.stringify({ background: '#000000', indicatorInstances: [rsi, macd] })
+  })
+
+  it('a tombstone DELETES the instance and leaves its siblings alone', async () => {
+    const { result } = await mount()
+
+    await act(async () => {
+      await result.current.setPrefMerged('chart_settings', () => ({
+        indicatorInstances: [instanceTombstone('legacy:rsi')],
+      }))
+    })
+
+    const live = lastPost().indicatorInstances.filter(i => !isInstanceTombstone(i))
+    expect(live.map(i => i.instanceId)).toEqual(['legacy:macd'])
+  })
+
+  it('a CONCURRENT UNRELATED write does not resurrect it', async () => {
+    // Two grid cells. B snapshots the blob (RSI still live), A deletes RSI, then
+    // B writes an unrelated field from its stale snapshot — which still names
+    // RSI in full. Without a persisted tombstone, union-by-id brings it back.
+    const { result } = await mount()
+    const staleBlob = snapshot(result)
+    expect(staleBlob.indicatorInstances, 'B really is holding the pre-delete list').toHaveLength(2)
+
+    await act(async () => {
+      await result.current.setPrefMerged('chart_settings', () => ({
+        indicatorInstances: [instanceTombstone('legacy:rsi')],
+      }))
+    })
+    await act(async () => {
+      await result.current.setPrefMerged('chart_settings', () => ({ ...staleBlob, countdown: true }))
+    })
+
+    const final = lastPost()
+    expect(final.countdown, 'B\'s own change still lands').toBe(true)
+    const live = final.indicatorInstances.filter(i => !isInstanceTombstone(i))
+    expect(live.map(i => i.instanceId)).toEqual(['legacy:macd'])
+  })
+
+  it('an explicit re-add brings it back', async () => {
+    const { result } = await mount()
+
+    await act(async () => {
+      await result.current.setPrefMerged('chart_settings', () => ({
+        indicatorInstances: [instanceTombstone('legacy:rsi')],
+      }))
+    })
+    await act(async () => {
+      await result.current.setPrefMerged('chart_settings', () => ({
+        indicatorInstances: [{ ...rsi, inputs: { period: 9 }, deleted: false }],
+      }))
+    })
+
+    const live = lastPost().indicatorInstances.filter(i => !isInstanceTombstone(i))
+    expect(live).toHaveLength(2)
+    expect(live.find(i => i.instanceId === 'legacy:rsi').inputs).toEqual({ period: 9 })
   })
 })
 

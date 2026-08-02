@@ -5,6 +5,8 @@ import {
   LEGACY_ID_PREFIX,
   validateInstance,
   normalizeInstances,
+  instanceTombstone,
+  isInstanceTombstone,
 } from './instances'
 import { getDefinition, listDefinitions } from './nativeRegistry'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../chartDefaults'
@@ -329,9 +331,9 @@ describe('normalizeInstances', () => {
   })
 
   it('a nullish list is empty, not an error', () => {
-    expect(normalizeInstances(null)).toEqual({ kept: [], dropped: [] })
-    expect(normalizeInstances(undefined)).toEqual({ kept: [], dropped: [] })
-    expect(normalizeInstances([])).toEqual({ kept: [], dropped: [] })
+    expect(normalizeInstances(null)).toEqual({ kept: [], removed: [], dropped: [] })
+    expect(normalizeInstances(undefined)).toEqual({ kept: [], removed: [], dropped: [] })
+    expect(normalizeInstances([])).toEqual({ kept: [], removed: [], dropped: [] })
   })
 
   it('a NON-array is reported, not shrugged off', () => {
@@ -347,6 +349,71 @@ describe('normalizeInstances', () => {
     const { kept, dropped } = normalizeInstances([exploding])
     expect(kept).toEqual([])
     expect(dropped).toHaveLength(1)
+  })
+})
+
+// ─── Tombstones on the READ path ─────────────────────────────────────────────
+//
+// A tombstone is a legitimate part of the stored data, not a defect, so it must
+// not land in `dropped` — that bucket means "something went wrong and here is
+// why", and diluting it with normal records makes it useless for the thing it
+// exists for. It gets its own bucket.
+
+describe('normalizeInstances — tombstones', () => {
+  const rsi = { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 } }
+
+  it('a tombstone is REMOVED, not kept and not dropped', () => {
+    const { kept, removed, dropped } = normalizeInstances([rsi, instanceTombstone('legacy:macd')])
+    expect(ids(kept)).toEqual(['legacy:rsi'])
+    expect(removed.map(i => i.instanceId)).toEqual(['legacy:macd'])
+    expect(dropped, 'a tombstone is data, not a defect').toEqual([])
+  })
+
+  it('a tombstone WITHOUT an id is a defect — there is nothing it could mean', () => {
+    const { kept, removed, dropped } = normalizeInstances([{ deleted: true }])
+    expect(kept).toEqual([])
+    expect(removed).toEqual([])
+    expect(dropped).toHaveLength(1)
+    expect(dropped[0].reason).toMatch(/instanceId/)
+  })
+
+  it('a tombstone does NOT consume its id — an explicit re-add after it is legal', () => {
+    // Order matters: the merge writes the tombstone and a later explicit re-add
+    // replaces it, but a blob can still be read mid-flight with both present.
+    const { kept, removed } = normalizeInstances([instanceTombstone('legacy:rsi'), rsi])
+    expect(ids(kept)).toEqual(['legacy:rsi'])
+    expect(removed.map(i => i.instanceId)).toEqual(['legacy:rsi'])
+  })
+
+  it('isInstanceTombstone only fires on an EXPLICIT true', () => {
+    expect(isInstanceTombstone(instanceTombstone('a'))).toBe(true)
+    expect(isInstanceTombstone({ instanceId: 'a', deleted: false })).toBe(false)
+    expect(isInstanceTombstone(rsi)).toBe(false)
+    expect(isInstanceTombstone(null)).toBe(false)
+    expect(isInstanceTombstone({ instanceId: 'a', deleted: 'yes' }), 'truthy is not true').toBe(false)
+  })
+})
+
+describe('migrateLegacyToInstances — tombstones', () => {
+  it('does NOT resurrect a deleted instance whose legacy toggle is still on', () => {
+    // The migration runs on every read. If it re-created a tombstoned instance,
+    // "I turned RSI off and it came back on refresh" would be the result.
+    const cs = {
+      indicators: { rsi: { enabled: true, period: 7 } },
+      indicatorInstances: [instanceTombstone('legacy:rsi')],
+    }
+    const out = migrateLegacyToInstances(cs)
+    expect(out).toEqual([instanceTombstone('legacy:rsi')])
+  })
+
+  it('is still idempotent with a tombstone in the list', () => {
+    const cs = {
+      indicators: { rsi: { enabled: true, period: 7 }, macd: { enabled: true } },
+      indicatorInstances: [instanceTombstone('legacy:rsi')],
+    }
+    const once = migrateLegacyToInstances(cs)
+    expect(migrateLegacyToInstances({ ...cs, indicatorInstances: once })).toEqual(once)
+    expect(ids(once)).toEqual(['legacy:rsi', 'legacy:macd'])
   })
 })
 
