@@ -731,3 +731,37 @@ def run_standing_cron() -> dict:
     except Exception as e:  # noqa: BLE001
         log.exception("[standing-flow] cron failed")
         return {"ok": False, "reason": f"error: {e}"}
+
+
+def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
+               frac: float = 0.75, limit: int = 300) -> dict:
+    """JSON-serializable still-open directional board for the searchable UI tab.
+    Same scan + still-open engine as the cards, but returns EVERY directional
+    name (not the top-N-per-side split) so the front-end can search/sort the
+    whole set. Each row carries bull/bear/net/bullPct + top contract + since +
+    since-open perf. Never raises."""
+    try:
+        cap = (cap or "all").strip().lower()
+        trades, window = load_directional_trades(days, min_dte, cap)
+        agg = aggregate(trades, top_n=10 ** 9, still_open_frac=frac)
+        ref = date.today()
+        rows = []
+        for e in agg["bulls"] + agg["bears"]:
+            tc = e.get("top") or {}
+            first = e.get("first")
+            fs, ls = e.get("first_spot", 0) or 0, e.get("last_spot", 0) or 0
+            rows.append({
+                "sym": e["sym"], "bull": e["bull"], "bear": e["bear"],
+                "net": e["net"], "bullPct": e["bullPct"],
+                "cp": tc.get("cp"), "strike": tc.get("K"), "exp": tc.get("exp"),
+                "dte": _dte_of(tc.get("exp"), ref) if tc.get("exp") else None,
+                "since": first.isoformat() if first else None,
+                "perf": round((ls / fs - 1) * 100, 1) if (fs > 0 and ls > 0) else None,
+            })
+        rows.sort(key=lambda r: r["net"], reverse=True)
+        return {"ok": True, "rows": rows[:limit], "window": window,
+                "n_names": agg["n_names"], "open_contracts": agg["open_contracts"],
+                "days": days, "cap": cap, "min_dte": min_dte}
+    except Exception as e:  # noqa: BLE001
+        log.exception("[flow-board] build failed")
+        return {"ok": False, "reason": f"error: {e}", "rows": []}

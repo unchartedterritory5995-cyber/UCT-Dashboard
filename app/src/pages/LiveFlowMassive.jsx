@@ -851,7 +851,7 @@ function MarketReadCard({ stats }) {
 // This is the click-to-focus pattern used by other dashboards (Bloomberg,
 // Twitter, etc.) — clicking always either isolates or restores, never the
 // confusing in-between multi-select state.
-function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange, viewMode, onViewModeChange, hideNoSide, onHideNoSideChange }) {
+function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange, viewMode, onViewModeChange, hideNoSide, onHideNoSideChange, showBoard }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
   const onlyOnTier = (() => {
     const ons = TIER_ORDER.filter(t => filters[t]);
@@ -884,26 +884,29 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
       {onViewModeChange && (
         <>
           <div style={{ display: "inline-flex", border: `1px solid ${P.ac}`, borderRadius: 4, overflow: "hidden", marginRight: 4 }}>
-            {[{ key: "print", label: "By Print" }, { key: "contract", label: "By Contract" }].map(opt => {
-              const active = viewMode === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => onViewModeChange(opt.key)}
-                  title={opt.key === "print"
-                    ? "Live tape — one row per print"
-                    : "One row per contract — repeat accumulation (hit ≥3× at decent size). Click a row to expand its prints."}
-                  style={{
-                    background: active ? P.ac : "transparent", color: active ? P.bg : P.wh,
-                    border: "none", padding: "5px 12px", cursor: "pointer", fontSize: 13,
-                    fontWeight: active ? 700 : 500,
-                    borderRight: opt.key === "print" ? `1px solid ${P.ac}` : "none",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+            {(() => {
+              const opts = [{ key: "print", label: "By Print", tip: "Live tape — one row per print" },
+                { key: "contract", label: "By Contract", tip: "One row per contract — repeat accumulation (hit ≥3× at decent size). Click a row to expand its prints." }];
+              if (showBoard) opts.push({ key: "openflow", label: "Open Flow", tip: "Still-open directional board — searchable/sortable, every name (60-day rolling by default)." });
+              return opts.map((opt, i) => {
+                const active = viewMode === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => onViewModeChange(opt.key)}
+                    title={opt.tip}
+                    style={{
+                      background: active ? P.ac : "transparent", color: active ? P.bg : P.wh,
+                      border: "none", padding: "5px 12px", cursor: "pointer", fontSize: 13,
+                      fontWeight: active ? 700 : 500,
+                      borderRight: i < opts.length - 1 ? `1px solid ${P.ac}` : "none",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              });
+            })()}
           </div>
           <span style={{ color: P.bd, fontSize: 13, marginRight: 4 }}>·</span>
         </>
@@ -2939,6 +2942,123 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────
+// ── Open Flow board — searchable/sortable still-open directional table.
+// Same data as the Open Flow Discord card (via GET /flow-board) but every
+// directional name, filtered by the page's ticker search + click-to-sort.
+function FlowBoard({ search }) {
+  const [days, setDays] = useState(60);
+  const [cap, setCap] = useState("all");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [sortCol, setSortCol] = useState("net");
+  const [sortDir, setSortDir] = useState("desc");
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setErr("");
+    fetch(`/api/live/massive/flow-board?days=${days}&cap=${cap}&limit=300`)
+      .then(r => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
+      .then(j => { if (!alive) return; j.ok ? setData(j) : setErr(j.reason || "error"); })
+      .catch(e => { if (alive) setErr(String(e)); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [days, cap]);
+
+  const GREEN = "#5ad19a", RED = "#ee6e6e";
+  const btn = on => ({ padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3,
+    cursor: "pointer", fontFamily: "inherit",
+    background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+    border: `1px solid ${on ? P.ac : P.bd}` });
+  const cell = (al, c) => ({ padding: "6px 10px", textAlign: al, color: c, whiteSpace: "nowrap" });
+  const fmtM = v => (!v ? "—" : Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${(v / 1e3).toFixed(0)}K`);
+  const fmtNet = v => `${v >= 0 ? "+" : "−"}${fmtM(Math.abs(v))}`;
+  const fmtSince = iso => (iso ? new Date(iso + "T00:00:00").toLocaleString("en-US", { month: "short", day: "numeric" }) : "—");
+  const fmtExp = e => { if (!e) return "—"; const p = String(e).split("/"); return p.length === 3 ? `${+p[0]}/${+p[1]}/${p[2].slice(2)}` : e; };
+  const dteNum = s => { const m = /(-?\d+)/.exec(s || ""); return m ? +m[1] : -1; };
+  const onSort = col => { if (sortCol === col) setSortDir(d => (d === "desc" ? "asc" : "desc")); else { setSortCol(col); setSortDir(col === "sym" ? "asc" : "desc"); } };
+
+  const rows = useMemo(() => {
+    let rs = data?.rows || [];
+    const q = (search || "").trim().toUpperCase();
+    if (q) rs = rs.filter(r => (r.sym || "").toUpperCase().includes(q));
+    const key = ({ sym: r => r.sym, bull: r => r.bull, bear: r => r.bear, net: r => r.net,
+      bullPct: r => r.bullPct, since: r => r.since || "", perf: r => (r.perf ?? -1e9),
+      dte: r => dteNum(r.dte) })[sortCol] || (r => r.net);
+    return [...rs].sort((a, b) => {
+      const av = key(a), bv = key(b);
+      const c = typeof av === "string" ? av.localeCompare(bv) : av - bv;
+      return sortDir === "desc" ? -c : c;
+    });
+  }, [data, search, sortCol, sortDir]);
+
+  const cols = [["sym", "TICKER", "left"], ["bull", "BULL", "right"], ["bear", "BEAR", "right"],
+    ["net", "NET", "right"], ["bullPct", "BULL%", "right"], ["_exp", "EXP", "left", false],
+    ["_strike", "STRIKE", "right", false], ["_cp", "C/P", "left", false],
+    ["since", "SINCE", "right"], ["perf", "PERF", "right"], ["dte", "DTE", "right"]];
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "8px 0 12px" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: P.mt, marginRight: 2 }}>WINDOW</span>
+        {[30, 60, 90].map(dd => <button key={dd} onClick={() => setDays(dd)} style={btn(days === dd)}>{dd}d</button>)}
+        <span style={{ width: 6 }} />
+        {[["all", "All"], ["mega", "Mega"], ["large", "Large"], ["mid_small", "Mid-Small"]].map(([c, l]) => (
+          <button key={c} onClick={() => setCap(c)} style={btn(cap === c)}>{l}</button>
+        ))}
+        <span style={{ marginLeft: "auto", fontSize: 11, color: P.dm }}>
+          {loading ? "loading…" : data ? `${rows.length} shown · ${data.n_names} still-open names · ${data.open_contracts} open contracts` : ""}
+        </span>
+      </div>
+      {err && (
+        <div style={{ padding: 20, color: RED, fontSize: 13 }}>
+          Board failed: {err}{String(err).includes("403") ? " — admin only" : ""}
+        </div>
+      )}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${P.bd}` }}>
+              {cols.map(([k, label, al, sortable = true]) => (
+                <th key={k} onClick={sortable ? () => onSort(k) : undefined}
+                  style={{ textAlign: al, padding: "6px 10px", color: P.dm, fontSize: 10,
+                    fontWeight: 700, cursor: sortable ? "pointer" : "default", whiteSpace: "nowrap",
+                    userSelect: "none" }}>
+                  {label}{sortable && sortCol === k ? (sortDir === "desc" ? " ▾" : " ▴") : ""}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.sym} style={{ background: i % 2 ? P.bg : "transparent" }}>
+                <td style={{ ...cell("left", P.ac), fontWeight: 700 }}>{r.sym}</td>
+                <td style={cell("right", GREEN)}>{fmtM(r.bull)}</td>
+                <td style={cell("right", RED)}>{fmtM(r.bear)}</td>
+                <td style={{ ...cell("right", r.net >= 0 ? GREEN : RED), fontWeight: 700 }}>{fmtNet(r.net)}</td>
+                <td style={cell("right", P.wh)}>{r.bullPct}%</td>
+                <td style={cell("left", P.dm)}>{fmtExp(r.exp)}</td>
+                <td style={cell("right", P.wh)}>{r.strike != null ? `$${Number.isInteger(+r.strike) ? +r.strike : r.strike}` : "—"}</td>
+                <td style={{ ...cell("left", r.cp === "C" ? GREEN : RED), fontWeight: 700 }}>{r.cp || ""}</td>
+                <td style={cell("right", P.wh)}>{fmtSince(r.since)}</td>
+                <td style={cell("right", r.perf == null ? P.dm : r.perf >= 0 ? GREEN : RED)}>
+                  {r.perf == null ? "—" : `${r.perf >= 0 ? "+" : "−"}${Math.abs(r.perf).toFixed(1)}%`}
+                </td>
+                <td style={cell("right", P.dm)}>{r.dte || "—"}</td>
+              </tr>
+            ))}
+            {!loading && rows.length === 0 && !err && (
+              <tr><td colSpan={cols.length} style={{ padding: 30, textAlign: "center", color: P.dm }}>
+                {search ? `No still-open names match "${search}".` : "No still-open directional names for this window / cap."}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function LiveFlowMassive() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Date picker driven via ?date= URL param so views are bookmarkable
@@ -4101,7 +4221,8 @@ export default function LiveFlowMassive() {
                      stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter}
                      search={search} onSearchChange={setSearch}
                      viewMode={viewMode} onViewModeChange={setViewMode}
-                     hideNoSide={hideNoSide} onHideNoSideChange={setHideNoSide} />
+                     hideNoSide={hideNoSide} onHideNoSideChange={setHideNoSide}
+                     showBoard={isTuneMode} />
 
         {viewMode === "contract" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontSize: 11, color: P.mt }}>
@@ -4134,7 +4255,9 @@ export default function LiveFlowMassive() {
 
         {viewMode === "print"
           ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />
-          : <ContractColumnHeaders isAdmin={isTuneMode} />}
+          : viewMode === "contract"
+          ? <ContractColumnHeaders isAdmin={isTuneMode} />
+          : null}
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -4261,6 +4384,8 @@ export default function LiveFlowMassive() {
           </div>
         )}
       </>)}
+
+      {viewMode === "openflow" && <FlowBoard search={search} />}
 
       <div style={{
         marginTop: 30, padding: 12, color: P.mt, fontSize: 10,

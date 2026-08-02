@@ -4679,6 +4679,21 @@ def standing_flow_trigger(
                     headers={"X-Standing-Names": str(res.get("names", 0))})
 
 
+@router.get("/flow-board")
+def flow_board(
+    days: int = Query(60, description="rolling window in trading days"),
+    cap: str = Query("all", description="cap band: all | mega | large | mid_small"),
+    limit: int = Query(300, description="max names returned"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """JSON still-open directional board for the searchable Open Flow tab — every
+    directional name (not the top-N split), each with bull/bear/net/bullPct + top
+    contract + since + since-open perf. Same engine as the Open Flow card. Runs on
+    the flow-worker (flow.db + OI snapshots)."""
+    from api import weekly_flow as wf
+    return wf.board_data(days=days, cap=cap, limit=limit)
+
+
 @router.get("/pushed")
 def get_pushed(alert_date: str = Query(None, description="alert_date to filter (defaults to all recent)")):
     """Read-only list of alerts pushed to Discord (manual + auto). Feeds the
