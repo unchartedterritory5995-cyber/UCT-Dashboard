@@ -1968,6 +1968,42 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
   // Standing Conviction (rolling still-open) manual controls — own lookback + cap.
   const [sfDays, setSfDays] = useState(60);
   const [sfCap, setSfCap] = useState("all");
+  // Preview/Push run a heavy multi-week flow.db scan (seconds) — track which
+  // button is in flight so it shows progress + disables instead of reading dead.
+  const [busy, setBusy] = useState("");
+  const doPreview = async (url, key) => {
+    setBusy(key);
+    try {
+      const r = await fetch(url, { method: "POST" });
+      if (!r.ok) {
+        window.alert("Preview failed: HTTP " + r.status + (r.status === 502
+          ? " — the scan ran past the 120s limit; retry (the cache warms) or pick a smaller window."
+          : ""));
+        return;
+      }
+      const b = await r.blob();
+      if (b.type.startsWith("image")) window.open(URL.createObjectURL(b));
+      else window.alert("No image — " + (await b.text()));
+    } catch (e) { window.alert("Preview failed: " + e); }
+    finally { setBusy(""); }
+  };
+  const doPush = async (url, label, key) => {
+    if (!window.confirm(`Post the ${label} to Discord?`)) return;
+    setBusy(key);
+    try {
+      const r = await fetch(url, { method: "POST" });
+      const j = await r.json();
+      window.alert(j.posted ? `Posted ✓ — ${j.names} names`
+        : `Not posted — ${j.reason || j.detail || "unknown"}`);
+    } catch (e) { window.alert("Push failed: " + e); }
+    finally { setBusy(""); }
+  };
+  const btnStyle = (key, primary) => ({
+    padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3,
+    cursor: busy ? "wait" : "pointer", opacity: busy && busy !== key ? 0.5 : 1,
+    background: primary ? P.ac : "transparent", color: primary ? P.bg : P.wh,
+    border: primary ? "none" : `1px solid ${P.bd}`,
+  });
   if (!thresholds) {
     return (
       <div style={{
@@ -2153,30 +2189,12 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                   border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
               );
             })}
-            <button
-              onClick={async () => {
-                try {
-                  const r = await fetch(`/api/live/massive/weekly-flow?post=0&days=${wfDays}&cap=${wfCap}`, { method: "POST" });
-                  if (!r.ok) { window.alert("Preview failed: HTTP " + r.status); return; }
-                  const b = await r.blob();
-                  if (b.type.startsWith("image")) window.open(URL.createObjectURL(b));
-                  else window.alert("No image — " + (await b.text()));
-                } catch (e) { window.alert("Preview failed: " + e); }
-              }}
-              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
-                background: "transparent", color: P.wh, border: `1px solid ${P.bd}` }}>👁 Preview</button>
-            <button
-              onClick={async () => {
-                if (!window.confirm(`Post the Weekly Conviction card (${wfDays}d · ${wfCap}) to Discord?`)) return;
-                try {
-                  const r = await fetch(`/api/live/massive/weekly-flow?post=1&days=${wfDays}&cap=${wfCap}`, { method: "POST" });
-                  const j = await r.json();
-                  window.alert(j.posted ? `Posted (${wfDays}d ${wfCap}) ✓ — ${j.names} names`
-                    : `Not posted — ${j.reason || j.detail || "unknown"}`);
-                } catch (e) { window.alert("Push failed: " + e); }
-              }}
-              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
-                background: P.ac, color: P.bg, border: "none" }}>★ Push → Discord</button>
+            <button disabled={!!busy} style={btnStyle("wfp", false)}
+              onClick={() => doPreview(`/api/live/massive/weekly-flow?post=0&days=${wfDays}&cap=${wfCap}`, "wfp")}>
+              {busy === "wfp" ? "Previewing…" : "👁 Preview"}</button>
+            <button disabled={!!busy} style={btnStyle("wfx", true)}
+              onClick={() => doPush(`/api/live/massive/weekly-flow?post=1&days=${wfDays}&cap=${wfCap}`, `Weekly Conviction card (${wfDays}d · ${wfCap})`, "wfx")}>
+              {busy === "wfx" ? "Posting…" : "★ Push → Discord"}</button>
           </div>
           {/* Standing Conviction — rolling still-open, top-N by premium, with
               first-seen/age + since-open perf. Cap buttons isolate non-mega
@@ -2203,30 +2221,12 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                   border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
               );
             })}
-            <button
-              onClick={async () => {
-                try {
-                  const r = await fetch(`/api/live/massive/standing-flow?post=0&days=${sfDays}&cap=${sfCap}`, { method: "POST" });
-                  if (!r.ok) { window.alert("Preview failed: HTTP " + r.status); return; }
-                  const b = await r.blob();
-                  if (b.type.startsWith("image")) window.open(URL.createObjectURL(b));
-                  else window.alert("No image — " + (await b.text()));
-                } catch (e) { window.alert("Preview failed: " + e); }
-              }}
-              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
-                background: "transparent", color: P.wh, border: `1px solid ${P.bd}` }}>👁 Preview</button>
-            <button
-              onClick={async () => {
-                if (!window.confirm(`Post the Open Flow card (${sfDays}d · ${sfCap}) to Discord?`)) return;
-                try {
-                  const r = await fetch(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}`, { method: "POST" });
-                  const j = await r.json();
-                  window.alert(j.posted ? `Posted (${sfDays}d ${sfCap}) ✓ — ${j.names} names`
-                    : `Not posted — ${j.reason || j.detail || "unknown"}`);
-                } catch (e) { window.alert("Push failed: " + e); }
-              }}
-              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
-                background: P.ac, color: P.bg, border: "none" }}>★ Push → Discord</button>
+            <button disabled={!!busy} style={btnStyle("sfp", false)}
+              onClick={() => doPreview(`/api/live/massive/standing-flow?post=0&days=${sfDays}&cap=${sfCap}`, "sfp")}>
+              {busy === "sfp" ? "Previewing…" : "👁 Preview"}</button>
+            <button disabled={!!busy} style={btnStyle("sfx", true)}
+              onClick={() => doPush(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}`, `Open Flow card (${sfDays}d · ${sfCap})`, "sfx")}>
+              {busy === "sfx" ? "Posting…" : "★ Push → Discord"}</button>
           </div>
         </div>
       )}
