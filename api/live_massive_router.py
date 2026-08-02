@@ -3217,7 +3217,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # `lookback_days` trading days present in the data (default 1 = today).
     # Same-strike/same-exp repeats across days are the strongest accumulation
     # signal — someone building a position with conviction.
-    lookback_days = max(1, min(int(lookback_days or 1), 5))
+    lookback_days = max(1, min(int(lookback_days or 1), 31))   # range picker: up to 31 (was 5)
     if lookback_days <= 1:
         target_dates = [today]
     else:
