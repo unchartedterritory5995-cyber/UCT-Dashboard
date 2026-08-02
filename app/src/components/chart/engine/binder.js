@@ -252,5 +252,18 @@ export function createBinder({ chart, LWC }) {
     return { ok: true, bound: next.length, released: release.length }
   }
 
-  return { sync, teardown: releaseAll }
+  /**
+   * The bindings currently held, for a caller that must reach the series the
+   * engine owns without owning them itself — today that is StockChart's
+   * hide-all-indicators toggle, which hand-lists twenty-seven refs and carries an
+   * in-code warning that a phantom name there crashed `/charts` for every user on
+   * 2026-07-22 with no build-time check. Iterating a map removes that failure
+   * class for everything the engine draws.
+   *
+   * A COPY of the list — a caller walking it must not be able to reorder or
+   * truncate the binder's own state.
+   */
+  function bindings() { return held.slice() }
+
+  return { sync, teardown: releaseAll, bindings }
 }

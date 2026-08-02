@@ -160,4 +160,24 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
     const merged = mergeChartSettings(JSON.stringify({ indicatorInstances: { nope: true } }))
     expect(merged.indicatorInstances).toEqual([])
   })
+
+  it('engineEnabled defaults OFF — the engine lands dark', () => {
+    expect(CHART_DEFAULTS.engineEnabled).toBe(false)
+    expect(mergeChartSettings(null).engineEnabled).toBe(false)
+  })
+
+  it('engineEnabled survives the merge when explicitly true', () => {
+    expect(mergeChartSettings(JSON.stringify({ engineEnabled: true })).engineEnabled).toBe(true)
+  })
+
+  it('only a boolean true enables it — every truthy impostor reads as OFF', () => {
+    // Every other flag here can fail either way harmlessly; this one decides
+    // whether a whole second render path runs. A "1" out of a URL param, a
+    // leftover string, a stray object — all OFF, and all coerced to a real
+    // boolean so no consumer has to repeat the check.
+    for (const value of ['1', 1, 'true', 'false', {}, [], 'yes']) {
+      const merged = mergeChartSettings(JSON.stringify({ engineEnabled: value }))
+      expect(merged.engineEnabled, `engineEnabled: ${JSON.stringify(value)}`).toBe(false)
+    }
+  })
 })

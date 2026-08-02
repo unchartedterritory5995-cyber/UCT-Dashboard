@@ -186,6 +186,11 @@ export const CHART_DEFAULTS = {
   // from it is silently dropped on EVERY read.
   settingsVersion: 1,
   indicatorInstances: [],
+  // THE ENGINE LANDS DARK. While this is false StockChart never constructs a
+  // binder, so the engine makes zero lightweight-charts calls of any kind — not
+  // "no visible change", zero. Flipping it on is a deliberate, per-blob act
+  // (Settings, or a `settingsOverride` on one surface like the parity route).
+  engineEnabled: false,
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
@@ -392,6 +397,11 @@ export function mergeChartSettings(userSettings) {
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
     settingsVersion: Number.isFinite(parsed.settingsVersion) ? parsed.settingsVersion : CHART_DEFAULTS.settingsVersion,
     indicatorInstances: Array.isArray(parsed.indicatorInstances) ? parsed.indicatorInstances : [],
+    // `=== true`, not `??`: only an explicit boolean lights the engine up. Every
+    // other flag here can fail either way harmlessly; this one decides whether a
+    // whole second render path runs, so a stray truthy value (a "1" from a URL
+    // param, a leftover string) must read as OFF.
+    engineEnabled: parsed.engineEnabled === true,
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
     volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)

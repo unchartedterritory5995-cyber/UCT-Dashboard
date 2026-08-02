@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import useSWR from 'swr'
-import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType, LineType } from 'lightweight-charts'
+import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
@@ -33,6 +33,10 @@ import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
+import { createBinder } from './chart/engine/binder'
+import { resolvePlacement, resolvePreset } from './chart/engine/placement'
+import { normalizeInstances } from './chart/engine/instances'
+import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useIsPaid } from '../context/AuthContext'
@@ -59,6 +63,21 @@ const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === unde
 // `m >= s` (the old test) is exactly `histogram >= 0`.
 const MACD_HIST_UP = 'rgba(76,175,80,0.75)'
 const MACD_HIST_DOWN = 'rgba(244,67,54,0.75)'
+
+// The renderer surface the indicator engine's binder asks for: the four series
+// constructors any v1 plot can need, plus the two style enums. Assembled from
+// NAMED imports rather than `import * as` so lightweight-charts still tree-shakes
+// — a namespace object indexed dynamically (`LWC[ctorName]`) pins the whole
+// library into the bundle.
+//
+// Built on FIRST USE, not at module scope, and memoised so its identity is stable
+// across paints. Lazily because the dark contract is worth taking literally: with
+// the engine off StockChart does not so much as READ these exports, which also
+// means it cannot break a caller whose lightweight-charts double predates them.
+let _engineLwc = null
+const engineLwc = () => (_engineLwc || (_engineLwc = {
+  LineSeries, HistogramSeries, AreaSeries, BaselineSeries, LineStyle, LineType,
+}))
 
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
@@ -1639,6 +1658,12 @@ export default function StockChart({
   const lastIndexSigRef = useRef(null)  // signature of the last-drawn index line/MA so we SKIP setData+relayout when flipping tickers in the same year (the index line is identical → no millisecond glitch)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
+  // The indicator engine (Phase B), as `{ chart, binder }`. NULL while the flag is
+  // off — nothing is constructed and nothing is called, which is the lands-dark
+  // contract. The chart handle is stored alongside so a destroyed→recreated chart
+  // drops the binder rather than inheriting series that no longer exist (the same
+  // latch-reset discipline every other ref in `updateChart` follows).
+  const engineRef = useRef(null)
   const overlaySeriesRefs = useRef([])
   const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
   const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
@@ -5478,6 +5503,62 @@ export default function StockChart({
         }
       } catch {}
     }
+
+    // ── THE INDICATOR ENGINE (Phase B) — one call site, dark by default ───────
+    //
+    // It lives HERE, inline in `updateChart`, and NOT in an effect of its own,
+    // because everything it needs is already in scope at exactly this point and
+    // nowhere else: `chart`, the render plan (`_noop`/`_incr`/`_freshChart` are
+    // LOCALS of this function), `_applyData`, `paneMargins`, the volume-overlay
+    // decision two dozen lines up, `cs`, `filteredBars` and `adjustTime`. An
+    // effect would have to re-derive the render plan — a second copy of the
+    // decision that keeps the developing bar alive in extended hours — and would
+    // create its panes at a different point in the pass, which is precisely the
+    // class of change the parity gate exists to catch. Extraction is B5's job,
+    // when panes stop being bands.
+    //
+    // ⛔ DARK: while `cs.engineEnabled` is false no binder is ever CONSTRUCTED,
+    // so `sync` is never called and the engine makes zero lightweight-charts
+    // calls of any kind. A binder that already exists keeps being synced after
+    // the flag flips off, because that call is what releases its series — the
+    // off switch must not leave ghosts on the chart.
+    //
+    // `=== true`, not truthiness. `mergeChartSettings` already coerces the stored
+    // blob, but `mergeSettingsOverride` (grid cells, the parity route) writes
+    // primitives through untouched — so a `?…engineEnabled="1"` would otherwise
+    // start the engine on that surface alone. The flag is read strictly at the one
+    // place it decides anything.
+    const engineOn = cs.engineEnabled === true
+    if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
+    if (engineOn && !engineRef.current) {
+      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
+    }
+    if (engineRef.current) {
+      engineRef.current.binder.sync({
+        enabled: engineOn,
+        cs,
+        // Normalised on the way in: a tombstone or a malformed record must never
+        // reach the planner. Cheap enough to do per paint at v1 instance counts,
+        // and it only ever runs with the engine ON.
+        instances: normalizeInstances(cs.indicatorInstances, engineRegistry).kept,
+        registry: engineRegistry,
+        // The SAME bars `indicatorData` computes from (`:3895`) — parity under
+        // Flip A means the engine's column and the legacy one are the same array.
+        bars: filteredBars,
+        adjustTime,
+        applyData: _applyData,
+        plan: { noop: _noop, incr: _incr, fresh: _freshChart },
+        // Placement inputs. `resolvePlacement` reads these and nothing else, so
+        // the engine lands in the legacy bands by construction.
+        paneMargins,
+        volOverlaySet,
+        volSeparatePane,
+        VOL_PANE_INDEX,
+        resolvePlacement,
+        resolvePreset,
+      })
+    }
+
     if (showVolume && volData.length) {
       // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
       // overlaid indicator can take the LEFT axis. Overlay mode keeps the
@@ -8159,7 +8240,18 @@ export default function StockChart({
     const setAll = (arr) => { if (Array.isArray(arr)) arr.forEach(s => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }) }
     setAll(overlaySeriesRefs.current)
     setAll(overlayTailSeriesRefs.current)
-  }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym])
+    // Engine-owned series are ITERATED, never hand-listed. The array above is the
+    // failure class the warning describes — a name in it that isn't a declared ref
+    // is a ReferenceError at runtime and nothing catches it at build time. Every
+    // series the engine draws is reached through its binding map instead, so an
+    // indicator added in B3 hides with the toggle without anyone editing a list.
+    if (engineRef.current) {
+      try { setAll(engineRef.current.binder.bindings().map(b => b.series)) } catch { /* disposed */ }
+    }
+  }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym,
+    // The engine re-binds when its instance list or its flag changes; without these
+    // a newly-bound series would keep the visibility of whatever came before it.
+    cs.indicatorInstances, cs.engineEnabled])
 
   // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
   // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
