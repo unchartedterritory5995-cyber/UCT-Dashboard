@@ -49,6 +49,86 @@ const periodBox = (row) => within(row).getAllByRole('spinbutton')[0]
 const swatch = (row) => within(row).getAllByRole('button').at(-1)
 const ENGINE_TITLE = /Drawn by the indicator engine/
 
+// ── AND IT MUST SHOW WHAT IS ACTUALLY ON THE CHART ──────────────────────────
+//
+// Greying the box was half the honesty fix. The greyed box still read
+// `cs.indicators.rsi.period`, so a user on an `?instances=` chart saw a disabled
+// **14** in the settings panel while `readout.js`' `chipLabel` printed
+// **RSI(7)** in the legend, in a colour this swatch was not showing. Two numbers
+// for one line, with a tooltip next to the wrong one explaining that this field
+// is not the authority.
+const RSI_INSTANCE_7 = {
+  instanceId: 'legacy:rsi', defId: 'rsi', defVersion: 1,
+  inputs: { period: 7, color: '#ff0000' }, placement: { target: 'pane' }, hidden: false,
+}
+
+describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob', () => {
+  it('the disabled period box and swatch print what the engine is rendering', async () => {
+    const user = userEvent.setup()
+    // The blob says 14 / #7b68ee; the instance the engine draws says 7 / red.
+    mount(settingsWith({
+      indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } },
+      engineEnabled: true,
+      indicatorInstances: [RSI_INSTANCE_7],
+    }), vi.fn())
+    await openPanel(user)
+    const row = rowFor('RSI')
+    expect(periodBox(row).disabled).toBe(true)
+    expect(periodBox(row).value, 'the greyed box is showing the blob, not the chart').toBe('7')
+    expect(swatch(row).style.background).toBe('rgb(255, 0, 0)')
+  })
+
+  it('…and the blob still says 14, so this is a DISPLAY fix and not a write', async () => {
+    // The row is read-only under Flip A; nothing here may have reached back into
+    // `cs`. `instanceControls` (Task 9) is the writer, and it does not exist yet.
+    const user = userEvent.setup()
+    const spy = vi.fn()
+    const cs = settingsWith({
+      indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } },
+      engineEnabled: true,
+      indicatorInstances: [RSI_INSTANCE_7],
+    })
+    mount(cs, spy)
+    await openPanel(user)
+    expect(cs.indicators.rsi.period).toBe(14)
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('a LIVE row is untouched: no instance ⇒ the blob is still what it shows', async () => {
+    const user = userEvent.setup()
+    mount(settingsWith({
+      indicators: { rsi: { enabled: true, period: 21, color: '#7b68ee' } },
+    }), vi.fn())
+    await openPanel(user)
+    const row = rowFor('RSI')
+    expect(periodBox(row).disabled).toBe(false)
+    expect(periodBox(row).value).toBe('21')
+  })
+
+  it('an instance whose inputs OMIT a field falls back to the blob for that field only', async () => {
+    // `normalizeInstances` fills declared defaults, so this is really about a
+    // field the definition does not declare at all — the fallback must not turn
+    // into `undefined` and make React drop to an uncontrolled input.
+    const user = userEvent.setup()
+    mount(settingsWith({
+      indicators: { bb: { enabled: true, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' } },
+      engineEnabled: true,
+      indicatorInstances: [{
+        instanceId: 'legacy:bb', defId: 'bb', defVersion: 1,
+        inputs: { period: 34 }, placement: { target: 'price' }, hidden: false,
+      }],
+    }), vi.fn())
+    await openPanel(user)
+    const row = rowFor('BB')
+    const boxes = within(row).getAllByRole('spinbutton')
+    expect(boxes[0].disabled).toBe(true)
+    expect(boxes[0].value, 'BB period comes from the instance').toBe('34')
+    // stdDev is declared with a default, so the normaliser supplies 2 — either
+    // way the box must show a real number and stay controlled.
+    expect(boxes[1].value).not.toBe('')
+  })
+})
+
 describe('ChartToolbar — the period and colour rows an engine-drawn indicator makes inert', () => {
   let spy
   beforeEach(() => { spy = vi.fn() })

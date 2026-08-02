@@ -17,6 +17,7 @@
 import { normalizeInstances } from './instances'
 
 const EMPTY = Object.freeze(new Set())
+const EMPTY_INPUTS = Object.freeze(new Map())
 
 /**
  * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
@@ -71,12 +72,44 @@ export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb']))
  * @returns {Set<string>} frozen-empty when the engine is off or holds nothing
  */
 export function engineDrawnDefIds(cs, registry) {
-  if (!cs || cs.engineEnabled !== true) return EMPTY
+  const byId = engineDrawnInputs(cs, registry)
+  return byId.size ? new Set(byId.keys()) : EMPTY
+}
+
+/**
+ * …and WHAT each of them is drawing with.
+ *
+ * The second question the toolbar has to ask. Greying a control out was only
+ * half the honesty fix: the greyed box still showed `cs.indicators.rsi.period`,
+ * so a user on an `?instances=` chart could read a disabled **14** in the
+ * settings panel while the legend printed **RSI(7)** in a colour the panel's
+ * swatch did not show. Two numbers for one line, and the tooltip explaining that
+ * the field is not the authority sat right next to the value that is not the
+ * authority either.
+ *
+ * Same walk, same normalisation, same migrated-id filter as `engineDrawnDefIds`
+ * — derived from this one so the two can never disagree about which definitions
+ * the engine holds.
+ *
+ * **FIRST instance of a definition wins.** More than one instance of the same
+ * definition is legal (that is the point of the engine), but a settings row is
+ * per-DEFINITION and can only show one. First-in-list is the binder's own draw
+ * order, so the row shows the first line the user sees. When B4 gives instances
+ * their own rows this function stops being needed; until then it is strictly
+ * better than showing a value nothing renders.
+ *
+ * @returns {Map<string, object>} defId → that instance's normalised `inputs`.
+ *          Empty map when the engine is off or holds nothing.
+ */
+export function engineDrawnInputs(cs, registry) {
+  if (!cs || cs.engineEnabled !== true) return EMPTY_INPUTS
   const raw = cs.indicatorInstances
-  if (!Array.isArray(raw) || raw.length === 0) return EMPTY
-  const ids = new Set()
+  if (!Array.isArray(raw) || raw.length === 0) return EMPTY_INPUTS
+  const out = new Map()
   for (const inst of normalizeInstances(raw, registry).kept) {
-    if (ENGINE_MIGRATED_DEF_IDS.has(inst.defId)) ids.add(inst.defId)
+    if (!ENGINE_MIGRATED_DEF_IDS.has(inst.defId)) continue
+    if (out.has(inst.defId)) continue
+    out.set(inst.defId, inst.inputs || {})
   }
-  return ids.size ? ids : EMPTY
+  return out.size ? out : EMPTY_INPUTS
 }
