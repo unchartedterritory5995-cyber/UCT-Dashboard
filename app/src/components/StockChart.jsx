@@ -36,6 +36,7 @@ import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { normalizeInstances, engineOwnedDefIds } from './chart/engine/instances'
+import { engineChips, chipsBySlot } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
@@ -52,6 +53,10 @@ import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
 // answer into a "some engine" one.
 const EMPTY_INSTANCES = Object.freeze([])
 const EMPTY_OWNED = Object.freeze(new Set())
+// The crosshair legend's "the engine drew nothing" answer (B3 carry #2). Frozen
+// and module-scope for the same reason as the two above: the flag-OFF hover path
+// runs once per animation frame and must allocate nothing.
+const EMPTY_ENGINE_SLOTS = Object.freeze({})
 
 /**
  * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
@@ -2035,6 +2040,15 @@ export default function StockChart({
   const resolvedOverlaysRef = useRef(null)
   const symRef = useRef(null)
   const onCrosshairMoveRef = useRef(null)
+  // The instance list the engine last drew, for the crosshair handler — which
+  // reads refs, not props, so the subscription survives a live tick without a
+  // tear-down/resubscribe (see the block comment above `overlayDataRef`).
+  // It is written inside `updateChart`, where `engineInstances` is a local, and
+  // NOT in the mirror effect below: the mirror can only copy component-scope
+  // values, and reading `cs.indicatorInstances` here instead would give the
+  // legend the RAW blob — including the records `normalizeInstances` dropped and
+  // the definitions the engine is not allowed to draw.
+  const engineInstancesRef = useRef(EMPTY_INSTANCES)
 
   const [activeTool, setActiveTool] = useState(null)
   const activeToolRef = useRef(activeTool)
@@ -5571,6 +5585,11 @@ export default function StockChart({
       ? normalizeInstances(cs.indicatorInstances, engineRegistry).kept
         .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
       : EMPTY_INSTANCES
+    // Mirrored for the crosshair legend (B3 carry #2). The handler needs each
+    // instance's INPUTS to print `RSI(7)` and to colour the chip the way the
+    // line is coloured, and it reads refs rather than props so a live tick does
+    // not tear down and re-subscribe it.
+    engineInstancesRef.current = engineInstances
     // ── WHICH LEGACY BLOCKS STAND DOWN ────────────────────────────────────────
     //
     // Flip A puts the engine's series in the SAME band on the SAME scale as the
@@ -7784,14 +7803,35 @@ export default function StockChart({
       const change = (prevClose != null) ? (c - prevClose) : (c - o)
       const changePct = (prevClose != null && prevClose) ? ((change / prevClose) * 100) : (o ? ((change / o) * 100) : 0)
 
-      let rsiValue = null
-      if (rsiSeriesRef.current) {
+      // ── The engine's own chips (B3 carry #2) ──────────────────────────────
+      //
+      // A migrated indicator has no legacy series ref, so every `…Ref.current`
+      // read below returns null and its chip silently disappears from the
+      // readout. INVISIBLE TO THE PIXEL GATE BY DESIGN: a headless capture has
+      // no cursor, so no legend is drawn on either side. The engine's bindings
+      // are iterated instead, and each chip lands in the slot its legacy twin
+      // occupied so the legend's ORDER is unchanged too.
+      //
+      // Wrapped, because this runs on the rAF flush: a disposed binder throwing
+      // here would take the whole legend down mid-hover, and the legacy reads
+      // below are a complete fallback for anything the engine did not draw.
+      let engSlots = EMPTY_ENGINE_SLOTS
+      if (engineRef.current) {
+        try {
+          engSlots = chipsBySlot(engineChips(
+            engineRef.current.binder.bindings(), param.seriesData, engineRegistry, engineInstancesRef.current))
+        } catch { /* disposed mid-hover */ }
+      }
+
+      let rsiValue = engSlots.rsi ? engSlots.rsi.value : null
+      if (rsiValue === null && rsiSeriesRef.current) {
         const d = param.seriesData.get(rsiSeriesRef.current)
         rsiValue = d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)
       }
 
-      let macdValue = null, macdSignalValue = null
-      if (macdLineRef.current) {
+      let macdValue = engSlots.macd ? engSlots.macd.value : null
+      let macdSignalValue = engSlots.macdSig ? engSlots.macdSig.value : null
+      if (macdValue === null && macdLineRef.current) {
         const dm = param.seriesData.get(macdLineRef.current)
         const ds = macdSignalRef.current ? param.seriesData.get(macdSignalRef.current) : null
         macdValue       = dm?.value ?? (indicatorData.macd.macd.at(-1)?.value   ?? null)
@@ -7862,6 +7902,12 @@ export default function StockChart({
         atr: atrValue, sar: sarValue,
         ichimokuTenkan, ichimokuKijun,
         compare: compareValue,
+        // The engine's chips as DATA, so the legend can render them directly at
+        // B4 and the slot bridge above can be deleted with `LEGACY_SLOTS`. Until
+        // then it carries the one thing the numeric fields above cannot: the
+        // chip's TEXT and COLOUR, which for an engine-drawn indicator come from
+        // the instance, not from `cs.indicators[key]`.
+        engineSlots: engSlots,
       })
 
       // (The multi-chart sync broadcast moved to the TOP of this function —
@@ -9586,16 +9632,32 @@ export default function StockChart({
           : (cs.header?.colors?.dayChangeDown || (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d'))
         // Oscillator/indicator chips, built once and rendered by BOTH the flat and
         // the classic horizontal layouts so the two can never drift apart.
+        //
+        // ── B3 carry #2: a chip the ENGINE drew ─────────────────────────────
+        // `crosshairData.engineSlots` is keyed by the SAME field name each row
+        // below reads, so a migrated indicator's chip lands in its legacy twin's
+        // position with its legacy neighbours — a difference no pixel gate run
+        // without a cursor could ever catch. Text and colour come from
+        // `readout.js` (the plot's `legend` declaration + the INSTANCE's inputs);
+        // `cs.indicators[key]` is the LEGACY authority and is simply wrong for an
+        // engine-drawn line, whose colour and period live on the instance.
+        // Deleted at B4 with `LEGACY_SLOTS`, when the legend renders chips
+        // directly and stops enumerating indicators at all.
+        const engSlots = crosshairData.engineSlots || EMPTY_ENGINE_SLOTS
+        const chip = (key, slot, color, text) => {
+          const e = engSlots[slot]
+          return [key, (e && e.color) || color, (e && e.text) || text]
+        }
         const legChips = [
-          crosshairData.rsi != null && ['rsi', cs.indicators?.rsi?.color || '#7b68ee', `RSI(${cs.indicators?.rsi?.period || 14}) ${crosshairData.rsi.toFixed(1)}`],
-          crosshairData.macd != null && ['macd', cs.indicators?.macd?.macdColor || '#2196F3', `MACD ${crosshairData.macd.toFixed(4)}`],
-          crosshairData.macdSig != null && ['macdSig', cs.indicators?.macd?.signalColor || '#FF9800', `SIG ${crosshairData.macdSig.toFixed(4)}`],
-          crosshairData.stochK != null && ['stochK', cs.indicators?.stoch?.kColor || '#FF6B6B', `%K ${crosshairData.stochK.toFixed(1)}`],
-          crosshairData.stochD != null && ['stochD', cs.indicators?.stoch?.dColor || '#4ECDC4', `%D ${crosshairData.stochD.toFixed(1)}`],
-          crosshairData.atr != null && ['atr', cs.indicators?.atr?.color || '#FFA726', `ATR(${cs.indicators?.atr?.period || 14}) ${crosshairData.atr.toFixed(4)}`],
-          crosshairData.sar != null && ['sar', cs.indicators?.sar?.color || '#ffeb3b', `SAR ${crosshairData.sar.toFixed(4)}`],
-          crosshairData.ichimokuTenkan != null && ['tk', cs.indicators?.ichimoku?.tenkanColor || '#26C6DA', `TK ${crosshairData.ichimokuTenkan.toFixed(2)}`],
-          crosshairData.ichimokuKijun != null && ['kj', cs.indicators?.ichimoku?.kijunColor || '#EF5350', `KJ ${crosshairData.ichimokuKijun.toFixed(2)}`],
+          crosshairData.rsi != null && chip('rsi', 'rsi', cs.indicators?.rsi?.color || '#7b68ee', `RSI(${cs.indicators?.rsi?.period || 14}) ${crosshairData.rsi.toFixed(1)}`),
+          crosshairData.macd != null && chip('macd', 'macd', cs.indicators?.macd?.macdColor || '#2196F3', `MACD ${crosshairData.macd.toFixed(4)}`),
+          crosshairData.macdSig != null && chip('macdSig', 'macdSig', cs.indicators?.macd?.signalColor || '#FF9800', `SIG ${crosshairData.macdSig.toFixed(4)}`),
+          crosshairData.stochK != null && chip('stochK', 'stochK', cs.indicators?.stoch?.kColor || '#FF6B6B', `%K ${crosshairData.stochK.toFixed(1)}`),
+          crosshairData.stochD != null && chip('stochD', 'stochD', cs.indicators?.stoch?.dColor || '#4ECDC4', `%D ${crosshairData.stochD.toFixed(1)}`),
+          crosshairData.atr != null && chip('atr', 'atr', cs.indicators?.atr?.color || '#FFA726', `ATR(${cs.indicators?.atr?.period || 14}) ${crosshairData.atr.toFixed(4)}`),
+          crosshairData.sar != null && chip('sar', 'sar', cs.indicators?.sar?.color || '#ffeb3b', `SAR ${crosshairData.sar.toFixed(4)}`),
+          crosshairData.ichimokuTenkan != null && chip('tk', 'ichimokuTenkan', cs.indicators?.ichimoku?.tenkanColor || '#26C6DA', `TK ${crosshairData.ichimokuTenkan.toFixed(2)}`),
+          crosshairData.ichimokuKijun != null && chip('kj', 'ichimokuKijun', cs.indicators?.ichimoku?.kijunColor || '#EF5350', `KJ ${crosshairData.ichimokuKijun.toFixed(2)}`),
           (crosshairData.compare != null && compareSymbol) && ['cmp', '#fb923c', `${compareSymbol.toUpperCase()} ${crosshairData.compare > 0 ? '+' : ''}${crosshairData.compare.toFixed(2)}%`],
         ].filter(Boolean)
         return (

@@ -24,12 +24,14 @@ const H = vi.hoisted(() => ({
   binderCreated: [],
   binderApis: [],
   syncCalls: [],
+  crosshairHandlers: [],
   reset() {
     H.addSeriesCalls.length = 0
     H.visibilityCalls.length = 0
     H.binderCreated.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
+    H.crosshairHandlers.length = 0
   },
 }))
 
@@ -79,7 +81,15 @@ vi.mock('lightweight-charts', () => {
     removeSeries: () => {}, applyOptions: () => {},
     priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
     timeScale: () => timeScale,
-    subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
+    // The crosshair handler is CAPTURED, not swallowed. Everything the legend
+    // does — including the B3 carry #2 bridge that keeps a migrated indicator in
+    // the readout — lives inside it, and a double that drops the callback makes
+    // every legend assertion below unreachable.
+    subscribeCrosshairMove: (fn) => { H.crosshairHandlers.push(fn) },
+    unsubscribeCrosshairMove: (fn) => {
+      const i = H.crosshairHandlers.indexOf(fn); if (i >= 0) H.crosshairHandlers.splice(i, 1)
+    },
+    subscribeClick: () => {}, unsubscribeClick: () => {},
     panes: () => [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div') }],
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
@@ -487,5 +497,206 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
     expect(H.syncCalls.length, 'no further sync happened — the assertion below would be vacuous')
       .toBeGreaterThan(before)
     expect(H.syncCalls.at(-1).indicatorsHidden).toBe(true)
+  })
+})
+
+// ─── B3 carry #2: the readout the pixel gate cannot see ─────────────────────
+//
+// `processCrosshair` read `rsiSeriesRef.current`. When the engine draws RSI that
+// ref is null, so `crosshairData.rsi` stayed null and the `RSI(14) 54.3` chip
+// simply vanished from the legend. THE PIXEL GATE CANNOT SEE IT: a headless
+// capture has no cursor, so no chip is drawn on either side and the diff is 0
+// whichever way the bridge behaves. This suite is that gate.
+describe('an engine-drawn indicator still appears in the crosshair legend', () => {
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+
+  /**
+   * Drive one crosshair move over the newest bar and return the rendered chips.
+   *
+   * ⚠️ EVERY subscriber gets the event, which is what `subscribeCrosshairMove`
+   * does and is NOT a detail to shortcut. StockChart registers TWO handlers on
+   * the same chart — the legend's (`:7945`) and the hovered-bar recorder's
+   * (`:8257`) — so `crosshairHandlers.at(-1)` delivers the event to the one that
+   * never touches the legend, and every assertion here reads a legend that was
+   * never asked to update. That is a green-looking harness measuring nothing.
+   */
+  const hover = async (view, extraSeriesData) => {
+    expect(H.crosshairHandlers.length,
+      'nothing subscribed to crosshairMove — this test is vacuous').toBeGreaterThan(0)
+    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(candle, 'no candle series').toBeTruthy()
+    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+    for (const [series, point] of (extraSeriesData || [])) seriesData.set(series, point)
+    const param = { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
+    await act(async () => {
+      for (const fn of [...H.crosshairHandlers]) fn(param)
+      // the legend handler coalesces through rAF; a real timer outlives it
+      await new Promise(r => setTimeout(r, 40))
+    })
+    return view.container.textContent
+  }
+
+  /** …with whatever is on the `rsi` price scale carrying 54.321. */
+  const hoverLatest = async (view) => {
+    const rsi = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'rsi')
+    return hover(view, rsi ? [[rsi.series, { value: 54.321 }]] : [])
+  }
+
+  /** The inline colour the RSI chip is painted in, as jsdom reports it. */
+  const rsiChipColor = (view) => {
+    const span = [...view.container.querySelectorAll('span')].find(s => s.textContent.startsWith('RSI('))
+    return span ? span.style.color : null
+  }
+
+  it('LEGACY draws the chip — the control', async () => {
+    const view = draw(RSI_ON)
+    expect(await hoverLatest(view)).toContain('RSI(14) 54.3')
+    expect(rsiChipColor(view)).toBe('rgb(123, 104, 238)')   // #7b68ee
+  })
+
+  it('ENGINE draws the same chip, same text, same period', async () => {
+    const view = draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    // The legacy ref is null here by construction — the block stood down.
+    expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(1)
+    expect(await hoverLatest(view)).toContain('RSI(14) 54.3')
+  })
+
+  it('and it follows the INSTANCE period, not the settings blob', async () => {
+    const view = draw({
+      ...RSI_ON,
+      engineEnabled: true,
+      indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 7, color: '#7b68ee' } }],
+    })
+    const text = await hoverLatest(view)
+    expect(text).toContain('RSI(7) 54.3')
+    expect(text).not.toContain('RSI(14)')
+  })
+
+  it('and its COLOUR from the instance too, not from cs.indicators.rsi', async () => {
+    // The legacy row reads `cs.indicators.rsi.color`. An engine line is coloured
+    // by its instance, so a chip that kept reading the settings blob would print
+    // the right number in the wrong colour — and the legend would disagree with
+    // the line it is describing.
+    const view = draw({
+      ...RSI_ON,
+      engineEnabled: true,
+      indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 14, color: '#ff0000' } }],
+    })
+    expect(await hoverLatest(view)).toContain('RSI(14) 54.3')
+    expect(rsiChipColor(view)).toBe('rgb(255, 0, 0)')
+  })
+
+  it('a HIDDEN instance contributes no chip — there is no line to describe', async () => {
+    const view = draw({
+      ...RSI_ON, engineEnabled: true, indicatorInstances: [{ ...RSI_INSTANCE, hidden: true }],
+    })
+    expect(H.binderApis[0].bindings(), 'a hidden instance must bind nothing').toHaveLength(0)
+    expect(await hoverLatest(view)).not.toContain('RSI(')
+  })
+
+  it('leaves a NON-migrated indicator chip exactly as the legacy block wrote it', async () => {
+    // MACD is not in ENGINE_MIGRATED_DEF_IDS yet, so its chip must still come
+    // from `cs.indicators.macd` through the hand-written row. A bridge that
+    // hijacked every slot would break the fourteen indicators it has not reached.
+    const view = draw({
+      ...RSI_ON,
+      engineEnabled: true,
+      indicatorInstances: [RSI_INSTANCE],
+      indicators: { ...RSI_ON.indicators, macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
+    })
+    const macdLine = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'macd' && c.ctor === 'LineSeries')
+    expect(macdLine, 'no legacy MACD line — vacuous').toBeTruthy()
+    // 0.25 rather than a value whose 4th decimal is a rounding coin-flip — this
+    // case is about WHICH code path formatted the chip, not about `toFixed`.
+    expect(await hover(view, [[macdLine.series, { value: 0.25 }]])).toContain('MACD 0.2500')
+  })
+})
+
+// ─── the rest of what pixels cannot see ─────────────────────────────────────
+//
+// The pixel gate proves ONE picture, captured with no cursor, no keyboard and no
+// settings write. Everything a user does to a migrated indicator afterwards is
+// outside it. These are the paths that name RSI.
+
+describe('Alt+Shift+I still reaches an engine-drawn RSI in the CROSSOVER state', () => {
+  // The existing hide-all suite draws the engine with `cs.indicators.rsi` absent.
+  // Flip A's real state is the crossover: the legacy toggle stays ON (it is what
+  // `computePaneMargins` reads to reserve the band) while the engine owns the
+  // drawing. That is the configuration the toggle has to work in.
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+
+  it('hides and re-shows the engine series while the legacy toggle is on', () => {
+    draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    const drawn = H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
+    expect(drawn, 'exactly one RSI line, and it is the engine one').toHaveLength(1)
+    const engineSeries = drawn[0].series
+    expect(H.binderApis[0].bindings().map(b => b.series)).toEqual([engineSeries])
+
+    const toggle = () => act(() => {
+      fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' })
+    })
+
+    toggle()
+    expect(H.visibilityCalls.filter(v => v.series === engineSeries && v.visible === false).length).toBeGreaterThan(0)
+    toggle()
+    expect(H.visibilityCalls.filter(v => v.series === engineSeries && v.visible === true).length).toBeGreaterThan(0)
+  })
+})
+
+describe('the settings round-trip — what a user changes after the flip', () => {
+  const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+  const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
+  const settings = (over) => ({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE], ...over })
+
+  it('a COLOUR change re-styles the SAME series — never destroys and recreates it', () => {
+    // lightweight-charts#2049 is open: a mass removeSeries is a 2-4s main-thread
+    // block. The pool exists so a restyle is an applyOptions, and the only way to
+    // see that from here is that no SECOND series was ever created.
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(rsiSeries()).toHaveLength(1)
+    const before = rsiSeries()[0].series
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 14, color: '#ff0000' } }],
+      })} />,
+    )
+    expect(rsiSeries(), 'the engine created a second RSI line instead of restyling').toHaveLength(1)
+    expect(H.binderApis[0].bindings()[0].series, 'the binding changed series').toBe(before)
+  })
+
+  it('a PERIOD change keeps one series and re-binds it', () => {
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const before = rsiSeries()[0].series
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 7, color: '#7b68ee' } }],
+      })} />,
+    )
+    expect(rsiSeries()).toHaveLength(1)
+    expect(H.binderApis[0].bindings()[0].series).toBe(before)
+  })
+
+  it('toggling the legacy switch OFF and back ON never leaves TWO RSI lines', () => {
+    // ⚠️ FLIP-A SEMANTICS, PINNED DELIBERATELY. `cs.indicators.rsi.enabled` is
+    // the LEGACY authority: it drives `computePaneMargins` (the band) and the
+    // legacy block. The ENGINE draws from the instance, so switching the legacy
+    // toggle off does NOT remove an engine-drawn RSI — it removes its reserved
+    // band, and placement falls back to `{top:0.82, bottom:0}`. Making the two
+    // agree is the Flip-B projection (`csForPaneMargins`, plan Task 9); what
+    // must hold TODAY, in every combination, is that the user never ends up
+    // looking at two RSI lines or at an orphaned legacy one.
+    const off = { indicators: { rsi: { enabled: false } } }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(rsiSeries()).toHaveLength(1)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
+    expect(rsiSeries(), 'legacy toggle off: still exactly one, the engine one').toHaveLength(1)
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(rsiSeries(), 'toggled back on: the legacy block must not add a second').toHaveLength(1)
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
   })
 })

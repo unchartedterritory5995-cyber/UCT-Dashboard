@@ -114,6 +114,31 @@ export const REPAINT_MODES = Object.freeze(['non-repainting', 'preview-repaints'
 export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'signal'])
 
 /**
+ * `plots[].legend` — what this plot contributes to the crosshair readout.
+ *
+ * The chart's legend chips are hand-written today (`StockChart.jsx:9588-9599`),
+ * which is why a migrated indicator vanishes from the readout: the chip is keyed
+ * to a legacy series REF. Declaring the chip on the plot is how the readout stops
+ * being a fourteenth enumeration site, and it is the same "ONE formatting
+ * pipeline drives Style-tab precision, chip values and crosshair readout" the UX
+ * contract (§6) asks for.
+ *
+ *   label    — the chip's leading text. Absent ⇒ `meta.shortName` plus, when
+ *              `meta.legendParams` is non-empty, `(p1, p2, …)` resolved against
+ *              the INSTANCE's inputs. There is deliberately no `$` substitution
+ *              here: `SUBSTITUTABLE_PLOT_FIELDS` stays color/width/levels, and a
+ *              second substitution grammar is a second thing to get wrong.
+ *   decimals — how many the chip shows. NOT `precision`, which is the price
+ *              scale's. Legacy prints RSI at 1 and MACD at 4 while both series
+ *              carry LWC's default precision of 2, so they are genuinely two
+ *              numbers.
+ *   hide     — this plot contributes no chip. BB, VWAP and MACD's histogram all
+ *              draw without one today; a migration that ADDS a chip is as much a
+ *              regression as one that drops it.
+ */
+export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide'])
+
+/**
  * Line styles an AUTHOR may declare on a plot.
  *
  * ⚠️ NOT the same list as `indicatorRegistry.LINE_STYLES`, and it stopped being
@@ -379,7 +404,13 @@ function validateCompute(compute, errors) {
   }
 }
 
-function validateMeta(meta, errors) {
+/**
+ * @param {unknown} meta
+ * @param {object} def the whole definition — `legendParams` names INPUT keys, so
+ *        this is the one meta field that cannot be checked from `meta` alone.
+ * @param {string[]} errors
+ */
+function validateMeta(meta, def, errors) {
   if (!isPlainObject(meta)) {
     errors.push(`meta: required object, got ${fmt(meta)}`)
     return
@@ -408,6 +439,26 @@ function validateMeta(meta, errors) {
   // future value therefore has to arrive with a schema bump, not by luck.
   if (meta.repaint !== undefined) {
     checkVocabulary(meta.repaint, REPAINT_MODES, [], 'meta.repaint', 'repaint mode', errors)
+  }
+  // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
+  // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
+  // resolves to nothing renders the string "RSI(undefined)" in the readout.
+  // Checked like an unresolvable $ref rather than preserved like a document field.
+  if (meta.legendParams !== undefined && meta.legendParams !== null) {
+    if (!Array.isArray(meta.legendParams) || meta.legendParams.some(k => typeof k !== 'string' || !k)) {
+      errors.push(`meta.legendParams: expected an array of input keys, got ${fmt(meta.legendParams)}`)
+    } else {
+      const declaredInputs = Array.isArray(def && def.inputs) ? def.inputs : []
+      const declared = new Set(declaredInputs.map(i => i && i.key))
+      for (const k of meta.legendParams) {
+        if (!declared.has(k)) {
+          errors.push(
+            `meta.legendParams: ${fmt(k)} names no declared input — the chip would read ` +
+            `"NAME(undefined)". Declared: ${list([...declared].filter(Boolean)) || 'none'}`,
+          )
+        }
+      }
+    }
   }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
@@ -764,6 +815,31 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   if (plot.lineStyle !== undefined) {
     checkVocabulary(plot.lineStyle, PLOT_LINE_STYLES, [], `${path}.lineStyle`, 'line style', errors)
   }
+  // `legend` — the crosshair chip this plot contributes. See LEGEND_FIELDS.
+  if (plot.legend !== undefined && plot.legend !== null) {
+    if (!isPlainObject(plot.legend)) {
+      errors.push(`${path}.legend: expected an object, got ${fmt(plot.legend)}`)
+    } else {
+      for (const key of Object.keys(plot.legend)) {
+        if (!LEGEND_FIELDS.includes(key)) {
+          errors.push(
+            `${path}.legend.${key}: unknown legend field — expected one of: ${list(LEGEND_FIELDS)}. ` +
+            `Behavioural fields fail closed (§3.1): a chip nobody renders is worse than a rejected definition.`,
+          )
+        }
+      }
+      if (plot.legend.label !== undefined && typeof plot.legend.label !== 'string') {
+        errors.push(`${path}.legend.label: expected a string, got ${fmt(plot.legend.label)}`)
+      }
+      if (plot.legend.decimals !== undefined
+          && (!Number.isInteger(plot.legend.decimals) || plot.legend.decimals < 0 || plot.legend.decimals > 10)) {
+        errors.push(`${path}.legend.decimals: expected an integer 0..10, got ${fmt(plot.legend.decimals)}`)
+      }
+      if (plot.legend.hide !== undefined && typeof plot.legend.hide !== 'boolean') {
+        errors.push(`${path}.legend.hide: expected true or false, got ${fmt(plot.legend.hide)}`)
+      }
+    }
+  }
   if (plot.role !== undefined) {
     checkVocabulary(plot.role, PLOT_ROLES, [], `${path}.role`, 'plot role', errors)
   }
@@ -1077,7 +1153,7 @@ export function validateDefinition(def) {
     }
 
     validateCompute(out.compute, errors)
-    validateMeta(out.meta, errors)
+    validateMeta(out.meta, out, errors)
     validatePlacement(out.placement, errors)
 
     // ─ inputs ─

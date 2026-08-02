@@ -134,14 +134,18 @@ const periodInput = (key, label, dflt, min, max) => ({
 const RAW_DEFS = [
   // ── RSI ──────────────────────────────────────────────────────────────────
   nativeDef('rsi', 'rsi',
-    { name: 'Relative Strength Index', shortName: 'RSI', category: 'Momentum' },
+    { name: 'Relative Strength Index', shortName: 'RSI', category: 'Momentum', legendParams: ['period'] },
     fixedPane(0, 100),
     [
       periodInput('period', 'Period', 14, 2, 100),
       colorInput('color', 'Color', '#7b68ee'),
     ],
     [
-      { key: 'rsi', label: 'RSI', style: 'line', color: '$color', width: 1, role: 'primary' },
+      { key: 'rsi', label: 'RSI', style: 'line', color: '$color', width: 1, role: 'primary',
+        // StockChart.jsx:9590 — `RSI(14) 54.3`. One decimal, and the period in
+        // parentheses, verbatim. `legendParams: ['period']` above is what puts
+        // the number in the brackets; dropping it reads "RSI 54.3".
+        legend: { decimals: 1 } },
       // 70/30 and 50 are separate plots because they are separate price lines with
       // different alphas and line styles — one `hlines` plot carries one style.
       { key: 'bands', label: '70 / 30', style: 'hlines', levels: [70, 30], color: 'rgba(123,104,238,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
@@ -160,8 +164,15 @@ const RAW_DEFS = [
       colorInput('signalColor', 'Signal', '#FF9800'),
     ],
     [
-      { key: 'macd', label: 'MACD', style: 'line', color: '$macdColor', width: 1, role: 'primary' },
-      { key: 'signal', label: 'Signal', style: 'line', color: '$signalColor', width: 1, role: 'secondary' },
+      { key: 'macd', label: 'MACD', style: 'line', color: '$macdColor', width: 1, role: 'primary',
+        // StockChart.jsx:9591 — `MACD 0.1234`, no parentheses, four decimals.
+        // `meta.legendParams` is deliberately ABSENT on this definition: the
+        // shipped chip prints no periods, and adding them would be a change.
+        legend: { decimals: 4 } },
+      { key: 'signal', label: 'Signal', style: 'line', color: '$signalColor', width: 1, role: 'secondary',
+        // :9592 — the chip says SIG, not "MACD". `meta.shortName` cannot express
+        // a per-plot name, which is what `legend.label` is for.
+        legend: { label: 'SIG', decimals: 4 } },
       // colorMode 'sign' IS the up/down bar colouring StockChart derives inline
       // (MACD_HIST_UP / MACD_HIST_DOWN at `p.value >= 0`). Declaring it is what
       // let B1 take the per-point colour back out of the compute output.
@@ -176,6 +187,8 @@ const RAW_DEFS = [
         key: 'histogram', label: 'Histogram', style: 'histogram', colorMode: 'sign',
         colorUp: 'rgba(76,175,80,0.75)', colorDown: 'rgba(244,67,54,0.75)',
         precision: 5, role: 'secondary',
+        // The shipped legend has no histogram chip. Adding one is a regression.
+        legend: { hide: true },
       },
       { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
     ]),
@@ -190,11 +203,12 @@ const RAW_DEFS = [
       colorInput('color', 'Color', 'rgba(156,39,176,0.85)'),
     ],
     [
-      { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary' },
+      // The shipped legend has no Bollinger chip.
+      { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
       // The middle IS the band's centre column; `edges` names the two that bound
       // it. See defSchema's validateBandEdges for why the edges stay real plots.
-      { key: 'middle', label: 'Basis', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary' },
-      { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary' },
+      { key: 'middle', label: 'Basis', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { hide: true } },
+      { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
     ]),
 
   // ── Session VWAP ─────────────────────────────────────────────────────────
@@ -211,7 +225,8 @@ const RAW_DEFS = [
       { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
     ],
     [
-      { key: 'vwap', label: 'VWAP', style: 'line', color: '$color', width: '$lineWidth', role: 'primary' },
+      // The shipped legend has no VWAP chip.
+      { key: 'vwap', label: 'VWAP', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { hide: true } },
     ]),
 
   // ── Stochastic ───────────────────────────────────────────────────────────

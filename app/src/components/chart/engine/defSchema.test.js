@@ -572,3 +572,67 @@ describe('source referents (carry-in b — the pure half)', () => {
     expect(validateSourceReferents(probe('bananas'), columnsOf).join(' ')).toMatch(/bananas/)
   })
 })
+
+// ─── the legend vocabulary (B3 carry #2) ────────────────────────────────────
+//
+// A chip is a BEHAVIOURAL declaration, not documentation: it decides what the
+// crosshair readout prints for a migrated indicator, and every failure here is
+// invisible to the pixel gate (a headless capture has no cursor). So it fails
+// closed like `inputs[].type` and `plots[].style` rather than being preserved
+// like a `meta.*` document field.
+
+describe('plots[].legend', () => {
+  const withLegend = (legend) => { const d = rsiDef(); d.plots[0].legend = legend; return d }
+
+  it('accepts the three declared fields', () => {
+    expect(validateDefinition(withLegend({ decimals: 1 })).ok).toBe(true)
+    expect(validateDefinition(withLegend({ label: 'SIG', decimals: 4 })).ok).toBe(true)
+    expect(validateDefinition(withLegend({ hide: true })).ok).toBe(true)
+    expect(validateDefinition(withLegend(undefined)).ok).toBe(true)
+  })
+
+  it('FAILS CLOSED on an unknown legend field — a chip nobody renders', () => {
+    const r = validateDefinition(withLegend({ decimals: 1, prefix: '$' }))
+    expect(r.ok).toBe(false)
+    expect(r.errors.join(' ')).toMatch(/prefix/)
+  })
+
+  it('rejects decimals that are not an integer 0..10', () => {
+    for (const bad of [1.5, -1, 11, '1', null]) {
+      expect(validateDefinition(withLegend({ decimals: bad })).ok, String(bad)).toBe(false)
+    }
+  })
+
+  it('rejects a non-string label and a non-boolean hide', () => {
+    expect(validateDefinition(withLegend({ label: 14 })).ok).toBe(false)
+    expect(validateDefinition(withLegend({ hide: 'yes' })).ok).toBe(false)
+  })
+
+  it('rejects a legend that is not an object at all', () => {
+    expect(validateDefinition(withLegend('RSI')).ok).toBe(false)
+    expect(validateDefinition(withLegend([1])).ok).toBe(false)
+  })
+})
+
+describe('meta.legendParams', () => {
+  const withParams = (params) => { const d = rsiDef(); d.meta.legendParams = params; return d }
+
+  it('accepts an array of declared input keys, and its absence', () => {
+    expect(validateDefinition(withParams(['period'])).ok).toBe(true)
+    expect(validateDefinition(withParams([])).ok).toBe(true)
+    expect(validateDefinition(rsiDef()).ok).toBe(true)
+  })
+
+  it('rejects a key no input declares — the chip would read "RSI(undefined)"', () => {
+    const r = validateDefinition(withParams(['length']))
+    expect(r.ok).toBe(false)
+    expect(r.errors.join(' ')).toMatch(/length/)
+    expect(r.errors.join(' ')).toMatch(/undefined/)
+  })
+
+  it('rejects a non-array, and an array holding anything but non-empty strings', () => {
+    for (const bad of ['period', 14, ['period', ''], ['period', null]]) {
+      expect(validateDefinition(withParams(bad)).ok, JSON.stringify(bad)).toBe(false)
+    }
+  })
+})
