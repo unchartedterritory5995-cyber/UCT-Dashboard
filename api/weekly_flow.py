@@ -185,10 +185,13 @@ def _last_n_dates(conn, n: int) -> list[str]:
 
 
 def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
-                            today: date | None = None) -> tuple[list[dict], list[str]]:
+                            today: date | None = None,
+                            min_premium: float = 0.0) -> tuple[list[dict], list[str]]:
     """Port of flowCompute.js `filtered` + `all_directional`, plus the weekly
     DTE≥min_dte cut. Returns (trades, window_dates). Each trade dict carries the
-    fields the aggregation + card need."""
+    fields the aggregation + card need. `min_premium` pushes a SQL-level premium
+    floor into the row pull (0 = off, keeps card parity) — the searchable board
+    uses it so a multi-week scan doesn't classify millions of odd-lot prints."""
     ref = today or date.today()
     conn = sqlite3.connect(_flow_db_path(), timeout=10)
     conn.row_factory = sqlite3.Row
@@ -197,12 +200,17 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
         if not window:
             return [], []
         qs = ",".join("?" * len(window))
+        params = list(window)
+        prem_sql = ""
+        if min_premium and min_premium > 0:
+            prem_sql = " AND Premium >= ?"
+            params.append(min_premium)
         rows = conn.execute(f"""
             SELECT CreatedDate, CreatedTime, Symbol, Type, Volume, Side, CallPut,
                    Strike, Spot, Premium, ExpirationDate, Color, Dte, StockEtf, MktCap, OI
               FROM flow
-             WHERE source='stocks' AND CreatedDate IN ({qs})
-        """, window).fetchall()
+             WHERE source='stocks' AND CreatedDate IN ({qs}){prem_sql}
+        """, params).fetchall()
     finally:
         conn.close()
 
@@ -738,6 +746,11 @@ _BOARD_CACHE: dict = {}
 _BOARD_TTL = 120  # seconds — the board is an interactive/public tab; a 60-day
 #   flow.db scan is expensive, so memoize per (days,cap,…) to keep it responsive
 #   and shield the flow-worker from per-mount/per-keystroke rescans.
+# Per-print premium floor for the board's SQL row pull. An All-cap 30-60d scan
+# without it classifies millions of odd-lot prints in Python and blows the
+# proxy's 120s read timeout (observed 502s). $25k keeps every sizable directional
+# print (the board is "notable still-open flow") while cutting the row count ~80%.
+_BOARD_MIN_PREMIUM = float(os.getenv("FLOW_BOARD_MIN_PREMIUM", "25000"))
 
 
 def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
@@ -754,7 +767,8 @@ def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
     if hit and now - hit[0] < _BOARD_TTL:
         return hit[1]
     try:
-        trades, window = load_directional_trades(days, min_dte, cap)
+        trades, window = load_directional_trades(days, min_dte, cap,
+                                                 min_premium=_BOARD_MIN_PREMIUM)
         agg = aggregate(trades, top_n=10 ** 9, still_open_frac=frac)
         ref = date.today()
         rows = []
