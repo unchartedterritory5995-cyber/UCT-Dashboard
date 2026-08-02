@@ -163,8 +163,12 @@ function isPlainObject(v) {
 /** Render a value for an error message. Every error names the offending field
  *  AND the offending value — a validator whose errors don't identify what to fix
  *  is a validator nobody debugs with, and these messages are read by a future AI
- *  generating definitions, so they are an interface, not decoration. */
-function fmt(v) {
+ *  generating definitions, so they are an interface, not decoration.
+ *
+ *  Exported (as `formatValue`) so `instances.js` writes its errors in the same
+ *  voice — two error dialects inside one engine is a small thing that reads as
+ *  sloppiness at exactly the moment someone is debugging. */
+export function formatValue(v) {
   if (typeof v === 'string') return JSON.stringify(v)
   if (v === undefined) return 'undefined'
   if (v === null) return 'null'
@@ -175,6 +179,9 @@ function fmt(v) {
   const keys = Object.keys(v)
   return `an object {${keys.join(', ')}}`
 }
+
+/** Internal alias so the ~60 existing call sites read as they always did. */
+const fmt = formatValue
 
 function list(values) {
   return values.join(', ')
@@ -371,39 +378,50 @@ function enumOptionValue(option) {
   return option
 }
 
-/** Type-check an input's `default` against its declared `type`. This is where
- *  "never coerce" earns its keep: a `type: 'int'` whose default is `'14'` is a
- *  definition bug, and accepting it would mean the string reaches the compute
- *  lane and does string maths there. */
-function validateInputDefault(input, path, errors) {
+/**
+ * Check a VALUE against an input's declared `type`, `options` and bounds.
+ *
+ * This is where "never coerce" earns its keep: a `type: 'int'` holding `'14'` is
+ * a bug, and accepting it would mean the string reaches the compute lane and
+ * does string maths there.
+ *
+ * EXPORTED because two callers must agree exactly, and B2 Task 3 is where that
+ * stopped being hypothetical: `validateDefinition` checks an input's DEFAULT
+ * with it, and `instances.js::validateInstance` checks a stored instance's
+ * OVERRIDE with it. Those are the same question asked about two values, and a
+ * second copy of the answer would drift the day someone adds an input type —
+ * definitions would accept it and instances would reject it, or worse.
+ *
+ * Pushes into `errors`; returns nothing. `path` names the value being checked
+ * (`inputs[0].default`, `inputs.period`, …) and every message starts with it.
+ *
+ * @param {object} input  the declared input descriptor (type/options/min/max)
+ * @param {unknown} value the value to check
+ * @param {string} path   error prefix identifying the value
+ * @param {string[]} errors accumulator
+ */
+export function validateInputValue(input, value, path, errors) {
   const { type } = input
-  if (!Object.prototype.hasOwnProperty.call(input, 'default')) {
-    errors.push(
-      `${path}.default: required — every input needs a default (it is the value the ` +
-      `engine computes with before the user touches anything, and the target of $${input.key || '<key>'} substitution)`,
-    )
-    return
-  }
-  const d = input.default
+  const d = value
 
   switch (type) {
     case 'int':
-      if (!Number.isInteger(d)) errors.push(`${path}.default: type "int" requires an integer, got ${fmt(d)}`)
+      if (!Number.isInteger(d)) errors.push(`${path}: type "int" requires an integer, got ${fmt(d)}`)
       break
     case 'float':
-      if (!isFiniteNumber(d)) errors.push(`${path}.default: type "float" requires a finite number, got ${fmt(d)}`)
+      if (!isFiniteNumber(d)) errors.push(`${path}: type "float" requires a finite number, got ${fmt(d)}`)
       break
     case 'bool':
-      if (typeof d !== 'boolean') errors.push(`${path}.default: type "bool" requires true or false, got ${fmt(d)}`)
+      if (typeof d !== 'boolean') errors.push(`${path}: type "bool" requires true or false, got ${fmt(d)}`)
       break
     case 'string':
-      if (typeof d !== 'string') errors.push(`${path}.default: type "string" requires a string, got ${fmt(d)}`)
+      if (typeof d !== 'string') errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
       break
     case 'color':
       // Not resolved here — `'token:info'`, `'#ff8100'` and `'rgba(…)'` are all
       // legal at registration; designTokens.resolveToken() adjudicates at render.
       if (!isNonEmptyString(d)) {
-        errors.push(`${path}.default: type "color" requires a non-empty string (a "token:<role>" ref or a raw CSS colour), got ${fmt(d)}`)
+        errors.push(`${path}: type "color" requires a non-empty string (a "token:<role>" ref or a raw CSS colour), got ${fmt(d)}`)
       }
       break
     case 'source':
@@ -411,12 +429,12 @@ function validateInputDefault(input, path, errors) {
       // is a binder-time fact — the spec does not lock a v1 enum, so inventing
       // one here would reject definitions the platform is supposed to accept.
       if (!isNonEmptyString(d)) {
-        errors.push(`${path}.default: type "source" requires a non-empty string (a bar field or a "defId.plotKey" handle), got ${fmt(d)}`)
+        errors.push(`${path}: type "source" requires a non-empty string (a bar field or a "defId.plotKey" handle), got ${fmt(d)}`)
       }
       break
     case 'enum': {
       if (!Array.isArray(input.options) || input.options.length === 0) {
-        errors.push(`${path}.options: type "enum" requires a non-empty options array, got ${fmt(input.options)}`)
+        errors.push(`${path}: type "enum" requires a non-empty options array on the input, got ${fmt(input.options)}`)
         break
       }
       const values = input.options.map(enumOptionValue)
@@ -428,34 +446,47 @@ function validateInputDefault(input, path, errors) {
       const nonScalar = values.filter((v) => !['string', 'number', 'boolean'].includes(typeof v))
       if (nonScalar.length) {
         errors.push(
-          `${path}.options: enum option values must be scalars (string, number or boolean), got ${list(nonScalar.map(fmt))} — ` +
-          `options are compared by identity, so a non-scalar could never match a default`,
+          `${path}: enum option values must be scalars (string, number or boolean), got ${list(nonScalar.map(fmt))} — ` +
+          `options are compared by identity, so a non-scalar could never match a value`,
         )
         break
       }
       if (!values.includes(d)) {
-        errors.push(`${path}.default: ${fmt(d)} is not one of the declared options: ${list(values.map(fmt))}`)
+        errors.push(`${path}: ${fmt(d)} is not one of the declared options: ${list(values.map(fmt))}`)
       }
       break
     }
     default:
-      // Unreachable: an unknown `type` was already reported and this switch is
-      // only entered for vocabulary members. Deliberately silent rather than
-      // guessing a shape for a type we refuse to accept.
+      // Unreachable from validateDefinition: an unknown `type` was already
+      // reported and this switch is only entered for vocabulary members.
+      // Deliberately silent rather than guessing a shape for a type we refuse.
       break
   }
 
-  // Numeric bounds. A default outside its own declared range ships an
-  // out-of-range value on first render and then snaps the moment a user opens
-  // the Style tab — a real bug that only ever shows up in production.
+  // Numeric bounds. A value outside its declared range renders out of range and
+  // then snaps the moment a user opens the Style tab — a real bug that only ever
+  // shows up in production.
   if ((type === 'int' || type === 'float') && isFiniteNumber(d)) {
     if (isFiniteNumber(input.min) && d < input.min) {
-      errors.push(`${path}.default: ${fmt(d)} is below the declared min ${fmt(input.min)}`)
+      errors.push(`${path}: ${fmt(d)} is below the declared min ${fmt(input.min)}`)
     }
     if (isFiniteNumber(input.max) && d > input.max) {
-      errors.push(`${path}.default: ${fmt(d)} is above the declared max ${fmt(input.max)}`)
+      errors.push(`${path}: ${fmt(d)} is above the declared max ${fmt(input.max)}`)
     }
   }
+}
+
+/** An input's `default` is just a value, checked by the shared rules above —
+ *  plus the one rule that is only about the DEFAULT: it has to exist. */
+function validateInputDefault(input, path, errors) {
+  if (!Object.prototype.hasOwnProperty.call(input, 'default')) {
+    errors.push(
+      `${path}.default: required — every input needs a default (it is the value the ` +
+      `engine computes with before the user touches anything, and the target of $${input.key || '<key>'} substitution)`,
+    )
+    return
+  }
+  validateInputValue(input, input.default, `${path}.default`, errors)
 }
 
 function validateInput(input, index, seenKeys, errors) {
