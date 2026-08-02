@@ -2775,7 +2775,23 @@ function fmtDay(ts) {
   } catch { return "—"; }
 }
 
-function ContractColumnHeaders({ isAdmin }) {
+// Click-to-sort key per By-Contract column. A label missing here isn't sortable.
+const _expTs = (e) => { const d = e && _mdyToDate(e); return d ? d.getTime() : 0; };
+const _gradeRank = (g) => ({ "A+": 6, "A": 5, "B": 4, "C": 3, "D": 2 }[(g || "").toUpperCase()] || 1);
+const CONTRACT_SORT_KEYS = {
+  "SPAN": c => c.last_ts || 0,
+  "TICKER": c => (c.ticker || "").toUpperCase(),
+  "SPOT": c => c.spot || 0,
+  "STRIKE": c => c.strike || 0,
+  "EXP": c => _expTs(c.exp),
+  "%ITM/OTM": c => (c.moneynessPct == null ? -1e9 : c.moneynessPct),
+  "V/OI": c => (c.cum_voi == null ? -1 : c.cum_voi),
+  "PREMIUM": c => c.total_premium || 0,
+  "GRADE": c => _gradeRank(c.accumulation_grade),
+  "SIGNAL": c => c.accumulation_score || 0,
+};
+
+function ContractColumnHeaders({ isAdmin, sortCol, sortDir, onSort }) {
   const cols = ["SPAN", "TICKER", "SPOT", "STRIKE", "C/P", "EXP", "%ITM/OTM",
                 "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
   return (
@@ -2784,15 +2800,27 @@ function ContractColumnHeaders({ isAdmin }) {
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
-      {cols.map((c, i) => (
-        <span key={c} style={{ textAlign: i === cols.length - 1 ? "left" : "center", paddingLeft: i === cols.length - 1 ? 4 : 0 }}>{c}</span>
-      ))}
+      {cols.map((c, i) => {
+        const sortable = !!CONTRACT_SORT_KEYS[c];
+        const active = sortCol === c;
+        return (
+          <span key={c}
+            onClick={sortable && onSort ? () => onSort(c) : undefined}
+            title={sortable ? "Sort by " + c : undefined}
+            style={{
+              textAlign: i === cols.length - 1 ? "left" : "center",
+              paddingLeft: i === cols.length - 1 ? 4 : 0,
+              cursor: sortable ? "pointer" : "default",
+              color: active ? P.ac : undefined, userSelect: "none",
+            }}>{c}{active ? (sortDir === "desc" ? " ▾" : " ▴") : ""}</span>
+        );
+      })}
       {isAdmin && <span style={{ textAlign: "center" }}>PUSH</span>}
     </div>
   );
 }
 
-function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) {
+function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck, expired }) {
   const [open, setOpen] = useState(false);
   const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
   const isBull = c.direction === "Bull";
@@ -2891,7 +2919,10 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
         <span style={{ color: rowColor, fontSize: 12, textAlign: "center" }}>{fmtSpot(c.spot)}</span>
         <span style={{ color: rowColor, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap" }}>{fmtStrike(c.strike)}</span>
         <span style={{ color: rowColor, fontWeight: 700, textAlign: "center" }}>{c.cp || "—"}</span>
-        <span style={{ color: rowColor, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{c.exp || "—"}</span>
+        <span style={{ fontSize: 12, textAlign: "center", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+          <span style={{ color: expired ? P.mt : rowColor, textDecoration: expired ? "line-through" : undefined }}>{c.exp || "—"}</span>
+          {expired && <span style={{ fontSize: 8, fontWeight: 700, padding: "0 3px", borderRadius: 2, background: `${DIR_BEAR}30`, color: DIR_BEAR, flexShrink: 0 }} title="Contract already expired">EXP'D</span>}
+        </span>
         <span style={{ color: rowColor, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{fmtMoneyness(c.moneynessPct, c.moneynessLabel)}</span>
         <span style={{ color: rowColor, fontWeight: c.cum_voi && c.cum_voi >= 3 ? 600 : 400, textAlign: "center" }}>
           {c.cum_voi != null ? `${c.cum_voi}x` : "—"}
@@ -3071,6 +3102,12 @@ export default function LiveFlowMassive() {
   // presets to that and flips to the contract view. "Still open only" hides
   // contracts whose fetched OI says closed (exited) — a live still-open filter.
   const [stillOpenOnly, setStillOpenOnly] = useState(false);
+  const [cSortCol, setCSortCol] = useState(null);   // By-Contract column click-sort
+  const [cSortDir, setCSortDir] = useState("desc");
+  const onContractSort = (col) => {
+    if (cSortCol === col) setCSortDir(d => (d === "desc" ? "asc" : "desc"));
+    else { setCSortCol(col); setCSortDir(col === "TICKER" || col === "EXP" ? "asc" : "desc"); }
+  };
   const applyRange = (endMdy, days) => {
     setViewMode("contract");
     setLookback(Math.max(1, Math.min(31, days || 1)));
@@ -3170,6 +3207,7 @@ export default function LiveFlowMassive() {
   const _ckey = (t, cp, k, e) => `${String(t).toUpperCase()}|${String(cp).toUpperCase()[0]}|${parseFloat(k)}|${String(e).trim()}`;
   const [oiCheck, setOiCheck] = useState({});   // ckey -> { oi, delta, status }
   const [oiChecking, setOiChecking] = useState(false);
+  const [oiSummary, setOiSummary] = useState("");   // result line after Check OI
   const handleCheckOI = async () => {
     const contracts = (byContract?.contracts || []);
     if (!contracts.length) return;
@@ -3202,7 +3240,13 @@ export default function LiveFlowMassive() {
         out[k] = { oi: settled, delta, status };
       });
       setOiCheck(out);
-    } catch (e) { console.error("[check OI]", e); }
+      const tally = {};
+      Object.values(out).forEach(v => { tally[v.status] = (tally[v.status] || 0) + 1; });
+      const openN = (tally.confirmed || 0) + (tally.held || 0) + (tally.trimmed || 0);
+      setOiSummary(`✓ OI checked on ${Object.keys(out).length} · ${openN} still open `
+        + `(${tally.confirmed || 0} adding, ${tally.held || 0} held, ${tally.trimmed || 0} trimmed) · `
+        + `${tally.closed || 0} closed · ${tally["no-data"] || 0} no settled OI yet`);
+    } catch (e) { console.error("[check OI]", e); setOiSummary("✗ OI check failed — retry"); }
     finally { setOiChecking(false); }
   };
   // Thresholds loaded from /api/live/massive/thresholds. Local edits in the
@@ -3868,18 +3912,28 @@ export default function LiveFlowMassive() {
   // By-Contract rollups, filtered by the same search / ticker-isolation the
   // print feed uses (partition + algo already applied server-side).
   const _allTiersOn = TIER_ORDER.every(t => filters[t]);
-  const visibleContracts = (byContract?.contracts || []).filter(c => {
+  const _todayTs = _mdyToDate(_etTodayMDY())?.getTime() || 0;   // start of today (ET)
+  const _isExpired = (c) => { const t = _expTs(c.exp); return t > 0 && t < _todayTs; };
+  let visibleContracts = (byContract?.contracts || []).filter(c => {
     if (searchQ && !(c.ticker || "").toUpperCase().includes(searchQ)) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(c.ticker)) return false;
     // Tier chips (Alpha Gold / Size / Bullish / …) now filter By-Contract too:
     // keep a contract only if one of its prints belongs to a currently-ON tier.
     // So "Alpha Gold" (or Size) shows which of THOSE contracts are still open/adding.
     if (!_allTiersOn && !((c.tiers || []).some(t => filters[t]))) return false;
-    // Still-open only: drop contracts whose fetched settled OI says CLOSED
-    // (exited). Contracts not yet OI-checked are kept (status undefined).
-    if (stillOpenOnly && oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]?.status === "closed") return false;
+    // Still-open only: an expired contract can't be open, and a settled OI that
+    // says CLOSED (exited) means it's gone — hide both.
+    if (stillOpenOnly && (_isExpired(c) || oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]?.status === "closed")) return false;
     return true;
   });
+  if (cSortCol && CONTRACT_SORT_KEYS[cSortCol]) {
+    const keyer = CONTRACT_SORT_KEYS[cSortCol];
+    visibleContracts = [...visibleContracts].sort((a, b) => {
+      const av = keyer(a), bv = keyer(b);
+      const cmp = typeof av === "string" ? av.localeCompare(bv) : (av - bv);
+      return cSortDir === "desc" ? -cmp : cmp;
+    });
+  }
 
   // Per-tier counts (for filter chip badges). Built from ALL alerts that
   // pass the ticker/contract filter — independent of which tiers are toggled
@@ -4143,7 +4197,9 @@ export default function LiveFlowMassive() {
           padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
           border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
         }}>
-          📅 Historical view: {targetDate} (remove ?date param to return to live)
+          📅 {viewMode === "contract" && lookbackDays > 1
+            ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
+            : `Historical view: ${targetDate}`} (remove ?date param to return to live)
         </div>
       )}
 
@@ -4239,12 +4295,18 @@ export default function LiveFlowMassive() {
               }}>
               {oiChecking ? "checking…" : "↻ Check OI"}
             </button>
+            {(oiChecking || oiSummary) && (
+              <span style={{ flexBasis: "100%", marginTop: 4, fontSize: 10,
+                color: oiSummary.startsWith("✗") ? "#C26A6A" : P.dm }}>
+                {oiChecking ? "Fetching settled OI for every contract in view…" : oiSummary}
+              </span>
+            )}
           </div>
         )}
 
         {viewMode === "print"
           ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />
-          : <ContractColumnHeaders isAdmin={isTuneMode} />}
+          : <ContractColumnHeaders isAdmin={isTuneMode} sortCol={cSortCol} sortDir={cSortDir} onSort={onContractSort} />}
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -4350,6 +4412,7 @@ export default function LiveFlowMassive() {
             onPush={handlePushContract}
             pushState={contractPushStates[`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`]}
             oiCheck={oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]}
+            expired={_isExpired(c)}
           />
         ))}
         {visibleContracts.length === 0 && !error && (
