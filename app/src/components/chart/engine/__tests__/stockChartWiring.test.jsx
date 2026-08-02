@@ -22,6 +22,12 @@ const H = vi.hoisted(() => ({
   addSeriesCalls: [],
   removedSeries: [],
   visibilityCalls: [],
+  // EVERY `series.applyOptions`, not just the `visible` ones. A POOLED series is
+  // re-purposed through `applyOptions` and never through `addSeries`, so without
+  // this the whole re-purpose path — the one B2's Critical #2 lived on — is
+  // invisible from the component level: the series that changed tenant is not in
+  // `addSeriesCalls` a second time and nothing records what it was told.
+  applyOptionsCalls: [],
   binderCreated: [],
   binderApis: [],
   syncCalls: [],
@@ -30,6 +36,7 @@ const H = vi.hoisted(() => ({
     H.addSeriesCalls.length = 0
     H.removedSeries.length = 0
     H.visibilityCalls.length = 0
+    H.applyOptionsCalls.length = 0
     H.binderCreated.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
@@ -42,7 +49,10 @@ vi.mock('lightweight-charts', () => {
     const s = {
       __ctor: ctor,
       setData: () => {}, update: () => {},
-      applyOptions: (o) => { if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible }) },
+      applyOptions: (o) => {
+        H.applyOptionsCalls.push({ series: s, options: o })
+        if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible })
+      },
       priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
       createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {},
       attachPrimitive: () => {}, detachPrimitive: () => {},
@@ -163,6 +173,9 @@ beforeEach(() => {
 
 const { default: StockChart, ENGINE_MIGRATED_DEF_IDS } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
+// The two settings ALLOW-LISTS a migrated instance has to survive — see the
+// round-trip suite at the bottom of this file.
+const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartDefaults')
 
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'engine-test:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
@@ -881,5 +894,431 @@ describe('the reserved band — an engine-drawn RSI is never painted over the vo
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
     expect(rsiSeries(), 'Ctrl+I left the engine\'s RSI on the chart').toHaveLength(0)
     expect(H.binderApis[0].bindings()).toHaveLength(0)
+  })
+})
+
+// ─── BOLLINGER BANDS — THE FIRST PRICE OVERLAY (Task 3) ─────────────────────
+//
+// Everything above this line is about RSI, which has its OWN price scale in its
+// OWN band and overlaps nothing. BB is the opposite case and the reason Task 1
+// exists: three LineSeries on the CANDLES' scale, in pane 0, over the volume
+// bars and the MA overlays. Two things become observable here for the first
+// time — that the engine's series are excluded from the candles' autoscale, and
+// that they are inserted where their legacy twins were rather than 300 lines
+// earlier — and only the second of them is visible from a unit test.
+
+const BB_COLOUR = 'rgba(156,39,176,0.85)'
+const BB_ON = { indicators: { bb: { enabled: true, period: 20, stdDev: 2, color: BB_COLOUR } } }
+const BB_INSTANCE = {
+  instanceId: 'legacy:bb', defId: 'bb',
+  inputs: { period: 20, stdDev: 2, color: BB_COLOUR },
+  placement: { target: 'price' }, hidden: false,
+}
+const purple = () => H.addSeriesCalls.filter(c => c.options && c.options.color === BB_COLOUR)
+
+describe('BB Flip A — the legacy block stands down, z-order is preserved', () => {
+  it('draws three BB lines with the engine OFF (the shipped behaviour)', () => {
+    draw(BB_ON)
+    expect(purple()).toHaveLength(3)
+  })
+
+  it('STILL draws exactly three when the engine owns it — and they are the ENGINE\'s', () => {
+    draw({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE] })
+    const drawn = purple()
+    expect(drawn, 'six purple lines is not parity, it is a bolder chart').toHaveLength(3)
+    const owned = H.binderApis[0].bindings().map(b => b.series)
+    expect(owned).toHaveLength(3)
+    expect(drawn.map(c => c.series).sort()).toEqual(owned.sort())
+  })
+
+  it('keeps the dashed/solid/dashed pattern in upper·middle·lower order', () => {
+    // Three lines in ONE colour: the diff can see that the dash pattern moved,
+    // and cannot say which of the three moved where. `lineStyle` in insertion
+    // order is the assertion that can. 2 = LWC Dashed, 0 = Solid.
+    draw({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE] })
+    expect(purple().map(c => c.options.lineStyle)).toEqual([2, 0, 2])
+    // …and every one of them is a GUEST on the candles' axis. This is the option
+    // Task 1 exists to deliver and the whole reason BB is the pilot: without it
+    // a band 2σ above price stretches the CANDLES' range.
+    for (const c of purple()) {
+      expect(c.options.priceScaleId, 'a price overlay binds to the candles\' scale').toBe('right')
+      expect(typeof c.options.autoscaleInfoProvider).toBe('function')
+      expect(c.options.autoscaleInfoProvider(), 'the band must contribute NOTHING to the autoscale').toBe(null)
+      expect(c.paneIndex, 'a price overlay lives in pane 0').toBe(0)
+    }
+  })
+
+  it('the LEGACY block draws the same three styles — the transcription, from the component', () => {
+    // The control for the case above. If the shipped block's own pattern were
+    // 0/2/0 the engine assertion would be pinning the wrong picture, and the
+    // pixel gate would be the only thing that noticed.
+    draw(BB_ON)
+    expect(purple().map(c => c.options.lineStyle)).toEqual([2, 0, 2])
+    for (const c of purple()) {
+      expect(c.options.autoscaleInfoProvider(), 'legacy excludes them too').toBe(null)
+    }
+  })
+
+  it('lands AFTER volume and the MA overlays — it draws OVER them, as legacy does', () => {
+    draw({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE], volume: { show: true } })
+    const MA_COLOURS = ['#4ade80', '#f472b6', '#60a5fa', '#fb923c', 'rgba(168,162,144,0.55)']
+    const first = H.addSeriesCalls.findIndex(c => (c.options || {}).color === BB_COLOUR)
+    const volumeIdx = H.addSeriesCalls.findIndex(c => (c.options || {}).priceFormat?.type === 'custom')
+    const lastMa = H.addSeriesCalls.map(c => c.options || {}).reduce((a, o, i) => (MA_COLOURS.includes(o.color) ? i : a), -1)
+    expect(first).toBeGreaterThan(-1)
+    expect(volumeIdx).toBeGreaterThan(-1)
+    expect(lastMa).toBeGreaterThan(-1)
+    expect(first).toBeGreaterThan(volumeIdx)
+    expect(first).toBeGreaterThan(lastMa)
+  })
+
+  it('still draws BEFORE every un-migrated legacy indicator block', () => {
+    // The engine draws its whole set contiguously at ONE call site; legacy
+    // interleaves its blocks down the function. That call site sits where BB's
+    // block is, so everything legacy still draws — MACD, OBV, and the ten others
+    // — must stay after it. If the call site ever moved DOWN, the engine's BB
+    // would paint under a legacy overlay it paints over today.
+    draw({
+      ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE],
+      indicators: { ...BB_ON.indicators, macd: { enabled: true }, obv: { enabled: true } },
+    })
+    const bbIdx = H.addSeriesCalls.findIndex(c => (c.options || {}).color === BB_COLOUR)
+    expect(bbIdx, 'the engine drew no BB').toBeGreaterThan(-1)
+    for (const scale of ['macd', 'obv']) {
+      const legacyIdx = H.addSeriesCalls.findIndex(c => (c.options || {}).priceScaleId === scale)
+      expect(legacyIdx, `${scale} did not draw`).toBeGreaterThan(-1)
+      expect(bbIdx, `engine BB must precede the ${scale} block`).toBeLessThan(legacyIdx)
+    }
+  })
+})
+
+describe('the five price overlays migrate in REGISTRY order, or z-order inverts', () => {
+  // The engine draws ALL its series contiguously, immediately before the legacy
+  // Bollinger block; legacy interleaves them down the function. Registry order IS
+  // legacy render order for the five price overlays (bb, vwap, sar, ichimoku,
+  // donchian), so migrating in that order preserves the picture. Migrating a
+  // LATER one while an EARLIER one is still legacy puts the engine's copy above
+  // a legacy overlay it should sit below — two translucent lines crossing, and
+  // the top one wins the pixel.
+  const PRICE_ORDER = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian']
+
+  it('no price overlay is migrated ahead of an earlier one', () => {
+    const migratedPrice = PRICE_ORDER.filter(id => ENGINE_MIGRATED_DEF_IDS.has(id))
+    expect(migratedPrice.length,
+      'no price overlay has migrated — this rail is vacuous until one has').toBeGreaterThan(0)
+    const lastMigrated = PRICE_ORDER.indexOf(migratedPrice.at(-1))
+    for (let i = 0; i <= lastMigrated; i++) {
+      expect(ENGINE_MIGRATED_DEF_IDS.has(PRICE_ORDER[i]),
+        `${PRICE_ORDER[i]} must migrate before ${PRICE_ORDER[lastMigrated]} — see the plan's z-order rule`)
+        .toBe(true)
+    }
+  })
+
+  it('registry order still equals legacy render order for the five', () => {
+    // If the registry is ever reordered, the rule above stops meaning anything.
+    const inRegistry = registry.listDefinitions().map(d => d.id).filter(id => PRICE_ORDER.includes(id))
+    expect(inRegistry).toEqual(PRICE_ORDER)
+  })
+})
+
+// ─── what pixels cannot see, for a PRICE OVERLAY ────────────────────────────
+//
+// The pixel gate proves one picture, captured with no cursor, no keyboard and no
+// settings write. These are the paths that name BB. Every one of them is a
+// different failure from RSI's equivalent, because BB is three series rather
+// than one: a control that reaches "the" series reaches one of three and leaves
+// two behind, which reads as a band that lost an edge.
+
+describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () => {
+  const settings = (over) => ({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE], ...over })
+
+  it('Alt+Shift+I hides and re-shows every one of the three, not just the first', () => {
+    draw(settings())
+    const owned = H.binderApis[0].bindings().map(b => b.series)
+    expect(owned, 'the engine bound no BB — the rest of this test is vacuous').toHaveLength(3)
+
+    const toggle = () => act(() => {
+      fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' })
+    })
+
+    toggle()
+    for (const s of owned) {
+      expect(H.visibilityCalls.filter(v => v.series === s && v.visible === false).length,
+        'one of the three bands stayed visible').toBeGreaterThan(0)
+    }
+    toggle()
+    for (const s of owned) {
+      expect(H.visibilityCalls.filter(v => v.series === s && v.visible === true).length,
+        'one of the three bands never came back').toBeGreaterThan(0)
+    }
+  })
+
+  it('Ctrl+B hides an engine-drawn BB — the keystroke, and what the keystroke writes', () => {
+    // ⚠️ BB's shortcut is Ctrl+**B** (`keyboardShortcuts.js:101` →
+    // `StockChart.jsx:3482`, `toggle:bb`); Ctrl+I is RSI's. Same mechanism, same
+    // failure if it half-works: the write reaches `computePaneMargins`, which for
+    // a PRICE overlay reserves nothing at all — so before the Flip-A projection
+    // the band would simply have stayed on the chart with its switch off.
+    const persisted = []
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+    )
+    expect(purple(), 'nothing drawn to hide — vacuous').toHaveLength(3)
+
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'b' }) })
+
+    expect(persisted.length, 'Ctrl+B persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
+    const next = persisted.at(-1)
+    expect(next.indicators.bb.enabled, 'Ctrl+B did not flip the toggle').toBe(false)
+    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
+      .toEqual([BB_INSTANCE])
+
+    view.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    expect(purple(), 'Ctrl+B left the engine\'s bands on the chart').toHaveLength(0)
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+  })
+
+  it('toggling the legacy switch OFF and back ON never leaves SIX purple lines', () => {
+    // ⚠️ FLIP-A SEMANTICS. `cs.indicators.bb.enabled` is still the SWITCH: off
+    // means no bands at all; on means the engine's three. What must hold in every
+    // combination is that the user never ends up looking at six purple lines or
+    // at three orphaned legacy ones.
+    const off = { indicators: { bb: { enabled: false } } }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(purple()).toHaveLength(3)
+    const first = H.binderApis[0].bindings().map(b => b.series)
+
+    // `purple()` counts addSeries CALLS and never shrinks, so "the bands went
+    // away" has to be read off the REMOVAL and off what the binder still holds.
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
+    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds series').toHaveLength(0)
+    for (const s of first) expect(H.removedSeries, 'a band is still on the chart').toContain(s)
+    expect(purple(), 'and nothing drew a replacement').toHaveLength(3)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws them again').toHaveLength(3)
+    expect(purple(), 'toggled back on: three more, and the legacy block added none of its own').toHaveLength(6)
+  })
+
+  it('a COLOUR change re-styles the SAME three series — never destroys and recreates', () => {
+    // lightweight-charts#2049: a mass removeSeries is a 2-4s main-thread block,
+    // and a price overlay is three series rather than one, so the pool matters
+    // three times as much here.
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(before).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...BB_INSTANCE, inputs: { period: 20, stdDev: 2, color: '#00ff00' } }],
+      })} />,
+    )
+    expect(H.binderApis[0].bindings().map(b => b.series),
+      'the engine created new series instead of restyling').toEqual(before)
+    expect(H.removedSeries.filter(s => before.includes(s)),
+      'a band was destroyed and recreated — that is the #2049 path').toHaveLength(0)
+  })
+
+  it('a PERIOD or STD-DEV change keeps the same three series and re-binds them', () => {
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(before).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...BB_INSTANCE, inputs: { period: 10, stdDev: 3, color: BB_COLOUR } }],
+      })} />,
+    )
+    expect(H.binderApis[0].bindings().map(b => b.series)).toEqual(before)
+    expect(purple(), 'a fourth purple line appeared').toHaveLength(3)
+  })
+})
+
+describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () => {
+  // BB declares `legend: { hide: true }` on all three plots because the SHIPPED
+  // legend has no Bollinger chip (`StockChart.jsx:9677-9687` lists nine, none of
+  // them BB). `readout.test.js` gates the pure function; this gates the rendered
+  // legend, which is where three unwanted purple chips would actually appear.
+  //
+  // ⚠️ THE PIXEL GATE CANNOT SEE ANY OF THIS — a headless capture has no cursor,
+  // so no chip is drawn on either side whatever the bridge does.
+  const hoverText = async (view) => {
+    expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — vacuous').toBeGreaterThan(0)
+    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(candle, 'no candle series').toBeTruthy()
+    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+    // Every purple line carries a value at the hovered bar — the state in which a
+    // chip WOULD be emitted if anything asked for one.
+    for (const c of purple()) seriesData.set(c.series, { value: 123.456 })
+    const param = { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
+    await act(async () => {
+      for (const fn of [...H.crosshairHandlers]) fn(param)
+      await new Promise(r => setTimeout(r, 40))
+    })
+    return view.container.textContent
+  }
+
+  it('the ENGINE legend is character-for-character the LEGACY legend', async () => {
+    const legacyView = draw(BB_ON)
+    const legacyText = await hoverText(legacyView)
+    expect(legacyText, 'the legend printed nothing — vacuous').toMatch(/O\s*1/)
+    expect(legacyText, 'the shipped legend already has a BB chip?').not.toContain('123.4')
+
+    cleanup(); H.reset()
+    const engineView = draw({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE] })
+    expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(3)
+    expect(await hoverText(engineView)).toBe(legacyText)
+  })
+
+  it('and an RSI chip alongside it is untouched — hiding BB must not hide everything', () => {
+    // The other direction of the same mistake: a bridge that dropped every chip
+    // would satisfy the case above and break the one indicator that HAS one.
+    const view = draw({
+      ...BB_ON, indicators: { ...BB_ON.indicators, rsi: { enabled: true, period: 14, color: '#7b68ee' } },
+      engineEnabled: true, indicatorInstances: [BB_INSTANCE, RSI_INSTANCE],
+    })
+    expect(H.binderApis[0].bindings(), 'BB (3) + RSI (1) — vacuous otherwise').toHaveLength(4)
+    return (async () => {
+      const rsi = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'rsi')
+      expect(rsi, 'no rsi-scale series').toBeTruthy()
+      const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+      const seriesData = new Map([
+        [candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }],
+        [rsi.series, { value: 54.321 }],
+      ])
+      for (const c of purple()) seriesData.set(c.series, { value: 123.456 })
+      await act(async () => {
+        for (const fn of [...H.crosshairHandlers]) {
+          fn({ time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData })
+        }
+        await new Promise(r => setTimeout(r, 40))
+      })
+      const text = view.container.textContent
+      expect(text).toContain('RSI(14) 54.3')
+      expect(text, 'a Bollinger chip appeared').not.toContain('123.4')
+    })()
+  })
+})
+
+describe('C-2 — RSI off and BB on in ONE settings write, from the component', () => {
+  // ⛔ THE B2 FINAL REVIEW'S CRITICAL #2, REPRODUCED WHERE IT ACTUALLY HAPPENED.
+  // The pool re-purposes RSI's freed LineSeries into BB's upper band. `placement`
+  // used to return `scaleId: null` for a price overlay, meaning "the candles'
+  // scale"; `pool` read that as "say nothing about `priceScaleId`" — and
+  // `applyOptions` MERGES, so the series stayed on the `rsi` scale, still
+  // `{autoScale:false}`, framed 0-100 for an oscillator. A Bollinger band around
+  // $180 on that axis is clipped off the top of the RSI band and simply
+  // invisible, with `scaleOptions: null` meaning nothing ever corrects it.
+  //
+  // `bbFlipAParity.test.js` gates the binder. This gates the COMPONENT: the same
+  // flip driven through `settingsOverride`, which is what a user's settings write
+  // looks like from inside `updateChart` — both legacy blocks changing state in
+  // the same pass, one standing up and one standing down.
+  const both = { indicators: {
+    rsi: { enabled: true, period: 14, color: '#7b68ee' },
+    bb: { enabled: true, period: 20, stdDev: 2, color: BB_COLOUR },
+  } }
+  const settings = (instances) => ({ ...both, engineEnabled: true, indicatorInstances: instances })
+
+  it('the re-purposed series is moved to the CANDLES\' scale and excluded from it', () => {
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings([RSI_INSTANCE])} />,
+    )
+    const rsiSeries = H.binderApis[0].bindings().map(b => b.series)
+    expect(rsiSeries, 'the engine drew no RSI — nothing to re-purpose').toHaveLength(1)
+    const [freed] = rsiSeries
+    H.applyOptionsCalls.length = 0
+
+    // ONE write: the RSI instance leaves and the BB instance arrives together.
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings([BB_INSTANCE])} />,
+    )
+
+    const bound = H.binderApis[0].bindings()
+    expect(bound, 'the engine did not bind BB\'s three bands').toHaveLength(3)
+    expect(bound.every(b => b.defId === 'bb')).toBe(true)
+    // The pool did its job — RSI's series IS one of BB's three bands now. If this
+    // ever stops holding, everything below is about a freshly-CREATED series
+    // (which always gets a full option set through `addSeries`) and proves
+    // nothing about a re-purpose, which is the whole subject of C-2.
+    expect(bound.map(b => b.series),
+      'RSI\'s series was destroyed rather than re-purposed — this case is vacuous')
+      .toContain(freed)
+    expect(H.removedSeries, 'and it was not removed on the way').not.toContain(freed)
+
+    // THE ASSERTION. `applyOptions` MERGES, so the ONLY thing that can move a
+    // pooled series off the `rsi` scale is being told `priceScaleId` explicitly.
+    const reused = H.applyOptionsCalls.filter(c => c.series === freed && c.options
+      && 'priceScaleId' in c.options)
+    expect(reused.length, 'the re-purposed series was never told a price scale').toBeGreaterThan(0)
+    for (const c of reused) {
+      expect(c.options.priceScaleId, 'BB inherited the rsi scale — C-2 is back').toBe('right')
+      expect(c.options.autoscaleInfoProvider(),
+        'the re-purposed band would stretch the candles').toBe(null)
+      expect(c.options.color, 'and it is wearing BB\'s colour').toBe(BB_COLOUR)
+    }
+  })
+
+  it('and the RSI band it vacated is gone — no orphan on the rsi scale', () => {
+    // The other half of the same write. If the legacy RSI block did NOT stand
+    // back up (or the engine left its series bound to the `rsi` scale), the user
+    // would be looking at a dead line in an unreserved band.
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings([RSI_INSTANCE])} />,
+    )
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ ...settings([BB_INSTANCE]), indicators: { ...both.indicators, rsi: { enabled: false } } }} />,
+    )
+    expect(H.binderApis[0].bindings().every(b => b.defId === 'bb')).toBe(true)
+    expect(H.binderApis[0].bindings()).toHaveLength(3)
+  })
+})
+
+describe('a BB instance survives BOTH settings allow-lists', () => {
+  // `mergeChartSettings` is an explicit allow-list — a key absent from its return
+  // is silently DROPPED on every read — and `mergeSettingsOverride` is the second
+  // one, applied by every grid cell and by the parity route. An instance that
+  // does not survive both is an indicator that vanishes on the next
+  // read-merge-write, and nothing in the picture says so.
+  it('mergeChartSettings keeps the instance and the flag through a JSON round-trip', () => {
+    const stored = JSON.stringify({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE] })
+    const merged = mergeChartSettings(stored)
+    expect(merged.indicatorInstances).toEqual([BB_INSTANCE])
+    expect(merged.engineEnabled).toBe(true)
+    expect(merged.indicators.bb.enabled).toBe(true)
+  })
+
+  it('mergeSettingsOverride patches ONE input without deleting the instance', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE, RSI_INSTANCE],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'legacy:bb', inputs: { stdDev: 3 } }],
+    })
+    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    const bb = out.indicatorInstances.find(i => i.instanceId === 'legacy:bb')
+    expect(bb.inputs).toEqual({ period: 20, stdDev: 3, color: BB_COLOUR })
+    expect(out.indicatorInstances.find(i => i.instanceId === RSI_INSTANCE.instanceId))
+      .toEqual(RSI_INSTANCE)
+  })
+
+  it('and the round-tripped blob still draws exactly three engine bands', () => {
+    // The two cases above are about a data structure. This is the one that says
+    // the structure still means something: render what came back out of both
+    // merges and count the lines.
+    const base = mergeChartSettings(JSON.stringify({
+      ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'legacy:bb', inputs: { color: '#00ff00' } }],
+    })
+    draw(out)
+    expect(H.binderApis[0].bindings()).toHaveLength(3)
+    expect(H.addSeriesCalls.filter(c => c.options && c.options.color === '#00ff00')).toHaveLength(3)
+    expect(purple(), 'the legacy block drew its own copy alongside').toHaveLength(0)
   })
 })

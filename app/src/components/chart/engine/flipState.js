@@ -39,8 +39,19 @@ const EMPTY = Object.freeze(new Set())
  *
  * ⚠️ EXPORTED FOR THAT TEST, which iterates it, and re-exported by `StockChart`
  * so its importers do not have to move. Keep it a Set of definition ids.
+ *
+ * ⚠️ ORDER IS NOT FREE FOR A PRICE OVERLAY. The engine draws every series it owns
+ * contiguously at ONE call site; legacy interleaves its blocks down
+ * `updateChart`. For the five overlays that share the CANDLES' pane and scale —
+ * `bb`, `vwap`, `sar`, `ichimoku`, `donchian`, in that order both in the registry
+ * and in `StockChart.jsx` — LWC's insertion-order z-stacking makes that
+ * difference visible: migrate a LATER one while an EARLIER one is still legacy
+ * and the engine's copy is inserted ABOVE an overlay it currently sits below.
+ * They must therefore migrate in registry order, which
+ * `stockChartWiring.test.jsx` pins ("no price overlay is migrated ahead of an
+ * earlier one").
  */
-export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi']))
+export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb']))
 
 /**
  * The migrated definitions this settings blob hands to the engine.

@@ -5910,14 +5910,25 @@ export default function StockChart({
     }
 
     // ── Bollinger Bands (3 LineSeries on main price scale) ──
+    // `!engineOwned.has('bb')` — the crossover guard (see `engineOwnedDefIds`).
+    // An engine instance of `bb` draws this indicator, so the legacy block stands
+    // down; the `else` below then removes the legacy series, which is what keeps
+    // a mid-session flip from leaving six purple lines on the price scale.
+    //
+    // ⚠️ THE GUARD IS PER-SERIES AND HAS TO BE. All three bands share one loop,
+    // so a guard on the loop's ENTRY would skip the `else` branch too and leave
+    // three orphaned legacy lines behind on a flip. It is inside the condition,
+    // next to `data.length`, so "the engine owns this" reaches the removal path
+    // exactly the way "there is no data" does.
     const bbColor = cs.indicators?.bb?.color || 'rgba(156,39,176,0.85)'
     const BB_BANDS = [
       { ref: bbUpperRef,  data: indicatorData.bb.upper,  style: 2 },
       { ref: bbMiddleRef, data: indicatorData.bb.middle, style: 0 },
       { ref: bbLowerRef,  data: indicatorData.bb.lower,  style: 2 },
     ]
+    const bbEngineOwned = engineOwned.has('bb')
     for (const { ref, data, style } of BB_BANDS) {
-      if (data.length) {
+      if (data.length && !bbEngineOwned) {
         if (!ref.current) {
           ref.current = chart.addSeries(LineSeries, {
             color: bbColor, lineWidth: 1, lineStyle: style,
