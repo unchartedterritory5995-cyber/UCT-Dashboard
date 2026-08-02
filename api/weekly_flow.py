@@ -520,7 +520,8 @@ def render_card(agg: dict, window: list[str], days: int, min_dte: int,
 
 
 def render_standing_card(agg: dict, window: list[str], top_n: int,
-                         ref_date: date | None = None, cap_label: str = "") -> bytes:
+                         ref_date: date | None = None, cap_label: str = "",
+                         title: str = "Open Flow", caption: str | None = None) -> bytes:
     """Standing Conviction card — same still-open, top-N-by-premium board as the
     weekly one, over a longer rolling window, with FIRST-SEEN + AGE columns so a
     name whose flow has been open for weeks reads as long-standing conviction.
@@ -568,11 +569,12 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
         pass
     tx = 94
     tx += txt(tx, 18, "UCT Intelligence", f_title, _GOLD) + 12
-    tx += txt(tx, 18, "· Open Flow", f_title, _GOLD_DIM) + 12
+    tx += txt(tx, 18, "· " + title, f_title, _GOLD_DIM) + 12
     if cap_label:
         txt(tx, 18, "· " + cap_label, f_title, _GOLD_DIM)
     rng = _week_range(window)
-    txt(94, 60, f"{rng}   ·   still open · top {top_n} by premium", f_date, _DIM)
+    _cap = caption or f"top {top_n} by premium"
+    txt(94, 60, f"{rng}   ·   still open · {_cap}", f_date, _DIM)
 
     # TICKER · BULL · BEAR · NET · TOP CONTRACT (EXP/STRIKE/C-P) · SINCE · PERF · DTE
     # PERF = underlying spot at first print vs latest spot on the tape (since-open move)
@@ -679,7 +681,12 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         def _build():
             trades, window = load_directional_trades(n_days, min_dte, cap)
             agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
-            return {"png": render_card(agg, window, n_days, min_dte, _CAP_LABELS.get(cap, "")),
+            # Same look/columns as the Open Flow card (TICKER·BULL·BEAR·NET·EXP·
+            # STRIKE·C/P·SINCE·PERF·DTE) — just the "Weekly Conviction" title.
+            _sl = sort_bull if sort_bull == sort_bear else "net/premium"
+            return {"png": render_standing_card(agg, window, top_n,
+                        cap_label=_CAP_LABELS.get(cap, ""), title="Weekly Conviction",
+                        caption=f"top {top_n} by {_sl}"),
                     "names": agg["n_names"], "bulls": len(agg["bulls"]),
                     "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
         built = _cached_card(("weekly", n_days, cap, top_n, min_dte, frac, sort_bull, sort_bear), _build)
