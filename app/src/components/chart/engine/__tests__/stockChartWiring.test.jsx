@@ -594,6 +594,57 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(await hoverLatest(view)).not.toContain('RSI(')
   })
 
+  // ── THE DEVELOPING BAR — the live sequence, not a synthetic one ───────────
+  //
+  // The producer is the bars push feed. Writer B appends the developing candle
+  // IMPERATIVELY (`StockChart.jsx:4553` — `candleSeriesRef.current.update()`, no
+  // `updateChart` pass and therefore no `binder.sync`), so on an intraday chart
+  // the newest bar exists on the CANDLE series and on no indicator series until
+  // the next SWR refresh — 30 s away. lightweight-charts' `seriesData` map
+  // carries only the series that HAVE a point at the hovered time, so "the
+  // candle is in the map and the RSI line is not" IS that state, and it is
+  // reachable only from a live tape: every fixture in this repo hands both
+  // series the same bar count.
+  //
+  // Legacy printed `RSI(14) <last computed>` there
+  // (`:7829` — `d?.value ?? indicatorData.rsi.at(-1)?.value`). The engine printed
+  // NOTHING until this round: `engineChips` dropped any binding whose hovered
+  // value was not finite, and the legacy rescue below it can never run in the
+  // crossover because `rsiSeriesRef.current` is null by construction.
+  const hoverDevelopingBar = (view) => hover(view, [])
+
+  it('LEGACY prints the last computed RSI on a bar the line has no point for', async () => {
+    const view = draw(RSI_ON)
+    // The control. If this ever stops printing a chip the asymmetry below is not
+    // a regression but a shared behaviour, and the engine assertion means nothing.
+    expect(await hoverDevelopingBar(view)).toMatch(/RSI\(14\) \d/)
+  })
+
+  it('ENGINE prints the SAME chip — the fallback rides the binding', async () => {
+    const view = draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    const bound = H.binderApis[0].bindings()
+    expect(bound, 'the engine bound nothing — vacuous').toHaveLength(1)
+    // The fallback is REAL DATA, not a constant: it is the last point the binder
+    // set on this series, which is what `indicatorData.rsi.at(-1)` is for legacy.
+    expect(Number.isFinite(bound[0].lastValue),
+      'the binding carries no lastValue — there is nothing to fall back to').toBe(true)
+    expect(await hoverDevelopingBar(view)).toContain(`RSI(14) ${bound[0].lastValue.toFixed(1)}`)
+  })
+
+  it('legacy and engine print the IDENTICAL developing-bar chip', async () => {
+    // The parity claim stated as one assertion, so a future change that moves
+    // BOTH stays green and one that moves either does not.
+    const legacyView = draw(RSI_ON)
+    const legacyText = await hoverDevelopingBar(legacyView)
+    const legacyChip = /RSI\(14\) [\d.]+/.exec(legacyText)
+    expect(legacyChip, 'the legacy control printed no chip — vacuous').toBeTruthy()
+
+    cleanup(); H.reset()
+    const engineView = draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] })
+    expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(1)
+    expect(await hoverDevelopingBar(engineView)).toContain(legacyChip[0])
+  })
+
   it('leaves a NON-migrated indicator chip exactly as the legacy block wrote it', async () => {
     // MACD is not in ENGINE_MIGRATED_DEF_IDS yet, so its chip must still come
     // from `cs.indicators.macd` through the hand-written row. A bridge that

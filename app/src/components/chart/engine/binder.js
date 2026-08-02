@@ -99,6 +99,29 @@ function toPoints(column, bars, adjustTime, signColors) {
 }
 
 /**
+ * The LAST point's value, or `undefined` if the series ends on whitespace.
+ *
+ * ⛔ THE DEVELOPING-BAR FALLBACK, AND WHY IT IS THE BINDER'S JOB. The shipped
+ * crosshair legend reads `d?.value ?? indicatorData.<id>.at(-1)?.value`
+ * (`StockChart.jsx:7829`) — the newest computed value when the HOVERED bar
+ * carries no point for the indicator. That is not a cosmetic nicety: the bars
+ * push feed's writer B appends a developing candle imperatively
+ * (`StockChart.jsx:4553`, `series.update()`, no `updateChart` pass), so on an
+ * intraday chart the newest bar exists on the CANDLES and not yet on any
+ * indicator series until the next SWR refresh (30 s). Hover it and legacy prints
+ * `RSI(14) 71.2`; without this an engine-drawn RSI printed nothing at all.
+ *
+ * The LAST element, not the last FINITE one, because that is exactly what
+ * `.at(-1)?.value` means: a column that ends in whitespace has no fallback and
+ * the chip is dropped, as it is for legacy.
+ */
+function lastPointValue(points) {
+  if (!Array.isArray(points) || points.length === 0) return undefined
+  const last = points[points.length - 1]
+  return last ? last.value : undefined
+}
+
+/**
  * One `hlines` plot → one `createPriceLine` spec per level.
  *
  * ⚠️ A `createPriceLine` OPTION IS NOT A SERIES OPTION. Omitting `lineStyle` from
@@ -395,6 +418,11 @@ export function createBinder({ chart, LWC }) {
         guideSig: b.guideSig,
         paneIndex,
         scaleId,
+        // The crosshair legend's developing-bar fallback — see `lastPointValue`.
+        // Carried on the BINDING because that is the only place the column and
+        // the series are both in hand; `readout.js` is pure and gets no other
+        // route to the value legacy reads off `indicatorData`.
+        lastValue: lastPointValue(points),
       })
     }
 

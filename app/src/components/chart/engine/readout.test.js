@@ -1,6 +1,27 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { engineChips, chipsBySlot, LEGACY_SLOTS } from './readout'
 import * as engineRegistry from './nativeRegistry'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const STOCK_CHART = path.resolve(HERE, '..', '..', 'StockChart.jsx')
+
+/**
+ * The text between two literal markers, or a NAMED throw.
+ *
+ * A source-reading gate that silently matches nothing is worse than no gate, so
+ * a marker that has moved fails LOUDLY and says which one — never "0 slots
+ * unread, all good".
+ */
+function between(src, startMarker, endMarker) {
+  const a = src.indexOf(startMarker)
+  if (a < 0) throw new Error(`marker moved: ${JSON.stringify(startMarker)} is no longer in StockChart.jsx`)
+  const b = src.indexOf(endMarker, a + startMarker.length)
+  if (b < 0) throw new Error(`marker moved: ${JSON.stringify(endMarker)} does not follow ${JSON.stringify(startMarker)}`)
+  return src.slice(a + startMarker.length, b)
+}
 
 /** A binding as `binder.bindings()` returns it, with a stand-in series object. */
 const binding = (defId, plotKey, instanceId = `legacy:${defId}`) => ({
@@ -75,10 +96,39 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
   })
 
   it('a bar the series has no value on produces no chip, never NaN', () => {
+    // …when the binding carries no `lastValue` either. The developing-bar
+    // fallback is the case below; this is the "nothing computed at all" case.
     const b = binding('rsi', 'rsi')
     expect(engineChips([b], new Map(), engineRegistry, [RSI_INST])).toEqual([])
     expect(engineChips([b], seriesData([[b, undefined]]), engineRegistry, [RSI_INST])).toEqual([])
     expect(engineChips([b], seriesData([[b, NaN]]), engineRegistry, [RSI_INST])).toEqual([])
+  })
+
+  it('falls back to the binding\'s LAST value on a developing bar, as legacy does', () => {
+    // `StockChart.jsx:7829` — `d?.value ?? indicatorData.rsi.at(-1)?.value`. The
+    // bars push feed's writer B appends a developing candle with `series.update()`
+    // and no `updateChart` pass, so on an intraday chart the newest bar exists on
+    // the candles and NOT on the indicator until the next SWR refresh. Legacy
+    // printed the last computed value; an engine chip that printed nothing there
+    // is a live-tape-only regression the pixel gate cannot see.
+    const b = { ...binding('rsi', 'rsi'), lastValue: 71.24 }
+    const chips = engineChips([b], new Map(), engineRegistry, [RSI_INST])
+    expect(chips).toHaveLength(1)
+    expect(chips[0].text).toBe('RSI(14) 71.2')
+    expect(chips[0].value).toBeCloseTo(71.24, 6)
+  })
+
+  it('the hovered bar WINS over the fallback whenever it has a value', () => {
+    const b = { ...binding('rsi', 'rsi'), lastValue: 71.24 }
+    expect(engineChips([b], seriesData([[b, 54.321]]), engineRegistry, [RSI_INST])[0].text)
+      .toBe('RSI(14) 54.3')
+  })
+
+  it('a column that ENDS on whitespace has no fallback — no chip, not NaN', () => {
+    // `.at(-1)?.value` on an LWC whitespace point is `undefined`, and `?? null`
+    // makes legacy drop the chip. `lastValue: undefined` is that same answer.
+    const b = { ...binding('rsi', 'rsi'), lastValue: undefined }
+    expect(engineChips([b], new Map(), engineRegistry, [RSI_INST])).toEqual([])
   })
 
   it('never throws on the shapes a caller can actually hand it', () => {
@@ -127,15 +177,34 @@ describe('the slot bridge cannot silently lose a chip', () => {
   })
 
   it('every slot is a field the shipped legend actually reads', () => {
-    // `chipsBySlot` writes into `crosshairData.<slot>`, and `legChips`
-    // (StockChart.jsx:9589-9599) enumerates the fields it renders. A slot the
-    // legend never reads is a chip that lands nowhere — the same invisible
-    // failure the rail above catches from the other direction.
-    const RENDERED_FIELDS = new Set([
-      'rsi', 'macd', 'macdSig', 'stochK', 'stochD', 'atr', 'sar',
-      'ichimokuTenkan', 'ichimokuKijun',
-    ])
-    const unread = Object.values(LEGACY_SLOTS).filter(f => !RENDERED_FIELDS.has(f))
-    expect(unread).toEqual([])
+    // ⚠️ THIS READS `StockChart.jsx`. It used to compare `LEGACY_SLOTS` against a
+    // hand-copied `RENDERED_FIELDS` Set — one hand-written map policed by a
+    // second hand-written list, which cannot fail: deleting the ATR row from the
+    // legend left all 956 chart tests green, including this one. That is the same
+    // defect `7b28e5d8` fixed for LWC_DEFAULTS ("pin against the real bundle, not
+    // a second hand-copy"), and the fix is the same shape — derive the truth from
+    // the artifact that ships.
+    //
+    // What is asserted, per slot, is the whole mechanism `chipsBySlot` depends on:
+    //   `crosshairData.<field> != null && chip('<key>', '<field>', …)`
+    // — the legend GUARDS on that field AND routes it through the slot-aware
+    // helper. Deleting the row, neutering the guard (`false && chip(…)`) or
+    // renaming the slot argument each take one of those three apart.
+    const src = fs.readFileSync(STOCK_CHART, 'utf8')
+    const region = between(src, 'const legChips = [', '].filter(Boolean)')
+
+    // Non-vacuity: an empty or absurdly short region means the markers moved and
+    // every regex below would "pass" against nothing.
+    expect(region.length, 'the legChips region is too small to be the real one')
+      .toBeGreaterThan(400)
+
+    const unread = Object.values(LEGACY_SLOTS).filter((field) => {
+      const row = new RegExp(
+        `crosshairData\\.${field}\\s*!=\\s*null\\s*&&\\s*chip\\(\\s*'[^']+'\\s*,\\s*'${field}'`,
+      )
+      return !row.test(region)
+    })
+    expect(unread, 'these slots name a crosshairData field the shipped legend does not render')
+      .toEqual([])
   })
 })

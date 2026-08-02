@@ -81,7 +81,8 @@ function resolvePlotColor(plot, inputs, def) {
 /**
  * The legend chips for the series the engine currently holds.
  *
- * @param {object[]} bindings  `binder.bindings()`
+ * @param {object[]} bindings  `binder.bindings()` — each carries `lastValue`,
+ *                             the developing-bar fallback (see below)
  * @param {Map}      seriesData `crosshairMove` param's `seriesData` map
  * @param {object|Function} registry
  * @param {object[]} instances the normalised instance list (for per-instance inputs)
@@ -106,7 +107,21 @@ export function engineChips(bindings, seriesData, registry, instances) {
     if (!plot || !plot.legend || plot.legend.hide === true) continue
 
     const point = seriesData && typeof seriesData.get === 'function' ? seriesData.get(b.series) : null
-    const value = point ? point.value : undefined
+    // ── THE DEVELOPING-BAR FALLBACK ──────────────────────────────────────────
+    //
+    // Legacy: `d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)`
+    // (`StockChart.jsx:7829`). The hovered bar not carrying a point for this
+    // series is the NORMAL live case, not an edge one: the bars push feed's
+    // writer B appends the developing candle imperatively (`:4553`), so on an
+    // intraday chart the newest bar is on the candles and not yet on the
+    // indicator until the next SWR refresh. Legacy printed the last computed
+    // value there; an engine chip that printed NOTHING is a readout regression
+    // no pixel gate can see — it only happens under a live tape.
+    //
+    // `binding.lastValue` is the binder's own record of the final point it set
+    // on this series (`binder.js`), which is the same number `.at(-1)` reads.
+    let value = point ? point.value : undefined
+    if (!Number.isFinite(value)) value = b.lastValue
     if (!Number.isFinite(value)) continue
 
     const inst = byId.get(b.instanceId)
