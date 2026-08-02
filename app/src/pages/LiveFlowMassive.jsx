@@ -1399,10 +1399,12 @@ function _dateToMDY(d) {
   return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
-function DateRail({ targetDate, onDateChange }) {
+function DateRail({ targetDate, onDateChange, onRange }) {
   const [dates, setDates] = useState(null);      // ascending M/D/YYYY, null = loading/failed
   const [calOpen, setCalOpen] = useState(false);
   const [calMonth, setCalMonth] = useState(null); // {y, m} shown in the popover
+  const [rangeMode, setRangeMode] = useState(false);   // custom range: click start→end
+  const [rangeStart, setRangeStart] = useState(null);  // mdy of the first range click
   const railRef = useRef(null);
 
   useEffect(() => {
@@ -1434,6 +1436,34 @@ function DateRail({ targetDate, onDateChange }) {
   const hist = (dates || []).filter(d => d !== today);
   const histSet = new Set(hist);
   const isLive = !targetDate;
+
+  // ── Multi-day range: end date + N-day span, aggregated By-Contract ────────
+  const allDays = dates || [];                       // ascending, includes today if data
+  const latestDay = allDays[allDays.length - 1];     // most recent data day
+  const rc = (on) => ({
+    background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+    border: `1px solid ${on ? P.ac : P.bd}`, borderRadius: 3, padding: "2px 7px",
+    fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+  });
+  const _countDays = (aMdy, bMdy) => {
+    const a = _mdyToDate(aMdy), b = _mdyToDate(bMdy);
+    if (!a || !b) return 1;
+    const lo = a <= b ? a : b, hi = a <= b ? b : a;
+    return allDays.filter(x => { const d = _mdyToDate(x); return d && d >= lo && d <= hi; }).length || 1;
+  };
+  const applyRangePreset = (n) => {
+    if (!onRange || !latestDay) return;
+    onRange(latestDay === today ? null : latestDay, n);
+    setCalOpen(false); setRangeMode(false); setRangeStart(null);
+  };
+  const applyMTD = () => {
+    if (!onRange || !latestDay) return;
+    const ld = _mdyToDate(latestDay);
+    const ms = new Date(ld.getFullYear(), ld.getMonth(), 1);
+    const n = allDays.filter(x => { const d = _mdyToDate(x); return d && d >= ms && d <= ld; }).length || 1;
+    onRange(latestDay === today ? null : latestDay, n);
+    setCalOpen(false); setRangeMode(false); setRangeStart(null);
+  };
 
   const openCal = () => {
     const base = _mdyToDate(targetDate) || _mdyToDate(hist[hist.length - 1]) || new Date();
@@ -1528,6 +1558,16 @@ function DateRail({ targetDate, onDateChange }) {
           <button style={navBtn(canNextMonth)} disabled={!canNextMonth} title="Next month"
             onClick={() => canNextMonth && setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>›</button>
         </div>
+        <div style={{ display: "flex", gap: 3, marginBottom: 7, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ color: P.mt, fontSize: 9, letterSpacing: 1, marginRight: 1 }}>RANGE</span>
+          <button onClick={() => applyRangePreset(5)} style={rc(false)} title="Last 5 trading days, aggregated By-Contract">5d</button>
+          <button onClick={() => applyRangePreset(20)} style={rc(false)} title="Last 20 trading days">20d</button>
+          <button onClick={applyMTD} style={rc(false)} title="Month-to-date">MTD</button>
+          <button onClick={() => { setRangeMode(m => !m); setRangeStart(null); }} style={rc(rangeMode)}
+            title="Custom range: click a start day then an end day">
+            {rangeMode ? (rangeStart ? "pick end" : "pick start") : "Custom"}
+          </button>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
           {["S","M","T","W","T","F","S"].map((c, i) => (
             <span key={i} style={{ color: P.mt, fontSize: 9, textAlign: "center", letterSpacing: 1 }}>{c}</span>
@@ -1540,20 +1580,30 @@ function DateRail({ targetDate, onDateChange }) {
             const isToday = mdy === today;
             const hasData = histSet.has(mdy);
             const isSel = !isLive && targetDate === mdy;
+            const inRangeStart = rangeMode && rangeStart === mdy;
             const clickable = hasData || isToday;
             return (
               <button
                 key={i}
                 disabled={!clickable}
                 onClick={() => {
+                  if (rangeMode && onRange) {
+                    if (!rangeStart) { setRangeStart(mdy); return; }  // 1st click = start
+                    const days = _countDays(rangeStart, mdy);
+                    const a = _mdyToDate(rangeStart), b = _mdyToDate(mdy);
+                    const end = (b >= a) ? mdy : rangeStart;
+                    onRange(end === today ? null : end, days);
+                    setRangeStart(null); setRangeMode(false); setCalOpen(false);
+                    return;
+                  }
                   if (isToday) onDateChange(null);
                   else if (hasData) onDateChange(mdy);
                   setCalOpen(false);
                 }}
                 title={isToday ? "Today — live view" : hasData ? `View flow for ${mdy}` : "No flow data"}
                 style={{
-                  background: isSel ? P.ac : "transparent",
-                  color: isSel ? P.bg : isToday ? P.ac : clickable ? P.wh : P.mt,
+                  background: isSel || inRangeStart ? P.ac : "transparent",
+                  color: isSel || inRangeStart ? P.bg : isToday ? P.ac : clickable ? P.wh : P.mt,
                   border: isToday && !isSel ? `1px solid ${P.ac}` : "1px solid transparent",
                   borderRadius: 3, padding: "4px 0", fontSize: 11,
                   fontFamily: "inherit", cursor: clickable ? "pointer" : "default",
@@ -1574,7 +1624,9 @@ function DateRail({ targetDate, onDateChange }) {
           })}
         </div>
         <div style={{ color: P.mt, fontSize: 9, marginTop: 8, letterSpacing: 0.5 }}>
-          <span style={{ color: P.ac }}>●</span> = flow data available · {hist.length} days archived
+          {rangeMode
+            ? (rangeStart ? "→ click the END day of the range" : "→ click the START day of the range")
+            : <><span style={{ color: P.ac }}>●</span> = flow data · {hist.length} days · RANGE → By-Contract still-open</>}
         </div>
       </div>
     );
@@ -1626,7 +1678,7 @@ function Header({ status, loadPending, warming, workerLive,
                   hideNoSide, onHideNoSideChange,
                   curated, onCuratedChange,
                   tickerFilter, contractFilter, onClearFilters,
-                  targetDate, onDateChange, onOiFetch, oiFetchState,
+                  targetDate, onDateChange, onRange, onOiFetch, oiFetchState,
                   nullOICount }) {
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
@@ -1667,7 +1719,7 @@ function Header({ status, loadPending, warming, workerLive,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
-        <DateRail targetDate={targetDate} onDateChange={onDateChange} />
+        <DateRail targetDate={targetDate} onDateChange={onDateChange} onRange={onRange} />
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
@@ -2990,9 +3042,19 @@ export default function LiveFlowMassive() {
   // by default; tunable 1/3/5 from the By-Contract view. Persisted.
   const [lookbackDays, setLookbackDays] = useState(() => {
     const v = parseInt(localStorage.getItem("uct_massive_lookback_days") || "3", 10);
-    return [1, 3, 5].includes(v) ? v : 3;
+    return v >= 1 && v <= 31 ? v : 3;   // range picker sets arbitrary N up to 31
   });
   const setLookback = (n) => { setLookbackDays(n); try { localStorage.setItem("uct_massive_lookback_days", String(n)); } catch {} };
+  // Multi-day range: a range = end date (targetDate) + N-day span (lookbackDays),
+  // aggregated in the By-Contract rollup. applyRange wires the calendar range /
+  // presets to that and flips to the contract view. "Still open only" hides
+  // contracts whose fetched OI says closed (exited) — a live still-open filter.
+  const [stillOpenOnly, setStillOpenOnly] = useState(false);
+  const applyRange = (endMdy, days) => {
+    setViewMode("contract");
+    setLookback(Math.max(1, Math.min(31, days || 1)));
+    setTargetDate(endMdy || null);
+  };
   // Per-column table sort. Defaults to time/desc, which is identical to the
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
@@ -3787,6 +3849,9 @@ export default function LiveFlowMassive() {
   const visibleContracts = (byContract?.contracts || []).filter(c => {
     if (searchQ && !(c.ticker || "").toUpperCase().includes(searchQ)) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(c.ticker)) return false;
+    // Still-open only: drop contracts whose fetched settled OI says CLOSED
+    // (exited). Contracts not yet OI-checked are kept (status undefined).
+    if (stillOpenOnly && oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]?.status === "closed") return false;
     return true;
   });
 
@@ -4041,6 +4106,7 @@ export default function LiveFlowMassive() {
         onClearFilters={handleClearFilters}
         targetDate={targetDate}
         onDateChange={setTargetDate}
+        onRange={applyRange}
         onOiFetch={handleOiFetch}
         oiFetchState={oiFetchState}
         nullOICount={alerts.filter(a => a.priorOI == null).length}
@@ -4110,7 +4176,7 @@ export default function LiveFlowMassive() {
 
         {viewMode === "contract" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontSize: 11, color: P.mt }}>
-            <span style={{ fontWeight: 600 }}>Accumulation lookback:</span>
+            <span style={{ fontWeight: 600 }}>Lookback ({lookbackDays}d):</span>
             {[1, 3, 5].map(n => (
               <button key={n} onClick={() => setLookback(n)} style={{
                 padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700,
@@ -4123,12 +4189,25 @@ export default function LiveFlowMassive() {
             <span style={{ color: P.dm, fontStyle: "italic", marginLeft: 4 }}>
               🔥 accelerating multi-day builds surface first
             </span>
+            <label
+              title="Hide contracts whose settled OI shows they CLOSED (exited). Runs Check OI if not yet fetched."
+              style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 10, fontWeight: 700, color: stillOpenOnly ? P.ac : P.mt, cursor: "pointer" }}>
+              <input type="checkbox" checked={stillOpenOnly}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setStillOpenOnly(on);
+                  if (on && Object.keys(oiCheck).length === 0) handleCheckOI();
+                }}
+                style={{ accentColor: P.ac, cursor: "pointer" }} />
+              Still open only
+            </label>
             <button
               onClick={handleCheckOI}
               disabled={oiChecking}
               title="Fetch latest settled OI per contract and confirm whether positions held overnight (OI grew) or closed (OI fell)"
               style={{
-                marginLeft: "auto", padding: "3px 12px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+                padding: "3px 12px", borderRadius: 12, fontSize: 10, fontWeight: 700,
                 border: `1px solid ${P.ac}`, background: "transparent", color: P.ac,
                 cursor: oiChecking ? "wait" : "pointer", fontFamily: "inherit", opacity: oiChecking ? 0.6 : 1,
               }}>

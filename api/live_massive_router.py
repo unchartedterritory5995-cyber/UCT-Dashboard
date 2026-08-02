@@ -3475,7 +3475,7 @@ def by_contract(
     stock_etf: str = Query(default="all", description="'stocks' | 'etfs' | 'all' — same partition as the feed."),
     min_hits: int = Query(default=3, ge=1, le=20, description="Min qualifying prints (>= cap-scaled floor) for a contract to appear."),
     exclude_algo: bool = Query(default=True),
-    lookback_days: int = Query(default=1, ge=1, le=5, description="Aggregate a contract's hits across the last N trading days (multi-day accumulation). 1 = today only."),
+    lookback_days: int = Query(default=1, ge=1, le=31, description="Aggregate a contract's hits across the last N trading days ending at target_date (multi-day range). 1 = that day only; up to 31 for the range picker."),
 ):
     """One row per contract (ticker+cp+strike+exp) for the day, for contracts
     that were hit >= min_hits times by prints clearing the cap-scaled floor.
