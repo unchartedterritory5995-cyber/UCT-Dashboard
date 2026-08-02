@@ -111,35 +111,65 @@ number from Task 2 onward WAS measured through it — but B2's own numbers were
 not, and the commit that landed it (`935b9cb9`) says otherwise in its subject
 line. Believe this paragraph, not that subject.
 
-⚠️ **A DIFF CONFINED TO ONE SCANLINE IS CAPTURE TIMING, NOT A MIGRATION
-DIFFERENCE — AND IT IS THE ONLY KIND YOU MAY RE-RUN.** Measured 2026-08-02 while
-gating B3's Flip-A visibility projection: an A/B pair whose two sides do
-**asymmetric main-thread work** (side A renders no indicator; side B arms the
-engine) came back **24 changed px on exactly one row, 3 runs in 5**, and 0 px on
-the other two. Every one of those pixels was a ±4 blend on the dashed
+⚠️ **HISTORICAL — THIS WAS A HARNESS DEFECT, AND THE HARNESS IS FIXED.** Measured
+2026-08-02 while gating B3's Flip-A visibility projection: an A/B pair whose two
+sides do **asymmetric main-thread work** (side A renders no indicator; side B
+arms the engine) came back **24 changed px on exactly one row, 3 runs in 5**, and
+0 px on the other two. Every one of those pixels was a ±4 blend on the dashed
 last-price line — the same line, rasterised half a sub-pixel apart because the
-slower side settled its price range a frame later. Each side is internally
-deterministic: `--instances-side none` and `--instances-side both` were 0 px
-across 5 runs each.
+slower side settled its price range a frame later.
 
-How to tell it apart, in this order:
+The cause was that `window.__chartReady` was a **fixed 3,500 ms `setTimeout`** and
+`capture()` screenshotted **once**. That is a clock, not a readiness signal, and
+it means every number this gate has ever printed — including all of the zeros —
+was measured against a stopwatch rather than a settled canvas. Both halves are
+now fixed and they are independent on purpose:
 
-1. **Run the two determinism passes.** If `none` and `both` are both 0, no
-   render is nondeterministic and the diff is an A-vs-B asymmetry.
+* `ChartRender.jsx` extends `__chartReady` past the same 3,500 ms floor until the
+  canvases inside `#chart-export` have been **pixel-identical across four
+  consecutive sampled frames**. It can only ever fire LATER than it used to, so
+  the page's other consumer (the Morning Wire → Substack renderer) cannot
+  regress. `window.__chartReadyReason` reports `stable` or `ceiling`.
+* `capture()` screenshots **at least twice and requires two consecutive captures
+  to decode to identical pixels** before accepting either. That asserts on the
+  ARTEFACT — the bytes that get diffed — not on a flag. A chart that never
+  settles raises `ChartNotSettledError`: a **loud** error and exit 1, never a
+  quietly-accepted frame.
+
+The `report.md` per-run table prints `capture shots (a/b)` — `2` means the chart
+was settled on the first re-check; anything higher is the harness having caught a
+canvas that was still moving after the page called itself ready.
+
+**`engine_rsi_toggle_off` is BACK.** It was written, measured at 24 px on 3 runs
+in 5, and deleted in Task 2's fix round. Deleting it removed the case that
+exposed the defect rather than the defect; it is reinstated now that stability is
+proven per capture.
+
+If a diff still appears and you suspect capture noise, the order is:
+
+1. **Run the two determinism passes as a PRECONDITION, not a verdict.**
+   `--instances-side none` (legacy vs legacy) and `--instances-side both`
+   (engine vs engine) must both be 0. ⛔ **`none` = 0 and `both` = 0 does NOT
+   mean the A-vs-B diff is noise.** They are *same-render-path* self-checks: a
+   genuine migration difference — the engine drawing RSI one pixel lower than
+   legacy — produces exactly the same signature (both self-checks 0, A-vs-B
+   non-zero). All this step establishes is that neither render path disagrees
+   with itself, which is a necessary condition for reading the A-vs-B number at
+   all. Steps 2 and 3 are the ones that discriminate.
 2. **Count the ROWS, not the pixels** — `np.nonzero(diff.sum(axis=1))`. A real
-   migration difference is a shape: several rows, or a column, or a blob. This
-   artefact is one row.
-3. **Re-run.** Capture timing moves between runs; a migration difference does
-   not.
+   migration difference is a shape: several rows, or a column, or a blob. The
+   documented artefact was one row. (Scale: BB's autoscale flip is **343 rows ×
+   1,160 columns**.)
+3. **`--repeat N`, and quote the bound.** A capture artefact moves between runs;
+   a migration difference does not. One 0 measures nothing and five 0s bound the
+   flake rate at only **45%** — `--repeat` prints `1 − 0.05^(1/N)` next to the
+   number so the report cannot round it up to certainty. 40 runs bounds it at
+   7.2%.
 
-⛔ This is NOT licence to raise `tolerance`. The floor it sets is ~24 px on one
-row; the self-test perturbation moves **1,004 px**, three orders of magnitude
-above it, so the 0-tolerance gate has enormous headroom and keeps it. A
-configuration that cannot be held at 0 does not get a tolerance — it does not get
-a pixel case at all, and its behaviour is gated in `stockChartWiring.test.jsx`
-instead. (`engine_rsi_toggle_off`, the "engine draws nothing when the legacy
-toggle is off" picture, was written, measured, found to be a coin flip, and
-DELETED for exactly this reason.)
+⛔ None of this is licence to raise `tolerance`. A configuration that cannot be
+held at 0 does not get a tolerance — it gets its harness fixed, or it does not
+get a pixel case at all and its behaviour is gated in `stockChartWiring.test.jsx`
+instead.
 
 A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
 `index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and
@@ -258,10 +288,47 @@ only after **all** of:
    changes a colour in Settings);
 2. the bar fixture has landed (otherwise the capture is of a spinner, and a
    baseline of a spinner passes forever);
-3. a 3.5s paint settle (StockChart has no `onReady` hook).
+3. **a 3.5 s floor AND pixel stability** — every canvas inside `#chart-export` is
+   hashed on a 120 ms sampling interval, and the flag flips only after four
+   consecutive identical hashes. Capped at 20 s so a chart that never settles
+   fails loudly instead of hanging; `window.__chartReadyReason` reads `stable` or
+   `ceiling`, and `window.__chartReadyMs` says how long it took. **The 3.5 s
+   floor is kept verbatim so the flag can only ever fire LATER than the timer it
+   replaced** — this page's other consumer is the Morning Wire → Substack
+   renderer, which has always had that settle.
 
 The harness then also awaits `document.fonts.ready` — a cold vs warm webfont
 cache is real, reproducible diff noise that has nothing to do with the indicator.
+
+**And then it does not trust any of that.** `capture()` screenshots repeatedly,
+220 ms apart, until **two consecutive captures decode to identical pixels**, and
+writes that pair. `--stable-tries` bounds it (default 8); exhausting it raises
+`ChartNotSettledError` — an ERROR row and exit 1, never a silently-accepted
+frame. Belt (in-page stability) and braces (out-of-page byte equality) are
+deliberately independent: the in-page detector can be wrong about what "settled"
+means, and the byte check is measured on the exact artefact `diff()` compares.
+
+## Measuring the flake rate — `--repeat`
+
+```bash
+python tools/chart_parity.py --base-a $B --base-b $B --repeat 40 \
+    --cases engine_rsi_vs_legacy engine_bb_vs_legacy engine_bb_rsi_vs_legacy engine_rsi_toggle_off
+```
+
+Every run's changed-pixel count goes in the report; the headline number is the
+**worst** run, never the best. The report also prints the 95% upper confidence
+bound on the per-run flake probability implied by N clean runs, `1 − 0.05^(1/N)`:
+
+| N clean runs | 95% upper bound on the flake rate |
+|---:|---:|
+| 5 | 45.1% |
+| 10 | 25.9% |
+| 20 | 13.9% |
+| 29 | 9.8% |
+| 59 | 5.0% |
+
+**Quote the bound, never "it passed."** Five zeros rule out a coin-flip; they do
+not rule out one run in five.
 
 ---
 

@@ -137,6 +137,26 @@
     },
 
     {
+      "name": "engine_rsi_toggle_off",
+      "why": "THE FLIP-A SWITCH, IN PIXELS. `indicators.rsi.enabled` is FALSE on both sides, and side B additionally hands the engine an RSI instance. StockChart projects an instance whose legacy toggle is off to `hidden`, so the engine must draw NOTHING and the two sides must be the same bare chart. Without this case the projection is gated only in jsdom, and the specific regression it catches is the one that produced this branch's worst bug: a band that is not reserved (computePaneMargins reads the same flag) while a line is still drawn, which `resolvePlacement` then falls back to {top:0.82,bottom:0} — ON TOP OF THE VOLUME BARS. ⚠️ HISTORY: this case was written, measured at 24 px on 3 runs in 5, and DELETED in Task 2's fix round on the (correct) reading that it was capture timing. The response removed the case rather than the harness defect. It is back because `capture()` now proves pixel stability instead of trusting a 3.5s timer — if it flakes again, that is a real signal and NOT a licence to add a tolerance.",
+      "settings": {
+        "indicators": {
+          "rsi": { "enabled": false, "period": 14, "color": "#7b68ee" }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:rsi",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": { "period": 14, "color": "#7b68ee" },
+          "placement": { "target": "pane" },
+          "hidden": false
+        }
+      ]
+    },
+
+    {
       "name": "engine_bb_vs_legacy",
       "why": "THE FIRST PRICE OVERLAY. Side A draws the three Bollinger lines through the hand-written StockChart block; side B draws them through the ENGINE. This is the case that measures the `autoscaleInfoProvider` seam: without it the bands drag the CANDLES' autoscale and the whole price pane re-scales, which is a whole-canvas diff, not a line-width one. It also measures the C-2 fix (`priceScaleId` named rather than omitted) on a create, and — because BB is inserted into pane 0 over the volume bars and the MA overlays — the engine call site's POSITION, which RSI's own band could not reach.",
       "settings": {

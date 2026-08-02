@@ -63,6 +63,17 @@ measures the migration and not the difference between two checkouts::
     python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy \
         --perturb-b-instances '{"color": "#7b68ef"}'
 
+**Measuring the flake rate, not asserting it away** (``--repeat``)::
+
+    python tools/chart_parity.py --base-a $B --base-b $B --repeat 40 \
+        --cases engine_rsi_vs_legacy engine_bb_vs_legacy
+
+One 0 is not a measurement. ``n`` consecutive clean runs bound the per-run flake
+probability at ``1 − 0.05^(1/n)`` with 95% confidence — 5 runs bounds it at 45%,
+40 runs at 7.2% — and the report prints that bound next to the number so nobody
+can round it up to "it doesn't flake". Every run's value is listed, and the
+headline number is the WORST run, never the best.
+
 Exit code is 1 when any case exceeds its tolerance, so this is usable as a
 gate and not just a report. Output (PNGs + report.md + report.json) lands in
 ``tools/chart_parity_out/`` — gitignored.
@@ -328,14 +339,74 @@ def identity_line(label: str, ident: dict) -> str:
 
 
 # ─── capture ─────────────────────────────────────────────────────────────────
+#
+# ⚠️ A READINESS SIGNAL THAT IS REALLY A CLOCK IS NOT A READINESS SIGNAL.
+#
+# Until 2026-08-02 this function waited on `window.__chartReady` and screenshotted
+# ONCE. `__chartReady` was a fixed 3,500 ms `setTimeout` — a wall-clock settle, not
+# a statement about the canvas — so every number this tool has ever printed,
+# including all of the zeros, was measured against a clock and not against a
+# settled chart. The consequence was measured on this branch: an A/B pair whose two
+# sides do asymmetric main-thread work came back 24 changed px on one scanline of
+# the dashed last-price line, on 3 runs in 5, while each side ALONE was 0/5. The
+# slower side had settled its price range one frame later than the screenshot.
+#
+# Two fixes, and they are independent on purpose:
+#
+#   * `ChartRender.jsx` now extends `__chartReady` past its old 3,500 ms floor
+#     until the canvases inside `#chart-export` have been pixel-identical across
+#     several consecutive sampled frames. It can only ever fire LATER than it used
+#     to, never earlier, so no other consumer of the flag (the Morning Wire →
+#     Substack renderer) can regress on it.
+#   * THIS function no longer trusts any in-page flag on its own. It screenshots
+#     at least twice and requires two CONSECUTIVE captures to be pixel-identical
+#     before it accepts either. That asserts on the ARTIFACT — the bytes that get
+#     diffed — rather than on a proxy for it, which is the standing lesson on this
+#     project (`lesson_gate_that_cannot_fail`).
+#
+# Failure is LOUD: a chart that never settles raises `ChartNotSettledError`, the
+# case is reported as an ERROR and the run exits 1. It does NOT quietly accept the
+# last frame it happened to get, because that is exactly the old behaviour.
 
-def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000) -> None:
-    """Drive the page and screenshot the #chart-export ELEMENT.
+
+class ChartNotSettledError(RuntimeError):
+    """`#chart-export` never produced two consecutive identical captures.
+
+    Something inside the export is still animating (or repainting) after the
+    page said it was ready. Accepting one of those frames is how a one-scanline
+    diff enters a report as a migration result."""
+
+
+def _pixels(png_bytes: bytes) -> bytes:
+    """The DECODED RGB bytes of a screenshot.
+
+    Comparison is on pixels, not on the PNG container: an encoder that ever
+    emitted a differing byte for an identical framebuffer would make the
+    stability loop run forever and raise a false `ChartNotSettledError`. Pixels
+    are what `diff()` compares, so pixels are what stability has to mean.
+    """
+    from io import BytesIO
+    return Image.open(BytesIO(png_bytes)).convert("RGB").tobytes()
+
+
+def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
+            stable_tries: int = 8, settle_ms: int = 220) -> dict:
+    """Drive the page and screenshot the #chart-export ELEMENT, PROVING it settled.
 
     Waits on ``window.__chartReady`` (the page's own contract: settings landed,
-    fixture landed, plus a paint settle) and then on ``document.fonts.ready`` —
-    a cold vs warm webfont cache is a real, reproducible source of diff noise
-    that has nothing to do with the indicator under test.
+    fixture landed, plus a pixel-stability settle) and then on
+    ``document.fonts.ready`` — a cold vs warm webfont cache is a real,
+    reproducible source of diff noise that has nothing to do with the indicator
+    under test.
+
+    Then captures repeatedly, ``settle_ms`` apart, until two CONSECUTIVE captures
+    decode to identical pixels; that pair is what gets written. Bounded by
+    ``stable_tries``; exhausting it raises ``ChartNotSettledError`` rather than
+    accepting a frame.
+
+    Returns a small dict of capture diagnostics (how many shots it took, and what
+    the page itself said about its own settle) so the report can show that the
+    numbers came from settled canvases and not from a timer.
     """
     out_png.parent.mkdir(parents=True, exist_ok=True)
     page.goto(url, wait_until="domcontentloaded", timeout=45_000)
@@ -343,7 +414,34 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000) -> No
     page.evaluate("() => document.fonts.ready.then(() => true)")
     el = page.locator("#chart-export")
     el.wait_for(state="visible", timeout=10_000)
-    el.screenshot(path=str(out_png))
+
+    # What the PAGE thinks happened. `reason == 'ceiling'` means its own stability
+    # detector gave up and fell back to the time cap — worth seeing in a report,
+    # because it says the double-capture below is the only thing holding the line.
+    ready = page.evaluate(
+        "() => ({ms: window.__chartReadyMs ?? null, reason: window.__chartReadyReason ?? null,"
+        " frames: window.__chartReadyFrames ?? null})"
+    ) or {}
+
+    prev_png = None
+    prev_px = None
+    for shot_no in range(1, max(2, stable_tries) + 1):
+        png = el.screenshot()
+        px = _pixels(png)
+        if prev_px is not None and px == prev_px:
+            out_png.write_bytes(prev_png)
+            return {"shots": shot_no, "settled": True,
+                    "ready_ms": ready.get("ms"), "ready_reason": ready.get("reason"),
+                    "ready_frames": ready.get("frames")}
+        prev_png, prev_px = png, px
+        page.wait_for_timeout(settle_ms)
+
+    raise ChartNotSettledError(
+        f"#chart-export never produced two consecutive identical captures in "
+        f"{max(2, stable_tries)} shots {settle_ms}ms apart "
+        f"(page said ready after {ready.get('ms')}ms via {ready.get('reason')}). "
+        f"url={url}"
+    )
 
 
 # ─── diff ────────────────────────────────────────────────────────────────────
@@ -398,6 +496,20 @@ def diff(a_png: Path, b_png: Path, out_png: Path | None = None, channel_threshol
 
 # ─── report ──────────────────────────────────────────────────────────────────
 
+def flake_bound(n: int) -> float:
+    """95% upper confidence bound on a per-run failure probability, given ``n``
+    consecutive clean runs: ``1 − 0.05^(1/n)``.
+
+    This is here because "we ran it five times and it was 0" is not a measurement
+    of anything. Five zeros bound the flake rate at **45%** — a 20% flake rate
+    produces five clean runs a third of the time. A run count is a claim about a
+    bound; the tool states the bound so the report cannot round it up to
+    certainty.
+    """
+    n = max(1, int(n))
+    return 1.0 - (0.05 ** (1.0 / n))
+
+
 def write_report(report: dict, out_dir: Path) -> None:
     (out_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
@@ -430,6 +542,14 @@ def write_report(report: dict, out_dir: Path) -> None:
     if report.get("tolerance_reason"):
         lines.append(f"- tolerance override: **{report['global_tolerance']}** px — "
                      f"_{report['tolerance_reason']}_")
+    if report.get("repeat", 1) > 1:
+        n = report["repeat"]
+        lines.append(
+            f"- **{n} runs per case.** The reported number is the WORST run; every run's "
+            f"value is listed below. {n} consecutive clean runs put a 95% upper bound of "
+            f"**{flake_bound(n) * 100:.1f}%** on the per-run flake probability "
+            f"(`1 − 0.05^(1/n)`) — quote that bound, never \"it passed\"."
+        )
     lines += ["", "| case | changed px | of total | tolerance | verdict | diff |",
               "|---|---:|---:|---:|---|---|"]
     for r in report["results"]:
@@ -444,6 +564,24 @@ def write_report(report: dict, out_dir: Path) -> None:
         dpng = f"`{Path(r['diff_png']).name}`" if r.get("diff_png") else "—"
         lines.append(f"| `{r['name']}` | {r['changed']} | {r['pct']}% | {r['tolerance']} "
                      f"| {verdict} | {dpng} |")
+    if report.get("repeat", 1) > 1:
+        lines += ["", "### Per-run distribution", "",
+                  "| case | runs | changed px, per run | max | capture shots (a/b) |",
+                  "|---|---:|---|---:|---|"]
+        for r in report["results"]:
+            runs = r.get("runs") or []
+            if not runs:
+                lines.append(f"| `{r['name']}` | — | (errored) | — | — |")
+                continue
+            vals = ", ".join("—" if u.get("changed") is None else str(u["changed"]) for u in runs)
+            shots = ", ".join(f"{u.get('shots_a', '?')}/{u.get('shots_b', '?')}" for u in runs)
+            mx = max((u.get("changed") or 0) for u in runs)
+            lines.append(f"| `{r['name']}` | {len(runs)} | {vals} | {mx} | {shots} |")
+        lines.append("")
+        lines.append("`capture shots` is how many screenshots each side needed before two "
+                     "CONSECUTIVE ones decoded to identical pixels. 2 = settled immediately; "
+                     "anything higher is the harness having caught a chart that was still "
+                     "moving after the page called itself ready.")
     lines += [
         "",
         "## Reading this",
@@ -508,7 +646,22 @@ def main() -> int:
                          "last two are determinism self-checks of one render path.")
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--ready-timeout", type=int, default=60_000)
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run the whole case list N times and report the DISTRIBUTION "
+                         "(every run's changed-pixel count, plus the worst). A single 0 is "
+                         "not a measurement of a flake rate: N consecutive clean runs bound "
+                         "it at 1 - 0.05^(1/N) with 95%% confidence, which the report prints. "
+                         "5 runs bounds it at 45%%; 40 runs at 7.2%%.")
+    ap.add_argument("--stable-tries", type=int, default=8,
+                    help="max screenshots per capture while waiting for two CONSECUTIVE "
+                         "pixel-identical ones. Exhausting it is a loud ERROR, never a "
+                         "silently-accepted frame.")
+    ap.add_argument("--settle-ms", type=int, default=220,
+                    help="delay between stability screenshots")
     args = ap.parse_args()
+
+    if args.repeat < 1:
+        raise SystemExit("--repeat must be >= 1")
 
     if args.tolerance > 0 and not args.tolerance_reason.strip():
         raise SystemExit("--tolerance > 0 requires --tolerance-reason (it goes in the report)")
@@ -642,6 +795,8 @@ def main() -> int:
         "instances_side": args.instances_side,
         "global_tolerance": args.tolerance,
         "tolerance_reason": args.tolerance_reason,
+        "repeat": args.repeat,
+        "flake_bound_95": round(flake_bound(args.repeat), 6),
         "results": [], "failures": 0,
     }
     print(identity_line("A (baseline) ", ident_a))
@@ -662,54 +817,109 @@ def main() -> int:
             args=["--force-color-profile=srgb", "--font-render-hinting=none",
                   "--disable-lcd-text"],
         )
+        # ── ONE ENTRY PER CASE, N RUNS INSIDE IT ─────────────────────────────
+        # `--repeat` reruns the whole list rather than one case N times so the
+        # runs are spread across the same browser lifecycle a real gate run has,
+        # and so a case can never be measured under conditions the others never
+        # saw. The entry's headline `changed` is the WORST run: a gate that
+        # reports its best number is a gate that hides its flake.
+        entries = {}
         for case in cases:
-            w, h = case.get("w", 1200), case.get("h", 620)
-            entry = {"name": case["name"],
-                     "tolerance": case.get("tolerance", args.tolerance) or args.tolerance,
-                     "toleranceReason": case.get("toleranceReason")}
-            try:
-                shots = {}
-                for side, base in (("a", base_a), ("b", base_b)):
-                    # A fresh context per capture: no carried-over storage, no warm
-                    # IndexedDB, no reused canvas. deviceScaleFactor is pinned to 1
-                    # so the PNG is measured in CSS pixels on every machine.
-                    ctx = browser.new_context(
-                        viewport={"width": w + 60, "height": h + 60},
-                        device_scale_factor=1,
-                        reduced_motion="reduce",
-                    )
-                    page = ctx.new_page()
-                    try:
-                        url = case_url(base, case, args.token,
-                                       perturb if side == "b" else None,
-                                       side=side, instances_mode=args.instances_side,
-                                       perturb_instances=perturb_inst)
-                        shots[side] = out_dir / side / f"{case['name']}.png"
-                        capture(page, url, shots[side], args.ready_timeout)
-                        entry[f"url_{side}"] = url
-                    finally:
-                        ctx.close()
+            entries[case["name"]] = {
+                "name": case["name"],
+                "tolerance": case.get("tolerance", args.tolerance) or args.tolerance,
+                "toleranceReason": case.get("toleranceReason"),
+                "runs": [],
+            }
 
-                entry.update(diff(shots["a"], shots["b"], out_dir / "diff" / f"{case['name']}.png"))
-                entry["pass"] = (not entry["size_mismatch"]) and entry["changed"] <= entry["tolerance"]
-            except Exception as e:  # noqa: BLE001
-                entry["error"] = f"{type(e).__name__}: {e}"
+        for run_idx in range(1, args.repeat + 1):
+            sfx = "" if args.repeat == 1 else f"__r{run_idx}"
+            for case in cases:
+                w, h = case.get("w", 1200), case.get("h", 620)
+                entry = entries[case["name"]]
+                run = {"run": run_idx}
+                try:
+                    shots = {}
+                    for side, base in (("a", base_a), ("b", base_b)):
+                        # A fresh context per capture: no carried-over storage, no warm
+                        # IndexedDB, no reused canvas. deviceScaleFactor is pinned to 1
+                        # so the PNG is measured in CSS pixels on every machine.
+                        ctx = browser.new_context(
+                            viewport={"width": w + 60, "height": h + 60},
+                            device_scale_factor=1,
+                            reduced_motion="reduce",
+                        )
+                        page = ctx.new_page()
+                        try:
+                            url = case_url(base, case, args.token,
+                                           perturb if side == "b" else None,
+                                           side=side, instances_mode=args.instances_side,
+                                           perturb_instances=perturb_inst)
+                            shots[side] = out_dir / side / f"{case['name']}{sfx}.png"
+                            cap = capture(page, url, shots[side], args.ready_timeout,
+                                          stable_tries=args.stable_tries,
+                                          settle_ms=args.settle_ms)
+                            entry[f"url_{side}"] = url
+                            run[f"shots_{side}"] = cap["shots"]
+                            run[f"ready_ms_{side}"] = cap["ready_ms"]
+                            run[f"ready_reason_{side}"] = cap["ready_reason"]
+                        finally:
+                            ctx.close()
+
+                    run.update(diff(shots["a"], shots["b"],
+                                    out_dir / "diff" / f"{case['name']}{sfx}.png"))
+                except Exception as e:  # noqa: BLE001
+                    run["error"] = f"{type(e).__name__}: {e}"
+                    run["size_mismatch"] = False
+                    run["changed"] = None
+                entry["runs"].append(run)
+
+                if run.get("error"):
+                    print(f"[{case['name']:24}] run {run_idx}/{args.repeat} ERROR {run['error']}",
+                          file=sys.stderr)
+                elif run["size_mismatch"]:
+                    print(f"[{case['name']:24}] run {run_idx}/{args.repeat} "
+                          f"SIZE MISMATCH {run['a_size']} vs {run['b_size']}")
+                else:
+                    print(f"[{case['name']:24}] run {run_idx}/{args.repeat} "
+                          f"changed={run['changed']:>8} ({run['pct']}%) "
+                          f"shots={run.get('shots_a')}/{run.get('shots_b')}")
+        browser.close()
+
+        # ── Collapse each case's runs into its verdict ────────────────────────
+        for case in cases:
+            entry = entries[case["name"]]
+            runs = entry["runs"]
+            errs = [r["error"] for r in runs if r.get("error")]
+            worst = None
+            for r in runs:
+                if r.get("error") or r.get("size_mismatch") or r.get("changed") is None:
+                    continue
+                if worst is None or r["changed"] > worst["changed"]:
+                    worst = r
+            if errs:
+                entry["error"] = errs[0] if len(errs) == 1 else f"{len(errs)}/{len(runs)} runs: {errs[0]}"
                 entry["pass"] = False
                 entry["size_mismatch"] = False
+            elif any(r.get("size_mismatch") for r in runs):
+                bad = next(r for r in runs if r.get("size_mismatch"))
+                entry.update({k: bad[k] for k in ("size_mismatch", "a_size", "b_size")})
+                entry["changed"] = None
+                entry["pass"] = False
+            else:
+                entry.update({k: worst[k] for k in
+                              ("size_mismatch", "a_size", "b_size", "changed", "total",
+                               "pct", "diff_png")})
+                entry["changed_values"] = [r["changed"] for r in runs]
+                entry["pass"] = entry["changed"] <= entry["tolerance"]
 
             if not entry["pass"]:
                 report["failures"] += 1
             report["results"].append(entry)
-
-            if entry.get("error"):
-                print(f"[{case['name']:16}] ERROR {entry['error']}", file=sys.stderr)
-            elif entry["size_mismatch"]:
-                print(f"[{case['name']:16}] SIZE MISMATCH {entry['a_size']} vs {entry['b_size']}")
-            else:
-                flag = "ok" if entry["pass"] else "FAIL"
-                print(f"[{case['name']:16}] {flag:4} changed={entry['changed']:>8} "
-                      f"({entry['pct']}%) tol={entry['tolerance']}")
-        browser.close()
+            flag = "ok" if entry["pass"] else "FAIL"
+            shown = entry.get("changed")
+            print(f"[{case['name']:24}] {flag:4} worst={shown} over {len(runs)} run(s) "
+                  f"tol={entry['tolerance']}")
 
     write_report(report, out_dir)
     print(f"\n{len(report['results'])} case(s), {report['failures']} failure(s). "

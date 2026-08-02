@@ -301,19 +301,117 @@ export default function ChartRender() {
     return () => { alive = false }
   }, [sym, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
 
-  // Signal readiness once the chart has had time to fetch bars + paint. No
-  // onReady hook on StockChart, so a paint-settle delay is the pragmatic guard.
+  // ── Signal readiness — PIXEL STABILITY, not a stopwatch ────────────────────
   //
   // Gated on the settings landing first — otherwise the screenshot can be taken
   // while the chart is still wearing the default theme, and the fix would land
   // intermittently (the worst kind of "it works on my machine"). The bar fixture
   // is gated for the same reason: until it lands StockChart is showing a spinner,
   // and a parity baseline of a spinner passes forever.
+  //
+  // ⚠️ THIS USED TO BE A BARE `setTimeout(…, 3500)`, AND THAT IS NOT A READINESS
+  // SIGNAL. It said "3.5 seconds have passed", not "the chart has stopped
+  // moving", so every parity number ever produced through this page — including
+  // all of the zeros — was measured against a clock. The cost was measured: an
+  // A/B pair doing asymmetric main-thread work came back 24 changed px on one
+  // scanline of the dashed last-price line, on 3 runs in 5, because the busier
+  // side settled its price range one frame after the screenshot.
+  //
+  // So the flag now waits for the CANVASES INSIDE `#chart-export` to hold still:
+  // their pixels are hashed on a sampling interval and the flag flips only after
+  // STABLE_SAMPLES consecutive identical hashes.
+  //
+  // 🔒 IT CAN ONLY EVER FIRE LATER THAN IT USED TO, NEVER EARLIER. The 3,500 ms
+  // floor is kept verbatim, and stability is an ADDITIONAL condition on top of
+  // it. That matters because this page has a second consumer — the Morning Wire →
+  // Substack renderer — which has always had 3.5 s of settle; a signal that could
+  // fire sooner would be a silent regression for it. The ceiling stops a chart
+  // that never settles (an animation, a live tick) from hanging a capture
+  // forever; when it is hit, `__chartReadyReason` says so and the harness records
+  // it. The harness ALSO double-captures and requires byte-equal pixels, so this
+  // is the belt and that is the braces — deliberately independent.
+  //
+  // Reading the canvas does not change what is rendered: `getImageData` is a
+  // read, and nothing here touches chart state.
   useEffect(() => {
     window.__chartReady = false
+    window.__chartReadyMs = null
+    window.__chartReadyReason = null
+    window.__chartReadyFrames = null
     if (!settingsSettled || !fixtureSettled) return undefined
-    const t = setTimeout(() => { window.__chartReady = true }, 3500)
-    return () => clearTimeout(t)
+
+    const FLOOR_MS = 3500      // unchanged from the timer this replaced
+    const CEILING_MS = 20000   // never hang a capture on a chart that won't settle
+    const SAMPLE_MS = 120
+    const STABLE_SAMPLES = 4   // 4 identical samples ⇒ ~360ms of held-still canvas
+
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    let cancelled = false
+    let timer = 0
+    let prev = null
+    let stable = 0
+
+    const finish = (reason) => {
+      if (cancelled) return
+      window.__chartReadyMs = Math.round(
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)
+      window.__chartReadyReason = reason
+      window.__chartReadyFrames = stable
+      window.__chartReady = true
+    }
+
+    // A cheap 32-bit rolling hash over every canvas's pixels. Full walk, no
+    // stride: the artefact this exists to catch is ONE SCANLINE of a dashed
+    // line, and a stride wide enough to be cheap is wide enough to step over it.
+    const sample = () => {
+      const root = document.getElementById('chart-export')
+      if (!root) return null
+      const canvases = root.querySelectorAll('canvas')
+      if (!canvases.length) return null
+      let h = 0x811c9dc5
+      // How many canvases actually GAVE us pixels. A signature built only out of
+      // widths and heights is a hash of nothing that never changes — it would
+      // read as "stable" forever and reproduce the stopwatch with extra steps.
+      // Returning null instead makes "unreadable" ride the ceiling, which is the
+      // fail-toward-waiting direction.
+      let read = 0
+      for (const c of canvases) {
+        h = (h ^ c.width) >>> 0; h = Math.imul(h, 0x01000193) >>> 0
+        h = (h ^ c.height) >>> 0; h = Math.imul(h, 0x01000193) >>> 0
+        let ctx2d
+        try { ctx2d = c.getContext('2d') } catch { ctx2d = null }
+        if (!ctx2d || !c.width || !c.height) continue
+        let data
+        try { data = ctx2d.getImageData(0, 0, c.width, c.height).data } catch { return null }
+        read += 1
+        for (let i = 0; i < data.length; i++) {
+          h = (h ^ data[i]) >>> 0
+          h = Math.imul(h, 0x01000193) >>> 0
+        }
+      }
+      return read ? (h >>> 0) : null
+    }
+
+    const tick = () => {
+      if (cancelled) return
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+      const elapsed = now - t0
+      const sig = sample()
+      // `null` = nothing to sample yet (no canvas, or a tainted/absent 2D
+      // context). Treat it as "not stable" rather than as a value, so a page
+      // that never gives us pixels rides the ceiling instead of declaring
+      // itself ready on a hash of nothing.
+      if (sig !== null && prev !== null && sig === prev) stable += 1
+      else stable = sig === null ? 0 : 1
+      prev = sig
+
+      if (elapsed >= FLOOR_MS && sig !== null && stable >= STABLE_SAMPLES) { finish('stable'); return }
+      if (elapsed >= CEILING_MS) { finish('ceiling'); return }
+      timer = setTimeout(tick, SAMPLE_MS)
+    }
+    timer = setTimeout(tick, SAMPLE_MS)
+
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [sym, tf, settingsSettled, fixtureSettled])
 
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
