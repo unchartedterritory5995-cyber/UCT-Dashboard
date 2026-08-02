@@ -298,21 +298,9 @@
 /* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
 .changeCell { font-weight: 400; }   /* only the % change is thin; everything else is 600 */
 
-/* Notes + alert actions — revealed on row hover, overlaid at the right edge so the
-   default view stays clean columns. */
-.rowActions {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: none;
-  align-items: center;
-  gap: 2px;
-  padding-left: 8px;
-  background: var(--bg-surface);
-  box-shadow: -8px 0 8px -4px var(--bg-surface);
-}
-.listRow:hover .rowActions { display: inline-flex; }
+/* NOTE: the per-row hover strip (`.rowActions` + its note/alert/× buttons) was
+   retired by 75729b1a — notes, price alerts and remove all live in the row's
+   right-click menu now (`.ctxItem`), so the row stays clean columns. */
 
 /* Round company logo before the ticker — mirrors Theme Tracker's .stockLogo. */
 .rowLogo {
@@ -383,24 +371,6 @@
 /* Sunrise/Sunset light theme uses darker green/red so it reads on the bright canvas. */
 :global([data-charts-theme='sunrise']) .gain { color: #0a5c22; }
 :global([data-charts-theme='sunrise']) .loss { color: #7d1620; }
-
-.removeBtn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px 4px;
-  line-height: 1;
-  opacity: 0.4;
-  transition: opacity 0.15s, color 0.15s;
-  flex-shrink: 0;
-}
-
-.removeBtn:hover {
-  color: var(--loss);
-  opacity: 1;
-}
 
 /* ── Empty state ── */
 .emptyList {
@@ -900,19 +870,8 @@
   margin-bottom: 12px;
 }
 
-.alertBtn {
-  background: none;
-  border: none;
-  font-size: 11px;
-  cursor: pointer;
-  padding: 0 2px;
-  opacity: 0.3;
-  line-height: 1;
-}
-
-.alertBtn:hover { opacity: 0.8; }
-.alertBtnActive { opacity: 1; }
-
+/* Price-alert popover — opened from the row menu's "Set price alert" entry,
+   anchored at the click point (fixed positioning, same coords as the menu). */
 .alertPopover {
   position: fixed;
   background: #1e1e22;
@@ -1070,19 +1029,7 @@
   margin-left: 2px;
 }
 
-.noteBtn {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.25);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0 2px;
-  line-height: 1;
-}
-
-.noteBtn:hover { color: var(--ut-gold, #c9a84c); }
-.noteBtnActive { color: var(--ut-gold, #c9a84c); opacity: 1; }
-
+/* Per-symbol note editor row — dropped in under a row by the row menu's "Notes". */
 .noteRow {
   padding: 4px 14px 8px 42px;
   background: rgba(0,0,0,0.15);

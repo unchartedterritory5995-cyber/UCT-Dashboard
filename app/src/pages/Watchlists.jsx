@@ -595,7 +595,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
   const { tagColors: TAG_COLORS, tagByKey: TAG_BY_KEY } = useTagColors()
   const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
-  const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
+  const { createAlert, deleteAlert, getAlertsForSym } = useWatchlistAlerts()
   const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
   const [alertPrice, setAlertPrice] = useState('')
   const [alertDir, setAlertDir] = useState('above')
@@ -1004,6 +1004,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (item) await handleRemoveItem(listId, item.id)
   }
 
+  // Open (or re-close) the per-symbol note editor BY TICKER — same shape as
+  // `handleRemoveSym`, because the row menu only ever carries the sym. A note is a
+  // column on a watchlist ITEM, so Flagged — which isn't a real list — has none.
+  // Community rows never open a row menu at all, which is what keeps a shared
+  // list's notes read-only (the note row's own `isOwner` branch is the backstop).
+  function toggleNoteSym(listId, sym) {
+    const clean = String(sym || '').trim().toUpperCase()
+    if (!clean || listId === 'flagged') return
+    const wl = (myLists || []).find(w => w.id === listId)
+    const item = (wl?.items || []).find(i => String(i.sym).toUpperCase() === clean)
+    if (item) toggleNote(item.id, item.notes)
+  }
+
   const currentLists = activeTab === 'mine' ? myLists : communityLists
 
   // ── Configurable + sortable columns ── (colCfg STATE is declared earlier, above
@@ -1293,23 +1306,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Handlers that read mutable render state reach it through a ref, so the callback identity
   // never changes even as the underlying value does. ──
   const rowStateRef = useRef({})
-  rowStateRef.current = { setHubSym, toggleFlag, toggleNote, hasAlert, handleRemoveItem, setCtxMenu, myLists, communityLists }
+  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists }
   const onRowSelect = useCallback((sym) => { setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
   const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
-  const onRowNote = useCallback((itemId, notes) => rowStateRef.current.toggleNote(itemId, notes), [])
-  const onRowAlert = useCallback((sym, e) => { setAlertPopover({ sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }, [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
     e.preventDefault(); e.stopPropagation()
-    // Community lists aren't yours — no add/remove, so no row menu at all.
+    // Community lists aren't yours — no add/remove/notes, so no row menu at all.
     if (!isOwner) return
     rowStateRef.current.setCtxMenu({ x: e.clientX, y: e.clientY, id: wlId, isOwner, sym })
   }, [])
-  const onRowRemove = useCallback((e, wlId, itemId) => { e.stopPropagation(); rowStateRef.current.handleRemoveItem(wlId, itemId) }, [])
 
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
-  // `wlId` (owner watchlist rows only) enables the right-click context menu + remove button.
-  function renderTickerRow({ sym, name = null, isOwner = false, itemId = null, notes = null, wlId = null }) {
+  // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
+  // where notes / price alerts / remove all live.
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null }) {
     const q = prices[sym]
     // N-day % change, computed LIVE from the current price vs the reference close N
     // trading days ago (backend `refs`), so these columns tick/flash/tint with every
@@ -1351,18 +1362,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
         isOwner={isOwner}
-        itemId={itemId}
-        notes={notes}
         wlId={wlId}
-        noteOpen={isOwner && expandedNote === itemId}
-        alertOn={isOwner && hasAlert(sym)}
         onSelect={onRowSelect}
         onToggleFlag={onRowFlag}
         onIntent={onRowIntent}
-        onToggleNote={onRowNote}
-        onSetAlert={onRowAlert}
         onCtx={onRowCtx}
-        onRemove={isOwner ? onRowRemove : null}
       />
     )
   }
@@ -1479,10 +1483,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     sym: item.sym,
                     name: item.name,
                     isOwner,
-                    itemId: item.id,
-                    notes: item.notes,
                     wlId: wl.id,
                   })}
+                  {/* Note editor, opened from the row menu's "Notes" entry (and
+                      closed by picking it again). Editable on YOUR lists only —
+                      a shared list's notes are read-only. */}
                   {expandedNote === item.id && (
                     <div className={styles.noteRow}>
                       {isOwner ? (
@@ -1998,12 +2003,33 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       {/* ── Context menu ── */}
       {ctxMenu && (() => {
         const ctxBody = ctxMenu.sym ? (
-          // Right-click on a ROW → the only action is removing that symbol. Only
-          // ever opened for owned lists (community rows skip the menu entirely).
-          <button
-            className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
-            onClick={() => { handleRemoveSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
-          >Remove from watchlist</button>
+          // Right-click on a ROW → the per-symbol actions. Only ever opened for owned
+          // lists (community rows skip the menu entirely), so a shared list's notes
+          // stay read-only exactly as they were when these lived on hover buttons.
+          // 75729b1a retired those buttons and carried ONLY × over to this menu,
+          // orphaning notes + alerts app-wide; owner decision 2026-08-01 restored
+          // them HERE rather than re-cluttering the row.
+          <>
+            {ctxMenu.id !== 'flagged' && (
+              <button
+                className={styles.ctxItem}
+                onClick={() => { toggleNoteSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
+              >Notes</button>
+            )}
+            <button
+              className={styles.ctxItem}
+              onClick={() => {
+                setAlertPopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
+                setAlertPrice('')
+                setAlertDir('above')
+                setCtxMenu(null)
+              }}
+            >Set price alert</button>
+            <button
+              className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
+              onClick={() => { handleRemoveSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
+            >Remove from watchlist</button>
+          </>
         ) : (
           // Right-click on a LIST HEADER → list-level actions (unchanged).
           <>
