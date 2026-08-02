@@ -22,7 +22,7 @@ The gate needs a frontend and **nothing else** — in fixed-bars mode the page i
 hermetic, so a bare Vite dev server with no backend running is a valid target.
 
 ```bash
-cd app && npm run dev          # http://localhost:5173
+cd app && npm run dev          # serves on 5173 -- address it as http://127.0.0.1:5173
 ```
 
 ### 1. Determinism self-check — must be 0
@@ -33,7 +33,7 @@ harness itself is unreliable and no parity result from it can be trusted** — s
 and fix that first.
 
 ```bash
-python tools/chart_parity.py --base-a http://localhost:5173 --same-build
+python tools/chart_parity.py --base-a http://127.0.0.1:5173 --same-build
 ```
 
 `--same-build` is **required** here, and it is not ceremony. Omitting `--base-b`
@@ -48,7 +48,7 @@ Perturb one indicator's colour by one hex digit on the B side only. This is a
 self-test of the gate, not a parity result — the report labels it as such.
 
 ```bash
-python tools/chart_parity.py --base-a http://localhost:5173 --same-build \
+python tools/chart_parity.py --base-a http://127.0.0.1:5173 --same-build \
     --cases rsi_only \
     --perturb-b '{"indicators": {"rsi": {"color": "#7b68ef"}}}'
 ```
@@ -67,8 +67,8 @@ cd app && npm run dev -- --port 5173
 # terminal 2 — the branch WITH it
 cd ../<engine-worktree>/app && npm run dev -- --port 5174
 
-python tools/chart_parity.py --base-a http://localhost:5173 \
-                             --base-b http://localhost:5174 \
+python tools/chart_parity.py --base-a http://127.0.0.1:5173 \
+                             --base-b http://127.0.0.1:5174 \
                              --cases bb_only
 ```
 
@@ -102,6 +102,14 @@ python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legac
 Phase B2's numbers were all produced through an uncommitted scratch copy while
 this document pointed at `<scratch>/`; a harness the reader cannot obtain makes
 every number in the report unverifiable.
+
+⚠️ **PROVENANCE, STATED EXACTLY.** The committed file is a RE-IMPLEMENTATION of
+that scratch copy, not the scratch copy itself: `socketserver.TCPServer` vs the
+scratch `ThreadingHTTPServer`, `argparse` vs `sys.argv`, a two-branch `do_GET`
+fallback vs a one-branch one. It serves the same route the same way and every
+number from Task 2 onward WAS measured through it — but B2's own numbers were
+not, and the commit that landed it (`935b9cb9`) says otherwise in its subject
+line. Believe this paragraph, not that subject.
 
 A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
 `index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and
@@ -173,8 +181,8 @@ serving** (`read_build_identity`) and **records both answers** in `report.json`
 and at the top of `report.md`:
 
 ```
-- A (baseline): `http://localhost:5317` · build **aada0c2b2d75** (dev) — no hashed assets (dev server) · engine source: present
-- B (candidate): `http://localhost:5317` · build **aada0c2b2d75** (dev) — no hashed assets (dev server) · engine source: present
+- A (baseline): `http://127.0.0.1:5317` · build **aada0c2b2d75** (dev) — no hashed assets (dev server) · engine source: present
+- B (candidate): `http://127.0.0.1:5317` · build **aada0c2b2d75** (dev) — no hashed assets (dev server) · engine source: present
 ```
 
 * a **`dist` build** advertises hashed assets in `index.html`

@@ -4185,6 +4185,10 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 Identical shape to Task 10, with three differences worth their own steps: MACD contributes **two** legend chips that must survive the deletion of `macdLineRef`/`macdSignalRef`; MACD is bound to **Ctrl+O**; and VWAP's enable signal is not only a toggle — `vwapOverride` forces it on, so the projection and the forced-instance branch have to agree about whether VWAP reserves anything (it is a price overlay, so it reserves no band, which makes the answer trivially "no" and worth asserting rather than assuming).
 
+⚠️ **INHERITED, UNGATED BY CONSTRUCTION — gate it here.** Task 2's fix round split the MACD crosshair rescue so `signal`'s fallback is decided by `macdSignalRef`, not by `macd`'s value (review M-6). That change is behaviourally identical *today* — MACD is not migrated, so `engSlots.macd` is always null and the old single branch always ran — and a mutation reverting it therefore SURVIVES the whole suite. The state that distinguishes them, **one plot of a definition drawn by the engine while another is not**, first becomes reachable HERE. The MACD legend case must assert the two chips independently: engine-`macd` + legacy-`signal` must still print `SIG`, and the reverted coupling must go red on it.
+
+⚠️ **VWAP AND THE FLIP-A VISIBILITY GATE.** Task 2's fix round makes the legacy toggle Flip A's visibility switch: an instance of a migrated definition whose `cs.indicators.<id>.enabled` is false is projected to `hidden` (`StockChart.jsx`, `legacyEnabled`). VWAP's enable signal is **not** that flag alone — `vwapOverride` forces it on — so VWAP must not join `ENGINE_MIGRATED_DEF_IDS` until either that projection accounts for the override or Task 10 has already deleted it for the flipped set. The projection carries this warning in-code; do not add the id past it.
+
 **Files:**
 - Modify: `app/src/components/StockChart.jsx` — `ENGINE_FLIPPED_DEF_IDS`, `:1708`, `:1722-1724`, the MACD/VWAP `indicatorData` branches, `:5900-5929`, `:5998-6035`, `:7793-7799`, `:8332-8333`, the Ctrl+O handler
 - Modify: `app/src/components/chart/ChartToolbar.jsx` (the MACD + VWAP rows, via the writer from Task 10)
@@ -4376,28 +4380,37 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ### Task 12: `indicatorRegistry` superseded + the enumeration ledger
 
-Adjudication A6, and the phase's stated purpose. The 2026-07 header on `indicatorRegistry.js` counted **seven** places an indicator is enumerated. Counted again against HEAD (`c6970d28`), before B3, there are **sixteen**:
+Adjudication A6, and the phase's stated purpose. The 2026-07 header on `indicatorRegistry.js` counted **seven** places an indicator is enumerated. This plan first counted **sixteen** — and that number was wrong. Task 2's review walked all sixteen against the shipped Flip-A state and found **five more**, four of them named in review finding I-4 and one (`chartBus`) triaged there as dead-but-real. The corrected count is **twenty-one**, line numbers as of `d1131320` (Task 2 fix round 1):
 
 | # | Site | What it enumerates |
 |---|---|---|
 | 1 | `chartDefaults.js:126` | `CHART_DEFAULTS.indicators` — 15 default sections |
-| 2 | `chartDefaults.js:370-385` | `mergeChartSettings`' hand-written per-key allow-list, 15 lines |
-| 3 | `StockChart.jsx:1705-1730` | the series `useRef` declarations, 27 refs |
-| 4 | `StockChart.jsx:3957-4071` | the `indicatorData` memo — 14 compute calls + shape mapping |
-| 5 | `StockChart.jsx:5875-6277` | the 14 hand-written render blocks |
-| 6 | `StockChart.jsx:7787-7827` | the crosshair value reads |
-| 7 | `StockChart.jsx:8325-8339` | the hide-all ref array |
-| 8 | `StockChart.jsx:9588-9599` | the `legChips` list |
-| 9 | `paneMargins.js:38-48` | the `PANES` stacking list, 9 oscillators |
+| 2 | `chartDefaults.js:314+` | `mergeChartSettings`' hand-written per-key allow-list, 15 lines |
+| 3 | `StockChart.jsx:1699+` | the series `useRef` declarations, 27 refs |
+| 4 | `StockChart.jsx:3954+` | the `indicatorData` memo — 14 compute calls + shape mapping |
+| 5 | `StockChart.jsx:5912+` | the 14 hand-written render blocks |
+| 6 | `StockChart.jsx:7824+` | the crosshair value reads |
+| 7 | `StockChart.jsx:8388` | the hide-all ref array |
+| 8 | `StockChart.jsx:9669` | the `legChips` list |
+| 9 | `paneMargins.js:38-49` | the `PANES` stacking list, 9 oscillators |
 | 10 | `chartRegion.js:68-78` | `INDICATOR_LABELS`, 9 |
-| 11 | `ChartToolbar.jsx:370` + rows | `OSC` plus one JSX block per indicator |
+| 11 | `ChartToolbar.jsx:400` + rows | `OSC` plus one JSX block per indicator |
 | 12 | `indicatorRegistry.js:81-115` | `listIndicators()` — MA overlays, volume, VWAP |
 | 13 | `keyboardShortcuts.js:99-100,154-155` | Ctrl+I / Ctrl+O |
 | 14 | `IndicatorAlertPopover.jsx:15-53` | `INDICATORS` + `CONDITIONS` |
 | 15 | `nativeRegistry.js` `RAW_DEFS` | **the one that should survive** |
 | 16 | `tools/chart_parity_cases.json` | the case list |
+| **17** | `StockChart.jsx:2196` `IND_OPTS` | right-click **Indicators ▸** submenu, 8 names — writes `indicators.<key>.enabled` |
+| **18** | `StockChart.jsx:2207` `OSC_OPTS` | right-click **Overlay on volume ▸** submenu, 9 names. A SECOND copy of #11's `OSC`, in a different file, one entry apart |
+| **19** | `StockChart.jsx:2236` right-click **Hide `<label>`** | `INDICATOR_LABELS[region.key]` → `setCs('indicators.<key>.enabled', false)` |
+| **20** | `StockChart.jsx:2382-2402` `handleCopyShareUrl` | **`rsi`, `macd`, `bb`, `vwap` — exactly the four B3 pilots.** Carries neither `indicatorInstances` nor `engineEnabled` |
+| **21** | `utils/chartBus.js:22` `ALLOWED_INDICATORS` | the voice `add_indicator` allow-list (`rsi`/`macd`/`bb` + MAs/VWAP). **DEAD TODAY** — nothing subscribes to `CHART_BUS_EVENTS.ADD_INDICATOR` — and listed anyway, because a ledger that drops a site for being unreachable cannot notice the day it becomes reachable |
 
-B3 retires **3, 4, 5, 6, 8** for the four flipped indicators (Tasks 10–11), **9** via the projection (Task 9), and **12** for VWAP (this task). **10, 11, 13, 14** need the settings-dialog rework of spec §6 and belong to B4; **1, 2, 16** are data files that legitimately list things. This task writes the ledger down and makes it a test, so the count cannot quietly grow back.
+**Sites 17, 19 and #11's checkbox are the SAME switch, four doors wide.** Task 2's fix round makes all four work under Flip A (the legacy toggle stays the visibility authority and StockChart projects an instance whose toggle is off to `hidden`); Task 10 moves that authority to the instance via `instanceControls`, and every one of the four has to be routed there or it regresses to writing a flag nothing reads.
+
+**Site 20 is a Flip-B landmine and belongs to Task 10, not to this task.** At Flip A it is harmless — `cs.indicators.rsi.enabled` is still true and still authoritative, so a shared link reproduces the chart. **At Flip B `enabled` stops being the authority**, and "Copy chart link" silently drops RSI and Bollinger Bands from every shared chart. Task 10 must carry `indicatorInstances` + `engineEnabled` through `chartStateToUrl`, with a test; this task's ledger only has to know the site exists so the test can cover it.
+
+B3 retires **3, 4, 5, 6, 8** for the four flipped indicators (Tasks 10–11), **9** via the projection (Task 9), and **12** for VWAP (this task). **10, 11, 13, 14, 17, 18, 19** need the settings-dialog rework of spec §6 and belong to B4; **1, 2, 16** are data files that legitimately list things; **20** is Task 10's; **21** is dead and stays listed. This task writes the ledger down and makes it a test, so the count cannot quietly grow back.
 
 **Files:**
 - Modify: `app/src/components/chart/indicatorRegistry.js`

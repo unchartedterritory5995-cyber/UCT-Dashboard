@@ -601,7 +601,16 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(rsiChipColor(view)).toBe('rgb(255, 0, 0)')
   })
 
-  it('a HIDDEN instance contributes no chip — there is no line to describe', async () => {
+  it('a HIDDEN instance binds nothing, and NEITHER side puts a chip in the legend', async () => {
+    // ⚠️ WHAT EACH HALF PROVES (review M-4 corrected a report claim here). The
+    // FIRST assertion is the gate on `legend.hide`-adjacent behaviour: a hidden
+    // instance binds nothing. The SECOND does NOT prove the chip logic dropped
+    // it — `hoverLatest` finds no `rsi`-scale series, so no value was offered in
+    // the first place. What it DOES prove, and the reason it stays, is that the
+    // legacy block did not step in with a chip of its own while the engine still
+    // owns the definition. `legend.hide` itself is gated in `readout.test.js`
+    // (`emits NO chip for a price overlay`), on the pure function, where a
+    // mutation actually reaches it.
     const view = draw({
       ...RSI_ON, engineEnabled: true, indicatorInstances: [{ ...RSI_INSTANCE, hidden: true }],
     })

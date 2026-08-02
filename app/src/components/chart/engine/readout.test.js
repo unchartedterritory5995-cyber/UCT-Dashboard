@@ -145,6 +145,20 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
     expect(by.rsi.value).toBeCloseTo(54.321, 6)
     expect(by.rsi.text).toBe('RSI(14) 54.3')
   })
+
+  it('chipsBySlot DROPS a chip with no slot rather than inventing a key for it', () => {
+    // `readout.js`'s docstring claims this and nothing tested it (review M-3):
+    // deleting `if (!c.slot) continue` left 42 tests green. Unreachable today —
+    // the slot rail forbids a declared visible chip without a slot — but the
+    // whole point of that rail is that the next migration WILL add a chip, and a
+    // stated property with no test is the thing this branch keeps re-learning.
+    const kept = { slot: 'rsi', value: 54.3, text: 'RSI(14) 54.3', color: '#7b68ee' }
+    for (const slot of [null, undefined, '']) {
+      const out = chipsBySlot([{ ...kept, slot }, kept])
+      expect(Object.keys(out), `slot: ${JSON.stringify(slot)}`).toEqual(['rsi'])
+      expect(out[String(slot)]).toBeUndefined()
+    }
+  })
 })
 
 describe('the slot bridge cannot silently lose a chip', () => {

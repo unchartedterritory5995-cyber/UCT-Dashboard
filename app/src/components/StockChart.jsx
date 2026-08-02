@@ -7847,12 +7847,20 @@ export default function StockChart({
         rsiValue = d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)
       }
 
+      // PER-PLOT, not per-indicator (review M-6). These were one branch, so
+      // `signal`'s fallback was decided by whether `macd` had a value — inert
+      // today (MACD is not migrated, so `engSlots.macd` is always null and the
+      // single branch always ran) but wrong the moment one plot of a definition
+      // is drawn by the engine and another is not. Byte-identical today; correct
+      // when Task 11 lands.
       let macdValue = engSlots.macd ? engSlots.macd.value : null
       let macdSignalValue = engSlots.macdSig ? engSlots.macdSig.value : null
       if (macdValue === null && macdLineRef.current) {
         const dm = param.seriesData.get(macdLineRef.current)
-        const ds = macdSignalRef.current ? param.seriesData.get(macdSignalRef.current) : null
-        macdValue       = dm?.value ?? (indicatorData.macd.macd.at(-1)?.value   ?? null)
+        macdValue = dm?.value ?? (indicatorData.macd.macd.at(-1)?.value ?? null)
+      }
+      if (macdSignalValue === null && macdSignalRef.current) {
+        const ds = param.seriesData.get(macdSignalRef.current)
         macdSignalValue = ds?.value ?? (indicatorData.macd.signal.at(-1)?.value ?? null)
       }
 
