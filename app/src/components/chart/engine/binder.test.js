@@ -683,6 +683,28 @@ describe('release and teardown', () => {
     binder.sync(ctxFor([inst('rsi', { hidden: true })]))
     expect(fake.count('removeSeries')).toBe(1)
   })
+
+  it('a hidden instance is not COMPUTED either — nobody was ever going to read it', () => {
+    // `planBindings` drops a hidden instance on its first line, before it asks
+    // `hasData`, so every compute done for one was thrown away — and it is a full
+    // indicator pass over the whole bar set, on the main thread, inside
+    // `updateChart`. B3's Flip-A visibility projection makes hidden the COMMON
+    // state (every migrated indicator whose legacy toggle is off carries a hidden
+    // instance), so this stopped being a rounding error.
+    const reg = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi', { hidden: true }), inst('macd')]), registry: reg })
+    expect(reg.computes, 'the hidden instance was computed for nothing').toEqual(['macd'])
+  })
+
+  it('…and unhiding it computes it again — the skip is not a poisoned memo', () => {
+    const reg = countingRegistry()
+    const hidden = { ...ctxFor([inst('rsi', { hidden: true })]), registry: reg }
+    binder.sync(hidden)
+    expect(reg.computes).toEqual([])
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg })
+    expect(reg.computes, 'unhiding drew a line from a column nobody computed').toEqual(['rsi'])
+    expect(fake.count('addSeries')).toBeGreaterThan(0)
+  })
 })
 
 describe('it never takes the chart down', () => {

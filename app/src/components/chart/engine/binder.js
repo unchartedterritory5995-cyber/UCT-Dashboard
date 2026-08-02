@@ -267,6 +267,19 @@ export function createBinder({ chart, LWC }) {
     const computedIds = new Set()
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string') continue
+      // A HIDDEN instance is computed by NOBODY. `planBindings` drops it on its
+      // first line (`if (inst.hidden === true) continue`), before it ever asks
+      // `hasData`, so every cycle spent here was thrown away — and it was not
+      // free: it is a full indicator pass over the whole bar set, on the main
+      // thread, inside `updateChart`. B3's Flip-A visibility projection makes
+      // `hidden` the COMMON state — every migrated indicator whose legacy toggle
+      // is off carries a hidden instance — so this stopped being a rounding
+      // error. MEASURED while chasing an unrelated capture flake: the pass
+      // shifted the headless screenshot enough to change the dashed last-price
+      // line's antialiasing on one scanline. It did not fully explain that flake
+      // (see the runbook's "a diff confined to one scanline" note), but it was
+      // wasted work either way.
+      if (inst.hidden === true) continue
       const def = registry.getDefinition(inst.defId)
       if (!def) continue
       computedIds.add(inst.instanceId)

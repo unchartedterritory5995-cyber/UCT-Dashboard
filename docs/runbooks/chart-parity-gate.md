@@ -111,6 +111,36 @@ number from Task 2 onward WAS measured through it — but B2's own numbers were
 not, and the commit that landed it (`935b9cb9`) says otherwise in its subject
 line. Believe this paragraph, not that subject.
 
+⚠️ **A DIFF CONFINED TO ONE SCANLINE IS CAPTURE TIMING, NOT A MIGRATION
+DIFFERENCE — AND IT IS THE ONLY KIND YOU MAY RE-RUN.** Measured 2026-08-02 while
+gating B3's Flip-A visibility projection: an A/B pair whose two sides do
+**asymmetric main-thread work** (side A renders no indicator; side B arms the
+engine) came back **24 changed px on exactly one row, 3 runs in 5**, and 0 px on
+the other two. Every one of those pixels was a ±4 blend on the dashed
+last-price line — the same line, rasterised half a sub-pixel apart because the
+slower side settled its price range a frame later. Each side is internally
+deterministic: `--instances-side none` and `--instances-side both` were 0 px
+across 5 runs each.
+
+How to tell it apart, in this order:
+
+1. **Run the two determinism passes.** If `none` and `both` are both 0, no
+   render is nondeterministic and the diff is an A-vs-B asymmetry.
+2. **Count the ROWS, not the pixels** — `np.nonzero(diff.sum(axis=1))`. A real
+   migration difference is a shape: several rows, or a column, or a blob. This
+   artefact is one row.
+3. **Re-run.** Capture timing moves between runs; a migration difference does
+   not.
+
+⛔ This is NOT licence to raise `tolerance`. The floor it sets is ~24 px on one
+row; the self-test perturbation moves **1,004 px**, three orders of magnitude
+above it, so the 0-tolerance gate has enormous headroom and keeps it. A
+configuration that cannot be held at 0 does not get a tolerance — it does not get
+a pixel case at all, and its behaviour is gated in `stockChartWiring.test.jsx`
+instead. (`engine_rsi_toggle_off`, the "engine draws nothing when the legacy
+toggle is off" picture, was written, measured, found to be a coin flip, and
+DELETED for exactly this reason.)
+
 A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
 `index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and
 the harness screenshots an error page. Address the server as
