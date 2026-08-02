@@ -1,6 +1,11 @@
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 // Mock the widget host + heavy children so we don't bring in real widget
 // internals. WidgetHost surfaces the widget type so tests can assert which
@@ -67,7 +72,8 @@ vi.mock('../../hooks/useChartLayouts', () => ({
   }),
 }))
 
-import ChartsWorkspace from './ChartsWorkspace'
+import ChartsWorkspace, { uctDefaultChartSettings } from './ChartsWorkspace'
+import { CHART_DEFAULTS, mergeChartSettings } from '../../components/chart/chartDefaults'
 
 function renderWS() {
   return render(
@@ -124,6 +130,95 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
   )
   expect(chartSettingsSave).toBeTruthy()
+})
+
+// ── ENUMERATION SITE #22 — the Flip-B landmine in two menu items ────────────
+//
+// `UCT_DEFAULT_CHART_SETTINGS_JSON` is a frozen July capture that hand-lists all
+// fifteen indicator sections and carries NEITHER `engineEnabled` NOR
+// `indicatorInstances` (the engine did not exist when it was taken).
+// `mergeChartSettings` computes `engineEnabled: parsed.engineEnabled === true` —
+// a read of the PARSED BLOB, not of the default — so an absent key and an
+// explicit `false` are the same answer and **flipping the default at Flip B does
+// not heal either.** After Task 10 deletes the legacy render blocks, a user who
+// clicks "UCT Default" or "New Layout" would land on a board where RSI / MACD /
+// BB / VWAP are undrawable.
+//
+// 🔑 THE ASSERTION THAT MATTERS IS KEY PRESENCE, NOT THE VALUE. While
+// `CHART_DEFAULTS.engineEnabled` is `false`, `mergeChartSettings(<raw literal>)`
+// ALSO answers `false` — so a merged-value assertion alone passes on the
+// unfixed code and gates nothing. What fails on the mutation (route the write
+// back through the raw literal) is that the persisted blob must carry an
+// EXPLICIT `engineEnabled` equal to the current default. That is also exactly
+// the property that makes Flip B heal these two menu items for free.
+function persistedChartSettings() {
+  const call = setPref.mock.calls.find(([k]) => k === 'chart_settings')
+  expect(call, 'no chart_settings write happened at all').toBeTruthy()
+  expect(typeof call[1], 'chart_settings is persisted as a JSON string').toBe('string')
+  return JSON.parse(call[1])
+}
+
+function expectEngineKeysFollowTheDefault(parsed) {
+  expect(
+    Object.prototype.hasOwnProperty.call(parsed, 'engineEnabled'),
+    'the persisted blob must carry engineEnabled EXPLICITLY — mergeChartSettings reads the '
+    + 'parsed value, so an absent key is a hard OFF that flipping the default cannot heal',
+  ).toBe(true)
+  expect(parsed.engineEnabled).toBe(CHART_DEFAULTS.engineEnabled)
+  expect(Array.isArray(parsed.indicatorInstances)).toBe(true)
+  // …and read back through the real merge, which is what StockChart sees.
+  expect(mergeChartSettings(JSON.stringify(parsed)).engineEnabled).toBe(CHART_DEFAULTS.engineEnabled)
+}
+
+test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  const parsed = persistedChartSettings()
+  // Still the frozen capture in every respect it was actually a capture of.
+  expect(parsed.header.titleMode).toBe('both')
+  expectEngineKeysFollowTheDefault(parsed)
+})
+
+test('site #22: "New Layout" persists the same engine keys (it writes the same blob)', () => {
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /new layout/i }).click() })
+  expectEngineKeysFollowTheDefault(persistedChartSettings())
+})
+
+test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and names no engine key', () => {
+  // Read from the shipping source, not from a hand-copy. Asserting this against
+  // `uctDefaultChartSettings()` would be circular — that function is the fix.
+  // The two tests above are only non-vacuous if the raw literal they route
+  // around genuinely lacks the keys, and this is where that is established.
+  const src = fs.readFileSync(path.join(HERE, 'ChartsWorkspace.jsx'), 'utf8')
+  // Greedy `.*` is safe and CRLF-proof: `.` never matches a newline, the literal
+  // is one line, and the JSON inside it quotes with `"` only.
+  const m = src.match(/const UCT_DEFAULT_CHART_SETTINGS_JSON = '(\{.*\})'/)
+  expect(m, 'the frozen chart-settings literal moved — this rail no longer reads it').toBeTruthy()
+  const frozen = JSON.parse(m[1])
+
+  // The enumeration itself: fifteen hand-listed indicator sections, a third copy
+  // of ledger sites #1 and #2. This is what makes it site #22.
+  expect(Object.keys(frozen.indicators)).toHaveLength(15)
+
+  // …and neither engine key is in it, which is the whole defect.
+  expect(Object.prototype.hasOwnProperty.call(frozen, 'engineEnabled')).toBe(false)
+  expect(Object.prototype.hasOwnProperty.call(frozen, 'indicatorInstances')).toBe(false)
+
+  // The wrapper ADDS exactly the two engine keys and changes nothing else — the
+  // frozen capture stays byte-faithful about everything it was a capture of.
+  const wrapped = JSON.parse(uctDefaultChartSettings())
+  delete wrapped.engineEnabled
+  delete wrapped.indicatorInstances
+  expect(wrapped).toEqual(frozen)
+
+  // Nothing may write the raw literal to `chart_settings` — the fix is the
+  // wrapper, and a fourth writer added later must go through it too.
+  const rawWrites = src.match(/setPref\('chart_settings',\s*UCT_DEFAULT_CHART_SETTINGS_JSON\)/g)
+  expect(rawWrites, 'a chart_settings write bypasses uctDefaultChartSettings()').toBeNull()
+  expect(src.match(/setPref\('chart_settings',\s*uctDefaultChartSettings\(\)\)/g)).toHaveLength(3)
 })
 
 test('Save-as-template captures the current chart settings into the saved template', () => {

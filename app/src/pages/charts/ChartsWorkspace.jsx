@@ -11,7 +11,7 @@ import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchli
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
-import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -94,7 +94,49 @@ const UCT_DEFAULT_LAYOUT = {
 // owner's live workspace). JSON.parse keeps it byte-faithful; it's the full blob
 // so applying it fully defines the chart look (header shows ticker + company via
 // titleMode 'both'). Parsed fresh so the frozen source is never mutated in place.
+//
+// ⚠️ ENUMERATION SITE #22 (Phase B ledger). This literal hand-lists all FIFTEEN
+// indicator sections — a third copy of ledger sites #1 and #2, in a page
+// component. Never write it to `chart_settings` directly: go through
+// `uctDefaultChartSettings()` below, which is what keeps the ENGINE keys out of
+// the frozen capture. See the comment there for why that is a ship-blocker and
+// not a tidy-up.
 const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"rsi":{"enabled":false,"period":14,"color":"#7b68ee"},"macd":{"enabled":false,"fastPeriod":12,"slowPeriod":26,"signalPeriod":9,"macdColor":"#2196F3","signalColor":"#FF9800"},"bb":{"enabled":false,"period":20,"stdDev":2,"color":"rgba(156,39,176,0.85)"},"vwap":{"enabled":false,"color":"#26C6DA"},"stoch":{"enabled":false,"kPeriod":14,"dPeriod":3,"kColor":"#FF6B6B","dColor":"#4ECDC4"},"atr":{"enabled":false,"period":14,"color":"#FFA726"},"sar":{"enabled":false,"step":0.02,"maxStep":0.2,"color":"#ffeb3b"},"ichimoku":{"enabled":false,"tenkanColor":"#26C6DA","kijunColor":"#EF5350","spanAColor":"rgba(76,175,80,0.2)","spanBColor":"rgba(239,83,80,0.2)","chikouColor":"rgba(255,235,59,0.7)"},"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"},"mfi":{"enabled":false,"period":14,"color":"#c084fc"},"cci":{"enabled":false,"period":20,"color":"#fbbf24"},"williamsR":{"enabled":false,"period":14,"color":"#60a5fa"},"adx":{"enabled":false,"period":14,"adxColor":"#e5e7eb","plusDIColor":"#22c55e","minusDIColor":"#ef4444"},"obv":{"enabled":false,"color":"#9ca3af"},"donchian":{"enabled":false,"period":20,"color":"rgba(96,165,250,0.5)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+
+// ── THE FROZEN CAPTURE MUST NOT FREEZE THE ENGINE FLAG ──────────────────────
+//
+// `UCT_DEFAULT_CHART_SETTINGS_JSON` was captured from the owner's live workspace
+// in July, so it contains no `engineEnabled` and no `indicatorInstances` — the
+// engine did not exist yet. `mergeChartSettings` reads
+// `parsed.engineEnabled === true` (`chartDefaults.js:404`), which is a read of
+// the PARSED BLOB and not of the default: an absent key and an explicit `false`
+// are the same answer, and **flipping `CHART_DEFAULTS.engineEnabled` at Flip B
+// would not heal either one.**
+//
+// That is a ship-blocker, not a tidy-up. Three first-class actions write this
+// blob verbatim into the `chart_settings` preference — **Open Layout → UCT
+// Default**, **New Layout**, and `applyTemplate`'s prebuilt fallback. After Task
+// 10 deletes the legacy render blocks for the flipped ids, a user who clicks any
+// of them lands on a workspace where `engineEnabled` is pinned off, no legacy
+// block draws, and **RSI / MACD / BB / VWAP are undrawable** — ticking the
+// toolbar checkbox reserves a band with no line in it. It is ledger site 20's
+// twin (`handleCopyShareUrl`), one step worse: site 20 breaks the RECIPIENT of a
+// shared link; this breaks the user who clicked a menu item.
+//
+// So the two engine keys are stamped from `CHART_DEFAULTS` at write time rather
+// than frozen alongside the palette. The frozen capture stays byte-faithful about
+// everything it was actually a capture OF; the engine keys follow the default,
+// which is exactly what Flip B moves. `indicatorInstances` resets to the default
+// empty list on purpose — this IS the immutable restore point, and a restore that
+// left the previous board's instances behind would not be one.
+export function uctDefaultChartSettings() {
+  const parsed = JSON.parse(UCT_DEFAULT_CHART_SETTINGS_JSON)
+  parsed.engineEnabled = CHART_DEFAULTS.engineEnabled
+  parsed.indicatorInstances = Array.isArray(CHART_DEFAULTS.indicatorInstances)
+    ? [...CHART_DEFAULTS.indicatorInstances]
+    : []
+  return JSON.stringify(parsed)
+}
 
 // Widths/minW are in 24-col units (2 units = one old column). themes minW is 2
 // so the widget can still go narrow, but the reachable middle size (3 units = 1.5
@@ -609,7 +651,7 @@ export default function ChartsWorkspace() {
     if (chartSettings) {
       setPref('chart_settings', chartSettings)
     } else if (isPrebuilt) {
-      setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+      setPref('chart_settings', uctDefaultChartSettings())
     }
     if (isPrebuilt) {
       // Wipe the standalone per-user overrides so a prebuilt layout always opens
@@ -639,7 +681,7 @@ export default function ChartsWorkspace() {
     setPref('charts_workspace_layout', JSON.stringify(normalized))
     // Restore the exact chart settings baked into the default (parsed fresh each
     // apply so the frozen constant is never mutated).
-    setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    setPref('chart_settings', uctDefaultChartSettings())
     // Watchlist / Theme Tracker / Fundamentals appearance are part of the frozen
     // default too → reset them, so no personal widget styling leaks onto the
     // locked UCT Default.
@@ -698,7 +740,7 @@ export default function ChartsWorkspace() {
     // personal styling (chart colors/volume, watchlist appearance + columns, theme).
     // Layout stays blank; a freshly-added watchlist widget mounts and re-reads the
     // reset column config from localStorage.
-    setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    setPref('chart_settings', uctDefaultChartSettings())
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
     setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))

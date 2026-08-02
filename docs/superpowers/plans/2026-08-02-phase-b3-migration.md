@@ -4380,7 +4380,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ### Task 12: `indicatorRegistry` superseded + the enumeration ledger
 
-Adjudication A6, and the phase's stated purpose. The 2026-07 header on `indicatorRegistry.js` counted **seven** places an indicator is enumerated. This plan first counted **sixteen** — and that number was wrong. Task 2's review walked all sixteen against the shipped Flip-A state and found **five more**, four of them named in review finding I-4 and one (`chartBus`) triaged there as dead-but-real. The corrected count is **twenty-one**, line numbers as of `d1131320` (Task 2 fix round 1):
+Adjudication A6, and the phase's stated purpose. The 2026-07 header on `indicatorRegistry.js` counted **seven** places an indicator is enumerated. This plan first counted **sixteen** — and that number was wrong. Task 2's review walked all sixteen against the shipped Flip-A state and found **five more**, four of them named in review finding I-4 and one (`chartBus`) triaged there as dead-but-real. Task 2's RE-review then found a twenty-second, in a page component nobody had walked. The corrected count is **twenty-two**, line numbers as of `d1131320` (Task 2 fix round 1) except #22 (as of the harness-hardening round):
+
+> **The count has now been wrong four times: 7 → 16 → 20 → 21 → 22.** Every correction came from someone walking the code rather than reading the previous count, and #22 was found in a file none of the earlier walks opened because it is a *page*, not a chart module. Treat the number below as the best current walk, not as a closed set — which is precisely why Task 12 makes it a test.
 
 | # | Site | What it enumerates |
 |---|---|---|
@@ -4405,12 +4407,15 @@ Adjudication A6, and the phase's stated purpose. The 2026-07 header on `indicato
 | **19** | `StockChart.jsx:2236` right-click **Hide `<label>`** | `INDICATOR_LABELS[region.key]` → `setCs('indicators.<key>.enabled', false)` |
 | **20** | `StockChart.jsx:2382-2402` `handleCopyShareUrl` | **`rsi`, `macd`, `bb`, `vwap` — exactly the four B3 pilots.** Carries neither `indicatorInstances` nor `engineEnabled` |
 | **21** | `utils/chartBus.js:22` `ALLOWED_INDICATORS` | the voice `add_indicator` allow-list (`rsi`/`macd`/`bb` + MAs/VWAP). **DEAD TODAY** — nothing subscribes to `CHART_BUS_EVENTS.ADD_INDICATOR` — and listed anyway, because a ledger that drops a site for being unreachable cannot notice the day it becomes reachable |
+| **22** | `pages/charts/ChartsWorkspace.jsx:104` `UCT_DEFAULT_CHART_SETTINGS_JSON` | a frozen July capture that hand-lists **all fifteen indicator sections** with their full parameter sets — a THIRD copy of #1 and #2, in a page component. Written verbatim to the `chart_settings` preference by **Open Layout → UCT Default**, **New Layout**, and `applyTemplate`'s prebuilt fallback |
+
+**Site 22 is site 20's twin, one step worse, and it is FIXED (not deferred) as of the harness-hardening round.** `mergeChartSettings` computes `engineEnabled: parsed.engineEnabled === true` — a read of the *parsed blob*, not of the default — so the capture's ABSENT key is a hard OFF that flipping `CHART_DEFAULTS.engineEnabled` at Flip B would not heal. After Task 10 deletes the legacy render blocks for the flipped ids, a user clicking either menu item would land on a board where RSI / MACD / BB / VWAP are **undrawable**, and ticking the toolbar checkbox would reserve a band with no line in it. Site 20 breaks the *recipient* of a shared link; this breaks the user who clicked a menu item. The fix is `uctDefaultChartSettings()` in the same file: the two engine keys are stamped from `CHART_DEFAULTS` at write time instead of being frozen alongside the palette, so Flip B heals all three writers for free. Gated in `ChartsWorkspace.test.jsx` (three tests: both menu items through the real click path, plus a rail that reads the shipping source and refuses a fourth writer that bypasses the wrapper). **Task 12's ledger test must cover it** — the failable assertion is KEY PRESENCE, not the value: while the default is `false` a merged-value assertion passes on the unfixed code and gates nothing.
 
 **Sites 17, 19 and #11's checkbox are the SAME switch, four doors wide.** Task 2's fix round makes all four work under Flip A (the legacy toggle stays the visibility authority and StockChart projects an instance whose toggle is off to `hidden`); Task 10 moves that authority to the instance via `instanceControls`, and every one of the four has to be routed there or it regresses to writing a flag nothing reads.
 
 **Site 20 is a Flip-B landmine and belongs to Task 10, not to this task.** At Flip A it is harmless — `cs.indicators.rsi.enabled` is still true and still authoritative, so a shared link reproduces the chart. **At Flip B `enabled` stops being the authority**, and "Copy chart link" silently drops RSI and Bollinger Bands from every shared chart. Task 10 must carry `indicatorInstances` + `engineEnabled` through `chartStateToUrl`, with a test; this task's ledger only has to know the site exists so the test can cover it.
 
-B3 retires **3, 4, 5, 6, 8** for the four flipped indicators (Tasks 10–11), **9** via the projection (Task 9), and **12** for VWAP (this task). **10, 11, 13, 14, 17, 18, 19** need the settings-dialog rework of spec §6 and belong to B4; **1, 2, 16** are data files that legitimately list things; **20** is Task 10's; **21** is dead and stays listed. This task writes the ledger down and makes it a test, so the count cannot quietly grow back.
+B3 retires **3, 4, 5, 6, 8** for the four flipped indicators (Tasks 10–11), **9** via the projection (Task 9), and **12** for VWAP (this task). **10, 11, 13, 14, 17, 18, 19** need the settings-dialog rework of spec §6 and belong to B4; **1, 2, 16** are data files that legitimately list things; **20** is Task 10's; **21** is dead and stays listed; **22** is fixed (its enumeration of 15 sections survives as a frozen capture, but it no longer pins the engine keys) and stays listed, because the capture is still a hand-copy that a sixteenth indicator would have to be added to. This task writes the ledger down and makes it a test, so the count cannot quietly grow back.
 
 **Files:**
 - Modify: `app/src/components/chart/indicatorRegistry.js`
@@ -4472,7 +4477,7 @@ const TOKENS = {
   vwap: ['vwapSeriesRef'],
 }
 
-describe('the enumeration ledger — sixteen sites, and which ones B3 retires', () => {
+describe('the enumeration ledger — twenty-two sites, and which ones B3 retires', () => {
   it('every migrated definition is also flipped, or is on the way there', () => {
     // A definition can be migrated (Flip A) without being flipped (Flip B); the
     // reverse is a deleted block with nothing drawing it.
@@ -4591,8 +4596,10 @@ In `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §5, after t
 
 ```markdown
 - **The enumeration ledger.** "An indicator is enumerated in N places" is the
-  problem this phase exists to end. Counted at `c6970d28`: **sixteen**, up from
-  the seven recorded in July. B3 retires six of them per flipped indicator (the
+  problem this phase exists to end. Counted at `c6970d28`: **twenty-two**, up
+  from the seven recorded in July — and that number has been corrected four
+  times (7 → 16 → 20 → 21 → 22), the last of them a frozen chart-settings capture
+  in a PAGE component that no chart-module walk had opened. B3 retires six of them per flipped indicator (the
   refs, the compute memo, the render block, the crosshair read, the legend chip,
   the hide-all entry), one globally (the pane-margin stacking list, via a
   projection — `paneMargins.js` is still consumed, not owned) and one for VWAP
@@ -4601,7 +4608,7 @@ In `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §5, after t
   `IndicatorAlertPopover`'s `INDICATORS` — need the §6 settings-dialog rework and
   belong to B4. The count is a TEST
   (`engine/__tests__/enumerationSites.test.js`), not a comment, because a comment
-  is how it grew from seven to sixteen unnoticed.
+  is how it grew from seven to twenty-two unnoticed.
 ```
 
 - [ ] **Step 6: The mutations**
