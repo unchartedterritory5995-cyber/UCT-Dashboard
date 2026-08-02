@@ -52,6 +52,28 @@ import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
 // answer into a "some engine" one.
 const EMPTY_INSTANCES = Object.freeze([])
 const EMPTY_OWNED = Object.freeze(new Set())
+
+/**
+ * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
+ * exactly those whose legacy block below carries `&& !engineOwned.has('<id>')`.
+ *
+ * `engineOwnedDefIds` answers "which legacy blocks stand down", and the binder
+ * separately draws whatever instances it is handed. Those are two decisions, and
+ * before this they could disagree: an instance of a definition whose legacy block
+ * has no guard meant the ENGINE drew it *and* the legacy block drew it, on the
+ * same scale, in the same band — a silently double-drawn indicator, which reads
+ * as a slightly bolder line and nothing else. The documented B3 obligation was
+ * "add one line per migrated indicator", and nothing FAILED if B3 forgot one.
+ *
+ * Filtering the instance list through this set makes the pairing structural: a
+ * definition that is not here is drawn by its legacy block only, exactly as it
+ * always has been, and a definition that IS here has a test asserting that its
+ * legacy block stands down (`stockChartWiring.test.jsx`). B3's step is now: add
+ * the guard AND add the id — and the test fails if only the id lands.
+ *
+ * ⚠️ EXPORTED FOR THAT TEST, which iterates it. Keep it a Set of definition ids.
+ */
+export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi']))
 // ── Indicator points → Lightweight Charts data ───────────────────────────────
 // `chart/indicators.js` returns arrays ALIGNED to the bars, NaN-padded before
 // the first computable bar. LWC rejects `value: NaN` outright, so a non-finite
@@ -1669,6 +1691,14 @@ export default function StockChart({
   // drops the binder rather than inheriting series that no longer exist (the same
   // latch-reset discipline every other ref in `updateChart` follows).
   const engineRef = useRef(null)
+  // The declutter toggle's state, as a REF, so `updateChart` can read it without
+  // taking it as a dependency. `visible` is part of the complete option set the
+  // binder re-asserts on every bind, so the binder has to know what the toggle
+  // says or the next paint (~1×/sec in extended hours) would silently re-show a
+  // hidden indicator. Making it a dep instead would re-run the entire chart
+  // update on every Alt+Shift+I — a behaviour change the parity gate would be
+  // right to flag. Written in the render body, below the `useState` that owns it.
+  const indicatorsHiddenRef = useRef(false)
   const overlaySeriesRefs = useRef([])
   const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
   const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
@@ -5509,18 +5539,7 @@ export default function StockChart({
       } catch {}
     }
 
-    // ── THE INDICATOR ENGINE (Phase B) — one call site, dark by default ───────
-    //
-    // It lives HERE, inline in `updateChart`, and NOT in an effect of its own,
-    // because everything it needs is already in scope at exactly this point and
-    // nowhere else: `chart`, the render plan (`_noop`/`_incr`/`_freshChart` are
-    // LOCALS of this function), `_applyData`, `paneMargins`, the volume-overlay
-    // decision two dozen lines up, `cs`, `filteredBars` and `adjustTime`. An
-    // effect would have to re-derive the render plan — a second copy of the
-    // decision that keeps the developing bar alive in extended hours — and would
-    // create its panes at a different point in the pass, which is precisely the
-    // class of change the parity gate exists to catch. Extraction is B5's job,
-    // when panes stop being bands.
+    // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
     //
     // ⛔ DARK: while `cs.engineEnabled` is false no binder is ever CONSTRUCTED,
     // so `sync` is never called and the engine makes zero lightweight-charts
@@ -5533,12 +5552,24 @@ export default function StockChart({
     // primitives through untouched — so a `?…engineEnabled="1"` would otherwise
     // start the engine on that surface alone. The flag is read strictly at the one
     // place it decides anything.
+    //
+    // The `sync` CALL itself is further down, immediately before the Bollinger
+    // block — see the note there for why the position is load-bearing. This half
+    // has to be up here because `engineOwned` decides which legacy blocks below
+    // stand down, and the first of those is BB itself.
     const engineOn = cs.engineEnabled === true
     // Normalised on the way in: a tombstone or a malformed record must never
     // reach the planner. Cheap enough to do per paint at v1 instance counts, and
     // it only ever runs with the engine ON.
+    //
+    // …and then filtered to the definitions whose legacy block actually stands
+    // down. See `ENGINE_MIGRATED_DEF_IDS`: an instance the engine DRAWS whose
+    // legacy block still draws too is a double-drawn indicator, and nothing about
+    // that is visible until a user reports a "bold" line. The filter makes the
+    // pairing structural instead of a thing B3 has to remember.
     const engineInstances = engineOn
       ? normalizeInstances(cs.indicatorInstances, engineRegistry).kept
+        .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
       : EMPTY_INSTANCES
     // ── WHICH LEGACY BLOCKS STAND DOWN ────────────────────────────────────────
     //
@@ -5550,38 +5581,9 @@ export default function StockChart({
     // instance of definition `X` means the engine draws X, and X's legacy block
     // guards on `!engineOwned.has('X')`.
     //
-    // Today exactly one block carries that guard (RSI, the Task-8 rehearsal).
-    // B3 adds `&& !engineOwned.has('<key>')` to one more block per indicator it
-    // migrates, and deletes the block outright once every surface has flipped.
     // With the flag off the set is empty and every legacy block behaves exactly
     // as it always has.
     const engineOwned = engineOn ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
-    if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
-    if (engineOn && !engineRef.current) {
-      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
-    }
-    if (engineRef.current) {
-      engineRef.current.binder.sync({
-        enabled: engineOn,
-        cs,
-        instances: engineInstances,
-        registry: engineRegistry,
-        // The SAME bars `indicatorData` computes from (`:3895`) — parity under
-        // Flip A means the engine's column and the legacy one are the same array.
-        bars: filteredBars,
-        adjustTime,
-        applyData: _applyData,
-        plan: { noop: _noop, incr: _incr, fresh: _freshChart },
-        // Placement inputs. `resolvePlacement` reads these and nothing else, so
-        // the engine lands in the legacy bands by construction.
-        paneMargins,
-        volOverlaySet,
-        volSeparatePane,
-        VOL_PANE_INDEX,
-        resolvePlacement,
-        resolvePreset,
-      })
-    }
 
     if (showVolume && volData.length) {
       // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
@@ -5804,6 +5806,70 @@ export default function StockChart({
           overlayTailSeriesRefs.current.push(ts)
         }
       }
+    }
+
+    // ── THE INDICATOR ENGINE — the one call site ──────────────────────────────
+    //
+    // WHY IT IS EXACTLY HERE, AND NOT WHERE IT WAS. lightweight-charts z-orders
+    // series by INSERTION ORDER within a pane, and under Flip A everything —
+    // candles, volume, the MA overlays, every price overlay and every oscillator
+    // band — shares pane 0. This call used to sit ~300 lines up, before the volume
+    // block, so an engine-drawn price overlay was inserted BEFORE the volume
+    // histogram and BEFORE the MA overlays, where its legacy twin is inserted
+    // after them. Wherever a Bollinger band, a VWAP line or an Ichimoku span
+    // crosses an MA or the volume bars, the crossing pixel changes colour. The
+    // RSI rehearsal could not see it by construction: RSI has its own scale in its
+    // own band and overlaps nothing.
+    //
+    // This position is the first legacy INDICATOR block, after volume, volume-MA
+    // and the MA overlays. So a migrated indicator is inserted where the legacy
+    // series it replaces was, relative to everything the engine does NOT draw:
+    //   · above volume, volume-MA and the MA overlays              (as legacy)
+    //   · below the comparison line, the pattern overlays and the index MA
+    //   · below every still-legacy indicator, and BB — the first of them, and
+    //     B3's first pilot — is precisely where this sits.
+    // Among the engine's OWN series, order is instance order, and the registry
+    // order a migrated blob is built in (bb, vwap, sar, ichimoku, donchian) is
+    // already the legacy render order for the five price overlays.
+    //
+    // Everything it reads is still a LOCAL of `updateChart` — `chart`, the render
+    // plan (`_noop`/`_incr`/`_freshChart`), `_applyData`, `paneMargins`, the
+    // volume-overlay decision, `filteredBars`, `adjustTime`. That is why it is
+    // inline here rather than in an effect of its own: an effect would have to
+    // re-derive the render plan (a second copy of the decision that keeps the
+    // developing bar alive in extended hours) and would create its panes at a
+    // different point in the pass. Extraction is B5's job, when panes stop being
+    // bands.
+    if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
+    if (engineOn && !engineRef.current) {
+      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
+    }
+    if (engineRef.current) {
+      engineRef.current.binder.sync({
+        enabled: engineOn,
+        cs,
+        instances: engineInstances,
+        registry: engineRegistry,
+        // The SAME bars `indicatorData` computes from (`:3895`) — parity under
+        // Flip A means the engine's column and the legacy one are the same array.
+        bars: filteredBars,
+        adjustTime,
+        applyData: _applyData,
+        plan: { noop: _noop, incr: _incr, fresh: _freshChart },
+        // The declutter toggle. `visible` is part of the option set the binder
+        // re-asserts on every bind, so without this a hidden engine series would
+        // reappear on the next paint. Read from a ref, not a dependency — see the
+        // ref's declaration.
+        indicatorsHidden: indicatorsHiddenRef.current,
+        // Placement inputs. `resolvePlacement` reads these and nothing else, so
+        // the engine lands in the legacy bands by construction.
+        paneMargins,
+        volOverlaySet,
+        volSeparatePane,
+        VOL_PANE_INDEX,
+        resolvePlacement,
+        resolvePreset,
+      })
     }
 
     // ── Bollinger Bands (3 LineSeries on main price scale) ──
@@ -8184,6 +8250,11 @@ export default function StockChart({
 
   // ── Hide all indicators (Alt+Shift+I) · add-to-watchlist (Alt+Q) · alert (Alt+N) ──
   const [indicatorsHidden, setIndicatorsHidden] = useState(false)
+  // Mirrored into a ref during render (before any effect runs) so `updateChart`
+  // — defined far above, and deliberately not re-created when this flips — can
+  // tell the indicator engine whether its series should be visible. See the ref's
+  // declaration for why this is not a dependency.
+  indicatorsHiddenRef.current = indicatorsHidden
   const [addListOpen, setAddListOpen] = useState(false)
   const [addLists, setAddLists] = useState([])
   const cursorPriceRef = useRef(null)

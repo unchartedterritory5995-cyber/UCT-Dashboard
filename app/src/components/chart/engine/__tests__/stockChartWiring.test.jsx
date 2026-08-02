@@ -145,7 +145,8 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
 
-const { default: StockChart } = await import('../../../StockChart')
+const { default: StockChart, ENGINE_MIGRATED_DEF_IDS } = await import('../../../StockChart')
+const registry = await import('../nativeRegistry')
 
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'engine-test:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
@@ -208,6 +209,10 @@ describe('StockChart × indicator engine — the flag ON', () => {
       expect(typeof ctx.adjustTime).toBe('function')
       expect(typeof ctx.applyData).toBe('function')
       expect(Array.isArray(ctx.bars)).toBe(true)
+      // `visible` is part of the option set the binder re-asserts on every bind,
+      // so the declutter toggle's state has to arrive with the rest of the ctx —
+      // otherwise the next paint silently re-shows a hidden indicator.
+      expect(typeof ctx.indicatorsHidden).toBe('boolean')
     }
   })
 
@@ -324,6 +329,119 @@ describe('legacy suppression — an engine instance stands its legacy block down
   })
 })
 
+// ─── M-2: the double-draw rail ──────────────────────────────────────────────
+//
+// `engineOwnedDefIds` decides which legacy blocks stand down; the binder
+// separately draws whatever instances it is handed. Those are two decisions, and
+// they could disagree — an instance of a definition whose legacy block has no
+// `!engineOwned.has(...)` guard meant BOTH drew it, on the same scale, in the
+// same band. The symptom is a slightly bolder line and nothing else. The
+// documented B3 obligation was "one line per migrated indicator", and nothing
+// FAILED if B3 forgot one. `ENGINE_MIGRATED_DEF_IDS` pairs the two, and this is
+// the test that makes forgetting fail.
+
+describe('a migrated definition is drawn ONCE — never by the engine and legacy both', () => {
+  const instanceOf = (defId) => ({ instanceId: `legacy:${defId}`, defId, inputs: {}, hidden: false })
+
+  it('names at least one definition — otherwise every case below is vacuous', () => {
+    expect(ENGINE_MIGRATED_DEF_IDS.size).toBeGreaterThan(0)
+  })
+
+  it.each([...ENGINE_MIGRATED_DEF_IDS])(
+    '%s: legacy toggle ON + an engine instance ⇒ the SAME number of series as legacy alone',
+    (defId) => {
+      // Series COUNT, not scale id: it holds for a price overlay (which has no
+      // named scale) exactly as it does for a banded oscillator, so B3 can add an
+      // id here without also writing a bespoke assertion.
+      const legacyOn = { indicators: { [defId]: { enabled: true } } }
+      draw(legacyOn)
+      const legacyOnly = H.addSeriesCalls.length
+      expect(legacyOnly, `${defId} drew nothing with the engine off`).toBeGreaterThan(0)
+      cleanup(); H.reset()
+
+      draw({ ...legacyOn, engineEnabled: true, indicatorInstances: [instanceOf(defId)] })
+      expect(H.binderApis[0].bindings().length, `the engine bound nothing for ${defId}`).toBeGreaterThan(0)
+      expect(H.addSeriesCalls.length, `${defId} is drawn twice — its legacy block has no guard`)
+        .toBe(legacyOnly)
+    },
+  )
+
+  it('an instance of a NOT-yet-migrated definition is refused rather than double-drawn', () => {
+    const notMigrated = registry.listDefinitions()
+      .map(d => d.id)
+      .filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id))
+    expect(notMigrated.length, 'every definition is migrated — this case is now empty').toBeGreaterThan(0)
+
+    const defId = notMigrated[0]
+    const legacyOn = { indicators: { [defId]: { enabled: true } } }
+    draw(legacyOn)
+    const legacyOnly = H.addSeriesCalls.length
+    cleanup(); H.reset()
+
+    draw({ ...legacyOn, engineEnabled: true, indicatorInstances: [instanceOf(defId)] })
+    // The binder never sees it, so it cannot draw a second copy …
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    // … and the legacy block is untouched, so the indicator is still on the chart.
+    expect(H.addSeriesCalls.length).toBe(legacyOnly)
+  })
+})
+
+// ─── I-3: series creation ORDER, which LWC turns into z-order ───────────────
+
+describe('an engine series is inserted where its legacy twin would have been', () => {
+  // Under Flip A everything shares pane 0 — candles, volume, the MA overlays,
+  // every price overlay, every oscillator band — and lightweight-charts z-orders
+  // by INSERTION ORDER. The call site used to sit before the volume block, so an
+  // engine-drawn price overlay painted UNDER the MA overlays and the volume bars
+  // that its legacy twin paints over. Invisible to the RSI rehearsal by
+  // construction: RSI has its own scale in its own band and overlaps nothing.
+  const MA_COLOURS = ['#4ade80', '#f472b6', '#60a5fa', '#fb923c', 'rgba(168,162,144,0.55)']
+  const BB_COLOUR = 'rgba(156,39,176,0.85)'
+  const idxWhere = (pred) => H.addSeriesCalls.findIndex(c => pred(c.options || {}))
+  const lastIdxWhere = (pred) => H.addSeriesCalls.map(c => c.options || {}).reduce(
+    (acc, o, i) => (pred(o) ? i : acc), -1,
+  )
+
+  it('lands AFTER volume and the MA overlays, and BEFORE the first legacy indicator', () => {
+    draw({
+      engineEnabled: true,
+      indicatorInstances: [RSI_INSTANCE],
+      volume: { show: true },
+      indicators: { bb: { enabled: true } },
+    })
+
+    const engineIdx = idxWhere(o => o.priceScaleId === 'rsi')
+    const volumeIdx = idxWhere(o => o.priceFormat && o.priceFormat.type === 'custom')
+    const lastMaIdx = lastIdxWhere(o => MA_COLOURS.includes(o.color))
+    const bbIdx = idxWhere(o => o.color === BB_COLOUR)
+
+    // Every landmark has to actually be on the chart or the comparisons below are
+    // comparisons against -1.
+    expect(engineIdx, 'the engine drew nothing').toBeGreaterThan(-1)
+    expect(volumeIdx, 'no volume series').toBeGreaterThan(-1)
+    expect(lastMaIdx, 'no MA overlays').toBeGreaterThan(-1)
+    expect(bbIdx, 'no Bollinger bands').toBeGreaterThan(-1)
+
+    expect(engineIdx).toBeGreaterThan(volumeIdx)
+    expect(engineIdx).toBeGreaterThan(lastMaIdx)
+    expect(engineIdx).toBeLessThan(bbIdx)
+  })
+
+  it('and BEFORE every other legacy indicator block, not just the first', () => {
+    draw({
+      engineEnabled: true,
+      indicatorInstances: [RSI_INSTANCE],
+      indicators: { bb: { enabled: true }, macd: { enabled: true }, obv: { enabled: true } },
+    })
+    const engineIdx = idxWhere(o => o.priceScaleId === 'rsi')
+    for (const scale of ['macd', 'obv']) {
+      const legacyIdx = idxWhere(o => o.priceScaleId === scale)
+      expect(legacyIdx, `${scale} did not draw`).toBeGreaterThan(-1)
+      expect(engineIdx, `engine must precede the ${scale} block`).toBeLessThan(legacyIdx)
+    }
+  })
+})
+
 describe('hide-all-indicators reaches engine series through the binding map', () => {
   const engineSeriesOf = () => H.addSeriesCalls
     .filter(c => c.options && c.options.priceScaleId === 'rsi')
@@ -348,5 +466,26 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
 
     toggle()
     expect(H.visibilityCalls.filter(v => v.series === engineSeries && v.visible === true).length).toBeGreaterThan(0)
+  })
+
+  it('the hidden state reaches the BINDER, so the next paint cannot undo it', () => {
+    // The effect above applies `visible:false` once. `updateChart` then runs again
+    // on the next data poll — ~1×/sec in extended hours — and re-asserts the
+    // complete option set, `visible` included. If the toggle's state does not
+    // reach the binder, that paint silently shows the indicator again.
+    const settings = { engineEnabled: true, indicatorInstances: [RSI_INSTANCE] }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
+    expect(H.syncCalls.at(-1).indicatorsHidden).toBe(false)
+
+    act(() => { fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' }) })
+
+    // Force another `updateChart` pass the way a data poll would: new bars.
+    const before = H.syncCalls.length
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)} settingsOverride={settings} />,
+    )
+    expect(H.syncCalls.length, 'no further sync happened — the assertion below would be vacuous')
+      .toBeGreaterThan(before)
+    expect(H.syncCalls.at(-1).indicatorsHidden).toBe(true)
   })
 })
