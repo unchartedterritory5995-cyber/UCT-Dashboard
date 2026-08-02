@@ -3114,6 +3114,10 @@ export default function LiveFlowMassive() {
     if (cSortCol === col) setCSortDir(d => (d === "desc" ? "asc" : "desc"));
     else { setCSortCol(col); setCSortDir(col === "TICKER" || col === "EXP" ? "asc" : "desc"); }
   };
+  // Min prints for a contract to appear in By-Contract. Default 3 = accumulation
+  // focus; set to 1 to see EVERY contract (single big Alpha Gold prints, held or
+  // not — "doesn't have to be accumulating").
+  const [minHits, setMinHits] = useState(3);
   const applyRange = (endMdy, days) => {
     setViewMode("contract");
     setLookback(Math.max(1, Math.min(31, days || 1)));
@@ -3775,7 +3779,7 @@ export default function LiveFlowMassive() {
     let cancelled = false, timer;
     async function pull() {
       try {
-        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: "3", lookback_days: String(lookbackDays) });
+        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: String(minHits), lookback_days: String(lookbackDays) });
         if (targetDate) params.set("target_date", targetDate);
         const r = await fetch(`/api/live/massive/by-contract?${params.toString()}`);
         if (r.ok) { const d = await r.json(); if (!cancelled) setByContract(d); }
@@ -3784,7 +3788,7 @@ export default function LiveFlowMassive() {
     }
     pull();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [viewMode, targetDate, stockEtfFilter, lookbackDays]);
+  }, [viewMode, targetDate, stockEtfFilter, lookbackDays, minHits]);
 
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the
@@ -4275,9 +4279,19 @@ export default function LiveFlowMassive() {
                 color: lookbackDays === n ? P.ac : P.mt,
               }}>{n}d</button>
             ))}
-            <span style={{ color: P.dm, fontStyle: "italic", marginLeft: 4 }}>
-              🔥 accelerating multi-day builds surface first
-            </span>
+            <span style={{ color: P.bd }}>·</span>
+            <span style={{ fontWeight: 600 }}>Min hits:</span>
+            {[1, 3, 5].map(n => (
+              <button key={"mh" + n} onClick={() => setMinHits(n)} style={{
+                padding: "3px 9px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                border: `1px solid ${minHits === n ? P.ac : P.bd}`,
+                background: minHits === n ? P.ac + "22" : "transparent",
+                color: minHits === n ? P.ac : P.mt,
+              }} title={n === 1
+                ? "Show EVERY contract — single big prints too, not just accumulation"
+                : `Only contracts hit ≥${n}× (accumulation)`}>{n}×</button>
+            ))}
             <label
               title="Hide contracts whose settled OI shows they CLOSED (exited). Runs Check OI if not yet fetched."
               style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
@@ -4437,7 +4451,7 @@ export default function LiveFlowMassive() {
             padding: 10, color: P.dm, fontSize: 11, textAlign: "right",
             borderTop: `1px solid ${P.bd}`, marginTop: 8,
           }}>
-            {visibleContracts.length} contracts accumulating · sorted by latest activity · click a row to expand prints
+            {visibleContracts.length} contracts{minHits > 1 ? ` accumulating (≥${minHits}×)` : " (all, min 1×)"} · sorted by {cSortCol ? `${cSortCol.toLowerCase()} ${cSortDir}` : "latest activity"} · click a row to expand prints
           </div>
         )}
       </>)}
