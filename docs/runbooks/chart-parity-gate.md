@@ -91,12 +91,23 @@ every unrelated commit between them shows up in the diff. A case carrying
 ENGINE's, from the same `dist`, one URL parameter apart.
 
 ```bash
-cd app && npm run build
-python <scratch>/spa_server.py app/dist 5185          # SPA fallback for BrowserRouter
+cd app && npm run build && cd ..
+python tools/spa_server.py app/dist 5185          # SPA fallback for BrowserRouter
 B=http://127.0.0.1:5185
 
 python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy
 ```
+
+`tools/spa_server.py` is committed precisely so this section is reproducible.
+Phase B2's numbers were all produced through an uncommitted scratch copy while
+this document pointed at `<scratch>/`; a harness the reader cannot obtain makes
+every number in the report unverifiable.
+
+A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
+`index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and
+the harness screenshots an error page. Address the server as
+`http://127.0.0.1:<port>`, never `localhost` — an unrelated dev server holding
+`[::1]:5173` once won the name resolution and the harness measured it instead.
 
 **Do the two determinism runs FIRST.** A 0 is only meaningful once each render
 path is known to agree with itself:
