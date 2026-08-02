@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateDefinition, SCHEMA_VERSION } from './defSchema'
+import { validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS } from './defSchema'
 
 const rsiDef = () => ({
   schemaVersion: 1, id: 'rsi', version: 1,
@@ -423,5 +423,97 @@ describe('structural requirements', () => {
     const d = rsiDef()
     d.placement = { target: 'price' }
     ok(d)
+  })
+})
+
+// ─── Task 2 carry-ins ────────────────────────────────────────────────────────
+// (a) `band` needs a schema for its edge columns before BB/Donchian can use it.
+// (c) `meta.tier` had no locked enum, so any string registered as a tier.
+
+const bandDef = () => ({
+  schemaVersion: 1, id: 'bb', version: 1,
+  compute: { kind: 'native', fn: 'bb', rev: 1 },
+  meta: { name: 'Bollinger Bands', tier: 'free' },
+  placement: { target: 'price' },
+  inputs: [{ key: 'color', type: 'color', label: 'Colour', default: '#fff' }],
+  plots: [
+    { key: 'upper',  style: 'line', color: '$color', lineStyle: 'dashed' },
+    { key: 'middle', style: 'band', color: '$color', edges: { upper: 'upper', lower: 'lower' } },
+    { key: 'lower',  style: 'line', color: '$color', lineStyle: 'dashed' },
+    { key: 'guides', style: 'hlines', levels: [0] },
+  ],
+})
+
+describe('band edges (carry-in a)', () => {
+  it('accepts a band whose edges name two declared data plots', () => {
+    const def = ok(bandDef())
+    expect(def.plots[1].edges).toEqual({ upper: 'upper', lower: 'lower' })
+  })
+
+  it('requires edges on a band — a band with no edges bounds nothing', () => {
+    const d = bandDef(); delete d.plots[1].edges
+    expect(errs(d).join(' ')).toMatch(/edges/)
+  })
+
+  it('rejects an edge naming a plot that does not exist', () => {
+    const d = bandDef(); d.plots[1].edges.upper = 'ghost'
+    expect(errs(d).join(' ')).toMatch(/ghost/)
+  })
+
+  it('rejects an edge naming an hlines plot — a guide produces no column', () => {
+    const d = bandDef(); d.plots[1].edges.lower = 'guides'
+    expect(errs(d).join(' ')).toMatch(/guides/)
+  })
+
+  it('rejects a band whose edge is its own key, or whose edges are equal', () => {
+    const a = bandDef(); a.plots[1].edges.upper = 'middle'
+    expect(errs(a).join(' ')).toMatch(/middle/)
+    const b = bandDef(); b.plots[1].edges.lower = 'upper'
+    expect(errs(b).join(' ')).toMatch(/edges/)
+  })
+
+  it('rejects edges on a plot that is not a band — it would silently do nothing', () => {
+    const d = bandDef(); d.plots[0].edges = { upper: 'upper', lower: 'lower' }
+    expect(errs(d).join(' ')).toMatch(/edges/)
+  })
+})
+
+describe('meta.tier vocabulary (carry-in c)', () => {
+  it('accepts the locked tiers', () => {
+    for (const tier of TIERS) {
+      const d = rsiDef(); d.meta.tier = tier
+      ok(d)
+    }
+    expect([...TIERS]).toEqual(['free', 'premium'])
+  })
+
+  it('rejects an unlocked tier rather than treating it as free', () => {
+    const d = rsiDef(); d.meta.tier = 'enterprise'
+    expect(errs(d).join(' ')).toMatch(/enterprise/)
+  })
+
+  it('accepts an omitted tier (a definition need not claim one)', () => {
+    const d = rsiDef(); delete d.meta.tier
+    ok(d)
+  })
+})
+
+describe('source referents (carry-in b — the pure half)', () => {
+  const probe = (dflt) => ({
+    ...rsiDef(),
+    inputs: [{ key: 'src', type: 'source', label: 'Source', default: dflt }],
+    plots: [{ key: 'rsi', style: 'line', color: '#fff' }],
+  })
+  const columnsOf = (id) => (id === 'rsi' ? ['rsi'] : null)
+
+  it('passes a bar field and a real defId.plotKey', () => {
+    expect(validateSourceReferents(probe('close'), columnsOf)).toEqual([])
+    expect(validateSourceReferents(probe('rsi.rsi'), columnsOf)).toEqual([])
+  })
+
+  it('names the offending value for an unknown definition or plot', () => {
+    expect(validateSourceReferents(probe('ghost.x'), columnsOf).join(' ')).toMatch(/ghost/)
+    expect(validateSourceReferents(probe('rsi.ghost'), columnsOf).join(' ')).toMatch(/ghost/)
+    expect(validateSourceReferents(probe('bananas'), columnsOf).join(' ')).toMatch(/bananas/)
   })
 })

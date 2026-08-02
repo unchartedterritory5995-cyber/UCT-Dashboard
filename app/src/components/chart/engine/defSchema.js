@@ -85,7 +85,12 @@ export const RESERVED_INPUT_TYPES = Object.freeze([
   'timeframe', 'price', 'time', 'session', 'symbol', 'confirm',
 ])
 
-/** Plot styles buildable in v1 (spec §3.1). `band` = upper/lower + fill. */
+/** Plot styles buildable in v1 (spec §3.1).
+ *
+ *  `band` gets a rule the others don't need, added in B2 Task 2 when Bollinger
+ *  and Donchian became definitions: a band is the only style whose meaning
+ *  depends on OTHER columns, so it must say which ones. See `plots[].edges`
+ *  and `validateBandEdges` below. */
 export const PLOT_STYLES = Object.freeze([
   'line', 'stepline', 'histogram', 'area', 'baseline', 'hlines', 'markers', 'band',
 ])
@@ -113,6 +118,18 @@ export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted'])
 
 /** Non-parametric colour modes. `column:<key>` is the parametric third form. */
 export const COLOR_MODES = Object.freeze(['fixed', 'sign'])
+
+/** Entitlement tier. LOCKED in B2 Task 2 (carry-in c): it was validated only as
+ *  "a string", so `tier: 'pro'` or a typo'd `'Free'` registered happily and then
+ *  read as "not free" — or worse, as free — at whatever gate consumes it. A tier
+ *  is a paywall claim, so it fails closed like every other behavioural value. */
+export const TIERS = Object.freeze(['free', 'premium'])
+
+/** Bar fields a `source` input may name directly. Anything else must be a
+ *  `defId.plotKey` handle into the registry — see `validateSourceReferents`. */
+export const SOURCE_BAR_FIELDS = Object.freeze([
+  'open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'volume',
+])
 
 /** The ONLY plot fields in which `$<inputKey>` substitution is legal (spec §3.1). */
 export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels'])
@@ -293,10 +310,15 @@ function validateMeta(meta, errors) {
   if (!isNonEmptyString(meta.name)) {
     errors.push(`meta.name: required non-empty string, got ${fmt(meta.name)}`)
   }
-  for (const k of ['shortName', 'category', 'description', 'author', 'tier']) {
+  for (const k of ['shortName', 'category', 'description', 'author']) {
     if (meta[k] !== undefined && typeof meta[k] !== 'string') {
       errors.push(`meta.${k}: expected a string, got ${fmt(meta[k])}`)
     }
+  }
+  // `tier` is an entitlement claim, not decoration — see TIERS. Omitting it is
+  // legal (a definition need not gate itself); naming an unlocked tier is not.
+  if (meta.tier !== undefined) {
+    checkVocabulary(meta.tier, TIERS, [], 'meta.tier', 'tier', errors)
   }
   if (meta.tags !== undefined) {
     if (!Array.isArray(meta.tags) || meta.tags.some((t) => typeof t !== 'string')) {
@@ -670,6 +692,97 @@ function validateColorModes(plots, columnKeys, errors) {
   })
 }
 
+/**
+ * `plots[].edges` — the band's bounding columns. Cross-section, like colorMode,
+ * because an edge may name a plot declared LATER in the array.
+ *
+ * WHY THIS EXISTS (B2 Task 2 carry-in a): `band` was in the style vocabulary
+ * with nothing saying WHICH columns bound it. A band is the one v1 style whose
+ * meaning lives in other columns, so without `edges` a `band` plot registers
+ * successfully and is unrenderable — the definition simply doesn't contain the
+ * information. Bollinger and Donchian are exactly this shape (a centre column
+ * between two edge columns) and are the reason it is needed now.
+ *
+ * THE SHAPE: a band plot's OWN key is its centre column — the value it plots
+ * like any other line — and `edges: {upper, lower}` names two OTHER declared
+ * plots. The edges stay first-class plots rather than becoming anonymous
+ * sub-columns because today each is its own series with its own line style
+ * (BB's edges are dashed and its middle solid; Donchian's are the other way
+ * round), and a definition that couldn't say that couldn't reproduce the chart.
+ *
+ * An edge must not be an `hlines` plot: guides are static levels and produce no
+ * column, so a band bounded by one bounds nothing. That is the "validate that
+ * those columns exist" half — existence here means "declares a column", not
+ * merely "is a key someone wrote down".
+ */
+function validateBandEdges(plots, errors) {
+  const styleByKey = new Map()
+  for (const p of plots) {
+    if (isPlainObject(p) && isNonEmptyString(p.key) && !styleByKey.has(p.key)) {
+      styleByKey.set(p.key, p.style)
+    }
+  }
+  const declared = () => list([...styleByKey.keys()]) || 'none'
+
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot)) return
+    const path = `plots[${index}]`
+    const isBand = plot.style === 'band'
+    const { edges } = plot
+
+    if (!isBand) {
+      if (edges !== undefined) {
+        errors.push(
+          `${path}.edges: only a "band" plot has edges — plots[${index}] is style ${fmt(plot.style)}, ` +
+          `so its edges would be carried around and never drawn`,
+        )
+      }
+      return
+    }
+
+    if (!isPlainObject(edges)) {
+      errors.push(
+        `${path}.edges: style "band" requires edges: {upper: "<plotKey>", lower: "<plotKey>"} naming the ` +
+        `two columns that bound it, got ${fmt(edges)} — without them the band has nothing to draw between`,
+      )
+      return
+    }
+
+    for (const side of ['upper', 'lower']) {
+      const ref = edges[side]
+      if (!isNonEmptyString(ref)) {
+        errors.push(`${path}.edges.${side}: required non-empty plot key, got ${fmt(ref)}`)
+        continue
+      }
+      if (ref === plot.key) {
+        errors.push(
+          `${path}.edges.${side}: ${fmt(ref)} is the band's own key — a band cannot bound itself`,
+        )
+        continue
+      }
+      if (!styleByKey.has(ref)) {
+        errors.push(
+          `${path}.edges.${side}: ${fmt(ref)} names no declared plot (declared plot keys: ${declared()})`,
+        )
+        continue
+      }
+      if (styleByKey.get(ref) === 'hlines') {
+        errors.push(
+          `${path}.edges.${side}: ${fmt(ref)} is an "hlines" plot — guides are static levels and return ` +
+          `no column, so they cannot bound a band`,
+        )
+      }
+    }
+
+    if (isNonEmptyString(edges.upper) && edges.upper === edges.lower) {
+      errors.push(
+        `${path}.edges: upper and lower are both ${fmt(edges.upper)} — a band between one column and ` +
+        `itself has zero width`,
+      )
+    }
+  })
+}
+
 function validateEvent(event, index, seenKeys, plotKeys, errors) {
   const path = `events[${index}]`
   if (!isPlainObject(event)) {
@@ -725,6 +838,66 @@ function validateEvent(event, index, seenKeys, plotKeys, errors) {
  * @param {unknown} def
  * @returns {{ok: true, def: object} | {ok: false, errors: string[]}}
  */
+/**
+ * Resolve every `source` input's default against the REGISTRY.
+ *
+ * Separate from `validateDefinition` because it is the one check that is not a
+ * pure function of a single definition: `'rsi.rsi'` is valid or invalid
+ * depending on what else is registered. `validateDefinition` stayed
+ * registry-free (it runs before anything is registered, including on the
+ * definition being registered), so this is the second pass a registry runs once
+ * every definition's columns are known. B2 Task 2 carry-in (b).
+ *
+ * A `source` naming a column that does not exist is the same class of failure as
+ * an unresolvable `$ref`: the indicator computes over SOMETHING, and letting it
+ * quietly fall back to `close` would change the numbers an alert fires on.
+ *
+ * @param {object} def — an already-validated definition.
+ * @param {(defId: string) => string[]|null} resolveColumns — the column keys a
+ *        definition returns, or null when that definition is unknown.
+ * @returns {string[]} errors (empty when every referent resolves).
+ */
+export function validateSourceReferents(def, resolveColumns) {
+  const errors = []
+  const inputs = Array.isArray(def?.inputs) ? def.inputs : []
+
+  inputs.forEach((input, i) => {
+    if (!isPlainObject(input) || input.type !== 'source') return
+    const path = `inputs[${i}].default`
+    const ref = input.default
+    if (!isNonEmptyString(ref)) return   // already reported by validateDefinition
+
+    if (SOURCE_BAR_FIELDS.includes(ref)) return
+
+    const dot = ref.indexOf('.')
+    if (dot < 0) {
+      errors.push(
+        `${path}: source ${fmt(ref)} is neither a bar field (${list(SOURCE_BAR_FIELDS)}) nor a ` +
+        `"defId.plotKey" handle — a source that resolves to nothing would silently compute over the wrong series`,
+      )
+      return
+    }
+
+    const defId = ref.slice(0, dot)
+    const plotKey = ref.slice(dot + 1)
+    const columns = resolveColumns ? resolveColumns(defId) : null
+    if (!Array.isArray(columns)) {
+      errors.push(
+        `${path}: source ${fmt(ref)} names definition ${fmt(defId)}, which is not registered`,
+      )
+      return
+    }
+    if (!columns.includes(plotKey)) {
+      errors.push(
+        `${path}: source ${fmt(ref)} names column ${fmt(plotKey)}, which definition ${fmt(defId)} ` +
+        `does not declare (its columns: ${list(columns) || 'none'})`,
+      )
+    }
+  })
+
+  return errors
+}
+
 export function validateDefinition(def) {
   try {
     const errors = []
@@ -799,6 +972,7 @@ export function validateDefinition(def) {
 
     // ─ cross-section checks ─
     validateColorModes(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
+    validateBandEdges(plots, errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array
