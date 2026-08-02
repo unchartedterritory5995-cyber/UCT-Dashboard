@@ -90,11 +90,11 @@ def _exp_short(exp) -> str:
 
 # ── cap bands (match the OptionsFlow Leaderboard cap filter) ───────────────
 _CAP_LABELS = {"all": "All Caps", "mega": "Mega Cap", "large": "Large Cap",
-               "mid_small": "Mid-Small Cap"}
+               "mid_small": "Mid-Small Cap", "etf": "ETFs"}
 
 
 def _cap_ok(mktcap: float, cap: str | None) -> bool:
-    if not cap or cap == "all":
+    if not cap or cap in ("all", "etf"):   # 'etf' is a source scope, not a mktcap band
         return True
     if cap == "mega":
         return mktcap > 200e9
@@ -176,9 +176,9 @@ def _flow_db_path() -> str:
     return DB_PATH
 
 
-def _last_n_dates(conn, n: int) -> list[str]:
+def _last_n_dates(conn, n: int, source: str = "stocks") -> list[str]:
     rows = conn.execute(
-        "SELECT DISTINCT CreatedDate FROM flow WHERE source='stocks'").fetchall()
+        "SELECT DISTINCT CreatedDate FROM flow WHERE source=?", (source,)).fetchall()
     dated = sorted((r[0] for r in rows if r[0]),
                    key=lambda s: _parse_mdy(s) or date.min)
     return dated[-n:] if n > 0 else dated
@@ -193,14 +193,16 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
     floor into the row pull (0 = off, keeps card parity) — the searchable board
     uses it so a multi-week scan doesn't classify millions of odd-lot prints."""
     ref = today or date.today()
+    is_etf = (cap or "").strip().lower() == "etf"   # ETFs live under source='indexes'
+    src = "indexes" if is_etf else "stocks"
     conn = sqlite3.connect(_flow_db_path(), timeout=10)
     conn.row_factory = sqlite3.Row
     try:
-        window = _last_n_dates(conn, days)
+        window = _last_n_dates(conn, days, src)
         if not window:
             return [], []
         qs = ",".join("?" * len(window))
-        params = list(window)
+        params = [src] + list(window)
         prem_sql = ""
         if min_premium and min_premium > 0:
             prem_sql = " AND Premium >= ?"
@@ -209,7 +211,7 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
             SELECT CreatedDate, CreatedTime, Symbol, Type, Volume, Side, CallPut,
                    Strike, Spot, Premium, ExpirationDate, Color, Dte, StockEtf, MktCap, OI
               FROM flow
-             WHERE source='stocks' AND CreatedDate IN ({qs}){prem_sql}
+             WHERE source=? AND CreatedDate IN ({qs}){prem_sql}
         """, params).fetchall()
     finally:
         conn.close()
@@ -233,7 +235,11 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
         if color in ("ORANGE", "ARB"):     # dark-pool + arb noise dropped
             continue
         mktcap = _pfloat(r["MktCap"])
-        if not _cap_ok(mktcap, cap):       # cap-band filter (mega/large/mid_small)
+        stk = (r["StockEtf"] or "").upper().strip()
+        if is_etf:
+            if stk == "INDEX":             # ETFs scope: drop true index options (SPX/VIX)
+                continue
+        elif not _cap_ok(mktcap, cap):     # stock cap-band filter (mega/large/mid_small)
             continue
         exp = r["ExpirationDate"] or ""
         exp_d = _parse_mdy(exp)
@@ -243,7 +249,7 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
             "V": vol, "P": prem, "OI": _pint(r["OI"]), "E": exp, "live_dte": live_dte,
             "Ty": ty, "Si": _side_norm(r["Side"]), "Co": color,
             "mktcap": _pfloat(r["MktCap"]), "Dt": r["CreatedDate"],
-            "time": r["CreatedTime"], "stocketf": (r["StockEtf"] or "").upper().strip(),
+            "time": r["CreatedTime"], "stocketf": stk,
         })
 
     # ── same-second 3+ strike spread drop (flowCompute L1110) ──────────────

@@ -2180,7 +2180,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               );
             })}
             <span style={{ width: 6 }} />
-            {[["all", "All"], ["mid_small", "Mid-Small"]].map(([c, lbl]) => {
+            {[["all", "All"], ["mid_small", "Mid-Small"], ["etf", "ETFs"]].map(([c, lbl]) => {
               const on = wfCap === c;
               return (
                 <button key={c} onClick={() => setWfCap(c)} style={{
@@ -2212,7 +2212,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               );
             })}
             <span style={{ width: 6 }} />
-            {[["all", "All"], ["mega", "Mega"], ["large", "Large"], ["mid_small", "Mid-Small"]].map(([c, lbl]) => {
+            {[["all", "All"], ["mega", "Mega"], ["large", "Large"], ["mid_small", "Mid-Small"], ["etf", "ETFs"]].map(([c, lbl]) => {
               const on = sfCap === c;
               return (
                 <button key={c} onClick={() => setSfCap(c)} style={{
