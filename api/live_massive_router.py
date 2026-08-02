@@ -5576,8 +5576,14 @@ async def enrich_oi(
     matched_variant_examples: list[str] = []
     unmatched_count = 0
 
+    # contract_oi_snapshots was migrated OUT of flow.db into the dedicated OI DB
+    # (api/oi_snapshots.OI_DB_PATH). Querying DB_PATH here hit an empty/absent
+    # table → matched=0 for every contract ("no settled OI yet"), i.e. Check OI
+    # silently did nothing. Connect to the OI DB directly — this endpoint only
+    # reads contract_oi_snapshots (no flow.db joins).
+    from api import oi_snapshots as _oisnap
     try:
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        with sqlite3.connect(_oisnap.OI_DB_PATH, timeout=10) as conn:
             # ── Step 1: Detect stored key format from a small probe set.
             # Reuses confirmation-map's proven approach — try up to 20 probe
             # contracts, use the first variant that hits, then commit to that
