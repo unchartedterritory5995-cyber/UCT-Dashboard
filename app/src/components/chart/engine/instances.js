@@ -48,7 +48,9 @@
 // that can express it (see the nativeRegistry docstring). It is SKIPPED, not
 // emitted-and-dropped: an instance naming a definition that doesn't exist would
 // be a validation failure reported to a user who did nothing wrong. B3 keeps the
-// legacy canvas path for it.
+// legacy canvas path for it. That is not a deferral — see
+// `nativeRegistry.CARVED_OUT_INDICATOR_KEYS` for the decision and its expiry
+// condition (a `primitive` compute kind, Phase C/D).
 
 import {
   PLACEMENT_TARGETS,

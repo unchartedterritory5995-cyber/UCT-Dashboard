@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   NATIVE_DEFS,
+  CARVED_OUT_INDICATOR_KEYS,
   getDefinition,
   listDefinitions,
   computeFor,
@@ -20,7 +21,14 @@ import {
   hasAnyFinite,
   registerDefinitions,
 } from './nativeRegistry'
-import { validateDefinition } from './defSchema'
+import { validateDefinition, COMPUTE_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES } from './defSchema'
+import { migrateLegacyToInstances } from './instances'
+// ⚠️ FROM `flipState`, NOT `StockChart`. `StockChart.jsx` re-exports this set
+// (`:66`) and the B3 plan's snippet imports it from there — but flipState is
+// where it is DECLARED, and the two are the same frozen Set object. Importing
+// the 10k-line component (and lightweight-charts with it) into a registry test
+// would buy nothing and cost the whole render tree.
+import { ENGINE_MIGRATED_DEF_IDS } from './flipState'
 import { computeMACD, computeRSI, computeParabolicSAR } from '../indicators'
 import { CHART_DEFAULTS } from '../chartDefaults'
 
@@ -281,5 +289,84 @@ describe('registerDefinitions — source referents are resolved against the regi
   it('REJECTS a source that is neither a bar field nor defId.plotKey', () => {
     const r = registerDefinitions([sourceDef('whatever')])
     expect(r.errors.join(' ')).toMatch(/whatever/)
+  })
+})
+
+// ─── the carve-out (B3 carry #3, adjudication A4) ────────────────────────────
+//
+// `volumeProfile` has had three docstrings explaining why it has no definition
+// since B1, and NONE of them failed if somebody added one. These do. The claim
+// under test is an equation, not a note:
+//
+//     settings keys  −  engine definitions  ==  CARVED_OUT_INDICATOR_KEYS
+//
+// Read it in both directions. A settings key that is neither defined NOR
+// declared carved-out is a hole somebody left; an id in the carve-out set that
+// IS defined is a stale note that will mislead the next reader. Either way the
+// arithmetic 14 + 1 = 15 stops being true, and this file goes red.
+//
+// ⚠️ THE LAST THREE TESTS QUANTIFY OVER THE SET, so they are vacuous on an EMPTY
+// one — emptying `CARVED_OUT_INDICATOR_KEYS` is caught by the first two and by
+// them alone. That is why "is exactly volumeProfile" pins the contents by hand
+// instead of trusting the equation to be self-supporting. Do not delete it as
+// redundant; it is what makes the others mean anything.
+
+describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', () => {
+  it('names every settings key with no definition, and nothing else', () => {
+    const settingsKeys = Object.keys(CHART_DEFAULTS.indicators)
+    const defined = new Set(listDefinitions().map(d => d.id))
+    const undefinedKeys = settingsKeys.filter(k => !defined.has(k))
+    expect(undefinedKeys.sort()).toEqual([...CARVED_OUT_INDICATOR_KEYS].sort())
+    for (const k of CARVED_OUT_INDICATOR_KEYS) {
+      expect(defined.has(k), `${k} is defined AND carved out`).toBe(false)
+    }
+  })
+
+  it('is exactly volumeProfile, and 14 + 1 = 15', () => {
+    // The count is asserted THREE ways on purpose. The equation above already
+    // fails on a 16th key that nobody defined; these fail on a 16th key that
+    // somebody DID define, which is the case where a new indicator lands in the
+    // engine and the enumeration sites, the parity gates and this arithmetic
+    // silently stop agreeing about how many there are.
+    expect([...CARVED_OUT_INDICATOR_KEYS]).toEqual(['volumeProfile'])
+    expect(listDefinitions()).toHaveLength(14)
+    expect(Object.keys(CHART_DEFAULTS.indicators)).toHaveLength(15)
+  })
+
+  it('the migrator SKIPS a carved-out key rather than emitting an instance nothing can render', () => {
+    // Generic over the SET, not hard-coded to volumeProfile: whatever is carved
+    // out must be skipped, and `rsi` is here as the control that proves the
+    // migrator ran at all rather than returning [] for an unrelated reason.
+    const indicators = { rsi: { enabled: true } }
+    for (const k of CARVED_OUT_INDICATOR_KEYS) indicators[k] = { enabled: true }
+    const out = migrateLegacyToInstances({ indicators })
+    expect(out.map(i => i.defId)).toEqual(['rsi'])
+  })
+
+  it('a carved-out key can never be migrated — the flip would delete the overlay', () => {
+    // `ENGINE_MIGRATED_DEF_IDS` is what makes a legacy block stand down. Adding a
+    // carved-out key there would silence the canvas effect for an indicator the
+    // engine cannot draw, and the volume profile would simply vanish — no engine
+    // series takes its place, because there is no definition to bind.
+    for (const k of CARVED_OUT_INDICATOR_KEYS) {
+      expect(ENGINE_MIGRATED_DEF_IDS.has(k), `${k} is carved out and must never be migrated`).toBe(false)
+    }
+  })
+
+  it('the carve-out has NOT expired — v1 still has no grammar that could express it', () => {
+    // ⛔ WHEN THIS GOES RED, DO NOT DELETE IT. Red here means the carve-out's
+    // stated expiry condition has arrived (see the `CARVED_OUT_INDICATOR_KEYS`
+    // docstring): a `primitive` compute kind, or a plot style that can draw
+    // horizontal volume bins. That is the moment to re-open the decision on
+    // purpose — which is the whole reason the expiry condition is executable
+    // rather than a sentence in a comment.
+    expect(COMPUTE_KINDS).not.toContain('primitive')
+    // `bgband` and `fill` are the two styles someone reaching for a volume
+    // profile would reach for first. Both are schema-RESERVED — declared in the
+    // spec, refused by the validator — so neither is a v1 escape hatch.
+    for (const style of ['bgband', 'fill']) {
+      expect(RESERVED_PLOT_STYLES).toContain(style)
+      expect(PLOT_STYLES).not.toContain(style)
+    }
   })
 })

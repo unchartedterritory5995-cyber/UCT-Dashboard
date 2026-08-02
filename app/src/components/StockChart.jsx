@@ -9105,6 +9105,12 @@ export default function StockChart({
   }, [onHighlightClick, highlightTimeMap, resolvedTf])
 
   // ── Volume Profile canvas overlay ──
+  // ⛔ NOT MIGRATABLE, BY DECISION. A canvas overlay, not a series: no compute
+  // function, no plot style that expresses horizontal volume bins. It has no
+  // engine definition and never will until a `primitive` compute kind exists
+  // (see `engine/nativeRegistry.CARVED_OUT_INDICATOR_KEYS`). NO Flip A guard and
+  // NO Flip B deletion applies here — a flip that silenced this effect would make
+  // the volume profile vanish with nothing to replace it.
   useEffect(() => {
     const canvas = vpCanvasRef.current
     const chart = chartRef.current

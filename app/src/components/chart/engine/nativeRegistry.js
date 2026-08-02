@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/nativeRegistry.js
 //
-// ─── The 15 shipped indicators, expressed as engine definitions ──────────────
+// ─── The 15 shipped indicators — 14 of them as engine definitions ────────────
 //
 // Two things live here and they are deliberately in one file, because they are
 // two halves of one claim:
@@ -11,7 +11,7 @@
 //      the legacy blocks onto these, and a migration is only a no-op if the
 //      definition already says what the chart already does.
 //
-//   2. computeFor() — the adapter that turns fifteen bespoke return shapes into
+//   2. computeFor() — the adapter that turns fourteen bespoke return shapes into
 //      ONE columnar contract. `indicators.js` returns bare `[{time,value}]`
 //      arrays, `{upper,middle,lower}`, `{macd,signal,histogram}`, `{k,d}`,
 //      `{adx,plusDI,minusDI}`, `{tenkan,kijun,spanA,spanB,chikou}` — and SAR
@@ -41,13 +41,10 @@
 //
 // WHY volumeProfile IS NOT HERE — AND MUST NOT BE "COMPLETED"
 // -----------------------------------------------------------
-// The chart ships 15 indicators; this registry has 14. `volumeProfile` is a
-// CANVAS OVERLAY: it has no compute function in `indicators.js`, it draws
-// horizontal volume bins directly onto a canvas primitive rather than through a
-// lightweight-charts series, and no v1 plot style can express it (`bgband` and
-// `fill` are schema-RESERVED, and neither is what it draws anyway). Adding a
-// definition for it would mean adding one that cannot be computed or bound — a
-// registry entry that lies. It is a deliberate B3 carve-out; leave it out.
+// Because it is a CANVAS OVERLAY, not a series. The decision, its reason and
+// its expiry condition are written on `CARVED_OUT_INDICATOR_KEYS` at the bottom
+// of this file, and `nativeRegistry.test.js` FAILS if anyone completes the
+// registry to 15 — read that export before adding a definition for it.
 //
 // NAMING: NO SECOND VOCABULARY
 // ----------------------------
@@ -651,6 +648,38 @@ if (_registered.errors.length) {
 
 /** The 14 native definitions, frozen. `volumeProfile` is NOT among them. */
 export const NATIVE_DEFS = Object.freeze(_registered.defs)
+
+/**
+ * The `CHART_DEFAULTS.indicators` keys that deliberately have NO definition.
+ *
+ * ⛔ B3 DECISION, 2026-08-02, recorded so it is not re-litigated: `volumeProfile`
+ * NEVER becomes a `plots[]` definition. It is a CANVAS OVERLAY — `StockChart`
+ * draws horizontal volume bins straight onto a 2D context (the "Volume Profile
+ * canvas overlay" effect → `drawVolumeProfile`), there is no compute function
+ * for it in `indicators.js`, and no v1 plot style expresses it. `bgband` and
+ * `fill` are schema-RESERVED and neither is what it draws anyway. A definition
+ * for it would be one that cannot be computed and cannot be bound: a registry
+ * entry that lies.
+ *
+ * It gets a `compute.kind: 'primitive'` lane when one exists — the same lane
+ * `zones` and `bgband` are waiting on, Phase C/D. Until then the legacy canvas
+ * effect IS the implementation, and NO B3 flip may delete it: adding a carved-out
+ * key to `flipState.ENGINE_MIGRATED_DEF_IDS` would stand its legacy block down
+ * with no engine series to take over, and the profile would simply vanish.
+ *
+ * THE COUNT, CORRECTED. The platform has **15 indicator settings keys and 14
+ * series-expressible indicators**. Spec §2/§5's "the 15 natives" counted settings
+ * keys. `nativeRegistry.test.js` asserts `settings keys − definitions == this
+ * set`, so the arithmetic cannot quietly drift in either direction: a 16th
+ * settings key that nobody defined fails it, and so does a definition for a key
+ * that is still listed here.
+ *
+ * WHY IT IS A LITERAL AND NOT DERIVED FROM `CHART_DEFAULTS`. A set computed as
+ * "the keys with no definition" would be true by construction and could never
+ * fail — the exact vacuous-gate shape this rail exists to avoid. It is written
+ * down by hand so the test can disagree with it.
+ */
+export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']))
 
 const _byId = new Map(NATIVE_DEFS.map(d => [d.id, d]))
 

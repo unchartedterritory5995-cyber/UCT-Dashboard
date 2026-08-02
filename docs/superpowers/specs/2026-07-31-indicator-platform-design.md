@@ -31,7 +31,7 @@ Build ONE indicator engine where every indicator is a versioned, declarative **d
 | Phase | Ships | Gate to ship |
 |---|---|---|
 | **A — Signature Launch** | 3 UCT Signature Indicators (server-computed, premium-gated) on the EXISTING chart path + signal ledger (write-only) + receipts landing section | Sep 5 launch; closed-bar semantics verified across live sessions |
-| **B — Foundation** | Engine, binding layer, instance-list settings, two-flip migration of the 15 natives, auto-generated settings UI, library dialog | Post-launch freeze lift (Sep 19+); per-indicator parity gates |
+| **B — Foundation** | Engine, binding layer, instance-list settings, two-flip migration of the 14 series-expressible natives (15 settings keys; `volumeProfile` is a canvas overlay and is carved out — see §11 and the B3 plan's adjudication A4), auto-generated settings UI, library dialog | Post-launch freeze lift (Sep 19+); per-indicator parity gates |
 | **C — Alerts & depth** | Closed-bar alert engine, every-plot-alertable + events, version policy, price alerts + push + fired log, AVWAP/ATR bands/RS line, per-chart sets + templates, Signature indicators genericized into registry | B complete |
 | **D — Builder + AI door** | jsep AST + closed-table interpreter, sentence read-back, machine repaint linter, NL→AST concierge | B complete (C parallelizable) |
 | **E — Screener & toolkits** | Definitions across full universe server-side; named ™ toolkits; tiering | C + D; ledger has public-worthy history |
@@ -126,8 +126,8 @@ compute({ bars, inputs, prevState?, barstate }) → { columns, state? }
   3. Write path merges by `instanceId` (or CAS on `settingsVersion`) — multiple chart widgets are concurrent writers; last-writer-wins loses instance adds.
 - **Binding layer:** generic `Map<instanceId, boundSeries[]>` owning ALL series/pane lifecycle; reuse-first; no create/remove during ticker flips or ticks; pane HANDLES (`series.getPane()`), never indices; lives OUTSIDE the monolithic settings effect (that isolation is the actual perf deliverable).
 - **Two-flip migration (architect R1 — replaces naive strangler):**
-  - **Flip A:** engine indicators render into the LEGACY stacked-margin bands via the placement adapter — zero geometry change, so per-indicator screenshot-parity gates are tight and honest. Order: LWC 5.1→5.2 bump + regression pass + baseline freeze → settings passthrough → BB + RSI pilots → **MACD third** (colorMode + multi-plot + histogram stress test) → remaining 12 (VWAP late; session semantics + `vwapOverride` special cases).
-  - **Flip B:** after all 15 are engine-owned, ONE atomic, feature-flagged cutover from margin-bands to real LWC panes, with dedicated visual QA on all four theme surfaces and a rollback flag. `paneMargins`/`chartRegion` contracts stay unit-tested until Flip B completes.
+  - **Flip A:** engine indicators render into the LEGACY stacked-margin bands via the placement adapter — zero geometry change, so per-indicator screenshot-parity gates are tight and honest. Order: LWC 5.1→5.2 bump + regression pass + baseline freeze → settings passthrough → BB + RSI pilots → **MACD third** (colorMode + multi-plot + histogram stress test) → remaining 11 (VWAP late; session semantics + `vwapOverride` special cases).
+  - **Flip B:** after all 14 are engine-owned, ONE atomic, feature-flagged cutover from margin-bands to real LWC panes, with dedicated visual QA on all four theme surfaces and a rollback flag. `paneMargins`/`chartRegion` contracts stay unit-tested until Flip B completes. `volumeProfile`'s legacy canvas effect is NOT in that deletion — it is carved out (§11) and no flip touches it.
 - **Perf budget:** ≤60 series AND ≤8 panes per chart; columnar→object mapping reused, never re-allocated per update; per-indicator compute time logged in dev with a >2× regression alarm.
 - **Mount-site scoping:** full management UX on Charts workspace + TickerPopup; read-only rendering at the other mount sites (18 total; `hideLegend` surfaces get no chips → error states fall back to a console+telemetry path).
 
@@ -214,6 +214,7 @@ Each: server-computed (hardcoded endpoints acceptable; genericize in C), wrapped
 | Scoreboard | Ledger writes from day one; private surfaces first; public per-toolkit after proof | Trader ("loaded gun") + CEO (time-accrued value) |
 | Pricing | No new SKU at launch; Signature strengthens existing premium; endpoints tier-gated from day one; toolkit names seeded in content early | CEO |
 | Positioning | "The chart TradingView can't be" — alongside TV, not against it | Trader |
+| `volumeProfile` (B3 A4, 2026-08-02) | **Permanently carved out** of the `plots[]` grammar. 15 indicator SETTINGS keys, **14 series-expressible** indicators. It stays a legacy canvas overlay and no B3 flip deletes it; it gets a `compute.kind: 'primitive'` lane when one exists (C/D, alongside `zones`/`bgband`) | It renders to a 2D canvas, not through `addSeries`: no compute function in `indicators.js`, absent from `indicatorData` and `paneMargins`, and no v1 plot style expresses horizontal volume bins. A definition for it could be neither computed nor bound. Written down + railed at `nativeRegistry.CARVED_OUT_INDICATOR_KEYS` |
 
 ## 12. Out of scope (v1, affirmed)
 
