@@ -2765,6 +2765,16 @@ function fmtClock(ts) {
   } catch { return "—"; }
 }
 
+// Month/day in ET — for the multi-day SPAN range (matches fmtClock's timezone so
+// the date can't drift to browser-local).
+function fmtDay(ts) {
+  if (!ts) return "—";
+  try {
+    return new Date(ts * 1000)
+      .toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" });
+  } catch { return "—"; }
+}
+
 function ContractColumnHeaders({ isAdmin }) {
   const cols = ["SPAN", "TICKER", "SPOT", "STRIKE", "C/P", "EXP", "%ITM/OTM",
                 "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
@@ -2847,11 +2857,22 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
           background: c.dormant ? `${P.bl}10` : dirTint,
           borderLeft: `4px solid ${c.dormant ? P.bl : dirColor}`,
         }}
-        title={`${c.hit_count} prints · ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)} · conviction score ${c.score?.toLocaleString?.() || c.score}`}
+        title={`${c.hit_count} prints${c.is_multiday
+          ? ` across ${_daysN} days (${fmtDay(c.first_ts)}–${fmtDay(c.last_ts)}, ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)})`
+          : ` · ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)}`} · conviction score ${c.score?.toLocaleString?.() || c.score}`}
       >
         <span style={{ color: rowColor, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <i style={{ color: rowColor, fontSize: 11 }}>{open ? "▾" : "▸"}</i>
-          {fmtClock(c.first_ts)}–{fmtClock(c.last_ts)}
+          {c.is_multiday ? (
+            <>
+              {fmtDay(c.first_ts)} → {fmtDay(c.last_ts)}
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+                background: P.ac + "30", color: P.ac, flexShrink: 0 }}
+                title={`${_daysN} distinct trading days with prints in this window`}>{_daysN}d</span>
+            </>
+          ) : (
+            `${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)}`
+          )}
         </span>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
           <span onClick={(e) => { e.stopPropagation(); onClickTicker && onClickTicker(c.ticker); }}
