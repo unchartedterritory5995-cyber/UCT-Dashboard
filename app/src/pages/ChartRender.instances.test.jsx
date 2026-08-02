@@ -102,4 +102,20 @@ describe('ChartRender ?instances=', () => {
       expect(cs?.engineEnabled, raw).toBeUndefined()
     }
   })
+  // ── ?priceline=0 — a DETERMINISM control, and the only one of its kind ────
+  //
+  // Over 40 runs of `engine_rsi_toggle_off` the dashed LAST-PRICE LINE rasterised
+  // into one of two states, independently on both sides (legacy 5/40, engine 7/40),
+  // with every capture proven pixel-stable first. It is drawn by the CANDLE series,
+  // no case measures it, and both sides always get the same param — so removing it
+  // from the one case that lands on the unstable geometry is the footer-clock
+  // treatment, not a tolerance. Pinned because a silent removal would put a
+  // ~15%-per-run coin flip back into the branch's only pixel gate.
+  it('?priceline=0 hides the last-price line, and its absence changes nothing', async () => {
+    await renderRoute('&priceline=0')
+    expect(H.props.at(-1).hidePriceLine).toBe(true)
+    cleanup(); H.reset()
+    await renderRoute('')
+    expect(H.props.at(-1).hidePriceLine).toBe(false)
+  })
 })

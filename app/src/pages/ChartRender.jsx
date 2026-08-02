@@ -124,9 +124,15 @@ export default function ChartRender() {
   //   ?ext=0   REGULAR HOURS ONLY - drops the pre/post shading bands AND the
   //            pre/post candles. The headless page has no saved chart settings,
   //            so it silently inherited `extendedHoursShading ?? true`.
+  //   ?priceline=0  drop the dashed LAST-PRICE line (and the volume value line).
+  //            A parity-determinism control, and the only one of its kind — see
+  //            the note next to `hidePriceLine` below for the measurement that
+  //            put it here. Absent = today's behavior exactly.
   const barsOverride = (() => { const v = parseInt(sp.get('bars') || '', 10); return Number.isFinite(v) && v > 0 ? Math.min(1200, v) : null })()
   const extParam = sp.get('ext')
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
+  const priceLineParam = sp.get('priceline')
+  const hidePriceLine = priceLineParam === '0' || priceLineParam === 'false'
 
   // ── Parity-gate params (see the header comment) ────────────────────────────
   //   ?indicators=<base64url JSON>  a PARTIAL chart_settings blob, deep-merged
@@ -480,6 +486,21 @@ export default function ChartRender() {
             settingsOverride={csOverride}
             barsOverride={fixtureBars}
             barsOverridePending={!!fixedBars && !fixtureSettled}
+            // ⚠️ MEASURED NONDETERMINISM, NOT A PREFERENCE. Over 40 runs of
+            // `engine_rsi_toggle_off` (2026-08-02) the DASHED LAST-PRICE LINE
+            // rasterised into one of exactly TWO states — 24 px on one row,
+            // y=265, at ~12 dash boundaries — and it did so INDEPENDENTLY on
+            // both sides (5/40 on the legacy side, 7/40 on the engine side),
+            // uncorrelated with settle time. Every capture was proven
+            // pixel-stable first (2 shots, both sides, all 80), so this is not
+            // capture timing and not an A-vs-B asymmetry: it is Chromium
+            // rasterising the same dashed line two ways at that geometry. The
+            // line is drawn by the CANDLE series, so it is not part of any
+            // indicator migration and no case measures it. `?priceline=0`
+            // removes it from the one case that lands on the unstable geometry —
+            // the same treatment the footer's wall-clock stamp already gets, and
+            // NOT a tolerance: that case must still be 0 on every run.
+            hidePriceLine={hidePriceLine}
             volumeSeparatePane
             alwaysShowLegend
             liveUpdates={false}

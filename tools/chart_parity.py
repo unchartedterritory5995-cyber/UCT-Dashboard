@@ -201,6 +201,13 @@ def case_url(base: str, case: dict, token: str, extra_settings: dict | None = No
         params["bars"] = case["bars"]
     if case.get("ext") is not None:
         params["ext"] = case["ext"]
+    # `priceLine: false` ⇒ `?priceline=0`. A DETERMINISM control, not a view
+    # preference: see `engine_rsi_toggle_off`'s `why` and the note beside
+    # `hidePriceLine` in ChartRender.jsx. Both sides always get it, so it can
+    # never tell A and B apart — it only removes an element that Chromium
+    # rasterises two ways at one specific pane geometry.
+    if case.get("priceLine") is False:
+        params["priceline"] = 0
     if case.get("company"):
         params["company"] = case["company"]
     if token:
