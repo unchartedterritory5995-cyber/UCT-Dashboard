@@ -497,6 +497,153 @@ describe('M-1 — a binding that cannot resolve gives its series BACK', () => {
   })
 })
 
+// ─── I-1: the compute and the point mapping are memoised ────────────────────
+//
+// `updateChart` re-runs ~1×/sec in extended hours and most of those passes are
+// `noop`s whose work `_applyData` throws away. Unmemoised, 14 instances over
+// 5,000 bars is 14 indicator computes and ~135,000 discarded point objects a
+// second. Spec §5 states the budget ("columnar→object mapping reused, never
+// re-allocated per update"); nothing in B2 owned it.
+//
+// The correctness half is the half that matters: a memo that serves stale numbers
+// is worse than no memo at all, so every input it keys on has its own test.
+
+/** The real registry, counting `computeFor`. One object, reused across syncs —
+ *  the memo keys on registry identity, so a fresh wrapper per pass would make
+ *  every "was it memoised" assertion vacuously false. */
+const countingRegistry = () => {
+  const computes = []
+  return {
+    computes,
+    getDefinition: (id) => registry.getDefinition(id),
+    listDefinitions: registry.listDefinitions,
+    hasAnyFinite: registry.hasAnyFinite,
+    computeFor: (def, b, inputs) => { computes.push(def.id); return registry.computeFor(def, b, inputs) },
+  }
+}
+
+describe('compute and point-mapping memo', () => {
+  it('computes ONCE across repeated passes with the same bars and inputs', () => {
+    const reg = countingRegistry()
+    const ctx = { ...ctxFor([inst('rsi'), inst('macd')]), registry: reg }
+    binder.sync(ctx)
+    expect(reg.computes.sort()).toEqual(['macd', 'rsi'])
+
+    binder.sync(ctx)
+    binder.sync({ ...ctx, plan: { noop: true } })
+    binder.sync({ ...ctx, plan: { incr: true } })
+    expect(reg.computes.sort(), 'the noop passes recomputed everything').toEqual(['macd', 'rsi'])
+  })
+
+  it('hands the renderer the SAME point array rather than a fresh one each pass', () => {
+    const ctx = ctxFor([inst('rsi')])
+    binder.sync(ctx)
+    binder.sync(ctx)
+
+    const setData = fake.callsOf('setData')
+    expect(setData.length).toBe(2)        // create, then the surviving bind's applyData
+    expect(setData[1].args[0]).toBe(setData[0].args[0])
+  })
+
+  it('RECOMPUTES when an input changes — the memo is on values, not on identity', () => {
+    // `normalizeInstances` rebuilds `inputs` every read, so an identity check
+    // would never hit and this memo would be decorative. The flip side is that it
+    // must notice a real edit.
+    const reg = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi', { inputs: { period: 14 } })]), registry: reg })
+    const first = fake.callsOf('setData')[0].args[0].at(-1).value
+
+    binder.sync({ ...ctxFor([inst('rsi', { inputs: { period: 30 } })]), registry: reg })
+    expect(reg.computes).toEqual(['rsi', 'rsi'])
+    const second = fake.callsOf('setData').at(-1).args[0].at(-1).value
+    expect(second).not.toBe(first)
+  })
+
+  it('an equal-but-rebuilt inputs object does NOT recompute', () => {
+    const reg = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi', { inputs: { period: 14, color: '#abcdef' } })]), registry: reg })
+    binder.sync({ ...ctxFor([inst('rsi', { inputs: { color: '#abcdef', period: 14 } })]), registry: reg })
+    expect(reg.computes, 'key order must not count as a change').toEqual(['rsi'])
+  })
+
+  it('RECOMPUTES when the bars change', () => {
+    const reg = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg })
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg, bars: makeBars(300) })
+    expect(reg.computes).toEqual(['rsi', 'rsi'])
+    expect(fake.callsOf('setData').at(-1).args[0]).toHaveLength(300)
+  })
+
+  it('re-maps points when the plot\'s SIGN COLOURS change', () => {
+    // The point array carries per-bar colours for a `colorMode: 'sign'` plot, so
+    // the MAPPING depends on more than the column.
+    //
+    // ⚠️ THE FIRST VERSION OF THIS TEST WAS VACUOUS and a mutation said so:
+    // deleting `up`/`down` from the point-memo key did not fail it, because
+    // swapping the registry ALSO invalidated the compute memo, which handed back
+    // a fresh column, which invalidated the point memo for a different reason.
+    // So the column here is deliberately pinned: ONE object, returned by
+    // reference from both registries, leaving the colours as the only thing that
+    // can invalidate the mapping.
+    const macdDef = registry.getDefinition('macd')
+    const recoloured = {
+      ...macdDef,
+      plots: macdDef.plots.map(p => (p.key === 'histogram' ? { ...p, colorUp: '#00ff00', colorDown: '#ff0000' } : p)),
+    }
+    const cache = new Map()
+    const stableCompute = (def, b, i) => {
+      if (!cache.has(def.id)) cache.set(def.id, registry.computeFor(registry.getDefinition(def.id), b, i))
+      return cache.get(def.id)
+    }
+    const regWith = (getDefinition) => ({
+      getDefinition, listDefinitions: registry.listDefinitions,
+      hasAnyFinite: registry.hasAnyFinite, computeFor: stableCompute,
+    })
+    // ONE `adjustTime` across both passes, for the same reason as the pinned
+    // column: `ctxFor` builds a fresh arrow every call, and `adjustTime` is part
+    // of the point memo's key (it stamps every `time`), so a per-pass one would
+    // invalidate the mapping before the colours ever got a say.
+    const stableAdjust = (t) => t
+
+    binder.sync({ ...ctxFor([inst('macd')]), adjustTime: stableAdjust, registry: regWith((id) => registry.getDefinition(id)) })
+    const before = new Set(fake.callsOf('setData').flatMap(c => c.args[0]).map(p => p.color).filter(Boolean))
+    expect(before, 'setup: the first pass drew the shipped colours')
+      .toEqual(new Set(['rgba(76,175,80,0.75)', 'rgba(244,67,54,0.75)']))
+
+    binder.sync({
+      ...ctxFor([inst('macd')]), adjustTime: stableAdjust,
+      registry: regWith((id) => (id === 'macd' ? recoloured : registry.getDefinition(id))),
+    })
+
+    const drawn = fake.callsOf('setData').at(-1).args[0].filter(p => p.value !== undefined)
+    expect(new Set(drawn.map(p => p.color))).toEqual(new Set(['#00ff00', '#ff0000']))
+  })
+
+  it('a DIFFERENT registry invalidates it — the compute function is part of the key', () => {
+    const a = countingRegistry()
+    const b = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: a })
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: b })
+    expect(b.computes).toEqual(['rsi'])
+  })
+
+  it('prunes: an instance that goes away does not keep its arrays alive', () => {
+    const reg = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg })
+    binder.sync({ ...ctxFor([]), registry: reg })
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg })
+    expect(reg.computes, 'a dropped instance must not stay memoised').toEqual(['rsi', 'rsi'])
+  })
+
+  it('teardown drops both memos', () => {
+    const reg = countingRegistry()
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg })
+    binder.teardown()
+    binder.sync({ ...ctxFor([inst('rsi')]), registry: reg })
+    expect(reg.computes).toEqual(['rsi', 'rsi'])
+  })
+})
+
 describe('release and teardown', () => {
   it('a series nothing can reuse is removed', () => {
     binder.sync(ctxFor([inst('macd')]))          // 2 lines + 1 histogram
