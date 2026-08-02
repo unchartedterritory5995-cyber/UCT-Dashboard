@@ -3846,9 +3846,14 @@ export default function LiveFlowMassive() {
 
   // By-Contract rollups, filtered by the same search / ticker-isolation the
   // print feed uses (partition + algo already applied server-side).
+  const _allTiersOn = TIER_ORDER.every(t => filters[t]);
   const visibleContracts = (byContract?.contracts || []).filter(c => {
     if (searchQ && !(c.ticker || "").toUpperCase().includes(searchQ)) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(c.ticker)) return false;
+    // Tier chips (Alpha Gold / Size / Bullish / …) now filter By-Contract too:
+    // keep a contract only if one of its prints belongs to a currently-ON tier.
+    // So "Alpha Gold" (or Size) shows which of THOSE contracts are still open/adding.
+    if (!_allTiersOn && !((c.tiers || []).some(t => filters[t]))) return false;
     // Still-open only: drop contracts whose fetched settled OI says CLOSED
     // (exited). Contracts not yet OI-checked are kept (status undefined).
     if (stillOpenOnly && oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]?.status === "closed") return false;

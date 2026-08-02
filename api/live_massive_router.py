@@ -3295,6 +3295,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 "types": set(), "grades": [], "max_oi": 0,
                 "first_ts": None, "last_ts": None, "prints": [],
                 "dates": {},  # M/D/YYYY -> hit count, for multi-day accumulation
+                "tier_prem": {},  # _tierKey -> summed premium (for the tier filter)
             }
             contracts[ckey] = g
         rdate = r["CreatedDate"] if "CreatedDate" in r.keys() else None
@@ -3304,6 +3305,8 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         vol = a.get("tradeSize") or 0
         g["total_premium"] += prem
         g["total_volume"] += vol
+        _tk = a.get("_tierKey") or "algo"     # which tier chip this print belongs to
+        g["tier_prem"][_tk] = g["tier_prem"].get(_tk, 0.0) + prem
         d = a.get("_direction")
         if d == "Bull":
             g["bull_premium"] += prem
@@ -3458,6 +3461,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 shape=accumulation_shape, sided_pct=sided_pct, cum_voi=voi,
             )[0],
             "dormant": dormant, "score": score,
+            # Tiers present in this contract's prints, premium-desc (primary first) —
+            # lets the Alpha Gold / Size / etc. chips filter the By-Contract view.
+            "tiers": [t for t, _ in sorted(g["tier_prem"].items(), key=lambda kv: -kv[1])],
             "first_ts": g["first_ts"], "last_ts": g["last_ts"],
             "prints": sorted(g["prints"], key=lambda p: p["timestamp"] or 0, reverse=True),
         })
