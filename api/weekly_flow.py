@@ -29,6 +29,7 @@ import io
 import logging
 import os
 import sqlite3
+import time
 from datetime import date, datetime
 
 from api.alpha_gold_eod import _fmt_prem, _post_discord_image
@@ -733,15 +734,26 @@ def run_standing_cron() -> dict:
         return {"ok": False, "reason": f"error: {e}"}
 
 
+_BOARD_CACHE: dict = {}
+_BOARD_TTL = 120  # seconds — the board is an interactive/public tab; a 60-day
+#   flow.db scan is expensive, so memoize per (days,cap,…) to keep it responsive
+#   and shield the flow-worker from per-mount/per-keystroke rescans.
+
+
 def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
                frac: float = 0.75, limit: int = 300) -> dict:
     """JSON-serializable still-open directional board for the searchable UI tab.
     Same scan + still-open engine as the cards, but returns EVERY directional
     name (not the top-N-per-side split) so the front-end can search/sort the
     whole set. Each row carries bull/bear/net/bullPct + top contract + since +
-    since-open perf. Never raises."""
+    since-open perf. 120s TTL-cached per params. Never raises."""
+    cap = (cap or "all").strip().lower()
+    ckey = (days, cap, min_dte, frac, limit)
+    now = time.time()
+    hit = _BOARD_CACHE.get(ckey)
+    if hit and now - hit[0] < _BOARD_TTL:
+        return hit[1]
     try:
-        cap = (cap or "all").strip().lower()
         trades, window = load_directional_trades(days, min_dte, cap)
         agg = aggregate(trades, top_n=10 ** 9, still_open_frac=frac)
         ref = date.today()
@@ -759,9 +771,11 @@ def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
                 "perf": round((ls / fs - 1) * 100, 1) if (fs > 0 and ls > 0) else None,
             })
         rows.sort(key=lambda r: r["net"], reverse=True)
-        return {"ok": True, "rows": rows[:limit], "window": window,
-                "n_names": agg["n_names"], "open_contracts": agg["open_contracts"],
-                "days": days, "cap": cap, "min_dte": min_dte}
+        res = {"ok": True, "rows": rows[:limit], "window": window,
+               "n_names": agg["n_names"], "open_contracts": agg["open_contracts"],
+               "days": days, "cap": cap, "min_dte": min_dte}
+        _BOARD_CACHE[ckey] = (now, res)
+        return res
     except Exception as e:  # noqa: BLE001
         log.exception("[flow-board] build failed")
         return {"ok": False, "reason": f"error: {e}", "rows": []}

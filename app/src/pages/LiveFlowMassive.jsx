@@ -3047,6 +3047,11 @@ function FlowBoard({ search }) {
                 <td style={cell("right", P.dm)}>{r.dte || "—"}</td>
               </tr>
             ))}
+            {loading && (
+              <tr><td colSpan={cols.length} style={{ padding: 30, textAlign: "center", color: P.dm }}>
+                Loading still-open board… (scanning {days}d of flow — first load can take a few seconds)
+              </td></tr>
+            )}
             {!loading && rows.length === 0 && !err && (
               <tr><td colSpan={cols.length} style={{ padding: 30, textAlign: "center", color: P.dm }}>
                 {search ? `No still-open names match "${search}".` : "No still-open directional names for this window / cap."}
@@ -4222,7 +4227,7 @@ export default function LiveFlowMassive() {
                      search={search} onSearchChange={setSearch}
                      viewMode={viewMode} onViewModeChange={setViewMode}
                      hideNoSide={hideNoSide} onHideNoSideChange={setHideNoSide}
-                     showBoard={isTuneMode} />
+                     showBoard={true} />
 
         {viewMode === "contract" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontSize: 11, color: P.mt }}>
