@@ -134,7 +134,31 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
  */
 export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted', 'largeDashed'])
 
-/** Non-parametric colour modes. `column:<key>` is the parametric third form. */
+/**
+ * Non-parametric colour modes. `column:<key>` is the parametric third form.
+ *
+ * ⚠️ `column:<key>` IS VALIDATED-BUT-INERT IN v1, ON PURPOSE. Read that as a
+ * decision, not as the family of defects the B2 review closed:
+ *
+ *   * `area`/`baseline` given a `color` option they do not have (I-2) — a WRONG
+ *     option reaching the renderer. Fixed.
+ *   * `opacity` validated and read by nothing (I-4) — an author's declaration
+ *     dropped on the floor. Wired.
+ *   * `plots[].precision` validated for every plot, read only for histograms
+ *     (N-4) — same shape. Wired.
+ *
+ * `column:<key>` is different in kind: NO SHIPPED DEFINITION DECLARES IT, so
+ * there is nothing to drop. It is here because the reference-integrity check
+ * below (does that column exist?) is the expensive half and is cheap to keep
+ * true, and because a per-point colour column is how B3's first bar-colouring
+ * indicator will express itself. `pool.signColorsForPlot` returns null for it and
+ * says so; the series renders in its own colour, which is the correct v1
+ * behaviour for a mode with no consumer.
+ *
+ * The day a definition declares one, `signColorsForPlot` and `binder.toPoints`
+ * are the two places that must learn it — and a test asserting per-point colours
+ * is the thing to write first. Until then: validated, inert, and deliberate.
+ */
 export const COLOR_MODES = Object.freeze(['fixed', 'sign'])
 
 /** Entitlement tier. LOCKED in B2 Task 2 (carry-in c): it was validated only as
@@ -798,6 +822,10 @@ function validateColorModes(plots, columnKeys, errors) {
       )
       return
     }
+    // Reachable, checked — and deliberately inert at render time in v1. See the
+    // note on COLOR_MODES: no shipped definition declares `column:<key>`, so
+    // there is no author declaration being dropped here. Keeping the reference
+    // check true costs nothing and is what makes the mode safe to start using.
     const col = mode.slice('column:'.length)
     if (!columnKeys.has(col)) {
       errors.push(

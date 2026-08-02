@@ -435,19 +435,21 @@ const bareplot = (style) => {
 /** The key set each pool key must ALWAYS produce, whatever the plot says. */
 const COMPLETE_KEYS = {
   line: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId',
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
     'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
     'pointMarkersVisible', 'pointMarkersRadius', 'color',
   ],
-  histogram: ['priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'color', 'priceFormat'],
+  histogram: [
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat', 'color',
+  ],
   area: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId',
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
     'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
     'pointMarkersVisible', 'pointMarkersRadius',
     'lineColor', 'topColor', 'bottomColor',
   ],
   baseline: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId',
+    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
     'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
     'pointMarkersVisible', 'pointMarkersRadius',
     'topLineColor', 'bottomLineColor',
@@ -683,6 +685,67 @@ describe('bindingKey / guideSignature', () => {
 //
 // These read `defaultOptions` off the installed series definitions, so a
 // dependency bump that moves a default fails here, by name, with both values.
+// ─── N-4: `plots[].precision` reaches every plot, not just histograms ────────
+//
+// It was validated by `defSchema` for ANY plot and read only on the histogram
+// branch of `seriesOptionsForPlot`. A `line`/`area`/`baseline` plot declaring
+// `precision: 5` therefore got no `priceFormat` at all and rendered with LWC's
+// default 2-decimal axis labels — silently, because nothing in the schema, the
+// registry or the tests connected the two. Third member of the family I-2 and
+// I-4 closed; resolved the same way I-4 was, by wiring it.
+describe('`plots[].precision` is honoured on every pool key', () => {
+  const withPrecision = (style, precision) => ({ ...bareplot(style), precision })
+
+  it('a declared precision reaches the series on EVERY pool key', () => {
+    for (const style of ['line', 'area', 'baseline', 'histogram', 'stepline', 'markers']) {
+      const o = seriesOptionsForPlot(withPrecision(style, 5), {})
+      expect(o.priceFormat, style).toEqual({ type: 'price', precision: 5 })
+    }
+  })
+
+  it("silence means LWC's OWN default, so a Flip A migration sees no change", () => {
+    // 2 is `seriesOptionsDefaults.priceFormat.precision` in the installed bundle
+    // (asserted against the real value, not a hand-copy). That is what makes it
+    // safe to emit this key unconditionally: for every plot that says nothing —
+    // which today is every plot except MACD's histogram — the object the engine
+    // applies is the state the series is already in.
+    for (const style of ['line', 'area', 'baseline', 'histogram']) {
+      expect(seriesOptionsForPlot(bareplot(style), {}).priceFormat, style)
+        .toEqual({ type: 'price', precision: 2 })
+    }
+  })
+
+  it('an absurd or non-integer precision falls back rather than reaching LWC', () => {
+    // `defSchema` rejects these at registration; this is the second lock, and it
+    // matters because `priceFormat` is one of the few options that can throw
+    // inside the renderer rather than just look wrong.
+    for (const bad of [undefined, null, NaN, Infinity, '3', {}]) {
+      expect(seriesOptionsForPlot({ ...bareplot('line'), precision: bad }, {}).priceFormat)
+        .toEqual({ type: 'price', precision: 2 })
+    }
+    expect(seriesOptionsForPlot({ ...bareplot('line'), precision: 0 }, {}).priceFormat)
+      .toEqual({ type: 'price', precision: 0 })
+  })
+
+  it("MACD's shipped histogram still asks for 5, exactly as the legacy call did", () => {
+    // `StockChart.jsx:6018` — `priceFormat: {type: 'price', precision: 5}`. The
+    // registry declares `precision: 5` on that plot and nowhere else, which is
+    // why this whole field was latent: engine and legacy already agreed.
+    const hist = registry.getDefinition('macd').plots.find(p => p.key === 'histogram')
+    expect(hist.precision).toBe(5)
+    expect(seriesOptionsForPlot(hist, {}).priceFormat).toEqual({ type: 'price', precision: 5 })
+  })
+
+  it("a pooled series cannot inherit the last tenant's precision", () => {
+    // The C-1 property, on the new key: MACD's histogram (precision 5) and any
+    // other histogram share a pool key, so the one that declares nothing must
+    // still say 2 rather than leave 5 in place.
+    const macdHist = registry.getDefinition('macd').plots.find(p => p.key === 'histogram')
+    expect(seriesOptionsForPlot(macdHist, {}).priceFormat.precision).toBe(5)
+    expect(seriesOptionsForPlot(bareplot('histogram'), {}).priceFormat.precision).toBe(2)
+  })
+})
+
 describe('LWC_DEFAULTS is pinned against the INSTALLED lightweight-charts', () => {
   const REAL = {
     line: LineSeries.defaultOptions,

@@ -279,6 +279,34 @@ const LWC_DEFAULTS = Object.freeze({
   }),
 })
 
+/** LWC's OWN `priceFormat.precision` (`seriesOptionsDefaults`, 5.2.0). Naming it
+ *  here is what makes `precision` free to wire onto EVERY pool key: a plot that
+ *  says nothing gets the number the renderer already uses, so the emitted
+ *  `{type: 'price', precision: 2}` is a no-op on the picture and Flip A parity is
+ *  untouched. `minMove` is deliberately NOT emitted — LWC's `merge` recurses into
+ *  a nested plain object, so the series keeps its own `minMove: 0.01`, which is
+ *  exactly what the legacy MACD call (`StockChart.jsx:6018`,
+ *  `{type: 'price', precision: 5}` and nothing else) leaves it at. */
+const DEFAULT_PRICE_PRECISION = 2
+
+/**
+ * `plots[].precision` → the axis/crosshair decimals for that plot.
+ *
+ * It was validated by `defSchema` for ANY plot and read only on the histogram
+ * branch, so a `line`/`area`/`baseline` plot declaring `precision: 5` silently
+ * rendered with 2-decimal labels: the third member of the family I-2 (`area`
+ * given an option it does not have) and I-4 (`opacity` validated and read by
+ * nothing) closed. Resolved the same way I-4 was — wired, not dropped — because
+ * a schema field a consumer ignores is a promise the engine does not keep.
+ *
+ * Emitted on every pool key rather than only where the author asked for it: the
+ * C-1 key set has to be identical for every plot sharing a pool key, or an
+ * `applyOptions` merge carries the last tenant's precision onto the next one.
+ */
+function precisionFor(plot) {
+  return Number.isFinite(plot.precision) ? plot.precision : DEFAULT_PRICE_PRECISION
+}
+
 /** The engine's own default line width. NOT LWC's (which is 3): every indicator
  *  line in `StockChart.jsx` is created at 1, so 1 is what "the author didn't
  *  say" has to mean for a Flip A migration to stay pixel-identical. */
@@ -412,6 +440,7 @@ export function seriesOptionsForPlot(plot, ctx) {
     lastValueVisible: false,
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
+    priceFormat: { type: 'price', precision: precisionFor(plot) },
   }
 
   if (pk === 'histogram') {
@@ -420,7 +449,6 @@ export function seriesOptionsForPlot(plot, ctx) {
     // histogram can only ever be re-purposed by another histogram, there is
     // nothing of that kind for it to inherit.
     base.color = effectiveColor(plot, LWC_DEFAULTS.histogram.color)
-    base.priceFormat = { type: 'price', precision: Number.isFinite(plot.precision) ? plot.precision : 2 }
     return base
   }
 
