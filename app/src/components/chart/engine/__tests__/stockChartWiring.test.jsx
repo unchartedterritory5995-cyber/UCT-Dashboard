@@ -1102,6 +1102,63 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     expect(purple(), 'toggled back on: three more, and the legacy block added none of its own').toHaveLength(6)
   })
 
+  it('an instance arriving MID-SESSION removes the three lines legacy already drew', () => {
+    // ⛔ THE MUTATION THAT SURVIVED EVERYTHING ELSE (M8). Every other case in this
+    // file starts with the engine already owning BB, so the legacy refs are null
+    // and there is nothing to orphan. The real crossover is the other order: the
+    // chart is up, legacy has drawn its three bands, and THEN an instance
+    // appears — a settings sync, a grid cell's override, Task 9's future "move
+    // this to the engine" control.
+    //
+    // The `else` that removes them lives INSIDE the per-band condition. Hoist the
+    // guard to the loop's entry — `for (… of (bbEngineOwned ? [] : BB_BANDS))`,
+    // which reads like the same thing — and the loop no longer runs at all, so
+    // the removal never fires: six purple lines, three of them dead, and every
+    // other assertion in this suite still green. Measured, not imagined.
+    const legacyFirst = { ...BB_ON, engineEnabled: true, indicatorInstances: [] }
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legacyFirst} />,
+    )
+    const legacyDrawn = purple().map(c => c.series)
+    expect(legacyDrawn, 'the LEGACY block drew no bands — nothing to orphan').toHaveLength(3)
+    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ ...legacyFirst, indicatorInstances: [BB_INSTANCE] }} />,
+    )
+
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn, 'the engine did not take over').toHaveLength(3)
+    for (const s of legacyDrawn) {
+      expect(engineDrawn, 'the engine re-used a LEGACY series — it does not own those')
+        .not.toContain(s)
+      expect(H.removedSeries,
+        'a legacy Bollinger line was left on the chart under the engine\'s copy').toContain(s)
+    }
+  })
+
+  it('and the reverse — the instance LEAVING hands the three bands back to legacy', () => {
+    // The same seam from the other side. If the legacy block did not stand back
+    // up, removing an instance would delete the indicator the settings still say
+    // is on.
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
+    )
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ ...settings(), indicatorInstances: [] }} />,
+    )
+    expect(H.binderApis[0].bindings(), 'the engine still holds series').toHaveLength(0)
+    for (const s of engineDrawn) expect(H.removedSeries).toContain(s)
+    // …and legacy drew three of its own, so the user still sees Bollinger bands.
+    const live = purple().map(c => c.series).filter(s => !H.removedSeries.includes(s))
+    expect(live, 'the bands vanished when the instance was removed').toHaveLength(3)
+  })
+
   it('a COLOUR change re-styles the SAME three series — never destroys and recreates', () => {
     // lightweight-charts#2049: a mass removeSeries is a 2-4s main-thread block,
     // and a price overlay is three series rather than one, so the pool matters

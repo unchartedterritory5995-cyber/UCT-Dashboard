@@ -315,6 +315,30 @@ That last row is the Task 8 rehearsal's first result and is worth keeping in
 mind for scale: a whole guide line rendering with the wrong dash pattern is
 0.05% of the canvas. Nothing about a small number here means a small mistake.
 
+### The autoscale seam, on both kinds of scale
+
+`resolvePlacement().autoscale` is a SERIES option (`autoscaleInfoProvider`) and
+the only thing standing between a Bollinger band and the candles' price range.
+It has been measured on both scales it can reach, so neither claim rests on
+reading the renderer's source:
+
+| flip | case | changed pixels | shape |
+|---|---|---:|---|
+| RSI's PANE branch `'default'` → `'exclude'` | `engine_rsi_vs_legacy` | 3,697 | the RSI band collapses to LWC's empty −0.5..0.5 default |
+| BB's PRICE branch `'exclude'` → `'default'` | `engine_bb_vs_legacy` | **38,491** (5.17%) | **343 rows × 1,160 columns — the whole price pane re-frames** |
+| …same flip, both pilots together | `engine_bb_rsi_vs_legacy` | 44,221 (5.94%) | as above, plus RSI's band |
+
+The second row is the one that could not be produced before B3 Task 3: only a
+PRICE overlay shares the candles' scale, so only a price overlay can drag it.
+Note the shape — 343 rows spanning the whole width — against the capture-timing
+artefact documented above, which is **one** row. They are not the same kind of
+number and must never be confused for one.
+
+Also measured on `engine_bb_vs_legacy`, for the "prove it can fail" step:
+`--perturb-b-instances '{"color":"rgba(156,39,177,0.85)"}'` (blue +1 on three
+translucent lines) → **1,936 px**; `'{"period":21}'` → **8,534 px**
+(14,918 on `engine_bb_rsi_vs_legacy`).
+
 So the gate resolves a single least-significant bit on a single channel. That was
 not true of the first version: it reduced the RGB difference to greyscale before
 counting, greyscale is luma-weighted (blue counts 0.114), and a whole-canvas
