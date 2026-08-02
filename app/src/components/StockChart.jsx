@@ -4014,10 +4014,18 @@ export default function StockChart({
         // golden fixtures caught the two disagreeing on those bars). This chart
         // has ALWAYS started the MACD line together with its signal, so B1 keeps
         // that look by masking the line's head back to the signal's first bar.
-        // Dropping the mask draws the line ~8 bars earlier at the very start of
-        // history: correct, but a visible change, so it needs owner sign-off in
-        // B3 rather than riding along with a refactor.
-        const sigStart = raw.signal.findIndex(p => Number.isFinite(p.value))
+        // Dropping the mask draws the line 8 bars earlier at the very start of
+        // history: correct, but VISIBLE.
+        // ⚠️ ONE SWITCH, BOTH LANES. `nativeRegistry.MACD_HEAD_MASK` is the single
+        // place this decision is written (id **MACD_HEAD_MASK**, record at
+        // `docs/decisions/2026-08-02-macd-head-mask.md`, adjudication in spec §11).
+        // `macd` is NOT migrated, so this legacy memo is the lane a user actually
+        // sees — the engine's `COLUMN_HOLDS` reads the same constant. Pricing the
+        // decision means building with the flag false, and that measurement is only
+        // honest if the flip reaches HERE as well as the engine.
+        const sigStart = engineRegistry.MACD_HEAD_MASK
+          ? raw.signal.findIndex(p => Number.isFinite(p.value))
+          : -1
         const macdHeld = sigStart <= 0
           ? raw.macd
           : raw.macd.map((p, i) => (i < sigStart ? { time: p.time, value: NaN } : p))

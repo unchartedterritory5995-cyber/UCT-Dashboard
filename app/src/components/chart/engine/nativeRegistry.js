@@ -483,6 +483,30 @@ function toColumn(points, length) {
 }
 
 /**
+ * ⚠️⚠️ A FLAGGED DECISION AWAITING OWNER SIGN-OFF — do NOT flip this inside a
+ * migration commit.
+ *
+ * `true`  = the shipped look. The MACD line starts on the same bar as its signal.
+ * `false` = the mathematically correct line, drawn from bar `slowPeriod-1` —
+ *           **8 bars earlier** at the default 12/26/9 — matching the Python lane
+ *           (`api/services/indicator_compute.compute_macd_raw`) and the shared
+ *           golden fixture `tests/fixtures/indicators/macd_default.json` exactly.
+ *
+ * This is the ONE place to change it. BOTH lanes read it: the engine's
+ * `COLUMN_HOLDS` below, and — because `macd` is not migrated — the legacy
+ * `indicatorData` memo in `StockChart.jsx`, which is what a user actually sees.
+ * Changing it is a VISIBLE change at the very start of history on every MACD
+ * chart, so measure it first:
+ *
+ *     python tools/chart_parity.py --base-a $MASK_ON --base-b $MASK_OFF --cases macd_headmask --repeat 20
+ *
+ * The number that comes out is what the owner is being asked to approve. See
+ * `docs/decisions/2026-08-02-macd-head-mask.md` (decision id **MACD_HEAD_MASK**)
+ * and the adjudication row in the indicator-platform spec §11.
+ */
+export const MACD_HEAD_MASK = true
+
+/**
  * ⚠️ THE MACD HEAD-MASK — a deliberate B1 pixel-parity hold, carried here from
  * `StockChart.jsx:3952-3965`. Do not "simplify" it away.
  *
@@ -494,6 +518,11 @@ function toColumn(points, length) {
  * first bar. Dropping the mask draws the line ~8 bars earlier at the very start
  * of history: correct, visible, and therefore owner-signed-off in B3 — not
  * something that rides along with an engine refactor.
+ *
+ * ⚠️ THIS FUNCTION IS NOT THE SWITCH. `MACD_HEAD_MASK` above is. Deleting the
+ * body here would drop the mask WITHOUT the flag saying so, which is the one
+ * way this decision could be applied by accident — `nativeRegistry.test.js`
+ * and `__tests__/macdHeadMaskRendered.test.jsx` both go red if it happens.
  */
 function maskMacdHead(columns) {
   const { macd, signal } = columns
@@ -507,8 +536,15 @@ function maskMacdHead(columns) {
   return columns
 }
 
-/** Per-`compute.fn` post-processing that is a RENDER hold rather than maths. */
-const COLUMN_HOLDS = { macd: maskMacdHead }
+/**
+ * Per-`compute.fn` post-processing that is a RENDER hold rather than maths.
+ *
+ * Derived from `MACD_HEAD_MASK`, not written out, so that flipping the decision
+ * is ONE edit and the holds table cannot drift away from the flag that documents
+ * it. With the flag off there is no hold at all and the column is the Python
+ * lane's column, element for element.
+ */
+const COLUMN_HOLDS = MACD_HEAD_MASK ? { macd: maskMacdHead } : {}
 
 /** Merge a caller's inputs over the definition's declared defaults. */
 function resolveInputs(def, inputs) {
