@@ -559,12 +559,12 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
     rng = _week_range(window)
     txt(94, 60, f"{rng}   ·   still open · top {top_n} by premium", f_date, _DIM)
 
-    # TICKER · BULL · BEAR · NET · TOP CONTRACT (EXP/STRIKE/C-P) · SINCE · PERF · AGE
+    # TICKER · BULL · BEAR · NET · TOP CONTRACT (EXP/STRIKE/C-P) · SINCE · PERF · DTE
     # PERF = underlying spot at first print vs latest spot on the tape (since-open move)
     cols = [("TICKER", 36, "l"), ("BULL", 240, "r"), ("BEAR", 350, "r"),
             ("NET", 468, "r"), ("EXP", 512, "l"), ("STRIKE", 648, "r"),
             ("C/P", 656, "l"), ("SINCE", 806, "r"), ("PERF", 912, "r"),
-            ("AGE", 1000, "r")]
+            ("DTE", 1000, "r")]
     for hdr, x, al in cols:
         txt(x, TOP - 30, hdr, f_hdr, _DIM, al)
     d.rectangle([s(36), s(TOP - 10), s(_W - 36), s(TOP - 10) + 1], fill=_DIV)
@@ -593,12 +593,8 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
                 txt(648, y, f"${k}", f_row, _TXT, "r")                              # STRIKE
                 txt(656, y, tc["cp"], f_rowb, _BULL if tc["cp"] == "C" else _BEAR)  # C/P
             first = e.get("first")
-            if first:
-                txt(806, y, f"{first.strftime('%b')} {first.day}", f_row, _TXT, "r")  # SINCE
-                txt(1000, y, f"{(ref - first).days}d", f_row, _DIM, "r")              # AGE
-            else:
-                txt(806, y, "—", f_row, _DIM, "r")
-                txt(1000, y, "—", f_row, _DIM, "r")
+            txt(806, y, f"{first.strftime('%b')} {first.day}" if first else "—",
+                f_row, _TXT if first else _DIM, "r")                                  # SINCE
             # PERF — underlying's move from first-seen spot to latest spot on the tape
             fs, ls = e.get("first_spot", 0) or 0, e.get("last_spot", 0) or 0
             if fs > 0 and ls > 0:
@@ -607,6 +603,7 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
                     _BULL if pf >= 0 else _BEAR, "r")
             else:
                 txt(912, y, "—", f_row, _DIM, "r")
+            txt(1000, y, _dte_of(tc["exp"], ref) if tc else "—", f_row, _DIM, "r")    # DTE
             y += ROWH
         y += 6
 
