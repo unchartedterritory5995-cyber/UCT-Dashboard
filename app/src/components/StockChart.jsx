@@ -5584,8 +5584,49 @@ export default function StockChart({
     // instances, so the legacy block stays stood down and no toggle can hand the
     // drawing back to it mid-session. (It has no data to draw either way —
     // `indicatorData.rsi` is `[]` while the flag is off — but ownership is a rail,
-    // not a coincidence.) The binder releases the series to the POOL, so this is
-    // an applyOptions-and-park, never the mass `removeSeries` of #2049.
+    // not a coincidence.)
+    //
+    // ── WHAT `hidden` COSTS, STATED CORRECTLY: IT IS `removeSeries`. ──────────
+    //
+    // An earlier version of this comment said the binder "releases the series to
+    // the POOL, so this is an applyOptions-and-park, never the mass
+    // `removeSeries` of #2049". **That was false**, and the branch's own test
+    // proves it: `planBindings` drops a hidden instance on its first line
+    // (`pool.js:652`), so nothing claims its binding, so it lands in
+    // `release = prev.filter(p => !claimed.has(p))` (`pool.js:743`) and
+    // `binder.sync` step 3 calls `chart.removeSeries` (`binder.js:316`) —
+    // `stockChartWiring.test.jsx` asserts exactly that (`H.removedSeries`
+    // contains it, and re-showing costs a second `addSeries`).
+    //
+    // **Removal is the RIGHT behaviour here, deliberately, and it is not the
+    // #2049 pattern.** Three reasons, in order of what would break first:
+    //
+    //   1. **PARITY — a parked series would not be invisible, it would be a
+    //      LAYOUT CHANGE.** MEASURED against the real bundle in
+    //      `engine/__tests__/hiddenIsRemovedNotParked.test.js`: `visible:false`
+    //      does NOT release the pane (`chart.panes()` still has it, it still
+    //      owns the series, it still claims a stretch factor); `removeSeries`
+    //      does. Park RSI and its pane survives the toggle — the price pane
+    //      stays short with an empty band under it, while the legacy path gives
+    //      the height back. Flip A's whole contract is pixel-identity with
+    //      legacy, so parking would fail the gate, and `engine_rsi_toggle_off`
+    //      is the pixel case that would catch it.
+    //   2. **The churn #2049 is about is MASS removal, and the pool already
+    //      prevents that.** `planBindings` releases only what NOTHING in the
+    //      same pass can use: an exact-key carry-over keeps its series, and an
+    //      unmatched binding re-purposes a compatible one from the pool FIRST
+    //      (step 3), so "RSI off + BB on in one settings write" hands BB the
+    //      line series RSI just gave up instead of removing one and creating
+    //      another. What is left over is genuinely wanted by nobody.
+    //   3. It is one series, on an explicit user action, matching what the
+    //      legacy block has always done on the same keystroke.
+    //
+    // ⛔ SO THE RAIL IS: never make visibility a per-PAINT decision. Toggling on
+    // a user action is fine; projecting `hidden` from something that recomputes
+    // every frame (a hover, a crosshair move, an extended-hours tick) would turn one
+    // removeSeries into fifteen a second, and THAT is #2049. Task 10 projects
+    // four pilots and Phase B eventually fifteen — the number that matters is
+    // removals per USER ACTION, not per indicator.
     //
     // ⛔ DELETED BY TASK 10, together with the test that pins it. Flip B moves the
     // authority the other way: `csForPaneMargins` projects the INSTANCE list onto
