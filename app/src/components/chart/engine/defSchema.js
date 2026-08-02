@@ -282,6 +282,34 @@ function substitute(value, inputsByKey, path, errors) {
   return deepClone(input.default)
 }
 
+/**
+ * The input key a `$ref` names, or null when the value isn't one.
+ *
+ * WHY THE REFERENCE IS KEPT AFTER IT IS RESOLVED. `substitute` replaces
+ * `color: '$color'` with the input's DEFAULT, which is right for a definition —
+ * a definition has no user behind it. But an INSTANCE does: `{inputs: {color:
+ * '#abcdef'}}` is the whole point of the field, and once the reference is gone
+ * the binder has no way to know that this plot's colour is the one the user
+ * edited rather than a literal the author wrote. It would render every migrated
+ * indicator in its default colour and nobody would be able to say why.
+ *
+ * So the resolved plot carries `$refs`: `{ color: 'color', width: 'lineWidth',
+ * levels: ['hi', null, 'lo'] }` — field → the input key it came from — and
+ * `pool.resolvePlotForInstance` re-applies it per instance. `$`-prefixed because
+ * KEY_RE forbids a leading `$`, so it can never collide with an author's field.
+ */
+function refKeyOf(value) {
+  if (typeof value !== 'string' || !value.startsWith('$')) return null
+  const m = REF_RE.exec(value)
+  return m ? m[1] : null
+}
+
+function noteRef(plot, field, key) {
+  if (!key) return
+  if (!plot.$refs) plot.$refs = {}
+  plot.$refs[field] = key
+}
+
 // ─── Section validators ──────────────────────────────────────────────────────
 
 function validateCompute(compute, errors) {
@@ -601,8 +629,10 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   // ─ substitutable fields (spec §3.1: color, width, levels) ─
 
   if (plot.color !== undefined) {
+    const colorRef = refKeyOf(plot.color)
     const color = substitute(plot.color, inputsByKey, `${path}.color`, errors)
     if (color !== REF_FAILED) {
+      noteRef(plot, 'color', colorRef)
       if (!isNonEmptyString(color)) {
         errors.push(
           `${path}.color: expected a non-empty colour string (a "token:<role>" ref or a raw CSS ` +
@@ -614,8 +644,10 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   }
 
   if (plot.width !== undefined) {
+    const widthRef = refKeyOf(plot.width)
     const width = substitute(plot.width, inputsByKey, `${path}.width`, errors)
     if (width !== REF_FAILED) {
+      noteRef(plot, 'width', widthRef)
       if (!isFiniteNumber(width) || width <= 0) {
         errors.push(
           `${path}.width: expected a finite number > 0` +
@@ -645,6 +677,8 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
           `${plot.levels !== levels ? ` after substituting ${fmt(plot.levels)}` : ''}, got ${fmt(levels)}`,
         )
       } else {
+        const levelRefs = levels.map(refKeyOf)
+        if (levelRefs.some(Boolean)) noteRef(plot, 'levels', levelRefs)
         const resolved = levels.map((lvl, i) => {
           const v = substitute(lvl, inputsByKey, `${path}.levels[${i}]`, errors)
           if (v === REF_FAILED) return lvl

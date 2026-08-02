@@ -43,6 +43,38 @@ describe('definition schema', () => {
     expect(r.def.plots[0].color).toBe('token:info')   // from inputs[].default
   })
 
+  it('REMEMBERS which input each substituted field came from', () => {
+    // A definition has no user behind it, so resolving to the default is right
+    // for one. An INSTANCE is nothing but the user — `{inputs: {color: '#abc'}}`
+    // is the field's whole purpose — and once the reference is gone the binder
+    // cannot tell an edited colour from a literal the author wrote. It would
+    // render every migrated indicator in its default colour, silently.
+    const d = rsiDef()
+    d.inputs.push({ key: 'thickness', type: 'int', label: 'Width', default: 2, min: 1, max: 4 })
+    d.plots[0].width = '$thickness'
+    const r = validateDefinition(d)
+
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(r.def.plots[0].$refs).toEqual({ color: 'color', width: 'thickness' })
+  })
+
+  it('records nothing for a field the author wrote as a LITERAL', () => {
+    const r = validateDefinition(rsiDef())
+    expect(r.def.plots[1].$refs, 'the hlines guide is all literals').toBeUndefined()
+    expect(r.def.plots[0].$refs.width, 'width: 1 is a literal').toBeUndefined()
+  })
+
+  it('records per-ELEMENT level refs positionally', () => {
+    const d = rsiDef()
+    d.inputs.push({ key: 'high', type: 'int', label: 'High', default: 70, min: 1, max: 99 })
+    d.plots[1].levels = ['$high', 50, 30]
+    const r = validateDefinition(d)
+
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(r.def.plots[1].levels).toEqual([70, 50, 30])
+    expect(r.def.plots[1].$refs).toEqual({ levels: ['high', null, null] })
+  })
+
   it('preserves unknown META fields (document-shaped, forward-compatible)', () => {
     const d = rsiDef(); d.meta.futureThing = 42
     const r = validateDefinition(d)
