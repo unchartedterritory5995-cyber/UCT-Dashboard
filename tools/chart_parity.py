@@ -223,12 +223,23 @@ def case_url(base: str, case: dict, token: str, extra_settings: dict | None = No
 # The identities go into `report.json` and `report.md`, so every parity number
 # this tool has ever printed is attributable after the fact.
 
+# ⚠️ EVERY MODULE ON THE ENGINE'S RENDER PATH BELONGS HERE. A path that is absent
+# is a change the tool cannot see: two dev servers differing ONLY in that file
+# report the same identity, the tool refuses to run, and the operator's natural
+# next move is `--same-build` — which silently downgrades a real A-vs-B gate into
+# a determinism check that cannot fail on the very change being measured.
+# `placement.js` was missing for exactly one commit (B3 Task 1 got two distinct
+# identities only because it also touched `pool.js` and `binder.js`); `readout.js`
+# is here for the same reason.
 BUILD_PROBE_PATHS = (
     "/src/pages/ChartRender.jsx",
     "/src/components/StockChart.jsx",
     "/src/components/chart/engine/binder.js",
     "/src/components/chart/engine/pool.js",
+    "/src/components/chart/engine/placement.js",
     "/src/components/chart/engine/instances.js",
+    "/src/components/chart/engine/nativeRegistry.js",
+    "/src/components/chart/engine/readout.js",
 )
 
 _ASSET_RE = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.I)

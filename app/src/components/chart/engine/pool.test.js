@@ -19,8 +19,10 @@ import {
   lineStyleValue,
   AUTOSCALE_EXCLUDE,
   AUTOSCALE_DEFAULT,
+  autoscaleProvider,
+  AUTOSCALE_PROVIDER_MODES,
 } from './pool'
-import { MAIN_PRICE_SCALE_ID } from './placement'
+import { MAIN_PRICE_SCALE_ID, AUTOSCALE_MODES, resolvePlacement } from './placement'
 import { PLOT_STYLES } from './defSchema'
 import * as registry from './nativeRegistry'
 // The INSTALLED renderer, imported for one purpose: to read its real series
@@ -967,5 +969,53 @@ describe('autoscaleInfoProvider is part of the complete option set (B3 carry #1)
     expect(opts.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
     // …and with no ctx at all, which is how a bare caller reaches it.
     expect(seriesOptionsForPlot({ key: 'x', style: 'line' }).autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
+  })
+})
+
+describe('the mode vocabulary has exactly one definition (fix round 1, M-1)', () => {
+  it('AUTOSCALE_MODES is the pool\'s key set — the constant is load-bearing, not decorative', () => {
+    // It was exported and read by nothing. Now placement's vocabulary and the
+    // pool's mapping table are asserted equal, so adding a mode to one without
+    // the other fails here instead of silently falling back to DEFAULT.
+    //
+    // The table comparison is the load-bearing half: `autoscaleProvider` has a
+    // fallback, so DELETING a row from the table is behaviourally invisible.
+    // Comparing the KEY SETS is the only thing that catches it.
+    expect([...AUTOSCALE_MODES].sort()).toEqual([...AUTOSCALE_PROVIDER_MODES].sort())
+    expect([...AUTOSCALE_MODES].sort()).toEqual(['default', 'exclude'])
+    for (const mode of AUTOSCALE_MODES) {
+      expect(autoscaleProvider(mode), `${mode} has no provider`).toBeTypeOf('function')
+    }
+    expect(autoscaleProvider('exclude')).toBe(AUTOSCALE_EXCLUDE)
+    expect(autoscaleProvider('default')).toBe(AUTOSCALE_DEFAULT)
+  })
+
+  it('an UNKNOWN mode falls toward DEFAULT — the recoverable failure, measured', () => {
+    // Fail-open is a choice, not an oversight: EXCLUDE on a scale whose only
+    // source is the series collapses that scale to LWC's empty -0.5..0.5 default
+    // and the indicator vanishes (see __tests__/autoscaleOnARealScale.test.js).
+    // A wrongly-autoscaled overlay is visible and reframes; a blank pane is not.
+    for (const junk of ['Exclude', 'none', '', undefined, null, 0, {}, 'default ']) {
+      expect(autoscaleProvider(junk), String(junk)).toBe(AUTOSCALE_DEFAULT)
+    }
+    // …and it is never undefined, so the complete key set survives a bad mode.
+    expect(seriesOptionsForPlot({ key: 'x', style: 'line' }, { autoscale: 'nonsense' }).autoscaleInfoProvider)
+      .toBe(AUTOSCALE_DEFAULT)
+  })
+
+  it('placement only ever emits a mode the pool knows', () => {
+    const ctx = { paneMargins: {}, volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1 }
+    let seen = 0
+    for (const def of registry.listDefinitions()) {
+      for (const overlaid of [false, true]) {
+        const p = resolvePlacement({ instanceId: `i:${def.id}`, defId: def.id }, def, {
+          ...ctx, volSeparatePane: overlaid, volOverlaySet: new Set(overlaid ? [def.id] : []),
+        })
+        if (!p) continue
+        expect(AUTOSCALE_MODES, `${def.id} (overlaid=${overlaid})`).toContain(p.autoscale)
+        seen++
+      }
+    }
+    expect(seen).toBeGreaterThan(20)
   })
 })

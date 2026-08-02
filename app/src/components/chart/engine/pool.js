@@ -361,6 +361,45 @@ export const AUTOSCALE_EXCLUDE = () => null
 export const AUTOSCALE_DEFAULT = (baseImplementation) => baseImplementation()
 
 /**
+ * `placement`'s mode string → the provider. Table-driven so the vocabulary lives
+ * in ONE place: `AUTOSCALE_MODES` is its key set, asserted in `pool.test.js`.
+ *
+ * ⚠️ AN UNKNOWN MODE FALLS BACK TO `DEFAULT`, AND THAT DIRECTION IS DELIBERATE.
+ * A typo, an `undefined`, or a caller-supplied `resolvePlacement` predating this
+ * field all land here. Failing toward DEFAULT means a price overlay could stretch
+ * the candles — visible, and wrong by a framing. Failing toward EXCLUDE means a
+ * pane oscillator contributes nothing to a scale it is the ONLY source of, and
+ * the library resets that scale to its empty default of -0.5..0.5: measured, a
+ * price of 30 moves from y=371 to y=-1640.78 and the indicator is simply gone.
+ * A reframed chart is recoverable; a blank pane with no error is not.
+ */
+const AUTOSCALE_PROVIDERS = Object.freeze({
+  exclude: AUTOSCALE_EXCLUDE,
+  default: AUTOSCALE_DEFAULT,
+})
+
+/**
+ * The modes this table can actually map, as data.
+ *
+ * ⚠️ THIS EXISTS SO THE FALLBACK CANNOT HIDE A MISSING ENTRY. Deleting
+ * `default:` above changes NOTHING observable — `autoscaleProvider('default')`
+ * still returns `AUTOSCALE_DEFAULT`, via the fallback — so a test that only
+ * exercises behaviour cannot tell a complete table from a half-empty one. That
+ * was measured: it was the one mutant in this task's gauntlet that survived.
+ * `pool.test.js` asserts this key set equals `placement.AUTOSCALE_MODES`, which
+ * is what makes the two vocabularies one vocabulary and kills that mutant.
+ */
+export const AUTOSCALE_PROVIDER_MODES = Object.freeze(Object.keys(AUTOSCALE_PROVIDERS))
+
+/** The provider for a placement's mode. Total: never returns undefined, so the
+ *  complete-key-set rule cannot be broken by a bad mode. */
+export function autoscaleProvider(mode) {
+  return Object.prototype.hasOwnProperty.call(AUTOSCALE_PROVIDERS, mode)
+    ? AUTOSCALE_PROVIDERS[mode]
+    : AUTOSCALE_DEFAULT
+}
+
+/**
  * `plots[].opacity` → a multiplier in [0, 1], or `null` for "the author said
  * nothing".
  *
@@ -479,7 +518,7 @@ export function seriesOptionsForPlot(plot, ctx) {
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —
     // and there is no "omit to reset" for this one (LWC's merge skips undefined).
-    autoscaleInfoProvider: c.autoscale === 'exclude' ? AUTOSCALE_EXCLUDE : AUTOSCALE_DEFAULT,
+    autoscaleInfoProvider: autoscaleProvider(c.autoscale),
   }
 
   if (pk === 'histogram') {

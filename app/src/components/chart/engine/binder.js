@@ -29,8 +29,11 @@
 //    `{autoScale:false, minimum:0, maximum:100}` on the CREATE branch only
 //    (`:5773`), and the update branch calls `applyIndScale` with no extras. Price
 //    scales are CHART-LEVEL and keyed by id, so a pooled series that inherited an
-//    RSI's scale and never had its own asserted keeps 0-100 — and an ATR of 2.7
-//    draws as a flat line at the bottom. The full object, every time.
+//    RSI's scale and never had its own asserted is stuck with whatever that scale
+//    was left holding — and an ATR of 2.7 draws as a flat line at the bottom. The
+//    full object, every time. (The inherited hazard is `autoScale: false`, which
+//    FREEZES the range; `minimum`/`maximum` are not 5.2.0 options and pin nothing
+//    — see `placement.js`'s TRAP #2 and `__tests__/autoscaleOnARealScale.test.js`.)
 //
 // 3. TRACK AND REMOVE PRICE LINES. `createPriceLine` returns a handle that the
 //    shipped code throws away, which is fine while a series is destroyed with its

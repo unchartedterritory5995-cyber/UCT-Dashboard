@@ -38,13 +38,29 @@
 // `:6039`); the update branch calls `applyIndScale` with no `bandExtra` at all.
 // That is safe today only because a series and its scale are born and destroyed
 // together. Pooling breaks it: price scales are CHART-LEVEL and keyed by id, so a
-// pooled series that inherits RSI's `rsi` scale and never asserts its own keeps
-// 0-100 — and an ATR of 2.7 renders as a flat line on the floor.
+// pooled series that inherits RSI's `rsi` scale and never asserts its own is
+// stuck with whatever that scale was left holding — and an ATR of 2.7 draws as a
+// flat line on the floor of a band framed for an oscillator.
+//
+// ⚠️ THE INHERITED HAZARD IS `autoScale: false`, NOT A PINNED RANGE. This block
+// used to say the pooled series "keeps 0-100". It does not, because
+// `minimum`/`maximum` ARE NOT lightweight-charts 5.2.0 price-scale options —
+// `merge` copies them into the options bag and nothing ever reads them
+// (`dist/typings.d.ts:3706+`; measured in
+// `__tests__/autoscaleOnARealScale.test.js`, where RSI's band comes back
+// 30.0002..69.9957 rather than 0..100). What `autoScale: false` really does is
+// stop `_internal_recalculatePriceScale` re-invalidating the range on the routine
+// update (`:5455-5459`), so the scale stays FROZEN at the previous tenant's
+// extent. Same trap, same fix, honest mechanism.
 //
 // So `scaleOptions` is the COMPLETE object every single time, and the fixed range
 // is read from the definition's own `placement.scale` (declared in Task 2) rather
 // than from a lookup table here. One source of truth, and a new indicator gets
-// its range right by declaring it.
+// its range right by declaring it — as far as the renderer allows, which for the
+// `minimum`/`maximum` half is currently not at all. Pinning a band for real needs
+// `priceScale().setVisibleRange({from, to})` (the only caller of
+// `_internal_setCustomPriceRange`, `:12445-12447`); doing that is a PIXEL CHANGE
+// against legacy and therefore not a Flip A decision.
 //
 // ─── TRAP #5: THE PRESET COMES FROM THE CANVAS, NEVER FROM `cs.preset` ──────
 //
@@ -331,9 +347,21 @@ export function resolvePlacement(instance, def, ctx) {
     scaleId: key,
     scaleOptions: { borderVisible: false, scaleMargins: { ...band }, ...range },
     // Its own band, its own scale: it is the only thing on that axis, so it has
-    // to be what sizes it. True even for a FIXED-range definition — `autoScale:
-    // false` above already pins 0-100, which makes the provider inert rather than
-    // wrong, and emitting the same value for both keeps one rule instead of two.
+    // to be what sizes it.
+    //
+    // ⛔ AND A FIXED-RANGE DEFINITION IS NO EXCEPTION — this used to say the
+    // provider was "inert" there because `autoScale: false` pins 0-100. IT DOES
+    // NOT. `minimum`/`maximum` are not 5.2.0 price-scale options at all (see
+    // `range` above), and MEASURED on a real chart in production's call order,
+    // RSI's band comes back 30.0002..69.9957 — the COLUMN's own extent, taken
+    // from the autoscale walk — not 0..100. Put `'exclude'` here and that same
+    // band collapses to the library's empty default of -0.5..0.5, moving a price
+    // of 30 from y=371 to y=-1640.78: two thousand pixels off the pane.
+    // `__tests__/autoscaleOnARealScale.test.js` holds those numbers.
+    //
+    // So the reason is PARITY, which needs no claim about inertness: the legacy
+    // block passes no provider, the identity provider is byte-identical to
+    // passing none, and that is what Flip A has to reproduce.
     autoscale: 'default',
   }
 }

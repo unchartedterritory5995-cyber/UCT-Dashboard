@@ -102,10 +102,21 @@ const nativeDef = (id, fn, meta, placement, inputs, plots) => ({
   plots,
 })
 
-/** A pane with a FIXED range (RSI 0-100 …). `placement.scale` present ⇒ the
- *  binder applies `{autoScale:false, minimum, maximum}`; absent ⇒ autoscale.
- *  That is the same distinction StockChart makes today by passing (or not
- *  passing) `bandExtra` to `applyIndScale`. */
+/** A pane whose author DECLARES a range (RSI 0-100 …). `placement.scale` present
+ *  ⇒ the binder applies `{autoScale:false, minimum, maximum}`; absent ⇒
+ *  `{autoScale:true}`. That is the same distinction StockChart makes today by
+ *  passing (or not passing) `bandExtra` to `applyIndScale`.
+ *
+ *  ⚠️ "FIXED" IS ASPIRATIONAL, NOT WHAT THE RENDERER DOES. `minimum`/`maximum`
+ *  are not lightweight-charts 5.2.0 `PriceScaleOptions` members; `merge` copies
+ *  them into the options bag and nothing reads them. Measured, RSI's band renders
+ *  at its COLUMN's extent (~30..70), not 0..100
+ *  (`engine/__tests__/autoscaleOnARealScale.test.js`). The declaration is kept
+ *  because it is byte-for-byte what legacy passes — Flip A parity — and because
+ *  it is the metadata a real pin would read the day one is wired
+ *  (`priceScale().setVisibleRange`, which IS a pixel change). The half that does
+ *  work is `autoScale:false`: it FREEZES the range against re-invalidation, which
+ *  is exactly the pooling hazard `placement`'s TRAP #2 exists for. */
 const fixedPane = (min, max) => ({ target: 'pane', scale: { min, max } })
 const autoPane = { target: 'pane' }
 const onPrice = { target: 'price' }
