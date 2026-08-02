@@ -1965,6 +1965,9 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
   // Weekly Conviction manual controls (lookback + cap) — rendered in the AUTO-PUSH box.
   const [wfDays, setWfDays] = useState(5);
   const [wfCap, setWfCap] = useState("all");
+  // Standing Conviction (rolling still-open) manual controls — own lookback + cap.
+  const [sfDays, setSfDays] = useState(60);
+  const [sfCap, setSfCap] = useState("all");
   if (!thresholds) {
     return (
       <div style={{
@@ -2169,6 +2172,56 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                   const r = await fetch(`/api/live/massive/weekly-flow?post=1&days=${wfDays}&cap=${wfCap}`, { method: "POST" });
                   const j = await r.json();
                   window.alert(j.posted ? `Posted (${wfDays}d ${wfCap}) ✓ — ${j.names} names`
+                    : `Not posted — ${j.reason || j.detail || "unknown"}`);
+                } catch (e) { window.alert("Push failed: " + e); }
+              }}
+              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                background: P.ac, color: P.bg, border: "none" }}>★ Push → Discord</button>
+          </div>
+          {/* Standing Conviction — rolling still-open, top-N by premium, with
+              first-seen/age + since-open perf. Cap buttons isolate non-mega
+              (Mid-Small / Large). Hits POST /standing-flow. */}
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${P.dm}`,
+            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>STANDING CONVICTION</span>
+            {[30, 60, 90].map(dd => {
+              const on = sfDays === dd;
+              return (
+                <button key={dd} onClick={() => setSfDays(dd)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{dd}d</button>
+              );
+            })}
+            <span style={{ width: 6 }} />
+            {[["all", "All"], ["mega", "Mega"], ["large", "Large"], ["mid_small", "Mid-Small"]].map(([c, lbl]) => {
+              const on = sfCap === c;
+              return (
+                <button key={c} onClick={() => setSfCap(c)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
+              );
+            })}
+            <button
+              onClick={async () => {
+                try {
+                  const r = await fetch(`/api/live/massive/standing-flow?post=0&days=${sfDays}&cap=${sfCap}`, { method: "POST" });
+                  if (!r.ok) { window.alert("Preview failed: HTTP " + r.status); return; }
+                  const b = await r.blob();
+                  if (b.type.startsWith("image")) window.open(URL.createObjectURL(b));
+                  else window.alert("No image — " + (await b.text()));
+                } catch (e) { window.alert("Preview failed: " + e); }
+              }}
+              style={{ padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                background: "transparent", color: P.wh, border: `1px solid ${P.bd}` }}>👁 Preview</button>
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Post the Standing Conviction card (${sfDays}d · ${sfCap}) to Discord?`)) return;
+                try {
+                  const r = await fetch(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}`, { method: "POST" });
+                  const j = await r.json();
+                  window.alert(j.posted ? `Posted (${sfDays}d ${sfCap}) ✓ — ${j.names} names`
                     : `Not posted — ${j.reason || j.detail || "unknown"}`);
                 } catch (e) { window.alert("Push failed: " + e); }
               }}
