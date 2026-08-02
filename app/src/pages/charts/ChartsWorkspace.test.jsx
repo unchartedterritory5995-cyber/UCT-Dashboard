@@ -187,6 +187,25 @@ test('site #22: "New Layout" persists the same engine keys (it writes the same b
   expectEngineKeysFollowTheDefault(persistedChartSettings())
 })
 
+test('site #22 at FLIP B: the written blob follows the default when the default moves', () => {
+  // The tests above can only assert key PRESENCE while `CHART_DEFAULTS.engineEnabled`
+  // is false, because `false === false` is true whichever side it came from.
+  // This is the assertion that actually pins "follows the default", and it is
+  // the only one that kills a `parsed.engineEnabled = false` mutation. Flip B is
+  // exactly this line changing.
+  const restore = CHART_DEFAULTS.engineEnabled
+  try {
+    CHART_DEFAULTS.engineEnabled = true
+    const parsed = JSON.parse(uctDefaultChartSettings())
+    expect(parsed.engineEnabled, 'the frozen capture is still pinning the engine off').toBe(true)
+    expect(mergeChartSettings(uctDefaultChartSettings()).engineEnabled).toBe(true)
+  } finally {
+    CHART_DEFAULTS.engineEnabled = restore
+  }
+  // …and back to the shipped default, so nothing leaks into another test.
+  expect(JSON.parse(uctDefaultChartSettings()).engineEnabled).toBe(restore)
+})
+
 test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and names no engine key', () => {
   // Read from the shipping source, not from a hand-copy. Asserting this against
   // `uctDefaultChartSettings()` would be circular — that function is the fix.

@@ -94,6 +94,24 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     expect(spy).not.toHaveBeenCalled()
   })
 
+  it('two instances of one definition: the row shows the FIRST, which is what draws first', async () => {
+    // A settings row is per-DEFINITION and can only show one number. First-in-list
+    // is the binder's own draw order, so the row names the first line the user
+    // sees rather than an arbitrary one. Pinned because the docstring claims it.
+    const user = userEvent.setup()
+    mount(settingsWith({
+      indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } },
+      engineEnabled: true,
+      indicatorInstances: [
+        RSI_INSTANCE_7,
+        { ...RSI_INSTANCE_7, instanceId: 'second:rsi', inputs: { period: 50, color: '#00ff00' } },
+      ],
+    }), vi.fn())
+    await openPanel(user)
+    const row = rowFor('RSI')
+    expect(periodBox(row).value).toBe('7')
+  })
+
   it('a LIVE row is untouched: no instance ⇒ the blob is still what it shows', async () => {
     const user = userEvent.setup()
     mount(settingsWith({
