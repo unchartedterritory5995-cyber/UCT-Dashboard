@@ -634,6 +634,25 @@ def _webhook() -> str:
             or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
 
 
+# ── card build cache ───────────────────────────────────────────────────────
+# The manual Preview runs a heavy multi-week flow.db scan; on a cold worker it
+# can exceed the web→worker proxy's 120s read timeout (a 502). Cache the built
+# card (exact same scan output, 120s TTL) so a retry returns instantly — the
+# sync endpoint keeps computing after the proxy gives up, so the second click
+# hits this cache. Also avoids re-scanning on Preview-then-Push of the same card.
+_CARD_CACHE: dict = {}
+_CARD_TTL = 120
+
+
+def _cached_card(key, builder):
+    hit = _CARD_CACHE.get(key)
+    if hit and time.time() - hit[0] < _CARD_TTL:
+        return hit[1]
+    built = builder()
+    _CARD_CACHE[key] = (time.time(), built)
+    return built
+
+
 def run_weekly(*, force: bool = False, post: bool = True, days: int | None = None,
                cap: str | None = None, sort_bull: str | None = None,
                sort_bear: str | None = None) -> dict:
@@ -651,12 +670,17 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         sort_bull = (sort_bull or os.getenv("WEEKLY_FLOW_SORT_BULL", "net")).strip().lower()
         sort_bear = (sort_bear or os.getenv("WEEKLY_FLOW_SORT_BEAR", "net")).strip().lower()
 
-        trades, window = load_directional_trades(n_days, min_dte, cap)
-        agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
-        png = render_card(agg, window, n_days, min_dte, _CAP_LABELS.get(cap, ""))
-        res = {"ok": True, "days": n_days, "cap": cap, "names": agg["n_names"],
-               "bulls": len(agg["bulls"]), "bears": len(agg["bears"]),
-               "open_contracts": agg["open_contracts"]}
+        def _build():
+            trades, window = load_directional_trades(n_days, min_dte, cap)
+            agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
+            return {"png": render_card(agg, window, n_days, min_dte, _CAP_LABELS.get(cap, "")),
+                    "names": agg["n_names"], "bulls": len(agg["bulls"]),
+                    "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
+        built = _cached_card(("weekly", n_days, cap, top_n, min_dte, frac, sort_bull, sort_bear), _build)
+        png = built["png"]
+        res = {"ok": True, "days": n_days, "cap": cap, "names": built["names"],
+               "bulls": built["bulls"], "bears": built["bears"],
+               "open_contracts": built["open_contracts"]}
         if not post:
             res["png"] = png
             return res
@@ -707,12 +731,17 @@ def run_standing(*, force: bool = False, post: bool = True, days: int | None = N
         frac = float(os.getenv("STANDING_FLOW_STILL_OPEN_FRAC", "0.75"))
         cap = (cap or os.getenv("STANDING_FLOW_CAP", "all")).strip().lower()
 
-        trades, window = load_directional_trades(n_days, min_dte, cap)
-        agg = aggregate(trades, top_n, frac, sort_bull="premium", sort_bear="premium")
-        png = render_standing_card(agg, window, top_n, cap_label=_CAP_LABELS.get(cap, ""))
-        res = {"ok": True, "days": n_days, "cap": cap, "names": agg["n_names"],
-               "bulls": len(agg["bulls"]), "bears": len(agg["bears"]),
-               "open_contracts": agg["open_contracts"]}
+        def _build():
+            trades, window = load_directional_trades(n_days, min_dte, cap)
+            agg = aggregate(trades, top_n, frac, sort_bull="premium", sort_bear="premium")
+            return {"png": render_standing_card(agg, window, top_n, cap_label=_CAP_LABELS.get(cap, "")),
+                    "names": agg["n_names"], "bulls": len(agg["bulls"]),
+                    "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
+        built = _cached_card(("standing", n_days, cap, top_n, min_dte, frac), _build)
+        png = built["png"]
+        res = {"ok": True, "days": n_days, "cap": cap, "names": built["names"],
+               "bulls": built["bulls"], "bears": built["bears"],
+               "open_contracts": built["open_contracts"]}
         if not post:
             res["png"] = png
             return res
