@@ -1,4 +1,10 @@
 import { describe, it, expect } from 'vitest'
+// Node builtins, for ONE assertion: reading the installed lightweight-charts
+// bundle's own source to pin what "no autoscaleInfoProvider" does. See
+// "AUTOSCALE_DEFAULT is what the INSTALLED bundle does" below.
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { createRequire } from 'node:module'
 import {
   POOL_KEYS,
   poolKey,
@@ -11,6 +17,8 @@ import {
   plotAlpha,
   resolvePlotForInstance,
   lineStyleValue,
+  AUTOSCALE_EXCLUDE,
+  AUTOSCALE_DEFAULT,
 } from './pool'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { PLOT_STYLES } from './defSchema'
@@ -395,16 +403,29 @@ describe('seriesOptionsForPlot', () => {
     expect(seriesOptionsForPlot({ style: 'hologram' }, {})).toBeNull()
   })
 
-  it('never emits a FUNCTION — options must stay comparable between passes', () => {
+  it('emits no function EXCEPT the two autoscale singletons — options stay comparable', () => {
+    // The rule was "never a function", because a fresh closure per bind makes
+    // every option set unequal to the last and defeats any no-op check. B3 carry
+    // #1 needs `autoscaleInfoProvider`, which IS a function — so the rule became
+    // "no function that is not one of two module-level identities", which keeps
+    // the comparability the original rule was protecting. Any OTHER function, or
+    // a fresh arrow for this key, still fails here.
+    let sawProvider = 0
     for (const def of registry.listDefinitions()) {
       for (const plot of def.plots) {
         const o = seriesOptionsForPlot(plot, { scaleId: 'x' })
         if (!o) continue
         for (const [k, v] of Object.entries(o)) {
-          expect(typeof v, `${def.id}.${plot.key}.${k}`).not.toBe('function')
+          if (typeof v !== 'function') continue
+          expect(k, `${def.id}.${plot.key}.${k} is an uncomparable function`).toBe('autoscaleInfoProvider')
+          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          sawProvider++
         }
       }
     }
+    // Without this the loop above would pass on a build that emits no provider at
+    // all — which is precisely the bug the key exists to prevent.
+    expect(sawProvider).toBeGreaterThan(0)
   })
 })
 
@@ -432,26 +453,29 @@ const bareplot = (style) => {
   return p
 }
 
+/** The keys EVERY pool key carries — the base object in `seriesOptionsForPlot`.
+ *  `autoscaleInfoProvider` is one of them (B3 carry #1): it is a SERIES option
+ *  that only placement can answer, and since LWC's `merge` skips `undefined`
+ *  there is no way to reset it by omission, so it has to be in the set for every
+ *  plot or a re-purposed series inherits the previous tenant's. */
+const BASE_KEYS = [
+  'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
+  'autoscaleInfoProvider',
+]
+
+/** …plus the ones every LINE-SHAPED series carries. */
+const LINE_SHAPE_KEYS = [
+  'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
+  'pointMarkersVisible', 'pointMarkersRadius',
+]
+
 /** The key set each pool key must ALWAYS produce, whatever the plot says. */
 const COMPLETE_KEYS = {
-  line: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
-    'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
-    'pointMarkersVisible', 'pointMarkersRadius', 'color',
-  ],
-  histogram: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat', 'color',
-  ],
-  area: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
-    'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
-    'pointMarkersVisible', 'pointMarkersRadius',
-    'lineColor', 'topColor', 'bottomColor',
-  ],
+  line: [...BASE_KEYS, ...LINE_SHAPE_KEYS, 'color'],
+  histogram: [...BASE_KEYS, 'color'],
+  area: [...BASE_KEYS, ...LINE_SHAPE_KEYS, 'lineColor', 'topColor', 'bottomColor'],
   baseline: [
-    'priceLineVisible', 'lastValueVisible', 'visible', 'priceScaleId', 'priceFormat',
-    'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
-    'pointMarkersVisible', 'pointMarkersRadius',
+    ...BASE_KEYS, ...LINE_SHAPE_KEYS,
     'topLineColor', 'bottomLineColor',
     'topFillColor1', 'topFillColor2', 'bottomFillColor1', 'bottomFillColor2',
   ],
@@ -828,5 +852,120 @@ describe('LWC_DEFAULTS is pinned against the INSTALLED lightweight-charts', () =
     for (const pk of ['line', 'area', 'baseline']) {
       expect(seriesOptionsForPlot(bareplot(pk), {}).lineWidth, pk).toBe(1)
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B3 CARRY #1 — the autoscale seam
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('autoscaleInfoProvider is part of the complete option set (B3 carry #1)', () => {
+  const SENTINEL = { priceRange: { minValue: 1, maxValue: 2 }, margins: undefined }
+
+  it('LWC has NO default for it — which is why the reset must be an explicit function', () => {
+    // The claim this whole design rests on, pinned against the INSTALLED bundle:
+    // `_internal_autoscaleInfo` branches on `!== undefined`
+    // (lightweight-charts.development.mjs:3716), and there is nothing in
+    // defaultOptions to copy. So "put it back" cannot be done by omitting the
+    // key — LWC's merge() skips undefined and the previous tenant's provider
+    // would survive.
+    //
+    // The two guards below are what stop this reading as a pass when it is
+    // actually reading nothing: a renamed/absent `defaultOptions` would make
+    // "the key is not there" trivially true.
+    expect(Object.keys(LineSeries.defaultOptions || {}).length).toBeGreaterThan(0)
+    expect(LineSeries.defaultOptions.lineWidth).toBeTypeOf('number')
+    expect(Object.prototype.hasOwnProperty.call(LineSeries.defaultOptions, 'autoscaleInfoProvider')).toBe(false)
+    // Not a line-series quirk — no series type carries one.
+    for (const [name, S] of Object.entries({ LineSeries, AreaSeries, BaselineSeries, HistogramSeries })) {
+      expect(
+        Object.prototype.hasOwnProperty.call(S.defaultOptions || {}, 'autoscaleInfoProvider'),
+        `${name}.defaultOptions gained an autoscaleInfoProvider — omission may now be a reset`,
+      ).toBe(false)
+    }
+  })
+
+  it('AUTOSCALE_DEFAULT is what the INSTALLED bundle does when the option is absent', () => {
+    // A DEPENDENCY PIN, in the shape `LWC_DEFAULTS` already uses: it fails on an
+    // upstream change, not on a mutation of ours. Read from the installed
+    // package, never hand-copied, because the identity provider's whole claim is
+    // "byte-for-byte what the library does with no provider at all" — and that
+    // claim lives in two lines of `_internal_autoscaleInfo`.
+    const dist = path.join(
+      path.dirname(createRequire(import.meta.url).resolve('lightweight-charts/package.json')),
+      'dist', 'lightweight-charts.development.mjs',
+    )
+    const src = readFileSync(dist, 'utf8')
+    expect(src.length).toBeGreaterThan(1000)          // an empty read passes anything
+
+    // ABSENT ≠ RESET: the renderer branches on `!== undefined`, so no value of
+    // the option means "behave as if unset". Anchored on that branch text, not on
+    // the method name — `_internal_autoscaleInfo` is also defined on the primitive
+    // wrapper, and slicing from the FIRST match reads the wrong function.
+    const at = src.indexOf('this._private__options.autoscaleInfoProvider !== undefined')
+    expect(at, 'lightweight-charts no longer branches on an ABSENT autoscaleInfoProvider').toBeGreaterThan(0)
+    const block = src.slice(at, at + 500)
+
+    // The provider is handed a THUNK over the base implementation, and its answer
+    // is re-wrapped through `_internal_fromRaw` of the thunk's RAW result. So
+    // `base => base()` is by construction the same round-trip the no-provider
+    // branch takes — which is what makes AUTOSCALE_DEFAULT a faithful reset and
+    // not merely a plausible one.
+    expect(block).toContain('this._private__options.autoscaleInfoProvider(() => {')
+    expect(block).toContain('this._private__autoscaleInfoImpl(startTimePoint, endTimePoint)')
+    expect(block).toContain('_internal_toRaw()')
+    expect(block).toContain('AutoscaleInfoImpl._internal_fromRaw(autoscaleInfo)')
+
+    // And the other half of "omission is not a reset": `merge` — what
+    // `applyOptions` funnels every option through — SKIPS `undefined` outright
+    // (`:184-200`). `binder.test.js` restates these three lines as `lwcMerge`;
+    // this is where the restatement is checked against the real thing.
+    const mergeAt = src.indexOf('function merge(dst, ...sources) {')
+    expect(mergeAt, 'lightweight-charts no longer has the merge applyOptions funnels through').toBeGreaterThan(0)
+    expect(src.slice(mergeAt, mergeAt + 400)).toContain('if (src[i] === undefined ||')
+  })
+
+  it('EXCLUDE contributes nothing; DEFAULT is the library\'s own answer', () => {
+    expect(AUTOSCALE_EXCLUDE).toBeTypeOf('function')
+    expect(AUTOSCALE_DEFAULT).toBeTypeOf('function')
+    expect(AUTOSCALE_EXCLUDE(() => SENTINEL)).toBeNull()
+    expect(AUTOSCALE_DEFAULT(() => SENTINEL)).toBe(SENTINEL)
+  })
+
+  it('both are module-level singletons, so two option sets stay comparable', () => {
+    const a = seriesOptionsForPlot({ key: 'x', style: 'line' }, { autoscale: 'exclude' })
+    const b = seriesOptionsForPlot({ key: 'x', style: 'line' }, { autoscale: 'exclude' })
+    // `toBe` on two absent keys is `undefined === undefined` — true, and
+    // meaningless. The type assertion is what stops this passing vacuously.
+    expect(a.autoscaleInfoProvider).toBeTypeOf('function')
+    expect(a.autoscaleInfoProvider).toBe(b.autoscaleInfoProvider)
+    expect(a.autoscaleInfoProvider).toBe(AUTOSCALE_EXCLUDE)
+  })
+
+  it('EVERY plot style emits the key — a pooled series can never inherit it', () => {
+    // PLOT_STYLES is walked (not a hand list) so a B3 plot kind cannot skip it.
+    expect(PLOT_STYLES.length).toBeGreaterThan(1)
+    let asserted = 0
+    for (const style of PLOT_STYLES) {
+      const plot = style === 'band'
+        ? { key: 'm', style, edges: { upper: 'u', lower: 'l' } }
+        : { key: 'p', style }
+      const opts = seriesOptionsForPlot(plot, { autoscale: 'exclude' })
+      if (!opts) continue                       // hlines: no series, no options
+      expect(Object.prototype.hasOwnProperty.call(opts, 'autoscaleInfoProvider'), style).toBe(true)
+      expect(opts.autoscaleInfoProvider, style).toBe(AUTOSCALE_EXCLUDE)
+      asserted++
+    }
+    // Every style but `hlines` binds a series; if this ever drops the loop above
+    // is asserting on nothing.
+    expect(asserted).toBe(PLOT_STYLES.length - 1)
+  })
+
+  it('an ABSENT ctx.autoscale means DEFAULT, never absent', () => {
+    const opts = seriesOptionsForPlot({ key: 'x', style: 'line' }, {})
+    expect(opts.autoscaleInfoProvider).toBeTypeOf('function')
+    expect(opts.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
+    // …and with no ctx at all, which is how a bare caller reaches it.
+    expect(seriesOptionsForPlot({ key: 'x', style: 'line' }).autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
   })
 })

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
+import { AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeRSI } from '../../indicators'
 import { computePaneMargins } from '../../paneMargins'
@@ -85,6 +86,18 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   // plot and, until now, read only for histograms — actually reaches the series,
   // and so a pooled series cannot inherit the last tenant's decimals.
   priceFormat: { type: 'price', precision: 2 },
+  // B3 carry #1. The second entry with no LWC default — the option is absent from
+  // `LineSeries.defaultOptions` entirely and `_internal_autoscaleInfo` branches on
+  // `!== undefined`. `AUTOSCALE_DEFAULT` is the IDENTITY provider (`base =>
+  // base()`), which is what makes it a restatement rather than a change: the
+  // renderer calls it with a thunk over its own `_private__autoscaleInfoImpl` and
+  // re-wraps the raw answer, so a series carrying it autoscales exactly as one
+  // carrying no provider does. It cannot be omitted-to-reset either — that is the
+  // whole reason a `DEFAULT` singleton exists rather than a missing key. RSI is a
+  // PANE indicator and owns its scale, so this is the value placement returns;
+  // a price overlay would carry `AUTOSCALE_EXCLUDE` here instead, matching the
+  // `autoscaleInfoProvider: () => null` the legacy BB/VWAP/SAR blocks pass.
+  autoscaleInfoProvider: AUTOSCALE_DEFAULT,
 }
 
 /** `applyIndScale('rsi', …, { autoScale: false, minimum: 0, maximum: 100 })` —

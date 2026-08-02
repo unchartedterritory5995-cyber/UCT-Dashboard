@@ -307,10 +307,13 @@ export function createBinder({ chart, LWC }) {
     for (const b of bind) {
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale } = placement.value
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
+        // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
+        // Placement returns a string; `pool` owns the two function singletons.
+        autoscale,
         LineStyle: LWC.LineStyle,
         LineType: LWC.LineType,
         // The declutter toggle (Alt+Shift+I). `visible` is part of the complete

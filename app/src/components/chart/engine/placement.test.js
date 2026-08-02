@@ -348,3 +348,55 @@ describe('PRESET_SURFACES', () => {
     }
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B3 CARRY #1 — the autoscale seam
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
+  const ctx = {
+    paneMargins: { rsi: { top: 0.85, bottom: 0 } },
+    volOverlaySet: new Set(),
+    volSeparatePane: false,
+    VOL_PANE_INDEX: 1,
+  }
+
+  it('every PRICE-target definition resolves to exclude — def by def', () => {
+    const priceDefs = registry.listDefinitions().filter(d => d.placement.target === 'price')
+    // If this list ever empties, every assertion below is vacuous.
+    expect(priceDefs.map(d => d.id)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    for (const d of priceDefs) {
+      const p = resolvePlacement({ instanceId: `i:${d.id}`, defId: d.id }, d, ctx)
+      expect(p.autoscale, `${d.id} may not drag the candles' autoscale`).toBe('exclude')
+      expect(p.scaleOptions, `${d.id} must still assert nothing on the candles' scale`).toBeNull()
+    }
+  })
+
+  it('every PANE-target definition resolves to default — def by def', () => {
+    const paneDefs = registry.listDefinitions().filter(d => d.placement.target === 'pane')
+    expect(paneDefs.length).toBeGreaterThan(0)
+    for (const d of paneDefs) {
+      const p = resolvePlacement({ instanceId: `i:${d.id}`, defId: d.id }, d, ctx)
+      expect(p.autoscale, `${d.id} OWNS its band's scale and must drive it`).toBe('default')
+    }
+  })
+
+  it('an oscillator overlaid onto the volume pane still drives the shared left axis', () => {
+    const d = def('rsi')
+    const p = resolvePlacement(
+      { instanceId: 'i:rsi', defId: 'rsi', placement: { target: 'volume' } }, d,
+      { ...ctx, volSeparatePane: true, volOverlaySet: new Set(['rsi']) },
+    )
+    expect(p.scaleId).toBe('left')
+    // applyIndScale's left branch autoscales; the shipped code passes no provider.
+    expect(p.autoscale).toBe('default')
+  })
+
+  it('is a STRING, never a function — placement stays pure and comparable', () => {
+    const d = def('bb')
+    const a = resolvePlacement({ instanceId: 'i:bb', defId: 'bb' }, d, ctx)
+    const b = resolvePlacement({ instanceId: 'i:bb', defId: 'bb' }, d, ctx)
+    expect(typeof a.autoscale).toBe('string')
+    expect(a).toEqual(b)   // deep equality would be impossible with a fresh closure
+  })
+})

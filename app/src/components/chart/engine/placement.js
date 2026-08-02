@@ -207,6 +207,25 @@ export function resolvePreset(cs, opts) {
 
 // ─── placement ───────────────────────────────────────────────────────────────
 
+/**
+ * Whether a series bound at this placement may drive its price scale's autoscale.
+ *
+ *   'exclude' — the series is a GUEST on somebody else's axis. Every price
+ *               overlay is: `StockChart` creates BB (`:5888`), VWAP (`:5918`),
+ *               SAR (`:6074`), Ichimoku (`:6096`) and Donchian (`:6267`) with
+ *               `autoscaleInfoProvider: () => null` so a band running off the top
+ *               of the window cannot stretch the CANDLES' range.
+ *   'default' — the series OWNS its scale (its own stacked band, or the volume
+ *               pane's shared autoscaled left axis) and the shipped code passes
+ *               no provider at all.
+ *
+ * ⚠️ A STRING, NOT A FUNCTION. This module is pure and its return value is
+ * compared with `toEqual` in tests and (later) between passes; a fresh closure
+ * would make two identical resolves unequal. `pool.seriesOptionsForPlot` owns the
+ * two function singletons, which is also where the complete-key-set rule lives.
+ */
+export const AUTOSCALE_MODES = Object.freeze(['exclude', 'default'])
+
 /** `ctx.volOverlaySet` as a Set, whatever shape the caller had it in. */
 function asSet(value) {
   if (value instanceof Set) return value
@@ -219,7 +238,8 @@ function asSet(value) {
  * @param {object} instance a normalised instance (`instances.js`)
  * @param {object} def      its definition (`nativeRegistry`)
  * @param {object} ctx      `{ paneMargins, volOverlaySet, volSeparatePane, VOL_PANE_INDEX }`
- * @returns {{paneIndex: number, scaleId: string|null, scaleOptions: object|null}|null}
+ * @returns {{paneIndex: number, scaleId: string|null, scaleOptions: object|null,
+ *            autoscale: 'exclude'|'default'}|null}
  *
  * `scaleOptions === null` means **assert nothing** — the scale belongs to
  * somebody else. Returning `null` for the whole thing means **bind nothing**:
@@ -261,7 +281,15 @@ export function resolvePlacement(instance, def, ctx) {
   // nothing" is `scaleOptions`, and only `scaleOptions`; a null scale ID was read
   // one layer down as "leave `priceScaleId` alone", which is how a pooled overlay
   // kept its previous tenant's named scale.
-  if (target === 'price') return { paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null }
+  //
+  // `autoscale: 'exclude'` is the SERIES half of the same "assert nothing on the
+  // candles" rule, and it is the reason this field exists: `scaleOptions: null`
+  // stops the overlay writing the candles' MARGINS, but nothing stopped it
+  // stretching their RANGE — a Bollinger band that runs off the top of the window
+  // would reframe the candles the engine is supposed to be pixel-identical to.
+  if (target === 'price') {
+    return { paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
+  }
 
   // 'volume' is the migrator's record of "this oscillator is in
   // `cs.volumeOverlayIndicators`" (`instances.js:250-255`). It is still a pane
@@ -283,6 +311,11 @@ export function resolvePlacement(instance, def, ctx) {
       // the left axis is shared with everything else overlaid onto it, which is
       // exactly why the shipped branch autoscales it.
       scaleOptions: { ...LEFT_AXIS_OPTIONS, scaleMargins: { ...LEFT_AXIS_OPTIONS.scaleMargins } },
+      // The left axis is autoscaled BY the things overlaid onto it — that branch
+      // sets `autoScale: true` precisely so they drive it — and the shipped code
+      // passes no provider at all. Excluding here would leave the shared axis
+      // with nothing to size itself from.
+      autoscale: 'default',
     }
   }
 
@@ -297,5 +330,10 @@ export function resolvePlacement(instance, def, ctx) {
     paneIndex: 0,
     scaleId: key,
     scaleOptions: { borderVisible: false, scaleMargins: { ...band }, ...range },
+    // Its own band, its own scale: it is the only thing on that axis, so it has
+    // to be what sizes it. True even for a FIXED-range definition — `autoScale:
+    // false` above already pins 0-100, which makes the provider inert rather than
+    // wrong, and emitting the same value for both keeps one rule instead of two.
+    autoscale: 'default',
   }
 }

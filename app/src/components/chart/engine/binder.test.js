@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createBinder } from './binder'
 import { resolvePlacement as realPlacement, MAIN_PRICE_SCALE_ID } from './placement'
+import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from './pool'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import * as registry from './nativeRegistry'
 
@@ -717,5 +718,100 @@ describe('it never takes the chart down', () => {
     // 5 long and full of NaN, so `.length` would create the series and the pane.
     binder.sync({ ...ctxFor([inst('rsi')]), bars: makeBars(5) })
     expect(fake.count('addSeries')).toBe(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B3 CARRY #1 — the autoscale seam, end to end
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () => {
+  /**
+   * LWC's own `merge`, reduced to the ONE behaviour this whole design turns on:
+   * it SKIPS `undefined`, so `applyOptions({k: undefined})` cannot clear `k`.
+   * Semantics taken from `lightweight-charts.development.mjs:184-200` and pinned
+   * against the INSTALLED bundle in `pool.test.js` — this is a restatement for
+   * readability, not a second source of truth.
+   *
+   * (`fakeChart`'s own `applyOptions` uses `Object.assign`, which COPIES
+   * `undefined`. That difference is exactly what would hide this bug, so the
+   * omission branch below is merged the library's way, not the double's.)
+   */
+  const lwcMerge = (dst, src) => {
+    for (const k of Object.keys(src || {})) if (src[k] !== undefined) dst[k] = src[k]
+    return dst
+  }
+
+  const autoscaleCtx = (instances) => ({
+    enabled: true,
+    registry,
+    instances,
+    bars,
+    adjustTime: (t) => t,
+    resolvePlacement: realPlacement,
+    paneMargins: { rsi: { top: 0.85, bottom: 0 } },
+    volOverlaySet: new Set(),
+    volSeparatePane: false,
+    VOL_PANE_INDEX: 1,
+    plan: { fresh: true },
+  })
+
+  it('BB\'s series re-purposed as RSI gets the DEFAULT provider back', () => {
+    binder.sync(autoscaleCtx([inst('bb')]))
+
+    const excluded = fake.seriesCreated.filter(s => s.__options.autoscaleInfoProvider === AUTOSCALE_EXCLUDE)
+    expect(excluded.length, 'BB drew nothing — the rest of this test is vacuous').toBe(3)
+    // The state a re-purpose has to undo, captured BEFORE it happens.
+    const tenant = { ...excluded[0].__options }
+
+    fake.reset()
+    binder.sync(autoscaleCtx([inst('rsi')]))
+
+    // No series was created: the pool re-purposed one of BB's three.
+    expect(fake.count('addSeries')).toBe(0)
+    const applied = fake.callsOf('applyOptions').map(c => c.args[0])
+    expect(applied.length).toBeGreaterThan(0)
+
+    for (const opts of applied) {
+      // A function, not undefined — LWC's merge skips undefined, so `undefined`
+      // here would leave the Bollinger band's EXCLUDE in place and the RSI would
+      // contribute nothing to its own 0-100 scale.
+      expect(typeof opts.autoscaleInfoProvider).toBe('function')
+      // …and the RIGHT function: calling it must return the base implementation's
+      // answer, which `() => null` never does.
+      const S = { priceRange: { minValue: 0, maxValue: 100 } }
+      expect(opts.autoscaleInfoProvider(() => S)).toBe(S)
+      expect(opts.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
+
+      // ── AND THE OMISSION VARIANT DOES NOT RESTORE ──
+      // Same merge, same previous tenant, this key dropped. That is what "reset
+      // by omitting the option" would actually do to a pooled series.
+      const omitted = { ...opts }
+      delete omitted.autoscaleInfoProvider
+      const viaOmission = lwcMerge({ ...tenant }, omitted)
+      expect(
+        viaOmission.autoscaleInfoProvider,
+        'omitting the key leaves the previous tenant\'s provider — this is why DEFAULT is explicit',
+      ).toBe(AUTOSCALE_EXCLUDE)
+      expect(viaOmission.autoscaleInfoProvider(() => S)).toBeNull()
+
+      // The explicit provider, merged the same way, actually restores.
+      const viaIdentity = lwcMerge({ ...tenant }, opts)
+      expect(viaIdentity.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
+      expect(viaIdentity.autoscaleInfoProvider(() => S)).toBe(S)
+    }
+  })
+
+  it('a price overlay is EXCLUDED and a pane oscillator is not — through the real placement', () => {
+    // The seam's whole point, asserted at the renderer boundary rather than at
+    // placement's: what reaches `addSeries` is what the chart actually gets.
+    binder.sync(autoscaleCtx([inst('bb'), inst('rsi')]))
+    const byProvider = new Map()
+    for (const c of fake.callsOf('addSeries')) {
+      const opts = c.args[1]
+      byProvider.set(opts.priceScaleId, opts.autoscaleInfoProvider)
+    }
+    expect(byProvider.get(MAIN_PRICE_SCALE_ID), 'BB must not stretch the candles').toBe(AUTOSCALE_EXCLUDE)
+    expect(byProvider.get('rsi'), 'RSI owns its band and must size it').toBe(AUTOSCALE_DEFAULT)
   })
 })

@@ -328,6 +328,39 @@ const AREA_FILL_ALPHA = 0.4
 const TRANSPARENT = 'rgba(0, 0, 0, 0)'
 
 /**
+ * The only two `autoscaleInfoProvider` values the engine can ever set, as
+ * MODULE-LEVEL singletons.
+ *
+ * ⛔ WHY SINGLETONS AND NOT INLINE ARROWS. `seriesOptionsForPlot` runs on every
+ * bind — roughly once a second in extended hours. A fresh `() => null` per call
+ * allocates, and worse it makes every option set unequal to the last one, so no
+ * future no-op check could ever fire. That was the stated reason this option was
+ * left out of the key set entirely (the docstring below, pre-B3); two frozen
+ * identities remove the objection without weakening the rule.
+ *
+ * ⛔ WHY A `DEFAULT` EXISTS AT ALL. LWC has NO default for this option — it is
+ * absent from `LineSeries.defaultOptions` and the renderer branches on
+ * `!== undefined` (`lightweight-charts.development.mjs:3716`). So "put it back"
+ * cannot be expressed by omitting the key: `merge()` SKIPS `undefined`, and a
+ * pooled series that inherited `EXCLUDE` from a Bollinger band would go on
+ * contributing nothing to whatever scale it lands on next. The identity provider
+ * IS the reset, and it is byte-for-byte what the library does when the option is
+ * absent: `_internal_autoscaleInfo` calls the provider with a thunk over
+ * `_private__autoscaleInfoImpl` and re-wraps the raw result through
+ * `AutoscaleInfoImpl._internal_fromRaw(x._internal_toRaw())`, which round-trips
+ * priceRange and margins by value (`:2298-2322`). Both facts are pinned against
+ * the INSTALLED bundle in `pool.test.js`, not asserted from memory.
+ *
+ * ⚠️ PLACEMENT decides WHICH — it is the only module that knows whether a series
+ * is a guest on the candles' axis — but it returns the STRING `'exclude'` /
+ * `'default'`, never a function, so its output stays deep-comparable. The
+ * string→function mapping lives here because this is where the complete-key-set
+ * rule (C-1) lives.
+ */
+export const AUTOSCALE_EXCLUDE = () => null
+export const AUTOSCALE_DEFAULT = (baseImplementation) => baseImplementation()
+
+/**
  * `plots[].opacity` → a multiplier in [0, 1], or `null` for "the author said
  * nothing".
  *
@@ -408,10 +441,11 @@ function effectiveColor(plot, fallback) {
  *
  * ─── WHAT IS DELIBERATELY NOT HERE ──────────────────────────────────────────
  *
- * `autoscaleInfoProvider: () => null` — a FUNCTION. It cannot be compared between
- * passes, so re-applying it every bind would make every options object unequal to
- * the last and defeat any future no-op check. The price overlays that need it are
- * a B3 carry.
+ * `autoscaleInfoProvider` USED to be the exception here, on the grounds that a
+ * FUNCTION cannot be compared between passes. B3 carry #1 closed that: the two
+ * values it can take are the frozen singletons `AUTOSCALE_EXCLUDE` /
+ * `AUTOSCALE_DEFAULT` above, so the key is comparable AND in the set. Which one a
+ * series gets is `ctx.autoscale`, and only `placement` can answer it.
  *
  * `pointMarkersRadius` is set on every line-family bind, including plots that
  * draw no markers, purely to keep the key set uniform. It is INERT whenever
@@ -421,8 +455,8 @@ function effectiveColor(plot, fallback) {
  * values, so there is no such thing as writing a key back to absent.
  *
  * @param {object} plot
- * @param {{scaleId?: string, LineStyle?: object, LineType?: object,
- *          indicatorsHidden?: boolean}} [ctx]
+ * @param {{scaleId?: string, autoscale?: 'exclude'|'default', LineStyle?: object,
+ *          LineType?: object, indicatorsHidden?: boolean}} [ctx]
  */
 export function seriesOptionsForPlot(plot, ctx) {
   const pk = poolKey(plot)
@@ -441,6 +475,11 @@ export function seriesOptionsForPlot(plot, ctx) {
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
     priceFormat: { type: 'price', precision: precisionFor(plot) },
+    // B3 carry #1. A price overlay is a GUEST on the candles' axis and must not
+    // stretch it; anything owning its own band must. Always emitted, because a
+    // key that can be set must be set on every bind or a re-purpose inherits it —
+    // and there is no "omit to reset" for this one (LWC's merge skips undefined).
+    autoscaleInfoProvider: c.autoscale === 'exclude' ? AUTOSCALE_EXCLUDE : AUTOSCALE_DEFAULT,
   }
 
   if (pk === 'histogram') {
