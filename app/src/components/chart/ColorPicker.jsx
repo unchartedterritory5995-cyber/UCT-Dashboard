@@ -16,7 +16,7 @@ const SWATCHES = [
 const POPUP_W = 160
 const POPUP_H = 132
 
-export default function ColorPicker({ value, onChange, label }) {
+export default function ColorPicker({ value, onChange, label, disabled = false, title }) {
   const [open, setOpen] = useState(false)
   const [hex, setHex] = useState(value || '#c9a84c')
   const [pos, setPos] = useState(null)
@@ -76,11 +76,14 @@ export default function ColorPicker({ value, onChange, label }) {
       <button
         ref={swatchRef}
         className={styles.swatch}
-        style={{ background: value }}
-        onClick={() => setOpen(!open)}
-        title={value}
+        // `disabled` is a real one: a swatch that opens a picker whose choice is
+        // then ignored is worse than no swatch. `title` carries the reason.
+        style={{ background: value, ...(disabled ? { opacity: 0.4, cursor: 'not-allowed' } : null) }}
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen(!open) }}
+        title={title || value}
       />
-      {open && createPortal((
+      {open && !disabled && createPortal((
         <div
           ref={popupRef}
           className={styles.popup}

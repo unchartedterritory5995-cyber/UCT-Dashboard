@@ -7,6 +7,8 @@ import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
+import { engineDrawnDefIds } from './engine/flipState'
+import * as engineRegistry from './engine/nativeRegistry'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import styles from './ChartToolbar.module.css'
@@ -111,6 +113,34 @@ const CROSSHAIR_STYLES = [
 function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   const cs = chartSettings
   const isPaid = useIsPaid()
+
+  // ── B3 FLIP A: A CONTROL THAT CANNOT DO ANYTHING MUST NOT LOOK LIKE IT CAN ──
+  //
+  // These rows write `cs.indicators.<id>.<field>`. The ENABLE checkbox still
+  // lands — under Flip A the legacy toggle is the SWITCH (StockChart projects an
+  // instance whose toggle is off to `hidden`) — but PERIOD, STD-DEV and COLOUR
+  // are read off the INSTANCE by the engine and this blob is never consulted for
+  // them. Typing 7 into RSI's period box moved nothing on the chart and said
+  // nothing about why: the exact "appears to work and doesn't" failure this
+  // project keeps hitting. Disabled, with the reason in the tooltip, is the
+  // honest state until there is a writer.
+  //
+  // ⛔ TASK 9/10 REMOVES THE `disabled`, not this predicate: `instanceControls`
+  // (`setIndicatorInput`) is the real write-through, and once these rows route
+  // there they control the instance and stop being inert. Reaching for that
+  // writer HERE would be pre-empting a task that has its own gate.
+  //
+  // Applied to all four B3 pilots, not just RSI, so Tasks 10 and 11 inherit it —
+  // `engineDrawnDefIds` returns only ids in `ENGINE_MIGRATED_DEF_IDS`, so the
+  // three that have not flipped yet resolve to `false` and nothing changes today.
+  const engineDrawn = useMemo(() => engineDrawnDefIds(cs, engineRegistry), [cs])
+  const engineInert = useCallback((key) => engineDrawn.has(key), [engineDrawn])
+  const inertTitle = useCallback(
+    (key, normal) => (engineDrawn.has(key)
+      ? 'Drawn by the indicator engine — this indicator takes its period and colour from its instance, not from this field.'
+      : normal),
+    [engineDrawn],
+  )
 
   const update = useCallback((path, value) => {
     const next = { ...cs }
@@ -398,8 +428,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>RSI</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.rsi?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('rsi', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('rsi')}
+            onChange={e => updateIndicator('rsi', 'period', e.target.value)}
+            title={inertTitle('rsi', 'Period')} />
           <ColorPicker value={cs.indicators?.rsi?.color ?? '#7b68ee'}
+            disabled={engineInert('rsi')} title={inertTitle('rsi', null)}
             onChange={v => updateIndicator('rsi', 'color', v)} />
         </div>
 
@@ -412,13 +445,19 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <div className={styles.sMiniPeriodGroup}>
             <input type="number" className={styles.sPeriodInput}
               value={cs.indicators?.macd?.fastPeriod ?? 12} min={1} max={100}
-              onChange={e => updateIndicator('macd', 'fastPeriod', e.target.value)} title="Fast" />
+              disabled={engineInert('macd')}
+              onChange={e => updateIndicator('macd', 'fastPeriod', e.target.value)}
+              title={inertTitle('macd', 'Fast')} />
             <input type="number" className={styles.sPeriodInput}
               value={cs.indicators?.macd?.slowPeriod ?? 26} min={1} max={200}
-              onChange={e => updateIndicator('macd', 'slowPeriod', e.target.value)} title="Slow" />
+              disabled={engineInert('macd')}
+              onChange={e => updateIndicator('macd', 'slowPeriod', e.target.value)}
+              title={inertTitle('macd', 'Slow')} />
             <input type="number" className={styles.sPeriodInput}
               value={cs.indicators?.macd?.signalPeriod ?? 9} min={1} max={50}
-              onChange={e => updateIndicator('macd', 'signalPeriod', e.target.value)} title="Signal" />
+              disabled={engineInert('macd')}
+              onChange={e => updateIndicator('macd', 'signalPeriod', e.target.value)}
+              title={inertTitle('macd', 'Signal')} />
           </div>
         </div>
 
@@ -430,11 +469,16 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>BB</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.bb?.period ?? 20} min={2} max={200}
-            onChange={e => updateIndicator('bb', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('bb')}
+            onChange={e => updateIndicator('bb', 'period', e.target.value)}
+            title={inertTitle('bb', 'Period')} />
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.bb?.stdDev ?? 2} min={0.5} max={5} step={0.5}
-            onChange={e => updateIndicator('bb', 'stdDev', e.target.value)} title="Std Dev" />
+            disabled={engineInert('bb')}
+            onChange={e => updateIndicator('bb', 'stdDev', e.target.value)}
+            title={inertTitle('bb', 'Std Dev')} />
           <ColorPicker value={cs.indicators?.bb?.color ?? 'rgba(156,39,176,0.85)'}
+            disabled={engineInert('bb')} title={inertTitle('bb', null)}
             onChange={v => updateIndicator('bb', 'color', v)} />
         </div>
 
@@ -446,6 +490,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>VWAP</span>
           <span className={styles.sIndicatorNote}>(intraday only)</span>
           <ColorPicker value={cs.indicators?.vwap?.color ?? '#26C6DA'}
+            disabled={engineInert('vwap')} title={inertTitle('vwap', null)}
             onChange={v => updateIndicator('vwap', 'color', v)} />
         </div>
 
