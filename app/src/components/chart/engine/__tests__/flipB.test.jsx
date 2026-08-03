@@ -748,18 +748,44 @@ describe('Flip B — VWAP', () => {
     view.unmount()
   })
 
-  it('⭐ the SETTINGS-PAGE row still reaches the chart — opacity, through the migrator', () => {
-    // ⚠️ THE BRIEF SAID TO DELETE VWAP'S ROW FROM `indicatorRegistry.listIndicators()`
-    // IN THIS TASK. It is not deleted, and this is why: the row writes
-    // `settings.indicators.vwap.*`, `migrateLegacyToInstances` copies every
-    // DECLARED input out of that section on every paint, and `eligibility` folds
-    // `opacity` into the colour. So the row still works for the only population
-    // that exists today — users with no stored instance — and removing it would
-    // take VWAP's opacity / line-style / width controls away with nothing
-    // replacing them until B4 builds the generated settings UI. The plan assigns
-    // that removal to Task 12, next to the rail that makes it a test.
+  it('⭐ a LEGACY-ONLY blob\'s opacity reaches the chart — the migrator\'s projection', () => {
+    // 🟡 THE STATED REASON WENT FALSE AT TASK 12, AND THE CLAIM DID NOT.
+    //
+    // This case used to say "…and this is why VWAP's row is NOT deleted from
+    // `indicatorRegistry.listIndicators()`": the row wrote
+    // `settings.indicators.vwap.*` raw, `migrateLegacyToInstances` copies every
+    // DECLARED input out of that section on every paint, so the row still worked
+    // for the only population that existed the day Flip B shipped.
+    //
+    // Task 12 kept the ROW and deleted the ENUMERATION — the fields are now
+    // generated from the definition — and it also found what "the only
+    // population that exists today" was hiding: the migrator SKIPS an instance
+    // id it already has, so a raw write to the legacy section is read by nobody
+    // the moment any control door has created `legacy:vwap`. The row writes
+    // through `instanceControls` now.
+    //
+    // So this case is narrowed to the claim it actually proves — the
+    // COMPATIBILITY path, which every existing user's stored blob still takes —
+    // and its twin below covers the stored-instance path it could not see.
     drawIntraday({ indicators: { vwap: { ...VWAP_CFG, opacity: 40 } } })
     expect(vwapSeries('rgba(38, 198, 218, 0.4)'),
-      'the settings-page opacity stopped reaching the chart at the flip').toHaveLength(1)
+      'the legacy section stopped reaching the chart').toHaveLength(1)
+  })
+
+  it('⭐ …and a STORED INSTANCE\'s opacity wins over a legacy section that disagrees', () => {
+    // The state the case above cannot construct, and the one the settings row
+    // produces the moment a user has ever ticked VWAP on: an instance exists, so
+    // the legacy section is no longer what the chart reads. A writer that only
+    // touched the section would leave the slider moving a number nothing renders.
+    drawIntraday({
+      indicators: { vwap: { ...VWAP_CFG, opacity: 100 } },
+      indicatorInstances: [{
+        instanceId: 'legacy:vwap', defId: 'vwap', hidden: false,
+        inputs: { color: '#26C6DA', opacity: 40, lineStyle: 'solid', lineWidth: 1 },
+      }],
+    })
+    expect(vwapSeries('rgba(38, 198, 218, 0.4)'),
+      'the stored instance lost to the legacy mirror').toHaveLength(1)
+    expect(vwapSeries('#26C6DA'), 'the un-composed base colour drew as well').toHaveLength(0)
   })
 })
