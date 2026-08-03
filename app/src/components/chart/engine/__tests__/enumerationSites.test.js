@@ -68,7 +68,14 @@ const calls = (src, fn) => src.includes(`${fn}(`)
 // `fate` is who retires it, and it is the column B4 inherits:
 //   'B3'    retired by this phase (kept in the table with the retirement asserted)
 //   'B4'    the §6 settings-dialog rework + the legend rewrite
-//   'B5'    the cutover — the legacy `cs.indicators` section itself
+//   'B5'    the cutover — the legacy `cs.indicators` section itself, and the
+//           layout that stacks it: Flip C, when bands become real LWC panes
+//   'C'     the Phase-C alert-engine rebuild (spec §8): closed-bar evaluation,
+//           `prev` derived from the computed series, `last_value` demoted to
+//           delivery-dedup. A dict of Python closures cannot be derived from a
+//           JS definition, and porting six more computes into a lane C is about
+//           to replace is what spec §9.5 ("no eager 15-indicator port") forbids.
+//           B4 collapses its FRONTEND twin into it; retiring the list is C's.
 //   'keep'  a data file or the surviving registry: it legitimately lists things
 //   'phase' the migration's own bookkeeping; it is deleted when the migration is
 
@@ -115,8 +122,21 @@ const LEDGER = [
     anchor: 'if (e.altKey && !e.ctrlKey && !e.metaKey) {', fate: 'B4' },
 
   // ── layout, labels, the toolbar ──────────────────────────────────────────
+  // ⭐ B4 ADJUDICATION A2 (2026-08-03). B3's Task 13 recorded a dispute and
+  // deliberately left it: PANES is LABELLED B4, but by this file's own legend it
+  // is B5. UPHELD, for two independent reasons. It is a LAYOUT table — ten
+  // {key, enabled, baseH} rows handing each enabled oscillator a stacked band —
+  // with nothing to do with the §6 dialog, the legend, the control doors or the
+  // voice bus, and it retires when bands stop being bands: Flip C, which is B5's
+  // (⚠️ NOT the fate letter `C` above — that is the Phase-C ALERT rebuild; the
+  // two Cs are different things and this line is where they meet). And B4 is
+  // FORBIDDEN from modifying paneMargins.js at all — "consumed, never modified"
+  // is a Global Constraint of that phase AND an assertion in this file
+  // (`adjudication A6` → *paneMargins.js is still CONSUMED, not owned*).
+  // A site a phase may not touch cannot carry that phase's fate. The engine
+  // still DEPENDS on it, through `engine/paneMarginsProjection.csForPaneMargins`.
   { file: 'app/src/components/chart/paneMargins.js', region: 'PANES — the oscillator stacking list, 9 + volume',
-    anchor: 'const PANES = [', fate: 'B4' },
+    anchor: 'const PANES = [', fate: 'B5' },
   { file: 'app/src/components/chart/chartRegion.js', region: 'INDICATOR_LABELS — 9',
     anchor: 'export const INDICATOR_LABELS = {', fate: 'B4' },
   { file: 'app/src/components/chart/ChartToolbar.jsx', region: 'OSC — a SECOND copy of OSC_OPTS, in another file',
@@ -143,8 +163,16 @@ const LEDGER = [
     anchor: 'const INDICATORS = [', fate: 'B4' },
   { file: 'app/src/components/chart/IndicatorAlertPopover.jsx', region: 'CONDITIONS — per-indicator condition lists',
     anchor: 'const CONDITIONS = {', fate: 'B4' },
-  { file: 'api/services/indicator_alert_evaluator.py', region: "INDICATOR_FUNCS — the evaluator, the dropdown's BACKEND twin",
-    anchor: 'INDICATOR_FUNCS: dict[str,', fate: 'B4' },
+  // ⭐ B4 ADJUDICATION A4 (2026-08-03). DEFERRED to Phase C, not retired by B4.
+  // Eight Python closures cannot be derived from a JS definition, and spec §8
+  // REBUILDS this evaluator in C. Deriving it in B4 would mean porting compute
+  // for six more indicators into a lane C is about to replace — spec §9.5's
+  // "no eager 15-indicator port", verbatim. What B4 does instead is stop it
+  // being a TWIN: `IndicatorAlertPopover`'s INDICATORS + CONDITIONS are served
+  // from the module that owns the evaluation, so the dropdown cannot offer an
+  // alert that cannot fire, and this becomes the ONE naming authority.
+  { file: 'api/services/indicator_alert_evaluator.py', region: "INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority",
+    anchor: 'INDICATOR_FUNCS: dict[str,', fate: 'C' },
 
   // ── the engine ───────────────────────────────────────────────────────────
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
@@ -212,14 +240,25 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toBe(SITE_COUNT)
   })
 
-  // ⭐ WHO RETIRES WHAT, AS A NUMBER. The plan said "~4 sites hand off to B4".
-  // The measured answer is TWENTY, and "approximately four" is exactly the kind
-  // of estimate this file exists to replace. B4 doing its work moves these
+  // ⭐ WHO RETIRES WHAT, AS A NUMBER. The B3 plan said "~4 sites hand off to
+  // B4". The measured answer was TWENTY, and "approximately four" is exactly the
+  // kind of estimate this file exists to replace. B4 doing its work moves these
   // counts, which is a red test and a deliberate update rather than a silent
   // drift back toward "seven".
-  it('the retirement column adds up — 20 to B4, 7 to B5, 2 kept, 2 phase bookkeeping', () => {
+  //
+  // ⭐ AND IT HAS ALREADY MOVED ONCE WITHOUT ANY WORK BEING DONE. B4's plan
+  // adjudicated two of the twenty — A2 sent `paneMargins.PANES` to B5 (a layout
+  // table B4 may not modify), A4 sent `INDICATOR_FUNCS` to the new fate `C`
+  // (spec §8 rebuilds the evaluator). **B4 retires EIGHTEEN, not twenty**, and
+  // that correction is worth more than the arithmetic: twenty summed only while
+  // a layout table sat in the settings-dialog group. Every later B4 task
+  // DECREMENTS `B4` here; the total stays 31 until a site is deleted outright.
+  it('the retirement column adds up — 18 to B4, 8 to B5, 1 to C, 2 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
-    expect(counts).toEqual({ B4: 20, B5: 7, keep: 2, phase: 2 })
+    // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
+    // makes a SIXTH bucket, and five per-key assertions would all still pass
+    // while the ledger silently held a site nobody's phase owns.
+    expect(counts).toEqual({ B4: 18, B5: 8, C: 1, keep: 2, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -319,7 +358,37 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   // `ENGINE_MIGRATED_DEF_IDS`), so the loop would iterate zero times and pass
   // whatever it claimed. `flipB.test.jsx` owns the live claim — it asserts the
   // two sets are EQUAL, naming the three deletions that rest on it, so B4 gets a
-  // red test rather than a double-drawn indicator.
+  // red test rather than a double-drawn indicator. What IS asserted here, below,
+  // is the OTHER half: not "the guard survived" but "the category may not be
+  // created at all while the decision that makes it safe is still open."
+
+  // ⛔⭐ THE RAIL THAT STOPS B4 STRANDING USERS.
+  // `docs/decisions/2026-08-03-engine-enabled-settings-migration.md` §4.1: a
+  // MIGRATED-but-UN-FLIPPED definition needs `cs.engineEnabled`, NO existing user
+  // has it, and flipping the default cannot give it to them — so that definition
+  // is engine-drawn for NOBODY. The category is empty today, and B4's
+  // adjudication A1 is that it stays empty. `flipB.test.jsx` asserts the two sets
+  // are EQUAL; this asserts WHY, reads the record's own Status line, and names
+  // the file to open. CLOSING the record is what makes this negotiable — until
+  // then it is not, and a "subset" relaxation turns the rail back into a comment.
+  //
+  // ⚠️ THE ASSERTION IS THE PAIR, not the stranded list. Anchored on the record's
+  // bold `**Status:**` line and not on a bare `OPEN`, because this file contains
+  // the word "OPEN" in prose and a loose match would keep passing after the
+  // record is resolved — which is the moment the rail is supposed to be re-read
+  // rather than the moment it is supposed to go quiet.
+  it('creates no migrated-but-un-flipped definition while the settings migration is open', () => {
+    const record = read('docs/decisions/2026-08-03-engine-enabled-settings-migration.md')
+    const stillOpen = /\*\*Status:\*\*[^\n]*\bOPEN\b/.test(record)
+    const stranded = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
+    expect({ stillOpen, stranded },
+      'A definition was migrated without being flipped while ENGINE_ENABLED_MIGRATION is OPEN. ' +
+      'It is engine-drawn ONLY on a chart with cs.engineEnabled === true, and NO stored blob has ' +
+      'that. Either flip it in this same change, or ship the versioned read-time migration FIRST ' +
+      '(record §6 R1a, its own commit, gated from a JSON string) and re-run all 24 parity cases. ' +
+      'Do NOT weaken this assertion to a subset check.',
+    ).toEqual({ stillOpen: true, stranded: [] })
+  })
 })
 
 describe('adjudication A6 — the settings tab lists nothing the engine owns', () => {
