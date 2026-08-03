@@ -1164,7 +1164,7 @@ export default function StockChart({
         : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
     const rgb = parseColor(labelBg)
     const light = rgb ? luminance(rgb) > 0.5 : false
-    return { labelBg, ink: light ? '#1f2937' : '#ffffff' }
+    return { labelBg, ink: light ? '#1f2937' : '#ffffff', light }
   }, [userCanvas, boldCandles, cs.bgMode, cs.background, cs.bgGradient?.bottom, canvasTheme])
 
   const panelVars = useMemo(() => {
@@ -8150,9 +8150,8 @@ export default function StockChart({
       const _measC = themeColors.crosshairColor || (canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)')
       ctx.strokeStyle = _measC; ctx.lineWidth = 1; ctx.setLineDash([5, 4])
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-      ctx.setLineDash([]); ctx.fillStyle = _measC
-      ctx.beginPath(); ctx.arc(x1, y1, 2.5, 0, 6.283); ctx.fill()
-      ctx.beginPath(); ctx.arc(x2, y2, 2.5, 0, 6.283); ctx.fill()
+      ctx.setLineDash([])
+      // (No endpoint dots — just the bare dashed line, matching the crosshair.)
     }
     const onMove = (e) => {
       const st = dragMeasureStateRef.current; if (!st) return
@@ -9543,7 +9542,7 @@ export default function StockChart({
               ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)
             </span>
           </div>
-          <div style={{ color: canvasTheme === 'sunrise' ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
+          <div style={{ color: axisAuto.light ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </div>
         </div>
