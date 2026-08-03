@@ -95,8 +95,38 @@ cd app && npm run build && cd ..
 python tools/spa_server.py app/dist 5185          # SPA fallback for BrowserRouter
 B=http://127.0.0.1:5185
 
-python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy
+python tools/chart_parity.py --base-a $B --base-b $B --cases engine_rsi_vs_legacy \
+    --dist-a app/dist --dist-b app/dist
 ```
+
+### 4a. ⛔ THE STALE SERVER, AND WHY `--dist-a/--dist-b` ARE NOT OPTIONAL IN PRACTICE
+
+Until 2026-08-03 `spa_server.py` set `allow_reuse_address = True` with no bind
+check. On Windows that lets a SECOND server bind a port a FIRST one is actively
+listening on: the second prints `serving …`, exits no error, and **every request
+keeps being answered by the first**. So the operator's terminal names build B
+while the harness measures build A against itself — 0 changed px, exit 0, a
+number about a tree nobody is holding. Two such results were produced on this
+branch, one of them a `0 px, 20/20, exit 0`; nine stale listeners were found
+bound in one task and eight more in the next.
+
+Both halves are now enforced by the tools, and both are gated in
+`tests/test_chart_parity_harness.py`:
+
+* **`spa_server.py` refuses to start on a bound port** — a pre-bind connect probe
+  with a readable message, plus `allow_reuse_address = False` and
+  `SO_EXCLUSIVEADDRUSE`, which are independent on purpose.
+* **`chart_parity.py` checks SERVED vs DISK before any case runs.** It asks each
+  base which directory it is serving (`/__parity_root`) and byte-compares
+  `index.html` and every hashed asset against that directory. A production base
+  that cannot name its root — which is what an spa_server started before this
+  change looks like, because its SPA fallback answers the endpoint with HTML —
+  is REFUSED, not warned about.
+
+Passing `--dist-a` / `--dist-b` adds the check the tool cannot make on its own:
+that the directory the server names is the one you *meant*. The build-identity
+check catches "A and B are the same build"; only this catches "both are stale,
+and they differ". **Pass them.**
 
 `tools/spa_server.py` is committed precisely so this section is reproducible.
 Phase B2's numbers were all produced through an uncommitted scratch copy while

@@ -101,6 +101,27 @@ CASES_PATH = TOOLS_DIR / "chart_parity_cases.json"
 OUT_DIR = TOOLS_DIR / "chart_parity_out"
 
 
+def _spa_server_module():
+    """`tools/spa_server.py`, imported by PATH.
+
+    This file is a script, not a package member, and it is run from the repo
+    root (`python tools/chart_parity.py`) as often as from `tools/` — so a plain
+    `import spa_server` resolves only sometimes. Loading it by path makes the
+    ONE-STRING claim below true by construction rather than by luck."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_spa_server_for_chart_parity", TOOLS_DIR / "spa_server.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+try:
+    PARITY_ROOT_PATH = _spa_server_module().PARITY_ROOT_PATH
+except Exception:  # noqa: BLE001 — a missing/older server must not stop the import
+    PARITY_ROOT_PATH = "/__parity_root"
+
+
 # ─── case list ───────────────────────────────────────────────────────────────
 
 def deep_merge(base: dict, patch: dict) -> dict:
@@ -341,8 +362,175 @@ def _engine_source(root: str) -> str:
 
 def identity_line(label: str, ident: dict) -> str:
     what = ", ".join(ident["assets"]) if ident["assets"] else "no hashed assets (dev server)"
-    return (f"- {label}: `{ident['url']}` · build **{ident['id']}** ({ident['kind']}) — {what}"
+    line = (f"- {label}: `{ident['url']}` · build **{ident['id']}** ({ident['kind']}) — {what}"
             f" · engine source: {ident['engine_source']}")
+    served = ident.get("served")
+    if served and served.get("verified"):
+        line += (f" · **served == disk** at `{served['root']}` (pid {served['pid']}, "
+                 f"{served['files_checked']} file(s))")
+    elif served:
+        line += f" · served-vs-disk: {served.get('reason')}"
+    return line
+
+
+# ─── served-vs-disk ──────────────────────────────────────────────────────────
+#
+# ⛔ THE ONE THING EVERY OTHER CHECK IN THIS FILE ASSUMES AND NONE OF THEM PROVE.
+#
+# `read_build_identity` asks the SERVER what it advertises and refuses to run
+# when A and B answer the same thing. That catches "both servers are the same
+# build". It cannot catch **"the server is not serving the build you just
+# built"**, because a stale listener answers with a perfectly self-consistent
+# identity of its own — two DIFFERENT stale builds pass the identity check, the
+# rehearsal check, the engine-source check and every case, and report numbers
+# about a tree nobody is holding.
+#
+# That is not a hypothesis on this branch:
+#   * `tools/spa_server.py` set `allow_reuse_address = True` with no bind check,
+#     so starting a second server on a held port SUCCEEDED SILENTLY and left the
+#     first one answering (fixed there; this is the other half);
+#   * two clean-but-fictional results have already been produced here, one of
+#     them a `0 px, 20/20, exit 0`;
+#   * nine stale listeners were bound in one task, eight more in the next.
+#
+# Task 10 closed it BY HAND — diffing the served chunk name and that chunk's
+# sha256 against the dist on disk before any case ran. A hand check is not a
+# gate. This makes it automatic and MANDATORY: a `dist`-kind base must be
+# attributable to a directory on this filesystem, and every byte it serves for
+# `index.html` and for each hashed asset must equal the bytes in that directory.
+#
+# ⚠️ THERE IS NO `--skip` FOR IT, deliberately. An escape hatch on a check whose
+# whole purpose is to catch an operator's stale terminal is the check being off
+# by default with extra steps.
+
+
+class ServedContentError(RuntimeError):
+    """A base could not be proven to serve what is on disk. Fatal, and it must
+    stay fatal — an unverifiable serve is exactly the state that produced this
+    branch's fictional greens."""
+
+
+def read_served_root(base: str, *, get=None) -> dict | None:
+    """Ask a base which directory it is serving (`tools/spa_server.py`).
+
+    ``None`` when the base cannot answer — which includes the important case: a
+    server started before this endpoint existed answers `/__parity_root` with
+    `index.html` through its own SPA fallback, i.e. a 200 carrying HTML. A 200
+    that is not JSON is therefore ABSENT, not present-and-weird."""
+    get = get or _http_get
+    try:
+        status, body = get(base.rstrip("/") + PARITY_ROOT_PATH)
+    except Exception:  # noqa: BLE001 — refused/timeout: the identity read already reported it
+        return None
+    if status != 200 or not body:
+        return None
+    try:
+        data = json.loads(body.decode("utf-8", "replace"))
+    except (ValueError, AttributeError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("root"), str):
+        return None
+    return data
+
+
+def _served_assets(html: str) -> list[str]:
+    """The hashed asset URLs `index.html` advertises, as SERVER PATHS.
+
+    `read_build_identity` keeps only basenames (it is building an identity);
+    here the path is the thing being fetched and compared, so it is kept whole."""
+    seen, out = set(), []
+    for u in _ASSET_RE.findall(html):
+        if "/assets/" not in u:
+            continue
+        if u.rsplit(".", 1)[-1].lower() not in ("js", "css"):
+            continue
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def verify_served_matches_disk(base: str, ident: dict, expected_dist=None, *,
+                               get=None, label: str = "") -> dict:
+    """Prove this base serves the bytes that are on disk, in the named directory.
+
+    Raises `ServedContentError` on every failure mode rather than returning a
+    flag: the caller's only correct response is to stop, and a returned flag is
+    a thing a future edit forgets to read.
+    """
+    get = get or _http_get
+    who = f"{label} ({base})" if label else base
+
+    if ident.get("kind") != "dist":
+        # A dev server has no bundle to compare against; its identity is already
+        # CONTENT-derived (`BUILD_PROBE_PATHS` hashes real source files), which is
+        # the equivalent guarantee for that shape.
+        return {"verified": False, "reason": "dev server — identity is content-derived"}
+
+    served = read_served_root(base, get=get)
+    if served is None:
+        raise ServedContentError(
+            f"{who} is serving a production build but cannot say WHICH DIRECTORY it is "
+            f"serving ({PARITY_ROOT_PATH} did not answer JSON).\n"
+            "  Every number this tool prints would then be a claim about a tree nobody can\n"
+            "  identify. The overwhelmingly likely cause is a STALE LISTENER from an earlier\n"
+            "  run holding this port -- that is how this branch produced a `0 px, 20/20,\n"
+            "  exit 0` that was entirely wrong.\n"
+            f"  Serve it with `python tools/spa_server.py <dist> <port>` on a FREE port.")
+
+    root = Path(served["root"])
+    if expected_dist is not None:
+        want = Path(expected_dist).resolve()
+        if root.resolve() != want:
+            raise ServedContentError(
+                f"{who} is serving `{root}`, but you named `{want}`.\n"
+                "  A server bound to a port another server already holds keeps answering with\n"
+                "  the OTHER build while your terminal says it is serving yours. This is that.")
+    if not root.is_dir():
+        raise ServedContentError(
+            f"{who} reports it serves `{root}`, which is not a directory on this machine.\n"
+            "  Served-vs-disk cannot be checked across a filesystem boundary, and an unchecked\n"
+            "  serve is the state this gate exists to refuse.")
+
+    checked = 0
+    index_sha = None
+    for rel in ["/index.html", *_served_assets(_http_text(base, "/index.html", get))]:
+        disk = root / rel.lstrip("/").replace("/", os.sep)
+        if not disk.is_file():
+            raise ServedContentError(
+                f"{who} advertises `{rel}`, which does not exist under `{root}`.\n"
+                "  The server is answering from somewhere other than the directory it names.")
+        status, body = get(base.rstrip("/") + rel)
+        if status != 200:
+            raise ServedContentError(f"{who}: `{rel}` answered {status}, not 200.")
+        wire = hashlib.sha256(body).hexdigest()
+        on_disk = hashlib.sha256(disk.read_bytes()).hexdigest()
+        if wire != on_disk:
+            raise ServedContentError(
+                f"{who}: SERVED `{rel}` does not match the file on disk.\n"
+                f"  served  sha256 {wire[:12]}\n"
+                f"  on disk sha256 {on_disk[:12]}   ({disk})\n"
+                "  A different process is answering this port. Nothing measured here would be\n"
+                "  about the build you think you are measuring.")
+        if rel == "/index.html":
+            index_sha = wire
+        checked += 1
+
+    return {
+        "verified": True,
+        "root": str(root),
+        "pid": served.get("pid"),
+        "index_sha256": index_sha,
+        "files_checked": checked,
+    }
+
+
+def _http_text(base: str, path: str, get) -> str:
+    status, body = get(base.rstrip("/") + path)
+    if status != 200 or not body:
+        raise ServedContentError(f"{base}{path}: {status} (is the server up?)")
+    return body.decode("utf-8", "replace")
 
 
 # ─── capture ─────────────────────────────────────────────────────────────────
@@ -722,6 +910,12 @@ def main() -> int:
                          "report the same build identity with nothing else telling them apart. "
                          "The engine rehearsal (a case with `instancesB`) and "
                          "--instances-side none|both are self-declaring and do not need it.")
+    ap.add_argument("--dist-a", default=None,
+                    help="the directory --base-a is SUPPOSED to be serving. The tool always "
+                         "checks that a production base serves the bytes on its own disk; "
+                         "naming the directory here additionally checks it is the RIGHT one, "
+                         "which is the only way to catch a stale listener holding the port.")
+    ap.add_argument("--dist-b", default=None, help="the same, for --base-b")
     ap.add_argument("--cases", nargs="*", help="subset of case names")
     ap.add_argument("--include-placeholders", action="store_true",
                     help="also run cases marked status=placeholder (B3 fills those in)")
@@ -834,6 +1028,29 @@ def main() -> int:
             "Every number this tool prints is a claim about a specific build, so it refuses "
             "to measure one it cannot name. Check the server is up and serving the app."
         ) from e
+
+    # ⭐ AND DOES EACH BASE ACTUALLY SERVE THE TREE ON ITS OWN DISK? Before a
+    # single pixel, and before the same-build adjudication below — because two
+    # DIFFERENT stale servers sail through that adjudication (see
+    # `verify_served_matches_disk`). Task 10 did this by hand; a hand check is
+    # not a gate.
+    try:
+        ident_a["served"] = verify_served_matches_disk(
+            base_a, ident_a, args.dist_a, label="A (baseline)")
+        if ident_b is ident_a:
+            # ONE base, ONE server. `--dist-b` naming a different directory is a
+            # contradiction the operator must see, not a second check to run.
+            root_a = ident_a["served"].get("root")
+            if args.dist_b and (root_a is None
+                                or Path(args.dist_b).resolve() != Path(root_a).resolve()):
+                raise ServedContentError(
+                    f"--dist-b names `{args.dist_b}`, but A and B are the SAME base "
+                    f"({base_a}), which serves `{root_a}`. One server cannot be two builds.")
+        else:
+            ident_b["served"] = verify_served_matches_disk(
+                base_b, ident_b, args.dist_b, label="B (candidate)")
+    except ServedContentError as e:
+        raise SystemExit(f"SERVED-VS-DISK CHECK FAILED\n{e}") from e
 
     same_build = ident_a["id"] == ident_b["id"]
     # Two things legitimately make an A-vs-A BUILD a real comparison:

@@ -288,9 +288,18 @@ class _FakePlaywright:
         return False
 
 
-def _drive_main(monkeypatch, tmp_path, capture_impl, cases=("macd_only",)):
+def _drive_main(monkeypatch, tmp_path, capture_impl, cases=("macd_only",), verify=None):
     monkeypatch.setattr(cp, "sync_playwright", lambda: _FakePlaywright())
     monkeypatch.setattr(cp, "capture", capture_impl)
+    # The identities below say `kind: "dist"`, so `main` runs the served-vs-disk
+    # check — which is the POINT (see `test_main_REFUSES_a_base_that_cannot_be…`)
+    # and would otherwise fail these two on a base that is not a real server.
+    # Stubbed HERE and nowhere else; the check has its own gates below, and one of
+    # them drives `main` with the real function to prove it is still called.
+    monkeypatch.setattr(cp, "verify_served_matches_disk", verify or (
+        lambda base, ident, dist=None, **_kw: {"verified": True, "root": "/fake",
+                                               "pid": 0, "index_sha256": "x",
+                                               "files_checked": 1}))
     monkeypatch.setattr(cp, "read_build_identity", lambda base: {
         "url": base, "kind": "dist",
         "assets": ["index-aaaaaaaa.js"] if base.endswith("1") else ["index-bbbbbbbb.js"],
@@ -637,3 +646,312 @@ def test_case_url_leaves_a_DAILY_case_on_the_daily_fixture():
     assert "tf=D" in url, url
     assert "fixedbars=ramp200" in url, url
     assert "intraday5m" not in url, url
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ─── THE STALE-SERVER HAZARD (B3 Task 11, prerequisite 1) ────────────────────
+#
+# `tools/spa_server.py` set `socketserver.TCPServer.allow_reuse_address = True`
+# with NO bind check. On Windows that does not mean "reuse a TIME_WAIT socket",
+# it means a second process may bind a port a first process is actively
+# listening on: the second one prints its success banner, exits no error, and
+# **every request keeps being answered by the first**. The operator then holds a
+# terminal claiming to serve build B while the gate measures build A twice — 0
+# changed px, exit 0, and a number about a tree nobody is holding.
+#
+# `chart_parity.py` enforced that A and B report DIFFERENT build identities,
+# which catches that exact shape. It could not catch two DIFFERENT stale servers:
+# both answer with self-consistent identities and every machine check passes.
+# Task 10 closed it by hand, diffing the served chunk and its sha256 against the
+# dist on disk before any case ran. A hand check is not a gate.
+#
+# Both halves are gated here, and both halves have a CONTROL: a check that only
+# ever refuses is indistinguishable from a check that always refuses.
+
+import hashlib as _hashlib
+import os as _os
+import socket as _socket
+import threading as _threading
+import urllib.request as _urlreq
+
+
+def _load_spa_server():
+    spec = importlib.util.spec_from_file_location(
+        "spa_server_under_test", ROOT / "tools" / "spa_server.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+spa = _load_spa_server()
+
+
+def _dist(tmp_path, name, marker):
+    """A minimal built `dist`: an index.html advertising one hashed asset."""
+    root = tmp_path / name
+    (root / "assets").mkdir(parents=True)
+    (root / "assets" / ("index-%s.js" % marker)).write_text("// %s\n" % marker, encoding="utf-8")
+    (root / "index.html").write_text(
+        '<!doctype html><html><head><script type="module" '
+        'src="/assets/index-%s.js"></script></head><body></body></html>' % marker,
+        encoding="utf-8")
+    return root
+
+
+def _serve(root):
+    """Start a real spa_server on a free port; returns (base_url, stop())."""
+    import functools
+    handler = functools.partial(spa.SPAHandler, directory=str(root))
+    httpd = spa.ExclusiveTCPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    t = _threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+
+    def stop():
+        httpd.shutdown()
+        httpd.server_close()
+        t.join(timeout=5)
+
+    return "http://127.0.0.1:%d" % port, stop
+
+
+# ─── half one: the server refuses to share a port ────────────────────────────
+
+def test_spa_server_REFUSES_to_start_on_a_port_that_is_already_listening(tmp_path):
+    """⭐ THE BUG, DRIVEN.
+
+    ⚠️ THE PRE-FIX BEHAVIOUR IS A HANG, NOT A FAILURE, which is why `main` is
+    driven on a THREAD with a join timeout rather than called directly. The old
+    code bound the held port, printed `serving …`, and went into `serve_forever`
+    — so a direct call here would block this test forever instead of failing it,
+    and "the suite never finished" is not a verdict. A live thread IS the
+    assertion: it means the port was taken."""
+    root = _dist(tmp_path, "A", "aaaaaaaa")
+    holder = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    port = holder.getsockname()[1]
+    outcome = {}
+
+    def run():
+        try:
+            spa.main([str(root), str(port)])
+            outcome["returned"] = True
+        except SystemExit as e:            # noqa: PERF203 — the expected path
+            outcome["exit"] = str(e)
+        except BaseException as e:         # noqa: BLE001
+            outcome["error"] = f"{type(e).__name__}: {e}"
+
+    try:
+        th = _threading.Thread(target=run, daemon=True)
+        th.start()
+        th.join(timeout=15)
+        assert not th.is_alive(), (
+            "spa_server BOUND a port another socket was already listening on and started "
+            "serving — that is the whole hazard: the operator's terminal names this build "
+            "while every request is answered by the other one")
+        assert "exit" in outcome, outcome
+        assert "REFUSING TO START" in outcome["exit"], outcome["exit"]
+        # ⭐ AND IT MUST BE THE *PROBE* THAT REFUSED, not the bind falling over.
+        # There are two independent mechanisms here (the pre-bind connect probe
+        # and `allow_reuse_address = False` + SO_EXCLUSIVEADDRUSE) and either one
+        # alone produces a SystemExit — so an assertion on "it refused" is killed
+        # by neither mutation. Naming the probe's own wording pins the mechanism
+        # this case is about; the structural test below pins the other.
+        assert "already listening on" in outcome["exit"], outcome["exit"]
+        assert str(port) in outcome["exit"]
+    finally:
+        holder.close()
+
+
+def test_the_bind_check_is_NOT_just_always_refusing(tmp_path):
+    """THE CONTROL. A check that refuses every port would pass the test above
+    while making the harness unusable — and `port_is_taken` returning True
+    unconditionally is a one-character mutation."""
+    s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    free_port = s.getsockname()[1]
+    s.close()                                   # …and now nothing holds it
+    assert spa.port_is_taken("127.0.0.1", free_port) is False
+    base, stop = _serve(_dist(tmp_path, "B", "bbbbbbbb"))
+    try:
+        # …and the positive half against a server that really is up, so "False"
+        # cannot be satisfied by the probe never connecting to anything.
+        assert spa.port_is_taken("127.0.0.1", int(base.rsplit(":", 1)[1])) is True
+    finally:
+        stop()
+
+
+def test_the_server_does_NOT_set_allow_reuse_address():
+    """The structural half. The pre-bind probe is a race — two servers started in
+    the same instant both see a free port — so exclusivity has to be enforced by
+    the socket as well, and that is one attribute a future edit can flip back."""
+    assert spa.ExclusiveTCPServer.allow_reuse_address is False
+    # …and it must not have been set globally on the base class either, which is
+    # exactly what the old line did (reaching every other TCPServer in the process).
+    import socketserver as _ss
+    assert _ss.TCPServer.allow_reuse_address is False
+
+
+# ─── half two: what is SERVED equals what is on DISK ─────────────────────────
+
+def test_the_server_and_its_verifier_name_ONE_string():
+    """A second copy of `/__parity_root` in the harness would silently degrade
+    every base to 'cannot name its root' the day either side was renamed."""
+    assert cp.PARITY_ROOT_PATH == spa.PARITY_ROOT_PATH
+
+
+def test_a_real_server_reports_the_root_it_is_serving_and_still_falls_back(tmp_path):
+    root = _dist(tmp_path, "A", "aaaaaaaa")
+    base, stop = _serve(root)
+    try:
+        with _urlreq.urlopen(base + cp.PARITY_ROOT_PATH, timeout=10) as r:
+            payload = json.loads(r.read().decode("utf-8"))
+        assert Path(payload["root"]).resolve() == root.resolve()
+        assert payload["index_sha256"] == _hashlib.sha256(
+            (root / "index.html").read_bytes()).hexdigest()
+        # …and the SPA fallback, which is the file's entire reason to exist, is
+        # not broken by the new route.
+        with _urlreq.urlopen(base + "/r/chart?x=1", timeout=10) as r:
+            assert b"<!doctype html>" in r.read().lower()
+    finally:
+        stop()
+
+
+def _fake_get_from(root, root_payload=None, override=None):
+    """An HTTP double answering from `root`, so a mismatch can be injected."""
+    def get(url):
+        path = "/" + url.split("//", 1)[1].split("/", 1)[1] if "//" in url else url
+        if path == cp.PARITY_ROOT_PATH:
+            body = json.dumps(root_payload if root_payload is not None
+                              else {"root": str(root), "pid": 1, "index_sha256": None})
+            return 200, body.encode("utf-8")
+        if override and path in override:
+            return 200, override[path]
+        disk = root / path.lstrip("/").replace("/", _os.sep)
+        if disk.is_file():
+            return 200, disk.read_bytes()
+        return 404, b""
+    return get
+
+
+def _ident(assets):
+    return {"url": "http://127.0.0.1:9", "kind": "dist", "assets": assets,
+            "probes": {}, "engine_source": "unknown (bundled build)", "id": "deadbeefcafe"}
+
+
+def test_a_FAITHFUL_server_verifies_and_reports_what_it_checked(tmp_path):
+    """THE CONTROL FOR EVERY REFUSAL BELOW, and it asserts a NONZERO file count:
+    a verifier whose loop never ran would 'pass' every one of them."""
+    root = _dist(tmp_path, "A", "aaaaaaaa")
+    out = cp.verify_served_matches_disk(
+        "http://127.0.0.1:9", _ident(["index-aaaaaaaa.js"]), root,
+        get=_fake_get_from(root))
+    assert out["verified"] is True
+    assert out["files_checked"] == 2, "index.html + one hashed asset"
+    assert Path(out["root"]).resolve() == root.resolve()
+
+
+def test_a_server_SERVING_ANOTHER_DIST_is_refused_by_name(tmp_path):
+    """THE HAZARD ITSELF: A holds the port, the operator starts B on it, B's
+    banner prints, and the port keeps answering with A."""
+    a = _dist(tmp_path, "A", "aaaaaaaa")
+    b = _dist(tmp_path, "B", "bbbbbbbb")
+    with pytest.raises(cp.ServedContentError) as ei:
+        cp.verify_served_matches_disk(
+            "http://127.0.0.1:9", _ident(["index-aaaaaaaa.js"]), b,   # …but it serves A
+            get=_fake_get_from(a))
+    assert "is serving" in str(ei.value)
+
+
+def test_a_BYTE_DIFFERENCE_between_wire_and_disk_is_refused(tmp_path):
+    """The case the identity check provably cannot reach: the root MATCHES and
+    the served bytes still do not. Two different stale servers land here."""
+    root = _dist(tmp_path, "A", "aaaaaaaa")
+    stale = _fake_get_from(root, override={"/assets/index-aaaaaaaa.js": b"// somebody else\n"})
+    with pytest.raises(cp.ServedContentError) as ei:
+        cp.verify_served_matches_disk(
+            "http://127.0.0.1:9", _ident(["index-aaaaaaaa.js"]), root, get=stale)
+    assert "does not match the file on disk" in str(ei.value)
+
+
+def test_an_ASSET_MISSING_from_the_named_dist_is_refused(tmp_path):
+    root = _dist(tmp_path, "A", "aaaaaaaa")
+    (root / "assets" / "index-aaaaaaaa.js").unlink()
+    with pytest.raises(cp.ServedContentError) as ei:
+        cp.verify_served_matches_disk(
+            "http://127.0.0.1:9", _ident(["index-aaaaaaaa.js"]), root,
+            get=_fake_get_from(root, override={"/assets/index-aaaaaaaa.js": b"// ghost\n"}))
+    assert "does not exist under" in str(ei.value)
+
+
+def test_a_server_that_cannot_NAME_its_root_is_refused(tmp_path):
+    """An spa_server started BEFORE this change answers `/__parity_root` through
+    its own SPA fallback — a 200 carrying index.html. That is precisely the state
+    a stale listener from an earlier run is in, so "a 200 that is not JSON" has to
+    be ABSENT rather than present-and-odd."""
+    root = _dist(tmp_path, "A", "aaaaaaaa")
+
+    def old_server(url):
+        return 200, (root / "index.html").read_bytes()
+
+    assert cp.read_served_root("http://127.0.0.1:9", get=old_server) is None
+    with pytest.raises(cp.ServedContentError) as ei:
+        cp.verify_served_matches_disk(
+            "http://127.0.0.1:9", _ident(["index-aaaaaaaa.js"]), None, get=old_server)
+    assert "cannot say WHICH DIRECTORY" in str(ei.value)
+
+
+def test_a_DEV_server_is_not_asked_for_a_dist_it_does_not_have():
+    """The narrowing that keeps the check honest rather than merely strict: a
+    `vite dev` base has no bundle on disk, and its identity is already derived
+    from the CONTENT of real source files (`BUILD_PROBE_PATHS`)."""
+    def must_not_fetch(_url):
+        raise AssertionError("a dev base was asked for a bundle")
+
+    ident = {"url": "http://127.0.0.1:5173", "kind": "dev", "assets": [],
+             "probes": {}, "engine_source": "present", "id": "0123456789ab"}
+    out = cp.verify_served_matches_disk("http://127.0.0.1:5173", ident, None, get=must_not_fetch)
+    assert out["verified"] is False
+
+
+@pytest.mark.parametrize("bad_side", ["1", "2"])
+def test_main_REFUSES_a_base_that_cannot_be_verified(monkeypatch, tmp_path, bad_side):
+    """⭐ THE WIRING. Every test above interrogates the function directly; this is
+    the only one that proves `main` still CALLS it. Without it the whole check
+    could be deleted from `main` and this file would stay green.
+
+    ⚠️ BOTH SIDES, PARAMETRISED, and that is not symmetry for its own sake: a
+    mutation that removed only side A's call SURVIVED the single-sided version
+    of this test, because side B still raised and the assertion could not tell
+    the two apart. The stale listener is at least as likely to be holding the
+    baseline's port as the candidate's."""
+    def refuse(base, ident, dist=None, **_kw):
+        if base.endswith(bad_side):
+            raise cp.ServedContentError("stale listener")
+        return {"verified": True, "root": "/fake", "pid": 0,
+                "index_sha256": "x", "files_checked": 2}
+
+    frame = png("#0e0f0d")
+
+    def settles(page, url, out_png, *_a, **_kw):
+        Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_png).write_bytes(frame)
+        return {"shots": 2, "settled": True, "ready_ms": 1, "ready_reason": "stable"}
+
+    with pytest.raises(SystemExit) as ei:
+        _drive_main(monkeypatch, tmp_path, settles, verify=refuse)
+    assert "SERVED-VS-DISK CHECK FAILED" in str(ei.value)
+
+
+def test_the_verified_root_reaches_the_REPORT():
+    """A check nobody can read after the fact is half a check. Task 10's numbers
+    are trustworthy only because a human wrote the sha down by hand; this puts it
+    in the artefact."""
+    ident = _ident(["index-aaaaaaaa.js"])
+    ident["served"] = {"verified": True, "root": "/tmp/parity-B", "pid": 42,
+                       "index_sha256": "abc123", "files_checked": 2}
+    line = cp.identity_line("B (candidate)", ident)
+    assert "served == disk" in line
+    assert "parity-B" in line
