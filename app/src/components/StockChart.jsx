@@ -5605,6 +5605,13 @@ export default function StockChart({
     // four writes at the instance. The two rules are mirror images and cannot
     // coexist — whoever lands Flip B removes this one.
     //
+    // ⏳ BOTH OF THOSE NOW EXIST (Task 9), wired and DARK, and the collision is
+    // no longer hypothetical: with a non-empty flip set an instance whose legacy
+    // toggle is false reserves a band (the projection) that this line then makes
+    // sure nothing draws into (`hidden: true`). That exact state is pinned in
+    // `engine/__tests__/flipBWithANonEmptySet.test.jsx`, marked ⏳, so Task 10
+    // meets it as a red test rather than as a bug report.
+    //
     // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
     // needs its own answer here before it joins `ENGINE_MIGRATED_DEF_IDS`. VWAP is
     // that definition, it joined in Task 8, and its answer is the `vwap` branch

@@ -27,12 +27,28 @@ const H = vi.hoisted(() => ({
   addSeriesCalls: [],
   binderApis: [],
   syncCalls: [],
+  // The NON-VACUITY half of `stockChartWiring`'s "the migrator never runs while
+  // nothing is flipped". A gate asserted only in its closed state is a gate that
+  // could be welded shut.
+  migrateCalls: 0,
   reset() {
     H.addSeriesCalls.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
+    H.migrateCalls = 0
   },
 }))
+
+vi.mock('../instances', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    migrateLegacyToInstances: (...args) => {
+      H.migrateCalls += 1
+      return actual.migrateLegacyToInstances(...args)
+    },
+  }
+})
 
 // THE POINT OF THE FILE. `importOriginal` keeps every other export real, so the
 // migrated set, `engineDrawnDefIds` and `engineDrawnInputs` all behave normally
@@ -178,6 +194,9 @@ describe('with rsi FLIPPED: the instance list is what reserves the band', () => 
     draw({ engineEnabled: true, indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } })
     expect(H.binderApis[0].bindings(), 'the migrator did not run').toHaveLength(1)
     expect(rsiSeries(), 'the legacy block drew a second RSI').toHaveLength(1)
+    // …and the gate `stockChartWiring` asserts CLOSED is genuinely open here. A
+    // gate only ever asserted in one state can be welded shut and stay green.
+    expect(H.migrateCalls, 'the read-time migrator never ran with an id flipped').toBeGreaterThan(0)
   })
 
   it('…and the band it lands in is EXACTLY the one the legacy layout reserved', () => {

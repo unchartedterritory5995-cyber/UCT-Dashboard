@@ -128,10 +128,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   // project keeps hitting. Disabled, with the reason in the tooltip, is the
   // honest state until there is a writer.
   //
-  // ⛔ TASK 9/10 REMOVES THE `disabled`, not this predicate: `instanceControls`
-  // (`setIndicatorInput`) is the real write-through, and once these rows route
-  // there they control the instance and stop being inert. Reaching for that
-  // writer HERE would be pre-empting a task that has its own gate.
+  // ⏳ TASK 9 LANDED THE WRITER AND THE ROUTING, DARK. `updateIndicator` below
+  // sends a FLIPPED id's writes to `instanceControls`, and `engineInert`
+  // subtracts `ENGINE_FLIPPED_DEF_IDS` — so a row is inert only while its
+  // definition has no writer. The set is EMPTY, so nothing below changes today;
+  // Task 10 opens it one id at a time and those rows come back to life.
   //
   // Applied to all four B3 pilots, not just RSI, so Tasks 10 and 11 inherit it —
   // `engineDrawnDefIds` returns only ids in `ENGINE_MIGRATED_DEF_IDS`, so the

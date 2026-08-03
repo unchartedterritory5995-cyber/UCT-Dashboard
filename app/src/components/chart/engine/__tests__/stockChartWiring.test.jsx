@@ -52,6 +52,13 @@ const H = vi.hoisted(() => ({
   // blobs can produce deep-equal margins. This is the only place the claim can
   // actually be checked from the component level.
   csForPaneMarginsCalls: [],
+  // How many times the READ-TIME MIGRATOR ran. Its gate is otherwise
+  // unobservable: the per-definition filter behind it already discards every
+  // projected instance while the flip set is empty, so removing the gate changes
+  // NOTHING a pixel or a binding can see — it just walks the registry and the
+  // blob on every paint, for every user, forever. A mutation deleting it survived
+  // until this counter existed.
+  migrateCalls: 0,
   reset() {
     H.addSeriesCalls.length = 0
     H.removedSeries.length = 0
@@ -65,8 +72,23 @@ const H = vi.hoisted(() => ({
     H.syncCalls.length = 0
     H.crosshairHandlers.length = 0
     H.csForPaneMarginsCalls.length = 0
+    H.migrateCalls = 0
   },
 }))
+
+// The REAL migrator, counted. `importOriginal` keeps every other export — the
+// validator, the ownership walk and the id helper are all used by the component
+// and by `flipState` on the same import.
+vi.mock('../instances', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    migrateLegacyToInstances: (...args) => {
+      H.migrateCalls += 1
+      return actual.migrateLegacyToInstances(...args)
+    },
+  }
+})
 
 // The REAL projection, wrapped so its ARGUMENT and its RETURN are both visible.
 // A stub returning `cs` would make the identity assertion below prove nothing
@@ -1212,6 +1234,13 @@ describe('the settings round-trip — what a user changes after the flip', () =>
 // `computePaneMargins` reads); every assertion below that names the toggle-OFF
 // state has to be rewritten when it lands, which is the point — the deferred
 // semantic can no longer change with the whole suite green.
+//
+// ⏳ `csForPaneMargins` NOW EXISTS (Task 9, `engine/paneMarginsProjection.js`)
+// and is wired in — it is `ENGINE_FLIPPED_DEF_IDS` being EMPTY that keeps this
+// suite true, not the projection being absent. The Task-9 suite at the bottom of
+// this file asserts that emptiness and the projection's identity return; the
+// flipped-set half lives in `flipBWithANonEmptySet.test.jsx`, where the
+// toggle-OFF case is already red-in-waiting.
 describe('the reserved band — an engine-drawn RSI is never painted over the volume bars', () => {
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
   const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
@@ -2770,6 +2799,19 @@ describe('the Flip-B machinery is inert while nothing is flipped (Task 9)', () =
     draw({ engineEnabled: true, indicators: { rsi: { enabled: true } } })
     expect(H.binderApis[0].bindings()).toHaveLength(0)
     expect(H.addSeriesCalls.filter(c => c.options?.priceScaleId === 'rsi')).toHaveLength(1)
+  })
+
+  it('…and the read-time migrator is never RUN at all — the gate, not just its effect', () => {
+    // ⛔ THE MUTATION THAT SURVIVED UNTIL THIS CASE EXISTED. Ungating the migrator
+    // (`const source = true`) changes NOTHING observable while the flip set is
+    // empty, because the per-definition filter behind it discards every projected
+    // instance anyway — same bindings, same series, same pixels. What it costs is
+    // a registry walk and a blob walk on EVERY PAINT, on every chart, for every
+    // user, and that is invisible to a binding count. So the gate is asserted on
+    // what it actually guards: the call.
+    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
+    expect(H.binderApis[0].bindings(), 'nothing was drawn — this case is vacuous').toHaveLength(1)
+    expect(H.migrateCalls, 'the read-time migrator ran while nothing is flipped').toBe(0)
   })
 
   it('…and that holds for EVERY migrated definition, not just the one it was written for', () => {

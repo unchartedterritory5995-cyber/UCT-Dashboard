@@ -12,6 +12,16 @@
 // dispatches a raw MouseEvent straight at the node, bypassing the `disabled`
 // check no real browser bypasses, and React's ChangeEventPlugin then turns it
 // into onChange. Use userEvent and/or the native element.click().
+//
+// ⏳ B3 TASK 9 LANDED THE WRITER, AND THIS FILE IS STILL RIGHT — but for a
+// narrower reason than it was. `ChartToolbar` now routes to `instanceControls`
+// for any id in `ENGINE_FLIPPED_DEF_IDS`, and `engineInert` subtracts that set,
+// so a row only stays disabled while its definition has NO writer. The set ships
+// EMPTY, so every case below still describes the shipped behaviour — and
+// `ChartToolbar.flipB.test.jsx` is the other half, with the set mocked non-empty:
+// a row that HAS a writer must come back to life, or the honesty fix inverts into
+// a working control that looks dead. When Task 10 flips an id, its cases move
+// there and this file keeps the ones that have not.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -82,7 +92,15 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
 
   it('…and the blob still says 14, so this is a DISPLAY fix and not a write', async () => {
     // The row is read-only under Flip A; nothing here may have reached back into
-    // `cs`. `instanceControls` (Task 9) is the writer, and it does not exist yet.
+    // `cs`.
+    //
+    // ⏳ THE PREMISE MOVED IN TASK 9 AND THE ASSERTION DID NOT. This used to say
+    // "`instanceControls` is the writer, and it does not exist yet" — it exists,
+    // and `ChartToolbar.updateIndicator` routes to it. What keeps this case true
+    // is narrower and worth stating out loud: `rsi` is not in
+    // `ENGINE_FLIPPED_DEF_IDS`, so the routing branch is unreachable for it. A
+    // green test whose stated reason has quietly become false is the failure mode
+    // this branch keeps hitting, so the reason is restated rather than left.
     const user = userEvent.setup()
     const spy = vi.fn()
     const cs = settingsWith({

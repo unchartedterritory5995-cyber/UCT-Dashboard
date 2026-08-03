@@ -256,6 +256,41 @@ held at 0 does not get a tolerance — it gets its harness fixed, or it does not
 get a pixel case at all and its behaviour is gated in `stockChartWiring.test.jsx`
 instead.
 
+### ⚠️ The ~4,500-pixel artefact — the AXIS LABELS moved, the chart did not
+
+> **If you take one thing from this section:** a diff of a few thousand pixels
+> that is **concentrated in the right price-axis gutter and the time-axis label
+> row**, with the plot itself **not shifted**, is the axis LABEL raster landing
+> one or two pixels over. It is not a migration difference, and the way you tell
+> is arithmetic, not judgement.
+
+Measured 2026-08-03 gating B3 Task 9 (a task that changes nothing while its flip
+set is empty, so the ground truth was known in advance). One run of `bb_only` —
+a flag-OFF, legacy-vs-legacy case — came back **4,464 px (0.6%)** across two
+builds, `35ec82560ea5` vs `0e20133b4c07`, with **`shots=2/2` on both sides**: the
+harness's own two-consecutive-identical-decodes check passed and the two sides
+still differed.
+
+**How it was attributed, in three measurements and no opinions:**
+
+1. **Where the pixels are.** 3,113 of 4,464 sit at `x > 1100` — the price-axis
+   gutter of a 1,200 px capture — and most of the remaining 1,351 are in rows
+   582–589, the time-axis label row. The candles, the bands and the volume bars
+   contributed nothing.
+2. **The plot did NOT shift.** Re-diff side B against side A translated by
+   `dx ∈ {-2,-1,0,1,2}` and count: `dx = 0` is the best alignment by a factor of
+   **15** (508 sampled mismatches vs 7,928 at `dx = ±1`). A layout change moves
+   the plot; this moved the text drawn beside it.
+3. **It does not reproduce.** `bb_only` re-run **20× cross-build: 20/20 clean**,
+   and **20× same-build: 20/20 clean**. One occurrence in 25 cross-build runs of
+   that case.
+
+⛔ **What this section is NOT.** It is not a licence to wave a four-figure diff
+away. The three checks above are cheap and they discriminate: a real difference
+lands in the PLOT, survives `--repeat 20`, and does not care whether the
+translation is zero. Run them before you reach for this paragraph — and if a
+diff of this size ever reproduces, it is a finding, not this artefact.
+
 A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
 `index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and
 the harness screenshots an error page. Address the server as
