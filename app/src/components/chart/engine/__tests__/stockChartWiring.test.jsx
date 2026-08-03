@@ -34,6 +34,12 @@ const H = vi.hoisted(() => ({
   // — `removeSeries` is what takes the guides with it, so "which series owns this
   // guide" has to be observable or that half of the symptom is unassertable.
   priceLineCalls: [],
+  // Every `series.setData`, with the series it was written to. The only migrated
+  // plot whose CONTENT differs per point is MACD's histogram — its bar colours
+  // ride on the points (`colorMode: 'sign'`), never on the series options — so
+  // without this the whole of B2 review Critical #3 is unreachable from the
+  // component level, where the LEGACY control that proves the colours right lives.
+  setDataCalls: [],
   moveToPaneCalls: [],
   binderCreated: [],
   binderApis: [],
@@ -45,6 +51,7 @@ const H = vi.hoisted(() => ({
     H.visibilityCalls.length = 0
     H.applyOptionsCalls.length = 0
     H.priceLineCalls.length = 0
+    H.setDataCalls.length = 0
     H.moveToPaneCalls.length = 0
     H.binderCreated.length = 0
     H.binderApis.length = 0
@@ -57,7 +64,8 @@ vi.mock('lightweight-charts', () => {
   const makeSeries = (ctor) => {
     const s = {
       __ctor: ctor,
-      setData: () => {}, update: () => {},
+      setData: (data) => { H.setDataCalls.push({ series: s, data }) },
+      update: () => {},
       applyOptions: (o) => {
         H.applyOptionsCalls.push({ series: s, options: o })
         if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible })
@@ -740,9 +748,33 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
   })
 
   it('leaves a NON-migrated indicator chip exactly as the legacy block wrote it', async () => {
-    // MACD is not in ENGINE_MIGRATED_DEF_IDS yet, so its chip must still come
-    // from `cs.indicators.macd` through the hand-written row. A bridge that
-    // hijacked every slot would break the fourteen indicators it has not reached.
+    // ⚠️ THE SUBJECT USED TO BE MACD, AND B3 TASK 6 MIGRATED IT. The claim needs
+    // a definition the engine does NOT draw, so its chip must still come from
+    // `cs.indicators.<id>` through the hand-written row — a bridge that hijacked
+    // every slot would break the twelve indicators it has not reached. ATR is the
+    // subject now; when ATR migrates, this case needs another one or it silently
+    // stops being a negative control.
+    expect(ENGINE_MIGRATED_DEF_IDS.has('atr'),
+      'ATR has migrated — this negative control needs a new subject').toBe(false)
+    const view = draw({
+      ...RSI_ON,
+      engineEnabled: true,
+      indicatorInstances: [RSI_INSTANCE],
+      indicators: { ...RSI_ON.indicators, atr: { enabled: true, period: 14, color: '#FFA726' } },
+    })
+    const atrLine = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'atr')
+    expect(atrLine, 'no legacy ATR line — vacuous').toBeTruthy()
+    // 0.25 rather than a value whose 4th decimal is a rounding coin-flip — this
+    // case is about WHICH code path formatted the chip, not about `toFixed`.
+    expect(await hover(view, [[atrLine.series, { value: 0.25 }]])).toContain('ATR(14) 0.2500')
+  })
+
+  it('…and a MIGRATED definition with NO instance still gets its legacy chip', async () => {
+    // The other half, and the state a user is actually in before Task 9 gives
+    // them a way to create an instance: `macd` IS in ENGINE_MIGRATED_DEF_IDS, the
+    // engine holds no MACD instance, so the legacy block draws it and the legacy
+    // row formats the chip. Ownership follows the INSTANCE, never the id list.
+    expect(ENGINE_MIGRATED_DEF_IDS.has('macd')).toBe(true)
     const view = draw({
       ...RSI_ON,
       engineEnabled: true,
@@ -751,8 +783,6 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     })
     const macdLine = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'macd' && c.ctor === 'LineSeries')
     expect(macdLine, 'no legacy MACD line — vacuous').toBeTruthy()
-    // 0.25 rather than a value whose 4th decimal is a rounding coin-flip — this
-    // case is about WHICH code path formatted the chip, not about `toFixed`.
     expect(await hover(view, [[macdLine.series, { value: 0.25 }]])).toContain('MACD 0.2500')
   })
 })
@@ -1515,5 +1545,493 @@ describe('a BB instance survives BOTH settings allow-lists', () => {
     expect(H.binderApis[0].bindings()).toHaveLength(3)
     expect(H.addSeriesCalls.filter(c => c.options && c.options.color === '#00ff00')).toHaveLength(3)
     expect(purple(), 'the legacy block drew its own copy alongside').toHaveLength(0)
+  })
+})
+
+// ─── MACD: the multi-plot stress test (B3 Task 6) ───────────────────────────
+//
+// RSI is one series; BB is three of one kind. MACD is the first migration with
+// TWO POOL KEYS in one instance — two LineSeries and a HistogramSeries — a
+// `largeDashed` zero guide, and a band that AUTOSCALES rather than carrying a
+// fixed range. Every failure below is a shape neither pilot could have.
+
+const MACD_CFG = {
+  enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
+  macdColor: '#2196F3', signalColor: '#FF9800',
+}
+const MACD_ON = { indicators: { macd: MACD_CFG } }
+const MACD_INSTANCE = {
+  instanceId: 'legacy:macd', defId: 'macd',
+  inputs: {
+    fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
+    macdColor: '#2196F3', signalColor: '#FF9800',
+  },
+  placement: { target: 'pane' }, hidden: false,
+}
+/** `StockChart.jsx:81-82`, verbatim — the two colours the histogram's BARS wear. */
+const MACD_HIST_UP = 'rgba(76,175,80,0.75)'
+const MACD_HIST_DOWN = 'rgba(244,67,54,0.75)'
+
+/** Every series on the `macd` scale, in creation order. Both lanes name it. */
+const onMacdScale = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'macd')
+/** The MACD histogram — the only HistogramSeries in that band. */
+const macdHistogram = () => onMacdScale().filter(c => c.ctor === 'HistogramSeries')
+/** The LAST array a series was handed. That is what is on screen. */
+const lastDataFor = (series) => {
+  const writes = H.setDataCalls.filter(c => c.series === series)
+  return writes.length ? writes[writes.length - 1].data : null
+}
+
+describe('MACD Flip A — the legacy block stands down, all three plots move together', () => {
+  it('draws three series on the macd scale with the engine OFF (the shipped behaviour)', () => {
+    draw(MACD_ON)
+    expect(onMacdScale()).toHaveLength(3)
+    expect(onMacdScale().map(c => c.ctor)).toEqual(['LineSeries', 'LineSeries', 'HistogramSeries'])
+  })
+
+  it('STILL draws exactly three when the engine owns it — and they are the ENGINE\'s', () => {
+    draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    const drawn = onMacdScale()
+    expect(drawn, 'six series in one band is not parity').toHaveLength(3)
+    // TWO POOL KEYS, in legacy's creation order. A binder that bound the
+    // histogram as a line would draw a third flat line where the bars are.
+    expect(drawn.map(c => c.ctor)).toEqual(['LineSeries', 'LineSeries', 'HistogramSeries'])
+    const owned = H.binderApis[0].bindings().map(b => b.series)
+    expect(owned).toHaveLength(3)
+    expect(drawn.map(c => c.series).sort()).toEqual(owned.sort())
+  })
+
+  it('all three share one autoscaled band in pane 0 — and the histogram keeps precision 5', () => {
+    draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    for (const c of onMacdScale()) {
+      expect(c.paneIndex, 'a Flip-A band lives in pane 0').toBe(0)
+      expect(typeof c.options.autoscaleInfoProvider).toBe('function')
+      // MACD OWNS its scale, so its provider is the IDENTITY one — the opposite of
+      // BB's `() => null`. Excluding here would collapse the band to LWC's empty
+      // −0.5..0.5 default.
+      expect(c.options.autoscaleInfoProvider(() => 'BASE'),
+        'the only thing on that axis has to be what sizes it').toBe('BASE')
+    }
+    expect(macdHistogram()[0].options.priceFormat).toEqual({ type: 'price', precision: 5 })
+  })
+
+  it('the zero guide is drawn ONCE, on the MACD line — as legacy draws it', () => {
+    draw(MACD_ON)
+    const legacyGuides = H.priceLineCalls.filter(c => c.options && c.options.price === 0)
+    expect(legacyGuides, 'the legacy block drew no zero guide — control is vacuous').toHaveLength(1)
+    const legacySpec = legacyGuides[0].options
+    expect(legacyGuides[0].series).toBe(onMacdScale()[0].series)
+
+    cleanup(); H.reset()
+    draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    const guides = H.priceLineCalls.filter(c => c.options && c.options.price === 0)
+    expect(guides, 'the engine drew the wrong number of zero guides').toHaveLength(1)
+    // LineStyle 3 = LargeDashed. An OMITTED `createPriceLine` option takes LWC's
+    // own default (Dashed, 2) — the 379-px class of finding from RSI's midline.
+    expect(guides[0].options).toEqual(legacySpec)
+    expect(guides[0].options.lineStyle).toBe(3)
+    // …and it hangs off the FIRST data series, so a removeSeries takes it along.
+    expect(guides[0].series).toBe(onMacdScale()[0].series)
+  })
+
+  it('leaves the other legacy indicator blocks alone — ownership is per definition', () => {
+    draw({
+      ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE],
+      indicators: { ...MACD_ON.indicators, stoch: { enabled: true }, obv: { enabled: true } },
+    })
+    for (const scale of ['stoch', 'obv']) {
+      expect(H.addSeriesCalls.some(c => (c.options || {}).priceScaleId === scale),
+        `${scale} stopped drawing`).toBe(true)
+    }
+  })
+})
+
+describe('MACD\'s histogram — the per-bar sign colours, against a LEGACY control', () => {
+  // ⛔ B2 REVIEW CRITICAL #3. `toPoints` emitted `{time,value}` only and
+  // `seriesOptionsForPlot` ignored `colorMode: 'sign'`, so an engine-drawn MACD
+  // histogram came out in ONE flat LWC default across the whole band where legacy
+  // is green above zero and red below. The pixel gate would see that as a large
+  // and completely unattributable diff. Here it is the arrays themselves, engine
+  // against legacy, bar for bar — including the colour on every bar.
+  const histogramData = () => {
+    const hist = macdHistogram()
+    expect(hist, 'no HistogramSeries on the macd scale').toHaveLength(1)
+    return lastDataFor(hist[0].series)
+  }
+
+  it('LEGACY colours every bar by sign, and uses BOTH colours — the control', () => {
+    draw(MACD_ON)
+    const data = histogramData()
+    expect(data).toHaveLength(BARS.length)
+    let ups = 0, downs = 0
+    for (const p of data) {
+      if (p.value === undefined) { expect(p.color).toBeUndefined(); continue }
+      expect(p.color).toBe(p.value >= 0 ? MACD_HIST_UP : MACD_HIST_DOWN)
+      if (p.color === MACD_HIST_UP) ups++; else downs++
+    }
+    // Pinned counts, so a fixture change that flattened the histogram cannot turn
+    // the comparison below into two identical all-green arrays.
+    expect(ups).toBe(86)
+    expect(downs).toBe(81)
+  })
+
+  it('the ENGINE hands the renderer the IDENTICAL array — values AND colours', () => {
+    draw(MACD_ON)
+    const legacyData = histogramData()
+    cleanup(); H.reset()
+
+    draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(3)
+    const engineData = histogramData()
+    // Element for element, colour included. A flat histogram, an inverted
+    // comparison, an off-by-one in the colour lookup and a dropped `color` key all
+    // fail here, and each of them names itself in the diff.
+    expect(engineData).toEqual(legacyData)
+  })
+
+  it('…and so do the two LINES, which is what says the histogram case is about colour', () => {
+    // The control for the control. If the engine's whole MACD were wrong the case
+    // above would fail without telling anyone whether the colour bridge or the
+    // compute was at fault.
+    const lines = () => onMacdScale().filter(c => c.ctor === 'LineSeries').map(c => lastDataFor(c.series))
+    draw(MACD_ON)
+    const legacyLines = lines()
+    expect(legacyLines).toHaveLength(2)
+    cleanup(); H.reset()
+    draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    expect(lines()).toEqual(legacyLines)
+    // …and no point on a LINE carries a colour: `colorMode: 'sign'` is declared on
+    // the histogram plot only, and leaking it onto the lines would repaint them
+    // green and red bar by bar.
+    for (const col of lines()) for (const p of col) expect(p).not.toHaveProperty('color')
+  })
+})
+
+describe('what pixels cannot see, for MACD', () => {
+  const settings = (over) => ({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE], ...over })
+
+  it('Alt+Shift+I hides and re-shows all THREE, lines and histogram alike', () => {
+    draw(settings())
+    const owned = H.binderApis[0].bindings().map(b => b.series)
+    expect(owned, 'the engine bound no MACD — the rest of this test is vacuous').toHaveLength(3)
+    const toggle = () => act(() => {
+      fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' })
+    })
+    toggle()
+    for (const s of owned) {
+      expect(H.visibilityCalls.filter(v => v.series === s && v.visible === false).length,
+        'one of the three MACD plots stayed visible').toBeGreaterThan(0)
+    }
+    toggle()
+    for (const s of owned) {
+      expect(H.visibilityCalls.filter(v => v.series === s && v.visible === true).length,
+        'one of the three MACD plots never came back').toBeGreaterThan(0)
+    }
+  })
+
+  it('Ctrl+O hides an engine-drawn MACD — the keystroke, and what the keystroke writes', () => {
+    // ⚠️ MACD's shortcut is Ctrl+**O** (`keyboardShortcuts.js:100` and `:155` →
+    // `StockChart.jsx:3481`, `toggle:macd`). Ctrl+I is RSI's, Ctrl+B is BB's.
+    const persisted = []
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+    )
+    expect(onMacdScale(), 'nothing drawn to hide — vacuous').toHaveLength(3)
+
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'o' }) })
+
+    expect(persisted.length, 'Ctrl+O persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
+    const next = persisted.at(-1)
+    expect(next.indicators.macd.enabled, 'Ctrl+O did not flip the toggle').toBe(false)
+    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
+      .toEqual([MACD_INSTANCE])
+
+    view.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    expect(onMacdScale(), 'Ctrl+O left the engine\'s MACD on the chart').toHaveLength(0)
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+  })
+
+  it('toggling the legacy switch OFF and back ON never leaves SIX series in the band', () => {
+    // ⚠️ FLIP-A SEMANTICS: `cs.indicators.macd.enabled` is still the SWITCH; the
+    // instance is only the renderer. Off means nothing in the band — including
+    // the band itself, which `computePaneMargins` stops reserving.
+    const off = { indicators: { macd: { ...MACD_CFG, enabled: false } } }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(onMacdScale()).toHaveLength(3)
+    const first = H.binderApis[0].bindings().map(b => b.series)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
+    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds series').toHaveLength(0)
+    for (const s of first) expect(H.removedSeries, 'a MACD plot is still on the chart').toContain(s)
+    expect(onMacdScale(), 'and nothing drew a replacement').toHaveLength(3)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws them again').toHaveLength(3)
+    expect(onMacdScale(), 'toggled back on: three more, and the legacy block added none').toHaveLength(6)
+  })
+
+  it('an instance arriving MID-SESSION removes the three series AND the zero guide', () => {
+    // ⛔ THE SINGLE MOST-REPEATED DEFECT ON THIS BRANCH. BB's twin (M8) survived
+    // the whole suite; RSI's (R-I1) survived 3,733 tests. Every other case here
+    // starts with the engine ALREADY owning MACD, so the legacy refs are null and
+    // there is nothing to orphan. The crossover a user actually hits is the other
+    // order: the chart is up, legacy has drawn a line, a signal and a histogram
+    // with a zero guide on the line, and THEN an instance appears.
+    //
+    // MACD's guard sits on the block's own `if`, whose `else` removes all three
+    // refs — the correct place. Move it inside the body (or hoist it so the `else`
+    // stops being reached) and the user gets SIX series in one band, three of them
+    // dead, plus an orphaned zero guide, and the picture still looks plausible.
+    const legacyFirst = { ...MACD_ON, engineEnabled: true, indicatorInstances: [] }
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legacyFirst} />,
+    )
+    const legacyDrawn = onMacdScale().map(c => c.series)
+    expect(legacyDrawn, 'the LEGACY block drew nothing — nothing to orphan').toHaveLength(3)
+    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+    const guideOwner = H.priceLineCalls.filter(c => c.options && c.options.price === 0)
+    expect(guideOwner, 'legacy drew no zero guide').toHaveLength(1)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ ...legacyFirst, indicatorInstances: [MACD_INSTANCE] }} />,
+    )
+
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn, 'the engine did not take over').toHaveLength(3)
+    for (const s of legacyDrawn) {
+      expect(engineDrawn, 'the engine re-used a LEGACY series — it does not own those')
+        .not.toContain(s)
+      expect(H.removedSeries,
+        'a legacy MACD plot was left in the band under the engine\'s copy').toContain(s)
+    }
+    // The guide goes with its series. If the line survived, so would a second zero
+    // line — invisible on top of the engine's, and a leak that grows per flip.
+    expect(H.removedSeries, 'the orphaned zero guide\'s series survived')
+      .toContain(guideOwner[0].series)
+  })
+
+  it('and the reverse — the instance LEAVING hands MACD back to legacy', () => {
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
+    )
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={settings({ indicatorInstances: [] })} />,
+    )
+    expect(H.binderApis[0].bindings(), 'the engine still holds series').toHaveLength(0)
+    for (const s of engineDrawn) expect(H.removedSeries).toContain(s)
+    // …and legacy drew its own three, so the indicator did not vanish with the
+    // instance — including the histogram, which is the plot a "lines only"
+    // stand-back-up would silently drop.
+    const liveCalls = onMacdScale().filter(c => !H.removedSeries.includes(c.series))
+    expect(liveCalls, 'MACD vanished when the instance was removed').toHaveLength(3)
+    expect(liveCalls.map(c => c.ctor)).toEqual(['LineSeries', 'LineSeries', 'HistogramSeries'])
+  })
+
+  it('a COLOUR change re-styles the SAME three series — never destroys and recreates', () => {
+    // lightweight-charts#2049: a mass removeSeries is a 2-4s main-thread block.
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(before).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...MACD_INSTANCE, inputs: { ...MACD_INSTANCE.inputs, macdColor: '#00ff00' } }],
+      })} />,
+    )
+    expect(H.binderApis[0].bindings().map(b => b.series),
+      'the engine created new series instead of restyling').toEqual(before)
+    expect(H.removedSeries.filter(s => before.includes(s)),
+      'a MACD plot was destroyed and recreated — that is the #2049 path').toHaveLength(0)
+  })
+
+  it('a PERIOD change keeps the same three series and re-binds them', () => {
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(before).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+        indicatorInstances: [{
+          ...MACD_INSTANCE,
+          inputs: { ...MACD_INSTANCE.inputs, fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },
+        }],
+      })} />,
+    )
+    expect(H.binderApis[0].bindings().map(b => b.series)).toEqual(before)
+    expect(onMacdScale(), 'a fourth series appeared in the band').toHaveLength(3)
+    // …and the NUMBERS moved, so "same series" is not "nothing happened".
+    const hist = macdHistogram()[0].series
+    const writes = H.setDataCalls.filter(c => c.series === hist)
+    expect(writes.length).toBeGreaterThan(1)
+    expect(writes.at(-1).data.at(-1).value).not.toBe(writes[0].data.at(-1).value)
+  })
+})
+
+describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', () => {
+  // MACD is the only migrated definition with VISIBLE chips besides RSI, and the
+  // only one with two of them plus a hidden plot. `readout.js` maps
+  // `macd::macd → macd` and `macd::signal → macdSig`; the histogram declares
+  // `legend: { hide: true }` because the shipped legend has no histogram chip.
+  //
+  // ⚠️ THE PIXEL GATE CANNOT SEE ANY OF THIS — a headless capture has no cursor.
+  const hoverText = async (view) => {
+    expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — vacuous').toBeGreaterThan(0)
+    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(candle, 'no candle series').toBeTruthy()
+    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+    const band = onMacdScale()
+    expect(band, 'no MACD series to hover').toHaveLength(3)
+    seriesData.set(band[0].series, { value: 0.12345 })
+    seriesData.set(band[1].series, { value: -0.6789 })
+    seriesData.set(band[2].series, { value: 0.802 })
+    const param = { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
+    await act(async () => {
+      for (const fn of [...H.crosshairHandlers]) fn(param)
+      await new Promise(r => setTimeout(r, 40))
+    })
+    return view.container.textContent
+  }
+
+  it('LEGACY prints MACD and SIG at four decimals, and no histogram chip — the control', async () => {
+    const text = await hoverText(draw(MACD_ON))
+    // 0.12345 formats as 0.1235 in JS, not 0.1234.
+    expect(text).toContain('MACD 0.1235')
+    expect(text).toContain('SIG -0.6789')
+    expect(text, 'the shipped legend already has a histogram chip?').not.toContain('0.8020')
+  })
+
+  it('the ENGINE legend is character-for-character the LEGACY legend', async () => {
+    const legacyText = await hoverText(draw(MACD_ON))
+    cleanup(); H.reset()
+    const engineView = draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(3)
+    expect(await hoverText(engineView)).toBe(legacyText)
+  })
+
+  it('legacy and engine print the IDENTICAL DEVELOPING-BAR chips', async () => {
+    // ⛔ THE I-3 REGRESSION, ON THE INDICATOR WITH TWO CHIPS. The bars push feed's
+    // writer B appends the developing candle imperatively (`StockChart.jsx:4553` —
+    // no `updateChart`, so no `binder.sync`), so on an intraday chart the newest
+    // bar is on the CANDLES and on no indicator series until the next SWR refresh.
+    // `seriesData` then carries the candle and nothing else. Legacy prints the
+    // last computed value there (`:7919`/`:7923`); an engine chip that printed
+    // nothing is a readout regression only a live tape produces — and MACD has
+    // TWO chips, so a fallback wired to one of them is a half-fix that reads as
+    // "the signal line stopped reporting".
+    const hoverBare = async (view) => {
+      const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+      const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+      await act(async () => {
+        for (const fn of [...H.crosshairHandlers]) {
+          fn({ time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData })
+        }
+        await new Promise(r => setTimeout(r, 40))
+      })
+      return view.container.textContent
+    }
+
+    const legacyText = await hoverBare(draw(MACD_ON))
+    const legacyChips = [/MACD -?[\d.]+/, /SIG -?[\d.]+/].map(re => re.exec(legacyText))
+    expect(legacyChips[0], 'the legacy control printed no MACD chip — vacuous').toBeTruthy()
+    expect(legacyChips[1], 'the legacy control printed no SIG chip — vacuous').toBeTruthy()
+
+    cleanup(); H.reset()
+    const bound = (() => {
+      const v = draw({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+      return { view: v, bindings: H.binderApis[0].bindings() }
+    })()
+    expect(bound.bindings, 'the engine bound nothing — vacuous').toHaveLength(3)
+    // The fallback is REAL DATA, not a constant: `lastValue` is the final point
+    // the binder set on that series, which is what `.at(-1)?.value` is for legacy.
+    for (const b of bound.bindings.filter(x => x.plotKey !== 'histogram')) {
+      expect(Number.isFinite(b.lastValue), `${b.plotKey} carries no lastValue`).toBe(true)
+    }
+    const engineText = await hoverBare(bound.view)
+    expect(engineText).toContain(legacyChips[0][0])
+    expect(engineText).toContain(legacyChips[1][0])
+  })
+
+  // ⛔ THE STATE THAT IS *NOT* REACHABLE, WRITTEN DOWN SO NOBODY ELSE SPENDS THE
+  // AFTERNOON ON IT. MACD's three plots begin on three different bars, which looks
+  // like the first chance to bind a SUBSET of a definition's plots (line yes,
+  // signal and histogram no) and therefore the first chance to run the per-plot
+  // legend rescue at `StockChart.jsx:7915-7933` independently. It is not:
+  // `computeMACD` refuses outright below `slowPeriod + signalPeriod` bars
+  // (`indicators.js` — `return { macd: [], signal: [], histogram: [] }`), so a
+  // fixture short enough to starve the signal starves the LINE too and the engine
+  // binds nothing at all. MEASURED on this double: 30 and 33 bars bind `[]`, 40
+  // bars bind all three. With the ranges the definition declares (slowPeriod ≤
+  // 200, signalPeriod ≤ 50) no bar count splits them.
+  //
+  // So the plan's Task-6 obligation to gate B2 review M-6's per-plot split — one
+  // plot of a definition engine-drawn while another is legacy-drawn — is STILL
+  // unreachable: Flip-A ownership is per DEFINITION, and nothing splits MACD's
+  // columns. It becomes reachable when a definition can be PARTIALLY migrated,
+  // which is B4's shape, not this one's.
+
+  it('and the chips follow the INSTANCE\'s colours, not the settings blob', async () => {
+    // A second instance, or an `?instances=` chart, can carry colours the blob
+    // never saw. The chip must wear what the LINE wears.
+    const view = draw({
+      ...MACD_ON, engineEnabled: true,
+      indicatorInstances: [{
+        ...MACD_INSTANCE,
+        inputs: { ...MACD_INSTANCE.inputs, macdColor: '#123456', signalColor: '#654321' },
+      }],
+    })
+    expect(H.binderApis[0].bindings()).toHaveLength(3)
+    await hoverText(view)
+    // jsdom normalises an inline `color:` to rgb(), so the hex is asserted in the
+    // form the DOM actually holds. #123456 → rgb(18,52,86); #654321 → rgb(101,67,33).
+    const chips = [...view.container.querySelectorAll('span')]
+      .filter(el => /^(MACD|SIG) /.test(el.textContent))
+    expect(chips.map(el => el.textContent)).toEqual(['MACD 0.1235', 'SIG -0.6789'])
+    expect(chips.map(el => el.style.color)).toEqual(['rgb(18, 52, 86)', 'rgb(101, 67, 33)'])
+    // …and the blob's colours are NOT what is showing.
+    expect(chips.map(el => el.style.color)).not.toContain('rgb(33, 150, 243)')
+  })
+})
+
+describe('a MACD instance survives BOTH settings allow-lists', () => {
+  it('mergeChartSettings keeps the instance and the flag through a JSON round-trip', () => {
+    const stored = JSON.stringify({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
+    const merged = mergeChartSettings(stored)
+    expect(merged.indicatorInstances).toEqual([MACD_INSTANCE])
+    expect(merged.engineEnabled).toBe(true)
+    expect(merged.indicators.macd.enabled).toBe(true)
+  })
+
+  it('mergeSettingsOverride patches ONE input without deleting the instance', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE, RSI_INSTANCE],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'legacy:macd', inputs: { slowPeriod: 35 } }],
+    })
+    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    const macd = out.indicatorInstances.find(i => i.instanceId === 'legacy:macd')
+    expect(macd.inputs).toEqual({ ...MACD_INSTANCE.inputs, slowPeriod: 35 })
+    expect(out.indicatorInstances.find(i => i.instanceId === RSI_INSTANCE.instanceId))
+      .toEqual(RSI_INSTANCE)
+  })
+
+  it('and the round-tripped blob still draws exactly three engine plots', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'legacy:macd', inputs: { macdColor: '#00ff00' } }],
+    })
+    draw(out)
+    expect(H.binderApis[0].bindings()).toHaveLength(3)
+    expect(onMacdScale(), 'the legacy block drew its own copy alongside').toHaveLength(3)
+    expect(onMacdScale().filter(c => c.options.color === '#00ff00')).toHaveLength(1)
   })
 })

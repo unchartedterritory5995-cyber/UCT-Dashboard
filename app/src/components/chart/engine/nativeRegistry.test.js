@@ -404,12 +404,17 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
 //      values Python publishes on bars 25-32 are the values this column carries,
 //      exactly.
 //
-// ⚠️ THE PIN IS STILL DELIBERATELY IN TWO PLACES. This file pins the COLUMN (what
-// the engine computes). `__tests__/macdHeadMaskRendered.test.jsx` pins what the
-// LEGACY lane hands to lightweight-charts, because MACD is not migrated and the
-// lane a user actually sees is `StockChart.jsx`'s `indicatorData` memo. A future
-// edit that re-masked ONE lane would be invisible to the other file, and that
-// asymmetry is precisely what makes the 88 px number honest.
+// ⚠️ THE PIN IS STILL DELIBERATELY IN TWO PLACES, AND B3 TASK 6 MADE THAT MORE
+// IMPORTANT, NOT LESS. This file pins the COLUMN (what the engine computes).
+// `__tests__/macdHeadMaskRendered.test.jsx` pins what the LEGACY lane hands to
+// lightweight-charts — `StockChart.jsx`'s `indicatorData` memo. When that comment
+// was written MACD was not migrated and the legacy memo was the only lane a user
+// could see; since Task 6 BOTH lanes are live (the engine draws MACD for anyone
+// holding an instance, the memo draws it for everyone else), so a re-mask that
+// reached one and not the other would now be visible to half the users and to
+// neither test on its own. `macdFlipAParity.test.js` adds the third: what the
+// ENGINE hands the renderer. All three read the one `MACD_HEAD_MASK` constant,
+// and that is what keeps the 88 px number honest.
 
 describe('the MACD head-mask was DROPPED, and stays dropped (B3/A5, decision MACD_HEAD_MASK)', () => {
   const firstFiniteCol = (col) => {
