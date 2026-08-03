@@ -157,6 +157,37 @@
   flex-shrink: 0;
 }
 
+/* My-Lists row wrapper: pick button + hover-reveal delete */
+.mineRow {
+  display: flex;
+  align-items: stretch;
+}
+.mineRow .row { flex: 1; min-width: 0; }
+.deleteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #706b5e);
+  opacity: 0;
+  transition: opacity 0.1s, color 0.1s, background 0.1s;
+}
+.mineRow:hover .deleteBtn { opacity: 1; }
+.deleteBtn:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+.deleteBtn:disabled { opacity: 0.4; cursor: default; }
+/* keep the affordance discoverable on touch (no hover) */
+@media (hover: none) {
+  .deleteBtn { opacity: 0.6; }
+}
+
 /* "New watchlist" affordance + inline create form */
 .newBtn {
   display: flex;
@@ -286,3 +317,5 @@
 :global([data-charts-theme='sunrise']) .createForm { background: rgba(255, 255, 255, 0.6); }
 :global([data-charts-theme='sunrise']) .createInput,
 :global([data-charts-theme='sunrise']) .createSelect { background: #fff; color: #243040; }
+:global([data-charts-theme='sunrise']) .deleteBtn { color: #8a94a2; }
+:global([data-charts-theme='sunrise']) .deleteBtn:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }

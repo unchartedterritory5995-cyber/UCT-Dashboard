@@ -41,6 +41,7 @@ export default function WatchlistPicker({ onPick }) {
   const [tplId, setTplId] = useState('')
   const [busy, setBusy] = useState(false)
   const [createErr, setCreateErr] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
 
   const query = q.trim().toLowerCase()
   const match = name => !query || String(name || '').toLowerCase().includes(query)
@@ -83,6 +84,18 @@ export default function WatchlistPicker({ onPick }) {
       setBusy(false)
     }
   }, [newName, busy, templates, tplId, mutateMine, onPick])
+
+  const handleDelete = useCallback(async (wl) => {
+    if (deletingId) return
+    if (!window.confirm(`Delete watchlist "${wl.name}"? This can't be undone.`)) return
+    setDeletingId(wl.id)
+    try {
+      const res = await fetch(`/api/watchlists/${wl.id}`, { method: 'DELETE', credentials: 'include' })
+      if (res.ok) mutateMine()
+    } finally {
+      setDeletingId(null)
+    }
+  }, [deletingId, mutateMine])
 
   const Row = ({ wl, icon, onClick }) => (
     <button type="button" className={styles.row} onClick={onClick}>
@@ -204,8 +217,23 @@ export default function WatchlistPicker({ onPick }) {
               </button>
             )}
             {mine.map(wl => (
-              <Row key={`m${wl.id}`} wl={wl} icon="library"
-                onClick={() => onPick({ key: `user:${wl.id}`, name: wl.name })} />
+              <div key={`m${wl.id}`} className={styles.mineRow}>
+                <button type="button" className={styles.row} onClick={() => onPick({ key: `user:${wl.id}`, name: wl.name })}>
+                  <span className={styles.rowIcon}><UIcon name="library" size={13} gold={false} /></span>
+                  <span className={styles.rowName}>{wl.name}</span>
+                  {countOf(wl) != null && <span className={styles.rowCount}>{countOf(wl)}</span>}
+                </button>
+                <button
+                  type="button"
+                  className={styles.deleteBtn}
+                  title={`Delete ${wl.name}`}
+                  aria-label={`Delete ${wl.name}`}
+                  disabled={deletingId === wl.id}
+                  onClick={() => handleDelete(wl)}
+                >
+                  <UIcon name="trash" size={12} gold={false} />
+                </button>
+              </div>
             ))}
             {mine.length === 0 && !showFlagged && (
               <div className={styles.empty}>{query ? 'No matches' : 'No custom lists yet — create one above.'}</div>
