@@ -1,7 +1,7 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
 import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
-import ColorPicker from './ColorPicker'
+import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
@@ -992,9 +992,26 @@ function ChartToolbar({
     return () => clearInterval(id)
   }, [periodSec])
 
-  // Close popups on outside click
+  // Close popups on outside click.
+  //
+  // 🐛 …where "outside" means outside the UI, NOT outside the subtree. A PORTALED
+  // child (`ColorPicker`'s popup goes to `document.body`) is outside every ref
+  // here by construction, so the unqualified `contains()` test closed the settings
+  // panel on the mousedown of the very click that was choosing a colour — the
+  // button unmounted before `click` fired and `pick()` never ran. **Every colour
+  // swatch in the inline settings panel was unusable in production**, and it read
+  // as a dead palette rather than as a closing panel because OPENING the picker
+  // (the swatch is a real child) always worked.
+  //
+  // `PORTAL_POPUP_ATTR` is the contract: an element that carries it is logically
+  // inside whatever opened it. One `closest()` covers every popup in the panel —
+  // present and future — which is the property a per-popup ref threaded through
+  // `ChartSettingsPanel` would not have had.
   useEffect(() => {
     const handler = (e) => {
+      // `closest` needs an Element; a mousedown can target a text node in jsdom.
+      const node = e.target instanceof Element ? e.target : e.target?.parentElement
+      if (node && node.closest(`[${PORTAL_POPUP_ATTR}]`)) return
       if (showColors && colorRef.current && !colorRef.current.contains(e.target)) setShowColors(false)
       if (showWidths && widthRef.current && !widthRef.current.contains(e.target)) setShowWidths(false)
       if (showFonts && fontRef.current && !fontRef.current.contains(e.target)) setShowFonts(false)

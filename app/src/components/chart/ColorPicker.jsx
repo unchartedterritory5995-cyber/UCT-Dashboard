@@ -2,9 +2,33 @@
 // The popup is PORTALED to <body> and fixed-positioned from the swatch, edge-aware
 // (flips left/up near a viewport edge) so it can't clip off-screen or be cut off by a
 // scrollable settings panel's overflow.
+//
+// ─── WHY THE POPUP CARRIES `data-chart-portal-popup` ────────────────────────
+//
+// 🐛 THE BUG IT FIXES WAS SHIPPED AND USER-FACING: **choosing a colour was
+// impossible anywhere inside the chart toolbar's inline settings panel.** That
+// panel closes on any `mousedown` outside its own ref (`ChartToolbar.jsx`), and a
+// PORTALED popup is outside it in the DOM no matter how "inside" it is to the
+// user. Pressing a preset dispatched mousedown → the panel unmounted → the button
+// was gone before the click landed → `pick()` never ran. Opening the picker
+// worked (the swatch itself is inside the panel), which is what made it read as a
+// dead palette rather than as a closing panel.
+//
+// The attribute is the CONTRACT, not the fix: it says "this element is logically
+// inside whatever opened it, wherever the portal put it", and an outside-click
+// handler that means "outside the UI" rather than "outside this subtree" honours
+// it with one `closest()`. Any future portaled child of a dismiss-on-outside
+// surface should carry it too — the alternative is threading a ref per popup
+// through every consumer, which is how this bug got written in the first place.
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './ColorPicker.module.css'
+
+/** The marker every portaled popup that is logically INSIDE a dismiss-on-outside
+ *  surface must carry. Exported so the handler and the popup name the same
+ *  string — a hand-copied selector on the other side is the same defect one
+ *  indirection away. */
+export const PORTAL_POPUP_ATTR = 'data-chart-portal-popup'
 
 const SWATCHES = [
   '#c9a84c', '#4ade80', '#ef4444', '#60a5fa',
@@ -87,6 +111,7 @@ export default function ColorPicker({ value, onChange, label, disabled = false, 
         <div
           ref={popupRef}
           className={styles.popup}
+          {...{ [PORTAL_POPUP_ATTR]: 'colorpicker' }}
           style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}
           onClick={e => e.stopPropagation()}
         >
