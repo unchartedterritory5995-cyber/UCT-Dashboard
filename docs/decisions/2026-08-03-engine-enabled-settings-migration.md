@@ -249,3 +249,68 @@ Named now, so whoever applies it does not have to discover them:
 Its predicate is `engineDrawn.has(key) && !FLIPPED.has(key)`, and with
 `FLIPPED === MIGRATED` it stays identically false whatever the flag does. It has
 already been retargeted four times on this branch; it will not catch this.
+
+## 10. B4's adjudication — 2026-08-03
+
+**Status is UNCHANGED: OPEN.** B4 does not resolve this record. It removes the
+condition under which resolving it would have been urgent.
+
+§8's recommendation is conditional — ship the versioned read-time migration *if
+B4 needs a migrated-but-un-flipped definition.* **B4 does not need one.** Its
+eighteen inherited ledger regions are retired by DERIVING name lists and control
+lists from definitions that already exist for all fourteen series-expressible
+natives. Derivation needs a *definition*; only rendering needs a *migration*. The
+one region that appeared to force four more migrations — the legend rewrite,
+whose six remaining chips belong to `stoch`, `atr`, `sar` and `ichimoku` — is
+resolved instead by giving the LEGACY lane the same chip-formatting pipeline the
+engine lane already has, keyed `<defId>::<plotKey>`, so both lanes read one
+definition.
+
+Therefore `ENGINE_FLIPPED_DEF_IDS === ENGINE_MIGRATED_DEF_IDS` holds at every B4
+commit, §3 ("what a real stored blob does on ship day — it works") stays true
+unchanged, and §8.2's default recommendation stands: **require
+migrate-and-flip-together; delete the flag at B5.**
+
+**Made failable, not asserted.** `enumerationSites.test.js` → *"creates no
+migrated-but-un-flipped definition while the settings migration is open"* reads
+this file's Status line and both flip sets together, and asserts the PAIR:
+`{stillOpen: true, stranded: []}`. It goes red on the day someone migrates
+without flipping AND this record still says OPEN — which is exactly the pair of
+facts that produces an indicator rendering for nobody. It goes red the other way
+too, and deliberately: **resolving this record's Status without updating the rail
+is also a red test**, because a resolved record is the moment the rail's premise
+has to be re-read rather than the moment it should go quiet. Both halves were
+mutation-proven (M3 migrates `stoch` without flipping it; M4 flips the Status
+line to RESOLVED; both exit 1 under `-t 'no migrated-but-un-flipped'`).
+
+⚠️ **The two rails on this fact are not redundant, and one run cannot tell them
+apart.** `flipB.test.jsx` asserts the two sets are EQUAL — the double-draw /
+deleted-projection consequence. This one asserts *equal WHILE THE RECORD IS
+OPEN* — the stranded-user consequence. M3 was therefore run twice, with
+`flipB.test.jsx` out of the selection and then in it, so "the rail fires" is a
+measurement of THIS rail and not of the older one standing behind it.
+
+**B4's baseline, by command.** The branch's prose says "84 chart pytest"; that
+number matches no command — the six-file selection below collects **86** at
+`d2733adc`. Recorded here because a prose count is the thing this branch keeps
+having to correct, and because `.superpowers/` is gitignored, so a corrected
+count written to a scratch report does not survive into the repo (this branch
+has already lost one that way).
+
+| command | count at `d2733adc` |
+|---|---|
+| `cd app && npx vitest run` | **4,070 tests / 409 files**, exit 0 |
+| `python -m pytest tests/test_indicator_compute.py tests/test_indicator_golden.py tests/test_indicator_alert_evaluator.py tests/test_indicator_alert_service.py -q` | **67 passed**, exit 0 |
+| `python -m pytest tests/test_chart_parity_harness.py tests/test_chart_markers.py tests/test_chart_news.py tests/test_chart_health_alerts.py tests/test_admin_chart_health.py tests/test_charts_layout_service.py -q` | **86 passed**, exit 0 (⛔ not 84) |
+
+Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409**
+(the rail is the one new test), and both pytest selections unchanged at 67 and 86
+— this task touches no Python and no shipped JS.
+
+**The ledger partition B4 starts from.** A2 re-fated `paneMargins.PANES` to B5
+(a layout table B4 is forbidden from modifying) and A4 re-fated
+`indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
+the evaluator). `enumerationSites.test.js` now asserts
+**`{B4: 18, B5: 8, C: 1, keep: 2, phase: 2}`**, `SITE_COUNT = 31`. The old
+`{B4: 20, B5: 7, …}` summed to 31 only while a layout table sat in the
+settings-dialog group.
