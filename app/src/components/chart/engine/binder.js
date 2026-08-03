@@ -378,6 +378,16 @@ export function createBinder({ chart, LWC }) {
         // recreates a series whenever its target scale changes, on the strength
         // of two comments that were true on 5.1.x. Mass `removeSeries` is the
         // 2-4 s main-thread block of lightweight-charts#2049.
+        // ⚠️ A RELOCATION IS INVISIBLE TO THE Z-ORDER RAILS. `moveToPane` is
+        // `removeDataSource` + `_addSeriesToPane`, which APPENDS — so a pooled
+        // series that crosses panes lands on TOP of its new pane, and every
+        // z-order test in `stockChartWiring.test.jsx` reads `addSeries` CALL
+        // ORDER and cannot see that. (The pixel gate cannot either: every parity
+        // case is a fresh page load and never photographs a transition.) Benign
+        // while nothing crosses — `chart.addSeries` also appends, so an engine
+        // create and a legacy create land in the same place — and the rail
+        // `⏳ EXPIRES when a pooled series first CROSSES PANES` goes red the day
+        // it stops being true. That day is `vwap`/`sar`/`ichimoku`/`donchian`.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
         attempt(() => series.applyOptions(options))
       }

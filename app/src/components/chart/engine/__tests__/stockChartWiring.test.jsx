@@ -28,6 +28,13 @@ const H = vi.hoisted(() => ({
   // invisible from the component level: the series that changed tenant is not in
   // `addSeriesCalls` a second time and nothing records what it was told.
   applyOptionsCalls: [],
+  // Every `series.createPriceLine`, with the series it was created ON. RSI is
+  // the only migrated indicator that draws GUIDES (70/50/30), and the orphan the
+  // mid-session gate below exists to catch is a dead line PLUS three dead guides
+  // — `removeSeries` is what takes the guides with it, so "which series owns this
+  // guide" has to be observable or that half of the symptom is unassertable.
+  priceLineCalls: [],
+  moveToPaneCalls: [],
   binderCreated: [],
   binderApis: [],
   syncCalls: [],
@@ -37,6 +44,8 @@ const H = vi.hoisted(() => ({
     H.removedSeries.length = 0
     H.visibilityCalls.length = 0
     H.applyOptionsCalls.length = 0
+    H.priceLineCalls.length = 0
+    H.moveToPaneCalls.length = 0
     H.binderCreated.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
@@ -54,10 +63,17 @@ vi.mock('lightweight-charts', () => {
         if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible })
       },
       priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
-      createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {},
+      createPriceLine: (o) => { H.priceLineCalls.push({ series: s, options: o }); return {} },
+      removePriceLine: () => {}, setMarkers: () => {},
       attachPrimitive: () => {}, detachPrimitive: () => {},
       priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
-      moveToPane: () => {}, getPane: () => ({ getHeight: () => 300 }),
+      // RECORDED. `binder.moveToPane` relocates a POOLED series between panes via
+      // `removeDataSource` + `_addSeriesToPane`, which APPENDS — so a relocated
+      // series lands on top of its new pane and the z-order rails below, which
+      // read `addSeriesCalls` order, cannot see it. Recording the call is what
+      // turns that blind spot into a rail with an expiry condition.
+      moveToPane: (paneIndex) => { H.moveToPaneCalls.push({ series: s, paneIndex }) },
+      getPane: () => ({ getHeight: () => 300 }),
     }
     return s
   }
@@ -478,6 +494,47 @@ describe('an engine series is inserted where its legacy twin would have been', (
       expect(engineIdx, `engine must precede the ${scale} block`).toBeLessThan(legacyIdx)
     }
   })
+
+  it('⏳ EXPIRES when a pooled series first CROSSES PANES — the rails above go blind then', () => {
+    // ⚠️ THE BLIND SPOT, WRITTEN AS A RAIL RATHER THAN AS A PARAGRAPH.
+    //
+    // Both assertions above read `H.addSeriesCalls` ORDER. A pooled series that
+    // is relocated by `series.moveToPane(paneIndex)` (`binder.js`) is NOT a new
+    // `addSeries` call — LWC's `_internal_moveSeriesToPane` does
+    // `removeDataSource` + `_addSeriesToPane`, which **appends** — so the series
+    // silently changes its z-position in the new pane and neither rail above can
+    // see it. The pixel gate cannot see it either: every parity case is a fresh
+    // page load, so it never photographs a transition at all.
+    //
+    // It is BENIGN TODAY, verified against the installed lightweight-charts
+    // 5.2.0: `chart.addSeries` also appends, so a mid-session engine create and a
+    // mid-session legacy create land in the same place, and — the reason this
+    // test currently passes — the two migrated definitions never cross panes.
+    // `rsi` is a pane indicator and `bb` is a price overlay; neither instance
+    // moves once bound.
+    //
+    // It stops being benign when `vwap`/`sar`/`ichimoku`/`donchian` migrate and
+    // several pane-crossing overlays are pooled in ONE sync. So this asserts the
+    // precondition of the rails above — nothing relocates — and goes RED on the
+    // day that stops being true. When it does: do not delete it. Write the
+    // ordering assertion it is standing in for, over `H.moveToPaneCalls`.
+    draw({
+      engineEnabled: true,
+      // `BB_INSTANCE` is declared further down the file; a `const` at module
+      // scope is fully initialised long before any `it` body runs.
+      indicatorInstances: [RSI_INSTANCE, BB_INSTANCE],
+      volume: { show: true },
+      indicators: { rsi: { enabled: true }, bb: { enabled: true }, macd: { enabled: true } },
+    })
+    expect(H.binderApis[0].bindings().length, 'the engine bound nothing — vacuous').toBeGreaterThan(0)
+    expect(H.moveToPaneCalls, (
+      'a pooled series was relocated between panes. The z-order rails in this '
+      + 'describe read addSeries ORDER and are now blind to where that series '
+      + 'actually paints; the pixel gate never photographs a transition either. '
+      + 'Write the real ordering assertion over H.moveToPaneCalls before shipping '
+      + 'the migration that did this.'
+    )).toHaveLength(0)
+  })
 })
 
 describe('hide-all-indicators reaches engine series through the binding map', () => {
@@ -787,6 +844,87 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
     expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws it again').toHaveLength(1)
     expect(rsiSeries(), 'toggled back on: exactly one more, and the legacy block did not add its own').toHaveLength(2)
+  })
+
+  it('an rsi instance arriving MID-SESSION removes the line AND the three guides legacy already drew', () => {
+    // ⛔ M8's EXACT SHAPE, ON THE OTHER MIGRATED INDICATOR. BB got this gate in
+    // `c0c5a8cb`; RSI never did, and the mutation below SURVIVED the entire
+    // 3,733-test suite with exit 0 — measured, not imagined.
+    //
+    // Every other RSI case in this file starts with `indicatorInstances:
+    // [RSI_INSTANCE]` already present, so the legacy ref is null and there is
+    // nothing to orphan. The real crossover is the other order: the chart is up,
+    // LEGACY has drawn its line and its 70/50/30 guides, and THEN an instance
+    // appears — a settings sync from another widget, a grid cell's
+    // `settingsOverride`, Task 9's future "move this to the engine" control.
+    //
+    // The `else if` that removes the legacy series is only reachable while the
+    // guard sits INSIDE the first condition. Hoist it —
+    // `if (engineOwned.has('rsi')) { } else if (indicatorData.rsi.length)`,
+    // which reads like the same thing — and the removal branch becomes
+    // unreachable the moment the engine takes over: two RSI lines on the `rsi`
+    // scale, one of them dead and frozen at whatever data it last received, plus
+    // three orphaned guides underneath the engine's copy.
+    //
+    // ⚠️ RSI IS STRICTLY WORSE THAN BB HERE, which is why this asserts the guides
+    // too. BB's orphan is three dead lines; RSI's is a dead line AND three price
+    // lines that `removeSeries` would have taken with it.
+    const legacyFirst = { ...RSI_ON, engineEnabled: true, indicatorInstances: [] }
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legacyFirst} />,
+    )
+    const legacyDrawn = rsiSeries().map(c => c.series)
+    expect(legacyDrawn, 'the LEGACY block drew no RSI — nothing to orphan').toHaveLength(1)
+    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+
+    const legacyGuides = H.priceLineCalls.filter(p => p.series === legacyDrawn[0])
+    expect(legacyGuides.map(g => g.options.price).sort((a, b) => b - a),
+      'legacy drew no 70/50/30 guides — the guide half of this test is vacuous').toEqual([70, 50, 30])
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ ...legacyFirst, indicatorInstances: [RSI_INSTANCE] }} />,
+    )
+
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn, 'the engine did not take over').toHaveLength(1)
+    expect(engineDrawn, 'the engine re-used the LEGACY series — it does not own that one')
+      .not.toContain(legacyDrawn[0])
+    expect(H.removedSeries,
+      'the legacy RSI line was left on the chart under the engine\'s copy — and its three guides with it')
+      .toContain(legacyDrawn[0])
+    // The guides go with the series: nothing removes a price line individually
+    // here, so the ONLY thing that clears them is the series removal above. If
+    // that assertion ever has to be weakened, these guides are what is left
+    // behind on the `rsi` scale.
+    expect(H.priceLineCalls.filter(p => p.series === legacyDrawn[0]),
+      'the legacy guides were re-created rather than removed with their series').toHaveLength(3)
+  })
+
+  it('and the reverse — the instance LEAVING hands the RSI line back to legacy', () => {
+    // The same seam from the other side, with the legacy TOGGLE still on. If the
+    // legacy block did not stand back up, removing an instance would delete the
+    // indicator the settings still say is enabled. Distinct from `toggling the
+    // legacy switch OFF and back ON` above: that one moves
+    // `cs.indicators.rsi.enabled`, this one moves only the instance list.
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
+    )
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn).toHaveLength(1)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={settings({ indicatorInstances: [] })} />,
+    )
+    expect(H.binderApis[0].bindings(), 'the engine still holds a series').toHaveLength(0)
+    expect(H.removedSeries).toContain(engineDrawn[0])
+    // …and legacy drew one of its own, so the user still sees an RSI.
+    const live = rsiSeries().map(c => c.series).filter(s => !H.removedSeries.includes(s))
+    expect(live, 'the RSI vanished when the instance was removed').toHaveLength(1)
+    // …with its guides back, which is the half a series count alone would miss.
+    expect(H.priceLineCalls.filter(p => p.series === live[0]).map(g => g.options.price).sort((a, b) => b - a),
+      'legacy stood back up without its 70/50/30 guides').toEqual([70, 50, 30])
   })
 })
 
