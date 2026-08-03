@@ -25,6 +25,8 @@
 // The other half is `ChartToolbar.flipB.test.jsx`: a row that HAS a writer must
 // come back to life, or the honesty fix inverts into a working control that looks
 // dead. Neither file is worth much without the other.
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -316,14 +318,101 @@ describe('ChartToolbar — the period and colour rows an engine-drawn indicator 
     expect(spy.mock.calls[0][0].indicators.macd.enabled).toBe(false)
   })
 
-  it('a NON-migrated indicator keeps every control, engine on or off', async () => {
-    // If this greyed out too, one flip would silence fourteen indicators' settings.
+  it('a NON-migrated indicator keeps every control — asserted where it can FAIL', async () => {
+    // ⭐ THIS CASE USED TO BE VACUOUS, AND THE FILE ALREADY SAID SO ABOUT ITS OWN
+    // SIBLING (see "Stoch (whose row has no `disabled` at all, so it passed
+    // vacuously)" above) — it just never came back and fixed this one.
+    //
+    // It read:
+    //     const row = rowFor('Stoch')
+    //     expect(periodBox(row).disabled).toBe(false)
+    //     expect(swatch(row).disabled).toBe(false)
+    //
+    // Stoch's row passes NO `disabled` prop (`ChartToolbar.jsx`, the Stochastic
+    // block), so `.disabled` is `false` for a reason that has nothing to do with
+    // the engine and cannot be changed by anything the engine does. MEASURED:
+    // mutating the predicate to `engineInert = (key) => key === 'stoch'` — the
+    // exact regression the old comment named, "one flip silences fourteen
+    // indicators' settings" — leaves **58 files / 1,245 tests green**.
+    //
+    // ⭐ THE FIX IS IN THE COMPONENT, NOT HERE: **every** indicator row now asks
+    // `engineInert(key)`, so the predicate can be caught lying about any of
+    // them. The answer stays `false` for all eleven un-migrated ids by
+    // construction (`engineDrawnDefIds` returns only migrated ids), so nothing
+    // renders differently — but the row is now live BECAUSE THE PREDICATE SAYS
+    // SO rather than because nobody asked, and that is the whole difference
+    // between a control and a decoration.
+    //
+    // Asserted behaviourally rather than on `.disabled`: a disabled input
+    // swallows `user.type`, so ANY mechanism that turned this row off — this
+    // predicate, a future one, a CSS guard — fails here without the assertion
+    // having to know how it was spelt.
     const user = userEvent.setup()
     mount(settingsWith({ engineEnabled: true, indicatorInstances: [MACD_INSTANCE] }), spy)
     await openPanel(user)
     const row = rowFor('Stoch')
-    expect(periodBox(row).disabled).toBe(false)
-    expect(swatch(row).disabled).toBe(false)
+    await user.type(periodBox(row), '9')
+    expect(spy, 'a non-migrated indicator lost its settings row to the engine').toHaveBeenCalled()
+    expect(spy.mock.calls.at(-1)[0].indicators.stoch.kPeriod).toBe(149)   // 14 → "149"
+    // …and its swatch still opens a real picker (the ColorPicker half, which
+    // `disabled` would also have taken).
+    await user.click(swatch(row))
+    expect(screen.queryByPlaceholderText('#hex'), 'the picker did not open').not.toBeNull()
+  })
+
+  it('EVERY indicator row asks the predicate — the structural half', () => {
+    // ⭐ WHY SOURCE AND NOT THE DOM. Which rows CONSULT `engineInert` is not
+    // observable from any render, and that set is precisely what decided the
+    // vacuity above: an id absent from it can be lied about for free, forever,
+    // and no DOM assertion anywhere can notice. Reading the JSX is the only
+    // place the claim exists.
+    //
+    // ⚠️ AND IT SURVIVES TASK 11 AND B4. This pins the WIRING, not the
+    // predicate's value: after every pilot is flipped `engineInert` is
+    // identically false and no row renders disabled, but the bindings must all
+    // still be there — they are what a future migrated-but-unflipped definition
+    // reactivates. A control whose subject can be migrated out from under it is
+    // what has expired this file three times.
+    const src = readFileSync(
+      resolve(process.cwd(), 'src/components/chart/ChartToolbar.jsx'), 'utf8')
+    const hits = [...src.matchAll(/engineInert\('([a-zA-Z]+)'\)/g)].map(m => m[1])
+    const wired = new Set(hits)
+    // ⚠️ COUNTED, NOT JUST NAMED. A SET is satisfied by ONE binding per id, so
+    // dropping `disabled={engineInert('rsi')}` from RSI's period box while its
+    // swatch keeps its own is INVISIBLE to a set — measured: that mutation
+    // survived the set-only version of this test. The per-row control count is
+    // what makes each individual binding load-bearing.
+    //
+    // Yes, this needs updating when a row gains or loses a control. That is the
+    // prompt, not the cost: the update is "wire the new control", which is
+    // exactly the step whose omission this whole case exists to catch.
+    const perId = {}
+    for (const id of hits) perId[id] = (perId[id] || 0) + 1
+    expect(perId, 'a control in an indicator row is not wired to engineInert (or one was '
+      + 'added/removed) — wire it and update this map').toEqual({
+      rsi: 2, macd: 3, bb: 3, vwap: 1, stoch: 4, atr: 2, sar: 2, ichimoku: 2,
+      volumeProfile: 2, mfi: 2, cci: 2, williamsR: 2, adx: 4, obv: 1, donchian: 2,
+    })
+    // Every indicator with a settings row, migrated or not. `volumeProfile` is
+    // in the panel but is not an engine definition at all — it is here because
+    // the rule is "every ROW asks", which is a property of the panel.
+    expect([...wired].sort()).toEqual([
+      'adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv',
+      'rsi', 'sar', 'stoch', 'volumeProfile', 'vwap', 'williamsR',
+    ])
+    // …and it really is every one the panel renders, so a row ADDED without the
+    // treatment (B4's new definitions) fails here rather than quietly becoming
+    // the next unfalsifiable case.
+    const rows = new Set([...src.matchAll(/updateIndicator\('([a-zA-Z]+)', 'enabled'/g)]
+      .map(m => m[1]))
+    expect([...rows].sort(), 'an indicator row does not consult engineInert — a lie about '
+      + 'that id would be invisible, which is how this file went vacuous').toEqual([...wired].sort())
+    // `disabled` and `title` must name the SAME predicate — the component's own
+    // rail ("THE SAME PREDICATE AS `engineInert`"). A row greyed without the
+    // tooltip is the original half-fix all over again.
+    const titled = new Set([...src.matchAll(/inertTitle\('([a-zA-Z]+)'/g)].map(m => m[1]))
+    expect([...titled].sort(), 'a row is disabled with no explanation, or explained but live')
+      .toEqual([...wired].sort())
   })
 
   it('an instance the VALIDATOR drops leaves the controls alone', async () => {

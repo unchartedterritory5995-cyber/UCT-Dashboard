@@ -161,6 +161,24 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   // looks dead. ⛔ `ENGINE_FLIPPED_DEF_IDS` is EMPTY until Task 10, so today this
   // subtraction removes nothing and every assertion in
   // `ChartToolbar.engineInert.test.jsx` still describes the shipped behaviour.
+  //
+  // ⭐ EVERY INDICATOR ROW ASKS THIS, not just the migrated four (B3 Task 11,
+  // prerequisite 2). It used to be wired to `rsi`/`macd`/`bb`/`vwap` only, and
+  // the file's own case *"a NON-migrated indicator keeps every control"* was
+  // therefore **VACUOUS**: Stoch's row passed no `disabled` prop at all, so
+  // `expect(box.disabled).toBe(false)` held for a reason unrelated to the
+  // engine. MEASURED — mutating this to `(key) => key === 'stoch'`, the exact
+  // regression that case's comment named, left 58 files / 1,245 tests GREEN.
+  //
+  // A predicate no row consults cannot be caught lying about that row, so the
+  // fix is to consult it everywhere. The answer is `false` for all eleven
+  // un-migrated ids BY CONSTRUCTION (`engineDrawnDefIds` returns only ids in
+  // `ENGINE_MIGRATED_DEF_IDS`), so nothing renders differently — and now a lie
+  // about any of them disables a live control and goes red.
+  //
+  // It also removes a step B4 would otherwise have to remember: migrating ATR
+  // no longer means "…and wire ATR's row too", which is the same class of latent
+  // omission `engineOwnedDefIds` exists to make structural.
   const engineInert = useCallback(
     (key) => engineDrawn.has(key) && !ENGINE_FLIPPED_DEF_IDS.has(key),
     [engineDrawn],
@@ -571,14 +589,20 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <div className={styles.sMiniPeriodGroup}>
             <input type="number" className={styles.sPeriodInput}
               value={cs.indicators?.stoch?.kPeriod ?? 14} min={1} max={100}
-              onChange={e => updateIndicator('stoch', 'kPeriod', e.target.value)} title="%K Period" />
+              disabled={engineInert('stoch')}
+              onChange={e => updateIndicator('stoch', 'kPeriod', e.target.value)}
+              title={inertTitle('stoch', '%K Period')} />
             <input type="number" className={styles.sPeriodInput}
               value={cs.indicators?.stoch?.dPeriod ?? 3} min={1} max={20}
-              onChange={e => updateIndicator('stoch', 'dPeriod', e.target.value)} title="%D Period" />
+              disabled={engineInert('stoch')}
+              onChange={e => updateIndicator('stoch', 'dPeriod', e.target.value)}
+              title={inertTitle('stoch', '%D Period')} />
           </div>
           <ColorPicker value={cs.indicators?.stoch?.kColor ?? '#FF6B6B'}
+            disabled={engineInert('stoch')} title={inertTitle('stoch', null)}
             onChange={v => updateIndicator('stoch', 'kColor', v)} />
           <ColorPicker value={cs.indicators?.stoch?.dColor ?? '#4ECDC4'}
+            disabled={engineInert('stoch')} title={inertTitle('stoch', null)}
             onChange={v => updateIndicator('stoch', 'dColor', v)} />
         </div>
 
@@ -590,8 +614,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>ATR</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.atr?.period ?? 14} min={1} max={100}
-            onChange={e => updateIndicator('atr', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('atr')}
+            onChange={e => updateIndicator('atr', 'period', e.target.value)}
+            title={inertTitle('atr', 'Period')} />
           <ColorPicker value={cs.indicators?.atr?.color ?? '#FFA726'}
+            disabled={engineInert('atr')} title={inertTitle('atr', null)}
             onChange={v => updateIndicator('atr', 'color', v)} />
         </div>
 
@@ -604,10 +631,12 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <div className={styles.sMiniPeriodGroup}>
             <input type="number" className={styles.sPeriodInput}
               value={cs.indicators?.sar?.step ?? 0.02} min={0.001} max={0.1} step={0.001}
+              disabled={engineInert('sar')}
               onChange={e => updateIndicator('sar', 'step', parseFloat(e.target.value) || 0.02)}
-              title="Step (acceleration factor)" />
+              title={inertTitle('sar', 'Step (acceleration factor)')} />
           </div>
           <ColorPicker value={cs.indicators?.sar?.color ?? '#ffeb3b'}
+            disabled={engineInert('sar')} title={inertTitle('sar', null)}
             onChange={v => updateIndicator('sar', 'color', v)} />
         </div>
 
@@ -619,9 +648,13 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>Ichimoku</span>
           <div className={styles.sMiniPeriodGroup}>
             <ColorPicker value={cs.indicators?.ichimoku?.tenkanColor ?? '#26C6DA'}
-              onChange={v => updateIndicator('ichimoku', 'tenkanColor', v)} title="Tenkan" />
+              disabled={engineInert('ichimoku')}
+              onChange={v => updateIndicator('ichimoku', 'tenkanColor', v)}
+              title={inertTitle('ichimoku', 'Tenkan')} />
             <ColorPicker value={cs.indicators?.ichimoku?.kijunColor ?? '#EF5350'}
-              onChange={v => updateIndicator('ichimoku', 'kijunColor', v)} title="Kijun" />
+              disabled={engineInert('ichimoku')}
+              onChange={v => updateIndicator('ichimoku', 'kijunColor', v)}
+              title={inertTitle('ichimoku', 'Kijun')} />
           </div>
         </div>
 
@@ -633,9 +666,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>Vol Profile</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.volumeProfile?.bins ?? 24} min={8} max={50}
+            disabled={engineInert('volumeProfile')}
             onChange={e => updateIndicator('volumeProfile', 'bins', e.target.value)}
-            title="Number of price bins" />
+            title={inertTitle('volumeProfile', 'Number of price bins')} />
           <ColorPicker value={cs.indicators?.volumeProfile?.color ?? 'rgba(120,160,100,0.25)'}
+            disabled={engineInert('volumeProfile')} title={inertTitle('volumeProfile', null)}
             onChange={v => updateIndicator('volumeProfile', 'color', v)} />
         </div>
 
@@ -647,8 +682,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>MFI</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.mfi?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('mfi', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('mfi')}
+            onChange={e => updateIndicator('mfi', 'period', e.target.value)}
+            title={inertTitle('mfi', 'Period')} />
           <ColorPicker value={cs.indicators?.mfi?.color ?? '#c084fc'}
+            disabled={engineInert('mfi')} title={inertTitle('mfi', null)}
             onChange={v => updateIndicator('mfi', 'color', v)} />
         </div>
 
@@ -660,8 +698,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>CCI</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.cci?.period ?? 20} min={2} max={200}
-            onChange={e => updateIndicator('cci', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('cci')}
+            onChange={e => updateIndicator('cci', 'period', e.target.value)}
+            title={inertTitle('cci', 'Period')} />
           <ColorPicker value={cs.indicators?.cci?.color ?? '#fbbf24'}
+            disabled={engineInert('cci')} title={inertTitle('cci', null)}
             onChange={v => updateIndicator('cci', 'color', v)} />
         </div>
 
@@ -673,8 +714,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>Williams %R</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.williamsR?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('williamsR', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('williamsR')}
+            onChange={e => updateIndicator('williamsR', 'period', e.target.value)}
+            title={inertTitle('williamsR', 'Period')} />
           <ColorPicker value={cs.indicators?.williamsR?.color ?? '#60a5fa'}
+            disabled={engineInert('williamsR')} title={inertTitle('williamsR', null)}
             onChange={v => updateIndicator('williamsR', 'color', v)} />
         </div>
 
@@ -686,14 +730,22 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>ADX</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.adx?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('adx', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('adx')}
+            onChange={e => updateIndicator('adx', 'period', e.target.value)}
+            title={inertTitle('adx', 'Period')} />
           <div className={styles.sMiniPeriodGroup}>
             <ColorPicker value={cs.indicators?.adx?.adxColor ?? '#e5e7eb'}
-              onChange={v => updateIndicator('adx', 'adxColor', v)} title="ADX" />
+              disabled={engineInert('adx')}
+              onChange={v => updateIndicator('adx', 'adxColor', v)}
+              title={inertTitle('adx', 'ADX')} />
             <ColorPicker value={cs.indicators?.adx?.plusDIColor ?? '#22c55e'}
-              onChange={v => updateIndicator('adx', 'plusDIColor', v)} title="+DI" />
+              disabled={engineInert('adx')}
+              onChange={v => updateIndicator('adx', 'plusDIColor', v)}
+              title={inertTitle('adx', '+DI')} />
             <ColorPicker value={cs.indicators?.adx?.minusDIColor ?? '#ef4444'}
-              onChange={v => updateIndicator('adx', 'minusDIColor', v)} title="-DI" />
+              disabled={engineInert('adx')}
+              onChange={v => updateIndicator('adx', 'minusDIColor', v)}
+              title={inertTitle('adx', '-DI')} />
           </div>
         </div>
 
@@ -704,6 +756,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             onChange={e => updateIndicator('obv', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>OBV</span>
           <ColorPicker value={cs.indicators?.obv?.color ?? '#9ca3af'}
+            disabled={engineInert('obv')} title={inertTitle('obv', null)}
             onChange={v => updateIndicator('obv', 'color', v)} />
         </div>
 
@@ -715,8 +768,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <span className={styles.sIndicatorLabel}>Donchian</span>
           <input type="number" className={styles.sPeriodInput}
             value={cs.indicators?.donchian?.period ?? 20} min={2} max={200}
-            onChange={e => updateIndicator('donchian', 'period', e.target.value)} title="Period" />
+            disabled={engineInert('donchian')}
+            onChange={e => updateIndicator('donchian', 'period', e.target.value)}
+            title={inertTitle('donchian', 'Period')} />
           <ColorPicker value={cs.indicators?.donchian?.color ?? 'rgba(96,165,250,0.5)'}
+            disabled={engineInert('donchian')} title={inertTitle('donchian', null)}
             onChange={v => updateIndicator('donchian', 'color', v)} />
         </div>
       </div>
