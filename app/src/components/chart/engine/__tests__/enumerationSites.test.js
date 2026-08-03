@@ -212,6 +212,16 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toBe(SITE_COUNT)
   })
 
+  // ⭐ WHO RETIRES WHAT, AS A NUMBER. The plan said "~4 sites hand off to B4".
+  // The measured answer is TWENTY, and "approximately four" is exactly the kind
+  // of estimate this file exists to replace. B4 doing its work moves these
+  // counts, which is a red test and a deliberate update rather than a silent
+  // drift back toward "seven".
+  it('the retirement column adds up — 20 to B4, 7 to B5, 2 kept, 2 phase bookkeeping', () => {
+    const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
+    expect(counts).toEqual({ B4: 20, B5: 7, keep: 2, phase: 2 })
+  })
+
   it('the two sites this task retired are GONE, not merely unlisted', () => {
     for (const r of RETIRED_BY_THIS_TASK) {
       expect(read(r.file).includes(r.gone), `${r.file}: ${r.region} came back`).toBe(false)
