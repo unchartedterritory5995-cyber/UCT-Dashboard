@@ -1,0 +1,217 @@
+# Decision: session VWAP anchors on a UTC calendar day, not an ET session
+
+**Decision id:** `VWAP_SESSION_ANCHOR`
+**Status:** ⏳ **OPEN — the owner's call. The default is UNCHANGED: `computeVWAP` keeps UTC-day bucketing and that is what ships today.**
+**Owner of the maths:** `app/src/components/chart/indicators.js` → `computeVWAP`.
+**Adjudication row:** `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §11.
+**Raised by:** Phase B3, adjudication A7. **Measured:** 2026-08-02, at the VWAP Flip A (Task 8).
+**Pinned by:** `app/src/components/chart/engine/__tests__/vwapUtcBucketing.test.js` (names this record), plus `app/src/components/chart/goldenFixtures.test.js` → *computeVWAP session boundaries (pinned bug class)* and `tests/fixtures/indicators/intraday5m_sessions.json`.
+
+> This document exists to price a **visible and numerically wrong** behaviour on a
+> shipped chart before anyone changes it. It follows
+> `docs/decisions/2026-08-02-macd-head-mask.md` exactly, because that is the
+> precedent the owner already acted on: measure the correction in pixels, state
+> the standing cost of keeping the current behaviour in values, and leave the
+> default alone until the owner decides.
+>
+> **This one is not the head-mask.** The head-mask was 8 whitespace bars at the
+> extreme left of one pane and the maths underneath was already correct. This is
+> the maths, and it is wrong by **$14.45** at one session's open.
+
+---
+
+## 1. What the behaviour is
+
+`computeVWAP` (`indicators.js:162-183`) restarts its `cumPV`/`cumVol` accumulator
+whenever the **UTC calendar day** changes:
+
+```js
+const d = new Date(bar.t * 1000)
+const dayKey = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`
+if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey }
+```
+
+A session VWAP is supposed to anchor on the **trading session**. The two agree
+for regular hours and only for regular hours: 09:30–16:00 ET is always inside one
+UTC day, which is exactly why no unit test caught this for the life of the chart.
+
+They stop agreeing the moment extended hours are on — which is the default on
+this chart's intraday timeframes, and the only timeframes VWAP renders on at all.
+
+## 2. Where they diverge, and why it moves
+
+* **EDT is UTC-4**, so 20:00 ET *is* 00:00 UTC the next day. The accumulator is
+  wiped on the **last bar** of a session that has not ended.
+* **EST is UTC-5**, so the same boundary lands at **19:00 ET** — an hour earlier
+  and **thirteen 5-minute bars inside** the post-market session.
+* And because Monday's 19:00–20:00 ET bars have already opened UTC day 11-04,
+  **Tuesday's 04:00 ET open is not a UTC-day boundary at all.** It never resets.
+  The entire session accumulates on top of the previous evening's post-market
+  volume.
+
+The split hour **moves with the UTC offset**, not with the trading day. That is
+the shape of the defect, and it is why an RTH fixture can never show it.
+
+## 3. The correctness cost of KEEPING it, in values
+
+Measured by B3 Task 7 on `app/src/pages/parityBars/intraday5m.json` — 579
+five-minute extended-hours bars over Fri 2025-10-31 (EDT), Mon 2025-11-03 and Tue
+2025-11-04 (EST), the same series the pixel gate renders.
+
+```
+UTC days:            2025-10-31, 11-01, 11-03, 11-04, 11-05   (5)
+utcResetIndices:     [0, 192, 193, 373, 566]   ← what today's code does
+etResetIndices:      [0, 193, 386]             ← what a session anchor would do
+```
+
+### 3a. Three mid-session wipes ET would not have
+
+| bar | ET wall clock | UTC | shipped VWAP | session-anchored | **error** |
+|---:|---|---|---:|---:|---:|
+| 191 | Fri 19:55 **EDT** | 10-31 23:55 | 101.9382 | 101.9382 | 0.0000 |
+| **192** | **Fri 20:00 EDT** | **11-01 00:00** | **106.8533** | **101.9471** | **4.9062** |
+| 372 | Mon 18:55 **EST** | 11-03 23:55 | 96.4401 | 96.4401 | 0.0000 |
+| **373** | **Mon 19:00 EST** | **11-04 00:00** | **93.7233** | **96.4361** | **2.7128** |
+| **566** | **Tue 19:00 EST** | **11-05 00:00** | **112.5800** | **109.4466** | **3.1334** |
+
+### 3b. A WHOLE SESSION carried over — the severe one
+
+| bar | ET wall clock | UTC | shipped VWAP | session-anchored | **error** |
+|---:|---|---|---:|---:|---:|
+| 385 | Mon 20:00 EST | 11-04 01:00 | 93.0808 | 96.3823 | 3.3015 |
+| **386** | **Tue 04:00 EST — the open** | **11-04 09:00** | **93.9178** | **108.3633** | **$14.4455** |
+| 387 | Tue 04:05 EST | 11-04 09:05 | 95.0924 | 108.3592 | 13.2669 |
+| 400 | Tue 05:10 EST | 11-04 10:10 | 100.8394 | 108.1071 | 7.2677 |
+| 450 | Tue 09:20 EST | 11-04 14:20 | 105.5626 | 108.2380 | 2.6754 |
+| 565 | Tue 18:55 EST | 11-04 23:55 | 109.1585 | 109.4418 | 0.2832 |
+
+**Summary of the standing cost:** the chart opens Tuesday's session **$14.45**
+away from the session-correct VWAP, stays more than **$0.50** wrong for **120 of
+that session's 193 bars**, and **207 of the fixture's 579 bars** differ by more
+than a cent. A trader reading VWAP as a session mean is reading a number that
+includes the previous evening's post-market volume.
+
+## 4. The pixel cost of CORRECTING it
+
+Measured 2026-08-02, two `npm run build` outputs of this branch differing **only**
+in `computeVWAP`'s bucketing (ET-session vs UTC-day), diffed on the case that
+renders it.
+
+| | |
+|---|---|
+| **Case** | `vwap_only` — 579 five-minute `intraday5m` bars, tf `5`, 1200×620, `classic_flat` preset, `--instances-side none` (both sides draw the LEGACY block, which is what users see) |
+| **Changed pixels** | **2,590** of 744,000 — **0.348118%** of the export |
+| **Distribution** | `2,590` on **20 of 20 runs**. Zero variance — the distribution is literally `{2590: 20}` — and every capture on both sides settled on its first re-check (`shots 2/2`, 40 of 40) |
+| **Flake bound** | The harness's 95% bound at n=20 is 13.9%, and it does **not** apply here: the number is identical on every run and each build is independently deterministic (`--same-build --repeat 5` on each: **0 px**, exit 0). 2,590 is a fact about these two builds, not a sample. Quote the bound, never "it doesn't flake" |
+| **A (UTC-day — SHIPS)** | build **`d64c84c2ebf7`** (dist) — `index-f8ZNkAre.js` |
+| **B (ET-session)** | build **`8bbbb44e1110`** (dist) — `index-Dti8eeP5.js` |
+| **Exit code** | `1` — correct: this measurement is *supposed* to be non-zero. A **0** would mean the change did not reach the lane being rendered |
+
+The two builds differ in nothing but `computeVWAP`'s `dayKey`. The B side was
+validated against `tests/fixtures/indicators/intraday5m_sessions.json` before it
+was photographed: its accumulator resets at exactly `[0, 193, 386]` — the
+fixture's `etResetIndices` — and its output matches the fixture's
+`etSessionVwap` with a **worst absolute difference of 0** across all 579 bars. So
+this is the cost of the *correct* series, not of an approximation of it.
+
+**And it moves BOTH lanes, which is the load-bearing part.** The same two builds
+diffed with `--instances-side both` — the ENGINE drawing on both sides — report
+the **same 2,590 px** (5/5 runs). `computeVWAP` is the single source for the
+legacy block and for `nativeRegistry.computeFor('vwap')` alike, so a correction
+reaches what users see and what the engine draws together and cannot half-land.
+That symmetry is why this is a `compute.rev` bump and not a presentation tweak.
+
+**What the 2,590 pixels are.** The cyan line, across `x ∈ [355, 1077]` and
+`y ∈ [168, 441]` — i.e. from the Friday-evening boundary to the right edge, and
+vertically across most of the price pane. Max channel delta 205 (cyan against
+canvas). It is **not** one contiguous block like the head-mask's 44×4: it is
+402 px in the left third, 982 in the middle and **1,206 in the right third**,
+because the error grows as the sessions accumulate. The Tuesday session redraws
+roughly $14 higher at its open and converges over the day, and the three
+mid-session vertical drops disappear.
+
+29× the head-mask's 88 px — and unlike the head-mask it is not confined to the
+extreme left of history. It is the part of the chart a trader is looking at, and
+on the screenshots the corrected line hugs the candles in every session where the
+shipped one detaches from them for a whole day.
+
+## 5. What each option costs
+
+| | |
+|---|---|
+| **Keep UTC-day bucketing (today's default)** | The chart looks exactly as it always has, and every stored alert, screen and backtest keyed on VWAP keeps its historical meaning. The number remains wrong by up to **$14.45** on an extended-hours session, on an indicator whose entire purpose is to be a session mean. §9.1's cross-lane agreement is unaffected — Python has no VWAP, so there is no lane to disagree with; this is not a parity defect, it is a correctness one. |
+| **Anchor on the ET session** | VWAP means what its name says on every timeframe it renders on. **Measured cost: 2,590 changed pixels (0.348118%)**, both lanes, and a `compute.rev` bump on the `vwap` definition — which under spec §3.1 force-migrates every binding with user notification, resets evaluator `last_value`, and suppresses the first post-migration cycle. Anything a user pinned to `vwap@rev 1` stops being reproducible. |
+
+## 6. Why it is NOT bundled into the Flip A commit
+
+Flip A's contract is that `engine_vwap_vs_legacy` measures **0** changed pixels,
+and that the 0 is attributable to the migration. Correcting the maths inside that
+commit would make the parity number unattributable in exactly the way the
+MACD head-mask decision established: a migration commit's pixel count has to
+describe the migration.
+
+Concretely: both lanes read `computeVWAP`, so correcting it moves **A and B
+together** and `engine_vwap_vs_legacy` would still report **0** — the migration
+would look verified while the picture had silently changed underneath it. The
+number that shows the change is `vwap_only` measured across two builds, which is
+§4, and it belongs to this decision rather than to the migration.
+
+## 7. The rules for applying it, if the owner says yes
+
+- **Its own commit**, never inside a migration. Same rule the head-mask got, and
+  §6 is why it matters more here.
+- **`compute.rev: 2` on the `vwap` definition** — this is the maths, not the
+  presentation, so it is `compute.rev` and NOT `version`. That is the opposite of
+  the head-mask, which bumped `version` and left `compute.rev` alone.
+  `nativeRegistry.test.js` asserts the current pair; expect it to go red.
+- **One implementation, both lanes.** `computeVWAP` is the only place the
+  bucketing lives; do not add a second session-boundary helper for the engine.
+  If a `computeVWAP` change ever measures **0** on `vwap_only`, one of the lanes
+  has stopped reading it.
+- **⚠️ `_ET_OFFSET` IS NOT A SESSION BOUNDARY AND MUST NOT BE REUSED AS ONE.**
+  `StockChart.jsx:517` resolves ET as a **module-load constant** (−14400 / −18000),
+  so a series spanning a DST change is an hour off on one half depending on when
+  the page loaded. A session anchor built on it would be correct for half the year
+  and silently wrong for the other half — which is the same class of defect this
+  record is about. A correct fix needs a per-bar zone resolution
+  (`Intl.DateTimeFormat` with `America/New_York`, memoised per day, or an explicit
+  offset table like `tools/gen_intraday_fixture.py` uses).
+- **The session boundary is 04:00 ET, not 09:30.** The fixture's
+  `etResetIndices` are the extended-hours opens, and `etSessionVwap` in
+  `tests/fixtures/indicators/intraday5m_sessions.json` is already the correct
+  series to assert against — it is what would go from "the reference" to "the
+  expectation".
+- **These tests are EXPECTED to go red, and must be updated in the same commit:**
+  - `app/src/components/chart/goldenFixtures.test.js` → *computeVWAP session boundaries (pinned bug class)* — all three cases
+  - `app/src/components/chart/engine/__tests__/vwapUtcBucketing.test.js` — the whole file
+  - `app/src/components/chart/engine/__tests__/vwapFlipAParity.test.js` → *…and those numbers are STILL the UTC-day ones, at the bars that prove it*
+  - `app/src/pages/parityBars/intraday5m.test.js` → its VWAP bucketing cases
+  - `app/src/components/chart/indicators.test.js` → any VWAP session case
+  - `tests/fixtures/indicators/_schema.md` — the note describing the pinned bug class
+
+  The check that produced this list, and the one to re-run before applying:
+  `grep -rn "computeVWAP\|utcResetIndices\|etSessionVwap\|VWAP_SESSION_ANCHOR" app/src tests tools docs`.
+  The head-mask record undercounted its own list by one file; this one was built
+  from that grep rather than from memory.
+- **Re-run `--cases vwap_only engine_vwap_vs_legacy engine_vwap_dimmed_vs_legacy engine_vwap_dashed_vs_legacy`
+  afterwards.** The three `engine_*` cases must stay **0** — they compare two
+  lanes of the *same* build, so a correct fix does not move them. `vwap_only`
+  `--same-build` must return to **0**, which is what says the new behaviour is as
+  deterministic as the old one.
+
+## 8. Recommendation
+
+**Fix it, in its own commit, at the next release that can carry a `compute.rev`
+bump — but not before someone who trades off this chart has looked at the two
+pictures side by side.**
+
+The correctness argument is one-sided: a session VWAP that includes the previous
+evening's volume is not a session VWAP, and $14.45 at an open is not a rounding
+difference. The reason it is still the owner's call is §5's right-hand column —
+2,590 pixels is a visibly different chart, a `compute.rev` bump breaks every pin
+on `vwap@rev 1`, and the people who have been trading against this line for
+months have calibrated to the line that is there, wrong or not.
+
+That is a trading decision wearing a correctness decision's clothes, which is
+precisely the category this file exists to hand to the owner rather than settle
+in a migration.
