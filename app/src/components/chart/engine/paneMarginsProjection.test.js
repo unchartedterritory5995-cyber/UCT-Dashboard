@@ -159,6 +159,31 @@ describe('csForPaneMargins — instances drive the bands without touching paneMa
       .indicators.rsi.enabled).toBe(false)
   })
 
+  it('⭐ …INCLUDING a tombstone that still carries its defId', () => {
+    // ⛔ THE CASE THAT MAKES `if (tombstone) continue` LOAD-BEARING, added in B3
+    // Task 10 after a mutation deleting that line SURVIVED the whole 1,557-test
+    // chart selection.
+    //
+    // Every other tombstone fixture in this file is `{instanceId, deleted}` with
+    // NO `defId` — which the very next line (`typeof inst.defId !== 'string'`)
+    // already skips. So the guard was unobservable through all of them: it was
+    // being credited for work the defId check was doing.
+    //
+    // ⚠️ THE SHIPPED CALL SITE CANNOT PRODUCE THIS SHAPE TODAY, and the guard is
+    // still not decoration. `StockChart` hands this function an ALREADY-NORMALISED
+    // list (tombstones dropped), and `mergeSettingsOverride` collapses a tombstone
+    // to `instanceTombstone(id)` (defId stripped) — so the only producers are a
+    // hand-written blob, a `?instances=` payload, and any future caller that
+    // passes the RAW list, which is exactly what this module's docstring promises
+    // to survive ("a malformed record is skipped, not raised"). A pure exported
+    // function is tested against its own contract, not against the one caller it
+    // happens to have.
+    const cs = { indicators: { rsi: { enabled: true } } }
+    const corpse = { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 }, deleted: true }
+    expect(csForPaneMargins(cs, [corpse], new Set(['rsi'])).indicators.rsi.enabled,
+      'a deleted instance reserved a band because it still knew its definition').toBe(false)
+  })
+
   it('…and a tombstone does not cancel a LIVE instance of the same definition', () => {
     // Two instances of one definition is legal, so "this one is gone" cannot mean
     // "the definition is gone". A projection that took the LAST word would drop a
