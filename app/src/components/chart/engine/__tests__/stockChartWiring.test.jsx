@@ -46,6 +46,12 @@ const H = vi.hoisted(() => ({
   binderApis: [],
   syncCalls: [],
   crosshairHandlers: [],
+  // Every `csForPaneMargins` call, with the object it RETURNED. Task 9's exit
+  // criterion is that the projection is the identity function while nothing is
+  // flipped, and identity is not observable from `paneMargins` — two different
+  // blobs can produce deep-equal margins. This is the only place the claim can
+  // actually be checked from the component level.
+  csForPaneMarginsCalls: [],
   reset() {
     H.addSeriesCalls.length = 0
     H.removedSeries.length = 0
@@ -58,8 +64,23 @@ const H = vi.hoisted(() => ({
     H.binderApis.length = 0
     H.syncCalls.length = 0
     H.crosshairHandlers.length = 0
+    H.csForPaneMarginsCalls.length = 0
   },
 }))
+
+// The REAL projection, wrapped so its ARGUMENT and its RETURN are both visible.
+// A stub returning `cs` would make the identity assertion below prove nothing
+// about the shipped function.
+vi.mock('../paneMarginsProjection', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    csForPaneMargins: (cs, instances, flipped) => {
+      const out = actual.csForPaneMargins(cs, instances, flipped)
+      H.csForPaneMarginsCalls.push({ cs, instances, flipped, out })
+      return out
+    },
+  }
+})
 
 vi.mock('lightweight-charts', () => {
   const makeSeries = (ctor) => {
@@ -196,7 +217,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
 
-const { default: StockChart, ENGINE_MIGRATED_DEF_IDS } = await import('../../../StockChart')
+const { default: StockChart, ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
 // The two settings ALLOW-LISTS a migrated instance has to survive — see the
 // round-trip suite at the bottom of this file.
@@ -2718,5 +2739,94 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
     expect(H.binderApis[0].bindings()).toHaveLength(1)
     expect(vwapLines(), 'the legacy block drew its own copy alongside').toHaveLength(1)
     expect(vwapLines()[0].options.lineStyle, 'the round-tripped style did not reach the series').toBe(1)
+  })
+})
+
+// ─── THE FLIP-B MACHINERY IS INERT WHILE NOTHING IS FLIPPED (B3 Task 9) ─────
+//
+// Task 9 lands three pieces — `csForPaneMarginsProjection`, `instanceControls`
+// and the gated read-time migrator — with `ENGINE_FLIPPED_DEF_IDS` EMPTY. Its
+// whole gate is that NOTHING CHANGES in that state, and "nothing changed" is
+// only a claim until something asserts each way it could.
+//
+// ⚠️ INERTNESS IS HALF A GATE. A projection wired to a constant `false`, a
+// migrator gate that can never open, a control branch nothing can reach — all
+// three pass every case below. The other half is
+// `flipBWithANonEmptySet.test.jsx`, which mocks the set non-empty and drives the
+// same component through the machinery. Neither file is worth much without the
+// other.
+describe('the Flip-B machinery is inert while nothing is flipped (Task 9)', () => {
+  it('ENGINE_FLIPPED_DEF_IDS is empty, and is a SUBSET of the migrated set', () => {
+    // Flipped-but-not-migrated means the legacy block was deleted and nothing
+    // replaced it — an indicator that renders nothing at all.
+    expect(ENGINE_FLIPPED_DEF_IDS.size).toBe(0)
+    for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
+  })
+
+  it('a legacy toggle alone still draws the LEGACY series, not the engine\'s', () => {
+    // With nothing flipped, only STORED instances reach the binder. If the
+    // read-time migrator were ungated, turning the flag on would silently move
+    // four indicators onto the engine with no instance anywhere.
+    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } } })
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(H.addSeriesCalls.filter(c => c.options?.priceScaleId === 'rsi')).toHaveLength(1)
+  })
+
+  it('…and that holds for EVERY migrated definition, not just the one it was written for', () => {
+    // The ungated migrator would move all four at once. A case pinned to `rsi`
+    // would still be green with `bb`, `macd` and `vwap` silently re-homed.
+    for (const defId of ENGINE_MIGRATED_DEF_IDS) {
+      cleanup(); H.reset()
+      const tf = tfFor(defId)
+      draw({ engineEnabled: true, indicators: { [defId]: { enabled: true } } }, tf)
+      expect(H.binderApis[0].bindings(), `${defId} reached the engine with no stored instance`)
+        .toHaveLength(0)
+    }
+  })
+
+  it('the margins the engine is handed come from the SAME OBJECT the legacy path used', () => {
+    // ⛔ IDENTITY, NOT DEEP EQUALITY. Two different blobs can produce deep-equal
+    // margins, so a `toEqual` here would pass for a projection that allocated a
+    // fresh object on every paint — which is a real cost (`computePaneMargins`
+    // runs per frame) and a real signal that the dark path is no longer dark.
+    // The wrapper around the real `csForPaneMargins` is what makes the return
+    // value observable at all.
+    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
+    expect(H.csForPaneMarginsCalls.length,
+      'csForPaneMargins was never called — the projection is not wired in').toBeGreaterThan(0)
+    for (const call of H.csForPaneMarginsCalls) {
+      expect(call.flipped.size, 'a non-empty flip set shipped').toBe(0)
+      expect(call.out, 'the projection allocated a new blob while nothing is flipped').toBe(call.cs)
+    }
+    // …and the band the binder was actually handed is the legacy answer.
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx.paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
+  })
+
+  it('…including on a chart with NO instances at all, where it is also called', () => {
+    // The projection sits on the paint path for every chart, not just engine
+    // ones. If it allocated here it would allocate for every user on every frame.
+    draw({ indicators: { rsi: { enabled: true } } })
+    expect(H.csForPaneMarginsCalls.length, 'not called on a flag-off chart').toBeGreaterThan(0)
+    for (const call of H.csForPaneMarginsCalls) expect(call.out).toBe(call.cs)
+  })
+
+  it('the toolbar\'s rows still write the LEGACY section, because none has a writer yet', () => {
+    // `updateIndicator` routes to `instanceControls` for a FLIPPED id only. With
+    // the set empty the legacy branch is the only reachable one — so the enable
+    // checkbox writes `cs.indicators.rsi.enabled` exactly as it always has, and
+    // no `indicatorInstances` key appears in a blob that had none.
+    const persisted = []
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ indicators: { rsi: { enabled: true } } }}
+        onSettingsPersist={(s) => persisted.push(s)} />,
+    )
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
+    expect(persisted.length, 'Ctrl+I persisted nothing — this case is vacuous').toBeGreaterThan(0)
+    const last = persisted.at(-1)
+    expect(last.indicators.rsi.enabled, 'the legacy toggle is no longer the switch').toBe(false)
+    expect(last.indicatorInstances ?? [], 'a control wrote an instance while nothing is flipped').toEqual([])
+    view.unmount()
   })
 })

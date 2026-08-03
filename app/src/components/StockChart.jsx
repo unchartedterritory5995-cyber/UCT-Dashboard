@@ -35,9 +35,10 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
-import { normalizeInstances, engineOwnedDefIds, legacyInstanceId } from './chart/engine/instances'
+import { normalizeInstances, engineOwnedDefIds, legacyInstanceId, migrateLegacyToInstances } from './chart/engine/instances'
 import { eligibleInstances } from './chart/engine/eligibility'
-import { ENGINE_MIGRATED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
+import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
+import { csForPaneMargins } from './chart/engine/paneMarginsProjection'
 import { engineChips, chipsBySlot } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
@@ -64,7 +65,10 @@ const EMPTY_ENGINE_SLOTS = Object.freeze({})
 // predicate. Both live in `engine/flipState.js` because `ChartToolbar` is
 // rendered BY this file and cannot import from it — see that module's header.
 // Re-exported here so the ledger + wiring tests keep their import path.
-export { ENGINE_MIGRATED_DEF_IDS }
+// `ENGINE_FLIPPED_DEF_IDS` rides along for the same reason — the plan names
+// `StockChart.jsx` as its home, and `flipState.js` is where it can actually live
+// without `ChartToolbar` importing from the component that renders it.
+export { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS }
 // ── Indicator points → Lightweight Charts data ───────────────────────────────
 // `chart/indicators.js` returns arrays ALIGNED to the bars, NaN-padded before
 // the first computable bar. LWC rejects `value: NaN` outright, so a non-finite
@@ -5505,47 +5509,6 @@ export default function StockChart({
       }
     }
 
-    // ── Volume-pane indicator overlay ──
-    // Chosen oscillators render INSIDE the volume pane on its left axis (volume
-    // keeps the right axis) instead of their own stacked band. This requires a
-    // real volume pane, so any overlay forces separate-pane mode.
-    const volOverlaySet = new Set(
-      (showVolume && Array.isArray(cs.volumeOverlayIndicators)) ? cs.volumeOverlayIndicators : [],
-    )
-
-    // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
-    // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
-    // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
-    const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
-    const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0 && !volSeparatePane, volOverlaySet)
-    const VOL_PANE_INDEX = 1
-    // Resolve an indicator's target (pane + price-scale id). Overlaid → volume
-    // pane's left axis; otherwise its own named scale in pane 0 (= today).
-    const indTarget = (key) => (volSeparatePane && volOverlaySet.has(key))
-      ? { pane: VOL_PANE_INDEX, scaleId: 'left' }
-      : { pane: 0, scaleId: key }
-    // Recreate the series when its target scale changes (scale id / pane are
-    // fixed at creation). refs = the series ref(s) for that indicator.
-    const ensureIndTarget = (key, refs) => {
-      const tgt = indTarget(key)
-      if (indScaleRef.current[key] != null && indScaleRef.current[key] !== tgt.scaleId) {
-        for (const r of refs) { if (r.current) { try { chart.removeSeries(r.current) } catch {}; r.current = null } }
-      }
-      indScaleRef.current[key] = tgt.scaleId
-      return tgt
-    }
-    // Apply the scale options for an indicator given its target. Overlaid uses a
-    // visible, autoscaled left axis; non-overlaid keeps its pane-0 band config.
-    const applyIndScale = (key, series, tgt, bandExtra) => {
-      try {
-        if (tgt.scaleId === 'left') {
-          series.priceScale().applyOptions({ borderVisible: false, visible: true, autoScale: true, scaleMargins: { top: 0.12, bottom: 0.04 } })
-        } else {
-          series.priceScale().applyOptions({ borderVisible: false, scaleMargins: paneMargins[key] || { top: 0.82, bottom: 0 }, ...(bandExtra || {}) })
-        }
-      } catch {}
-    }
-
     // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
     //
     // ⛔ DARK: while `cs.engineEnabled` is false no binder is ever CONSTRUCTED,
@@ -5664,7 +5627,45 @@ export default function StockChart({
     // never saw.
     const engineInstances = engineOn
       ? (() => {
-          const migrated = normalizeInstances(cs.indicatorInstances, engineRegistry).kept
+          // ── READ-TIME MIGRATION, GATED ON THE FLIP SET ───────────────────────
+          //
+          // After Flip B the instance list is the authority, but a blob carrying
+          // only the legacy toggle must still render — a grid cell's
+          // `settingsOverride`, the `?indicators=` route, a user who has not
+          // touched a control since the flip. `migrateLegacyToInstances` projects
+          // the toggle into an instance, a STORED instance wins over the
+          // projection, and a TOMBSTONE reserves the id so a still-true legacy
+          // toggle cannot put a deleted indicator back. All three are pinned in
+          // `instances.test.js`. It is a fixed point, so running it every paint is
+          // safe; it is pure, so it writes nothing.
+          //
+          // ⛔ BUT IT CHANGES BEHAVIOUR THE MOMENT IT IS UNGATED, which is why it
+          // is not. The migrator projects `cs.indicators.rsi.enabled` into an
+          // instance even with nothing flipped, and `ENGINE_MIGRATED_DEF_IDS`
+          // already holds rsi/bb/macd/vwap — so with `engineEnabled` on, all four
+          // would move onto the engine for every user, with no stored instance
+          // anywhere. That is *correct* for Flip A (the engine draws the same
+          // picture) but it is a behaviour change inside a task whose gate is
+          // "nothing changed".
+          //
+          // ⚠️ AND THE GATE IS PER DEFINITION, NOT `size > 0`. A whole-set gate
+          // is inert only until the FIRST flip, and then it moves all four pilots
+          // at once — which is precisely what flipping one indicator at a time
+          // with a pixel number each is supposed to prevent. So a PROJECTED
+          // instance is accepted only for a flipped id; anything the blob already
+          // STORED (including a tombstone) passes through untouched, exactly as
+          // it does today. `flipBWithANonEmptySet.test.jsx` drives this with a
+          // non-empty set and asserts an un-flipped `bb` is not projected.
+          const storedIds = new Set(
+            (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])
+              .map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
+          )
+          const source = ENGINE_FLIPPED_DEF_IDS.size > 0
+            ? migrateLegacyToInstances(cs, engineRegistry)   // instances are the authority…
+              .filter(i => storedIds.has(i && i.instanceId)  // …for FLIPPED ids only
+                || ENGINE_FLIPPED_DEF_IDS.has(i && i.defId))
+            : cs.indicatorInstances                          // Flip A: only STORED instances draw
+          const migrated = normalizeInstances(source, engineRegistry).kept
             .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
             .map(i => (i.hidden || legacyEnabled(i.defId) ? i : { ...i, hidden: true }))
           const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
@@ -5707,6 +5708,56 @@ export default function StockChart({
     // With the flag off the set is empty and every legacy block behaves exactly
     // as it always has.
     const engineOwned = engineOn ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
+
+    // ── Volume-pane indicator overlay ──
+    // Chosen oscillators render INSIDE the volume pane on its left axis (volume
+    // keeps the right axis) instead of their own stacked band. This requires a
+    // real volume pane, so any overlay forces separate-pane mode.
+    const volOverlaySet = new Set(
+      (showVolume && Array.isArray(cs.volumeOverlayIndicators)) ? cs.volumeOverlayIndicators : [],
+    )
+
+    // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
+    // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
+    // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
+    const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
+    // The bands follow the INSTANCES for every FLIPPED id — see
+    // `engine/paneMarginsProjection.js` and the plan's adjudication A2.
+    // `paneMargins.js` is consumed, not owned: it keeps its signature, its PANES
+    // list and its crash fix, and this projects the instance list into the shape
+    // it already reads. ⛔ With nothing flipped it returns `cs` ITSELF — identity,
+    // not a copy — so today `computePaneMargins` is handed the object it always
+    // was and this line changes nothing. `stockChartWiring.test.jsx` asserts that
+    // identity through the binder's own ctx rather than trusting the comment.
+    const csMargins = csForPaneMargins(cs, engineInstances, ENGINE_FLIPPED_DEF_IDS)
+    const paneMargins = computePaneMargins(csMargins, showVolume && volData.length > 0 && !volSeparatePane, volOverlaySet)
+    const VOL_PANE_INDEX = 1
+    // Resolve an indicator's target (pane + price-scale id). Overlaid → volume
+    // pane's left axis; otherwise its own named scale in pane 0 (= today).
+    const indTarget = (key) => (volSeparatePane && volOverlaySet.has(key))
+      ? { pane: VOL_PANE_INDEX, scaleId: 'left' }
+      : { pane: 0, scaleId: key }
+    // Recreate the series when its target scale changes (scale id / pane are
+    // fixed at creation). refs = the series ref(s) for that indicator.
+    const ensureIndTarget = (key, refs) => {
+      const tgt = indTarget(key)
+      if (indScaleRef.current[key] != null && indScaleRef.current[key] !== tgt.scaleId) {
+        for (const r of refs) { if (r.current) { try { chart.removeSeries(r.current) } catch {}; r.current = null } }
+      }
+      indScaleRef.current[key] = tgt.scaleId
+      return tgt
+    }
+    // Apply the scale options for an indicator given its target. Overlaid uses a
+    // visible, autoscaled left axis; non-overlaid keeps its pane-0 band config.
+    const applyIndScale = (key, series, tgt, bandExtra) => {
+      try {
+        if (tgt.scaleId === 'left') {
+          series.priceScale().applyOptions({ borderVisible: false, visible: true, autoScale: true, scaleMargins: { top: 0.12, bottom: 0.04 } })
+        } else {
+          series.priceScale().applyOptions({ borderVisible: false, scaleMargins: paneMargins[key] || { top: 0.82, bottom: 0 }, ...(bandExtra || {}) })
+        }
+      } catch {}
+    }
 
     if (showVolume && volData.length) {
       // Separate-pane volume sits on the pane's RIGHT axis (visible) so an

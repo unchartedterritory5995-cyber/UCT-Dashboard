@@ -62,6 +62,36 @@ const EMPTY_INPUTS = Object.freeze(new Map())
 export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd', 'vwap']))
 
 /**
+ * THE FLIP-B SET. Definition ids for which the INSTANCE list is the read
+ * authority and the legacy render block has been DELETED.
+ *
+ * `ENGINE_FLIPPED_DEF_IDS ⊆ ENGINE_MIGRATED_DEF_IDS`, always: an id can only be
+ * flipped after its engine copy has been proven pixel-identical. A test asserts
+ * the subset relation, because the reverse — flipped but not migrated — means the
+ * legacy block is gone and nothing replaced it.
+ *
+ * ⛔ EMPTY UNTIL TASK 10, and while it is empty every read that consults it is
+ * byte-identical to the pre-B3 path — which is Task 9's entire exit criterion.
+ * Three readers, and each one's dark behaviour is asserted rather than assumed:
+ *
+ *   · `csForPaneMargins` returns `cs` BY IDENTITY (`paneMarginsProjection.js`),
+ *     so `computePaneMargins` is handed the object it always was;
+ *   · StockChart's instance read stays on `cs.indicatorInstances` — the
+ *     read-time migrator is gated behind a non-empty set, because projecting the
+ *     legacy toggle into an instance would move all four pilots onto the engine
+ *     with no stored instance anywhere;
+ *   · `ChartToolbar`'s period/colour rows stay `disabled` and keep writing the
+ *     legacy section, because a flipped id is the only one whose control has a
+ *     writer to route to.
+ *
+ * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
+ * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
+ * cannot import from it. `StockChart` re-exports it so the plan's stated
+ * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
+ */
+export const ENGINE_FLIPPED_DEF_IDS = Object.freeze(new Set())
+
+/**
  * The migrated definitions this settings blob hands to the engine.
  *
  * "Hands to the engine", not "paints this frame": a HIDDEN instance is still the

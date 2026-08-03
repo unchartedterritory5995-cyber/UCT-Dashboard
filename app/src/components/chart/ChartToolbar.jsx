@@ -7,7 +7,8 @@ import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
-import { engineDrawnInputs } from './engine/flipState'
+import { engineDrawnInputs, ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
@@ -150,16 +151,43 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
     () => (engineInputs.size ? new Set(engineInputs.keys()) : EMPTY_DRAWN),
     [engineInputs],
   )
-  const engineInert = useCallback((key) => engineDrawn.has(key), [engineDrawn])
+  // ── FLIP B: THE ROW STOPS BEING INERT THE MOMENT IT HAS A WRITER ──────────
+  //
+  // `engineInert` means "engine-drawn AND nothing here can change it". Once an
+  // id is FLIPPED, `updateIndicator` below routes to `instanceControls`, which
+  // writes the instance the engine is reading — so the row controls the chart
+  // again and greying it would be the *opposite* lie: a working control that
+  // looks dead. ⛔ `ENGINE_FLIPPED_DEF_IDS` is EMPTY until Task 10, so today this
+  // subtraction removes nothing and every assertion in
+  // `ChartToolbar.engineInert.test.jsx` still describes the shipped behaviour.
+  const engineInert = useCallback(
+    (key) => engineDrawn.has(key) && !ENGINE_FLIPPED_DEF_IDS.has(key),
+    [engineDrawn],
+  )
+  /**
+   * Is this indicator on? Through `instanceControls` for a FLIPPED id — after
+   * Flip B a tombstone can say "off" while the legacy toggle still says "on",
+   * and a checkbox reading the wrong one of those re-checks itself on the next
+   * render. For every other id this is the expression that has always been in
+   * the `checked` attribute, character for character.
+   */
+  const isOn = useCallback((key) => (ENGINE_FLIPPED_DEF_IDS.has(key)
+    ? isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
+    : (cs.indicators?.[key]?.enabled ?? false)), [cs])
   const shownInput = useCallback((key, field, fallback) => {
     const v = engineInputs.get(key)?.[field]
     return v === undefined || v === null ? fallback : v
   }, [engineInputs])
+  // ⚠️ THE SAME PREDICATE AS `engineInert`, not a second copy of half of it. A
+  // flipped row is live, so a tooltip still saying "this field is not what sets
+  // it" would be the box telling the user their keystroke did nothing while it
+  // did — and `disabled` and `title` disagreeing is exactly how the original
+  // half-fix (a greyed box showing the wrong number) happened.
   const inertTitle = useCallback(
-    (key, normal) => (engineDrawn.has(key)
+    (key, normal) => (engineInert(key)
       ? 'Drawn by the indicator engine — this is the value its instance is rendering with, and this field is not what sets it.'
       : normal),
-    [engineDrawn],
+    [engineInert],
   )
 
   const update = useCallback((path, value) => {
@@ -188,6 +216,22 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   }, [cs, onUpdateSettings])
 
   const updateIndicator = useCallback((key, field, value) => {
+    // ── FLIP B: THE WRITE GOES TO THE INSTANCE (and a write-through mirror) ──
+    //
+    // ⛔ DEAD WHILE `ENGINE_FLIPPED_DEF_IDS` IS EMPTY — Task 9 lands this dark and
+    // Task 10 opens it one id at a time. `instanceControls` is the ONE writer
+    // every control surface shares, so the checkbox, the number boxes and the
+    // swatch cannot disagree about what "on" or "period 7" means; and it REFUSES
+    // a value the definition would reject rather than storing an instance
+    // `normalizeInstances` then drops (an indicator that silently disappears).
+    // A refused write persists nothing, which is why the guard is on identity.
+    if (ENGINE_FLIPPED_DEF_IDS.has(key)) {
+      const next = field === 'enabled'
+        ? setIndicatorEnabled(cs, key, !!value, engineRegistry)
+        : setIndicatorInput(cs, key, field, value, engineRegistry)
+      if (next !== cs) onUpdateSettings(next)
+      return
+    }
     const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev', 'kPeriod', 'dPeriod', 'step', 'maxStep'])
     const next = { ...cs }
     next.indicators = {
@@ -443,7 +487,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* RSI */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.rsi?.enabled ?? false}
+            checked={isOn('rsi')}
             onChange={e => updateIndicator('rsi', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>RSI</span>
           <input type="number" className={styles.sPeriodInput}
@@ -459,7 +503,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* MACD */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.macd?.enabled ?? false}
+            checked={isOn('macd')}
             onChange={e => updateIndicator('macd', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>MACD</span>
           <div className={styles.sMiniPeriodGroup}>
@@ -484,7 +528,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Bollinger Bands */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.bb?.enabled ?? false}
+            checked={isOn('bb')}
             onChange={e => updateIndicator('bb', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>BB</span>
           <input type="number" className={styles.sPeriodInput}
@@ -505,7 +549,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* VWAP */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.vwap?.enabled ?? false}
+            checked={isOn('vwap')}
             onChange={e => updateIndicator('vwap', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>VWAP</span>
           <span className={styles.sIndicatorNote}>(intraday only)</span>
@@ -517,7 +561,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Stochastic */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.stoch?.enabled ?? false}
+            checked={isOn('stoch')}
             onChange={e => updateIndicator('stoch', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>Stoch</span>
           <div className={styles.sMiniPeriodGroup}>
@@ -537,7 +581,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* ATR */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.atr?.enabled ?? false}
+            checked={isOn('atr')}
             onChange={e => updateIndicator('atr', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>ATR</span>
           <input type="number" className={styles.sPeriodInput}
@@ -550,7 +594,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Parabolic SAR */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.sar?.enabled ?? false}
+            checked={isOn('sar')}
             onChange={e => updateIndicator('sar', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>SAR</span>
           <div className={styles.sMiniPeriodGroup}>
@@ -566,7 +610,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Ichimoku Cloud */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.ichimoku?.enabled ?? false}
+            checked={isOn('ichimoku')}
             onChange={e => updateIndicator('ichimoku', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>Ichimoku</span>
           <div className={styles.sMiniPeriodGroup}>
@@ -580,7 +624,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Volume Profile */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.volumeProfile?.enabled ?? false}
+            checked={isOn('volumeProfile')}
             onChange={e => updateIndicator('volumeProfile', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>Vol Profile</span>
           <input type="number" className={styles.sPeriodInput}
@@ -594,7 +638,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* MFI — Money Flow Index */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.mfi?.enabled ?? false}
+            checked={isOn('mfi')}
             onChange={e => updateIndicator('mfi', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>MFI</span>
           <input type="number" className={styles.sPeriodInput}
@@ -607,7 +651,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* CCI — Commodity Channel Index */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.cci?.enabled ?? false}
+            checked={isOn('cci')}
             onChange={e => updateIndicator('cci', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>CCI</span>
           <input type="number" className={styles.sPeriodInput}
@@ -620,7 +664,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Williams %R */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.williamsR?.enabled ?? false}
+            checked={isOn('williamsR')}
             onChange={e => updateIndicator('williamsR', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>Williams %R</span>
           <input type="number" className={styles.sPeriodInput}
@@ -633,7 +677,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* ADX / DMI */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.adx?.enabled ?? false}
+            checked={isOn('adx')}
             onChange={e => updateIndicator('adx', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>ADX</span>
           <input type="number" className={styles.sPeriodInput}
@@ -652,7 +696,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* OBV — On-Balance Volume */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.obv?.enabled ?? false}
+            checked={isOn('obv')}
             onChange={e => updateIndicator('obv', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>OBV</span>
           <ColorPicker value={cs.indicators?.obv?.color ?? '#9ca3af'}
@@ -662,7 +706,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {/* Donchian Channels */}
         <div className={styles.sOverlayRow}>
           <input type="checkbox"
-            checked={cs.indicators?.donchian?.enabled ?? false}
+            checked={isOn('donchian')}
             onChange={e => updateIndicator('donchian', 'enabled', e.target.checked)} />
           <span className={styles.sIndicatorLabel}>Donchian</span>
           <input type="number" className={styles.sPeriodInput}
