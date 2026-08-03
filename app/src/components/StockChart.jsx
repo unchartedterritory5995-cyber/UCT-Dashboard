@@ -8144,10 +8144,13 @@ export default function StockChart({
       const ctx = c.getContext('2d'); if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      const _measC = canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)'
+      // Match the chart crosshair's color so the drag line reads as part of the
+      // same crosshair (falls back to the old theme default if the crosshair
+      // color is unset/inherited from the LWC default).
+      const _measC = themeColors.crosshairColor || (canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)')
       ctx.strokeStyle = _measC; ctx.lineWidth = 1; ctx.setLineDash([5, 4])
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-      ctx.setLineDash([]); ctx.fillStyle = canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.98)' : 'rgba(224,218,200,0.95)'
+      ctx.setLineDash([]); ctx.fillStyle = _measC
       ctx.beginPath(); ctx.arc(x1, y1, 2.5, 0, 6.283); ctx.fill()
       ctx.beginPath(); ctx.arc(x2, y2, 2.5, 0, 6.283); ctx.fill()
     }
@@ -8202,7 +8205,7 @@ export default function StockChart({
     }
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
-  }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme])
+  }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme, themeColors.crosshairColor])
 
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
@@ -9527,26 +9530,20 @@ export default function StockChart({
             : 'translate(12px, 12px)',
           pointerEvents: 'none', zIndex: 6, whiteSpace: 'nowrap',
           fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12, lineHeight: 1.35,
-          /* Solid neutral-dark chip (same as the persisted measure drawing) instead
-             of a text-shadow: the candle-tuned colors washed out as bare text on a
-             LIGHT canvas — the old white shadow made it worse, not better. The chip
-             gives every color reliable contrast on any canvas. */
-          background: 'rgba(20, 22, 18, 0.9)',
-          padding: '5px 9px',
-          borderRadius: 6,
-          boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+          /* Plain text on the canvas — no chip, no glow — so it reads like every
+             other on-chart readout. Legibility comes from the colors themselves
+             (the secondary line darkens on a light canvas, below). */
         }}>
           {/* Follows the chart's up/down candle colors (measureColors) — the
               readout is a measurement OF the candles, so a custom candle palette
-              must carry through instead of a hardcoded green/red. The dark chip
-              behind it keeps a light candle color legible on a light canvas. */}
+              carries through instead of a hardcoded green/red. */}
           <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? measureColors.up : measureColors.down }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
             <span style={{ marginLeft: 8 }}>
               ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)
             </span>
           </div>
-          <div style={{ color: '#a8a290', fontSize: 11 }}>
+          <div style={{ color: canvasTheme === 'sunrise' ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </div>
         </div>
