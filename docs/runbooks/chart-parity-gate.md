@@ -527,6 +527,37 @@ nothing, so any pixel number from it measures a crash, not z-order. The valid
 move is to just after `engineOwned` is computed, which is still before volume and
 the MA overlays and kills exactly the **two** z-order assertions it should.
 
+### MACD — the multi-plot case, and the z-order it CAN see
+
+B3 Task 6 migrated MACD: two lines plus a sign-coloured histogram in ONE
+autoscaled band, bound from one instance across TWO pool keys. Its band is its
+own — `computePaneMargins` hands every oscillator a disjoint slice of pane 0 — so
+`engine_macd_vs_legacy` **cannot** see the engine call site's position the way
+`engine_bb_over_overlays` can. It **can** see the order of MACD's own three plots
+against each other, which was measured rather than assumed:
+
+| flip | case | changed px | shape |
+|---|---|---:|---|
+| the `histogram` plot moved ahead of `signal` in `nativeRegistry` | `engine_macd_vs_legacy` | **75** (3/3) | one 14-row × 43-column patch, x∈[463,820] y∈[408,421] — where the orange signal line crosses the bars |
+
+Builds `45744409cc04` (declaration order, ships) vs `ba057579af9c` (swapped).
+So MACD's plots must stay in declaration order, which is also legacy's creation
+order (`StockChart.jsx:6100`, `:6106`, `:6112`), and `macdFlipAParity.test.js`
+asserts the ctor sequence `LineSeries · LineSeries · HistogramSeries` as the unit
+half of the same claim.
+
+Self-tests for the "prove it can fail" step, on `engine_macd_vs_legacy`:
+
+| `--perturb-b-instances` | changed px | exit |
+|---|---:|---:|
+| `'{"macdColor": "#2196F4"}'` (blue +1 on one line) | 836 | 1 |
+| `'{"slowPeriod": 35}'` | 7,588 | 1 |
+| `'{"signalPeriod": 4}'` | 4,765 | 1 |
+
+The last two matter for the reason Task 3 recorded: **the three periods appear in
+no option object at all.** They exist only in the numbers, so a colour-only
+perturbation cannot tell a live compute path from a dead one.
+
 So the gate resolves a single least-significant bit on a single channel. That was
 not true of the first version: it reduced the RGB difference to greyscale before
 counting, greyscale is luma-weighted (blue counts 0.114), and a whole-canvas

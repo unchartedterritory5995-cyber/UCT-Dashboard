@@ -52,7 +52,7 @@ const EMPTY_INPUTS = Object.freeze(new Map())
  * `stockChartWiring.test.jsx` pins ("no price overlay is migrated ahead of an
  * earlier one").
  */
-export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb']))
+export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd']))
 
 /**
  * The migrated definitions this settings blob hands to the engine.

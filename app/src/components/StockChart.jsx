@@ -6092,9 +6092,19 @@ export default function StockChart({
     }
 
     // ── MACD sub-pane ──
+    //
+    // `!engineOwned.has('macd')` — the crossover guard (see `ENGINE_MIGRATED_DEF_IDS`).
+    // ⚠️ IT BELONGS ON *THIS* CONDITION, NOT INSIDE THE BODY. The `else` below is
+    // the REMOVAL path for all three refs, and it is what an instance arriving
+    // MID-SESSION depends on: the chart is up, this block has drawn a line, a
+    // signal and a histogram, and then an instance appears. Guard the body instead
+    // (or hoist the condition so the `else` becomes unreachable, which is BB's M8
+    // one file up) and the user is left with SIX series in one band — three of them
+    // dead — plus an orphaned zero guide, and the picture still looks plausible.
+    // `stockChartWiring.test.jsx` drives that crossover in both directions.
     const macdCfg = cs.indicators?.macd
     const macdD   = indicatorData.macd
-    if (macdD.macd.length) {
+    if (macdD.macd.length && !engineOwned.has('macd')) {
       const macdTgt = ensureIndTarget('macd', [macdLineRef, macdSignalRef, macdHistRef])
       if (!macdLineRef.current) {
         macdLineRef.current = chart.addSeries(LineSeries, {
@@ -7907,11 +7917,23 @@ export default function StockChart({
       }
 
       // PER-PLOT, not per-indicator (review M-6). These were one branch, so
-      // `signal`'s fallback was decided by whether `macd` had a value — inert
-      // today (MACD is not migrated, so `engSlots.macd` is always null and the
-      // single branch always ran) but wrong the moment one plot of a definition
-      // is drawn by the engine and another is not. Byte-identical today; correct
-      // when Task 11 lands.
+      // `signal`'s fallback was decided by whether `macd` had a value.
+      //
+      // ⚠️ THE OLD JUSTIFICATION IS STALE, AND THE CONCLUSION IS UNCHANGED. It
+      // said this was "inert today (MACD is not migrated, so `engSlots.macd` is
+      // always null)". Since B3 Task 6 MACD *is* migrated and `engSlots.macd` is
+      // routinely set — but the two forms are still behaviourally identical,
+      // because Flip-A ownership is per DEFINITION: the engine draws all three
+      // MACD plots or none, so `engSlots.macd` and `engSlots.macdSig` are set and
+      // unset together, and the legacy refs below are null and non-null together.
+      // The state that separates them — one plot of a definition engine-drawn
+      // while another is legacy-drawn — is still unreachable, and MACD cannot even
+      // be made to bind a SUBSET of its own plots: `computeMACD` returns empty
+      // columns below `slowPeriod + signalPeriod` bars, so a fixture short enough
+      // to starve the signal starves the line too (measured in
+      // `stockChartWiring.test.jsx`, which records the numbers). A mutation
+      // reverting this to one branch therefore still SURVIVES the suite, by
+      // design; the split arrives with partial migration, which is B4's shape.
       let macdValue = engSlots.macd ? engSlots.macd.value : null
       let macdSignalValue = engSlots.macdSig ? engSlots.macdSig.value : null
       if (macdValue === null && macdLineRef.current) {

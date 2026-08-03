@@ -114,33 +114,59 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
 
   it('a VALID instance of an UN-MIGRATED definition leaves that row fully live', async () => {
     // The `ENGINE_MIGRATED_DEF_IDS` filter is what stops a stored instance from
-    // greying a control that still works. MACD is the case that can see it: its
-    // row IS wired to `engineInert` (all four B3 pilots are, so Tasks 10-11
-    // inherit the treatment) but MACD is NOT in `ENGINE_MIGRATED_DEF_IDS`, so
-    // its legacy block still draws it from the blob and its controls still work.
-    // Drop the filter and the row greys out while the chart keeps obeying it — a
-    // working control that looks dead, which is the same lie as a dead control
-    // that looks working, in the other direction.
+    // greying a control that still works. Drop the filter and the row greys out
+    // while the chart keeps obeying it — a working control that looks dead, which
+    // is the same lie as a dead control that looks working, in the other direction.
     //
-    // ⚠️ Stoch does NOT work as this test's subject: its row has no `disabled`
-    // at all, so the mutation is invisible there and the test passes vacuously.
-    // That is exactly what the first draft of this test did.
+    // ⚠️ THE SUBJECT HAS TO BE A ROW THAT *HAS* A `disabled`. This has now been
+    // wrong twice: the first draft used Stoch, whose row has no `disabled` at all,
+    // so the mutation was invisible and the case passed vacuously; the second used
+    // MACD, which B3 Task 6 then MIGRATED, and the case went red the moment the
+    // id joined the set. **VWAP is the last un-migrated definition wired to
+    // `engineInert`** (all four B3 pilots are, so Tasks 10-11 inherit the
+    // treatment), and its control is the colour swatch rather than a period box.
+    // When VWAP migrates (Task 11), this case needs a new subject or the whole
+    // `engineInert` wiring loses its only negative control.
+    const user = userEvent.setup()
+    mount(settingsWith({
+      indicators: { rsi: { enabled: true }, vwap: { enabled: true, color: '#26C6DA' } },
+      engineEnabled: true,
+      indicatorInstances: [{
+        instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
+        inputs: { color: '#ff0000' }, placement: { target: 'price' }, hidden: false,
+      }],
+    }), vi.fn())
+    await openPanel(user)
+    const row = rowFor('VWAP')
+    const box = swatch(row)
+    expect(box.disabled, 'an un-migrated definition greyed its own live control').toBe(false)
+    expect(box.getAttribute('title')).not.toMatch(ENGINE_TITLE)
+    // …and it shows the BLOB, not the instance: the blob is what draws it.
+    expect(box.style.background).toBe('rgb(38, 198, 218)')
+  })
+
+  it('MACD is MIGRATED: all three period boxes are inert and show the INSTANCE', async () => {
+    // The other side of the same filter, for B3 Task 6's subject. MACD is the
+    // only pilot with THREE numeric inputs, so a `shownInput` wired to one of them
+    // and not the others is a real shape of half-fix — three boxes, one telling
+    // the truth.
     const user = userEvent.setup()
     mount(settingsWith({
       indicators: { rsi: { enabled: true }, macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
       engineEnabled: true,
       indicatorInstances: [{
-        instanceId: 'legacy:macd', defId: 'macd', defVersion: 1,
-        inputs: { fastPeriod: 5 }, placement: { target: 'pane' }, hidden: false,
+        instanceId: 'legacy:macd', defId: 'macd', defVersion: 2,
+        inputs: { fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },
+        placement: { target: 'pane' }, hidden: false,
       }],
     }), vi.fn())
     await openPanel(user)
-    const row = rowFor('MACD')
-    const boxes = within(row).getAllByRole('spinbutton')
-    expect(boxes[0].disabled, 'an un-migrated definition greyed its own live control').toBe(false)
-    expect(boxes[0].getAttribute('title')).not.toMatch(ENGINE_TITLE)
-    // …and it shows the BLOB, not the instance: the blob is what draws it.
-    expect(boxes[0].value).toBe('12')
+    const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
+    expect(boxes).toHaveLength(3)
+    expect(boxes.map(b => b.disabled)).toEqual([true, true, true])
+    expect(boxes.map(b => b.value),
+      'a greyed box is showing the blob, not what the engine is drawing').toEqual(['5', '35', '4'])
+    for (const b of boxes) expect(b.getAttribute('title')).toMatch(ENGINE_TITLE)
   })
 
   it('a LIVE row is untouched: no instance ⇒ the blob is still what it shows', async () => {

@@ -239,6 +239,62 @@
         }
       ]
     },
+    {
+      "name": "engine_macd_vs_legacy",
+      "why": "THE MULTI-PLOT STRESS TEST. Side A draws MACD through the hand-written StockChart block; side B draws it through the ENGINE. Two lines AND a sign-coloured histogram in one AUTOSCALED band, bound from ONE instance across TWO pool keys, plus a largeDashed zero guide — none of which the RSI or Bollinger pilots exercise. It is the only case that renders `colorMode: 'sign'` (a flat-coloured histogram was B2 review Critical #3: `toPoints` emitted {time,value} only, so the whole band drew in one LWC default where legacy is green above zero and red below), the only one with a plot carrying its own `precision: 5`, and the only band whose scale is `{autoScale: true}` with no fixed range. IT DOES SEE INTRA-BAND Z-ORDER, and that was checked rather than assumed: moving the histogram plot ahead of the `signal` plot in `nativeRegistry` (so the engine inserts hist-before-signal while legacy inserts signal-before-hist) reports 75 px on 3/3, builds 45744409cc04 vs ba057579af9c, in ONE 14-row x 43-column patch at x in [463,820] y in [408,421] — the stretch where the orange signal line crosses the histogram bars and the top series wins the pixel. So MACD's three plots must stay in declaration order, and this case is the pixel half of that claim (`macdFlipAParity.test.js` asserts the ctor order line/line/histogram as the unit half). WHAT IT CANNOT SEE: the engine call site's position ACROSS definitions. MACD lives in its own reserved band on its own named price scale, disjoint from every other band by construction (`computePaneMargins`), so moving the sync call — or reordering MACD against the other legacy blocks — moves no pixel here. `engine_bb_over_overlays` is the case that earns that claim, and it earns it for the PRICE overlays, which are the ones that actually cross. Expected 0 px.",
+      "settings": {
+        "indicators": {
+          "macd": {
+            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:macd", "defId": "macd", "defVersion": 2,
+          "inputs": {
+            "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          },
+          "placement": { "target": "pane" }, "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_bb_rsi_macd_vs_legacy",
+      "why": "ALL THREE PILOTS AT ONCE: a price overlay plus TWO extra bands. The only case that can see a pane-ordering or pane-height regression caused by the engine reserving bands through `computePaneMargins` while drawing all its series at one z-position — and the only one where a single sync binds five pool slots across two placement paths and two pool keys. Its settings mirror `bb_rsi_macd`, which is the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. Expected 0 px.",
+      "settings": {
+        "indicators": {
+          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
+          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" },
+          "macd": {
+            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:bb", "defId": "bb", "defVersion": 1,
+          "inputs": { "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
+          "placement": { "target": "price" }, "hidden": false
+        },
+        {
+          "instanceId": "legacy:rsi", "defId": "rsi", "defVersion": 1,
+          "inputs": { "period": 14, "color": "#7b68ee" },
+          "placement": { "target": "pane" }, "hidden": false
+        },
+        {
+          "instanceId": "legacy:macd", "defId": "macd", "defVersion": 2,
+          "inputs": {
+            "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          },
+          "placement": { "target": "pane" }, "hidden": false
+        }
+      ]
+    },
 
     { "name": "vwap_only", "status": "placeholder", "settings": {} },
     { "name": "stoch_only", "status": "placeholder", "settings": {} },
