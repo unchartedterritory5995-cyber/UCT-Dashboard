@@ -9527,22 +9527,26 @@ export default function StockChart({
             : 'translate(12px, 12px)',
           pointerEvents: 'none', zIndex: 6, whiteSpace: 'nowrap',
           fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12, lineHeight: 1.35,
-          /* No box — float the data on the canvas; dark text-shadow keeps it legible over candles. */
-          textShadow: canvasTheme === 'sunrise'
-            ? '0 1px 2px rgba(255,255,255,0.95), 0 0 2px rgba(255,255,255,0.9)'
-            : '0 1px 3px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)',
+          /* Solid neutral-dark chip (same as the persisted measure drawing) instead
+             of a text-shadow: the candle-tuned colors washed out as bare text on a
+             LIGHT canvas — the old white shadow made it worse, not better. The chip
+             gives every color reliable contrast on any canvas. */
+          background: 'rgba(20, 22, 18, 0.9)',
+          padding: '5px 9px',
+          borderRadius: 6,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
         }}>
           {/* Follows the chart's up/down candle colors (measureColors) — the
               readout is a measurement OF the candles, so a custom candle palette
-              must carry through instead of a hardcoded green/red. The text-shadow
-              above is what keeps a light candle color legible on a light canvas. */}
+              must carry through instead of a hardcoded green/red. The dark chip
+              behind it keeps a light candle color legible on a light canvas. */}
           <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? measureColors.up : measureColors.down }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
             <span style={{ marginLeft: 8 }}>
               ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)
             </span>
           </div>
-          <div style={{ color: canvasTheme === 'sunrise' ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
+          <div style={{ color: '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </div>
         </div>
