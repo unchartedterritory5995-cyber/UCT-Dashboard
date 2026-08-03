@@ -27,11 +27,19 @@ GXW_MAX_DIST_PCT = 0.15
 GXW_TTL_S = 600
 GXW_MAX_AGE_S = 1800
 
+# Dark-Pool Reclaim Confluence (dpc-v1). Price reclaims a dark-pool level on a
+# daily close and HOLDS above it, with confirming call flow (bull); mirror below
+# with put flow (bear). Only near the level. Reuses the FCB flow-dominance test.
+DPC_LOOKBACK = 10       # sessions to look back for "was below/above the zone" (a real reclaim, not always-above)
+DPC_PROX_PCT = 0.03     # price must be within 3% of the level to count (fresh reclaim, not extended)
+DPC_HOLD_MIN = 1        # min consecutive daily closes held above/below the zone (1 = the reclaim close itself)
+DPC_FLOW_WINDOW = 5     # sessions of flow aggregated for the call/put dominance test
+
 # `fcb-v2` because FCB_VOL_MULT changed OUTPUT. The ledger's uniqueness key
 # includes the version, so the bump is what keeps rows written under the old
 # gate attributable to `fcb-v1` instead of silently being re-read as evidence
 # for a rule that never produced them.
-VERSIONS = {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1"}
+VERSIONS = {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1", "dpc": "dpc-v1"}
 
 _SUFFIX = {"K": 1e3, "M": 1e6, "B": 1e9}
 
