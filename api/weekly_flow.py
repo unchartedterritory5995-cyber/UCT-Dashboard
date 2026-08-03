@@ -367,7 +367,8 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
     for t in trades:
         e = tk.setdefault(t["S"], {"sym": t["S"], "bull": 0.0, "bear": 0.0,
                                    "contracts": {}, "first": None, "first_spot": 0.0,
-                                   "last_dt": None, "last_spot": 0.0})
+                                   "first_spot_dt": None, "last_spot": 0.0,
+                                   "last_spot_dt": None})
         if t["D"] == "BULL":
             e["bull"] += t["P"]
         else:
@@ -384,9 +385,15 @@ def aggregate(trades: list[dict], top_n: int, still_open_frac: float,
         sp = t.get("Spot", 0.0) or 0.0
         if dt:
             if e["first"] is None or dt < e["first"]:
-                e["first"], e["first_spot"] = dt, sp
-            if e["last_dt"] is None or dt > e["last_dt"]:
-                e["last_dt"], e["last_spot"] = dt, sp
+                e["first"] = dt                        # SINCE = earliest print (any spot)
+            # PERF spots: track the earliest/latest print that actually HAS a spot
+            # (>0). Otherwise a single boundary print with a missing/zero Spot
+            # blanks PERF even when the name has valid spots on its other prints.
+            if sp > 0:
+                if e["first_spot_dt"] is None or dt < e["first_spot_dt"]:
+                    e["first_spot_dt"], e["first_spot"] = dt, sp
+                if e["last_spot_dt"] is None or dt > e["last_spot_dt"]:
+                    e["last_spot_dt"], e["last_spot"] = dt, sp
 
     for e in tk.values():
         e["net"] = e["bull"] - e["bear"]
