@@ -838,11 +838,12 @@
 .workspaceBody {
   flex: 1; min-height: 0; min-width: 0;
   /* viewport-locked — widgets stay within the visible area. Use `clip` (not
-     `hidden`): both clip the merged view's ceil-rounded overflow, but `hidden` is
-     still a SCROLLABLE container, so focusing the ticker-search input (or any
-     scrollIntoView) let the browser scroll the board and shove the chart tops up
-     under the header. `clip` is not a scroll container, so it can't shift.
-     `overflow:hidden` first as a fallback for browsers without `clip`. */
+     `hidden`): the fractional row height fills the body to the pixel, so `clip` only
+     ever has to absorb ≤1px of float rounding — but `hidden` is still a SCROLLABLE
+     container, so focusing the ticker-search input (or any scrollIntoView) let the
+     browser scroll the board and shove the chart tops up under the header. `clip` is
+     not a scroll container, so it can't shift. `overflow:hidden` first as a fallback
+     for browsers without `clip`. */
   overflow: hidden;
   overflow: clip;
   padding: 6px;
@@ -859,9 +860,9 @@
 }
 /* Thin seam line at the very bottom — the SAME #2b3540 divider that separates the
    merged widgets — so the blended board is cleanly separated from the OS taskbar
-   instead of bleeding off the screen edge. An overlay (not a border) because the
-   grid's ceil-rounded rows overflow and would clip the bottom widget's own border;
-   this rides on top, pinned to the bottom. */
+   instead of bleeding off the screen edge. Kept as an overlay (not relying on the
+   bottom widget's own border) so a ≤1px float-rounding clip at the flush bottom edge
+   can never swallow the seam; it rides on top, pinned to the bottom. */
 .workspaceBodyMerged::after {
   content: '';
   position: absolute;

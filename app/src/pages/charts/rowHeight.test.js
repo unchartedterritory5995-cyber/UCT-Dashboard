@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { computeRowHeight, gridHeightFor, FIXED_ROWS, MARGIN_Y, BODY_PAD } from './rowHeight'
 
 // THE invariant: whatever the body height, the grid react-grid-layout renders must
-// FIT inside it. The body is overflow:hidden, so any overflow is silently cut off the
-// bottom-most widget — and on a chart widget that is the date/time axis. Merged mode
-// used to round UP and overflow by up to FIXED_ROWS-1 px, which is how a merged
-// board's time scale ended up hidden behind the Windows taskbar (2026-07-30).
+// fill it EXACTLY — no overflow (the body is overflow:clip, so overflow shears the
+// date/time axis off the bottom widget, e.g. behind the Windows taskbar, 2026-07-30)
+// AND no leftover (a floored row height piled ~≤19px into an oversized gap under the
+// bottom row). A fractional row height renders to the pixel, so both are gone at once.
 
 const gapFor = (merged) => (merged ? 0 : MARGIN_Y)
 const padFor = (merged) => (merged ? 0 : BODY_PAD)
@@ -18,37 +18,44 @@ const HEIGHTS = [
 ]
 
 describe.each([[true, 'merged'], [false, 'unmerged']])('computeRowHeight — %s', (merged, label) => {
-  it(`fits ${FIXED_ROWS} rows inside the body at every tested height (${label})`, () => {
+  it(`fills the body EXACTLY — no bottom gap, no overflow (${label})`, () => {
     for (const h of HEIGHTS) {
       const rh = computeRowHeight(h, merged)
       const rendered = gridHeightFor(rh, gapFor(merged)) + padFor(merged) * 2
-      expect(rendered, `h=${h} rowHeight=${rh} rendered=${rendered}`).toBeLessThanOrEqual(h)
+      // Fractional row height ⇒ the grid renders the body's height to the pixel, so
+      // every gap is exactly the padding — top === bottom === left === right.
+      expect(rendered, `h=${h} rowHeight=${rh} rendered=${rendered}`).toBeCloseTo(h, 6)
     }
   })
 
-  it(`wastes less than one row of height (${label}) — fits without being sloppy`, () => {
+  it(`never renders TALLER than the body — the clip guard (${label})`, () => {
     for (const h of HEIGHTS) {
       const rh = computeRowHeight(h, merged)
       const rendered = gridHeightFor(rh, gapFor(merged)) + padFor(merged) * 2
-      expect(h - rendered, `h=${h}`).toBeLessThan(FIXED_ROWS)
+      expect(rendered - h, `h=${h}`).toBeLessThanOrEqual(1e-6)
     }
   })
 
-  it(`returns whole pixels (${label})`, () => {
-    for (const h of HEIGHTS) expect(Number.isInteger(computeRowHeight(h, merged))).toBe(true)
+  it(`returns a positive, finite row height (${label})`, () => {
+    for (const h of HEIGHTS) {
+      const rh = computeRowHeight(h, merged)
+      expect(Number.isFinite(rh)).toBe(true)
+      expect(rh).toBeGreaterThan(0)
+    }
   })
 })
 
-describe('computeRowHeight — regression: the taskbar clip', () => {
-  it('never exceeds the body in merged mode (the old ceil did, by up to 19px)', () => {
-    // ceil(941/20)=48 → 20*48 = 960 > 941. The 19px lost was the date axis.
-    expect(computeRowHeight(941, true)).toBe(47)
-    expect(gridHeightFor(47, 0)).toBe(940)
+describe('computeRowHeight — regression: the taskbar clip AND the bottom gap', () => {
+  it('fills merged mode exactly — the old floor left a gap, the older ceil clipped 19px', () => {
+    // 941/20 = 47.05 → grid renders 941px: flush to the body bottom, no gap, no clip.
+    // (floor gave 47 → 940px = 1px gap; ceil gave 48 → 960px = 19px axis clipped.)
+    expect(computeRowHeight(941, true)).toBeCloseTo(47.05, 6)
+    expect(gridHeightFor(computeRowHeight(941, true), 0)).toBeCloseTo(941, 6)
   })
 
-  it('merged is never TALLER than unmerged for the same body', () => {
+  it('merged is never SHORTER than unmerged for the same body', () => {
     for (const h of HEIGHTS) {
-      // Merged reclaims the padding + gaps, so it should be >= unmerged, and both fit.
+      // Merged reclaims the padding + gaps, so its row height should be >= unmerged.
       expect(computeRowHeight(h, true)).toBeGreaterThanOrEqual(computeRowHeight(h, false))
     }
   })
