@@ -248,6 +248,9 @@ const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartD
 // have to go through it for a flipped id, because that field stopped being the
 // switch — writing it by hand is now a test of a mirror, not of a control.
 const { setIndicatorEnabled } = await import('../instanceControls')
+// The compute the crosshair's per-plot split rests on — see the equivalence proof
+// next to the two-chip legend case.
+const { computeMACD } = await import('../../indicators')
 
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'engine-test:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
@@ -1110,6 +1113,53 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     ])
     expect(text, 'the MACD chip vanished with macdLineRef').toContain('MACD 0.1235')
     expect(text, 'the SIG chip vanished with macdSignalRef').toContain('SIG 0.0988')
+  })
+
+  it('⭐ the two MACD columns are non-empty TOGETHER — what the per-plot split rests on', () => {
+    // ⛔ THE EQUIVALENT-MUTANT PROOF, MADE FALSIFIABLE.
+    //
+    // Task 2's review (M-6) split the crosshair rescue so `signal`'s value comes
+    // from its OWN slot instead of being decided by `macd`'s. A mutation that
+    // re-couples them (`engSlots.macd ? engSlots.macdSig.value : null`) SURVIVES
+    // the whole suite, and it survives for a reason worth pinning rather than
+    // apologising for: the state that separates the two forms — the macd column
+    // carrying a value while the signal column carries NONE — cannot be produced.
+    //
+    // TWO facts make that true, and this case owns the first:
+    //   1. `computeMACD` returns both columns EMPTY below ~35 bars and both
+    //      NON-EMPTY above it. There is no bar count in between. MEASURED here
+    //      over 20..60 bars and four signal periods, not asserted.
+    //   2. `engineChips` falls back to the binding's `lastValue`, so a chip is
+    //      emitted whenever its column has ANY finite value — which bar the
+    //      cursor is on cannot separate them either.
+    //
+    // If (1) ever stops holding, the re-coupling becomes a REAL defect (a
+    // TypeError on hover, not a wrong number) and this case is what says so.
+    const mk = (n) => Array.from({ length: n }, (_, i) => (
+      { t: 1700000000 + i * 86400, o: 1, h: 2, l: 0.5, c: 10 + Math.sin(i) }))
+    const finite = (a) => a.filter(p => Number.isFinite(p.value)).length
+    const separated = []
+    let sawBoth = 0
+    for (let n = 20; n <= 60; n++) {
+      const r = computeMACD(mk(n), 12, 26, 9)
+      const fm = finite(r.macd)
+      const fs = finite(r.signal)
+      if (fm > 0 && fs === 0) separated.push(n)
+      if (fm > 0 && fs > 0) sawBoth += 1
+    }
+    expect(separated,
+      'computeMACD can now produce a MACD line with no signal at all — the crosshair '
+      + 'per-plot split is REACHABLE, and a mutation re-coupling it is a live defect that '
+      + 'throws on hover. Add a legend case for that state.').toEqual([])
+    expect(sawBoth, 'the loop never reached a bar count that computes anything — vacuous')
+      .toBeGreaterThan(0)
+    // …and the same holds when the signal period is stretched, which is the only
+    // input that could plausibly outrun the line.
+    for (const sp of [2, 5, 20, 50]) {
+      const r = computeMACD(mk(200), 12, 26, sp)
+      expect(finite(r.macd), `signalPeriod ${sp}: no MACD line`).toBeGreaterThan(0)
+      expect(finite(r.signal), `signalPeriod ${sp}: a MACD line with NO signal`).toBeGreaterThan(0)
+    }
   })
 })
 

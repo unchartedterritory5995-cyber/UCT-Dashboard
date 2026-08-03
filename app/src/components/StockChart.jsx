@@ -8013,9 +8013,29 @@ export default function StockChart({
       // can see this: a headless capture has no cursor, so no legend is drawn on
       // either side and the diff is 0 whichever way the bridge behaves. It is
       // driven instead — `stockChartWiring.test.jsx` hovers a real crosshair
-      // event and asserts `MACD …` and `SIG …` INDEPENDENTLY, with different
-      // values, so a branch that decided one of them from the other's slot goes
-      // red on the value rather than passing on "both are non-null".
+      // event and asserts `MACD …` and `SIG …` independently.
+      //
+      // ⛔⭐ AND FOR A FLIPPED ID THESE TWO ARE **PRESENCE GATES, NOT VALUES**.
+      // Found while mutation-checking Task 11, and it is not obvious from here:
+      // `legChips` renders `(e && e.text) || text` (`:9855`), so when a slot
+      // EXISTS the number printed is the ENGINE's — formatted by `readout.js`
+      // from the plot's own `legend` declaration and the instance's inputs. The
+      // `.value` read below only ever decides `!= null`, i.e. whether the chip
+      // is emitted at all. Changing it to carry the wrong number changes nothing
+      // a user can see, which is why a mutation doing exactly that survives the
+      // suite; the mutation that DOES bite is pointing a chip at the other
+      // definition's SLOT, and that one is killed.
+      //
+      // ⛔ SO WHY KEEP THEM PER PLOT (Task 2 review M-6)? Because presence is
+      // still per plot: `engineChips` drops a chip whose column has no finite
+      // value anywhere, so `engSlots.macdSig` can in principle be unset while
+      // `engSlots.macd` is set — and then the coupled form would read `.value`
+      // off `undefined` and take the whole legend down mid-hover through the
+      // ErrorBoundary. That state is currently UNREACHABLE, measured rather than
+      // asserted: `computeMACD` returns both columns empty below ~35 bars and
+      // both non-empty above it, across every signal period
+      // (`stockChartWiring.test.jsx` → "the two MACD columns are non-empty
+      // TOGETHER"). If that ever stops holding, that case goes red first.
       const macdValue = engSlots.macd ? engSlots.macd.value : null
       const macdSignalValue = engSlots.macdSig ? engSlots.macdSig.value : null
 
