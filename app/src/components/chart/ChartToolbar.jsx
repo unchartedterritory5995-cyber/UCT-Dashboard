@@ -463,7 +463,10 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         {(() => {
           // Move enabled oscillators into the volume pane (left axis).
           const OSC = [['rsi', 'RSI'], ['macd', 'MACD'], ['stoch', 'Stoch'], ['atr', 'ATR'], ['mfi', 'MFI'], ['cci', 'CCI'], ['williamsR', 'W%R'], ['adx', 'ADX'], ['obv', 'OBV']]
-          const enabled = OSC.filter(([k]) => cs.indicators?.[k]?.enabled)
+          // …through `isOn`, the same reader the checkboxes use. For a FLIPPED id
+          // the legacy toggle is the MIRROR, not the switch — a deleted RSI must
+          // not still offer "overlay it on the volume pane".
+          const enabled = OSC.filter(([k]) => isOn(k))
           if (!cs.volume.visible || enabled.length === 0) return null
           const cur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
           return (

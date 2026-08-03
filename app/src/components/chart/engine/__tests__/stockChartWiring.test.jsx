@@ -244,6 +244,10 @@ const registry = await import('../nativeRegistry')
 // The two settings ALLOW-LISTS a migrated instance has to survive — see the
 // round-trip suite at the bottom of this file.
 const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartDefaults')
+// The FLIP-B writer. Cases that used to move `cs.indicators.<id>.enabled` by hand
+// have to go through it for a flipped id, because that field stopped being the
+// switch — writing it by hand is now a test of a mirror, not of a control.
+const { setIndicatorEnabled } = await import('../instanceControls')
 
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'engine-test:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
@@ -474,12 +478,28 @@ describe('StockChart × indicator engine — the flag OFF is the whole safety st
     expect(H.syncCalls).toHaveLength(0)
   })
 
-  it('stays dark even with instances stored in the blob', () => {
+  it('stays dark even with instances stored in the blob — for an UN-FLIPPED definition', () => {
     // The realistic B3 crossover state: instances migrated into the settings, the
     // flag not yet flipped. Data present must not be enough to start rendering.
-    draw({ indicatorInstances: [RSI_INSTANCE] })
+    //
+    // ⚠️ THE SUBJECT MOVED AT FLIP B, AND HAD TO. `rsi` no longer has a legacy
+    // block, so "the flag is off ⇒ draw nothing" would mean "the indicator is
+    // deleted". The claim survives for `macd`, which is still Flip A and whose
+    // legacy block is still there to draw it — see the flag-off Flip-B suite at
+    // the bottom of this file for the other half.
+    draw({ indicatorInstances: [MACD_INSTANCE] })
     expect(H.binderCreated).toHaveLength(0)
     expect(H.syncCalls).toHaveLength(0)
+  })
+
+  it('⭐ …but a FLIPPED definition runs the engine anyway — it has no other renderer', () => {
+    // The Flip-B exception, stated where the flag-off contract is stated. Every
+    // blob in production has `engineEnabled` absent (`mergeChartSettings` reads
+    // `parsed.engineEnabled === true`), so gating a flipped id on the flag would
+    // not make the engine dark, it would delete RSI for every user.
+    draw({ indicatorInstances: [RSI_INSTANCE] })
+    expect(H.binderCreated, 'a flipped instance did not start the engine').toHaveLength(1)
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
   })
 
   it('treats a truthy-but-not-true flag as OFF', () => {
@@ -622,28 +642,44 @@ describe('legacy suppression — an engine instance stands its legacy block down
     expect(rsiSeries()).toHaveLength(0)
   })
 
-  it('an instance the VALIDATOR drops owns nothing — ownership follows the binder', () => {
-    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the
-    // whole record and the binder never sees it. If ownership were read off the
-    // RAW blob instead of the normalised list, the legacy block would stand down
-    // for an instance nobody is going to draw and RSI would vanish from the
-    // chart — the worst outcome available here, because the settings still say
-    // it is on.
+  it('an instance the VALIDATOR drops never erases the indicator from the chart', () => {
+    // `bogus` is not a declared RSI input, so `normalizeInstances` drops the whole
+    // record. THE CLAIM IS UNCHANGED — a record nobody is going to draw must not
+    // be what decides the indicator disappears — but at Flip B the thing that
+    // saves it is the read-time migrator rather than the legacy block: the toggle
+    // still says RSI is on, so a projected `legacy:rsi` draws it exactly once.
     draw({
       ...RSI_ON,
       engineEnabled: true,
       indicatorInstances: [{ ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }],
     })
-    expect(H.binderApis[0].bindings(), 'the binder must have refused it').toHaveLength(0)
-    expect(rsiSeries()).toHaveLength(1)
+    expect(rsiSeries(), 'RSI vanished, or was drawn twice').toHaveLength(1)
+    const bound = H.binderApis[0].bindings()
+    expect(bound).toHaveLength(1)
+    expect(bound[0].key, 'the DROPPED instance is what drew it').toContain('legacy:rsi')
   })
 
-  it('an instance of an UNKNOWN definition owns nothing — legacy keeps drawing', () => {
-    // The binder cannot render it, so standing the legacy block down on its
-    // behalf would erase RSI from the chart entirely.
+  it('…and with the toggle OFF too, it draws nothing rather than a broken series', () => {
+    // The other side of the same rule, and the one a projection cannot rescue:
+    // nothing says this RSI should exist, so nothing draws it — but the failure
+    // must be "absent", never "a series bound from an unvalidated record".
+    draw({
+      engineEnabled: true,
+      indicators: { rsi: { enabled: false } },
+      indicatorInstances: [{ ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, bogus: 1 } }],
+    })
+    expect(H.binderApis[0].bindings(), 'the binder must have refused it').toHaveLength(0)
+    expect(rsiSeries()).toHaveLength(0)
+  })
+
+  it('an instance of an UNKNOWN definition owns nothing, and drags nothing down with it', () => {
+    // The binder cannot render it. Under Flip A the legacy block kept drawing;
+    // after Flip B the projection does, and either way the observable rule is
+    // that an unknown definition is INERT — one RSI on the chart, not zero.
     draw({ ...RSI_ON, engineEnabled: true, indicatorInstances: [{ ...RSI_INSTANCE, defId: 'not-an-indicator' }] })
     expect(rsiSeries()).toHaveLength(1)
-    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(H.binderApis[0].bindings().map(b => b.key).join(','))
+      .not.toContain('not-an-indicator')
   })
 })
 
@@ -1114,134 +1150,166 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     expect(H.binderApis[0].bindings()[0].series).toBe(before)
   })
 
-  it('toggling the legacy switch OFF and back ON never leaves TWO RSI lines', () => {
-    // ⚠️ FLIP-A SEMANTICS, PINNED DELIBERATELY — see the band suite below for the
-    // half this one cannot see. `cs.indicators.rsi.enabled` is still the SWITCH:
-    // off means no band AND no line; on means the engine's line in the legacy
-    // band. What must hold in EVERY combination is that the user never ends up
-    // looking at two RSI lines or at an orphaned legacy one.
-    const off = { indicators: { rsi: { enabled: false } } }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+  it('the CONTROL turns it OFF and back ON, and never leaves TWO RSI lines', () => {
+    // ⭐ FLIP-B SEMANTICS, AND THE SUBSTANTIVE CHANGE FROM WHAT THIS CASE USED TO
+    // ASSERT. It moved `cs.indicators.rsi.enabled` by hand, because under Flip A
+    // that field was the switch. It is now the MIRROR: with a stored instance
+    // present, writing it by hand changes nothing a user sees, and a case that
+    // still did so would be measuring the wrong field with a green tick.
+    //
+    // So it goes through `setIndicatorEnabled`, which is what every control
+    // surface calls — Ctrl+I, the checkbox, both right-click items. What must
+    // hold in every combination is unchanged: the user never ends up looking at
+    // two RSI lines or at an orphan.
+    const base = settings()
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
     expect(rsiSeries()).toHaveLength(1)
     const first = rsiSeries()[0].series
 
+    const off = setIndicatorEnabled(base, 'rsi', false, registry)
+    expect(off.indicators.rsi.enabled, 'the mirror was not written').toBe(false)
     // `rsiSeries()` counts addSeries CALLS and never shrinks, so "the line went
     // away" has to be read off the REMOVAL and off what the binder still holds.
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
-    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds a series').toHaveLength(0)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(H.binderApis[0].bindings(), 'turned off: the engine still holds a series').toHaveLength(0)
     expect(H.removedSeries, 'the engine\'s RSI line is still on the chart').toContain(first)
     expect(rsiSeries(), 'and nothing drew a replacement').toHaveLength(1)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
-    expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws it again').toHaveLength(1)
-    expect(rsiSeries(), 'toggled back on: exactly one more, and the legacy block did not add its own').toHaveLength(2)
+    const backOn = setIndicatorEnabled(off, 'rsi', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={backOn} />)
+    expect(H.binderApis[0].bindings(), 'turned back on: the engine draws it again').toHaveLength(1)
+    expect(rsiSeries(), 'turned back on: exactly one more, and nothing else drew its own').toHaveLength(2)
   })
 
-  it('an rsi instance arriving MID-SESSION removes the line AND the three guides legacy already drew', () => {
-    // ⛔ M8's EXACT SHAPE, ON THE OTHER MIGRATED INDICATOR. BB got this gate in
-    // `c0c5a8cb`; RSI never did, and the mutation below SURVIVED the entire
-    // 3,733-test suite with exit 0 — measured, not imagined.
-    //
-    // Every other RSI case in this file starts with `indicatorInstances:
-    // [RSI_INSTANCE]` already present, so the legacy ref is null and there is
-    // nothing to orphan. The real crossover is the other order: the chart is up,
-    // LEGACY has drawn its line and its 70/50/30 guides, and THEN an instance
-    // appears — a settings sync from another widget, a grid cell's
-    // `settingsOverride`, Task 9's future "move this to the engine" control.
-    //
-    // The `else if` that removes the legacy series is only reachable while the
-    // guard sits INSIDE the first condition. Hoist it —
-    // `if (engineOwned.has('rsi')) { } else if (indicatorData.rsi.length)`,
-    // which reads like the same thing — and the removal branch becomes
-    // unreachable the moment the engine takes over: two RSI lines on the `rsi`
-    // scale, one of them dead and frozen at whatever data it last received, plus
-    // three orphaned guides underneath the engine's copy.
-    //
-    // ⚠️ RSI IS STRICTLY WORSE THAN BB HERE, which is why this asserts the guides
-    // too. BB's orphan is three dead lines; RSI's is a dead line AND three price
-    // lines that `removeSeries` would have taken with it.
-    const legacyFirst = { ...RSI_ON, engineEnabled: true, indicatorInstances: [] }
-    const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legacyFirst} />,
+  it('⭐ a bare legacy-toggle write can no longer switch a STORED instance off', () => {
+    // The corollary, asserted rather than left implicit — it is the whole meaning
+    // of "instances are the authority", and it is the behaviour change most
+    // likely to surprise a reader of the case above. An un-migrated surface that
+    // writes `cs.indicators.rsi.enabled = false` (the screener, an old tab) can
+    // no longer delete a stored instance; it can only ever fail to project one.
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={settings({ indicators: { rsi: { enabled: false } } })} />,
     )
-    const legacyDrawn = rsiSeries().map(c => c.series)
-    expect(legacyDrawn, 'the LEGACY block drew no RSI — nothing to orphan').toHaveLength(1)
-    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+    expect(H.binderApis[0].bindings(),
+      'the mirror overrode the instance — the authority is the wrong way round').toHaveLength(1)
+  })
 
-    const legacyGuides = H.priceLineCalls.filter(p => p.series === legacyDrawn[0])
-    expect(legacyGuides.map(g => g.options.price).sort((a, b) => b - a),
-      'legacy drew no 70/50/30 guides — the guide half of this test is vacuous').toEqual([70, 50, 30])
+  it('⭐ a STORED instance arriving MID-SESSION takes over from the PROJECTED one', () => {
+    // ⛔ THE MID-SESSION CROSSOVER, RESHAPED BY FLIP B — the most-repeated defect
+    // class on this branch, and the seam moved.
+    //
+    // Under Flip A the crossover was legacy-block → engine, and the `else if` that
+    // removed the legacy series was the thing that could go unreachable. There is
+    // no legacy block now, so the equivalent seam is PROJECTED → STORED: the chart
+    // is up drawing RSI from an instance the read-time migrator invented out of
+    // `indicators.rsi.enabled`, and then a real one arrives — a settings sync from
+    // another widget, a grid cell's `settingsOverride`, a share link.
+    //
+    // The failure it guards is the same one: two RSI lines on one scale, one of
+    // them dead, and a picture that still looks plausible.
+    const projectedOnly = { ...RSI_ON, engineEnabled: true, indicatorInstances: [] }
+    const view = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />,
+    )
+    const projected = H.binderApis[0].bindings()
+    expect(projected, 'the migrator drew nothing — this case is vacuous').toHaveLength(1)
+    expect(projected[0].key, 'the projection did not build `legacy:rsi`').toContain('legacy:rsi')
+    expect(rsiSeries(), 'more than one RSI before the crossover even started').toHaveLength(1)
+    const firstSeries = projected[0].series
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...legacyFirst, indicatorInstances: [RSI_INSTANCE] }} />,
+        settingsOverride={{ ...projectedOnly, indicatorInstances: [RSI_INSTANCE] }} />,
     )
 
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn, 'the engine did not take over').toHaveLength(1)
-    expect(engineDrawn, 'the engine re-used the LEGACY series — it does not own that one')
-      .not.toContain(legacyDrawn[0])
-    expect(H.removedSeries,
-      'the legacy RSI line was left on the chart under the engine\'s copy — and its three guides with it')
-      .toContain(legacyDrawn[0])
-    // The guides go with the series: nothing removes a price line individually
-    // here, so the ONLY thing that clears them is the series removal above. If
-    // that assertion ever has to be weakened, these guides are what is left
-    // behind on the `rsi` scale.
-    expect(H.priceLineCalls.filter(p => p.series === legacyDrawn[0]),
-      'the legacy guides were re-created rather than removed with their series').toHaveLength(3)
+    const bound = H.binderApis[0].bindings()
+    expect(bound, 'the stored instance did not take over — or BOTH are drawn').toHaveLength(1)
+    expect(bound[0].key, 'the projection is still the one drawing').toContain('engine-test:rsi')
+    // ⚠️ #2049: the pool RE-USES the series rather than destroying and recreating
+    // it. Same series object, new binding key.
+    expect(bound[0].series, 'the series was destroyed and recreated across the crossover')
+      .toBe(firstSeries)
+    expect(H.removedSeries, 'a series was removed on a hand-over the pool should absorb')
+      .not.toContain(firstSeries)
   })
 
-  it('and the reverse — the instance LEAVING hands the RSI line back to legacy', () => {
-    // The same seam from the other side, with the legacy TOGGLE still on. If the
-    // legacy block did not stand back up, removing an instance would delete the
-    // indicator the settings still say is enabled. Distinct from `toggling the
-    // legacy switch OFF and back ON` above: that one moves
-    // `cs.indicators.rsi.enabled`, this one moves only the instance list.
+  it('…and the reverse — the STORED instance leaving hands it back to the projection', () => {
+    // The same seam from the other side, with the legacy toggle still on. If the
+    // projection did not take back over, removing an instance would delete an
+    // indicator the settings still say is enabled.
+    const withStored = { ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={withStored} />,
     )
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn).toHaveLength(1)
+    const before = H.binderApis[0].bindings()
+    expect(before).toHaveLength(1)
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={settings({ indicatorInstances: [] })} />,
+        settingsOverride={{ ...withStored, indicatorInstances: [] }} />,
     )
-    expect(H.binderApis[0].bindings(), 'the engine still holds a series').toHaveLength(0)
-    expect(H.removedSeries).toContain(engineDrawn[0])
-    // …and legacy drew one of its own, so the user still sees an RSI.
-    const live = rsiSeries().map(c => c.series).filter(s => !H.removedSeries.includes(s))
-    expect(live, 'the RSI vanished when the instance was removed').toHaveLength(1)
-    // …with its guides back, which is the half a series count alone would miss.
-    expect(H.priceLineCalls.filter(p => p.series === live[0]).map(g => g.options.price).sort((a, b) => b - a),
-      'legacy stood back up without its 70/50/30 guides').toEqual([70, 50, 30])
+    const after = H.binderApis[0].bindings()
+    expect(after, 'the RSI vanished when the stored instance was removed').toHaveLength(1)
+    expect(after[0].key, 'nothing projected it back').toContain('legacy:rsi')
+    expect(after[0].series, 'the pool destroyed and recreated it').toBe(before[0].series)
+  })
+
+  it('⭐ RSI ARRIVING and DEPARTING mid-session: nothing → a line and a band → nothing', () => {
+    // The direction no Flip-A case could express, and the one a user actually
+    // performs: the indicator is OFF, they turn it on, they turn it off again.
+    // Both halves are asserted on the BAND as well as on the series, because a
+    // band left reserved for a departed indicator is a permanently short price
+    // pane and a band never reserved is the RSI-over-volume defect.
+    const bandNow = () => H.syncCalls.at(-1).paneMargins.rsi
+    const off = { engineEnabled: true, indicators: { rsi: { enabled: false, period: 14, color: '#7b68ee' } }, indicatorInstances: [] }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(bandNow(), 'a band was reserved for an RSI nobody asked for').toBeUndefined()
+
+    const on = setIndicatorEnabled(off, 'rsi', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    const bound = H.binderApis[0].bindings()
+    expect(bound, 'arriving mid-session drew nothing').toHaveLength(1)
+    expect(bandNow(), 'arriving mid-session reserved no band').toEqual({ top: 0.85, bottom: 0 })
+
+    const offAgain = setIndicatorEnabled(on, 'rsi', false, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    expect(H.binderApis[0].bindings(), 'departing mid-session left the line behind').toHaveLength(0)
+    expect(H.removedSeries).toContain(bound[0].series)
+    expect(bandNow(), 'departing mid-session left its band reserved').toBeUndefined()
   })
 })
 
-// ─── THE RESERVED BAND, AND THE FOUR DOORS THAT WRITE THE LEGACY TOGGLE ─────
+// ─── THE RESERVED BAND, AFTER THE AUTHORITY FLIPPED ────────────────────────
 //
-// The carried item, gated. `computePaneMargins` reserves RSI's band from
-// `cs.indicators.rsi.enabled` (`paneMargins.js:47`) — so with the toggle off the
-// layout reserves NOTHING and `resolvePlacement` falls through to
-// `{top:0.82, bottom:0}` (`placement.js:103`), which overlaps volume's
-// `{top:0.85, bottom:0}`. That is not "a line in the wrong band": it is an RSI
-// drawn ON TOP OF the volume bars, and Ctrl+I / the toolbar checkbox / the two
-// right-click items were all one keystroke away from it.
+// ⭐ THIS SUITE WAS TASK 10's TRIPWIRE, AND IT FIRED. Under Flip A
+// `computePaneMargins` reserved RSI's band from `cs.indicators.rsi.enabled`
+// (`paneMargins.js:47`), so with the toggle off the layout reserved NOTHING and
+// `resolvePlacement` fell through to `{top:0.82, bottom:0}` (`placement.js:103`),
+// which overlaps volume's `{top:0.85, bottom:0}` — an RSI drawn ON TOP OF the
+// volume bars, one keystroke away from four different controls.
 //
-// ⛔ THIS SUITE IS TASK 10's TRIPWIRE. Flip B moves the authority the other way
-// (`csForPaneMargins` projects the instance list onto the blob
-// `computePaneMargins` reads); every assertion below that names the toggle-OFF
-// state has to be rewritten when it lands, which is the point — the deferred
-// semantic can no longer change with the whole suite green.
+// Flip B moves the authority the other way: `csForPaneMargins` rewrites that
+// field from the INSTANCE list, so the band follows the instance and the
+// toggle-OFF-with-an-instance state stopped existing. Three cases below went red
+// on the flip — which is what the tripwire was for — and are rewritten to the new
+// rule rather than relaxed:
 //
-// ⏳ `csForPaneMargins` NOW EXISTS (Task 9, `engine/paneMarginsProjection.js`)
-// and is wired in — it is `ENGINE_FLIPPED_DEF_IDS` being EMPTY that keeps this
-// suite true, not the projection being absent. The Task-9 suite at the bottom of
-// this file asserts that emptiness and the projection's identity return; the
-// flipped-set half lives in `flipBWithANonEmptySet.test.jsx`, where the
-// toggle-OFF case is already red-in-waiting.
-describe('the reserved band — an engine-drawn RSI is never painted over the volume bars', () => {
+//   · "the toggle OFF: no band is reserved" → an INSTANCE reserves the band and
+//     the engine draws into it, whatever the toggle says;
+//   · "…because the band it WOULD get sits on top of the volume bars" → the
+//     fallback is now STRUCTURALLY unreachable for a flipped id, which IS the
+//     fix, so the case asserts unreachability. The overlap arithmetic is kept
+//     against a hand-built ctx, so the two numbers that made it dangerous still
+//     fail if either moves.
+//   · Ctrl+I → writes a TOMBSTONE and the mirror, not the mirror alone.
+//
+// `paneMargins.js` is still consumed and not modified: everything here reads the
+// band out of the ctx the binder was actually handed.
+describe('the reserved band — the instance reserves it, and the engine lands in it', () => {
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
   const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
   const settings = (over) => ({ ...RSI_ON, engineEnabled: true, indicatorInstances: [RSI_INSTANCE], ...over })
@@ -1253,10 +1321,10 @@ describe('the reserved band — an engine-drawn RSI is never painted over the vo
 
   /** What placement resolves for THIS instance, through the ctx the binder was
    *  actually handed — not a reconstruction of it. */
-  const placementFor = (instance) => {
-    const ctx = H.syncCalls.at(-1)
-    expect(ctx, 'the binder was never synced — this test is vacuous').toBeTruthy()
-    return ctx.resolvePlacement(instance, registry.getDefinition('rsi'), ctx)
+  const placementFor = (instance, ctx = undefined) => {
+    const c = ctx || H.syncCalls.at(-1)
+    expect(c, 'the binder was never synced — this test is vacuous').toBeTruthy()
+    return c.resolvePlacement(instance, registry.getDefinition('rsi'), c)
   }
 
   it('the toggle ON: the engine lands in the band the LAYOUT reserved, clear of volume', () => {
@@ -1265,52 +1333,81 @@ describe('the reserved band — an engine-drawn RSI is never painted over the vo
     expect(H.binderApis[0].bindings(), 'the engine bound nothing — vacuous').toHaveLength(1)
     expect(ctx.paneMargins.volume, 'no volume band — the overlap check would be vacuous').toBeTruthy()
 
-    // The band itself, pinned. Counts alone let Task 9's projection change the
+    // The band itself, pinned. Counts alone let the projection change the
     // deferred semantic with 956 tests green (review I-1).
     expect(ctx.paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
     const band = placementFor(RSI_INSTANCE).scaleOptions.scaleMargins
     expect(band).toEqual({ top: 0.85, bottom: 0 })
     expect(overlaps(band, ctx.paneMargins.volume),
-      'the engine\'s RSI band overlaps the volume band').toBe(false)
+      "the engine's RSI band overlaps the volume band").toBe(false)
   })
 
-  it('the toggle OFF: no band is reserved, and the engine therefore draws NOTHING', () => {
-    // ⛔ THE TASK 9 / TASK 10 TRIPWIRE. `csForPaneMargins` makes `paneMargins.rsi`
-    // a real band here (the instance, not the toggle, reserves it) and the
-    // authority flip makes the engine draw into it — so BOTH assertions below go
-    // red the moment Flip B lands, which is exactly what "the deferred semantic
-    // cannot change silently" means.
+  it('⭐ the toggle OFF but an INSTANCE present: the BAND is reserved and the line is drawn', () => {
+    // ⛔ THE TRIPWIRE'S OTHER SIDE. This case asserted `toBeUndefined()` and
+    // `toHaveLength(0)` under Flip A; the SAME blob now reserves the band and
+    // draws into it, because the instance is the authority and the toggle is a
+    // mirror. Both numbers are pinned, not just presence: an instance that
+    // reserved SOME band would pass a truthiness check and still re-lay-out the
+    // whole chart.
     draw(settings({ indicators: { rsi: { enabled: false } } }))
     const ctx = H.syncCalls.at(-1)
     expect(ctx.paneMargins.rsi,
-      'a band is reserved for an rsi the legacy toggle says is off').toBeUndefined()
-    expect(H.binderApis[0].bindings()).toHaveLength(0)
+      'the instance did not reserve a band — the projection is not wired').toEqual({ top: 0.85, bottom: 0 })
+    expect(H.binderApis[0].bindings(), 'a reserved band with nothing in it').toHaveLength(1)
+    expect(rsiSeries()).toHaveLength(1)
+    expect(overlaps(placementFor(RSI_INSTANCE).scaleOptions.scaleMargins, ctx.paneMargins.volume))
+      .toBe(false)
+  })
+
+  it('a TOMBSTONE releases the band, and nothing is drawn into it', () => {
+    // The direction Flip A could not express: the toggle says ON, the instance
+    // list says the indicator was deleted, and the LAYOUT agrees with the
+    // instance list. The price pane gets the height back, which is what a user
+    // actually sees.
+    //
+    // ⚠️ THROUGH `setIndicatorEnabled`, NOT A HAND-WRITTEN TOMBSTONE. A tombstone
+    // on `engine-test:rsi` alone does NOT turn RSI off — the legacy toggle is
+    // still true and there is no `legacy:rsi` tombstone to block its projection,
+    // so the migrator puts it straight back. That is correct (it is the same rule
+    // `isIndicatorEnabled` applies) and it is precisely why "off" tombstones EVERY
+    // live instance AND reserves `legacy:<id>`. Writing the tombstone by hand here
+    // would have tested a shape no control can produce.
+    const off = setIndicatorEnabled(settings(), 'rsi', false, registry)
+    expect(off.indicatorInstances.filter(i => i.deleted).length,
+      'the writer produced no tombstone — this case is vacuous').toBeGreaterThan(0)
+    draw(off)
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx.paneMargins.rsi, 'a band was reserved for a deleted indicator').toBeUndefined()
+    expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
     expect(rsiSeries()).toHaveLength(0)
   })
 
-  it('…because the band it WOULD get sits on top of the volume bars', () => {
-    // The mechanism, stated as an assertion rather than a comment: the fallback
-    // `resolvePlacement` reaches with nothing reserved is `{top:0.82, bottom:0}`,
-    // and volume owns `{top:0.85, bottom:0}`. This is the exact picture the fix
-    // above prevents, and it fails if either number moves.
+  it('…and the {top:0.82} fallback that used to overlap volume is now UNREACHABLE', () => {
+    // The mechanism is kept as arithmetic, because the numbers are what made it
+    // dangerous — but it is asserted against a HAND-BUILT ctx with the band
+    // removed, since no blob can produce that state for a flipped id any more.
+    // The unreachability is the first assertion; the arithmetic is the second,
+    // and it still fails if either literal moves.
     draw(settings({ indicators: { rsi: { enabled: false } } }))
     const ctx = H.syncCalls.at(-1)
-    expect(ctx.paneMargins.volume, 'no volume band — vacuous').toEqual({ top: 0.85, bottom: 0 })
-    const would = placementFor(RSI_INSTANCE).scaleOptions.scaleMargins
-    expect(would).toEqual({ top: 0.82, bottom: 0 })
-    expect(overlaps(would, ctx.paneMargins.volume)).toBe(true)
+    expect(ctx.paneMargins.rsi,
+      'a blob reached the fallback — a flipped id no longer guarantees its band').toBeTruthy()
+
+    const noBand = { ...ctx, paneMargins: { ...ctx.paneMargins, rsi: undefined } }
+    const would = placementFor(RSI_INSTANCE, noBand).scaleOptions.scaleMargins
+    expect(would, 'the fallback moved — re-check it against volume').toEqual({ top: 0.82, bottom: 0 })
+    expect(ctx.paneMargins.volume, 'no volume band — vacuous').toBeTruthy()
+    expect(overlaps(would, ctx.paneMargins.volume),
+      'the fallback no longer overlaps volume — this case has stopped meaning anything').toBe(true)
   })
 
   it('Ctrl+I hides an engine-drawn RSI — the keystroke, and what the keystroke writes', () => {
-    // `keyboardShortcuts.js:99` → `StockChart.jsx:3495` writes
-    // `cs.indicators.rsi.enabled`. Before this fix round that reached
-    // `computePaneMargins` and nothing else: the band went, the engine's line
-    // stayed, and it stayed ON TOP OF the volume bars.
-    //
-    // Two halves, because they are two different failures. `onSettingsPersist`
-    // is how the write is observed at all — a `settingsOverride` chart re-applies
-    // its override on the next render, so the keystroke's effect has to be read
-    // from what it PERSISTED and then rendered back.
+    // `keyboardShortcuts.js:99` → StockChart's `toggle:` handler. ⭐ AT FLIP B IT
+    // WRITES THE INSTANCE, not just the toggle: the old assertion "the keystroke
+    // must not rewrite the instance list" was Flip A's, and keeping it would have
+    // meant Ctrl+I clearing a mirror while the chart kept drawing. The MIRROR is
+    // still written — that is what keeps the alert evaluator and the alert
+    // popover alive — so both halves are asserted.
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
@@ -1322,14 +1419,15 @@ describe('the reserved band — an engine-drawn RSI is never painted over the vo
 
     expect(persisted.length, 'Ctrl+I persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
     const next = persisted.at(-1)
-    expect(next.indicators.rsi.enabled, 'Ctrl+I did not flip the toggle').toBe(false)
-    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
-      .toEqual([RSI_INSTANCE])
+    expect(next.indicators.rsi.enabled, 'the MIRROR was not written').toBe(false)
+    expect(next.indicatorInstances, 'the keystroke did not tombstone the instance')
+      .toContainEqual({ instanceId: 'engine-test:rsi', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
-    expect(rsiSeries(), 'Ctrl+I left the engine\'s RSI on the chart').toHaveLength(0)
-    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(rsiSeries(), "Ctrl+I left the engine's RSI on the chart").toHaveLength(0)
+    expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
+    expect(H.syncCalls.at(-1).paneMargins.rsi, 'Ctrl+I left the band reserved').toBeUndefined()
   })
 })
 
@@ -1490,11 +1588,11 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
   })
 
   it('Ctrl+B hides an engine-drawn BB — the keystroke, and what the keystroke writes', () => {
-    // ⚠️ BB's shortcut is Ctrl+**B** (`keyboardShortcuts.js:101` →
-    // `StockChart.jsx:3482`, `toggle:bb`); Ctrl+I is RSI's. Same mechanism, same
-    // failure if it half-works: the write reaches `computePaneMargins`, which for
-    // a PRICE overlay reserves nothing at all — so before the Flip-A projection
-    // the band would simply have stayed on the chart with its switch off.
+    // ⚠️ BB's shortcut is Ctrl+**B** (`keyboardShortcuts.js:101` → StockChart's
+    // `toggle:bb`); Ctrl+I is RSI's. ⭐ AT FLIP B IT WRITES THE INSTANCE: the old
+    // assertion "the keystroke must not rewrite the instance list" was Flip A's,
+    // and keeping it would mean Ctrl+B cleared a mirror while three purple lines
+    // stayed on the price scale. The mirror is still written.
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
@@ -1506,93 +1604,124 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
 
     expect(persisted.length, 'Ctrl+B persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
     const next = persisted.at(-1)
-    expect(next.indicators.bb.enabled, 'Ctrl+B did not flip the toggle').toBe(false)
-    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
-      .toEqual([BB_INSTANCE])
+    expect(next.indicators.bb.enabled, 'the MIRROR was not written').toBe(false)
+    expect(next.indicatorInstances, 'the keystroke did not tombstone the instance')
+      .toContainEqual({ instanceId: 'legacy:bb', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
-    expect(purple(), 'Ctrl+B left the engine\'s bands on the chart').toHaveLength(0)
-    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(purple(), "Ctrl+B left the engine's bands on the chart").toHaveLength(0)
+    expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
   })
 
-  it('toggling the legacy switch OFF and back ON never leaves SIX purple lines', () => {
-    // ⚠️ FLIP-A SEMANTICS. `cs.indicators.bb.enabled` is still the SWITCH: off
-    // means no bands at all; on means the engine's three. What must hold in every
-    // combination is that the user never ends up looking at six purple lines or
-    // at three orphaned legacy ones.
-    const off = { indicators: { bb: { enabled: false } } }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+  it('the CONTROL turns BB off and back on, and never leaves SIX purple lines', () => {
+    // ⭐ FLIP-B SEMANTICS. `cs.indicators.bb.enabled` is the MIRROR now, so this
+    // goes through `setIndicatorEnabled` — the writer every control surface calls.
+    // What must hold in every combination is unchanged: the user never ends up
+    // looking at six purple lines or at three orphans.
+    const base = settings()
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
     expect(purple()).toHaveLength(3)
     const first = H.binderApis[0].bindings().map(b => b.series)
 
     // `purple()` counts addSeries CALLS and never shrinks, so "the bands went
     // away" has to be read off the REMOVAL and off what the binder still holds.
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
-    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds series').toHaveLength(0)
-    for (const s of first) expect(H.removedSeries, 'a band is still on the chart').toContain(s)
+    const off = setIndicatorEnabled(base, 'bb', false, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(H.binderApis[0].bindings(), 'turned off: the engine still holds series').toHaveLength(0)
+    for (const ser of first) expect(H.removedSeries, 'a band is still on the chart').toContain(ser)
     expect(purple(), 'and nothing drew a replacement').toHaveLength(3)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
-    expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws them again').toHaveLength(3)
-    expect(purple(), 'toggled back on: three more, and the legacy block added none of its own').toHaveLength(6)
+    const backOn = setIndicatorEnabled(off, 'bb', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={backOn} />)
+    expect(H.binderApis[0].bindings(), 'turned back on: the engine draws them again').toHaveLength(3)
+    expect(purple(), 'turned back on: three more, and nothing else added its own').toHaveLength(6)
   })
 
-  it('an instance arriving MID-SESSION removes the three lines legacy already drew', () => {
-    // ⛔ THE MUTATION THAT SURVIVED EVERYTHING ELSE (M8). Every other case in this
-    // file starts with the engine already owning BB, so the legacy refs are null
-    // and there is nothing to orphan. The real crossover is the other order: the
-    // chart is up, legacy has drawn its three bands, and THEN an instance
-    // appears — a settings sync, a grid cell's override, Task 9's future "move
-    // this to the engine" control.
-    //
-    // The `else` that removes them lives INSIDE the per-band condition. Hoist the
-    // guard to the loop's entry — `for (… of (bbEngineOwned ? [] : BB_BANDS))`,
-    // which reads like the same thing — and the loop no longer runs at all, so
-    // the removal never fires: six purple lines, three of them dead, and every
-    // other assertion in this suite still green. Measured, not imagined.
-    const legacyFirst = { ...BB_ON, engineEnabled: true, indicatorInstances: [] }
+  it('⭐ BB ARRIVING and DEPARTING mid-session, with the price pane unchanged either way', () => {
+    // The user-performed direction, on the PRICE overlay rather than the banded
+    // oscillator. BB reserves no band of its own (it lives on the candles' scale),
+    // so what has to hold is that the candles' own framing is untouched — which is
+    // the `autoscaleInfoProvider` seam, asserted here at the component level.
+    const off = { indicators: { bb: { enabled: false, period: 20, stdDev: 2, color: BB_COLOUR } }, engineEnabled: true, indicatorInstances: [] }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
+    expect(purple(), 'something drew BB while it was off').toHaveLength(0)
+
+    const on = setIndicatorEnabled(off, 'bb', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    const bound = H.binderApis[0].bindings()
+    expect(bound, 'arriving mid-session drew no bands').toHaveLength(3)
+    // …on the CANDLES' scale, and excluded from its autoscale. Read off the
+    // `addSeries` calls, which is where the option set the renderer received
+    // actually is — a binding record carries the series and its key, not options.
+    const created = purple()
+    expect(created, 'the bands were not created here — vacuous').toHaveLength(3)
+    for (const c of created) {
+      expect(c.options.priceScaleId, 'a band landed off the candles scale').toBe('right')
+      expect(c.options.autoscaleInfoProvider(),
+        'a band would stretch the candles autoscale').toBe(null)
+    }
+
+    const offAgain = setIndicatorEnabled(on, 'bb', false, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    expect(H.binderApis[0].bindings(), 'departing mid-session left bands behind').toHaveLength(0)
+    for (const b of bound) expect(H.removedSeries).toContain(b.series)
+  })
+
+  it('a STORED instance arriving MID-SESSION replaces the PROJECTED one, re-binding not recreating', () => {
+    // ⛔ THE MID-SESSION CROSSOVER, RESHAPED BY FLIP B. Under Flip A this was
+    // legacy-block → engine and the failure was three orphaned legacy lines
+    // (mutation M8, which survived everything else). There is no legacy block now,
+    // so the seam is PROJECTED → STORED: the chart is up drawing BB from an
+    // instance the migrator invented out of `indicators.bb.enabled`, and then a
+    // real one with different inputs arrives — a settings sync, a grid cell's
+    // override, a share link.
+    const projectedOnly = { ...BB_ON, engineEnabled: true, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legacyFirst} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />,
     )
-    const legacyDrawn = purple().map(c => c.series)
-    expect(legacyDrawn, 'the LEGACY block drew no bands — nothing to orphan').toHaveLength(3)
-    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+    const projected = H.binderApis[0].bindings()
+    expect(projected, 'the migrator drew nothing — this case is vacuous').toHaveLength(3)
+    expect(purple(), 'more than three purple lines before the crossover started').toHaveLength(3)
+    const before = projected.map(b => b.series)
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...legacyFirst, indicatorInstances: [BB_INSTANCE] }} />,
+        settingsOverride={{
+          ...projectedOnly,
+          indicatorInstances: [{ ...BB_INSTANCE, inputs: { ...BB_INSTANCE.inputs, period: 34 } }],
+        }} />,
     )
 
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn, 'the engine did not take over').toHaveLength(3)
-    for (const s of legacyDrawn) {
-      expect(engineDrawn, 'the engine re-used a LEGACY series — it does not own those')
-        .not.toContain(s)
-      expect(H.removedSeries,
-        'a legacy Bollinger line was left on the chart under the engine\'s copy').toContain(s)
-    }
+    const after = H.binderApis[0].bindings()
+    expect(after, 'the stored instance did not take over — or BOTH are drawn').toHaveLength(3)
+    expect(purple(), 'a fourth purple line appeared').toHaveLength(3)
+    // ⚠️ #2049: re-bound, never destroyed and recreated.
+    expect(after.map(b => b.series).sort(), 'the pool destroyed and recreated the bands')
+      .toEqual(before.sort())
+    for (const ser of before) expect(H.removedSeries).not.toContain(ser)
   })
 
-  it('and the reverse — the instance LEAVING hands the three bands back to legacy', () => {
-    // The same seam from the other side. If the legacy block did not stand back
-    // up, removing an instance would delete the indicator the settings still say
-    // is on.
+  it('and the reverse — the STORED instance leaving hands the bands back to the projection', () => {
+    // The same seam from the other side, with the toggle still on. If the
+    // projection did not take back over, removing an instance would delete an
+    // indicator the settings still say is on.
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
     )
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn).toHaveLength(3)
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(before).toHaveLength(3)
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
         settingsOverride={{ ...settings(), indicatorInstances: [] }} />,
     )
-    expect(H.binderApis[0].bindings(), 'the engine still holds series').toHaveLength(0)
-    for (const s of engineDrawn) expect(H.removedSeries).toContain(s)
-    // …and legacy drew three of its own, so the user still sees Bollinger bands.
-    const live = purple().map(c => c.series).filter(s => !H.removedSeries.includes(s))
-    expect(live, 'the bands vanished when the instance was removed').toHaveLength(3)
+    const after = H.binderApis[0].bindings()
+    expect(after, 'the bands vanished when the stored instance was removed').toHaveLength(3)
+    expect(after.map(b => b.series).sort(), 'the pool destroyed and recreated them')
+      .toEqual(before.sort())
+    expect(purple(), 'a second set of three was drawn').toHaveLength(3)
   })
 
   it('a COLOUR change re-styles the SAME three series — never destroys and recreates', () => {
@@ -1706,35 +1835,44 @@ describe('C-2 — RSI off and BB on in ONE settings write, from the component', 
   // flip driven through `settingsOverride`, which is what a user's settings write
   // looks like from inside `updateChart` — both legacy blocks changing state in
   // the same pass, one standing up and one standing down.
-  const both = { indicators: {
-    rsi: { enabled: true, period: 14, color: '#7b68ee' },
-    bb: { enabled: true, period: 20, stdDev: 2, color: BB_COLOUR },
-  } }
-  const settings = (instances) => ({ ...both, engineEnabled: true, indicatorInstances: instances })
+  //
+  // ⚠️ THE TWO STATES HAD TO BECOME EXPLICIT AT FLIP B. This used to leave BOTH
+  // legacy toggles on and move only the instance list, because under Flip A the
+  // toggle was the switch and the legacy block drew whatever the engine did not.
+  // After the flip the toggle PROJECTS an instance, so "rsi on, bb on, one RSI
+  // instance" is four bindings, not one, and the re-purpose this case exists to
+  // observe never happens. State A is RSI alone; state B is BB alone; the write
+  // between them is still ONE settings write.
+  const IND = (rsiOn, bbOn) => ({
+    rsi: { enabled: rsiOn, period: 14, color: '#7b68ee' },
+    bb: { enabled: bbOn, period: 20, stdDev: 2, color: BB_COLOUR },
+  })
+  const rsiOnly = { indicators: IND(true, false), engineEnabled: true, indicatorInstances: [RSI_INSTANCE] }
+  const bbOnly = { indicators: IND(false, true), engineEnabled: true, indicatorInstances: [BB_INSTANCE] }
 
-  it('the re-purposed series is moved to the CANDLES\' scale and excluded from it', () => {
+  it("the re-purposed series is moved to the CANDLES' scale and excluded from it", () => {
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings([RSI_INSTANCE])} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={rsiOnly} />,
     )
-    const rsiSeries = H.binderApis[0].bindings().map(b => b.series)
-    expect(rsiSeries, 'the engine drew no RSI — nothing to re-purpose').toHaveLength(1)
-    const [freed] = rsiSeries
+    const drawnRsi = H.binderApis[0].bindings().map(b => b.series)
+    expect(drawnRsi, 'the engine drew no RSI — nothing to re-purpose').toHaveLength(1)
+    const [freed] = drawnRsi
     H.applyOptionsCalls.length = 0
 
     // ONE write: the RSI instance leaves and the BB instance arrives together.
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings([BB_INSTANCE])} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={bbOnly} />,
     )
 
     const bound = H.binderApis[0].bindings()
-    expect(bound, 'the engine did not bind BB\'s three bands').toHaveLength(3)
+    expect(bound, "the engine did not bind BB's three bands").toHaveLength(3)
     expect(bound.every(b => b.defId === 'bb')).toBe(true)
     // The pool did its job — RSI's series IS one of BB's three bands now. If this
     // ever stops holding, everything below is about a freshly-CREATED series
     // (which always gets a full option set through `addSeries`) and proves
     // nothing about a re-purpose, which is the whole subject of C-2.
     expect(bound.map(b => b.series),
-      'RSI\'s series was destroyed rather than re-purposed — this case is vacuous')
+      "RSI's series was destroyed rather than re-purposed — this case is vacuous")
       .toContain(freed)
     expect(H.removedSeries, 'and it was not removed on the way').not.toContain(freed)
 
@@ -1747,24 +1885,26 @@ describe('C-2 — RSI off and BB on in ONE settings write, from the component', 
       expect(c.options.priceScaleId, 'BB inherited the rsi scale — C-2 is back').toBe('right')
       expect(c.options.autoscaleInfoProvider(),
         'the re-purposed band would stretch the candles').toBe(null)
-      expect(c.options.color, 'and it is wearing BB\'s colour').toBe(BB_COLOUR)
+      expect(c.options.color, "and it is wearing BB's colour").toBe(BB_COLOUR)
     }
   })
 
   it('and the RSI band it vacated is gone — no orphan on the rsi scale', () => {
-    // The other half of the same write. If the legacy RSI block did NOT stand
-    // back up (or the engine left its series bound to the `rsi` scale), the user
-    // would be looking at a dead line in an unreserved band.
+    // The other half of the same write. If the band survived the write, the user
+    // would be looking at a permanently short price pane with nothing under it.
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings([RSI_INSTANCE])} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={rsiOnly} />,
     )
     expect(H.binderApis[0].bindings()).toHaveLength(1)
+    expect(H.syncCalls.at(-1).paneMargins.rsi, 'no band to vacate — vacuous').toEqual({ top: 0.85, bottom: 0 })
+
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...settings([BB_INSTANCE]), indicators: { ...both.indicators, rsi: { enabled: false } } }} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={bbOnly} />,
     )
     expect(H.binderApis[0].bindings().every(b => b.defId === 'bb')).toBe(true)
     expect(H.binderApis[0].bindings()).toHaveLength(3)
+    expect(H.syncCalls.at(-1).paneMargins.rsi,
+      'the RSI band survived the write that removed the RSI').toBeUndefined()
   })
 })
 
@@ -2367,14 +2507,20 @@ describe('VWAP Flip A — the legacy block stands down on an intraday chart', ()
     expect(vwapLines(), 'the legacy block drew a session VWAP on daily bars').toHaveLength(0)
   })
 
-  it('leaves every OTHER legacy indicator alone — ownership is per definition', () => {
+  it('leaves every OTHER indicator alone — ownership is per definition', () => {
+    // ⚠️ RSI IS NO LONGER A "LEGACY" CONTROL HERE — it is flipped, so the engine
+    // draws it too and the binding count is 1 + 1. The claim is unchanged and the
+    // assertion is now per DEFINITION rather than a bare total, which is stronger:
+    // a total would have been satisfied by two VWAPs and no RSI.
     drawIntraday({
       indicators: { vwap: VWAP_CFG, rsi: { enabled: true } },
       engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
     })
-    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    const byDef = H.binderApis[0].bindings().map(b => b.defId)
+    expect(byDef.filter(d => d === 'vwap'), 'VWAP stopped drawing').toHaveLength(1)
+    expect(byDef.filter(d => d === 'rsi'), 'RSI stopped drawing when VWAP migrated').toHaveLength(1)
     expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi'),
-      'RSI stopped drawing when VWAP migrated').toHaveLength(1)
+      'two RSI lines on one scale').toHaveLength(1)
   })
 })
 
@@ -2771,53 +2917,61 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
   })
 })
 
-// ─── THE FLIP-B MACHINERY IS INERT WHILE NOTHING IS FLIPPED (B3 Task 9) ─────
+// ─── THE FLIP-B MACHINERY, NOW THAT IT IS LIVE (B3 Task 10) ────────────────
 //
-// Task 9 lands three pieces — `csForPaneMarginsProjection`, `instanceControls`
-// and the gated read-time migrator — with `ENGINE_FLIPPED_DEF_IDS` EMPTY. Its
-// whole gate is that NOTHING CHANGES in that state, and "nothing changed" is
-// only a claim until something asserts each way it could.
+// ⭐ THIS SUITE USED TO ASSERT INERTNESS, AND EVERY ONE OF ITS CASES WAS A
+// CONTROL WHOSE PREMISE TASK 10 FALSIFIED. Task 9 landed
+// `paneMarginsProjection`, `instanceControls` and the gated read-time migrator
+// with `ENGINE_FLIPPED_DEF_IDS` EMPTY, and proved each way "nothing changed"
+// could have been false. `rsi` and `bb` are flipped now, so:
 //
-// ⚠️ INERTNESS IS HALF A GATE. A projection wired to a constant `false`, a
-// migrator gate that can never open, a control branch nothing can reach — all
-// three pass every case below. The other half is
-// `flipBWithANonEmptySet.test.jsx`, which mocks the set non-empty and drives the
-// same component through the machinery. Neither file is worth much without the
-// other.
-describe('the Flip-B machinery is inert while nothing is flipped (Task 9)', () => {
-  it('ENGINE_FLIPPED_DEF_IDS is empty, and is a SUBSET of the migrated set', () => {
+//   · "the set is empty"                     → it is exactly {bb, rsi}, still ⊆ migrated
+//   · "a legacy toggle alone draws LEGACY"   → it draws the ENGINE's, via the migrator
+//   · "the migrator is never RUN"            → it runs, and is the compatibility path
+//   · "…for EVERY migrated definition"       → only for the UN-flipped ones
+//   · "csForPaneMargins returns `cs` by IDENTITY" → identity survives only where
+//     nothing flipped can appear, which after Flip B is no chart at all; the
+//     property that replaced it is that the projection changes ONE FIELD and
+//     leaves the rest of the blob alone, asserted by comparison against the input
+//   · "the toolbar still writes the LEGACY section" → it writes the instance AND
+//     the mirror
+//
+// Rewriting them rather than deleting them is the point: each one still names a
+// way the machinery could be wrong, in the direction it can now be wrong in.
+describe('the Flip-B machinery, live (Task 10)', () => {
+  it('ENGINE_FLIPPED_DEF_IDS is exactly {bb, rsi}, and is a SUBSET of the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    expect(ENGINE_FLIPPED_DEF_IDS.size).toBe(0)
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'rsi'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
-  it('a legacy toggle alone still draws the LEGACY series, not the engine\'s', () => {
-    // With nothing flipped, only STORED instances reach the binder. If the
-    // read-time migrator were ungated, turning the flag on would silently move
-    // four indicators onto the engine with no instance anywhere.
+  it('a legacy toggle alone draws the ENGINE\'s series — the read-time migrator', () => {
+    // ⭐ THE COMPATIBILITY CASE, AND THE ONE EVERY EXISTING USER IS IN. A blob
+    // with `indicators.rsi.enabled` and no instance anywhere still renders: the
+    // migrator projects it, the engine draws it, and there is exactly one line.
     draw({ engineEnabled: true, indicators: { rsi: { enabled: true } } })
-    expect(H.binderApis[0].bindings()).toHaveLength(0)
-    expect(H.addSeriesCalls.filter(c => c.options?.priceScaleId === 'rsi')).toHaveLength(1)
+    expect(H.binderApis[0].bindings(), 'the migrator did not project the toggle').toHaveLength(1)
+    expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi'),
+      'two RSI lines — the deleted block came back').toHaveLength(1)
   })
 
-  it('…and the read-time migrator is never RUN at all — the gate, not just its effect', () => {
-    // ⛔ THE MUTATION THAT SURVIVED UNTIL THIS CASE EXISTED. Ungating the migrator
-    // (`const source = true`) changes NOTHING observable while the flip set is
-    // empty, because the per-definition filter behind it discards every projected
-    // instance anyway — same bindings, same series, same pixels. What it costs is
-    // a registry walk and a blob walk on EVERY PAINT, on every chart, for every
-    // user, and that is invisible to a binding count. So the gate is asserted on
-    // what it actually guards: the call.
-    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
-    expect(H.binderApis[0].bindings(), 'nothing was drawn — this case is vacuous').toHaveLength(1)
-    expect(H.migrateCalls, 'the read-time migrator ran while nothing is flipped').toBe(0)
+  it('…and the read-time migrator RUNS — the gate is open, not just its effect', () => {
+    // The mirror of Task 9's case, which asserted this was 0. A gate only ever
+    // asserted in ONE state can be welded shut and stay green, so both states are
+    // pinned: this file asserts > 0 with ids flipped, and the un-flipped
+    // definitions below assert the per-DEFINITION filter still holds them back.
+    draw({ engineEnabled: true, indicators: { rsi: { enabled: true } } })
+    expect(H.migrateCalls, 'the read-time migrator never ran').toBeGreaterThan(0)
   })
 
-  it('…and that holds for EVERY migrated definition, not just the one it was written for', () => {
-    // The ungated migrator would move all four at once. A case pinned to `rsi`
-    // would still be green with `bb`, `macd` and `vwap` silently re-homed.
+  it('…and it holds back every UN-FLIPPED migrated definition — the gate is per definition', () => {
+    // ⛔ THE WHOLE-SET GATE WOULD HAVE MOVED ALL FOUR PILOTS ON THE FIRST FLIP,
+    // which is exactly what flipping one indicator at a time with a pixel number
+    // each exists to prevent. `macd` and `vwap` are migrated and NOT flipped, so
+    // a legacy toggle alone must still reach their legacy blocks and nothing else.
     for (const defId of ENGINE_MIGRATED_DEF_IDS) {
+      if (ENGINE_FLIPPED_DEF_IDS.has(defId)) continue
       cleanup(); H.reset()
       const tf = tfFor(defId)
       draw({ engineEnabled: true, indicators: { [defId]: { enabled: true } } }, tf)
@@ -2826,38 +2980,60 @@ describe('the Flip-B machinery is inert while nothing is flipped (Task 9)', () =
     }
   })
 
-  it('the margins the engine is handed come from the SAME OBJECT the legacy path used', () => {
-    // ⛔ IDENTITY, NOT DEEP EQUALITY. Two different blobs can produce deep-equal
-    // margins, so a `toEqual` here would pass for a projection that allocated a
-    // fresh object on every paint — which is a real cost (`computePaneMargins`
-    // runs per frame) and a real signal that the dark path is no longer dark.
-    // The wrapper around the real `csForPaneMargins` is what makes the return
-    // value observable at all.
+  it('…and the loop above is not vacuous — there IS an un-flipped migrated definition', () => {
+    // ⚠️ Task 11 flips the last two. When it does, the loop above iterates zero
+    // times and passes for free — so the non-vacuity is asserted here, and this
+    // case is what tells Task 11 the loop has expired rather than letting it rot.
+    const unflipped = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
+    expect(unflipped.length,
+      'every migrated definition is flipped — the per-definition loop above is now vacuous, '
+      + 'and this suite needs a different subject (see Task 11)').toBeGreaterThan(0)
+  })
+
+  it('csForPaneMargins changes ONE FIELD and carries the rest of the blob through', () => {
+    // ⛔ WHAT REPLACED THE IDENTITY ASSERTION. Task 9 could assert `out === cs`,
+    // because with nothing flipped the projection short-circuits. It cannot hold
+    // now — a flipped id means a rewritten `indicators` section — so the property
+    // that survives is the one that actually protects `paneMargins.js`: the blob
+    // handed to `computePaneMargins` is the SAME `cs` except for
+    // `indicators.<flipped>.enabled`. Anything else moving is the projection
+    // growing into a second settings model.
     draw({ engineEnabled: true, indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
     expect(H.csForPaneMarginsCalls.length,
       'csForPaneMargins was never called — the projection is not wired in').toBeGreaterThan(0)
     for (const call of H.csForPaneMarginsCalls) {
-      expect(call.flipped.size, 'a non-empty flip set shipped').toBe(0)
-      expect(call.out, 'the projection allocated a new blob while nothing is flipped').toBe(call.cs)
+      expect(call.flipped.size, 'the flip set reaching the projection is empty').toBeGreaterThan(0)
+      for (const key of Object.keys(call.cs)) {
+        if (key === 'indicators') continue
+        expect(call.out[key], `the projection rewrote ${key}`).toBe(call.cs[key])
+      }
+      for (const id of Object.keys(call.cs.indicators || {})) {
+        if (ENGINE_FLIPPED_DEF_IDS.has(id)) continue
+        expect(call.out.indicators[id], `the projection rewrote indicators.${id}`)
+          .toBe(call.cs.indicators[id])
+      }
     }
     // …and the band the binder was actually handed is the legacy answer.
-    const ctx = H.syncCalls.at(-1)
-    expect(ctx.paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
+    expect(H.syncCalls.at(-1).paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
   })
 
-  it('…including on a chart with NO instances at all, where it is also called', () => {
+  it('…and it is called on a flag-off chart too, where a flipped id still draws', () => {
     // The projection sits on the paint path for every chart, not just engine
-    // ones. If it allocated here it would allocate for every user on every frame.
+    // ones — and after Flip B "not an engine one" no longer means "nothing
+    // flipped is drawn", which is the whole reason the engine ignores the flag
+    // for a flipped id.
     draw({ indicators: { rsi: { enabled: true } } })
     expect(H.csForPaneMarginsCalls.length, 'not called on a flag-off chart').toBeGreaterThan(0)
-    for (const call of H.csForPaneMarginsCalls) expect(call.out).toBe(call.cs)
+    expect(H.binderApis[0].bindings(), 'a flag-off chart drew no RSI at all').toHaveLength(1)
+    expect(H.syncCalls.at(-1).paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
   })
 
-  it('the toolbar\'s rows still write the LEGACY section, because none has a writer yet', () => {
-    // `updateIndicator` routes to `instanceControls` for a FLIPPED id only. With
-    // the set empty the legacy branch is the only reachable one — so the enable
-    // checkbox writes `cs.indicators.rsi.enabled` exactly as it always has, and
-    // no `indicatorInstances` key appears in a blob that had none.
+  it('the keyboard writes the INSTANCE and the MIRROR, in one blob', () => {
+    // Task 9's version asserted the opposite — that no `indicatorInstances` key
+    // appeared — because nothing had a writer yet. Both halves matter: the
+    // instance is what the chart reads, and the mirror is what the alert
+    // evaluator, the alert popover, the screener and the `?indicators=` route
+    // read, none of which knows instances exist.
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
@@ -2867,8 +3043,9 @@ describe('the Flip-B machinery is inert while nothing is flipped (Task 9)', () =
     act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
     expect(persisted.length, 'Ctrl+I persisted nothing — this case is vacuous').toBeGreaterThan(0)
     const last = persisted.at(-1)
-    expect(last.indicators.rsi.enabled, 'the legacy toggle is no longer the switch').toBe(false)
-    expect(last.indicatorInstances ?? [], 'a control wrote an instance while nothing is flipped').toEqual([])
+    expect(last.indicators.rsi.enabled, 'the mirror was not written').toBe(false)
+    expect(last.indicatorInstances, 'no instance was written — the chart would still draw it')
+      .toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
     view.unmount()
   })
 })

@@ -70,26 +70,43 @@ export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd
  * the subset relation, because the reverse — flipped but not migrated — means the
  * legacy block is gone and nothing replaced it.
  *
- * ⛔ EMPTY UNTIL TASK 10, and while it is empty every read that consults it is
- * byte-identical to the pre-B3 path — which is Task 9's entire exit criterion.
- * Three readers, and each one's dark behaviour is asserted rather than assumed:
+ * ⭐ TASK 10 OPENED IT: `rsi` and `bb`. Their legacy render blocks, their
+ * `useRef`s, their `indicatorData` branches, their hide-all entries and RSI's
+ * crosshair fallback are DELETED, and what reads this set now decides real
+ * behaviour rather than nothing:
  *
- *   · `csForPaneMargins` returns `cs` BY IDENTITY (`paneMarginsProjection.js`),
- *     so `computePaneMargins` is handed the object it always was;
- *   · StockChart's instance read stays on `cs.indicatorInstances` — the
- *     read-time migrator is gated behind a non-empty set, because projecting the
- *     legacy toggle into an instance would move all four pilots onto the engine
- *     with no stored instance anywhere;
- *   · `ChartToolbar`'s period/colour rows stay `disabled` and keep writing the
- *     legacy section, because a flipped id is the only one whose control has a
- *     writer to route to.
+ *   · `csForPaneMargins` rewrites `indicators.<id>.enabled` from the INSTANCE
+ *     list for these ids, so the bands follow the instances and `paneMargins.js`
+ *     stays consumed rather than extended;
+ *   · StockChart's instance read runs `migrateLegacyToInstances` and accepts a
+ *     PROJECTED instance for a flipped id only — a whole-set gate would move all
+ *     four pilots on the first flip, which is exactly what flipping one at a time
+ *     with a pixel number each exists to prevent;
+ *   · StockChart's Flip-A `hidden` projection is SKIPPED for a flipped id (the
+ *     instance is the switch now, not the legacy toggle) and still applies to the
+ *     un-flipped migrated ones;
+ *   · `ChartToolbar`'s period/colour rows for these ids are LIVE again and write
+ *     through `instanceControls`, because a flipped id is the only one whose
+ *     control has a writer to route to.
+ *
+ * ⛔⭐ AND THE ENGINE RUNS FOR THEM WHETHER OR NOT `engineEnabled` IS SET.
+ * `engineEnabled` is the opt-in for the engine as a SECOND renderer — a chart
+ * that could already draw the indicator by hand. A FLIPPED definition has no
+ * hand-written block left, so gating it on an opt-in flag does not make the
+ * engine dark, it DELETES the indicator: every stored blob in production has
+ * `engineEnabled` absent, i.e. false. `StockChart` therefore activates the engine
+ * when this set is non-empty and narrows the instance list to flipped ids alone
+ * while the flag is off, so an un-flipped migrated definition (`macd`, `vwap`)
+ * still needs the flag exactly as it did at Flip A. The pixel gate for it is
+ * `rsi_only` / `bb_only` / `bb_rsi_macd` — legacy-shaped, flag-off settings —
+ * measured across the Task-9 build and this one.
  *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
  * cannot import from it. `StockChart` re-exports it so the plan's stated
  * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
  */
-export const ENGINE_FLIPPED_DEF_IDS = Object.freeze(new Set())
+export const ENGINE_FLIPPED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb']))
 
 /**
  * The migrated definitions this settings blob hands to the engine.

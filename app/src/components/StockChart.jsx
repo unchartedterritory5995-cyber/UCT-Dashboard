@@ -10,7 +10,10 @@ import { createWatermarkPrimitive, composeWatermarkLines } from './chart/waterma
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
-import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
+// ⛔ NO `computeBB` / `computeRSI`. Both are FLIPPED (B3 Task 10) and are called
+// by their engine definitions now; importing them here again is how a "migrated"
+// indicator quietly keeps paying for a second computation nothing renders.
+import { toHeikinAshi, computeVWAP, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
@@ -39,6 +42,7 @@ import { normalizeInstances, engineOwnedDefIds, legacyInstanceId, migrateLegacyT
 import { eligibleInstances } from './chart/engine/eligibility'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
 import { csForPaneMargins } from './chart/engine/paneMarginsProjection'
+import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
 import { engineChips, chipsBySlot } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
@@ -1697,11 +1701,11 @@ export default function StockChart({
   const overlaySeriesRefs = useRef([])
   const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
   const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
-  const bbUpperRef    = useRef(null)
-  const bbMiddleRef   = useRef(null)
-  const bbLowerRef    = useRef(null)
+  // ⛔ NO `bbUpperRef` / `bbMiddleRef` / `bbLowerRef` / `rsiSeriesRef`. Bollinger
+  // Bands and RSI are FLIPPED (B3 Task 10) — the engine's binding map owns their
+  // series, and a ref here would be a second, stale handle to something the pool
+  // re-purposes. See the flip note where their render blocks used to be.
   const vwapSeriesRef = useRef(null)
-  const rsiSeriesRef  = useRef(null)
   const stochKRef     = useRef(null)
   const stochDRef     = useRef(null)
   const atrSeriesRef  = useRef(null)
@@ -2198,12 +2202,28 @@ export default function StockChart({
       id: 'ctype', title: 'Chart type',
       items: CT_OPTS.map(([val, label]) => ({ id: 'ct-' + val, label, kind: 'toggle', checked: (cs.chartType || 'candles') === val, onSelect: () => setCs('chartType', val) })),
     }
+    // ── FLIP B: THE THIRD AND FOURTH DOORS ONTO THE SAME SWITCH ──────────────
+    //
+    // The right-click **Indicators ▸** submenu and **Hide <label>** both wrote
+    // `cs.indicators.<key>.enabled` directly. For a FLIPPED id that is the MIRROR,
+    // not the switch — so the menu would tick a box the chart disagreed with, and
+    // "Hide RSI" would clear the mirror while the instance kept drawing. One
+    // reader (`indEnabled`) and one writer (`setIndEnabled`) for every door.
+    const indEnabled = (key) => isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
+    const setIndEnabled = (key, on) => {
+      if (ENGINE_FLIPPED_DEF_IDS.has(key)) {
+        const next = setIndicatorEnabled(cs, key, on, engineRegistry)
+        if (next !== cs) handleUpdateChartSettings(next)
+        return
+      }
+      setCs(`indicators.${key}.enabled`, on)
+    }
     const IND_OPTS = [['rsi', 'RSI'], ['macd', 'MACD'], ['bb', 'Bollinger Bands'], ['vwap', 'VWAP'], ['stoch', 'Stochastic'], ['atr', 'ATR'], ['obv', 'OBV'], ['adx', 'ADX']]
     const indicatorsItem = {
       id: 'indicators', label: <><UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Indicators</>, kind: 'submenu',
       submenu: IND_OPTS.map(([key, label]) => ({
-        id: 'ind-' + key, label, kind: 'toggle', checked: !!cs.indicators?.[key]?.enabled,
-        onSelect: () => setCs(`indicators.${key}.enabled`, !cs.indicators?.[key]?.enabled),
+        id: 'ind-' + key, label, kind: 'toggle', checked: indEnabled(key),
+        onSelect: () => setIndEnabled(key, !indEnabled(key)),
       })),
     }
     // "Overlay on volume": move an enabled oscillator into the volume pane
@@ -2211,7 +2231,9 @@ export default function StockChart({
     // currently ON appear (BB/VWAP live on the price scale and can't overlay).
     const OSC_OPTS = [['rsi', 'RSI'], ['macd', 'MACD'], ['stoch', 'Stochastic'], ['atr', 'ATR'], ['mfi', 'MFI'], ['cci', 'CCI'], ['williamsR', 'Williams %R'], ['adx', 'ADX'], ['obv', 'OBV']]
     const volOverlayCur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
-    const enabledOsc = OSC_OPTS.filter(([key]) => !!cs.indicators?.[key]?.enabled)
+    // …through the same reader, so a flipped oscillator the user deleted cannot
+    // still offer "overlay it on the volume pane".
+    const enabledOsc = OSC_OPTS.filter(([key]) => indEnabled(key))
     const volumeOverlayItem = (showVolumeProp === undefined && cs.volume?.visible && enabledOsc.length) ? {
       id: 'voloverlay', label: <><UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Overlay on volume</>, kind: 'submenu',
       submenu: enabledOsc.map(([key, label]) => ({
@@ -2238,7 +2260,7 @@ export default function StockChart({
       const key = region.key
       const label = INDICATOR_LABELS[key] || key
       secs.push({ id: 'region', title: label, items: [
-        { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setCs(`indicators.${key}.enabled`, false) },
+        { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
         ...settingsLink('i-set', `${label} settings…`),
       ] })
     } else if (region.type === 'overlay') {
@@ -2384,6 +2406,22 @@ export default function StockChart({
     }
   }, [buildScreenshotOpts])
 
+  // ── ENUMERATION SITE #20, AND WHY FLIP B IS WHERE IT HAD TO BE FIXED ───────
+  //
+  // This hand-lists exactly the four B3 pilots and carried NEITHER
+  // `indicatorInstances` NOR `engineEnabled`. At Flip A that was harmless —
+  // `cs.indicators.<id>.enabled` was still the authority, so a shared link
+  // reproduced the chart. **At Flip B `enabled` stops being the authority**: the
+  // sender's RSI may exist only as an instance (a tombstone can even make a
+  // still-true toggle mean "off"), so "Copy chart link" would have silently
+  // dropped RSI and Bollinger Bands from every shared chart — and the recipient's
+  // own tombstone would have swallowed the toggle the link did carry.
+  //
+  // Both halves are carried now: the ENABLED bits go through the one reader every
+  // other door uses, and the instances travel verbatim so the recipient's blob is
+  // overwritten rather than merged-around. `engineEnabled` rides along because a
+  // recipient on a flag-off blob must still be able to draw a MIGRATED-but-not-
+  // flipped indicator the sender had on.
   const handleCopyShareUrl = useCallback(() => {
     const state = {
       sym,
@@ -2392,11 +2430,13 @@ export default function StockChart({
       heikinAshi: cs.heikinAshi,
       logScale: cs.logScale,
       indicators: {
-        rsi: { enabled: cs.indicators?.rsi?.enabled },
-        macd: { enabled: cs.indicators?.macd?.enabled },
-        bb: { enabled: cs.indicators?.bb?.enabled },
-        vwap: { enabled: cs.indicators?.vwap?.enabled },
+        rsi: { enabled: isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS) },
+        macd: { enabled: isIndicatorEnabled(cs, 'macd', ENGINE_FLIPPED_DEF_IDS) },
+        bb: { enabled: isIndicatorEnabled(cs, 'bb', ENGINE_FLIPPED_DEF_IDS) },
+        vwap: { enabled: isIndicatorEnabled(cs, 'vwap', ENGINE_FLIPPED_DEF_IDS) },
       },
+      engineEnabled: cs.engineEnabled === true,
+      indicatorInstances: Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [],
       comparisonSymbols: cs.comparisonSymbols || [],
       markers: cs.markers || {},
     }
@@ -2424,6 +2464,13 @@ export default function StockChart({
         ...(typeof decoded.heikinAshi === 'boolean' ? { heikinAshi: decoded.heikinAshi } : {}),
         ...(typeof decoded.logScale === 'boolean' ? { logScale: decoded.logScale } : {}),
         ...(decoded.indicators ? { indicators: { ...cs.indicators, ...decoded.indicators } } : {}),
+        // ⚠️ REPLACED, NOT MERGED. `mergeSettingsOverride`'s union-by-id is right
+        // for a grid cell holding a partial blob; a share link is a complete
+        // description of somebody else's chart, and unioning would leave the
+        // RECIPIENT's tombstones in place — turning the sender's RSI back off on
+        // arrival, which is the exact defect Flip B makes possible.
+        ...(Array.isArray(decoded.indicatorInstances) ? { indicatorInstances: decoded.indicatorInstances } : {}),
+        ...(typeof decoded.engineEnabled === 'boolean' ? { engineEnabled: decoded.engineEnabled } : {}),
         ...(decoded.comparisonSymbols ? { comparisonSymbols: decoded.comparisonSymbols } : {}),
         ...(decoded.markers ? { markers: { ...cs.markers, ...decoded.markers } } : {}),
         preset: 'custom',
@@ -3471,7 +3518,18 @@ export default function StockChart({
         const updateField = (key, value) => {
           handleUpdateChartSettings({ ...cs, [key]: value, preset: 'custom' })
         }
+        // Ctrl+I / Ctrl+B / Ctrl+O. A FLIPPED indicator is enabled by its
+        // INSTANCE, not by the legacy toggle — one writer, so a checkbox, a
+        // shortcut and the settings panel can never disagree about what "off"
+        // means. `setIndicatorEnabled` writes the legacy MIRROR too, which is what
+        // keeps the alert evaluator and the alert popover alive.
         const updateIndicator = (key) => {
+          if (ENGINE_FLIPPED_DEF_IDS.has(key)) {
+            const on = isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
+            const next = setIndicatorEnabled(cs, key, !on, engineRegistry)
+            if (next !== cs) handleUpdateChartSettings(next)
+            return
+          }
           const next = {
             ...cs.indicators,
             [key]: { ...(cs.indicators?.[key] || {}), enabled: !cs.indicators?.[key]?.enabled },
@@ -3958,12 +4016,12 @@ export default function StockChart({
 
   const indicatorData = useMemo(() => {
     const ind = cs.indicators || {}
-    const rsiRaw = ind.rsi?.enabled
-      ? computeRSI(filteredBars, ind.rsi.period)
-      : []
-    const bbRaw = ind.bb?.enabled
-      ? computeBB(filteredBars, ind.bb.period, ind.bb.stdDev)
-      : { upper: [], middle: [], lower: [] }
+    // ⛔ NO `rsi` / `bb` BRANCHES. Both are FLIPPED (B3 Task 10): the engine
+    // computes their columns from the same `filteredBars` at bind time, and a
+    // second computation here would be a silent duplicate whose only observable
+    // effect is CPU — the classic way a "migrated" indicator keeps costing what it
+    // cost before. `computeRSI` / `computeBB` still exist and are still what the
+    // engine's definitions call.
     const vwapRaw = ((vwapOverride || ind.vwap?.enabled) && VWAP_TFS.has(resolvedTf))
       ? computeVWAP(filteredBars)
       : []
@@ -4002,12 +4060,6 @@ export default function StockChart({
     // downstream _applyData can hand the renderer a `value: NaN`.
     const line = (pts) => pts.map(p => indPoint(adjustTime(p.time), p.value))
     return {
-      rsi: line(rsiRaw),
-      bb: {
-        upper:  line(bbRaw.upper),
-        middle: line(bbRaw.middle),
-        lower:  line(bbRaw.lower),
-      },
       vwap: line(vwapRaw),
       macd: (() => {
         const macdCfg = ind.macd
@@ -5528,6 +5580,23 @@ export default function StockChart({
     // has to be up here because `engineOwned` decides which legacy blocks below
     // stand down, and the first of those is BB itself.
     const engineOn = cs.engineEnabled === true
+    // ── FLIP B: A FLIPPED DEFINITION HAS NO OTHER RENDERER ───────────────────
+    //
+    // ⛔ `engineEnabled` is the opt-in for the engine as a SECOND path — a chart
+    // that can already draw the indicator by hand and is being asked to draw it
+    // the new way instead. For a FLIPPED id there is no hand-written block left,
+    // so keeping the gate would not make the engine dark, it would DELETE the
+    // indicator: `mergeChartSettings` computes `engineEnabled: parsed
+    // .engineEnabled === true` from the STORED BLOB (`chartDefaults.js:404`), and
+    // every blob in production predates the engine, so the flag reads false for
+    // every existing user and flipping `CHART_DEFAULTS.engineEnabled` cannot heal
+    // one (that is enumeration site #22's trap, in the global).
+    //
+    // So the engine is ACTIVE whenever something is flipped, and the instance
+    // list below is narrowed to flipped ids alone while the flag is off — an
+    // un-flipped migrated definition (`macd`, `vwap`) still needs the flag,
+    // exactly as it did at Flip A, and its legacy block still draws it.
+    const engineActive = engineOn || ENGINE_FLIPPED_DEF_IDS.size > 0
     // Normalised on the way in: a tombstone or a malformed record must never
     // reach the planner. Cheap enough to do per paint at v1 instance counts, and
     // it only ever runs with the engine ON.
@@ -5553,9 +5622,11 @@ export default function StockChart({
     //
     // `hidden`, not "dropped from the list": `engineOwnedDefIds` counts hidden
     // instances, so the legacy block stays stood down and no toggle can hand the
-    // drawing back to it mid-session. (It has no data to draw either way —
-    // `indicatorData.rsi` is `[]` while the flag is off — but ownership is a rail,
-    // not a coincidence.)
+    // drawing back to it mid-session. (It has no data to draw either way — a
+    // legacy block's `indicatorData` branch is `[]` while its toggle is off — but
+    // ownership is a rail, not a coincidence.) ⚠️ RSI is no longer the example:
+    // it is FLIPPED, so it has no block, no branch and no toggle-as-switch. The
+    // paragraph now describes `macd` and `vwap`, which are still Flip A.
     //
     // ── WHAT `hidden` COSTS, STATED CORRECTLY: IT IS `removeSeries`. ──────────
     //
@@ -5599,18 +5670,17 @@ export default function StockChart({
     // four pilots and Phase B eventually fifteen — the number that matters is
     // removals per USER ACTION, not per indicator.
     //
-    // ⛔ DELETED BY TASK 10, together with the test that pins it. Flip B moves the
-    // authority the other way: `csForPaneMargins` projects the INSTANCE list onto
-    // the blob `computePaneMargins` reads, and `instanceControls` routes those
-    // four writes at the instance. The two rules are mirror images and cannot
-    // coexist — whoever lands Flip B removes this one.
-    //
-    // ⏳ BOTH OF THOSE NOW EXIST (Task 9), wired and DARK, and the collision is
-    // no longer hypothetical: with a non-empty flip set an instance whose legacy
-    // toggle is false reserves a band (the projection) that this line then makes
-    // sure nothing draws into (`hidden: true`). That exact state is pinned in
-    // `engine/__tests__/flipBWithANonEmptySet.test.jsx`, marked ⏳, so Task 10
-    // meets it as a red test rather than as a bug report.
+    // ⭐ RESOLVED BY TASK 10, PER DEFINITION — not deleted wholesale. Flip B moves
+    // the authority the other way for a FLIPPED id: `csForPaneMargins` projects
+    // the INSTANCE list onto the blob `computePaneMargins` reads, and
+    // `instanceControls` routes every write at the instance. The two rules are
+    // mirror images and cannot both hold for one definition — an instance whose
+    // legacy toggle is false would reserve a band (the projection) that this line
+    // then made sure nothing drew into. So the `hidden` projection below now
+    // SKIPS `ENGINE_FLIPPED_DEF_IDS` and still applies to `macd` and `vwap`,
+    // which are Flip A and whose legacy toggle is still their switch. Deleting it
+    // outright would have un-done Flip-A semantics for both of them in a task
+    // whose gate is that only rsi and bb move.
     //
     // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
     // needs its own answer here before it joins `ENGINE_MIGRATED_DEF_IDS`. VWAP is
@@ -5632,7 +5702,7 @@ export default function StockChart({
     // HERE where instances are built, never inside `eligibility` — a hook that
     // could invent instances would hand the binder something `engineOwnedDefIds`
     // never saw.
-    const engineInstances = engineOn
+    const engineInstances = engineActive
       ? (() => {
           // ── READ-TIME MIGRATION, GATED ON THE FLIP SET ───────────────────────
           //
@@ -5663,19 +5733,60 @@ export default function StockChart({
           // STORED (including a tombstone) passes through untouched, exactly as
           // it does today. `flipBWithANonEmptySet.test.jsx` drives this with a
           // non-empty set and asserts an un-flipped `bb` is not projected.
+          const stored = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
           const storedIds = new Set(
-            (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])
-              .map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
+            stored.map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
+          )
+          // ⭐ …AND A DEFINITION THE BLOB ALREADY DRAWS IS NOT PROJECTED AGAIN.
+          //
+          // 🐛 THE DOUBLE-DRAW THIS PHASE EXISTS TO PREVENT, IN A NEW GUISE.
+          // `migrateLegacyToInstances` reserves ids PER INSTANCE ID (`legacy:rsi`),
+          // which is right for its own contract — two instances of one definition
+          // are legal. But the legacy TOGGLE is per DEFINITION, and it is a
+          // compatibility shim for a blob that has no instance for that definition
+          // at all. A blob holding `{instanceId: 'engine-test:rsi', defId: 'rsi'}`
+          // plus `indicators.rsi.enabled: true` therefore projected a SECOND
+          // `legacy:rsi` and drew TWO RSI lines — a `?instances=` URL, a grid
+          // cell's override or any custom-id instance is enough to reach it.
+          // `isIndicatorEnabled` already answers "a LIVE instance of the
+          // definition wins", so the migrator and the checkbox disagreed too.
+          //
+          // Applied HERE and not inside the migrator: the per-id contract is
+          // correct for every other caller, and the rule that a projection is
+          // outranked by a live instance of the same DEFINITION belongs to the
+          // read that turns instances into pixels.
+          // ⚠️ HIDDEN COUNTS. `normalizeInstances` keeps a hidden instance and
+          // drops a tombstone — exactly the line "does this definition EXIST in
+          // the blob" needs. A tombstone must NOT count (its whole job is to let
+          // "off" survive a still-true toggle), and it blocks the projection by
+          // its id anyway, inside the migrator's own `taken` set.
+          const liveStoredDefIds = new Set(
+            normalizeInstances(stored, engineRegistry).kept.map(i => i.defId),
           )
           const source = ENGINE_FLIPPED_DEF_IDS.size > 0
             ? migrateLegacyToInstances(cs, engineRegistry)   // instances are the authority…
-              .filter(i => storedIds.has(i && i.instanceId)  // …for FLIPPED ids only
-                || ENGINE_FLIPPED_DEF_IDS.has(i && i.defId))
+              .filter((i) => {
+                if (storedIds.has(i && i.instanceId)) return true   // stored: always
+                if (!ENGINE_FLIPPED_DEF_IDS.has(i && i.defId)) return false  // …projected: FLIPPED only
+                return !liveStoredDefIds.has(i.defId)              // …and not already drawn
+              })
             : cs.indicatorInstances                          // Flip A: only STORED instances draw
           const migrated = normalizeInstances(source, engineRegistry).kept
-            .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
-            .map(i => (i.hidden || legacyEnabled(i.defId) ? i : { ...i, hidden: true }))
-          const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
+            // ⚠️ TWO GATES, NOT ONE. A FLIPPED id is always the engine's (it has
+            // no other renderer); a MIGRATED-but-un-flipped id is the engine's
+            // only while `engineEnabled` is on, which is Flip A unchanged.
+            .filter(i => ENGINE_FLIPPED_DEF_IDS.has(i.defId)
+              || (engineOn && ENGINE_MIGRATED_DEF_IDS.has(i.defId)))
+            // …and Flip A's "the legacy toggle is still the switch" projection
+            // applies to exactly the ids that are still on Flip A.
+            .map(i => (ENGINE_FLIPPED_DEF_IDS.has(i.defId) || i.hidden || legacyEnabled(i.defId)
+              ? i
+              : { ...i, hidden: true }))
+          // `vwapOverride` forces a VWAP instance, and `vwap` is NOT flipped — so
+          // it is manufactured only when the flag is on. Without the guard a
+          // Model Book popup on a flag-off chart would hand the engine a VWAP the
+          // legacy block is also drawing.
+          const withForced = (engineOn && vwapOverride && !migrated.some(i => i.defId === 'vwap'))
             ? [...migrated, {
                 instanceId: legacyInstanceId('vwap'), defId: 'vwap',
                 // ⚠️ FILTERED TO DECLARED INPUT KEYS. This instance never passes
@@ -5714,7 +5825,7 @@ export default function StockChart({
     //
     // With the flag off the set is empty and every legacy block behaves exactly
     // as it always has.
-    const engineOwned = engineOn ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
+    const engineOwned = engineActive ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
 
     // ── Volume-pane indicator overlay ──
     // Chosen oscillators render INSIDE the volume pane on its left axis (volume
@@ -6021,13 +6132,22 @@ export default function StockChart({
     // developing bar alive in extended hours) and would create its panes at a
     // different point in the pass. Extraction is B5's job, when panes stop being
     // bands.
+    //
+    // ⚠️ `engineNeeded`, not `engineActive`: after Flip B the engine is active on
+    // EVERY chart (something is always flipped), and constructing a binder for a
+    // chart with no instances would trade the "zero lightweight-charts calls when
+    // there is nothing to draw" property for nothing. A chart that later gains an
+    // instance builds one then; a chart that loses its last one syncs
+    // `enabled: false`, which releases what it held (`binder.js:241`) rather than
+    // leaving ghosts.
+    const engineNeeded = engineOn || engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
-    if (engineOn && !engineRef.current) {
+    if (engineNeeded && !engineRef.current) {
       engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
     }
     if (engineRef.current) {
       engineRef.current.binder.sync({
-        enabled: engineOn,
+        enabled: engineNeeded,
         cs,
         instances: engineInstances,
         registry: engineRegistry,
@@ -6053,41 +6173,22 @@ export default function StockChart({
       })
     }
 
-    // ── Bollinger Bands (3 LineSeries on main price scale) ──
-    // `!engineOwned.has('bb')` — the crossover guard (see `engineOwnedDefIds`).
-    // An engine instance of `bb` draws this indicator, so the legacy block stands
-    // down; the `else` below then removes the legacy series, which is what keeps
-    // a mid-session flip from leaving six purple lines on the price scale.
+    // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────
     //
-    // ⚠️ THE GUARD IS PER-SERIES AND HAS TO BE. All three bands share one loop,
-    // so a guard on the loop's ENTRY would skip the `else` branch too and leave
-    // three orphaned legacy lines behind on a flip. It is inside the condition,
-    // next to `data.length`, so "the engine owns this" reaches the removal path
-    // exactly the way "there is no data" does.
-    const bbColor = cs.indicators?.bb?.color || 'rgba(156,39,176,0.85)'
-    const BB_BANDS = [
-      { ref: bbUpperRef,  data: indicatorData.bb.upper,  style: 2 },
-      { ref: bbMiddleRef, data: indicatorData.bb.middle, style: 0 },
-      { ref: bbLowerRef,  data: indicatorData.bb.lower,  style: 2 },
-    ]
-    const bbEngineOwned = engineOwned.has('bb')
-    for (const { ref, data, style } of BB_BANDS) {
-      if (data.length && !bbEngineOwned) {
-        if (!ref.current) {
-          ref.current = chart.addSeries(LineSeries, {
-            color: bbColor, lineWidth: 1, lineStyle: style,
-            priceLineVisible: false, lastValueVisible: false,
-            crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
-          })
-        } else {
-          ref.current.applyOptions({ color: bbColor })
-        }
-        _applyData(ref.current, data)
-      } else if (ref.current) {
-        try { chart.removeSeries(ref.current) } catch {}
-        ref.current = null
-      }
-    }
+    // Both are drawn by the ENGINE, from the instance list, at the sync call
+    // above. Their hand-written blocks, their `useRef`s, their `indicatorData`
+    // branches, their entries in the hide-all array and RSI's crosshair fallback
+    // are all GONE — that deletion IS Flip B, and it is what stops each of them
+    // being enumerated in six places. `ENGINE_FLIPPED_DEF_IDS` names them; the
+    // enable signal reaches `computePaneMargins` through `csForPaneMargins`, and
+    // the engine is ACTIVE for them regardless of `engineEnabled` because there is
+    // nothing else left that could draw them.
+    //
+    // ⚠️ RSI's block sat BELOW VWAP's and BB's ABOVE it. Order still matters for
+    // the price overlays (LWC z-stacks by insertion), and it is preserved: the
+    // engine inserts everything it owns at the sync call, which is where BB — the
+    // FIRST legacy indicator block — used to be. RSI has its own scale in its own
+    // band and crosses nothing.
 
     // ── Session VWAP (intraday only) ──
     // `!engineOwned.has('vwap')` — the crossover guard (see `engineOwnedDefIds`).
@@ -6136,38 +6237,6 @@ export default function StockChart({
     } else if (vwapSeriesRef.current) {
       try { chart.removeSeries(vwapSeriesRef.current) } catch {}
       vwapSeriesRef.current = null
-    }
-
-    // ── RSI sub-pane ──
-    // `!engineOwned.has('rsi')` — the crossover guard (see `engineOwnedDefIds`).
-    // An engine instance of `rsi` draws this indicator, so the legacy block stands
-    // down; the `else if` below then removes the legacy series, which is what
-    // keeps a mid-session flip from leaving two RSI lines on one scale. With the
-    // engine off the set is empty and this reads exactly as it always did.
-    if (indicatorData.rsi.length && !engineOwned.has('rsi')) {
-      const rsiColor = cs.indicators?.rsi?.color || '#7b68ee'
-      const rsiTgt = ensureIndTarget('rsi', [rsiSeriesRef])
-      if (!rsiSeriesRef.current) {
-        rsiSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: rsiTgt.scaleId,
-          color: rsiColor,
-          lineWidth: 1,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        }, rsiTgt.pane)
-        applyIndScale('rsi', rsiSeriesRef.current, rsiTgt, { autoScale: false, minimum: 0, maximum: 100 })
-        rsiSeriesRef.current.createPriceLine({ price: 70, color: 'rgba(123,104,238,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-        rsiSeriesRef.current.createPriceLine({ price: 50, color: 'rgba(123,104,238,0.2)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
-        rsiSeriesRef.current.createPriceLine({ price: 30, color: 'rgba(123,104,238,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-      } else {
-        rsiSeriesRef.current.applyOptions({ color: rsiColor })
-        applyIndScale('rsi', rsiSeriesRef.current, rsiTgt)
-      }
-      _applyData(rsiSeriesRef.current, indicatorData.rsi)
-    } else if (rsiSeriesRef.current) {
-      try { chart.removeSeries(rsiSeriesRef.current) } catch {}
-      rsiSeriesRef.current = null
     }
 
     // ── Stochastic sub-pane ──
@@ -8024,11 +8093,11 @@ export default function StockChart({
         } catch { /* disposed mid-hover */ }
       }
 
-      let rsiValue = engSlots.rsi ? engSlots.rsi.value : null
-      if (rsiValue === null && rsiSeriesRef.current) {
-        const d = param.seriesData.get(rsiSeriesRef.current)
-        rsiValue = d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)
-      }
+      // FLIPPED (B3 Task 10): there is no legacy RSI series to fall back to, and
+      // no `indicatorData.rsi` either. The engine chip carries the developing-bar
+      // fallback the legacy read used to provide (`readout.js`, B3 Task 2 review
+      // I-3), so the slot is the whole answer.
+      const rsiValue = engSlots.rsi ? engSlots.rsi.value : null
 
       // PER-PLOT, not per-indicator (review M-6). These were one branch, so
       // `signal`'s fallback was decided by whether `macd` had a value.
@@ -8596,7 +8665,10 @@ export default function StockChart({
       // ReferenceError the moment any chart mounted — every identifier in this
       // list MUST be a declared ref (there is no build-time check for this).
       volumeSeriesRef,
-      bbUpperRef, bbMiddleRef, bbLowerRef, vwapSeriesRef, rsiSeriesRef,
+      // ⛔ NO bb*/rsi refs — FLIPPED (B3 Task 10). They are reached through the
+      // engine's binding map at the bottom of this effect, which is why the
+      // declutter toggle keeps working for them without anyone editing this list.
+      vwapSeriesRef,
       macdLineRef, macdSignalRef, macdHistRef,
       stochKRef, stochDRef, atrSeriesRef, sarSeriesRef,
       ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef,
