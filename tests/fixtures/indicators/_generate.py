@@ -10,6 +10,12 @@ Read ``_schema.md`` first. The short version:
   from the rounding delivery wrappers.
 * The two VWAP cases emit bars + a ``session`` block and **no** ``expected`` —
   they pin a session-boundary bug class, not a value.
+* ``intraday5m_sessions`` owns no bars at all. It carries ``barsFrom`` — a
+  repo-relative path to ``app/src/pages/parityBars/intraday5m.json``, the bar
+  fixture the chart parity gate RENDERS — so the shared oracle and the picture
+  are provably one series rather than two copies that can drift. Regenerating
+  the parity fixture therefore turns this case red in BOTH lanes, which is the
+  point: every parity number measured against those bars would have expired.
 
 ⛔ **This ran once and its output is committed.** Do not re-run it to "fix" a
 failing fixture test: a regenerated fixture cannot fail, so re-running converts
@@ -40,6 +46,11 @@ REL_TOL = 1e-9
 # 2026-06-01 00:00 UTC — an arbitrary but fixed anchor for the daily cases.
 _DAILY_T0 = int(datetime(2026, 6, 1, tzinfo=timezone.utc).timestamp())
 _DAY = 86400
+
+# The bar fixture the CHART PARITY GATE renders (tools/chart_parity.py →
+# `?fixedbars=intraday5m`). Repo-relative, POSIX separators: it is written into
+# the fixture JSON and resolved by both lanes.
+_PARITY_INTRADAY = "app/src/pages/parityBars/intraday5m.json"
 
 
 # ─── bar builders ────────────────────────────────────────────────────────────
@@ -206,6 +217,50 @@ def build_vwap_utc_midnight() -> list[dict]:
     return _session_bars("2026-06-10", -4, et_hours, prices, vols)
 
 
+def load_parity_intraday_bars() -> list[dict]:
+    """The chart parity gate's INTRADAY bar fixture, read straight off disk.
+
+    Not rebuilt here. ``tools/gen_intraday_fixture.py`` owns those bars; this
+    case exists so the two compute lanes assert against *the exact series the
+    chart draws*, and rebuilding them would defeat that in the most quietly
+    convincing way possible.
+    """
+    path = os.path.join(_REPO_ROOT, *_PARITY_INTRADAY.split("/"))
+    if not os.path.exists(path):
+        raise SystemExit(
+            f"{_PARITY_INTRADAY} is missing — run `python tools/gen_intraday_fixture.py` "
+            f"first. This case has no bars of its own by design."
+        )
+    with open(path, encoding="utf-8") as f:
+        bars = json.load(f)["bars"]
+    assert bars, f"{_PARITY_INTRADAY} has no bars"
+    assert all(isinstance(b["t"], int) for b in bars), (
+        f"{_PARITY_INTRADAY} has a non-numeric `t`; VWAP's session bucketing needs real instants"
+    )
+    return bars
+
+
+def _annotate_et(bars: list[dict]) -> list[dict]:
+    """Attach ``_etDate``/``_etHour`` so ``_session_block`` can derive the ET
+    bucketing. Unlike ``_session_bars`` (which BUILDS bars from a declared UTC
+    offset) these timestamps already exist, so the tz database is the only
+    authority available — and a missing one must be fatal, never a silent
+    fallback that writes a fixture pinning the wrong boundary."""
+    try:
+        import zoneinfo
+        et = zoneinfo.ZoneInfo("America/New_York")
+    except Exception as e:  # noqa: BLE001
+        raise SystemExit(
+            "no tz database available (pip install tzdata). Deriving the ET session "
+            "bucketing without one would write a fixture that pins the wrong boundary."
+        ) from e
+    out = []
+    for b in bars:
+        d = datetime.fromtimestamp(b["t"], et)
+        out.append({**b, "_etDate": d.strftime("%Y-%m-%d"), "_etHour": d.hour})
+    return out
+
+
 def build_vwap_dst_transition() -> list[dict]:
     """Two extended-hours sessions with the SAME wall-clock shape, straddling
     the end of US DST (Sun 2026-11-01).
@@ -233,7 +288,7 @@ def build_vwap_dst_transition() -> list[dict]:
 
 # ─── writer ──────────────────────────────────────────────────────────────────
 
-def _write(payload: dict) -> None:
+def _write(payload: dict, n_bars: int | None = None) -> None:
     path = os.path.join(_OUT_DIR, f"{payload['case']}.json")
     with open(path, "w", encoding="utf-8") as f:
         # allow_nan=False: a NaN/inf leaking into a column must FAIL generation,
@@ -241,7 +296,9 @@ def _write(payload: dict) -> None:
         json.dump(payload, f, indent=2, allow_nan=False)
         f.write("\n")
     n_cols = len(payload.get("expected") or {})
-    print(f"wrote {path}  ({len(payload['bars'])} bars, {n_cols} expected columns)")
+    n = len(payload["bars"]) if "bars" in payload else n_bars
+    where = "" if "bars" in payload else f" from {payload['barsFrom']}"
+    print(f"wrote {path}  ({n} bars{where}, {n_cols} expected columns)")
 
 
 def _write_computed(case: str, kind: str, note: str, bars: list[dict], params: dict) -> None:
@@ -272,6 +329,52 @@ def _write_vwap(case: str, note: str, bars: list[dict]) -> None:
         "case": case, "kind": "vwap", "note": note, "params": {},
         "relTol": REL_TOL, "bars": clean, "expected": None, "session": session,
     })
+
+
+def _write_referenced(case: str, kind: str, note: str, bars_from: str,
+                      bars: list[dict], params: dict) -> None:
+    """A case that OWNS NO BARS: ``barsFrom`` names the file that does.
+
+    Written for ``intraday5m_sessions``, whose bars are the chart parity gate's
+    own intraday fixture. Two things fall out of the indirection and both are
+    the reason for it:
+
+      * the oracle and the rendered picture cannot drift apart, because there is
+        only one copy of the series;
+      * regenerating the parity fixture turns the ``expected`` columns red in
+        BOTH lanes — which is exactly what should happen, because every parity
+        number ever measured against those bars has just expired.
+
+    It carries an ``expected`` block (so the 1e-9 rel-tol rule applies to it like
+    any other case) AND a ``session`` block (so the UTC-vs-ET bucketing structure
+    of those same bars is pinned in both lanes, not just in the vitest-only
+    fixture test that sits next to the parity JSON).
+    """
+    expected = ic.compute_case(kind, bars, params)
+    cols = ic.case_columns(kind)
+    assert set(expected) == set(cols), f"{case}: column mismatch {set(expected)} != {set(cols)}"
+    for col, series in expected.items():
+        assert len(series) == len(bars), f"{case}.{col} not aligned to bars"
+        assert any(v is not None for v in series), f"{case}.{col} is entirely null"
+    session = _session_block(_annotate_et(bars))
+    # The whole reason this case is on INTRADAY EXTENDED-HOURS bars. A series
+    # where the two bucketings agree pins nothing, and would let B3 Task 8's
+    # VWAP gate report the same number whether the bug survived or not.
+    assert len(session["utcResetIndices"]) > len(session["etResetIndices"]), (
+        f"{case}: UTC bucketing must split the tape MORE often than ET bucketing"
+    )
+    carried = [i for i in session["etResetIndices"] if i not in session["utcResetIndices"]]
+    assert carried, (
+        f"{case}: no ET session opens INSIDE a UTC day, so the carry-over — a whole "
+        f"session computed on top of the previous evening's post-market volume — is "
+        f"absent, and this case is just a second copy of vwap_dst_transition"
+    )
+    _write({
+        "case": case, "kind": kind, "note": note, "params": params,
+        "relTol": REL_TOL, "barsFrom": bars_from,
+        "expected": {c: expected[c] for c in cols},
+        "session": session,
+    }, n_bars=len(bars))
 
 
 def main() -> None:
@@ -339,7 +442,23 @@ def main() -> None:
         build_vwap_dst_transition(),
     )
 
-    print("\nDone — 9 fixtures written. Do NOT re-run this to fix a red test.")
+    _write_referenced(
+        "intraday5m_sessions", "mfi",
+        "The CHART PARITY GATE's intraday bar fixture, asserted by both lanes. Its bars "
+        "live in app/src/pages/parityBars/intraday5m.json (this case carries `barsFrom`, "
+        "not a copy) — 579 five-minute extended-hours bars over Fri 2025-10-31 (EDT), "
+        "Mon 2025-11-03 and Tue 2025-11-04 (EST). The `expected` column is MFI(14), "
+        "chosen because MFI is the only indicator BOTH lanes implement that is built "
+        "from typical price TIMES VOLUME — the same arithmetic VWAP is, so agreement at "
+        "1e-9 here is agreement about the sums VWAP will be measured on. The `session` "
+        "block pins what makes these bars worth rendering: UTC-day bucketing splits the "
+        "EDT session at 20:00 ET and the EST sessions at 19:00 ET, which also means "
+        "Tue 04:00 ET is NOT a UTC-day boundary and its whole session accumulates on top "
+        "of Monday evening's post-market volume.",
+        _PARITY_INTRADAY, load_parity_intraday_bars(), {"period": 14},
+    )
+
+    print("\nDone — 10 fixtures written. Do NOT re-run this to fix a red test.")
 
 
 if __name__ == "__main__":

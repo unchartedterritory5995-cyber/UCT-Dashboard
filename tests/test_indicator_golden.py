@@ -13,6 +13,7 @@ import pytest
 
 from api.services import indicator_compute as ic
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIX = pathlib.Path(__file__).parent / "fixtures" / "indicators"
 
 # The 7 indicators that exist in BOTH lanes. (vwap/atr/sar/ichimoku/obv/
@@ -25,14 +26,39 @@ CASES = [
     "williams_r_14",
     "cci_20",
     "mfi_14",
+    # Owns no bars: `barsFrom` points at the CHART PARITY GATE's intraday fixture,
+    # so this lane's 1e-9 compare runs on the exact series the chart draws.
+    "intraday5m_sessions",
 ]
 
 VWAP_CASES = ["vwap_extended_hours_utc_midnight", "vwap_dst_transition"]
+
+# Cases whose bars live in another file. The indirection is the point — see
+# `_generate.py::_write_referenced` — so it gets its own list rather than being
+# inferred, and `test_a_referenced_case_really_is_referenced` guards it.
+REFERENCED_CASES = {"intraday5m_sessions": "app/src/pages/parityBars/intraday5m.json"}
 
 
 def load_case(name):
     """Read one fixture. Same helper name/shape as the vitest lane's loadCase."""
     return json.loads((FIX / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def case_bars(case):
+    """A case's bars, whether it owns them or names the file that does.
+
+    `barsFrom` is repo-root-relative with POSIX separators. Resolving it here
+    (rather than copying the bars into the fixture) is what makes the golden
+    oracle and the rendered parity picture provably ONE series: regenerating
+    `app/src/pages/parityBars/intraday5m.json` turns the `expected` columns red
+    in both lanes instead of silently expiring every parity number.
+    """
+    if "bars" in case:
+        return case["bars"]
+    ref = case["barsFrom"]
+    path = ROOT.joinpath(*ref.split("/"))
+    assert path.exists(), f"{case['case']}: barsFrom {ref} does not exist"
+    return json.loads(path.read_text(encoding="utf-8"))["bars"]
 
 
 def _close(a, b, rel):
@@ -48,11 +74,12 @@ def _close(a, b, rel):
 @pytest.mark.parametrize("name", CASES)
 def test_python_lane_matches_the_golden_columns(name):
     case = load_case(name)
-    got = ic.compute_case(case["kind"], case["bars"], case["params"])
+    bars = case_bars(case)
+    got = ic.compute_case(case["kind"], bars, case["params"])
     assert set(got) == set(case["expected"]), f"{name}: column set drifted"
     for col, exp in case["expected"].items():
-        assert len(got[col]) == len(case["bars"]), f"{name}.{col} not aligned to bars"
-        assert len(exp) == len(case["bars"]), f"{name}.{col} fixture not aligned to bars"
+        assert len(got[col]) == len(bars), f"{name}.{col} not aligned to bars"
+        assert len(exp) == len(bars), f"{name}.{col} fixture not aligned to bars"
         for i, (g, e) in enumerate(zip(got[col], exp)):
             assert _close(g, e, case["relTol"]), f"{name}.{col}[{i}]: {g!r} != {e!r}"
 
@@ -96,6 +123,111 @@ def test_vwap_session_fixtures_carry_a_real_trap(name):
         f"{name}: UTC bucketing must split the tape MORE than ET bucketing, "
         f"else the case pins nothing"
     )
+
+
+# ─── the intraday case the parity gate renders ───────────────────────────────
+# `intraday5m_sessions` is the bridge between the two gates: the shared compute
+# oracle and the pixel gate assert against the SAME bar series, by reference
+# rather than by copy. Everything below guards that bridge from this lane; the
+# behavioural VWAP assertions are vitest's (Python has no VWAP).
+
+def test_a_referenced_case_really_is_referenced():
+    """`barsFrom`, not `bars`. A case that quietly grew its own copy of the
+    series would still pass every compare above while the oracle and the
+    rendered picture drifted apart — which is the one thing the indirection
+    exists to make impossible."""
+    for name, ref in REFERENCED_CASES.items():
+        case = load_case(name)
+        assert "bars" not in case, (
+            f"{name} grew its own `bars`. It must keep pointing at {ref}, or "
+            f"regenerating that fixture stops turning this case red."
+        )
+        assert case["barsFrom"] == ref
+        assert (ROOT / "app" / "src" / "pages" / "parityBars" / "intraday5m.json").exists()
+
+
+def test_the_parity_fixture_is_intraday_bars_the_chart_can_actually_draw():
+    """`t` must be NUMERIC unix seconds, and the timeframe must be one VWAP is
+    gated to. `VWAP_TFS = {1,5,15,30,60}` in StockChart: on a daily fixture a
+    VWAP parity case renders an empty chart on BOTH sides and reports 0 changed
+    pixels forever, which is the gate-that-cannot-fail this fixture was created
+    to retire. And `computeVWAP` does `new Date(bar.t * 1000)` — a
+    'YYYY-MM-DD' string makes that NaN and the whole column disappears."""
+    doc = json.loads(
+        (ROOT / "app" / "src" / "pages" / "parityBars" / "intraday5m.json").read_text(encoding="utf-8"))
+    assert doc["tf"] in {"1", "5", "15", "30", "60"}, "not an intraday timeframe VWAP is gated to"
+    bars = doc["bars"]
+    assert len(bars) > 400
+    assert all(isinstance(b["t"], int) and not isinstance(b["t"], bool) for b in bars)
+    assert all(b["t"] > bars[i]["t"] for i, b in enumerate(bars[1:]))
+    assert all(b["v"] > 0 for b in bars), "a zero-volume bar leaves a VWAP gap"
+
+
+def test_the_intraday_case_can_tell_UTC_DAY_from_ET_SESSION_bucketing():
+    """The reason this fixture is extended hours and spans a DST change.
+
+    Regular trading hours (09:30-16:00 ET) always sit inside ONE UTC day, so on
+    an RTH fixture the two bucketings are IDENTICAL — B3 Task 8's VWAP gate
+    would report the same number whether the UTC-day bug survived the migration
+    or was silently corrected. This asserts the two disagree, in BOTH
+    directions, on the exact bars the chart renders.
+    """
+    case = load_case("intraday5m_sessions")
+    bars = case_bars(case)
+    s = case["session"]
+    n = len(bars)
+    for key in ("etDate", "etHour", "utcDate", "etSessionVwap"):
+        assert len(s[key]) == n, f"session.{key} not aligned to bars"
+
+    utc_only = [i for i in s["utcResetIndices"] if i not in s["etResetIndices"]]
+    et_only = [i for i in s["etResetIndices"] if i not in s["utcResetIndices"]]
+
+    # Direction 1: UTC-day bucketing splits sessions ET bucketing leaves whole —
+    # and every one of those splits is MID-SESSION (same ET day as the bar before).
+    assert utc_only, "no UTC-only split: this case is not exercising the bug"
+    for i in utc_only:
+        assert s["etDate"][i] == s["etDate"][i - 1], f"bar {i} splits between ET days, not inside one"
+    # Both sides of the DST change appear: EDT (UTC-4) trips at 20:00 ET, EST
+    # (UTC-5) an hour earlier at 19:00 ET.
+    assert {s["etHour"][i] for i in utc_only} == {19, 20}, (
+        "the split hour does not MOVE — the DST half of spec §9.1 is missing"
+    )
+
+    # Direction 2 — the one the two hourly VWAP cases are too short to contain:
+    # an ET session that opens INSIDE a UTC day and therefore never resets. Its
+    # entire session accumulates on top of the previous evening's post-market
+    # volume.
+    assert et_only, (
+        "no ET session opens inside a UTC day, so no session is carried over and this "
+        "case is a longer copy of vwap_dst_transition"
+    )
+    for i in et_only:
+        assert s["etHour"][i] == 4, "the carried-over session should open at 04:00 ET"
+
+    # Non-vacuous, in dollars. `etSessionVwap` is what a correct session-aware
+    # VWAP would draw; recompute today's UTC-day series here so the comparison
+    # does not read one number out of the fixture and compare it to itself.
+    utc_vwap, pv, vol, cur = [], 0.0, 0.0, None
+    for b, k in zip(bars, s["utcDate"]):
+        if k != cur:
+            pv, vol, cur = 0.0, 0.0, k
+        tp = (b["h"] + b["l"] + b["c"]) / 3.0
+        pv += tp * b["v"]
+        vol += b["v"]
+        utc_vwap.append(pv / vol)
+    for i in utc_only:
+        assert abs(utc_vwap[i] - s["etSessionVwap"][i]) > 1.0, (
+            f"bar {i} splits mid-session but the two bucketings agree to within $1"
+        )
+    carried = et_only[0]
+    assert abs(utc_vwap[carried] - s["etSessionVwap"][carried]) > 5.0, (
+        "the carried-over session opens at nearly the right VWAP, so the bug is invisible here"
+    )
+    # …and it stays wrong for a long stretch, not one bar.
+    day = s["etDate"][carried]
+    wrong = sum(1 for i in range(n)
+                if s["etDate"][i] == day and abs(utc_vwap[i] - s["etSessionVwap"][i]) > 0.5)
+    assert wrong > 100, f"only {wrong} bars of the carried-over session are materially wrong"
 
 
 # ─── an oracle that is NOT either lane ───────────────────────────────────────

@@ -40,6 +40,24 @@ if (!FIX) {
 }
 const loadCase = (n) => JSON.parse(readFileSync(join(FIX, `${n}.json`), 'utf8'))
 
+/**
+ * A case's bars, whether it OWNS them or NAMES the file that does.
+ *
+ * `barsFrom` is a repo-root-relative path (POSIX separators). `intraday5m_sessions`
+ * uses it to point at `app/src/pages/parityBars/intraday5m.json` — the bar fixture
+ * `tools/chart_parity.py` renders through `?fixedbars=`. Resolving it, rather than
+ * copying the series into the fixture, is what makes the compute oracle and the
+ * pixel gate provably the same 579 bars: regenerate that file and these `expected`
+ * columns go red in both lanes, which is exactly what should happen — every parity
+ * number measured against those bars has just expired.
+ */
+const caseBars = (c) => {
+  if (c.bars) return c.bars
+  const path = join(FIX, '..', '..', '..', ...c.barsFrom.split('/'))
+  if (!existsSync(path)) throw new Error(`${c.case}: barsFrom ${c.barsFrom} does not exist`)
+  return JSON.parse(readFileSync(path, 'utf8')).bars
+}
+
 /** Pull the plain numeric column out of a [{time, value}] series. */
 const col = (series) => series.map(p => p.value)
 
@@ -125,6 +143,18 @@ describe('golden fixtures — shared with the Python lane', () => {
     expectSomeValues(c.expected.mfi, 'mfi_14.mfi')
     alignedClose(got, c.expected.mfi, c.relTol, 'mfi_14.mfi')
   })
+
+  it('intraday5m_sessions — the same 5-minute bars the PIXEL gate renders', () => {
+    // MFI on purpose: it is the only indicator both lanes implement that is
+    // built from typical price TIMES VOLUME, which is the arithmetic VWAP is
+    // made of. Agreement at 1e-9 here is agreement about the sums B3 Task 8's
+    // VWAP numbers will be measured on — on the exact series, not a lookalike.
+    const c = loadCase('intraday5m_sessions')
+    const bars = caseBars(c)
+    const got = col(computeMFI(bars, c.params.period))
+    expectSomeValues(c.expected.mfi, 'intraday5m_sessions.mfi')
+    alignedClose(got, c.expected.mfi, c.relTol, 'intraday5m_sessions.mfi')
+  })
 })
 
 // ─── the two session traps ───────────────────────────────────────────────────
@@ -202,5 +232,40 @@ describe('computeVWAP session boundaries (pinned bug class)', () => {
       if (s.etResetIndices.includes(i)) return
       expect(Math.abs(got[i] - s.etSessionVwap[i])).toBeGreaterThan(1)
     })
+  })
+
+  it('intraday5m_sessions: a whole ET session is CARRIED OVER, not just split', () => {
+    // The trap the two hourly cases above are too short to contain, and the
+    // reason the pixel gate needs 3 sessions rather than 2. On EST the
+    // 19:00-20:00 ET post-market bars have already opened the NEXT UTC day, so
+    // the following session's 04:00 ET open is not a UTC-day boundary at all:
+    // it never resets, and its entire session accumulates on top of the
+    // previous evening's post-market volume. `computeVWAP` — the shipped
+    // function, not a re-implementation — is what is asserted here.
+    const c = loadCase('intraday5m_sessions')
+    const bars = caseBars(c)
+    const s = c.session
+    const got = col(computeVWAP(bars))
+    expect(got.length).toBe(bars.length)
+
+    // Today's code resets at exactly the UTC-day boundaries the fixture names.
+    const resets = got
+      .map((_, i) => (i === 0 || s.utcDate[i] !== s.utcDate[i - 1] ? i : -1))
+      .filter(i => i >= 0)
+    expect(resets).toEqual(s.utcResetIndices)
+
+    // An ET session that opens INSIDE a UTC day is the carry-over.
+    const carried = s.etResetIndices.filter(i => !s.utcResetIndices.includes(i))
+    expect(carried.length, 'no session is carried over — the case pins nothing new').toBeGreaterThan(0)
+    const open = carried[0]
+    expect(s.etHour[open]).toBe(4)
+    // It does NOT collapse to that bar's typical price — the tell that no reset happened.
+    const tp = (bars[open].h + bars[open].l + bars[open].c) / 3
+    expect(Math.abs(got[open] - tp)).toBeGreaterThan(1)
+    // …and it is materially wrong, in dollars, for most of the session.
+    expect(Math.abs(got[open] - s.etSessionVwap[open])).toBeGreaterThan(5)
+    const day = s.etDate[open]
+    const wrong = got.filter((v, i) => s.etDate[i] === day && Math.abs(v - s.etSessionVwap[i]) > 0.5)
+    expect(wrong.length, 'the carried-over session is only wrong for a moment').toBeGreaterThan(100)
   })
 })

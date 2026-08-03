@@ -35,6 +35,10 @@ friends) had two implementations that could disagree silently and forever.
 * **`t` is unix seconds**, always. (Parts of this repo store daily bars as
   `YYYYMMDD` ints; fixtures do not, because the VWAP session cases need real
   wall-clock instants and one convention beats two.)
+* **`bars` or `barsFrom`, exactly one.** `barsFrom` is a repo-root-relative
+  path (POSIX separators) to a JSON file with a `bars` array. It exists for one
+  case — see "The case that owns no bars" below — and both lanes resolve it
+  (`case_bars` in pytest, `caseBars` in vitest).
 * **`kind`** is the dispatch key, not a substring of `case`. `compute_case(kind,
   bars, params)` in `indicator_compute.py` maps it to the precise core and names
   the columns; `case_columns(kind)` lists them. An unknown kind raises.
@@ -130,4 +134,54 @@ never quietly become vacuous. Fixing the bucketing (B3, with the session-aware
 adapter) will turn the first assertion red on purpose: that red is the fix's
 acceptance test, and the new expectation is already sitting in the fixture.
 
-`Python has no VWAP`, so these two cases are asserted by the JS lane only.
+`Python has no VWAP`, so the BEHAVIOURAL half of these two cases is asserted by
+the JS lane only; the Python lane guards their shape (that UTC bucketing really
+does split the tape more often than ET bucketing would).
+
+---
+
+## The case that owns no bars — `intraday5m_sessions`
+
+The two cases above are 17 and 10 **hourly** bars. They are long enough to show a
+session being *split* and short enough to be read by hand, and they are not the
+series any chart draws. `intraday5m_sessions` is the other end of that: it is the
+**chart parity gate's own bar fixture**, `app/src/pages/parityBars/intraday5m.json`
+— 579 five-minute extended-hours bars over Fri 2025-10-31 (EDT), Mon 2025-11-03
+and Tue 2025-11-04 (EST) — asserted by both lanes.
+
+It carries `barsFrom` instead of `bars`, and that indirection is the whole design:
+
+* the compute oracle and the rendered picture are provably **one series**, not
+  two copies that drift;
+* **regenerating the parity fixture turns this case red in both lanes.** That is
+  the correct outcome, not an inconvenience: every pixel number ever measured
+  against those bars expired the moment they changed.
+
+It also carries **both** an `expected` block and a `session` block, which no other
+case does:
+
+| block | what it pins | lane |
+|---|---|---|
+| `expected.mfi` (MFI 14) | the two lanes agree at 1e-9 on **typical price × volume** over these bars — the exact arithmetic VWAP is built from | both |
+| `session` | UTC-day vs ET-session bucketing **disagree** on these bars, in both directions | both (shape); vitest asserts `computeVWAP` itself |
+
+MFI is the column because it is the only indicator both lanes implement that is
+volume-weighted off the typical price. A `kind: "vwap"` case could not have an
+`expected` at all — `compute_case` would raise.
+
+**Why extended hours, and why three sessions.** Regular trading hours
+(09:30–16:00 ET) are always inside one UTC day, so on an RTH fixture UTC-day and
+ET-session bucketing are *identical* and a VWAP parity number would be the same
+whether the bug survived a migration or was silently corrected. On this window
+they differ in both directions:
+
+* EDT is UTC-4 → the day flips at **20:00 ET**; EST is UTC-5 → it flips at
+  **19:00 ET**. Three mid-session splits, each of which collapses the running
+  VWAP to one bar's typical price and lands $2.71–$4.91 away from the
+  session-correct value.
+* And because Monday's 19:00–20:00 ET bars have already opened UTC day
+  2025-11-04, **Tuesday's 04:00 ET open is not a UTC-day boundary at all.** It
+  never resets: the whole session accumulates on top of Monday evening's
+  post-market volume, and opens **$14.45** away from the session-correct VWAP,
+  staying more than $0.50 wrong for 120 of its 193 bars. Neither hourly case is
+  long enough to contain that.
