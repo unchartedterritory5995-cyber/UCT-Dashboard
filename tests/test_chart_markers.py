@@ -1,6 +1,7 @@
 """Tests for chart markers — earnings + splits + dividends.
 
-Mocks Finnhub upstream. Verifies:
+Mocks the upstreams (FMP/Finnhub for earnings, yfinance corporate actions for
+splits/dividends). Verifies:
 - Combined dict structure
 - Per-section try/except resilience (one failure doesn't kill the others)
 - Cache hit path (second call skips upstream)
@@ -9,10 +10,20 @@ Mocks Finnhub upstream. Verifies:
 from datetime import date, timedelta
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api.services import earnings_estimates
 from api.services.cache import cache
+
+
+@pytest.fixture(autouse=True)
+def _stub_yf_actions():
+    """Splits/dividends now come from yfinance's `_yf_corporate_actions`. Stub it
+    to empty by default so tests never hit the real network; cases that assert
+    split/dividend data override this with their own patch."""
+    with patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], [])):
+        yield
 
 
 def _fresh_cache(ticker: str = "TEST"):
@@ -45,25 +56,20 @@ class TestGetChartMarkersSuccess:
             {"period": (today - timedelta(days=100)).isoformat(),
              "actual": 1.2, "estimate": 1.3, "surprisePercent": -7.7},
         ]
-        splits_payload = [
-            {"date": (today - timedelta(days=400)).isoformat(),
-             "fromFactor": 1, "toFactor": 4},
-        ]
-        div_payload = [
-            {"date": (today - timedelta(days=30)).isoformat(), "amount": 0.85},
-            {"date": (today - timedelta(days=120)).isoformat(), "amount": 0.82},
+        # yfinance actions: splits = (date, ratio float); dividends = (date, amount).
+        yf_splits = [((today - timedelta(days=400)).isoformat(), 4.0)]
+        yf_divs = [
+            ((today - timedelta(days=30)).isoformat(), 0.85),
+            ((today - timedelta(days=120)).isoformat(), 0.82),
         ]
 
         def fake_fh_get(path, params):
             if path == "/stock/earnings":
                 return eps_payload
-            if path == "/stock/split":
-                return splits_payload
-            if path == "/stock/dividend":
-                return div_payload
             return None
 
-        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get):
+        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
+             patch.object(earnings_estimates, "_yf_corporate_actions", return_value=(yf_splits, yf_divs)):
             result = earnings_estimates.get_chart_markers("AAPL")
 
         assert set(result.keys()) == {"earnings", "splits", "dividends"}
@@ -78,9 +84,9 @@ class TestGetChartMarkersSuccess:
         assert e0["surprise"] == 7.1
 
         s0 = result["splits"][0]
-        assert s0["ratio"] == "1:4"
+        assert s0["ratio"] == "4:1"          # 4-for-1 (yfinance ratio 4.0)
         assert s0["from_factor"] == 1
-        assert s0["to_factor"] == 4
+        assert s0["to_factor"] == 4.0
 
         d0 = result["dividends"][0]
         assert d0["amount"] == 0.85
@@ -206,19 +212,21 @@ class TestGetChartMarkersResilience:
         _fresh_cache("FAILMIX")
 
     def test_one_source_failure_still_returns_other_sections(self):
-        # Earnings raises; splits returns data; dividends returns None
+        # Earnings raises; splits return data; dividends empty.
         def fake_fh_get(path, params):
             if path == "/stock/earnings":
                 raise RuntimeError("Finnhub earnings 500")
-            if path == "/stock/split":
-                return [{"date": "2024-06-10", "fromFactor": 1, "toFactor": 10}]
             return None
 
-        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get):
+        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_yf_corporate_actions",
+                          return_value=([("2024-06-10", 10.0)], [])):
             result = earnings_estimates.get_chart_markers("FAILMIX")
 
         assert result["earnings"] == []
         assert len(result["splits"]) == 1
+        assert result["splits"][0]["ratio"] == "10:1"
         assert result["dividends"] == []
 
     def test_all_sources_fail_returns_empty_arrays(self):
@@ -228,17 +236,15 @@ class TestGetChartMarkersResilience:
         assert result == {"earnings": [], "splits": [], "dividends": []}
 
     def test_unparseable_dividend_amount_skipped(self):
-        def fake_fh_get(path, params):
-            if path == "/stock/dividend":
-                return [
-                    {"date": "2026-03-15", "amount": "not-a-number"},
-                    {"date": "2026-03-15", "amount": 0.85},
-                    {"date": None,         "amount": 0.50},
-                ]
-            return None
-
+        yf_divs = [
+            ("2026-03-15", "not-a-number"),   # unparseable → skipped
+            ("2026-03-15", 0.85),             # kept
+            (None,         0.50),             # no date → skipped
+        ]
         _fresh_cache("DIVPARSE")
-        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get):
+        with patch.object(earnings_estimates, "_fh_get", return_value=None), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], yf_divs)):
             result = earnings_estimates.get_chart_markers("DIVPARSE")
 
         assert len(result["dividends"]) == 1
@@ -325,11 +331,11 @@ class TestChartMarkersRoute:
                     {"period": recent, "actual": 1.5, "estimate": 1.4, "surprisePercent": 7.1},
                     {"period": old,    "actual": 1.0, "estimate": 1.0, "surprisePercent": 0.0},
                 ]
-            if path == "/stock/dividend":
-                return [{"date": recent, "amount": 0.50}]
             return None
 
-        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get):
+        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], [(recent, 0.50)])):
             client = self._client()
             r = client.get("/api/chart/markers/RT")
 

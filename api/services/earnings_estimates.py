@@ -29,6 +29,10 @@ _TIMEOUT = 6  # seconds per Finnhub request
 import json as _json
 
 _MARKERS_REFRESH_SECONDS = 24 * 3600
+# Bump when the marker BUILD logic changes so stale disk copies are rebuilt instead
+# of served forever. v2 = splits/dividends sourced from yfinance (were empty under
+# Finnhub's premium-gated endpoints).
+_MARKERS_DISK_VERSION = 2
 _MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
 _markers_refresh_inflight: set[str] = set()
 _markers_refresh_lock = threading.Lock()
@@ -43,6 +47,10 @@ def _markers_disk_read(ticker: str):
     try:
         with open(_markers_disk_path(ticker)) as f:
             blob = _json.load(f)
+        # Version gate: a pre-v2 blob has empty splits/dividends (old Finnhub
+        # source) — ignore it so get_chart_markers rebuilds from yfinance.
+        if int(blob.get("v") or 0) != _MARKERS_DISK_VERSION:
+            return None
         data = blob.get("data")
         if isinstance(data, dict) and "earnings" in data:
             return data, float(blob.get("saved_at") or 0)
@@ -57,7 +65,7 @@ def _markers_disk_write(ticker: str, data: dict) -> None:
         path = _markers_disk_path(ticker)
         tmp = path + ".tmp"
         with open(tmp, "w") as f:
-            _json.dump({"data": data, "saved_at": _time.time()}, f)
+            _json.dump({"v": _MARKERS_DISK_VERSION, "data": data, "saved_at": _time.time()}, f)
         os.replace(tmp, path)  # atomic
     except OSError as e:
         _logger.warning("chart_markers disk write failed for %s: %s", ticker, e)
@@ -672,6 +680,36 @@ def get_chart_markers(ticker: str) -> dict:
     return result
 
 
+def _ts_date(ts) -> str | None:
+    """A pandas Timestamp / date → 'YYYY-MM-DD' (None on failure)."""
+    try:
+        if hasattr(ts, "date"):
+            return ts.date().strftime("%Y-%m-%d")
+        return str(ts)[:10]
+    except Exception:
+        return None
+
+
+def _yf_corporate_actions(ticker: str):
+    """Return (splits, dividends) as lists of (YYYY-MM-DD, value) tuples from
+    yfinance's corporate-action series — split ratio float / dividend amount.
+    Network-bound: call via yf_util.bounded_call. Returns ([], []) if empty."""
+    import yfinance as yf
+    t = yf.Ticker(ticker)
+
+    def _pairs(series):
+        out = []
+        if series is None or getattr(series, "empty", True):
+            return out
+        for ts, val in series.items():
+            ds = _ts_date(ts)
+            if ds is not None:
+                out.append((ds, val))
+        return out
+
+    return _pairs(t.splits), _pairs(t.dividends)
+
+
 def _build_chart_markers(ticker: str) -> dict:
     """Fetch + assemble the markers blob (earnings history + fiscal-quarter join +
     splits + dividends). Wrapped by get_chart_markers' memory + disk cache layers.
@@ -803,46 +841,53 @@ def _build_chart_markers(ticker: str) -> dict:
         except Exception as exc:
             _logger.warning("get_chart_markers quarter-join failed for %s: %s", ticker, exc)
 
-    # ── Stock splits (deep — since-inception chart annotation) ────────────────
+    # ── Stock splits + dividends (yfinance corporate actions) ─────────────────
+    # Finnhub's /stock/split + /stock/dividend are premium and return empty on
+    # this tier, so the toggles rendered nothing. yfinance's actions series carry
+    # full split-adjusted history and cost nothing — the same source
+    # dividends_calendar.py uses. One bounded fetch feeds both.
     try:
-        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": splits_from_date, "to": to_date})
-        if isinstance(splits_raw, list):
-            for s in splits_raw:
-                date_str = s.get("date")
-                from_f   = s.get("fromFactor", 1)
-                to_f     = s.get("toFactor", 1)
-                if date_str:
-                    result["splits"].append({
-                        "date": str(date_str)[:10],
-                        "ratio": f"{from_f}:{to_f}",
-                        "from_factor": from_f,
-                        "to_factor": to_f,
-                    })
-    except Exception as exc:
-        _logger.warning("get_chart_markers splits failed for %s: %s", ticker, exc)
+        from api.services.yf_util import bounded_call
+        yf_splits, yf_divs = bounded_call(lambda: _yf_corporate_actions(ticker), ([], []), timeout=12.0)
 
-    # ── Dividends (last 5 years) ─────────────────────────────────────────────
-    try:
-        div_raw = _fh_get(
-            "/stock/dividend",
-            {"symbol": ticker, "from": from_date, "to": to_date},
-        )
-        if isinstance(div_raw, list):
-            for d in div_raw:
-                # Finnhub returns ex-date in "date" and amount in "amount".
-                date_str = d.get("date") or d.get("payDate") or d.get("recordDate")
-                amount   = d.get("amount") or d.get("dividend")
-                if date_str is None or amount is None:
-                    continue
-                try:
-                    amount_f = float(amount)
-                except (TypeError, ValueError):
-                    continue
-                result["dividends"].append({
-                    "date": str(date_str)[:10],
-                    "amount": amount_f,
-                })
+        # Splits — deep lookback (rare + highly relevant on a since-inception chart).
+        for date_str, ratio_val in yf_splits:
+            if not date_str or date_str < splits_from_date:
+                continue
+            try:
+                r = float(ratio_val)
+            except (TypeError, ValueError):
+                continue
+            if r <= 0:
+                continue
+            # yfinance ratio is a float: 4.0 = 4-for-1, 0.5 = 1-for-2 reverse.
+            if r >= 1:
+                ratio_str = f"{int(r)}:1" if r == int(r) else f"{round(r, 2)}:1"
+            else:
+                inv = 1.0 / r
+                ratio_str = f"1:{int(inv)}" if inv == int(inv) else f"1:{round(inv, 2)}"
+            result["splits"].append({
+                "date": date_str,
+                "ratio": ratio_str,
+                "from_factor": 1,
+                "to_factor": r,
+            })
+
+        # Dividends — 5-year lookback (a full history would clutter with 100+ ex-dates).
+        for date_str, amount in yf_divs:
+            if not date_str or date_str < from_date:
+                continue
+            try:
+                amount_f = float(amount)
+            except (TypeError, ValueError):
+                continue
+            if amount_f <= 0:
+                continue
+            result["dividends"].append({
+                "date": date_str,
+                "amount": amount_f,
+            })
     except Exception as exc:
-        _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
+        _logger.warning("get_chart_markers splits/dividends failed for %s: %s", ticker, exc)
 
     return result

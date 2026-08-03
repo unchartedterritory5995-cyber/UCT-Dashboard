@@ -1401,9 +1401,9 @@ export default function StockChart({
         if (!s.date) continue
         eventMarkers.push({
           time: s.date,
-          position: 'aboveBar',
+          position: 'belowBar',   // little marker at the bottom, like earnings/dividends
           color: '#f59e0b',
-          shape: 'square',
+          shape: 'circle',
           text: s.ratio ? `S ${s.ratio}` : 'S',
           size: 1,
         })
