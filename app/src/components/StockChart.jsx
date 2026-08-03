@@ -9663,6 +9663,10 @@ export default function StockChart({
             chartSettings={cs}
             volumePaneFixed={volumePaneFixed}
             onUpdateSettings={handleUpdateChartSettings}
+            /* Charts workspace has the new settings modal (onOpenSettings) — drop
+               the legacy V1 toolbar gear + its inline panel there. Other surfaces
+               (no modal) keep it as their only settings entry point. */
+            hideSettingsButton={!!onOpenSettings}
             showExtended={isIntraday && !hideExtHoursToolbarToggle ? showExtended : null}
             onToggleExtended={isIntraday && !hideExtHoursToolbarToggle ? handleToggleExtended : null}
             onScreenshot={() => setScreenshotPopoverOpen(true)}
@@ -9794,6 +9798,7 @@ export default function StockChart({
               chartSettings={cs}
               volumePaneFixed={volumePaneFixed}
               onUpdateSettings={handleUpdateChartSettings}
+              hideSettingsButton={!!onOpenSettings}
               lineStyle={drawLineStyle}
               setLineStyle={setAnnLineStyle}
               fontSize={drawFontSize}
@@ -9883,6 +9888,7 @@ export default function StockChart({
               chartSettings={cs}
               volumePaneFixed={volumePaneFixed}
               onUpdateSettings={handleUpdateChartSettings}
+              hideSettingsButton={!!onOpenSettings}
               magnet={magnet}
               setMagnet={setMagnet}
               toolFilter={['cursor', 'advance']}

@@ -830,6 +830,7 @@ function ChartToolbar({
   magnet = false,                // snap drawings to nearest O/H/L/C
   setMagnet = null,              // when provided, shows the magnet toggle
   toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
+  hideSettingsButton = false,    // charts workspace has the new ChartSettingsModal — drop the legacy V1 gear + inline panel there
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -1098,8 +1099,10 @@ function ChartToolbar({
           )}
         </div>
 
-        {/* Chart settings */}
-        {chartSettings && onUpdateSettings && (
+        {/* Chart settings — legacy V1 inline panel. Hidden on surfaces that have
+            the new ChartSettingsModal (charts workspace); still the settings entry
+            point on every other surface. */}
+        {chartSettings && onUpdateSettings && !hideSettingsButton && (
           <div ref={settingsRef} className={styles.pickerWrap}>
             <button
               className={`${styles.btn} ${showSettings ? styles.active : ''}`}

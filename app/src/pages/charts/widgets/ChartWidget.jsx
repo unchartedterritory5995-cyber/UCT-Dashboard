@@ -736,7 +736,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
               <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
             </button>
-            <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.openSettings?.(); closeCtx() }}>
+            <button type="button" className={styles.chartCtxItem} onClick={() => { setSettingsOpen(true); closeCtx() }}>
               <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
             </button>
             {ctxMenu.hasDrawings && (
