@@ -230,7 +230,16 @@ const RAW_DEFS = [
 
   // ── Session VWAP ─────────────────────────────────────────────────────────
   nativeDef('vwap', 'vwap',
-    { name: 'Session VWAP', shortName: 'VWAP', category: 'Volume' },
+    {
+      name: 'Session VWAP', shortName: 'VWAP', category: 'Volume',
+      // `StockChart.jsx:559` — VWAP_TFS. A session indicator does not exist on a
+      // daily bar, and the legacy `indicatorData` memo returns [] above 60m
+      // (`:3962`). `engine/eligibility.js` is what ENFORCES it; declaring it here
+      // is what lets the Style tab say "intraday only" without a hardcoded list,
+      // and what makes the rule apply to the next session indicator without
+      // anyone editing the hook.
+      timeframes: ['1', '5', '15', '30', '60'],
+    },
     onPrice,
     [
       colorInput('color', 'Color', '#26C6DA'),
@@ -243,7 +252,20 @@ const RAW_DEFS = [
     ],
     [
       // The shipped legend has no VWAP chip.
-      { key: 'vwap', label: 'VWAP', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { hide: true } },
+      //
+      // ⚠️ `lineStyle: '$lineStyle'` IS LOAD-BEARING, and VWAP is the first
+      // definition to need it. `StockChart.jsx:6004` maps the user's stored
+      // solid/dashed/dotted onto the LWC enum; without the reference this plot
+      // would carry an author's literal (or nothing, which `seriesOptionsForPlot`
+      // reads as solid) and every user who ever picked dashed would get a solid
+      // line the moment the engine took over. The three enum option values are
+      // deliberately the SCHEMA's own `PLOT_LINE_STYLES` names, so the input's
+      // vocabulary and the plot's are one vocabulary and cannot drift.
+      {
+        key: 'vwap', label: 'VWAP', style: 'line',
+        color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
+        role: 'primary', legend: { hide: true },
+      },
     ]),
 
   // ── Stochastic ───────────────────────────────────────────────────────────

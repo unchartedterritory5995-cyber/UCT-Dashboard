@@ -162,7 +162,10 @@ export function resolvePlotForInstance(plot, inputs) {
   if (!refs || !inputs) return plot
 
   let out = null
-  for (const field of ['color', 'width']) {
+  // `lineStyle` is here because VWAP's user-facing style picker has to reach the
+  // series (B3 Task 8) — see `SUBSTITUTABLE_PLOT_FIELDS`. `levels` is handled
+  // below because it is per-ELEMENT rather than whole-value.
+  for (const field of ['color', 'width', 'lineStyle']) {
     const key = refs[field]
     if (!key) continue
     const v = inputs[key]

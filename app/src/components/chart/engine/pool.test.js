@@ -294,7 +294,26 @@ describe('resolvePlotForInstance — the user\'s value, not the definition\'s de
 
   it('a substituted field remembers WHICH input it came from', () => {
     expect(rsiLine().$refs).toEqual({ color: 'color' })
-    expect(plotOf('vwap', 'vwap').$refs).toEqual({ color: 'color', width: 'lineWidth' })
+    // VWAP references THREE inputs, and `lineStyle` is the one B3 Task 8 added:
+    // it is the only migrated native with a user-facing style picker, and a plot
+    // that cannot reference it renders solid for everyone who chose dashed.
+    expect(plotOf('vwap', 'vwap').$refs).toEqual({ color: 'color', width: 'lineWidth', lineStyle: 'lineStyle' })
+  })
+
+  it('an instance\'s lineStyle reaches the series options, not just the plot', () => {
+    // The full path, because `resolvePlotForInstance` returning the right plot is
+    // only half of it — `seriesOptionsForPlot` has to map the resolved NAME onto
+    // the LWC enum. Legacy's map is `{solid:0, dotted:1, dashed:2}`
+    // (`StockChart.jsx:6004`), which is the enum itself, so these are the numbers
+    // the legacy series carries.
+    const def = plotOf('vwap', 'vwap')
+    for (const [name, expected] of [['solid', 0], ['dotted', 1], ['dashed', 2]]) {
+      const plot = resolvePlotForInstance(def, { lineStyle: name })
+      expect(plot.lineStyle, name).toBe(name)
+      expect(seriesOptionsForPlot(plot, {}).lineStyle, name).toBe(expected)
+    }
+    // An instance that names none keeps the definition's resolved default.
+    expect(seriesOptionsForPlot(resolvePlotForInstance(def, { color: '#fff' }), {}).lineStyle).toBe(0)
   })
 
   it('an instance input overrides it', () => {

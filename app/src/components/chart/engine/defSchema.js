@@ -126,8 +126,14 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
  *   label    — the chip's leading text. Absent ⇒ `meta.shortName` plus, when
  *              `meta.legendParams` is non-empty, `(p1, p2, …)` resolved against
  *              the INSTANCE's inputs. There is deliberately no `$` substitution
- *              here: `SUBSTITUTABLE_PLOT_FIELDS` stays color/width/levels, and a
- *              second substitution grammar is a second thing to get wrong.
+ *              here: a chip label is a SENTENCE, and `$refs` resolves whole
+ *              values only, so "RSI($period)" would need a second, interpolating
+ *              grammar — a second thing to get wrong. `legendParams` is the
+ *              answer to the same need and already ships.
+ *              (This used to read "`SUBSTITUTABLE_PLOT_FIELDS` stays
+ *              color/width/levels". It did not — `lineStyle` joined in B3 Task 8
+ *              — and the reason it can is that it is a whole-value enum, which is
+ *              precisely what a label is not.)
  *   decimals — how many the chip shows. NOT `precision`, which is the price
  *              scale's. Legacy prints RSI at 1 and MACD at 4 while both series
  *              carry LWC's default precision of 2, so they are genuinely two
@@ -198,8 +204,31 @@ export const SOURCE_BAR_FIELDS = Object.freeze([
   'open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'volume',
 ])
 
-/** The ONLY plot fields in which `$<inputKey>` substitution is legal (spec §3.1). */
-export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels'])
+/**
+ * The ONLY plot fields in which `$<inputKey>` substitution is legal (spec §3.1).
+ *
+ * ⚠️ `lineStyle` JOINED THE LIST IN B3 TASK 8, AND A MIGRATION IS WHY. Spec §3.1
+ * listed color/width/levels because those were the three the first three pilots
+ * needed. VWAP is the first migrated native with a user-facing STYLE picker
+ * (`indicators.vwap.lineStyle` → solid/dashed/dotted, `StockChart.jsx:6004`), and
+ * with the field un-substitutable its definition could only declare an author's
+ * literal — so an engine-drawn VWAP rendered SOLID for every user who had ever
+ * chosen dashed or dotted. Measured, not deduced: `engine_vwap_dashed_vs_legacy`
+ * is the parity case, and on a build carrying the migration but NOT this change
+ * (`9c7b7e62e647`) it reported **2,966 changed pixels (0.398656%) on 5/5 runs** —
+ * while `engine_vwap_vs_legacy`, whose settings say `lineStyle: 'solid'`, reported
+ * **0** on that same build. A whole class of user was one enum value away from a
+ * silently different chart, and no case that existed could see it.
+ *
+ * That is the same sentence `PLOT_LINE_STYLES` above already carries, one level
+ * up: a definition that cannot say what the chart draws is a definition that
+ * renders something else. Extending the list is strictly narrower than the
+ * alternatives — it invents no second grammar (`substitute` and `$refs` are
+ * unchanged), and the resolved value is still checked against `PLOT_LINE_STYLES`,
+ * so an input whose enum options wander outside the vocabulary fails at
+ * registration exactly as a literal typo does.
+ */
+export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle'])
 
 // ─── Grammar ─────────────────────────────────────────────────────────────────
 
@@ -458,6 +487,26 @@ function validateMeta(meta, def, errors) {
           )
         }
       }
+    }
+  }
+  // `timeframes` is the other meta field with a BEHAVIOURAL half: it is the ONLY
+  // timeframes this indicator exists on, and `engine/eligibility.js` DROPS an
+  // instance whose chart is not one of them. A session indicator on a daily bar
+  // is not a degraded picture, it is a meaningless one (`VWAP_TFS`,
+  // `StockChart.jsx:559`), so this is a gate and not decoration.
+  //
+  // ⚠️ OMIT THE FIELD to mean "everywhere" — an EMPTY array would mean "nowhere",
+  // and the two are one keystroke apart. That is why `[]` is an error rather than
+  // a silently-permissive value: an author who writes it meant something, and
+  // whichever thing they meant, the schema should not guess.
+  if (meta.timeframes !== undefined && meta.timeframes !== null) {
+    if (!Array.isArray(meta.timeframes) || !meta.timeframes.length
+        || meta.timeframes.some(t => typeof t !== 'string' || !t)) {
+      errors.push(
+        `meta.timeframes: expected a non-empty array of timeframe codes (the ONLY ones this ` +
+        `indicator exists on), got ${fmt(meta.timeframes)}. Omit the field entirely for an ` +
+        `indicator that renders everywhere — an empty array would mean "nowhere".`,
+      )
     }
   }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
@@ -812,8 +861,21 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
 
   // ─ enumerated presentation fields ─
 
+  // Substitutable since B3 Task 8 — see SUBSTITUTABLE_PLOT_FIELDS. The order
+  // matters: substitute FIRST, then check the RESOLVED value against the
+  // vocabulary, so `lineStyle: '$lineStyle'` is judged on what it becomes rather
+  // than on the reference string (which is in no vocabulary and would be a
+  // guaranteed error). A ref that fails to resolve is already reported by
+  // `substitute`; there is nothing left to vet, so the vocabulary check is
+  // skipped rather than run on a sentinel.
   if (plot.lineStyle !== undefined) {
-    checkVocabulary(plot.lineStyle, PLOT_LINE_STYLES, [], `${path}.lineStyle`, 'line style', errors)
+    const styleRef = refKeyOf(plot.lineStyle)
+    const lineStyle = substitute(plot.lineStyle, inputsByKey, `${path}.lineStyle`, errors)
+    if (lineStyle !== REF_FAILED) {
+      noteRef(plot, 'lineStyle', styleRef)
+      checkVocabulary(lineStyle, PLOT_LINE_STYLES, [], `${path}.lineStyle`, 'line style', errors)
+      plot.lineStyle = lineStyle
+    }
   }
   // `legend` — the crosshair chip this plot contributes. See LEGEND_FIELDS.
   if (plot.legend !== undefined && plot.legend !== null) {
