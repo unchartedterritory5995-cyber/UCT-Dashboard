@@ -595,7 +595,55 @@ obligation up front rather than quietly shrinking to whatever was easy.
 
 **Do not change `defaults.fixedbars`, `w`, `h` or the preset** without recapturing
 every stored baseline — they are part of what a baseline PNG *means*. Likewise
-never regenerate `ramp200.json`: new bars invalidate every baseline at once.
+never regenerate either bar fixture: new bars invalidate every baseline at once.
+
+### Two bar fixtures, and when each one is wrong
+
+| fixture | `tf` | `bars` | shape |
+|---|---|---|---|
+| `ramp200` | `D` | 200 | 200 daily bars, `t` = `"YYYY-MM-DD"` (a Lightweight Charts BusinessDay) |
+| `intraday5m` | `5` | 579 | 579 five-minute bars, `t` = **unix seconds**, 04:00–20:00 ET across a weekend gap and a DST transition |
+
+A case overrides `tf`, `fixedbars` and `bars` from `defaults` to pick the second
+one. `case_url` already reads all three; no Python change is needed.
+
+**VWAP cannot be measured against `ramp200`, and the failure is silent.**
+`StockChart`'s `indicatorData` memo computes VWAP only when
+`VWAP_TFS.has(resolvedTf)` — `VWAP_TFS = {1,5,15,30,60}` — so on `tf: "D"` the
+column is `[]`, no series is created, and **both sides render the same VWAP-less
+chart: 0 changed pixels, green, forever, whatever the migration did.** Anything
+session-anchored (VWAP now; session shading and anchored VWAP later) takes
+`intraday5m`. Two tests enforce it rather than trusting a convention:
+
+* `test_a_VWAP_case_is_never_left_on_the_DAILY_fixture` — a case enabling
+  `indicators.vwap` must carry an intraday `tf`;
+* `test_every_case_names_a_bar_fixture_that_EXISTS` — because `?fixedbars=` is
+  sanitised and then *dynamically imported*, and a name that resolves to nothing
+  degrades to a chart-load failure card rather than an error. Two sides both
+  missing the fixture show the **same** card and report 0.
+
+`intraday_bars_only` is the smoke case that proves the intraday fixture renders
+at all: no indicator, just candles and volume, so it is the smallest thing that
+fails if the fixture is unreadable. Measured **0 px on 5/5** (build
+`25b09976a062`, one build two ways); the same case with `candles.upColor` moved
+one hex digit reports **2,513 px** and exit 1; against the tree *before* the
+fixture existed (build `45744409cc04`) it reports **672,702 px — 90.4% of the
+canvas**, which is what a blank intraday render actually costs.
+
+#### ⚠️ An intraday fixture's picture depends on the time of YEAR it is captured
+
+`StockChart` shifts intraday bar times to ET with `_ET_OFFSET`, a **module-load
+constant** (`-14400` in EDT, `-18000` in EST) — not a per-bar lookup. So for a
+fixture that spans a DST change, one half of it is drawn an hour off, and *which*
+half depends on when the capture ran. That moves the time-axis labels and the
+pre/post-market shading band edges.
+
+It does **not** weaken the gate: A and B are captured seconds apart in one
+browser, so both sides get the identical offset and the diff is unaffected — and
+the harness stores no baseline PNGs, it recaptures both sides every run. But if
+you re-measure `intraday_bars_only` in January and the diff *geometry* in a
+perturbation run looks different from the numbers above, this is why. Making
+`?fixedbars=` pin the offset is a real follow-up, not a bug in the fixture.
 
 ---
 

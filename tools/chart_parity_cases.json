@@ -20,8 +20,23 @@
     "Tolerance is 0 everywhere and should stay 0 — see report.md's 'Reading this'.",
     "A per-case `tolerance` must be accompanied by `toleranceReason`.",
     "",
+    "TWO BAR FIXTURES. `defaults` names `ramp200` (200 DAILY bars, tf D), and a case",
+    "may override `tf`, `fixedbars` and `bars` to pick another one. `intraday5m` is",
+    "579 FIVE-MINUTE extended-hours bars over a weekend gap and a DST transition.",
+    "The override is not a convenience: `VWAP_TFS = {1,5,15,30,60}` gates VWAP to",
+    "intraday timeframes, so a VWAP case left on the daily fixture renders an EMPTY",
+    "chart on BOTH sides and reports 0 changed pixels forever — a gate that cannot",
+    "fail. Anything session-anchored (VWAP now; session shading and anchored VWAP",
+    "later) MUST carry \"tf\": \"5\", \"fixedbars\": \"intraday5m\", \"bars\": 579.",
+    "`tests/test_chart_parity_harness.py` enforces that in both directions: a case",
+    "naming a fixture file that does not exist, or enabling a VWAP-gated indicator on",
+    "a daily timeframe, is a test failure rather than a permanent silent 0.",
+    "",
     "DO NOT change `defaults.fixedbars`, `w`, `h` or the preset without re-capturing",
-    "every stored baseline: they are part of what a baseline PNG means."
+    "every stored baseline: they are part of what a baseline PNG means. The same goes",
+    "for either fixture's BARS — `tests/fixtures/indicators/intraday5m_sessions.json`",
+    "asserts intraday5m's series in both compute lanes, by reference, so regenerating",
+    "it goes red there too instead of quietly expiring these numbers."
   ],
 
   "defaults": {
@@ -296,7 +311,16 @@
       ]
     },
 
-    { "name": "vwap_only", "status": "placeholder", "settings": {} },
+    {
+      "name": "intraday_bars_only",
+      "why": "PROVES THE INTRADAY FIXTURE RENDERS AT ALL, and it is the only case that can. Every VWAP number B3 Task 8 produces is measured against `intraday5m`, and a fixture that came back blank would make each of those a permanent, silent 0 that no assertion in the harness can tell from a pass — the ?fixedbars= name is sanitised and then dynamically imported, so a typo degrades to an empty chart rather than an error. No indicator: candles and volume on 579 five-minute bars, which is the smallest thing that fails if the fixture is unreadable. It is ALSO the legacy-vs-legacy determinism baseline for the intraday picture, the way `bb_only` is for the daily one: an intraday chart draws pre/post-market session SHADING that the daily fixture never exercises, and a wobble there would otherwise arrive inside a VWAP number and be read as the migration. MEASURED 0 px on 5/5 runs (95% flake bound 45%), build `25b09976a062`, one build two ways — and the 0 is NOT two blank canvases: the same case with `candles.upColor` moved ONE hex digit reports 2,513 px (0.337769%) and exit 1, and against a build that has no `intraday5m.json` at all (`45744409cc04`, the tree before this fixture landed) it reports 672,702 px — 90.4% of the canvas — because a missing fixture renders the 'Failed to load chart' card. ⚠️ THAT LAST NUMBER IS THE WHOLE POINT: two sides BOTH missing the fixture would show the same error card and report 0 forever, which is why `tests/test_chart_parity_harness.py::test_every_case_names_a_bar_fixture_that_EXISTS` refuses a `fixedbars` that is not on disk.",
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
+      "settings": {}
+    },
+
+    { "name": "vwap_only", "status": "placeholder", "tf": "5", "fixedbars": "intraday5m", "bars": 579, "settings": {} },
     { "name": "stoch_only", "status": "placeholder", "settings": {} },
     { "name": "atr_only", "status": "placeholder", "settings": {} },
     { "name": "sar_only", "status": "placeholder", "settings": {} },

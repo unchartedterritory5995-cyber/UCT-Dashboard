@@ -467,3 +467,173 @@ def test_a_case_that_does_NOT_declare_it_gets_no_priceline_param():
     case.setdefault("fixedbars", "ramp200")
     assert case.get("priceLine") is None
     assert "priceline" not in cp.case_url("http://a", case, "", side="a")
+
+
+# ─── two bar fixtures, and the gate that keeps a case on the right one ───────
+#
+# `ramp200` is 200 DAILY bars; `intraday5m` is 579 five-minute extended-hours
+# bars. `VWAP_TFS = {1,5,15,30,60}` in `StockChart.jsx` gates VWAP to intraday
+# timeframes, so a VWAP case left on the daily fixture renders an EMPTY chart on
+# BOTH sides and reports 0 changed pixels forever. That is not a hypothetical
+# footgun — it is what every VWAP case in this file would have done before this
+# fixture existed (B3 carry #4), and NOTHING in the harness could have told that
+# 0 from a pass.
+#
+# The selection mechanism is `defaults` + a per-case override, which `case_url`
+# already reads. What was missing is anything that FAILS when a case picks wrong,
+# so these are the gate:
+#
+#   * a `fixedbars` naming a file that is not on disk. `ChartRender` sanitises
+#     the name and dynamic-imports it; a miss is caught and degrades to "no
+#     bars", i.e. a blank chart and a permanent 0 — never an error.
+#   * a case that enables a VWAP-gated indicator on a non-intraday `tf`.
+#   * the daily cases quietly moving off `ramp200`, which would expire every
+#     daily number on this branch at once.
+
+VWAP_TFS = {"1", "5", "15", "30", "60"}
+_FIXTURES = ROOT / "app" / "src" / "pages" / "parityBars"
+
+
+def _all_cases():
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    return doc["defaults"], doc["cases"]
+
+
+def fixture_problems(defaults, cases):
+    """Every way a case can be pointed at the WRONG bar series, as a list.
+
+    A pure function over the case list rather than a loop full of asserts, and
+    that is deliberate. `test_a_VWAP_case_is_never_left_on_the_DAILY_fixture`
+    has NO SUBJECT TODAY — `vwap_only` is still a settings-less placeholder, so
+    a loop-with-asserts version of it iterates zero times and passes because it
+    checked nothing. It would go on passing right up until the moment B3 Task 8
+    filled the case in wrong, which is the one moment it exists for.
+
+    Splitting the rule out means the rule itself can be handed a deliberately
+    broken case list and required to REJECT it — see
+    `test_the_fixture_rules_actually_REJECT_a_wrong_case`. That is the same
+    "prove it can fail" step `--perturb-b` is for the pixels.
+    """
+    out = []
+    for raw in cases:
+        case = {**defaults, **raw}
+        name = case["name"]
+        fx = case["fixedbars"]
+        path = _FIXTURES / f"{fx}.json"
+        if not path.exists():
+            # ChartRender sanitises `?fixedbars=` and then DYNAMICALLY IMPORTS it;
+            # a name that resolves to nothing degrades to a chart-load failure
+            # card, and two sides both missing it show the SAME card and diff to 0.
+            out.append(f"{name}: fixedbars={fx!r} is not in app/src/pages/parityBars/")
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if case.get("tf") != doc["tf"]:
+            # Silent when mismatched: the bars land through `barsOverride`
+            # regardless, so the chart draws 5-minute candles while every
+            # timeframe-dependent branch (VWAP's gate, the intraday session
+            # filter, bucket sizes) reads 'D'.
+            out.append(f"{name}: tf={case.get('tf')!r} but fixture {fx} is tf={doc['tf']!r}")
+        vwap = ((case.get("settings") or {}).get("indicators") or {}).get("vwap") or {}
+        if vwap.get("enabled"):
+            if case.get("tf") not in VWAP_TFS:
+                out.append(
+                    f"{name}: enables VWAP on tf={case.get('tf')!r}, but VWAP_TFS gates it to "
+                    f"{sorted(VWAP_TFS)} — the chart renders NO VWAP on either side and the "
+                    f"case reports 0 changed pixels forever"
+                )
+            if fx == "ramp200":
+                out.append(
+                    f"{name}: enables VWAP on the DAILY fixture, whose `t` is 'YYYY-MM-DD'. "
+                    f"computeVWAP does new Date(t*1000) — a string yields NaN"
+                )
+    return out
+
+
+def test_no_case_is_pointed_at_the_wrong_bar_series():
+    defaults, cases = _all_cases()
+    assert fixture_problems(defaults, cases) == []
+
+
+def test_the_fixture_rules_actually_REJECT_a_wrong_case():
+    """The control. Without this, `fixture_problems` returning `[]`
+    unconditionally would pass the test above with nothing checked — and the
+    VWAP rule in particular has no real subject until Task 8 fills `vwap_only`
+    in, so it is exactly the shape of check that rots into decoration."""
+    defaults, _ = _all_cases()
+    vwap_on = {"indicators": {"vwap": {"enabled": True, "color": "#26C6DA"}}}
+
+    # 1. a fixture file that does not exist
+    assert fixture_problems(defaults, [{"name": "x", "fixedbars": "no_such_fixture"}])
+
+    # 2. THE ONE THIS FILE EXISTS FOR: VWAP left on the daily fixture. Both
+    #    problems fire — the timeframe gate and the date-string `t`.
+    daily_vwap = fixture_problems(defaults, [{"name": "vwap_on_daily", "settings": vwap_on}])
+    assert len(daily_vwap) == 2, daily_vwap
+    assert any("VWAP_TFS" in p for p in daily_vwap)
+    assert any("NaN" in p for p in daily_vwap)
+
+    # 3. tf and fixture disagreeing
+    assert fixture_problems(defaults, [{"name": "y", "tf": "5", "fixedbars": "ramp200"}])
+
+    # 4. …and the positive control: the SAME VWAP settings on the intraday
+    #    fixture are fine, so the rule is not just "reject everything".
+    assert fixture_problems(defaults, [{
+        "name": "vwap_on_intraday", "tf": "5", "fixedbars": "intraday5m",
+        "bars": 579, "settings": vwap_on,
+    }]) == []
+
+
+def test_the_intraday_smoke_case_exists_and_is_the_whole_fixture():
+    """`intraday_bars_only` is the only thing that can catch a blank intraday
+    render, and it only catches it if it frames the WHOLE fixture — a `bars`
+    override shorter than the series would hide a fixture that is empty
+    everywhere except its tail."""
+    case = _case_named("intraday_bars_only")
+    assert case["fixedbars"] == "intraday5m"
+    assert case["tf"] == "5"
+    doc = json.loads(
+        (ROOT / "app" / "src" / "pages" / "parityBars" / "intraday5m.json").read_text(encoding="utf-8"))
+    assert case["bars"] == len(doc["bars"]), (
+        f"the smoke case frames {case['bars']} of {len(doc['bars'])} bars"
+    )
+    assert case["settings"] == {}, "the smoke case must draw NO indicator — it is the fixture's own control"
+
+
+def test_the_DAILY_cases_are_still_on_ramp200():
+    """The control for all of the above. Every number on this branch that is not
+    the intraday smoke case was measured against 200 daily bars, and a defaults
+    change or a stray override would expire the lot without a single test
+    turning red."""
+    defaults, cases = _all_cases()
+    assert defaults["fixedbars"] == "ramp200" and defaults["tf"] == "D"
+    daily = [{**defaults, **c} for c in cases if {**defaults, **c}["fixedbars"] == "ramp200"]
+    assert len(daily) >= 11, f"only {len(daily)} cases left on the daily fixture"
+    for case in daily:
+        assert case["tf"] == "D"
+        assert case.get("bars") == 200
+
+
+def test_case_url_sends_the_INTRADAY_case_to_the_intraday_fixture():
+    """The mechanism itself, end to end: `defaults` merge → `case_url` → URL.
+
+    `?tf=` and `?fixedbars=` are what pick the timeframe and the bar series, and
+    a case that overrides them has to reach the page with both changed. Asserted
+    against the REAL case list, so it also fails if the case is deleted.
+    """
+    cases = cp.load_cases(ROOT / "tools" / "chart_parity_cases.json", ["intraday_bars_only"], False)
+    assert len(cases) == 1
+    url = cp.case_url("http://a", cases[0], "", side="a")
+    assert "tf=5" in url, url
+    assert "fixedbars=intraday5m" in url, url
+    assert "bars=579" in url, url
+
+
+def test_case_url_leaves_a_DAILY_case_on_the_daily_fixture():
+    """The control for the test above. Without it, `case_url` hard-coding tf=5
+    and fixedbars=intraday5m would pass it while every daily case silently moved
+    to the wrong series."""
+    cases = cp.load_cases(ROOT / "tools" / "chart_parity_cases.json", ["rsi_only"], False)
+    url = cp.case_url("http://a", cases[0], "", side="a")
+    assert "tf=D" in url, url
+    assert "fixedbars=ramp200" in url, url
+    assert "intraday5m" not in url, url
