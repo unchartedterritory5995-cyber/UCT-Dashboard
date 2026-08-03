@@ -703,6 +703,17 @@ describe('legacy suppression — an engine instance stands its legacy block down
 // documented B3 obligation was "one line per migrated indicator", and nothing
 // FAILED if B3 forgot one. `ENGINE_MIGRATED_DEF_IDS` pairs the two, and this is
 // the test that makes forgetting fail.
+//
+// ⚠️ ITS MECHANISM CHANGED UNDER IT AT TASK 11, AND THE CLAIM DID NOT — audited
+// deliberately rather than left reading as history. All four migrated
+// definitions are FLIPPED, so there is no legacy block on either side of the
+// comparison any more: the first draw is the engine through the read-time
+// PROJECTION (a flipped id runs the engine whatever the flag says) and the
+// second is the engine through a STORED instance. The counts must still match,
+// and a projection that did not stand down for a stored instance is the same
+// double-draw wearing new clothes — the §6.1 defect, which is what mutation M10
+// kills here. The rail keeps its name, its loop and its non-vacuity gate; only
+// the sentence describing which two renderers it is separating has moved.
 
 describe('a migrated definition is drawn ONCE — never by the engine and legacy both', () => {
   const instanceOf = (defId) => ({ instanceId: `legacy:${defId}`, defId, inputs: {}, hidden: false })

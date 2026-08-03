@@ -247,7 +247,12 @@ describe('isIndicatorEnabled — one answer for every control surface', () => {
     expect(isIndicatorEnabled(cs, 'rsi', new Set())).toBe(true)
   })
 
-  it('reads the legacy toggle for an un-flipped id', () => {
+  it('reads the legacy toggle for an id NOT IN THE SET IT IS HANDED', () => {
+    // ⚠️ RENAMED AT TASK 11. It said "for an un-flipped id", which now names an
+    // EMPTY category in production — every migrated definition is flipped. The
+    // behaviour is unchanged and still worth pinning, because this predicate
+    // takes the flip set as an argument: a caller that hands it a narrower set
+    // (a grid cell, a test, a future partial cutover) must get the legacy answer.
     const cs = { indicators: { macd: { enabled: true } }, indicatorInstances: [] }
     expect(isIndicatorEnabled(cs, 'macd', new Set(['rsi']))).toBe(true)
   })

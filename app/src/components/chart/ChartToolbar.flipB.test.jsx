@@ -168,7 +168,14 @@ describe('ChartToolbar — a FLIPPED row writes the instance, and stops being in
     mount(settingsWith({ indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }] }), vi.fn())
     await openPanel(user)
     expect(within(rowFor('RSI')).getByRole('checkbox').checked).toBe(false)
-    expect(within(rowFor('MACD')).getByRole('checkbox').checked, 'macd is not flipped').toBe(true)
+    // ⚠️ MACD IS FLIPPED TOO (Task 11) — this used to say "macd is not flipped"
+    // and pass for that reason. It still passes, for a DIFFERENT one, and a green
+    // assertion with a false stated reason is the rot this branch keeps finding:
+    // MACD has a true toggle and NO instance of its own here, so
+    // `isIndicatorEnabled` projects it. The claim is that RSI's tombstone is
+    // per-DEFINITION and does not reach its neighbour.
+    expect(within(rowFor('MACD')).getByRole('checkbox').checked,
+      'RSI\'s tombstone unchecked MACD too — the read is not per definition').toBe(true)
   })
 
   it('unchecking it writes a TOMBSTONE and clears the mirror', async () => {

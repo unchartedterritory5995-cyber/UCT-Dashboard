@@ -197,7 +197,12 @@ describe('csForPaneMargins — instances drive the bands without touching paneMa
     const cs = { indicators: { rsi: { enabled: true }, macd: { enabled: true } } }
     const projected = csForPaneMargins(cs, [], new Set(['rsi']))
     expect(projected.indicators.rsi.enabled).toBe(false)
-    expect(projected.indicators.macd.enabled, 'macd is not flipped and must be untouched').toBe(true)
+    // ⚠️ ABOUT THE SET HANDED IN, NOT THE SHIPPED ONE. `macd` IS flipped in
+    // production since Task 11; this function takes the flip set as an ARGUMENT
+    // precisely so it can be interrogated without one, and the claim is that it
+    // touches only what it is told to.
+    expect(projected.indicators.macd.enabled,
+      'the projection rewrote a definition that was not in the set it was handed').toBe(true)
   })
 
   it('never mutates the blob it was handed', () => {
