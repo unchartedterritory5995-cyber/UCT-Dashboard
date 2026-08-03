@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
+import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 
 // ─── The wiring test (Task 7) ───────────────────────────────────────────────
 //
@@ -204,8 +205,34 @@ const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartD
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'engine-test:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
 
-const draw = (settingsOverride) => render(
-  <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settingsOverride} />,
+/** The intraday fixture, for the one migrated definition that does not exist on
+ *  a daily bar. 579 five-minute bars across three extended-hours ET sessions —
+ *  see `pages/parityBars/intraday5m.test.js`. */
+const INTRADAY_BARS = intraday5m.bars
+
+/**
+ * A DEFINITION'S OWN TIMEFRAME, read off `meta.timeframes` rather than hardcoded.
+ *
+ * ⚠️ B3 TASK 8 IS WHY THIS EXISTS. `draw` was `tf="D"` for every case, which was
+ * fine while every migrated definition rendered everywhere. `vwap` does not: it
+ * is gated to 1/5/15/30/60 on BOTH sides (`VWAP_TFS` and `meta.timeframes`), so
+ * the double-draw rail below drew a daily chart, found no VWAP on either side,
+ * and reported "the engine bound nothing" — a control going red because its
+ * SUBJECT was unreachable, not because the wiring was wrong.
+ *
+ * Deriving it from the registry rather than writing `defId === 'vwap' ? '5' : 'D'`
+ * is the point: the next session-gated definition inherits the treatment without
+ * anyone editing this file, and a definition that loses its gate silently falls
+ * back to the daily fixture and stays covered.
+ */
+const tfFor = (defId) => {
+  const tfs = registry.getDefinition(defId)?.meta?.timeframes
+  return (Array.isArray(tfs) && tfs.length) ? (tfs.includes('5') ? '5' : tfs[0]) : 'D'
+}
+const barsFor = (tf) => (tf === 'D' ? BARS : INTRADAY_BARS)
+
+const draw = (settingsOverride, tf = 'D') => render(
+  <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={settingsOverride} />,
 )
 
 describe('StockChart × indicator engine — the flag OFF is the whole safety story', () => {
@@ -412,18 +439,41 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
       // Series COUNT, not scale id: it holds for a price overlay (which has no
       // named scale) exactly as it does for a banded oscillator, so B3 can add an
       // id here without also writing a bespoke assertion.
+      //
+      // The timeframe comes from the DEFINITION (`tfFor`) — a session indicator
+      // exists on neither side of a daily chart, and a rail that measured
+      // "0 === 0" there would be green and vacuous.
+      const tf = tfFor(defId)
       const legacyOn = { indicators: { [defId]: { enabled: true } } }
-      draw(legacyOn)
+      draw(legacyOn, tf)
       const legacyOnly = H.addSeriesCalls.length
       expect(legacyOnly, `${defId} drew nothing with the engine off`).toBeGreaterThan(0)
       cleanup(); H.reset()
 
-      draw({ ...legacyOn, engineEnabled: true, indicatorInstances: [instanceOf(defId)] })
+      draw({ ...legacyOn, engineEnabled: true, indicatorInstances: [instanceOf(defId)] }, tf)
       expect(H.binderApis[0].bindings().length, `the engine bound nothing for ${defId}`).toBeGreaterThan(0)
       expect(H.addSeriesCalls.length, `${defId} is drawn twice — its legacy block has no guard`)
         .toBe(legacyOnly)
     },
   )
+
+  it('the rail is running each definition on a timeframe it EXISTS on', () => {
+    // ⚠️ THE RAIL'S OWN NON-VACUITY GATE. `tfFor` is derived, so a definition that
+    // gains a `meta.timeframes` the daily fixture does not satisfy would silently
+    // start drawing nothing on BOTH sides and the case above would pass on
+    // `0 === 0`… except that `legacyOnly > 0` catches it. This states the rule the
+    // other way round so the intent survives a refactor of that assertion: every
+    // migrated definition's chosen tf must be one it declares.
+    for (const defId of ENGINE_MIGRATED_DEF_IDS) {
+      const tfs = registry.getDefinition(defId)?.meta?.timeframes
+      if (Array.isArray(tfs) && tfs.length) expect(tfs, defId).toContain(tfFor(defId))
+      else expect(tfFor(defId), defId).toBe('D')
+    }
+    // …and at least one of them is genuinely gated, or `tfFor` is dead code
+    // dressed as a rule. VWAP is that one from Task 8 onward.
+    const gated = [...ENGINE_MIGRATED_DEF_IDS].filter(id => registry.getDefinition(id)?.meta?.timeframes)
+    expect(gated, 'no migrated definition declares meta.timeframes — tfFor is inert').not.toHaveLength(0)
+  })
 
   it('an instance of a NOT-yet-migrated definition is refused rather than double-drawn', () => {
     const notMigrated = registry.listDefinitions()
@@ -2033,5 +2083,457 @@ describe('a MACD instance survives BOTH settings allow-lists', () => {
     expect(H.binderApis[0].bindings()).toHaveLength(3)
     expect(onMacdScale(), 'the legacy block drew its own copy alongside').toHaveLength(3)
     expect(onMacdScale().filter(c => c.options.color === '#00ff00')).toHaveLength(1)
+  })
+})
+
+// ─── VWAP: the session overlay, and the first gated definition (B3 Task 8) ───
+//
+// The last Flip A, and the only one whose SUBJECT does not exist on the fixture
+// every case above uses. VWAP is intraday-only on both sides — `VWAP_TFS` in the
+// legacy memo, `meta.timeframes` on the definition — so every case below draws
+// `intraday5m` at tf `5`. It is also the only migration whose enable signal is
+// not `indicators.<id>.enabled` alone: `vwapOverride` forces it on.
+
+const VWAP_TF = '5'
+const VWAP_CFG = { enabled: true, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 }
+const VWAP_ON = { indicators: { vwap: VWAP_CFG } }
+const VWAP_INSTANCE = {
+  instanceId: 'legacy:vwap', defId: 'vwap',
+  inputs: { color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
+  placement: { target: 'price' }, hidden: false,
+}
+
+/** Every cyan line on the chart, either lane. VWAP is a PRICE overlay, so there
+ *  is no named scale to filter on — the colour is the handle, which is exactly
+ *  why the dimmed and override cases below assert on colour STRINGS. */
+const vwapLines = (color = '#26C6DA') =>
+  H.addSeriesCalls.filter(c => c.options && c.options.color === color && c.ctor === 'LineSeries')
+const liveVwapLines = (color) => vwapLines(color).filter(c => !H.removedSeries.includes(c.series))
+const drawIntraday = (settingsOverride) => render(
+  <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settingsOverride} />,
+)
+
+describe('VWAP Flip A — the legacy block stands down on an intraday chart', () => {
+  it('draws one cyan line with the engine OFF (the shipped behaviour)', () => {
+    drawIntraday(VWAP_ON)
+    expect(vwapLines()).toHaveLength(1)
+    expect(vwapLines()[0].options.lineWidth).toBe(1)
+    expect(vwapLines()[0].options.lineStyle).toBe(0)
+  })
+
+  it('STILL draws exactly one when the engine owns it — and it is the ENGINE\'s', () => {
+    drawIntraday({ ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] })
+    const bound = H.binderApis[0].bindings()
+    expect(bound, 'the engine bound no VWAP').toHaveLength(1)
+    expect(vwapLines(), 'a second cyan line — the legacy block has no guard').toHaveLength(1)
+    expect(vwapLines()[0].series).toBe(bound[0].series)
+  })
+
+  it('the ENGINE\'s line names the candles\' scale, where legacy named none', () => {
+    // The one option that is not a restatement of an LWC default. Legacy omits
+    // `priceScaleId` and LWC resolves the single visible scale; the engine states
+    // it, which is byte-identical on a create and is the FIX on a re-purpose.
+    drawIntraday(VWAP_ON)
+    expect(vwapLines()[0].options.priceScaleId, 'legacy suddenly names a scale').toBeUndefined()
+    cleanup(); H.reset()
+    drawIntraday({ ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] })
+    expect(vwapLines()[0].options.priceScaleId).toBe('right')
+  })
+
+  it('neither lane draws on a DAILY chart, and neither lane OWNS it', () => {
+    // The timeframe gate, from the component. `VWAP_TFS` empties `indicatorData.vwap`
+    // and `eligibility` drops the instance — two reads of one list. A double-draw
+    // here would mean they had diverged.
+    draw({ ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] }, 'D')
+    expect(H.binderApis[0].bindings(), 'the engine drew a session VWAP on daily bars').toHaveLength(0)
+    expect(vwapLines(), 'the legacy block drew a session VWAP on daily bars').toHaveLength(0)
+  })
+
+  it('leaves every OTHER legacy indicator alone — ownership is per definition', () => {
+    drawIntraday({
+      indicators: { vwap: VWAP_CFG, rsi: { enabled: true } },
+      engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
+    })
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi'),
+      'RSI stopped drawing when VWAP migrated').toHaveLength(1)
+  })
+})
+
+describe('what pixels cannot see, for VWAP', () => {
+  const settings = (over) => ({ ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE], ...over })
+
+  it('Alt+Shift+I hides and re-shows the engine-drawn line', () => {
+    drawIntraday(settings())
+    const owned = H.binderApis[0].bindings().map(b => b.series)
+    expect(owned, 'the engine bound no VWAP — the rest of this test is vacuous').toHaveLength(1)
+    const toggle = () => act(() => {
+      fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' })
+    })
+    toggle()
+    expect(H.visibilityCalls.filter(v => v.series === owned[0] && v.visible === false).length)
+      .toBeGreaterThan(0)
+    toggle()
+    expect(H.visibilityCalls.filter(v => v.series === owned[0] && v.visible === true).length)
+      .toBeGreaterThan(0)
+  })
+
+  it('Alt+U hides an engine-drawn VWAP — the keystroke, and what the keystroke writes', () => {
+    // ⚠️ VWAP's shortcut is **Alt+U**, not a Ctrl chord. Ctrl+I is RSI's, Ctrl+O
+    // is MACD's, Ctrl+B is BB's — VWAP is in the Alt family with the display
+    // toggles. It is ALSO the one shortcut in the set that does NOT go through
+    // `keyboardShortcuts.js`'s `toggle:` switch: `SHORTCUTS` declares
+    // `Alt+U -> toggle:vwap`, but `matchShortcut` rejects Alt so the command never
+    // reaches that switch (which has no `case 'vwap'` either). The live handler is
+    // the `e.altKey` block at `StockChart.jsx:3330`, and it writes the same field.
+    // Two declarations, one of them dead — asserting the KEY and the WRITE together
+    // is what makes that discoverable if either moves.
+    const persisted = []
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
+        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+    )
+    expect(H.binderApis[0].bindings(), 'nothing drawn to hide — vacuous').toHaveLength(1)
+
+    act(() => { fireEvent.keyDown(document, { altKey: true, code: 'KeyU' }) })
+
+    expect(persisted.length, 'Alt+U persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
+    const next = persisted.at(-1)
+    expect(next.indicators.vwap.enabled, 'Alt+U did not flip the toggle').toBe(false)
+    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
+      .toEqual([VWAP_INSTANCE])
+
+    view.unmount(); cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={next} />)
+    expect(H.binderApis[0].bindings(), 'Alt+U left the engine\'s VWAP on the chart').toHaveLength(0)
+    expect(vwapLines(), 'Alt+U left a legacy VWAP behind instead').toHaveLength(0)
+  })
+
+  it('toggling the legacy switch OFF and back ON never leaves TWO cyan lines', () => {
+    // ⚠️ FLIP-A SEMANTICS: `cs.indicators.vwap.enabled` is still the SWITCH; the
+    // instance is only the renderer.
+    const off = { indicators: { vwap: { ...VWAP_CFG, enabled: false } } }
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    const first = H.binderApis[0].bindings().map(b => b.series)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings(off)} />,
+    )
+    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds a series').toHaveLength(0)
+    for (const s of first) expect(H.removedSeries, 'a VWAP line is still on the chart').toContain(s)
+    expect(liveVwapLines(), 'and nothing drew a replacement').toHaveLength(0)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws it again').toHaveLength(1)
+    expect(liveVwapLines(), 'toggled back on: the legacy block drew one too').toHaveLength(1)
+  })
+
+  it('an instance arriving MID-SESSION removes the line legacy already drew', () => {
+    // ⛔ THE SINGLE MOST-REPEATED DEFECT ON THIS BRANCH. Every other case here
+    // starts with the engine ALREADY owning VWAP, so `vwapSeriesRef` is null and
+    // there is nothing to orphan. The crossover a user actually hits is the other
+    // order: the chart is up, legacy has drawn a cyan line, and THEN an instance
+    // appears. The guard is on the block's own `if`, whose `else if` removes the
+    // ref; hoist it into the body and the user gets two cyan lines, one dead.
+    const legacyFirst = { ...VWAP_ON, engineEnabled: true, indicatorInstances: [] }
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legacyFirst} />,
+    )
+    const legacyDrawn = vwapLines().map(c => c.series)
+    expect(legacyDrawn, 'the LEGACY block drew nothing — nothing to orphan').toHaveLength(1)
+    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
+        settingsOverride={{ ...legacyFirst, indicatorInstances: [VWAP_INSTANCE] }} />,
+    )
+
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn, 'the engine did not take over').toHaveLength(1)
+    expect(engineDrawn, 'the engine re-used the LEGACY series — it does not own that')
+      .not.toContain(legacyDrawn[0])
+    expect(H.removedSeries, 'the legacy VWAP was left under the engine\'s copy')
+      .toContain(legacyDrawn[0])
+  })
+
+  it('and the reverse — the instance LEAVING hands VWAP back to legacy', () => {
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
+    expect(engineDrawn).toHaveLength(1)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
+        settingsOverride={settings({ indicatorInstances: [] })} />,
+    )
+    expect(H.binderApis[0].bindings(), 'the engine still holds a series').toHaveLength(0)
+    for (const s of engineDrawn) expect(H.removedSeries).toContain(s)
+    expect(liveVwapLines(), 'VWAP vanished when the instance was removed').toHaveLength(1)
+  })
+
+  it('a TIMEFRAME change to daily removes the engine\'s line, and back restores it', () => {
+    // The gate's own mid-session crossover, and the one no other definition has.
+    // A user switching 5m -> D -> 5m must not accumulate lines, and must not lose
+    // the indicator when they come back.
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    const first = H.binderApis[0].bindings().map(b => b.series)
+    expect(first).toHaveLength(1)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    expect(H.binderApis[0].bindings(), 'the engine kept a session VWAP on daily bars').toHaveLength(0)
+    for (const s of first) expect(H.removedSeries, 'the engine\'s line survived the tf change').toContain(s)
+    expect(liveVwapLines(), 'the legacy block picked it up on daily bars').toHaveLength(0)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    expect(H.binderApis[0].bindings(), 'VWAP never came back on the intraday chart').toHaveLength(1)
+    expect(liveVwapLines(), 'and legacy drew a second one alongside it').toHaveLength(1)
+  })
+
+  it('a COLOUR change re-styles the SAME series — never destroys and recreates', () => {
+    // lightweight-charts#2049.
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(before).toHaveLength(1)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...VWAP_INSTANCE, inputs: { ...VWAP_INSTANCE.inputs, color: '#00ff00' } }],
+      })} />,
+    )
+    expect(H.binderApis[0].bindings().map(b => b.series),
+      'the engine created a new series instead of restyling').toEqual(before)
+    expect(H.removedSeries.filter(s => before.includes(s)),
+      'the VWAP line was destroyed and recreated — that is the #2049 path').toHaveLength(0)
+  })
+
+  it('an OPACITY change re-styles the same series, and the colour STRING changes', () => {
+    // The fold, from the component. `opacity` reaches no plot field — it is
+    // composed into the colour by `eligibility` — so "the series was re-bound" is
+    // not enough: the string it was re-bound WITH is the assertion.
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(vwapLines('#26C6DA'), 'the full-strength colour is not the base string').toHaveLength(1)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...VWAP_INSTANCE, inputs: { ...VWAP_INSTANCE.inputs, opacity: 40 } }],
+      })} />,
+    )
+    expect(H.binderApis[0].bindings().map(b => b.series)).toEqual(before)
+    // ⚠️ The LAST applyOptions on a series is not necessarily the STYLE one — the
+    // hide-all effect writes `{visible}` on every paint. Filter to the calls that
+    // carry the key under test, and require at least one, or a suite where the
+    // engine stopped re-styling entirely would pass on `undefined === undefined`.
+    const styled = H.applyOptionsCalls.filter(c => c.series === before[0] && c.options && 'color' in c.options)
+    expect(styled.length, 'the series was never re-styled at all').toBeGreaterThan(0)
+    expect(styled.at(-1).options.color, 'opacity never reached the series')
+      .toBe('rgba(38, 198, 218, 0.4)')
+  })
+
+  it('a LINE-STYLE change reaches the series — the divergence Task 8 found', () => {
+    // `lineStyle` was not a substitutable plot field, so the engine drew SOLID for
+    // every user who had chosen dashed. From the component, because the unit test
+    // and the parity case both go through paths a reader can dismiss as synthetic:
+    // this is `cs.indicatorInstances` -> the real chart -> the real series option.
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+    )
+    const before = H.binderApis[0].bindings().map(b => b.series)
+    expect(vwapLines()[0].options.lineStyle, 'solid is not 0 — the map moved').toBe(0)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings({
+        indicatorInstances: [{ ...VWAP_INSTANCE, inputs: { ...VWAP_INSTANCE.inputs, lineStyle: 'dashed' } }],
+      })} />,
+    )
+    const styled = H.applyOptionsCalls.filter(c => c.series === before[0] && c.options && 'lineStyle' in c.options)
+    expect(styled.length, 'the series was never re-styled at all').toBeGreaterThan(0)
+    expect(styled.at(-1).options.lineStyle, 'the user\'s dashed VWAP renders solid').toBe(2)
+  })
+})
+
+describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
+  // `plots[0].legend.hide` is the declaration; this is what it has to MEAN.
+  // The LEGACY read is the control: the absence has to be legacy's, not a bug in
+  // the engine's chip builder, or "no chip" would be indistinguishable from "the
+  // readout is broken for price overlays".
+  // ⚠️ THE LEGEND IS A CROSSHAIR-DRIVEN RENDER, NOT A STATIC ONE. A helper that
+  // just read `container.textContent` after mount returned the empty string for
+  // BOTH lanes, and every assertion below passed on `'' === ''`. The chips only
+  // exist after a `crosshairMove` reaches the LEGEND's subscriber — and StockChart
+  // registers two subscribers on the same chart, so the event has to go to all of
+  // them. This is the same `hover` shape the RSI suite above uses, with a
+  // non-vacuity check that the legend rendered SOMETHING before anything is
+  // concluded from what it does not contain.
+  const legendOf = async (over) => {
+    cleanup(); H.reset()
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={over} alwaysShowLegend />,
+    )
+    expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — vacuous').toBeGreaterThan(0)
+    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(candle, 'no candle series').toBeTruthy()
+    const vwap = vwapLines()[0]
+    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+    if (vwap) seriesData.set(vwap.series, { value: 101.5 })
+    const param = {
+      time: INTRADAY_BARS.at(-1).t, point: { x: 100, y: 100 },
+      logical: INTRADAY_BARS.length - 1, seriesData,
+    }
+    // ⚠️ POLLED, NOT SLEPT. The legend handler coalesces through rAF, and a fixed
+    // `setTimeout(40)` is a race the moment the suite runs 400 files in parallel:
+    // this case passed alone and in the chart selection, then failed once in a
+    // full run and passed on the retry — a flake, which in a branch that reads
+    // green as evidence is worse than a failure. Re-dispatching is safe (the
+    // handler is idempotent for one param) and the loop exits the moment the
+    // legend has rendered, so the common case is one tick.
+    // The RSI/BB/MACD legend helpers above still use the fixed sleep and carry
+    // the same latent race; they are another task's and are left alone here.
+    for (let i = 0; i < 40; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {
+        for (const fn of [...H.crosshairHandlers]) fn(param)
+        await new Promise(r => setTimeout(r, 20))
+      })
+      if (/O\s*1/.test(view.container.textContent)) break
+    }
+    return view.container.textContent
+  }
+
+  it('LEGACY prints no VWAP chip, and the ENGINE prints the same legend', async () => {
+    const legacy = await legendOf(VWAP_ON)
+    // Non-vacuity FIRST: the legend has to have rendered, or "contains no VWAP"
+    // is a statement about an empty string.
+    expect(legacy, 'the legend rendered nothing — the comparison below is vacuous').toMatch(/O\s*1/)
+    const engine = await legendOf({ ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] })
+    expect(engine, 'the ENGINE legend rendered nothing').toMatch(/O\s*1/)
+    expect(legacy, 'the LEGACY legend grew a VWAP chip').not.toMatch(/VWAP/i)
+    expect(engine, 'the ENGINE legend is not character-for-character the legacy one').toBe(legacy)
+    // …and the value the engine's series was hovered WITH does not appear either,
+    // which is the sharper claim: `legend.hide` suppresses the chip, it does not
+    // merely omit the label.
+    expect(engine, 'the engine printed VWAP\'s value without a label').not.toContain('101.5')
+  })
+
+  it('and the definition still DECLARES the chip hidden — the reason the above holds', () => {
+    const def = registry.getDefinition('vwap')
+    expect(def.plots).toHaveLength(1)
+    expect(def.plots[0].legend.hide, 'VWAP grew a legend chip the shipped chart never had').toBe(true)
+  })
+})
+
+describe('vwapOverride — the enable signal that is not a toggle', () => {
+  // The Model Book intraday popup passes `vwapOverride={{color}}`, which FORCES
+  // the indicator on regardless of `indicators.vwap.enabled` and forces its
+  // colour. No other migrated definition has an enable signal outside its own
+  // settings key, and getting it wrong is silent: the popup simply loses its VWAP.
+  const withOverride = (settingsOverride, override) => render(
+    <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
+      settingsOverride={settingsOverride} vwapOverride={override} />,
+  )
+
+  it('LEGACY draws a forced white VWAP with the toggle OFF — the control', () => {
+    withOverride({ indicators: { vwap: { ...VWAP_CFG, enabled: false } } }, { color: '#ffffff' })
+    expect(vwapLines('#ffffff'), 'the override stopped forcing VWAP on').toHaveLength(1)
+  })
+
+  it('the ENGINE draws it too — an instance is MANUFACTURED for a blob that has none', () => {
+    // `eligibility` may only ever NARROW, so the forced instance is built where
+    // instances are built. Without it the engine owns nothing, the legacy block
+    // draws — which looks fine until the day the legacy block is deleted.
+    withOverride({
+      indicators: { vwap: { ...VWAP_CFG, enabled: false } },
+      engineEnabled: true, indicatorInstances: [],
+    }, { color: '#ffffff' })
+    expect(H.binderApis[0].bindings(), 'no instance was manufactured for the override').toHaveLength(1)
+    expect(vwapLines('#ffffff'), 'a second white line — the legacy block did not stand down').toHaveLength(1)
+  })
+
+  it('the forced instance carries ONLY declared input keys', () => {
+    // It never passes through `validateInstance`, so `enabled` — which every
+    // legacy indicator blob carries — would ride along into `inputsSignature` and
+    // the folds. The width proves the DECLARED ones did come through.
+    withOverride({
+      indicators: { vwap: { enabled: false, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 3 } },
+      engineEnabled: true, indicatorInstances: [],
+    }, { color: '#ffffff' })
+    const bound = H.binderApis[0].bindings()
+    expect(bound).toHaveLength(1)
+    expect(vwapLines('#ffffff')[0].options.lineWidth, 'the blob\'s width did not reach the series').toBe(3)
+  })
+
+  it('an EXISTING instance is recoloured, not duplicated', () => {
+    withOverride({
+      ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
+    }, { color: '#ffffff' })
+    expect(H.binderApis[0].bindings(), 'the override manufactured a SECOND instance').toHaveLength(1)
+    expect(vwapLines('#ffffff')).toHaveLength(1)
+    expect(vwapLines('#26C6DA'), 'the override failed to recolour the existing instance').toHaveLength(0)
+  })
+
+  it('the override does NOT beat the timeframe gate', () => {
+    // Forcing an indicator ON cannot conjure a session on a daily bar. Legacy
+    // agrees — `(vwapOverride || enabled) && VWAP_TFS.has(tf)`, the gate is the
+    // outer `&&`.
+    render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ engineEnabled: true, indicatorInstances: [] }} vwapOverride={{ color: '#ffffff' }} />,
+    )
+    expect(H.binderApis[0].bindings()).toHaveLength(0)
+    expect(vwapLines('#ffffff')).toHaveLength(0)
+  })
+})
+
+describe('a VWAP instance survives BOTH settings allow-lists', () => {
+  it('mergeChartSettings keeps the instance and the flag through a JSON round-trip', () => {
+    const merged = mergeChartSettings(JSON.stringify({
+      ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
+    }))
+    expect(merged.indicatorInstances).toEqual([VWAP_INSTANCE])
+    expect(merged.engineEnabled).toBe(true)
+    expect(merged.indicators.vwap.enabled).toBe(true)
+    // …and the three style keys the row offers, which a narrower allow-list drops.
+    expect(merged.indicators.vwap).toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
+  })
+
+  it('mergeSettingsOverride patches ONE input without deleting the instance', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE, RSI_INSTANCE],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'legacy:vwap', inputs: { lineStyle: 'dotted' } }],
+    })
+    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    const vwap = out.indicatorInstances.find(i => i.instanceId === 'legacy:vwap')
+    expect(vwap.inputs).toEqual({ ...VWAP_INSTANCE.inputs, lineStyle: 'dotted' })
+    expect(out.indicatorInstances.find(i => i.instanceId === RSI_INSTANCE.instanceId))
+      .toEqual(RSI_INSTANCE)
+  })
+
+  it('and the round-tripped blob still draws exactly one engine line, dotted', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'legacy:vwap', inputs: { lineStyle: 'dotted' } }],
+    })
+    drawIntraday(out)
+    expect(H.binderApis[0].bindings()).toHaveLength(1)
+    expect(vwapLines(), 'the legacy block drew its own copy alongside').toHaveLength(1)
+    expect(vwapLines()[0].options.lineStyle, 'the round-tripped style did not reach the series').toBe(1)
   })
 })

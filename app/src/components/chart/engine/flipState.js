@@ -51,8 +51,15 @@ const EMPTY_INPUTS = Object.freeze(new Map())
  * They must therefore migrate in registry order, which
  * `stockChartWiring.test.jsx` pins ("no price overlay is migrated ahead of an
  * earlier one").
+ *
+ * ⚠️ MEMBERSHIP IS NOT "IS IT DRAWN RIGHT NOW". `vwap` is in this set and draws
+ * on NO daily chart — `engine/eligibility.js` removes it above 60-minute bars,
+ * exactly as `VWAP_TFS` removes the legacy one. Membership means "the engine is
+ * the authority for this definition"; whether authority produces a line is the
+ * eligibility hook's answer and the timeframe's. A reader that treats this set as
+ * a paint list will be wrong on every daily chart from B3 Task 8 onward.
  */
-export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd']))
+export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd', 'vwap']))
 
 /**
  * The migrated definitions this settings blob hands to the engine.

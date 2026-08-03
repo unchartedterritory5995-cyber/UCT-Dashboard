@@ -320,7 +320,59 @@
       "settings": {}
     },
 
-    { "name": "vwap_only", "status": "placeholder", "tf": "5", "fixedbars": "intraday5m", "bars": 579, "settings": {} },
+    {
+      "name": "vwap_only",
+      "why": "Session VWAP on FIVE-MINUTE bars — the daily fixture cannot render it at all (VWAP_TFS, `StockChart.jsx:559`). Legacy vs legacy: the determinism control for the engine cases below, and the case the `VWAP_SESSION_ANCHOR` decision is priced on. ⚠️ IT IS ALSO THE ONE CASE THAT SEES `computeVWAP`'s UTC-DAY BUCKETING. The accumulator restarts on a UTC calendar day, which splits an extended-hours ET session mid-flight and — because Monday's 19:00-20:00 ET bars have already opened the next UTC day — never resets at Tuesday's 04:00 ET open at all. Correcting it to ET-session anchoring is a `compute.rev` bump and a flagged owner decision (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`, spec §11); measured on THIS case at 6,687 changed px, 20/20 runs. A future 0 from that measurement means one of the two lanes stopped reading `computeVWAP`.",
+      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "settings": {
+        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 100, "lineStyle": "solid", "lineWidth": 1 } }
+      }
+    },
+    {
+      "name": "engine_vwap_vs_legacy",
+      "why": "THE LAST FLIP A, and the one with no clean schema expression. Colour is TWO inputs composed at render time, width has a render-context fallback, and the whole indicator is timeframe-gated — all three handled by `engine/eligibility.js` rather than by inventing schema for one native. Runs on `intraday5m`, which crosses UTC midnight twice and a DST boundary, so the UTC-day accumulator reset computeVWAP performs is IN the picture and Flip A has to reproduce it. ⚠️ WHAT THIS CASE CANNOT SEE: `ChartRender` passes no `vwapOverride`, no `boldCandles` and no `modelBookLook`, so the override recolour and both width fallbacks are unreachable here and are gated in `engine/eligibility.test.js` instead. It also cannot see the timeframe gate — a case that rendered VWAP on a daily chart would be 0 px because NEITHER side draws.",
+      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "settings": {
+        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 100, "lineStyle": "solid", "lineWidth": 1 } }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:vwap", "defId": "vwap", "defVersion": 1,
+          "inputs": { "color": "#26C6DA", "opacity": 100, "lineStyle": "solid", "lineWidth": 1 },
+          "placement": { "target": "price" }, "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_vwap_dimmed_vs_legacy",
+      "why": "The opacity composition specifically. `opacity` is not a substitutable plot field, so `$opacity` has nowhere to land and B2's fix wave finding #4 established that wiring `opacity` onto the plot does NOT close this carry — the plot-level field DIMS an authored colour, it does not compose a user's two inputs into one string. At 40% the line is visibly translucent, so a build that dropped the composition renders it at full strength and this case goes red where `engine_vwap_vs_legacy` (opacity 100, base colour returned untouched) would not.",
+      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "settings": {
+        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 40, "lineStyle": "solid", "lineWidth": 1 } }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:vwap", "defId": "vwap", "defVersion": 1,
+          "inputs": { "color": "#26C6DA", "opacity": 40, "lineStyle": "solid", "lineWidth": 1 },
+          "placement": { "target": "price" }, "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_vwap_dashed_vs_legacy",
+      "why": "THE CASE THAT FOUND A REAL FLIP-A DIVERGENCE, and it is here because it went RED first. `lineStyle` was not a substitutable plot field, so VWAP's plot could only carry an author's literal and the engine drew SOLID for every user who had ever chosen dashed or dotted — a changed picture that `engine_vwap_vs_legacy` (lineStyle solid on both sides) reports as 0 px forever. Measured on a build carrying the migration but NOT the fix (`9c7b7e62e647`): 2,966 changed px (0.398656%) on 5/5 runs, exit 1 — while `engine_vwap_vs_legacy` reported 0 on that SAME build, which is the whole reason this case had to exist. `SUBSTITUTABLE_PLOT_FIELDS` gained `lineStyle` and the plot declares `$lineStyle`; this case is now 0 on 20/20 and is what keeps it that way. Width is 2 so the dash pattern has ink to show.",
+      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "settings": {
+        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 100, "lineStyle": "dashed", "lineWidth": 2 } }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:vwap", "defId": "vwap", "defVersion": 1,
+          "inputs": { "color": "#26C6DA", "opacity": 100, "lineStyle": "dashed", "lineWidth": 2 },
+          "placement": { "target": "price" }, "hidden": false
+        }
+      ]
+    },
     { "name": "stoch_only", "status": "placeholder", "settings": {} },
     { "name": "atr_only", "status": "placeholder", "settings": {} },
     { "name": "sar_only", "status": "placeholder", "settings": {} },

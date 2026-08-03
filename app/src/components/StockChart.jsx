@@ -35,7 +35,8 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
-import { normalizeInstances, engineOwnedDefIds } from './chart/engine/instances'
+import { normalizeInstances, engineOwnedDefIds, legacyInstanceId } from './chart/engine/instances'
+import { eligibleInstances } from './chart/engine/eligibility'
 import { ENGINE_MIGRATED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
 import { engineChips, chipsBySlot } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -5642,14 +5643,51 @@ export default function StockChart({
     // coexist — whoever lands Flip B removes this one.
     //
     // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
-    // needs its own answer here before it joins `ENGINE_MIGRATED_DEF_IDS` — VWAP
-    // is the one in the pilot set (`vwapOverride` forces it on independently of
-    // the toggle), and it is Task 11's, not this line's.
-    const legacyEnabled = (defId) => !!cs.indicators?.[defId]?.enabled
+    // needs its own answer here before it joins `ENGINE_MIGRATED_DEF_IDS`. VWAP is
+    // that definition, it joined in Task 8, and its answer is the `vwap` branch
+    // below: the legacy memo reads `(vwapOverride || ind.vwap?.enabled)` (`:3962`),
+    // so the OVERRIDE alone is an enable signal and the projection has to agree or
+    // the Model Book popup would hand the engine a hidden instance and draw nothing.
+    const legacyEnabled = (defId) => (defId === 'vwap'
+      ? !!(vwapOverride || cs.indicators?.vwap?.enabled)
+      : !!cs.indicators?.[defId]?.enabled)
+    // …filtered to the definitions whose legacy block actually stands down (see
+    // `ENGINE_MIGRATED_DEF_IDS`), then narrowed by ELIGIBILITY: a session
+    // indicator does not exist above 60-minute bars, and the render context —
+    // the Model Book's forced white, the bold-candle hairline — folds into the
+    // instance's inputs here so nothing downstream has to know about it.
+    //
+    // `vwapOverride` also FORCES the indicator on, exactly as the legacy memo
+    // does. That is an instance this blob does not contain, so it is manufactured
+    // HERE where instances are built, never inside `eligibility` — a hook that
+    // could invent instances would hand the binder something `engineOwnedDefIds`
+    // never saw.
     const engineInstances = engineOn
-      ? normalizeInstances(cs.indicatorInstances, engineRegistry).kept
-        .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
-        .map(i => (i.hidden || legacyEnabled(i.defId) ? i : { ...i, hidden: true }))
+      ? (() => {
+          const migrated = normalizeInstances(cs.indicatorInstances, engineRegistry).kept
+            .filter(i => ENGINE_MIGRATED_DEF_IDS.has(i.defId))
+            .map(i => (i.hidden || legacyEnabled(i.defId) ? i : { ...i, hidden: true }))
+          const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
+            ? [...migrated, {
+                instanceId: legacyInstanceId('vwap'), defId: 'vwap',
+                // ⚠️ FILTERED TO DECLARED INPUT KEYS. This instance never passes
+                // through `validateInstance` — it is manufactured after
+                // `normalizeInstances` has already run — so an undeclared key from
+                // the blob (`enabled`, which every legacy indicator carries) would
+                // reach `inputsSignature` and the folds unchecked. The validator
+                // would have rejected it; this does the same job explicitly.
+                inputs: Object.fromEntries(
+                  (engineRegistry.getDefinition('vwap')?.inputs || [])
+                    .map(d => d.key)
+                    .filter(k => cs.indicators?.vwap?.[k] !== undefined)
+                    .map(k => [k, cs.indicators.vwap[k]])),
+                placement: { target: 'price' }, hidden: false,
+              }]
+            : migrated
+          return eligibleInstances(withForced, engineRegistry, {
+            tf: resolvedTf, vwapOverride, boldCandles, modelBookLook,
+          }).kept
+        })()
       : EMPTY_INSTANCES
     // Mirrored for the crosshair legend (B3 carry #2). The handler needs each
     // instance's INPUTS to print `RSI(7)` and to colour the chip the way the
@@ -5994,7 +6032,25 @@ export default function StockChart({
     }
 
     // ── Session VWAP (intraday only) ──
-    if (indicatorData.vwap.length) {
+    // `!engineOwned.has('vwap')` — the crossover guard (see `engineOwnedDefIds`).
+    // An engine instance of `vwap` draws this indicator, so the legacy block
+    // stands down; the `else if` below then removes the legacy series, which is
+    // what keeps a mid-session flip from leaving two cyan lines on the candles'
+    // scale. With the engine off the set is empty and this reads exactly as it
+    // always did.
+    //
+    // ⚠️ THE GUARD IS ON THE `if`, NOT INSIDE THE BODY. The `else if` is the
+    // REMOVAL path, and it has to stay reachable: an instance arriving mid-session
+    // is the only thing that hands ownership over while a legacy series is already
+    // on the chart, and hoisting the guard into the body would leave that series
+    // drawn forever, under the engine's copy.
+    //
+    // ⚠️ ON A DAILY CHART NEITHER SIDE DRAWS AND NEITHER OWNS. `indicatorData.vwap`
+    // is `[]` above 60-minute bars (`VWAP_TFS`, `:3962`) and `eligibility` drops the
+    // instance on the same list, so `engineOwned` does not contain 'vwap' there
+    // either. The two gates are one list, read twice; if they ever diverge the
+    // symptom is a double-draw, which is what `stockChartWiring`'s rail measures.
+    if (indicatorData.vwap.length && !engineOwned.has('vwap')) {
       const _vwapCfg = cs.indicators?.vwap || {}
       // vwapOverride (Model Book intraday popup forces white) wins on color, but the
       // user's opacity/style/width still apply — the override only ever means "recolor".

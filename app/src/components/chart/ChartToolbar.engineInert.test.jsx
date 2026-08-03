@@ -18,6 +18,8 @@ import userEvent from '@testing-library/user-event'
 import ChartToolbar from './ChartToolbar'
 import { mergeChartSettings } from './chartDefaults'
 import { AuthContext } from '../../context/AuthContext'
+import { ENGINE_MIGRATED_DEF_IDS, engineDrawnDefIds, engineDrawnInputs } from './engine/flipState'
+import * as engineRegistry from './engine/nativeRegistry'
 
 const RSI_INSTANCE = {
   instanceId: 'legacy:rsi', defId: 'rsi', defVersion: 1,
@@ -112,34 +114,68 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     expect(periodBox(row).value).toBe('7')
   })
 
-  it('a VALID instance of an UN-MIGRATED definition leaves that row fully live', async () => {
-    // The `ENGINE_MIGRATED_DEF_IDS` filter is what stops a stored instance from
-    // greying a control that still works. Drop the filter and the row greys out
-    // while the chart keeps obeying it — a working control that looks dead, which
-    // is the same lie as a dead control that looks working, in the other direction.
+  it('the MIGRATED-ID FILTER drops an un-migrated instance — the control, moved down a level', () => {
+    // ⏳ EXPIRED AT B3 TASK 8, EXACTLY WHERE TASK 7 SAID IT WOULD, AND THIS IS THE
+    // REPLACEMENT IT PRESCRIBED.
     //
-    // ⚠️ THE SUBJECT HAS TO BE A ROW THAT *HAS* A `disabled`. This has now been
-    // wrong twice: the first draft used Stoch, whose row has no `disabled` at all,
-    // so the mutation was invisible and the case passed vacuously; the second used
-    // MACD, which B3 Task 6 then MIGRATED, and the case went red the moment the
-    // id joined the set. **VWAP is the last un-migrated definition wired to
-    // `engineInert`** (all four B3 pilots are, so Tasks 10-11 inherit the
-    // treatment), and its control is the colour swatch rather than a period box.
+    // The original case rendered a row: "a VALID instance of an UN-MIGRATED
+    // definition leaves that row fully live". It had already been re-pointed
+    // twice — Stoch (whose row has no `disabled` at all, so it passed vacuously),
+    // then MACD (migrated by Task 6), then VWAP — and VWAP migrating in THIS task
+    // exhausted the subjects: `ChartToolbar` wires `engineInert` to exactly
+    // rsi/macd/bb/vwap and all four are now migrated. There is no fifth row.
     //
-    // ⏳ IT EXPIRES AT **TASK 8**, NOT TASK 11 — this comment used to say 11, and
-    // that was three tasks of false safety. `ENGINE_MIGRATED_DEF_IDS` gains an id
-    // at FLIP A, not Flip B: that is how it gained `macd` in Task 6, and Task 8
-    // ("VWAP eligibility + Flip A") states `Set(['rsi','bb','macd','vwap'])` in
-    // its own Interfaces. Audited by B3 Task 7.
+    // So the claim moves to where it actually lives. What the row-level case was
+    // ever testing is `engineDrawnInputs`'s `ENGINE_MIGRATED_DEF_IDS` filter:
+    // drop it and every stored instance greys its own row while the chart keeps
+    // obeying that row — a working control that looks dead, which is the same lie
+    // as a dead control that looks working, in the other direction. That filter is
+    // in `flipState.js` and can be interrogated directly, with a subject that
+    // needs no `disabled` attribute and cannot be migrated out from under it: the
+    // set of un-migrated definitions is non-empty by construction until Phase B
+    // ends, and this asserts that too.
     //
-    // ⚠️ AND THE OBVIOUS FIX WILL NOT BE AVAILABLE. "Give it a new subject"
-    // assumes an un-migrated definition is still wired to `engineInert`; after
-    // Task 8 there is none — the toolbar wires exactly rsi/macd/bb/vwap, and all
-    // four will be migrated. Stoch is not a substitute: its row has no `disabled`
-    // at all, which is what made the first draft vacuous. So Task 8 has to move
-    // this control DOWN a level — assert `flipState.engineDrawnDefIds` drops an
-    // instance whose `defId` is outside `ENGINE_MIGRATED_DEF_IDS` — rather than
-    // look for another row to point at.
+    // ⚠️ IT IS NOT A WEAKER TEST. The row-level version could only see the filter
+    // through one swatch on one indicator; this sees it for EVERY un-migrated
+    // definition in the registry, and the toolbar half — that a migrated row DOES
+    // grey and DOES show the instance — is still covered, per pilot, by the three
+    // cases below.
+    const unmigrated = engineRegistry.listDefinitions()
+      .map(d => d.id)
+      .filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id))
+    expect(unmigrated, 'every definition is migrated — this control is now empty').not.toHaveLength(0)
+
+    for (const defId of unmigrated) {
+      const cs = settingsWith({
+        engineEnabled: true,
+        indicatorInstances: [{
+          instanceId: `legacy:${defId}`, defId, defVersion: 1,
+          inputs: {}, placement: engineRegistry.getDefinition(defId).placement, hidden: false,
+        }],
+      })
+      expect(engineDrawnDefIds(cs, engineRegistry).has(defId), `${defId} greyed its own live control`).toBe(false)
+      expect(engineDrawnInputs(cs, engineRegistry).has(defId), defId).toBe(false)
+    }
+
+    // …and the positive half, so this is a FILTER and not a blanket "return
+    // nothing": a migrated definition's instance IS reported, inputs and all.
+    const migrated = settingsWith({
+      engineEnabled: true,
+      indicatorInstances: [{
+        instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
+        inputs: { color: '#ff0000' }, placement: { target: 'price' }, hidden: false,
+      }],
+    })
+    expect(engineDrawnDefIds(migrated, engineRegistry).has('vwap')).toBe(true)
+    expect(engineDrawnInputs(migrated, engineRegistry).get('vwap').color).toBe('#ff0000')
+  })
+
+  it('VWAP is MIGRATED: its colour swatch is inert and shows the INSTANCE', async () => {
+    // The row half of the case above, now on the other side of the flip. VWAP's
+    // only `engineInert` control is the swatch (its opacity/style/width live in
+    // the settings page, not the toolbar), so this is the whole toolbar surface
+    // for it — and the swatch showing `#ff0000` while the blob says `#26C6DA` is
+    // exactly the "two colours for one line" the inert treatment exists to end.
     const user = userEvent.setup()
     mount(settingsWith({
       indicators: { rsi: { enabled: true }, vwap: { enabled: true, color: '#26C6DA' } },
@@ -150,12 +186,33 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
       }],
     }), vi.fn())
     await openPanel(user)
-    const row = rowFor('VWAP')
-    const box = swatch(row)
-    expect(box.disabled, 'an un-migrated definition greyed its own live control').toBe(false)
-    expect(box.getAttribute('title')).not.toMatch(ENGINE_TITLE)
-    // …and it shows the BLOB, not the instance: the blob is what draws it.
-    expect(box.style.background).toBe('rgb(38, 198, 218)')
+    const box = swatch(rowFor('VWAP'))
+    expect(box.disabled, 'a migrated definition left its dead control looking live').toBe(true)
+    expect(box.getAttribute('title')).toMatch(ENGINE_TITLE)
+    expect(box.style.background).toBe('rgb(255, 0, 0)')
+  })
+
+  it('…but VWAP\'s enable CHECKBOX stays live — the toggle is still the switch', async () => {
+    // Flip A keeps `cs.indicators.vwap.enabled` as the switch: StockChart projects
+    // an instance whose toggle is off to `hidden`. Greying this box would leave a
+    // user with a VWAP they cannot turn off — and Alt+U writes the same field, so
+    // the two would disagree about whether the indicator is on.
+    const user = userEvent.setup()
+    const onUpdate = vi.fn()
+    mount(settingsWith({
+      indicators: { rsi: { enabled: true }, vwap: { enabled: true, color: '#26C6DA' } },
+      engineEnabled: true,
+      indicatorInstances: [{
+        instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
+        inputs: { color: '#ff0000' }, placement: { target: 'price' }, hidden: false,
+      }],
+    }), onUpdate)
+    await openPanel(user)
+    const box = within(rowFor('VWAP')).getByRole('checkbox')
+    expect(box.disabled).toBe(false)
+    await user.click(box)
+    expect(onUpdate).toHaveBeenCalled()
+    expect(onUpdate.mock.calls.at(-1)[0].indicators.vwap.enabled).toBe(false)
   })
 
   it('MACD is MIGRATED: all three period boxes are inert and show the INSTANCE', async () => {
