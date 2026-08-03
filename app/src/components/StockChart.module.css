@@ -318,20 +318,30 @@
   padding: 0;
   border-radius: 0;
   box-shadow: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);   /* legibility without a box, over candles */
+  /* No text-shadow: the panel lives on .flRow (below) so the horizontal legend
+     reads exactly like the vertical one — the old shadow glowed on a light
+     canvas and made the text look like it didn't belong. */
 }
 :global([data-charts-theme='sunrise']) .legendFlat {
   background: none;
   box-shadow: none;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
 }
-/* The value strip. Wraps only when it genuinely runs out of chart width. */
+/* The value strip. Wraps only when it genuinely runs out of chart width. Carries
+   the SAME subtle panel as the vertical legend (.legendVertical) — content-sized
+   because .legendFlat doesn't stretch its child (align-items: flex-start) — so the
+   two layouts look identical, one just runs horizontally. */
 .flRow {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 3px 11px;
   font-variant-numeric: tabular-nums;
+  background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+:global([data-charts-theme='sunrise']) .flRow {
+  background: rgba(255, 255, 255, 0.55);
 }
 
 /* ── Multi-symbol comparison legend (top-left overlay) ──

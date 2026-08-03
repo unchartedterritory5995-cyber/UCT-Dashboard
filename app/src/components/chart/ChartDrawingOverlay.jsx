@@ -42,6 +42,15 @@ const _ANNOTATION_REMAP = {
 function brightenAnnotationColor(color) {
   return (color && _ANNOTATION_REMAP[color.toLowerCase()]) || color
 }
+// Line tools whose right-click menu offers "Set level" (type an exact price) and,
+// for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
+const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
+const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
+// Trim a price to a tidy prefill string (max 4 decimals, no trailing zeros).
+function fmtLevel(v) {
+  if (v == null || !Number.isFinite(+v)) return ''
+  return String(+(+v).toFixed(4))
+}
 // Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
 const _COARSE_POINTER = typeof window !== 'undefined'
   && !!window.matchMedia?.('(pointer: coarse)')?.matches
@@ -484,22 +493,38 @@ function renderMeasure(ctx, pts, drawing, pctOnly = false) {
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
     const type = drawing.type
     ctx.font = 'bold 11px "Instrument Sans", sans-serif'
-    ctx.fillStyle = ctx.strokeStyle
     ctx.textAlign = 'center'
+    // Legibility chip: the measure color is tuned bright for the dark canvas and
+    // washes out as plain text on a LIGHT canvas (the readability complaint).
+    // Back each line with the same neutral dark chip the crosshair legend uses —
+    // it disappears into a dark canvas (so that look is unchanged) but gives the
+    // colored text solid contrast on a light one.
+    const labelColor = ctx.strokeStyle
+    const putLabel = (t, x, y) => {
+      if (!t) return
+      const tw = ctx.measureText(t).width
+      const padX = 5
+      ctx.fillStyle = 'rgba(20, 22, 18, 0.82)'
+      ctx.beginPath()
+      ctx.roundRect(x - tw / 2 - padX, y - 11, tw + padX * 2, 15, 3)
+      ctx.fill()
+      ctx.fillStyle = labelColor
+      ctx.fillText(t, x, y)
+    }
     if (pctOnly) {
       // Just the % move — for marking the size of an index correction.
-      ctx.fillText(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
+      putLabel(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
     } else if (type === 'priceRange') {
       // Price delta only: $ move + %.
-      ctx.fillText(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
+      putLabel(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
     } else if (type === 'dateRange') {
       // Horizontal span only: bar count.
-      ctx.fillText(bars ? `${bars} bars` : '', cx, cy + 4)
+      putLabel(bars ? `${bars} bars` : '', cx, cy + 4)
     } else {
       const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
       const line2 = bars ? `${bars} bars` : ''
-      ctx.fillText(line1, cx, cy - 4)
-      if (line2) ctx.fillText(line2, cx, cy + 12)
+      putLabel(line1, cx, cy - 4)
+      putLabel(line2, cx, cy + 12)
     }
     ctx.textAlign = 'start'
   }
@@ -1717,9 +1742,16 @@ export default function ChartDrawingOverlay({
       const d = drawings.find(d => d.id === drag.drawingId)
       if (!d || !drag.startCoords) return
 
-      // Compute delta in chart coordinates
+      // Compute delta in chart coordinates. In the empty right-pad, toChart clamps
+      // `time` to the last candle and stashes the real offset in `futureBars`, so
+      // the delta MUST add futureBars — otherwise it saturates at the last bar and
+      // an endpoint can't be dragged past the current candle into the future.
+      const effLogical = (c) => {
+        const base = c?.time != null ? (timeToIndex.get(c.time) ?? 0) : 0
+        return base + (Number.isFinite(c?.futureBars) ? c.futureBars : 0)
+      }
       const timeDelta = coords.time && drag.startCoords.time
-        ? (timeToIndex.get(coords.time) || 0) - (timeToIndex.get(drag.startCoords.time) || 0)
+        ? effLogical(coords) - effLogical(drag.startCoords)
         : 0
       const priceDelta = (coords.price || 0) - (drag.startCoords.price || 0)
       // Vertical anchor handling. Price-pane points keep the existing (log-safe)
@@ -1912,10 +1944,21 @@ export default function ChartDrawingOverlay({
     const newPoints = sel.points.map(p => {
       const np = { ...p }
       if (dBars && p.time != null) {
-        const i = timeToIndex.get(p.time)
-        if (i != null) {
-          const ni = Math.max(0, Math.min(bars.length - 1, i + dBars))
-          np.time = bars[ni]?.t ?? p.time
+        // Mirror the drag's moveX: honor FUTURE points (past the last candle) so a
+        // nudge can push an endpoint into the right-pad instead of clamping at it.
+        const _lastIdx = bars.length - 1
+        const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
+          ? _lastIdx + p.futureBars
+          : timeToIndex.get(p.time)
+        if (origIdx != null) {
+          const rawIdx = origIdx + dBars
+          if (rawIdx > _lastIdx) {
+            np.time = bars[_lastIdx].t
+            np.futureBars = Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx)
+          } else {
+            np.time = bars[Math.max(0, rawIdx)]?.t ?? p.time
+            delete np.futureBars
+          }
         }
       }
       if (dPx) {
@@ -2142,12 +2185,46 @@ export default function ChartDrawingOverlay({
       {ctxMenu && (() => {
         const d = drawings.find(dd => dd.id === ctxMenu.drawingId)
         if (!d) return null
+        // On-screen x of a point (later bar index = further right); futureBars
+        // pushes a point into the empty right-pad, so it counts toward x.
+        const effIdx = (p) => {
+          let idx = timeToIndex.get(p.time)
+          if (idx == null) idx = nearestIndex(p.time)
+          if (idx == null) idx = 0
+          return idx + (Number.isFinite(p.futureBars) ? p.futureBars : 0)
+        }
+        // Index of the left-most (starting) point — the anchor both "Make
+        // horizontal" and the "Set level" prefill reference.
+        const leftIndexOf = (pts) => {
+          let li = 0, lx = Infinity
+          pts.forEach((p, i) => { const x = effIdx(p); if (x < lx) { lx = x; li = i } })
+          return li
+        }
+        const pts = d.points || []
+        const leftLevel = pts.length ? pts[leftIndexOf(pts)]?.price ?? null : null
         return (
           <DrawingContextMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
             sheet={_COARSE_POINTER}
             drawing={d}
+            levelSupported={LEVEL_LINE_TYPES.has(d.type)}
+            horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
+            currentLevel={leftLevel}
+            onSetLevel={(price) => {
+              // Flatten the whole line onto the typed price — a clean horizontal
+              // level at exactly the value you want. Clear paneRelY so points
+              // re-anchor to the price scale (not a below-pane fraction).
+              if (!pts.length) return
+              updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price, paneRelY: null })) })
+              setCtxMenu(null)
+            }}
+            onMakeHorizontal={() => {
+              // Snap every point to the left/starting point's current price.
+              if (pts.length < 2 || leftLevel == null) return
+              updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price: leftLevel, paneRelY: null })) })
+              setCtxMenu(null)
+            }}
             onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
@@ -2262,10 +2339,14 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose }) {
+function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
+  const [levelOpen, setLevelOpen] = useState(false)
+  const [levelVal, setLevelVal] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)  // brief "Saved ✓" confirmation
+  const openLevel = () => { setLevelVal(fmtLevel(currentLevel)); setLevelOpen(o => !o) }
+  const submitLevel = () => { const n = parseFloat(levelVal); if (Number.isFinite(n)) onSetLevel?.(n) }
   // Clamp to the viewport so the menu always lands right next to the cursor —
   // flips to the cursor's left/up edge when it would overflow (drawings near the
   // right edge of a full-width chart otherwise pushed it off-screen). Measured
@@ -2364,6 +2445,61 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
       </button>
 
       <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+
+      {levelSupported && (
+        <>
+          <MenuAction
+            label="Set level…"
+            onClick={openLevel}
+            big={sheet}
+            icon={<><line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 2" /><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none" /></>}
+          />
+          {levelOpen && (
+            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                autoFocus
+                value={levelVal}
+                onChange={(e) => setLevelVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); submitLevel() }
+                  else if (e.key === 'Escape') { e.preventDefault(); setLevelOpen(false) }
+                  e.stopPropagation()
+                }}
+                placeholder="Price…"
+                style={{
+                  flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
+                  background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
+                  borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
+                  fontSize: sheet ? 14 : 12, outline: 'none',
+                }}
+              />
+              <button
+                onClick={submitLevel}
+                style={{
+                  padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
+                  background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
+                  borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
+                }}
+              >Set</button>
+            </div>
+          )}
+        </>
+      )}
+      {horizontalSupported && (
+        <MenuAction
+          label="Make horizontal"
+          onClick={onMakeHorizontal}
+          big={sheet}
+          icon={<><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>}
+        />
+      )}
+      {(levelSupported || horizontalSupported) && (
+        <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+      )}
 
       <MenuAction
         label="Duplicate"
