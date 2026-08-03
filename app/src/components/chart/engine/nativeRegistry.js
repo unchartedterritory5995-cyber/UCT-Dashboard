@@ -161,7 +161,16 @@ const RAW_DEFS = [
     ]),
 
   // ── MACD ─────────────────────────────────────────────────────────────────
-  nativeDef('macd', 'macd',
+  //
+  // ⚠️ `version: 2` — the ONLY definition off the shared `version: 1`. Dropping
+  // the head-mask (2026-08-02, decision `MACD_HEAD_MASK`) changed what this
+  // definition RENDERS without changing the maths, which is exactly the split
+  // `version` (presentation) and `compute.rev` (numbers) exist to express:
+  // `compute.rev` stays 1 because `computeMACD` is untouched and the Python lane
+  // still agrees at 1e-9. A `defVersion: 1` on a stored instance is TOLERATED by
+  // `validateInstance` on purpose — an old instance still draws, it just draws
+  // the 8 bars it always should have.
+  ({ ...nativeDef('macd', 'macd',
     { name: 'MACD', shortName: 'MACD', category: 'Momentum' },
     autoPane,
     [
@@ -199,7 +208,7 @@ const RAW_DEFS = [
         legend: { hide: true },
       },
       { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
-    ]),
+    ]), version: 2 }),
 
   // ── Bollinger Bands ──────────────────────────────────────────────────────
   nativeDef('bb', 'bb',
@@ -483,45 +492,54 @@ function toColumn(points, length) {
 }
 
 /**
- * ⚠️⚠️ A FLAGGED DECISION AWAITING OWNER SIGN-OFF — do NOT flip this inside a
- * migration commit.
+ * ✅ DECIDED 2026-08-02 — the owner dropped the mask. `false` is the shipped look.
  *
- * `true`  = the shipped look. The MACD line starts on the same bar as its signal.
- * `false` = the mathematically correct line, drawn from bar `slowPeriod-1` —
- *           **8 bars earlier** at the default 12/26/9 — matching the Python lane
+ * `false` (TODAY) = the mathematically correct line, drawn from bar `slowPeriod-1`
+ *           — **8 bars earlier** at the default 12/26/9 — matching the Python lane
  *           (`api/services/indicator_compute.compute_macd_raw`) and the shared
  *           golden fixture `tests/fixtures/indicators/macd_default.json` exactly.
+ * `true`  (HISTORY) = the pre-2026-08-02 look. The MACD line started on the same
+ *           bar as its signal, hiding 8 bars of a line it had already computed.
  *
- * This is the ONE place to change it. BOTH lanes read it: the engine's
- * `COLUMN_HOLDS` below, and — because `macd` is not migrated — the legacy
+ * **Measured cost of the flip: 88 changed pixels (0.011828%)** on `macd_headmask`,
+ * 20/20 runs, builds `9f566cd22874` (mask on) vs `9045bb69fc56` (mask off) — one
+ * contiguous 44×4 px region at `x ∈ [136,179]`, `y ∈ [394,397]`. Re-measured at
+ * the flip itself and confirmed. Record: `docs/decisions/2026-08-02-macd-head-mask.md`.
+ *
+ * This is still the ONE place to change it, and BOTH lanes still read it: the
+ * engine's `COLUMN_HOLDS` below, and — because `macd` is not migrated — the legacy
  * `indicatorData` memo in `StockChart.jsx`, which is what a user actually sees.
- * Changing it is a VISIBLE change at the very start of history on every MACD
- * chart, so measure it first:
+ * Turning it back on is a VISIBLE change at the very start of history on every
+ * MACD chart, so it would need the same treatment the drop got:
  *
- *     python tools/chart_parity.py --base-a $MASK_ON --base-b $MASK_OFF --cases macd_headmask --repeat 20
+ *     python tools/chart_parity.py --base-a $MASK_OFF --base-b $MASK_ON --cases macd_headmask --repeat 20
  *
- * The number that comes out is what the owner is being asked to approve. See
- * `docs/decisions/2026-08-02-macd-head-mask.md` (decision id **MACD_HEAD_MASK**)
- * and the adjudication row in the indicator-platform spec §11.
+ * ⚠️ The constant is KEPT rather than deleted so `macd_headmask` still measures
+ * something: post-flip it prices the same distance in the other direction, and a
+ * **0** from it means a future edit stopped one of the two lanes reading this
+ * switch. See the adjudication row in the indicator-platform spec §11.
  */
-export const MACD_HEAD_MASK = true
+export const MACD_HEAD_MASK = false
 
 /**
- * ⚠️ THE MACD HEAD-MASK — a deliberate B1 pixel-parity hold, carried here from
- * `StockChart.jsx:3952-3965`. Do not "simplify" it away.
+ * ⚠️ THE MACD HEAD-MASK — DORMANT since 2026-08-02. `MACD_HEAD_MASK` is `false`,
+ * so `COLUMN_HOLDS` is `{}` and this function is not applied to anything.
  *
- * `computeMACD` emits the MACD line from bar `slowPeriod-1`, which is
- * `signalPeriod-1` bars EARLIER than the signal line — mathematically right, and
- * what the Python lane has always done (the golden fixtures caught the two
- * disagreeing on 8 bars of a default 12/26/9). This chart has always started the
- * line together with its signal, so the head is masked back to the signal's
- * first bar. Dropping the mask draws the line ~8 bars earlier at the very start
- * of history: correct, visible, and therefore owner-signed-off in B3 — not
- * something that rides along with an engine refactor.
+ * It is kept, not deleted, because the decision it implements is reversible in
+ * ONE edit (`MACD_HEAD_MASK = true`) and `macd_headmask` still exists to price
+ * that edit. Deleting it would make re-instating the old look a rewrite instead
+ * of a flag flip, and would leave the parity case measuring a shape nothing in
+ * the tree can produce.
  *
- * ⚠️ THIS FUNCTION IS NOT THE SWITCH. `MACD_HEAD_MASK` above is. Deleting the
- * body here would drop the mask WITHOUT the flag saying so, which is the one
- * way this decision could be applied by accident — `nativeRegistry.test.js`
+ * What it does when it IS on: `computeMACD` emits the MACD line from bar
+ * `slowPeriod-1`, which is `signalPeriod-1` bars EARLIER than the signal line —
+ * mathematically right, and what the Python lane has always done (the golden
+ * fixtures caught the two disagreeing on 8 bars of a default 12/26/9). Until
+ * 2026-08-02 this chart started the line together with its signal, so the head
+ * was masked back to the signal's first bar.
+ *
+ * ⚠️ THIS FUNCTION IS NOT THE SWITCH. `MACD_HEAD_MASK` above is. Editing the
+ * body here would change the mask WITHOUT the flag saying so — `nativeRegistry.test.js`
  * and `__tests__/macdHeadMaskRendered.test.jsx` both go red if it happens.
  */
 function maskMacdHead(columns) {
@@ -541,8 +559,9 @@ function maskMacdHead(columns) {
  *
  * Derived from `MACD_HEAD_MASK`, not written out, so that flipping the decision
  * is ONE edit and the holds table cannot drift away from the flag that documents
- * it. With the flag off there is no hold at all and the column is the Python
- * lane's column, element for element.
+ * it. The flag is OFF as of 2026-08-02, so **this table is empty**: there is no
+ * hold at all and the `macd` column is the Python lane's column, element for
+ * element. §9.1's render-boundary exception is closed.
  */
 const COLUMN_HOLDS = MACD_HEAD_MASK ? { macd: maskMacdHead } : {}
 

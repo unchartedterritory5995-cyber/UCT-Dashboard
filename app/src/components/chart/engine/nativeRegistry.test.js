@@ -160,24 +160,32 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
 })
 
 // ─── the two bespoke behaviours ──────────────────────────────────────────────
+//
+// ⚠️ There is now only ONE. MACD's head-mask was the other, and the owner
+// retired it on 2026-08-02 (decision `MACD_HEAD_MASK`) — `COLUMN_HOLDS` is empty
+// and `computeFor('macd')` is a straight pass-through of the native. This block
+// is kept, pointed at the post-decision truth, because "the adapter does not
+// bend the maths" is the claim a future COLUMN_HOLDS entry would break, and it
+// should break something here rather than only in the decision's own pin below.
 
-describe('MACD head-mask (StockChart.jsx:3952-3965 — the B1 pixel-parity hold)', () => {
-  it('masks the MACD line back to the signal\'s first bar, element for element', () => {
+describe('MACD needs NO column hold — the B1 pixel-parity mask is retired', () => {
+  it('passes the native line through element for element — no head is held back', () => {
     const def = getDefinition('macd')
     const raw = computeMACD(BARS, 12, 26, 9)
     const sigStart = raw.signal.findIndex(p => Number.isFinite(p.value))
     expect(sigStart).toBeGreaterThan(0)   // otherwise this test proves nothing
-    const expected = raw.macd.map((p, i) => (i < sigStart ? NaN : p.value))
+    const expected = raw.macd.map(p => p.value)
 
     const got = computeFor(def, BARS, {})
     expect(got.macd.length).toBe(expected.length)
     for (let i = 0; i < expected.length; i++) {
-      if (Number.isNaN(expected[i])) expect(Number.isNaN(got.macd[i]), `macd[${i}]`).toBe(true)
-      else expect(got.macd[i], `macd[${i}]`).toBe(expected[i])
+      if (Number.isFinite(expected[i])) expect(got.macd[i], `macd[${i}]`).toBe(expected[i])
+      else expect(Number.isNaN(got.macd[i]), `macd[${i}]`).toBe(true)
     }
-    // The mask is a HOLD, not a no-op: the unmasked line really is longer.
+    // The retired mask was a HOLD, not a no-op — the bar before the signal begins
+    // is exactly the bar it used to erase, and it is now drawn.
     expect(Number.isFinite(raw.macd[sigStart - 1].value)).toBe(true)
-    expect(Number.isNaN(got.macd[sigStart - 1])).toBe(true)
+    expect(got.macd[sigStart - 1]).toBe(raw.macd[sigStart - 1].value)
   })
 
   it('leaves signal and histogram untouched', () => {
@@ -374,82 +382,102 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
 
 // ─── the MACD head-mask (B3 adjudication A5) ─────────────────────────────────
 //
-// `MACD_HEAD_MASK` is a DECISION THAT HAS NOT BEEN MADE YET, parked behind a
-// named boolean so the making of it is one edit in one place rather than an
-// archaeology exercise across two render lanes. The decision record is
-// `docs/decisions/2026-08-02-macd-head-mask.md`; the adjudication row is spec
-// §11.
+// ✅ **DECIDED 2026-08-02: the owner DROPPED the mask.** `MACD_HEAD_MASK` is
+// `false`, the engine's `COLUMN_HOLDS` is empty, and the `macd` column is now the
+// Python lane's column element for element. Measured cost of applying it: **88
+// changed pixels (0.011828%)** on `macd_headmask`, builds `9f566cd22874` (mask
+// on) vs `9045bb69fc56` (mask off). Record:
+// `docs/decisions/2026-08-02-macd-head-mask.md`; adjudication row is spec §11,
+// status ACCEPTED.
 //
-// Three claims, and the third is the one that stops this from being theatre:
+// These cases WERE the pin on an open decision. They are now the pin on a closed
+// one, pointed the other way — the failure they exist to catch has inverted, not
+// disappeared:
 //
-//   1. the flag is ON — the shipped look is what ships,
-//   2. the hold really is applied — the drawn line starts with its signal,
-//   3. the UNMASKED line genuinely starts EARLIER, by exactly 8 bars at
-//      12/26/9. If that gap were 0 the mask would be a no-op, the "cost of
-//      correctness" would be zero, and the whole decision would be ceremony
-//      around nothing.
+//   1. the flag is OFF — the decision stays applied,
+//   2. no hold is applied — the drawn column starts on the line's OWN first bar
+//      (25), not the signal's (33),
+//   3. the two really are different bars, by exactly 8 at 12/26/9. If that gap
+//      were 0 the flip would have moved nothing and the 88 px would be a lie —
+//      this is the anti-theatre claim and it survives the decision unchanged,
+//   4. §9.1's render-boundary exception is CLOSED, asserted in numbers: the
+//      values Python publishes on bars 25-32 are the values this column carries,
+//      exactly.
 //
-// ⚠️ THE PIN IS DELIBERATELY IN TWO PLACES. This file pins the COLUMN (what the
-// engine computes). `__tests__/macdHeadMaskRendered.test.jsx` pins what the
+// ⚠️ THE PIN IS STILL DELIBERATELY IN TWO PLACES. This file pins the COLUMN (what
+// the engine computes). `__tests__/macdHeadMaskRendered.test.jsx` pins what the
 // LEGACY lane hands to lightweight-charts, because MACD is not migrated and the
-// mask that a user actually sees lives in `StockChart.jsx`'s `indicatorData`
-// memo. Flipping the constant must be visible in BOTH, and it is.
+// lane a user actually sees is `StockChart.jsx`'s `indicatorData` memo. A future
+// edit that re-masked ONE lane would be invisible to the other file, and that
+// asymmetry is precisely what makes the 88 px number honest.
 
-describe('the MACD head-mask is a flagged decision, not a silent hold (B3/A5)', () => {
+describe('the MACD head-mask was DROPPED, and stays dropped (B3/A5, decision MACD_HEAD_MASK)', () => {
   const firstFiniteCol = (col) => {
     for (let i = 0; i < col.length; i++) if (Number.isFinite(col[i])) return i
     return -1
   }
   const firstFinitePts = (pts) => pts.findIndex(p => Number.isFinite(p.value))
 
-  it('is ON, and is a boolean somebody can flip in one place', () => {
-    expect(MACD_HEAD_MASK).toBe(true)
+  it('is OFF, and is a boolean somebody can flip back in one place', () => {
+    expect(MACD_HEAD_MASK).toBe(false)
     expect(typeof MACD_HEAD_MASK).toBe('boolean')
   })
 
-  it('masks the line back to the signal\'s first bar — the shipped look', () => {
+  it('applies NO hold — the drawn line starts on its own first bar, 8 before the signal', () => {
     const cols = computeFor(getDefinition('macd'), BARS, { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 })
-    expect(firstFiniteCol(cols.signal)).toBeGreaterThan(0)   // else this proves nothing
-    expect(firstFiniteCol(cols.macd)).toBe(firstFiniteCol(cols.signal))
+    const line = firstFiniteCol(cols.macd)
+    const signal = firstFiniteCol(cols.signal)
+    expect(signal).toBeGreaterThan(0)                 // else this proves nothing
+    expect(line, 'the column must NOT be held back to the signal').toBeLessThan(signal)
+    expect(signal - line).toBe(8)                     // signalPeriod - 1
+    expect(line).toBe(25)                             // slowPeriod - 1
   })
 
-  it('the UNMASKED line really does start earlier — so the decision is real', () => {
+  it('the line really does start earlier than the signal — so the flip moved something', () => {
     // Straight from the native, no COLUMN_HOLDS. If these were equal the mask
-    // would be a no-op and this whole decision would be theatre.
+    // would have been a no-op and the 88 px it cost to drop it would be a lie.
     const raw = computeMACD(BARS, 12, 26, 9)
     const gap = firstFinitePts(raw.signal) - firstFinitePts(raw.macd)
-    expect(gap, 'the mask hides this many bars of a mathematically-correct line').toBe(8)
-    // …and it hides them at the START of history, which is what makes dropping
-    // it a VISIBLE change rather than an invisible one. The exact bars are named
-    // in the decision record and they are these.
+    expect(gap, 'the dropped mask used to hide this many bars').toBe(8)
+    // …at the START of history, which is what made dropping it a VISIBLE change.
+    // The exact bars are named in the decision record and they are these.
     expect(firstFinitePts(raw.macd)).toBe(25)     // slowPeriod - 1
     expect(firstFinitePts(raw.signal)).toBe(33)   // + signalPeriod - 1
   })
 
-  it('hides values the PYTHON lane publishes — the §9.1 exception, in numbers', () => {
+  it('publishes what the PYTHON lane publishes — §9.1\'s exception, CLOSED, in numbers', () => {
     // `tests/fixtures/indicators/macd_default.json` is the shared oracle both
-    // lanes are held to at rel-tol 1e-9. Its `macd` column is finite on every
-    // one of these bars; the column this chart draws is NaN on all of them.
-    // That divergence is the whole cost of keeping the mask, so it is asserted
-    // here rather than described in a comment.
+    // lanes are held to at rel-tol 1e-9. Its `macd` column is finite on every one
+    // of these bars, and until 2026-08-02 the column this chart drew was NaN on
+    // all of them — the entire §9.1 exception. It is closed, and closing it is
+    // asserted here rather than described in a comment.
     const cols = computeFor(getDefinition('macd'), BARS, {})
     const raw = computeMACD(BARS, 12, 26, 9)
-    const hidden = []
+    const restored = []
     for (let i = 25; i < 33; i++) {
       expect(Number.isFinite(raw.macd[i].value), `raw macd[${i}] should be finite`).toBe(true)
-      expect(Number.isNaN(cols.macd[i]), `drawn macd[${i}] should be masked`).toBe(true)
-      hidden.push(i)
+      expect(Number.isNaN(cols.macd[i]), `drawn macd[${i}] must no longer be masked`).toBe(false)
+      expect(cols.macd[i], `drawn macd[${i}] must equal the raw value exactly`).toBe(raw.macd[i].value)
+      restored.push(i)
     }
-    expect(hidden).toEqual([25, 26, 27, 28, 29, 30, 31, 32])
-    // The bar AFTER the masked run is drawn — the mask is a head-hold, not a shift.
-    expect(Number.isFinite(cols.macd[33])).toBe(true)
+    expect(restored).toEqual([25, 26, 27, 28, 29, 30, 31, 32])
+    // Bar 24 is still NaN — the flip restored the head, it did not extend the
+    // line past where the maths defines it.
+    expect(Number.isNaN(cols.macd[24])).toBe(true)
+    // And the bar the mask used to stop at is unchanged, on both sides.
     expect(cols.macd[33]).toBe(raw.macd[33].value)
   })
 
-  it('hands back a FRESH column every call — the mask is not a memo to double-apply', () => {
-    // `maskMacdHead` writes NaN into the array it was handed. `computeFor` builds
-    // that array fresh per call; if it ever started memoising, a second reader
-    // would receive the FIRST reader's array and any mutation would travel.
+  // The general statement — "the column IS the native's line on every bar,
+  // finite-ness included", which is §9.1 with no render-boundary exception left
+  // in it — lives one describe up, in `MACD needs NO column hold`. It is not
+  // repeated here.
+
+  it('hands back a FRESH column every call — a re-instated mask must not double-apply', () => {
+    // `maskMacdHead` writes NaN into the array it was handed. It is dormant, but
+    // it is KEPT (the decision is reversible in one edit), so this stays: if
+    // `computeFor` ever started memoising, a second reader would receive the
+    // FIRST reader's array and any mutation would travel.
     const def = getDefinition('macd')
     const a = computeFor(def, BARS, {})
     const b = computeFor(def, BARS, {})
@@ -457,5 +485,19 @@ describe('the MACD head-mask is a flagged decision, not a silent hold (B3/A5)', 
     expect(a.macd).not.toBe(b.macd)
     a.macd[40] = 12345
     expect(b.macd[40]).not.toBe(12345)
+  })
+
+  it('is a PRESENTATION change — `version` bumped, `compute.rev` did NOT', () => {
+    // The decision record's rule: the picture moved, the maths did not. Bumping
+    // `compute.rev` would tell every downstream cache the NUMBERS changed, which
+    // is false and would invalidate a server-lane port that is still correct.
+    const def = getDefinition('macd')
+    expect(def.version, 'the rendered output changed').toBe(2)
+    expect(def.compute.rev, 'the maths did not').toBe(1)
+    // Every other native is still on the shared version — the bump is scoped to
+    // the definition the decision touched, not applied across the board.
+    for (const other of listDefinitions().filter(d => d.id !== 'macd')) {
+      expect(other.version, `${other.id} should not have been bumped`).toBe(1)
+    }
   })
 })

@@ -4008,21 +4008,20 @@ export default function StockChart({
         const macdCfg = ind.macd
         if (!macdCfg?.enabled) return { macd: [], signal: [], histogram: [] }
         const raw = computeMACD(filteredBars, macdCfg.fastPeriod, macdCfg.slowPeriod, macdCfg.signalPeriod)
-        // ⚠️ B1 pixel-parity hold. The MACD line is mathematically defined from
-        // bar (slowPeriod-1) — `signalPeriod-1` bars before the signal line —
-        // and computeMACD now returns it there, matching the Python lane (the
-        // golden fixtures caught the two disagreeing on those bars). This chart
-        // has ALWAYS started the MACD line together with its signal, so B1 keeps
-        // that look by masking the line's head back to the signal's first bar.
-        // Dropping the mask draws the line 8 bars earlier at the very start of
-        // history: correct, but VISIBLE.
-        // ⚠️ ONE SWITCH, BOTH LANES. `nativeRegistry.MACD_HEAD_MASK` is the single
-        // place this decision is written (id **MACD_HEAD_MASK**, record at
-        // `docs/decisions/2026-08-02-macd-head-mask.md`, adjudication in spec §11).
-        // `macd` is NOT migrated, so this legacy memo is the lane a user actually
-        // sees — the engine's `COLUMN_HOLDS` reads the same constant. Pricing the
-        // decision means building with the flag false, and that measurement is only
-        // honest if the flip reaches HERE as well as the engine.
+        // The MACD line is mathematically defined from bar (slowPeriod-1) —
+        // `signalPeriod-1` bars before the signal line — and computeMACD returns
+        // it there, matching the Python lane and the shared golden fixture.
+        // B1 held its head back to the signal's first bar to keep the shipped
+        // picture still inside a foundations commit; **the owner dropped that
+        // hold on 2026-08-02** (id **MACD_HEAD_MASK**, record at
+        // `docs/decisions/2026-08-02-macd-head-mask.md`, adjudication in spec §11),
+        // so `MACD_HEAD_MASK` is false and the line now draws all 8 of those bars.
+        // Measured cost of the drop: 88 px (0.011828%) on `macd_headmask`.
+        // ⚠️ ONE SWITCH, BOTH LANES — keep it that way. `macd` is NOT migrated, so
+        // this legacy memo is the lane a user actually sees, and the engine's
+        // `COLUMN_HOLDS` reads the same constant. Hand-editing either side is how
+        // the two lanes drift and the 88 stops meaning anything; a flip that
+        // reached only the engine would have measured 0.
         const sigStart = engineRegistry.MACD_HEAD_MASK
           ? raw.signal.findIndex(p => Number.isFinite(p.value))
           : -1

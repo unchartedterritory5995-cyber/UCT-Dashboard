@@ -64,12 +64,15 @@ JS returns `[]` (the renderer's "no pane" signal, preserved deliberately). No
 fixture covers that case; unifying it belongs to the B2 binding layer, which is
 where pane creation moves.
 
-**The fixtures pin COMPUTE, not what is drawn — and for MACD those differ on
-purpose.** `macd_default`'s `macd` column is finite from bar 25 in both lanes at
-1e-9, but the chart renders bars 25-32 as whitespace: it holds the line's head
-back to the signal's first bar. That is the flagged, measured, still-OPEN
-decision `MACD_HEAD_MASK` — `docs/decisions/2026-08-02-macd-head-mask.md`. Do
-NOT "fix" this fixture to match the picture; the fixture is the correct side.
+**The fixtures pin COMPUTE, and for MACD the picture now agrees with them.**
+`macd_default`'s `macd` column is finite from bar 25 in both lanes at 1e-9. Until
+2026-08-02 the chart rendered bars 25-32 as whitespace — it held the line's head
+back to the signal's first bar — and that gap was the one named exception to the
+rel-tol rule. The owner **dropped the mask on 2026-08-02** (decision
+`MACD_HEAD_MASK`, `docs/decisions/2026-08-02-macd-head-mask.md`, status ACCEPTED,
+measured cost **88 px**), so those 8 bars are drawn at the values this fixture
+publishes and the exception is CLOSED. The fixture was always the correct side —
+it never moved, the picture did. Still do NOT "fix" a fixture to match a picture.
 
 ## Tolerance rule
 
