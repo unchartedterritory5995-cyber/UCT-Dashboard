@@ -376,6 +376,115 @@ sanity-check the harness before migrating an indicator.
 
 ---
 
+## 5. Migrating one more indicator — the whole checklist
+
+Phase B3 took four indicators through both flips (RSI, Bollinger Bands, MACD,
+VWAP). **Eleven definitions are still on the legacy lane** — `stoch`, `atr`,
+`sar`, `ichimoku`, `mfi`, `cci`, `williamsR`, `adx`, `obv`, `donchian`, plus
+`volumeProfile`, which is **permanently carved out** and is not on this list at
+all (it draws to a sibling canvas, not through `addSeries`; see
+`nativeRegistry.CARVED_OUT_INDICATOR_KEYS`).
+
+This is what each of the remaining ten costs, written from what the four actually
+took rather than from what the plan estimated.
+
+### 5.1 The steps
+
+1. **Write its Flip-A transcription suite first** —
+   `engine/__tests__/<id>FlipAParity.test.js`, copying the legacy `addSeries` /
+   `applyIndScale` / `createPriceLine` calls **VERBATIM**. Run it BEFORE touching
+   `StockChart.jsx`: it should pass, and a failure is a definition-vs-shipped-block
+   disagreement — the migration's pixel diff, arriving early and for free.
+   ⚠️ Assert with `toEqual` over the **full** option object, not `toMatchObject`:
+   a `toMatchObject` transcription passes with an extra `lastValueVisible: true`
+   that would have moved pixels.
+
+2. **Migrate and flip in the SAME change.** All four pilots did, and
+   `flipB.test.jsx` asserts `ENGINE_FLIPPED_DEF_IDS` **equals**
+   `ENGINE_MIGRATED_DEF_IDS` so that splitting them is a red test rather than a
+   discovery. ⛔ **If you split them, read
+   `docs/decisions/2026-08-03-engine-enabled-settings-migration.md` first** — a
+   migrated-but-un-flipped definition needs `cs.engineEnabled`, **no existing
+   user has it, and flipping the default cannot give it to them.** That is an
+   indicator that renders for nobody.
+
+3. Add `'<id>'` to `ENGINE_MIGRATED_DEF_IDS` **and** `ENGINE_FLIPPED_DEF_IDS`
+   (`engine/flipState.js` — not `StockChart.jsx`; `ChartToolbar` is rendered BY
+   StockChart and cannot import from it). `stockChartWiring.test.jsx` fails if
+   only one lands. **A price overlay must not be migrated ahead of an earlier one
+   in registry order** — LWC z-stacks by insertion.
+
+4. **Give it a band if it is an oscillator.** `chart/paneMargins.js` `PANES` is
+   the stacking list; an id absent from it gets no reserved band and the
+   placement adapter falls back. `paneMargins.js` is **consumed, never modified
+   for a price overlay** — `enumerationSites.test.js` asserts a price overlay
+   gains no key there.
+
+5. **Fill in `<id>_only` and add `engine_<id>_vs_legacy`** to
+   `chart_parity_cases.json`. A session indicator takes `intraday5m`; everything
+   else takes `ramp200`. §"Two bar fixtures" says when each is wrong.
+
+6. **Run, in this order**, and record every number with BOTH build identities:
+   `--instances-side none` (0) · `--instances-side both` (0) · the case itself
+   (0) · `--perturb-b-instances` (non-zero, **exit 1**).
+   ⚠️ **A colour-only perturbation is not enough.** Periods and lengths appear in
+   NO option object, so a colour perturb cannot tell a live compute path from a
+   dead one. Perturb a PERIOD as well — that is how BB (8,534 px) and MACD
+   (7,588 px on `slowPeriod`) were shown to be computing rather than replaying.
+   For a definition whose colour input is not called `color` (MACD's are
+   `macdColor` / `signalColor`), name the real key or the perturbation is a no-op
+   that reports 0.
+
+7. **Declare its legend chips** — `plots[].legend` plus a `readout.LEGACY_SLOTS`
+   entry — or the readout silently loses them. **The pixel gate cannot see a
+   legend nobody hovered**, so this needs its own DOM test with a legacy control.
+
+8. **DELETE, don't guard.** Flip B is the deletion: the hand-written block, its
+   `useRef`s, its `indicatorData` branch, its hide-all entry, its crosshair read.
+   `enumerationSites.test.js` asserts a flipped id declares no series ref,
+   creates no series, calls no compute and keeps no Flip-A guard.
+
+9. **Route every control door at `instanceControls`.** There are **six**, and B3
+   found them one at a time: the `ChartToolbar` row · right-click **Indicators ▸**
+   · right-click **Hide `<label>`** · the Ctrl family (**Ctrl+I** rsi, **Ctrl+O**
+   macd, **Ctrl+B** bb — declared in `keyboardShortcuts.js`, matched in
+   `matchShortcut`, consumed in `StockChart`'s `toggle:` switch) · **Alt+U**
+   (vwap — `matchShortcut` REJECTS Alt, so the live handler is `StockChart`'s
+   `e.altKey` block) · and the **settings tab's generated row**
+   (`indicatorRegistry.applyRowPatch`). A door that writes `cs.indicators.<id>`
+   RAW moves a number nothing renders the moment any other door has created the
+   instance.
+
+10. **Then two builds, same settings**: `--cases <id>_only` = 0, and
+    `--perturb-b` on its **settings** colour = non-zero. `enumerationSites.test.js`
+    fails if any retired site survives.
+
+### 5.2 ⚠️ The two things that go wrong every single time
+
+**Controls rot at the flip, and the dangerous ones stay GREEN.** Every negative
+control that names a not-yet-migrated subject becomes vacuous the moment that
+subject migrates — and a control asserting *"a NON-migrated indicator does X"*
+keeps passing while its premise dies. B3 hit this at four separate flips
+(7 rotted at Task 11, 4 of them green-while-false; 5 at Task 12, 2 green). **Audit
+them at every flip**: `grep` the suite for the id you are migrating and read each
+hit's stated REASON, not its assertion.
+
+**A perturbation that reports 0 is a vacuous self-test, not a pass.** That is the
+class the harness's refusals exist to catch, and it is still reachable through a
+wrongly-named input key (step 6).
+
+### 5.3 What is NOT on this checklist, and where it lives instead
+
+* the **settings-dialog rework** and the generated per-instance dialog — spec §6,
+  **B4**. Twenty ledger regions wait on it (`enumerationSites.test.js` asserts the
+  breakdown `{B4: 20, B5: 7, keep: 2, phase: 2}`, so B4 retiring one silently is a
+  red test);
+* **Flip C**, bands becoming real LWC panes — **B5**;
+* the `engineEnabled` **settings migration** — unresolved, gated, and numbered:
+  `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`.
+
+---
+
 ## Which build am I measuring? — the four refusals
 
 Every number this tool prints is a claim about a specific build, and until
