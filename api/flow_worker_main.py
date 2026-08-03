@@ -104,6 +104,15 @@ async def _lifespan(app):
         massive_stream.start()
     except Exception as e:  # noqa: BLE001
         log.exception("massive_stream tailer start failed (non-fatal): %s", e)
+    try:
+        # Curated-tape SSE tailer (self-gated on MASSIVE_CURATED_STREAM_ENABLED):
+        # broadcasts newly-CURATED alerts to /api/live/massive/curated-stream so
+        # the curated feed surfaces instantly instead of on the 20s poll. Same
+        # running-loop requirement as massive_stream above.
+        from api import massive_curated_stream
+        massive_curated_stream.start()
+    except Exception as e:  # noqa: BLE001
+        log.exception("massive_curated_stream tailer start failed (non-fatal): %s", e)
     yield
     # Clean OPRA slot release on SIGTERM (the P1 contract) so the next process's
     # consumer doesn't hit max_connections. Bounded, idempotent, defensive.

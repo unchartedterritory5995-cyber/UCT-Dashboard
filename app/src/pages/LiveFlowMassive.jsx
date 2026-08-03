@@ -55,6 +55,21 @@ const STREAM_ENABLED = (() => {
   } catch { /* ignore */ }
   return false;
 })();
+// SSE curated-tape (dark, VITE_MASSIVE_CURATED_STREAM=1). Independent of the raw
+// STREAM_ENABLED above so the curated stream can be armed alone. When on AND in
+// curated mode, new CURATED alerts arrive via EventSource the instant the server
+// tailer classifies them (instead of waiting up to POLL_INTERVAL_MS); the 20s poll
+// stays as the authoritative reconcile. When off (default), curated is unchanged.
+const CURATED_STREAM_ENABLED = (() => {
+  try {
+    if (import.meta.env.VITE_MASSIVE_CURATED_STREAM === "1") return true; // global rollout
+    // dark-test escapes: ?curatedstream in the URL, or
+    // localStorage.setItem('uct.massiveCuratedStream','1') in DevTools.
+    if (typeof localStorage !== "undefined" && localStorage.getItem("uct.massiveCuratedStream") === "1") return true;
+    if (typeof location !== "undefined" && new URLSearchParams(location.search).has("curatedstream")) return true;
+  } catch { /* ignore */ }
+  return false;
+})();
 const STREAM_RECONCILE_MS = 30000;  // 2026-07-09: 60s→30s. Belt-and-suspenders max
 // staleness — even a healthy-but-quiet stream reconciles the full authoritative
 // list this often, so no user can drift far behind the true tape.
@@ -3609,6 +3624,90 @@ export default function LiveFlowMassive() {
     };
   }, [curated, minGrade, sortBy, filters, sseNonce]);
 
+  // ── Live CURATED SSE stream (dark, VITE_MASSIVE_CURATED_STREAM=1) ──────────
+  // The curated twin of the effect above. Only runs in CURATED mode (mutually
+  // exclusive with the raw stream, which is disabled when curated). The server
+  // tailer already applied the exact curated gate, so this just PREPENDS each
+  // new curated alert instantly — killing the ~20s poll surfacing lag. The 20s
+  // poll stays as the authoritative reconcile (dedupe/demotions/full set); on a
+  // disconnect the data STAYS PUT and the poll keeps it fresh, so a stream
+  // failure degrades to exactly the pre-stream 20s behavior, never a blank feed.
+  useEffect(() => {
+    if (!curated || !CURATED_STREAM_ENABLED) return;
+    const isolatedTier = (() => {
+      const ons = TIER_ORDER.filter((t) => filters[t]);
+      return ons.length === 1 ? ons[0] : null;
+    })();
+    const minRank = _GRADE_NUMERIC_FE[minGrade] ?? 0;
+    let es;
+    try {
+      es = new EventSource("/api/live/massive/curated-stream");
+    } catch {
+      return;
+    }
+    lastSseContactRef.current = Date.now();
+    const touch = () => { lastSseContactRef.current = Date.now(); };
+    // Unlike the raw effect we do NOT force a reconcile poll on 'connected' —
+    // the curated /recent build is heavy (~34K rows) and a flapping stream would
+    // stack heavy builds; the 20s poll catches any gap within one cycle anyway.
+    es.addEventListener("connected", touch);
+    es.addEventListener("heartbeat", touch);  // 15s healthy-idle signal
+    es.onmessage = (ev) => {
+      touch();
+      let incoming;
+      try {
+        incoming = JSON.parse(ev.data).alerts || [];
+      } catch {
+        return;
+      }
+      if (!incoming.length) return;
+      // apply the user's VIEW filters (grade + isolated tier) — the server
+      // already applied CURATION, these just match the current on-screen slice
+      const fresh = incoming.filter(
+        (a) =>
+          (_GRADE_NUMERIC_FE[a.grade] ?? 0) >= minRank &&
+          (!isolatedTier || (a._tierKey || "algo") === isolatedTier)
+      );
+      if (!fresh.length) return;
+      setDataArrived(true);
+      setWarming(false);
+      setAlerts((prev) => {
+        const seen = new Set(prev.map((a) => a.id));
+        const add = fresh.filter((a) => !seen.has(a.id));
+        if (!add.length) return prev;
+        newIdsRef.current = new Set(add.map((a) => a.id)); // flash the new batch
+        let merged = [...add, ...prev];
+        if (sortBy === "premium")
+          merged.sort((x, y) => (y.alertPremium || 0) - (x.alertPremium || 0));
+        else if (sortBy === "conviction")
+          merged.sort((x, y) => (y.convictionScore || 0) - (x.convictionScore || 0));
+        else merged.sort((x, y) => (y.id || 0) - (x.id || 0)); // recent
+        if (merged[0]) lastIdRef.current = merged[0].id;
+        return applyOiEnrichment(merged.slice(0, 4000));
+      });
+    };
+    es.onerror = () => {
+      /* keep rendered data; browser EventSource auto-reconnects */
+    };
+    // Same half-dead-stream watchdog as the raw effect. Reuses sseNonce so the
+    // return-to-tab catch-up reconnects the curated stream too (the effects are
+    // mutually exclusive on `curated`, so sharing the nonce is safe).
+    const wd = setInterval(() => {
+      if (Date.now() - lastSseContactRef.current > SSE_STALL_MS) {
+        lastSseContactRef.current = Date.now();
+        setSseNonce((n) => n + 1);
+      }
+    }, 10000);
+    return () => {
+      clearInterval(wd);
+      try {
+        es.close();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [curated, minGrade, sortBy, filters, sseNonce]);
+
   // ── Return-to-tab catch-up (2026-07-20) ───────────────────────────────────
   // Browsers throttle/freeze setInterval+setTimeout in a hidden/backgrounded
   // tab, so the 20s poll, the 30s SSE reconcile, AND the 40s half-dead-stream
@@ -4439,7 +4538,7 @@ export default function LiveFlowMassive() {
         marginTop: 30, padding: 12, color: P.mt, fontSize: 10,
         textAlign: "center", borderTop: `1px solid ${P.bd}`,
       }}>
-        Live Flow ・ Real-time options tape ・ {STREAM_ENABLED && !curated ? "Live stream (SSE)" : `Refreshing every ${POLL_INTERVAL_MS/1000}s`}
+        Live Flow ・ Real-time options tape ・ {((STREAM_ENABLED && !curated) || (CURATED_STREAM_ENABLED && curated)) ? "Live stream (SSE)" : `Refreshing every ${POLL_INTERVAL_MS/1000}s`}
       </div>
     </div>
       );

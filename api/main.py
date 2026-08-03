@@ -1485,6 +1485,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] massive_stream start failed: %s", e)
 
+    # Curated-tape SSE tailer (2026-08-03) — the curated twin of the above.
+    # Pushes newly-CURATED alerts to /api/live/massive/curated-stream so the
+    # curated feed surfaces instantly instead of on the 20s poll. Inert unless
+    # MASSIVE_CURATED_STREAM_ENABLED=1 (dark by default). Started on both pods
+    # for parity with massive_stream; when flow reads are proxied the curated
+    # SSE forwards to flow-worker, so web's tailer stays idle (no subscribers).
+    try:
+        from api import massive_curated_stream
+        massive_curated_stream.start()
+    except Exception as e:
+        logging.getLogger(__name__).exception("[startup] massive_curated_stream start failed: %s", e)
+
     # Live Flow worker -- RE-ENABLED 2026-06-17 with thread isolation (Option 2).
     # Previously disabled because the in-process SSE consumer was starving
     # FastAPI's main event loop (Cloudflare 524s, 19s CSV loads). The fix:

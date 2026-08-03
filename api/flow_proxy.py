@@ -161,7 +161,8 @@ async def _proxy(request: Request):
     # tape) so the instant tape survives the P5 cutover -- the tailer runs on the
     # worker (where flow.db lives post-flip), reached via this proxy.
     _ctype = upstream.headers.get("content-type", "")
-    if "text/event-stream" in _ctype or request.url.path.endswith("/massive/stream"):
+    if ("text/event-stream" in _ctype
+            or request.url.path.endswith(("/massive/stream", "/massive/curated-stream"))):
         async def _sse_passthrough():
             try:
                 async for chunk in upstream.aiter_raw():
