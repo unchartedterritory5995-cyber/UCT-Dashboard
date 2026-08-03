@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 
 // ─── FLIP B: THE INSTANCE LIST IS THE READ AUTHORITY (B3 Task 10) ───────────
@@ -463,5 +465,69 @@ describe('Flip B — a shared chart link carries what now decides the picture', 
       'the reader the share state uses would put a deleted RSI in the link').toBe(false)
     expect(cs.indicators.rsi.enabled,
       'the raw toggle and the reader agree — this case cannot see the bug').toBe(true)
+  })
+})
+
+// ─── THE FOUR DOORS, AND THE TWO THAT ONLY SOURCE CAN REACH ────────────────
+//
+// `cs.indicators.<id>.enabled` has FOUR writers: the toolbar checkbox, the
+// keyboard (Ctrl+I / Ctrl+B / Ctrl+O), the right-click **Indicators ▸** submenu
+// and right-click **Hide <label>**. Under Flip A they all wrote the same field
+// and agreed by construction. After Flip B that field is a MIRROR for a flipped
+// id, so a door still writing it directly ticks a box the chart disagrees with —
+// and "Hide RSI" clears the mirror while the instance keeps drawing.
+//
+// The first two are driven behaviourally above. The right-click menu is built
+// inside `buildRegionSections`, which is only reachable through a real
+// `contextmenu` on a canvas region the jsdom double cannot produce, so it is
+// gated STRUCTURALLY here — anchored on the shipped identifiers, reading the
+// shipped file. ⚠️ A structural rail is weaker than a behavioural one and is used
+// because the alternative is NO gate on two of the four doors; it fails on
+// exactly the edit that would reintroduce the defect.
+describe('Flip B — the right-click doors route through the one reader and the one writer', () => {
+  // ⚠️ Resolved from the vitest ROOT, not from `import.meta.url` — the module
+  // graph here is served through vite, so `import.meta.url` is an http: URL in
+  // this environment and `fileURLToPath` throws on it.
+  const SRC = readFileSync(resolve(process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+
+  /** The submenu literal, sliced by its own marker so a rename fails loudly
+   *  rather than silently matching nothing. */
+  const slice = (from, to) => {
+    const a = SRC.indexOf(from)
+    expect(a, `marker not found in StockChart.jsx: ${from}`).toBeGreaterThan(-1)
+    const b = SRC.indexOf(to, a)
+    expect(b, `end marker not found after ${from}`).toBeGreaterThan(a)
+    return SRC.slice(a, b)
+  }
+
+  it('the Indicators submenu READS through isIndicatorEnabled, not the raw toggle', () => {
+    const block = slice("const indicatorsItem = {", "// \"Overlay on volume\"")
+    expect(block, 'the submenu still reads the legacy toggle directly')
+      .not.toMatch(/checked:\s*!!cs\.indicators/)
+    expect(block).toMatch(/checked:\s*indEnabled\(key\)/)
+  })
+
+  it('…and WRITES through setIndEnabled, which routes a flipped id at the instance', () => {
+    const block = slice("const indicatorsItem = {", "// \"Overlay on volume\"")
+    expect(block, 'the submenu writes `indicators.<key>.enabled` directly')
+      .not.toMatch(/setCs\(`indicators\./)
+    expect(block).toMatch(/setIndEnabled\(key,/)
+  })
+
+  it('right-click "Hide <label>" writes through the same door', () => {
+    const block = slice("{ id: 'i-hide'", "...settingsLink('i-set'")
+    expect(block, '"Hide RSI" clears the mirror while the instance keeps drawing')
+      .not.toMatch(/setCs\(`indicators\./)
+    expect(block).toMatch(/setIndEnabled\(key, false\)/)
+  })
+
+  it('…and setIndEnabled really does route a flipped id — the reader is not the whole fix', () => {
+    // The rails above are string matches; this is the behaviour they stand for,
+    // asserted on the writer they name. Without it a `setIndEnabled` that called
+    // `setCs` for every id would satisfy all three.
+    let cs = { indicators: { rsi: { enabled: true, period: 14 } }, indicatorInstances: [] }
+    cs = setIndicatorEnabled(cs, 'rsi', false, registry)
+    expect(cs.indicatorInstances).toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
+    expect(cs.indicators.rsi.enabled).toBe(false)
   })
 })

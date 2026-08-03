@@ -165,7 +165,7 @@
 
     {
       "name": "engine_rsi_toggle_off",
-      "why": "THE FLIP-A SWITCH, IN PIXELS. `indicators.rsi.enabled` is FALSE on both sides, and side B additionally hands the engine an RSI instance. StockChart projects an instance whose legacy toggle is off to `hidden`, so the engine must draw NOTHING and the two sides must be the same bare chart. Without this case the projection is gated only in jsdom, and the specific regression it catches is the one that produced this branch's worst bug: a band that is not reserved (computePaneMargins reads the same flag) while a line is still drawn, which `resolvePlacement` then falls back to {top:0.82,bottom:0} — ON TOP OF THE VOLUME BARS.",
+      "why": "THE OFF STATE, IN PIXELS \u2014 and after B3 Task 10 \"off\" is a TOMBSTONE. `indicators.rsi.enabled` is FALSE on both sides and side B additionally hands the engine a DELETED `legacy:rsi`. Nothing may draw and no band may be reserved, on either side. \u26a0\ufe0f IT SAID `instancesB: [a live instance]` UNTIL FLIP B, and that spelling was Flip A\u0027s: the legacy toggle was the switch, so an instance whose toggle was off projected to `hidden`. Flip B makes the INSTANCE the switch, so the same blob correctly DRAWS now \u2014 the case would have been permanently red against any pre-flip build, measuring a semantic change rather than gating a regression. **Measured before reframing, Task-9 build `0e20133b4c07` vs Flip-B build `d4ab4e970fb4`: 3,697 px (0.496909%), 5/5 runs, distribution {3697: 5} \u2014 zero variance** \u2014 that number IS the authority flip, in pixels, and it is recorded here rather than deleted. The case\u0027s job is unchanged: without it the projection is gated only in jsdom, and the specific regression it catches is the one that produced this branch\u0027s worst bug \u2014 a band that is not reserved (`computePaneMargins` reads the projected flag) while a line is still drawn, which `resolvePlacement` then falls back to {top:0.82,bottom:0} \u2014 ON TOP OF THE VOLUME BARS.",
       "_history": "Written in Task 2's fix round, measured at 24 px on 3 runs in 5, and DELETED on the reading that it was 'an A-vs-B work asymmetry / capture timing'. That diagnosis was WRONG, and deleting the case removed the evidence rather than the cause. Re-measured 2026-08-02 over 40 runs with the hardened harness (every capture proven pixel-stable before it was accepted, 2 shots on all 80): the 24 px is a BISTABLE RASTERISATION OF THE DASHED LAST-PRICE LINE, one row, ~12 dash boundaries, and it appears INDEPENDENTLY on both sides (legacy side 5/40, engine side 7/40) with no correlation to settle time. Sides A and B draw the same two images with the same frequencies, so it is not an asymmetry and not the migration — it is Chromium rasterising one dashed line two ways at this pane geometry. The other three engine cases were byte-identical across all 80 captures.",
       "priceLine": false,
       "_priceLineReason": "⚠️ NOT A TOLERANCE. The last-price line is drawn by the CANDLE series; no case measures it and it is identical on both sides by construction. `priceLine: false` removes a provably nondeterministic ELEMENT from this one case — the same treatment the footer's wall-clock stamp gets under ?fixedbars= — and the case must still report 0 on every run. The three cases that are already byte-identical keep the line, deliberately: their stored baselines mean what they meant before.",
@@ -175,14 +175,7 @@
         }
       },
       "instancesB": [
-        {
-          "instanceId": "legacy:rsi",
-          "defId": "rsi",
-          "defVersion": 1,
-          "inputs": { "period": 14, "color": "#7b68ee" },
-          "placement": { "target": "pane" },
-          "hidden": false
-        }
+        { "instanceId": "legacy:rsi", "deleted": true }
       ]
     },
 
@@ -309,6 +302,42 @@
           "placement": { "target": "pane" }, "hidden": false
         }
       ]
+    },
+
+    {
+      "name": "flipb_rsi_only",
+      "why": "⭐ THE FLIP-B GATE FOR RSI, AND IT IS NOT AN ENGINE CASE — there is no `instancesB`. Both sides get the SAME legacy-shaped settings a real user has (`indicators.rsi.enabled`, no instance anywhere) plus `engineEnabled: true`. Side A (the Task-9 build) draws them through the hand-written StockChart block; side B (Flip B) draws them through the engine's READ-TIME MIGRATION, because that block has been deleted. That IS Flip B, and it is the only case shape that can measure it: an `instancesB` case would hand side B an instance and stop exercising the compatibility path every existing user depends on. `rsi_only` above is the flag-OFF twin and stays the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. ⚠️ `--perturb-b` ON THE SETTINGS COLOUR IS THE SELF-TEST HERE and it is NOT vacuous the way it would be on a Flip-A engine case: after Flip B a settings colour can only reach the series through an instance the migrator builds, so a 0 would mean the compatibility path is dead rather than that the perturbation was ignored. Expected 0 px.",
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+        }
+      }
+    },
+    {
+      "name": "flipb_bb_only",
+      "why": "The same measurement for the PRICE OVERLAY half of the pilot pair. BB shares the candles' scale, so this is the case that would see the `autoscaleInfoProvider` seam or an insertion-order change arriving with the read-time migration rather than with a stored instance — the whole price pane re-frames if the seam is lost (38,491 px, measured at Flip A). Legacy-shaped settings on both sides, engine on. Expected 0 px.",
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+        }
+      }
+    },
+    {
+      "name": "flipb_bb_rsi_macd",
+      "why": "BOTH FLIPPED PILOTS PLUS AN UN-FLIPPED ONE, in one render. `macd` is migrated and NOT flipped, so on side B it must still be drawn by its LEGACY block while rsi and bb come through the migrator — which makes this the only case that can see the per-definition gate being wrong in the direction that matters (a whole-set gate would move MACD onto the engine too, silently, with no pixel number of its own). It is also the only Flip-B case with a price overlay plus TWO extra bands, so a pane-ordering or pane-height regression caused by `csForPaneMargins` shows up here and nowhere else. Its settings mirror `bb_rsi_macd`, the flag-off twin. Expected 0 px.",
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
+          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" },
+          "macd": {
+            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
+            "macdColor": "#2196F3", "signalColor": "#FF9800"
+          }
+        }
+      }
     },
 
     {
