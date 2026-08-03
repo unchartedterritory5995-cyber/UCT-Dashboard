@@ -111,39 +111,124 @@ number from Task 2 onward WAS measured through it — but B2's own numbers were
 not, and the commit that landed it (`935b9cb9`) says otherwise in its subject
 line. Believe this paragraph, not that subject.
 
-⚠️ **HISTORICAL — THIS WAS A HARNESS DEFECT, AND THE HARNESS IS FIXED.** Measured
-2026-08-02 while gating B3's Flip-A visibility projection: an A/B pair whose two
-sides do **asymmetric main-thread work** (side A renders no indicator; side B
-arms the engine) came back **24 changed px on exactly one row, 3 runs in 5**, and
-0 px on the other two. Every one of those pixels was a ±4 blend on the dashed
-last-price line — the same line, rasterised half a sub-pixel apart because the
-slower side settled its price range a frame later.
+### ⚠️ The 24-pixel artefact — TWO separate findings, and the first diagnosis was WRONG
 
-The cause was that `window.__chartReady` was a **fixed 3,500 ms `setTimeout`** and
-`capture()` screenshotted **once**. That is a clock, not a readiness signal, and
-it means every number this gate has ever printed — including all of the zeros —
-was measured against a stopwatch rather than a settled canvas. Both halves are
+> **If you take one thing from this section:** a **~24 px, one-row** diff that
+> alternates a **series colour with the background** at dash boundaries is the
+> **dashed last-price line**, and it has nothing to do with your migration. It
+> reproduces with **no engine on either side**. `?priceline=0` removes it. This
+> paragraph replaces an earlier version of this section that told you it was a
+> harness defect which had been fixed — **that account was refuted by
+> measurement**, and it is written out here because `.superpowers/` is
+> gitignored, so the runbook is the only place the corrected account survives.
+
+Measured 2026-08-02 while gating B3's Flip-A visibility projection:
+`engine_rsi_toggle_off` — an A/B pair whose two sides do asymmetric main-thread
+work (side A renders no indicator; side B arms the engine) — came back **24
+changed px on exactly one row, 3 runs in 5**, and 0 px on the other two.
+
+**Finding 1 — a real harness defect, fixed, and NOT the cause of the 24 px.**
+`window.__chartReady` was a **fixed 3,500 ms `setTimeout`** and `capture()`
+screenshotted **once**. That is a clock, not a readiness signal: every number this
+gate had ever printed, including all of the zeros, was measured against a
+stopwatch rather than a settled canvas. Worth fixing on its own; both halves are
 now fixed and they are independent on purpose:
 
 * `ChartRender.jsx` extends `__chartReady` past the same 3,500 ms floor until the
   canvases inside `#chart-export` have been **pixel-identical across four
-  consecutive sampled frames**. It can only ever fire LATER than it used to, so
-  the page's other consumer (the Morning Wire → Substack renderer) cannot
-  regress. `window.__chartReadyReason` reports `stable` or `ceiling`.
+  consecutive sampled frames**. It can only ever fire LATER than it used to.
+  `window.__chartReadyReason` reports `stable` or `ceiling`.
+  *(The 3,500 ms floor is kept verbatim as a conservative no-regression measure.
+  It is **not** kept because another consumer reads the flag: `grep -rn
+  "__chartReady" C:\Users\Patrick\morning-wire` returns **zero hits**. The
+  Morning Wire → Substack renderer waits on its own canvas-size predicate plus a
+  1,600 ms settle, inside a 34 s timeout — `substack/chartwidget.py`. An earlier
+  version of this page, of `ChartRender.jsx`'s comment and of the ready test's
+  docstring all claimed that renderer as a consumer. It is not one.)*
 * `capture()` screenshots **at least twice and requires two consecutive captures
   to decode to identical pixels** before accepting either. That asserts on the
   ARTEFACT — the bytes that get diffed — not on a flag. A chart that never
   settles raises `ChartNotSettledError`: a **loud** error and exit 1, never a
-  quietly-accepted frame.
+  quietly-accepted frame. That raise reaching the exit code is itself gated
+  (`tests/test_chart_parity_harness.py`), because the exit code is the verdict.
 
 The `report.md` per-run table prints `capture shots (a/b)` — `2` means the chart
 was settled on the first re-check; anything higher is the harness having caught a
-canvas that was still moving after the page called itself ready.
+canvas that was still moving after the page called itself ready. With the fix in,
+**all 320 captures of the B3 sweep settled at `2/2`** and every `ready_reason` was
+`stable` (`ready_ms` ∈ [3519, 3631]).
+
+**Finding 2 — what the 24 px actually was: a BISTABLE dashed last-price line.**
+The stopwatch explanation ("the slower side settled its price range a frame
+later") was refuted three ways, all re-measured off the stored artefacts:
+
+1. **It reproduces with `--instances-side none`** — legacy vs legacy, the engine
+   absent from both sides. Asymmetric main-thread work cannot explain a diff that
+   survives removing the asymmetry.
+2. **Both render states appear on BOTH sides at the same rate.** Hashing all 80
+   captures of the pre-fix run: exactly two distinct renders, `6ab4b9a7` (A 35 /
+   B 33) and `02b48f8e` (A 5 / **B 7**). A timing asymmetry would bias one side.
+3. **Every capture was proven pixel-stable** — `shots 2/2` on all 80 — so no
+   frame was caught mid-flight.
+
+Diffing the two states directly: **24 changed pixels, one row (`y = 265`), 24
+distinct columns spanning `x = 13…981`.** The values alternate between the candle
+**down colour** `#c41f2d` and the background `#0e0f0d` in one state and
+`(192,30,44)` / `(16,14,12)` in the other — a **~2% blend on the dashed
+last-price line the CANDLE series draws**. Chromium rasterises that one line two
+ways at this pane geometry. Nothing else in 1200×620 differs.
+
+**The fix is `?priceline=0`, and it is renderer-noise SUPPRESSION, not a
+tolerance.** A case may declare `"priceLine": false`; the harness then emits
+`?priceline=0` **to both sides**, and `ChartRender.jsx` sets
+`priceLineVisible: false` on the candle series and the volume pane. It removes an
+**element**, it does not excuse a **difference**:
+
+* it is emitted to **A and B identically**, so it can never tell the two sides
+  apart;
+* the element it removes is drawn by the candle series, is byte-identical on both
+  sides by construction, and is unreachable by any engine series
+  (`priceLineVisible: false` is in the engine's complete key set);
+* the last-value **axis tag** is untouched, so the price-axis width does not move;
+* **the case still demands and gets 0.** After the fix: 0 px on 40/40 runs, and
+  **one** distinct render across all 80 captures.
+
+⛔ **The rule for using it.** `?priceline=0` is for **this one artefact**: a
+diff whose every pixel is on the last-price line, proven by (a) reproducing it
+with `--instances-side none`, and (b) reading the pixel values and finding the
+series colour alternating with the background at dash boundaries. It is **not**
+"this case is flaky, add the param". A case that needs a diff explained away for
+any other reason does not get a parameter — it gets its cause found, or it does
+not get a pixel case and its behaviour is gated in `stockChartWiring.test.jsx`
+instead. The precedent this follows is the footer's frozen wall-clock stamp, and
+that framing is **generous**: the clock is nondeterministic by construction,
+whereas the price line is deterministic in principle and only bistable because of
+how this renderer rasterises it here.
+
+⚠️ **CAVEAT, AND IT IS THE REVIEWER'S, NOT A FOOTNOTE.** `priceLine: false`
+appears on `engine_rsi_toggle_off` **and nowhere else** — so all **seven** other
+live cases still draw that line and carry the same latent bistability, currently
+**unexpressed**. Measured: the other three engine cases show 1 distinct render
+across 80 captures each, and for the two flag-off outliers the plot area (which
+contains `y = 265`) is byte-identical. If a case that has never needed the
+parameter starts producing ~24 px on one row, this is the first thing to check —
+it is not a new bug, it is this one becoming expressed.
+
+**Contrast the shapes before you reach for anything.** A real migration
+difference has a shape:
+
+| what | shape |
+|---|---|
+| the bistable price line | **1 row**, ~24 columns, series-colour ↔ background |
+| BB's autoscale flip (`exclude` → `default`) | **343 rows × 1,160 columns** — the whole price pane re-frames |
+| RSI's 50 guide as `Dashed` not `LargeDashed` | 379 px, one row's worth of dashes, but on the GUIDE not the last close |
+| the MACD head-mask (a decision, not a bug) | **88 px**, one contiguous 44×4 block at the far left of the MACD pane |
 
 **`engine_rsi_toggle_off` is BACK.** It was written, measured at 24 px on 3 runs
 in 5, and deleted in Task 2's fix round. Deleting it removed the case that
-exposed the defect rather than the defect; it is reinstated now that stability is
-proven per capture.
+exposed the artefact rather than the artefact; it is reinstated, now with
+`priceLine: false`, and both halves of that — the harness emitting the param and
+the case declaring it — are pinned in `tests/test_chart_parity_harness.py`.
 
 If a diff still appears and you suspect capture noise, the order is:
 
@@ -294,8 +379,11 @@ only after **all** of:
    fails loudly instead of hanging; `window.__chartReadyReason` reads `stable` or
    `ceiling`, and `window.__chartReadyMs` says how long it took. **The 3.5 s
    floor is kept verbatim so the flag can only ever fire LATER than the timer it
-   replaced** — this page's other consumer is the Morning Wire → Substack
-   renderer, which has always had that settle.
+   replaced** — a conservative no-regression measure, nothing more. It is NOT
+   kept for another consumer: `__chartReady` has exactly one reader, this
+   harness. The Morning Wire → Substack renderer, which this page also serves,
+   waits on its own canvas-size predicate plus a 1,600 ms settle
+   (`substack/chartwidget.py`) and never reads the flag.
 
 The harness then also awaits `document.fonts.ready` — a cold vs warm webfont
 cache is real, reproducible diff noise that has nothing to do with the indicator.
@@ -405,6 +493,39 @@ Also measured on `engine_bb_vs_legacy`, for the "prove it can fail" step:
 `--perturb-b-instances '{"color":"rgba(156,39,177,0.85)"}'` (blue +1 on three
 translucent lines) → **1,936 px**; `'{"period":21}'` → **8,534 px**
 (14,918 on `engine_bb_rsi_vs_legacy`).
+
+### The engine call site's POSITION — which case can see it, and which cannot
+
+`engineOwnedDefIds` stops the double draw; what decides whether the engine's
+series lands where its legacy twin did is **where `binder.sync(…)` is called**.
+lightweight-charts appends and paints by ascending `zorder`, so insertion order
+IS z-order and the call site is a pixel fact — but only on a canvas where the
+migrated overlay actually **crosses something the engine does not draw**.
+
+The `classic_flat` preset sets `overlays: []` and `volume.separatePane: true`, so
+on every default case **pane 0 holds only the candles and the indicator under
+test**. Nothing crosses anything. Measured, with the sync call site moved back up
+above the volume and MA blocks (engine on BOTH sides, builds `54443afee3e3` vs
+`bea40b9aec38`):
+
+| case | pane 0 contains | changed px |
+|---|---|---:|
+| `engine_bb_vs_legacy` | candles + BB | **0** |
+| `engine_bb_over_overlays` | candles + volume + 5 MAs + BB | **281** (3/3, 86 rows × 206 columns) |
+
+So `engine_bb_vs_legacy` **cannot** see the call site, and for a while its `why`
+claimed it could. `engine_bb_over_overlays` turns the four MA overlays on and
+brings volume into pane 0 for exactly this reason, and it reports **0 px on 5/5**
+unmutated. Before the next four price overlays migrate (`vwap`, `sar`,
+`ichimoku`, `donchian`), that is the case whose 0 means something.
+
+⚠️ **The naive version of that mutation is INVALID and reads like a catastrophic
+failure.** Moving the sync block above the *volume block* puts it before
+`const engineOn = …` and the component throws `ReferenceError: Cannot access
+'engineOn' before initialization` — 49 jsdom tests fail and the built page renders
+nothing, so any pixel number from it measures a crash, not z-order. The valid
+move is to just after `engineOwned` is computed, which is still before volume and
+the MA overlays and kills exactly the **two** z-order assertions it should.
 
 So the gate resolves a single least-significant bit on a single channel. That was
 not true of the first version: it reduced the RGB difference to greyscale before

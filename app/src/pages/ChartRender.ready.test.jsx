@@ -7,18 +7,26 @@ import { MemoryRouter } from 'react-router-dom'
 // It used to be `setTimeout(() => { window.__chartReady = true }, 3500)`. The
 // parity harness waits on it and screenshots, so EVERY parity number this repo
 // has ever printed — including all of the zeros — was measured against a clock
-// rather than against a settled canvas. The cost was measured: an A/B pair doing
-// asymmetric main-thread work came back 24 changed px on one scanline of the
-// dashed last-price line, on 3 runs in 5, because the busier side settled its
-// price range one frame after the shot.
+// rather than against a settled canvas. That is a real defect and this file is
+// its gate.
+//
+// ⛔ IT WAS NOT THE CAUSE OF THE 24-PIXEL ARTEFACT this docstring used to blame
+// it for. That diagnosis was refuted: the 24 px reproduce with
+// `--instances-side none` (legacy vs legacy, no engine at all), both render
+// states appear on BOTH sides at the same rate, and every capture was proven
+// pixel-stable. The cause is a bistable rasterisation of the candle series'
+// dashed last-price line, and the fix is `?priceline=0`
+// (`docs/runbooks/chart-parity-gate.md`).
 //
 // Two properties are pinned here, and they pull in OPPOSITE directions on
 // purpose:
 //
 //   * the flag must NOT fire merely because 3.5 s elapsed — that is the defect;
-//   * it must NEVER fire EARLIER than 3.5 s — this page's other consumer is the
-//     Morning Wire → Substack renderer, which has always had that settle, and a
-//     signal that could fire sooner would be a silent regression for it.
+//   * it must NEVER fire EARLIER than 3.5 s — a conservative no-regression
+//     measure. (NOT because the Morning Wire → Substack renderer consumes the
+//     flag: it does not. `grep -rn "__chartReady" <morning-wire>` is empty; that
+//     renderer waits on its own canvas-size predicate plus a 1,600 ms settle.
+//     Four documents asserted that dependency and none of them checked it.)
 //
 // jsdom cannot rasterise a chart, so the canvas is stubbed and the QUESTION
 // asked is the one that actually matters: does the flag follow what the pixels

@@ -3,8 +3,17 @@
 // Renders the REAL StockChart widget full-bleed for a single ticker with the
 // entry/stop/target price lines drawn, wrapped in the branded header/footer
 // (matches chartScreenshot.js composeScreenshot). A headless browser (the
-// Morning Wire → Substack renderer) navigates here, waits for window.__chartReady,
-// and screenshots #chart-export → the newsletter's leader chart.
+// Morning Wire → Substack renderer) navigates here and screenshots #chart-export
+// → the newsletter's leader chart.
+//
+// ⚠️ THAT RENDERER DOES NOT READ `window.__chartReady`. It waits on its own
+// canvas-size predicate plus a 1,600 ms settle, inside a 34 s timeout
+// (`morning-wire/substack/chartwidget.py` — `_READY_JS`, `SETTLE_MS`); `grep -rn
+// "__chartReady" <morning-wire>` returns zero hits. This comment used to say it
+// was a consumer, and the claim was load-bearing in three other documents: it
+// was cited as the reason the flag's 3.5 s floor may never shrink. The floor is
+// kept anyway — as a conservative no-regression measure — but the reason is
+// "later is always safe", not "something else depends on it".
 //
 // Public route (no AuthGuard). /api/bars is public, so no session is needed.
 // A ?token= (checked against VITE_CHART_RENDER_TOKEN) blocks casual abuse.
@@ -318,10 +327,18 @@ export default function ChartRender() {
   // ⚠️ THIS USED TO BE A BARE `setTimeout(…, 3500)`, AND THAT IS NOT A READINESS
   // SIGNAL. It said "3.5 seconds have passed", not "the chart has stopped
   // moving", so every parity number ever produced through this page — including
-  // all of the zeros — was measured against a clock. The cost was measured: an
-  // A/B pair doing asymmetric main-thread work came back 24 changed px on one
-  // scanline of the dashed last-price line, on 3 runs in 5, because the busier
-  // side settled its price range one frame after the screenshot.
+  // all of the zeros — was measured against a clock. Worth fixing on its own.
+  //
+  // ⛔ IT WAS NOT, HOWEVER, THE CAUSE OF THE 24-PIXEL ARTEFACT this comment used
+  // to blame it for. That diagnosis ("the busier side settled its price range one
+  // frame after the screenshot") was refuted by re-measurement: the 24 px
+  // reproduce with `--instances-side none` (legacy vs legacy, no engine on either
+  // side), both render states appear on BOTH sides at the same rate, and every
+  // capture was proven pixel-stable. The real cause is a BISTABLE rasterisation
+  // of the dashed last-price line drawn by the CANDLE series — one row, ~24
+  // columns, alternating the candle down-colour with the background at a ~2%
+  // blend — which is what `?priceline=0` (see `hidePriceLine` below) removes.
+  // The full account is in `docs/runbooks/chart-parity-gate.md`.
   //
   // So the flag now waits for the CANVASES INSIDE `#chart-export` to hold still:
   // their pixels are hashed on a sampling interval and the flag flips only after
@@ -329,13 +346,13 @@ export default function ChartRender() {
   //
   // 🔒 IT CAN ONLY EVER FIRE LATER THAN IT USED TO, NEVER EARLIER. The 3,500 ms
   // floor is kept verbatim, and stability is an ADDITIONAL condition on top of
-  // it. That matters because this page has a second consumer — the Morning Wire →
-  // Substack renderer — which has always had 3.5 s of settle; a signal that could
-  // fire sooner would be a silent regression for it. The ceiling stops a chart
-  // that never settles (an animation, a live tick) from hanging a capture
-  // forever; when it is hit, `__chartReadyReason` says so and the harness records
-  // it. The harness ALSO double-captures and requires byte-equal pixels, so this
-  // is the belt and that is the braces — deliberately independent.
+  // it — a conservative no-regression measure. (NOT, as this comment used to say,
+  // because the Morning Wire → Substack renderer consumes the flag. It does not;
+  // see the file header.) The ceiling stops a chart that never settles (an
+  // animation, a live tick) from hanging a capture forever; when it is hit,
+  // `__chartReadyReason` says so and the harness records it. The harness ALSO
+  // double-captures and requires byte-equal pixels, so this is the belt and that
+  // is the braces — deliberately independent.
   //
   // Reading the canvas does not change what is rendered: `getImageData` is a
   // read, and nothing here touches chart state.

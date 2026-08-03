@@ -173,8 +173,35 @@
 
     {
       "name": "engine_bb_vs_legacy",
-      "why": "THE FIRST PRICE OVERLAY. Side A draws the three Bollinger lines through the hand-written StockChart block; side B draws them through the ENGINE. This is the case that measures the `autoscaleInfoProvider` seam: without it the bands drag the CANDLES' autoscale and the whole price pane re-scales, which is a whole-canvas diff, not a line-width one. It also measures the C-2 fix (`priceScaleId` named rather than omitted) on a create, and — because BB is inserted into pane 0 over the volume bars and the MA overlays — the engine call site's POSITION, which RSI's own band could not reach.",
+      "why": "THE FIRST PRICE OVERLAY. Side A draws the three Bollinger lines through the hand-written StockChart block; side B draws them through the ENGINE. This is the case that measures the `autoscaleInfoProvider` seam: without it the bands drag the CANDLES' autoscale and the whole price pane re-scales, which is a whole-canvas diff (38,491 px, 343 rows x 1,160 columns), not a line-width one. It also measures the C-2 fix (`priceScaleId` named rather than omitted) on a create. IT DOES NOT MEASURE THE ENGINE CALL SITE'S POSITION, and it used to claim it did: the `classic_flat` preset sets `overlays: []` and `volume.separatePane: true`, so pane 0 holds only the candles and BB, nothing crosses anything, and moving the sync call produces 0 px. `engine_bb_over_overlays` is the case that earns that claim; the jsdom rail for it is `stockChartWiring.test.jsx`'s z-order pair.",
       "settings": {
+        "indicators": {
+          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:bb",
+          "defId": "bb",
+          "defVersion": 1,
+          "inputs": { "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
+          "placement": { "target": "price" },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_bb_over_overlays",
+      "why": "THE CASE THAT EARNS THE CALL-SITE CLAIM. `engine_bb_vs_legacy` runs on the `classic_flat` preset, whose `overlays: []` and `volume.separatePane: true` leave pane 0 holding only the candles and BB — nothing crosses anything, so moving the engine sync call site produces 0 px there and the claim was unearned. This case turns the four MA overlays ON and brings volume INTO pane 0, so pane 0 really does contain volume bars, five moving averages and three Bollinger lines, and INSERTION ORDER IS Z-ORDER (lightweight-charts appends and paints by ascending zorder). Side A draws BB through the legacy block, side B through the engine, and the engine's sync must land in the same place the legacy block did: after volume and the MA overlays, before the first legacy indicator. Move it and the bands paint UNDER the overlays instead of over them. The jsdom rail for the same claim is `stockChartWiring.test.jsx`'s z-order pair; this is the pixel half. Expected 0 px, like every Flip A case — MEASURED 0 on 5/5, build 54443afee3e3, one build two ways. AND IT IS NOT A VACUOUS 0: with the sync call site moved up above the volume and MA blocks (the R12 shape, engine on BOTH sides, builds 54443afee3e3 vs bea40b9aec38) this case reports 281 px on 3/3 across 86 rows and 206 columns, while `engine_bb_vs_legacy` reports 0 on the same mutation — which is exactly why this case exists.",
+      "settings": {
+        "overlays": [
+          { "enabled": true, "type": "EMA", "period": 9,   "color": "#4ade80", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
+          { "enabled": true, "type": "EMA", "period": 20,  "color": "#f472b6", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
+          { "enabled": true, "type": "SMA", "period": 50,  "color": "#60a5fa", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
+          { "enabled": true, "type": "SMA", "period": 200, "color": "#fb923c", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
+          { "enabled": true, "type": "SMA", "period": 5,   "color": "rgba(168,162,144,0.55)", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" }
+        ],
+        "volume": { "separatePane": false },
         "indicators": {
           "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
         }
