@@ -205,7 +205,10 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
         params = [src] + list(window)
         prem_sql = ""
         if min_premium and min_premium > 0:
-            prem_sql = " AND Premium >= ?"
+            # Premium is stored as TEXT in flow.db — MUST CAST or ">= ?" is a
+            # lexicographic string compare ("9000" > "100000"), which inverts the
+            # floor. Matches the CAST(Premium AS REAL) pattern used everywhere else.
+            prem_sql = " AND CAST(Premium AS REAL) >= ?"
             params.append(min_premium)
         rows = conn.execute(f"""
             SELECT CreatedDate, CreatedTime, Symbol, Type, Volume, Side, CallPut,
@@ -659,6 +662,24 @@ _CARD_CACHE: dict = {}
 _CARD_TTL = 120
 
 
+def _card_floor(cap: str) -> float:
+    """Per-print premium floor for the CARD row pulls (Open Flow + Weekly).
+
+    Without a floor a 60-day All-cap scan pulls + Python-classifies millions of
+    odd-lot prints AND batches still-open OI over every distinct contract →
+    blows the web→flow-worker proxy's 120s read timeout (the admin "Preview
+    failed: HTTP 502" hit 2026-08-03). The cards render only the top-10-per-side
+    by aggregate premium/net, so dropping sub-floor odd-lots is invisible to the
+    result while cutting the row/OI volume the scan does (same lever board_data
+    already uses). Cap-aware: mid_small notable flow can be $25-80k and its row
+    volume is already low, so keep it granular; the big/liquid universes
+    (all/mega/large) are the ones that blow the budget → floor them hard. Both
+    env-tunable."""
+    if (cap or "").strip().lower() == "mid_small":
+        return float(os.getenv("FLOW_CARD_MIN_PREMIUM_SMALL", "25000"))
+    return float(os.getenv("FLOW_CARD_MIN_PREMIUM", "100000"))
+
+
 def _cached_card(key, builder):
     hit = _CARD_CACHE.get(key)
     if hit and time.time() - hit[0] < _CARD_TTL:
@@ -685,8 +706,11 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         sort_bull = (sort_bull or os.getenv("WEEKLY_FLOW_SORT_BULL", "net")).strip().lower()
         sort_bear = (sort_bear or os.getenv("WEEKLY_FLOW_SORT_BEAR", "net")).strip().lower()
 
+        floor = _card_floor(cap)
+
         def _build():
-            trades, window = load_directional_trades(n_days, min_dte, cap)
+            trades, window = load_directional_trades(n_days, min_dte, cap,
+                                                     min_premium=floor)
             agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
             # Same look/columns as the Open Flow card (TICKER·BULL·BEAR·NET·EXP·
             # STRIKE·C/P·SINCE·PERF·DTE) — just the "Weekly Conviction" title.
@@ -696,7 +720,7 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
                         caption=f"top {top_n} by {_sl}"),
                     "names": agg["n_names"], "bulls": len(agg["bulls"]),
                     "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
-        built = _cached_card(("weekly", n_days, cap, top_n, min_dte, frac, sort_bull, sort_bear), _build)
+        built = _cached_card(("weekly", n_days, cap, top_n, min_dte, frac, sort_bull, sort_bear, floor), _build)
         png = built["png"]
         res = {"ok": True, "days": n_days, "cap": cap, "names": built["names"],
                "bulls": built["bulls"], "bears": built["bears"],
@@ -759,14 +783,17 @@ def run_standing(*, force: bool = False, post: bool = True, days: int | None = N
         if sort not in ("net", "premium", "pct"):
             sort = "net"
 
+        floor = _card_floor(cap)
+
         def _build():
-            trades, window = load_directional_trades(n_days, min_dte, cap)
+            trades, window = load_directional_trades(n_days, min_dte, cap,
+                                                     min_premium=floor)
             agg = aggregate(trades, top_n, frac, sort_bull=sort, sort_bear=sort)
             return {"png": render_standing_card(agg, window, top_n,
                         cap_label=_CAP_LABELS.get(cap, ""), caption=f"top {top_n} by {sort}"),
                     "names": agg["n_names"], "bulls": len(agg["bulls"]),
                     "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
-        built = _cached_card(("standing", n_days, cap, top_n, min_dte, frac, sort), _build)
+        built = _cached_card(("standing", n_days, cap, top_n, min_dte, frac, sort, floor), _build)
         png = built["png"]
         res = {"ok": True, "days": n_days, "cap": cap, "sort": sort, "names": built["names"],
                "bulls": built["bulls"], "bears": built["bears"],

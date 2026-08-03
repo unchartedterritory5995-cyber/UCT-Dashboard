@@ -94,6 +94,54 @@ def test_separate_sorts_bulls_net_bears_bear_dollars(monkeypatch):
     assert [e["sym"] for e in by_net["bears"]] == ["Y", "X"]
 
 
+def test_card_floor_cap_aware():
+    # mid_small kept granular (small-cap notable flow is $25-80k); the big/liquid
+    # universes floored hard so a 60d scan stays under the 120s proxy budget.
+    assert wf._card_floor("mid_small") == 25_000
+    assert wf._card_floor("all") == 100_000
+    assert wf._card_floor("mega") == 100_000 and wf._card_floor("large") == 100_000
+
+
+def _seed_flow_db(path, rows):
+    import sqlite3
+    conn = sqlite3.connect(path)
+    conn.execute("""CREATE TABLE flow(
+        source TEXT, CreatedDate TEXT, CreatedTime TEXT, Symbol TEXT, Type TEXT,
+        Volume TEXT, Side TEXT, CallPut TEXT, Strike TEXT, Spot TEXT, Premium TEXT,
+        ExpirationDate TEXT, Color TEXT, Dte TEXT, StockEtf TEXT, MktCap TEXT, OI TEXT)""")
+    conn.executemany("INSERT INTO flow VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+    conn.commit()
+    conn.close()
+
+
+def test_load_premium_floor_casts_text(tmp_path, monkeypatch):
+    """The floor MUST CAST(Premium AS REAL) — Premium is TEXT, so a raw '>= ?'
+    string compare inverts ('100000' < '9000' lexically): it drops the big print
+    and keeps the odd-lots, defeating the floor (and the 120s-proxy fix)."""
+    from datetime import date
+    db = tmp_path / "flow.db"
+    # identical bullish call sweeps differing ONLY in premium; distinct symbols so
+    # each survives/falls on its own (no same-second spread grouping).
+    prems = {"A9K": "9000", "A25K": "25000", "A80K": "80000",
+             "A100K": "100000", "A250K": "250000", "A1M": "1500000"}
+    rows = []
+    for i, (sym, prem) in enumerate(prems.items()):
+        rows.append(("stocks", "8/1/2026", f"10:0{i}:00", sym, "SWEEP", "10",
+                     "AA", "CALL", "105", "100", prem, "12/18/2026", "WHITE",
+                     "137", "", "5000000000", "0"))
+    _seed_flow_db(str(db), rows)
+    monkeypatch.setattr(wf, "_flow_db_path", lambda: str(db))
+
+    out, window = wf.load_directional_trades(5, 30, "all", today=date(2026, 8, 3),
+                                             min_premium=100_000)
+    kept = sorted(t["S"] for t in out)
+    assert kept == ["A100K", "A1M", "A250K"], kept   # only >= $100k, CAST-correct
+    assert "A9K" not in kept and "A25K" not in kept and "A80K" not in kept
+    # sanity: no floor → all six directional prints come back
+    allout, _ = wf.load_directional_trades(5, 30, "all", today=date(2026, 8, 3))
+    assert len(allout) == 6
+
+
 def test_render_returns_png():
     agg = {"bulls": [{"sym": "BE", "bull": 26e6, "bear": 1e6, "net": 25e6, "bullPct": 96,
                       "top": {"cp": "C", "K": 210, "exp": "9/18/2026"}}],
