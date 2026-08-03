@@ -704,7 +704,7 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         ok, detail = _post_discord_image(wh, png, "", filename="weekly_flow.png")
         res.update(posted=ok, detail=detail)
         log.info("[weekly-flow] %dd — %d names, posted=%s (%s)",
-                 n_days, agg["n_names"], ok, detail)
+                 n_days, res["names"], ok, detail)
         return res
     except Exception as e:  # noqa: BLE001
         log.exception("[weekly-flow] run failed")
@@ -729,30 +729,39 @@ def _standing_webhook() -> str:
 
 
 def run_standing(*, force: bool = False, post: bool = True, days: int | None = None,
-                 cap: str | None = None, top_n: int | None = None) -> dict:
-    """Build + optionally post the Standing Conviction card — a rolling
-    still-open, top-N-by-premium board over a longer window (default 60 trading
-    days ≈ 6 weeks) with a FIRST-SEEN / AGE column. Reuses the weekly engine
-    (flow.db scan + OI still-open) with sort=premium both sides. `force` bypasses
-    STANDING_FLOW_ENABLED; post=False returns the PNG under 'png'. Never raises."""
+                 cap: str | None = None, top_n: int | None = None,
+                 sort: str | None = None) -> dict:
+    """Build + optionally post the **Open Flow** card — the single merged
+    still-open board (formerly Weekly Conviction + Open Flow, unified 2026-08-02).
+    A rolling still-open, top-N board over an adjustable window (default 60 trading
+    days) with SINCE + since-open PERF columns. `sort` = net (default) | premium |
+    pct — the one real knob; everything else (still-open OI≥75% peak, DTE≥30,
+    top-N/side, columns) is identical either way. `force` bypasses the enable
+    gate; post=False returns the PNG under 'png'. Never raises."""
     try:
-        if os.getenv("STANDING_FLOW_ENABLED", "0") != "1" and not force:
-            return {"ok": False, "reason": "disabled (STANDING_FLOW_ENABLED != 1)"}
+        # Either arm flag works so an existing WEEKLY_FLOW_ENABLED cron keeps firing.
+        if (os.getenv("STANDING_FLOW_ENABLED", "0") != "1"
+                and os.getenv("WEEKLY_FLOW_ENABLED", "0") != "1" and not force):
+            return {"ok": False, "reason": "disabled (set STANDING_FLOW_ENABLED=1)"}
         n_days = days if days is not None else int(os.getenv("STANDING_FLOW_DAYS", "60"))
         top_n = top_n if top_n is not None else int(os.getenv("STANDING_FLOW_TOP_N", "10"))
         min_dte = int(os.getenv("STANDING_FLOW_MIN_DTE", "30"))
         frac = float(os.getenv("STANDING_FLOW_STILL_OPEN_FRAC", "0.75"))
         cap = (cap or os.getenv("STANDING_FLOW_CAP", "all")).strip().lower()
+        sort = (sort or os.getenv("STANDING_FLOW_SORT", "net")).strip().lower()
+        if sort not in ("net", "premium", "pct"):
+            sort = "net"
 
         def _build():
             trades, window = load_directional_trades(n_days, min_dte, cap)
-            agg = aggregate(trades, top_n, frac, sort_bull="premium", sort_bear="premium")
-            return {"png": render_standing_card(agg, window, top_n, cap_label=_CAP_LABELS.get(cap, "")),
+            agg = aggregate(trades, top_n, frac, sort_bull=sort, sort_bear=sort)
+            return {"png": render_standing_card(agg, window, top_n,
+                        cap_label=_CAP_LABELS.get(cap, ""), caption=f"top {top_n} by {sort}"),
                     "names": agg["n_names"], "bulls": len(agg["bulls"]),
                     "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
-        built = _cached_card(("standing", n_days, cap, top_n, min_dte, frac), _build)
+        built = _cached_card(("standing", n_days, cap, top_n, min_dte, frac, sort), _build)
         png = built["png"]
-        res = {"ok": True, "days": n_days, "cap": cap, "names": built["names"],
+        res = {"ok": True, "days": n_days, "cap": cap, "sort": sort, "names": built["names"],
                "bulls": built["bulls"], "bears": built["bears"],
                "open_contracts": built["open_contracts"]}
         if not post:
@@ -762,22 +771,24 @@ def run_standing(*, force: bool = False, post: bool = True, days: int | None = N
         if not wh:
             res.update(posted=False, reason="no webhook (set STANDING_FLOW_WEBHOOK_URL)")
             return res
-        ok, detail = _post_discord_image(wh, png, "", filename="standing_flow.png")
+        ok, detail = _post_discord_image(wh, png, "", filename="open_flow.png")
         res.update(posted=ok, detail=detail)
-        log.info("[standing-flow] %dd — %d names, posted=%s (%s)",
-                 n_days, agg["n_names"], ok, detail)
+        log.info("[open-flow] %dd sort=%s — %d names, posted=%s (%s)",
+                 n_days, sort, res["names"], ok, detail)
         return res
     except Exception as e:  # noqa: BLE001
-        log.exception("[standing-flow] run failed")
+        log.exception("[open-flow] run failed")
         return {"ok": False, "reason": f"error: {e}"}
 
 
 def run_standing_cron() -> dict:
-    """Scheduled Standing Conviction push — one card per cap in
-    STANDING_FLOW_CRON_CAPS (default 'all'). Gated by STANDING_FLOW_ENABLED."""
+    """Scheduled Open Flow push — one card per cap in STANDING_FLOW_CRON_CAPS
+    (default 'all,mid_small' — the big board + the mid-small board). Sort/window
+    come from the STANDING_FLOW_* env (default 60d, net). Gated by
+    STANDING_FLOW_ENABLED or WEEKLY_FLOW_ENABLED (either arms it)."""
     try:
         caps = [c.strip().lower() for c in
-                os.getenv("STANDING_FLOW_CRON_CAPS", "all").split(",") if c.strip()]
+                os.getenv("STANDING_FLOW_CRON_CAPS", "all,mid_small").split(",") if c.strip()]
         return {"posts": [run_standing(cap=cap) for cap in (caps or ["all"])]}
     except Exception as e:  # noqa: BLE001
         log.exception("[standing-flow] cron failed")

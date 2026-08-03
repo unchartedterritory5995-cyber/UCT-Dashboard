@@ -430,18 +430,23 @@ def _start_flow_schedulers():
             # until armed. Runs HERE (flow.db + OI snapshots). Explicit-ET trigger.
             # ⚠ Same watch-path caveat as alpha_gold_eod: weekly_flow.py rides
             # this file's builds until it's added to the worker watch paths.
-            if os.getenv("WEEKLY_FLOW_ENABLED", "0") == "1":
+            # Merged "Open Flow" card (Weekly Conviction + Open Flow unified 8/2):
+            # the Friday push now posts run_standing_cron (Open Flow, net, all +
+            # mid-small). Either arm flag works so an existing WEEKLY_FLOW_ENABLED
+            # setup keeps firing without re-arming.
+            if (os.getenv("WEEKLY_FLOW_ENABLED", "0") == "1"
+                    or os.getenv("STANDING_FLOW_ENABLED", "0") == "1"):
                 from apscheduler.triggers.cron import CronTrigger as _WFCron
                 from api import weekly_flow as _wf
-                sched.add_job(_wf.run_weekly_cron,
+                sched.add_job(_wf.run_standing_cron,
                               trigger=_WFCron(day_of_week="fri", hour=16, minute=15,
                                               timezone=ZoneInfo("America/New_York")),
-                              id="weekly_flow_push", max_instances=1,
+                              id="open_flow_push", max_instances=1,
                               coalesce=True, replace_existing=True)
                 n += 1
-                log.info("[startup] Weekly Conviction Flow cron registered (Fri 16:15 ET)")
+                log.info("[startup] Open Flow cron registered (Fri 16:15 ET)")
             else:
-                log.info("[startup] Weekly Conviction Flow disabled (WEEKLY_FLOW_ENABLED != 1)")
+                log.info("[startup] Open Flow push disabled (set STANDING_FLOW_ENABLED=1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Weekly Flow scheduling failed: %s", e)
         if n:

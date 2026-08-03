@@ -2021,8 +2021,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
     return nv;
   });
   // Weekly Conviction manual controls (lookback + cap) — rendered in the AUTO-PUSH box.
-  const [wfDays, setWfDays] = useState(5);
-  const [wfCap, setWfCap] = useState("all");
+  const [sfSort, setSfSort] = useState("net");   // Open Flow card sort: net | premium
   // Standing Conviction (rolling still-open) manual controls — own lookback + cap.
   const [sfDays, setSfDays] = useState(60);
   const [sfCap, setSfCap] = useState("all");
@@ -2223,44 +2222,13 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               posts the whole day's list as one image
             </span>
           </div>
-          {/* Weekly Conviction Flow — manual preview/push with adjustable lookback
-              (5/20/60d) + cap (all / mid-small). Hits POST /weekly-flow. */}
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${P.dm}`,
-            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>WEEKLY CONVICTION</span>
-            {[5, 20, 60].map(dd => {
-              const on = wfDays === dd;
-              return (
-                <button key={dd} onClick={() => setWfDays(dd)} style={{
-                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
-                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
-                  border: `1px solid ${on ? P.ac : P.bd}` }}>{dd}d</button>
-              );
-            })}
-            <span style={{ width: 6 }} />
-            {[["all", "All"], ["mid_small", "Mid-Small"], ["etf", "ETFs"]].map(([c, lbl]) => {
-              const on = wfCap === c;
-              return (
-                <button key={c} onClick={() => setWfCap(c)} style={{
-                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
-                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
-                  border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
-              );
-            })}
-            <button disabled={!!busy} style={btnStyle("wfp", false)}
-              onClick={() => doPreview(`/api/live/massive/weekly-flow?post=0&days=${wfDays}&cap=${wfCap}`, "wfp")}>
-              {busy === "wfp" ? "Previewing…" : "👁 Preview"}</button>
-            <button disabled={!!busy} style={btnStyle("wfx", true)}
-              onClick={() => doPush(`/api/live/massive/weekly-flow?post=1&days=${wfDays}&cap=${wfCap}`, `Weekly Conviction card (${wfDays}d · ${wfCap})`, "wfx")}>
-              {busy === "wfx" ? "Posting…" : "★ Push → Discord"}</button>
-          </div>
-          {/* Standing Conviction — rolling still-open, top-N by premium, with
-              first-seen/age + since-open perf. Cap buttons isolate non-mega
-              (Mid-Small / Large). Hits POST /standing-flow. */}
+          {/* OPEN FLOW — the single merged still-open board (Weekly Conviction +
+              Open Flow unified 8/2). Window + cap + Net/Premium sort. Hits POST
+              /standing-flow. */}
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${P.dm}`,
             display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>OPEN FLOW</span>
-            {[30, 60, 90].map(dd => {
+            {[5, 20, 60, 90].map(dd => {
               const on = sfDays === dd;
               return (
                 <button key={dd} onClick={() => setSfDays(dd)} style={{
@@ -2279,11 +2247,22 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                   border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
               );
             })}
+            <span style={{ width: 6 }} />
+            <span style={{ fontSize: 9, color: P.mt }}>sort:</span>
+            {[["net", "Net"], ["premium", "Premium"]].map(([s, lbl]) => {
+              const on = sfSort === s;
+              return (
+                <button key={s} onClick={() => setSfSort(s)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
+              );
+            })}
             <button disabled={!!busy} style={btnStyle("sfp", false)}
-              onClick={() => doPreview(`/api/live/massive/standing-flow?post=0&days=${sfDays}&cap=${sfCap}`, "sfp")}>
+              onClick={() => doPreview(`/api/live/massive/standing-flow?post=0&days=${sfDays}&cap=${sfCap}&sort=${sfSort}`, "sfp")}>
               {busy === "sfp" ? "Previewing…" : "👁 Preview"}</button>
             <button disabled={!!busy} style={btnStyle("sfx", true)}
-              onClick={() => doPush(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}`, `Open Flow card (${sfDays}d · ${sfCap})`, "sfx")}>
+              onClick={() => doPush(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}&sort=${sfSort}`, `Open Flow card (${sfDays}d · ${sfCap} · ${sfSort})`, "sfx")}>
               {busy === "sfx" ? "Posting…" : "★ Push → Discord"}</button>
           </div>
         </div>
