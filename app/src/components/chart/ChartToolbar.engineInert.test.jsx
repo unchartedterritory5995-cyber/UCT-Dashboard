@@ -125,8 +125,21 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     // id joined the set. **VWAP is the last un-migrated definition wired to
     // `engineInert`** (all four B3 pilots are, so Tasks 10-11 inherit the
     // treatment), and its control is the colour swatch rather than a period box.
-    // When VWAP migrates (Task 11), this case needs a new subject or the whole
-    // `engineInert` wiring loses its only negative control.
+    //
+    // ⏳ IT EXPIRES AT **TASK 8**, NOT TASK 11 — this comment used to say 11, and
+    // that was three tasks of false safety. `ENGINE_MIGRATED_DEF_IDS` gains an id
+    // at FLIP A, not Flip B: that is how it gained `macd` in Task 6, and Task 8
+    // ("VWAP eligibility + Flip A") states `Set(['rsi','bb','macd','vwap'])` in
+    // its own Interfaces. Audited by B3 Task 7.
+    //
+    // ⚠️ AND THE OBVIOUS FIX WILL NOT BE AVAILABLE. "Give it a new subject"
+    // assumes an un-migrated definition is still wired to `engineInert`; after
+    // Task 8 there is none — the toolbar wires exactly rsi/macd/bb/vwap, and all
+    // four will be migrated. Stoch is not a substitute: its row has no `disabled`
+    // at all, which is what made the first draft vacuous. So Task 8 has to move
+    // this control DOWN a level — assert `flipState.engineDrawnDefIds` drops an
+    // instance whose `defId` is outside `ENGINE_MIGRATED_DEF_IDS` — rather than
+    // look for another row to point at.
     const user = userEvent.setup()
     mount(settingsWith({
       indicators: { rsi: { enabled: true }, vwap: { enabled: true, color: '#26C6DA' } },
