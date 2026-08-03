@@ -235,6 +235,195 @@ const draw = (settingsOverride, tf = 'D') => render(
   <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={settingsOverride} />,
 )
 
+// ─── THE LEGEND READ — POLLED TO STABILITY, NEVER SLEPT ─────────────────────
+//
+// ⛔ A FLAKY TEST IS A DEFECT, AND ON THIS BRANCH IT IS A LOAD-BEARING ONE.
+// Every legend case below is a gate the pixel harness CANNOT replace — a
+// headless capture has no cursor, so no chip is drawn on either side and the
+// diff is 0 whichever way the crosshair bridge behaves. An intermittently
+// passing gate is worse than a missing one: it reads as evidence.
+//
+// These reads used to be `dispatch, then setTimeout(40)`. That is a race the
+// moment the suite runs 400 files in parallel — B3 Task 8 watched a case pass
+// alone, pass in the chart selection, then fail once in a full run and pass on
+// the retry. The legend coalesces through rAF and jsdom gives no guarantee
+// about how many frames a 40 ms real timer outlives on a loaded box.
+//
+// ⚠️ "IT RENDERED AT ALL" IS NOT ENOUGH TO POLL ON — that was the first fix,
+// and it was still wrong. The container also carries the live-price header and
+// a "⟳ RECONNECTING" banner, so two reads can both hold the OHLC row while
+// holding DIFFERENT amounts of unrelated chrome, and a character-for-character
+// legacy-vs-engine comparison then fails on text that has nothing to do with
+// the indicator.
+//
+// So: wait for TWO CONSECUTIVE IDENTICAL READS — the same rule
+// `tools/chart_parity.py` applies to a capture (`shots=2/2`), for the same
+// reason — and THROW if the DOM never settles, rather than comparing a moving
+// target. One implementation, so the next indicator's legend case inherits it
+// instead of copying the sleep for a fifth time.
+const LEGEND_RENDERED = /O\s*1/           // the OHLC row — the legend exists at all
+const SETTLE_TRIES = 60
+const SETTLE_MS = 20
+
+/**
+ * The LEGEND's text — deliberately NOT the container's.
+ *
+ * ⛔ `container.textContent` IS NOT DETERMINISTIC, AND NO AMOUNT OF SETTLING
+ * MAKES IT SO. This was found the hard way: with every legend read polled to
+ * stability, the VWAP case still failed roughly one full-suite run in two, and
+ * the diff was
+ *
+ *     Expected: "…VT%TSEXT01:4[2]?⇄"
+ *     Received: "…VT%TSEXT01:4[1]?⇄"
+ *
+ * — a **WALL CLOCK** in the export footer. `legendOf` renders twice, a second or
+ * so apart, and when a minute boundary falls between the two renders the
+ * containers differ by one digit. A character-for-character legacy-vs-engine
+ * comparison then reports a clock tick as an indicator regression. `⟳
+ * RECONNECTING` is in both strings and was the red herring; `chart_parity.py`
+ * freezes this same stamp for exactly this reason, and these tests do not run
+ * through it.
+ *
+ * Settling is still required — it is what makes each individual read stable —
+ * but it is orthogonal. The comparison has to be scoped to the thing the
+ * assertion is ABOUT.
+ *
+ * The `O 1.00` span's PARENT is the legend row, and `legChips` are its siblings
+ * in all three legend variants (`StockChart.jsx:9849-9903` — flat, stacked and
+ * default), so every chip these cases assert on is inside it and the header,
+ * the feed banner and the footer clock are not. No fallback to the container:
+ * a missing legend must fail the `ready` predicate and throw, not quietly widen
+ * the read back to the clock.
+ */
+const legendTextOf = (view) => {
+  const o = [...view.container.querySelectorAll('span')]
+    .find(s => /^O\s/.test(s.textContent || ''))
+  return o && o.parentElement ? o.parentElement.textContent : ''
+}
+
+/**
+ * Deliver one crosshair event to EVERY subscriber, repeatedly, until the
+ * rendered text stops changing; return that settled text.
+ *
+ * ⚠️ EVERY subscriber gets it, which is what `subscribeCrosshairMove` does and
+ * is NOT a detail to shortcut. StockChart registers TWO handlers on the same
+ * chart — the legend's (`:7945`) and the hovered-bar recorder's (`:8257`) — so
+ * `crosshairHandlers.at(-1)` delivers to the one that never touches the legend,
+ * and every assertion then reads a legend nothing asked to update. That is a
+ * green-looking harness measuring nothing.
+ *
+ * @param ready predicate the settled text must ALSO satisfy, so a stable EMPTY
+ *              string is never mistaken for a settled legend.
+ */
+const settledLegend = async (view, param, ready = LEGEND_RENDERED) => {
+  expect(H.crosshairHandlers.length,
+    'nothing subscribed to crosshairMove — this test is vacuous').toBeGreaterThan(0)
+  let text = legendTextOf(view)
+  for (let i = 0; i < SETTLE_TRIES; i++) {
+    // Sequential on purpose: each read must observe the DOM the PREVIOUS
+    // dispatch settled into, so these cannot be awaited in parallel.
+    await act(async () => {
+      for (const fn of [...H.crosshairHandlers]) fn(param)
+      await new Promise(r => setTimeout(r, SETTLE_MS))
+    })
+    const prev = text
+    text = legendTextOf(view)
+    if (prev === text && ready.test(text)) return text
+  }
+  throw new Error(
+    'the legend never settled to two identical reads — the comparison would be a race',
+  )
+}
+
+/** The crosshair event itself: the candle, plus whatever series carry a value. */
+const crosshairAt = (bars, extraSeriesData) => {
+  const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+  expect(candle, 'no candle series').toBeTruthy()
+  const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+  for (const [series, point] of (extraSeriesData || [])) seriesData.set(series, point)
+  return { time: bars.at(-1).t, point: { x: 100, y: 100 }, logical: bars.length - 1, seriesData }
+}
+
+// ─── the helper's OWN gate ───────────────────────────────────────────────────
+//
+// ⚠️ `settledLegend` is shared infrastructure under seventeen assertions, and
+// its stability rule is NOT falsifiable through them: on an unloaded box the
+// legend settles inside the first dispatch, so a mutation that deletes the
+// two-identical-reads requirement leaves every legend case green. That is
+// precisely the shape of a rule everybody believes and nothing checks.
+//
+// These four drive it against a fake view whose text is still moving, which
+// reproduces on demand what a loaded 400-file run produces by luck.
+describe('settledLegend — the read that makes every legend case stable', () => {
+  /** A REAL container shaped like the chart's: a legend row holding the `O `
+   *  span, plus the chrome that is NOT part of the legend — the feed banner and
+   *  the export footer's WALL CLOCK, which is the thing that actually broke the
+   *  comparison and which no amount of settling can freeze.
+   *
+   *  `changes` is how many dispatches the LEGEND keeps moving for; the clock
+   *  ticks on every dispatch, forever, exactly as it does in life. */
+  const movingView = (changes, { clock = true } = {}) => {
+    const container = document.createElement('div')
+    container.innerHTML =
+      '<div class="banner">⟳ RECONNECTING</div>' +
+      '<div class="legend"><span>O 1.00</span><span>H 2.00</span></div>' +
+      '<div class="footer">EXT01:41</div>'
+    const legend = container.querySelector('.legend')
+    const footer = container.querySelector('.footer')
+    let n = 0
+    H.crosshairHandlers.push(() => {
+      n += 1
+      legend.lastChild.textContent = n < changes ? `H 2.00${'.'.repeat(n)}` : 'H 2.00'
+      if (clock) footer.textContent = `EXT01:${41 + n}`
+    })
+    return { view: { container }, legend }
+  }
+
+  it('reads the LEGEND, not the container — the footer clock is not an indicator change', async () => {
+    // ⛔ THE REGRESSION THIS SUITE EXISTS FOR. Two `legendOf` renders a second
+    // apart straddle a minute boundary and their CONTAINERS differ by one digit.
+    // If the read were `container.textContent` this would never settle at all,
+    // because the clock ticks on every dispatch.
+    const { view } = movingView(1)
+    expect(await settledLegend(view, {})).toBe('O 1.00H 2.00')
+  })
+
+  it('returns the text the DOM settled on, not the first one that looked rendered', async () => {
+    const { view } = movingView(3, { clock: false })
+    expect(await settledLegend(view, {})).toBe('O 1.00H 2.00')
+  })
+
+  it('a legend that never stops moving THROWS — it is never compared', async () => {
+    // The alternative is a character-for-character comparison against a moving
+    // target, which fails on unrelated chrome and reads as an indicator bug.
+    const { view } = movingView(Number.MAX_SAFE_INTEGER, { clock: false })
+    await expect(settledLegend(view, {})).rejects.toThrow(/never settled/)
+  })
+
+  it('a STABLE but unrendered legend throws rather than returning an empty read', async () => {
+    // Two identical reads of '' are two identical reads. Without the `ready`
+    // predicate every "does not contain a VWAP chip" assertion would be a
+    // statement about the empty string.
+    H.crosshairHandlers.push(() => {})
+    const container = document.createElement('div')
+    container.innerHTML = '<div class="banner">⟳ RECONNECTING</div>'
+    await expect(settledLegend({ container }, {})).rejects.toThrow(/never settled/)
+  })
+
+  it('delivers to EVERY crosshair subscriber, not just the last one', async () => {
+    // StockChart registers two handlers on one chart — the legend's and the
+    // hovered-bar recorder's. Delivering to `at(-1)` reaches the one that never
+    // touches the legend, and every assertion then reads a legend nothing asked
+    // to update: a green harness measuring nothing.
+    const seen = []
+    H.crosshairHandlers.push(() => seen.push('legend'), () => seen.push('recorder'))
+    const container = document.createElement('div')
+    container.innerHTML = '<div class="legend"><span>O 1.00</span></div>'
+    await settledLegend({ container }, {})
+    expect(new Set(seen), 'a subscriber was skipped').toEqual(new Set(['legend', 'recorder']))
+  })
+})
+
 describe('StockChart × indicator engine — the flag OFF is the whole safety story', () => {
   it('never constructs a binder and never calls sync while the flag is off', () => {
     draw(undefined)
@@ -653,31 +842,10 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
 describe('an engine-drawn indicator still appears in the crosshair legend', () => {
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
 
-  /**
-   * Drive one crosshair move over the newest bar and return the rendered chips.
-   *
-   * ⚠️ EVERY subscriber gets the event, which is what `subscribeCrosshairMove`
-   * does and is NOT a detail to shortcut. StockChart registers TWO handlers on
-   * the same chart — the legend's (`:7945`) and the hovered-bar recorder's
-   * (`:8257`) — so `crosshairHandlers.at(-1)` delivers the event to the one that
-   * never touches the legend, and every assertion here reads a legend that was
-   * never asked to update. That is a green-looking harness measuring nothing.
-   */
-  const hover = async (view, extraSeriesData) => {
-    expect(H.crosshairHandlers.length,
-      'nothing subscribed to crosshairMove — this test is vacuous').toBeGreaterThan(0)
-    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
-    expect(candle, 'no candle series').toBeTruthy()
-    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
-    for (const [series, point] of (extraSeriesData || [])) seriesData.set(series, point)
-    const param = { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
-    await act(async () => {
-      for (const fn of [...H.crosshairHandlers]) fn(param)
-      // the legend handler coalesces through rAF; a real timer outlives it
-      await new Promise(r => setTimeout(r, 40))
-    })
-    return view.container.textContent
-  }
+  /** Drive one crosshair move over the newest bar and return the rendered chips.
+   *  Polled to two identical reads — see `settledLegend`. */
+  const hover = (view, extraSeriesData) =>
+    settledLegend(view, crosshairAt(BARS, extraSeriesData))
 
   /** …with whatever is on the `rsi` price scale carrying 54.321. */
   const hoverLatest = async (view) => {
@@ -1419,21 +1587,10 @@ describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () =>
   //
   // ⚠️ THE PIXEL GATE CANNOT SEE ANY OF THIS — a headless capture has no cursor,
   // so no chip is drawn on either side whatever the bridge does.
-  const hoverText = async (view) => {
-    expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — vacuous').toBeGreaterThan(0)
-    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
-    expect(candle, 'no candle series').toBeTruthy()
-    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+  const hoverText = (view) =>
     // Every purple line carries a value at the hovered bar — the state in which a
     // chip WOULD be emitted if anything asked for one.
-    for (const c of purple()) seriesData.set(c.series, { value: 123.456 })
-    const param = { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
-    await act(async () => {
-      for (const fn of [...H.crosshairHandlers]) fn(param)
-      await new Promise(r => setTimeout(r, 40))
-    })
-    return view.container.textContent
-  }
+    settledLegend(view, crosshairAt(BARS, purple().map(c => [c.series, { value: 123.456 }])))
 
   it('the ENGINE legend is character-for-character the LEGACY legend', async () => {
     const legacyView = draw(BB_ON)
@@ -1458,22 +1615,30 @@ describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () =>
     return (async () => {
       const rsi = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'rsi')
       expect(rsi, 'no rsi-scale series').toBeTruthy()
-      const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
-      const seriesData = new Map([
-        [candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }],
+      const text = await settledLegend(view, crosshairAt(BARS, [
         [rsi.series, { value: 54.321 }],
-      ])
-      for (const c of purple()) seriesData.set(c.series, { value: 123.456 })
-      await act(async () => {
-        for (const fn of [...H.crosshairHandlers]) {
-          fn({ time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData })
-        }
-        await new Promise(r => setTimeout(r, 40))
-      })
-      const text = view.container.textContent
+        ...purple().map(c => [c.series, { value: 123.456 }]),
+      ]))
       expect(text).toContain('RSI(14) 54.3')
       expect(text, 'a Bollinger chip appeared').not.toContain('123.4')
     })()
+  })
+
+  it('and all three plots still DECLARE the chip hidden — the reason the above holds', () => {
+    // ⚠️ THE RENDERED CASES ABOVE CANNOT SEE THIS, AND A MUTATION PROVED IT.
+    // `emitChips` skips a plot when `!plot.legend` OR when `plot.legend.hide`
+    // is true (`readout.js:107`), so deleting `legend: { hide: true }` from a
+    // BB plot changes NOTHING that renders — the chip was already suppressed by
+    // having no `LEGACY_SLOTS` entry and no declaration. The flag is the
+    // INTENT ("deliberately no chip") as distinct from the omission ("nobody
+    // declared one yet"), and until this case existed it could be deleted with
+    // the whole suite green. VWAP has carried this assertion since Task 8; BB
+    // and MACD had not.
+    const def = registry.getDefinition('bb')
+    expect(def.plots, 'upper / middle / lower').toHaveLength(3)
+    for (const p of def.plots) {
+      expect(p.legend && p.legend.hide, `${p.key} grew a legend chip the shipped chart never had`).toBe(true)
+    }
   })
 })
 
@@ -1931,22 +2096,14 @@ describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', (
   // `legend: { hide: true }` because the shipped legend has no histogram chip.
   //
   // ⚠️ THE PIXEL GATE CANNOT SEE ANY OF THIS — a headless capture has no cursor.
-  const hoverText = async (view) => {
-    expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — vacuous').toBeGreaterThan(0)
-    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
-    expect(candle, 'no candle series').toBeTruthy()
-    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
+  const hoverText = (view) => {
     const band = onMacdScale()
     expect(band, 'no MACD series to hover').toHaveLength(3)
-    seriesData.set(band[0].series, { value: 0.12345 })
-    seriesData.set(band[1].series, { value: -0.6789 })
-    seriesData.set(band[2].series, { value: 0.802 })
-    const param = { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
-    await act(async () => {
-      for (const fn of [...H.crosshairHandlers]) fn(param)
-      await new Promise(r => setTimeout(r, 40))
-    })
-    return view.container.textContent
+    return settledLegend(view, crosshairAt(BARS, [
+      [band[0].series, { value: 0.12345 }],
+      [band[1].series, { value: -0.6789 }],
+      [band[2].series, { value: 0.802 }],
+    ]))
   }
 
   it('LEGACY prints MACD and SIG at four decimals, and no histogram chip — the control', async () => {
@@ -1975,17 +2132,8 @@ describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', (
     // nothing is a readout regression only a live tape produces — and MACD has
     // TWO chips, so a fallback wired to one of them is a half-fix that reads as
     // "the signal line stopped reporting".
-    const hoverBare = async (view) => {
-      const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
-      const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
-      await act(async () => {
-        for (const fn of [...H.crosshairHandlers]) {
-          fn({ time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData })
-        }
-        await new Promise(r => setTimeout(r, 40))
-      })
-      return view.container.textContent
-    }
+    // The candle and NOTHING else — the developing-bar state this case is about.
+    const hoverBare = (view) => settledLegend(view, crosshairAt(BARS))
 
     const legacyText = await hoverBare(draw(MACD_ON))
     const legacyChips = [/MACD -?[\d.]+/, /SIG -?[\d.]+/].map(re => re.exec(legacyText))
@@ -2046,6 +2194,26 @@ describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', (
     expect(chips.map(el => el.style.color)).toEqual(['rgb(18, 52, 86)', 'rgb(101, 67, 33)'])
     // …and the blob's colours are NOT what is showing.
     expect(chips.map(el => el.style.color)).not.toContain('rgb(33, 150, 243)')
+  })
+
+  it('and the histogram still DECLARES its chip hidden, while the two lines do not', () => {
+    // ⚠️ THE RENDERED CASES ABOVE CANNOT SEE THIS, AND A MUTATION PROVED IT.
+    // `emitChips` skips a plot when `!plot.legend` OR when `plot.legend.hide` is
+    // true (`readout.js:107`), so deleting `legend: { hide: true }` from the
+    // histogram changes NOTHING that renders — it has no `LEGACY_SLOTS` entry
+    // either way. The flag is the INTENT ("the shipped legend has no histogram
+    // chip") as distinct from the omission ("nobody declared one yet"), and
+    // until this case existed it could be deleted with the whole suite green.
+    //
+    // The second half is the one that matters more: MACD is the only migrated
+    // definition with a VISIBLE chip and a hidden plot in the same definition,
+    // so "hide everything" and "hide nothing" are both wrong here and only this
+    // asserts the split.
+    const def = registry.getDefinition('macd')
+    const hidden = def.plots.filter(p => p.legend && p.legend.hide === true).map(p => p.key)
+    const visible = def.plots.filter(p => p.legend && p.legend.hide !== true).map(p => p.key)
+    expect(hidden, 'the histogram grew a chip the shipped legend never had').toEqual(['histogram'])
+    expect(visible, 'MACD lost one of its two shipped chips').toEqual(['macd', 'signal'])
   })
 })
 
@@ -2379,51 +2547,19 @@ describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
   // them. This is the same `hover` shape the RSI suite above uses, with a
   // non-vacuity check that the legend rendered SOMETHING before anything is
   // concluded from what it does not contain.
-  const legendOf = async (over) => {
+  // ⚠️ POLLED TO STABILITY, NOT SLEPT — `settledLegend`, at the top of this file.
+  // This case is where that rule was found: it passed alone, passed in the chart
+  // selection, then failed once in a full 400-file run and passed on the retry.
+  // It used to carry its own copy of the poll while the RSI/BB/MACD helpers above
+  // still slept a fixed 40 ms; all five now share ONE implementation, so the next
+  // legend case inherits it instead of copying the sleep for a sixth time.
+  const legendOf = (over) => {
     cleanup(); H.reset()
     const view = render(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={over} alwaysShowLegend />,
     )
-    expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — vacuous').toBeGreaterThan(0)
-    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
-    expect(candle, 'no candle series').toBeTruthy()
     const vwap = vwapLines()[0]
-    const seriesData = new Map([[candle.series, { open: 1, high: 2, low: 0.5, close: 1.5 }]])
-    if (vwap) seriesData.set(vwap.series, { value: 101.5 })
-    const param = {
-      time: INTRADAY_BARS.at(-1).t, point: { x: 100, y: 100 },
-      logical: INTRADAY_BARS.length - 1, seriesData,
-    }
-    // ⚠️ POLLED TO STABILITY, NOT SLEPT. The legend coalesces through rAF, and a
-    // fixed `setTimeout(40)` is a race the moment the suite runs 400 files in
-    // parallel. This case passed alone, passed in the chart selection, then
-    // failed once in a full run and passed on the retry — and a flake, in a
-    // branch that reads green as evidence, is worse than a failure.
-    //
-    // "Rendered at all" is NOT enough to poll on, which is what the first fix
-    // got wrong: the container also carries the live-price header and a
-    // "⟳ RECONNECTING" banner, so two reads can both contain the OHLC row while
-    // holding DIFFERENT amounts of unrelated chrome, and a character-for-character
-    // comparison then fails on text that has nothing to do with VWAP.
-    //
-    // So wait for TWO CONSECUTIVE IDENTICAL READS — the same rule
-    // `chart_parity.py` uses for a capture (`shots=2/2`), for the same reason —
-    // and fail loudly if the DOM never settles rather than comparing a moving
-    // target. The RSI/BB/MACD legend helpers above still use the fixed sleep and
-    // carry the same latent race; they are another task's and are left alone.
-    let prev = null
-    let text = view.container.textContent
-    for (let i = 0; i < 60; i++) {
-      // eslint-disable-next-line no-await-in-loop
-      await act(async () => {
-        for (const fn of [...H.crosshairHandlers]) fn(param)
-        await new Promise(r => setTimeout(r, 20))
-      })
-      prev = text
-      text = view.container.textContent
-      if (prev === text && /O\s*1/.test(text)) return text
-    }
-    throw new Error('the legend never settled to two identical reads — the comparison would be a race')
+    return settledLegend(view, crosshairAt(INTRADAY_BARS, vwap ? [[vwap.series, { value: 101.5 }]] : []))
   }
 
   it('LEGACY prints no VWAP chip, and the ENGINE prints the same legend', async () => {
