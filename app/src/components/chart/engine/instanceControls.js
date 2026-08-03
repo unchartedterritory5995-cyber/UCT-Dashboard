@@ -1,0 +1,286 @@
+// app/src/components/chart/engine/instanceControls.js
+//
+// ─── THE WRITE PATH FOR A FLIPPED INDICATOR ─────────────────────────────────
+//
+// Pure `(cs, …) → cs'`. No React, no preferences hook, no persistence: every
+// caller already has a settings object and a way to hand one back
+// (`onUpdateSettings` in the toolbar, `handleUpdateChartSettings` for the
+// keyboard toggles), and threading a writer through them would give the engine
+// two ways to save.
+//
+// ─── WHY THE LEGACY SECTION IS STILL WRITTEN ────────────────────────────────
+//
+// Flip B makes the INSTANCE the READ authority for the chart. It does NOT make
+// `cs.indicators` dead data: the alert evaluator, `IndicatorAlertPopover`, the
+// screener, the `?indicators=` render route and any tab still running an older
+// build all read that section and know nothing about instances. So every write
+// here goes to BOTH — the instance, and a write-through MIRROR.
+//
+// That is not redundancy for its own sake. Without the mirror, "turn RSI off"
+// leaves an RSI alert evaluating against a section that still says `enabled:
+// true` with a stale period, and nothing anywhere reports it. With it, the
+// invariant is simple and testable: **the mirror always agrees with the
+// instance**, and `instanceControls.test.js` asserts both sides on every write.
+//
+// The reverse direction is already handled: `migrateLegacyToInstances` projects a
+// legacy toggle into an instance at read time, so a write from an un-migrated
+// surface still reaches the chart.
+//
+// ─── WHY OFF IS A TOMBSTONE ─────────────────────────────────────────────────
+//
+// Removing the instance is undone by the very next read. The migrator would see
+// the mirror… except the mirror is cleared too — but a GRID CELL whose snapshot
+// predates the delete names the instance in full on its next unrelated write, and
+// `mergeSettingsOverride`'s union-by-id puts it straight back. Only a persisting
+// marker survives that (B2 Task 5's resurrect test). Reversal is an explicit
+// re-add, which `mergeSettingsOverride` already understands.
+
+import { validateInputValue } from './defSchema'
+import { legacyInstanceId } from './instances'
+import { instanceTombstone, isInstanceTombstone } from '../chartDefaults'
+
+function resolveRegistry(registry) {
+  if (typeof registry === 'function') return (id) => registry(id)
+  if (registry && typeof registry.getDefinition === 'function') return (id) => registry.getDefinition(id)
+  return () => null
+}
+
+/** Registry order, as a rank per definition id. It IS legacy render order for
+ *  the five price overlays (`bb`, `vwap`, `sar`, `ichimoku`, `donchian`), and the
+ *  engine draws all its series at one z-position — so a control that APPENDED
+ *  would put a newly-enabled Bollinger band above a Donchian channel it should
+ *  sit below. An id the registry does not rank sinks to the end. */
+function registryRank(registry) {
+  const defs = (registry && typeof registry.listDefinitions === 'function') ? registry.listDefinitions() : []
+  return new Map((Array.isArray(defs) ? defs : []).map((d, i) => [d && d.id, i]))
+}
+
+/** The declared inputs a definition has, keyed. */
+function declaredInputs(def) {
+  return new Map((def.inputs || []).filter(i => i && typeof i.key === 'string').map(i => [i.key, i]))
+}
+
+function isLiveInstance(inst) {
+  if (!inst || typeof inst !== 'object') return false
+  try { if (isInstanceTombstone(inst)) return false } catch { return false }
+  return true
+}
+
+/**
+ * A raw control value coerced to the type its input declares.
+ *
+ * `<input type="number">` hands back a STRING and `ChartToolbar.updateIndicator`
+ * parses it with a hand-maintained `numFields` set (`:191`). Here the DEFINITION
+ * says which are numeric, so there is no second list to keep in sync — and it
+ * matters more than it did: a stored `"7"` fails `validateInputValue`, which
+ * makes `normalizeInstances` DROP the whole instance and the indicator vanish.
+ *
+ * ⚠️ A float is NOT accepted where the definition declares an int. `parseInt`
+ * would silently make 7.5 into 7 — a control changing the number the user typed.
+ * `validateInputValue` would reject 7.5 anyway; refusing here keeps the two
+ * answers the same and the refusal honest.
+ *
+ * Returns `undefined` when the value cannot be coerced, which the caller treats
+ * as "reject the write".
+ */
+function coerce(declared, value) {
+  if (!declared) return undefined
+  switch (declared.type) {
+    case 'int': {
+      if (typeof value === 'number') return Number.isInteger(value) ? value : undefined
+      if (typeof value !== 'string' || value.trim() === '') return undefined
+      const n = Number(value)
+      return Number.isInteger(n) ? n : undefined
+    }
+    case 'float': {
+      if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+      if (typeof value !== 'string' || value.trim() === '') return undefined
+      const n = Number(value)
+      return Number.isFinite(n) ? n : undefined
+    }
+    case 'bool':
+      return typeof value === 'boolean' ? value : undefined
+    default:
+      return typeof value === 'string' ? value : undefined
+  }
+}
+
+/** The inputs a fresh instance of `defId` should carry: whatever the legacy
+ *  section already says, filtered to keys the definition declares. Same
+ *  projection `migrateLegacyToInstances` performs, so an instance created here
+ *  and one created by the migrator are byte-identical for any blob the shipped
+ *  renderer accepts — pinned by a `JSON.stringify` equality in the test file. */
+function inputsFromLegacy(def, section) {
+  const out = {}
+  for (const [key, declared] of declaredInputs(def)) {
+    if (!section || section[key] === undefined) continue
+    const v = coerce(declared, section[key])
+    if (v === undefined) continue
+    const errors = []
+    validateInputValue(declared, v, `inputs.${key}`, errors)
+    if (!errors.length) out[key] = v
+  }
+  return out
+}
+
+/**
+ * `cs` with a new instance list — sorted into REGISTRY order (see
+ * `registryRank`) and marked `preset: 'custom'`, which is what every other
+ * settings write in `ChartToolbar` does.
+ */
+function withInstances(cs, instances, registry) {
+  const order = registryRank(registry)
+  const sorted = [...instances].sort((a, b) =>
+    (order.get(a && a.defId) ?? 1e9) - (order.get(b && b.defId) ?? 1e9))
+  return { ...cs, indicatorInstances: sorted, preset: 'custom' }
+}
+
+/**
+ * Turn one indicator on or off.
+ *
+ * OFF tombstones EVERY live instance of the definition, not just `legacy:<id>` —
+ * a settings row is per-DEFINITION at v1, and leaving a second instance drawing
+ * would make `isIndicatorEnabled` re-check the box the user just cleared.
+ *
+ * ON revives `legacy:<id>` if it is already there and live (so a user's edited
+ * period is not rebuilt from the blob), otherwise builds the instance the
+ * migrator would have built.
+ *
+ * @param {object} cs merged chart settings
+ * @param {string} defId
+ * @param {boolean} enabled
+ * @param {object|Function} registry
+ * @returns {object} the next settings blob, or `cs` UNCHANGED when the write is refused
+ */
+export function setIndicatorEnabled(cs, defId, enabled, registry) {
+  const def = resolveRegistry(registry)(defId)
+  if (!def || !cs || typeof cs !== 'object') return cs
+
+  const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const id = legacyInstanceId(defId)
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[defId] = { ...(indicators[defId] || {}), enabled }
+
+  if (!enabled) {
+    const next = list.map(i => (isLiveInstance(i) && i.defId === defId ? instanceTombstone(i.instanceId) : i))
+    // Nothing stored yet, but the legacy toggle may still be projecting one in at
+    // read time — the tombstone is what stops the migrator putting it straight back.
+    if (!next.some(i => i && i.instanceId === id)) next.push(instanceTombstone(id))
+    return { ...withInstances(cs, next, registry), indicators }
+  }
+
+  const prev = list.find(i => i && typeof i === 'object' && i.instanceId === id)
+  const rest = list.filter(i => !i || typeof i !== 'object' || i.instanceId !== id)
+  const revived = (prev && isLiveInstance(prev))
+    ? prev
+    : {
+        instanceId: id,
+        defId,
+        ...(Number.isInteger(def.version) ? { defVersion: def.version } : {}),
+        inputs: inputsFromLegacy(def, cs.indicators && cs.indicators[defId]),
+        ...(placementFor(def, defId, cs) ? { placement: placementFor(def, defId, cs) } : {}),
+        hidden: false,
+      }
+  return { ...withInstances(cs, [...rest, revived], registry), indicators }
+}
+
+/**
+ * The placement the MIGRATOR would give this definition — its declared target,
+ * except that a PANE oscillator listed in `volumeOverlayIndicators` renders on
+ * the volume pane's left axis instead of its own stacked band
+ * (`StockChart.indTarget`). Duplicating the rule rather than exporting the
+ * migrator's is the thing the byte-identity test in `instanceControls.test.js`
+ * exists to catch drifting.
+ */
+function placementFor(def, defId, cs) {
+  const target = def.placement?.target
+  if (typeof target !== 'string' || !target) return null
+  const overlaid = Array.isArray(cs?.volumeOverlayIndicators) && cs.volumeOverlayIndicators.includes(defId)
+  return { target: target === 'pane' && overlaid ? 'volume' : target }
+}
+
+/**
+ * Set one input on one indicator.
+ *
+ * ⚠️ IT DOES NOT SWITCH THE INDICATOR ON. Typing into the period box beside an
+ * unchecked checkbox must not add the indicator to the chart — a control doing
+ * something the user did not ask for is the same defect class as one doing
+ * nothing. The value still lands in the legacy MIRROR, so switching the
+ * indicator on afterwards adopts it (`inputsFromLegacy`).
+ *
+ * When the indicator IS on, the instance is written — creating it if the blob
+ * says the indicator is on but no instance exists yet (the realistic crossover
+ * blob: a user who enabled RSI before Flip B shipped).
+ *
+ * Refuses — returning `cs` untouched — a key the definition does not declare or
+ * a value it would reject. Storing either produces an instance
+ * `normalizeInstances` then DROPS, i.e. an indicator that silently disappears
+ * on the next paint. defSchema's line applies verbatim: a chart that refuses to
+ * change is a bug report; a chart that loses an indicator is a support ticket
+ * with no answer in it.
+ */
+export function setIndicatorInput(cs, defId, key, value, registry) {
+  const def = resolveRegistry(registry)(defId)
+  if (!def || !cs || typeof cs !== 'object') return cs
+  const declared = declaredInputs(def).get(key)
+  if (!declared) return cs
+  const coerced = coerce(declared, value)
+  if (coerced === undefined) return cs
+  const errors = []
+  validateInputValue(declared, coerced, `inputs.${key}`, errors)
+  if (errors.length) return cs
+
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[defId] = { ...(indicators[defId] || {}), [key]: coerced }
+
+  // Switched off ⇒ the mirror alone. `isIndicatorEnabled`'s rules, applied with
+  // the flip set that always matters here: this writer only ever runs for a
+  // flipped id.
+  if (!isIndicatorEnabled(cs, defId, ONE_FLIPPED)) return { ...cs, indicators, preset: 'custom' }
+
+  const withInstance = setIndicatorEnabled(cs, defId, true, registry)
+  const id = legacyInstanceId(defId)
+  const instances = (withInstance.indicatorInstances || []).map(i => (
+    i && i.instanceId === id ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i
+  ))
+  return { ...withInstances(withInstance, instances, registry), indicators }
+}
+
+/** A one-element stand-in so `setIndicatorInput` can ask `isIndicatorEnabled`
+ *  the FLIPPED question without allocating a Set per keystroke. `has` is the
+ *  only method that predicate calls. */
+const ONE_FLIPPED = Object.freeze({ has: () => true })
+
+/**
+ * Is this indicator on? ONE answer for every control surface, so a checkbox, a
+ * keyboard shortcut and the settings panel can never disagree about it.
+ *
+ * For a FLIPPED id it models the same three rules the read-time migrator does,
+ * because that is what decides whether the chart draws a line:
+ *
+ *   · a LIVE instance of the definition wins — including a hidden one, because
+ *     `Alt+Shift+I` declutters the chart and must not unchecked every box;
+ *   · a TOMBSTONE on `legacy:<id>` blocks the legacy projection — this is the
+ *     "I turned it off and it came back" rule, from the reader's side;
+ *   · otherwise the legacy toggle projects, exactly as
+ *     `migrateLegacyToInstances` projects it into an instance the chart draws.
+ *
+ * ⚠️ THE THIRD RULE IS NOT OPTIONAL. Without it the crossover blob — toggle on,
+ * no stored instance, which is every user's blob on the day Flip B ships — reads
+ * "off" at the checkbox while the chart draws the indicator.
+ */
+export function isIndicatorEnabled(cs, defId, flippedIds) {
+  const legacyOn = cs?.indicators?.[defId]?.enabled === true
+  if (!flippedIds || typeof flippedIds.has !== 'function' || !flippedIds.has(defId)) return legacyOn
+
+  const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+  for (const inst of list) {
+    if (isLiveInstance(inst) && inst.defId === defId) return true
+  }
+  const id = legacyInstanceId(defId)
+  const blocked = list.some(i => {
+    if (!i || typeof i !== 'object' || i.instanceId !== id) return false
+    try { return isInstanceTombstone(i) } catch { return false }
+  })
+  return blocked ? false : legacyOn
+}
