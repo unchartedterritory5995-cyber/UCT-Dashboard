@@ -229,7 +229,17 @@ const RAW_DEFS = [
     ]),
 
   // ── Session VWAP ─────────────────────────────────────────────────────────
-  nativeDef('vwap', 'vwap',
+  //
+  // ⚠️ `compute.rev: 2` — the ONLY definition off the shared `rev: 1`, and the
+  // exact MIRROR IMAGE of MACD's `version: 2` above. `VWAP_SESSION_ANCHOR`
+  // (accepted 2026-08-03, `docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`)
+  // re-anchored `computeVWAP` from the UTC calendar day onto the ET session, so
+  // this definition's NUMBERS changed while what it renders did not: that is
+  // `compute.rev`, not `version`. Under spec §3.1 the bump force-migrates every
+  // binding with user notification, resets evaluator `last_value` and suppresses
+  // the first post-migration cycle — anything pinned to `vwap@rev 1` stops being
+  // reproducible, which is the cost the owner accepted at 2,590 changed pixels.
+  ({ ...nativeDef('vwap', 'vwap',
     {
       name: 'Session VWAP', shortName: 'VWAP', category: 'Volume',
       // `StockChart.jsx:559` — VWAP_TFS. A session indicator does not exist on a
@@ -266,7 +276,7 @@ const RAW_DEFS = [
         color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
         role: 'primary', legend: { hide: true },
       },
-    ]),
+    ]), compute: { kind: 'native', fn: 'vwap', rev: 2 } }),
 
   // ── Stochastic ───────────────────────────────────────────────────────────
   nativeDef('stoch', 'stoch',

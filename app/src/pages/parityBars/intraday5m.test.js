@@ -7,10 +7,16 @@
 // `intraday5m.json` is the fixture that makes B3 Task 8's VWAP gate real.
 //
 // These assertions are what stop somebody regenerating it, and they are also the
-// PROOF that the fixture can see what it exists to see: that `computeVWAP`'s
-// UTC-calendar-day bucketing and a correct ET-session bucketing produce
-// MATERIALLY DIFFERENT numbers on this series. If they agreed here, the fixture
-// would be wrong and every VWAP number measured against it would prove nothing.
+// PROOF that the fixture can see what it exists to see: that UTC-calendar-day
+// bucketing and ET-session bucketing produce MATERIALLY DIFFERENT numbers on
+// this series. If they agreed here, the fixture would be wrong and every VWAP
+// number measured against it would prove nothing — including the 2,590 changed
+// pixels `VWAP_SESSION_ANCHOR` was decided on.
+//
+// ⚠️ `computeVWAP` moved from the first bucketing to the second on 2026-08-03
+// (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`). The fixture did not
+// change one byte — which is the whole reason the two oracles below could be
+// re-pointed without re-baselining anything.
 //
 // The ET wall-clock is read from the PLATFORM tz database via `Intl`, never from
 // the generator's own arithmetic. `tools/gen_intraday_fixture.py` writes the
@@ -22,7 +28,7 @@ import { computeVWAP } from '../../components/chart/indicators'
 
 const bars = fixture.bars
 
-/** The bucket TODAY'S `computeVWAP` uses — UTC calendar day. */
+/** The bucket `computeVWAP` used until `VWAP_SESSION_ANCHOR` — UTC calendar day. */
 const utcDay = (t) => {
   const d = new Date(t * 1000)
   return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`
@@ -35,7 +41,7 @@ const _ET = new Intl.DateTimeFormat('en-US', {
 })
 const etParts = (t) => _ET.formatToParts(new Date(t * 1000))
   .reduce((a, p) => ({ ...a, [p.type]: p.value }), {})
-/** The bucket a CORRECT session-aware VWAP would use — ET calendar day. */
+/** The bucket the shipped `computeVWAP` uses — ET calendar day. */
 const etDay = (t) => { const p = etParts(t); return `${p.year}-${p.month}-${p.day}` }
 const etHour = (t) => Number(etParts(t).hour) % 24   // Intl can render midnight as "24"
 
@@ -122,24 +128,41 @@ describe('the intraday parity fixture (B3 carry #4)', () => {
     const out = computeVWAP(bars)
     expect(out).toHaveLength(bars.length)
     expect(out.every(p => Number.isFinite(p.value))).toBe(true)
-    // Bar-for-bar it IS the UTC-day bucketing this fixture exists to pin.
+    // Bar-for-bar it IS the ET-session bucketing (`VWAP_SESSION_ANCHOR`), fed
+    // through the SAME `vwapBy` oracle the two bucketings are compared with, so
+    // the shipped function is not being checked against a private lookalike.
+    const et = vwapBy(etDay)
+    out.forEach((p, i) => expect(p.value).toBeCloseTo(et[i], 9))
+    // …and it is NOT the retired one, on the bars where they disagree — without
+    // this the assertion above would pass on a fixture where both agree.
     const utc = vwapBy(utcDay)
-    out.forEach((p, i) => expect(p.value).toBeCloseTo(utc[i], 9))
+    const apart = out.filter((p, i) => Math.abs(p.value - utc[i]) > 0.01).length
+    expect(apart, 'the two bucketings agree everywhere — the fixture pins nothing').toBe(207)
   })
 
-  it('the accumulator DOES reset — at every UTC-day boundary, mid-session or not', () => {
+  it('the accumulator resets at ET SESSION OPENS, and at nothing else', () => {
     const out = computeVWAP(bars)
+    const tp = (b) => (b.h + b.l + b.c) / 3
     let resets = 0
     for (let i = 1; i < bars.length; i++) {
-      if (utcDay(bars[i].t) !== utcDay(bars[i - 1].t)) {
-        // The first bar of a new UTC day is its own VWAP: that bar's typical
-        // price alone. That collapse is the tell the accumulator was wiped.
-        const tp = (bars[i].h + bars[i].l + bars[i].c) / 3
-        expect(out[i].value).toBeCloseTo(tp, 9)
+      const opensSession = etDay(bars[i].t) !== etDay(bars[i - 1].t)
+      if (opensSession) {
+        // The first bar of a session is its own VWAP: that bar's typical price
+        // alone. That collapse is the tell the accumulator was wiped.
+        expect(out[i].value, `bar ${i} opens a session but did not reset`).toBeCloseTo(tp(bars[i]), 9)
         resets++
+      } else {
+        // The half that used to be false. A UTC-day boundary MID-SESSION must
+        // no longer wipe anything — that was the $14.45.
+        expect(out[i].value, `bar ${i} reset mid-session`).not.toBeCloseTo(tp(bars[i]), 6)
       }
     }
-    expect(resets, 'no UTC-day boundary in the fixture').toBeGreaterThanOrEqual(3)
+    expect(resets, 'no ET session boundary in the fixture').toBe(2)
+    // The negative half is only load-bearing if there ARE mid-session UTC
+    // boundaries to be wrong about.
+    const midSession = bars.filter((b, i) =>
+      i > 0 && utcDay(b.t) !== utcDay(bars[i - 1].t) && etDay(b.t) === etDay(bars[i - 1].t)).length
+    expect(midSession, 'no mid-session UTC boundary — the loop above proves nothing').toBe(3)
   })
 
   // ── THE POINT OF THE WHOLE FIXTURE ────────────────────────────────────────

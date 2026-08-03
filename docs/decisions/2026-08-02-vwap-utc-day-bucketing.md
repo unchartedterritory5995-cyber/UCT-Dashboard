@@ -1,7 +1,7 @@
 # Decision: session VWAP anchors on a UTC calendar day, not an ET session
 
 **Decision id:** `VWAP_SESSION_ANCHOR`
-**Status:** ⏳ **OPEN — the owner's call. The default is UNCHANGED: `computeVWAP` keeps UTC-day bucketing and that is what ships today.**
+**Status:** ✅ **ACCEPTED 2026-08-03 — the owner took the correctness side against §4's measured number. `computeVWAP` now buckets by the ET calendar day; `compute.rev` is 2. Applied cost, re-measured on application: 2,590 changed pixels (0.348118%), identical to §4.**
 **Owner of the maths:** `app/src/components/chart/indicators.js` → `computeVWAP`.
 **Adjudication row:** `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §11.
 **Raised by:** Phase B3, adjudication A7. **Measured:** 2026-08-02, at the VWAP Flip A (Task 8).
@@ -20,10 +20,15 @@
 
 ---
 
+> **Read §1–§8 in the past tense.** They are the analysis the owner decided on,
+> preserved verbatim. **§9 is what was actually done**, and the one number to
+> quote from this file today is §9's re-measurement, not §4's — they agree, which
+> is itself the finding.
+
 ## 1. What the behaviour is
 
-`computeVWAP` (`indicators.js:162-183`) restarts its `cumPV`/`cumVol` accumulator
-whenever the **UTC calendar day** changes:
+`computeVWAP` (`indicators.js:162-183`) **used to restart** its `cumPV`/`cumVol`
+accumulator whenever the **UTC calendar day** changed:
 
 ```js
 const d = new Date(bar.t * 1000)
@@ -215,3 +220,140 @@ months have calibrated to the line that is there, wrong or not.
 That is a trading decision wearing a correctness decision's clothes, which is
 precisely the category this file exists to hand to the owner rather than settle
 in a migration.
+
+---
+
+## 9. APPLIED — 2026-08-03
+
+The owner took the correctness side. `computeVWAP` buckets by the **ET calendar
+day**, resolved per bar from the IANA zone `America/New_York` via
+`Intl.DateTimeFormat`, and the `vwap` definition is on **`compute.rev: 2`**.
+Shipped in a commit of its own, per §6 and §7.
+
+### 9a. The pixel cost, RE-MEASURED on application
+
+Same instrument, same case, same 20 runs — the point being to find out whether
+the number the owner decided against is the number that was actually paid.
+
+| | |
+|---|---|
+| **Changed pixels** | **2,590** of 744,000 — **0.348118%** |
+| **Distribution** | `{2590: 20}` — 20 of 20 runs, zero variance, `shots=2/2` on all 40 captures |
+| **Case** | `vwap_only`, 579 five-minute `intraday5m` bars, tf `5`, 1200×620, `--instances-side none` (both sides draw the LEGACY block — what users see) |
+| **A — UTC-day (`HEAD`, pre-decision)** | build **`89f73b36ae29`** · `index-DuPpqyEJ.js` |
+| **B — ET-session (SHIPS)** | build **`35ec82560ea5`** · `index-8P8qVvtb.js` |
+| **Exit code** | **1** — correct; a **0** would mean the change did not reach the rendered lane |
+| **Determinism** | each build `--same-build --repeat 5`: **0 px**, exit 0, both sides |
+| **Both lanes** | the SAME **2,590** with `--instances-side both`, 5/5 — one `computeVWAP`, so the correction could not half-land |
+| **Shape** | `x` in [355, 1077], `y` in [168, 441], max channel delta 205; 402 px left third, 982 middle, **1,206 right third** — identical to §4 |
+
+**It matched §4 to the pixel, and to the bounding box and the per-third split.**
+
+> ⚠️ **BOTH BUILD IDS DIFFER FROM §4's, AND THAT IS EXPECTED — the number did
+> not.** §4's A `d64c84c2ebf7` was an intermediate tree captured mid-Task-8,
+> before that task's mutation-driven `defSchema.js` hardening; the committed tree
+> it became builds to `89f73b36ae29`, which is what A is here. §4's B
+> `8bbbb44e1110` carried the bucketing change *alone*; B here also carries the
+> `compute.rev: 2` literal and its comment, so different bytes. **Quote §9's
+> pair, not §4's** — a build identity names a tree, and neither of §4's trees
+> exists any more.
+
+### 9b. The three engine cases stayed 0, which is what §7 asked
+
+On build **`35ec82560ea5`** alone (two lanes of one build), `--repeat 10`:
+`engine_vwap_vs_legacy` · `engine_vwap_dimmed_vs_legacy` ·
+`engine_vwap_dashed_vs_legacy` — **0 px each, 10/10, exit 0**. Flip A is intact:
+the engine still draws what the legacy block draws, now that both draw the
+corrected series. 95% flake bound at 10 clean runs: 25.9%.
+
+### 9c. It is the CORRECT series, asserted permanently
+
+The claim §4 made about the transient measurement build is now a standing test
+(`vwapUtcBucketing.test.js` → *the shipped series IS the golden fixture's
+etSessionVwap, exactly*): the accumulator resets at exactly `[0, 193, 386]` —
+the fixture's `etResetIndices` — and matches `session.etSessionVwap` with a
+**worst absolute difference of 0** across all 579 bars.
+
+Two independent readings of one IANA zone agree there: the fixture is derived
+from `zoneinfo.ZoneInfo("America/New_York")` in
+`tests/fixtures/indicators/_generate.py`, the implementation from
+`Intl.DateTimeFormat`'s `America/New_York`.
+
+### 9d. NO FIXTURE WAS RESEEDED — which is why nothing was re-baselined
+
+`tests/fixtures/indicators/*.json` are unchanged, **not one byte**. They already
+carried the correct series (`session.etSessionVwap`) and the retired boundaries
+(`session.utcResetIndices`) side by side, so applying the decision re-pointed the
+assertions and touched no data. Those files are read by BOTH
+`goldenFixtures.test.js` and `tests/test_indicator_golden.py` at rel-tol 1e-9; a
+reseed would have had to redden both lanes, and there was none to redden.
+
+Every re-pointed case keeps a **non-vacuity half** that recomputes the retired
+UTC-day series locally, so "the shipped function is ET-anchored" is measured
+against something that can still disagree with it.
+
+### 9e. §7's list, checked — one entry was wrong
+
+| §7 said | what happened |
+|---|---|
+| `goldenFixtures.test.js` — all three cases | ✅ red, re-pointed |
+| `vwapUtcBucketing.test.js` — the whole file | ✅ 3 of 7 red; rewritten, now 8 cases pinning the corrected side |
+| `vwapFlipAParity.test.js` → *…STILL the UTC-day ones* | ✅ red, values moved |
+| `intraday5m.test.js` → its VWAP bucketing cases | ✅ 2 red, re-pointed |
+| `indicators.test.js` → any VWAP session case | ⚪ **did not move** — its session case is two bars a UTC day apart, which is also two ET days apart, so it reads the same under both bucketings |
+| `_schema.md` — the pinned-bug-class note | ✅ updated |
+| `nativeRegistry.test.js` *"asserts the current pair; expect it to go red"* | ❌ **WRONG — it stayed green.** Its `compute.rev` assertion is MACD's (*"is a PRESENTATION change"*), not VWAP's. The VWAP pair was only ever asserted in `vwapUtcBucketing.test.js`, which did go red. Recorded because a checklist entry that names the wrong file is how a real gate gets skipped. |
+
+### 9f. Live consumers: NONE. Nothing to migrate, no alert changed
+
+§5 said "Python has no VWAP", and that is right, but the wider claim needed
+checking because a `compute.rev` bump is supposed to force-migrate bindings.
+
+| consumer | reads VWAP? |
+|---|---|
+| `api/services/indicator_compute.py` | **No VWAP function at all.** sma · ema · rsi · macd · bb · williams_r · cci · mfi · stoch. There is no `compute_vwap`/`compute_vwap_raw` pair to keep in agreement, so the backend never had this bug to fix. |
+| `api/services/indicator_alert_evaluator.py` | `INDICATOR_FUNCS` has 8 keys — `rsi`, `macd`, `stoch`, `williams_r`, `cci`, `mfi`, `price_vs_ma`, `bb`. **No `vwap`.** `_evaluate_one` returns `(None, False)` for an unknown indicator, so even a hand-written `indicator='vwap'` row could never fire. |
+| `IndicatorAlertPopover.jsx` | offers those same 8. A user cannot create a VWAP alert. |
+| `api/services/strategy_templates.py` | 4 strategies — `rsi_mean_reversion`, `macd_crossover`, `bb_breakout`, `ma_crossover`. **No VWAP rule.** It imports `compute_rsi`/`compute_macd`/`compute_bb` only. |
+| `pattern_engine/detectors/uct/avwap_reclaim.py` | its own `_avwap`, anchored on a swing pivot, not a session. Does not import `indicator_compute` and shares no code with `computeVWAP`. Unaffected. |
+
+**Zero stored alerts change value. Zero backtest signals move. Zero rows migrate.**
+The `compute.rev` bump is still correct and still required — it is what makes a
+future binding, cache or pin able to tell the two series apart — but its §5
+consequences ("resets evaluator `last_value`, suppresses the first
+post-migration cycle") have **no population to act on today**. The only user
+visibly affected is the one looking at an intraday chart.
+
+### 9g. Carried forward
+
+1. **ET midnight, not an explicit 04:00 anchor.** They are identical for every
+   bar this feed serves (US equity extended hours open at 04:00 ET, so nothing
+   falls in 00:00–04:00), and ET-day is what the fixture oracle is built on. A
+   true **overnight (20:00–04:00 ET) tape** would be split at ET midnight by
+   this implementation. Named here rather than fixed, because a second,
+   unmeasured behaviour change inside the commit whose whole purpose is
+   attributability is exactly what §6 forbids.
+2. **⚠️ A NINTH WAY THE MEASUREMENT CAN LIE, hit live during this run.**
+   `tools/spa_server.py` on an already-bound port **fails silently** — the
+   process exits 0, its log is empty, and the port keeps answering 200 from a
+   STALE server left by an earlier session. The first attempt at §9a was made
+   against builds `25b09976a062` and `9c7b7e62e647` (Task 6's and Task 8's, still
+   listening on 5191/5192) and reported a clean, plausible **0 px, 20/20 — exit
+   0**. What caught it was comparing the harness's printed build identity against
+   the `index-*.js` filename in the dist that had just been built. **Read the
+   build-identity line every time; a fresh `npm run build` is no evidence the
+   server is serving it.**
+3. **`tools/chart_parity_cases.json`'s `vwap_only` `why` carried a stale 6,687.**
+   Written into the Flip-A commit `76a67b6e` before §4 measured the real cost,
+   and never corrected when `45d719ba` landed 2,590. Fixed in this commit.
+4. **⚠️ THE RECORD-CONTENT GATE WAS DECORATIVE, AND THREE MUTATIONS PROVED IT.**
+   `vwapUtcBucketing.test.js`'s *"the record states the pixel cost"* was
+   `expect(wholeFile).toMatch(/\*\*2,590\*\*/)`. Corrupting §9a's applied number
+   left it **green on §4's copy** — the estimate standing in for the
+   measurement. Narrowing the assertion to a slice of §9 was **still not
+   enough**: `**2,590**`, `89f73b36ae29` and `35ec82560ea5` each appear TWICE
+   inside §9 (the measurement table, and the prose discussing it), so
+   `toContain` on the slice passed with the table row rewritten. All three
+   mutations only died once the assertions matched the **table ROW** — label,
+   separator and value together. **Prose about a number is not the number**, and
+   a second copy anywhere in scope makes a containment check unfalsifiable.

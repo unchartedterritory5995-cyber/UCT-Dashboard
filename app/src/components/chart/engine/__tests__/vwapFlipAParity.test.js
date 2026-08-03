@@ -13,21 +13,25 @@ import fixture from '../../../../pages/parityBars/intraday5m.json'
 // Driven by the INTRADAY fixture, not `makeBars`: VWAP is timeframe-gated and a
 // daily-bar test of it would assert on an indicator that does not exist.
 //
-// ⚠️ THE UTC-DAY BUCKETING IS PRESERVED ON PURPOSE. `computeVWAP` restarts its
-// accumulator on a UTC calendar day (`indicators.js:162-183`), which is wrong for
-// extended hours — 20:00 ET is 00:00 UTC the next day, and on an EST session the
-// same boundary lands at 19:00, THIRTEEN BARS inside the post-market. Worse, once
-// Monday evening has opened UTC day 11-04, Tuesday's 04:00 ET open is not a
-// UTC-day boundary at all and never resets: the shipped chart opens that session
-// reading 93.9178 where a session-anchored VWAP reads 108.3633, **$14.45 wrong**,
-// and stays >$0.50 wrong for 120 of that session's 193 bars.
+// ⚠️ THE BUCKETING MOVED, IN ITS OWN COMMIT, AFTER THIS FILE WAS WRITTEN.
+// `computeVWAP` used to restart its accumulator on a UTC calendar day, which is
+// wrong for extended hours — 20:00 ET is 00:00 UTC the next day, and on an EST
+// session the same boundary lands at 19:00, THIRTEEN BARS inside the post-market.
+// Worse, once Monday evening had opened UTC day 11-04, Tuesday's 04:00 ET open
+// was not a UTC-day boundary at all and never reset: the chart opened that
+// session reading 93.9178 where a session-anchored VWAP reads 108.3633,
+// **$14.45 wrong**, and stayed >$0.50 wrong for 120 of that session's 193 bars.
 //
-// Flip A draws what the shipped chart draws. Correcting it is a `compute.rev`
-// bump and its own flagged decision — id `VWAP_SESSION_ANCHOR`,
-// `docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`, spec §11. A test here
-// that asserted ET bucketing would be asserting a change this task must not make;
-// `vwapUtcBucketing.test.js` is where that decision is PINNED so it cannot be
-// taken silently.
+// `VWAP_SESSION_ANCHOR` (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`,
+// spec §11) was ACCEPTED 2026-08-03 at a measured 2,590 changed pixels, in a
+// commit of its own carrying a `compute.rev` bump — never inside this migration,
+// because both lanes read `computeVWAP` and a correction moves A and B together,
+// so `engine_vwap_vs_legacy` would still have reported 0 while the picture
+// changed underneath it.
+//
+// Flip A still draws what the shipped chart draws. That is why the value case
+// below MOVED rather than being deleted: it is the assertion that would catch a
+// revert as loudly as it caught the change.
 
 const BARS = fixture.bars
 
@@ -157,7 +161,7 @@ describe('VWAP Flip A — one line on the candles\' scale, intraday only', () =>
     expect(opts(sync(bare, { tf: '5', boldCandles: true }).F).lineWidth).toBe(0.5)
   })
 
-  it('the numbers are computeVWAP\'s, UTC-day resets and all', () => {
+  it('the numbers are computeVWAP\'s, session resets and all', () => {
     const { F } = sync()
     const raw = computeVWAP(BARS)
     const points = F.callsOf('setData')[0].args[0]
@@ -165,18 +169,19 @@ describe('VWAP Flip A — one line on the candles\' scale, intraday only', () =>
     for (let i = 0; i < BARS.length; i++) expect(points[i].value, `bar ${i}`).toBe(raw[i].value)
   })
 
-  it('…and those numbers are STILL the UTC-day ones, at the bars that prove it', () => {
+  it('…and those numbers are the ET-SESSION ones, at the bars that prove it', () => {
     // The transcription check above compares the engine to `computeVWAP`, so it
-    // stays green if `computeVWAP` itself is corrected. These four are the actual
+    // stays green if `computeVWAP` itself changes. These four are the actual
     // shipped VALUES at the bars where the two bucketings disagree, measured by
-    // Task 7. Together with `vwapUtcBucketing.test.js` they make "the maths moved"
-    // a red test rather than a silent re-baseline.
+    // Task 7 and applied by `VWAP_SESSION_ANCHOR` on 2026-08-03. Together with
+    // `vwapUtcBucketing.test.js` they make "the maths moved" a red test rather
+    // than a silent re-baseline — in EITHER direction, including a revert.
     const points = sync().F.callsOf('setData')[0].args[0]
     const at = (i) => Number(points[i].value.toFixed(4))
-    expect(at(192), 'Fri 20:00 EDT = 11-01 00:00 UTC — mid-session reset').toBe(106.8533)
-    expect(at(373), 'Mon 19:00 EST = 11-04 00:00 UTC — the hour MOVED').toBe(93.7233)
-    expect(at(386), 'Tue 04:00 EST — the open that never resets').toBe(93.9178)
-    expect(at(566), 'Tue 19:00 EST').toBe(112.5800)
+    expect(at(192), 'Fri 20:00 EDT — no longer wiped at 11-01 00:00 UTC').toBe(101.9471)
+    expect(at(373), 'Mon 19:00 EST — the hour that used to MOVE').toBe(96.4361)
+    expect(at(386), 'Tue 04:00 EST — the open, $14.45 off under UTC-day bucketing').toBe(108.3633)
+    expect(at(566), 'Tue 19:00 EST').toBe(109.4466)
   })
 
   it('draws no guides and produces no legend chip', () => {

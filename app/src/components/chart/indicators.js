@@ -159,20 +159,83 @@ export function computeBB(bars, period = 20, stdDev = 2) {
   return { upper, middle, lower }
 }
 
+/** The ET calendar day an instant falls in, as `YYYY-MM-DD`.
+ *
+ *  ⚠️ THIS IS DELIBERATELY NOT `StockChart.jsx`'s `_ET_OFFSET`. That constant is
+ *  resolved ONCE at module load (−14400 or −18000 seconds), so a series spanning
+ *  a DST change would be an hour off across one half of itself depending on when
+ *  the page happened to load — correct for half the year and silently wrong for
+ *  the other half, which is the same class of defect `VWAP_SESSION_ANCHOR` is
+ *  about. `Intl.DateTimeFormat` resolves the zone PER INSTANT, from the IANA
+ *  database, which is the same authority `tests/fixtures/indicators/_generate.py`
+ *  used (`zoneinfo.ZoneInfo("America/New_York")`) to derive the fixture column
+ *  this function is asserted against.
+ *
+ *  `formatToParts` rather than a locale whose pattern happens to be ISO: the key
+ *  is built from the named parts, so it cannot drift with the host's CLDR data.
+ */
+const ET_DAY_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+})
+
+function etDayKey(msInstant) {
+  const parts = ET_DAY_PARTS.formatToParts(new Date(msInstant))
+  let y = '', m = '', d = ''
+  for (const p of parts) {
+    if (p.type === 'year') y = p.value
+    else if (p.type === 'month') m = p.value
+    else if (p.type === 'day') d = p.value
+  }
+  return `${y}-${m}-${d}`
+}
+
 export function computeVWAP(bars) {
   if (!bars?.length) return []
   const result = blank(bars)
   let cumPV = 0, cumVol = 0, currentDay = null
+  // One-entry memo on the UTC HOUR. This is exact, not an approximation: every
+  // `America/New_York` offset is a whole number of hours and every transition
+  // lands on a whole UTC hour, so the ET date cannot change inside one UTC hour.
+  // Bars arrive in ascending time, so consecutive bars hit it — a 5,000-bar
+  // 5-minute series costs ~420 formatter calls instead of 5,000. It is a local,
+  // not a module cache, so it cannot grow across calls.
+  let memoHour = null, memoKey = null
   for (let i = 0; i < bars.length; i++) {
     const bar = bars[i]
-    // Session boundary = UTC calendar day. Correct for regular hours (09:30 ET
-    // is always the same UTC day) and WRONG for extended hours: 20:00 ET is
-    // 00:00 UTC the next day, so a post-market bar restarts the accumulator
-    // mid-session — and the ET hour that trips it moves by one across a DST
-    // change. Pinned by tests/fixtures/indicators/vwap_*.json; the fix (ET
-    // session bucketing) lands with B3's session-aware adapter.
-    const d = new Date(bar.t * 1000)
-    const dayKey = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`
+    // Session boundary = ET CALENDAR DAY (`VWAP_SESSION_ANCHOR`, accepted
+    // 2026-08-03 — `docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`).
+    //
+    // This used to be the UTC calendar day, which agrees with the session only
+    // for regular hours (09:30–16:00 ET is always inside one UTC day) and is
+    // severely wrong on extended hours: 20:00 ET is 00:00 UTC the next day, so
+    // the accumulator was wiped on the LAST bar of a session that had not ended
+    // — and because that had already opened the next UTC day, the following
+    // 04:00 ET open was not a UTC boundary at all and a WHOLE session
+    // accumulated on top of the previous evening's post-market volume, opening
+    // $14.45 away from the session mean. The hour that tripped it moved with the
+    // UTC offset (20:00 ET on EDT, 19:00 ET on EST), not with the trading day.
+    //
+    // ET midnight IS the extended-hours session boundary for US equity bars,
+    // whose first print is 04:00 ET — and it is deliberately NOT 09:30, which
+    // would reset a pre-market session that is already running. It would split a
+    // true overnight (20:00–04:00 ET) tape, which this feed does not serve;
+    // §7 of the record and the report carry that as a named limit rather than an
+    // unmeasured second behaviour change inside an attributable commit.
+    const ms = bar.t * 1000
+    const hour = Math.floor(bar.t / 3600)
+    let dayKey
+    if (hour === memoHour) {
+      dayKey = memoKey
+    } else if (Number.isFinite(ms)) {
+      dayKey = etDayKey(ms)
+      memoHour = hour; memoKey = dayKey
+    } else {
+      // A non-numeric `t` (a 'YYYY-MM-DD' daily bar) used to yield the stable
+      // string 'NaN-NaN-NaN' and therefore never reset. `formatToParts` would
+      // THROW on it and blank the chart, so the sentinel is kept explicitly.
+      // VWAP_TFS gates this function to intraday, where `t` is unix seconds.
+      dayKey = 'invalid'
+    }
     if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey }
     const tp = (bar.h + bar.l + bar.c) / 3
     cumPV += tp * bar.v

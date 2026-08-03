@@ -110,33 +110,45 @@ column fails generation instead of being written as invalid JSON.
 ## The two VWAP cases have no `expected`
 
 `vwap_extended_hours_utc_midnight` and `vwap_dst_transition` carry `"expected":
-null` and a `"session"` block instead. They exist to pin a **bug class**, not a
-value: `computeVWAP` buckets sessions by **UTC calendar day**, and a US
-extended-hours session runs past UTC midnight, so the 8 PM ET bar starts a "new
-day" and the cumulative VWAP resets in the middle of a live session. Regular
+null` and a `"session"` block instead. They were written to pin a **bug class**,
+not a value: `computeVWAP` used to bucket sessions by **UTC calendar day**, and a
+US extended-hours session runs past UTC midnight, so the 8 PM ET bar started a
+"new day" and the cumulative VWAP reset in the middle of a live session. Regular
 trading hours never hit it (09:30–16:00 ET is always one UTC day), which is
 exactly why unit tests never caught it.
 
 ```jsonc
 "session": {
-  "etDate":  ["2026-06-10", ...],   // ET calendar day per bar (the correct bucket)
+  "etDate":  ["2026-06-10", ...],   // ET calendar day per bar — the bucket in use
   "etHour":  [4, 5, ...],           // ET wall-clock hour per bar
-  "utcDate": ["2026-06-10", ...],   // UTC calendar day per bar (what the code uses)
-  "utcResetIndices": [0, 16],       // where TODAY's code restarts the accumulator
-  "etResetIndices":  [0],           // where a correct ET-session bucketing would
-  "etSessionVwap":   [ ... ]        // the series ET bucketing would have produced
+  "utcDate": ["2026-06-10", ...],   // UTC calendar day per bar — the retired bucket
+  "utcResetIndices": [0, 16],       // where the RETIRED code restarted the accumulator
+  "etResetIndices":  [0],           // where the SHIPPED code restarts it
+  "etSessionVwap":   [ ... ]        // the series the SHIPPED code produces, exactly
 }
 ```
 
-The JS test asserts **today's** behaviour (so it is green now) and, alongside it,
-that today's answer *materially differs* from `etSessionVwap` — so the case can
-never quietly become vacuous. Fixing the bucketing (B3, with the session-aware
-adapter) will turn the first assertion red on purpose: that red is the fix's
-acceptance test, and the new expectation is already sitting in the fixture.
+### ⚠️ THE BUG WAS FIXED, AND THE FIXTURES DID NOT CHANGE
+
+`VWAP_SESSION_ANCHOR` was **accepted 2026-08-03** at a measured 2,590 changed
+pixels (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`), and `computeVWAP`
+now buckets by the ET calendar day. **These fixtures were not reseeded — not one
+byte.** They already carried both series side by side, so the JS lane's
+assertions were re-pointed from `utcResetIndices` onto `etResetIndices` and
+`etSessionVwap` and nothing was re-baselined.
+
+That is the property to preserve. **`etSessionVwap` went from "the reference" to
+"the expectation": the shipped `computeVWAP` matches it with a worst absolute
+difference of ZERO.** `utcResetIndices` is now the historical record of the
+defect, and every JS case keeps a local re-implementation of the retired
+bucketing as its non-vacuity control — so "the shipped function is ET-anchored"
+is still measured against a series that can disagree with it.
 
 `Python has no VWAP`, so the BEHAVIOURAL half of these two cases is asserted by
 the JS lane only; the Python lane guards their shape (that UTC bucketing really
-does split the tape more often than ET bucketing would).
+does split the tape more often than ET bucketing would). That shape claim is
+about the FIXTURE, not the code, so it was unaffected by the fix — and it is the
+reason a reseed here would have had to redden both lanes at rel-tol 1e-9.
 
 ---
 
@@ -173,7 +185,10 @@ volume-weighted off the typical price. A `kind: "vwap"` case could not have an
 (09:30–16:00 ET) are always inside one UTC day, so on an RTH fixture UTC-day and
 ET-session bucketing are *identical* and a VWAP parity number would be the same
 whether the bug survived a migration or was silently corrected. On this window
-they differ in both directions:
+they differ in both directions — which is what made the 2,590-pixel correction
+measurable, and what still keeps every re-pointed assertion non-vacuous. The two
+bullets below describe the RETIRED bucketing; they are why this window was
+chosen, and they remain the reason it must not be regenerated:
 
 * EDT is UTC-4 → the day flips at **20:00 ET**; EST is UTC-5 → it flips at
   **19:00 ET**. Three mid-session splits, each of which collapses the running

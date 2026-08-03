@@ -158,19 +158,49 @@ describe('golden fixtures — shared with the Python lane', () => {
 })
 
 // ─── the two session traps ───────────────────────────────────────────────────
-// computeVWAP buckets sessions by UTC calendar day. Regular trading hours never
-// notice (09:30–16:00 ET is always one UTC day), which is exactly why no unit
-// test ever caught it. These two cases pin TODAY'S behaviour — they are green
-// now, on purpose — alongside proof that today's answer is materially wrong,
-// so the case can never quietly become vacuous. Fixing the bucketing (B3's
-// session-aware adapter) turns the first assertion in each red: that red is the
-// fix's acceptance test, and the correct series is already in the fixture as
-// `session.etSessionVwap`.
+// `computeVWAP` buckets sessions by the ET CALENDAR DAY — `VWAP_SESSION_ANCHOR`,
+// accepted 2026-08-03 at a measured 2,590 changed pixels
+// (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`).
+//
+// It used to bucket by the UTC calendar day. Regular trading hours never notice
+// (09:30–16:00 ET is always inside one UTC day), which is exactly why no unit
+// test caught it for the life of the chart. These three cases were written to
+// pin that bug class while it shipped; they now pin the CORRECTION, against the
+// same `session` block, which already carried the correct series as
+// `session.etSessionVwap` and the old boundaries as `session.utcResetIndices`.
+//
+// ⚠️ THE FIXTURES ARE UNCHANGED — not one byte. Every column these assertions
+// read was already in them, which is why the correction needed no reseed and
+// therefore could not silently re-baseline the Python lane (`relTol` 1e-9,
+// `tests/test_indicator_golden.py`) underneath itself.
+//
+// Each case keeps a NON-VACUITY half: `vwapByUtcDay` recomputes the OLD series
+// here so "the shipped function is ET-anchored" is asserted against something
+// that can disagree with it. Without that, a fixture whose two bucketings
+// happened to agree would make all three green and guarding nothing.
 
 const typicalPrice = (b) => (b.h + b.l + b.c) / 3
 
-describe('computeVWAP session boundaries (pinned bug class)', () => {
-  it('vwap_extended_hours_utc_midnight: the 20:00 ET bar restarts the session', () => {
+/** The bucketing that shipped until 2026-08-03, verbatim, as the control the
+ *  assertions below are measured against. It is deliberately a re-implementation
+ *  and not an import: the point is to have a series `computeVWAP` no longer
+ *  produces. */
+const vwapByUtcDay = (bars) => {
+  const out = []
+  let cumPV = 0, cumVol = 0, day = null
+  for (const b of bars) {
+    const d = new Date(b.t * 1000)
+    const k = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`
+    if (k !== day) { cumPV = 0; cumVol = 0; day = k }
+    cumPV += typicalPrice(b) * b.v
+    cumVol += b.v
+    out.push(cumPV / cumVol)
+  }
+  return out
+}
+
+describe('computeVWAP session boundaries (VWAP_SESSION_ANCHOR, accepted)', () => {
+  it('vwap_extended_hours_utc_midnight: the 20:00 ET bar no longer restarts the session', () => {
     const c = loadCase('vwap_extended_hours_utc_midnight')
     const s = c.session
     const got = col(computeVWAP(c.bars))
@@ -178,25 +208,27 @@ describe('computeVWAP session boundaries (pinned bug class)', () => {
 
     // One continuous ET session…
     expect(new Set(s.etDate).size).toBe(1)
-    // …split into two by UTC-day bucketing, at the 20:00 ET bar.
+    // …which UTC-day bucketing used to split in two, at the 20:00 ET bar.
     expect(s.utcResetIndices.length).toBe(2)
     const splitAt = s.utcResetIndices[1]
     expect(s.etHour[splitAt]).toBe(20)
 
-    // At a reset the cumulative VWAP collapses to that single bar's typical
-    // price — the tell that the accumulator was wiped mid-session.
-    s.utcResetIndices.forEach(i => {
-      expect(got[i]).toBeCloseTo(typicalPrice(c.bars[i]), 9)
-    })
-    // Every other bar keeps accumulating (strictly more than one bar's worth).
-    expect(got[splitAt - 1]).not.toBeCloseTo(typicalPrice(c.bars[splitAt - 1]), 6)
+    // ONE reset, on bar 0, because there is one session. The accumulator
+    // collapses to a single bar's typical price only where a session opens.
+    expect(s.etResetIndices).toEqual([0])
+    expect(got[0]).toBeCloseTo(typicalPrice(c.bars[0]), 9)
+    // The bar that used to be wiped now carries the whole session's volume.
+    expect(got[splitAt]).not.toBeCloseTo(typicalPrice(c.bars[splitAt]), 6)
 
-    // And the trap is real, not cosmetic: correct ET-session bucketing gives a
-    // materially different number on that bar.
-    expect(Math.abs(got[splitAt] - s.etSessionVwap[splitAt])).toBeGreaterThan(1)
+    // It IS the fixture's ET-anchored series, to the fixture's own tolerance.
+    alignedClose(got, s.etSessionVwap, c.relTol, 'vwap_extended_hours.etSessionVwap')
+
+    // Non-vacuous: the retired bucketing gives a materially different number on
+    // that bar, so this case can still tell the two apart.
+    expect(Math.abs(vwapByUtcDay(c.bars)[splitAt] - got[splitAt])).toBeGreaterThan(1)
   })
 
-  it('vwap_dst_transition: the split moves an hour when the UTC offset does', () => {
+  it('vwap_dst_transition: the split that MOVED with the UTC offset is gone', () => {
     const c = loadCase('vwap_dst_transition')
     const s = c.session
     const got = col(computeVWAP(c.bars))
@@ -208,10 +240,11 @@ describe('computeVWAP session boundaries (pinned bug class)', () => {
     const hoursOf = (d) => s.etHour.filter((_, i) => s.etDate[i] === d)
     expect(hoursOf(etDates[0])).toEqual(hoursOf(etDates[1]))
 
-    // The ET hour at which the UTC day flips, per session. EDT (UTC-4) trips at
-    // 20:00 ET; EST (UTC-5) trips an hour earlier, at 19:00 ET. Same session,
-    // same hours, different split — the boundary tracks the timezone offset,
-    // not the trading day.
+    // The ET hour at which the UTC day flips, per session. EDT (UTC-4) tripped
+    // at 20:00 ET; EST (UTC-5) an hour earlier, at 19:00 ET. Same session, same
+    // hours, different split — the old boundary tracked the timezone offset, not
+    // the trading day. THAT is the shape of the defect, and it is still what the
+    // fixture records.
     const splitHourIn = (d) => {
       const idx = s.utcResetIndices.find(i => s.etDate[i] === d && s.etHour[i] !== hoursOf(d)[0])
       return idx === undefined ? null : s.etHour[idx]
@@ -219,53 +252,70 @@ describe('computeVWAP session boundaries (pinned bug class)', () => {
     expect(splitHourIn(etDates[0])).toBe(20)
     expect(splitHourIn(etDates[1])).toBe(19)
 
-    // Both mid-session splits collapse the VWAP to a single bar…
-    s.utcResetIndices.forEach(i => {
-      expect(got[i]).toBeCloseTo(typicalPrice(c.bars[i]), 9)
-    })
-    // …and ET bucketing (2 sessions) would have split it half as often.
+    // Two sessions ⇒ TWO resets, and they are the session opens — not four.
     expect(s.utcResetIndices.length).toBe(4)
     expect(s.etResetIndices.length).toBe(2)
+    s.etResetIndices.forEach(i => {
+      expect(got[i]).toBeCloseTo(typicalPrice(c.bars[i]), 9)
+    })
+    // The two MID-SESSION wipes no longer happen…
+    const midSession = s.utcResetIndices.filter(i => !s.etResetIndices.includes(i))
+    expect(midSession.length, 'the DST half of the case has gone vacuous').toBe(2)
+    midSession.forEach(i => {
+      expect(got[i]).not.toBeCloseTo(typicalPrice(c.bars[i]), 6)
+    })
 
-    // Non-vacuous: the last bar of each session is materially wrong today.
-    s.utcResetIndices.slice(1).forEach(i => {
-      if (s.etResetIndices.includes(i)) return
-      expect(Math.abs(got[i] - s.etSessionVwap[i])).toBeGreaterThan(1)
+    alignedClose(got, s.etSessionVwap, c.relTol, 'vwap_dst_transition.etSessionVwap')
+
+    // Non-vacuous, on BOTH sides of the DST change: the retired bucketing still
+    // disagrees materially at each of the two hours it used to trip.
+    const old = vwapByUtcDay(c.bars)
+    midSession.forEach(i => {
+      expect(Math.abs(old[i] - got[i]), `bar ${i} — the two bucketings agree here`).toBeGreaterThan(1)
     })
   })
 
-  it('intraday5m_sessions: a whole ET session is CARRIED OVER, not just split', () => {
+  it('intraday5m_sessions: the CARRIED-OVER session is anchored at its own open', () => {
     // The trap the two hourly cases above are too short to contain, and the
     // reason the pixel gate needs 3 sessions rather than 2. On EST the
-    // 19:00-20:00 ET post-market bars have already opened the NEXT UTC day, so
-    // the following session's 04:00 ET open is not a UTC-day boundary at all:
-    // it never resets, and its entire session accumulates on top of the
-    // previous evening's post-market volume. `computeVWAP` — the shipped
-    // function, not a re-implementation — is what is asserted here.
+    // 19:00-20:00 ET post-market bars had already opened the NEXT UTC day, so
+    // the following session's 04:00 ET open was not a UTC-day boundary at all:
+    // it never reset, and its entire session accumulated on top of the previous
+    // evening's post-market volume. `computeVWAP` — the shipped function, not a
+    // re-implementation — is what is asserted here.
     const c = loadCase('intraday5m_sessions')
     const bars = caseBars(c)
     const s = c.session
     const got = col(computeVWAP(bars))
     expect(got.length).toBe(bars.length)
 
-    // Today's code resets at exactly the UTC-day boundaries the fixture names.
+    // It resets at exactly the ET session opens the fixture names, and at
+    // nothing else — not at the UTC-day boundaries it used to.
     const resets = got
-      .map((_, i) => (i === 0 || s.utcDate[i] !== s.utcDate[i - 1] ? i : -1))
+      .map((_, i) => (i === 0 || s.etDate[i] !== s.etDate[i - 1] ? i : -1))
       .filter(i => i >= 0)
-    expect(resets).toEqual(s.utcResetIndices)
+    expect(resets).toEqual(s.etResetIndices)
+    resets.forEach(i => {
+      expect(got[i]).toBeCloseTo(typicalPrice(bars[i]), 9)
+    })
 
-    // An ET session that opens INSIDE a UTC day is the carry-over.
+    // The session that opens INSIDE a UTC day is the carry-over, and it is the
+    // one the whole decision was priced on.
     const carried = s.etResetIndices.filter(i => !s.utcResetIndices.includes(i))
     expect(carried.length, 'no session is carried over — the case pins nothing new').toBeGreaterThan(0)
     const open = carried[0]
     expect(s.etHour[open]).toBe(4)
-    // It does NOT collapse to that bar's typical price — the tell that no reset happened.
-    const tp = (bars[open].h + bars[open].l + bars[open].c) / 3
-    expect(Math.abs(got[open] - tp)).toBeGreaterThan(1)
-    // …and it is materially wrong, in dollars, for most of the session.
-    expect(Math.abs(got[open] - s.etSessionVwap[open])).toBeGreaterThan(5)
+    // It now DOES collapse to that bar's typical price — the tell that it reset.
+    expect(got[open]).toBeCloseTo(typicalPrice(bars[open]), 9)
+
+    alignedClose(got, s.etSessionVwap, c.relTol, 'intraday5m_sessions.etSessionVwap')
+
+    // Non-vacuous, and this is the $14.45: the retired bucketing opened that
+    // session more than $5 away and stayed >$0.50 away for most of it.
+    const old = vwapByUtcDay(bars)
+    expect(Math.abs(old[open] - got[open])).toBeGreaterThan(5)
     const day = s.etDate[open]
-    const wrong = got.filter((v, i) => s.etDate[i] === day && Math.abs(v - s.etSessionVwap[i]) > 0.5)
-    expect(wrong.length, 'the carried-over session is only wrong for a moment').toBeGreaterThan(100)
+    const wrong = got.filter((v, i) => s.etDate[i] === day && Math.abs(v - old[i]) > 0.5)
+    expect(wrong.length, 'the carried-over session was only wrong for a moment').toBeGreaterThan(100)
   })
 })
