@@ -11,6 +11,7 @@ import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchli
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
+import { NEWS_WIDGET_DEFAULTS, mergeNewsWidgetSettings } from './widgets/newsWidgetSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
@@ -107,13 +108,14 @@ const WIDGET_DEFAULTS = {
   fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
   breadth:   { w: 8,  h: 10, minW: 4, minH: 4 },
   aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
+  news:      { w: 6,  h: 10, minW: 2, minH: 4 },
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch']
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news']
 const WIDGET_LABELS = {
   chart: 'Chart',
   watchlist: 'Watchlist',
@@ -122,6 +124,7 @@ const WIDGET_LABELS = {
   fundamentals: 'Fundamentals',
   breadth: 'Breadth',
   aisearch: 'AI Search',
+  news: 'News & Catalysts',
 }
 
 function parseLayout(raw) {
@@ -390,6 +393,8 @@ export default function ChartsWorkspace() {
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
     const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
+    const nw = mergeNewsWidgetSettings(parsePref(prefs.news_widget_settings, null))
+    const news = nw.bgMode === 'gradient' ? (nw.bgGradient?.top || nw.bg) : nw.bg
     // Theme Tracker / Fundamentals / Breadth publish ONLY when the user actually
     // customized their canvas (their settings model is emit-when-off-default): the
     // drag bar + panel then follow the chosen canvas, while an untouched widget
@@ -397,6 +402,7 @@ export default function ChartsWorkspace() {
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
     const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
+    const nwCustom = nw.bgMode === 'gradient' || String(nw.bg).toLowerCase() !== NEWS_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
@@ -416,9 +422,10 @@ export default function ChartsWorkspace() {
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
+      ...(nwCustom ? { news: entry(news) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
+  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.news_widget_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,

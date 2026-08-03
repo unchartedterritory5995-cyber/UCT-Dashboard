@@ -90,6 +90,7 @@ from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
+from api.routers import news_catalysts as news_catalysts_router
 from api.routers import charts_layouts as charts_layouts_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
@@ -1226,6 +1227,14 @@ async def lifespan(app: FastAPI):
                              name="modelbook-stats-warm").start()
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
+
+    # News & Catalysts widget cache DB (independent of modelbook init above).
+    try:
+        from api.services.news_catalysts import store as _nc_store
+        _nc_store._init_db()
+        print("[startup] news_catalysts.db initialized")
+    except Exception as e:
+        print(f"[startup] news_catalysts init failed (non-fatal): {e}")
 
     # Initialize charts_layouts.db schema unconditionally (same pattern). The
     # Charts workspace fires /api/charts/layouts on load; without a schema the
@@ -4097,6 +4106,7 @@ app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
+app.include_router(news_catalysts_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops

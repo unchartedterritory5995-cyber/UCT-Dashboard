@@ -1,0 +1,152 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--news-bg, var(--widget-canvas, #0e0f0d));
+  color: var(--news-text, var(--text, #e0dac8));
+  font-family: var(--font-sans);
+}
+
+/* Header bar: symbol + up/down filter pills + gear */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--news-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.sym {
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.4px;
+  color: var(--news-chrome-strong, var(--news-text, var(--text-bright, #e0dac8)));
+}
+.filters { display: inline-flex; gap: 3px; }
+.pill {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill:hover { background: var(--news-row-hover, rgba(255, 255, 255, 0.05)); }
+.pillOn {
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+  font-weight: 600;
+}
+.gearBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+.gearBtn:hover, .gearBtnActive { color: var(--news-accent, var(--ut-gold, #c9a84c)); background: var(--news-row-hover, rgba(255, 255, 255, 0.06)); }
+
+/* Feed list */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.row {
+  display: flex;
+  gap: 9px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--news-row-divider, rgba(255, 255, 255, 0.05));
+}
+.icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  display: inline-flex;
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+}
+.icon.up { color: var(--ut-green-bright, #1ae51a); }
+.icon.down { color: #ff5b5b; }
+.icon.neutral { color: var(--news-accent, var(--ut-gold, #c9a84c)); }
+
+.main { min-width: 0; flex: 1; }
+.title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--news-text, var(--text-bright, #e0dac8));
+  text-decoration: none;
+}
+a.title:hover { text-decoration: underline; }
+.desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--news-chrome, var(--text-muted, #9b9482));
+  margin-top: 2px;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.date { color: var(--news-chrome, var(--text-muted, #8b8674)); }
+.move { font-weight: 700; }
+.move.up { color: var(--ut-green-bright, #1ae51a); }
+.move.down { color: #ff5b5b; }
+.move.neutral { color: var(--news-chrome, var(--text-muted, #8b8674)); }
+.source {
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  opacity: 0.85;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* States */
+.empty, .generating {
+  padding: 16px 12px;
+  font-size: 11.5px;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  line-height: 1.5;
+}
+.generating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+  border-bottom: 1px solid var(--news-row-divider, rgba(255, 255, 255, 0.05));
+}
+.spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: nwspin 0.7s linear infinite;
+}
+@keyframes nwspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* ── Responsive: collapse at narrow widget widths (root = .widgetBody container) ── */
+@container (max-width: 300px) {
+  .desc { display: none; }
+  .filters .pill { padding: 2px 5px; font-size: 10px; }
+  .source { display: none; }
+}
+@container (max-width: 220px) {
+  .filters { display: none; }
+  .title { font-size: 11.5px; }
+}
