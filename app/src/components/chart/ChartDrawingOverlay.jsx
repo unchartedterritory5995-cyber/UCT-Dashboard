@@ -654,12 +654,9 @@ function renderCrosshair(ctx, x, y, price, w, h) {
   ctx.moveTo(0, y); ctx.lineTo(w, y)
   ctx.stroke()
   ctx.setLineDash([])
-  // Price label
-  if (price != null) {
-    ctx.font = '10px "Instrument Sans", sans-serif'
-    ctx.fillStyle = '#c9a84c'
-    ctx.fillText(`$${price.toFixed(2)}`, x + 8, y - 6)
-  }
+  // No floating "$price" label at the cursor while a tool is armed — it read as
+  // clutter next to the crosshair; the price scale's own crosshair label already
+  // shows it. (`price` kept in the signature for the existing call site.)
   ctx.restore()
 }
 
@@ -1292,7 +1289,10 @@ export default function ChartDrawingOverlay({
             const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
             if (bx != null) hrayRight = Math.max(pts[0].x ?? 0, Math.min(w, bx))
           }
-          renderHRay(ctx, pts, hrayRight, !hidePriceLabels)
+          // No price label on a horizontal ray — the bare line is what the user
+          // wants; the price is already read from the axis/crosshair. (The
+          // full-width horizontal line keeps its right-edge label.)
+          renderHRay(ctx, pts, hrayRight, false)
           break
         }
         case 'vertical': renderVertical(ctx, pts, h); break
@@ -2318,22 +2318,28 @@ const numToDrawStyle = (n) => (n === 0 ? 'solid' : 'dashed')
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
-  const base = danger ? '#ef5350' : 'var(--menu-text, #ededed)'
-  const hover = danger ? 'rgba(239,83,80,0.14)' : 'var(--menu-hover, rgba(255,255,255,0.06))'
-  const sz = big ? 16 : 13
+  // Match the chart right-click menu (ChartsWorkspace .chartCtx*): GOLD icons,
+  // white label text, gold-tinted hover that also golds the label. Destructive
+  // rows stay red (icon + text) as the one deliberate exception.
+  const GOLD = 'var(--menu-accent, var(--ut-gold, #c9a84c))'
+  const textBase = danger ? 'var(--color-danger, #ef5350)' : 'var(--menu-text, #ededed)'
+  const iconColor = danger ? 'var(--color-danger, #ef5350)' : GOLD
+  const hoverBg = danger ? 'rgba(239,83,80,0.14)' : 'var(--menu-accent-bg, rgba(201,168,76,0.12))'
+  const sz = big ? 18 : 14
   return (
     <button
       onClick={onClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: big ? 12 : 8, width: '100%',
-        padding: big ? '12px 18px' : '6px 12px', minHeight: big ? 44 : undefined,
-        background: 'none', border: 'none', color: base,
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: big ? 15 : 'inherit', textAlign: 'left',
+        display: 'flex', alignItems: 'center', gap: big ? 12 : 10, width: '100%',
+        padding: big ? '12px 18px' : '9px 11px', minHeight: big ? 44 : undefined, borderRadius: big ? 0 : 6,
+        background: 'none', border: 'none', color: textBase,
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: big ? 15 : 13, textAlign: 'left',
+        transition: 'background 0.1s ease, color 0.1s ease',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = hover }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = hoverBg; if (!danger) e.currentTarget.style.color = GOLD }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = textBase }}
     >
-      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke={iconColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor, flexShrink: 0 }}>{icon}</svg>
       {label}
     </button>
   )
@@ -2379,7 +2385,7 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
-  const menuW = sheet ? window.innerWidth : 190
+  const menuW = sheet ? window.innerWidth : 210
   const panelLeft = sheet
     ? Math.max(8, (window.innerWidth - panelW) / 2)
     : (pos.left + menuW + panelW + 8 > window.innerWidth ? Math.max(8, pos.left - panelW - 6) : pos.left + menuW)
@@ -2388,8 +2394,10 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   // Touch bottom-sheet gets roomier rows + bigger tap targets than the anchored menu.
   const rowStyle = sheet
     ? { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', minHeight: 44 }
-    : { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }
-  const labelStyle = { fontSize: sheet ? 11 : 9, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--menu-text-dim, #8a8a8f)', minWidth: sheet ? 52 : 40 }
+    : { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px' }
+  // "Color" reads like the other item labels (white, 13px) instead of a tiny dim
+  // section caption, matching the chart right-click menu.
+  const labelStyle = { fontSize: sheet ? 15 : 13, color: 'var(--menu-text, #ededed)', fontWeight: 500 }
   const sw = sheet ? 26 : 15         // color swatch size
   const wBtn = sheet ? 34 : 24       // width-button size
 
@@ -2407,10 +2415,10 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
     : {
         position: 'fixed', left: pos.left, top: pos.top,
         visibility: pos.ready ? 'visible' : 'hidden', zIndex: 21,
-        minWidth: 182, background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', border: '1px solid var(--menu-border, #242426)',
-        borderRadius: 10, boxShadow: '0 12px 40px var(--menu-shadow, rgba(0,0,0,0.6))', padding: '5px 0',
+        minWidth: 210, background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', border: '1px solid var(--menu-border, #242426)',
+        borderRadius: 10, boxShadow: '0 12px 40px var(--menu-shadow, rgba(0,0,0,0.6))', padding: '5px',
         color: 'var(--menu-text, #ededed)',
-        fontFamily: "'Instrument Sans', sans-serif", fontSize: 11, userSelect: 'none',
+        fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
       }
 
   const inner = (
@@ -2429,11 +2437,11 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
       <button
         onClick={() => setColorOpen(o => !o)}
         style={{
-          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer',
+          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
           fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-          background: colorOpen ? 'var(--menu-accent-bg, rgba(240,178,58,0.12))' : 'none',
+          background: colorOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
         }}
-        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-hover, rgba(255,255,255,0.06))' }}
+        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
         onMouseLeave={(e) => { if (!colorOpen) e.currentTarget.style.background = 'none' }}
       >
         <span style={labelStyle}>Color</span>
