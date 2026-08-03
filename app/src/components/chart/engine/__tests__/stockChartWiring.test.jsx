@@ -478,16 +478,23 @@ describe('StockChart × indicator engine — the flag OFF is the whole safety st
     expect(H.syncCalls).toHaveLength(0)
   })
 
-  it('stays dark even with instances stored in the blob — for an UN-FLIPPED definition', () => {
+  it('stays dark even with instances stored in the blob — for a NON-MIGRATED definition', () => {
     // The realistic B3 crossover state: instances migrated into the settings, the
     // flag not yet flipped. Data present must not be enough to start rendering.
     //
-    // ⚠️ THE SUBJECT MOVED AT FLIP B, AND HAD TO. `rsi` no longer has a legacy
-    // block, so "the flag is off ⇒ draw nothing" would mean "the indicator is
-    // deleted". The claim survives for `macd`, which is still Flip A and whose
-    // legacy block is still there to draw it — see the flag-off Flip-B suite at
-    // the bottom of this file for the other half.
-    draw({ indicatorInstances: [MACD_INSTANCE] })
+    // ⚠️ THE SUBJECT HAS MOVED TWICE. It was `rsi` until Task 10 and `macd` until
+    // Task 11; both are flipped now, and for a flipped id "the flag is off ⇒ draw
+    // nothing" would mean "the indicator is deleted for every existing user".
+    // What still stays dark is an instance of a definition the engine is not the
+    // authority for at all — the filter that decides that is per definition, and
+    // this is its closed state. ATR is the subject; when ATR migrates, the
+    // migrated-set assertion below fails rather than this quietly rotting.
+    expect(ENGINE_MIGRATED_DEF_IDS.has('atr'),
+      'ATR migrated — this flag-off control needs a new subject').toBe(false)
+    draw({ indicatorInstances: [{
+      instanceId: 'legacy:atr', defId: 'atr', inputs: { period: 14, color: '#FFA726' },
+      placement: { target: 'pane' }, hidden: false,
+    }] })
     expect(H.binderCreated).toHaveLength(0)
     expect(H.syncCalls).toHaveLength(0)
   })
@@ -1066,21 +1073,43 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(await hover(view, [[atrLine.series, { value: 0.25 }]])).toContain('ATR(14) 0.2500')
   })
 
-  it('…and a MIGRATED definition with NO instance still gets its legacy chip', async () => {
-    // The other half, and the state a user is actually in before Task 9 gives
-    // them a way to create an instance: `macd` IS in ENGINE_MIGRATED_DEF_IDS, the
-    // engine holds no MACD instance, so the legacy block draws it and the legacy
-    // row formats the chip. Ownership follows the INSTANCE, never the id list.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('macd')).toBe(true)
+  it('⭐ BOTH MACD chips survive the deletion of macdLineRef AND macdSignalRef', async () => {
+    // ⛔ THE READOUT REGRESSION NO PIXEL GATE CAN SEE, AND MACD IS THE ONE
+    // DEFINITION THAT CAN LOSE TWO CHIPS AT ONCE. `processCrosshair` read
+    // `macdLineRef.current` and `macdSignalRef.current` for two SEPARATE slots
+    // (`macd` and `macdSig` in `LEGACY_SLOTS`). Task 11 deleted both refs, so a
+    // bridge that missed either one takes that chip silently out of the legend —
+    // and a headless capture has no cursor, so no legend is drawn on either side
+    // and the parity diff is 0 whichever way it behaves.
+    //
+    // ⚠️ THE TWO VALUES ARE DIFFERENT, AND THAT IS THE ASSERTION. Task 2's fix
+    // round split the rescue so `signal`'s value comes from `engSlots.macdSig`
+    // rather than being decided by whether `macd` had one; a mutation that
+    // re-coupled them would still print two chips, both carrying the LINE's
+    // number, and equal values would pass that. `0.12345` → `MACD 0.1235` and
+    // `0.09876` → `SIG 0.0988` cannot both come from one source.
+    //
+    // ⚠️ AND THE BRIEF'S VERSION OF THIS CASE IS NOT REACHABLE. It asked for
+    // "engine-`macd` + legacy-`signal` must still print SIG". There is no legacy
+    // MACD lane after this flip — the engine draws all three plots or none — so
+    // the state it names cannot be constructed at all. What IS reachable, and is
+    // what the re-coupling breaks, is two engine plots carrying two values.
+    expect(ENGINE_FLIPPED_DEF_IDS.has('macd')).toBe(true)
     const view = draw({
       ...RSI_ON,
       engineEnabled: true,
-      indicatorInstances: [RSI_INSTANCE],
       indicators: { ...RSI_ON.indicators, macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
     })
-    const macdLine = H.addSeriesCalls.find(c => c.options && c.options.priceScaleId === 'macd' && c.ctor === 'LineSeries')
-    expect(macdLine, 'no legacy MACD line — vacuous').toBeTruthy()
-    expect(await hover(view, [[macdLine.series, { value: 0.25 }]])).toContain('MACD 0.2500')
+    const macd = H.binderApis[0].bindings().filter(b => b.defId === 'macd')
+    expect(macd, 'the engine bound no MACD — vacuous').toHaveLength(3)
+    const line = macd.find(b => b.plotKey === 'macd')
+    const signal = macd.find(b => b.plotKey === 'signal')
+    const text = await hover(view, [
+      [line.series, { value: 0.12345 }],
+      [signal.series, { value: 0.09876 }],
+    ])
+    expect(text, 'the MACD chip vanished with macdLineRef').toContain('MACD 0.1235')
+    expect(text, 'the SIG chip vanished with macdSignalRef').toContain('SIG 0.0988')
   })
 })
 
@@ -2148,9 +2177,17 @@ describe('what pixels cannot see, for MACD', () => {
 
     expect(persisted.length, 'Ctrl+O persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
     const next = persisted.at(-1)
-    expect(next.indicators.macd.enabled, 'Ctrl+O did not flip the toggle').toBe(false)
-    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
-      .toEqual([MACD_INSTANCE])
+    // ⭐ FLIP B MOVED THE AUTHORITY, SO THE KEYSTROKE HAD TO MOVE WITH IT. This
+    // case used to assert the instance list was NOT rewritten — correct while the
+    // legacy toggle was the switch. After the flip the instance is the switch, so
+    // a keystroke that only cleared the mirror would tick a box the chart
+    // disagrees with, and the next paint would draw MACD straight back from the
+    // still-live instance. `setIndicatorEnabled` writes the TOMBSTONE and the
+    // mirror together, and both halves are asserted because either alone is a
+    // half-working control.
+    expect(next.indicators.macd.enabled, 'Ctrl+O did not clear the mirror').toBe(false)
+    expect(next.indicatorInstances, 'Ctrl+O left the instance live — the chart still draws it')
+      .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
@@ -2158,85 +2195,117 @@ describe('what pixels cannot see, for MACD', () => {
     expect(H.binderApis[0].bindings()).toHaveLength(0)
   })
 
-  it('toggling the legacy switch OFF and back ON never leaves SIX series in the band', () => {
-    // ⚠️ FLIP-A SEMANTICS: `cs.indicators.macd.enabled` is still the SWITCH; the
-    // instance is only the renderer. Off means nothing in the band — including
-    // the band itself, which `computePaneMargins` stops reserving.
-    const off = { indicators: { macd: { ...MACD_CFG, enabled: false } } }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+  it('toggling MACD OFF and back ON never leaves SIX series in the band', () => {
+    // ⭐ THE SWITCH IS THE INSTANCE NOW (Flip B). This case used to move
+    // `cs.indicators.macd.enabled` BY HAND, which was Flip A's switch — after the
+    // flip that field is a mirror, so a case still writing it directly measures a
+    // mirror with a green tick. It goes through `setIndicatorEnabled`, the one
+    // writer every control door shares, so what is asserted is what a user's
+    // keystroke actually does.
+    const on = { ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] }
+    const off = setIndicatorEnabled(on, 'macd', false, registry)
+    expect(off.indicatorInstances, 'the writer did not tombstone the instance')
+      .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
+
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
     expect(onMacdScale()).toHaveLength(3)
     const first = H.binderApis[0].bindings().map(b => b.series)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings(off)} />)
-    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds series').toHaveLength(0)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(H.binderApis[0].bindings(), 'off: the engine still holds series').toHaveLength(0)
     for (const s of first) expect(H.removedSeries, 'a MACD plot is still on the chart').toContain(s)
     expect(onMacdScale(), 'and nothing drew a replacement').toHaveLength(3)
+    expect(H.syncCalls.at(-1).paneMargins.macd, 'off: the band is still reserved').toBeUndefined()
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const backOn = setIndicatorEnabled(off, 'macd', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={backOn} />)
     expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws them again').toHaveLength(3)
-    expect(onMacdScale(), 'toggled back on: three more, and the legacy block added none').toHaveLength(6)
+    expect(onMacdScale(), 'toggled back on: three more, and nothing else added any').toHaveLength(6)
+    expect(H.syncCalls.at(-1).paneMargins.macd, 'back on: no band').toBeTruthy()
   })
 
-  it('an instance arriving MID-SESSION removes the three series AND the zero guide', () => {
-    // ⛔ THE SINGLE MOST-REPEATED DEFECT ON THIS BRANCH. BB's twin (M8) survived
-    // the whole suite; RSI's (R-I1) survived 3,733 tests. Every other case here
-    // starts with the engine ALREADY owning MACD, so the legacy refs are null and
-    // there is nothing to orphan. The crossover a user actually hits is the other
-    // order: the chart is up, legacy has drawn a line, a signal and a histogram
-    // with a zero guide on the line, and THEN an instance appears.
+  it('⭐ a STORED instance arriving MID-SESSION replaces the PROJECTED one, not adds to it', () => {
+    // ⛔ THE SINGLE MOST-REPEATED DEFECT ON THIS BRANCH, IN THE ONLY SHAPE FLIP B
+    // LEAVES. It used to be legacy-block-vs-engine: the chart is up, the legacy
+    // block has drawn three series, and an instance appears. That block is gone.
     //
-    // MACD's guard sits on the block's own `if`, whose `else` removes all three
-    // refs — the correct place. Move it inside the body (or hoist it so the `else`
-    // stops being reached) and the user gets SIX series in one band, three of them
-    // dead, plus an orphaned zero guide, and the picture still looks plausible.
-    const legacyFirst = { ...MACD_ON, engineEnabled: true, indicatorInstances: [] }
+    // The crossover that replaces it is REAL and is the §6.1 defect in motion: a
+    // blob with a legacy toggle draws through a PROJECTED `legacy:macd`, and then
+    // a stored instance under another id arrives (an `?instances=` navigation, a
+    // grid cell's settingsOverride, a share link applied to a live chart). The
+    // projection must stand down — `migrateLegacyToInstances` reserves ids PER
+    // INSTANCE ID, so nothing in it stops a second MACD, and the read-time guard
+    // is what does. Get it wrong and the user has SIX series in one band, three
+    // of them stale, plus a second zero guide invisible under the first.
+    const projected = { ...MACD_ON, engineEnabled: true, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legacyFirst} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projected} />,
     )
-    const legacyDrawn = onMacdScale().map(c => c.series)
-    expect(legacyDrawn, 'the LEGACY block drew nothing — nothing to orphan').toHaveLength(3)
-    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
-    const guideOwner = H.priceLineCalls.filter(c => c.options && c.options.price === 0)
-    expect(guideOwner, 'legacy drew no zero guide').toHaveLength(1)
+    const first = H.binderApis[0].bindings()
+    expect(first, 'the projection drew nothing — nothing to hand over').toHaveLength(3)
+    for (const b of first) expect(b.key).toContain('legacy:macd')
+    const projectedSeries = first.map(b => b.series)
+    expect(H.priceLineCalls.filter(c => c.options && c.options.price === 0),
+      'the projected MACD drew no zero guide').toHaveLength(1)
 
+    const stored = {
+      instanceId: 'grid-cell-3:macd', defId: 'macd',
+      inputs: { fastPeriod: 5, slowPeriod: 35, signalPeriod: 4, macdColor: '#00ff00', signalColor: '#FF9800' },
+      placement: { target: 'pane' }, hidden: false,
+    }
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...legacyFirst, indicatorInstances: [MACD_INSTANCE] }} />,
+        settingsOverride={{ ...projected, indicatorInstances: [stored] }} />,
     )
 
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn, 'the engine did not take over').toHaveLength(3)
-    for (const s of legacyDrawn) {
-      expect(engineDrawn, 'the engine re-used a LEGACY series — it does not own those')
-        .not.toContain(s)
-      expect(H.removedSeries,
-        'a legacy MACD plot was left in the band under the engine\'s copy').toContain(s)
-    }
-    // The guide goes with its series. If the line survived, so would a second zero
-    // line — invisible on top of the engine's, and a leak that grows per flip.
-    expect(H.removedSeries, 'the orphaned zero guide\'s series survived')
-      .toContain(guideOwner[0].series)
+    const after = H.binderApis[0].bindings()
+    expect(after, 'six series in one band — the projection did not stand down').toHaveLength(3)
+    for (const b of after) expect(b.key, 'the projection won over the stored instance')
+      .toContain('grid-cell-3:macd')
+    // ⭐ AND THE SERIES WERE RE-USED, NOT DESTROYED (#2049). Both instances want
+    // the same three pool keys, so the pool must re-purpose rather than remove
+    // three and create three.
+    expect(after.map(b => b.series).sort(), 'the pool destroyed and recreated the band')
+      .toEqual(projectedSeries.sort())
+    expect(H.removedSeries.filter(s => projectedSeries.includes(s))).toHaveLength(0)
+    // …and the new instance's colour really did reach the line, so "re-used" is
+    // not "ignored the new inputs".
+    expect(onMacdScale().some(c => c.options.color === '#00ff00')
+      || H.applyOptionsCalls.some(c => c.options && c.options.color === '#00ff00'),
+    'the stored instance\'s colour never reached the series').toBe(true)
   })
 
-  it('and the reverse — the instance LEAVING hands MACD back to legacy', () => {
+  it('and the reverse — the stored instance LEAVING hands MACD back to the projection', () => {
+    // The departure direction. The legacy toggle is still true, so removing the
+    // stored instance must not delete the indicator: the migrator projects
+    // `legacy:macd` again on the very next paint, and there must still be exactly
+    // three series.
+    const stored = {
+      instanceId: 'grid-cell-3:macd', defId: 'macd',
+      inputs: { fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },
+      placement: { target: 'pane' }, hidden: false,
+    }
+    const withStored = { ...MACD_ON, engineEnabled: true, indicatorInstances: [stored] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={withStored} />,
     )
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn).toHaveLength(3)
+    const before = H.binderApis[0].bindings()
+    expect(before).toHaveLength(3)
+    for (const b of before) expect(b.key).toContain('grid-cell-3:macd')
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={settings({ indicatorInstances: [] })} />,
+        settingsOverride={{ ...withStored, indicatorInstances: [] }} />,
     )
-    expect(H.binderApis[0].bindings(), 'the engine still holds series').toHaveLength(0)
-    for (const s of engineDrawn) expect(H.removedSeries).toContain(s)
-    // …and legacy drew its own three, so the indicator did not vanish with the
-    // instance — including the histogram, which is the plot a "lines only"
-    // stand-back-up would silently drop.
-    const liveCalls = onMacdScale().filter(c => !H.removedSeries.includes(c.series))
-    expect(liveCalls, 'MACD vanished when the instance was removed').toHaveLength(3)
-    expect(liveCalls.map(c => c.ctor)).toEqual(['LineSeries', 'LineSeries', 'HistogramSeries'])
+    const after = H.binderApis[0].bindings()
+    expect(after, 'MACD vanished when the stored instance was removed').toHaveLength(3)
+    for (const b of after) expect(b.key, 'the projection did not take back over')
+      .toContain('legacy:macd')
+    // …including the histogram, which is the plot a "lines only" stand-back-up
+    // would silently drop.
+    expect(after.map(b => b.plotKey).sort()).toEqual(['histogram', 'macd', 'signal'])
+    expect(H.removedSeries.filter(s => before.map(b => b.series).includes(s)),
+      'the band was destroyed and rebuilt instead of re-purposed').toHaveLength(0)
   })
 
   it('a COLOUR change re-styles the SAME three series — never destroys and recreates', () => {
@@ -2488,14 +2557,25 @@ describe('VWAP Flip A — the legacy block stands down on an intraday chart', ()
   })
 
   it('the ENGINE\'s line names the candles\' scale, where legacy named none', () => {
-    // The one option that is not a restatement of an LWC default. Legacy omits
-    // `priceScaleId` and LWC resolves the single visible scale; the engine states
-    // it, which is byte-identical on a create and is the FIX on a re-purpose.
-    drawIntraday(VWAP_ON)
-    expect(vwapLines()[0].options.priceScaleId, 'legacy suddenly names a scale').toBeUndefined()
-    cleanup(); H.reset()
+    // The one option that is not a restatement of an LWC default. Legacy omitted
+    // `priceScaleId` and let LWC resolve the single visible scale; the engine
+    // states it, which is byte-identical on a create and is the FIX on a
+    // re-purpose (a series moved from a named scale to an unnamed one keeps the
+    // old scale).
+    //
+    // ⚠️ THE LEGACY HALF OF THIS CASE IS GONE, AND ONLY THE PIXEL GATE STILL
+    // CARRIES IT. Task 11 deleted the block that omitted the option, so there is
+    // no build in this tree that draws a VWAP without naming a scale. That the
+    // two spellings render identically was MEASURED, not assumed —
+    // `engine_vwap_vs_legacy` is 0 changed px across two named builds — and that
+    // is now the only place the comparison exists.
     drawIntraday({ ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] })
+    expect(vwapLines(), 'nothing drawn — vacuous').toHaveLength(1)
     expect(vwapLines()[0].options.priceScaleId).toBe('right')
+    // …and it is the CANDLES' scale, not a named band of its own, which is what
+    // makes VWAP a price overlay rather than an oscillator.
+    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(candle.options.priceScaleId ?? 'right').toBe('right')
   })
 
   it('neither lane draws on a DAILY chart, and neither lane OWNS it', () => {
@@ -2563,9 +2643,14 @@ describe('what pixels cannot see, for VWAP', () => {
 
     expect(persisted.length, 'Alt+U persisted nothing — the shortcut is not wired').toBeGreaterThan(0)
     const next = persisted.at(-1)
-    expect(next.indicators.vwap.enabled, 'Alt+U did not flip the toggle').toBe(false)
-    expect(next.indicatorInstances, 'the keystroke must not rewrite the instance list')
-      .toEqual([VWAP_INSTANCE])
+    // ⭐ THE FIFTH DOOR, ROUTED AT FLIP B. This handler wrote
+    // `indicators.vwap.enabled` directly, which was right while that field was
+    // the switch. VWAP is flipped now, so the instance is — and a keystroke that
+    // only cleared the mirror would leave the line on the chart with the checkbox
+    // unticked. `setIndicatorEnabled` writes both.
+    expect(next.indicators.vwap.enabled, 'Alt+U did not clear the mirror').toBe(false)
+    expect(next.indicatorInstances, 'Alt+U left the instance live — the chart still draws it')
+      .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
     render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={next} />)
@@ -2573,72 +2658,94 @@ describe('what pixels cannot see, for VWAP', () => {
     expect(vwapLines(), 'Alt+U left a legacy VWAP behind instead').toHaveLength(0)
   })
 
-  it('toggling the legacy switch OFF and back ON never leaves TWO cyan lines', () => {
-    // ⚠️ FLIP-A SEMANTICS: `cs.indicators.vwap.enabled` is still the SWITCH; the
-    // instance is only the renderer.
-    const off = { indicators: { vwap: { ...VWAP_CFG, enabled: false } } }
+  it('toggling VWAP OFF and back ON never leaves TWO cyan lines', () => {
+    // ⭐ THE SWITCH IS THE INSTANCE NOW (Flip B), so this goes through
+    // `setIndicatorEnabled` rather than moving `cs.indicators.vwap.enabled` by
+    // hand. A case that keeps writing that field after the flip is measuring a
+    // mirror with a green tick.
+    const on = settings()
+    const off = setIndicatorEnabled(on, 'vwap', false, registry)
+    expect(off.indicatorInstances, 'the writer did not tombstone the instance')
+      .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
+
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={on} />,
     )
     expect(H.binderApis[0].bindings()).toHaveLength(1)
     const first = H.binderApis[0].bindings().map(b => b.series)
 
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings(off)} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={off} />,
     )
-    expect(H.binderApis[0].bindings(), 'legacy toggle off: the engine still holds a series').toHaveLength(0)
+    expect(H.binderApis[0].bindings(), 'off: the engine still holds a series').toHaveLength(0)
     for (const s of first) expect(H.removedSeries, 'a VWAP line is still on the chart').toContain(s)
     expect(liveVwapLines(), 'and nothing drew a replacement').toHaveLength(0)
 
+    const backOn = setIndicatorEnabled(off, 'vwap', true, registry)
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={backOn} />,
     )
     expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws it again').toHaveLength(1)
-    expect(liveVwapLines(), 'toggled back on: the legacy block drew one too').toHaveLength(1)
+    expect(liveVwapLines(), 'toggled back on: TWO cyan lines').toHaveLength(1)
   })
 
-  it('an instance arriving MID-SESSION removes the line legacy already drew', () => {
-    // ⛔ THE SINGLE MOST-REPEATED DEFECT ON THIS BRANCH. Every other case here
-    // starts with the engine ALREADY owning VWAP, so `vwapSeriesRef` is null and
-    // there is nothing to orphan. The crossover a user actually hits is the other
-    // order: the chart is up, legacy has drawn a cyan line, and THEN an instance
-    // appears. The guard is on the block's own `if`, whose `else if` removes the
-    // ref; hoist it into the body and the user gets two cyan lines, one dead.
-    const legacyFirst = { ...VWAP_ON, engineEnabled: true, indicatorInstances: [] }
+  it('⭐ a STORED instance arriving MID-SESSION replaces the PROJECTED one, not adds to it', () => {
+    // ⛔ THE SINGLE MOST-REPEATED DEFECT ON THIS BRANCH, IN THE ONLY SHAPE FLIP B
+    // LEAVES — see MACD's twin for the full account. The legacy-block-vs-engine
+    // crossover is gone with the block; the reachable one is projection-vs-stored,
+    // and for a PRICE overlay a duplicate is two cyan lines on the candles' own
+    // scale, which reads as a slightly bolder line and nothing else.
+    const projected = { ...VWAP_ON, engineEnabled: true, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legacyFirst} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={projected} />,
     )
-    const legacyDrawn = vwapLines().map(c => c.series)
-    expect(legacyDrawn, 'the LEGACY block drew nothing — nothing to orphan').toHaveLength(1)
-    expect(H.binderApis[0].bindings(), 'the engine already owns it — vacuous').toHaveLength(0)
+    const first = H.binderApis[0].bindings()
+    expect(first, 'the projection drew nothing — nothing to hand over').toHaveLength(1)
+    expect(first[0].key).toContain('legacy:vwap')
+    const projectedSeries = first[0].series
+
+    const stored = {
+      instanceId: 'grid-cell-3:vwap', defId: 'vwap',
+      inputs: { color: '#00ff00', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
+      placement: { target: 'price' }, hidden: false,
+    }
+    view.rerender(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
+        settingsOverride={{ ...projected, indicatorInstances: [stored] }} />,
+    )
+
+    const after = H.binderApis[0].bindings()
+    expect(after, 'two cyan lines — the projection did not stand down').toHaveLength(1)
+    expect(after[0].key, 'the projection won over the stored instance').toContain('grid-cell-3:vwap')
+    expect(after[0].series, 'the pool destroyed and recreated the line (#2049)').toBe(projectedSeries)
+    expect(H.removedSeries).not.toContain(projectedSeries)
+    expect(liveVwapLines('#00ff00').length
+      || H.applyOptionsCalls.filter(c => c.options && c.options.color === '#00ff00').length,
+    'the stored instance\'s colour never reached the series').toBeGreaterThan(0)
+  })
+
+  it('and the reverse — the stored instance LEAVING hands VWAP back to the projection', () => {
+    const stored = {
+      instanceId: 'grid-cell-3:vwap', defId: 'vwap',
+      inputs: { color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
+      placement: { target: 'price' }, hidden: false,
+    }
+    const withStored = { ...VWAP_ON, engineEnabled: true, indicatorInstances: [stored] }
+    const view = render(
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={withStored} />,
+    )
+    const before = H.binderApis[0].bindings()
+    expect(before).toHaveLength(1)
+    expect(before[0].key).toContain('grid-cell-3:vwap')
 
     view.rerender(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
-        settingsOverride={{ ...legacyFirst, indicatorInstances: [VWAP_INSTANCE] }} />,
+        settingsOverride={{ ...withStored, indicatorInstances: [] }} />,
     )
-
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn, 'the engine did not take over').toHaveLength(1)
-    expect(engineDrawn, 'the engine re-used the LEGACY series — it does not own that')
-      .not.toContain(legacyDrawn[0])
-    expect(H.removedSeries, 'the legacy VWAP was left under the engine\'s copy')
-      .toContain(legacyDrawn[0])
-  })
-
-  it('and the reverse — the instance LEAVING hands VWAP back to legacy', () => {
-    const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
-    )
-    const engineDrawn = H.binderApis[0].bindings().map(b => b.series)
-    expect(engineDrawn).toHaveLength(1)
-
-    view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
-        settingsOverride={settings({ indicatorInstances: [] })} />,
-    )
-    expect(H.binderApis[0].bindings(), 'the engine still holds a series').toHaveLength(0)
-    for (const s of engineDrawn) expect(H.removedSeries).toContain(s)
-    expect(liveVwapLines(), 'VWAP vanished when the instance was removed').toHaveLength(1)
+    const after = H.binderApis[0].bindings()
+    expect(after, 'VWAP vanished when the stored instance was removed').toHaveLength(1)
+    expect(after[0].key, 'the projection did not take back over').toContain('legacy:vwap')
+    expect(liveVwapLines(), 'and exactly one line is on the chart').toHaveLength(1)
   })
 
   it('a TIMEFRAME change to daily removes the engine\'s line, and back restores it', () => {
@@ -2939,10 +3046,10 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 // Rewriting them rather than deleting them is the point: each one still names a
 // way the machinery could be wrong, in the direction it can now be wrong in.
 describe('the Flip-B machinery, live (Task 10)', () => {
-  it('ENGINE_FLIPPED_DEF_IDS is exactly {bb, rsi}, and is a SUBSET of the migrated set', () => {
+  it('ENGINE_FLIPPED_DEF_IDS is exactly {bb, macd, rsi, vwap}, and EQUALS the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'rsi'])
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'macd', 'rsi', 'vwap'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
@@ -2965,29 +3072,31 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     expect(H.migrateCalls, 'the read-time migrator never ran').toBeGreaterThan(0)
   })
 
-  it('…and it holds back every UN-FLIPPED migrated definition — the gate is per definition', () => {
-    // ⛔ THE WHOLE-SET GATE WOULD HAVE MOVED ALL FOUR PILOTS ON THE FIRST FLIP,
-    // which is exactly what flipping one indicator at a time with a pixel number
-    // each exists to prevent. `macd` and `vwap` are migrated and NOT flipped, so
-    // a legacy toggle alone must still reach their legacy blocks and nothing else.
-    for (const defId of ENGINE_MIGRATED_DEF_IDS) {
-      if (ENGINE_FLIPPED_DEF_IDS.has(defId)) continue
+  it('…and a legacy toggle alone reaches EVERY flipped definition, on its own timeframe', () => {
+    // ⚠️ THIS CASE WAS INVERTED BY TASK 11, AND THE INVERSION IS THE POINT. It
+    // read "…and it holds back every UN-FLIPPED migrated definition", looping the
+    // migrated ids that were NOT flipped and asserting the engine got nothing —
+    // the per-definition gate that stopped the first flip moving all four pilots.
+    // There is no un-flipped migrated id left, so that loop would iterate zero
+    // times and pass for free. Its companion non-vacuity case (which asserted an
+    // un-flipped id EXISTS) has moved to `flipB.test.jsx`, where it now asserts
+    // the opposite — that the sets are EQUAL — because that equality is what
+    // Task 11's three deletions rest on.
+    //
+    // The loop itself is kept, pointed the other way: every flipped definition,
+    // from a legacy toggle alone, on the timeframe it lives on. It is the same
+    // structural claim (the migrator is per definition, not per set) asserted in
+    // the direction that is now reachable, and it grows with the set.
+    let seen = 0
+    for (const defId of ENGINE_FLIPPED_DEF_IDS) {
       cleanup(); H.reset()
-      const tf = tfFor(defId)
-      draw({ engineEnabled: true, indicators: { [defId]: { enabled: true } } }, tf)
-      expect(H.binderApis[0].bindings(), `${defId} reached the engine with no stored instance`)
-        .toHaveLength(0)
+      draw({ indicators: { [defId]: { enabled: true } } }, tfFor(defId))
+      const bound = H.binderApis[0].bindings().filter(b => b.defId === defId)
+      expect(bound.length, `${defId} drew nothing from a legacy toggle — with no legacy `
+        + 'block left, that is the indicator deleted for every existing user').toBeGreaterThan(0)
+      seen += 1
     }
-  })
-
-  it('…and the loop above is not vacuous — there IS an un-flipped migrated definition', () => {
-    // ⚠️ Task 11 flips the last two. When it does, the loop above iterates zero
-    // times and passes for free — so the non-vacuity is asserted here, and this
-    // case is what tells Task 11 the loop has expired rather than letting it rot.
-    const unflipped = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
-    expect(unflipped.length,
-      'every migrated definition is flipped — the per-definition loop above is now vacuous, '
-      + 'and this suite needs a different subject (see Task 11)').toBeGreaterThan(0)
+    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(4)
   })
 
   it('csForPaneMargins changes ONE FIELD and carries the rest of the blob through', () => {

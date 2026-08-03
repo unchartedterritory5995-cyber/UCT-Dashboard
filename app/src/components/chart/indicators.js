@@ -233,7 +233,8 @@ export function computeVWAP(bars) {
       // A non-numeric `t` (a 'YYYY-MM-DD' daily bar) used to yield the stable
       // string 'NaN-NaN-NaN' and therefore never reset. `formatToParts` would
       // THROW on it and blank the chart, so the sentinel is kept explicitly.
-      // VWAP_TFS gates this function to intraday, where `t` is unix seconds.
+      // The intraday gate (`eligibility.VWAP_TIMEFRAMES`) keeps this function on
+      // timeframes where `t` is unix seconds.
       dayKey = 'invalid'
     }
     if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey }

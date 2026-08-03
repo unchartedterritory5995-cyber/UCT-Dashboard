@@ -33,6 +33,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
+import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 
 const H = vi.hoisted(() => ({
   addSeriesCalls: [],
@@ -214,8 +215,8 @@ describe('the blob shapes themselves — without these the cases below prove not
     }
   })
 
-  it('rsi and bb are the flipped pair — the subject of every case here', () => {
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'rsi'])
+  it('all four pilots are the flipped set — the subject of every case here', () => {
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'macd', 'rsi', 'vwap'])
   })
 })
 
@@ -367,5 +368,164 @@ describe('⭐ the blob the FROZEN TEMPLATE writes — "UCT Default" and "New Lay
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
     expect(onScale('rsi'), 'the checkbox is ticked and there is no line on the chart').toHaveLength(1)
     expect(bands().rsi, 'a line with no band').toEqual({ top: 0.85, bottom: 0 })
+  })
+})
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── THE SAME GATE FOR MACD AND VWAP (B3 Task 11) ─────────────────────────
+//
+// Two shapes the pair above cannot cover:
+//
+//   * MACD is THREE plots under one instance and it owns a stacked BAND, so
+//     "the same chart" has to mean three series in one band rather than one
+//     series in one. Its band is also the one `paneMargins` stacks BELOW RSI's,
+//     which is where a projection that mis-orders the stack would show up.
+//   * VWAP does not exist on the fixture every case above uses. A VWAP case on
+//     daily bars renders an empty chart and reports whatever you asked for, so
+//     these draw the 5-minute fixture — and the July blob is re-shot at tf 5,
+//     because a stored blob does not know what timeframe it will be opened on.
+
+const INTRADAY = intraday5m.bars
+const drawStoredIntraday = (json) => render(
+  <StockChart sym="AAPL" tf="5" barsOverride={INTRADAY} settingsOverride={mergeChartSettings(json)} />,
+)
+const cyan = (color = '#26C6DA') =>
+  H.addSeriesCalls.filter(c => c.options && c.options.color === color && c.ctor === 'LineSeries')
+
+describe('⭐ a stored blob with MACD ON — three plots, one band, after the flip', () => {
+  const MACD_BLOB = {
+    ...JULY_BLOB,
+    indicators: {
+      ...JULY_BLOB.indicators,
+      macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+    },
+  }
+
+  it('draws the line, the signal and the histogram — once each, from the engine', () => {
+    drawStored(JSON.stringify(MACD_BLOB))
+    expect(onScale('macd'), 'MACD lost a plot, or drew one twice').toHaveLength(3)
+    const macd = bound().filter(b => b.defId === 'macd')
+    expect(macd.map(b => b.plotKey).sort()).toEqual(['histogram', 'macd', 'signal'])
+  })
+
+  it('…in the band the PRE-FLIP layout function reserves, BELOW RSI\'s', () => {
+    // The stacking half. RSI and MACD are both on in this blob, `paneMargins`
+    // stacks them in `PANES` order, and a projection that rewrote the enabled
+    // flags in the wrong order would give MACD RSI's band and vice versa — two
+    // indicators in the wrong places, with the right number of series.
+    const cs = mergeChartSettings(JSON.stringify(MACD_BLOB))
+    drawStored(JSON.stringify(MACD_BLOB))
+    expect(bands(), 'the projection changed the layout for a legacy blob')
+      .toEqual(computePaneMargins(cs, true, new Set()))
+    expect(bands().macd, 'MACD lost its band').toBeTruthy()
+    // `scaleMargins.top` is the fraction of the pane ABOVE the band, so a LARGER
+    // top is a band further DOWN. RSI 0.68, MACD 0.83 — RSI first, MACD under it,
+    // which is `PANES` order.
+    expect(bands().macd.top, 'MACD is no longer stacked below RSI')
+      .toBeGreaterThan(bands().rsi.top)
+  })
+
+  it('a tombstoned MACD stays off and gives its band back, RSI untouched', () => {
+    drawStored(JSON.stringify({
+      ...MACD_BLOB,
+      indicatorInstances: [{ instanceId: 'legacy:macd', deleted: true }],
+    }))
+    expect(onScale('macd'), 'I turned MACD off and it came back on refresh').toHaveLength(0)
+    expect(bands().macd, 'a band was reserved for a deleted indicator').toBeUndefined()
+    expect(onScale('rsi'), 'deleting MACD took RSI with it').toHaveLength(1)
+  })
+
+  it('the CROSSOVER shape draws ONE MACD, from the stored instance', () => {
+    // The §6.1 defect, re-driven for the definition that has three plots: a
+    // projected duplicate would be SIX series in one band, which reads as a
+    // slightly bolder MACD and nothing else.
+    drawStored(JSON.stringify({
+      ...MACD_BLOB,
+      engineEnabled: true,
+      indicatorInstances: [{
+        instanceId: 'grid-cell-3:macd', defId: 'macd', defVersion: 2,
+        inputs: { fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },
+        placement: { target: 'pane' }, hidden: false,
+      }],
+    }))
+    expect(onScale('macd'), 'the toggle projected a SECOND MACD over the stored one').toHaveLength(3)
+    const macd = bound().filter(b => b.defId === 'macd')
+    expect(macd).toHaveLength(3)
+    for (const b of macd) expect(b.key, 'the projection won over the stored instance')
+      .toContain('grid-cell-3:macd')
+  })
+
+  it('…and a user who TICKS MACD on the frozen template gets three lines', () => {
+    const cs = mergeChartSettings(uctDefaultChartSettings())
+    expect(cs.indicators.macd.enabled, 'the capture changed').toBe(false)
+    const next = setIndicatorEnabled(cs, 'macd', true, engineRegistry)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    expect(onScale('macd'), 'the checkbox is ticked and the band is empty').toHaveLength(3)
+    expect(bands().macd, 'three lines with no band').toBeTruthy()
+  })
+})
+
+describe('⭐ a stored blob with VWAP ON — the INTRADAY shape', () => {
+  const VWAP_BLOB = {
+    ...JULY_BLOB,
+    indicators: {
+      ...JULY_BLOB.indicators,
+      vwap: { enabled: true, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
+    },
+  }
+
+  it('draws exactly one cyan line on a 5-minute chart, from the engine', () => {
+    drawStoredIntraday(JSON.stringify(VWAP_BLOB))
+    expect(cyan(), 'VWAP vanished, or was drawn twice').toHaveLength(1)
+    expect(bound().filter(b => b.defId === 'vwap')).toHaveLength(1)
+  })
+
+  it('…and NOTHING on the same blob opened at DAILY — the gate, from a stored blob', () => {
+    drawStored(JSON.stringify(VWAP_BLOB))
+    expect(cyan(), 'a session VWAP on daily bars').toHaveLength(0)
+    expect(bound().filter(b => b.defId === 'vwap')).toHaveLength(0)
+  })
+
+  it('reserves NO band on either timeframe, and does not disturb RSI\'s', () => {
+    const cs = mergeChartSettings(JSON.stringify(VWAP_BLOB))
+    drawStoredIntraday(JSON.stringify(VWAP_BLOB))
+    expect(bands().vwap, 'a price overlay reserved a stacked band').toBeUndefined()
+    expect(bands(), 'turning VWAP on moved another indicator\'s band')
+      .toEqual(computePaneMargins(cs, true, new Set()))
+  })
+
+  it('a stored OPACITY still reaches the line — settings → instance → eligibility', () => {
+    // ⭐ THE WHOLE CHAIN, FROM A JSON STRING. `opacity` is not a plot field: the
+    // read-time migrator copies it out of `indicators.vwap` into the projected
+    // instance's inputs, and `eligibility` composes it with `color` into one
+    // rgba string. A break anywhere in the middle shows up here as the BASE
+    // colour, which is why the assertion names the composed string.
+    drawStoredIntraday(JSON.stringify({
+      ...VWAP_BLOB,
+      indicators: { ...VWAP_BLOB.indicators, vwap: { ...VWAP_BLOB.indicators.vwap, opacity: 40 } },
+    }))
+    expect(cyan('rgba(38, 198, 218, 0.4)'),
+      'the stored opacity stopped reaching the chart at the flip').toHaveLength(1)
+    expect(cyan('#26C6DA'), 'it drew at full strength instead').toHaveLength(0)
+  })
+
+  it('a tombstoned VWAP stays off through an allow-list round trip', () => {
+    const DELETED = {
+      ...VWAP_BLOB,
+      indicatorInstances: [{ instanceId: 'legacy:vwap', deleted: true }],
+    }
+    drawStoredIntraday(JSON.stringify(DELETED))
+    expect(cyan(), 'I turned VWAP off and it came back on refresh').toHaveLength(0)
+    const twice = mergeChartSettings(JSON.stringify(mergeChartSettings(JSON.stringify(DELETED))))
+    expect(twice.indicatorInstances).toEqual([{ instanceId: 'legacy:vwap', deleted: true }])
+  })
+
+  it('…and a user who TICKS VWAP on the frozen template gets a line', () => {
+    const cs = mergeChartSettings(uctDefaultChartSettings())
+    expect(cs.indicators.vwap.enabled, 'the capture changed').toBe(false)
+    const next = setIndicatorEnabled(cs, 'vwap', true, engineRegistry)
+    render(<StockChart sym="AAPL" tf="5" barsOverride={INTRADAY} settingsOverride={next} />)
+    expect(cyan(), 'the checkbox is ticked and there is no line on the chart').toHaveLength(1)
   })
 })

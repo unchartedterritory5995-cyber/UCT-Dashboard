@@ -200,6 +200,15 @@ const RAW_DEFS = [
       // default across the whole pane where the legacy one is green above zero
       // and red below. The schema now refuses a `sign` plot that names neither,
       // so the mode cannot be half-declared again.
+      //
+      // ⭐ AND SINCE B3 TASK 11 THEY LIVE ONLY HERE. `MACD_HIST_UP` and
+      // `MACD_HIST_DOWN` were module constants in `StockChart.jsx`; MACD is
+      // FLIPPED, its `indicatorData` branch is deleted, and those two literals
+      // went with it. There is no second copy to keep in sync any more — which
+      // also means these two strings are no longer "verbatim" of anything, they
+      // are the source. `grep -rn "MACD_HIST_" app/src/` returns only
+      // `macdFlipAParity.test.js` and `stockChartWiring.test.jsx`, which declare
+      // their own copies precisely so a silent edit here fails a test.
       {
         key: 'histogram', label: 'Histogram', style: 'histogram', colorMode: 'sign',
         colorUp: 'rgba(76,175,80,0.75)', colorDown: 'rgba(244,67,54,0.75)',
@@ -242,9 +251,10 @@ const RAW_DEFS = [
   ({ ...nativeDef('vwap', 'vwap',
     {
       name: 'Session VWAP', shortName: 'VWAP', category: 'Volume',
-      // `StockChart.jsx:559` — VWAP_TFS. A session indicator does not exist on a
-      // daily bar, and the legacy `indicatorData` memo returns [] above 60m
-      // (`:3962`). `engine/eligibility.js` is what ENFORCES it; declaring it here
+      // The old `VWAP_TFS` in `StockChart.jsx`, which is DELETED as of Flip B
+      // along with the legacy memo that returned [] above 60m. A session indicator
+      // does not exist on a daily bar.
+      // `engine/eligibility.js` is what ENFORCES it; declaring it here
       // is what lets the Style tab say "intraday only" without a hardcoded list,
       // and what makes the rule apply to the next session indicator without
       // anyone editing the hook.

@@ -54,7 +54,8 @@ const EMPTY_INPUTS = Object.freeze(new Map())
  *
  * ⚠️ MEMBERSHIP IS NOT "IS IT DRAWN RIGHT NOW". `vwap` is in this set and draws
  * on NO daily chart — `engine/eligibility.js` removes it above 60-minute bars,
- * exactly as `VWAP_TFS` removes the legacy one. Membership means "the engine is
+ * exactly as `VWAP_TFS` used to remove the legacy one (that constant, and the
+ * block that read it, are deleted). Membership means "the engine is
  * the authority for this definition"; whether authority produces a line is the
  * eligibility hook's answer and the timeframe's. A reader that treats this set as
  * a paint list will be wrong on every daily chart from B3 Task 8 onward.
@@ -89,6 +90,26 @@ export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd
  *     through `instanceControls`, because a flipped id is the only one whose
  *     control has a writer to route to.
  *
+ * ⭐ TASK 11 CLOSED IT: `macd` and `vwap`. **The set now EQUALS
+ * `ENGINE_MIGRATED_DEF_IDS`**, and that equality is not a coincidence to be
+ * enjoyed — it is a state with consequences that were resolved deliberately
+ * rather than left inert:
+ *
+ *   · Flip A is OVER. There is no migrated-but-un-flipped definition left, so
+ *     StockChart's `hidden` projection (Task 2's "the legacy toggle is still the
+ *     switch") had no reachable subject and was DELETED with its `legacyEnabled`
+ *     helper. `flipB.test.jsx` asserts the equality, so the day B4 migrates a
+ *     fifth definition WITHOUT flipping it, that assertion fails and whoever is
+ *     holding it is told the projection has to come back;
+ *   · `vwapOverride` no longer needs `engineEnabled` to manufacture its forced
+ *     instance — the flag-gated version would have lost the Model Book popup's
+ *     VWAP on every existing user's chart, because there is no legacy block left
+ *     to catch it;
+ *   · `ChartToolbar`'s `engineInert` is now identically false. The predicate and
+ *     its 34 row bindings STAY (they are what a B4 migration reactivates), and
+ *     `ChartToolbar.engineInert.test.jsx` pins the wiring rather than the value
+ *     for exactly that reason.
+ *
  * ⛔⭐ AND THE ENGINE RUNS FOR THEM WHETHER OR NOT `engineEnabled` IS SET.
  * `engineEnabled` is the opt-in for the engine as a SECOND renderer — a chart
  * that could already draw the indicator by hand. A FLIPPED definition has no
@@ -96,17 +117,16 @@ export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd
  * engine dark, it DELETES the indicator: every stored blob in production has
  * `engineEnabled` absent, i.e. false. `StockChart` therefore activates the engine
  * when this set is non-empty and narrows the instance list to flipped ids alone
- * while the flag is off, so an un-flipped migrated definition (`macd`, `vwap`)
- * still needs the flag exactly as it did at Flip A. The pixel gate for it is
- * `rsi_only` / `bb_only` / `bb_rsi_macd` — legacy-shaped, flag-off settings —
- * measured across the Task-9 build and this one.
+ * while the flag is off. That narrowing is what an un-flipped migrated definition
+ * needed; it is inert while the two sets are equal and is kept because it is the
+ * gate, not because it is currently doing work.
  *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
  * cannot import from it. `StockChart` re-exports it so the plan's stated
  * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
  */
-export const ENGINE_FLIPPED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb']))
+export const ENGINE_FLIPPED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd', 'vwap']))
 
 /**
  * The migrated definitions this settings blob hands to the engine.

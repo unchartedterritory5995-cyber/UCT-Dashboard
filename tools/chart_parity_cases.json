@@ -38,7 +38,6 @@
     "asserts intraday5m's series in both compute lanes, by reference, so regenerating",
     "it goes red there too instead of quietly expiring these numbers."
   ],
-
   "defaults": {
     "sym": "PARITY",
     "tf": "D",
@@ -49,7 +48,6 @@
     "preset": "classic_flat",
     "tolerance": 0
   },
-
   "presets": {
     "classic_flat": {
       "_why": "The 'Classic Dark' preset (= CHART_DEFAULTS) with the four MA overlays and the watermark removed, so the indicator under test is the dominant ink on the canvas and a diff is attributable to it rather than to an EMA that happens to cross it. Volume keeps its own pane because a pane-count change is itself a regression worth catching.",
@@ -58,25 +56,55 @@
       "bgMode": "solid",
       "textColor": "#706b5e",
       "textSize": 11,
-      "grid": { "color": "rgba(46,49,39,0.25)", "visible": true },
-      "crosshair": { "color": "#706b5e", "style": 1, "width": 1, "magnet": false },
+      "grid": {
+        "color": "rgba(46,49,39,0.25)",
+        "visible": true
+      },
+      "crosshair": {
+        "color": "#706b5e",
+        "style": 1,
+        "width": 1,
+        "magnet": false
+      },
       "candleColorMode": "netchange",
       "candles": {
-        "upColor": "#1ae51a", "downColor": "#c41f2d",
-        "upBorder": "#1ae51a", "downBorder": "#c41f2d",
-        "upWick": "#1ae51a", "downWick": "#c41f2d",
+        "upColor": "#1ae51a",
+        "downColor": "#c41f2d",
+        "upBorder": "#1ae51a",
+        "downBorder": "#c41f2d",
+        "upWick": "#1ae51a",
+        "downWick": "#c41f2d",
         "thinBars": true
       },
       "overlays": [],
       "volume": {
-        "visible": true, "upColor": "#1ae51a", "downColor": "#c41f2d",
-        "hvcEnabled": true, "separatePane": true, "paneHeightPct": 22,
-        "labelVisible": true, "maPeriod": 50, "barStyle": "columns"
+        "visible": true,
+        "upColor": "#1ae51a",
+        "downColor": "#c41f2d",
+        "hvcEnabled": true,
+        "separatePane": true,
+        "paneHeightPct": 22,
+        "labelVisible": true,
+        "maPeriod": 50,
+        "barStyle": "columns"
       },
-      "watermark": { "visible": false },
-      "swingLabels": { "enabled": false },
-      "markers": { "earnings": false, "splits": false, "dividends": false, "news": false },
-      "signature": { "darkPoolLevels": false, "gexWalls": false, "flowSignals": false },
+      "watermark": {
+        "visible": false
+      },
+      "swingLabels": {
+        "enabled": false
+      },
+      "markers": {
+        "earnings": false,
+        "splits": false,
+        "dividends": false,
+        "news": false
+      },
+      "signature": {
+        "darkPoolLevels": false,
+        "gexWalls": false,
+        "flowSignals": false
+      },
       "heikinAshi": false,
       "logScale": false,
       "percentScale": false,
@@ -84,14 +112,18 @@
       "comparisonSymbols": []
     }
   },
-
   "cases": [
     {
       "name": "bb_only",
       "why": "LEGACY vs LEGACY. Both sides draw the three bands through the hand-written StockChart block, so this is the determinism case for a price overlay and the flag-OFF regression case for any commit that touches the BB block. The legacy-vs-ENGINE measurement is `engine_bb_vs_legacy`.",
       "settings": {
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          }
         }
       }
     },
@@ -100,7 +132,11 @@
       "why": "Single-line separate pane — proves pane creation, height and the 30/70 guides survive the move.",
       "settings": {
         "indicators": {
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          }
         }
       }
     },
@@ -110,8 +146,12 @@
       "settings": {
         "indicators": {
           "macd": {
-            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           }
         }
       }
@@ -122,8 +162,12 @@
       "settings": {
         "indicators": {
           "macd": {
-            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           }
         }
       }
@@ -133,22 +177,38 @@
       "why": "All three at once: an overlay plus TWO extra panes. Catches pane-ordering and pane-height regressions that no single-indicator case can see.",
       "settings": {
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" },
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          },
           "macd": {
-            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           }
         }
       }
     },
-
     {
       "name": "engine_rsi_vs_legacy",
       "why": "THE DARK REHEARSAL. Side A draws RSI through the hand-written StockChart block; side B draws it through the ENGINE (`instancesB` → `?instances=`, which also arms `engineEnabled`), and StockChart's per-indicator ownership check stands the legacy block down so exactly ONE RSI line exists on each side. Same build, same fixture, one URL parameter apart — so a non-zero diff is the migration and nothing else. `indicators.rsi.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into.",
       "settings": {
         "indicators": {
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          }
         }
       },
       "instancesB": [
@@ -156,35 +216,50 @@
           "instanceId": "legacy:rsi",
           "defId": "rsi",
           "defVersion": 1,
-          "inputs": { "period": 14, "color": "#7b68ee" },
-          "placement": { "target": "pane" },
+          "inputs": {
+            "period": 14,
+            "color": "#7b68ee"
+          },
+          "placement": {
+            "target": "pane"
+          },
           "hidden": false
         }
       ]
     },
-
     {
       "name": "engine_rsi_toggle_off",
-      "why": "THE OFF STATE, IN PIXELS \u2014 and after B3 Task 10 \"off\" is a TOMBSTONE. `indicators.rsi.enabled` is FALSE on both sides and side B additionally hands the engine a DELETED `legacy:rsi`. Nothing may draw and no band may be reserved, on either side. \u26a0\ufe0f IT SAID `instancesB: [a live instance]` UNTIL FLIP B, and that spelling was Flip A\u0027s: the legacy toggle was the switch, so an instance whose toggle was off projected to `hidden`. Flip B makes the INSTANCE the switch, so the same blob correctly DRAWS now \u2014 the case would have been permanently red against any pre-flip build, measuring a semantic change rather than gating a regression. **Measured before reframing, Task-9 build `0e20133b4c07` vs Flip-B build `d4ab4e970fb4`: 3,697 px (0.496909%), 5/5 runs, distribution {3697: 5} \u2014 zero variance** \u2014 that number IS the authority flip, in pixels, and it is recorded here rather than deleted. The case\u0027s job is unchanged: without it the projection is gated only in jsdom, and the specific regression it catches is the one that produced this branch\u0027s worst bug \u2014 a band that is not reserved (`computePaneMargins` reads the projected flag) while a line is still drawn, which `resolvePlacement` then falls back to {top:0.82,bottom:0} \u2014 ON TOP OF THE VOLUME BARS.",
+      "why": "THE OFF STATE, IN PIXELS — and after B3 Task 10 \"off\" is a TOMBSTONE. `indicators.rsi.enabled` is FALSE on both sides and side B additionally hands the engine a DELETED `legacy:rsi`. Nothing may draw and no band may be reserved, on either side. ⚠️ IT SAID `instancesB: [a live instance]` UNTIL FLIP B, and that spelling was Flip A's: the legacy toggle was the switch, so an instance whose toggle was off projected to `hidden`. Flip B makes the INSTANCE the switch, so the same blob correctly DRAWS now — the case would have been permanently red against any pre-flip build, measuring a semantic change rather than gating a regression. **Measured before reframing, Task-9 build `0e20133b4c07` vs Flip-B build `d4ab4e970fb4`: 3,697 px (0.496909%), 5/5 runs, distribution {3697: 5} — zero variance** — that number IS the authority flip, in pixels, and it is recorded here rather than deleted. The case's job is unchanged: without it the projection is gated only in jsdom, and the specific regression it catches is the one that produced this branch's worst bug — a band that is not reserved (`computePaneMargins` reads the projected flag) while a line is still drawn, which `resolvePlacement` then falls back to {top:0.82,bottom:0} — ON TOP OF THE VOLUME BARS.",
       "_history": "Written in Task 2's fix round, measured at 24 px on 3 runs in 5, and DELETED on the reading that it was 'an A-vs-B work asymmetry / capture timing'. That diagnosis was WRONG, and deleting the case removed the evidence rather than the cause. Re-measured 2026-08-02 over 40 runs with the hardened harness (every capture proven pixel-stable before it was accepted, 2 shots on all 80): the 24 px is a BISTABLE RASTERISATION OF THE DASHED LAST-PRICE LINE, one row, ~12 dash boundaries, and it appears INDEPENDENTLY on both sides (legacy side 5/40, engine side 7/40) with no correlation to settle time. Sides A and B draw the same two images with the same frequencies, so it is not an asymmetry and not the migration — it is Chromium rasterising one dashed line two ways at this pane geometry. The other three engine cases were byte-identical across all 80 captures.",
       "priceLine": false,
       "_priceLineReason": "⚠️ NOT A TOLERANCE. The last-price line is drawn by the CANDLE series; no case measures it and it is identical on both sides by construction. `priceLine: false` removes a provably nondeterministic ELEMENT from this one case — the same treatment the footer's wall-clock stamp gets under ?fixedbars= — and the case must still report 0 on every run. The three cases that are already byte-identical keep the line, deliberately: their stored baselines mean what they meant before.",
       "settings": {
         "indicators": {
-          "rsi": { "enabled": false, "period": 14, "color": "#7b68ee" }
+          "rsi": {
+            "enabled": false,
+            "period": 14,
+            "color": "#7b68ee"
+          }
         }
       },
       "instancesB": [
-        { "instanceId": "legacy:rsi", "deleted": true }
+        {
+          "instanceId": "legacy:rsi",
+          "deleted": true
+        }
       ]
     },
-
     {
       "name": "engine_bb_vs_legacy",
       "why": "THE FIRST PRICE OVERLAY. Side A draws the three Bollinger lines through the hand-written StockChart block; side B draws them through the ENGINE. This is the case that measures the `autoscaleInfoProvider` seam: without it the bands drag the CANDLES' autoscale and the whole price pane re-scales, which is a whole-canvas diff (38,491 px, 343 rows x 1,160 columns), not a line-width one. It also measures the C-2 fix (`priceScaleId` named rather than omitted) on a create. IT DOES NOT MEASURE THE ENGINE CALL SITE'S POSITION, and it used to claim it did: the `classic_flat` preset sets `overlays: []` and `volume.separatePane: true`, so pane 0 holds only the candles and BB, nothing crosses anything, and moving the sync call produces 0 px. `engine_bb_over_overlays` is the case that earns that claim; the jsdom rail for it is `stockChartWiring.test.jsx`'s z-order pair.",
       "settings": {
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          }
         }
       },
       "instancesB": [
@@ -192,8 +267,14 @@
           "instanceId": "legacy:bb",
           "defId": "bb",
           "defVersion": 1,
-          "inputs": { "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "placement": { "target": "price" },
+          "inputs": {
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "placement": {
+            "target": "price"
+          },
           "hidden": false
         }
       ]
@@ -203,15 +284,67 @@
       "why": "THE CASE THAT EARNS THE CALL-SITE CLAIM. `engine_bb_vs_legacy` runs on the `classic_flat` preset, whose `overlays: []` and `volume.separatePane: true` leave pane 0 holding only the candles and BB — nothing crosses anything, so moving the engine sync call site produces 0 px there and the claim was unearned. This case turns the four MA overlays ON and brings volume INTO pane 0, so pane 0 really does contain volume bars, five moving averages and three Bollinger lines, and INSERTION ORDER IS Z-ORDER (lightweight-charts appends and paints by ascending zorder). Side A draws BB through the legacy block, side B through the engine, and the engine's sync must land in the same place the legacy block did: after volume and the MA overlays, before the first legacy indicator. Move it and the bands paint UNDER the overlays instead of over them. The jsdom rail for the same claim is `stockChartWiring.test.jsx`'s z-order pair; this is the pixel half. Expected 0 px, like every Flip A case — MEASURED 0 on 5/5, build 54443afee3e3, one build two ways. AND IT IS NOT A VACUOUS 0: with the sync call site moved up above the volume and MA blocks (the R12 shape, engine on BOTH sides, builds 54443afee3e3 vs bea40b9aec38) this case reports 281 px on 3/3 across 86 rows and 206 columns, while `engine_bb_vs_legacy` reports 0 on the same mutation — which is exactly why this case exists.",
       "settings": {
         "overlays": [
-          { "enabled": true, "type": "EMA", "period": 9,   "color": "#4ade80", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
-          { "enabled": true, "type": "EMA", "period": 20,  "color": "#f472b6", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
-          { "enabled": true, "type": "SMA", "period": 50,  "color": "#60a5fa", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
-          { "enabled": true, "type": "SMA", "period": 200, "color": "#fb923c", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" },
-          { "enabled": true, "type": "SMA", "period": 5,   "color": "rgba(168,162,144,0.55)", "lineWidth": 1, "lineStyle": "solid", "offset": 0, "plotStyle": "line" }
+          {
+            "enabled": true,
+            "type": "EMA",
+            "period": 9,
+            "color": "#4ade80",
+            "lineWidth": 1,
+            "lineStyle": "solid",
+            "offset": 0,
+            "plotStyle": "line"
+          },
+          {
+            "enabled": true,
+            "type": "EMA",
+            "period": 20,
+            "color": "#f472b6",
+            "lineWidth": 1,
+            "lineStyle": "solid",
+            "offset": 0,
+            "plotStyle": "line"
+          },
+          {
+            "enabled": true,
+            "type": "SMA",
+            "period": 50,
+            "color": "#60a5fa",
+            "lineWidth": 1,
+            "lineStyle": "solid",
+            "offset": 0,
+            "plotStyle": "line"
+          },
+          {
+            "enabled": true,
+            "type": "SMA",
+            "period": 200,
+            "color": "#fb923c",
+            "lineWidth": 1,
+            "lineStyle": "solid",
+            "offset": 0,
+            "plotStyle": "line"
+          },
+          {
+            "enabled": true,
+            "type": "SMA",
+            "period": 5,
+            "color": "rgba(168,162,144,0.55)",
+            "lineWidth": 1,
+            "lineStyle": "solid",
+            "offset": 0,
+            "plotStyle": "line"
+          }
         ],
-        "volume": { "separatePane": false },
+        "volume": {
+          "separatePane": false
+        },
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          }
         }
       },
       "instancesB": [
@@ -219,8 +352,14 @@
           "instanceId": "legacy:bb",
           "defId": "bb",
           "defVersion": 1,
-          "inputs": { "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "placement": { "target": "price" },
+          "inputs": {
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "placement": {
+            "target": "price"
+          },
           "hidden": false
         }
       ]
@@ -230,20 +369,46 @@
       "why": "THE PILOT PAIR TOGETHER. A price overlay and a banded oscillator in one render, which is the only case that can see the engine drawing its series contiguously where legacy interleaves them, and the only one where a pooled series can cross between the two placement paths within a single sync.",
       "settings": {
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          }
         }
       },
       "instancesB": [
         {
-          "instanceId": "legacy:bb", "defId": "bb", "defVersion": 1,
-          "inputs": { "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "placement": { "target": "price" }, "hidden": false
+          "instanceId": "legacy:bb",
+          "defId": "bb",
+          "defVersion": 1,
+          "inputs": {
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
         },
         {
-          "instanceId": "legacy:rsi", "defId": "rsi", "defVersion": 1,
-          "inputs": { "period": 14, "color": "#7b68ee" },
-          "placement": { "target": "pane" }, "hidden": false
+          "instanceId": "legacy:rsi",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "color": "#7b68ee"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
         }
       ]
     },
@@ -253,19 +418,31 @@
       "settings": {
         "indicators": {
           "macd": {
-            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           }
         }
       },
       "instancesB": [
         {
-          "instanceId": "legacy:macd", "defId": "macd", "defVersion": 2,
+          "instanceId": "legacy:macd",
+          "defId": "macd",
+          "defVersion": 2,
           "inputs": {
-            "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           },
-          "placement": { "target": "pane" }, "hidden": false
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
         }
       ]
     },
@@ -274,43 +451,84 @@
       "why": "ALL THREE PILOTS AT ONCE: a price overlay plus TWO extra bands. The only case that can see a pane-ordering or pane-height regression caused by the engine reserving bands through `computePaneMargins` while drawing all its series at one z-position — and the only one where a single sync binds five pool slots across two placement paths and two pool keys. Its settings mirror `bb_rsi_macd`, which is the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. Expected 0 px.",
       "settings": {
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" },
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          },
           "macd": {
-            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           }
         }
       },
       "instancesB": [
         {
-          "instanceId": "legacy:bb", "defId": "bb", "defVersion": 1,
-          "inputs": { "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "placement": { "target": "price" }, "hidden": false
-        },
-        {
-          "instanceId": "legacy:rsi", "defId": "rsi", "defVersion": 1,
-          "inputs": { "period": 14, "color": "#7b68ee" },
-          "placement": { "target": "pane" }, "hidden": false
-        },
-        {
-          "instanceId": "legacy:macd", "defId": "macd", "defVersion": 2,
+          "instanceId": "legacy:bb",
+          "defId": "bb",
+          "defVersion": 1,
           "inputs": {
-            "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
           },
-          "placement": { "target": "pane" }, "hidden": false
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
+        },
+        {
+          "instanceId": "legacy:rsi",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "color": "#7b68ee"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        },
+        {
+          "instanceId": "legacy:macd",
+          "defId": "macd",
+          "defVersion": 2,
+          "inputs": {
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
         }
       ]
     },
-
     {
       "name": "flipb_rsi_only",
       "why": "⭐ THE FLIP-B GATE FOR RSI, AND IT IS NOT AN ENGINE CASE — there is no `instancesB`. Both sides get the SAME legacy-shaped settings a real user has (`indicators.rsi.enabled`, no instance anywhere) plus `engineEnabled: true`. Side A (the Task-9 build) draws them through the hand-written StockChart block; side B (Flip B) draws them through the engine's READ-TIME MIGRATION, because that block has been deleted. That IS Flip B, and it is the only case shape that can measure it: an `instancesB` case would hand side B an instance and stop exercising the compatibility path every existing user depends on. `rsi_only` above is the flag-OFF twin and stays the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. ⚠️ `--perturb-b` ON THE SETTINGS COLOUR IS THE SELF-TEST HERE and it is NOT vacuous the way it would be on a Flip-A engine case: after Flip B a settings colour can only reach the series through an instance the migrator builds, so a 0 would mean the compatibility path is dead rather than that the perturbation was ignored. Expected 0 px.",
       "settings": {
         "engineEnabled": true,
         "indicators": {
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" }
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          }
         }
       }
     },
@@ -320,26 +538,136 @@
       "settings": {
         "engineEnabled": true,
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" }
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          }
         }
       }
     },
     {
       "name": "flipb_bb_rsi_macd",
-      "why": "BOTH FLIPPED PILOTS PLUS AN UN-FLIPPED ONE, in one render. `macd` is migrated and NOT flipped, so on side B it must still be drawn by its LEGACY block while rsi and bb come through the migrator — which makes this the only case that can see the per-definition gate being wrong in the direction that matters (a whole-set gate would move MACD onto the engine too, silently, with no pixel number of its own). It is also the only Flip-B case with a price overlay plus TWO extra bands, so a pane-ordering or pane-height regression caused by `csForPaneMargins` shows up here and nowhere else. Its settings mirror `bb_rsi_macd`, the flag-off twin. Expected 0 px.",
+      "why": "⚠️ ITS ORIGINAL CLAIM EXPIRED AT B3 TASK 11, AND THE NUMBER IS KEPT ANYWAY. It read \"both flipped pilots plus an UN-FLIPPED one\": `macd` was migrated and not flipped, so on side B it was still drawn by its legacy block, which made this the only case that could see the per-definition gate being wrong. Task 11 flipped `macd`, so all three now come through the migrator and that discriminating power is GONE — `flipb_all_four` below is its replacement and adds the price overlay. This case stays because it is still the daily three-band layout under `csForPaneMargins` and it is a measured baseline (`bb_rsi_macd` is its flag-off twin); it is no longer the per-definition gate, and a reader who thinks it is would be trusting a control that has nothing left to control. Expected 0 px.",
       "settings": {
         "engineEnabled": true,
         "indicators": {
-          "bb": { "enabled": true, "period": 20, "stdDev": 2, "color": "rgba(156,39,176,0.85)" },
-          "rsi": { "enabled": true, "period": 14, "color": "#7b68ee" },
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          },
           "macd": {
-            "enabled": true, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9,
-            "macdColor": "#2196F3", "signalColor": "#FF9800"
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
           }
         }
       }
     },
-
+    {
+      "name": "flipb_macd_only",
+      "why": "⭐ THE FLIP-B GATE FOR MACD, AND IT CARRIES NO `instancesB` — the same shape as `flipb_rsi_only`, for the same reason. Both sides get the legacy-shaped settings a real user has (`indicators.macd.enabled`, no instance anywhere) plus `engineEnabled: true`. Side A (the Task-10 build) draws the line, the signal and the histogram through the hand-written StockChart block; side B (Flip B) draws all three through the engine's READ-TIME MIGRATION, because that block, its three refs and its `indicatorData` IIFE are deleted. An `instancesB` case would hand side B an instance and stop exercising the compatibility path every existing user depends on. ⚠️ MACD IS THE ONLY PILOT WHOSE MIGRATION MOVES THREE PLOTS AND TWO POOL KEYS AT ONCE, and the histogram's sign colouring moved with it: `MACD_HIST_UP`/`MACD_HIST_DOWN` were StockChart module constants and now exist only as `colorUp`/`colorDown` on the definition, so a mismatch there is a pane full of one-colour bars and this case is what prices it. `macd_only` above is the flag-OFF twin and stays the legacy-vs-legacy baseline for the same picture. Expected 0 px.",
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "macd": {
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
+          }
+        }
+      }
+    },
+    {
+      "name": "flipb_vwap_only",
+      "why": "⭐ THE FLIP-B GATE FOR VWAP, on the INTRADAY fixture — the daily one cannot render a session VWAP at all, so a `ramp200` version of this case would report 0 forever against two blank charts. No `instancesB`: legacy-shaped settings on both sides, side A through the hand-written block and side B through the read-time migration. ⚠️ VWAP IS THE SHARPEST OF THE FOUR because its render context does not survive the flip by itself: the intraday gate was `VWAP_TFS`, the colour is `color` × `opacity` composed by `_withVwapOpacity`, and the unset width is 0.5 on the bold look — all three were StockChart locals and all three are DELETED, with `engine/eligibility.js` carrying the transcription. A wrong transcription is a visible line in the wrong colour or the wrong weight, and this is the only case that sees it. `vwap_only` above is the legacy-vs-legacy baseline for the same picture. Expected 0 px.",
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "flipb_vwap_dimmed",
+      "why": "⭐ THE COMPOSITION, NOT JUST THE LINE. `opacity` is the one VWAP input that reaches no plot field: the migrator copies it out of `indicators.vwap` into the projected instance and `eligibility.withOpacity` composes it with `color` into a single rgba() string. This case is `flipb_vwap_only` at 40% — legacy-shaped settings on both sides — so it measures the whole settings → instance → eligibility → series chain that Flip B put between a stored blob and a pixel. A 0 here with a NON-ZERO `--perturb-b` on `vwap.opacity` is the pair that says the chain is live: the perturb is the sharper self-test of the two on this branch, because a 0 from it would mean the composition never ran. Expected 0 px.",
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 40,
+            "lineStyle": "dashed",
+            "lineWidth": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "flipb_all_four",
+      "why": "⭐ EVERY PILOT AT ONCE, WHICH IS THE STATE THE BRANCH NOW SHIPS. `flipb_bb_rsi_macd` used to be the mixed case — two flipped ids plus MACD still on its legacy block — and that mixture no longer exists, so this replaces the claim it carried: all three PANE definitions plus a PRICE overlay in one render, drawn entirely by the engine from projected instances. It is the only case where `csForPaneMargins` rewrites three enabled flags in one pass, so a pane-ORDER or pane-HEIGHT regression (RSI's band above MACD's, both above volume) shows up here and in no single-indicator case. Intraday, because that is the only timeframe on which the fourth pilot draws at all. Expected 0 px.",
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
+      "settings": {
+        "engineEnabled": true,
+        "indicators": {
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "rsi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#7b68ee"
+          },
+          "macd": {
+            "enabled": true,
+            "fastPeriod": 12,
+            "slowPeriod": 26,
+            "signalPeriod": 9,
+            "macdColor": "#2196F3",
+            "signalColor": "#FF9800"
+          },
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          }
+        }
+      }
+    },
     {
       "name": "intraday_bars_only",
       "why": "PROVES THE INTRADAY FIXTURE RENDERS AT ALL, and it is the only case that can. Every VWAP number B3 Task 8 produces is measured against `intraday5m`, and a fixture that came back blank would make each of those a permanent, silent 0 that no assertion in the harness can tell from a pass — the ?fixedbars= name is sanitised and then dynamically imported, so a typo degrades to an empty chart rather than an error. No indicator: candles and volume on 579 five-minute bars, which is the smallest thing that fails if the fixture is unreadable. It is ALSO the legacy-vs-legacy determinism baseline for the intraday picture, the way `bb_only` is for the daily one: an intraday chart draws pre/post-market session SHADING that the daily fixture never exercises, and a wobble there would otherwise arrive inside a VWAP number and be read as the migration. MEASURED 0 px on 5/5 runs (95% flake bound 45%), build `25b09976a062`, one build two ways — and the 0 is NOT two blank canvases: the same case with `candles.upColor` moved ONE hex digit reports 2,513 px (0.337769%) and exit 1, and against a build that has no `intraday5m.json` at all (`45744409cc04`, the tree before this fixture landed) it reports 672,702 px — 90.4% of the canvas — because a missing fixture renders the 'Failed to load chart' card. ⚠️ THAT LAST NUMBER IS THE WHOLE POINT: two sides BOTH missing the fixture would show the same error card and report 0 forever, which is why `tests/test_chart_parity_harness.py::test_every_case_names_a_bar_fixture_that_EXISTS` refuses a `fixedbars` that is not on disk.",
@@ -348,70 +676,183 @@
       "bars": 579,
       "settings": {}
     },
-
     {
       "name": "vwap_only",
       "why": "Session VWAP on FIVE-MINUTE bars — the daily fixture cannot render it at all (VWAP_TFS, `StockChart.jsx:559`). Legacy vs legacy: the determinism control for the engine cases below, and the case the `VWAP_SESSION_ANCHOR` decision was priced on. ⚠️ IT IS THE ONE CASE THAT SEES `computeVWAP`'s SESSION BUCKETING AT ALL. The accumulator used to restart on a UTC calendar day, which split an extended-hours ET session mid-flight and — because Monday's 19:00-20:00 ET bars had already opened the next UTC day — never reset at Tuesday's 04:00 ET open. Correcting it to ET-session anchoring was a `compute.rev` bump and an owner decision, ACCEPTED 2026-08-03 (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md` §9, spec §11): measured on THIS case at **2,590 changed px (0.348118%), 20/20 runs, zero variance**, builds `89f73b36ae29` -> `35ec82560ea5`. ⚠️ An earlier revision of this note said 6,687 — that number was written into the Flip-A commit before §4 measured anything and was never a measurement of this case. A future 0 from a `computeVWAP` change means one of the two lanes stopped reading it.",
-      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
       "settings": {
-        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 100, "lineStyle": "solid", "lineWidth": 1 } }
+        "indicators": {
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          }
+        }
       }
     },
     {
       "name": "engine_vwap_vs_legacy",
       "why": "THE LAST FLIP A, and the one with no clean schema expression. Colour is TWO inputs composed at render time, width has a render-context fallback, and the whole indicator is timeframe-gated — all three handled by `engine/eligibility.js` rather than by inventing schema for one native. Runs on `intraday5m`, which crosses UTC midnight twice and a DST boundary, so the UTC-day accumulator reset computeVWAP performs is IN the picture and Flip A has to reproduce it. ⚠️ WHAT THIS CASE CANNOT SEE: `ChartRender` passes no `vwapOverride`, no `boldCandles` and no `modelBookLook`, so the override recolour and both width fallbacks are unreachable here and are gated in `engine/eligibility.test.js` instead. It also cannot see the timeframe gate — a case that rendered VWAP on a daily chart would be 0 px because NEITHER side draws.",
-      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
       "settings": {
-        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 100, "lineStyle": "solid", "lineWidth": 1 } }
+        "indicators": {
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          }
+        }
       },
       "instancesB": [
         {
-          "instanceId": "legacy:vwap", "defId": "vwap", "defVersion": 1,
-          "inputs": { "color": "#26C6DA", "opacity": 100, "lineStyle": "solid", "lineWidth": 1 },
-          "placement": { "target": "price" }, "hidden": false
+          "instanceId": "legacy:vwap",
+          "defId": "vwap",
+          "defVersion": 1,
+          "inputs": {
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
         }
       ]
     },
     {
       "name": "engine_vwap_dimmed_vs_legacy",
       "why": "The opacity composition specifically. `opacity` is not a substitutable plot field, so `$opacity` has nowhere to land and B2's fix wave finding #4 established that wiring `opacity` onto the plot does NOT close this carry — the plot-level field DIMS an authored colour, it does not compose a user's two inputs into one string. At 40% the line is visibly translucent, so a build that dropped the composition renders it at full strength and this case goes red where `engine_vwap_vs_legacy` (opacity 100, base colour returned untouched) would not.",
-      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
       "settings": {
-        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 40, "lineStyle": "solid", "lineWidth": 1 } }
+        "indicators": {
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 40,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          }
+        }
       },
       "instancesB": [
         {
-          "instanceId": "legacy:vwap", "defId": "vwap", "defVersion": 1,
-          "inputs": { "color": "#26C6DA", "opacity": 40, "lineStyle": "solid", "lineWidth": 1 },
-          "placement": { "target": "price" }, "hidden": false
+          "instanceId": "legacy:vwap",
+          "defId": "vwap",
+          "defVersion": 1,
+          "inputs": {
+            "color": "#26C6DA",
+            "opacity": 40,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
         }
       ]
     },
     {
       "name": "engine_vwap_dashed_vs_legacy",
       "why": "THE CASE THAT FOUND A REAL FLIP-A DIVERGENCE, and it is here because it went RED first. `lineStyle` was not a substitutable plot field, so VWAP's plot could only carry an author's literal and the engine drew SOLID for every user who had ever chosen dashed or dotted — a changed picture that `engine_vwap_vs_legacy` (lineStyle solid on both sides) reports as 0 px forever. Measured on a build carrying the migration but NOT the fix (`9c7b7e62e647`): 2,966 changed px (0.398656%) on 5/5 runs, exit 1 — while `engine_vwap_vs_legacy` reported 0 on that SAME build, which is the whole reason this case had to exist. `SUBSTITUTABLE_PLOT_FIELDS` gained `lineStyle` and the plot declares `$lineStyle`; this case is now 0 on 20/20 and is what keeps it that way. Width is 2 so the dash pattern has ink to show.",
-      "tf": "5", "fixedbars": "intraday5m", "bars": 579,
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
       "settings": {
-        "indicators": { "vwap": { "enabled": true, "color": "#26C6DA", "opacity": 100, "lineStyle": "dashed", "lineWidth": 2 } }
+        "indicators": {
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          }
+        }
       },
       "instancesB": [
         {
-          "instanceId": "legacy:vwap", "defId": "vwap", "defVersion": 1,
-          "inputs": { "color": "#26C6DA", "opacity": 100, "lineStyle": "dashed", "lineWidth": 2 },
-          "placement": { "target": "price" }, "hidden": false
+          "instanceId": "legacy:vwap",
+          "defId": "vwap",
+          "defVersion": 1,
+          "inputs": {
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
         }
       ]
     },
-    { "name": "stoch_only", "status": "placeholder", "settings": {} },
-    { "name": "atr_only", "status": "placeholder", "settings": {} },
-    { "name": "sar_only", "status": "placeholder", "settings": {} },
-    { "name": "ichimoku_only", "status": "placeholder", "settings": {} },
-    { "name": "mfi_only", "status": "placeholder", "settings": {} },
-    { "name": "cci_only", "status": "placeholder", "settings": {} },
-    { "name": "williams_r_only", "status": "placeholder", "settings": {} },
-    { "name": "adx_only", "status": "placeholder", "settings": {} },
-    { "name": "obv_only", "status": "placeholder", "settings": {} },
-    { "name": "donchian_only", "status": "placeholder", "settings": {} },
-    { "name": "volume_profile_only", "status": "placeholder", "settings": {} }
+    {
+      "name": "stoch_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "atr_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "sar_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "ichimoku_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "mfi_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "cci_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "williams_r_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "adx_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "obv_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "donchian_only",
+      "status": "placeholder",
+      "settings": {}
+    },
+    {
+      "name": "volume_profile_only",
+      "status": "placeholder",
+      "settings": {}
+    }
   ]
 }

@@ -5,11 +5,12 @@
 // Everything the definition schema can say is authored ONCE and is true on every
 // surface. Four things about VWAP are not:
 //
-//   1. it does not exist above 60-minute bars (`VWAP_TFS`, `StockChart.jsx:559`)
+//   1. it does not exist above 60-minute bars (was `VWAP_TFS` in `StockChart.jsx`;
+//      that constant is DELETED as of Flip B and this module is the only copy)
 //   2. the Model Book intraday popup forces it ON and forces it WHITE
 //      (`vwapOverride`, `:1024` / `:3962` / `:6001`)
 //   3. its colour is TWO inputs composed at render time — `color` × `opacity`
-//      through `_withVwapOpacity` (`:571-579`). `plots[].opacity` cannot express
+//      through `_withVwapOpacity` (also DELETED at Flip B). `plots[].opacity` cannot express
 //      it: `SUBSTITUTABLE_PLOT_FIELDS` has no `opacity` entry, so `$opacity` has
 //      nowhere to land, and B2's fix wave established that wiring `opacity` onto
 //      the plot does NOT close this (finding #4) — the plot-level `opacity` DIMS
@@ -44,7 +45,8 @@
 
 import { parseColor } from '../../../utils/dividerColor'
 
-/** `StockChart.jsx:559` — `VWAP_TFS`, verbatim and in order.
+/** `VWAP_TFS`, verbatim and in order — from `StockChart.jsx`, which no longer
+ *  has it: VWAP is FLIPPED (B3 Task 11) and this is the only copy left.
  *
  *  ⚠️ This is the mirror, not the authority. The gate the hook ENFORCES is
  *  `def.meta.timeframes`, declared on the definition — that is what lets the
@@ -53,7 +55,8 @@ import { parseColor } from '../../../utils/dividerColor'
  *  `eligibility.test.js` asserts the two agree. */
 export const VWAP_TIMEFRAMES = Object.freeze(['1', '5', '15', '30', '60'])
 
-/** The width an unset `lineWidth` takes. `StockChart.jsx:6006-6008`. */
+/** The width an unset `lineWidth` takes — from the legacy VWAP block, deleted at
+ *  Flip B. */
 const BOLD_WIDTH = 0.5
 const NORMAL_WIDTH = 1
 
@@ -61,7 +64,8 @@ const NORMAL_WIDTH = 1
 const DEFAULT_VWAP_COLOR = '#26C6DA'
 
 /**
- * `_withVwapOpacity` (`StockChart.jsx:571-579`), transcribed.
+ * `_withVwapOpacity`, transcribed from `StockChart.jsx` before Flip B deleted it.
+ * This is now the only implementation.
  *
  * 100 returns the base UNTOUCHED — so a user who has never opened the opacity
  * setting sees the exact string the legacy path produced, and Flip A parity does

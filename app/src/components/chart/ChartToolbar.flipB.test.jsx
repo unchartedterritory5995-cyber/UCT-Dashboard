@@ -66,12 +66,19 @@ const swatch = (row) => within(row).getAllByRole('button').at(-1)
 const live = (cs) => normalizeInstances(cs.indicatorInstances, engineRegistry).kept
 
 describe('the SHIPPED set is the subject — without a non-empty one every case is vacuous', () => {
-  it('rsi and bb are flipped; macd is migrated and is not', () => {
-    expect(ENGINE_FLIPPED_DEF_IDS.has('rsi')).toBe(true)
-    expect(ENGINE_FLIPPED_DEF_IDS.has('bb')).toBe(true)
-    expect(ENGINE_MIGRATED_DEF_IDS.has('macd')).toBe(true)
-    expect(ENGINE_FLIPPED_DEF_IDS.has('macd'),
-      'macd is flipped too — this file needs a different un-flipped subject').toBe(false)
+  it('all four pilots are flipped, and the migrated set has nothing else in it', () => {
+    // ⚠️ THE SECOND HALF OF THIS CASE INVERTED AT TASK 11. It used to assert
+    // `macd` was migrated and NOT flipped, because the file needed an un-flipped
+    // subject for its Flip-A-treatment case. That case is gone with its subject
+    // (see below), and what the file needs now is the opposite guarantee: if a
+    // definition is ever migrated WITHOUT being flipped, `engineInert` goes live
+    // again and this file's "a migrated row is a live writer" premise is false.
+    for (const id of ['rsi', 'bb', 'macd', 'vwap']) {
+      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id).toBe(true)
+    }
+    expect([...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
+      'a migrated definition is not flipped — its row is INERT again, and this file '
+      + 'asserts every migrated row is a live writer').toEqual([])
   })
 })
 
@@ -202,10 +209,18 @@ describe('ChartToolbar — a FLIPPED row writes the instance, and stops being in
     expect(next.indicators.bb.period).toBe(21)
   })
 
-  it('an UN-FLIPPED migrated definition keeps the Flip-A treatment exactly', async () => {
-    // `macd` is drawn by the engine and has no writer yet, so its row must still
-    // be disabled with the reason in the tooltip. One flip must not silence — or
-    // un-silence — the pilots that have not flipped.
+  it('MACD\u2019s THREE boxes are all live, and each writes the input it names', async () => {
+    // ⚠️ THIS CASE WAS INVERTED BY TASK 11. It read "an UN-FLIPPED migrated
+    // definition keeps the Flip-A treatment exactly" and asserted MACD's three
+    // boxes were DISABLED with the engine tooltip. MACD is flipped now, so that
+    // assertion is the opposite of the truth — the fourth time a case in this
+    // family has had its subject migrated out from under it, which is why the
+    // describe above asserts the sets are EQUAL rather than naming a survivor.
+    //
+    // MACD is the only pilot with THREE fields on one instance, so "the row is
+    // live" is not the whole claim: each box has to write ITS OWN input. A writer
+    // keyed on the ROW rather than the FIELD would move `fastPeriod` when the user
+    // typed in the signal box, and all three boxes would still look live.
     const user = userEvent.setup()
     const spy = vi.fn()
     mount(settingsWith({
@@ -217,20 +232,55 @@ describe('ChartToolbar — a FLIPPED row writes the instance, and stops being in
     }), spy)
     await openPanel(user)
     const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
-    expect(boxes.map(b => b.disabled)).toEqual([true, true, true])
-    expect(boxes[0].getAttribute('title')).toMatch(/Drawn by the indicator engine/)
-    expect(boxes.map(b => b.value), 'the inert boxes still show the instance').toEqual(['5', '35', '4'])
-    await user.type(boxes[0], '5')
-    expect(spy, 'a disabled control wrote settings').not.toHaveBeenCalled()
+    expect(boxes.map(b => b.disabled), 'a row with a writer is still greyed out')
+      .toEqual([false, false, false])
+    expect(boxes[0].getAttribute('title')).toBe('Fast')
+    expect(boxes.map(b => b.value), 'the boxes must show the INSTANCE').toEqual(['5', '35', '4'])
+
+    await user.type(boxes[2], '7', { initialSelectionStart: 0, initialSelectionEnd: 9 })
+    const next = spy.mock.calls.at(-1)[0]
+    const inst = live(next).find(i => i.defId === 'macd')
+    expect(inst.inputs.signalPeriod, 'the signal box wrote nothing').toBe(7)
+    expect(inst.inputs.fastPeriod, 'typing in the signal box moved the FAST period').toBe(5)
+    expect(inst.inputs.slowPeriod).toBe(35)
+    expect(next.indicators.macd.signalPeriod, 'the alert evaluator reads this section').toBe(7)
   })
 
-  it('⭐ the NUMERIC PARSE the legacy branch does is still there for an un-flipped id', async () => {
+  it('VWAP\u2019s swatch is live too, and writes the instance\u2019s colour', async () => {
+    // VWAP's only toolbar control is the swatch — its opacity / style / width live
+    // on the settings page — so this is the whole toolbar surface for it, and it
+    // was `engineInert`'s last subject before the flip.
+    const user = userEvent.setup()
+    const spy = vi.fn()
+    mount(settingsWith({
+      indicators: { vwap: { enabled: true, color: '#26C6DA' } },
+      indicatorInstances: [{
+        instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
+        inputs: { color: '#ff0000' }, placement: { target: 'price' }, hidden: false,
+      }],
+    }), spy)
+    await openPanel(user)
+    const box = swatch(rowFor('VWAP'))
+    expect(box.disabled, 'a row with a writer is still greyed out').toBe(false)
+    expect(box.style.background, 'the swatch must show the INSTANCE').toBe('rgb(255, 0, 0)')
+    await user.click(box)
+    const hex = screen.getByPlaceholderText('#hex')
+    await user.clear(hex)
+    await user.type(hex, '#00ff00{Enter}')
+    const next = spy.mock.calls.at(-1)[0]
+    expect(live(next).find(i => i.defId === 'vwap').inputs.color).toBe('#00ff00')
+    expect(next.indicators.vwap.color, 'the mirror was not written').toBe('#00ff00')
+  })
+
+  it('⭐ the NUMERIC PARSE the legacy branch does is still there for a NON-MIGRATED id', async () => {
     // The fall-through branch of `updateIndicator` keeps its `numFields` set —
     // `<input type=number>` hands back a STRING, and a settings blob that stored
     // `"21"` instead of `21` would be a silent type regression in every
     // indicator the engine has not migrated. A flipped id coerces off the
     // DEFINITION instead; both are asserted so neither can quietly become the
-    // other.
+    // other. ⚠️ The subject was already Stoch, which is NOT migrated, so Task 11
+    // moved only the title — but the title mattered: "un-flipped" now names an
+    // EMPTY set, and a case named for one reads as vacuous.
     const user = userEvent.setup()
     const spy = vi.fn()
     mount(settingsWith(), spy)

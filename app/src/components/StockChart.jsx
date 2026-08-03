@@ -13,7 +13,7 @@ import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeV
 // ⛔ NO `computeBB` / `computeRSI`. Both are FLIPPED (B3 Task 10) and are called
 // by their engine definitions now; importing them here again is how a "migrated"
 // indicator quietly keeps paying for a second computation nothing renders.
-import { toHeikinAshi, computeVWAP, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
+import { toHeikinAshi, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
@@ -84,11 +84,13 @@ const indPoint = (time, value) => (Number.isFinite(value) ? { time, value } : { 
 // True for an LWC whitespace item (no value, and no OHLC either — candle and
 // volume data go through the same _applyData).
 const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === undefined
-// MACD histogram bar colours. These used to be baked into each point by
-// computeMACD; colour is a render concern, so the sign test lives here now.
-// `m >= s` (the old test) is exactly `histogram >= 0`.
-const MACD_HIST_UP = 'rgba(76,175,80,0.75)'
-const MACD_HIST_DOWN = 'rgba(244,67,54,0.75)'
+// ⛔ NO `MACD_HIST_UP` / `MACD_HIST_DOWN` — MACD is FLIPPED (B3 Task 11) and its
+// `indicatorData` branch, the only reader those two literals had, is deleted.
+// The two colours live in ONE place now: `nativeRegistry`'s macd histogram plot,
+// which is where the sign test that chooses between them also lives.
+// `grep -rn "MACD_HIST_" app/src/` returns `nativeRegistry.js` (as `colorUp` /
+// `colorDown` literals) plus the two test files that keep their own copies so a
+// silent edit there fails.
 
 // The renderer surface the indicator engine's binder asks for: the four series
 // constructors any v1 plot can need, plus the two style enums. Assembled from
@@ -565,26 +567,18 @@ function computeBarTime(tf, tickTimeSec) {
 // ─── Series type helpers ─────────────────────────────────────────────────────
 
 const OHLC_TYPES = new Set(['candles', 'hollow', 'bars', 'hlc'])
-const VWAP_TFS = new Set(['1', '5', '15', '30', '60'])
 // Shared frozen empty so "shading off" is one stable identity across renders —
 // a fresh [] would defeat the band-change guard in updateChart.
 const EMPTY_BANDS = Object.freeze([])
 
-/** Compose a base color with a 0-100 opacity PERCENT into an rgba() string.
- *
- *  VWAP keeps opacity as its own setting instead of alpha-in-hex (the moving-average
- *  convention) because its color can be forced by `vwapOverride`; a plain hex from
- *  there would silently wipe the user's opacity. 100% returns the base color
- *  untouched so nothing changes for anyone who never opens the setting, and an
- *  unparseable color falls through unchanged rather than guessing a color. */
-function _withVwapOpacity(color, opacityPct) {
-  const pct = Number(opacityPct)
-  if (!Number.isFinite(pct) || pct >= 100) return color
-  const rgb = parseColor(color)
-  if (!rgb) return color
-  const a = Math.max(0, Math.min(1, pct / 100))
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`
-}
+// ⛔ NO `VWAP_TFS`, NO `_withVwapOpacity` — VWAP is FLIPPED (B3 Task 11) and the
+// legacy block that read both is deleted. `engine/eligibility.js` carries the
+// transcription of each (`VWAP_TIMEFRAMES` and `withOpacity`), with the reason
+// each one cannot be expressed in the definition schema written next to it, and
+// `eligibility.test.js` pins them against `def.meta.timeframes`.
+// `grep -rn "VWAP_TFS\|_withVwapOpacity" app/src/` returns COMMENTS only —
+// eligibility.js naming what it transcribed, and the pointers that used to name
+// a line number in this file. No code reads either name any more.
 
 function isOhlcType(chartType) {
   return !chartType || OHLC_TYPES.has(chartType)
@@ -1701,11 +1695,11 @@ export default function StockChart({
   const overlaySeriesRefs = useRef([])
   const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
   const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
-  // ⛔ NO `bbUpperRef` / `bbMiddleRef` / `bbLowerRef` / `rsiSeriesRef`. Bollinger
-  // Bands and RSI are FLIPPED (B3 Task 10) — the engine's binding map owns their
+  // ⛔ NO `bbUpperRef` / `bbMiddleRef` / `bbLowerRef` / `rsiSeriesRef` (Task 10),
+  // and NO `vwapSeriesRef` / `macdLineRef` / `macdSignalRef` / `macdHistRef`
+  // (Task 11). All four pilots are FLIPPED — the engine's binding map owns their
   // series, and a ref here would be a second, stale handle to something the pool
   // re-purposes. See the flip note where their render blocks used to be.
-  const vwapSeriesRef = useRef(null)
   const stochKRef     = useRef(null)
   const stochDRef     = useRef(null)
   const atrSeriesRef  = useRef(null)
@@ -1718,9 +1712,6 @@ export default function StockChart({
   const ichimokuSpanARef  = useRef(null)
   const ichimokuSpanBRef  = useRef(null)
   const ichimokuChikouRef = useRef(null)
-  const macdLineRef   = useRef(null)
-  const macdSignalRef = useRef(null)
-  const macdHistRef   = useRef(null)
   const mfiSeriesRef       = useRef(null)
   const cciSeriesRef       = useRef(null)
   const williamsRSeriesRef = useRef(null)
@@ -3379,10 +3370,21 @@ export default function StockChart({
       // for layout independence (Mac emits special chars with Alt).
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
         // Alt+U → toggle the session-VWAP indicator.
+        //
+        // ⭐ THE FIFTH DOOR, AND IT IS NOT IN THE `toggle:` SWITCH (B3 Task 11).
+        // `keyboardShortcuts.js` declares `Alt+U -> toggle:vwap`, but
+        // `matchShortcut` rejects Alt, so that command never reaches the switch —
+        // this block is the live handler and it wrote `indicators.vwap.enabled`
+        // directly. VWAP is FLIPPED now, so that field is a MIRROR: writing it
+        // alone ticks a box the chart disagrees with, and a tombstone would put
+        // the line straight back on the next paint. Routed through
+        // `setIndicatorEnabled`, which is the one writer the checkbox, the
+        // right-click menu and the other three shortcuts already share.
         if (!e.shiftKey && e.code === 'KeyU') {
           e.preventDefault()
-          const next = { ...cs.indicators, vwap: { ...(cs.indicators?.vwap || {}), enabled: !cs.indicators?.vwap?.enabled } }
-          handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
+          const on = isIndicatorEnabled(cs, 'vwap', ENGINE_FLIPPED_DEF_IDS)
+          const next = setIndicatorEnabled(cs, 'vwap', !on, engineRegistry)
+          if (next !== cs) handleUpdateChartSettings(next)
           return
         }
         // Alt+Shift+W → toggle the symbol watermark.
@@ -4016,15 +4018,17 @@ export default function StockChart({
 
   const indicatorData = useMemo(() => {
     const ind = cs.indicators || {}
-    // ⛔ NO `rsi` / `bb` BRANCHES. Both are FLIPPED (B3 Task 10): the engine
-    // computes their columns from the same `filteredBars` at bind time, and a
-    // second computation here would be a silent duplicate whose only observable
-    // effect is CPU — the classic way a "migrated" indicator keeps costing what it
-    // cost before. `computeRSI` / `computeBB` still exist and are still what the
-    // engine's definitions call.
-    const vwapRaw = ((vwapOverride || ind.vwap?.enabled) && VWAP_TFS.has(resolvedTf))
-      ? computeVWAP(filteredBars)
-      : []
+    // ⛔ NO `rsi` / `bb` / `macd` / `vwap` BRANCHES. All four are FLIPPED (B3
+    // Tasks 10 and 11): the engine computes their columns from the same
+    // `filteredBars` at bind time, and a second computation here would be a silent
+    // duplicate whose only observable effect is CPU — the classic way a "migrated"
+    // indicator keeps costing what it cost before. `computeRSI` / `computeBB` /
+    // `computeVWAP` / `computeMACD` still exist and are still what the engine's
+    // definitions call; StockChart no longer imports the last two at all.
+    //
+    // ⚠️ THE MACD HEAD-MASK WENT WITH IT. `MACD_HEAD_MASK` had TWO readers while
+    // both lanes existed and now has ONE — `nativeRegistry`'s `COLUMN_HOLDS`.
+    // `docs/decisions/2026-08-02-macd-head-mask.md` records that.
     const stochRaw = ind.stoch?.enabled
       ? computeStochastic(filteredBars, ind.stoch.kPeriod, ind.stoch.dPeriod)
       : { k: [], d: [] }
@@ -4060,43 +4064,6 @@ export default function StockChart({
     // downstream _applyData can hand the renderer a `value: NaN`.
     const line = (pts) => pts.map(p => indPoint(adjustTime(p.time), p.value))
     return {
-      vwap: line(vwapRaw),
-      macd: (() => {
-        const macdCfg = ind.macd
-        if (!macdCfg?.enabled) return { macd: [], signal: [], histogram: [] }
-        const raw = computeMACD(filteredBars, macdCfg.fastPeriod, macdCfg.slowPeriod, macdCfg.signalPeriod)
-        // The MACD line is mathematically defined from bar (slowPeriod-1) —
-        // `signalPeriod-1` bars before the signal line — and computeMACD returns
-        // it there, matching the Python lane and the shared golden fixture.
-        // B1 held its head back to the signal's first bar to keep the shipped
-        // picture still inside a foundations commit; **the owner dropped that
-        // hold on 2026-08-02** (id **MACD_HEAD_MASK**, record at
-        // `docs/decisions/2026-08-02-macd-head-mask.md`, adjudication in spec §11),
-        // so `MACD_HEAD_MASK` is false and the line now draws all 8 of those bars.
-        // Measured cost of the drop: 88 px (0.011828%) on `macd_headmask`.
-        // ⚠️ ONE SWITCH, BOTH LANES — keep it that way. `macd` is NOT migrated, so
-        // this legacy memo is the lane a user actually sees, and the engine's
-        // `COLUMN_HOLDS` reads the same constant. Hand-editing either side is how
-        // the two lanes drift and the 88 stops meaning anything; a flip that
-        // reached only the engine would have measured 0.
-        const sigStart = engineRegistry.MACD_HEAD_MASK
-          ? raw.signal.findIndex(p => Number.isFinite(p.value))
-          : -1
-        const macdHeld = sigStart <= 0
-          ? raw.macd
-          : raw.macd.map((p, i) => (i < sigStart ? { time: p.time, value: NaN } : p))
-        return {
-          macd:      line(macdHeld),
-          signal:    line(raw.signal),
-          // Bar colour by sign — identical to the `m >= s` test computeMACD used
-          // to bake into each point, now that it no longer ships colour.
-          histogram: raw.histogram.map(p => (
-            Number.isFinite(p.value)
-              ? { time: adjustTime(p.time), value: p.value, color: p.value >= 0 ? MACD_HIST_UP : MACD_HIST_DOWN }
-              : { time: adjustTime(p.time) }
-          )),
-        }
-      })(),
       stoch: {
         k: line(stochRaw.k),
         d: line(stochRaw.d),
@@ -5688,9 +5655,6 @@ export default function StockChart({
     // below: the legacy memo reads `(vwapOverride || ind.vwap?.enabled)` (`:3962`),
     // so the OVERRIDE alone is an enable signal and the projection has to agree or
     // the Model Book popup would hand the engine a hidden instance and draw nothing.
-    const legacyEnabled = (defId) => (defId === 'vwap'
-      ? !!(vwapOverride || cs.indicators?.vwap?.enabled)
-      : !!cs.indicators?.[defId]?.enabled)
     // …filtered to the definitions whose legacy block actually stands down (see
     // `ENGINE_MIGRATED_DEF_IDS`), then narrowed by ELIGIBILITY: a session
     // indicator does not exist above 60-minute bars, and the render context —
@@ -5777,16 +5741,27 @@ export default function StockChart({
             // only while `engineEnabled` is on, which is Flip A unchanged.
             .filter(i => ENGINE_FLIPPED_DEF_IDS.has(i.defId)
               || (engineOn && ENGINE_MIGRATED_DEF_IDS.has(i.defId)))
-            // …and Flip A's "the legacy toggle is still the switch" projection
-            // applies to exactly the ids that are still on Flip A.
-            .map(i => (ENGINE_FLIPPED_DEF_IDS.has(i.defId) || i.hidden || legacyEnabled(i.defId)
-              ? i
-              : { ...i, hidden: true }))
-          // `vwapOverride` forces a VWAP instance, and `vwap` is NOT flipped — so
-          // it is manufactured only when the flag is on. Without the guard a
-          // Model Book popup on a flag-off chart would hand the engine a VWAP the
-          // legacy block is also drawing.
-          const withForced = (engineOn && vwapOverride && !migrated.some(i => i.defId === 'vwap'))
+            // ⛔ …AND FLIP A'S `hidden` PROJECTION IS GONE (B3 Task 11). It read
+            // "an instance of a MIGRATED-but-UN-FLIPPED definition whose legacy
+            // toggle is false is projected to hidden, because the toggle is still
+            // that definition's switch". `ENGINE_FLIPPED_DEF_IDS` now EQUALS
+            // `ENGINE_MIGRATED_DEF_IDS`, so the filter above cannot emit an
+            // un-flipped instance and the branch was unreachable — an inert
+            // `.map` whose absent subject nothing would have noticed. Deleted with
+            // its `legacyEnabled` helper rather than left to read as live logic.
+            //
+            // ⚠️ IT COMES BACK IF B4 MIGRATES WITHOUT FLIPPING. `flipB.test.jsx`
+            // asserts the two sets are EQUAL, so that day this decision is
+            // re-opened by a red test rather than by a double-drawn indicator.
+          // ⭐ `vwapOverride` FORCES A VWAP INSTANCE, FLAG OR NO FLAG (B3 Task 11).
+          // It used to be gated on `engineOn`, because `vwap` was un-flipped and
+          // its legacy block would otherwise have drawn a second copy. VWAP is
+          // flipped now: there IS no legacy block, so the flag-gated version
+          // would take the Model Book intraday popup's forced white VWAP off
+          // every existing user's chart — `engineEnabled` is false in every
+          // stored blob, and the popup is a surface no user setting can turn off.
+          // Driven in `flipB.test.jsx` ("vwapOverride still forces it on").
+          const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
             ? [...migrated, {
                 instanceId: legacyInstanceId('vwap'), defId: 'vwap',
                 // ⚠️ FILTERED TO DECLARED INPUT KEYS. This instance never passes
@@ -6190,54 +6165,19 @@ export default function StockChart({
     // FIRST legacy indicator block — used to be. RSI has its own scale in its own
     // band and crosses nothing.
 
-    // ── Session VWAP (intraday only) ──
-    // `!engineOwned.has('vwap')` — the crossover guard (see `engineOwnedDefIds`).
-    // An engine instance of `vwap` draws this indicator, so the legacy block
-    // stands down; the `else if` below then removes the legacy series, which is
-    // what keeps a mid-session flip from leaving two cyan lines on the candles'
-    // scale. With the engine off the set is empty and this reads exactly as it
-    // always did.
+    // ── Session VWAP: FLIPPED (B3 Task 11) ───────────────────────────────────
     //
-    // ⚠️ THE GUARD IS ON THE `if`, NOT INSIDE THE BODY. The `else if` is the
-    // REMOVAL path, and it has to stay reachable: an instance arriving mid-session
-    // is the only thing that hands ownership over while a legacy series is already
-    // on the chart, and hoisting the guard into the body would leave that series
-    // drawn forever, under the engine's copy.
+    // Drawn by the ENGINE, from the instance list, at the sync call above — and
+    // its whole render context (the intraday-only gate, colour × opacity, the
+    // Model Book's forced white, the bold-candle hairline) is folded into the
+    // instance's inputs by `engine/eligibility.js` before the binder sees it.
+    // That is the module's entire reason to exist: four facts about the CHART
+    // that no definition schema can state.
     //
-    // ⚠️ ON A DAILY CHART NEITHER SIDE DRAWS AND NEITHER OWNS. `indicatorData.vwap`
-    // is `[]` above 60-minute bars (`VWAP_TFS`, `:3962`) and `eligibility` drops the
-    // instance on the same list, so `engineOwned` does not contain 'vwap' there
-    // either. The two gates are one list, read twice; if they ever diverge the
-    // symptom is a double-draw, which is what `stockChartWiring`'s rail measures.
-    if (indicatorData.vwap.length && !engineOwned.has('vwap')) {
-      const _vwapCfg = cs.indicators?.vwap || {}
-      // vwapOverride (Model Book intraday popup forces white) wins on color, but the
-      // user's opacity/style/width still apply — the override only ever means "recolor".
-      const _vwapBase = vwapOverride?.color || _vwapCfg.color || '#26C6DA'
-      const _vwapOpacity = Number.isFinite(Number(_vwapCfg.opacity)) ? Number(_vwapCfg.opacity) : 100
-      const vwapColor = _withVwapOpacity(_vwapBase, _vwapOpacity)
-      const _vwapStyleMap = { solid: 0, dotted: 1, dashed: 2 }   // LWC LineStyle enum
-      const _vwapLineStyle = _vwapStyleMap[_vwapCfg.lineStyle] ?? 0
-      // Unset width keeps the historical hairline (0.5 on the bold/Model Book look).
-      const _vwapWidth = Number(_vwapCfg.lineWidth) > 0
-        ? Number(_vwapCfg.lineWidth)
-        : ((boldCandles || modelBookLook) ? 0.5 : 1)
-      if (!vwapSeriesRef.current) {
-        vwapSeriesRef.current = chart.addSeries(LineSeries, {
-          color: vwapColor, lineWidth: _vwapWidth, lineStyle: _vwapLineStyle,
-          priceLineVisible: false, lastValueVisible: false,
-          crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
-        })
-      } else {
-        vwapSeriesRef.current.applyOptions({
-          color: vwapColor, lineWidth: _vwapWidth, lineStyle: _vwapLineStyle,
-        })
-      }
-      _applyData(vwapSeriesRef.current, indicatorData.vwap)
-    } else if (vwapSeriesRef.current) {
-      try { chart.removeSeries(vwapSeriesRef.current) } catch {}
-      vwapSeriesRef.current = null
-    }
+    // ⚠️ ON A DAILY CHART NOTHING DRAWS AND NOBODY OWNS IT. The gate is
+    // `def.meta.timeframes` (mirrored by `eligibility.VWAP_TIMEFRAMES`, which is
+    // where `VWAP_TFS` went), so the instance is dropped above 60-minute bars and
+    // `engineOwned` does not contain 'vwap' there either.
 
     // ── Stochastic sub-pane ──
     const stochCfg = cs.indicators?.stoch
@@ -6274,54 +6214,18 @@ export default function StockChart({
       }
     }
 
-    // ── MACD sub-pane ──
+    // ── MACD sub-pane: FLIPPED (B3 Task 11) ──────────────────────────────────
     //
-    // `!engineOwned.has('macd')` — the crossover guard (see `ENGINE_MIGRATED_DEF_IDS`).
-    // ⚠️ IT BELONGS ON *THIS* CONDITION, NOT INSIDE THE BODY. The `else` below is
-    // the REMOVAL path for all three refs, and it is what an instance arriving
-    // MID-SESSION depends on: the chart is up, this block has drawn a line, a
-    // signal and a histogram, and then an instance appears. Guard the body instead
-    // (or hoist the condition so the `else` becomes unreachable, which is BB's M8
-    // one file up) and the user is left with SIX series in one band — three of them
-    // dead — plus an orphaned zero guide, and the picture still looks plausible.
-    // `stockChartWiring.test.jsx` drives that crossover in both directions.
-    const macdCfg = cs.indicators?.macd
-    const macdD   = indicatorData.macd
-    if (macdD.macd.length && !engineOwned.has('macd')) {
-      const macdTgt = ensureIndTarget('macd', [macdLineRef, macdSignalRef, macdHistRef])
-      if (!macdLineRef.current) {
-        macdLineRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: macdTgt.scaleId,
-          color: macdCfg?.macdColor || '#2196F3',
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, macdTgt.pane)
-        macdSignalRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: macdTgt.scaleId,
-          color: macdCfg?.signalColor || '#FF9800',
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, macdTgt.pane)
-        macdHistRef.current = chart.addSeries(HistogramSeries, {
-          priceScaleId: macdTgt.scaleId,
-          priceFormat: { type: 'price', precision: 5 },
-          priceLineVisible: false, lastValueVisible: false,
-        }, macdTgt.pane)
-        applyIndScale('macd', macdLineRef.current, macdTgt, { autoScale: true })
-        macdLineRef.current.createPriceLine({ price: 0, color: 'rgba(255,255,255,0.12)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
-      } else {
-        macdLineRef.current.applyOptions({ color: macdCfg?.macdColor || '#2196F3' })
-        macdSignalRef.current.applyOptions({ color: macdCfg?.signalColor || '#FF9800' })
-        applyIndScale('macd', macdLineRef.current, macdTgt)
-      }
-      _applyData(macdLineRef.current, macdD.macd)
-      _applyData(macdSignalRef.current, macdD.signal)
-      _applyData(macdHistRef.current, macdD.histogram)
-    } else {
-      for (const ref of [macdLineRef, macdSignalRef, macdHistRef]) {
-        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
-      }
-    }
+    // Line, signal AND histogram are drawn by the ENGINE, from one instance, at
+    // the sync call above. The three `useRef`s, the `indicatorData.macd` IIFE,
+    // the hide-all entries and the crosshair fallbacks are all deleted with the
+    // block — that deletion IS Flip B.
+    //
+    // ⚠️ THE HISTOGRAM'S SIGN COLOURS AND THE HEAD-MASK LEFT THIS FILE WITH IT.
+    // `MACD_HIST_UP`/`MACD_HIST_DOWN` and the `MACD_HEAD_MASK` read both lived in
+    // that IIFE and both now exist only in `nativeRegistry` — one switch, one
+    // reader, which is what "one switch, both lanes" turns into when there is
+    // only one lane left.
 
     // ── ATR sub-pane ──
     if (indicatorData.atr.length) {
@@ -8099,34 +8003,21 @@ export default function StockChart({
       // I-3), so the slot is the whole answer.
       const rsiValue = engSlots.rsi ? engSlots.rsi.value : null
 
-      // PER-PLOT, not per-indicator (review M-6). These were one branch, so
-      // `signal`'s fallback was decided by whether `macd` had a value.
+      // FLIPPED (B3 Task 11): no legacy MACD series, no `indicatorData.macd`.
+      // The two chips come from the two SLOTS, and they are read PER PLOT
+      // (review M-6) rather than through one shared branch — `macd::macd` and
+      // `macd::signal` are separate `LEGACY_SLOTS` entries and the legend prints
+      // them in separate positions.
       //
-      // ⚠️ THE OLD JUSTIFICATION IS STALE, AND THE CONCLUSION IS UNCHANGED. It
-      // said this was "inert today (MACD is not migrated, so `engSlots.macd` is
-      // always null)". Since B3 Task 6 MACD *is* migrated and `engSlots.macd` is
-      // routinely set — but the two forms are still behaviourally identical,
-      // because Flip-A ownership is per DEFINITION: the engine draws all three
-      // MACD plots or none, so `engSlots.macd` and `engSlots.macdSig` are set and
-      // unset together, and the legacy refs below are null and non-null together.
-      // The state that separates them — one plot of a definition engine-drawn
-      // while another is legacy-drawn — is still unreachable, and MACD cannot even
-      // be made to bind a SUBSET of its own plots: `computeMACD` returns empty
-      // columns below `slowPeriod + signalPeriod` bars, so a fixture short enough
-      // to starve the signal starves the line too (measured in
-      // `stockChartWiring.test.jsx`, which records the numbers). A mutation
-      // reverting this to one branch therefore still SURVIVES the suite, by
-      // design; the split arrives with partial migration, which is B4's shape.
-      let macdValue = engSlots.macd ? engSlots.macd.value : null
-      let macdSignalValue = engSlots.macdSig ? engSlots.macdSig.value : null
-      if (macdValue === null && macdLineRef.current) {
-        const dm = param.seriesData.get(macdLineRef.current)
-        macdValue = dm?.value ?? (indicatorData.macd.macd.at(-1)?.value ?? null)
-      }
-      if (macdSignalValue === null && macdSignalRef.current) {
-        const ds = param.seriesData.get(macdSignalRef.current)
-        macdSignalValue = ds?.value ?? (indicatorData.macd.signal.at(-1)?.value ?? null)
-      }
+      // ⚠️ TWO CHIPS, AND DELETING THE REFS TOOK BOTH OUT AT ONCE. No pixel gate
+      // can see this: a headless capture has no cursor, so no legend is drawn on
+      // either side and the diff is 0 whichever way the bridge behaves. It is
+      // driven instead — `stockChartWiring.test.jsx` hovers a real crosshair
+      // event and asserts `MACD …` and `SIG …` INDEPENDENTLY, with different
+      // values, so a branch that decided one of them from the other's slot goes
+      // red on the value rather than passing on "both are non-null".
+      const macdValue = engSlots.macd ? engSlots.macd.value : null
+      const macdSignalValue = engSlots.macdSig ? engSlots.macdSig.value : null
 
       let stochKValue = null, stochDValue = null
       if (stochKRef.current) {
@@ -8665,11 +8556,10 @@ export default function StockChart({
       // ReferenceError the moment any chart mounted — every identifier in this
       // list MUST be a declared ref (there is no build-time check for this).
       volumeSeriesRef,
-      // ⛔ NO bb*/rsi refs — FLIPPED (B3 Task 10). They are reached through the
-      // engine's binding map at the bottom of this effect, which is why the
-      // declutter toggle keeps working for them without anyone editing this list.
-      vwapSeriesRef,
-      macdLineRef, macdSignalRef, macdHistRef,
+      // ⛔ NO bb*/rsi refs (Task 10), NO vwap/macd refs (Task 11) — all four
+      // pilots are FLIPPED. They are reached through the engine's binding map at
+      // the bottom of this effect, which is why the declutter toggle keeps
+      // working for them without anyone editing this list.
       stochKRef, stochDRef, atrSeriesRef, sarSeriesRef,
       ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef,
       mfiSeriesRef, cciSeriesRef, williamsRSeriesRef,

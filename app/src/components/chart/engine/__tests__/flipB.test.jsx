@@ -3,6 +3,7 @@ import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
+import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 
 // ─── FLIP B: THE INSTANCE LIST IS THE READ AUTHORITY (B3 Task 10) ───────────
 //
@@ -36,6 +37,9 @@ const H = vi.hoisted(() => ({
   removedSeries: [],
   binderApis: [],
   syncCalls: [],
+  // Price lines are not series, so no addSeries count can see MACD's zero guide
+  // going missing with the block that drew it.
+  priceLineCalls: [],
   // The NON-VACUITY half of `stockChartWiring`'s "the migrator never runs while
   // nothing is flipped". A gate asserted only in its closed state is a gate that
   // could be welded shut.
@@ -46,6 +50,7 @@ const H = vi.hoisted(() => ({
     H.removedSeries.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
+    H.priceLineCalls.length = 0
     H.migrateCalls = 0
   },
 }))
@@ -70,7 +75,8 @@ vi.mock('lightweight-charts', () => {
       setData: () => {}, update: () => {},
       applyOptions: (o) => { if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible }) },
       priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
-      createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {},
+      createPriceLine: (o) => { H.priceLineCalls.push({ series: s, options: o }); return {} },
+      removePriceLine: () => {}, setMarkers: () => {},
       attachPrimitive: () => {}, detachPrimitive: () => {},
       priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
       moveToPane: () => {}, getPane: () => ({ getHeight: () => 300 }),
@@ -189,17 +195,33 @@ const ctx = () => {
 const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
 
 describe('Flip B — the set itself', () => {
-  it('flips exactly rsi and bb, and stays a SUBSET of the migrated set', () => {
+  it('flips all four pilots, and stays a SUBSET of the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'rsi'])
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'macd', 'rsi', 'vwap'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
-  it('…and macd is still migrated-but-NOT-flipped, or half this file is vacuous', () => {
-    expect(ENGINE_MIGRATED_DEF_IDS.has('macd')).toBe(true)
-    expect(ENGINE_FLIPPED_DEF_IDS.has('macd'),
-      'macd is flipped — every "un-flipped" case below needs a new subject (Task 11)').toBe(false)
+  it('⭐ …and NOTHING is migrated-but-UN-FLIPPED — the rail that re-opens three decisions', () => {
+    // ⛔ THIS IS NOT A RESTATEMENT OF THE CASE ABOVE. Task 11 deleted three
+    // things whose only justification is that this list is EMPTY:
+    //
+    //   1. StockChart's Flip-A `hidden` projection and its `legacyEnabled`
+    //      helper — "an instance of a migrated-but-un-flipped definition whose
+    //      legacy toggle is false is projected to hidden";
+    //   2. the `engineOn &&` gate on `vwapOverride`'s forced instance;
+    //   3. `ChartToolbar.engineInert`'s subject, which is why that file now pins
+    //      the WIRING rather than a disabled row.
+    //
+    // The day B4 migrates a fifth definition WITHOUT flipping it, all three are
+    // wrong again — and the symptom of (1) is a double-drawn indicator, which is
+    // the single most-repeated defect on this branch and is invisible in a
+    // screenshot. So it fails HERE, loudly, at the moment the premise changes.
+    const unflipped = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
+    expect(unflipped,
+      'a MIGRATED definition is not FLIPPED. Flip A is live again, and StockChart\'s '
+      + '`hidden` projection (deleted in Task 11) has to come back with it — see the '
+      + 'note where it used to be, and `vwapOverride`\'s forced-instance gate').toEqual([])
   })
 })
 
@@ -234,14 +256,28 @@ describe('Flip B — the instance list is the read authority', () => {
     expect(bound()).toHaveLength(4)
   })
 
-  it('…and an UN-FLIPPED migrated definition still needs the flag', () => {
-    // The narrowing that keeps this a per-definition flip. `macd` is migrated, so
-    // with the flag ON and a stored instance the engine draws it — but with the
-    // flag OFF its LEGACY block does, exactly as at Flip A.
-    draw({ indicators: { macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } } })
-    expect(bound(), 'macd reached the engine on a flag-off chart').toHaveLength(0)
-    expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'macd').length,
-      'the legacy MACD block stopped drawing').toBeGreaterThan(0)
+  it('…and a NON-MIGRATED definition never reaches the engine, flag on or off', () => {
+    // ⚠️ THE SUBJECT MOVED, BECAUSE TASK 11 TOOK THE OLD ONE. This case used to
+    // read "an UN-FLIPPED migrated definition still needs the flag", with `macd`
+    // as its subject — the narrowing that kept the flip per-definition. `macd` is
+    // flipped now and the migrated set has no un-flipped member at all, so that
+    // wording has no subject and the case above (`NOTHING is migrated-but-
+    // un-flipped`) is what watches for one appearing.
+    //
+    // What is still true and still worth a rail is the OTHER edge of the same
+    // filter: a definition the engine has never been given never reaches it,
+    // whatever the flag says, and its legacy block goes on drawing it. Stoch is
+    // the subject because it is a pane oscillator with its own named scale —
+    // the same shape MACD had — so a filter that leaked would look identical.
+    expect(ENGINE_MIGRATED_DEF_IDS.has('stoch'),
+      'stoch migrated — this negative control needs a new subject').toBe(false)
+    for (const engineEnabled of [false, true]) {
+      cleanup(); H.reset()
+      draw({ engineEnabled, indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3 } } })
+      expect(bound(), `stoch reached the engine with the flag ${engineEnabled}`).toHaveLength(0)
+      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'stoch').length,
+        'the legacy Stochastic block stopped drawing').toBeGreaterThan(0)
+    }
   })
 
   it('a stored INSTANCE beats a false legacy toggle — instances are authoritative', () => {
@@ -529,5 +565,201 @@ describe('Flip B — the right-click doors route through the one reader and the 
     cs = setIndicatorEnabled(cs, 'rsi', false, registry)
     expect(cs.indicatorInstances).toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
     expect(cs.indicators.rsi.enabled).toBe(false)
+  })
+})
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── FLIP B FOR MACD AND VWAP (B3 Task 11) ────────────────────────────────
+//
+// The other two pilots. Three things make them different from RSI and BB, and
+// each gets its own case rather than riding on the pair above:
+//
+//   * MACD is THREE plots under ONE instance, and two of them are legend chips
+//     whose slots were fed by `macdLineRef` / `macdSignalRef`. Deleting the refs
+//     takes both chips out of the readout at once, and no pixel gate run without
+//     a cursor can see a legend nobody hovered. Driven in `stockChartWiring`,
+//     which owns the settled-legend harness.
+//   * VWAP is INTRADAY-ONLY, so every case here that expects a line has to draw
+//     the 5-minute fixture. A VWAP case on `ramp200` renders an empty chart on
+//     both sides and reports whatever you asked it to.
+//   * VWAP's enable signal is not the toggle alone: `vwapOverride` forces it on,
+//     and after the flip there is no legacy block left to catch that.
+
+const INTRADAY_BARS = intraday5m.bars
+const drawIntraday = (settingsOverride, extraProps) => render(
+  <StockChart sym="AAPL" tf="5" barsOverride={INTRADAY_BARS}
+    settingsOverride={settingsOverride} {...extraProps} />,
+)
+/** Every series on MACD's own named scale — the deleted legacy block used it too,
+ *  which is why the binding count is the discriminator and not this alone. */
+const macdSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'macd')
+/** VWAP is a PRICE overlay: no named scale, so the colour is the handle. */
+const vwapSeries = (color = '#26C6DA') =>
+  H.addSeriesCalls.filter(c => c.options && c.options.color === color && c.ctor === 'LineSeries')
+
+describe('Flip B — MACD', () => {
+  const MACD_ON = { indicators: { macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } } }
+
+  it('is flipped, and its legacy block is GONE', () => {
+    expect(ENGINE_FLIPPED_DEF_IDS.has('macd')).toBe(true)
+    // ⚠️ REACHED THROUGH A TOMBSTONE, not through a flag-off legacy blob. The
+    // brief's version drew `{indicators:{macd:{enabled:true}}}` with the flag off
+    // and expected zero series — but that is the COMPATIBILITY case and it draws
+    // three (Task 10 §9.9). A tombstone is the only blob for which a flipped
+    // definition renders nothing, so it is the only one that can tell "the legacy
+    // block is deleted" from "the engine is off".
+    draw({ ...MACD_ON, indicatorInstances: [{ instanceId: 'legacy:macd', deleted: true }] })
+    expect(macdSeries(), 'a legacy MACD block still exists').toHaveLength(0)
+    expect(bound()).toHaveLength(0)
+  })
+
+  it('⭐ a legacy-only blob draws all three plots through the engine', () => {
+    draw({ engineEnabled: true, ...MACD_ON })
+    expect(macdSeries()).toHaveLength(3)
+    expect(bound(), 'the ENGINE must be what drew them').toHaveLength(3)
+    // …and the three are the three, not one plot bound three times.
+    expect(bound().map(b => b.plotKey).sort()).toEqual(['histogram', 'macd', 'signal'])
+  })
+
+  it('⭐ …and with `engineEnabled` ABSENT, which is every stored blob in production', () => {
+    draw(MACD_ON)
+    expect(macdSeries(), 'a flag-off chart lost its MACD').toHaveLength(3)
+    expect(bound()).toHaveLength(3)
+  })
+
+  it('the zero guide still comes with it — one price line, on the MACD line', () => {
+    // The legacy block drew `createPriceLine({price: 0, ...})` on `macdLineRef`.
+    // It is not a series, so no series count can see it going missing.
+    draw({ engineEnabled: true, ...MACD_ON })
+    const lines = H.priceLineCalls.filter(c => c.options && c.options.price === 0)
+    expect(lines, 'the zero guide vanished with the legacy block').toHaveLength(1)
+  })
+
+  it('Ctrl+O writes an INSTANCE, and the mirror with it', () => {
+    const writes = []
+    const view = draw({ engineEnabled: true, indicators: { macd: { enabled: false } } },
+      { onSettingsPersist: (next) => writes.push(next) })
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'o' }) })
+    expect(writes, 'Ctrl+O wrote nothing').not.toHaveLength(0)
+    const next = writes.at(-1)
+    expect(next.indicatorInstances.some(i => i.defId === 'macd' && !i.deleted)).toBe(true)
+    expect(next.indicators.macd.enabled, 'the mirror keeps the alert evaluator alive').toBe(true)
+    view.unmount()
+  })
+
+  it('the band still comes from the projection, and it is the LEGACY band', () => {
+    // The instance is the switch now, so a false toggle must not shrink the band
+    // out from under a live instance.
+    draw({
+      engineEnabled: true,
+      indicators: { macd: { enabled: false } },
+      indicatorInstances: [{ instanceId: 'legacy:macd', defId: 'macd', inputs: {}, hidden: false }],
+    })
+    expect(ctx().paneMargins.macd, 'no band was reserved — the projection is not wired').toBeTruthy()
+    expect(ctx().paneMargins.macd)
+      .toEqual(computePaneMargins({ indicators: { macd: { enabled: true } } }, true, new Set()).macd)
+  })
+
+  it('a tombstone reserves NO band, and draws nothing', () => {
+    draw({
+      engineEnabled: true,
+      ...MACD_ON,
+      indicatorInstances: [{ instanceId: 'legacy:macd', deleted: true }],
+    })
+    expect(macdSeries()).toHaveLength(0)
+    expect(ctx().paneMargins.macd, 'a deleted indicator must not reserve a band').toBeUndefined()
+  })
+})
+
+describe('Flip B — VWAP', () => {
+  const VWAP_CFG = { enabled: true, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 }
+  const VWAP_ON = { indicators: { vwap: VWAP_CFG } }
+
+  it('is flipped, and its legacy block is GONE', () => {
+    expect(ENGINE_FLIPPED_DEF_IDS.has('vwap')).toBe(true)
+    // ⚠️ INTRADAY, or the eligibility gate hides it and this proves nothing.
+    drawIntraday({ ...VWAP_ON, indicatorInstances: [{ instanceId: 'legacy:vwap', deleted: true }] })
+    expect(vwapSeries(), 'a legacy VWAP block still exists').toHaveLength(0)
+    expect(bound()).toHaveLength(0)
+  })
+
+  it('⭐ a legacy-only blob draws it on an intraday chart, flag or no flag', () => {
+    for (const engineEnabled of [true, false]) {
+      cleanup(); H.reset()
+      drawIntraday({ engineEnabled, ...VWAP_ON })
+      expect(vwapSeries(), `flag=${engineEnabled}: the chart lost its VWAP`).toHaveLength(1)
+      expect(bound(), 'the ENGINE must be what drew it').toHaveLength(1)
+    }
+  })
+
+  it('still draws NOTHING on a daily chart, flipped or not', () => {
+    draw({ engineEnabled: true, ...VWAP_ON })
+    expect(vwapSeries(), 'a session VWAP on daily bars').toHaveLength(0)
+    expect(bound(), 'the engine drew a session VWAP on daily bars').toHaveLength(0)
+  })
+
+  it('⭐ vwapOverride still forces it on with no instance, no toggle AND NO FLAG', () => {
+    // ⛔ THE ONE THAT CHANGED BEHAVIOUR AT THE FLIP. The forced instance used to
+    // be gated on `engineOn`, because VWAP was un-flipped and its legacy block
+    // drew the override. There is no legacy block now, and `engineEnabled` is
+    // false in every stored blob — so the flag-gated version takes the Model Book
+    // intraday popup's VWAP off every existing user's chart, on a surface no user
+    // setting can turn off.
+    drawIntraday({ indicators: { vwap: { ...VWAP_CFG, enabled: false } } },
+      { vwapOverride: { color: '#ffffff' } })
+    expect(vwapSeries('#ffffff'), 'the Model Book popup lost its VWAP').toHaveLength(1)
+    expect(bound(), 'the forced instance never reached the binder').toHaveLength(1)
+  })
+
+  it('…and the override does not resurrect it on a DAILY chart', () => {
+    // The forced instance is manufactured before `eligibleInstances` runs, so the
+    // timeframe gate still has to drop it. Forcing an indicator on is not the same
+    // as forcing it to exist where it has no meaning.
+    draw({ indicators: { vwap: { ...VWAP_CFG, enabled: false } } },
+      { vwapOverride: { color: '#ffffff' } })
+    expect(vwapSeries('#ffffff')).toHaveLength(0)
+    expect(bound()).toHaveLength(0)
+  })
+
+  it('reserves NO band — it is a price overlay', () => {
+    // ⭐ ASSERTED RATHER THAN ASSUMED. `csForPaneMargins` rewrites
+    // `indicators.vwap.enabled` from the instance list for every FLIPPED id, and
+    // `computePaneMargins`' PANES list does not contain vwap — so the answer is
+    // "no band" only as long as those two facts hold together. A band appearing
+    // for a price overlay would shrink the price pane under the candles.
+    drawIntraday({ engineEnabled: true, ...VWAP_ON })
+    expect(vwapSeries(), 'nothing drawn — vacuous').toHaveLength(1)
+    expect(ctx().paneMargins.vwap).toBeUndefined()
+    // …and the whole margin map is the one the legacy layout produced.
+    expect(ctx().paneMargins).toEqual(computePaneMargins(VWAP_ON, true, new Set()))
+  })
+
+  it('Alt+U writes an INSTANCE, and the mirror with it', () => {
+    const writes = []
+    const view = drawIntraday({ engineEnabled: true, indicators: { vwap: { ...VWAP_CFG, enabled: false } } },
+      { onSettingsPersist: (next) => writes.push(next) })
+    act(() => { fireEvent.keyDown(document, { altKey: true, code: 'KeyU' }) })
+    expect(writes, 'Alt+U wrote nothing').not.toHaveLength(0)
+    const next = writes.at(-1)
+    expect(next.indicatorInstances.some(i => i.defId === 'vwap' && !i.deleted),
+      'Alt+U wrote the legacy mirror only — the instance is the authority now').toBe(true)
+    expect(next.indicators.vwap.enabled).toBe(true)
+    view.unmount()
+  })
+
+  it('⭐ the SETTINGS-PAGE row still reaches the chart — opacity, through the migrator', () => {
+    // ⚠️ THE BRIEF SAID TO DELETE VWAP'S ROW FROM `indicatorRegistry.listIndicators()`
+    // IN THIS TASK. It is not deleted, and this is why: the row writes
+    // `settings.indicators.vwap.*`, `migrateLegacyToInstances` copies every
+    // DECLARED input out of that section on every paint, and `eligibility` folds
+    // `opacity` into the colour. So the row still works for the only population
+    // that exists today — users with no stored instance — and removing it would
+    // take VWAP's opacity / line-style / width controls away with nothing
+    // replacing them until B4 builds the generated settings UI. The plan assigns
+    // that removal to Task 12, next to the rail that makes it a test.
+    drawIntraday({ indicators: { vwap: { ...VWAP_CFG, opacity: 40 } } })
+    expect(vwapSeries('rgba(38, 198, 218, 0.4)'),
+      'the settings-page opacity stopped reaching the chart at the flip').toHaveLength(1)
   })
 })

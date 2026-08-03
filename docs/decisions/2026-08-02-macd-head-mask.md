@@ -37,6 +37,29 @@ constant:
 | Legacy (**what users see today** — `macd` is not migrated) | `StockChart.jsx`, the `indicatorData` memo | `engineRegistry.MACD_HEAD_MASK` |
 | Engine | `nativeRegistry.js` → `COLUMN_HOLDS` → `maskMacdHead` | `MACD_HEAD_MASK` |
 
+> ### ⚠️ SUPERSEDED 2026-08-03 (B3 Task 11) — **there is only ONE lane now.**
+>
+> MACD is **FLIPPED**: `StockChart.jsx`'s `indicatorData.macd` IIFE is deleted
+> with the legacy render block, and with it the `engineRegistry.MACD_HEAD_MASK`
+> read in the row above. **The constant has exactly one code reader left** —
+> `nativeRegistry.js`'s `COLUMN_HOLDS` (`const COLUMN_HOLDS = MACD_HEAD_MASK ? {
+> macd: maskMacdHead } : {}`) — plus its tests. Verified by
+> `grep -rn "MACD_HEAD_MASK" app/src --include=*.js --include=*.jsx`, which is the
+> check §6 says to run.
+>
+> **What that changes about this record:** the "one switch, BOTH lanes" rule below
+> was the load-bearing part of the 88 px measurement — a flip reaching only the
+> engine would have measured 0, and it measured 88, which is what proved it
+> reached the lane users see. That proof stands and is why the number is trusted;
+> it is simply no longer reproducible in that form, because the lane it compared
+> against is gone. **A future flip of `MACD_HEAD_MASK` back to `true` now moves
+> the picture through the engine alone**, and the case that prices it
+> (`macd_headmask`) still exists and still measures the same 88 px in the other
+> direction.
+>
+> Nothing else in this record is invalidated: the maths is unchanged, `macd` is
+> still `version: 2` / `compute.rev: 1`, and the Python lane still does not mask.
+
 ## 2. Why it exists
 
 B1 corrected `computeMACD` to emit the line from `slowPeriod - 1`, because the

@@ -13,14 +13,30 @@
 // check no real browser bypasses, and React's ChangeEventPlugin then turns it
 // into onChange. Use userEvent and/or the native element.click().
 //
-// ⭐ B3 TASK 10 EXHAUSTED THIS FILE'S ORIGINAL SUBJECTS, AND THAT IS THE THIRD
-// TIME. `engineInert` means "engine-drawn AND nothing here can change it", and it
-// SUBTRACTS `ENGINE_FLIPPED_DEF_IDS` — so `rsi` and `bb`, which every case here
-// used to be written against, are LIVE rows now and their inert assertions all
-// went red on the flip. Retargeted to `macd` and `vwap`, the two migrated
-// definitions Task 11 has not flipped yet, with a NON-VACUITY rail at the top:
-// when Task 11 lands, that rail fails and tells whoever is holding it that this
-// file has no subject left rather than letting it pass on an empty loop.
+// ⛔⭐ B3 TASK 11 EXHAUSTED THE SUBJECTS FOR THE FOURTH AND LAST TIME, AND THE
+// RAIL AT THE TOP FIRED EXACTLY AS DESIGNED. `engineInert` means "engine-drawn
+// AND nothing here can change it", and it SUBTRACTS `ENGINE_FLIPPED_DEF_IDS` —
+// so with all four pilots flipped it is IDENTICALLY FALSE and no row on this
+// panel renders disabled. Stoch → MACD → VWAP → rsi/bb → nothing: four
+// exhaustions, three of them silent before Task 10 added the rail.
+//
+// The file is NOT deleted, and neither is the predicate, for two reasons that
+// have to be stated because "it is inert, delete it" is the obvious move:
+//
+//   1. `engineInert` is the general rule, not a fact about these four ids. B4
+//      migrates ten more definitions, and the FIRST one migrated-without-flipping
+//      makes every one of its rows lie again. `flipB.test.jsx` asserts the two id
+//      sets are EQUAL, so that day is a red test rather than a discovery.
+//   2. The half of this file that could NEVER go vacuous is the DISPLAY half: a
+//      row — inert or live — must show the value the ENGINE is rendering, not the
+//      blob. That was the second half of the original honesty fix and it is
+//      independent of `disabled`.
+//
+// So every `disabled`-shaped case below has been INVERTED to the direction it can
+// now be wrong in (a row with a writer that looks dead is the same lie as a dead
+// row that looks live — `ChartToolbar.flipB.test.jsx` owns the writer half), the
+// display cases stay, and the wiring rail added in Task 11 pins WHICH rows ask
+// the predicate so a lie about any of them is visible at all.
 //
 // The other half is `ChartToolbar.flipB.test.jsx`: a row that HAS a writer must
 // come back to life, or the honesty fix inverts into a working control that looks
@@ -77,24 +93,22 @@ const periodBox = (row) => within(row).getAllByRole('spinbutton')[0]
 const swatch = (row) => within(row).getAllByRole('button').at(-1)
 const ENGINE_TITLE = /Drawn by the indicator engine/
 
-describe('the SUBJECT is the premise — this file is empty without an un-flipped migrated id', () => {
-  it('there is at least one MIGRATED definition that is NOT flipped', () => {
-    // ⛔ THE RAIL THAT EXPIRES THIS FILE HONESTLY. Every case below needs an id
-    // the engine draws and no control can write. Task 10 took `rsi` and `bb`;
-    // Task 11 takes `macd` and `vwap`, and on that day this fails instead of the
-    // whole file passing on subjects that no longer exist. That has already
-    // happened twice here (Stoch → MACD → VWAP), each time silently.
+describe('the PREMISE, restated after the fourth exhaustion', () => {
+  it('⛔ `engineInert` has NO subject: every migrated definition is flipped', () => {
+    // The rail that used to demand an un-flipped subject, pointed the other way.
+    // It is the same claim about the same list — it just changed sign when the
+    // list emptied, and saying so out loud is what stops the next reader assuming
+    // the inert cases below still describe shipped behaviour.
     const unflipped = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
     expect(unflipped,
-      'every migrated definition is flipped — no row can be inert any more, and this '
-      + 'file has to move to whatever B4 migrates next').not.toHaveLength(0)
-    expect(unflipped).toContain('macd')
-    expect(unflipped).toContain('vwap')
+      'a migrated definition is NOT flipped — `engineInert` is live again for it, and the '
+      + 'INVERTED cases below (which assert its rows are writable) are now wrong').toEqual([])
   })
 
-  it('…and rsi and bb are NOT among them — they are the ones Task 10 flipped', () => {
-    expect(ENGINE_FLIPPED_DEF_IDS.has('rsi')).toBe(true)
-    expect(ENGINE_FLIPPED_DEF_IDS.has('bb')).toBe(true)
+  it('…and all four pilots ARE flipped, so the inversions below have their subject', () => {
+    for (const id of ['rsi', 'bb', 'macd', 'vwap']) {
+      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id).toBe(true)
+    }
   })
 })
 
@@ -106,37 +120,39 @@ describe('the SUBJECT is the premise — this file is empty without an un-flippe
 // printed **MACD(5,35,4)** in the legend. Two numbers for one line, with a
 // tooltip next to the wrong one explaining that this field is not the authority.
 describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob', () => {
-  it('the disabled period boxes print what the engine is rendering', async () => {
+  it('⭐ the period boxes print what the engine is RENDERING, not what the blob stores', () => {
+    // THE HALF OF THE HONESTY FIX THAT CANNOT GO VACUOUS. `disabled` depended on
+    // the row having no writer; this does not. The blob says 12/26/9 and the
+    // instance the engine draws says 5/35/4, and a panel showing 12 next to a
+    // legend printing MACD(5,35,4) is two numbers for one line whether or not the
+    // box can be typed in.
     const user = userEvent.setup()
-    // The blob says 12/26/9; the instance the engine draws says 5/35/4.
     mount(settingsWith({ engineEnabled: true, indicatorInstances: [MACD_INSTANCE] }), vi.fn())
-    await openPanel(user)
-    const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
-    expect(boxes).toHaveLength(3)
-    expect(boxes.map(b => b.disabled)).toEqual([true, true, true])
-    expect(boxes.map(b => b.value),
-      'a greyed box is showing the blob, not what the engine is drawing').toEqual(['5', '35', '4'])
-    for (const b of boxes) expect(b.getAttribute('title')).toMatch(ENGINE_TITLE)
+    return openPanel(user).then(() => {
+      const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
+      expect(boxes).toHaveLength(3)
+      expect(boxes.map(b => b.value),
+        'the boxes are showing the blob, not what the engine is drawing').toEqual(['5', '35', '4'])
+    })
   })
 
-  it('…and the blob still says 12, so this is a DISPLAY fix and not a write', async () => {
-    // The row is read-only for an un-flipped migrated id; nothing here may have
-    // reached back into `cs`.
-    //
-    // ⭐ THE REASON, RESTATED FOR THE THIRD TIME. It used to be "`instanceControls`
-    // does not exist yet" (false since Task 9), then "`rsi` is not in
-    // `ENGINE_FLIPPED_DEF_IDS`" (false since Task 10). What keeps it true now is
-    // narrower still: `macd` is not flipped, so `ChartToolbar.updateIndicator`'s
-    // routing branch is unreachable FOR IT and `engineInert` does not subtract it.
-    // A green test whose stated reason has quietly become false is the failure
-    // mode this branch keeps hitting.
+  it('⭐ INVERTED AT TASK 11: the row is LIVE, and merely OPENING the panel writes nothing', async () => {
+    // This case used to read "…and the blob still says 12, so this is a DISPLAY
+    // fix and not a write", asserting `onUpdateSettings` was never called BECAUSE
+    // the row was inert. MACD is flipped, so the row has a writer and that reason
+    // is gone — but the assertion is still worth having for a narrower claim:
+    // RENDERING the panel must not write anything. A `shownInput` that
+    // "helpfully" persisted the instance value back into the blob would be a
+    // silent settings write on every panel open.
     const user = userEvent.setup()
     const spy = vi.fn()
     const cs = settingsWith({ engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
     mount(cs, spy)
     await openPanel(user)
-    expect(cs.indicators.macd.fastPeriod).toBe(12)
-    expect(spy).not.toHaveBeenCalled()
+    expect(cs.indicators.macd.fastPeriod, 'the blob was mutated in place').toBe(12)
+    expect(spy, 'opening the settings panel persisted a write').not.toHaveBeenCalled()
+    // …and the row really is live now, so this is not the old claim in disguise.
+    expect(within(rowFor('MACD')).getAllByRole('spinbutton')[0].disabled).toBe(false)
   })
 
   it('two instances of one definition: the row shows the FIRST, which is what draws first', async () => {
@@ -196,26 +212,29 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     expect(engineDrawnInputs(migrated, engineRegistry).get('vwap').color).toBe('#ff0000')
   })
 
-  it('VWAP is MIGRATED and NOT FLIPPED: its colour swatch is inert and shows the INSTANCE', async () => {
-    // VWAP's only `engineInert` control is the swatch (its opacity/style/width
-    // live in the settings page, not the toolbar), so this is the whole toolbar
-    // surface for it — and the swatch showing `#ff0000` while the blob says
-    // `#26C6DA` is exactly the "two colours for one line" the inert treatment
-    // exists to end.
+  it('⭐ INVERTED AT TASK 11: VWAP\'s swatch shows the INSTANCE, and is no longer dead', async () => {
+    // It used to assert `box.disabled === true`, because VWAP was migrated and
+    // un-flipped. It is flipped now, so a greyed swatch would be the OPPOSITE lie
+    // — a working control that looks dead. The display half is unchanged and is
+    // the part that always mattered: `#ff0000` from the instance, not `#26C6DA`
+    // from the blob, because two colours for one line is the defect either way.
     const user = userEvent.setup()
     mount(settingsWith({ engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] }), vi.fn())
     await openPanel(user)
     const box = swatch(rowFor('VWAP'))
-    expect(box.disabled, 'a migrated definition left its dead control looking live').toBe(true)
-    expect(box.getAttribute('title')).toMatch(ENGINE_TITLE)
-    expect(box.style.background).toBe('rgb(255, 0, 0)')
+    expect(box.disabled, 'a flipped row has a writer and must not be greyed').toBe(false)
+    expect(box.getAttribute('title'), 'a live control still claims the engine owns it')
+      .not.toMatch(ENGINE_TITLE)
+    expect(box.style.background, 'the swatch is showing the blob').toBe('rgb(255, 0, 0)')
   })
 
-  it('…but VWAP\'s enable CHECKBOX stays live — the toggle is still the switch', async () => {
-    // Flip A keeps `cs.indicators.vwap.enabled` as the switch: StockChart projects
-    // an instance whose toggle is off to `hidden`. Greying this box would leave a
-    // user with a VWAP they cannot turn off — and Alt+U writes the same field, so
-    // the two would disagree about whether the indicator is on.
+  it('⭐ INVERTED AT TASK 11: VWAP\'s checkbox writes the INSTANCE, not just the mirror', async () => {
+    // Under Flip A this asserted the checkbox must NOT route through
+    // `instanceControls` — correct while the legacy toggle was the switch. After
+    // the flip the instance IS the switch, so a checkbox that only cleared the
+    // mirror would untick itself and leave the line on the chart. Both halves are
+    // asserted: the tombstone (what the chart reads) and the mirror (what the
+    // alert evaluator reads).
     const user = userEvent.setup()
     const onUpdate = vi.fn()
     mount(settingsWith({ engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] }), onUpdate)
@@ -224,9 +243,11 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     expect(box.disabled).toBe(false)
     await user.click(box)
     expect(onUpdate).toHaveBeenCalled()
-    expect(onUpdate.mock.calls.at(-1)[0].indicators.vwap.enabled).toBe(false)
-    expect(onUpdate.mock.calls.at(-1)[0].indicatorInstances,
-      'an un-flipped id must not route through instanceControls').toEqual([VWAP_INSTANCE])
+    const next = onUpdate.mock.calls.at(-1)[0]
+    expect(next.indicators.vwap.enabled, 'the mirror was not cleared').toBe(false)
+    expect(next.indicatorInstances,
+      'a flipped id must route through instanceControls — the chart reads the instance')
+      .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
   })
 
   it('a LIVE row is untouched: no instance ⇒ the blob is still what it shows', async () => {
@@ -251,7 +272,6 @@ describe('ChartToolbar — an inert row shows the INSTANCE value, not the blob',
     }), vi.fn())
     await openPanel(user)
     const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
-    expect(boxes[0].disabled).toBe(true)
     expect(boxes[0].value, 'MACD fastPeriod comes from the instance').toBe('5')
     // The other two are declared with defaults, so the normaliser supplies them —
     // either way the boxes must show a real number and stay controlled.
@@ -274,40 +294,47 @@ describe('ChartToolbar — the period and colour rows an engine-drawn indicator 
     expect(swatch(rowFor('VWAP')).disabled).toBe(false)
   })
 
-  it('engine ON and drawing them: period and colour are disabled and SAY WHY', async () => {
+  it('⭐ INVERTED AT TASK 11: engine ON and drawing them — every control is LIVE and says nothing', async () => {
+    // The exact inverse of what this asserted at Flip A, on the same fixture. A
+    // flipped id routes its writes to `instanceControls`, so a greyed box with a
+    // tooltip saying "this field is not what sets it" would be a working control
+    // telling the user their keystroke did nothing while it did — and `disabled`
+    // and `title` disagreeing is how the ORIGINAL half-fix happened, which is why
+    // both are asserted together in both directions.
     const user = userEvent.setup()
     mount(settingsWith({
       engineEnabled: true, indicatorInstances: [MACD_INSTANCE, VWAP_INSTANCE],
     }), spy)
     await openPanel(user)
     const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
-    expect(boxes[0].disabled, 'MACD fast period is still writable and still ignored').toBe(true)
-    expect(boxes[0].getAttribute('title')).toMatch(ENGINE_TITLE)
+    expect(boxes[0].disabled, 'MACD fast period is greyed and it has a writer').toBe(false)
+    expect(boxes[0].getAttribute('title')).toBe('Fast')
     const box = swatch(rowFor('VWAP'))
-    expect(box.disabled, 'the colour swatch is still clickable and still ignored').toBe(true)
-    expect(box.getAttribute('title')).toMatch(ENGINE_TITLE)
+    expect(box.disabled, 'the colour swatch is greyed and it has a writer').toBe(false)
+    expect(box.getAttribute('title')).not.toMatch(ENGINE_TITLE)
   })
 
-  it('…and neither one can be made to write, by pointer or by keyboard', async () => {
+  it('…and BOTH can be made to write, by pointer and by keyboard', async () => {
+    // The other inversion. It used to assert nothing could write; the failure it
+    // now catches is the same defect one direction over — a control that opens,
+    // accepts input and discards it.
     const user = userEvent.setup()
     mount(settingsWith({
       engineEnabled: true, indicatorInstances: [MACD_INSTANCE, VWAP_INSTANCE],
     }), spy)
     await openPanel(user)
 
-    await user.type(within(rowFor('MACD')).getAllByRole('spinbutton')[0], '7')
-    within(rowFor('MACD')).getAllByRole('spinbutton')[0].click()
-    await user.click(swatch(rowFor('VWAP')))
-    swatch(rowFor('VWAP')).click()
+    await user.type(within(rowFor('MACD')).getAllByRole('spinbutton')[0], '7',
+      { initialSelectionStart: 0, initialSelectionEnd: 9 })
+    expect(spy, 'the keyboard wrote nothing to a live row').toHaveBeenCalled()
 
-    expect(spy, 'a disabled control wrote settings').not.toHaveBeenCalled()
-    // The picker must not even OPEN — a popup whose choice is discarded is the
-    // same lie one layer down. Its hex field is the tell (it portals to <body>,
-    // so `screen`, not `within(row)`).
-    expect(screen.queryByPlaceholderText('#hex'), 'the colour picker opened anyway').toBeNull()
+    await user.click(swatch(rowFor('VWAP')))
+    // The picker must OPEN — a swatch that swallows the click is the same lie one
+    // layer down. Its hex field is the tell (it portals to <body>, so `screen`).
+    expect(screen.queryByPlaceholderText('#hex'), 'the colour picker never opened').not.toBeNull()
   })
 
-  it('the ENABLE checkbox stays live — it is Flip A\'s actual switch', async () => {
+  it('the ENABLE checkbox stays live — and now writes the INSTANCE', async () => {
     const user = userEvent.setup()
     mount(settingsWith({ engineEnabled: true, indicatorInstances: [MACD_INSTANCE] }), spy)
     await openPanel(user)
@@ -315,7 +342,10 @@ describe('ChartToolbar — the period and colour rows an engine-drawn indicator 
     expect(box.disabled).toBe(false)
     await user.click(box)
     expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy.mock.calls[0][0].indicators.macd.enabled).toBe(false)
+    expect(spy.mock.calls[0][0].indicators.macd.enabled, 'the mirror was not cleared').toBe(false)
+    expect(spy.mock.calls[0][0].indicatorInstances,
+      'the checkbox left the instance live — the chart still draws it')
+      .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
   })
 
   it('a NON-migrated indicator keeps every control — asserted where it can FAIL', async () => {
@@ -415,31 +445,61 @@ describe('ChartToolbar — the period and colour rows an engine-drawn indicator 
       .toEqual([...wired].sort())
   })
 
-  it('an instance the VALIDATOR drops leaves the controls alone', async () => {
-    // `bogus` is not a declared MACD input, so `normalizeInstances` refuses the
-    // record and the engine draws nothing. Greying the row for an instance nobody
-    // is going to draw is the same lie in the other direction.
+  it('an instance the VALIDATOR drops is not REPORTED as drawn — the claim, moved down a level', async () => {
+    // ⚠️ THIS CASE WENT VACUOUS AT TASK 11 AND HAS BEEN MOVED, NOT DELETED. It
+    // asserted the row stayed WRITABLE when the instance was invalid — true, and
+    // now true for every instance, valid or not, because `engineInert` is
+    // identically false. A `.disabled === false` assertion cannot fail here any
+    // more, which is the same shape as the Stoch vacuity this file just fixed.
+    //
+    // The claim it stood for lives one level down and is still falsifiable there:
+    // `engineDrawnInputs` must not REPORT a dropped instance as drawn. Everything
+    // that consumes it — the greyed-out treatment when it returns, the value the
+    // row DISPLAYS today — is wrong if it does, and the row's displayed value is
+    // asserted here too so this is not a pure unit test in a component file.
     const user = userEvent.setup()
-    mount(settingsWith({
+    const cs = settingsWith({
       engineEnabled: true,
       indicatorInstances: [{ ...MACD_INSTANCE, inputs: { ...MACD_INSTANCE.inputs, bogus: 1 } }],
-    }), spy)
-    await openPanel(user)
-    expect(within(rowFor('MACD')).getAllByRole('spinbutton')[0].disabled).toBe(false)
-  })
-
-  it('instances stored while the FLAG is off change nothing, for an UN-FLIPPED id', async () => {
-    // The realistic pre-flip state: migrated instances in the blob, engine dark.
-    // The legacy blocks still draw, so the legacy fields still drive them.
-    //
-    // ⚠️ ONLY FOR AN UN-FLIPPED ID. A flipped definition runs the engine whatever
-    // the flag says (it has no other renderer), so `rsi` here would be inert-ish
-    // and this case would be asserting the opposite of the truth.
-    const user = userEvent.setup()
-    mount(settingsWith({ indicatorInstances: [MACD_INSTANCE] }), spy)
+    })
+    expect(engineDrawnInputs(cs, engineRegistry).has('macd'),
+      'a record `normalizeInstances` refuses was reported as drawn').toBe(false)
+    mount(cs, spy)
     await openPanel(user)
     const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
     expect(boxes[0].disabled).toBe(false)
-    expect(boxes[0].value, 'the flag-off row must show the BLOB').toBe('12')
+    expect(boxes[0].value, 'the row showed a value from an instance nobody will draw').toBe('12')
+  })
+
+  it('⚠️ a flag-off blob shows the BLOB even for a FLIPPED id — a KNOWN divergence', () => {
+    // ⛔ A REAL, DELIBERATE INCONSISTENCY, RECORDED RATHER THAN PAPERED OVER.
+    // `engineDrawnInputs` returns nothing unless `cs.engineEnabled === true`
+    // (`flipState.js`), so with the flag off the row falls back to the blob — but
+    // `StockChart` DRAWS a flipped id regardless of that flag, from the stored
+    // instance. So on a flag-off chart with a stored MACD instance the panel shows
+    // 12/26/9 while the chart renders 5/35/4.
+    //
+    // It is carried, not fixed, because fixing it means changing
+    // `engineDrawnInputs`' contract, which four other call sites share, inside a
+    // task whose gate is that only two indicators move. It is narrow: the flag is
+    // false for every existing user, and every existing user also has no stored
+    // instance, so the fallback and the instance agree for all of them. It bites
+    // the first user handed an `?instances=` link on a flag-off chart.
+    //
+    // Asserted as it SHIPS so the divergence is visible and so a fix is a
+    // deliberate red rather than a surprise. Task 10's carry #4 is the same fact
+    // seen from the other side ("engineDrawnInputs still reads
+    // `cs.indicatorInstances` RAW, not through the migrator").
+    const cs = settingsWith({ indicatorInstances: [MACD_INSTANCE] })
+    expect(engineDrawnInputs(cs, engineRegistry).has('macd'),
+      'the flag-off fallback changed — the panel and the chart may now agree, which is '
+      + 'the FIX; delete this case and say so in the report').toBe(false)
+    const user = userEvent.setup()
+    mount(cs, spy)
+    return openPanel(user).then(() => {
+      const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
+      expect(boxes[0].disabled).toBe(false)
+      expect(boxes[0].value, 'the flag-off row must show the BLOB').toBe('12')
+    })
   })
 })

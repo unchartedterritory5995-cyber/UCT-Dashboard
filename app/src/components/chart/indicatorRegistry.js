@@ -102,7 +102,8 @@ export function listIndicators(settings) {
   })
   rows.push({
     id: 'vwap',
-    // Intraday-only by construction — StockChart's VWAP_TFS gates it to 1/5/15/30/60,
+    // Intraday-only by construction — `eligibility.VWAP_TIMEFRAMES` gates it to
+    // 1/5/15/30/60 (it was StockChart's VWAP_TFS until Flip B deleted that),
     // so the label says so rather than letting a daily chart look broken when it's on.
     label: 'VWAP (intraday only)',
     group: 'VWAP',
