@@ -1393,38 +1393,10 @@ export default function StockChart({
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!markersData || !isDailyWeekly) return []
-    const eventMarkers = []
-    // Earnings are NOT LWC markers anymore — they're drawn as a slick "E" badge by
-    // earningsBadgePrimitive (see earningsEvents below). Splits/dividends stay LWC.
-    if (cs.markers?.splits && Array.isArray(markersData.splits)) {
-      for (const s of markersData.splits) {
-        if (!s.date) continue
-        eventMarkers.push({
-          time: s.date,
-          position: 'belowBar',   // little marker at the bottom, like earnings/dividends
-          color: '#f59e0b',
-          shape: 'circle',
-          text: s.ratio ? `S ${s.ratio}` : 'S',
-          size: 1,
-        })
-      }
-    }
-    if (cs.markers?.dividends && Array.isArray(markersData.dividends)) {
-      for (const d of markersData.dividends) {
-        if (!d.date || d.amount == null) continue
-        const amt = Number(d.amount)
-        if (!Number.isFinite(amt)) continue
-        eventMarkers.push({
-          time: d.date,
-          position: 'belowBar',
-          color: '#3b82f6',
-          shape: 'arrowUp',
-          text: `D $${amt.toFixed(2)}`,
-          size: 1,
-        })
-      }
-    }
-    return eventMarkers
+    // Earnings, splits, and dividends are all drawn as bottom-row "E"/"S"/"D"
+    // badges by the badge primitives (see earningsEvents/splitEvents/dividendEvents
+    // below), NOT as LWC candle markers. Nothing to emit here for them.
+    return []
   }, [markersData, cs.markers, resolvedTf])
 
   // { data, x, y } while an earnings popover is open (null = closed).
@@ -1526,6 +1498,10 @@ export default function StockChart({
   const lastDpZonesRef = useRef(undefined) // identity guard — see the setZones call
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const splitBadgeRef = useRef(null)      // splits "S" badge primitive controller
+  const splitBadgeAttachedRef = useRef(false)
+  const divBadgeRef = useRef(null)        // dividends "D" badge primitive controller
+  const divBadgeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
@@ -3214,6 +3190,54 @@ export default function StockChart({
     }
     return out
   }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
+
+  // Splits + dividends: snap each event date to its containing bar (same bucketing
+  // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
+  const _bucketEventDate = useCallback((dstr, tf) => {
+    const s = String(dstr).slice(0, 10)
+    if (tf === 'W') {
+      const dt = new Date(`${s}T00:00:00Z`)
+      if (isNaN(dt.getTime())) return s
+      dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
+      return dt.toISOString().slice(0, 10)
+    }
+    if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
+    return s
+  }, [])
+
+  const splitEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.splits || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
+    const barByBucket = new Map()
+    for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
+    const out = []
+    const seen = new Set()
+    for (const s of markersData.splits) {
+      if (!s.date) continue
+      const bar = barByBucket.get(_bucketEventDate(s.date, resolvedTf))
+      if (!bar || seen.has(bar.t)) continue
+      seen.add(bar.t)
+      out.push({ date: bar.t, low: +bar.l, ratio: s.ratio })
+    }
+    return out
+  }, [markersData, cs.markers?.splits, resolvedTf, filteredBars, _bucketEventDate])
+
+  const dividendEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.dividends || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
+    const barByBucket = new Map()
+    for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
+    const out = []
+    const seen = new Set()
+    for (const d of markersData.dividends) {
+      if (!d.date || d.amount == null) continue
+      const bar = barByBucket.get(_bucketEventDate(d.date, resolvedTf))
+      if (!bar || seen.has(bar.t)) continue
+      seen.add(bar.t)
+      out.push({ date: bar.t, low: +bar.l, amount: Number(d.amount) })
+    }
+    return out
+  }, [markersData, cs.markers?.dividends, resolvedTf, filteredBars, _bucketEventDate])
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -4965,6 +4989,8 @@ export default function StockChart({
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
       swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
       earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
+      splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
+      divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
       zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
     }
 
@@ -6192,6 +6218,29 @@ export default function StockChart({
         missColor: mk.earningsMiss || '#c41f2d',
       })
       earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat })))
+    }
+
+    // ── Splits "S" + Dividends "D" badges (same bottom-row primitive as earnings) ──
+    if (candleSeriesRef.current) {
+      if (!splitBadgeRef.current) splitBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'S', color: '#f59e0b' })
+      if (!splitBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(splitBadgeRef.current.primitive)
+          splitBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      splitBadgeRef.current.setOptions({ enabled: splitEvents.length > 0, glyphColor: canvasSample.top })
+      splitBadgeRef.current.setPoints(splitEvents.map(s => ({ time: s.date, price: s.low })))
+
+      if (!divBadgeRef.current) divBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'D', color: '#3b82f6' })
+      if (!divBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(divBadgeRef.current.primitive)
+          divBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      divBadgeRef.current.setOptions({ enabled: dividendEvents.length > 0, glyphColor: canvasSample.top })
+      divBadgeRef.current.setPoints(dividendEvents.map(d => ({ time: d.date, price: d.low })))
     }
 
     // View handling on initial load / timeframe change / ticker switch.
