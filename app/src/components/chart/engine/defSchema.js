@@ -342,11 +342,32 @@ function checkVocabulary(value, allowed, reserved, path, what, errors) {
  * passthrough — letting it through would ship `$` as a CSS colour, which is a
  * silent default wearing a disguise.
  *
+ * ⚠️ `field` IS WHAT MAKES `SUBSTITUTABLE_PLOT_FIELDS` THE AUTHORITY RATHER THAN
+ * A COMMENT. Until B3 Task 8 every call site simply called this function, so the
+ * frozen array was read by nothing: a mutation deleting `lineStyle` from it left
+ * the entire engine selection green while the constant, spec §3.1 and the
+ * docstring all claimed otherwise. A vocabulary nothing enforces is a vocabulary
+ * that drifts, and this one is the difference between a user's line style
+ * reaching the renderer and being silently ignored. A `$ref` in a field the list
+ * does not name is now an ERROR — not a passthrough, which would ship the literal
+ * string `"$period"` into a plot option.
+ *
+ * @param {string} field the plot field being substituted, or `null` for a
+ *        sub-value (a `levels[i]` element) whose PARENT field was already checked.
  * @returns the substituted value, the original value when it isn't a ref, or
  *          REF_FAILED (an error has already been pushed).
  */
-function substitute(value, inputsByKey, path, errors) {
+function substitute(value, inputsByKey, path, errors, field) {
   if (typeof value !== 'string' || !value.startsWith('$')) return value
+
+  if (field !== null && field !== undefined && !SUBSTITUTABLE_PLOT_FIELDS.includes(field)) {
+    errors.push(
+      `${path}: $ref ${fmt(value)} is not substitutable — ${fmt(field)} is not one of the ` +
+      `fields the grammar resolves (${list([...SUBSTITUTABLE_PLOT_FIELDS])}). Write a literal, ` +
+      `or add the field to SUBSTITUTABLE_PLOT_FIELDS and spec §3.1 together.`,
+    )
+    return REF_FAILED
+  }
 
   const m = REF_RE.exec(value)
   if (!m) {
@@ -772,7 +793,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
 
   if (plot.color !== undefined) {
     const colorRef = refKeyOf(plot.color)
-    const color = substitute(plot.color, inputsByKey, `${path}.color`, errors)
+    const color = substitute(plot.color, inputsByKey, `${path}.color`, errors, 'color')
     if (color !== REF_FAILED) {
       noteRef(plot, 'color', colorRef)
       if (!isNonEmptyString(color)) {
@@ -787,7 +808,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
 
   if (plot.width !== undefined) {
     const widthRef = refKeyOf(plot.width)
-    const width = substitute(plot.width, inputsByKey, `${path}.width`, errors)
+    const width = substitute(plot.width, inputsByKey, `${path}.width`, errors, 'width')
     if (width !== REF_FAILED) {
       noteRef(plot, 'width', widthRef)
       if (!isFiniteNumber(width) || width <= 0) {
@@ -811,7 +832,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     // type ships. The whole-value branch is kept anyway because it turns that
     // dead end into a precise error ("expected an array after substituting
     // "$bands", got 14") instead of a shrug.
-    const levels = substitute(plot.levels, inputsByKey, `${path}.levels`, errors)
+    const levels = substitute(plot.levels, inputsByKey, `${path}.levels`, errors, 'levels')
     if (levels !== REF_FAILED) {
       if (!Array.isArray(levels)) {
         errors.push(
@@ -822,7 +843,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
         const levelRefs = levels.map(refKeyOf)
         if (levelRefs.some(Boolean)) noteRef(plot, 'levels', levelRefs)
         const resolved = levels.map((lvl, i) => {
-          const v = substitute(lvl, inputsByKey, `${path}.levels[${i}]`, errors)
+          const v = substitute(lvl, inputsByKey, `${path}.levels[${i}]`, errors, null)
           if (v === REF_FAILED) return lvl
           if (!isFiniteNumber(v)) {
             errors.push(
@@ -870,7 +891,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   // skipped rather than run on a sentinel.
   if (plot.lineStyle !== undefined) {
     const styleRef = refKeyOf(plot.lineStyle)
-    const lineStyle = substitute(plot.lineStyle, inputsByKey, `${path}.lineStyle`, errors)
+    const lineStyle = substitute(plot.lineStyle, inputsByKey, `${path}.lineStyle`, errors, 'lineStyle')
     if (lineStyle !== REF_FAILED) {
       noteRef(plot, 'lineStyle', styleRef)
       checkVocabulary(lineStyle, PLOT_LINE_STYLES, [], `${path}.lineStyle`, 'line style', errors)

@@ -2394,24 +2394,36 @@ describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
       time: INTRADAY_BARS.at(-1).t, point: { x: 100, y: 100 },
       logical: INTRADAY_BARS.length - 1, seriesData,
     }
-    // ⚠️ POLLED, NOT SLEPT. The legend handler coalesces through rAF, and a fixed
-    // `setTimeout(40)` is a race the moment the suite runs 400 files in parallel:
-    // this case passed alone and in the chart selection, then failed once in a
-    // full run and passed on the retry — a flake, which in a branch that reads
-    // green as evidence is worse than a failure. Re-dispatching is safe (the
-    // handler is idempotent for one param) and the loop exits the moment the
-    // legend has rendered, so the common case is one tick.
-    // The RSI/BB/MACD legend helpers above still use the fixed sleep and carry
-    // the same latent race; they are another task's and are left alone here.
-    for (let i = 0; i < 40; i++) {
+    // ⚠️ POLLED TO STABILITY, NOT SLEPT. The legend coalesces through rAF, and a
+    // fixed `setTimeout(40)` is a race the moment the suite runs 400 files in
+    // parallel. This case passed alone, passed in the chart selection, then
+    // failed once in a full run and passed on the retry — and a flake, in a
+    // branch that reads green as evidence, is worse than a failure.
+    //
+    // "Rendered at all" is NOT enough to poll on, which is what the first fix
+    // got wrong: the container also carries the live-price header and a
+    // "⟳ RECONNECTING" banner, so two reads can both contain the OHLC row while
+    // holding DIFFERENT amounts of unrelated chrome, and a character-for-character
+    // comparison then fails on text that has nothing to do with VWAP.
+    //
+    // So wait for TWO CONSECUTIVE IDENTICAL READS — the same rule
+    // `chart_parity.py` uses for a capture (`shots=2/2`), for the same reason —
+    // and fail loudly if the DOM never settles rather than comparing a moving
+    // target. The RSI/BB/MACD legend helpers above still use the fixed sleep and
+    // carry the same latent race; they are another task's and are left alone.
+    let prev = null
+    let text = view.container.textContent
+    for (let i = 0; i < 60; i++) {
       // eslint-disable-next-line no-await-in-loop
       await act(async () => {
         for (const fn of [...H.crosshairHandlers]) fn(param)
         await new Promise(r => setTimeout(r, 20))
       })
-      if (/O\s*1/.test(view.container.textContent)) break
+      prev = text
+      text = view.container.textContent
+      if (prev === text && /O\s*1/.test(text)) return text
     }
-    return view.container.textContent
+    throw new Error('the legend never settled to two identical reads — the comparison would be a race')
   }
 
   it('LEGACY prints no VWAP chip, and the ENGINE prints the same legend', async () => {
@@ -2466,7 +2478,12 @@ describe('vwapOverride — the enable signal that is not a toggle', () => {
   it('the forced instance carries ONLY declared input keys', () => {
     // It never passes through `validateInstance`, so `enabled` — which every
     // legacy indicator blob carries — would ride along into `inputsSignature` and
-    // the folds. The width proves the DECLARED ones did come through.
+    // the folds. Today that key is INERT (nothing downstream reads it), which is
+    // exactly why this has to be asserted at the SEAM rather than through the
+    // picture: a mutation replacing the key filter with `{...cs.indicators.vwap}`
+    // changes no pixel and no series option, and every behavioural assertion in
+    // this file stays green. The instance list the binder is HANDED is the only
+    // place the difference exists, and `H.syncCalls` is where it is visible.
     withOverride({
       indicators: { vwap: { enabled: false, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 3 } },
       engineEnabled: true, indicatorInstances: [],
@@ -2474,6 +2491,36 @@ describe('vwapOverride — the enable signal that is not a toggle', () => {
     const bound = H.binderApis[0].bindings()
     expect(bound).toHaveLength(1)
     expect(vwapLines('#ffffff')[0].options.lineWidth, 'the blob\'s width did not reach the series').toBe(3)
+
+    const handed = H.syncCalls.at(-1).instances.filter(i => i.defId === 'vwap')
+    expect(handed, 'the binder was handed no vwap instance').toHaveLength(1)
+    const declared = registry.getDefinition('vwap').inputs.map(d => d.key)
+    expect(declared, 'the definition declares no inputs — this check is vacuous').not.toHaveLength(0)
+    for (const k of Object.keys(handed[0].inputs)) {
+      expect(declared, `undeclared input key ${k} rode into the manufactured instance`).toContain(k)
+    }
+    expect(Object.keys(handed[0].inputs), 'the blob\'s `enabled` reached the binder').not.toContain('enabled')
+  })
+
+  it('an EXISTING instance draws under the override even with the toggle OFF', () => {
+    // ⚠️ THE PROJECTION, NOT THE MANUFACTURE. Every other override case here has
+    // an EMPTY instance list, so the forced-instance branch supplies the instance
+    // and its `hidden: false` carries it. When the blob ALREADY has one, the
+    // branch does nothing and the only thing keeping it visible is
+    // `legacyEnabled('vwap')` reading `(vwapOverride || enabled)`. Drop the
+    // override from that read and the Model Book popup projects the instance to
+    // `hidden` and silently loses its VWAP — with the legacy block ALSO stood
+    // down, because ownership survives hiding. Nothing else in this file can see
+    // it: the manufactured path stays green.
+    withOverride({
+      indicators: { vwap: { ...VWAP_CFG, enabled: false } },
+      engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
+    }, { color: '#ffffff' })
+    const handed = H.syncCalls.at(-1).instances.filter(i => i.defId === 'vwap')
+    expect(handed, 'the instance was dropped entirely').toHaveLength(1)
+    expect(handed[0].hidden, 'the override did not count as an enable signal').toBe(false)
+    expect(H.binderApis[0].bindings(), 'the engine drew nothing under the override').toHaveLength(1)
+    expect(vwapLines('#ffffff'), 'the forced white line is missing').toHaveLength(1)
   })
 
   it('an EXISTING instance is recoloured, not duplicated', () => {

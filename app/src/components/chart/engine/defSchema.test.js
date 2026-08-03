@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS } from './defSchema'
+import {
+  validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
+  SUBSTITUTABLE_PLOT_FIELDS,
+} from './defSchema'
 
 const rsiDef = () => ({
   schemaVersion: 1, id: 'rsi', version: 1,
@@ -634,5 +637,106 @@ describe('meta.legendParams', () => {
     for (const bad of ['period', 14, ['period', ''], ['period', null]]) {
       expect(validateDefinition(withParams(bad)).ok, JSON.stringify(bad)).toBe(false)
     }
+  })
+})
+
+// ─── meta.timeframes — the ONLY timeframes this indicator exists on ──────────
+//
+// B3 Task 8. `engine/eligibility.js` DROPS an instance whose chart is not one of
+// these, so this is a gate, not decoration — a session indicator on a daily bar
+// is not a degraded picture, it is a meaningless one.
+
+describe('meta.timeframes', () => {
+  const withTfs = (v) => { const d = rsiDef(); d.meta.timeframes = v; return d }
+
+  it('accepts an array of timeframe codes, and its absence', () => {
+    expect(validateDefinition(withTfs(['1', '5', '15', '30', '60'])).ok).toBe(true)
+    expect(validateDefinition(withTfs(['D'])).ok).toBe(true)
+    // Omitted entirely = "renders everywhere". That is the DEFAULT and every
+    // shipped definition but VWAP relies on it.
+    expect(validateDefinition(rsiDef()).ok).toBe(true)
+    expect(validateDefinition(withTfs(null)).ok).toBe(true)
+  })
+
+  it('REJECTS an empty array — "everywhere" is omission, "nowhere" is not a thing', () => {
+    // ⚠️ The two are one keystroke apart and they mean opposite things. An `[]`
+    // that validated would make the field permissive-by-accident on the read side
+    // (`Array.isArray(tfs) && tfs.length` in `eligibleInstances`) — the indicator
+    // would render EVERYWHERE while its author had written the code for "nowhere".
+    // Rejecting it is the only answer that does not guess which they meant.
+    const r = validateDefinition(withTfs([]))
+    expect(r.ok, 'an empty meta.timeframes was accepted').toBe(false)
+    expect(r.errors.join(' ')).toMatch(/nowhere/)
+  })
+
+  it('rejects a non-array, and an array holding anything but non-empty strings', () => {
+    for (const bad of ['5', 5, ['5', ''], ['5', null], ['5', 15]]) {
+      expect(validateDefinition(withTfs(bad)).ok, JSON.stringify(bad)).toBe(false)
+    }
+  })
+})
+
+// ─── SUBSTITUTABLE_PLOT_FIELDS is the AUTHORITY, not a comment ──────────────
+//
+// ⚠️ THIS SUITE EXISTS BECAUSE THE EXPORT WAS DECORATIVE. `validatePlot` calls
+// `substitute()` per field by hand, so removing an entry from this frozen array
+// changed NOTHING observable — a mutation deleting `lineStyle` from it left the
+// whole 735-test selection green while the constant, the spec line it mirrors,
+// and the docstring above it all claimed otherwise. A vocabulary nothing reads is
+// a vocabulary that drifts.
+//
+// So the list is asserted BEHAVIOURALLY, in both directions: every field named
+// here must actually resolve a `$ref`, and a field NOT named here must not. That
+// makes the constant load-bearing without moving the validator's per-field logic
+// behind a loop it would have to special-case anyway (`levels` substitutes
+// per-element, `color`/`width`/`lineStyle` whole-value).
+
+describe('SUBSTITUTABLE_PLOT_FIELDS is what actually substitutes', () => {
+  it('names exactly the fields v1 resolves', () => {
+    expect([...SUBSTITUTABLE_PLOT_FIELDS]).toEqual(['color', 'width', 'levels', 'lineStyle'])
+  })
+
+  it('every NAMED field resolves a $ref to the input default', () => {
+    const cases = {
+      color: { input: { key: 'c', type: 'color', label: 'C', default: '#123456' }, ref: '$c', expect: '#123456' },
+      width: { input: { key: 'w', type: 'int', label: 'W', default: 3, min: 1, max: 5 }, ref: '$w', expect: 3 },
+      lineStyle: {
+        input: {
+          key: 's', type: 'enum', label: 'S', default: 'dashed',
+          options: [['solid', 'Solid'], ['dashed', 'Dashed']],
+        },
+        ref: '$s', expect: 'dashed',
+      },
+    }
+    for (const [field, c] of Object.entries(cases)) {
+      const d = rsiDef()
+      d.inputs.push(c.input)
+      d.plots[0][field] = c.ref
+      const r = validateDefinition(d)
+      expect(r.ok, `${field}: ${JSON.stringify(r.errors)}`).toBe(true)
+      expect(r.def.plots[0][field], `${field} did not resolve`).toEqual(c.expect)
+      expect(r.def.plots[0].$refs[field], `${field} recorded no $ref`).toBe(c.input.key)
+    }
+    // `levels` is per-ELEMENT, which is why it is checked apart from the others.
+    const d = rsiDef()
+    d.inputs.push({ key: 'hi', type: 'int', label: 'Hi', default: 80, min: 1, max: 100 })
+    d.plots[1].levels = ['$hi', 50, 30]
+    const r = validateDefinition(d)
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(r.def.plots[1].levels).toEqual([80, 50, 30])
+    expect(r.def.plots[1].$refs.levels).toEqual(['hi', null, null])
+  })
+
+  it('a field NOT named here does NOT substitute — the list is a boundary', () => {
+    // `precision` is a real, validated plot field of the right shape (a number
+    // from an int input) and is deliberately absent from the list. If substitution
+    // ever became blanket, this is what would notice.
+    expect(SUBSTITUTABLE_PLOT_FIELDS).not.toContain('precision')
+    const d = rsiDef()
+    d.inputs.push({ key: 'p', type: 'int', label: 'P', default: 4, min: 0, max: 8 })
+    d.plots[0].precision = '$p'
+    const r = validateDefinition(d)
+    expect(r.ok, 'a $ref in an unsubstitutable field was accepted as a number').toBe(false)
+    expect(r.def === undefined || r.def.plots[0].precision, 'precision silently substituted').not.toBe(4)
   })
 })
