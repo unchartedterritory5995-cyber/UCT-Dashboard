@@ -565,6 +565,74 @@ blue+1 change came out as `0.114 → 0`. It reported **perfect parity on an imag
 that differed on 642,000 pixels.** The bug surfaced only because the
 prove-it-can-fail step refused to fail. Keep that step.
 
+### VWAP — the gated case, and the two things NO case here can see
+
+B3 Task 8. VWAP is the first migrated definition that does not exist on the
+fixture every other case uses, and the first whose settings can make a case blind.
+
+**It renders on `intraday5m` at `tf: "5"`, never on `ramp200`.** `VWAP_TFS`
+empties `indicatorData.vwap` above 60-minute bars and `meta.timeframes` drops the
+instance on the same list — so a VWAP case left on the daily fixture measures
+**0 px because NEITHER side draws**, which reads exactly like a pass.
+`tests/test_chart_parity_harness.py::test_a_VWAP_case_is_never_left_on_the_DAILY_fixture`
+is the gate on that, and Task 8 is the first task where it has a real subject.
+
+| run | A | B | result |
+|---|---|---|---|
+| THE GATE, `--repeat 20` | `89f73b36ae29` | `89f73b36ae29` | **0 px on 20/20**, all three cases, exit 0 |
+| `--instances-side none` / `both` | same | same | **0**, exit 0 |
+| two distinct builds, `--instances-side both`, `--repeat 5` | `25b09976a062` | `89f73b36ae29` | **0 on 5/5**, and the seven daily cases unmoved |
+
+Self-tests on `engine_vwap_vs_legacy`, all exit 1: `lineWidth: 2` → **4,237 px** ·
+`opacity: 60` → **2,818** · `lineStyle: "dotted"` → **2,814** · one hex digit of
+colour → **1,410**.
+
+⚠️ **VWAP HAS NO INPUT THAT REACHES THE MATHS.** `computeFor('vwap')` ignores
+`inputs` entirely — there is no period, no anchor, nothing shaped like MACD's
+`slowPeriod`. So the "prove the compute path is live" perturbation that Task 3
+and Task 6 relied on **does not exist for this indicator**, and the strongest
+available self-tests are the three non-colour presentation ones above. Do not
+read a colour-only perturbation as proof the numbers are live; the unit test
+`the numbers are computeVWAP's, UTC-day resets and all` is what earns that.
+
+#### The case that only existed because it went RED first
+
+`engine_vwap_dashed_vs_legacy` is not decoration. `lineStyle` was not a
+substitutable plot field, so VWAP's plot carried an author's literal and the
+engine drew **solid** for every user who had ever chosen dashed or dotted. On a
+build carrying the migration but not the fix (`9c7b7e62e647`) it reported
+**2,966 changed px (0.398656%) on 5/5** — while `engine_vwap_vs_legacy`, whose
+settings say `lineStyle: "solid"`, reported **0 on that same build**.
+
+**The lesson generalises past VWAP:** a parity case only measures the settings it
+declares. When a migrated indicator has a user-facing ENUM, add a case per branch
+of it, or the branches nobody wrote a case for migrate unmeasured.
+
+#### What NO case here can see, and where those live instead
+
+`ChartRender.jsx` passes **no `vwapOverride`, no `boldCandles`, no
+`modelBookLook`**. So the Model Book's forced-white override, both width
+fallbacks (0.5 vs 1) and the timeframe gate itself are **unreachable from this
+harness** — a case aimed at any of them would be 0 px and meaningless.
+They are gated in `engine/eligibility.test.js` and
+`engine/__tests__/stockChartWiring.test.jsx` instead, which is where the
+27-behaviour non-pixel list for VWAP lives.
+
+#### `vwap_only` is also the DECISION's measuring stick
+
+`computeVWAP` buckets by UTC calendar day, not ET session — preserved on purpose
+at the flip (`VWAP_SESSION_ANCHOR`, `docs/decisions/2026-08-02-vwap-utc-day-bucketing.md`,
+spec §11). `vwap_only` is the case that prices correcting it: **2,590 changed px
+(0.348118%) on 20/20 runs**, builds `d64c84c2ebf7` (UTC-day, ships) →
+`8bbbb44e1110` (ET-session), and the **same 2,590** with `--instances-side both`
+because both lanes read one function.
+
+⚠️ **`engine_vwap_vs_legacy` CANNOT price that decision and must not be used to.**
+It compares two lanes of the SAME build, and both read `computeVWAP` — correcting
+the maths moves A and B together and the case still reports **0**. That is the
+whole reason the correction is a separate commit with its own case: a migration
+number has to describe the migration.
+
 ---
 
 ## Adding a case
