@@ -517,6 +517,71 @@ def flake_bound(n: int) -> float:
     return 1.0 - (0.05 ** (1.0 / n))
 
 
+def collapse_case(entry: dict) -> dict:
+    """Reduce one case's ``runs`` into its verdict, in place. Returns ``entry``.
+
+    ⚠️ **THIS FUNCTION DECIDES `entry["pass"]`, AND `entry["pass"]` DECIDES THE
+    PROCESS EXIT CODE.** ``main()`` counts every non-passing entry into
+    ``report["failures"]`` and returns ``1`` if that is nonzero. On this branch the
+    exit code IS the evidence: ``parity_final.sh`` echoes ``EXIT=$?`` after every
+    run and the reports quote it.
+
+    It lives out here, as a pure function over a dict, because it used to be an
+    inline block inside ``main()`` and was therefore reachable only by launching
+    Chromium. `capture()`'s raise is gated three ways in
+    ``tests/test_chart_parity_harness.py``; the conversion of that raise into a
+    non-zero exit was gated NOWHERE, and a review mutation that changed the one
+    word below — ``entry["pass"] = False`` → ``True`` in the error branch —
+    survived a 78-test pytest selection. A case whose every run raised
+    ``ChartNotSettledError`` would then report ``🔴 ERROR`` in ``report.md`` and
+    ``exit 0`` to anything reading the verdict.
+
+    THREE OUTCOMES, in priority order, and the order matters:
+      1. **any run errored** ⇒ the case ERRORED. Not "use the runs that worked":
+         an error means a capture was never proven settled, so the runs that did
+         produce a number were measured under conditions this tool cannot vouch
+         for.
+      2. **any run size-mismatched** ⇒ the two builds framed the chart
+         differently, which is never something to resize past.
+      3. otherwise the WORST run is the verdict, against the case's tolerance.
+
+    ``flake_bound_95`` is per case and is emitted ONLY when every run was clean,
+    because ``1 − 0.05^(1/n)`` is the bound implied by *n consecutive clean runs*
+    and there is no such n once one of them failed.
+    """
+    runs = entry["runs"]
+    errs = [r["error"] for r in runs if r.get("error")]
+    worst = None
+    for r in runs:
+        if r.get("error") or r.get("size_mismatch") or r.get("changed") is None:
+            continue
+        if worst is None or r["changed"] > worst["changed"]:
+            worst = r
+
+    if errs:
+        entry["error"] = errs[0] if len(errs) == 1 else f"{len(errs)}/{len(runs)} runs: {errs[0]}"
+        entry["pass"] = False
+        entry["size_mismatch"] = False
+    elif any(r.get("size_mismatch") for r in runs):
+        bad = next(r for r in runs if r.get("size_mismatch"))
+        entry.update({k: bad[k] for k in ("size_mismatch", "a_size", "b_size")})
+        entry["changed"] = None
+        entry["pass"] = False
+    else:
+        entry.update({k: worst[k] for k in
+                      ("size_mismatch", "a_size", "b_size", "changed", "total",
+                       "pct", "diff_png")})
+        entry["changed_values"] = [r["changed"] for r in runs]
+        entry["pass"] = entry["changed"] <= entry["tolerance"]
+
+    clean = sum(1 for r in runs
+                if not r.get("error") and not r.get("size_mismatch")
+                and r.get("changed") is not None and r["changed"] <= entry["tolerance"])
+    entry["clean_runs"] = clean
+    entry["flake_bound_95"] = round(flake_bound(clean), 6) if runs and clean == len(runs) else None
+    return entry
+
+
 def write_report(report: dict, out_dir: Path) -> None:
     (out_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
@@ -551,12 +616,32 @@ def write_report(report: dict, out_dir: Path) -> None:
                      f"_{report['tolerance_reason']}_")
     if report.get("repeat", 1) > 1:
         n = report["repeat"]
-        lines.append(
-            f"- **{n} runs per case.** The reported number is the WORST run; every run's "
-            f"value is listed below. {n} consecutive clean runs put a 95% upper bound of "
-            f"**{flake_bound(n) * 100:.1f}%** on the per-run flake probability "
-            f"(`1 − 0.05^(1/n)`) — quote that bound, never \"it passed\"."
-        )
+        bound = report.get("flake_bound_95")
+        if bound is None:
+            # ⚠️ THE SENTENCE BELOW IS NOT PRINTED OVER A 🔴 ROW. `1 − 0.05^(1/n)`
+            # is the bound implied by n consecutive CLEAN runs; a report that
+            # contains a failure has no such n, and printing one anyway is how a
+            # bound gets quoted out of a report that does not support it. That
+            # happened: `off40/report.md` carried "40 consecutive clean runs put a
+            # 95% upper bound of 7.2%" directly above two `🔴 FAIL` rows, and
+            # `report.json` carried the number with nothing qualifying it.
+            lines.append(
+                f"- **{n} runs per case.** The reported number is the WORST run; every run's "
+                f"value is listed below. **No report-level flake bound is quoted: "
+                f"{report['failures']} case(s) did not pass.** The bound describes *n "
+                f"consecutive clean runs* and there were not n of them. Per-case bounds are "
+                f"in the distribution table, and only a case that was clean on every run "
+                f"carries one. A case that is DELIBERATELY non-zero (e.g. `macd_headmask`, "
+                f"which prices a decision) has none by construction — what backs its number "
+                f"is that every run produced the SAME value, which the per-run column shows."
+            )
+        else:
+            lines.append(
+                f"- **{n} runs per case.** The reported number is the WORST run; every run's "
+                f"value is listed below. {n} consecutive clean runs put a 95% upper bound of "
+                f"**{bound * 100:.1f}%** on the per-run flake probability "
+                f"(`1 − 0.05^(1/n)`) — quote that bound, never \"it passed\"."
+            )
     lines += ["", "| case | changed px | of total | tolerance | verdict | diff |",
               "|---|---:|---:|---:|---|---|"]
     for r in report["results"]:
@@ -573,22 +658,31 @@ def write_report(report: dict, out_dir: Path) -> None:
                      f"| {verdict} | {dpng} |")
     if report.get("repeat", 1) > 1:
         lines += ["", "### Per-run distribution", "",
-                  "| case | runs | changed px, per run | max | capture shots (a/b) |",
-                  "|---|---:|---|---:|---|"]
+                  "| case | runs | clean | 95% flake bound | changed px, per run | max | capture shots (a/b) |",
+                  "|---|---:|---:|---:|---|---:|---|"]
         for r in report["results"]:
             runs = r.get("runs") or []
+            cb = r.get("flake_bound_95")
+            cbs = f"{cb * 100:.1f}%" if cb is not None else "n/a"
+            clean = r.get("clean_runs")
+            cleans = "—" if clean is None else f"{clean}/{len(runs)}"
             if not runs:
-                lines.append(f"| `{r['name']}` | — | (errored) | — | — |")
+                lines.append(f"| `{r['name']}` | — | — | n/a | (errored) | — | — |")
                 continue
             vals = ", ".join("—" if u.get("changed") is None else str(u["changed"]) for u in runs)
             shots = ", ".join(f"{u.get('shots_a', '?')}/{u.get('shots_b', '?')}" for u in runs)
             mx = max((u.get("changed") or 0) for u in runs)
-            lines.append(f"| `{r['name']}` | {len(runs)} | {vals} | {mx} | {shots} |")
+            lines.append(f"| `{r['name']}` | {len(runs)} | {cleans} | {cbs} | {vals} | {mx} | {shots} |")
         lines.append("")
         lines.append("`capture shots` is how many screenshots each side needed before two "
                      "CONSECUTIVE ones decoded to identical pixels. 2 = settled immediately; "
                      "anything higher is the harness having caught a chart that was still "
                      "moving after the page called itself ready.")
+        lines.append("")
+        lines.append("`95% flake bound` is `1 − 0.05^(1/clean)` and is **n/a unless every run "
+                     "of that case was clean** — the bound is a statement about consecutive "
+                     "clean runs, so a case with a failure in it has no bound to quote, and a "
+                     "case that is deliberately non-zero never will.")
     lines += [
         "",
         "## Reading this",
@@ -803,7 +897,10 @@ def main() -> int:
         "global_tolerance": args.tolerance,
         "tolerance_reason": args.tolerance_reason,
         "repeat": args.repeat,
-        "flake_bound_95": round(flake_bound(args.repeat), 6),
+        # Filled in AFTER the collapse, and only if nothing failed — see the
+        # assignment below `write_report`'s caller for why it cannot be computed
+        # from `--repeat` here.
+        "flake_bound_95": None,
         "results": [], "failures": 0,
     }
     print(identity_line("A (baseline) ", ident_a))
@@ -894,39 +991,27 @@ def main() -> int:
         browser.close()
 
         # ── Collapse each case's runs into its verdict ────────────────────────
+        # The reduction itself is `collapse_case` — a pure function, out of this
+        # closure on purpose, because the raise→exit-code conversion is the gate's
+        # verdict channel and it must be reachable without launching Chromium.
         for case in cases:
-            entry = entries[case["name"]]
-            runs = entry["runs"]
-            errs = [r["error"] for r in runs if r.get("error")]
-            worst = None
-            for r in runs:
-                if r.get("error") or r.get("size_mismatch") or r.get("changed") is None:
-                    continue
-                if worst is None or r["changed"] > worst["changed"]:
-                    worst = r
-            if errs:
-                entry["error"] = errs[0] if len(errs) == 1 else f"{len(errs)}/{len(runs)} runs: {errs[0]}"
-                entry["pass"] = False
-                entry["size_mismatch"] = False
-            elif any(r.get("size_mismatch") for r in runs):
-                bad = next(r for r in runs if r.get("size_mismatch"))
-                entry.update({k: bad[k] for k in ("size_mismatch", "a_size", "b_size")})
-                entry["changed"] = None
-                entry["pass"] = False
-            else:
-                entry.update({k: worst[k] for k in
-                              ("size_mismatch", "a_size", "b_size", "changed", "total",
-                               "pct", "diff_png")})
-                entry["changed_values"] = [r["changed"] for r in runs]
-                entry["pass"] = entry["changed"] <= entry["tolerance"]
-
+            entry = collapse_case(entries[case["name"]])
             if not entry["pass"]:
                 report["failures"] += 1
             report["results"].append(entry)
             flag = "ok" if entry["pass"] else "FAIL"
             shown = entry.get("changed")
-            print(f"[{case['name']:24}] {flag:4} worst={shown} over {len(runs)} run(s) "
+            print(f"[{case['name']:24}] {flag:4} worst={shown} over {len(entry['runs'])} run(s) "
                   f"tol={entry['tolerance']}")
+
+    # The report-level bound is the bound implied by n consecutive CLEAN runs, so
+    # it only exists when there were n of them. It used to be stored at report
+    # construction from `--repeat` alone, which put `"flake_bound_95": 0.072158`
+    # and "40 consecutive clean runs put a 95% upper bound of 7.2%" into an off40
+    # report carrying two 🔴 FAIL rows.
+    report["flake_bound_95"] = (
+        round(flake_bound(args.repeat), 6) if report["failures"] == 0 else None
+    )
 
     write_report(report, out_dir)
     print(f"\n{len(report['results'])} case(s), {report['failures']} failure(s). "
