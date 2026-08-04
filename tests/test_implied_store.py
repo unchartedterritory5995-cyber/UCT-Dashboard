@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -238,7 +239,8 @@ _GLOO_PLACEHOLDER = {"sym": "GLOO", "report_date": "2026-08-17", "hour": "amc",
 
 def test_dedupe_reporters_prefers_the_row_with_a_real_eps_estimate(store):
     deduped, collisions = store._dedupe_reporters([_GLOO_REAL, _GLOO_PLACEHOLDER])
-    assert collisions == 1
+    assert len(collisions) == 1
+    assert collisions[0]["distinct"] is True
     assert len(deduped) == 1
     assert deduped[0]["fiscal_year"] == 2027 and deduped[0]["fiscal_quarter"] == 2
 
@@ -249,7 +251,7 @@ def test_dedupe_reporters_is_order_independent(store):
     must never decide identity."""
     order_a, collisions_a = store._dedupe_reporters([_GLOO_REAL, _GLOO_PLACEHOLDER])
     order_b, collisions_b = store._dedupe_reporters([_GLOO_PLACEHOLDER, _GLOO_REAL])
-    assert collisions_a == collisions_b == 1
+    assert len(collisions_a) == len(collisions_b) == 1
     assert order_a[0]["fiscal_year"] == order_b[0]["fiscal_year"] == 2027
     assert order_a[0]["fiscal_quarter"] == order_b[0]["fiscal_quarter"] == 2
 
@@ -262,7 +264,7 @@ def test_dedupe_reporters_no_collision_when_dates_differ(store):
     b = {"sym": "GLOO", "report_date": "2026-11-16", "hour": "amc",
          "fiscal_year": 2027, "fiscal_quarter": 3, "eps_estimate": -0.1}
     deduped, collisions = store._dedupe_reporters([a, b])
-    assert collisions == 0
+    assert collisions == []
     assert len(deduped) == 2
 
 
@@ -316,6 +318,104 @@ def test_run_nightly_capture_stores_the_same_identity_regardless_of_reporter_arr
         import sqlite3
         with sqlite3.connect(store.DB_PATH) as c:
             c.execute("DELETE FROM implied_snapshots WHERE sym = 'GLOO'")
+
+
+# ── Review round 2 CRITICAL — the tie-break itself fell through to array
+# order on a full tie (eps-presence + fiscal key equal, `hour` differing).
+# Live observation: Finnhub listed a duplicate (sym, report_date) where BOTH
+# rows had epsEstimate=null and the SAME fiscal year/quarter, but one carried
+# hour='bmo' and the other hour='amc' — and `hour` is the ONE field
+# run_nightly_capture reads immediately after dedup resolves (the bmo-today
+# skip). Order decided whether tonight's capture fired at all, or ran under
+# the wrong session and risked storing an IV-crushed value forever.
+_DUPH_BMO = {"sym": "DUPH", "report_date": "2026-08-17", "hour": "bmo",
+             "fiscal_year": 2026, "fiscal_quarter": 2, "eps_estimate": None}
+_DUPH_AMC = {"sym": "DUPH", "report_date": "2026-08-17", "hour": "amc",
+             "fiscal_year": 2026, "fiscal_quarter": 2, "eps_estimate": None}
+
+
+def test_reporter_preferred_strict_greater_not_greater_equal_on_a_full_tie(store):
+    """Direct contract test on `_reporter_preferred` ITSELF, not the pipeline
+    output — a `>` mutated to `>=` (reviewer's M16) would flip this to True.
+    A genuine full tie (content-identical rows, verified via the canonical-
+    serialization tie-break) has NO observable effect on stored data — the
+    two candidates are indistinguishable by construction — so no pipeline-
+    level assertion can catch a `>`/`>=` swap here; this locks the function's
+    own strict-greater-than contract directly."""
+    a = {"sym": "X", "report_date": "2026-01-01", "hour": "amc",
+         "fiscal_year": 2026, "fiscal_quarter": 1, "eps_estimate": 1.5}
+    b = dict(a)  # content-identical, different object
+    assert store._reporter_preferred(b, a) is False
+
+
+def test_dedupe_reporters_hour_tie_break_is_order_independent(store):
+    """The exact DUPH pair (ties on eps-presence + fiscal key, differs only
+    on hour), in BOTH array orders — must resolve to the SAME hour either
+    way. Biased toward 'bmo' (the safe/skip direction, see `_hour_rank`)."""
+    order_a, collisions_a = store._dedupe_reporters([_DUPH_BMO, _DUPH_AMC])
+    order_b, collisions_b = store._dedupe_reporters([_DUPH_AMC, _DUPH_BMO])
+    assert len(collisions_a) == len(collisions_b) == 1
+    assert collisions_a[0]["distinct"] is True and collisions_b[0]["distinct"] is True
+    assert order_a[0]["hour"] == order_b[0]["hour"] == "bmo"
+
+
+def test_run_nightly_capture_hour_collision_resolves_identically_both_orders(store):
+    """End-to-end reproduction of the review's exact DUPH finding: report_date
+    == today, one candidate row 'bmo', one 'amc', otherwise tied. Before the
+    fix: [bmo, amc] captured NOTHING (permanently — the window never revisits
+    today on a later run), while [amc, bmo] STORED a value that would be
+    IV-crushed if 'bmo' was actually true. Now both orders resolve to the
+    SAME (safe) outcome: bmo wins deterministically -> skip, never stored."""
+    now = dt.datetime(2026, 8, 17, 21, 0)  # today == the report_date itself
+
+    for order_name, order in (("bmo_then_amc", [_DUPH_BMO, _DUPH_AMC]),
+                               ("amc_then_bmo", [_DUPH_AMC, _DUPH_BMO])):
+        with patch.object(store, "upcoming_reporters", return_value=list(order)), \
+             patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+            summary = store.run_nightly_capture(now=now)
+        assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1}, order_name
+        assert not store.get_implied_history("DUPH"), \
+            f"{order_name}: bmo must win deterministically -> skipped, never stored"
+
+
+# ── Review round 2 IMPORTANT #2 — the collision warning must not read as
+# noise: scoped to collisions that are BOTH inside tonight's capture window
+# AND genuinely content-differing (not a harmless byte-identical repeat).
+
+def test_run_nightly_capture_does_not_warn_on_a_harmless_identical_duplicate(store, caplog):
+    now = dt.datetime(2026, 8, 17, 21, 0)  # today == DUPH's report_date -> in-window
+    reporters = [_DUPH_BMO, dict(_DUPH_BMO)]  # byte-identical repeat
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()), \
+         caplog.at_level(logging.WARNING, logger="api.services.implied_store"):
+        summary = store.run_nightly_capture(now=now)
+    assert summary["collisions"] == 1
+    assert "duplicate" not in caplog.text, "a harmless byte-identical tie must not warn"
+
+
+def test_run_nightly_capture_warns_on_a_genuine_in_window_collision(store, caplog):
+    now = dt.datetime(2026, 8, 17, 21, 0)  # today == DUPH's report_date -> in-window
+    reporters = [_DUPH_BMO, _DUPH_AMC]  # genuinely differs (hour)
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()), \
+         caplog.at_level(logging.WARNING, logger="api.services.implied_store"):
+        summary = store.run_nightly_capture(now=now)
+    assert summary["collisions"] == 1
+    assert "duplicate" in caplog.text, "a genuine in-window collision must be surfaced"
+
+
+def test_run_nightly_capture_does_not_warn_on_an_out_of_window_collision(store, caplog):
+    """A collision counted in the 14-day total but landing OUTSIDE tonight's
+    [today, today+WINDOW] range must not fire the scoped warning — it isn't
+    tonight's problem yet (and by the time it IS, upcoming_reporters will
+    have re-fetched a fresh 14-day list anyway)."""
+    now = dt.datetime(2026, 8, 1, 21, 0)  # today = 2026-08-01; DUPH's 08-17 is well outside
+    reporters = [_DUPH_BMO, _DUPH_AMC]
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         caplog.at_level(logging.WARNING, logger="api.services.implied_store"):
+        summary = store.run_nightly_capture(now=now)
+    assert summary["collisions"] == 1
+    assert "duplicate" not in caplog.text
 
 
 def test_schema_migration_adds_fiscal_columns_to_a_pre_existing_db(tmp_path, monkeypatch):

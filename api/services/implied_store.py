@@ -260,27 +260,59 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
     return out
 
 
+def _hour_rank(hour) -> int:
+    """1 for 'bmo', else 0. 'bmo' is the ONE hour value `run_nightly_capture`
+    branches on (the bmo-today skip, read one line after `_dedupe_reporters`
+    resolves) — review round 2 CRITICAL: a collision that ties on eps_estimate
+    presence and fiscal_year/fiscal_quarter but genuinely differs on `hour`
+    used to fall through to array order, meaning WHICH candidate's `hour`
+    survived decided whether tonight's capture fired at all (or worse, ran
+    under the wrong session and stored an IV-crushed value under
+    first-write-wins). When ambiguous, bias toward 'bmo' — the SAFE direction:
+    wrongly resolving to 'bmo' costs one quarter's pre-report snapshot (no
+    data, honestly cold); wrongly resolving to anything else risks silently
+    storing a corrupted post-report value forever. Per §12: showing nothing
+    beats showing a confidently wrong number."""
+    return 1 if hour == "bmo" else 0
+
+
+def _reporter_sort_key(rep: dict) -> tuple:
+    """A STRICT total order over a reporter row, so `_reporter_preferred`
+    never falls through to "whichever came first" — review round 2 CRITICAL.
+    The prior 3-field key `(eps_present, fiscal_year, fiscal_quarter)` could
+    tie while the rows genuinely differed elsewhere (observed live: a
+    same-date duplicate tying on all three but disagreeing on `hour` —
+    'bmo' vs 'amc' — decided by Finnhub's array order whether tonight's
+    capture fired at all). This key adds `hour` (the one remaining field
+    `run_nightly_capture` branches on) and, as the unconditional final
+    tie-break, a canonical JSON serialization of the WHOLE row — so two
+    reporter dicts compare equal here if and ONLY IF they are content-
+    identical (order genuinely can't matter then), and unequal otherwise
+    resolves the SAME way regardless of which one was visited first.
+    `eps_present` uses `is not None`, never a truthy check: a genuine
+    `eps_estimate` of 0.0 must count as present, matching the module's
+    phantom-zero standard everywhere else."""
+    eps_present = rep.get("eps_estimate") is not None
+    absent = -1  # sentinel below any real fiscal_year/fiscal_quarter (never 0 or negative in practice)
+    fy = rep.get("fiscal_year") if rep.get("fiscal_year") is not None else absent
+    fq = rep.get("fiscal_quarter") if rep.get("fiscal_quarter") is not None else absent
+    hour_rank = _hour_rank(rep.get("hour"))
+    canonical = json.dumps(rep, sort_keys=True, default=str)
+    return (eps_present, fy, fq, hour_rank, canonical)
+
+
 def _reporter_preferred(new: dict, old: dict) -> bool:
     """Deterministic, ORDER-INDEPENDENT tie-break between two reporter rows
-    sharing the same (sym, report_date) — see `_dedupe_reporters`. A real
-    `eps_estimate` (the row Finnhub is actually tracking a consensus for)
-    beats a null one (an apparent placeholder); on a tie, the higher
-    (fiscal_year, fiscal_quarter) — the more forward-looking print — wins.
-    `is not None`, never a truthy check: a genuine `eps_estimate` of 0.0 (or
-    a negative EPS, e.g. GLOO's -0.187) must count as present."""
-    new_has = new.get("eps_estimate") is not None
-    old_has = old.get("eps_estimate") is not None
-    if new_has != old_has:
-        return new_has
-    absent = -1  # sentinel below any real fiscal_year/fiscal_quarter (never 0 or negative in practice)
-    new_key = (new.get("fiscal_year") if new.get("fiscal_year") is not None else absent,
-               new.get("fiscal_quarter") if new.get("fiscal_quarter") is not None else absent)
-    old_key = (old.get("fiscal_year") if old.get("fiscal_year") is not None else absent,
-               old.get("fiscal_quarter") if old.get("fiscal_quarter") is not None else absent)
-    return new_key > old_key
+    sharing the same (sym, report_date) — see `_dedupe_reporters`. Built on
+    `_reporter_sort_key`'s strict total order: real `eps_estimate` first,
+    then higher (fiscal_year, fiscal_quarter), then 'bmo'-biased `hour`, then
+    (unconditionally) the row's own canonical serialization. Because the key
+    is total, `new_key > old_key` picks the SAME winner regardless of which
+    row is visited first — a true fixed comparison, not "first wins"."""
+    return _reporter_sort_key(new) > _reporter_sort_key(old)
 
 
-def _dedupe_reporters(reporters: list[dict]) -> tuple[list[dict], int]:
+def _dedupe_reporters(reporters: list[dict]) -> tuple[list[dict], list[dict]]:
     """Finnhub's /calendar/earnings can list the SAME (sym, report_date)
     MORE THAN ONCE under DIFFERENT fiscal quarters — observed live:
         GLOO 2026-08-17 -> {"quarter":2,"year":2027,"epsEstimate":-0.187}
@@ -297,24 +329,30 @@ def _dedupe_reporters(reporters: list[dict]) -> tuple[list[dict], int]:
     its real history row (bar never draws) or pairs against the WRONG
     quarter's realized move (feeds a false number into the RICH/CHEAP chip).
 
-    Resolves via `_reporter_preferred` (real eps_estimate first, higher
-    (year, quarter) as the tie-break) — a fixed comparison, not "first wins",
-    so the result is the SAME regardless of the array's order.
+    Resolves via `_reporter_preferred` — a genuinely fixed, total-order
+    comparison (review round 2), so the result is the SAME regardless of the
+    array's order, not just "usually the same".
 
-    Returns (deduped_reporters, collision_count) — collision_count is
-    surfaced in `run_nightly_capture`'s summary rather than silently folding
-    into `skipped`."""
+    Returns (deduped_reporters, collisions) — `collisions` is one dict per
+    resolved duplicate: `{"sym", "report_date", "distinct"}`, where `distinct`
+    is False when the dropped row was content-identical to the survivor
+    (harmless — either choice behaves the same) and True when it genuinely
+    differed. Callers decide what's worth surfacing (see
+    `run_nightly_capture`); `len(collisions)` is the raw total."""
     best: dict[tuple, dict] = {}
-    collisions = 0
+    collisions: list[dict] = []
     for rep in reporters:
         k = (rep.get("sym"), rep.get("report_date"))
         prev = best.get(k)
         if prev is None:
             best[k] = rep
             continue
-        collisions += 1
-        if _reporter_preferred(rep, prev):
-            best[k] = rep
+        winner = rep if _reporter_preferred(rep, prev) else prev
+        loser = prev if winner is rep else rep
+        distinct = _reporter_sort_key(winner) != _reporter_sort_key(loser)
+        collisions.append({"sym": rep.get("sym"), "report_date": rep.get("report_date"),
+                            "distinct": distinct})
+        best[k] = winner
     return list(best.values()), collisions
 
 
@@ -331,7 +369,8 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     Deduped by (sym, report_date) BEFORE the window filter (review round 1,
     CRITICAL) — see `_dedupe_reporters` — so a duplicate-fiscal-quarter row
     from Finnhub can never let array order decide which identity a permanent
-    snapshot files under; `summary["collisions"]` counts how many resolved.
+    snapshot files under; `summary["collisions"]` counts how many resolved,
+    across the FULL 14-day reporter list (not just tonight's window).
     Exception isolation: one bad symbol never truncates the batch."""
     now = now or dt.datetime.now(_ET)
     today = now.date()
@@ -339,13 +378,8 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     window_end = today + dt.timedelta(days=window_days)
 
     reporters = upcoming_reporters(days=14, now=now)
-    reporters, dupe_collisions = _dedupe_reporters(reporters)
-    if dupe_collisions:
-        # warning, not info — this is Finnhub disagreeing with itself about a
-        # reporter's fiscal quarter; worth a human noticing even though the
-        # collision itself was resolved deterministically.
-        _log.warning("[implied-store] resolved %d duplicate (sym, report_date) "
-                     "reporter row(s) from Finnhub", dupe_collisions)
+    reporters, collisions = _dedupe_reporters(reporters)
+
     in_window = []
     for rep in reporters:
         try:
@@ -355,7 +389,26 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
         if today <= rd <= window_end:
             in_window.append(rep)
 
-    summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": dupe_collisions}
+    # Review round 2, IMPORTANT #2 — the WARNING is scoped tighter than the
+    # summary total: only a collision that (a) actually lands in TONIGHT'S
+    # capture window and (b) genuinely differed (not a harmless byte-
+    # identical repeat, `distinct=False`) is worth a human noticing. The raw
+    # 14-day total fires most nights once real reporters accrue (observed
+    # live: 3 collisions in the window, 2 of them harmless ties) — an alert
+    # that's noise from night one is an alert nobody reads by day thirty.
+    # `summary["collisions"]` still carries the unfiltered total below.
+    in_window_keys = {(rep.get("sym"), rep.get("report_date")) for rep in in_window}
+    noisy = [c for c in collisions
+             if c["distinct"] and (c["sym"], c["report_date"]) in in_window_keys]
+    if noisy:
+        _log.warning(
+            "[implied-store] resolved %d duplicate (sym, report_date) reporter "
+            "row(s) from Finnhub inside tonight's capture window (rows "
+            "genuinely differed, not a harmless repeat): %s",
+            len(noisy), ", ".join(f"{c['sym']}/{c['report_date']}" for c in noisy),
+        )
+
+    summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": len(collisions)}
     captured_at = now.isoformat(timespec="seconds")
     today_iso = today.isoformat()
     for rep in in_window:
