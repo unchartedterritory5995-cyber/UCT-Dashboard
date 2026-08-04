@@ -128,7 +128,9 @@ In `api/services/polygon_options.py`: add import `from api.services.massive impo
         return {"error": "no chain data", "ticker": sym}
 ```
 
-and delete the now-duplicated `results = data.get("results") or []` / empty-check lines below. Note `_safe_get` re-appends the apiKey to `next_url` calls (it always merges `p["apiKey"]`), so passing `params=None` is safe.
+and delete the now-duplicated `results = data.get("results") or []` / empty-check lines below.
+
+**CORRECTION (task-review finding, verified vs pinned httpx 0.28.1):** `_safe_get`'s `params={"apiKey": ...}` REPLACES the query string already on `next_url` — it does not merge — so `params=None` + `_safe_get(next_url)` silently drops the cursor (and `limit`/`expiration_date`). For `next_url` pages, append the apiKey by string concatenation exactly as `api/services/massive.py:658-665` does for its own pagination (`sep = "&" if "?" in nxt else "?"`), bypassing `_safe_get`'s params path, and add a real-httpx-composition test (MockTransport on `po._http`) asserting page-2's outgoing URL preserves `cursor=` — a mocked `_safe_get` cannot see this bug class.
 
 - [ ] **Step 4: Run the new tests + the existing suite slice**
 
