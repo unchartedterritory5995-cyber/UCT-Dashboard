@@ -5,6 +5,7 @@ import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } from '../flipState'
 import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
 import * as engineRegistry from '../nativeRegistry'
+import { stripComments } from './sourceScan'
 
 // ─── THE ENUMERATION LEDGER ─────────────────────────────────────────────────
 //
@@ -62,6 +63,20 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 const usesRef = (src, ref) => new RegExp(`${ref}\\s*\\.\\s*current`).test(src)
 const declaresRef = (src, ref) => new RegExp(`const\\s+${ref}\\b`).test(src)
 const calls = (src, fn) => src.includes(`${fn}(`)
+
+/** Which indicator ids a source text hand-names, by the discovery scan's own
+ *  three shapes: a quoted id, an object key, an optional-chained read.
+ *
+ *  ⚠️ HOISTED SO THE SCAN AND ITS CONTROL SHARE ONE PREDICATE. A control that
+ *  re-types the regexes proves that the re-typed regexes work, which is not the
+ *  claim — and this branch has already shipped one control that measured a
+ *  hand-copy against a hand-copy. */
+const INDICATOR_IDS = Object.keys(CHART_DEFAULTS.indicators)
+const namesIndicators = (src) => INDICATOR_IDS.filter(id => (
+  new RegExp(`['"]${id}['"]`).test(src) ||
+  new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`).test(src) ||
+  new RegExp(`(?<![A-Za-z0-9_$])${id}\\?\\.`).test(src)
+))
 
 // ─── THE SITES ──────────────────────────────────────────────────────────────
 //
@@ -653,8 +668,26 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // file nobody thought to add here, which is exactly how 7 became 32. This
   // scans every shipped module for a file that names four or more indicator ids
   // and refuses one the ledger does not know about.
+  //
+  // 🔴 IT USED TO READ COMMENTS AS CODE, AND B4 TASK 10 MEASURED IT. Writing
+  // `stoch::k` in PROSE in `readout.js` pushed that file over the four-id floor
+  // and this scan flagged it as an unledgered enumeration site. The prose was
+  // reworded — a symptom fix that left the scan answering a different question
+  // than the one it is asked, and left the file one explanatory sentence away
+  // from a false alarm at any time. It reads `stripComments(src)` now.
+  //
+  // ⚠️ SAME CLASS, OPPOSITE DIRECTION, ALSO MEASURED ON THIS BRANCH: Wave B's
+  // mount rail matched `useChartIndicatorBus()` in RAW source, so a mutation
+  // that COMMENTED THE CALL OUT survived. One stripper, two failure modes.
+  //
+  // ⛔ STRINGS ARE NOT STRIPPED, ON PURPOSE. `ChartsWorkspace`'s
+  // `UCT_DEFAULT_CHART_SETTINGS_JSON` names all fifteen sections inside a JSON
+  // STRING and is a real ledger site; a stripper that also dropped string
+  // contents would lose it, which is the false negative that makes a scan
+  // worthless. Measured on this tree: the found SET is identical before and
+  // after stripping (seven files), so nothing this scan saw yesterday went
+  // invisible today — only the prose stopped counting.
   it('names every shipped module that hand-lists four or more indicators', () => {
-    const IDS = Object.keys(CHART_DEFAULTS.indicators)
     const SRC_DIR = path.join(ROOT, 'app', 'src')
 
     const walk = (dir, out = []) => {
@@ -672,13 +705,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
 
     const found = []
     for (const p of walk(SRC_DIR)) {
-      const src = fs.readFileSync(p, 'utf8')
-      const named = IDS.filter(id => (
-        new RegExp(`['"]${id}['"]`).test(src) ||
-        new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`).test(src) ||
-        new RegExp(`(?<![A-Za-z0-9_$])${id}\\?\\.`).test(src)
-      ))
-      if (named.length >= 4) found.push(path.relative(ROOT, p).split(path.sep).join('/'))
+      const src = stripComments(fs.readFileSync(p, 'utf8'))
+      if (namesIndicators(src).length >= 4) found.push(path.relative(ROOT, p).split(path.sep).join('/'))
     }
 
     const known = new Set(LEDGER.map(s => s.file))
@@ -722,6 +750,64 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'the discovery scan cannot see a file the LEDGER fates to B5 — a site B4 cannot have ' +
       'retired. The scan is broken (walk root, regexes, or the `.test.` skip), not the tree.',
     ).toEqual([])
+  })
+
+  // ⭐ AND THE STRIPPER ITSELF, BOTH DIRECTIONS, ON THE SCAN'S OWN PREDICATE.
+  //
+  // The floor above proves the scan still finds four B5 files; it cannot prove
+  // WHY. These four fixtures are the actual shapes that were measured on this
+  // branch — a comment that invents an enumeration, a comment that hides a call,
+  // a string that IS one, and a regex whose `//` used to eat the rest of its line.
+  it('⭐ the scan reads CODE, not prose — and still reads code', () => {
+    const PROSE = [
+      "// the legend's nine chips: stoch::k, stoch::d, atr, sar and ichimoku's two",
+      '/* rsi: 14, macd: 26, bb: 20, vwap: session — the shape this used to be */',
+    ].join('\n')
+    const CODE = "const LIST = { rsi: 1, macd: 2, bb: 3, vwap: 4, stoch: 5 }"
+
+    // ⛔ THE NEGATIVE HALF, AND ITS OWN CONTROL. The fixture must genuinely trip
+    // the RAW scan, or "zero after stripping" is a fixture that was never a
+    // problem — this is the exact `readout.js` shape B4 Task 10 hit.
+    expect(namesIndicators(PROSE).length,
+      'the prose fixture names fewer than four ids raw — it could never have flagged a file, ' +
+      'so the zero below proves nothing').toBeGreaterThanOrEqual(4)
+    expect(namesIndicators(stripComments(PROSE)),
+      'a comment still reads as an enumeration').toEqual([])
+
+    // ⭐ THE POSITIVE HALF: real code still counts, and counts the SAME.
+    expect(namesIndicators(stripComments(CODE)),
+      'the stripper ate real code — a scan that finds nothing is a broken scan, not a clean tree')
+      .toEqual(namesIndicators(CODE))
+    expect(namesIndicators(stripComments(CODE)).length).toBeGreaterThanOrEqual(5)
+    // …and the two together, in one file, the way they actually appear.
+    expect(namesIndicators(stripComments(`${PROSE}\n${CODE}\n`)))
+      .toEqual(namesIndicators(CODE))
+
+    // ⛔ STRINGS SURVIVE. `ChartsWorkspace`'s frozen capture names all fifteen
+    // sections inside a JSON string and is a REAL ledger site (fate B5). A
+    // stripper that dropped string contents would lose it silently.
+    const JSON_CAPTURE = 'const S = \'{"indicators":{"rsi":{},"macd":{},"bb":{},"vwap":{}}}\''
+    expect(namesIndicators(stripComments(JSON_CAPTURE)).length,
+      'the frozen settings capture stopped being visible — that is the false negative that ' +
+      'makes a discovery scan worthless').toBeGreaterThanOrEqual(4)
+
+    // ⛔ A REGEX CONTAINING `//` DOES NOT OPEN A COMMENT. Without the regex state
+    // the rest of that line — including the four ids on it — would vanish.
+    const WITH_REGEX = "const re = /https:\\/\\//g; const M = { rsi: 1, macd: 2, bb: 3, vwap: 4 }"
+    expect(namesIndicators(stripComments(WITH_REGEX)).length,
+      'a regex literal swallowed the rest of its line').toBeGreaterThanOrEqual(4)
+
+    // ⛔ THE OTHER DIRECTION — WAVE B'S TRAP. A commented-out call must read as
+    // ABSENT, or a mutation that comments a mount out survives its own rail.
+    const LIVE = 'export default function L() { useChartIndicatorBus() }'
+    const COMMENTED = 'export default function L() { /* useChartIndicatorBus() */ }'
+    expect(calls(stripComments(LIVE), 'useChartIndicatorBus'), 'control: a live call reads live')
+      .toBe(true)
+    expect(calls(COMMENTED, 'useChartIndicatorBus'),
+      'control: the RAW probe is the one that was defeated — if this is false the fixture is wrong')
+      .toBe(true)
+    expect(calls(stripComments(COMMENTED), 'useChartIndicatorBus'),
+      'a commented-out call still reads as a live one').toBe(false)
   })
 })
 
