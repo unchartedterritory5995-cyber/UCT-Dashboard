@@ -516,7 +516,7 @@ wrongly-named input key (step 6).
 ## 6. The B4 surfaces, and why the pixel gate cannot see them
 
 **Every number in this runbook is about a `<canvas>` that a headless browser
-rendered from `/chart-render`.** Phase B4 shipped almost nothing that reaches
+rendered from `/r/chart`.** Phase B4 shipped almost nothing that reaches
 that canvas — it reworked the surfaces AROUND the chart — so a clean 24-case
 zero across the whole phase is an **import-graph and effect-graph check, not a
 UI check**, and reading it as a pass is the single easiest way to ship a B4
@@ -525,7 +525,7 @@ regression.
 The parity route is structurally blind to all of it, and each blindness has a
 mechanism, not a caveat:
 
-| B4 deliverable | why `/chart-render` cannot see it | the suite that IS the gate |
+| B4 deliverable | why `/r/chart` cannot see it | the suite that IS the gate |
 |---|---|---|
 | the indicator **library dialog** (Task 7) | the route mounts **no `ChartToolbar`**, so the launcher, the imperative handle and the dialog never exist | `ChartToolbar.indicatorLibrary.test.jsx`, `IndicatorLibraryDialog.test.jsx` |
 | the **generated settings rows** (Task 6) | no settings modal and no toolbar panel is mounted | `generatedSettingsRows.test.jsx`, `enumerationSites.test.js` → *every declared input … is reachable* |
