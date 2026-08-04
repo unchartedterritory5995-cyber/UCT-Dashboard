@@ -35,7 +35,6 @@ const settingsWith = (over) => mergeChartSettings(JSON.stringify({
     bb: { enabled: true, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' },
     macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
   },
-  engineEnabled: true,
   ...over,
 }))
 

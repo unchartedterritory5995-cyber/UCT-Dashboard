@@ -1,11 +1,11 @@
 # Decision: `engineEnabled` is false in every stored blob, and no phase plan has a settings migration
 
 **Decision id:** `ENGINE_ENABLED_MIGRATION`
-**Status:** 🟡 **OPEN — nothing is broken today and nothing may be changed on this branch. This is the owner's and B5's call, written down and gated so it cannot be forgotten.**
+**Status:** ✅ **RESOLVED 2026-08-04 by B5 Task 4 — the flag is DELETED, at every site. §8.2's default recommendation was adopted in full; §12 records what resolved it, and what Task 9 still owes.**
 **Owner of the read:** `app/src/components/chart/chartDefaults.js` → `mergeChartSettings`.
 **Adjudication row:** `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §11.
 **Raised by:** Phase B3 Task 10, as the reason its brief's two requirements could not both hold. **Carried unresolved** by Tasks 10, 11 and 12. **Written down and gated:** Task 13, the whole-branch gate.
-**Pinned by:** `app/src/components/chart/engine/__tests__/engineEnabledMigration.test.js` (names this record and asserts it still says OPEN).
+**Pinned by:** `app/src/components/chart/engine/__tests__/engineEnabledMigration.test.js` (names this record and reads its Status header) and `enumerationSites.test.js` (asserts the Status header and the CODE agree — see §11.2, §12.1).
 
 > The other two flagged decisions on this branch — `MACD_HEAD_MASK` and
 > `VWAP_SESSION_ANCHOR` — were **measured, priced and answered**. This one is
@@ -40,10 +40,14 @@ engineEnabled: parsed.engineEnabled === true,
 | a stray truthy value (`"1"` from a URL param) | `false` |
 | the key is explicitly `true` | `true` |
 
-**…and all four rows are unchanged when `CHART_DEFAULTS.engineEnabled` is flipped
-to `true`.** That is asserted, in place, against the real default, by
-`engineEnabledMigration.test.js` → *"⛔ FLIPPING THE DEFAULT DOES NOT HEAL A
-STORED BLOB — the read is of the blob"*.
+**…and all four rows were unchanged when `CHART_DEFAULTS.engineEnabled` was
+flipped to `true`.** That was asserted, in place, against the real default, by
+*flipping the default does not heal a stored blob*. ⭐ **That test is now
+`engineEnabledMigration.test.js` → *"⛔ THE OLD RULE IS NOW IMPOSSIBLE, NOT MERELY
+FALSE — there is no flag to flip"*** — the old rule kept as the thing that must no
+longer hold, which is the only spelling that can tell *resolved* apart from *the
+assertions were deleted*. All four rows now collapse to one answer: **the key is
+not emitted at all.** See §12.
 
 **Nothing in shipped source ever writes it `true`.** One occurrence exists —
 `ChartRender.jsx:236`, the headless `/r/chart` parity and newsletter route, and
@@ -524,3 +528,100 @@ stated model and it keeps its own suite; only StockChart's call is.
 this phase gives one writer at a time, and it is Task 4's file. It is recorded
 here rather than in `.superpowers/` because `.superpowers/` is gitignored — the
 same reason §11.3 exists.
+
+## 12. RESOLUTION — 2026-08-04, B5 Task 4
+
+**§8.2's default recommendation, adopted in full: the flag is DELETED.** Not
+flipped, not defaulted-`true`, not versioned. §1 is why — the read was of the
+blob, so a default flip was a no-op for every user alive — and §7 is why deletion
+is available at all: the flag's one remaining job was to distinguish
+migrated-but-un-flipped from flipped, and B5 migrates and flips in the same commit
+(A1), so that category is never created.
+
+### 12.1 ⚠️ THIS RECORD RESOLVES AT TASK 4, NOT AT TASK 9, AND THE RAIL IS WHY
+
+§11.1's table splits the work across Task 4 (the flag) and Task 9 (the mirror), and
+§11 twice says *"B5 Task 9 resolves this record"*. **That is not available, and the
+reason is a rail this branch wrote deliberately.**
+
+`enumerationSites.test.js` → *"creates no migrated-but-un-flipped definition while
+the settings migration is open"* asserts a **biconditional**:
+
+> the header says **OPEN** ⟺ `mergeChartSettings` still reads `parsed.engineEnabled === true`
+
+with `recordAgreesWithTheCode: true` required in both worlds. §11.2 states both
+failure directions and both are mutation-proven. Task 4 deletes the read;
+therefore `flagLives` is `false`; therefore leaving this header at `OPEN` is
+**red**, by construction, in the commit that does the deletion. There is no halfway
+state — that is the whole point of re-reading the clause as a biconditional rather
+than as `stillOpen: true`.
+
+So the two-field edit is made here, in the commit that deletes the flag. **Task 9
+is unaffected in scope**: it still ships §6 R1a, the versioned read-time migration,
+for the DATA (`settingsVersion` 1→2, the fold of `cs.indicators.<id>` into
+`indicatorInstances` below version 2, `CHART_DEFAULTS.indicators` shrunk to
+`volumeProfile`, the allow-list to one line). What it no longer carries is a
+`**Status:**` edit it could not have made without being red for five tasks first.
+
+### 12.2 What deletion means, site by site
+
+Seven sites in shipped source, **not six** — §11.2's "six sites that nobody had
+chosen" undercounts by one, and the extra one is the interesting one.
+
+| # | site | what went |
+|---|---|---|
+| 1 | `chart/chartDefaults.js` — `CHART_DEFAULTS.engineEnabled: false` | the declaration §1 proves nothing consulted |
+| 2 | `chart/chartDefaults.js` — `mergeChartSettings` | **the read.** With the line gone the hard allow-list stops emitting the key, and a stored `true`/`false`/`"1"` is destroyed on the next read like any undeclared key |
+| 3 | `chart/engine/flipState.js` — `engineDrawnInputs` | the `cs.engineEnabled !== true` guard. §4.2's divergence: the toolbar fell back to the legacy MIRROR on a flag-off chart, i.e. **on every chart**. Now unconditional |
+| 4 | `components/StockChart.jsx` | `engineOn`; `engineActive`'s disjunct; the instance filter's second gate; `engineNeeded`'s disjunct; the share-link encode AND decode; the visibility effect's dep |
+| 5 | `pages/ChartRender.jsx` | **the only write of `true` in shipped source** — `?instances=` on the headless parity route |
+| 6 | `pages/charts/ChartsWorkspace.jsx` | `uctDefaultChartSettings()`'s stamp. ⚠️ Deleted as a LINE, not assigned `undefined`: `JSON.stringify` drops `undefined`, so the output string is byte-identical either way and only a source scan can tell |
+| 7 | `chart/engine/binder.js` | `sync`'s `ctx.cs && ctx.cs.engineEnabled` fallback — **the seventh, named by nothing.** It is what an "all six sites" scope would have left behind: a live read of a key that no longer exists, resolving to `undefined`, i.e. permanently OFF, for any caller that omitted `enabled` |
+
+`pages/Settings.jsx` and `chart/ChartSettingsModal.jsx` — two of door seven's three
+sites — needed **no edit**: they spread or clone `CHART_DEFAULTS`, so they followed
+the deletion. That is the property §6 R2 asks of them, and it is asserted rather
+than assumed (`engineEnabledMigration.test.js` → *"the three door-seven writers no
+longer stamp a key that does not exist"*, over the payloads, plus
+`controlDoorCensus.test.js` on the sites).
+
+### 12.3 §9's list, closed one by one
+
+| test | §9 said | what happened |
+|---|---|---|
+| *flipping the default does not heal a stored blob* | update it, old rule kept as what must no longer hold | done — *"⛔ THE OLD RULE IS NOW IMPOSSIBLE, NOT MERELY FALSE"*, and all four §1 rows are asserted as one object |
+| *a flag-off chart holding a live instance shows the toolbar NOTHING* | there is no flag-off chart | inverted — *"the toolbar shows the DRAWN inputs on every chart now"*, asserted twice: on a normal blob and on one that explicitly said `false` |
+| *the decision record is still OPEN* | this file's Status line | moved to RESOLVED, **here**, for the reason in §12.1 |
+| `flipBStoredBlobs.test.jsx` | a blob that merges engine-on takes a different branch | **no blob changed branch.** Nothing merges engine-on, because nothing merges the key at all; every one of the 25 renders unchanged |
+| `chartDefaults.test.js` | the merge rule itself | its three `engineEnabled` cases assert ABSENCE now |
+| the parity gate | `mergeChartSettings` is on every chart's path | 24 live cases, 0 changed pixels, both build identities named — §12.4 |
+
+**And the one §9 predicted would NOT move: `ChartToolbar.engineInert`.** §9 was right
+that this deletion could not catch it, and wrong about it existing: **B4 Task 8 had
+already deleted `engineInert`, `inertTitle`, `shownInput` and all 34 row bindings**
+when spec §6 replaced the fifteen per-indicator rows with one launcher.
+`flipState.js` still carried a present-tense paragraph saying they "STAY (they are
+what a B4 migration reactivates)"; that paragraph is corrected in this commit.
+
+### 12.4 The parity numbers
+
+`mergeChartSettings` is on every chart's path on every surface, and this is the
+last commit in B5 at which a change to it can be measured against an unmoved
+geometry. **24 live cases · 0 changed pixels · 5/5 runs · `worst=0 tol=0` on every
+case.**
+
+| side | build identity | bundle |
+|---|---|---|
+| A (`669542f9`, this task reverted in place) | `d4d1a37ca9f7` | `index-BJZPT9V-.js` |
+| B (`669542f9` + this task) | `f1b0f7d5b1c4` | `index-CxU4TFCH.js` |
+
+`same_build:false`, served==disk on both. Fail-proofs on this pair, both `rc=1`:
+vwap opacity → **2,601 px**, candles `#1ae51b` → **1,953 px**.
+
+### 12.5 What is still open, and it is not this
+
+`ENGINE_ENABLED_DELETED` (`docs/decisions/2026-08-04-engine-enabled-deleted.md`)
+carries the deletion itself. **The MIRROR is Task 9's and is not resolved by this
+record**: `cs.indicators`' fifteen keyed sections and the fifteen-line allow-list
+are both fated B5, §11.1 splits them into Task 9, and §6 R1a describes the shape.
+This record's subject was the flag, and the flag is gone.

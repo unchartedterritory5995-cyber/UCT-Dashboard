@@ -186,11 +186,19 @@ export const CHART_DEFAULTS = {
   // from it is silently dropped on EVERY read.
   settingsVersion: 1,
   indicatorInstances: [],
-  // THE ENGINE LANDS DARK. While this is false StockChart never constructs a
-  // binder, so the engine makes zero lightweight-charts calls of any kind — not
-  // "no visible change", zero. Flipping it on is a deliberate, per-blob act
-  // (Settings, or a `settingsOverride` on one surface like the parity route).
-  engineEnabled: false,
+  // ⭐ B5 TASK 4 — `engineEnabled` STOOD HERE, AND IT IS DELETED, NOT FLIPPED.
+  // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
+  //
+  // It said "THE ENGINE LANDS DARK", and it never did that job: `mergeChartSettings`
+  // answered the flag from the STORED BLOB, never from this declaration, so this
+  // line was consulted by nothing and flipping it to `true` would have healed
+  // nobody. Its one remaining job was to tell a MIGRATED-but-UN-FLIPPED definition
+  // from a FLIPPED one — a state that exists only inside a migration and that B5
+  // never creates, because every migration in this phase flips in the same commit.
+  //
+  // ⛔ Left `?? true` it would have read as live logic: a guard on a key nothing
+  // writes, taking the OFF branch forever, next to a comment claiming it decides
+  // whether a whole render path runs.
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
@@ -397,11 +405,21 @@ export function mergeChartSettings(userSettings) {
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
     settingsVersion: Number.isFinite(parsed.settingsVersion) ? parsed.settingsVersion : CHART_DEFAULTS.settingsVersion,
     indicatorInstances: Array.isArray(parsed.indicatorInstances) ? parsed.indicatorInstances : [],
-    // `=== true`, not `??`: only an explicit boolean lights the engine up. Every
-    // other flag here can fail either way harmlessly; this one decides whether a
-    // whole second render path runs, so a stray truthy value (a "1" from a URL
-    // param, a leftover string) must read as OFF.
-    engineEnabled: parsed.engineEnabled === true,
+    // ⭐⭐ B5 TASK 4 — `engineEnabled: parsed.engineEnabled === true` STOOD HERE.
+    //
+    // 🔑 THIS LINE, NOT THE DECLARATION, WAS THE FLAG. It read the STORED BLOB,
+    // so an absent key and an explicit `false` were the SAME ANSWER and every
+    // `chart_settings` row in production — all of which predate the engine —
+    // merged to `false`. That is why "flip the default" was the trap and not the
+    // fix, and why the resolution is DELETION: this allow-list is hard, so with
+    // the line gone the key is not emitted at all, and a stored `engineEnabled`
+    // (`true`, `false`, or a `"1"` from a URL param) is destroyed on the next read
+    // exactly like any other key nobody declared.
+    //
+    // ⚠️ THE READER THAT NEEDS TO KNOW IS `enumerationSites.test.js`, and it reads
+    // this file COMMENT-STRIPPED on purpose — the biconditional it asserts (*the
+    // record says OPEN ⟺ this line exists*) would otherwise read this tombstone as
+    // the flag and stay green forever.
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
     volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)

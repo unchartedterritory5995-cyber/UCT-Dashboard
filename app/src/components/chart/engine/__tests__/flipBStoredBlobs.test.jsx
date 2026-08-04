@@ -195,23 +195,29 @@ describe('the blob shapes themselves — without these the cases below prove not
   it('the July blob really is missing both engine keys', () => {
     expect(Object.prototype.hasOwnProperty.call(JULY_BLOB, 'engineEnabled')).toBe(false)
     expect(Object.prototype.hasOwnProperty.call(JULY_BLOB, 'indicatorInstances')).toBe(false)
-    // …and the merge answers OFF for it, which is the whole reason a flipped id
-    // cannot be gated on that flag.
-    expect(mergeChartSettings(JSON.stringify(JULY_BLOB)).engineEnabled).toBe(false)
+    // …and the merge does not invent one. It used to answer `engineEnabled: false`
+    // — the whole reason a flipped id could not be gated on that flag — and B5
+    // Task 4 deleted the key, so the answer is now that there is no key.
+    expect('engineEnabled' in mergeChartSettings(JSON.stringify(JULY_BLOB))).toBe(false)
+    // The instance list, which is NOT deleted, still arrives normalised and empty.
+    expect(mergeChartSettings(JSON.stringify(JULY_BLOB)).indicatorInstances).toEqual([])
   })
 
-  it('…and `CHART_DEFAULTS.engineEnabled` cannot heal it — the trap, asserted', () => {
-    // ⛔ THE FACT THAT DECIDED THIS TASK'S DESIGN. `mergeChartSettings` reads the
-    // PARSED BLOB, not the default, so an absent key is a hard OFF and flipping
-    // the default changes nothing for anyone who has ever saved settings. Site #22
-    // documents this for two menu items; it is true in the global.
-    const before = CHART_DEFAULTS.engineEnabled
-    try {
-      CHART_DEFAULTS.engineEnabled = true
-      expect(mergeChartSettings(JSON.stringify(JULY_BLOB)).engineEnabled,
-        'flipping the default healed a stored blob — the premise of this file is wrong').toBe(false)
-    } finally {
-      CHART_DEFAULTS.engineEnabled = before
+  it('…and there is nothing left for a default flip to heal — the trap, retired', () => {
+    // ⛔ THE FACT THAT DECIDED THIS TASK'S DESIGN, and it is now history:
+    // `mergeChartSettings` read the PARSED BLOB, not the default, so an absent key
+    // was a hard OFF and flipping `CHART_DEFAULTS.engineEnabled` changed nothing
+    // for anyone who had ever saved settings.
+    //
+    // The default is gone, so the flip is not merely a no-op — it is unavailable.
+    // Asserted rather than deleted, because "the trap was removed" and "the
+    // assertion was removed" are the same green suite otherwise.
+    expect(Object.prototype.hasOwnProperty.call(CHART_DEFAULTS, 'engineEnabled'),
+      'the default is back — a flip that heals nobody is on the table again').toBe(false)
+    // …and every value a blob could carry lands in the same place: nowhere.
+    for (const value of [true, false, '1']) {
+      const cs = mergeChartSettings(JSON.stringify({ ...JULY_BLOB, engineEnabled: value }))
+      expect('engineEnabled' in cs, `stored engineEnabled: ${JSON.stringify(value)}`).toBe(false)
     }
   })
 
@@ -317,7 +323,6 @@ describe('⭐ the PRE-FLIP CROSSOVER — a stored instance plus a still-true tog
   // links, grid-cell overrides and share links all produce it.
   const CROSSOVER = {
     ...JULY_BLOB,
-    engineEnabled: true,
     indicatorInstances: [{
       instanceId: 'grid-cell-3:rsi', defId: 'rsi', defVersion: 1,
       inputs: { period: 21, color: '#7b68ee' }, placement: { target: 'pane' }, hidden: false,
@@ -357,12 +362,13 @@ describe('⭐ the blob the FROZEN TEMPLATE writes — "UCT Default" and "New Lay
   })
 
   it('⭐ …and a user who then TICKS the box gets a line, not a reserved empty band', () => {
-    // ⛔ THE SITE-#22 FAILURE MODE, DRIVEN END TO END. The fix stamps
-    // `engineEnabled` from the default (still `false`), so this only holds because
-    // a FLIPPED definition runs the engine regardless of the flag. Before that
-    // decision this case produced a checked checkbox, a reserved band and no line
-    // — which is exactly what site #22 predicted and what makes it a ship-blocker
-    // rather than a tidy-up.
+    // ⛔ THE SITE-#22 FAILURE MODE, DRIVEN END TO END. This only holds because a
+    // FLIPPED definition runs the engine unconditionally. Before that decision the
+    // case produced a checked checkbox, a reserved band and no line — which is
+    // exactly what site #22 predicted and what makes it a ship-blocker rather than
+    // a tidy-up. (It used to add "the fix stamps `engineEnabled` from the default,
+    // still false" — B5 Task 4 deleted the flag, so there is no stamp and no flag,
+    // and the reason this passes is the same one it always was.)
     const cs = mergeChartSettings(uctDefaultChartSettings())
     const next = setIndicatorEnabled(cs, 'rsi', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
@@ -442,7 +448,6 @@ describe('⭐ a stored blob with MACD ON — three plots, one band, after the fl
     // slightly bolder MACD and nothing else.
     drawStored(JSON.stringify({
       ...MACD_BLOB,
-      engineEnabled: true,
       indicatorInstances: [{
         instanceId: 'grid-cell-3:macd', defId: 'macd', defVersion: 2,
         inputs: { fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },

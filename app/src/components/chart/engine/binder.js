@@ -237,9 +237,19 @@ export function createBinder({ chart, LWC }) {
   }
 
   function sync(ctx) {
-    // ── The flag. ABSENT MEANS OFF: dark is the default, never something a
+    // ── The switch. ABSENT MEANS OFF: dark is the default, never something a
     //    caller has to remember to ask for. ──
-    const enabled = ctx && (ctx.enabled !== undefined ? ctx.enabled : ctx.cs && ctx.cs.engineEnabled) === true
+    //
+    // ⭐ B5 TASK 4 — THE `cs` FALLBACK IS GONE. This read
+    // `ctx.enabled !== undefined ? ctx.enabled : ctx.cs && ctx.cs.engineEnabled`,
+    // so a caller that passed no `enabled` fell back to the settings blob's flag.
+    // That flag is deleted, and the fallback would have resolved to `undefined` —
+    // i.e. permanently OFF — for any such caller, which is a silently dark engine
+    // rather than an explicit one. `StockChart` has always passed `enabled`
+    // explicitly, so this is behaviour-identical; what changes is that "the caller
+    // forgot" is now indistinguishable from "the caller said no", which is exactly
+    // what ABSENT MEANS OFF promises.
+    const enabled = Boolean(ctx) && ctx.enabled === true
     if (!enabled) {
       // A flag that flips OFF at runtime must not leave ghosts behind. When
       // nothing is held this is still zero calls, so the dark contract holds.

@@ -232,7 +232,6 @@ describe('Flip B — the instance list is the read authority', () => {
     // instance anywhere. The read-time migrator projects it; the engine draws it;
     // nothing is missing.
     draw({
-      engineEnabled: true,
       indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' },
                     bb: { enabled: true, period: 20, stdDev: 2, color: BB_COLOUR } },
     })
@@ -271,10 +270,14 @@ describe('Flip B — the instance list is the read authority', () => {
     // the same shape MACD had — so a filter that leaked would look identical.
     expect(ENGINE_MIGRATED_DEF_IDS.has('stoch'),
       'stoch migrated — this negative control needs a new subject').toBe(false)
-    for (const engineEnabled of [false, true]) {
+    // ⚠️ THE LOOP USED TO BE OVER `engineEnabled` — "with the flag off AND on".
+    // B5 Task 4 deleted the key, so it is over a LEFTOVER value a stale blob or an
+    // old share link can still carry, and the claim is that none of them starts
+    // anything. Same two runs, and the second is still the one that could fail.
+    for (const leftover of [undefined, true]) {
       cleanup(); H.reset()
-      draw({ engineEnabled, indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3 } } })
-      expect(bound(), `stoch reached the engine with the flag ${engineEnabled}`).toHaveLength(0)
+      draw({ engineEnabled: leftover, indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3 } } })
+      expect(bound(), `stoch reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
       expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'stoch').length,
         'the legacy Stochastic block stopped drawing').toBeGreaterThan(0)
     }
@@ -282,7 +285,6 @@ describe('Flip B — the instance list is the read authority', () => {
 
   it('a stored INSTANCE beats a false legacy toggle — instances are authoritative', () => {
     draw({
-      engineEnabled: true,
       indicators: { rsi: { enabled: false } },
       indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 21 }, hidden: false }],
     })
@@ -293,19 +295,33 @@ describe('Flip B — the instance list is the read authority', () => {
   })
 
   it('a TOMBSTONE beats a true legacy toggle — "off" stays off', () => {
+    // ⚠️ BB IS ON HERE AND IT IS LOAD-BEARING, for two reasons that arrived
+    // together at B5 Task 4. The old fixture had RSI alone plus its tombstone,
+    // and relied on `engineEnabled: true` to make StockChart construct a binder
+    // with nothing in it — the flag is deleted, and `engineNeeded` is now
+    // honestly `engineInstances.length > 0`, so that chart builds no binder and
+    // `ctx()` has nothing to read.
+    //
+    // Keeping ONE live instance is also the stronger assertion: `paneMargins.rsi`
+    // being undefined on an EMPTY margins object proves nothing, and the BB line
+    // below is what makes the object real.
     draw({
-      engineEnabled: true,
-      indicators: { rsi: { enabled: true, period: 14 } },
+      indicators: {
+        rsi: { enabled: true, period: 14 },
+        bb: { enabled: true, period: 20, stdDev: 2, color: BB_COLOUR },
+      },
       indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }],
     })
     expect(rsiSeries()).toHaveLength(0)
+    expect(bbSeries(), 'the control indicator did not draw — the margins below are empty')
+      .not.toHaveLength(0)
     expect(ctx().paneMargins.rsi, 'a deleted indicator must not reserve a band').toBeUndefined()
   })
 
   it('the band the engine lands in is EXACTLY the one the legacy layout reserved', () => {
     // The whole permission for `csForPaneMargins` to exist: the same answer.
     const cs = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
-    draw({ engineEnabled: true, ...cs })
+    draw({ ...cs })
     expect(ctx().paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
     expect(ctx().paneMargins).toEqual(computePaneMargins(cs, true, new Set()))
   })
@@ -324,7 +340,6 @@ describe('Flip B — the instance list is the read authority', () => {
 
   it('hide-all still reaches both, through the binding map', () => {
     draw({
-      engineEnabled: true,
       indicators: { rsi: { enabled: true }, bb: { enabled: true, period: 20, stdDev: 2, color: BB_COLOUR } },
     })
     const series = [...rsiSeries(), ...bbSeries()].map(c => c.series)
@@ -340,7 +355,7 @@ describe('Flip B — the instance list is the read authority', () => {
 describe('Flip B — the control surfaces write instances', () => {
   it('Ctrl+I toggles RSI by writing an instance AND the mirror', () => {
     const writes = []
-    const view = draw({ engineEnabled: true, indicators: { rsi: { enabled: false } } },
+    const view = draw({ indicators: { rsi: { enabled: false } } },
       { onSettingsPersist: (next) => writes.push(next) })
     act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
     expect(writes, 'Ctrl+I wrote nothing').not.toHaveLength(0)
@@ -352,7 +367,7 @@ describe('Flip B — the control surfaces write instances', () => {
 
   it('Ctrl+B toggles BB the same way — both pilots, one writer', () => {
     const writes = []
-    const view = draw({ engineEnabled: true, indicators: { bb: { enabled: false } } },
+    const view = draw({ indicators: { bb: { enabled: false } } },
       { onSettingsPersist: (next) => writes.push(next) })
     act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'b' }) })
     expect(writes, 'Ctrl+B wrote nothing').not.toHaveLength(0)
@@ -370,7 +385,7 @@ describe('Flip B — the control surfaces write instances', () => {
     expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(false)
 
     cleanup(); H.reset()
-    draw({ engineEnabled: true, ...cs })
+    draw({ ...cs })
     expect(rsiSeries(), 'it came back on refresh — the tombstone did not persist').toHaveLength(0)
   })
 
@@ -408,7 +423,6 @@ describe('Flip B — the control surfaces write instances', () => {
     // The end-to-end the two halves above cannot see between them: the writer's
     // output, rendered.
     let cs = {
-      engineEnabled: true,
       indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } },
       indicatorInstances: [],
     }
@@ -426,7 +440,6 @@ describe('Flip B — the right-click menu is a control surface too', () => {
     // A tombstone with a still-true toggle: the menu item must read unchecked, or
     // clicking it would "enable" something already enabled and turn it off.
     const cs = {
-      engineEnabled: true,
       indicators: { rsi: { enabled: true } },
       indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }],
     }
@@ -496,7 +509,13 @@ describe('Flip B — a shared chart link carries what now decides the picture', 
     const next = persisted.at(-1)
     expect(next.indicatorInstances, 'the link\'s instances did not survive the apply')
       .toEqual([{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 21 }, hidden: false }])
-    expect(next.engineEnabled).toBe(true)
+    // ⭐ AND THE OLD LINK'S FLAG IS IGNORED, DELIBERATELY (B5 Task 4). This asserted
+    // `next.engineEnabled === true` — the decode copied the sender's flag forward.
+    // Links minted before the deletion still CARRY it (the fixture above is one),
+    // and copying it into the recipient's stored blob would put a key there that
+    // nothing declares and nothing removes until their next save.
+    expect('engineEnabled' in next,
+      'the share-link decode copied a deleted key into the recipient\'s blob').toBe(false)
   })
 
   it('…and a link that carries a TOMBSTONE turns the recipient\'s copy off', () => {
@@ -652,7 +671,7 @@ describe('Flip B — MACD', () => {
   })
 
   it('⭐ a legacy-only blob draws all three plots through the engine', () => {
-    draw({ engineEnabled: true, ...MACD_ON })
+    draw({ ...MACD_ON })
     expect(macdSeries()).toHaveLength(3)
     expect(bound(), 'the ENGINE must be what drew them').toHaveLength(3)
     // …and the three are the three, not one plot bound three times.
@@ -668,14 +687,14 @@ describe('Flip B — MACD', () => {
   it('the zero guide still comes with it — one price line, on the MACD line', () => {
     // The legacy block drew `createPriceLine({price: 0, ...})` on `macdLineRef`.
     // It is not a series, so no series count can see it going missing.
-    draw({ engineEnabled: true, ...MACD_ON })
+    draw({ ...MACD_ON })
     const lines = H.priceLineCalls.filter(c => c.options && c.options.price === 0)
     expect(lines, 'the zero guide vanished with the legacy block').toHaveLength(1)
   })
 
   it('Ctrl+O writes an INSTANCE, and the mirror with it', () => {
     const writes = []
-    const view = draw({ engineEnabled: true, indicators: { macd: { enabled: false } } },
+    const view = draw({ indicators: { macd: { enabled: false } } },
       { onSettingsPersist: (next) => writes.push(next) })
     act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'o' }) })
     expect(writes, 'Ctrl+O wrote nothing').not.toHaveLength(0)
@@ -689,7 +708,6 @@ describe('Flip B — MACD', () => {
     // The instance is the switch now, so a false toggle must not shrink the band
     // out from under a live instance.
     draw({
-      engineEnabled: true,
       indicators: { macd: { enabled: false } },
       indicatorInstances: [{ instanceId: 'legacy:macd', defId: 'macd', inputs: {}, hidden: false }],
     })
@@ -699,12 +717,19 @@ describe('Flip B — MACD', () => {
   })
 
   it('a tombstone reserves NO band, and draws nothing', () => {
+    // ⚠️ RSI IS ON HERE AND IT IS LOAD-BEARING — same reason as the RSI tombstone
+    // case above. `engineNeeded` is `engineInstances.length > 0` since B5 Task 4,
+    // so a chart holding only a tombstone constructs no binder at all and `ctx()`
+    // has nothing to read; and an `undefined` band on an EMPTY margins object
+    // proves nothing. The live RSI supplies both.
     draw({
-      engineEnabled: true,
       ...MACD_ON,
+      indicators: { ...MACD_ON.indicators, rsi: { enabled: true, period: 14 } },
       indicatorInstances: [{ instanceId: 'legacy:macd', deleted: true }],
     })
     expect(macdSeries()).toHaveLength(0)
+    expect(ctx().paneMargins.rsi, 'the control indicator reserved no band — the object is empty')
+      .toBeTruthy()
     expect(ctx().paneMargins.macd, 'a deleted indicator must not reserve a band').toBeUndefined()
   })
 })
@@ -722,16 +747,18 @@ describe('Flip B — VWAP', () => {
   })
 
   it('⭐ a legacy-only blob draws it on an intraday chart, flag or no flag', () => {
-    for (const engineEnabled of [true, false]) {
+    // Same re-pointing as the Stochastic control above: the loop is over a
+    // LEFTOVER `engineEnabled` a stale blob can carry, not over a live flag.
+    for (const leftover of [true, undefined]) {
       cleanup(); H.reset()
-      drawIntraday({ engineEnabled, ...VWAP_ON })
-      expect(vwapSeries(), `flag=${engineEnabled}: the chart lost its VWAP`).toHaveLength(1)
+      drawIntraday({ engineEnabled: leftover, ...VWAP_ON })
+      expect(vwapSeries(), `leftover=${leftover}: the chart lost its VWAP`).toHaveLength(1)
       expect(bound(), 'the ENGINE must be what drew it').toHaveLength(1)
     }
   })
 
   it('still draws NOTHING on a daily chart, flipped or not', () => {
-    draw({ engineEnabled: true, ...VWAP_ON })
+    draw({ ...VWAP_ON })
     expect(vwapSeries(), 'a session VWAP on daily bars').toHaveLength(0)
     expect(bound(), 'the engine drew a session VWAP on daily bars').toHaveLength(0)
   })
@@ -765,7 +792,7 @@ describe('Flip B — VWAP', () => {
     // `computePaneMargins`' PANES list does not contain vwap — so the answer is
     // "no band" only as long as those two facts hold together. A band appearing
     // for a price overlay would shrink the price pane under the candles.
-    drawIntraday({ engineEnabled: true, ...VWAP_ON })
+    drawIntraday({ ...VWAP_ON })
     expect(vwapSeries(), 'nothing drawn — vacuous').toHaveLength(1)
     expect(ctx().paneMargins.vwap).toBeUndefined()
     // …and the whole margin map is the one the legacy layout produced.
@@ -774,7 +801,7 @@ describe('Flip B — VWAP', () => {
 
   it('Alt+U writes an INSTANCE, and the mirror with it', () => {
     const writes = []
-    const view = drawIntraday({ engineEnabled: true, indicators: { vwap: { ...VWAP_CFG, enabled: false } } },
+    const view = drawIntraday({ indicators: { vwap: { ...VWAP_CFG, enabled: false } } },
       { onSettingsPersist: (next) => writes.push(next) })
     act(() => { fireEvent.keyDown(document, { altKey: true, code: 'KeyU' }) })
     expect(writes, 'Alt+U wrote nothing').not.toHaveLength(0)

@@ -10,9 +10,17 @@ import { MemoryRouter } from 'react-router-dom'
 // gate would report a beautiful, meaningless 0. "The two pictures match because
 // they are the same picture" is the most expensive way to pass a parity gate.
 //
-// So: one param, two things, both asserted. It must set `engineEnabled: true`
-// (StockChart reads it `=== true`, so a string or a truthy would be silently
-// ignored) AND it must carry the instances through.
+// ⭐ IT USED TO BE ONE PARAM AND TWO THINGS. The second was `engineEnabled: true`
+// — StockChart read it `=== true`, so a string or a truthy would have been
+// silently ignored, and an un-armed engine is what turns the gate vacuous.
+//
+// **B5 Task 4 deleted the flag**, and this was the ONLY place in shipped source
+// that ever wrote it `true`. So the param carries one thing: the instances. The
+// vacuity it guards against is unchanged and is now guarded by the instance
+// assertion alone — a `?instances=` that carried nothing would leave side B
+// drawing from the legacy-toggle projection, i.e. the same picture as side A, and
+// the gate would report a beautiful meaningless 0 exactly as before.
+// Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md` §2, site 5.
 //
 // StockChart is stubbed to a prop recorder deliberately: this is a test of what
 // the ROUTE resolves, and mounting the real chart would answer a different
@@ -61,10 +69,11 @@ describe('ChartRender ?instances=', () => {
     await waitFor(() => expect(latest()?.indicatorInstances).toBeTruthy())
 
     const cs = latest()
-    // `=== true`, not truthy: StockChart's flag read is strict, so anything else
-    // here would leave the engine dark and make the parity result meaningless.
-    expect(cs.engineEnabled).toBe(true)
     expect(cs.indicatorInstances).toEqual([RSI_INSTANCE])
+    // …and it arms nothing ELSE. The route wrote `engineEnabled: true` beside the
+    // instances until B5 Task 4; asserting its absence is what stops it coming
+    // back as an undeclared key on the one surface that ever set it.
+    expect('engineEnabled' in cs).toBe(false)
   })
 
   it('composes with ?indicators= — the legacy toggle stays ON, which is what reserves the band', async () => {
@@ -80,8 +89,8 @@ describe('ChartRender ?instances=', () => {
 
     const cs = latest()
     expect(cs.indicators.rsi.enabled).toBe(true)
-    expect(cs.engineEnabled).toBe(true)
     expect(cs.indicatorInstances).toEqual([RSI_INSTANCE])
+    expect('engineEnabled' in cs).toBe(false)
   })
 
   it('leaves the engine DARK without the param — side A of every case', async () => {
@@ -99,7 +108,11 @@ describe('ChartRender ?instances=', () => {
       cleanup(); H.reset()
       const latest = await renderRoute(`&instances=${raw}`)
       const cs = latest()
-      expect(cs?.engineEnabled, raw).toBeUndefined()
+      // ⚠️ `indicatorInstances`, not the deleted flag. This case read
+      // `cs?.engineEnabled` until B5 Task 4 — and after the deletion that would
+      // have been `undefined` on the un-fixed code too, i.e. a check that passes
+      // whatever the route does. The instance list is the thing the param arms.
+      expect(cs?.indicatorInstances, raw).toBeUndefined()
     }
   })
   // ── ?priceline=0 — a DETERMINISM control, and the only one of its kind ────

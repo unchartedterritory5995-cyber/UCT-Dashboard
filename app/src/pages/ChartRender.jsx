@@ -154,22 +154,21 @@ export default function ChartRender() {
   //            and go hermetic (no /api/ at all). Live bars move between the
   //            baseline capture and the candidate capture, so without this the
   //            diff measures the tape, not the code.
-  //   ?instances=<base64url JSON array>  the ENGINE's indicator instances. Present
-  //            and non-empty ⇒ this render also sets `engineEnabled: true`, so ONE
+  //   ?instances=<base64url JSON array>  the ENGINE's indicator instances. ONE
   //            param says "draw these through the engine".
-  //            It is a param of its OWN rather than two more keys inside
-  //            `?indicators=` deliberately: `engineEnabled` is the switch between
-  //            two whole render paths, and a parity case should have to say
+  //            It is a param of its OWN rather than more keys inside
+  //            `?indicators=` deliberately: a parity case should have to say
   //            "draw these, through the engine" as one indivisible thing rather
-  //            than assembling it out of two settings keys.
-  //            ⚠️ IT IS NOT A LOCK. An earlier version of this comment claimed the
-  //            flag could not be armed without instances; it can. `?indicators=`
-  //            is merged with `mergeSettingsOverride`, which writes primitives
-  //            through untouched, so `?indicators={"engineEnabled":true}` arms the
-  //            engine with an empty instance list. That is harmless — zero
-  //            instances is zero lightweight-charts calls, and `binder.sync` is
-  //            independently strict about the flag — but the claim was wrong and
-  //            this comment is load-bearing documentation.
+  //            than assembling it out of separate settings keys.
+  //            ⭐ B5 TASK 4 — IT USED TO SET A SECOND KEY AND NO LONGER DOES.
+  //            This render also wrote `engineEnabled: true` here, and this was the
+  //            ONLY place in shipped source that ever wrote the flag `true` — the
+  //            headless parity/newsletter route, on a URL param no user can reach.
+  //            The flag is deleted (`docs/decisions/2026-08-04-engine-enabled-
+  //            deleted.md`), so `?instances=` now merges instances alone, which is
+  //            what it always meant. The route's behaviour is unchanged: an
+  //            instance of a FLIPPED definition has been drawn regardless of the
+  //            flag since Flip B, and all four are flipped.
   const indicatorsParam = useMemo(() => decodeSettingsParam(sp.get('indicators')), [sp])
   const instancesParam = useMemo(() => decodeInstancesParam(sp.get('instances')), [sp])
   // Sanitised: this value indexes a dynamic import, so it may only ever name a
@@ -233,8 +232,10 @@ export default function ChartRender() {
     let out = ownerSettings
     if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
     if (instancesParam) {
+      // ⚠️ `engineEnabled: true` stood beside this key until B5 Task 4. It was the
+      // one write of the flag anywhere in shipped source; deleting it is what makes
+      // `scanAppSrc(/engineEnabled/)` empty in `engineEnabledMigration.test.js`.
       out = mergeSettingsOverride(out || {}, {
-        engineEnabled: true,
         indicatorInstances: instancesParam,
       })
     }

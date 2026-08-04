@@ -103,35 +103,38 @@ const UCT_DEFAULT_LAYOUT = {
 // not a tidy-up.
 const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"rsi":{"enabled":false,"period":14,"color":"#7b68ee"},"macd":{"enabled":false,"fastPeriod":12,"slowPeriod":26,"signalPeriod":9,"macdColor":"#2196F3","signalColor":"#FF9800"},"bb":{"enabled":false,"period":20,"stdDev":2,"color":"rgba(156,39,176,0.85)"},"vwap":{"enabled":false,"color":"#26C6DA"},"stoch":{"enabled":false,"kPeriod":14,"dPeriod":3,"kColor":"#FF6B6B","dColor":"#4ECDC4"},"atr":{"enabled":false,"period":14,"color":"#FFA726"},"sar":{"enabled":false,"step":0.02,"maxStep":0.2,"color":"#ffeb3b"},"ichimoku":{"enabled":false,"tenkanColor":"#26C6DA","kijunColor":"#EF5350","spanAColor":"rgba(76,175,80,0.2)","spanBColor":"rgba(239,83,80,0.2)","chikouColor":"rgba(255,235,59,0.7)"},"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"},"mfi":{"enabled":false,"period":14,"color":"#c084fc"},"cci":{"enabled":false,"period":20,"color":"#fbbf24"},"williamsR":{"enabled":false,"period":14,"color":"#60a5fa"},"adx":{"enabled":false,"period":14,"adxColor":"#e5e7eb","plusDIColor":"#22c55e","minusDIColor":"#ef4444"},"obv":{"enabled":false,"color":"#9ca3af"},"donchian":{"enabled":false,"period":20,"color":"rgba(96,165,250,0.5)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
 
-// ── THE FROZEN CAPTURE MUST NOT FREEZE THE ENGINE FLAG ──────────────────────
+// ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
 //
 // `UCT_DEFAULT_CHART_SETTINGS_JSON` was captured from the owner's live workspace
-// in July, so it contains no `engineEnabled` and no `indicatorInstances` — the
-// engine did not exist yet. `mergeChartSettings` reads
-// `parsed.engineEnabled === true` (`chartDefaults.js:404`), which is a read of
-// the PARSED BLOB and not of the default: an absent key and an explicit `false`
-// are the same answer, and **flipping `CHART_DEFAULTS.engineEnabled` at Flip B
-// would not heal either one.**
+// in July, so it contains no engine keys at all — the engine did not exist yet.
+// Three first-class actions write this blob verbatim into the `chart_settings`
+// preference: **Open Layout → UCT Default**, **New Layout**, and `applyTemplate`'s
+// prebuilt fallback. So whatever this function does NOT stamp from the live
+// default is pinned, forever, for everyone who clicks a menu item.
 //
-// That is a ship-blocker, not a tidy-up. Three first-class actions write this
-// blob verbatim into the `chart_settings` preference — **Open Layout → UCT
-// Default**, **New Layout**, and `applyTemplate`'s prebuilt fallback. After Task
-// 10 deletes the legacy render blocks for the flipped ids, a user who clicks any
-// of them lands on a workspace where `engineEnabled` is pinned off, no legacy
-// block draws, and **RSI / MACD / BB / VWAP are undrawable** — ticking the
-// toolbar checkbox reserves a band with no line in it. It is ledger site 20's
-// twin (`handleCopyShareUrl`), one step worse: site 20 breaks the RECIPIENT of a
-// shared link; this breaks the user who clicked a menu item.
+// `indicatorInstances` is therefore stamped from `CHART_DEFAULTS` at write time
+// rather than frozen alongside the palette. It resets to the default empty list on
+// purpose — this IS the immutable restore point, and a restore that left the
+// previous board's instances behind would not be one.
 //
-// So the two engine keys are stamped from `CHART_DEFAULTS` at write time rather
-// than frozen alongside the palette. The frozen capture stays byte-faithful about
-// everything it was actually a capture OF; the engine keys follow the default,
-// which is exactly what Flip B moves. `indicatorInstances` resets to the default
-// empty list on purpose — this IS the immutable restore point, and a restore that
-// left the previous board's instances behind would not be one.
+// ⭐ B5 TASK 4 — THE SECOND STAMP IS GONE, AND SO IS THE SHIP-BLOCKER IT ANSWERED.
+//
+// A line `parsed.engineEnabled = CHART_DEFAULTS.engineEnabled` stood beside this
+// one, and the paragraph above it explained a real Flip-B hazard: because
+// `mergeChartSettings` read the flag from the PARSED BLOB and not from the
+// default, an absent key and an explicit `false` were the same answer, so a user
+// who clicked **UCT Default** landed on a workspace where the flag was pinned off,
+// no legacy block drew, and RSI / MACD / BB / VWAP were undrawable.
+//
+// The flag is DELETED (`docs/decisions/2026-08-04-engine-enabled-deleted.md`), so
+// there is nothing to stamp and nothing to pin. ⚠️ THE DELETION HAD TO BE THIS —
+// removing the line, not assigning `undefined` to it. `JSON.stringify` DROPS an
+// `undefined` value, so `parsed.engineEnabled = CHART_DEFAULTS.engineEnabled` with
+// the key gone would have produced a byte-identical string and passed every test
+// that reads the OUTPUT. Only a source scan can see the difference, which is why
+// `engineEnabledMigration.test.js` runs one.
 export function uctDefaultChartSettings() {
   const parsed = JSON.parse(UCT_DEFAULT_CHART_SETTINGS_JSON)
-  parsed.engineEnabled = CHART_DEFAULTS.engineEnabled
   parsed.indicatorInstances = Array.isArray(CHART_DEFAULTS.indicatorInstances)
     ? [...CHART_DEFAULTS.indicatorInstances]
     : []

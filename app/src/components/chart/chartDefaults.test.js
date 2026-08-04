@@ -161,23 +161,41 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
     expect(merged.indicatorInstances).toEqual([])
   })
 
-  it('engineEnabled defaults OFF — the engine lands dark', () => {
-    expect(CHART_DEFAULTS.engineEnabled).toBe(false)
-    expect(mergeChartSettings(null).engineEnabled).toBe(false)
+  // ─── engineEnabled — DELETED AT B5 TASK 4, AND THE CASES ARE INVERTED ──────
+  //
+  // ⭐ THREE CASES STOOD HERE AND THEY ASSERTED THE MERGE RULE ITSELF: *defaults
+  // OFF — the engine lands dark*, *survives the merge when explicitly true*, and
+  // *only a boolean true enables it*. The record's §9 named them as three of the
+  // six things that would go red the day the flag moved, and they did.
+  //
+  // They are inverted rather than deleted, because "the tests are gone" and "the
+  // key is gone" look identical in a green suite. `mergeChartSettings`' return is
+  // a hard ALLOW-LIST, so the whole of the old behaviour collapses into one
+  // sentence: whatever the blob says, the key is not emitted.
+  //
+  // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
+  it('engineEnabled is not declared — a default flip is not even available', () => {
+    expect(Object.prototype.hasOwnProperty.call(CHART_DEFAULTS, 'engineEnabled')).toBe(false)
+    expect('engineEnabled' in mergeChartSettings(null)).toBe(false)
   })
 
-  it('engineEnabled survives the merge when explicitly true', () => {
-    expect(mergeChartSettings(JSON.stringify({ engineEnabled: true })).engineEnabled).toBe(true)
+  it('engineEnabled does NOT survive the merge, even when explicitly true', () => {
+    const merged = mergeChartSettings(JSON.stringify({ engineEnabled: true }))
+    expect('engineEnabled' in merged).toBe(false)
+    // …and the surrounding blob is otherwise intact, so this is the allow-list
+    // dropping ONE key and not the merge failing.
+    expect(merged.settingsVersion).toBe(1)
+    expect(merged.indicatorInstances).toEqual([])
   })
 
-  it('only a boolean true enables it — every truthy impostor reads as OFF', () => {
-    // Every other flag here can fail either way harmlessly; this one decides
-    // whether a whole second render path runs. A "1" out of a URL param, a
-    // leftover string, a stray object — all OFF, and all coerced to a real
-    // boolean so no consumer has to repeat the check.
-    for (const value of ['1', 1, 'true', 'false', {}, [], 'yes']) {
+  it('every stored value of it is destroyed alike — true, false and the impostors', () => {
+    // The old rule distinguished a boolean `true` from "a `1` out of a URL param,
+    // a leftover string, a stray object", because the flag decided whether a whole
+    // second render path ran. There is no path and no flag: the allow-list treats
+    // all of these the way it treats any key nobody declared.
+    for (const value of [true, false, '1', 1, 'true', 'false', {}, [], 'yes']) {
       const merged = mergeChartSettings(JSON.stringify({ engineEnabled: value }))
-      expect(merged.engineEnabled, `engineEnabled: ${JSON.stringify(value)}`).toBe(false)
+      expect('engineEnabled' in merged, `engineEnabled: ${JSON.stringify(value)}`).toBe(false)
     }
   })
 })

@@ -39,7 +39,12 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
-import { normalizeInstances, engineOwnedDefIds, legacyInstanceId, migrateLegacyToInstances } from './chart/engine/instances'
+import { registerManifestChart } from './chart/engine/paneLayout'
+// ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
+// dead — it is `engine/paneMarginsProjection.js`'s stated model and keeps its own
+// suite — but StockChart's call was its last production use, and the value that
+// call produced had had ZERO readers since Flip B deleted the guarded blocks.
+import { normalizeInstances, legacyInstanceId, migrateLegacyToInstances } from './chart/engine/instances'
 import { eligibleInstances } from './chart/engine/eligibility'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
 import { csForPaneMargins } from './chart/engine/paneMarginsProjection'
@@ -56,13 +61,15 @@ import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
-// Shared empties for the engine's flag-OFF path. Module-scope and frozen so the
-// dark render allocates nothing per paint and nobody can mutate the "no engine"
+// The engine's "nothing to draw" answer. Module-scope and frozen so a chart with
+// no instances allocates nothing per paint and nobody can mutate the "no engine"
 // answer into a "some engine" one.
+//
+// ⚠️ `EMPTY_OWNED` stood beside this and went with `engineOwned` at B5 Task 4 —
+// it had exactly two occurrences, its declaration and that one `else` arm.
 const EMPTY_INSTANCES = Object.freeze([])
-const EMPTY_OWNED = Object.freeze(new Set())
 // The crosshair legend's "nothing to print" answer. Frozen and module-scope for
-// the same reason as the two above: the hover path runs once per animation frame
+// the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
 
@@ -1692,12 +1699,18 @@ export default function StockChart({
   const lastIndexSigRef = useRef(null)  // signature of the last-drawn index line/MA so we SKIP setData+relayout when flipping tickers in the same year (the index line is identical → no millisecond glitch)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
-  // The indicator engine (Phase B), as `{ chart, binder }`. NULL while the flag is
-  // off — nothing is constructed and nothing is called, which is the lands-dark
-  // contract. The chart handle is stored alongside so a destroyed→recreated chart
-  // drops the binder rather than inheriting series that no longer exist (the same
-  // latch-reset discipline every other ref in `updateChart` follows).
+  // The indicator engine (Phase B), as `{ chart, binder }`. NULL while the chart
+  // holds no instances — nothing is constructed and nothing is called, which is the
+  // lands-dark contract (it used to say "while the flag is off"; B5 Task 4 deleted
+  // the flag and `engineNeeded` is the honest predicate). The chart handle is stored
+  // alongside so a destroyed→recreated chart drops the binder rather than inheriting
+  // series that no longer exist (the same latch-reset discipline every other ref in
+  // `updateChart` follows).
   const engineRef = useRef(null)
+  // The pane manifest's unregister thunk (Task 3's one-slot registry in
+  // `engine/paneLayout.js`). Held in a ref so the unmount cleanup — which is the
+  // effect that owns `chart.remove()` — can undo exactly what the create branch did.
+  const unregisterManifestRef = useRef(null)
   // The declutter toggle's state, as a REF, so `updateChart` can read it without
   // taking it as a dependency. `visible` is part of the complete option set the
   // binder re-asserts on every bind, so the binder has to know what the toggle
@@ -2497,9 +2510,12 @@ export default function StockChart({
   //
   // Both halves are carried now: the ENABLED bits go through the one reader every
   // other door uses, and the instances travel verbatim so the recipient's blob is
-  // overwritten rather than merged-around. `engineEnabled` rides along because a
-  // recipient on a flag-off blob must still be able to draw a MIGRATED-but-not-
-  // flipped indicator the sender had on.
+  // overwritten rather than merged-around.
+  //
+  // ⚠️ A THIRD KEY USED TO RIDE ALONG AND NO LONGER DOES: `engineEnabled`, "because
+  // a recipient on a flag-off blob must still be able to draw a MIGRATED-but-not-
+  // flipped indicator the sender had on". B5 Task 4 deleted the flag; that category
+  // has been empty since Flip B and B5 may not re-create it.
   const handleCopyShareUrl = useCallback(() => {
     const state = {
       sym,
@@ -2521,7 +2537,13 @@ export default function StockChart({
       indicators: Object.fromEntries(catalogRows().map((row) => [
         row.id, { enabled: isIndicatorEnabled(cs, row.id, ENGINE_FLIPPED_DEF_IDS) },
       ])),
-      engineEnabled: cs.engineEnabled === true,
+      // ⚠️ `engineEnabled: cs.engineEnabled === true` STOOD HERE (B5 Task 4).
+      // It rode along "because a recipient on a flag-off blob must still be able
+      // to draw a MIGRATED-but-not-flipped indicator the sender had on" — and that
+      // category has been empty since Flip B and can never be created again (B5
+      // migrates and flips together). The key it carried is deleted, so sending it
+      // would put an unknown key in the link that `mergeChartSettings` destroys on
+      // arrival.
       indicatorInstances: Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [],
       comparisonSymbols: cs.comparisonSymbols || [],
       markers: cs.markers || {},
@@ -2556,7 +2578,12 @@ export default function StockChart({
         // RECIPIENT's tombstones in place — turning the sender's RSI back off on
         // arrival, which is the exact defect Flip B makes possible.
         ...(Array.isArray(decoded.indicatorInstances) ? { indicatorInstances: decoded.indicatorInstances } : {}),
-        ...(typeof decoded.engineEnabled === 'boolean' ? { engineEnabled: decoded.engineEnabled } : {}),
+        // ⚠️ AND THE FLAG IS NOT DECODED EITHER (B5 Task 4). An OLD link, minted
+        // before this commit, still carries `engineEnabled` in its payload —
+        // ignoring it here is the correct read, because the key no longer exists
+        // and `mergeChartSettings` would drop it on the very next read anyway.
+        // Copying it forward would put a key in the user's stored blob that
+        // nothing declares and nothing removes until they next save.
         ...(decoded.comparisonSymbols ? { comparisonSymbols: decoded.comparisonSymbols } : {}),
         ...(decoded.markers ? { markers: { ...cs.markers, ...decoded.markers } } : {}),
         preset: 'custom',
@@ -5086,6 +5113,30 @@ export default function StockChart({
         hoveredSeriesOnTop: false,
       })
       chartRef.current = chart
+      // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
+      //
+      // `pages/ChartRender.jsx` publishes `window.__paneManifest` for the parity
+      // harness, and it cannot reach this `IChartApi`: `StockChart` exposes it
+      // through no prop, no ref and no callback. So `engine/paneLayout.js` carries a
+      // one-slot registry and the renderer registers into it here, at creation,
+      // which is the only place the identity of the chart changes.
+      //
+      // ⚠️ THE BINDINGS ARE A THUNK, NOT A VALUE. The manifest must read the
+      // engine's CURRENT bindings at the moment the harness asks, and this line
+      // runs once per chart while the binder is rebuilt whenever the instance list
+      // moves. Reading `engineRef.current` inside the closure is what keeps the
+      // `key` on each series (its POOL KEY — stable, derived from the instance id,
+      // never object identity and never a shifting index) attached to the series
+      // actually on the chart.
+      //
+      // ⚠️ It returns `[]`, never `null`, when no binder exists: `paneManifest`
+      // treats a non-array as "no bindings" and would report every series' `key` as
+      // null, which reads identically to a chart whose engine drew nothing.
+      // Un-registering is the cleanup effect's job, beside `chart.remove()`.
+      unregisterManifestRef.current = registerManifestChart(
+        chart,
+        () => (engineRef.current ? engineRef.current.binder.bindings() : []),
+      )
       setChartReady(true)
     } else {
       // Re-apply cosmetic/config options on an EXISTING chart, but NOT the
@@ -5645,40 +5696,35 @@ export default function StockChart({
 
     // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
     //
-    // ⛔ DARK: while `cs.engineEnabled` is false no binder is ever CONSTRUCTED,
-    // so `sync` is never called and the engine makes zero lightweight-charts
-    // calls of any kind. A binder that already exists keeps being synced after
-    // the flag flips off, because that call is what releases its series — the
-    // off switch must not leave ghosts on the chart.
+    // ⭐⭐ B5 TASK 4 DELETED THE FLAG THAT USED TO BE READ HERE.
     //
-    // `=== true`, not truthiness. `mergeChartSettings` already coerces the stored
-    // blob, but `mergeSettingsOverride` (grid cells, the parity route) writes
-    // primitives through untouched — so a `?…engineEnabled="1"` would otherwise
-    // start the engine on that surface alone. The flag is read strictly at the one
-    // place it decides anything.
+    // What stood here was `const engineOn = cs.engineEnabled === true`, with two
+    // paragraphs explaining that the engine "LANDS DARK" until a user opts in.
+    // It never landed dark for anybody: `mergeChartSettings` computed the flag
+    // from the STORED BLOB, every blob in production predates the engine, and no
+    // action a user could take set it — so the opt-in was permanently off and the
+    // engine drew the flipped ids regardless, which is the only reason B3 shipped.
+    // A flag in that state is not an off switch, it is a branch nothing reaches.
+    // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
     //
-    // The `sync` CALL itself is further down, immediately before the Bollinger
-    // block — see the note there for why the position is load-bearing. This half
-    // has to be up here because `engineOwned` decides which legacy blocks below
-    // stand down, and the first of those is BB itself.
-    const engineOn = cs.engineEnabled === true
+    // ⛔ THE DARK CONTRACT SURVIVES IT, AND MOVED TO A HONEST PREDICATE. A chart
+    // with no instances still constructs no binder and makes zero
+    // lightweight-charts calls — see `engineNeeded` below, which asks
+    // `engineInstances.length > 0`. That is what the flag was supposed to mean and
+    // it is now measured from the thing that decides it.
+    //
     // ── FLIP B: A FLIPPED DEFINITION HAS NO OTHER RENDERER ───────────────────
     //
-    // ⛔ `engineEnabled` is the opt-in for the engine as a SECOND path — a chart
-    // that can already draw the indicator by hand and is being asked to draw it
-    // the new way instead. For a FLIPPED id there is no hand-written block left,
-    // so keeping the gate would not make the engine dark, it would DELETE the
-    // indicator: `mergeChartSettings` computes `engineEnabled: parsed
-    // .engineEnabled === true` from the STORED BLOB (`chartDefaults.js:404`), and
-    // every blob in production predates the engine, so the flag reads false for
-    // every existing user and flipping `CHART_DEFAULTS.engineEnabled` cannot heal
-    // one (that is enumeration site #22's trap, in the global).
+    // The engine is ACTIVE whenever something is flipped, because for a FLIPPED id
+    // there is no hand-written block left: gating it on anything would not make
+    // the engine dark, it would DELETE the indicator.
     //
-    // So the engine is ACTIVE whenever something is flipped, and the instance
-    // list below is narrowed to flipped ids alone while the flag is off — an
-    // un-flipped migrated definition (`macd`, `vwap`) still needs the flag,
-    // exactly as it did at Flip A, and its legacy block still draws it.
-    const engineActive = engineOn || ENGINE_FLIPPED_DEF_IDS.size > 0
+    // ⚠️ `ENGINE_FLIPPED_DEF_IDS.size > 0` IS A CONSTANT TODAY and is deliberately
+    // still spelled as a read: it is the seam Task 13 turns into a registry lookup
+    // once every native is flipped. The `sync` CALL is further down, immediately
+    // before where the Bollinger block used to be — see the note there for why the
+    // position is load-bearing.
+    const engineActive = ENGINE_FLIPPED_DEF_IDS.size > 0
     // Normalised on the way in: a tombstone or a malformed record must never
     // reach the planner. Cheap enough to do per paint at v1 instance counts, and
     // it only ever runs with the engine ON.
@@ -5702,8 +5748,8 @@ export default function StockChart({
     // (`placement.js:103`), which OVERLAPS volume's `{top:0.85, bottom:0}`. The
     // user pressed Ctrl+I and got an RSI drawn on top of the volume bars.
     //
-    // `hidden`, not "dropped from the list": `engineOwnedDefIds` counts hidden
-    // instances, so the legacy block stays stood down and no toggle can hand the
+    // `hidden`, not "dropped from the list": `engineOwnedDefIds` counted hidden
+    // instances, so the legacy block stayed stood down and no toggle could hand the
     // drawing back to it mid-session. (It has no data to draw either way — a
     // legacy block's `indicatorData` branch is `[]` while its toggle is off — but
     // ownership is a rail, not a coincidence.) ⚠️ RSI is no longer the example:
@@ -5779,8 +5825,8 @@ export default function StockChart({
     // `vwapOverride` also FORCES the indicator on, exactly as the legacy memo
     // does. That is an instance this blob does not contain, so it is manufactured
     // HERE where instances are built, never inside `eligibility` — a hook that
-    // could invent instances would hand the binder something `engineOwnedDefIds`
-    // never saw.
+    // could invent instances would hand the binder an instance that never passed
+    // through this list at all.
     const engineInstances = engineActive
       ? (() => {
           // ── READ-TIME MIGRATION, GATED ON THE FLIP SET ───────────────────────
@@ -5798,10 +5844,10 @@ export default function StockChart({
           // ⛔ BUT IT CHANGES BEHAVIOUR THE MOMENT IT IS UNGATED, which is why it
           // is not. The migrator projects `cs.indicators.rsi.enabled` into an
           // instance even with nothing flipped, and `ENGINE_MIGRATED_DEF_IDS`
-          // already holds rsi/bb/macd/vwap — so with `engineEnabled` on, all four
-          // would move onto the engine for every user, with no stored instance
+          // already held rsi/bb/macd/vwap — so an ungated version would have moved
+          // all four onto the engine for every user, with no stored instance
           // anywhere. That is *correct* for Flip A (the engine draws the same
-          // picture) but it is a behaviour change inside a task whose gate is
+          // picture) but it was a behaviour change inside a task whose gate is
           // "nothing changed".
           //
           // ⚠️ AND THE GATE IS PER DEFINITION, NOT `size > 0`. A whole-set gate
@@ -5851,11 +5897,15 @@ export default function StockChart({
               })
             : cs.indicatorInstances                          // Flip A: only STORED instances draw
           const migrated = normalizeInstances(source, engineRegistry).kept
-            // ⚠️ TWO GATES, NOT ONE. A FLIPPED id is always the engine's (it has
-            // no other renderer); a MIGRATED-but-un-flipped id is the engine's
-            // only while `engineEnabled` is on, which is Flip A unchanged.
-            .filter(i => ENGINE_FLIPPED_DEF_IDS.has(i.defId)
-              || (engineOn && ENGINE_MIGRATED_DEF_IDS.has(i.defId)))
+            // ⚠️ ONE GATE NOW, AND IT USED TO BE TWO (B5 Task 4). The second read
+            // `|| (engineOn && ENGINE_MIGRATED_DEF_IDS.has(i.defId))` — a
+            // MIGRATED-but-UN-FLIPPED id is the engine's only while the flag is on.
+            // With the flag deleted that disjunct is `false && …` for every
+            // instance, and the category it served has been empty since Flip B and
+            // may not be re-created (`enumerationSites.test.js` refuses it while
+            // FLIPPED === MIGRATED). Deleting it is behaviour-identical TODAY and
+            // stops a dead disjunct reading as live logic.
+            .filter(i => ENGINE_FLIPPED_DEF_IDS.has(i.defId))
             // ⛔ …AND FLIP A'S `hidden` PROJECTION IS GONE (B3 Task 11). It read
             // "an instance of a MIGRATED-but-UN-FLIPPED definition whose legacy
             // toggle is false is projected to hidden, because the toggle is still
@@ -5868,13 +5918,14 @@ export default function StockChart({
             // ⚠️ IT COMES BACK IF B4 MIGRATES WITHOUT FLIPPING. `flipB.test.jsx`
             // asserts the two sets are EQUAL, so that day this decision is
             // re-opened by a red test rather than by a double-drawn indicator.
-          // ⭐ `vwapOverride` FORCES A VWAP INSTANCE, FLAG OR NO FLAG (B3 Task 11).
-          // It used to be gated on `engineOn`, because `vwap` was un-flipped and
-          // its legacy block would otherwise have drawn a second copy. VWAP is
-          // flipped now: there IS no legacy block, so the flag-gated version
-          // would take the Model Book intraday popup's forced white VWAP off
-          // every existing user's chart — `engineEnabled` is false in every
-          // stored blob, and the popup is a surface no user setting can turn off.
+          // ⭐ `vwapOverride` FORCES A VWAP INSTANCE, UNCONDITIONALLY (B3 Task 11).
+          // It used to be gated on the engine flag, because `vwap` was un-flipped
+          // and its legacy block would otherwise have drawn a second copy. VWAP is
+          // flipped now: there IS no legacy block, so the flag-gated version would
+          // have taken the Model Book intraday popup's forced white VWAP off every
+          // existing user's chart — the flag was false in every stored blob, and
+          // the popup is a surface no user setting can turn off. B5 Task 4 deleted
+          // the flag outright, which retires the question.
           // Driven in `flipB.test.jsx` ("vwapOverride still forces it on").
           const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
             ? [...migrated, {
@@ -5903,19 +5954,40 @@ export default function StockChart({
     // line is coloured, and it reads refs rather than props so a live tick does
     // not tear down and re-subscribe it.
     engineInstancesRef.current = engineInstances
-    // ── WHICH LEGACY BLOCKS STAND DOWN ────────────────────────────────────────
+    // ── WHICH LEGACY BLOCKS STOOD DOWN — AND WHY THERE IS NO ARBITER HERE ────
     //
-    // Flip A puts the engine's series in the SAME band on the SAME scale as the
-    // legacy block, and that band exists only while `cs.indicators[key].enabled`
-    // is true (`computePaneMargins` reads exactly that). So the legacy toggle has
-    // to stay ON for the layout to be identical — which means the legacy block
-    // would draw a SECOND copy on top. `engineOwnedDefIds` is the arbiter: an
-    // instance of definition `X` means the engine draws X, and X's legacy block
-    // guards on `!engineOwned.has('X')`.
+    // 🔴 A BINDING STOOD HERE AND IT HAD ZERO READERS. What was on this line was
     //
-    // With the flag off the set is empty and every legacy block behaves exactly
-    // as it always has.
-    const engineOwned = engineActive ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
+    //     const engineOwned = engineActive ? engineOwnedDefIds(…) : EMPTY_OWNED
+    //
+    // and — measured comment-stripped at B5 Task 1 — `engineOwned` occurred
+    // exactly ONCE in this whole file: its own declaration. The import, the
+    // `EMPTY_OWNED` constant and `engineOwnedDefIds`' only production call site in
+    // `app/src` existed to compute a value nothing read. B5 Task 4 deleted the
+    // chain; this paragraph replaces it, in the past tense, because "why is there
+    // no arbiter?" is a question the next reader would otherwise ask of an empty
+    // space.
+    //
+    // **What it was.** Flip A put the engine's series in the SAME band on the SAME
+    // scale as the legacy block, and that band existed only while
+    // `cs.indicators[key].enabled` was true (`computePaneMargins` reads exactly
+    // that). So the legacy toggle had to stay ON for the layout to be identical —
+    // which meant the legacy block would draw a SECOND copy on top.
+    // `engineOwnedDefIds` was the arbiter: an instance of definition `X` meant the
+    // engine drew X, and X's legacy block guarded on `!engineOwned.has('X')`.
+    //
+    // **Why it died silently.** Flip B DELETED the blocks rather than guarding
+    // them, so the last consumer went with `macd` and `vwap` at `400005ee`. And
+    // `enumerationSites.test.js` → *"keeps no Flip-A guard for a flipped id — the
+    // block should be GONE, not guarded"* asserts `engineOwned.has('<id>')` is
+    // ABSENT for every flipped id while `FLIPPED === MIGRATED` — so that rail
+    // DEMANDS the emptiness it produced, and the leftover it leaves behind is
+    // invisible to it by construction. Five comment paragraphs in this file went on
+    // calling it "the arbiter" for two phases.
+    //
+    // ⚠️ `engineOwnedDefIds` ITSELF IS NOT DEAD — it is
+    // `engine/paneMarginsProjection.js`'s stated model and keeps its own suite.
+    // Only StockChart's call was.
 
     // ── Volume-pane indicator overlay ──
     // Chosen oscillators render INSIDE the volume pane on its left axis (volume
@@ -6228,9 +6300,16 @@ export default function StockChart({
     // chart with no instances would trade the "zero lightweight-charts calls when
     // there is nothing to draw" property for nothing. A chart that later gains an
     // instance builds one then; a chart that loses its last one syncs
-    // `enabled: false`, which releases what it held (`binder.js:241`) rather than
+    // `enabled: false`, which releases what it held (`binder.js`) rather than
     // leaving ghosts.
-    const engineNeeded = engineOn || engineInstances.length > 0
+    //
+    // ⭐ AND THIS IS NOW THE WHOLE OF THE DARK CONTRACT (B5 Task 4). It used to
+    // read `engineOn || engineInstances.length > 0`, where `engineOn` was the
+    // deleted flag. The disjunct did nothing a user could observe — it built a
+    // binder for a flag-on chart with no instances, and the flag was on for
+    // nobody — and it made the honest predicate look like a fallback. What is left
+    // says exactly what it means: no instances, no binder, zero library calls.
+    const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
       engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
@@ -6271,8 +6350,10 @@ export default function StockChart({
     // are all GONE — that deletion IS Flip B, and it is what stops each of them
     // being enumerated in six places. `ENGINE_FLIPPED_DEF_IDS` names them; the
     // enable signal reaches `computePaneMargins` through `csForPaneMargins`, and
-    // the engine is ACTIVE for them regardless of `engineEnabled` because there is
-    // nothing else left that could draw them.
+    // the engine is ACTIVE for them unconditionally because there is nothing else
+    // left that could draw them. (It used to say "regardless of `engineEnabled`" —
+    // B5 Task 4 deleted that flag, so there is no longer anything to be regardless
+    // of.)
     //
     // ⚠️ RSI's block sat BELOW VWAP's and BB's ABOVE it. Order still matters for
     // the price overlays (LWC z-stacks by insertion), and it is preserved: the
@@ -6291,8 +6372,8 @@ export default function StockChart({
     //
     // ⚠️ ON A DAILY CHART NOTHING DRAWS AND NOBODY OWNS IT. The gate is
     // `def.meta.timeframes` (mirrored by `eligibility.VWAP_TIMEFRAMES`, which is
-    // where `VWAP_TFS` went), so the instance is dropped above 60-minute bars and
-    // `engineOwned` does not contain 'vwap' there either.
+    // where `VWAP_TFS` went), so the instance is dropped above 60-minute bars —
+    // it never reaches `engineInstances`, and the binder is handed nothing for it.
 
     // ── Stochastic sub-pane ──
     const stochCfg = cs.indicators?.stoch
@@ -8699,9 +8780,13 @@ export default function StockChart({
       try { setAll(engineRef.current.binder.bindings().map(b => b.series)) } catch { /* disposed */ }
     }
   }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym,
-    // The engine re-binds when its instance list or its flag changes; without these
-    // a newly-bound series would keep the visibility of whatever came before it.
-    cs.indicatorInstances, cs.engineEnabled])
+    // The engine re-binds when its instance list changes; without this a newly-
+    // bound series would keep the visibility of whatever came before it.
+    // ⚠️ `cs.engineEnabled` was the second half of this dep and went with the flag
+    // (B5 Task 4). It was a dep on a key `mergeChartSettings` no longer emits, so
+    // it read `undefined` on every render and could never change — a dependency
+    // that cannot fire is indistinguishable from one that is missing.
+    cs.indicatorInstances])
 
   // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
   // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
@@ -9430,6 +9515,13 @@ export default function StockChart({
     return () => {
       try { markersControllerRef.current?.detach?.() } catch {}
       markersControllerRef.current = null
+      // The manifest registry holds ONE slot. Releasing it here — beside
+      // `chart.remove()` — is what stops `currentPaneManifest()` calling `panes()`
+      // on a disposed chart after an unmount. The unregister is identity-scoped, so
+      // a chart that has already been superseded by another mount is a no-op rather
+      // than erasing its successor's registration.
+      try { unregisterManifestRef.current?.() } catch {}
+      unregisterManifestRef.current = null
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null

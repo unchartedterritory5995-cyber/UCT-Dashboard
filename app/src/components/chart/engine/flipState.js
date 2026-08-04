@@ -59,11 +59,18 @@ const EMPTY = sealedSet([])
 const EMPTY_INPUTS = sealedMap([])
 
 /**
- * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
- * exactly those whose legacy block in `StockChart.jsx` carries
- * `&& !engineOwned.has('<id>')`.
+ * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw.
  *
- * `engineOwnedDefIds` answers "which legacy blocks stand down", and the binder
+ * 🔴 THIS SENTENCE USED TO END *"— exactly those whose legacy block in
+ * `StockChart.jsx` carries `&& !engineOwned.has('<id>')`"*, and it has been false
+ * since Flip B: Flip B DELETED the blocks instead of guarding them, so no such
+ * guard exists for any id in this set — `enumerationSites.test.js` → *"keeps no
+ * Flip-A guard for a flipped id — the block should be GONE, not guarded"* asserts
+ * that it cannot. B5 Task 4 deleted `StockChart`'s last `engineOwnedDefIds` call
+ * with it (the value had zero readers). The paragraph below is kept because it is
+ * the reason this set exists at all; read it in the past tense for Flip A.
+ *
+ * `engineOwnedDefIds` answered "which legacy blocks stand down", and the binder
  * separately draws whatever instances it is handed. Those are two decisions, and
  * before this they could disagree: an instance of a definition whose legacy block
  * has no guard meant the ENGINE drew it *and* the legacy block drew it, on the
@@ -140,25 +147,30 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap'])
  *     helper. `flipB.test.jsx` asserts the equality, so the day B4 migrates a
  *     fifth definition WITHOUT flipping it, that assertion fails and whoever is
  *     holding it is told the projection has to come back;
- *   · `vwapOverride` no longer needs `engineEnabled` to manufacture its forced
- *     instance — the flag-gated version would have lost the Model Book popup's
- *     VWAP on every existing user's chart, because there is no legacy block left
- *     to catch it;
- *   · `ChartToolbar`'s `engineInert` is now identically false. The predicate and
- *     its 34 row bindings STAY (they are what a B4 migration reactivates), and
- *     `ChartToolbar.engineInert.test.jsx` pins the wiring rather than the value
- *     for exactly that reason.
+ *   · `vwapOverride` no longer needs a flag to manufacture its forced instance —
+ *     the flag-gated version would have lost the Model Book popup's VWAP on every
+ *     existing user's chart, because there is no legacy block left to catch it;
+ *   · 🔴 THIS BULLET USED TO SAY *"`ChartToolbar`'s `engineInert` is now
+ *     identically false. The predicate and its 34 row bindings STAY (they are what
+ *     a B4 migration reactivates)"* — **and B4 Task 8 deleted all of it** when
+ *     spec §6 replaced the fifteen per-indicator rows with one launcher. The
+ *     predicate, `inertTitle`, `shownInput` and the 34 bindings are gone;
+ *     `ChartToolbar.engineInert.test.jsx` was RETARGETED to assert they stay gone.
+ *     A present-tense paragraph about a mechanism that has not existed for a whole
+ *     phase is the control-rot shape this branch keeps finding, so it is corrected
+ *     in place rather than deleted.
  *
- * ⛔⭐ AND THE ENGINE RUNS FOR THEM WHETHER OR NOT `engineEnabled` IS SET.
- * `engineEnabled` is the opt-in for the engine as a SECOND renderer — a chart
+ * ⛔⭐ AND THE ENGINE RUNS FOR THEM UNCONDITIONALLY — B5 TASK 4 DELETED THE FLAG.
+ * `engineEnabled` was the opt-in for the engine as a SECOND renderer — a chart
  * that could already draw the indicator by hand. A FLIPPED definition has no
- * hand-written block left, so gating it on an opt-in flag does not make the
- * engine dark, it DELETES the indicator: every stored blob in production has
- * `engineEnabled` absent, i.e. false. `StockChart` therefore activates the engine
- * when this set is non-empty and narrows the instance list to flipped ids alone
- * while the flag is off. That narrowing is what an un-flipped migrated definition
- * needed; it is inert while the two sets are equal and is kept because it is the
- * gate, not because it is currently doing work.
+ * hand-written block left, so gating it on an opt-in flag did not make the engine
+ * dark, it would have DELETED the indicator; and every stored blob in production
+ * had the flag absent, i.e. false, with no user action able to change that. So the
+ * narrowing this paragraph used to describe ("activate when the set is non-empty,
+ * and while the flag is off show flipped ids only") was inert the moment the two
+ * sets became equal, and the flag it was written against is gone at all seven
+ * sites. `StockChart` now activates the engine on `ENGINE_FLIPPED_DEF_IDS.size > 0`
+ * alone. Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
  *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
@@ -215,7 +227,20 @@ export function engineDrawnDefIds(cs, registry) {
  *          Empty map when the engine is off or holds nothing.
  */
 export function engineDrawnInputs(cs, registry) {
-  if (!cs || cs.engineEnabled !== true) return EMPTY_INPUTS
+  // ⭐ B5 Task 4. The flag is DELETED, not flipped (docs/decisions/2026-08-04-
+  // engine-enabled-deleted.md). It was read from the STORED BLOB, so it was false
+  // for every user alive and flipping the default could not have healed one; and
+  // its only remaining job was to distinguish migrated-but-un-flipped from
+  // flipped, a state B5 never creates because it flips in the same commit it
+  // migrates. A guard on a key that no longer exists is a guard that reads as
+  // live logic, which is why it is gone rather than left `?? true`.
+  //
+  // 🔑 WHAT THE GUARD ACTUALLY COST, since it is the only one whose deletion a
+  // user could have SEEN: this function returned EMPTY on a flag-off chart, so
+  // `ChartToolbar` fell back to the legacy MIRROR — and the flag was off for
+  // EVERYONE, so the fallback was the shipped path rather than the edge case. It
+  // is now unconditional: the panel shows what the engine is drawing with.
+  if (!cs) return EMPTY_INPUTS
   const raw = cs.indicatorInstances
   if (!Array.isArray(raw) || raw.length === 0) return EMPTY_INPUTS
   const out = new Map()

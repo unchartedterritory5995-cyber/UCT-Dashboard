@@ -212,7 +212,6 @@ describe('engineDrawnInputs — the MIGRATED-ID filter', () => {
 
     for (const defId of unmigrated) {
       const cs = settingsWith({
-        engineEnabled: true,
         indicatorInstances: [{
           instanceId: `legacy:${defId}`, defId, defVersion: 1,
           inputs: {}, placement: engineRegistry.getDefinition(defId).placement, hidden: false,
@@ -224,34 +223,45 @@ describe('engineDrawnInputs — the MIGRATED-ID filter', () => {
 
     // …and the positive half, so this is a FILTER and not a blanket "return
     // nothing": a migrated definition's instance IS reported, inputs and all.
-    const migrated = settingsWith({ engineEnabled: true, indicatorInstances: [VWAP_INSTANCE] })
+    const migrated = settingsWith({ indicatorInstances: [VWAP_INSTANCE] })
     expect(engineDrawnDefIds(migrated, engineRegistry).has('vwap')).toBe(true)
     expect(engineDrawnInputs(migrated, engineRegistry).get('vwap').color).toBe('#ff0000')
   })
 
   it('an instance the VALIDATOR drops is not REPORTED as drawn', () => {
     const cs = settingsWith({
-      engineEnabled: true,
       indicatorInstances: [{ ...MACD_INSTANCE, inputs: { ...MACD_INSTANCE.inputs, bogus: 1 } }],
     })
     expect(engineDrawnInputs(cs, engineRegistry).has('macd'),
       'a record `normalizeInstances` refuses was reported as drawn').toBe(false)
   })
 
-  it('⚠️ a flag-off blob reports NOTHING even for a FLIPPED id — a KNOWN divergence', () => {
-    // ⛔ A REAL, DELIBERATE INCONSISTENCY, RECORDED RATHER THAN PAPERED OVER.
-    // `engineDrawnInputs` returns nothing unless `cs.engineEnabled === true`, but
-    // `StockChart` DRAWS a flipped id regardless of that flag, from the stored
-    // instance. It is narrow: the flag is false for every existing user, and
-    // every existing user also has no stored instance. It bites the first user
-    // handed an `?instances=` link on a flag-off chart.
-    //
-    // ⚠️ ITS ONE CONSUMER WAS THIS TOOLBAR'S `shownInput`, which B4 Task 8
-    // deleted — so the divergence no longer reaches any surface. Asserted as it
-    // SHIPS so a fix is a deliberate red rather than a surprise.
+  // ⭐ THE DIVERGENCE IS FIXED, AND THE CASE IS INVERTED RATHER THAN DELETED —
+  // which is what the old case's own failure message asked for ("that is the FIX;
+  // delete this case and say so in the report"). Inverting is strictly better than
+  // deleting: a deleted case and a fixed defect are indistinguishable in a green
+  // suite, and this one names the defect it used to record.
+  //
+  // What it recorded: `engineDrawnInputs` returned nothing unless
+  // `cs.engineEnabled === true`, while `StockChart` DREW a flipped id regardless of
+  // that flag. Two answers to "what is the engine drawing", on one chart. It was
+  // called narrow — "it bites the first user handed an `?instances=` link on a
+  // flag-off chart" — and that was the wrong way round: the flag was false for
+  // EVERY user, so the divergent branch was the shipped one and it only looked
+  // narrow because its one consumer (`shownInput`) had already been deleted.
+  //
+  // B5 Task 4 deleted the flag, so there is no flag-off chart and no second answer.
+  // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md` §2, site 3.
+  it('⭐ a blob with NO flag reports a FLIPPED id in full — the divergence is gone', () => {
     const cs = settingsWith({ indicatorInstances: [MACD_INSTANCE] })
     expect(ENGINE_FLIPPED_DEF_IDS.has('macd'), 'macd is not flipped — this case has no subject').toBe(true)
+    expect('engineEnabled' in cs, 'the fixture still carries the deleted key').toBe(false)
     expect(engineDrawnInputs(cs, engineRegistry).has('macd'),
-      'the flag-off fallback changed — that is the FIX; delete this case and say so in the report').toBe(false)
+      'the engine-drawn read went back to answering from a flag').toBe(true)
+    // …and an explicitly stored `false` — the value the record\'s §1 says a default
+    // flip could never have healed — is now just an unknown key.
+    const said = { ...cs, engineEnabled: false }
+    expect(engineDrawnInputs(said, engineRegistry).has('macd'),
+      'a stored engineEnabled:false still suppresses the read — the guard came back').toBe(true)
   })
 })

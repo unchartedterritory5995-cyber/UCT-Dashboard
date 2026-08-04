@@ -958,8 +958,20 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   //
   //     the record says OPEN  ⟺  `mergeChartSettings` still reads the flag
   //
-  //   TODAY (before Task 4/9):  status `OPEN`,     flagLives `true`
-  //   AFTER  (after Task 4/9):  status `RESOLVED`, flagLives `false`
+  //   BEFORE (B4, and B5 Tasks 1-3):  status `OPEN`,     flagLives `true`
+  //   ⭐ NOW   (B5 Task 4 onward):      status `RESOLVED`, flagLives `false`
+  //
+  // ⭐⭐ THE TRANSITION HAPPENED, AND THIS IS THE COMMIT IT HAPPENED IN. B5 Task 4
+  // deleted `engineEnabled` at all seven sites, so `flagLives` reads `false`; the
+  // biconditional then made resolving the record MANDATORY in the same commit
+  // rather than optional at Task 9, because a `RESOLVED`-less tree with no flag is
+  // exactly the second red below. §11 of the record said "B5 Task 9 resolves this";
+  // the rail said otherwise and the rail was right — record §12.1 carries that.
+  //
+  // ⚠️ The expected object below is the ONLY place either value is written down,
+  // and both were changed together, once. If you are reading this while adding a
+  // THIRD state, the answer is not a third literal: it is that this clause has
+  // stopped being a biconditional.
   //
   // and `recordAgreesWithTheCode` is `true` in BOTH worlds. The transition is one
   // deliberate two-field edit that CANNOT be made halfway:
@@ -1072,15 +1084,16 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     'this rail is reading a sentence instead of the decision. status/flagLives/' +
     'recordAgreesWithTheCode: the record and the code have to answer the SAME question the same ' +
     'way — OPEN means `mergeChartSettings` still reads `parsed.engineEnabled === true`, ' +
-    'RESOLVED means it does not. B5 Task 4 deletes the flag and Task 9 resolves the record: ' +
-    'that is ONE edit to {status: RESOLVED, flagLives: false, recordAgreesWithTheCode: true} ' +
-    'here, made in the commit that does BOTH. Flipping `status` alone to make this green is the ' +
-    'silent inversion this clause was re-read to refuse. Do NOT weaken any of these to a ' +
+    'RESOLVED means it does not. B5 Task 4 DID BOTH, in one commit, which is the only shape ' +
+    'this clause admits: flagLives went false the moment the read was deleted, so leaving the ' +
+    'header at OPEN would have been red, and flipping the header back now — with no flag to ' +
+    'read — is red from the other side. Re-adding the flag is red too, and that is the ' +
+    'direction the old `stillOpen: true` could not see at all. Do NOT weaken any of these to a ' +
     'subset check.',
     ).toEqual({
       statusLines: 1,
-      status: 'OPEN',
-      flagLives: true,
+      status: 'RESOLVED',
+      flagLives: false,
       recordAgreesWithTheCode: true,
       migratedNotFlipped: [],
       flippedNotMigrated: [],
