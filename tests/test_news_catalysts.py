@@ -49,6 +49,7 @@ def _mock_tweets(monkeypatch, rows):
 
 class TestMerge:
     def test_sorts_newest_first_and_tags_types(self, monkeypatch):
+        monkeypatch.setenv("NEWS_BREAKING_ENABLED", "1")   # opt into the wire layer for this test
         _mock_bars(monkeypatch)
         _mock_earnings(monkeypatch, [
             {"date": "2026-03-10", "beat": True, "surprise": 8.0, "eps_actual": 1.2,
@@ -120,6 +121,31 @@ class TestMerge:
         _mock_tweets(monkeypatch, [])
         events = service._combined("NVDA")
         assert not [e for e in events if e["type"] == "earnings"]
+
+    def test_earnings_no_move_pct_before_bar_completes(self, monkeypatch):
+        # Report day with NO completed daily bar (e.g. pre-market today) → move_pct
+        # is None, NOT the EPS surprise (which would be a nonsense % like -168%).
+        _mock_bars(monkeypatch)
+        _mock_earnings(monkeypatch, [
+            {"date": "2026-07-15", "beat": False, "surprise": -168.3, "eps_actual": -0.65,
+             "eps_estimate": -0.24, "revenue_actual": 24_800_000, "revenue_estimate": 31_900_000},
+        ])
+        _mock_tweets(monkeypatch, [])
+        earn = [e for e in service._combined("CIFR") if e["type"] == "earnings"][0]
+        assert earn["move_pct"] is None          # not -168.3
+        assert earn["direction"] == "down"       # from beat=False
+        assert any("-168.3% EPS surprise" in d for d in earn["details"])   # still in details
+
+    def test_breaking_excluded_by_default(self, monkeypatch):
+        # Default (no NEWS_BREAKING_ENABLED) → no wire tweets in the merged feed.
+        _mock_bars(monkeypatch)
+        _mock_earnings(monkeypatch, [])
+        _mock_tweets(monkeypatch, [
+            {"id": "1", "author_handle": "DeItaone", "text": "NBIS big headline",
+             "created_at": 1000, "url": "http://x/1"},
+        ])
+        events = service._combined("NBIS")
+        assert not [e for e in events if e["type"] == "breaking"]
 
 
 class TestGeneration:

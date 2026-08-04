@@ -525,7 +525,9 @@ def _earnings_events(sym: str, bar_idx: dict) -> list:
             # Inline (wide) shows the two headline stats; the dropdown shows all details.
             "description": "; ".join(details[:2]) or None,
             "details": details or None,
-            "move_pct": move if move is not None else e.get("surprise"),
+            # PRICE reaction only — NEVER the EPS surprise (a tiny estimate makes that a
+            # nonsense % like -168%). None until the report day's daily bar completes.
+            "move_pct": move,
             "source": "earnings", "url": None, "ts": _date_ts(d),
         })
     return out
@@ -594,13 +596,20 @@ def _hist_and_earnings(sym: str) -> list:
     return combined
 
 
+def _breaking_enabled() -> bool:
+    # OFF by default (owner: just web catalysts + earnings for now). Re-enable the
+    # curated wire-tweet layer by setting NEWS_BREAKING_ENABLED=1.
+    return os.environ.get("NEWS_BREAKING_ENABLED", "0") == "1"
+
+
 def _combined(sym: str) -> list:
     events = list(_hist_and_earnings(sym))
-    live = cache.get(f"news_live_{sym}")
-    if live is None:
-        live = _breaking_events(sym)
-        cache.set(f"news_live_{sym}", live, ttl=_LIVE_TTL)
-    events += live
+    if _breaking_enabled():
+        live = cache.get(f"news_live_{sym}")
+        if live is None:
+            live = _breaking_events(sym)
+            cache.set(f"news_live_{sym}", live, ttl=_LIVE_TTL)
+        events += live
     events.sort(key=lambda e: e.get("ts", 0), reverse=True)
     return events
 
