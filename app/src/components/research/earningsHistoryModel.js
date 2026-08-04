@@ -40,6 +40,16 @@
 // `last_n` is a bare number array with no dates, so that specific alignment
 // is unprovable in this client-side shape.
 //
+// NOT to be confused with (P2 T9 review round 2): `last_n[0]` reading `null`
+// specifically on the newest quarter is now a COMMON, CORRECT outcome, not a
+// symptom of the residual above. `get_historical_earnings_moves` (backend)
+// emits an explicit null for a quarter whose reaction isn't computable YET —
+// the dominant case being print night itself, when the newest quarter's
+// report is the most recent bar in the price history and there is no
+// next-day close to react to. `num()` below already treats that null as
+// "unknown", never a phantom zero — this is that contract working as
+// intended, on the exact night this modal is most likely to be open.
+//
 // DECISION 2 — THE REPORT-DATE ROW STAYS `reported: false` UNTIL ITS REACTION
 // IS KNOWN. `ImpliedVsRealized.pairQuarters` identifies the current quarter by
 // `reported === false` and only then falls back to `live.pct` for the hollow

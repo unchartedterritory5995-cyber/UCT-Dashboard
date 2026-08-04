@@ -80,9 +80,12 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove }
       <LollipopChart quarters={quarters} valueFormatter={eps} />
 
       {/* Same quarter axis, directly beneath — that adjacency IS the section.
-          F-1: `.reactionWrap` insets this to the SAME left/right pixels as
-          LollipopChart's ECharts grid (see the CSS module comment) so the
-          two axes' quarter columns actually line up on screen. */}
+          F-1: `.reactionWrap` scopes a CSS rule (see the module comment)
+          that insets ReactionBars' own SVG — NOT this wrapper, NOT the
+          EyebrowLabel above it — to the SAME left/right pixels as
+          LollipopChart's ECharts grid, so the two axes' quarter columns
+          actually line up on screen while the two section labels stay
+          aligned with each other. */}
       <div className={styles.reactionWrap}>
         <ReactionBars
           quarters={quarters}

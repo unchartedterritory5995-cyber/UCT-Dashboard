@@ -2110,8 +2110,14 @@ def _build_enrichment_for_date(target: str) -> dict:
             if not raw:
                 return None
             moves = raw.get("moves_pct") or []
-            n = raw.get("n_quarters") or len(moves)
-            up = sum(1 for m in moves if m > 0)
+            # `moves` can now contain `None` (P2 T9 review round 2, CRITICAL:
+            # get_historical_earnings_moves emits an explicit null for a
+            # quarter it can't compute yet — e.g. print night, no next-day
+            # close — rather than dropping the slot and shifting the rest).
+            # `None > 0` raises in Python 3; both counts below must skip gaps
+            # rather than crash or silently miscount them as reports.
+            n = raw.get("n_quarters") or sum(1 for m in moves if m is not None)
+            up = sum(1 for m in moves if m is not None and m > 0)
             return {
                 "avg_abs_move": raw.get("avg_abs_move_pct"),
                 "up_count":     up,
@@ -2125,7 +2131,7 @@ def _build_enrichment_for_date(target: str) -> dict:
                 # of this line's own comment (P2 T9 review, CRITICAL: every
                 # per-quarter reaction pairing downstream was reading the WRONG
                 # quarter's move). Do not reintroduce it.
-                "last_n":       moves[:8],   # newest first, capped 8
+                "last_n":       moves[:8],   # newest first, capped 8; may hold nulls
             }
         except Exception:
             return None

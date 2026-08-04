@@ -252,12 +252,21 @@ def _fetch_quarterly_history(sym: str) -> list:
                             "surprisePercentage": f"{surprise_pct:.2f}",
                             "reportTime":         "",  # FMP doesn't expose pre/post
                         })
-                        if len(out) >= 12:
-                            break
+                        # NOTE: no cap here. Capping mid-loop, in FMP's raw
+                        # response order, BEFORE the sort below let a
+                        # shuffled/non-monotonic provider order silently keep
+                        # the wrong 12 rows — e.g. probed with 20 oldest-first
+                        # rows (2010->2029), a mid-loop `if len(out)>=12: break`
+                        # returned 2021-01-01 as index 0 and never reached the
+                        # true newest quarter at all, even though `_newest_first`
+                        # then sorted THOSE 12 correctly (P2 T9 review round 2,
+                        # IMPORTANT #2 — the ORDER guarantee held, the SET
+                        # guarantee didn't). `limit=20` in the URL already
+                        # bounds this loop; cap AFTER sorting instead.
                     except (TypeError, ValueError):
                         continue
                 if out:
-                    return _newest_first(out)
+                    return _newest_first(out)[:12]
         except Exception as e:
             _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
 
