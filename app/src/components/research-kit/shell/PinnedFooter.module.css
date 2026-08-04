@@ -1,0 +1,25 @@
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-lg);
+  border-top: 1px solid var(--glass-border-neutral);
+  background: var(--glass-chrome);
+}
+
+/* Every direct interactive child clears the 44px tap floor on touch, without
+   the caller having to remember. */
+.footer > button,
+.footer > a {
+  min-height: var(--tap-min);
+}
+
+/* PHONE — respect the home indicator, keep actions reachable one-handed. */
+@media (max-width: 640px) {
+  .footer {
+    flex-wrap: wrap;
+    padding: var(--space-sm) var(--space-md);
+    padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+  }
+}

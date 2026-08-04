@@ -83,3 +83,14 @@ export {
   SIZE as METRIC_TREND_SIZE,
   buildTrendOption,
 } from './charts/MetricTrendChart'
+
+// Shell (P1F-B) — the three pinned pieces that make the modal the page in
+// miniature (§3.4). All PURE DISPLAY: no fetching, no timers.
+export {
+  default as IdentityBanner,
+  LIFECYCLE_STATES,
+  normalizeLifecycle,
+  timingVariant,
+} from './shell/IdentityBanner'
+export { default as SectionRail, nextIndex } from './shell/SectionRail'
+export { default as PinnedFooter } from './shell/PinnedFooter'

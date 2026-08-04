@@ -1,0 +1,106 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: var(--space-md);
+  background: var(--glass-chrome);
+}
+
+.tabs,
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.links {
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--glass-border-neutral);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap-min);
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.item:hover {
+  color: var(--text-bright);
+}
+.item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The active rail item is one of the three sanctioned gold surfaces (§3.1). */
+.itemActive {
+  border-color: var(--glass-border-accent);
+  background: var(--glass-elevated);
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+.itemLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkChevron {
+  margin-left: auto;
+}
+
+.icon {
+  flex: 0 0 auto;
+}
+
+/* PHONE — the same list becomes a horizontal chip row with an edge fade. The
+   SEMANTICS do not change; only the layout does. */
+@media (max-width: 640px) {
+  .rail {
+    flex-direction: row;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .tabs,
+  .links {
+    flex-direction: row;
+  }
+  .links {
+    padding-top: 0;
+    padding-left: var(--space-sm);
+    border-top: none;
+    border-left: 1px solid var(--glass-border-neutral);
+  }
+  .item {
+    white-space: nowrap;
+  }
+}
+
+/* TABLET — narrower rail, per §4.4. */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .rail {
+    padding: var(--space-sm);
+  }
+  .item {
+    font-size: var(--text-sm);
+  }
+}
