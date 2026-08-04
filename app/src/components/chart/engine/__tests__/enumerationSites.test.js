@@ -93,15 +93,15 @@ const LEDGER = [
     anchor: 'const indicatorData = useMemo(', fate: 'B5' },
   { file: 'app/src/components/StockChart.jsx', region: 'the hand-written render blocks',
     anchor: 'if (indicatorData.williamsR.length) {', fate: 'B5' },
-  { file: 'app/src/components/StockChart.jsx', region: 'the crosshair value reads',
-    anchor: 'stochK: stochKValue, stochD: stochDValue,', fate: 'B4' },
+  // ⭐ RETIRED BY B4 TASK 10, TOGETHER — the nine crosshair value reads, the
+  // hand-written `legChips` array and `readout.LEGACY_SLOTS` were one mechanism
+  // and could only go as one. The legend renders `crosshairData.chips`, which
+  // `processCrosshair` builds by handing BOTH lanes' entries to
+  // `readout.chipsFrom`; six chips that no engine binding produces (stoch's two,
+  // atr, sar, ichimoku's two) come from `legacyChipEntriesRef`, registered where
+  // each hand-written series is created. Proven gone in `RETIRED_BY_B4_TASK10`.
   { file: 'app/src/components/StockChart.jsx', region: 'the hide-all ref array',
     anchor: 'const set = (ref) =>', fate: 'B5' },
-  // ⛔ legChips does NOT retire at Flip B. Task 10's correction, sharpened by
-  // Task 11: it is the SLOT the engine's chip lands in — `(e && e.text) || text`
-  // — and it is the thing that FORMATS it. It goes with `readout.LEGACY_SLOTS`.
-  { file: 'app/src/components/StockChart.jsx', region: 'the legChips legend list',
-    anchor: 'const legChips = [', fate: 'B4' },
 
   // ── StockChart's control doors ───────────────────────────────────────────
   // ⭐ RETIRED BY B4 TASK 5. `handleCopyShareUrl` hand-listed exactly the four B3
@@ -188,15 +188,21 @@ const LEDGER = [
   // alert that cannot fire, and this becomes the ONE naming authority.
   { file: 'api/services/indicator_alert_evaluator.py', region: "INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority",
     anchor: 'INDICATOR_FUNCS: dict[str,', fate: 'C' },
+  // ⭐ THE SIXTH SITE THE JS DISCOVERY SCAN STRUCTURALLY CANNOT SEE, found by the
+  // wave that fixed the voice bus and added here by this file's one writer. The
+  // scan below walks `app/src/**/*.jsx?` only, so a Python enumeration is
+  // invisible to it however many ids it names — which is exactly the shape that
+  // turned 7 into 32. Fate `C`: it is a PHRASE map ("bollinger bands" →
+  // `bb`, "parabolic sar" → `sar`), i.e. speech-recognition synonyms, and
+  // nothing in a definition declares what a user might say out loud. If it ever
+  // becomes derivable it is from `meta.name`/`meta.shortName` plus a synonym
+  // list that still has to live somewhere.
+  { file: 'api/services/voice_client_action_tools.py', region: '_INDICATOR_ALIASES — the voice add_chart_indicator phrase map',
+    anchor: '_INDICATOR_ALIASES = {', fate: 'C' },
 
   // ── the engine ───────────────────────────────────────────────────────────
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
-  // ⭐ NOT ON ANY PREVIOUS LEDGER. `legChips`' twin: the bridge that lands an
-  // engine chip in the same legend POSITION as the chip it replaces. It is
-  // deleted with `legChips` at B4 and nowhere else.
-  { file: 'app/src/components/chart/engine/readout.js', region: 'LEGACY_SLOTS — the legend slot bridge, 9',
-    anchor: 'export const LEGACY_SLOTS = Object.freeze({', fate: 'B4' },
   { file: 'app/src/components/chart/engine/flipState.js', region: 'ENGINE_MIGRATED_DEF_IDS',
     anchor: 'export const ENGINE_MIGRATED_DEF_IDS', fate: 'phase' },
   { file: 'app/src/components/chart/engine/flipState.js', region: 'ENGINE_FLIPPED_DEF_IDS',
@@ -326,6 +332,28 @@ const RETIRED_BY_B4_TASK5 = [
   ['vwap', /\bvwap\s*:\s*\{\s*enabled\s*:/g],
 ]
 
+/** What B4 TASK 10 RETIRED: the legend's three-part indicator enumeration.
+ *
+ *  ⚠️ REGEX SHAPES AGAIN, for the reason Task 5's block states: a literal-string
+ *  guard was measured GREEN against a reintroduction with only the spaces around
+ *  `=` removed. Each of these is the SHAPE the thing has to wear, whatever it is
+ *  called and however it is spaced. */
+const RETIRED_BY_B4_TASK10 = [
+  ['app/src/components/chart/engine/readout.js',
+    'LEGACY_SLOTS — the legend slot bridge', /export\s+const\s+LEGACY_SLOTS\s*=/g],
+  ['app/src/components/chart/engine/readout.js',
+    'chipsBySlot — the bridge\'s reader', /export\s+function\s+chipsBySlot\b/g],
+  ['app/src/components/StockChart.jsx',
+    'the crosshair value reads — nine numeric crosshairData fields',
+    /stochK\s*:\s*stochKValue/g],
+  ['app/src/components/StockChart.jsx',
+    'a crosshairData read for a named indicator — the legend\'s old row shape',
+    /crosshairData\.(?:rsi|macdSig|stochK|stochD|ichimokuTenkan|ichimokuKijun)\b/g],
+  ['app/src/components/StockChart.jsx',
+    'the per-indicator legend row — `crosshairData.<x> != null && chip(`',
+    /crosshairData\.\w+\s*!=\s*null\s*&&\s*chip\(/g],
+]
+
 /** What the B4 ALERT-CATALOG task retired (`0d0d4c93`), proven retired rather
  *  than merely unlisted. Two of the five names it deleted are the ledger's own
  *  anchors; the other three (`OSCILLATOR_CONDITIONS`, `THRESHOLD_CONDITIONS`,
@@ -377,8 +405,20 @@ const RETIRED_BY_B4_ALERTS = [
  *  the CODE, whoever wrote it.
  *
  *  18 → 17 at B4 Task 5: `handleCopyShareUrl`'s four hand-written pilot rows.
- *  Nothing is added — the callback survives and enumerates nothing. */
-const SITE_COUNT = 17
+ *  Nothing is added — the callback survives and enumerates nothing.
+ *
+ *  17 → 14 at B4 Task 10: the crosshair value reads, `legChips` and
+ *  `readout.LEGACY_SLOTS`, which were one mechanism and could only go together.
+ *  **B4's bucket is now EMPTY** — see the partition assertion, which must carry
+ *  NO `B4` key at all (`reduce` emits no key for a fate with no members, so
+ *  `B4: 0` would never match).
+ *
+ *  14 → 15, and it is an ADDITION rather than a retirement: a SIXTH site the JS
+ *  discovery scan structurally cannot see — `voice_client_action_tools.py`'s
+ *  `_INDICATOR_ALIASES`, the voice phrase map — found by the wave that fixed the
+ *  voice bus. Fate `C`. ⚠️ The ledger's number is only worth something if it
+ *  moves with the CODE, and that includes a site nobody retired. */
+const SITE_COUNT = 15
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -422,7 +462,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('the retirement column adds up — 3 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('every B4 region is retired — 8 to B5, 2 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -435,7 +475,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // nothing here says so; the per-site reasoning lives in the comments beside
     // each entry, and that is what a reviewer has to read. "The retirement column
     // adds up" means the column adds up, not that every row is in the right one.
-    expect(counts).toEqual({ B4: 3, B5: 8, C: 1, keep: 3, phase: 2 })
+    //
+    // ⛔ AND THERE IS NO `B4: 0`. `reduce` emits no key for a fate with no
+    // members, so writing one would never match. **B4's bucket is EMPTY** —
+    // every region B4 inherited has been retired, and the ABSENCE of the key is
+    // what says so. A `B4` row reappearing here fails this line by name.
+    expect(counts).toEqual({ B5: 8, C: 2, keep: 3, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -511,6 +556,49 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // the backend site that now owns the naming is still on the ledger, fate C.
     expect(src).toContain('useIndicatorAlertCatalog')
     expect(read('api/services/indicator_alert_evaluator.py')).toContain('INDICATOR_FUNCS')
+  })
+
+  it('⭐ and the legend\'s three-part indicator enumeration is GONE — all of it', () => {
+    const back = RETIRED_BY_B4_TASK10
+      .filter(([file, , re]) => [...read(file).matchAll(re)].length !== 0)
+      .map(([file, what]) => `${file} :: ${what}`)
+    expect(back,
+      'the legend is enumerating indicators again. It renders `crosshairData.chips`, which ' +
+      '`processCrosshair` builds from BOTH lanes through `readout.chipsFrom` — a hand-written ' +
+      'row here is the thing that FORMATS an engine-drawn chip, so a second copy silently ' +
+      'decides what the user reads.',
+    ).toEqual([])
+    // …and the replacements are really there, on all three sides.
+    const SC = read('app/src/components/StockChart.jsx')
+    expect(SC).toContain('const registerLegacyChip = useCallback(')
+    expect(SC).toContain('crosshairData.chips')
+    expect(read('app/src/components/chart/engine/readout.js')).toContain('export function chipsFrom(')
+    // ⛔ AND THE SIX CHIPS THAT WOULD OTHERWISE HAVE VANISHED ARE DECLARED. The
+    // obvious B4 — render `engineChips()` directly — deletes `%K`, `%D`,
+    // `ATR(14)`, `SAR`, `TK` and `KJ` for every user, because those four
+    // definitions are NOT migrated and produce no bindings. This is the source
+    // half of that claim; `legendFromDefinitions.test.jsx` is the behavioural one.
+    const declared = engineRegistry.listDefinitions().flatMap(
+      d => d.plots.filter(p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
+        .map(p => `${d.id}::${p.key}`)).sort()
+    expect(declared, 'a chip-bearing plot lost its `legend` declaration — six users\' chips ' +
+      'disappear the moment one of the un-migrated four loses it').toEqual([
+      'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
+      'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+    ])
+    // …and B4 got there WITHOUT migrating any of them, which is the constraint
+    // that made the whole design necessary.
+    for (const id of ['stoch', 'atr', 'sar', 'ichimoku']) {
+      expect(ENGINE_MIGRATED_DEF_IDS.has(id), `${id} was migrated — B4 ships ZERO migrations`).toBe(false)
+    }
+    // ⛔ AND THE PATTERNS STILL MATCH SOMETHING, so five zeroes above cannot be
+    // five broken regexes.
+    const PROBE = 'export const LEGACY_SLOTS = ({}) export function chipsBySlot(x) ' +
+      'stochK: stochKValue, crosshairData.rsi crosshairData.macdSig != null && chip('
+    for (const [, what, re] of RETIRED_BY_B4_TASK10) {
+      expect([...PROBE.matchAll(re)].length, `${what}'s retirement pattern matches nothing at all`)
+        .toBeGreaterThan(0)
+    }
   })
 
   it('⭐ and the share link no longer hand-lists the four pilots', () => {

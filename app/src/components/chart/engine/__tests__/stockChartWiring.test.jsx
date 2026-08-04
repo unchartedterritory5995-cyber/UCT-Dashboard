@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
+// THE legend read, shared with `legendFromDefinitions.test.jsx` — see the note
+// where `settledLegend` is wrapped below.
+import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED } from './legendProbe'
 
 // ─── The wiring test (Task 7) ───────────────────────────────────────────────
 //
@@ -424,103 +427,22 @@ const submenuOf = (section, itemId) => {
 
 // ─── THE LEGEND READ — POLLED TO STABILITY, NEVER SLEPT ─────────────────────
 //
-// ⛔ A FLAKY TEST IS A DEFECT, AND ON THIS BRANCH IT IS A LOAD-BEARING ONE.
-// Every legend case below is a gate the pixel harness CANNOT replace — a
-// headless capture has no cursor, so no chip is drawn on either side and the
-// diff is 0 whichever way the crosshair bridge behaves. An intermittently
-// passing gate is worse than a missing one: it reads as evidence.
+// ⚠️ THE IMPLEMENTATION MOVED TO `legendProbe.js` AT B4 TASK 10, and the four
+// measured lessons moved with it. Task 10 needed the same read in a second suite
+// (`legendFromDefinitions.test.jsx`), and a second copy of a helper carrying
+// four hard-won rules would have been exactly the twin this phase retires — in
+// the middle of the task that retires the legend's own.
 //
-// These reads used to be `dispatch, then setTimeout(40)`. That is a race the
-// moment the suite runs 400 files in parallel — B3 Task 8 watched a case pass
-// alone, pass in the chart selection, then fail once in a full run and pass on
-// the retry. The legend coalesces through rAF and jsdom gives no guarantee
-// about how many frames a 40 ms real timer outlives on a loaded box.
+// What stays HERE is the part that cannot move: the four cases below, which
+// drive that helper against a view whose text is still moving. Its stability
+// rule is NOT falsifiable through the seventeen assertions that use it — on an
+// unloaded box the legend settles inside the first dispatch — so those cases are
+// the only place the rule is checked at all.
 //
-// ⚠️ "IT RENDERED AT ALL" IS NOT ENOUGH TO POLL ON — that was the first fix,
-// and it was still wrong. The container also carries the live-price header and
-// a "⟳ RECONNECTING" banner, so two reads can both hold the OHLC row while
-// holding DIFFERENT amounts of unrelated chrome, and a character-for-character
-// legacy-vs-engine comparison then fails on text that has nothing to do with
-// the indicator.
-//
-// So: wait for TWO CONSECUTIVE IDENTICAL READS — the same rule
-// `tools/chart_parity.py` applies to a capture (`shots=2/2`), for the same
-// reason — and THROW if the DOM never settles, rather than comparing a moving
-// target. One implementation, so the next indicator's legend case inherits it
-// instead of copying the sleep for a fifth time.
-const LEGEND_RENDERED = /O\s*1/           // the OHLC row — the legend exists at all
-const SETTLE_TRIES = 60
-const SETTLE_MS = 20
-
-/**
- * The LEGEND's text — deliberately NOT the container's.
- *
- * ⛔ `container.textContent` IS NOT DETERMINISTIC, AND NO AMOUNT OF SETTLING
- * MAKES IT SO. This was found the hard way: with every legend read polled to
- * stability, the VWAP case still failed roughly one full-suite run in two, and
- * the diff was
- *
- *     Expected: "…VT%TSEXT01:4[2]?⇄"
- *     Received: "…VT%TSEXT01:4[1]?⇄"
- *
- * — a **WALL CLOCK** in the export footer. `legendOf` renders twice, a second or
- * so apart, and when a minute boundary falls between the two renders the
- * containers differ by one digit. A character-for-character legacy-vs-engine
- * comparison then reports a clock tick as an indicator regression. `⟳
- * RECONNECTING` is in both strings and was the red herring; `chart_parity.py`
- * freezes this same stamp for exactly this reason, and these tests do not run
- * through it.
- *
- * Settling is still required — it is what makes each individual read stable —
- * but it is orthogonal. The comparison has to be scoped to the thing the
- * assertion is ABOUT.
- *
- * The `O 1.00` span's PARENT is the legend row, and `legChips` are its siblings
- * in all three legend variants (`StockChart.jsx:9849-9903` — flat, stacked and
- * default), so every chip these cases assert on is inside it and the header,
- * the feed banner and the footer clock are not. No fallback to the container:
- * a missing legend must fail the `ready` predicate and throw, not quietly widen
- * the read back to the clock.
- */
-const legendTextOf = (view) => {
-  const o = [...view.container.querySelectorAll('span')]
-    .find(s => /^O\s/.test(s.textContent || ''))
-  return o && o.parentElement ? o.parentElement.textContent : ''
-}
-
-/**
- * Deliver one crosshair event to EVERY subscriber, repeatedly, until the
- * rendered text stops changing; return that settled text.
- *
- * ⚠️ EVERY subscriber gets it, which is what `subscribeCrosshairMove` does and
- * is NOT a detail to shortcut. StockChart registers TWO handlers on the same
- * chart — the legend's (`:7945`) and the hovered-bar recorder's (`:8257`) — so
- * `crosshairHandlers.at(-1)` delivers to the one that never touches the legend,
- * and every assertion then reads a legend nothing asked to update. That is a
- * green-looking harness measuring nothing.
- *
- * @param ready predicate the settled text must ALSO satisfy, so a stable EMPTY
- *              string is never mistaken for a settled legend.
- */
-const settledLegend = async (view, param, ready = LEGEND_RENDERED) => {
-  expect(H.crosshairHandlers.length,
-    'nothing subscribed to crosshairMove — this test is vacuous').toBeGreaterThan(0)
-  let text = legendTextOf(view)
-  for (let i = 0; i < SETTLE_TRIES; i++) {
-    // Sequential on purpose: each read must observe the DOM the PREVIOUS
-    // dispatch settled into, so these cannot be awaited in parallel.
-    await act(async () => {
-      for (const fn of [...H.crosshairHandlers]) fn(param)
-      await new Promise(r => setTimeout(r, SETTLE_MS))
-    })
-    const prev = text
-    text = legendTextOf(view)
-    if (prev === text && ready.test(text)) return text
-  }
-  throw new Error(
-    'the legend never settled to two identical reads — the comparison would be a race',
-  )
-}
+// The wrapper supplies THIS file's captured handler list, so every existing call
+// site is unchanged.
+const settledLegend = (view, param, ready = LEGEND_RENDERED) =>
+  settledLegendWith(view, param, H.crosshairHandlers, ready)
 
 /** The crosshair event itself: the candle, plus whatever series carry a value. */
 const crosshairAt = (bars, extraSeriesData) => {

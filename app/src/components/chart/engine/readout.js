@@ -1,44 +1,58 @@
 // app/src/components/chart/engine/readout.js
 //
-// ─── THE CROSSHAIR LEGEND FOR EVERY SERIES THE ENGINE DREW ──────────────────
+// ─── THE CROSSHAIR LEGEND, FOR EVERY SERIES ON THE CHART ────────────────────
 //
-// ⛔ THE CARRY THIS CLOSES, AND WHY IT NEEDED ITS OWN GATE. `processCrosshair`
-// reads `rsiSeriesRef.current` (`StockChart.jsx:7788`). When the engine draws
-// RSI that ref is null, `crosshairData.rsi` stays null, and the `RSI(14) 54.3`
-// chip (`:9590`) is simply absent. The pixel gate CANNOT SEE THIS: a headless
-// capture has no cursor, so no chip is drawn on either side and the diff is 0
-// either way. A migration is not done when the picture matches; it is done when
-// everything that reads the indicator still reads it.
+// ⛔ THE CARRY THIS CLOSED, AND WHY IT NEEDED ITS OWN GATE (B3, historical).
+// `processCrosshair` used to read `rsiSeriesRef.current`. When the engine drew
+// RSI that ref was null, the legend's RSI value stayed null, and the
+// `RSI(14) 54.3` chip was simply absent. The pixel gate CANNOT SEE THAT: a
+// headless capture has no cursor, so no chip is drawn on either side and the diff
+// is 0 either way. A migration is not done when the picture matches; it is done
+// when everything that reads the indicator still reads it.
 //
-// PURE. No React, no lightweight-charts, no refs. It takes the binder's own
-// bindings and the crosshair event's `seriesData` map and returns rows.
+// ⚠️ Both names in that paragraph are gone now — `rsiSeriesRef` was deleted at
+// RSI's Flip B, and the nine `crosshairData.<indicator>` numeric fields at B4
+// Task 10. It is kept because it is the REASON this module exists and the reason
+// its gate is a DOM test rather than a pixel one, and that reason has not changed.
 //
-// ─── THE SLOT BRIDGE IS TRANSITIONAL, AND SAYS SO ───────────────────────────
+// PURE. No React, no lightweight-charts, no refs. It takes a list of entries and
+// the crosshair event's `seriesData` map and returns rows.
 //
-// `LEGACY_SLOTS` maps a binding to the `crosshairData` FIELD the shipped legend
-// already renders (`crosshairData.rsi`, `.macd`, `.macdSig`, …). That is the only
-// way to land an engine chip in the SAME POSITION, with the same neighbours, as
-// the chip it replaces — and position is exactly the kind of difference no pixel
-// gate run without a cursor can catch. It is deleted at B4, when the legend
-// renders `engineChips()` directly and stops enumerating indicators at all.
+// ─── THE SLOT BRIDGE IS GONE, AND WHAT REPLACED IT IS NOT WHAT WAS PLANNED ──
+//
+// 🔴 THIS HEADER USED TO SAY `LEGACY_SLOTS` WAS "deleted at B4, when the legend
+// renders `engineChips()` directly". **THAT PLAN WOULD HAVE DELETED SIX CHIPS FOR
+// EVERY USER.** Nine chips ship; only three of them (RSI's line and MACD's line
+// and signal) belong to a FLIPPED definition, so only three come out of
+// `engineChips`. The other six — Stochastic's %K and %D, ATR, SAR and Ichimoku's
+// tenkan and kijun — belong to definitions that are NOT
+// migrated, are drawn by hand-written legacy blocks, and have no bindings at all.
+//
+// ⚠️ THOSE SIX ARE NAMED IN PROSE ON PURPOSE. `enumerationSites.test.js`'s
+// discovery scan flags any shipped module that names four or more indicator ids,
+// and it does not strip comments — writing them as `<id>::<plotKey>` pairs put
+// this file on the scan's list for a paragraph that enumerates nothing. Measured,
+// not guessed.
+// A legend rendering `engineChips()` alone would simply stop printing them, and
+// **no pixel gate could see it**: a headless capture has no cursor.
+//
+// ⛔ AND "MIGRATE THOSE FOUR THEN" IS THE WRONG TURN, NOT THE FIX. B4 ships ZERO
+// migrations — `FLIPPED === MIGRATED` is a Global Constraint asserted both ways,
+// and `docs/decisions/2026-08-03-engine-enabled-settings-migration.md` is still
+// OPEN, so a migrated-but-un-flipped definition would be engine-drawn for NOBODY.
+//
+// THE ADJUDICATED DESIGN (A3), and it needs no migration at all: `engineChips`
+// already turned *(series, definition, instance inputs)* into *(label, colour,
+// decimals, text)*, and only the SERIES SOURCE was engine-specific. So the
+// formatting half is extracted into `chipsFrom(entries, …)` and fed a SECOND
+// series source — `StockChart`'s `legacyChipEntriesRef`, keyed `<defId>::<plotKey>`
+// and registered at the legacy `addSeries` sites that are already fated B5. One
+// formatting pipeline, two lanes, and the six legacy chips are now declared on
+// their own definitions' `plots[].legend` instead of hand-written in the legend.
 
-/** `'<defId>::<plotKey>'` → the `crosshairData` field the shipped legend reads.
- *
- *  ⚠️ TRANSITIONAL. Every entry corresponds to one line of the hand-written
- *  `legChips` array (`StockChart.jsx:9588-9599`) and disappears with it.
- *  `readout.test.js` fails if a definition declares a visible chip with no slot
- *  (the chip would render nowhere) or if a slot names a plot that does not exist. */
-export const LEGACY_SLOTS = Object.freeze({
-  'rsi::rsi': 'rsi',
-  'macd::macd': 'macd',
-  'macd::signal': 'macdSig',
-  'stoch::k': 'stochK',
-  'stoch::d': 'stochD',
-  'atr::atr': 'atr',
-  'sar::sar': 'sar',
-  'ichimoku::tenkan': 'ichimokuTenkan',
-  'ichimoku::kijun': 'ichimokuKijun',
-})
+// (`LEGACY_SLOTS`, `chipsBySlot` and the per-chip `slot` field were deleted here
+//  by B4 Task 10 — the legend renders `crosshairData.chips` directly and there is
+//  no `crosshairData.<indicator>` field left for a slot to name.)
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -79,57 +93,72 @@ function resolvePlotColor(plot, inputs, def) {
 }
 
 /**
- * The legend chips for the series the engine currently holds.
+ * One chip per *(series, plot-that-declares-a-`legend`)*.
  *
- * @param {object[]} bindings  `binder.bindings()` — each carries `lastValue`,
- *                             the developing-bar fallback (see below)
- * @param {Map}      seriesData `crosshairMove` param's `seriesData` map
+ * THE ONE FORMATTING PIPELINE spec §6 asks for: a chip's label, its precision and
+ * its colour all come out of `plots[].legend` + `meta.legendParams` + the
+ * instance's own inputs, for the engine lane and the legacy lane alike.
+ *
+ * @param {object[]} entries `[{defId, plotKey, series, lastValue, instanceId}]`.
+ *        The engine lane maps its BINDINGS in (`engineChips` below);
+ *        `StockChart`'s legacy render blocks register theirs as they create each
+ *        series. A plot with NO `legend` block emits nothing, which is how the
+ *        un-declared plots stay chip-less — Ichimoku's `spanA`/`spanB`/`chikou`,
+ *        every `hlines` guide, and the ten definitions with no chip at all.
+ * @param {Map} seriesData `crosshairMove` param's `seriesData` map.
  * @param {object|Function} registry
- * @param {object[]} instances the normalised instance list (for per-instance inputs)
- * @returns {{defId,plotKey,slot,label,color,decimals,value,text}[]} in binding order
+ * @param {Function} inputsFor `(defId, instanceId) => inputs`. The INSTANCE's own
+ *        inputs for the engine lane; `cs.indicators[defId]` for the legacy lane,
+ *        which has no instances. ⛔ Reading `cs.indicators[defId]` for BOTH would
+ *        be wrong the moment a second instance of one definition exists: two RSI
+ *        lines at different periods would print the same number twice.
+ * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
+ *        order the entries were given.
  */
-export function engineChips(bindings, seriesData, registry, instances) {
+export function chipsFrom(entries, seriesData, registry, inputsFor) {
   const get = resolveRegistry(registry)
-  const byId = new Map((Array.isArray(instances) ? instances : [])
-    .filter(i => i && typeof i.instanceId === 'string')
-    .map(i => [i.instanceId, i]))
   const out = []
 
-  for (const b of (Array.isArray(bindings) ? bindings : [])) {
-    if (!b || !b.series) continue
-    const def = get(b.defId)
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    if (!e || !e.series) continue
+    const def = get(e.defId)
     if (!def) continue
-    const plot = (def.plots || []).find(p => p && p.key === b.plotKey)
-    // No `legend` block at all ⇒ no chip. The ten un-flipped natives are in that
-    // state, and their chips are still the hand-written ones — emitting an
-    // undeclared chip here would put a second, differently-formatted ATR next to
-    // the legacy one the moment anyone hands the binder an ATR instance.
+    const plot = (def.plots || []).find(p => p && p.key === e.plotKey)
+    // No `legend` block at all ⇒ no chip. Emitting an undeclared chip here would
+    // put a second, differently-formatted line into the readout for any plot
+    // whose author never asked for one.
     if (!plot || !plot.legend || plot.legend.hide === true) continue
 
-    const point = seriesData && typeof seriesData.get === 'function' ? seriesData.get(b.series) : null
+    const point = seriesData && typeof seriesData.get === 'function' ? seriesData.get(e.series) : null
     // ── THE DEVELOPING-BAR FALLBACK ──────────────────────────────────────────
     //
-    // Legacy: `d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)`
-    // (`StockChart.jsx:7829`). The hovered bar not carrying a point for this
-    // series is the NORMAL live case, not an edge one: the bars push feed's
-    // writer B appends the developing candle imperatively (`:4553`), so on an
-    // intraday chart the newest bar is on the candles and not yet on the
-    // indicator until the next SWR refresh. Legacy printed the last computed
-    // value there; an engine chip that printed NOTHING is a readout regression
-    // no pixel gate can see — it only happens under a live tape.
+    // Legacy: `d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)`. The hovered
+    // bar not carrying a point for this series is the NORMAL live case, not an
+    // edge one: the bars push feed's writer B appends the developing candle
+    // imperatively, so on an intraday chart the newest bar is on the candles and
+    // not yet on the indicator until the next SWR refresh. Legacy printed the
+    // last computed value there; a chip that printed NOTHING is a readout
+    // regression no pixel gate can see — it only happens under a live tape.
     //
-    // `binding.lastValue` is the binder's own record of the final point it set
-    // on this series (`binder.js`), which is the same number `.at(-1)` reads.
+    // ⚠️ TWO SHAPES, ON PURPOSE. The engine lane hands a NUMBER —
+    // `binding.lastValue`, the binder's own record of the final point it set on
+    // this series, which is the same number `.at(-1)` reads. The legacy lane
+    // hands a THUNK, because its entry is registered when the series is created
+    // and the last computed value moves under it on every SWR refresh. A thunk
+    // that throws is treated as "no fallback": this runs on the rAF flush, and a
+    // throw here would take the whole legend down mid-hover.
     let value = point ? point.value : undefined
-    if (!Number.isFinite(value)) value = b.lastValue
+    if (!Number.isFinite(value)) {
+      const fb = e.lastValue
+      if (typeof fb === 'function') { try { value = fb() } catch { value = undefined } }
+      else value = fb
+    }
     if (!Number.isFinite(value)) continue
 
-    const inst = byId.get(b.instanceId)
-    const inputs = (inst && inst.inputs) || {}
+    const inputs = (typeof inputsFor === 'function' ? inputsFor(e.defId, e.instanceId) : null) || {}
     // The colour a chip wears is the colour the LINE wears, so it is resolved the
-    // same way the binder resolves it — through the instance, never the
-    // definition default. Reading `cs.indicators[id].color` (what the shipped
-    // legend does) would be wrong the moment a second instance exists.
+    // same way the binder resolves it — through this lane's own inputs, never the
+    // definition default alone.
     const resolved = resolvePlotColor(plot, inputs, def)
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
     const label = chipLabel(def, plot, inputs)
@@ -137,7 +166,7 @@ export function engineChips(bindings, seriesData, registry, instances) {
     out.push({
       defId: def.id,
       plotKey: plot.key,
-      slot: LEGACY_SLOTS[`${def.id}::${plot.key}`] || null,
+      instanceId: e.instanceId || null,
       label,
       color: resolved,
       decimals,
@@ -148,14 +177,31 @@ export function engineChips(bindings, seriesData, registry, instances) {
   return out
 }
 
-/** The chips keyed by the legacy `crosshairData` field, for the bridge in
- *  StockChart. A chip with no slot is DROPPED here and reported by
- *  `readout.test.js`, never rendered in the wrong place. */
-export function chipsBySlot(chips) {
-  const out = {}
-  for (const c of (chips || [])) {
-    if (!c.slot) continue
-    out[c.slot] = { value: c.value, text: c.text, color: c.color }
+/**
+ * The legend chips for the series the ENGINE currently holds — a thin caller of
+ * `chipsFrom` that maps bindings to entries and resolves inputs per INSTANCE.
+ *
+ * Its exported signature is unchanged, so every existing caller and case is
+ * unaffected by the extraction.
+ *
+ * @param {object[]} bindings  `binder.bindings()` — each carries `lastValue`
+ * @param {Map}      seriesData `crosshairMove` param's `seriesData` map
+ * @param {object|Function} registry
+ * @param {object[]} instances the normalised instance list (for per-instance inputs)
+ */
+export function engineChips(bindings, seriesData, registry, instances) {
+  const byId = new Map((Array.isArray(instances) ? instances : [])
+    .filter(i => i && typeof i.instanceId === 'string')
+    .map(i => [i.instanceId, i]))
+  const entries = (Array.isArray(bindings) ? bindings : [])
+    .filter(b => b && b.series)
+    .map(b => ({ defId: b.defId, plotKey: b.plotKey, series: b.series, lastValue: b.lastValue, instanceId: b.instanceId }))
+  // ⛔ PER INSTANCE, NEVER PER DEFINITION. `cs.indicators[defId]` is the LEGACY
+  // lane's answer and is simply wrong here: two instances of one definition are
+  // two different periods and two different colours on one chart.
+  const inputsFor = (_defId, instanceId) => {
+    const inst = byId.get(instanceId)
+    return (inst && inst.inputs) || null
   }
-  return out
+  return chipsFrom(entries, seriesData, registry, inputsFor)
 }

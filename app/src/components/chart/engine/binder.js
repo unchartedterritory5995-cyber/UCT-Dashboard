@@ -102,9 +102,11 @@ function toPoints(column, bars, adjustTime, signColors) {
  * The LAST point's value, or `undefined` if the series ends on whitespace.
  *
  * ⛔ THE DEVELOPING-BAR FALLBACK, AND WHY IT IS THE BINDER'S JOB. The shipped
- * crosshair legend reads `d?.value ?? indicatorData.<id>.at(-1)?.value`
- * (`StockChart.jsx:7829`) — the newest computed value when the HOVERED bar
- * carries no point for the indicator. That is not a cosmetic nicety: the bars
+ * crosshair legend read `d?.value ?? indicatorData.<id>.at(-1)?.value` — the
+ * newest computed value when the HOVERED bar carries no point for the
+ * indicator. (⚠️ B4 Task 10 deleted those hand-written reads; the LEGACY lane
+ * now registers the same `.at(-1)?.value` as a THUNK on its chip entry, and this
+ * is the ENGINE lane's half of the identical rule.) That is not a cosmetic nicety: the bars
  * push feed's writer B appends a developing candle imperatively
  * (`StockChart.jsx:4553`, `series.update()`, no `updateChart` pass), so on an
  * intraday chart the newest bar exists on the CANDLES and not yet on any

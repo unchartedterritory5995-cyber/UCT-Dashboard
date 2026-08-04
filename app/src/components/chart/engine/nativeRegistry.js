@@ -309,8 +309,16 @@ const RAW_DEFS = [
       colorInput('dColor', '%D', '#4ECDC4'),
     ],
     [
-      { key: 'k', label: '%K', style: 'line', color: '$kColor', width: 1, role: 'primary' },
-      { key: 'd', label: '%D', style: 'line', color: '$dColor', width: 1, lineStyle: 'dashed', role: 'secondary' },
+      // ⭐ B4 TASK 10 — TRANSCRIBED VERBATIM from the `legChips` row it replaces
+      // (`StockChart.jsx` at `d2733adc`: `` `%K ${v.toFixed(1)}` ``). ⚠️ `stoch`
+      // deliberately declares NO `meta.legendParams`: the shipped chips print
+      // `%K` / `%D` with no parentheses. `legend.label` short-circuits
+      // `legendParams` in `chipLabel` anyway, so a `legendParams` here would be
+      // inert — which is exactly why its ABSENCE is asserted rather than assumed.
+      { key: 'k', label: '%K', style: 'line', color: '$kColor', width: 1, role: 'primary',
+        legend: { label: '%K', decimals: 1 } },
+      { key: 'd', label: '%D', style: 'line', color: '$dColor', width: 1, lineStyle: 'dashed', role: 'secondary',
+        legend: { label: '%D', decimals: 1 } },
       // 80 takes %K's colour and 20 takes %D's — two guides, two plots.
       { key: 'overbought', label: '80', style: 'hlines', levels: [80], color: 'rgba(255,107,107,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
       { key: 'oversold', label: '20', style: 'hlines', levels: [20], color: 'rgba(78,205,196,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
@@ -320,6 +328,10 @@ const RAW_DEFS = [
   nativeDef('atr', 'atr',
     { name: 'Average True Range', shortName: 'ATR', category: 'Volatility',
       description: 'Average size of a bar\'s true range — a volatility number in price units.',
+      // ⭐ B4 TASK 10. The shipped chip is `ATR(14) 2.7000` — the period IS in the
+      // brackets, so unlike `stoch` this definition needs `legendParams`. Without
+      // it the chip reads `ATR 2.7000`, which is the mutation that proves it.
+      legendParams: ['period'],
       tags: ['volatility'] },
     autoPane,
     [
@@ -327,7 +339,9 @@ const RAW_DEFS = [
       colorInput('color', 'Color', '#FFA726'),
     ],
     [
-      { key: 'atr', label: 'ATR', style: 'line', color: '$color', width: 1, role: 'primary' },
+      // `StockChart.jsx` at `d2733adc`: `` `ATR(${period}) ${v.toFixed(4)}` ``.
+      { key: 'atr', label: 'ATR', style: 'line', color: '$color', width: 1, role: 'primary',
+        legend: { decimals: 4 } },
     ]),
 
   // ── Parabolic SAR ────────────────────────────────────────────────────────
@@ -344,7 +358,13 @@ const RAW_DEFS = [
     [
       // Dots, not a line: StockChart builds a LineSeries with lineWidth 0 and
       // pointMarkersVisible/Radius. `markers` is the style that says that.
-      { key: 'sar', label: 'SAR', style: 'markers', color: '$color', width: 3, role: 'primary' },
+      //
+      // ⭐ B4 TASK 10 — `` `SAR ${v.toFixed(4)}` `` at `d2733adc`. No
+      // `meta.legendParams`: the shipped chip prints no step/maxStep, and
+      // `meta.shortName` ('SAR') supplies the whole label, so no `legend.label`
+      // is needed either. Four decimals, because it is a PRICE.
+      { key: 'sar', label: 'SAR', style: 'markers', color: '$color', width: 3, role: 'primary',
+        legend: { decimals: 4 } },
     ]),
 
   // ── Ichimoku Cloud ───────────────────────────────────────────────────────
@@ -368,8 +388,15 @@ const RAW_DEFS = [
       colorInput('chikouColor', 'Chikou', 'rgba(255,235,59,0.7)'),
     ],
     [
-      { key: 'tenkan', label: 'Tenkan', style: 'line', color: '$tenkanColor', width: 1, role: 'primary' },
-      { key: 'kijun', label: 'Kijun', style: 'line', color: '$kijunColor', width: 1, role: 'primary' },
+      // ⭐ B4 TASK 10 — `` `TK ${v.toFixed(2)}` `` / `` `KJ ${v.toFixed(2)}` `` at
+      // `d2733adc`. The chips say TK / KJ, which `meta.shortName` ('Ichimoku')
+      // cannot express — that is what a per-plot `legend.label` is for. ⛔ AND
+      // ONLY THESE TWO: `spanA`, `spanB` and `chikou` declare no `legend` block,
+      // so the cloud and the lagging line stay chip-less exactly as they ship.
+      { key: 'tenkan', label: 'Tenkan', style: 'line', color: '$tenkanColor', width: 1, role: 'primary',
+        legend: { label: 'TK', decimals: 2 } },
+      { key: 'kijun', label: 'Kijun', style: 'line', color: '$kijunColor', width: 1, role: 'primary',
+        legend: { label: 'KJ', decimals: 2 } },
       // spanA/spanB are the cloud, and every other product fills between them —
       // this chart draws two translucent lines and no fill. They are NOT a
       // `band` here: a band's own key is its CENTRE column, and Ichimoku has no

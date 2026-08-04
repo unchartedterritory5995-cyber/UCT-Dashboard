@@ -116,12 +116,22 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
 /**
  * `plots[].legend` — what this plot contributes to the crosshair readout.
  *
- * The chart's legend chips are hand-written today (`StockChart.jsx:9588-9599`),
- * which is why a migrated indicator vanishes from the readout: the chip is keyed
- * to a legacy series REF. Declaring the chip on the plot is how the readout stops
- * being a fourteenth enumeration site, and it is the same "ONE formatting
- * pipeline drives Style-tab precision, chip values and crosshair readout" the UX
- * contract (§6) asks for.
+ * ⭐ AS OF B4 TASK 10 THIS IS THE ONLY PLACE A CHIP IS DECLARED, and this
+ * paragraph is the corrected version of one that said the opposite.
+ *
+ * It used to read: "the chart's legend chips are hand-written today
+ * (`StockChart.jsx:9588-9599`), which is why a migrated indicator vanishes from
+ * the readout: the chip is keyed to a legacy series REF." That was true for the
+ * whole of B3 and is now false in both halves — the hand-written `legChips`
+ * array is DELETED and there is no series ref left to key to. The legend renders
+ * `crosshairData.chips`, built by `readout.chipsFrom` from `plots[].legend` +
+ * `meta.legendParams` + the lane's own inputs, for engine-drawn and hand-drawn
+ * series alike. That is the "ONE formatting pipeline drives Style-tab precision,
+ * chip values and crosshair readout" the UX contract (§6) asks for.
+ *
+ * ⚠️ Which makes a missing or wrong declaration here a chip that DISAPPEARS,
+ * with no second copy to fall back on — see `readout.js`'s header for why the
+ * obvious version of that rewrite would have deleted six chips for every user.
  *
  *   label    — the chip's leading text. Absent ⇒ `meta.shortName` plus, when
  *              `meta.legendParams` is non-empty, `(p1, p2, …)` resolved against

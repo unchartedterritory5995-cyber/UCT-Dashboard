@@ -1,27 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { engineChips, chipsBySlot, LEGACY_SLOTS } from './readout'
+import { engineChips, chipsFrom } from './readout'
 import * as engineRegistry from './nativeRegistry'
-
-const HERE = path.dirname(fileURLToPath(import.meta.url))
-const STOCK_CHART = path.resolve(HERE, '..', '..', 'StockChart.jsx')
-
-/**
- * The text between two literal markers, or a NAMED throw.
- *
- * A source-reading gate that silently matches nothing is worse than no gate, so
- * a marker that has moved fails LOUDLY and says which one — never "0 slots
- * unread, all good".
- */
-function between(src, startMarker, endMarker) {
-  const a = src.indexOf(startMarker)
-  if (a < 0) throw new Error(`marker moved: ${JSON.stringify(startMarker)} is no longer in StockChart.jsx`)
-  const b = src.indexOf(endMarker, a + startMarker.length)
-  if (b < 0) throw new Error(`marker moved: ${JSON.stringify(endMarker)} does not follow ${JSON.stringify(startMarker)}`)
-  return src.slice(a + startMarker.length, b)
-}
+// ⛔ DERIVED FROM THE SHIPPED ARTIFACT, NEVER HAND-TYPED — and shared with
+// `__tests__/legendFromDefinitions.test.jsx`, which gates the same nine chips
+// through the DOM. See that module's header for why a second copy would have
+// been the twin this phase retires.
+import { shippedLegendChips } from './__tests__/legendProbe'
 
 /** A binding as `binder.bindings()` returns it, with a stand-in series object. */
 const binding = (defId, plotKey, instanceId = `legacy:${defId}`) => ({
@@ -34,15 +18,16 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
   const RSI_INST = { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' } }
 
   it('reproduces the LEGACY RSI chip byte for byte', () => {
-    // StockChart.jsx:9590 — `RSI(${period}) ${value.toFixed(1)}` in the
-    // indicator's colour. A migrated RSI that reads "RSI 54.32" is a regression
-    // the pixel gate cannot see.
+    // The shipped legend at `d2733adc` — `RSI(${period}) ${value.toFixed(1)}` in
+    // the indicator's colour. A migrated RSI that reads "RSI 54.32" is a
+    // regression the pixel gate cannot see.
     const b = binding('rsi', 'rsi')
     const chips = engineChips([b], seriesData([[b, 54.321]]), engineRegistry, [RSI_INST])
     expect(chips).toHaveLength(1)
     expect(chips[0].text).toBe('RSI(14) 54.3')
     expect(chips[0].color).toBe('#7b68ee')
-    expect(chips[0].slot).toBe('rsi')
+    expect(chips[0].defId).toBe('rsi')
+    expect(chips[0].plotKey).toBe('rsi')
   })
 
   it('takes the colour from the INSTANCE, not the definition default', () => {
@@ -70,7 +55,7 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
     const chips = engineChips([bm, bs, bh], seriesData([[bm, 0.12345], [bs, 0.09876], [bh, 0.02469]]),
       engineRegistry, [inst])
     expect(chips.map(c => c.text)).toEqual(['MACD 0.1235', 'SIG 0.0988'])
-    expect(chips.map(c => c.slot)).toEqual(['macd', 'macdSig'])
+    expect(chips.map(c => c.plotKey)).toEqual(['macd', 'signal'])
   })
 
   it('emits NO chip for a price overlay the legacy legend never showed', () => {
@@ -86,13 +71,24 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
   })
 
   it('emits NO chip for a definition that declares no legend at all', () => {
-    // The four pilots declare `legend`; the other ten natives do not, and until
-    // their own flip lands their chips are still the hand-written ones. A
-    // definition with no declaration must contribute NOTHING rather than an
-    // undeclared "ATR 2.70" appearing next to the legacy "ATR(14) 2.7000".
+    // ⚠️ THE SUBJECT MOVED AT B4 TASK 10, AND THE MOVE IS THE POINT. This case
+    // used to use `atr`, whose chip was hand-written in `legChips` while its
+    // definition declared nothing. Task 10 gave `atr` (and `stoch`, `sar`,
+    // `ichimoku`'s two) a real `legend` block, so this case went RED — a control
+    // firing on a real change, not rotting green. It is re-pointed at `mfi`,
+    // which is one of the definitions that genuinely has no chip anywhere.
+    const inst = { instanceId: 'legacy:mfi', defId: 'mfi', inputs: {} }
+    const b = binding('mfi', 'mfi')
+    expect(engineChips([b], seriesData([[b, 42.5]]), engineRegistry, [inst])).toEqual([])
+  })
+
+  it('…and ATR, which DID gain one, now emits it — the other half of that move', () => {
+    // The non-vacuity control for the case above: if `chipsFrom` had simply
+    // stopped emitting chips, the `mfi` case would pass for the wrong reason.
     const inst = { instanceId: 'legacy:atr', defId: 'atr', inputs: {} }
     const b = binding('atr', 'atr')
-    expect(engineChips([b], seriesData([[b, 2.7]]), engineRegistry, [inst])).toEqual([])
+    const chips = engineChips([b], seriesData([[b, 2.7]]), engineRegistry, [inst])
+    expect(chips.map(c => c.text)).toEqual(['ATR(14) 2.7000'])
   })
 
   it('a bar the series has no value on produces no chip, never NaN', () => {
@@ -139,86 +135,163 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
     expect(engineChips([null, undefined, {}], new Map(), engineRegistry, [])).toEqual([])
   })
 
-  it('chipsBySlot keys by the legacy crosshairData field', () => {
-    const b = binding('rsi', 'rsi')
-    const by = chipsBySlot(engineChips([b], seriesData([[b, 54.321]]), engineRegistry, [RSI_INST]))
-    expect(by.rsi.value).toBeCloseTo(54.321, 6)
-    expect(by.rsi.text).toBe('RSI(14) 54.3')
-  })
-
-  it('chipsBySlot DROPS a chip with no slot rather than inventing a key for it', () => {
-    // `readout.js`'s docstring claims this and nothing tested it (review M-3):
-    // deleting `if (!c.slot) continue` left 42 tests green. Unreachable today —
-    // the slot rail forbids a declared visible chip without a slot — but the
-    // whole point of that rail is that the next migration WILL add a chip, and a
-    // stated property with no test is the thing this branch keeps re-learning.
-    const kept = { slot: 'rsi', value: 54.3, text: 'RSI(14) 54.3', color: '#7b68ee' }
-    for (const slot of [null, undefined, '']) {
-      const out = chipsBySlot([{ ...kept, slot }, kept])
-      expect(Object.keys(out), `slot: ${JSON.stringify(slot)}`).toEqual(['rsi'])
-      expect(out[String(slot)]).toBeUndefined()
-    }
+  it('a SECOND instance of one definition gets its OWN label and colour', () => {
+    // ⛔ THE DEFECT `inputsFor` EXISTS TO PREVENT. Resolving inputs per
+    // DEFINITION — `cs.indicators[defId]`, which is what the shipped legend did
+    // and what the LEGACY lane still correctly does — collapses two RSI lines at
+    // different periods into two chips printing the same number. The engine lane
+    // resolves per INSTANCE, and this is the only shape that can tell them apart.
+    const a = binding('rsi', 'rsi', 'engine:rsi-a')
+    const b = binding('rsi', 'rsi', 'engine:rsi-b')
+    const chips = engineChips([a, b], seriesData([[a, 54.321], [b, 61.25]]), engineRegistry, [
+      { instanceId: 'engine:rsi-a', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' } },
+      { instanceId: 'engine:rsi-b', defId: 'rsi', inputs: { period: 7, color: '#ff0000' } },
+    ])
+    expect(chips.map(c => c.text)).toEqual(['RSI(14) 54.3', 'RSI(7) 61.3'])
+    expect(chips.map(c => c.color)).toEqual(['#7b68ee', '#ff0000'])
   })
 })
 
-describe('the slot bridge cannot silently lose a chip', () => {
-  it('every definition that DECLARES a visible chip has a legacy slot', () => {
-    // The rail. A B3 migration that declares `legend` on a plot but forgets the
-    // slot would produce a chip nothing renders — invisible everywhere.
-    const missing = []
-    let considered = 0
+describe('chipsFrom — the ONE formatting pipeline, fed by either lane', () => {
+  /** A LEGACY-lane entry: no instance, a thunk for the developing-bar fallback. */
+  const entry = (defId, plotKey, lastValue) => ({
+    defId, plotKey, series: { __id: `${defId}/${plotKey}` }, lastValue,
+  })
+  /** The legacy lane's `inputsFor`: the settings section, per DEFINITION. */
+  const fromLegacySection = (cs) => (defId) => cs[defId]
+
+  it('formats a legacy-lane chip from the definition, with no instance anywhere', () => {
+    const e = entry('stoch', 'k')
+    const chips = chipsFrom([e], seriesData([[e, 82.47]]), engineRegistry,
+      fromLegacySection({ stoch: { kColor: '#FF6B6B', dColor: '#4ECDC4' } }))
+    expect(chips.map(c => c.text)).toEqual(['%K 82.5'])
+    expect(chips[0].color).toBe('#FF6B6B')
+    expect(chips[0].instanceId).toBe(null)
+  })
+
+  it('a plot with no legend block emits nothing — the cloud and every guide', () => {
+    // Ichimoku declares chips on `tenkan` and `kijun` ONLY. `spanA`, `spanB` and
+    // `chikou` are drawn and must stay chip-less, exactly as they ship — and so
+    // must every `hlines` guide, which has no series at all.
+    const es = ['spanA', 'spanB', 'chikou'].map(k => entry('ichimoku', k))
+    expect(chipsFrom(es, seriesData(es.map(e => [e, 100])), engineRegistry, () => ({}))).toEqual([])
+
+    // …and the guides, from every definition that declares one. A loop that saw
+    // nothing would pass vacuously, so the count is asserted.
+    const guides = []
+    for (const def of engineRegistry.listDefinitions()) {
+      for (const p of def.plots) if (p.style === 'hlines') guides.push(entry(def.id, p.key))
+    }
+    expect(guides.length, 'no hlines guide in the registry — this half is vacuous').toBeGreaterThan(5)
+    expect(chipsFrom(guides, seriesData(guides.map(e => [e, 50])), engineRegistry, () => ({}))).toEqual([])
+  })
+
+  it('the fallback accepts a THUNK, which is how the legacy lane stays live', () => {
+    // The legacy entry is registered when the series is created; the last
+    // computed value moves under it on every SWR refresh. A captured NUMBER
+    // would freeze at whatever it was when the indicator was switched on.
+    let last = 2.5
+    const e = entry('atr', 'atr', () => last)
+    expect(chipsFrom([e], new Map(), engineRegistry, () => ({}))[0].text).toBe('ATR(14) 2.5000')
+    last = 3.75
+    expect(chipsFrom([e], new Map(), engineRegistry, () => ({}))[0].text).toBe('ATR(14) 3.7500')
+    // …and the hovered bar still WINS over it.
+    expect(chipsFrom([e], seriesData([[e, 1.125]]), engineRegistry, () => ({}))[0].text)
+      .toBe('ATR(14) 1.1250')
+  })
+
+  it('a thunk that THROWS is "no fallback", never a legend that disappears', () => {
+    // It runs on the rAF flush. A throw here used to be impossible because the
+    // fallback was a plain property read; a thunk makes it possible, so it is
+    // caught — and the chip is dropped exactly as an undefined fallback is.
+    const e = entry('atr', 'atr', () => { throw new Error('indicatorData moved') })
+    expect(chipsFrom([e], new Map(), engineRegistry, () => ({}))).toEqual([])
+    // …and the same throwing entry does not stop the chip BESIDE it rendering.
+    const ok = entry('sar', 'sar', () => 12.5)
+    expect(chipsFrom([e, ok], new Map(), engineRegistry, () => ({})).map(c => c.text))
+      .toEqual(['SAR 12.5000'])
+  })
+
+  it('never throws on the shapes a caller can actually hand it', () => {
+    expect(chipsFrom(null, null, null, null)).toEqual([])
+    expect(chipsFrom([entry('rsi', 'rsi')], undefined, engineRegistry, undefined)).toEqual([])
+    expect(chipsFrom([null, undefined, {}], new Map(), engineRegistry, () => ({}))).toEqual([])
+  })
+})
+
+describe('the chip declarations cannot silently lose — or gain — a chip', () => {
+  /** Every plot in the registry that declares a VISIBLE chip. */
+  const declared = () => {
+    const out = []
     for (const def of engineRegistry.listDefinitions()) {
       for (const plot of def.plots) {
         if (plot.style === 'hlines') continue
         if (!plot.legend || plot.legend.hide === true) continue
-        considered++
-        if (!LEGACY_SLOTS[`${def.id}::${plot.key}`]) missing.push(`${def.id}::${plot.key}`)
+        out.push(`${def.id}::${plot.key}`)
       }
     }
-    // A loop that saw nothing passes vacuously. Three visible chips are declared
-    // today (rsi.rsi, macd.macd, macd.signal); the count only ever grows.
-    expect(considered, 'no plot declares a visible legend — this rail is vacuous').toBeGreaterThanOrEqual(3)
-    expect(missing).toEqual([])
-  })
+    return out.sort()
+  }
 
-  it('every legacy slot names a plot that actually exists', () => {
-    const orphans = Object.keys(LEGACY_SLOTS).filter((k) => {
-      const [defId, plotKey] = k.split('::')
-      const def = engineRegistry.getDefinition(defId)
-      return !def || !def.plots.some(p => p.key === plotKey)
-    })
-    expect(orphans).toEqual([])
-  })
-
-  it('every slot is a field the shipped legend actually reads', () => {
-    // ⚠️ THIS READS `StockChart.jsx`. It used to compare `LEGACY_SLOTS` against a
-    // hand-copied `RENDERED_FIELDS` Set — one hand-written map policed by a
-    // second hand-written list, which cannot fail: deleting the ATR row from the
-    // legend left all 956 chart tests green, including this one. That is the same
-    // defect `7b28e5d8` fixed for LWC_DEFAULTS ("pin against the real bundle, not
-    // a second hand-copy"), and the fix is the same shape — derive the truth from
-    // the artifact that ships.
+  it('the NINE chips the shipped legend rendered are exactly the nine declared', () => {
+    // ⭐ THE RAIL THAT REPLACED THE SLOT BRIDGE, and it is derived from the
+    // SHIPPED SOURCE, not hand-typed. `LEGACY_SLOTS` used to police this: nine
+    // hand-written `'<defId>::<plotKey>' → '<crosshairData field>'` rows, and
+    // `readout.test.js` checked each side named something real. Task 10 deleted
+    // both the bridge and the fields it named, so the question changed with the
+    // answer: not "does every declared chip have a slot" but "are the declared
+    // chips EXACTLY the nine the legend used to print".
     //
-    // What is asserted, per slot, is the whole mechanism `chipsBySlot` depends on:
-    //   `crosshairData.<field> != null && chip('<key>', '<field>', …)`
-    // — the legend GUARDS on that field AND routes it through the slot-aware
-    // helper. Deleting the row, neutering the guard (`false && chip(…)`) or
-    // renaming the slot argument each take one of those three apart.
-    const src = fs.readFileSync(STOCK_CHART, 'utf8')
-    const region = between(src, 'const legChips = [', '].filter(Boolean)')
+    // ⚠️ AND IT MUST NOT BE A HAND-COPY. An earlier version of the rail below it
+    // compared `LEGACY_SLOTS` against a hand-written `RENDERED_FIELDS` Set —
+    // one hand-written map policed by a second hand-written list, which cannot
+    // fail: deleting the ATR row from the legend left all 956 chart tests green.
+    // `shippedLegendChips()` parses the real pre-B4 `legChips` array out of
+    // `git show`, so the expectation IS the artifact.
+    const shipped = shippedLegendChips()
+    expect(Object.keys(shipped).sort(), 'the declared chips and the SHIPPED nine disagree').toEqual(declared())
+    expect(declared().length, 'the shipped legend printed nine indicator chips').toBe(9)
+  })
 
-    // Non-vacuity: an empty or absurdly short region means the markers moved and
-    // every regex below would "pass" against nothing.
-    expect(region.length, 'the legChips region is too small to be the real one')
-      .toBeGreaterThan(400)
+  it('every declared chip formats exactly as its shipped row did', () => {
+    // Per chip: the LABEL and the PRECISION, both read off the pre-B4 source.
+    const shipped = shippedLegendChips()
+    const V = 12.3456789
+    const got = {}
+    const want = {}
+    for (const [key, row] of Object.entries(shipped)) {
+      const [defId, plotKey] = key.split('::')
+      const e = { defId, plotKey, series: { __id: key } }
+      const chips = chipsFrom([e], seriesData([[e, V]]), engineRegistry, () => ({}))
+      got[key] = chips.length === 1 ? chips[0].text : `<${chips.length} chips>`
+      want[key] = `${row.label} ${V.toFixed(row.decimals)}`
+    }
+    expect(got, 'a chip no longer prints what the shipped legend printed').toEqual(want)
+  })
 
-    const unread = Object.values(LEGACY_SLOTS).filter((field) => {
-      const row = new RegExp(
-        `crosshairData\\.${field}\\s*!=\\s*null\\s*&&\\s*chip\\(\\s*'[^']+'\\s*,\\s*'${field}'`,
-      )
-      return !row.test(region)
-    })
-    expect(unread, 'these slots name a crosshairData field the shipped legend does not render')
-      .toEqual([])
+  it('and the colour a chip wears is the one its shipped row wore', () => {
+    const shipped = shippedLegendChips()
+    const got = {}
+    const want = {}
+    for (const [key, row] of Object.entries(shipped)) {
+      const [defId, plotKey] = key.split('::')
+      const e = { defId, plotKey, series: { __id: key } }
+      // No inputs at all ⇒ the DEFINITION's declared default, which is what the
+      // shipped row's `|| '#xxxxxx'` fallback printed for an untouched blob.
+      got[key] = chipsFrom([e], seriesData([[e, 1]]), engineRegistry, () => ({}))[0].color
+      want[key] = row.color
+    }
+    expect(got, 'a chip changed colour — the definition default and the shipped fallback disagree')
+      .toEqual(want)
+  })
+
+  it('`stoch` declares no legendParams and `atr` does — asserted, not assumed', () => {
+    // `legend.label` short-circuits `legendParams` in `chipLabel`, so a
+    // `legendParams` on `stoch` would be INERT and could sit there being wrong.
+    // ATR's is load-bearing: without it the chip reads `ATR` instead of `ATR(14)`.
+    expect(engineRegistry.getDefinition('stoch').meta.legendParams).toBeUndefined()
+    expect(engineRegistry.getDefinition('atr').meta.legendParams).toEqual(['period'])
+    expect(engineRegistry.getDefinition('sar').meta.legendParams).toBeUndefined()
+    expect(engineRegistry.getDefinition('ichimoku').meta.legendParams).toBeUndefined()
   })
 })
