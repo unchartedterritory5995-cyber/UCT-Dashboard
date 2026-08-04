@@ -15,7 +15,7 @@ export const SETUP_GRADE_INFO = {
 }
 
 export const UCT_RATING_INFO = {
-  text: 'UCT Rating — the stock, not this report. See the Setup Grade for tonight\'s event.',
+  text: "UCT Rating — the stock, not this report. See the Setup Grade for tonight's event.",
   href: METHODOLOGY_PATH,
   hrefLabel: 'How this is computed →',
 }

@@ -10,8 +10,8 @@ import styles from './Methodology.module.css'
 const WEIGHTS = [
   ['Beat streak', '30%', 'Share of the last reported quarters whose EPS beat consensus. Quarters with no consensus on file are excluded from both sides of the ratio.'],
   ['Estimate revisions (30d)', '30%', 'Analyst estimate revisions over the trailing 30 days: upward revisions as a share of all revisions. No revisions at all counts as no signal, not a neutral score.'],
-  ['Relative strength rank', '25%', 'The stock\'s 1–99 relative-strength percentile against the tracked universe — the same number the RS chip shows, read from the same source.'],
-  ['Options premium vs typical move', '15%', 'Tonight\'s implied move against the average absolute move this stock has actually made on past reports. Cheaper than typical scores higher.'],
+  ['Relative strength rank', '25%', "The stock's 1–99 relative-strength percentile against the tracked universe — the same number the RS chip shows, read from the same source."],
+  ['Options premium vs typical move', '15%', "Tonight's implied move against the average absolute move this stock has actually made on past reports. Cheaper than typical scores higher."],
 ]
 
 const LADDER = [
