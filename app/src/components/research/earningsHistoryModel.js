@@ -7,12 +7,26 @@
 // the interim. The row shape emitted here is the FROZEN one the kit charts
 // were built against, so P4 swaps the source with zero component change.
 //
-// DECISION 1 — INDEX ALIGNMENT. `beat_history` (Finnhub, <=4, newest-first)
-// and `hist_stats.last_n` (<=8 next-day moves, newest-first) share no key.
-// They are zipped by INDEX over the shorter list, which holds because both are
-// walked newest-first off the same quarterly history. It is still an
-// approximation, so `historyBasis()` states the count AND the method — every
-// number carries its denominator (§2).
+// DECISION 1 (amended, P2 T8b review r2) — INDEX ALIGNMENT, GUARDED. `beat_
+// history` (Finnhub, <=4) and `hist_stats.last_n` (<=8 next-day moves,
+// newest-first) share no key, so they can only be zipped by INDEX. That
+// requires beat_history to ALSO be newest-first — which Finnhub does NOT
+// guarantee: live data proved a symbol whose /stock/earnings periods arrived
+// non-monotonic (`2026-06-30, 2025-12-31, 2026-03-31`) AND with only 3 of 4
+// quarters present. Zipping that raw order pairs the WRONG quarter's realized
+// move to the correctly-fiscal-paired implied bar — not just imprecise
+// (the prior framing) but ACTIVELY WRONG, silently feeding a false number
+// into the RICH/CHEAP chip. Two guards:
+//   1. beat_history is SORTED by period descending before zipping — newest-
+//      first is now GUARANTEED, not assumed.
+//   2. The zip is only TRUSTED when every period parsed AND the sorted
+//      length matches `moves`' length exactly — a length mismatch means one
+//      side's window doesn't correspond quarter-for-quarter with the other's
+//      (a hidden gap), and index alignment past that point can't be told
+//      apart from a coincidence. Untrusted -> every row's `reaction_pct` is
+//      null, never guessed. Per §12: showing nothing beats showing a
+//      confidently wrong number. `historyBasis()` still states the count AND
+//      the method — every number carries its denominator (§2).
 //
 // DECISION 2 — THE REPORT-DATE ROW STAYS `reported: false` UNTIL ITS REACTION
 // IS KNOWN. `ImpliedVsRealized.pairQuarters` identifies the current quarter by
@@ -106,8 +120,31 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   const hist = Array.isArray(beatHistory) ? beatHistory.filter(Boolean) : []
   const moves = Array.isArray(histStats?.last_n) ? histStats.last_n : []
 
-  // Both sources are newest-first; build newest-first, then reverse ONCE.
-  const past = hist.map((h, i) => {
+  // DECISION 1 — beat_history is NOT guaranteed newest-first by the provider
+  // (proven false live). Sort by period DESCENDING so the zip below walks a
+  // GUARANTEED newest-first order rather than an assumed one. A row with a
+  // missing/unparseable period (`dayKey` -> null) sorts to the end (oldest)
+  // as a safe default — its presence ALSO revokes trust in the whole zip
+  // (see `indexAlignmentTrusted`), so where it lands doesn't matter for the
+  // reaction pairing, only for display order.
+  const sortedHist = [...hist].sort((a, b) => {
+    const ka = dayKey(a?.period) || ''
+    const kb = dayKey(b?.period) || ''
+    if (ka === kb) return 0
+    return ka < kb ? 1 : -1   // descending: newer (larger ISO string) first
+  })
+
+  // Trusted ONLY when every period parsed AND the two lists are the SAME
+  // length. A length mismatch means one side's window doesn't correspond
+  // quarter-for-quarter with the other's (a hidden gap in whichever is
+  // shorter) — sorting alone can't fix that, and guessing past it is exactly
+  // the "confidently wrong number" §12 forbids.
+  const everyPeriodParsed = sortedHist.every((h) => dayKey(h?.period) != null)
+  const indexAlignmentTrusted = everyPeriodParsed && sortedHist.length === moves.length
+
+  // Both sources are newest-first (sortedHist now GUARANTEED so); build
+  // newest-first, then reverse ONCE.
+  const past = sortedHist.map((h, i) => {
     const fiscalYear = num(h?.year)
     const fiscalQuarter = num(h?.quarter)
     return emptyRow({
@@ -126,7 +163,7 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
       eps_estimate: num(h?.estimate),
       eps_actual: num(h?.actual),
       surprise_pct: num(h?.surprise),
-      reaction_pct: num(moves[i]),
+      reaction_pct: indexAlignmentTrusted ? num(moves[i]) : null,
     })
   }).reverse()
 

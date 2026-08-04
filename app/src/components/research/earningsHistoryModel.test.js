@@ -55,11 +55,21 @@ describe('buildQuarters', () => {
     expect(rows.map(r => r.reaction_pct)).toEqual([-1.0, 5.5, -4.1, 8.2, null])
   })
 
-  it('never invents a reaction it does not have', () => {
+  // AMENDED (P2 T8b review r2, IMPORTANT #3): previously this asserted
+  // PARTIAL pairing — the two newest quarters got real reactions from the
+  // shorter `last_n`, the two oldest got null. The reviewer's ruling
+  // supersedes that: a length mismatch between beat_history and last_n means
+  // one side's window doesn't correspond quarter-for-quarter with the
+  // other's, and index alignment can't be told apart from a coincidence past
+  // that point — proven live (a symbol with non-monotonic, 3-of-4
+  // beat_history) to actively mis-assign, not just approximate. The name
+  // stands, now taken to its logical conclusion: when the pairing can't be
+  // trusted for EVERY row, it invents a reaction for NONE of them.
+  it('never invents a reaction it does not have — including a length mismatch, which now drops ALL reactions', () => {
     const rows = buildQuarters({
       beatHistory, histStats: { last_n: [8.2, -4.1] }, reportDate: '2026-08-06', row,
     })
-    expect(rows.map(r => r.reaction_pct)).toEqual([null, null, -4.1, 8.2, null])
+    expect(rows.map(r => r.reaction_pct)).toEqual([null, null, null, null, null])
   })
 
   it('keeps a genuine 0 reaction instead of turning it into null', () => {
@@ -364,5 +374,74 @@ describe('buildQuarters — current-row suppression on a fiscal-identity match (
     })
     expect(none[0].fiscal_quarter).toBeNull()
     expect(none[0].fiscal_year).toBeNull()
+  })
+})
+
+// DECISION 1 amendment (P2 T8b review r2, IMPORTANT #3) — beat_history is
+// NOT guaranteed newest-first by the provider, and the index-zip against
+// hist_stats.last_n must not guess past a length mismatch or an unparseable
+// period. Real GLOO shape: /stock/earnings returned periods NON-MONOTONIC
+// (2026-06-30, 2025-12-31, 2026-03-31 — chronologically 06-30 > 03-31 >
+// 12-31, i.e. scrambled) and only 3 of 4 quarters.
+describe('buildQuarters — beat_history sort + index-alignment trust (DECISION 1, review r2)', () => {
+  // Finnhub's ACTUAL raw order for this shape — NOT newest-first.
+  const glooRawOrder = [
+    { period: '2026-06-30', actual: 0.50, estimate: 0.40, surprise: 25.0, quarter: 2, year: 2026 },
+    { period: '2025-12-31', actual: 0.30, estimate: 0.35, surprise: -14.3, quarter: 4, year: 2025 },
+    { period: '2026-03-31', actual: 0.45, estimate: 0.40, surprise: 12.5, quarter: 1, year: 2026 },
+  ]
+
+  it('sorts beat_history by period before zipping, so a scrambled provider order still pairs the RIGHT reaction to the RIGHT quarter', () => {
+    // TRUE newest-first reaction sequence: 06-30 (newest) -> 03-31 -> 12-31 (oldest).
+    const rows = buildQuarters({
+      beatHistory: glooRawOrder, histStats: { last_n: [5.0, -2.0, 3.0] },
+      reportDate: null, row: {},
+    })
+    expect(rows).toHaveLength(3)
+    // Oldest-first output.
+    expect(rows[0].period_end).toBe('2025-12-31')
+    expect(rows[0].reaction_pct).toBe(3.0)
+    expect(rows[1].period_end).toBe('2026-03-31')
+    expect(rows[1].reaction_pct).toBe(-2.0)
+    expect(rows[2].period_end).toBe('2026-06-30')
+    expect(rows[2].reaction_pct).toBe(5.0)
+    // Without the sort (the pre-fix behavior), index 1 would have paired
+    // 2025-12-31 (the OLDEST of the three, third in raw order) with
+    // moves[1]=-2.0 (actually 2026-03-31's reaction) — a wrong-quarter
+    // assignment. This test fails against that code (rows[0].reaction_pct
+    // would be -2.0, not 3.0).
+  })
+
+  it('a length mismatch after sorting still drops ALL reactions, not just the unmatched tail', () => {
+    const rows = buildQuarters({
+      beatHistory: glooRawOrder, histStats: { last_n: [5.0, -2.0, 3.0, 9.9] },  // length 4, hist length 3
+      reportDate: null, row: {},
+    })
+    expect(rows).toHaveLength(3)
+    expect(rows.every((r) => r.reaction_pct === null)).toBe(true)
+  })
+
+  it('an unparseable period anywhere in beat_history revokes trust for the WHOLE zip', () => {
+    const withGarbage = [
+      ...glooRawOrder,
+      { period: 'garbage', actual: 0.10, estimate: 0.10, surprise: 0, quarter: 3, year: 2026 },
+    ]
+    const rows = buildQuarters({
+      beatHistory: withGarbage, histStats: { last_n: [1, 2, 3, 4] },  // length MATCHES (4) but one period is bad
+      reportDate: null, row: {},
+    })
+    expect(rows).toHaveLength(4)
+    expect(rows.every((r) => r.reaction_pct === null)).toBe(true)
+    // The garbage row still renders (period_end/quarter null-guarded
+    // separately) — it just carries no reaction, and neither does anything else.
+    expect(rows.some((r) => r.period_end === null)).toBe(true)
+  })
+
+  it('trusts the zip again once lengths match exactly, even after sorting (the common case is unaffected)', () => {
+    const rows = buildQuarters({
+      beatHistory: glooRawOrder, histStats: { last_n: [5.0, -2.0, 3.0] },
+      reportDate: null, row: {},
+    })
+    expect(rows.every((r) => r.reaction_pct != null)).toBe(true)
   })
 })
