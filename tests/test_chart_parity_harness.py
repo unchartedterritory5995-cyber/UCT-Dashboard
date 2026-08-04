@@ -288,7 +288,8 @@ class _FakePlaywright:
         return False
 
 
-def _drive_main(monkeypatch, tmp_path, capture_impl, cases=("macd_only",), verify=None):
+def _drive_main(monkeypatch, tmp_path, capture_impl, cases=("macd_only",), verify=None,
+                extra_argv=()):
     monkeypatch.setattr(cp, "sync_playwright", lambda: _FakePlaywright())
     monkeypatch.setattr(cp, "capture", capture_impl)
     # The identities below say `kind: "dist"`, so `main` runs the served-vs-disk
@@ -312,6 +313,7 @@ def _drive_main(monkeypatch, tmp_path, capture_impl, cases=("macd_only",), verif
         "--base-b", "http://127.0.0.1:2",
         "--cases", *cases,
         "--out", str(tmp_path / "out"),
+        *extra_argv,
     ])
     return cp.main()
 
@@ -955,3 +957,431 @@ def test_the_verified_root_reaches_the_REPORT():
     line = cp.identity_line("B (candidate)", ident)
     assert "served == disk" in line
     assert "parity-B" in line
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ─── B5: THE GATE LEARNS TO MEASURE AN *INTENDED* CHANGE ─────────────────────
+#
+# Every gate on this branch has been `changed <= tolerance` with `tolerance == 0`.
+# B5's cutover turns the indicator bands into real LWC panes, so it changes the
+# picture BY CONSTRUCTION and that sentence stops being available. A `--tolerance`
+# cannot replace it: a budget passes anything under the budget, so it also hides
+# the next change of the same size, and it cannot say WHERE the change landed.
+#
+# Three mechanisms replace it, and each one is gated here in both directions:
+#
+#   * `expect` — an EXACT per-case number that must hold on EVERY run. Not the
+#     worst run: variance is itself a failure, because a number that moves is a
+#     number nobody can sign off. A regression SMALLER than the declared number
+#     fails too, which is the thing a tolerance cannot do.
+#   * `regions` — named rectangles with their own expectations, counted from the
+#     SAME mask the headline number came from, plus a `rest` bucket that is
+#     COMPUTED BY MASK SUBTRACTION and that a case may not declare. A pixel
+#     nobody named lands in `rest`, and `rest` always expects 0.
+#   * the PANE MANIFEST — pane count, per-pane pixel height, per-series pane
+#     index and priceScaleId, read off the page and diffed as JSON. A change that
+#     moves pixels but not the manifest, or the manifest but not pixels, is a
+#     regression by definition: one of the two is lying.
+
+
+def _img(tmp_path, name, size=(10, 10), dots=()):
+    img = Image.new("RGB", size, (0, 0, 0))
+    for xy in dots:
+        img.putpixel(xy, (255, 255, 255))
+    p = tmp_path / name
+    img.save(p)
+    return p
+
+
+# ─── regions: the same mask, split ───────────────────────────────────────────
+
+def test_region_counts_split_the_same_mask_the_headline_number_came_from(tmp_path):
+    # Two 10x10 images differing in exactly one 2x2 block at (1,1).
+    pa = _img(tmp_path, "a.png")
+    pb = _img(tmp_path, "b.png", dots=[(x, y) for x in (1, 2) for y in (1, 2)])
+    out = cp.diff(pa, pb, regions=[{"name": "corner", "box": [0, 0, 5, 5]}])
+    assert out["changed"] == 4
+    # The region count is derived from the SAME mask, so it CANNOT disagree.
+    assert out["regions"] == {"corner": 4, "rest": 0}
+
+
+def test_rest_is_computed_and_cannot_be_declared_away(tmp_path):
+    pa = _img(tmp_path, "a.png")
+    pb = _img(tmp_path, "b.png", dots=[(8, 8)])      # OUTSIDE the declared region
+    out = cp.diff(pa, pb, regions=[{"name": "corner", "box": [0, 0, 5, 5]}])
+    assert out["regions"]["corner"] == 0
+    assert out["regions"]["rest"] == 1, (
+        "a changed pixel nobody named vanished — `rest` is the bucket that catches "
+        "the cutover moving something into a rectangle no case declared")
+
+
+def test_declaring_a_region_named_rest_is_refused():
+    with pytest.raises(SystemExit) as ei:
+        cp.validate_regions([{"name": "rest", "box": [0, 0, 1, 1]}])
+    assert "rest" in str(ei.value)
+
+
+def test_overlapping_regions_do_not_double_count_into_rest(tmp_path):
+    pa = _img(tmp_path, "a.png")
+    pb = _img(tmp_path, "b.png", dots=[(2, 2)])
+    out = cp.diff(pa, pb, regions=[
+        {"name": "left", "box": [0, 0, 5, 10]},
+        {"name": "upper", "box": [0, 0, 10, 5]},      # overlaps `left`
+    ])
+    # `rest` is a MASK subtraction, not `changed - sum(regions)`; the naive
+    # arithmetic gives 1 - (1 + 1) = -1 here, and `outside = mask` gives 1.
+    assert out["regions"] == {"left": 1, "upper": 1, "rest": 0}
+
+
+def test_a_zero_area_region_is_refused():
+    # A region that can only ever report 0 reads exactly like a region that is
+    # holding the line. It is not one.
+    for box in ([4, 4, 4, 9], [4, 4, 9, 4], [9, 9, 4, 4]):
+        with pytest.raises(SystemExit) as ei:
+            cp.validate_regions([{"name": "flat", "box": box}])
+        assert "zero area" in str(ei.value)
+
+
+def test_a_region_that_falls_off_the_canvas_is_refused(tmp_path):
+    # The same failure with a different cause: a box past the edge counts the
+    # padding Pillow invents as "unchanged", so it under-reports forever. The
+    # image size is only known inside `diff`, which is where this one lives.
+    pa = _img(tmp_path, "a.png")
+    pb = _img(tmp_path, "b.png", dots=[(2, 2)])
+    with pytest.raises(SystemExit) as ei:
+        cp.diff(pa, pb, regions=[{"name": "past_the_edge", "box": [0, 0, 40, 40]}])
+    assert "outside the 10x10 canvas" in str(ei.value)
+
+
+def test_two_regions_may_not_share_a_name():
+    with pytest.raises(SystemExit):
+        cp.validate_regions([{"name": "dup", "box": [0, 0, 2, 2]},
+                             {"name": "dup", "box": [2, 2, 4, 4]}])
+
+
+def test_a_diff_with_no_regions_declared_still_reports_the_key(tmp_path):
+    # THE CONTROL for every region test above: `regions` is opt-in, and 44 stored
+    # baselines were measured without it. A case that declares none must still be
+    # measured exactly as before, and the key must exist so a consumer of
+    # report.json never has to guess whether the run predates this.
+    pa = _img(tmp_path, "a.png")
+    pb = _img(tmp_path, "b.png", dots=[(2, 2)])
+    out = cp.diff(pa, pb)
+    assert out["changed"] == 1
+    assert out["regions"] is None
+
+
+# ─── `expect`: an equality, on every run ─────────────────────────────────────
+
+def test_expect_is_an_EQUALITY_and_a_smaller_diff_fails_too():
+    entry = {"name": "x", "tolerance": 0, "expect": 88, "runs": [
+        {"changed": 88, "size_mismatch": False}, {"changed": 87, "size_mismatch": False}]}
+    # 87 < 88. A tolerance of 88 would PASS this. It is a regression: the change
+    # that was signed off is not the change that happened.
+    assert cp.collapse_case(entry)["pass"] is False
+
+
+def test_expect_demands_zero_variance_across_every_run():
+    entry = {"name": "x", "tolerance": 0, "expect": 88, "runs": [
+        {"changed": 88, "size_mismatch": False}, {"changed": 88, "size_mismatch": False}]}
+    assert cp.collapse_case(entry)["pass"] is True
+    entry["runs"][1]["changed"] = 89
+    assert cp.collapse_case(entry)["pass"] is False, "variance upward"
+    # ⚠️ AND DOWNWARD, WHICH IS THE HALF A WORST-RUN CHECK CANNOT SEE AT ALL.
+    # Written with 89 alone this case was NOT lethal to
+    # `entry["pass"] = not run_failures(entry, worst)` — the deviating run WAS
+    # the worst one, so the mutation caught it by accident and the test named
+    # "zero variance across every run" was gating something weaker than its name.
+    # 87 is invisible to any check that looks only at the maximum.
+    entry["runs"][1]["changed"] = 87
+    assert cp.collapse_case(entry)["pass"] is False, (
+        "a run BELOW the declared number passed — the verdict is reading the worst "
+        "run, not every run, and `expect` is only an equality on one of them")
+
+
+def test_a_run_that_misses_its_expect_leaves_the_case_with_NO_flake_bound():
+    # `clean_runs` and the verdict must count against the SAME rule. When they
+    # did not, `flake_bound_95` was computed from runs the verdict had rejected —
+    # the exact defect `off40/report.json` shipped at report level.
+    entry = cp.collapse_case({"name": "x", "tolerance": 0, "expect": 88, "runs": [
+        {"run": 1, "changed": 88, "size_mismatch": False},
+        {"run": 2, "changed": 89, "size_mismatch": False}]})
+    assert entry["pass"] is False
+    assert entry["clean_runs"] == 1
+    assert entry["flake_bound_95"] is None
+
+
+def test_a_case_at_its_expect_on_every_run_DOES_carry_a_bound():
+    # The other direction, so the test above cannot pass by a bound never being
+    # emitted. A declared non-zero number held over n runs is exactly the claim
+    # `1 - 0.05^(1/n)` bounds.
+    entry = cp.collapse_case({"name": "x", "tolerance": 0, "expect": 88, "runs": [
+        {"run": i + 1, "changed": 88, "size_mismatch": False} for i in range(20)]})
+    assert entry["pass"] is True
+    assert entry["clean_runs"] == 20
+    assert entry["flake_bound_95"] == pytest.approx(0.1391, abs=1e-4)
+
+
+def test_a_region_expectation_fails_the_case_even_when_the_total_matches():
+    # THE POINT: the same total can be the WRONG picture. 88 px that moved from
+    # the oscillator strip into the price pane is a regression with a green total.
+    entry = {"name": "x", "tolerance": 0, "expect": 88,
+             "expect_regions": {"price_plot": 0, "osc_strip": 88},
+             "runs": [{"run": 1, "changed": 88, "size_mismatch": False,
+                       "regions": {"price_plot": 88, "osc_strip": 0, "rest": 0}}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("price_plot" in m for m in entry["expectation_failures"])
+
+
+def test_an_unnamed_pixel_in_REST_fails_a_case_whose_named_regions_are_perfect():
+    entry = {"name": "x", "tolerance": 0, "expect": 89,
+             "expect_regions": {"osc_strip": 88},
+             "runs": [{"run": 1, "changed": 89, "size_mismatch": False,
+                       "regions": {"osc_strip": 88, "rest": 1}}]}
+    # `rest` is never declared and always expects 0 — that is what makes it the
+    # bucket a cutover cannot hide a pixel in.
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("rest" in m for m in entry["expectation_failures"])
+
+
+def test_a_case_with_regions_all_where_it_said_they_would_be_PASSES():
+    """THE CONTROL for both tests above: a region gate that refused everything
+    would satisfy them while making the whole mechanism unusable."""
+    entry = {"name": "x", "tolerance": 0, "expect": 88,
+             "expect_regions": {"price_plot": 0, "osc_strip": 88},
+             "runs": [{"run": 1, "changed": 88, "size_mismatch": False,
+                       "regions": {"price_plot": 0, "osc_strip": 88, "rest": 0}}]}
+    assert cp.collapse_case(entry)["pass"] is True
+
+
+def test_a_case_that_declares_NOTHING_still_collapses_on_its_tolerance():
+    """⭐ THE BACKWARDS-COMPATIBILITY RAIL. B5's whole design rests on zero
+    surviving twelve of thirteen tasks, which means every case that does NOT
+    declare an `expect` has to keep reading the number it reads today. Asserted
+    against the REAL case list, entry-for-entry, through the same construction
+    `main()` uses."""
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    defaults = doc["defaults"]
+    checked = 0
+    for raw in doc["cases"]:
+        case = {**defaults, **raw}
+        entry = cp.case_entry(case, tolerance=0, expect=None)
+        if entry["expect"] is not None or entry["expect_regions"]:
+            continue                       # a case that HAS declared one (B5 T11+)
+        checked += 1
+        for values, want in (([0, 0, 0], True), ([0, 1, 0], False), ([9], False)):
+            entry["runs"] = [{"run": i + 1, "changed": v, "size_mismatch": False}
+                             for i, v in enumerate(values)]
+            got = cp.collapse_case(dict(entry, runs=entry["runs"]))
+            assert got["pass"] is want, f"{case['name']} {values}"
+            assert got["changed"] == max(values), "the headline is still the WORST run"
+    assert checked >= 24, f"only {checked} undeclared cases — the rail lost its subject"
+
+
+# ─── the pane manifest ───────────────────────────────────────────────────────
+
+def test_manifest_diff_is_empty_when_both_sides_report_the_same_layout():
+    m = {"chartHeight": 594, "separatorPx": 1,
+         "panes": [{"index": 0, "height": 594, "series": []}]}
+    assert cp.manifest_diff(m, json.loads(json.dumps(m))) == []
+
+
+def test_manifest_diff_names_the_pane_that_moved():
+    a = {"chartHeight": 594, "separatorPx": 1,
+         "panes": [{"index": 0, "height": 594, "series": []}]}
+    b = {"chartHeight": 594, "separatorPx": 1,
+         "panes": [{"index": 0, "height": 505, "series": []},
+                   {"index": 1, "height": 88, "series": []}]}
+    d = cp.manifest_diff(a, b)
+    assert d != []
+    assert any("panes" in line and "1" in line for line in d)
+    assert any("594" in line and "505" in line for line in d), d
+
+
+def test_manifest_diff_sees_a_series_that_changed_PANE_or_SCALE():
+    a = {"panes": [{"index": 0, "height": 594,
+                    "series": [{"id": "rsi:line", "paneIndex": 0, "priceScaleId": "rsi"}]}]}
+    b = {"panes": [{"index": 0, "height": 594,
+                    "series": [{"id": "rsi:line", "paneIndex": 1, "priceScaleId": "right"}]}]}
+    d = cp.manifest_diff(a, b)
+    assert any("paneIndex" in line for line in d), d
+    assert any("priceScaleId" in line for line in d), d
+
+
+def test_a_case_with_regions_but_no_manifest_still_reports_and_does_not_crash():
+    # ChartRender only publishes __paneManifest under `?fixedbars=`, and a page
+    # that does not is a MISSING manifest, not an error: raising here would abort
+    # a 20-run measurement halfway, at run 13 of 20, with nothing written down.
+    class _FakePageWithNoGlobal:
+        def evaluate(self, _expr):
+            return None                      # `window.__paneManifest ?? null`
+
+    class _FakePageThatThrew:
+        def evaluate(self, _expr):
+            raise RuntimeError("Execution context was destroyed")
+
+    assert cp.read_manifest(_FakePageWithNoGlobal()) is None
+    assert cp.read_manifest(_FakePageThatThrew()) is None
+
+
+def test_read_manifest_returns_the_PUBLISHED_object():
+    """The control: a `read_manifest` that returned None unconditionally would
+    satisfy the test above and silently disarm every manifest assertion."""
+    m = {"chartHeight": 594, "panes": [{"index": 0, "height": 594, "series": []}]}
+
+    class _FakePageWithOne:
+        def evaluate(self, _expr):
+            return m
+
+    assert cp.read_manifest(_FakePageWithOne()) == m
+
+
+def test_the_MANIFEST_moving_while_no_pixel_moves_is_a_failure():
+    # One of the two is lying. A pane layout that differs and paints identically
+    # did not happen; a manifest that is being written from the wrong place did.
+    entry = {"name": "x", "tolerance": 0, "runs": [{
+        "run": 1, "changed": 0, "size_mismatch": False,
+        "manifest_a": {"panes": [{"index": 0, "height": 594}]},
+        "manifest_b": {"panes": [{"index": 0, "height": 505}]},
+    }]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("manifest" in m for m in entry["expectation_failures"])
+
+
+def test_PIXELS_moving_while_the_manifest_says_nothing_did_is_a_failure():
+    # The other direction, and it is DECLARED — a colour change legitimately
+    # moves pixels with identical geometry, so only a case that says "this is a
+    # geometry change" gets to demand the manifest moved with them.
+    entry = {"name": "x", "tolerance": 0, "expect": 88, "expect_manifest_change": True,
+             "runs": [{"run": 1, "changed": 88, "size_mismatch": False,
+                       "manifest_a": {"panes": [{"index": 0, "height": 594}]},
+                       "manifest_b": {"panes": [{"index": 0, "height": 594}]}}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("identical" in m for m in entry["expectation_failures"])
+
+
+def test_a_case_that_declares_a_geometry_change_fails_when_NO_manifest_was_published():
+    # Otherwise the sharpest assertion in B5 goes quietly vacuous the moment the
+    # page stops publishing — a missing manifest would read as "no contradiction".
+    entry = {"name": "x", "tolerance": 0, "expect": 88, "expect_manifest_change": True,
+             "runs": [{"run": 1, "changed": 88, "size_mismatch": False,
+                       "manifest_a": None, "manifest_b": None}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("no pane manifest" in m for m in entry["expectation_failures"])
+
+
+def test_a_declared_geometry_change_that_BOTH_moved_passes():
+    """THE CONTROL for the three above."""
+    entry = {"name": "x", "tolerance": 0, "expect": 88, "expect_manifest_change": True,
+             "runs": [{"run": 1, "changed": 88, "size_mismatch": False,
+                       "manifest_a": {"panes": [{"index": 0, "height": 594}]},
+                       "manifest_b": {"panes": [{"index": 0, "height": 505}]}}]}
+    assert cp.collapse_case(entry)["pass"] is True
+
+
+def test_a_case_with_no_manifest_ANYWHERE_is_unaffected():
+    """⭐ THE OTHER HALF OF THE BACKWARDS-COMPATIBILITY RAIL. Nothing publishes
+    `window.__paneManifest` yet, so every case in the file reads None on both
+    sides today. That must stay a 🟢 pass, or this task turns 44 green cases red
+    on the day it lands."""
+    entry = cp.collapse_case({"name": "x", "tolerance": 0, "runs": [
+        {"run": 1, "changed": 0, "size_mismatch": False,
+         "manifest_a": None, "manifest_b": None}]})
+    assert entry["pass"] is True
+    assert entry["manifest_diff"] == []
+
+
+# ─── the CLI, and the refusal that keeps the two mechanisms apart ────────────
+
+def test_expect_and_a_tolerance_BUDGET_cannot_both_be_declared(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "argv", [
+        "chart_parity.py", "--base-a", "http://127.0.0.1:1", "--same-build",
+        "--cases", "rsi_only", "--expect", "88",
+        "--tolerance", "5", "--tolerance-reason", "because",
+        "--out", str(tmp_path / "out")])
+    with pytest.raises(SystemExit) as ei:
+        cp.main()
+    # One is a declared, measured, signed-off number; the other is an escape. A
+    # run carrying both has a verdict nobody can state.
+    assert "--expect" in str(ei.value) and "--tolerance" in str(ei.value)
+
+
+def test_main_EXITS_1_when_the_measured_diff_is_not_the_EXPECTED_number(monkeypatch, tmp_path):
+    frame = png("#0e0f0d")
+
+    def settles(page, url, out_png, *_a, **_kw):
+        Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_png).write_bytes(frame)
+        return {"shots": 2, "settled": True, "ready_ms": 1, "ready_reason": "stable"}
+
+    rc = _drive_main(monkeypatch, tmp_path, settles, extra_argv=["--expect", "88"])
+    assert rc == 1, "0 changed pixels satisfied `--expect 88`"
+    report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
+    assert report["results"][0]["expect"] == 88
+    assert report["results"][0]["changed"] == 0
+    assert "expected EXACTLY 88" in " ".join(report["results"][0]["expectation_failures"])
+
+
+def test_main_EXITS_0_when_the_measured_diff_IS_the_expected_number(monkeypatch, tmp_path):
+    """The control for the test above AND the proof that `--expect` reaches the
+    entry at all: if it were dropped on the floor both would still exit 1 for
+    unrelated reasons."""
+    frame = png("#0e0f0d")
+
+    def settles(page, url, out_png, *_a, **_kw):
+        Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_png).write_bytes(frame)
+        return {"shots": 2, "settled": True, "ready_ms": 1, "ready_reason": "stable"}
+
+    assert _drive_main(monkeypatch, tmp_path, settles, extra_argv=["--expect", "0"]) == 0
+
+
+def test_main_carries_the_case_file_REGIONS_and_the_PAGE_MANIFEST_into_report_json(
+        monkeypatch, tmp_path):
+    """⭐ THE WIRING, AND IT IS THE HALF THAT ROTS SILENTLY. Every unit above
+    interrogates `diff`, `collapse_case` and `read_manifest` directly; none of
+    them can see `main()` failing to HAND them anything. Drop
+    `regions=entry.get("regions")` from the `diff` call, or
+    `run["manifest_%s"] = cap.get("manifest")` from the capture loop, and every
+    region and every manifest assertion in B5 goes quietly vacuous while this
+    file stays green.
+
+    Driven on `rsi_only`, which is the case that carries a real region block, at
+    the real 1200x620 export size — a 40x20 stub would be refused by the
+    off-canvas rule, which is itself the point of that rule."""
+    frame = BytesIO()
+    Image.new("RGB", (1200, 620), (14, 15, 13)).save(frame, format="PNG")
+    frame = frame.getvalue()
+    manifest = {"chartHeight": 620, "separatorPx": 1,
+                "panes": [{"index": 0, "height": 460, "series": []}]}
+
+    def settles(page, url, out_png, *_a, **_kw):
+        Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_png).write_bytes(frame)
+        return {"shots": 2, "settled": True, "ready_ms": 1, "ready_reason": "stable",
+                "manifest": manifest}
+
+    rc = _drive_main(monkeypatch, tmp_path, settles, cases=("rsi_only",))
+    assert rc == 0
+    run = json.loads((tmp_path / "out" / "report.json").read_text(
+        encoding="utf-8"))["results"][0]["runs"][0]
+    assert run["regions"] == {"price_top": 0, "rsi_band": 0,
+                              "volume_and_axis": 0, "rest": 0}, (
+        "the case file's rectangles never reached `diff` — the region gate is inert")
+    assert run["manifest_a"] == manifest and run["manifest_b"] == manifest, (
+        "the page's manifest never reached the run — the geometry gate is inert")
+    assert run["manifest_diff"] == []
+
+
+def test_a_case_file_region_reaches_the_ENTRY_and_the_report(monkeypatch, tmp_path):
+    """The wiring between `regions` in the case file and `diff(regions=…)`. Both
+    halves: the entry carries the rectangles, and the run carries the counts."""
+    case = {"name": "x", "regions": [
+        {"name": "price_plot", "box": [0, 0, 40, 10], "expect": 0},
+        {"name": "osc_strip", "box": [0, 10, 40, 20]},
+    ]}
+    entry = cp.case_entry(case, tolerance=0, expect=None)
+    assert entry["regions"] == case["regions"]
+    assert entry["expect_regions"] == {"price_plot": 0}, (
+        "only a region that DECLARES an expectation becomes one — a region "
+        "without `expect` is measured and reported, not gated")

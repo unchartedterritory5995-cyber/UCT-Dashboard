@@ -20,6 +20,42 @@
     "Tolerance is 0 everywhere and should stay 0 — see report.md's 'Reading this'.",
     "A per-case `tolerance` must be accompanied by `toleranceReason`.",
     "",
+    "THREE MORE KEYS EXIST FOR B5, WHERE THE PICTURE CHANGES BY CONSTRUCTION AND",
+    "\"0 changed pixels\" STOPS BEING AVAILABLE. None of them is a tolerance and none",
+    "of them relaxes anything:",
+    "",
+    "  `expect`: <int> — the EXACT changed-pixel count, asserted on EVERY run. A diff",
+    "  SMALLER than the number fails too (a tolerance would pass it, and would also",
+    "  hide the next change of the same size), and variance between runs is itself a",
+    "  failure. This is the mechanism that priced the MACD head-mask at 88 px and the",
+    "  VWAP session anchor at 2,590 px — both 20/20 with zero variance — promoted from",
+    "  two hand-runs into a field. `--expect N` is the one-off command-line form and is",
+    "  mutually exclusive with `--tolerance > 0`.",
+    "",
+    "  `regions`: [{name, box: [x0,y0,x1,y1], expect?}] — named rectangles counted from",
+    "  the SAME mask the headline number came from, so they cannot disagree with it. The",
+    "  headline `changed` stays whole-canvas: a region block adds a second, finer",
+    "  verdict, it never replaces the first. A region WITHOUT `expect` is measured and",
+    "  reported but not gated (that is how a new rectangle gets its number before anyone",
+    "  signs off on it); the moment any region declares one, the block is gated — and so",
+    "  is `rest`. ⛔ `rest` IS EVERY CHANGED PIXEL OUTSIDE EVERY DECLARED RECTANGLE, IT",
+    "  IS COMPUTED BY MASK SUBTRACTION, AND A CASE MAY NOT DECLARE IT (the harness",
+    "  refuses the name). Its expectation is always 0, which is what stops a cutover",
+    "  from moving a pixel into a rectangle nobody named. Boxes are whole pixels, must",
+    "  have area, and must lie inside the canvas — all three are refusals, because a",
+    "  region that can only ever report 0 reads exactly like one that is holding the",
+    "  line. See `rsi_only`'s `_regionsReason` for how to MEASURE a boundary rather than",
+    "  guess it.",
+    "",
+    "  `expectManifestChange`: true — the case asserts the PANE MANIFEST",
+    "  (`window.__paneManifest`: pane count, per-pane pixel height, per-series pane index",
+    "  and priceScaleId) differs between A and B. A change that moves pixels but not the",
+    "  manifest, or the manifest but not pixels, is a regression by definition: one of",
+    "  the two is lying. The manifest-moved-but-no-pixel-did direction is checked on",
+    "  EVERY case and needs no declaration; this key adds the other direction, which",
+    "  only a geometry case may demand (a colour perturbation legitimately moves pixels",
+    "  with unchanged geometry).",
+    "",
     "TWO BAR FIXTURES. `defaults` names `ramp200` (200 DAILY bars, tf D), and a case",
     "may override `tf`, `fixedbars` and `bars` to pick another one. `intraday5m` is",
     "579 FIVE-MINUTE extended-hours bars over a weekend gap and a DST transition.",
@@ -130,6 +166,24 @@
     {
       "name": "rsi_only",
       "why": "Single-line separate pane — proves pane creation, height and the 30/70 guides survive the move.",
+      "_regionsReason": "⭐ THE WORKED EXAMPLE FOR THE B5 DECLARED-DIFF GATE, AND ITS BOUNDARIES ARE MEASURED, NOT GUESSED. The three rectangles tile the whole 1200x620 export, so `rest` (computed by mask subtraction, never declarable) has nowhere to hide a pixel. Each boundary was measured on build `2618d94afe99` by perturbing ONE thing at a time and reading the changed-pixel bounding box: `candles.upColor` moved one hex digit → 1,894 px in y[164,391); `indicators.rsi.color` → 1,004 px in y[391,454); `volume.upColor` → 32,327 px in y[469,572). So y=391 is the exact row where the candles stop and the RSI band starts, and y=460 sits in the measured gap between the RSI band and the volume pane. THE SPLIT IS NOT DECORATION: those same two perturbations, re-run WITH these regions, report {price_top: 1894, rsi_band: 0} and {price_top: 0, rsi_band: 1004} respectively — the rectangles discriminate, in both directions, which is the only thing that makes a per-region 0 mean anything. ⚠️ THESE ARE TODAY'S BAND BOUNDARIES, NOT THE CUTOVER'S. The RSI band is a scaleMargins band INSIDE pane 0 and it sits ABOVE the volume pane; at Flip C it becomes a real pane BELOW volume, so these rows move and `price_plot` becomes one rectangle instead of two. B5 Task 11 re-prices every rectangle and writes the per-region `expect`s the cutover is signed off on; until then all three read 0 because the whole canvas does. A region with no `expect` is measured and reported but not gated — these declare 0, so they gate, and `rest` gates with them.",
+      "regions": [
+        {
+          "name": "price_top",
+          "box": [0, 0, 1200, 391],
+          "expect": 0
+        },
+        {
+          "name": "rsi_band",
+          "box": [0, 391, 1200, 460],
+          "expect": 0
+        },
+        {
+          "name": "volume_and_axis",
+          "box": [0, 460, 1200, 620],
+          "expect": 0
+        }
+      ],
       "settings": {
         "indicators": {
           "rsi": {

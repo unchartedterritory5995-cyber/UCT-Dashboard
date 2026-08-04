@@ -74,9 +74,37 @@ probability at ``1 − 0.05^(1/n)`` with 95% confidence — 5 runs bounds it at 
 can round it up to "it doesn't flake". Every run's value is listed, and the
 headline number is the WORST run, never the best.
 
-Exit code is 1 when any case exceeds its tolerance, so this is usable as a
-gate and not just a report. Output (PNGs + report.md + report.json) lands in
-``tools/chart_parity_out/`` — gitignored.
+**Measuring an INTENDED change** (``expect`` / ``regions`` / the pane manifest)::
+
+    python tools/chart_parity.py --base-a $A --base-b $B --cases macd_headmask
+    # the case file carries `"expect": 88` and a `regions` block; the run must
+    # equal 88 on EVERY run, price_plot must read 0, and `rest` must read 0.
+
+Every gate on this branch has been ``changed <= tolerance`` with ``tolerance ==
+0``. B5's cutover turns the indicator bands into real panes, so it changes the
+picture by construction and that sentence stops being available. A tolerance
+cannot replace it — a budget passes anything under it, including the NEXT
+regression of the same size, and it cannot say WHERE the change landed. So:
+
+  * ``expect`` is an EQUALITY on every run (not the worst): a diff SMALLER than
+    the declared number fails, and variance between runs is itself a failure.
+    ``--expect N`` is the one-off form; the durable form is a case-file field.
+  * ``regions`` are named rectangles counted from the SAME mask the headline
+    number came from, each with its own expectation, plus ``rest`` — every
+    changed pixel outside every declared rectangle, COMPUTED by mask
+    subtraction, never declarable, and always expected to be 0.
+  * the PANE MANIFEST (``window.__paneManifest``: pane count, per-pane pixel
+    height, per-series pane index and priceScaleId) is diffed as JSON alongside
+    the pixels, because a change that moves pixels but not the manifest — or the
+    manifest but not pixels — means one of the two is lying.
+
+``--expect`` and ``--tolerance > 0`` are mutually exclusive: one is a declared
+measurement, the other is an escape.
+
+Exit code is 1 when any case exceeds its tolerance, misses its ``expect``, puts a
+pixel in a region it did not declare, or contradicts its own pane manifest — so
+this is usable as a gate and not just a report. Output (PNGs + report.md +
+report.json) lands in ``tools/chart_parity_out/`` — gitignored.
 """
 from __future__ import annotations
 
@@ -627,7 +655,11 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
             out_png.write_bytes(prev_png)
             return {"shots": shot_no, "settled": True,
                     "ready_ms": ready.get("ms"), "ready_reason": ready.get("reason"),
-                    "ready_frames": ready.get("frames")}
+                    "ready_frames": ready.get("frames"),
+                    # Read from the SETTLED page, next to the bytes that were
+                    # accepted — a manifest read before the chart stopped moving
+                    # would describe a layout the screenshot never shows.
+                    "manifest": read_manifest(page)}
         prev_png, prev_px = png, px
         page.wait_for_timeout(settle_ms)
 
@@ -639,11 +671,161 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
     )
 
 
-# ─── diff ────────────────────────────────────────────────────────────────────
+# ─── the pane manifest ───────────────────────────────────────────────────────
+#
+# 🔑 PIXELS AND GEOMETRY ARE TWO WITNESSES TO ONE FACT, AND B5 CROSS-EXAMINES THEM.
+#
+# The cutover turns the indicator BANDS (margins inside one pane) into real LWC
+# panes. A screenshot can say the picture changed; it cannot say the pane COUNT
+# changed, and it cannot tell "the RSI band moved down 4 px" from "the RSI series
+# moved to pane 1 and pane 0 shrank". So the page publishes what it built —
+# `window.__paneManifest`: pane count, per-pane pixel height, and per-series pane
+# index + priceScaleId — and the harness diffs the two sides as normalised JSON.
+#
+# The cross-check is the point, in BOTH directions:
+#
+#   * a manifest that MOVED while zero pixels moved is always a failure. A pane
+#     layout that differs and paints identically did not happen; a manifest being
+#     written from somewhere other than the chart did.
+#   * pixels that moved while the manifest is IDENTICAL is a failure for a case
+#     that DECLARES `expectManifestChange` — and only for those, because a colour
+#     perturbation legitimately moves pixels with unchanged geometry. That
+#     declaration is what makes the cutover's own cases assert their geometry
+#     structurally instead of inferring it from red rectangles.
+#
+# A MISSING manifest is not an error. Nothing publishes one today, and a raise
+# here would abort a 20-run measurement at run 13 with nothing written down.
 
-def diff(a_png: Path, b_png: Path, out_png: Path | None = None, channel_threshold: int = 0) -> dict:
+
+def read_manifest(page):
+    """``window.__paneManifest``, or None.
+
+    ChartRender publishes it only in fixed-bars (parity) mode, and a page that
+    does not is a MISSING manifest, not an error: a missing manifest reads
+    ``null`` in report.json and the A/B comparison is skipped with a stated
+    reason, which is visible. An exception at run 13 of 20 is not.
+
+    A non-object answer is also None — a page that publishes garbage has not
+    published a manifest, and coercing it here keeps the diff from reporting the
+    garbage as a geometry change.
+    """
+    try:
+        value = page.evaluate("() => window.__paneManifest ?? null")
+    except Exception:                                     # noqa: BLE001
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def manifest_diff(a, b):
+    """A list of human-readable ``path: a -> b`` lines, empty when identical.
+
+    Compared as plain data, not as objects: the manifest crosses a browser
+    boundary, so key order is not ours to trust — every dict is walked by SORTED
+    key, while lists keep their order because in this manifest order IS meaning
+    (LWC paints by insertion, so a reordered `series` list is a z-order change).
+
+    ``[]`` when BOTH sides are absent — that is today's state on every case in
+    the file and it must stay a pass. One side absent is an asymmetry and says
+    so.
+    """
+    if a is None and b is None:
+        return []
+    if a is None or b is None:
+        return ["manifest missing on " + ("A" if a is None else "B")]
+    out = []
+
+    def walk(path, x, y):
+        if isinstance(x, dict) and isinstance(y, dict):
+            for k in sorted(set(x) | set(y)):
+                walk(f"{path}.{k}" if path else k, x.get(k), y.get(k))
+        elif isinstance(x, list) and isinstance(y, list):
+            for i in range(max(len(x), len(y))):
+                walk(f"{path}[{i}]", x[i] if i < len(x) else None, y[i] if i < len(y) else None)
+        elif x != y:
+            out.append(f"{path}: {x!r} -> {y!r}")
+
+    walk("", a, b)
+    return out
+
+
+def manifest_verdict(entry: dict, run: dict) -> str | None:
+    """Why this run's pane manifest contradicts its pixels, or None.
+
+    Both directions of "one of the two is lying", and the asymmetry between them
+    is deliberate — see the block above.
+    """
+    a, b = run.get("manifest_a"), run.get("manifest_b")
+    lines = run.get("manifest_diff")
+    if lines is None:
+        lines = manifest_diff(a, b)
+    comparable = a is not None and b is not None
+
+    if entry.get("expect_manifest_change"):
+        if not comparable:
+            return ("the case declares a pane-geometry change, but no pane manifest was "
+                    "published on " + ("both sides" if a is None and b is None
+                                       else ("A" if a is None else "B")) +
+                    " — the geometry assertion would be vacuous")
+        if not lines:
+            return ("pixels moved but the pane manifest is identical — the case declares a "
+                    "geometry change and the geometry says nothing changed")
+    if comparable and lines and not run.get("changed"):
+        return ("the pane manifest changed but 0 pixels did: " + "; ".join(lines[:3]))
+    return None
+
+
+# ─── diff ────────────────────────────────────────────────────────────────────
+#
+# ⚠️ A REGION IS A SECOND VERDICT, NEVER A REPLACEMENT FOR THE FIRST. The headline
+# `changed` stays whole-canvas and stays reported on every case, with or without
+# regions. What regions add is WHERE: B5's cutover changes the picture by
+# construction, so "0 changed pixels" stops being available and the gate has to be
+# able to say *this many pixels changed, in these rectangles, and nowhere else*.
+# A `--tolerance` cannot say that — a budget also passes the next change of the
+# same size, and it cannot tell the oscillator strip from the price pane.
+
+
+def validate_regions(regions) -> None:
+    """Refuse a region list that could make the gate unfalsifiable.
+
+    ``rest`` is reserved: it is the bucket for every changed pixel outside every
+    declared rectangle, and a case that could declare it could declare its own
+    blind spot. A zero-area box is refused for the same reason — it reports 0
+    forever and reads exactly like a region that is holding the line.
+    """
+    seen = set()
+    for r in regions or []:
+        name = r.get("name")
+        if name == "rest":
+            raise SystemExit("chart_parity: `rest` is computed, not declarable — "
+                             "it is the bucket that catches a pixel nobody named, and a "
+                             "case that could declare it could declare its own blind spot.")
+        if not name or name in seen:
+            raise SystemExit(
+                f"chart_parity: region names must be present and unique (got {name!r})")
+        seen.add(name)
+        box = r.get("box")
+        if not isinstance(box, (list, tuple)) or len(box) != 4:
+            raise SystemExit(f"chart_parity: region {name!r} needs box [x0,y0,x1,y1] (got {box!r})")
+        for v in box:
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or float(v) != int(v):
+                raise SystemExit(
+                    f"chart_parity: region {name!r} box must be whole pixels (got {box!r}) — "
+                    "a fractional edge silently rounds and the rectangle stops being the "
+                    "one the case wrote down.")
+        x0, y0, x1, y1 = (int(v) for v in box)
+        if x1 <= x0 or y1 <= y0:
+            raise SystemExit(f"chart_parity: region {name!r} has zero area — "
+                             "a region that can only ever report 0 is not a gate.")
+
+
+def diff(a_png: Path, b_png: Path, out_png: Path | None = None, channel_threshold: int = 0,
+         regions: list | None = None) -> dict:
     """Per-pixel compare. Returns changed-pixel count + pct and writes a
     highlight image (the baseline dimmed, changed pixels painted red).
+
+    ``regions`` splits that SAME mask into named rectangles plus a computed
+    ``rest``; see the block above and ``validate_regions``.
 
     A size mismatch is a FAILURE, not something to resize past: it means the two
     builds framed the chart differently, which is exactly the class of
@@ -655,6 +837,7 @@ def diff(a_png: Path, b_png: Path, out_png: Path | None = None, channel_threshol
         return {
             "size_mismatch": True, "a_size": list(a.size), "b_size": list(b.size),
             "changed": None, "total": None, "pct": None, "diff_png": None,
+            "regions": None,
         }
 
     total = a.size[0] * a.size[1]
@@ -673,6 +856,33 @@ def diff(a_png: Path, b_png: Path, out_png: Path | None = None, channel_threshol
     # histogram()[0] = pixels that did not change; everything else did.
     changed = total - mask.histogram()[0]
 
+    region_counts = None
+    if regions is not None:
+        validate_regions(regions)
+        region_counts = {}
+        # `covered` accumulates the union of every declared rectangle. It is a
+        # MASK, not an arithmetic total: overlapping regions make
+        # `changed - sum(regions)` NEGATIVE, and two cases in this file's suite
+        # exist because the naive version was written first.
+        covered = Image.new("L", a.size, 0)
+        for r in regions:
+            x0, y0, x1, y1 = (int(v) for v in r["box"])
+            if x0 < 0 or y0 < 0 or x1 > a.size[0] or y1 > a.size[1]:
+                raise SystemExit(
+                    f"chart_parity: region {r['name']!r} box {list(r['box'])} falls outside "
+                    f"the {a.size[0]}x{a.size[1]} canvas. Pillow pads a crop past the edge "
+                    f"with BLACK, which counts as 'unchanged' — the region would under-report "
+                    f"forever instead of failing.")
+            crop = mask.crop((x0, y0, x1, y1))
+            region_counts[r["name"]] = (x1 - x0) * (y1 - y0) - crop.histogram()[0]
+            covered.paste(255, (x0, y0, x1, y1))
+        # Everything the case did NOT name. `rest` is computed here and can never
+        # be declared (`validate_regions` refuses the name), because a cutover
+        # that moves a pixel nobody named must fail — and the only way to keep
+        # that failable is for this bucket not to be a case-file field.
+        outside = ImageChops.subtract(mask, covered)
+        region_counts["rest"] = total - outside.histogram()[0]
+
     diff_path = None
     if out_png is not None and changed:
         out_png.parent.mkdir(parents=True, exist_ok=True)
@@ -686,6 +896,7 @@ def diff(a_png: Path, b_png: Path, out_png: Path | None = None, channel_threshol
         "changed": changed, "total": total,
         "pct": round(100.0 * changed / total, 6) if total else 0.0,
         "diff_png": diff_path,
+        "regions": region_counts,
     }
 
 
@@ -703,6 +914,78 @@ def flake_bound(n: int) -> float:
     """
     n = max(1, int(n))
     return 1.0 - (0.05 ** (1.0 / n))
+
+
+def run_failures(entry: dict, run: dict) -> list[str]:
+    """Every way ONE run fails what the case DECLARED, as sentences.
+
+    ⛔ **`expect` IS AN EQUALITY, AND IT IS CHECKED ON EVERY RUN.** An `expect` is
+    a declared, measured, signed-off number — the MACD head-mask's 88 px and the
+    VWAP anchor's 2,590 px are the precedent, both with zero variance over 20
+    runs. A tolerance would pass a regression that happens to be SMALLER than the
+    allowance, and would hide the next change of the same size. And it is every
+    run, not the worst: **variance is itself a failure**, because a number that
+    moves is a number nobody can sign off.
+
+    This is the single predicate behind BOTH `entry["pass"]` and
+    ``clean_runs`` — deliberately, because when they were two predicates
+    `flake_bound_95` got computed from runs the verdict had already rejected.
+    """
+    n = run.get("run")
+    if run.get("error"):
+        return [f"run {n}: {run['error']}"]
+    if run.get("size_mismatch"):
+        return [f"run {n}: size mismatch {run.get('a_size')} vs {run.get('b_size')}"]
+    if run.get("changed") is None:
+        return [f"run {n}: no measurement"]
+
+    out = []
+    expect = entry.get("expect")
+    if expect is not None:
+        if run["changed"] != expect:
+            out.append(f"run {n}: changed = {run['changed']}, expected EXACTLY {expect}")
+    elif run["changed"] > entry["tolerance"]:
+        out.append(f"run {n}: changed = {run['changed']}, over tolerance {entry['tolerance']}")
+
+    want_regions = entry.get("expect_regions") or {}
+    if want_regions:
+        got = run.get("regions") or {}
+        # `rest` defaults to 0 and a case may not raise it (validate_regions).
+        for name, want in {"rest": 0, **want_regions}.items():
+            if got.get(name) != want:
+                out.append(f"run {n}: region {name} = {got.get(name)}, expected {want}")
+
+    reason = manifest_verdict(entry, run)
+    if reason:
+        out.append(f"run {n}: {reason}")
+    return out
+
+
+def case_entry(case: dict, *, tolerance: int, expect: int | None) -> dict:
+    """The per-case accumulator `main()` fills with runs, built from the case file.
+
+    Out here as a pure function so the mapping from case-file keys to gate
+    behaviour is reachable without launching Chromium — the same reason
+    `collapse_case` is.
+    """
+    regions = case.get("regions")
+    validate_regions(regions)
+    return {
+        "name": case["name"],
+        "tolerance": case.get("tolerance", tolerance) or tolerance,
+        "toleranceReason": case.get("toleranceReason"),
+        # `--expect` overrides the case's own: a one-off measurement on the
+        # command line, where the durable form is the case file's `expect`.
+        "expect": expect if expect is not None else case.get("expect"),
+        # A region without its own `expect` is MEASURED and REPORTED but not
+        # gated — that is how a new region gets its number before anyone signs
+        # off on it.
+        "expect_regions": {r["name"]: r["expect"] for r in (regions or [])
+                           if "expect" in r} or None,
+        "expect_manifest_change": bool(case.get("expectManifestChange")),
+        "regions": regions,
+        "runs": [],
+    }
 
 
 def collapse_case(entry: dict) -> dict:
@@ -756,15 +1039,27 @@ def collapse_case(entry: dict) -> dict:
         entry["changed"] = None
         entry["pass"] = False
     else:
-        entry.update({k: worst[k] for k in
+        # `.get`, not `[...]`: a hand-written entry in a test (or a future run
+        # shape that carries fewer diagnostics) must still collapse to a VERDICT.
+        # A KeyError here would be an exception where a 🔴 belongs.
+        entry.update({k: worst.get(k) for k in
                       ("size_mismatch", "a_size", "b_size", "changed", "total",
                        "pct", "diff_png")})
         entry["changed_values"] = [r["changed"] for r in runs]
-        entry["pass"] = entry["changed"] <= entry["tolerance"]
+        entry["region_values"] = [r.get("regions") for r in runs]
+        # ⛔ NOT `entry["changed"] <= entry["tolerance"]`, and not the worst run
+        # either: EVERY run must satisfy EVERYTHING the case declared — its
+        # `expect` (an equality), each region's own expectation, the computed
+        # `rest`, and the pane manifest's agreement with the pixels. On a case
+        # that declares none of those this is exactly the old sentence, because
+        # `all(r.changed <= tol)` and `max(r.changed) <= tol` are the same claim.
+        entry["pass"] = all(not run_failures(entry, r) for r in runs)
 
-    clean = sum(1 for r in runs
-                if not r.get("error") and not r.get("size_mismatch")
-                and r.get("changed") is not None and r["changed"] <= entry["tolerance"])
+    entry["expectation_failures"] = [m for r in runs for m in run_failures(entry, r)]
+    entry["manifest_diff"] = next(
+        (r["manifest_diff"] for r in runs if r.get("manifest_diff") is not None),
+        manifest_diff(runs[0].get("manifest_a"), runs[0].get("manifest_b")) if runs else [])
+    clean = sum(1 for r in runs if not run_failures(entry, r))
     entry["clean_runs"] = clean
     entry["flake_bound_95"] = round(flake_bound(clean), 6) if runs and clean == len(runs) else None
     return entry
@@ -818,10 +1113,12 @@ def write_report(report: dict, out_dir: Path) -> None:
                 f"value is listed below. **No report-level flake bound is quoted: "
                 f"{report['failures']} case(s) did not pass.** The bound describes *n "
                 f"consecutive clean runs* and there were not n of them. Per-case bounds are "
-                f"in the distribution table, and only a case that was clean on every run "
-                f"carries one. A case that is DELIBERATELY non-zero (e.g. `macd_headmask`, "
-                f"which prices a decision) has none by construction — what backs its number "
-                f"is that every run produced the SAME value, which the per-run column shows."
+                f"in the distribution table, and only a case that met its expectation on "
+                f"every run carries one. A case that is DELIBERATELY non-zero (e.g. "
+                f"`macd_headmask`, which prices a decision) carries one ONLY once that number "
+                f"is written down as its `expect`: without one, 'clean' has nothing to mean "
+                f"and what backs the number is that every run produced the SAME value, which "
+                f"the per-run column shows."
             )
         else:
             lines.append(
@@ -830,7 +1127,10 @@ def write_report(report: dict, out_dir: Path) -> None:
                 f"**{bound * 100:.1f}%** on the per-run flake probability "
                 f"(`1 − 0.05^(1/n)`) — quote that bound, never \"it passed\"."
             )
-    lines += ["", "| case | changed px | of total | tolerance | verdict | diff |",
+    if report.get("global_expect") is not None:
+        lines.append(f"- ⚠️ **`--expect {report['global_expect']}` was applied to EVERY case** "
+                     "— an exact number, on every run, overriding each case's own `expect`.")
+    lines += ["", "| case | changed px | of total | expected | verdict | diff |",
               "|---|---:|---:|---:|---|---|"]
     for r in report["results"]:
         if r.get("error"):
@@ -842,8 +1142,50 @@ def write_report(report: dict, out_dir: Path) -> None:
             continue
         verdict = "🟢 pass" if r["pass"] else "🔴 FAIL"
         dpng = f"`{Path(r['diff_png']).name}`" if r.get("diff_png") else "—"
-        lines.append(f"| `{r['name']}` | {r['changed']} | {r['pct']}% | {r['tolerance']} "
+        # `= N` is a DECLARED number that must hold on every run; `<= N` is a
+        # budget. The two never mean the same thing and the table says which.
+        want = (f"**= {r['expect']}**" if r.get("expect") is not None
+                else f"<= {r['tolerance']}")
+        lines.append(f"| `{r['name']}` | {r['changed']} | {r['pct']}% | {want} "
                      f"| {verdict} | {dpng} |")
+
+    declared = [r for r in report["results"]
+                if r.get("expect") is not None or r.get("expect_regions")
+                or r.get("regions") or r.get("manifest_diff")]
+    if declared:
+        lines += [
+            "",
+            "### The declared diff — regions and the pane manifest",
+            "",
+            "A region block adds a SECOND, finer verdict; it never replaces the first. The",
+            "headline `changed` above is still whole-canvas. `rest` is every changed pixel",
+            "outside every declared rectangle — it is COMPUTED by mask subtraction, a case",
+            "may not declare it, and its expectation is always 0.",
+            "",
+            "| case | region | changed px | expected |",
+            "|---|---|---:|---:|",
+        ]
+        for r in declared:
+            want = r.get("expect_regions") or {}
+            counts = next((v for v in (r.get("region_values") or []) if v), None) or {}
+            # `rest` last: it is the bucket everything else is subtracted from,
+            # and it reads as the bottom line of the block rather than as one
+            # more rectangle sorted alphabetically into the middle of them.
+            names = sorted(set(counts) | set(want), key=lambda k: (k == "rest", k))
+            for name in names:
+                exp = ("0 (computed)" if name == "rest"
+                       else want[name] if name in want
+                       else "— (measured, not gated)")
+                lines.append(f"| `{r['name']}` | {name} | {counts.get(name, '—')} | {exp} |")
+        for r in declared:
+            if r.get("manifest_diff"):
+                lines += ["", f"**`{r['name']}` — pane manifest A → B:**", ""]
+                lines += [f"- `{line}`" for line in r["manifest_diff"][:40]]
+        fails = [(r["name"], m) for r in report["results"]
+                 for m in (r.get("expectation_failures") or [])]
+        if fails:
+            lines += ["", "**Why each failing case failed, run by run:**", ""]
+            lines += [f"- `{name}` — {msg}" for name, msg in fails[:60]]
     if report.get("repeat", 1) > 1:
         lines += ["", "### Per-run distribution", "",
                   "| case | runs | clean | 95% flake bound | changed px, per run | max | capture shots (a/b) |",
@@ -868,9 +1210,12 @@ def write_report(report: dict, out_dir: Path) -> None:
                      "moving after the page called itself ready.")
         lines.append("")
         lines.append("`95% flake bound` is `1 − 0.05^(1/clean)` and is **n/a unless every run "
-                     "of that case was clean** — the bound is a statement about consecutive "
-                     "clean runs, so a case with a failure in it has no bound to quote, and a "
-                     "case that is deliberately non-zero never will.")
+                     "of that case met its expectation** — the bound is a statement about "
+                     "consecutive clean runs, so a case with a failure in it has no bound to "
+                     "quote. For a case carrying an `expect`, 'clean' means *equal to the "
+                     "declared number, with every declared region where it said it would be*, "
+                     "so a deliberately non-zero case does get a bound — on the deviation "
+                     "probability, which is the thing that matters once the number is not 0.")
     lines += [
         "",
         "## Reading this",
@@ -885,6 +1230,13 @@ def write_report(report: dict, out_dir: Path) -> None:
         "the reason is reprinted here so a reviewer sees it next to the number it",
         "excuses. \"It's only a few pixels\" is not a reason; \"the LWC 5.2 line",
         "rasteriser antialiases the last segment differently, verified by <x>\" is.",
+        "",
+        "**An `expect` is not a tolerance and does not replace one.** It is an EQUALITY,",
+        "asserted on EVERY run: a diff SMALLER than the declared number fails, and so",
+        "does variance between runs. It is for a change that was deliberately made,",
+        "measured, and signed off — B5's real-panes cutover, where '0 changed pixels' is",
+        "not available because the picture changes by construction. A case that has one",
+        "reads `= N` in the table above; a case that does not still reads `<= N`.",
         "",
     ]
     for r in report["results"]:
@@ -926,6 +1278,11 @@ def main() -> int:
                     help="changed-pixel budget applied to every case (default 0)")
     ap.add_argument("--tolerance-reason", default="",
                     help="REQUIRED with --tolerance > 0; printed in the report")
+    ap.add_argument("--expect", type=int, default=None,
+                    help="EXACT changed-pixel count every run must equal (not a budget). "
+                         "Overrides a case's own `expect`. Use it for a one-off "
+                         "measurement; the durable form is the case file's `expect` + "
+                         "`regions`.")
     ap.add_argument("--perturb-b", default="",
                     help="JSON settings patch applied to the B capture ONLY. The gate's own "
                          "self-test: change one colour by one hex digit and the diff must be "
@@ -960,6 +1317,19 @@ def main() -> int:
 
     if args.tolerance > 0 and not args.tolerance_reason.strip():
         raise SystemExit("--tolerance > 0 requires --tolerance-reason (it goes in the report)")
+
+    # ONE IS A DECLARED MEASUREMENT, THE OTHER IS AN ESCAPE. `--expect` says "this
+    # exact number, on every run"; `--tolerance` says "anything up to here is
+    # fine". A run carrying both has a verdict nobody can state — and the budget
+    # would silently outrank the equality on any case that has no `expect` of its
+    # own, so the report would be part signed-off measurement and part allowance
+    # with nothing marking which case is which.
+    if args.expect is not None and args.tolerance > 0:
+        raise SystemExit(
+            f"--expect {args.expect} and --tolerance {args.tolerance} are mutually exclusive.\n"
+            "  --expect is a DECLARED, MEASURED, SIGNED-OFF number that must hold on every "
+            "run;\n  --tolerance is a budget that passes anything under it — including the "
+            "next\n  regression of the same size. Pick the one you mean.")
 
     # A SELF-TEST THAT CANNOT FAIL IS THE FAILURE MODE THIS TOOL EXISTS TO CATCH.
     # `--instances-side none` sends the engine instances to NEITHER side, and
@@ -1112,6 +1482,7 @@ def main() -> int:
         "perturb_b_instances": perturb_inst,
         "instances_side": args.instances_side,
         "global_tolerance": args.tolerance,
+        "global_expect": args.expect,
         "tolerance_reason": args.tolerance_reason,
         "repeat": args.repeat,
         # Filled in AFTER the collapse, and only if nothing failed — see the
@@ -1146,12 +1517,8 @@ def main() -> int:
         # reports its best number is a gate that hides its flake.
         entries = {}
         for case in cases:
-            entries[case["name"]] = {
-                "name": case["name"],
-                "tolerance": case.get("tolerance", args.tolerance) or args.tolerance,
-                "toleranceReason": case.get("toleranceReason"),
-                "runs": [],
-            }
+            entries[case["name"]] = case_entry(case, tolerance=args.tolerance,
+                                               expect=args.expect)
 
         for run_idx in range(1, args.repeat + 1):
             sfx = "" if args.repeat == 1 else f"__r{run_idx}"
@@ -1184,11 +1551,15 @@ def main() -> int:
                             run[f"shots_{side}"] = cap["shots"]
                             run[f"ready_ms_{side}"] = cap["ready_ms"]
                             run[f"ready_reason_{side}"] = cap["ready_reason"]
+                            run[f"manifest_{side}"] = cap.get("manifest")
                         finally:
                             ctx.close()
 
                     run.update(diff(shots["a"], shots["b"],
-                                    out_dir / "diff" / f"{case['name']}{sfx}.png"))
+                                    out_dir / "diff" / f"{case['name']}{sfx}.png",
+                                    regions=entry.get("regions")))
+                    run["manifest_diff"] = manifest_diff(run.get("manifest_a"),
+                                                         run.get("manifest_b"))
                 except Exception as e:  # noqa: BLE001
                     run["error"] = f"{type(e).__name__}: {e}"
                     run["size_mismatch"] = False
@@ -1202,9 +1573,15 @@ def main() -> int:
                     print(f"[{case['name']:24}] run {run_idx}/{args.repeat} "
                           f"SIZE MISMATCH {run['a_size']} vs {run['b_size']}")
                 else:
+                    extra = ""
+                    if run.get("regions"):
+                        extra = " regions=" + " ".join(
+                            f"{k}:{v}" for k, v in run["regions"].items())
+                    if run.get("manifest_diff"):
+                        extra += f" manifest_diff={len(run['manifest_diff'])} line(s)"
                     print(f"[{case['name']:24}] run {run_idx}/{args.repeat} "
                           f"changed={run['changed']:>8} ({run['pct']}%) "
-                          f"shots={run.get('shots_a')}/{run.get('shots_b')}")
+                          f"shots={run.get('shots_a')}/{run.get('shots_b')}{extra}")
         browser.close()
 
         # ── Collapse each case's runs into its verdict ────────────────────────
