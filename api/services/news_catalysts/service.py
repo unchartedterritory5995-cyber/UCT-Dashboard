@@ -639,11 +639,11 @@ def _recent_catalysts(sym):
               "today's breaking headlines) and output ONLY the requested JSON of real, recent "
               "catalysts — company-specific AND sector/policy events — with accurate dates. No preamble.")
     try:
-        # General web (not just curated finance domains) so a breaking Reuters/Bloomberg
-        # POLICY headline is reachable; recency=week catches today's driver AND the few-day
-        # gap since the cached history was generated.
+        # recency="day" scopes to the LAST 24H so TODAY's driver isn't competing with a
+        # week of news for the slots (the reason a 3-hour-old policy headline was missed);
+        # general web so any source that broke it is reachable.
         res = perplexity_search.web_search(query, max_tokens=1000, system=system, mode="fast",
-                                           recency="week", domain_pack="general")
+                                           recency="day", domain_pack="general")
     except Exception as exc:
         _logger.warning("news_catalysts recent failed for %s: %s", sym, exc)
         return []
