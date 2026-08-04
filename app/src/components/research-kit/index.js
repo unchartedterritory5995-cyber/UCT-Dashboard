@@ -61,3 +61,13 @@ export {
   binValues,
   buildHistogramOption,
 } from './charts/Histogram'
+export {
+  default as RatingCrown,
+  SIZE as RATING_CROWN_SIZE,
+  scoreTier,
+  letterTier,
+  ringGeometry,
+  basisPill,
+  COMPONENT_ORDER,
+} from './RatingCrown'
+export { default as CheckupRow, normalizeStatus } from './CheckupRow'

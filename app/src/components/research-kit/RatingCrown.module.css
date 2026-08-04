@@ -1,0 +1,140 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.compact {
+  gap: 0;
+}
+
+.ringWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track {
+  stroke: var(--glass-border-neutral);
+}
+
+.arc {
+  stroke: var(--text-muted);
+  /* The ONE mount animation on this surface (Part C rule 8). */
+  transition: stroke-dasharray var(--duration-fast) var(--ease-out);
+}
+
+.score {
+  position: absolute;
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-heading);
+}
+
+.compact .score {
+  font-size: var(--text-base);
+}
+
+.chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--glass-border-neutral);
+  border-radius: var(--radius-md);
+  background: var(--glass-surface);
+}
+
+.chipLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.chipValue {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.meter {
+  height: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-border-neutral);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  background: var(--text-muted);
+}
+
+.basis {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-bright);
+  text-align: center;
+}
+
+.method {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Score ramp — value ink and meter fill share the tone class. */
+.toneElite { color: var(--score-elite); stroke: var(--score-elite); }
+.toneStrong { color: var(--score-strong); stroke: var(--score-strong); }
+.toneNeutral { color: var(--score-neutral); stroke: var(--score-neutral); }
+.toneWeak { color: var(--score-weak); stroke: var(--score-weak); }
+.tonePoor { color: var(--score-poor); stroke: var(--score-poor); }
+
+.meterFill.toneElite { background: var(--score-elite); }
+.meterFill.toneStrong { background: var(--score-strong); }
+.meterFill.toneNeutral { background: var(--score-neutral); }
+.meterFill.toneWeak { background: var(--score-weak); }
+.meterFill.tonePoor { background: var(--score-poor); }
+
+@media (prefers-reduced-motion: reduce) {
+  .arc {
+    transition: none;
+  }
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wrap {
+    gap: var(--space-sm);
+  }
+}
+
+/* TABLET */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .chips {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
