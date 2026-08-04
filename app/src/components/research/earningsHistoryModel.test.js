@@ -98,3 +98,63 @@ describe('historyBasis', () => {
     expect(historyBasis([])).toBeNull()
   })
 })
+
+// SUPPLEMENTARY — appended on top of the brief's verbatim test suite (not a
+// replacement). `reaction_pct` and `surprise_pct` already get explicit 0-vs-null
+// coverage above, but they all route through the same shared `num()` helper as
+// `eps_actual`/`eps_estimate`/`revenue_estimate`/`revenue_actual`, and the
+// phantom-zero trap ("Number(null) === 0") is field-specific in its blast
+// radius — a regression in one call site doesn't necessarily show up via
+// another field's assertion. Each field gets its own real-0-survives /
+// absent-stays-null pair.
+//
+// The "absent" half is deliberately an explicit `null` (what a JSON API sends
+// for a field it has nothing for), NOT an omitted key. `Number(undefined)` is
+// already `NaN` under EITHER implementation of `num()`, so an omitted-key
+// fixture can't actually distinguish the correct guard from the
+// `Number(null) === 0` bug — only an explicit `null` does.
+describe('phantom-zero guard — both directions on every computed numeric field', () => {
+  it('eps_actual: a genuine breakeven print (0) survives; an explicit null stays null', () => {
+    const zeroPrint = [{ ...beatHistory[0], actual: 0 }]
+    const reported = buildQuarters({
+      beatHistory: zeroPrint, histStats: { last_n: [1.0] }, reportDate: '2026-08-06', row,
+    })
+    expect(reported[0].eps_actual).toBe(0)
+
+    const noEps = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-08-06',
+      row: { eps_estimate: 0.94, reported_eps: null },
+    })
+    expect(noEps[0].eps_actual).toBeNull()
+  })
+
+  it('eps_estimate: a genuine 0 estimate survives; an explicit null stays null (not phantom 0)', () => {
+    const zeroEst = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-08-06',
+      row: { eps_estimate: 0, reported_eps: null },
+    })
+    expect(zeroEst[0].eps_estimate).toBe(0)
+
+    const noEst = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-08-06',
+      row: { eps_estimate: null, reported_eps: null },
+    })
+    expect(noEst[0].eps_estimate).toBeNull()
+  })
+
+  it('revenue_estimate/revenue_actual: genuine 0 survives; explicit null stays null', () => {
+    const zeroRev = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-08-06',
+      row: { rev_estimate: 0, rev_actual: 0 },
+    })
+    expect(zeroRev[0].revenue_estimate).toBe(0)
+    expect(zeroRev[0].revenue_actual).toBe(0)
+
+    const noRev = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-08-06',
+      row: { rev_estimate: null, rev_actual: null },
+    })
+    expect(noRev[0].revenue_estimate).toBeNull()
+    expect(noRev[0].revenue_actual).toBeNull()
+  })
+})
