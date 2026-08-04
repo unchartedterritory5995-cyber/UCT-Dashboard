@@ -14,6 +14,8 @@ import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
+import * as drawingsStore from '../../../components/chart/drawingsStore'
+import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
@@ -49,6 +51,36 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
 
   // ── Appearance settings (⚙) — mirrors the other widget settings ──
   const { prefs, setPref } = usePreferences()
+
+  // ── "Place on chart" — one-time action, NOT a toggle ──
+  // Drops the catalyst headline onto the linked chart as an ordinary, EDITABLE
+  // text drawing anchored to its candle (a leader line the drawing overlay draws
+  // + auto-places in blank space). From there it's a normal drawing the user can
+  // move, restyle, or delete — the widget tracks no on/off state. We write straight
+  // to the shared per-symbol drawings store, so every chart on this ticker shows it.
+  const drawColor = useMemo(
+    () => mergeChartSettings(prefs?.chart_settings)?.drawingDefaults?.color || '#c9a84c',
+    [prefs?.chart_settings],
+  )
+  const [placedKey, setPlacedKey] = useState(null)   // transient "✓ placed" flash
+  const placedTimerRef = useRef(null)
+  useEffect(() => () => { if (placedTimerRef.current) clearTimeout(placedTimerRef.current) }, [])
+  const placeOnChart = useCallback((e, rowKey) => {
+    const date = e?.date && String(e.date).slice(0, 10)
+    if (!sym || !date || !e?.title) return
+    drawingsStore.addDrawing(sym, {
+      type: 'text',
+      text: e.title,
+      color: drawColor,
+      fontSize: 13,
+      points: [],                 // filled by the overlay's blank-space auto-placement
+      calloutAnchorTime: date,    // the candle to connect the leader line to
+      calloutAutoPlace: true,
+    })
+    setPlacedKey(rowKey)
+    if (placedTimerRef.current) clearTimeout(placedTimerRef.current)
+    placedTimerRef.current = setTimeout(() => setPlacedKey(null), 1400)
+  }, [sym, drawColor])
   const settings = useMemo(
     () => mergeNewsWidgetSettings(parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
     [prefs],
@@ -178,6 +210,8 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
             // detail — same plain style, no box.
             const expandable = compact && hasDetail
             const showDetail = !compact || (expandable && expandedKey === key)
+            const canPlace = !!(sym && e.date && e.title)
+            const justPlaced = placedKey === key
             return (
               <div
                 key={key}
@@ -199,6 +233,15 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
                       : <span className={styles.source}>{e.source}</span>}
                   </div>
                 </div>
+                {canPlace && (
+                  <button
+                    type="button"
+                    className={`${styles.pinBtn}${justPlaced ? ' ' + styles.pinBtnOn : ''}`}
+                    onClick={(ev) => { ev.stopPropagation(); placeOnChart(e, key) }}
+                    title="Place headline on chart"
+                    aria-label="Place headline on chart"
+                  ><UIcon name={justPlaced ? 'check' : 'pin'} size={12} /></button>
+                )}
               </div>
             )
           })}

@@ -79,6 +79,31 @@
 .icon.neutral { color: var(--news-accent, var(--ut-gold, #c9a84c)); }
 
 .main { min-width: 0; flex: 1; }
+
+/* "Place on chart" — top-right of each row. A one-time action (not a toggle): dim
+   until hovered, then a brief gold ✓ flash (.pinBtnOn) confirms placement. Sits
+   outside .main so it never wraps the text. */
+.pinBtn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: -1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.row:hover .pinBtn { opacity: 0.9; }
+.pinBtn:hover { color: var(--news-accent, var(--ut-gold, #c9a84c)); background: var(--news-row-hover, rgba(255, 255, 255, 0.06)); }
+.pinBtnOn, .pinBtnOn:hover { opacity: 1; color: var(--news-accent, var(--ut-gold, #c9a84c)); }
 .title {
   display: block;
   font-size: 12.5px;
