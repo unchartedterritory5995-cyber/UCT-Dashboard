@@ -131,8 +131,11 @@ const LEDGER = [
   // still DEPENDS on it, through `engine/paneMarginsProjection.csForPaneMargins`.
   { file: 'app/src/components/chart/paneMargins.js', region: 'PANES — the oscillator stacking list, 9 + volume',
     anchor: 'const PANES = [', fate: 'B5' },
-  { file: 'app/src/components/chart/ChartToolbar.jsx', region: 'the 15 hand-written indicator rows',
-    anchor: '{/* Technical Indicators */}', fate: 'B4' },
+  // ⭐ RETIRED BY B4 TASK 8. The fifteen hand-written indicator rows are one
+  // "Manage indicators →" launcher (spec §6). Every control they carried is on
+  // the generated dialog, which reaches inputs this surface never could —
+  // `sar.maxStep`, six of `ichimoku`'s eight, MACD's two colours, VWAP's opacity
+  // / line style / line width. Proven gone in `RETIRED_BY_B4_TASK8`.
 
   // ── the settings tab ─────────────────────────────────────────────────────
   // ⭐ RETIRED BY B4 TASK 6. `ENGINE_ROW_DEF_IDS` — "which migrated definitions
@@ -194,8 +197,13 @@ const LEDGER = [
     anchor: 'export const ENGINE_FLIPPED_DEF_IDS', fate: 'phase' },
 
   // ── everything else that hand-lists indicators ───────────────────────────
-  { file: 'app/src/utils/chartBus.js', region: "ALLOWED_INDICATORS — the voice add_indicator allow-list",
-    anchor: 'const ALLOWED_INDICATORS = new Set([', fate: 'B4' },
+  // ⭐ RETIRED BY B4 (`e427a09b`, the voice-bus task, landed by a parallel wave).
+  // `ALLOWED_INDICATORS` was a hand-written Set that had never been proven dead —
+  // and `subscribeAll` had NO CALL SITE in `app/src`, so `addIndicator()` emitted
+  // an event nobody heard while the voice tool reported success. The list derives
+  // from `catalogRows()` now and the missing subscriber exists. Proven gone in
+  // `RETIRED_BY_B4_VOICEBUS`. Recorded here, by Wave A, for the same reason the
+  // alert-catalog rows are: this file has exactly ONE writer this phase.
   { file: 'app/src/pages/charts/ChartsWorkspace.jsx', region: 'UCT_DEFAULT_CHART_SETTINGS_JSON — a frozen capture of all 15 sections',
     anchor: 'const UCT_DEFAULT_CHART_SETTINGS_JSON', fate: 'B5' },
   { file: 'tools/chart_parity_cases.json', region: 'the parity case list',
@@ -274,6 +282,23 @@ const RETIRED_BY_B4_TASK6 = [
   },
 ]
 
+/** What B4 TASK 8 RETIRED: the toolbar's fifteen indicator rows and the three
+ *  helpers that existed to keep them honest.
+ *
+ *  ⚠️ CODE SHAPES AND A CLASS NAME, never bare identifiers — `ChartToolbar.jsx`
+ *  and this file both EXPLAIN that these are gone, and a bare `includes` finds
+ *  the explanation and reports the deletion as a regression (the trap Task 11 hit
+ *  from the other side). `styles.sIndicatorLabel` is the row's own label span:
+ *  fifteen rows cannot come back without it, whatever the writer is called. */
+const RETIRED_BY_B4_TASK8 = [
+  ['the row label span — no per-indicator row can render without it', /styles\.sIndicatorLabel/g],
+  ['updateIndicator — the raw per-indicator writer', /const\s+updateIndicator\s*=/g],
+  ['engineInert', /const\s+engineInert\s*=/g],
+  ['inertTitle', /const\s+inertTitle\s*=/g],
+  ['shownInput', /const\s+shownInput\s*=/g],
+  ['an inline indicators[key] write', /indicators\s*:\s*\{[^}]*\[\s*key\s*\]/g],
+]
+
 /** What the B4 ALERT-CATALOG task retired (`0d0d4c93`), proven retired rather
  *  than merely unlisted. Two of the five names it deleted are the ledger's own
  *  anchors; the other three (`OSCILLATOR_CONDITIONS`, `THRESHOLD_CONDITIONS`,
@@ -314,8 +339,16 @@ const RETIRED_BY_B4_ALERTS = [
  *  if the count MOVES WITH THE CODE, and a retirement landing in one wave while
  *  the ledger is edited in another is precisely how a site retires with nobody's
  *  number changing — so this phase gives the file ONE writer and the writer
- *  records every landed retirement, not only its own. */
-const SITE_COUNT = 20
+ *  records every landed retirement, not only its own.
+ *
+ *  20 → 19 at B4 Task 8: `ChartToolbar`'s fifteen hand-written indicator rows,
+ *  replaced by a launcher onto the library. Nothing is added — the launcher
+ *  names no indicator, and its count derives from `catalogRows()`. */
+/** …and 19 → 18 for the voice bus (`e427a09b`), landed by the same parallel
+ *  wave. Two retirements in this commit are not this wave's own work; both are
+ *  recorded because the ledger's number is only worth something if it moves with
+ *  the CODE, whoever wrote it. */
+const SITE_COUNT = 18
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -359,7 +392,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('the retirement column adds up — 6 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('the retirement column adds up — 4 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -372,7 +405,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // nothing here says so; the per-site reasoning lives in the comments beside
     // each entry, and that is what a reviewer has to read. "The retirement column
     // adds up" means the column adds up, not that every row is in the right one.
-    expect(counts).toEqual({ B4: 6, B5: 8, C: 1, keep: 3, phase: 2 })
+    expect(counts).toEqual({ B4: 4, B5: 8, C: 1, keep: 3, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -393,6 +426,44 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // there, walking the registry rather than a list of ids.
     expect(read('app/src/components/chart/indicatorRegistry.js'))
       .toContain('registry.listDefinitions()')
+  })
+
+  it('⭐ and the toolbar\'s fifteen indicator rows — and the three helpers that kept them honest — are GONE', () => {
+    const src = read('app/src/components/chart/ChartToolbar.jsx')
+    const back = RETIRED_BY_B4_TASK8
+      .filter(([, re]) => [...src.matchAll(re)].length !== 0)
+      .map(([what]) => what)
+    expect(back,
+      'a per-indicator control is back on the toolbar. Every control those rows carried is on ' +
+      'the generated dialog, which reaches inputs this surface never could; a row here is a ' +
+      'duplicate of a surface that already covers it, and its writer is control door seven.',
+    ).toEqual([])
+    // …and the replacement is really there, reading through the ONE reader.
+    expect(src).toContain('Manage indicators')
+    expect(src).toContain('catalogRows().filter((r) => isOn(r.id)).length')
+    // ⛔ AND WHAT SURVIVED ON PURPOSE: the volume-overlay strip is not an
+    // indicator control — it moves an ALREADY-ENABLED oscillator between panes —
+    // so its derivation must still be here. A zero above with this missing means
+    // the whole group was deleted, not just the rows.
+    expect(src).toContain('oscillatorIds().filter')
+  })
+
+  it('⭐ and the voice bus no longer hand-lists indicators', () => {
+    const src = read('app/src/utils/chartBus.js')
+    expect([...src.matchAll(/const\s+ALLOWED_INDICATORS\s*=/g)].length,
+      'the voice add-indicator allow-list is hand-written again. It derives from the catalog now; ' +
+      'a literal beside the derivation is a second source of truth, and this one silently refused ' +
+      'every indicator the list forgot.').toBe(0)
+    // …and the file is the real one, so the zero above is a retirement rather
+    // than a path that stopped resolving.
+    expect(src).toContain('export function subscribeAll')
+    // ⛔ THE OTHER HALF IS NOT ASSERTED HERE, ON PURPOSE. `subscribeAll` had NO
+    // CALL SITE in `app/src` — `addIndicator()` emitted an event nobody heard
+    // while the voice tool reported success — and where the derivation and the
+    // subscriber now LIVE is that task's own shape, still moving as this is
+    // written. `app/src/utils/chartBus.test.jsx` owns both claims; duplicating
+    // them here would be a second control over someone else's moving file, which
+    // is the rot this ledger exists to catch, not to commit.
   })
 
   it('⭐ and the alert dropdown\'s five-part twin of INDICATOR_FUNCS is GONE', () => {
@@ -722,20 +793,27 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
       .filter(m => m[1] === defId).map(m => m[2]),
   )
 
-  // ⭐ MEASURED AT `9f787749`. Every declared input of a migrated definition that
-  // NO control surface can reach except the settings tab's generated row. This is
-  // the list B4's generated dialog has to cover, and it is the reason
-  // `ENGINE_ROW_DEF_IDS` is not empty.
-  const UNREACHABLE_FROM_THE_TOOLBAR = {
-    rsi: [],
-    bb: [],
-    // 🔴 MACD's two colours have NO control ANYWHERE today — not in the toolbar,
-    // not in the settings tab. A pre-existing gap, not one this migration made,
-    // and it is B4's to close.
-    macd: ['macdColor', 'signalColor'],
-    // …and these three are why VWAP keeps a row.
-    vwap: ['opacity', 'lineStyle', 'lineWidth'],
-  }
+  // ⭐ RE-MEASURED AT B4 TASK 8, AND IT IS NOW **EVERYTHING, BY DESIGN**.
+  //
+  // Measured at `9f787749` this was "every declared input of a migrated
+  // definition that NO control surface can reach except the settings tab's
+  // generated row" — `macd`'s two colours (a gap no surface closed) and `vwap`'s
+  // opacity / line style / line width (the reason VWAP kept a row). Task 8
+  // deleted the toolbar's fifteen rows, so `toolbarInputs()` matches nothing and
+  // the toolbar reaches NO declared input of ANY definition.
+  //
+  // ⛔ THAT IS ONLY SAFE BECAUSE TASK 6 LANDED FIRST. The successor rail above —
+  // *every declared input of every definition is reachable from the generated
+  // dialog* — is what stops this from meaning "these inputs are unreachable".
+  // It is asserted from the DEFINITIONS rather than typed, because a hand-typed
+  // "everything" is a table that rots the moment an input is declared.
+  //
+  // ⚠️ THE HELPER IS KEPT, NOT DELETED. "The toolbar grew a control back" is
+  // still worth failing on, and a helper that stops looking is a control that
+  // rots — the same reason `RETIRED_BY_B4` re-runs its patterns demanding zero.
+  const UNREACHABLE_FROM_THE_TOOLBAR = Object.fromEntries(
+    [...ENGINE_MIGRATED_DEF_IDS].map(id => [id, engineRegistry.getDefinition(id).inputs.map(i => i.key)]),
+  )
 
   it('pins exactly which declared inputs the toolbar cannot reach', () => {
     const measured = {}
@@ -744,9 +822,17 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
       measured[id] = engineRegistry.getDefinition(id).inputs.map(i => i.key).filter(k => !covered.has(k))
     }
     expect(measured,
-      'the toolbar gained or lost a control for a migrated indicator. If it GAINED one, check ' +
-      'whether the settings tab still needs its generated row.',
+      'the toolbar gained a control for a migrated indicator. B4 Task 8 retired all fifteen of ' +
+      'its indicator rows for a launcher; a control here is a duplicate of the generated dialog, ' +
+      'which reaches strictly more.',
     ).toEqual(UNREACHABLE_FROM_THE_TOOLBAR)
+    // ⛔ AND THE HELPER STILL WORKS. `toolbarInputs` matching nothing is the
+    // EXPECTED answer now, which makes a BROKEN regex indistinguishable from a
+    // clean toolbar — so it is run against a string that must match.
+    expect([...'updateIndicator(\'rsi\', \'period\', x)'.matchAll(
+      /updateIndicator\('([A-Za-z]+)',\s*'([A-Za-z]+)'/g)].length,
+      'the toolbarInputs pattern matches nothing at all — it rotted, and its zero above is a ' +
+      'broken regex rather than a retired surface').toBe(1)
   })
 
   // ⛔ THE SUCCESSOR RAIL, AND THE RAIL IT SUCCEEDS FIRED AS DESIGNED.
@@ -786,8 +872,11 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     expect(colors).toEqual(['macdColor', 'signalColor'])
     expect(row.fields.find(f => f.key === 'macdColor').disabled).toBeUndefined()
     // …and the pin above still records that the TOOLBAR cannot reach them, so
-    // this closure is visible as a closure rather than as a table edit.
-    expect(UNREACHABLE_FROM_THE_TOOLBAR.macd).toEqual(['macdColor', 'signalColor'])
+    // this closure is visible as a closure rather than as a table edit. ⚠️ It
+    // used to name exactly those two, because the toolbar reached MACD's three
+    // periods; Task 8 deleted the rows, so the pin is now every declared input
+    // and the two colours are asserted to be AMONG them rather than to BE them.
+    expect(UNREACHABLE_FROM_THE_TOOLBAR.macd).toEqual(expect.arrayContaining(['macdColor', 'signalColor']))
   })
 
   it('and nothing was silently dropped: every migrated id\'s toolbar gap is named above', () => {

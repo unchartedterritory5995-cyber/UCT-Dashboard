@@ -535,3 +535,37 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
+
+/* ── "Manage indicators →" — the launcher that replaced fifteen checkbox rows
+   (spec §6). Full-width inside its settings group, so it reads as the way IN to
+   the library rather than as one more control on the panel. */
+.sLauncher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--chart-panel-text, #d4d0c4);
+  background: var(--chart-panel-row-bg, rgba(46, 49, 39, 0.35));
+  border: 1px solid var(--chart-panel-border, rgba(46, 49, 39, 0.9));
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sLauncher:hover {
+  background: var(--chart-panel-row-bg-hover, rgba(46, 49, 39, 0.7));
+}
+.sLauncherCount {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 9px;
+}

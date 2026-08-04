@@ -15,10 +15,11 @@
 // REAL constant.
 import { describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthContext } from '../../context/AuthContext'
 import ChartToolbar from './ChartToolbar'
+import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } from './engine/flipState'
 import { normalizeInstances } from './engine/instances'
@@ -82,33 +83,85 @@ describe('the SHIPPED set is the subject — without a non-empty one every case 
   })
 })
 
-describe('ChartToolbar — a FLIPPED row writes the instance, and stops being inert', () => {
-  it('the period box is live again, and says nothing about an engine', async () => {
-    const user = userEvent.setup()
-    mount(settingsWith({ indicatorInstances: [RSI_7] }), vi.fn())
-    await openPanel(user)
-    const row = rowFor('RSI')
-    expect(periodBox(row).disabled, 'a row with a writer is still greyed out').toBe(false)
-    expect(periodBox(row).getAttribute('title')).toBe('Period')
-    expect(swatch(row).disabled).toBe(false)
-    // …and it still shows the INSTANCE's value, which is now the value it SETS.
-    expect(periodBox(row).value).toBe('7')
+// ─── ⭐ RETARGETED A SECOND TIME, ONTO THE SURFACE THAT NOW CARRIES THE CONTROLS
+//
+// What stood here was ten cases driving the TOOLBAR's per-indicator rows: "a
+// FLIPPED row writes the instance, and stops being inert". B4 Task 8 deleted
+// those fifteen rows for the launcher (spec §6), so the subject is gone — the
+// fourth time a case in this family has had its subject migrated out from under
+// it, and the reason the describe above asserts the flip SETS rather than naming
+// a survivor.
+//
+// The claim is unchanged and it is not retired: a flipped indicator's controls
+// must write the INSTANCE and the legacy MIRROR, each field writing the input it
+// names, refusing what the definition refuses. Those controls live on the
+// GENERATED SETTINGS DIALOG now, and it reaches MORE of them than the toolbar
+// ever did (MACD's two colours, VWAP's opacity / style / width, six of
+// ichimoku's eight). So the cases move there, with the same stateful harness and
+// the same real user events.
+//
+// ⚠️ THE STATEFUL HARNESS IS STILL LOAD-BEARING. The dialog's inputs are
+// CONTROLLED: a mount whose `onChange` only records leaves the box showing the
+// OLD value, so a second keystroke appends to it and `clear(); type('9')` reads
+// back `79`. That is the harness lying, not the writer.
+function mountDialog(settings, onChange) {
+  function Harness() {
+    const [cs, setCs] = useState(settings)
+    return <ChartSettingsModal open settings={cs} onChange={(next) => { onChange(next); setCs(next) }} />
+  }
+  return render(<Harness />)
+}
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+
+/** One indicator's SECTION in the dialog. The section label is the definition's
+ *  short name, which is unique — scoping to it is what keeps `Period` and
+ *  `Color` (which repeat across fifteen sections) unambiguous. */
+const sectionFor = (shortName) =>
+  [...document.body.querySelectorAll('[class*="sectionLabel"]')]
+    .find((n) => n.textContent === shortName).parentElement
+
+/** One field row inside a section, addressed BY DECLARATION INDEX.
+ *  ⚠️ NOT by label: MACD declares `signalPeriod` and `signalColor` BOTH labelled
+ *  "Signal", and `macdColor`'s label is "MACD", which is also the section's own
+ *  heading. A label lookup finds two elements and reads as a missing control.
+ *  The dialog renders `row.fields` in declaration order, so the Nth field row IS
+ *  the Nth declared input — and if that ever stops being true, the case that
+ *  asserts declaration order goes red first. */
+const fieldFor = (shortName, defId, key) => {
+  const idx = engineRegistry.getDefinition(defId).inputs.findIndex((i) => i.key === key)
+  const rows = sectionFor(shortName).querySelectorAll('[class*="indRow"]')
+  return rows[idx]
+}
+const numberIn = (row) => within(row).getByRole('spinbutton')
+const swatchIn = (row) => row.querySelector('[data-color-swatch]')
+const toggleFor = (shortName) => within(sectionFor(shortName)).getByRole('switch')
+
+describe('the generated dialog — a FLIPPED indicator writes the instance, field by field', () => {
+  it('the period control is live, shows the INSTANCE, and says nothing about an engine', () => {
+    mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), vi.fn())
+    openIndicators()
+    const row = fieldFor('RSI', 'rsi', 'period')
+    expect(numberIn(row).disabled, 'a control with a writer is greyed out').toBe(false)
+    expect(row.getAttribute('title'), 'a live control claims something owns it').toBeNull()
+    // …and it shows the INSTANCE's value, which is the value it SETS.
+    expect(numberIn(row).value).toBe('7')
   })
 
   it('typing a period writes the INSTANCE and the legacy MIRROR, in one blob', async () => {
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith({ indicatorInstances: [RSI_7] }), spy)
-    await openPanel(user)
+    mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
+    openIndicators()
     // `<input type=number>` hands back a string; the writer coerces it off the
     // DEFINITION's declared type, not off a hand-maintained field list.
     // Select the existing digit and replace it. `clear()` first is a trap: an
     // empty box is a value `setIndicatorInput` REFUSES, so the write never lands,
     // the controlled input re-renders with the old value, and the next keystroke
     // APPENDS to it — the harness reads `79` and blames the writer.
-    await user.type(periodBox(rowFor('RSI')), '9', { initialSelectionStart: 0, initialSelectionEnd: 9 })
+    await user.type(numberIn(fieldFor('RSI', 'rsi', 'period')), '9',
+      { initialSelectionStart: 0, initialSelectionEnd: 9 })
     const next = spy.mock.calls.at(-1)[0]
-    expect(live(next).find(i => i.defId === 'rsi').inputs.period).toBe(9)
+    expect(live(next).find((i) => i.defId === 'rsi').inputs.period).toBe(9)
     expect(next.indicators.rsi.period, 'the alert evaluator reads this section').toBe(9)
   })
 
@@ -118,184 +171,178 @@ describe('ChartToolbar — a FLIPPED row writes the instance, and stops being in
     // write must not persist a half-blob either.
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith({ indicatorInstances: [RSI_7] }), spy)
-    await openPanel(user)
-    await user.type(periodBox(rowFor('RSI')), '500', { initialSelectionStart: 0, initialSelectionEnd: 9 })
-    expect(periodBox(rowFor('RSI')).value,
+    mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
+    openIndicators()
+    await user.type(numberIn(fieldFor('RSI', 'rsi', 'period')), '500',
+      { initialSelectionStart: 0, initialSelectionEnd: 9 })
+    expect(numberIn(fieldFor('RSI', 'rsi', 'period')).value,
       'the box never reached an out-of-range value — this case is vacuous').not.toBe('500')
     for (const [blob] of spy.mock.calls) {
-      const inst = live(blob).find(i => i.defId === 'rsi')
+      const inst = live(blob).find((i) => i.defId === 'rsi')
       expect(inst, 'a refused write dropped the instance').toBeTruthy()
       expect(inst.inputs.period).toBeLessThanOrEqual(100)
     }
   })
 
-  it('⭐ the colour swatch writes both sides — through a REAL click, which now lands', async () => {
-    // ⚠️ THIS CASE USED `fireEvent.click`, AND SAID WHY: `user.click` sends a
-    // MOUSEDOWN first, and the toolbar's outside-click handler closed the whole
-    // settings panel on any mousedown outside `settingsRef` — the ColorPicker
-    // popup is PORTALED to `document.body`, so it was "outside" and the panel
-    // unmounted before the click landed. **That was a shipped bug, not a harness
-    // artifact**, and it is fixed in this same task
-    // (`ChartToolbar.colorPicker.test.jsx`). So the click is REAL now: this case
-    // exercises the write path AND the reachability that Flip B needs, and a
-    // regression in either fails it.
+  it('⭐ the colour control writes both sides — through a REAL click, which lands', async () => {
+    // ⚠️ THE CLICK IS REAL ON PURPOSE. `user.click` sends a MOUSEDOWN first, and
+    // a close-on-outside-mousedown handler that does not exempt a PORTALED popup
+    // unmounts the surface before the click lands. That was a shipped bug one
+    // surface over (`ChartToolbar.colorPicker.test.jsx`), and `fireEvent.click`
+    // cannot see it.
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith({ indicatorInstances: [RSI_7] }), spy)
-    await openPanel(user)
-    await user.click(swatch(rowFor('RSI')))
-    // The picker's preset cells carry their colour as the title. Reading the
-    // colour off the control rather than hardcoding one keeps the case alive if
-    // the palette changes — and the search is scoped to the PORTALED popup,
-    // because every other row's swatch button carries a hex title too.
-    const popup = screen.getByPlaceholderText('#hex').closest('div').parentElement
-    const cell = within(popup).getAllByTitle(/^#[0-9a-f]{6}$/i)[1]
-    const picked = cell.getAttribute('title')
-    expect(picked, 'the picker never opened').toBeTruthy()
-
-    await user.click(cell)
-
+    mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
+    openIndicators()
+    await user.click(swatchIn(fieldFor('RSI', 'rsi', 'color')))
+    // The dialog opens the SHARED `ColorPanel`, portaled to <body>, whose hex box
+    // is unlabelled — found through the panel's own `data-color-panel` contract
+    // rather than a CSS-module class a rename would silently break.
+    const panel = document.querySelector('[data-color-panel]')
+    expect(panel, 'the colour panel never opened').toBeTruthy()
+    const hex = within(panel).getByRole('textbox')
+    await user.clear(hex)
+    await user.type(hex, '00ff00{Enter}')
     const next = spy.mock.calls.at(-1)[0]
-    expect(live(next).find(i => i.defId === 'rsi').inputs.color).toBe(picked)
-    expect(next.indicators.rsi.color).toBe(picked)
+    expect(live(next).find((i) => i.defId === 'rsi').inputs.color).toBe('#00ff00')
+    expect(next.indicators.rsi.color, 'the mirror was not written').toBe('#00ff00')
   })
 
-  it('the CHECKBOX reads the instance list: a tombstone beats a still-true toggle', async () => {
+  it('the TOGGLE reads the instance list: a tombstone beats a still-true toggle', () => {
     // The blob says `enabled: true` — under Flip A that was the switch, and the
-    // box would be checked over an indicator the user deleted.
-    const user = userEvent.setup()
-    mount(settingsWith({ indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }] }), vi.fn())
-    await openPanel(user)
-    expect(within(rowFor('RSI')).getByRole('checkbox').checked).toBe(false)
-    // ⚠️ MACD IS FLIPPED TOO (Task 11) — this used to say "macd is not flipped"
-    // and pass for that reason. It still passes, for a DIFFERENT one, and a green
-    // assertion with a false stated reason is the rot this branch keeps finding:
+    // toggle would be on over an indicator the user deleted.
+    mountDialog(settingsWith({ indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }] }), vi.fn())
+    openIndicators()
+    expect(toggleFor('RSI').getAttribute('aria-checked')).toBe('false')
     // MACD has a true toggle and NO instance of its own here, so
     // `isIndicatorEnabled` projects it. The claim is that RSI's tombstone is
     // per-DEFINITION and does not reach its neighbour.
-    expect(within(rowFor('MACD')).getByRole('checkbox').checked,
-      'RSI\'s tombstone unchecked MACD too — the read is not per definition').toBe(true)
+    expect(toggleFor('MACD').getAttribute('aria-checked'),
+      'RSI tombstone switched MACD off too — the read is not per definition').toBe('true')
   })
 
-  it('unchecking it writes a TOMBSTONE and clears the mirror', async () => {
+  it('switching it off writes a TOMBSTONE and clears the mirror', async () => {
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith({ indicatorInstances: [RSI_7] }), spy)
-    await openPanel(user)
-    await user.click(within(rowFor('RSI')).getByRole('checkbox'))
+    mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
+    openIndicators()
+    await user.click(toggleFor('RSI'))
     const next = spy.mock.calls.at(-1)[0]
     expect(next.indicatorInstances).toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
-    expect(live(next).filter(i => i.defId === 'rsi')).toEqual([])
+    expect(live(next).filter((i) => i.defId === 'rsi')).toEqual([])
     expect(next.indicators.rsi.enabled, 'the mirror still says the indicator is on').toBe(false)
   })
 
   it('BB is flipped too: period, std-dev and colour are all live and all write', async () => {
-    // The second flipped pilot, and the one whose row carries THREE controls. A
-    // `shownInput`/`engineInert` wired to one of them and not the others is a real
-    // shape of half-fix.
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith({
+    mountDialog(settingsWith({
       indicatorInstances: [{
         instanceId: 'legacy:bb', defId: 'bb', defVersion: 1,
         inputs: { period: 34, stdDev: 3, color: 'rgba(156,39,176,0.85)' },
         placement: { target: 'price' }, hidden: false,
       }],
     }), spy)
-    await openPanel(user)
-    const row = rowFor('BB')
-    const boxes = within(row).getAllByRole('spinbutton')
-    expect(boxes.map(b => b.disabled), 'a flipped BB row is still greyed out').toEqual([false, false])
-    expect(boxes.map(b => b.value), 'the row shows the blob, not the instance').toEqual(['34', '3'])
-    expect(swatch(row).disabled).toBe(false)
+    openIndicators()
+    expect(numberIn(fieldFor('BB', 'bb', 'period')).value).toBe('34')
+    expect(numberIn(fieldFor('BB', 'bb', 'stdDev')).value).toBe('3')
+    expect(swatchIn(fieldFor('BB', 'bb', 'color')).disabled).toBe(false)
 
-    await user.type(boxes[0], '21', { initialSelectionStart: 0, initialSelectionEnd: 9 })
+    await user.type(numberIn(fieldFor('BB', 'bb', 'period')), '21',
+      { initialSelectionStart: 0, initialSelectionEnd: 9 })
     const next = spy.mock.calls.at(-1)[0]
-    expect(live(next).find(i => i.defId === 'bb').inputs.period).toBe(21)
+    expect(live(next).find((i) => i.defId === 'bb').inputs.period).toBe(21)
     expect(next.indicators.bb.period).toBe(21)
   })
 
-  it('MACD\u2019s THREE boxes are all live, and each writes the input it names', async () => {
-    // ⚠️ THIS CASE WAS INVERTED BY TASK 11. It read "an UN-FLIPPED migrated
-    // definition keeps the Flip-A treatment exactly" and asserted MACD's three
-    // boxes were DISABLED with the engine tooltip. MACD is flipped now, so that
-    // assertion is the opposite of the truth — the fourth time a case in this
-    // family has had its subject migrated out from under it, which is why the
-    // describe above asserts the sets are EQUAL rather than naming a survivor.
-    //
-    // MACD is the only pilot with THREE fields on one instance, so "the row is
-    // live" is not the whole claim: each box has to write ITS OWN input. A writer
-    // keyed on the ROW rather than the FIELD would move `fastPeriod` when the user
-    // typed in the signal box, and all three boxes would still look live.
+  it('MACD has THREE live periods, and each writes the input it names', async () => {
+    // MACD is the only pilot with three period fields on one instance, so "the
+    // controls are live" is not the whole claim: each has to write ITS OWN input.
+    // A writer keyed on the ROW rather than the FIELD would move `fastPeriod`
+    // when the user typed in the signal box, and all three would still look live.
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith({
+    mountDialog(settingsWith({
       indicatorInstances: [{
         instanceId: 'legacy:macd', defId: 'macd', defVersion: 2,
         inputs: { fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },
         placement: { target: 'pane' }, hidden: false,
       }],
     }), spy)
-    await openPanel(user)
-    const boxes = within(rowFor('MACD')).getAllByRole('spinbutton')
-    expect(boxes.map(b => b.disabled), 'a row with a writer is still greyed out')
-      .toEqual([false, false, false])
-    expect(boxes[0].getAttribute('title')).toBe('Fast')
-    expect(boxes.map(b => b.value), 'the boxes must show the INSTANCE').toEqual(['5', '35', '4'])
+    openIndicators()
+    expect(['fastPeriod', 'slowPeriod', 'signalPeriod']
+      .map((k) => numberIn(fieldFor('MACD', 'macd', k)).value)).toEqual(['5', '35', '4'])
 
-    await user.type(boxes[2], '7', { initialSelectionStart: 0, initialSelectionEnd: 9 })
+    await user.type(numberIn(fieldFor('MACD', 'macd', 'signalPeriod')), '7',
+      { initialSelectionStart: 0, initialSelectionEnd: 9 })
     const next = spy.mock.calls.at(-1)[0]
-    const inst = live(next).find(i => i.defId === 'macd')
+    const inst = live(next).find((i) => i.defId === 'macd')
     expect(inst.inputs.signalPeriod, 'the signal box wrote nothing').toBe(7)
     expect(inst.inputs.fastPeriod, 'typing in the signal box moved the FAST period').toBe(5)
     expect(inst.inputs.slowPeriod).toBe(35)
     expect(next.indicators.macd.signalPeriod, 'the alert evaluator reads this section').toBe(7)
   })
 
-  it('VWAP\u2019s swatch is live too, and writes the instance\u2019s colour', async () => {
-    // VWAP's only toolbar control is the swatch — its opacity / style / width live
-    // on the settings page — so this is the whole toolbar surface for it, and it
-    // was `engineInert`'s last subject before the flip.
-    const user = userEvent.setup()
-    const spy = vi.fn()
-    mount(settingsWith({
-      indicators: { vwap: { enabled: true, color: '#26C6DA' } },
+  it('⭐ …and MACD has TWO COLOUR controls — which no surface had before B4', () => {
+    // The gap the ledger measured and B3 could not close: `macdColor` and
+    // `signalColor` had a control NOWHERE. Asserted on the real dialog, because a
+    // control that appears and writes nowhere is the defect this phase retires.
+    mountDialog(settingsWith({
       indicatorInstances: [{
-        instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
-        inputs: { color: '#ff0000' }, placement: { target: 'price' }, hidden: false,
+        instanceId: 'legacy:macd', defId: 'macd', defVersion: 2,
+        inputs: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+        placement: { target: 'pane' }, hidden: false,
       }],
-    }), spy)
-    await openPanel(user)
-    const box = swatch(rowFor('VWAP'))
-    expect(box.disabled, 'a row with a writer is still greyed out').toBe(false)
-    expect(box.style.background, 'the swatch must show the INSTANCE').toBe('rgb(255, 0, 0)')
-    await user.click(box)
-    const hex = screen.getByPlaceholderText('#hex')
-    await user.clear(hex)
-    await user.type(hex, '#00ff00{Enter}')
-    const next = spy.mock.calls.at(-1)[0]
-    expect(live(next).find(i => i.defId === 'vwap').inputs.color).toBe('#00ff00')
-    expect(next.indicators.vwap.color, 'the mirror was not written').toBe('#00ff00')
+    }), vi.fn())
+    openIndicators()
+    for (const key of ['macdColor', 'signalColor']) {
+      expect(swatchIn(fieldFor('MACD', 'macd', key)), `no control for ${key}`).toBeTruthy()
+    }
   })
 
-  it('⭐ the NUMERIC PARSE the legacy branch does is still there for a NON-MIGRATED id', async () => {
-    // The fall-through branch of `updateIndicator` keeps its `numFields` set —
-    // `<input type=number>` hands back a STRING, and a settings blob that stored
-    // `"21"` instead of `21` would be a silent type regression in every
-    // indicator the engine has not migrated. A flipped id coerces off the
-    // DEFINITION instead; both are asserted so neither can quietly become the
-    // other. ⚠️ The subject was already Stoch, which is NOT migrated, so Task 11
-    // moved only the title — but the title mattered: "un-flipped" now names an
-    // EMPTY set, and a case named for one reads as vacuous.
+  it('VWAP opacity writes the instance — a control the toolbar never had', () => {
+    const spy = vi.fn()
+    mountDialog(settingsWith({
+      indicators: { vwap: { enabled: true, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 } },
+      indicatorInstances: [{
+        instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
+        inputs: { color: '#ff0000', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
+        placement: { target: 'price' }, hidden: false,
+      }],
+    }), spy)
+    openIndicators()
+    expect(swatchIn(fieldFor('VWAP', 'vwap', 'color')).style.background,
+      'the swatch must show the INSTANCE').toBe('rgb(255, 0, 0)')
+
+    // ⚠️ TYPED AS A WHOLE VALUE, not digit by digit. `opacity` is an int 5..100,
+    // so replacing the selection with `4` is a value `setIndicatorInput` REFUSES
+    // — the write never lands, the controlled box re-renders at 100 and the next
+    // keystroke appends. `fireEvent.change` delivers the finished value the way a
+    // spinner or a paste does, which is what this case is about.
+    fireEvent.change(numberIn(fieldFor('VWAP', 'vwap', 'opacity')), { target: { value: '40' } })
+    const next = spy.mock.calls.at(-1)[0]
+    expect(live(next).find((i) => i.defId === 'vwap').inputs.opacity).toBe(40)
+    expect(next.indicators.vwap.opacity, 'the mirror was not written').toBe(40)
+    // …and the bound really is enforced on this control: 4 is below the declared
+    // minimum and must persist nothing at all.
+    const before = spy.mock.calls.length
+    fireEvent.change(numberIn(fieldFor('VWAP', 'vwap', 'opacity')), { target: { value: '4' } })
+    expect(spy.mock.calls.length, 'a value below the declared minimum was persisted').toBe(before)
+  })
+
+  it('⭐ a NON-MIGRATED id stores a NUMBER, not the string the input hands back', async () => {
+    // `updateIndicator`'s `numFields` set did this on the toolbar and RETIRED
+    // with it. Every id routes through `setIndicatorInput` now, which coerces off
+    // the DEFINITION's declared type — so the claim survives its writer, and a
+    // blob storing `"21"` instead of `21` is still a red test.
     const user = userEvent.setup()
     const spy = vi.fn()
-    mount(settingsWith(), spy)
-    await openPanel(user)
-    await user.type(within(rowFor('Stoch')).getAllByRole('spinbutton')[0], '21',
+    mountDialog(settingsWith({ indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3 } } }), spy)
+    openIndicators()
+    await user.type(numberIn(fieldFor('Stoch', 'stoch', 'kPeriod')), '21',
       { initialSelectionStart: 0, initialSelectionEnd: 9 })
     const next = spy.mock.calls.at(-1)[0]
-    expect(next.indicators.stoch.kPeriod, 'the numeric parse is gone — the blob stores a string')
+    expect(next.indicators.stoch.kPeriod, 'the numeric coercion is gone — the blob stores a string')
       .toBe(21)
     expect(typeof next.indicators.stoch.kPeriod).toBe('number')
   })

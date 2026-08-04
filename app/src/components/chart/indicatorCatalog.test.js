@@ -83,18 +83,12 @@ const SHORTCUT_ROW_IS_INDICATOR = (m) => m[2] in CHART_DEFAULTS.indicators
  *  shipped at `d2733adc` for the retired five — which is what makes the DIFF
  *  tables below still mean something after the deletion.
  */
-function parseShippedLists() {
-  const TB = read('app/src/components/chart/ChartToolbar.jsx')
-
-  // The toolbar's fifteen hand-written rows: the id comes from the checkbox's
-  // `isOn('<id>')` and the label from the `sIndicatorLabel` span in the same row.
-  const TOOLBAR_ROWS = {}
-  for (const p of TB.matchAll(
-    /checked=\{isOn\('([A-Za-z]+)'\)\}[\s\S]{0,600}?<span className=\{styles\.sIndicatorLabel\}>([^<]*)<\/span>/g,
-  )) TOOLBAR_ROWS[p[1]] = p[2]
-
-  return { TOOLBAR_ROWS }
-}
+/** The toolbar's fifteen hand-written rows: the id came from the checkbox's
+ *  `isOn('<id>')`, the label from the `sIndicatorLabel` span in the same row.
+ *  ⛔ RETIRED BY B4 TASK 8 — the rows are one "Manage indicators →" launcher —
+ *  so the pattern moves into `RETIRED_BY_B4` and is re-run demanding ZERO. */
+const TOOLBAR_ROW_RE =
+  /checked=\{isOn\('([A-Za-z]+)'\)\}[\s\S]{0,600}?<span className=\{styles\.sIndicatorLabel\}>([^<]*)<\/span>/g
 
 /** Retired by Tasks 3 and 4, and PROVEN retired: the exact patterns
  *  `parseShippedLists` used to run, each of which must now find nothing. A
@@ -105,11 +99,18 @@ function parseShippedLists() {
 const RETIRED_BY_B4 = [
   ['StockChart.jsx::IND_OPTS', 'app/src/components/StockChart.jsx', /const\s+IND_OPTS\s*=\s*\[/g],
   ['StockChart.jsx::OSC_OPTS', 'app/src/components/StockChart.jsx', /const\s+OSC_OPTS\s*=\s*\[/g],
-  ['ChartToolbar.jsx::OSC', 'app/src/components/chart/ChartToolbar.jsx', /const\s+OSC\s*=\s*\[/g],
+  // ⚠️ NAMED FOR ITS `SHIPPED` KEY, not for the identifier. The shipped constant
+  // was `const OSC`; the frozen record calls it `TOOLBAR_OSC` because it was the
+  // toolbar's second copy of `StockChart`'s `OSC_OPTS`. The case below pairs the
+  // two lists by this name, so the two halves cannot drift apart.
+  ['ChartToolbar.jsx::TOOLBAR_OSC (shipped as `const OSC`)',
+    'app/src/components/chart/ChartToolbar.jsx', /const\s+OSC\s*=\s*\[/g],
   ['chartRegion.js::INDICATOR_LABELS', 'app/src/components/chart/chartRegion.js',
     /export\s+const\s+INDICATOR_LABELS\s*=\s*\{/g],
   ['keyboardShortcuts.js::SHORTCUTS (the four indicator rows)',
     'app/src/components/chart/keyboardShortcuts.js', SHORTCUT_ROW_RE, SHORTCUT_ROW_IS_INDICATOR],
+  ['ChartToolbar.jsx::TOOLBAR_ROWS (the fifteen indicator rows)',
+    'app/src/components/chart/ChartToolbar.jsx', TOOLBAR_ROW_RE],
 ]
 
 /**
@@ -259,20 +260,31 @@ describe('the catalog covers every settings section, and nothing else', () => {
 })
 
 describe('the labels the six replaced lists showed — parsed, pinned, then diffed', () => {
-  it('the frozen A-side IS the shipped source, character for character', () => {
-    // ⛔ THE ONE CASE THAT MAKES EVERY OTHER CASE IN THIS BLOCK REAL. Without it
-    // `SHIPPED` is a hand-copy and the whole file pins a hand-copy to a hand-copy
-    // — twice-shipped on this branch already. Narrowed by Task 3 and again by
-    // Task 4 to the ONE region that still exists; the other five are asserted
-    // GONE below, and their `SHIPPED` entries are now the frozen record rather
-    // than a live pin.
-    const stillShipped = Object.fromEntries(
-      Object.entries(SHIPPED).filter(([k]) => k === 'TOOLBAR_ROWS'),
-    )
-    expect(parseShippedLists()).toEqual(stillShipped)
+  it('⭐ ALL SIX regions are retired now, and `SHIPPED` is the frozen record of what they showed', () => {
+    // ⛔ WHAT THIS CASE USED TO BE, AND WHY IT COULD NOT SURVIVE ITS OWN SUBJECT.
+    // It re-PARSED the still-shipped regions and compared them to `SHIPPED`, so
+    // the frozen A-side was a verified transcript rather than a hand-copy — the
+    // defect this branch shipped twice. Task 3 retired four of the six, Task 4 a
+    // fifth, and B4 Task 8 the last one (`TOOLBAR_ROWS`). There is nothing left
+    // to parse, so the parser is DELETED rather than left to return `{}`.
+    //
+    // ⚠️ AND THE PARSER'S "THROWS BY NAME ON ZERO MATCHES" GUARANTEE WAS FALSE
+    // FOR THIS REGION, MEASURED. `TOOLBAR_ROWS` used a plain `matchAll`, so on
+    // zero matches it degraded to `{}` and the comparison — not a throw — is what
+    // went red. That is the same defect Task 4 found in the `SHORTCUTS` region.
+    // It happened to fail loudly here; it would NOT have if the comparison had
+    // been written as a subset or a length floor.
+    //
+    // What replaces it is `RETIRED_BY_B4`, which re-runs each region's OWN
+    // pattern and demands ZERO — and this, which stops a region being dropped
+    // from one side only:
+    expect(RETIRED_BY_B4.map(([what]) => what.split('::')[1].split(' ')[0]).sort(),
+      'a region is retired without a frozen record, or frozen without a retirement check — ' +
+      'either way the DIFF tables below stop meaning anything for it',
+    ).toEqual(Object.keys(SHIPPED).sort())
   })
 
-  it('⭐ the five regions Tasks 3 and 4 retired are GONE from the shipped source', () => {
+  it('⭐ all six retired regions are GONE from the shipped source', () => {
     const survivors = RETIRED_BY_B4
       .map(([what, file, re, keep]) => {
         const hits = [...read(file).matchAll(re)]

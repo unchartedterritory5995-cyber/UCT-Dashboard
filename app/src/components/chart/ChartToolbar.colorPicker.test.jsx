@@ -27,10 +27,15 @@ import { mergeChartSettings } from './chartDefaults'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 
 const BASE = mergeChartSettings(JSON.stringify({
-  // `atr` is deliberate: it is neither migrated nor flipped, so this file
-  // measures the PANEL, not anything the engine does to a row — and its row
-  // carries exactly ONE ColorPicker, so `.at(-1)` is unambiguous.
-  indicators: { atr: { enabled: true, period: 14, color: '#FFA726' } },
+  // ⭐ RETARGETED AT B4 TASK 8. This used ATR's settings row — "neither migrated
+  // nor flipped, so this file measures the PANEL, not anything the engine does
+  // to a row". Task 8 deleted all fifteen indicator rows, so that subject is
+  // gone. The claim is unchanged and so is its reason: it needs A ColorPicker
+  // INSIDE the settings panel, on a control the engine has nothing to do with.
+  // The VOLUME pane's up-bar swatch is exactly that, and it cannot be migrated
+  // out from under this file — the volume pane has no definition and never will
+  // (`enumerationSites.test.js`: it is not an indicator at all).
+  volume: { visible: true, upColor: '#FFA726' },
 }))
 
 function mount(onUpdateSettings) {
@@ -48,7 +53,13 @@ function mount(onUpdateSettings) {
 }
 
 const openPanel = (user) => user.click(screen.getByTitle('Chart Settings'))
-const rowFor = (label) => screen.getByText(label, { selector: 'span' }).parentElement
+/** The swatch under test: the Volume group's "Up" ColorPicker. Scoped to the
+ *  Volume GROUP first — "Up" is also a drawing-colour label elsewhere on the
+ *  panel, and an unscoped lookup finds both. */
+const upSwatch = () => {
+  const group = screen.getByText('Volume', { selector: 'span' }).parentElement
+  return within(group).getByText('Up', { selector: 'span' }).parentElement.querySelector('button')
+}
 const panelIsOpen = () => screen.queryAllByText('Indicators', { selector: 'span' }).length > 0
 /** The portaled popup, found through the CONTRACT the fix is built on rather
  *  than through a CSS-module class name that a rename would silently break. */
@@ -60,7 +71,7 @@ describe('the settings panel survives a click inside a portaled popup', () => {
     mount(vi.fn())
     await openPanel(user)
     expect(panelIsOpen()).toBe(true)
-    await user.click(within(rowFor('ATR')).getAllByRole('button').at(-1))
+    await user.click(upSwatch())
     expect(popup(), 'the ColorPicker popup never opened').toBeTruthy()
     expect(popup().hasAttribute(PORTAL_POPUP_ATTR)).toBe(true)
     // …and it really is OUTSIDE the panel in the DOM, which is the premise.
@@ -76,7 +87,7 @@ describe('the settings panel survives a click inside a portaled popup', () => {
     const spy = vi.fn()
     mount(spy)
     await openPanel(user)
-    await user.click(within(rowFor('ATR')).getAllByRole('button').at(-1))
+    await user.click(upSwatch())
     const cell = within(popup()).getAllByTitle(/^#[0-9a-f]{6}$/i)[1]
     const picked = cell.getAttribute('title')
     expect(picked).toBeTruthy()
@@ -85,7 +96,7 @@ describe('the settings panel survives a click inside a portaled popup', () => {
 
     expect(spy, 'the colour never reached onUpdateSettings — the panel closed on mousedown')
       .toHaveBeenCalled()
-    expect(spy.mock.calls.at(-1)[0].indicators.atr.color).toBe(picked)
+    expect(spy.mock.calls.at(-1)[0].volume.upColor).toBe(picked)
     expect(panelIsOpen(), 'the settings panel closed while the user was picking a colour').toBe(true)
   })
 
@@ -96,13 +107,13 @@ describe('the settings panel survives a click inside a portaled popup', () => {
     const spy = vi.fn()
     mount(spy)
     await openPanel(user)
-    await user.click(within(rowFor('ATR')).getAllByRole('button').at(-1))
+    await user.click(upSwatch())
     const hex = within(popup()).getByPlaceholderText('#hex')
     await user.clear(hex)
     await user.type(hex, '#123456')
     expect(popup(), 'the popup closed while the hex field was being typed into').toBeTruthy()
     await user.click(within(popup()).getByText('OK'))
-    expect(spy.mock.calls.at(-1)[0].indicators.atr.color).toBe('#123456')
+    expect(spy.mock.calls.at(-1)[0].volume.upColor).toBe('#123456')
     expect(panelIsOpen()).toBe(true)
   })
 
@@ -126,10 +137,10 @@ describe('the settings panel survives a click inside a portaled popup', () => {
     const spy = vi.fn()
     mount(spy)
     await openPanel(user)
-    await user.click(within(rowFor('ATR')).getAllByRole('button').at(-1))
+    await user.click(upSwatch())
     const cell = within(popup()).getAllByTitle(/^#[0-9a-f]{6}$/i)[1]
     fireEvent.click(cell)
     expect(spy).toHaveBeenCalled()
-    expect(spy.mock.calls.at(-1)[0].indicators.atr.color).toBe(cell.getAttribute('title'))
+    expect(spy.mock.calls.at(-1)[0].volume.upColor).toBe(cell.getAttribute('title'))
   })
 })

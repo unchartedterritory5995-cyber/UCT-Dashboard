@@ -8,15 +8,13 @@ import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
-import { engineDrawnInputs, ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
-import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from './engine/instanceControls'
+import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
-import { labelFor, oscillatorIds } from './indicatorCatalog'
+import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import styles from './ChartToolbar.module.css'
-
-const EMPTY_DRAWN = Object.freeze(new Set())
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
 const I = (children) => (
@@ -115,76 +113,23 @@ const CROSSHAIR_STYLES = [
 
 // ─── Settings Panel (inline in chart) ────────────────────────────────────────
 
-function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
+function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLibrary }) {
   const cs = chartSettings
   const isPaid = useIsPaid()
 
-  // ── B3 FLIP A: A CONTROL THAT CANNOT DO ANYTHING MUST NOT LOOK LIKE IT CAN ──
+  // ── B4 TASK 8: THE ROWS THAT NEEDED THE HONESTY TREATMENT ARE GONE ────────
   //
-  // These rows write `cs.indicators.<id>.<field>`. The ENABLE checkbox still
-  // lands — under Flip A the legacy toggle is the SWITCH (StockChart projects an
-  // instance whose toggle is off to `hidden`) — but PERIOD, STD-DEV and COLOUR
-  // are read off the INSTANCE by the engine and this blob is never consulted for
-  // them. Typing 7 into RSI's period box moved nothing on the chart and said
-  // nothing about why: the exact "appears to work and doesn't" failure this
-  // project keeps hitting. Disabled, with the reason in the tooltip, is the
-  // honest state until there is a writer.
+  // What stood here was `engineInputs` / `engineDrawn` / `engineInert` /
+  // `shownInput` / `inertTitle`: the machinery that kept fifteen per-indicator
+  // rows from lying about what the engine was drawing. Spec §6 turned those rows
+  // into one launcher, so the predicate has no subject and no reader, and an
+  // inert helper reads as live logic. `ChartToolbar.engineInert.test.jsx` is
+  // RETARGETED rather than deleted: what stays failable is that no per-indicator
+  // writer comes back to this surface.
   //
-  // ⏳ TASK 9 LANDED THE WRITER AND THE ROUTING, DARK. `updateIndicator` below
-  // sends a FLIPPED id's writes to `instanceControls`, and `engineInert`
-  // subtracts `ENGINE_FLIPPED_DEF_IDS` — so a row is inert only while its
-  // definition has no writer. The set is EMPTY, so nothing below changes today;
-  // Task 10 opens it one id at a time and those rows come back to life.
-  //
-  // Applied to all four B3 pilots, not just RSI, so Tasks 10 and 11 inherit it —
-  // `engineDrawnDefIds` returns only ids in `ENGINE_MIGRATED_DEF_IDS`, so the
-  // three that have not flipped yet resolve to `false` and nothing changes today.
-  //
-  // ── …AND IT MUST SHOW THE VALUE THAT IS ACTUALLY RENDERING ────────────────
-  //
-  // Disabling the box was half the fix. The other half is that a greyed box
-  // showing `cs.indicators.rsi.period` was still lying: on an `?instances=`
-  // chart it read a disabled **14** while the crosshair legend printed
-  // **RSI(7)** in a colour this swatch did not show. `shownInput` prefers the
-  // drawing instance's own input and falls back to the blob — so when the row is
-  // live (engine off, or a definition not yet migrated) nothing changes at all,
-  // and when it is inert it displays the number on the chart.
-  const engineInputs = useMemo(() => engineDrawnInputs(cs, engineRegistry), [cs])
-  const engineDrawn = useMemo(
-    () => (engineInputs.size ? new Set(engineInputs.keys()) : EMPTY_DRAWN),
-    [engineInputs],
-  )
-  // ── FLIP B: THE ROW STOPS BEING INERT THE MOMENT IT HAS A WRITER ──────────
-  //
-  // `engineInert` means "engine-drawn AND nothing here can change it". Once an
-  // id is FLIPPED, `updateIndicator` below routes to `instanceControls`, which
-  // writes the instance the engine is reading — so the row controls the chart
-  // again and greying it would be the *opposite* lie: a working control that
-  // looks dead. ⛔ `ENGINE_FLIPPED_DEF_IDS` is EMPTY until Task 10, so today this
-  // subtraction removes nothing and every assertion in
-  // `ChartToolbar.engineInert.test.jsx` still describes the shipped behaviour.
-  //
-  // ⭐ EVERY INDICATOR ROW ASKS THIS, not just the migrated four (B3 Task 11,
-  // prerequisite 2). It used to be wired to `rsi`/`macd`/`bb`/`vwap` only, and
-  // the file's own case *"a NON-migrated indicator keeps every control"* was
-  // therefore **VACUOUS**: Stoch's row passed no `disabled` prop at all, so
-  // `expect(box.disabled).toBe(false)` held for a reason unrelated to the
-  // engine. MEASURED — mutating this to `(key) => key === 'stoch'`, the exact
-  // regression that case's comment named, left 58 files / 1,245 tests GREEN.
-  //
-  // A predicate no row consults cannot be caught lying about that row, so the
-  // fix is to consult it everywhere. The answer is `false` for all eleven
-  // un-migrated ids BY CONSTRUCTION (`engineDrawnDefIds` returns only ids in
-  // `ENGINE_MIGRATED_DEF_IDS`), so nothing renders differently — and now a lie
-  // about any of them disables a live control and goes red.
-  //
-  // It also removes a step B4 would otherwise have to remember: migrating ATR
-  // no longer means "…and wire ATR's row too", which is the same class of latent
-  // omission `engineOwnedDefIds` exists to make structural.
-  const engineInert = useCallback(
-    (key) => engineDrawn.has(key) && !ENGINE_FLIPPED_DEF_IDS.has(key),
-    [engineDrawn],
-  )
+  // `isOn` survives because the volume-overlay strip and the launcher's count
+  // both need it, and it is the ONE reader — a count off the raw mirror reports
+  // a tombstoned indicator as on.
   /**
    * Is this indicator on? Through `instanceControls` for a FLIPPED id — after
    * Flip B a tombstone can say "off" while the legacy toggle still says "on",
@@ -195,22 +140,6 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   const isOn = useCallback((key) => (ENGINE_FLIPPED_DEF_IDS.has(key)
     ? isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
     : (cs.indicators?.[key]?.enabled ?? false)), [cs])
-  const shownInput = useCallback((key, field, fallback) => {
-    const v = engineInputs.get(key)?.[field]
-    return v === undefined || v === null ? fallback : v
-  }, [engineInputs])
-  // ⚠️ THE SAME PREDICATE AS `engineInert`, not a second copy of half of it. A
-  // flipped row is live, so a tooltip still saying "this field is not what sets
-  // it" would be the box telling the user their keystroke did nothing while it
-  // did — and `disabled` and `title` disagreeing is exactly how the original
-  // half-fix (a greyed box showing the wrong number) happened.
-  const inertTitle = useCallback(
-    (key, normal) => (engineInert(key)
-      ? 'Drawn by the indicator engine — this is the value its instance is rendering with, and this field is not what sets it.'
-      : normal),
-    [engineInert],
-  )
-
   const update = useCallback((path, value) => {
     const next = { ...cs }
     const parts = path.split('.')
@@ -236,37 +165,10 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
     onUpdateSettings(next)
   }, [cs, onUpdateSettings])
 
-  const updateIndicator = useCallback((key, field, value) => {
-    // ── FLIP B: THE WRITE GOES TO THE INSTANCE (and a write-through mirror) ──
-    //
-    // ⛔ DEAD WHILE `ENGINE_FLIPPED_DEF_IDS` IS EMPTY — Task 9 lands this dark and
-    // Task 10 opens it one id at a time. `instanceControls` is the ONE writer
-    // every control surface shares, so the checkbox, the number boxes and the
-    // swatch cannot disagree about what "on" or "period 7" means; and it REFUSES
-    // a value the definition would reject rather than storing an instance
-    // `normalizeInstances` then drops (an indicator that silently disappears).
-    // A refused write persists nothing, which is why the guard is on identity.
-    if (ENGINE_FLIPPED_DEF_IDS.has(key)) {
-      const next = field === 'enabled'
-        ? setIndicatorEnabled(cs, key, !!value, engineRegistry)
-        : setIndicatorInput(cs, key, field, value, engineRegistry)
-      if (next !== cs) onUpdateSettings(next)
-      return
-    }
-    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev', 'kPeriod', 'dPeriod', 'step', 'maxStep'])
-    const next = { ...cs }
-    next.indicators = {
-      ...next.indicators,
-      [key]: {
-        ...next.indicators[key],
-        [field]: numFields.has(field)
-          ? (['stdDev', 'step', 'maxStep'].includes(field) ? (parseFloat(value) || next.indicators[key][field]) : (parseInt(value) || next.indicators[key][field]))
-          : value,
-      },
-    }
-    next.preset = 'custom'
-    onUpdateSettings(next)
-  }, [cs, onUpdateSettings])
+  /** How many indicators are on, THROUGH `isOn`. `catalogRows()` is definitions
+   *  ∪ the carved-out sections, so `volumeProfile` counts — it has a row in the
+   *  library like everything else. */
+  const activeCount = useMemo(() => catalogRows().filter((r) => isOn(r.id)).length, [isOn])
 
   const applyPreset = useCallback((key) => {
     const preset = PRESETS[key]
@@ -507,279 +409,34 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         })()}
       </div>
 
-      {/* Technical Indicators */}
+      {/* Indicators — spec §6: the gear panel's checkbox rows become a
+          LAUNCHER. Every control they carried is on the generated dialog, and
+          the dialog reaches inputs this surface never could: `sar.maxStep`, six
+          of `ichimoku`'s eight, MACD's two colours and VWAP's opacity / line
+          style / line width. Fifteen rows that duplicated a surface which now
+          covers them is the enumeration this phase exists to end.
+
+          ⚠️ `updateIndicator`, `engineInert`, `inertTitle` and `shownInput`
+          retire WITH the rows. `engineInert` existed to say "this control is
+          drawn by the engine and this field is not what sets it"; with no
+          controls left there is nothing to tell the truth about, and an inert
+          helper reads as live logic. `isOn` and `update` stay — the volume
+          overlay strip and the rest of the panel use them. */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Indicators</span>
-
-        {/* RSI */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('rsi')}
-            onChange={e => updateIndicator('rsi', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>RSI</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={shownInput('rsi', 'period', cs.indicators?.rsi?.period ?? 14)} min={2} max={100}
-            disabled={engineInert('rsi')}
-            onChange={e => updateIndicator('rsi', 'period', e.target.value)}
-            title={inertTitle('rsi', 'Period')} />
-          <ColorPicker value={shownInput('rsi', 'color', cs.indicators?.rsi?.color ?? '#7b68ee')}
-            disabled={engineInert('rsi')} title={inertTitle('rsi', null)}
-            onChange={v => updateIndicator('rsi', 'color', v)} />
-        </div>
-
-        {/* MACD */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('macd')}
-            onChange={e => updateIndicator('macd', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>MACD</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <input type="number" className={styles.sPeriodInput}
-              value={shownInput('macd', 'fastPeriod', cs.indicators?.macd?.fastPeriod ?? 12)} min={1} max={100}
-              disabled={engineInert('macd')}
-              onChange={e => updateIndicator('macd', 'fastPeriod', e.target.value)}
-              title={inertTitle('macd', 'Fast')} />
-            <input type="number" className={styles.sPeriodInput}
-              value={shownInput('macd', 'slowPeriod', cs.indicators?.macd?.slowPeriod ?? 26)} min={1} max={200}
-              disabled={engineInert('macd')}
-              onChange={e => updateIndicator('macd', 'slowPeriod', e.target.value)}
-              title={inertTitle('macd', 'Slow')} />
-            <input type="number" className={styles.sPeriodInput}
-              value={shownInput('macd', 'signalPeriod', cs.indicators?.macd?.signalPeriod ?? 9)} min={1} max={50}
-              disabled={engineInert('macd')}
-              onChange={e => updateIndicator('macd', 'signalPeriod', e.target.value)}
-              title={inertTitle('macd', 'Signal')} />
-          </div>
-        </div>
-
-        {/* Bollinger Bands */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('bb')}
-            onChange={e => updateIndicator('bb', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>BB</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={shownInput('bb', 'period', cs.indicators?.bb?.period ?? 20)} min={2} max={200}
-            disabled={engineInert('bb')}
-            onChange={e => updateIndicator('bb', 'period', e.target.value)}
-            title={inertTitle('bb', 'Period')} />
-          <input type="number" className={styles.sPeriodInput}
-            value={shownInput('bb', 'stdDev', cs.indicators?.bb?.stdDev ?? 2)} min={0.5} max={5} step={0.5}
-            disabled={engineInert('bb')}
-            onChange={e => updateIndicator('bb', 'stdDev', e.target.value)}
-            title={inertTitle('bb', 'Std Dev')} />
-          <ColorPicker value={shownInput('bb', 'color', cs.indicators?.bb?.color ?? 'rgba(156,39,176,0.85)')}
-            disabled={engineInert('bb')} title={inertTitle('bb', null)}
-            onChange={v => updateIndicator('bb', 'color', v)} />
-        </div>
-
-        {/* VWAP */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('vwap')}
-            onChange={e => updateIndicator('vwap', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>VWAP</span>
-          <span className={styles.sIndicatorNote}>(intraday only)</span>
-          <ColorPicker value={shownInput('vwap', 'color', cs.indicators?.vwap?.color ?? '#26C6DA')}
-            disabled={engineInert('vwap')} title={inertTitle('vwap', null)}
-            onChange={v => updateIndicator('vwap', 'color', v)} />
-        </div>
-
-        {/* Stochastic */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('stoch')}
-            onChange={e => updateIndicator('stoch', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Stoch</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.stoch?.kPeriod ?? 14} min={1} max={100}
-              disabled={engineInert('stoch')}
-              onChange={e => updateIndicator('stoch', 'kPeriod', e.target.value)}
-              title={inertTitle('stoch', '%K Period')} />
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.stoch?.dPeriod ?? 3} min={1} max={20}
-              disabled={engineInert('stoch')}
-              onChange={e => updateIndicator('stoch', 'dPeriod', e.target.value)}
-              title={inertTitle('stoch', '%D Period')} />
-          </div>
-          <ColorPicker value={cs.indicators?.stoch?.kColor ?? '#FF6B6B'}
-            disabled={engineInert('stoch')} title={inertTitle('stoch', null)}
-            onChange={v => updateIndicator('stoch', 'kColor', v)} />
-          <ColorPicker value={cs.indicators?.stoch?.dColor ?? '#4ECDC4'}
-            disabled={engineInert('stoch')} title={inertTitle('stoch', null)}
-            onChange={v => updateIndicator('stoch', 'dColor', v)} />
-        </div>
-
-        {/* ATR */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('atr')}
-            onChange={e => updateIndicator('atr', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>ATR</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.atr?.period ?? 14} min={1} max={100}
-            disabled={engineInert('atr')}
-            onChange={e => updateIndicator('atr', 'period', e.target.value)}
-            title={inertTitle('atr', 'Period')} />
-          <ColorPicker value={cs.indicators?.atr?.color ?? '#FFA726'}
-            disabled={engineInert('atr')} title={inertTitle('atr', null)}
-            onChange={v => updateIndicator('atr', 'color', v)} />
-        </div>
-
-        {/* Parabolic SAR */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('sar')}
-            onChange={e => updateIndicator('sar', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>SAR</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.sar?.step ?? 0.02} min={0.001} max={0.1} step={0.001}
-              disabled={engineInert('sar')}
-              onChange={e => updateIndicator('sar', 'step', parseFloat(e.target.value) || 0.02)}
-              title={inertTitle('sar', 'Step (acceleration factor)')} />
-          </div>
-          <ColorPicker value={cs.indicators?.sar?.color ?? '#ffeb3b'}
-            disabled={engineInert('sar')} title={inertTitle('sar', null)}
-            onChange={v => updateIndicator('sar', 'color', v)} />
-        </div>
-
-        {/* Ichimoku Cloud */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('ichimoku')}
-            onChange={e => updateIndicator('ichimoku', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Ichimoku</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <ColorPicker value={cs.indicators?.ichimoku?.tenkanColor ?? '#26C6DA'}
-              disabled={engineInert('ichimoku')}
-              onChange={v => updateIndicator('ichimoku', 'tenkanColor', v)}
-              title={inertTitle('ichimoku', 'Tenkan')} />
-            <ColorPicker value={cs.indicators?.ichimoku?.kijunColor ?? '#EF5350'}
-              disabled={engineInert('ichimoku')}
-              onChange={v => updateIndicator('ichimoku', 'kijunColor', v)}
-              title={inertTitle('ichimoku', 'Kijun')} />
-          </div>
-        </div>
-
-        {/* Volume Profile */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('volumeProfile')}
-            onChange={e => updateIndicator('volumeProfile', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Vol Profile</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.volumeProfile?.bins ?? 24} min={8} max={50}
-            disabled={engineInert('volumeProfile')}
-            onChange={e => updateIndicator('volumeProfile', 'bins', e.target.value)}
-            title={inertTitle('volumeProfile', 'Number of price bins')} />
-          <ColorPicker value={cs.indicators?.volumeProfile?.color ?? 'rgba(120,160,100,0.25)'}
-            disabled={engineInert('volumeProfile')} title={inertTitle('volumeProfile', null)}
-            onChange={v => updateIndicator('volumeProfile', 'color', v)} />
-        </div>
-
-        {/* MFI — Money Flow Index */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('mfi')}
-            onChange={e => updateIndicator('mfi', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>MFI</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.mfi?.period ?? 14} min={2} max={100}
-            disabled={engineInert('mfi')}
-            onChange={e => updateIndicator('mfi', 'period', e.target.value)}
-            title={inertTitle('mfi', 'Period')} />
-          <ColorPicker value={cs.indicators?.mfi?.color ?? '#c084fc'}
-            disabled={engineInert('mfi')} title={inertTitle('mfi', null)}
-            onChange={v => updateIndicator('mfi', 'color', v)} />
-        </div>
-
-        {/* CCI — Commodity Channel Index */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('cci')}
-            onChange={e => updateIndicator('cci', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>CCI</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.cci?.period ?? 20} min={2} max={200}
-            disabled={engineInert('cci')}
-            onChange={e => updateIndicator('cci', 'period', e.target.value)}
-            title={inertTitle('cci', 'Period')} />
-          <ColorPicker value={cs.indicators?.cci?.color ?? '#fbbf24'}
-            disabled={engineInert('cci')} title={inertTitle('cci', null)}
-            onChange={v => updateIndicator('cci', 'color', v)} />
-        </div>
-
-        {/* Williams %R */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('williamsR')}
-            onChange={e => updateIndicator('williamsR', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Williams %R</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.williamsR?.period ?? 14} min={2} max={100}
-            disabled={engineInert('williamsR')}
-            onChange={e => updateIndicator('williamsR', 'period', e.target.value)}
-            title={inertTitle('williamsR', 'Period')} />
-          <ColorPicker value={cs.indicators?.williamsR?.color ?? '#60a5fa'}
-            disabled={engineInert('williamsR')} title={inertTitle('williamsR', null)}
-            onChange={v => updateIndicator('williamsR', 'color', v)} />
-        </div>
-
-        {/* ADX / DMI */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('adx')}
-            onChange={e => updateIndicator('adx', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>ADX</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.adx?.period ?? 14} min={2} max={100}
-            disabled={engineInert('adx')}
-            onChange={e => updateIndicator('adx', 'period', e.target.value)}
-            title={inertTitle('adx', 'Period')} />
-          <div className={styles.sMiniPeriodGroup}>
-            <ColorPicker value={cs.indicators?.adx?.adxColor ?? '#e5e7eb'}
-              disabled={engineInert('adx')}
-              onChange={v => updateIndicator('adx', 'adxColor', v)}
-              title={inertTitle('adx', 'ADX')} />
-            <ColorPicker value={cs.indicators?.adx?.plusDIColor ?? '#22c55e'}
-              disabled={engineInert('adx')}
-              onChange={v => updateIndicator('adx', 'plusDIColor', v)}
-              title={inertTitle('adx', '+DI')} />
-            <ColorPicker value={cs.indicators?.adx?.minusDIColor ?? '#ef4444'}
-              disabled={engineInert('adx')}
-              onChange={v => updateIndicator('adx', 'minusDIColor', v)}
-              title={inertTitle('adx', '-DI')} />
-          </div>
-        </div>
-
-        {/* OBV — On-Balance Volume */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('obv')}
-            onChange={e => updateIndicator('obv', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>OBV</span>
-          <ColorPicker value={cs.indicators?.obv?.color ?? '#9ca3af'}
-            disabled={engineInert('obv')} title={inertTitle('obv', null)}
-            onChange={v => updateIndicator('obv', 'color', v)} />
-        </div>
-
-        {/* Donchian Channels */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={isOn('donchian')}
-            onChange={e => updateIndicator('donchian', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Donchian</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.donchian?.period ?? 20} min={2} max={200}
-            disabled={engineInert('donchian')}
-            onChange={e => updateIndicator('donchian', 'period', e.target.value)}
-            title={inertTitle('donchian', 'Period')} />
-          <ColorPicker value={cs.indicators?.donchian?.color ?? 'rgba(96,165,250,0.5)'}
-            disabled={engineInert('donchian')} title={inertTitle('donchian', null)}
-            onChange={v => updateIndicator('donchian', 'color', v)} />
-        </div>
+        <button
+          type="button"
+          className={styles.sLauncher}
+          onClick={() => onOpenIndicatorLibrary?.()}
+        >
+          <span>Manage indicators</span>
+          {/* ⛔ COUNTED THROUGH `isOn`, the reader every other control on this
+              surface uses. A count read off `cs.indicators[id].enabled` says 2
+              for a TOMBSTONED indicator as well — a number over a chart that
+              is not drawing it. */}
+          <span className={styles.sLauncherCount}>{activeCount}</span>
+          <span aria-hidden="true">→</span>
+        </button>
       </div>
 
       {/* Display Options */}
@@ -1313,7 +970,11 @@ function ChartToolbar({
               {ICONS.settings}
             </button>
             {showSettings && (
-              <ChartSettingsPanel chartSettings={chartSettings} onUpdateSettings={onUpdateSettings} />
+              <ChartSettingsPanel
+                chartSettings={chartSettings}
+                onUpdateSettings={onUpdateSettings}
+                onOpenIndicatorLibrary={() => setLibraryOpen(true)}
+              />
             )}
           </div>
         )}
