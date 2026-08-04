@@ -4,8 +4,25 @@ export function SkeletonLine({ width = '100%', height = 14 }) {
   return <div className={styles.line} style={{ width, height }} />
 }
 
-export function SkeletonBlock({ width = '100%', height = 80 }) {
-  return <div className={styles.block} style={{ width, height }} />
+/**
+ * Loading box. THE size-contract primitive (spec §3.4): chart components export
+ * their rendered dimensions and hand them here as `size`, so the skeleton
+ * reserves exactly that box and there is zero layout shift on load, e.g.
+ *
+ *   // LollipopChart.jsx
+ *   export const SIZE = { width: '100%', height: 220 }
+ *   // consumer
+ *   {isLoading ? <SkeletonBlock size={LollipopChart.SIZE} /> : <LollipopChart … />}
+ *
+ * `width`/`height` are unchanged and still the primary API for the five
+ * existing call sites (Desk, Journal 2.0, SkeletonChart); `size` simply wins
+ * per-axis when it supplies that axis. Do NOT create a second SkeletonBlock in
+ * research-kit — §3.4 promotes THIS one.
+ */
+export function SkeletonBlock({ width, height, size }) {
+  const w = size?.width ?? width ?? '100%'
+  const h = size?.height ?? height ?? 80
+  return <div className={styles.block} style={{ width: w, height: h }} />
 }
 
 export function SkeletonCircle({ size = 28 }) {
