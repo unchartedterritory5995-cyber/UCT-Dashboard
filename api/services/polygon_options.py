@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 
 from api.services.cache import TTLCache
+from api.services.massive import to_polygon_symbol
 
 _log = logging.getLogger(__name__)
 
@@ -142,17 +143,25 @@ def get_chain(ticker: str, expiration: str = "",
         return dict(cached)
 
     try:
+        api_sym = to_polygon_symbol(sym)
         params: dict[str, Any] = {"limit": 250}
         if expiration:
             params["expiration_date"] = expiration
-        data = _safe_get(f"{_BASE}/v3/snapshot/options/{sym}", params=params)
+        results: list[dict] = []
+        url = f"{_BASE}/v3/snapshot/options/{api_sym}"
+        pages = 0
+        while url and pages < 8:  # 8 × 250 = 2000 contracts — beyond any single-expiry chain
+            data = _safe_get(url, params=params)
+            results.extend(data.get("results") or [])
+            url = data.get("next_url")
+            params = None  # next_url embeds the cursor + original params
+            pages += 1
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
         _log.warning("polygon chain fetch failed for %s: %s", sym, e)
         return {"error": f"polygon request failed: {e}", "ticker": sym}
 
-    results = data.get("results") or []
     if not results:
         return {"error": "no chain data", "ticker": sym}
 
