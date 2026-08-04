@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { matchShortcut, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
+import { INDICATOR_CHORDS, matchShortcut, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
+import { labelFor } from './indicatorCatalog';
+import { CHART_DEFAULTS } from './chartDefaults';
+import * as engineRegistry from './engine/nativeRegistry';
 
 
 function evt(key, opts = {}) {
@@ -154,6 +157,75 @@ describe('matchShortcut', () => {
         expect(TF_ORDER).toContain(s.command.slice(3));
       }
     }
+  });
+});
+
+
+describe('the four indicator chords are declared once', () => {
+  // ⚠️ FOUR, ACROSS TWO MODIFIERS. B3's ledger called this "two shortcuts, one
+  // file", then three, then FOUR across FOUR regions in TWO files — and every
+  // correction came from someone reading the code rather than the previous
+  // number. `Alt+U` is the one that keeps getting missed, because `matchShortcut`
+  // REJECTS Alt and its live handler is StockChart's own `e.altKey` block.
+
+  it('names exactly the four, with their real modifiers', () => {
+    expect(INDICATOR_CHORDS.map(c => [c.defId, c.keys, c.modifier])).toEqual([
+      ['rsi', 'Ctrl+I', 'ctrl'],
+      ['macd', 'Ctrl+O', 'ctrl'],
+      ['bb', 'Ctrl+B', 'ctrl'],
+      ['vwap', 'Alt+U', 'alt'],
+    ]);
+    // …and the `code` really is the physical key the `keys` label promises, or
+    // the Alt handler (which matches on `e.code`) and the help sheet disagree.
+    expect(INDICATOR_CHORDS.map(c => c.code))
+      .toEqual(INDICATOR_CHORDS.map(c => 'Key' + c.keys.split('+').pop()));
+  });
+
+  it('every chord names a definition that exists', () => {
+    const known = new Set(engineRegistry.listDefinitions().map(d => d.id));
+    expect(INDICATOR_CHORDS.filter(c => !known.has(c.defId)).map(c => c.defId)).toEqual([]);
+    // A chord for a carved-out key would route at `setIndicatorEnabled`, which
+    // refuses a definition-less id BY IDENTITY — the keystroke would do nothing.
+    expect(INDICATOR_CHORDS.filter(c => !(c.defId in CHART_DEFAULTS.indicators))).toEqual([]);
+  });
+
+  it('the help sheet rows are GENERATED from it, description included', () => {
+    for (const c of INDICATOR_CHORDS) {
+      const row = SHORTCUTS.find(s => s.keys === c.keys);
+      expect(row, c.keys).toBeTruthy();
+      expect(row.command).toBe('toggle:' + c.defId);
+      expect(row.description).toBe('Toggle ' + labelFor(c.defId));
+    }
+    // ⛔ AND NOTHING ELSE NAMES AN INDICATOR. A hand-written row left beside the
+    // spread would show the user a second, stale line for the same chord — which
+    // is the exact shape ("declared twice, one of them dead") this table ends.
+    const indicatorRows = SHORTCUTS
+      .filter(s => s.command.startsWith('toggle:') && s.command.slice(7) in CHART_DEFAULTS.indicators);
+    expect(indicatorRows.map(s => s.command))
+      .toEqual(INDICATOR_CHORDS.map(c => 'toggle:' + c.defId));
+    // The two non-indicator Ctrl rows are NOT chords — `ma` toggles four overlay
+    // slots and `volume` a pane, and neither is a definition — so they stay
+    // hand-written and must survive the generation.
+    expect(SHORTCUTS.find(s => s.keys === 'Ctrl+M').command).toBe('toggle:ma');
+    expect(SHORTCUTS.find(s => s.keys === 'Ctrl+V').command).toBe('toggle:volume');
+  });
+
+  it('matchShortcut resolves the Ctrl chords from the table, and still rejects Alt', () => {
+    expect(matchShortcut(evt('i', { ctrl: true }))).toBe('toggle:rsi');
+    expect(matchShortcut(evt('o', { ctrl: true }))).toBe('toggle:macd');
+    expect(matchShortcut(evt('b', { ctrl: true }))).toBe('toggle:bb');
+    // ⛔ Alt is still rejected here ON PURPOSE — browser Alt shortcuts keep
+    // working, and StockChart's own block is the live handler. If this ever
+    // returned a command, the Alt block and the `toggle:` dispatch would BOTH fire.
+    expect(matchShortcut(evt('u', { alt: true, code: 'KeyU' }))).toBe(null);
+    // ⛔ …and an ALT chord must not leak into the CTRL map either. `Alt+U`'s code
+    // is `KeyU`, so a matcher built without the `modifier === 'ctrl'` filter binds
+    // **Ctrl+U** to VWAP — a chord nobody declared, stealing a browser combo, and
+    // invisible to the Alt assertion above (Alt is rejected on the first line).
+    expect(matchShortcut(evt('u', { ctrl: true }))).toBe(null);
+    // …and the non-indicator Ctrl chords are untouched.
+    expect(matchShortcut(evt('m', { ctrl: true }))).toBe('toggle:ma');
+    expect(matchShortcut(evt('v', { ctrl: true }))).toBe('toggle:volume');
   });
 });
 

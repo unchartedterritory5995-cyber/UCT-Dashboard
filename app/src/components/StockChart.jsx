@@ -210,7 +210,7 @@ import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
-import { matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
+import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import UIcon from './ui/UIcon'
@@ -3359,6 +3359,21 @@ export default function StockChart({
   // module state) so two chart widgets walk the ladder independently, and not
   // state because a cycle position must never trigger a re-render.
   const tfCycleRef = useRef({ command: null, index: null })
+  // ⭐ ONE CONSUMER FOR ALL FOUR INDICATOR CHORDS (B4 Task 4).
+  //
+  // `Ctrl+I` / `Ctrl+O` / `Ctrl+B` arrive through `matchShortcut` as `toggle:<id>`
+  // and `Alt+U` arrives through the `e.altKey` block below, because `matchShortcut`
+  // rejects Alt. Two entry paths, ONE writer: `setIndicatorEnabled` is the writer
+  // the toolbar checkbox, both right-click doors and the settings row already
+  // share — it creates or TOMBSTONES the instance AND mirrors `cs.indicators.<id>`,
+  // so a FLIPPED id's chart follows and an UN-FLIPPED id's legacy block still
+  // reads the flag it has always read. Writing the raw flag is what made Alt+U
+  // tick a box over a chart that disagreed (B3 Task 11).
+  const toggleIndicatorById = useCallback((defId) => {
+    const on = isIndicatorEnabled(cs, defId, ENGINE_FLIPPED_DEF_IDS)
+    const next = setIndicatorEnabled(cs, defId, !on, engineRegistry)
+    if (next !== cs) handleUpdateChartSettings(next)
+  }, [cs, handleUpdateChartSettings])
   useEffect(() => {
     const onKey = (e) => {
       // Instance gate: multi-chart surfaces hand every cell this prop so only
@@ -3379,22 +3394,20 @@ export default function StockChart({
       // Alt shortcuts keep working), so these are handled here. Keyed on e.code
       // for layout independence (Mac emits special chars with Alt).
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
-        // Alt+U → toggle the session-VWAP indicator.
+        // The ALT indicator chords — today that is `Alt+U` → VWAP, and it is the
+        // one chord `matchShortcut` can never deliver (it rejects Alt on its first
+        // line, so `toggle:vwap` never reaches the switch below). Looked up in
+        // `INDICATOR_CHORDS` rather than hand-written, so this block and the help
+        // sheet cannot disagree about which key it is.
         //
-        // ⭐ THE FIFTH DOOR, AND IT IS NOT IN THE `toggle:` SWITCH (B3 Task 11).
-        // `keyboardShortcuts.js` declares `Alt+U -> toggle:vwap`, but
-        // `matchShortcut` rejects Alt, so that command never reaches the switch —
-        // this block is the live handler and it wrote `indicators.vwap.enabled`
-        // directly. VWAP is FLIPPED now, so that field is a MIRROR: writing it
-        // alone ticks a box the chart disagrees with, and a tombstone would put
-        // the line straight back on the next paint. Routed through
-        // `setIndicatorEnabled`, which is the one writer the checkbox, the
-        // right-click menu and the other three shortcuts already share.
-        if (!e.shiftKey && e.code === 'KeyU') {
+        // ⛔ `modifier === 'alt'` IS LOAD-BEARING, not decoration. RSI's chord
+        // code is `KeyI` — the same code as Alt+I (invert scale) below — so a
+        // lookup on `code` alone would toggle RSI on Alt+I and never reach the
+        // invert branch.
+        const altChord = INDICATOR_CHORDS.find(c => c.modifier === 'alt' && c.code === e.code)
+        if (!e.shiftKey && altChord) {
           e.preventDefault()
-          const on = isIndicatorEnabled(cs, 'vwap', ENGINE_FLIPPED_DEF_IDS)
-          const next = setIndicatorEnabled(cs, 'vwap', !on, engineRegistry)
-          if (next !== cs) handleUpdateChartSettings(next)
+          toggleIndicatorById(altChord.defId)
           return
         }
         // Alt+Shift+W → toggle the symbol watermark.
@@ -3530,31 +3543,18 @@ export default function StockChart({
         const updateField = (key, value) => {
           handleUpdateChartSettings({ ...cs, [key]: value, preset: 'custom' })
         }
-        // Ctrl+I / Ctrl+B / Ctrl+O. A FLIPPED indicator is enabled by its
-        // INSTANCE, not by the legacy toggle — one writer, so a checkbox, a
-        // shortcut and the settings panel can never disagree about what "off"
-        // means. `setIndicatorEnabled` writes the legacy MIRROR too, which is what
-        // keeps the alert evaluator and the alert popover alive.
-        const updateIndicator = (key) => {
-          if (ENGINE_FLIPPED_DEF_IDS.has(key)) {
-            const on = isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
-            const next = setIndicatorEnabled(cs, key, !on, engineRegistry)
-            if (next !== cs) handleUpdateChartSettings(next)
-            return
-          }
-          const next = {
-            ...cs.indicators,
-            [key]: { ...(cs.indicators?.[key] || {}), enabled: !cs.indicators?.[key]?.enabled },
-          }
-          handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
-        }
+        // ⭐ EVERY INDICATOR CHORD LEAVES BEFORE THE SWITCH. `case 'rsi'` /
+        // `case 'macd'` / `case 'bb'` were three cases calling one local helper
+        // that wrote `cs.indicators[key].enabled` raw for an un-flipped id; the
+        // helper is DELETED rather than left guarded, because an inert helper
+        // reads as live logic. `ma` and `volume` stay cases — neither is a
+        // definition, so neither has an instance to write.
+        const chord = INDICATOR_CHORDS.find(c => c.defId === target)
+        if (chord) { toggleIndicatorById(target); return }
         switch (target) {
           case 'log': updateField('logScale', !cs.logScale); break
           case 'theme': updateField('theme', cs.theme === 'light' ? 'dark' : 'light'); break
           case 'countdown': updateField('countdown', !cs.countdown); break
-          case 'rsi': updateIndicator('rsi'); break
-          case 'macd': updateIndicator('macd'); break
-          case 'bb': updateIndicator('bb'); break
           case 'ma': {
             // Toggle all moving-average overlays at once. If any are on, turn
             // them all off; otherwise turn them all on.
@@ -3599,7 +3599,10 @@ export default function StockChart({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf, onOpenSettings])
+    // `toggleIndicatorById` is memoised on `[cs, handleUpdateChartSettings]`, both
+    // of which are already deps here — so naming it re-subscribes the listener
+    // exactly as often as this effect already did, and never more.
+  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf, onOpenSettings, toggleIndicatorById])
 
   // Apply the inverted price scale (Alt+I) — on toggle and on chart (re)creation.
   useEffect(() => {

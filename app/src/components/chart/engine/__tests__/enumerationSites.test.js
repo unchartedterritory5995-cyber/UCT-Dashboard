@@ -106,14 +106,14 @@ const LEDGER = [
   // ── StockChart's control doors ───────────────────────────────────────────
   { file: 'app/src/components/StockChart.jsx', region: 'handleCopyShareUrl — the share link',
     anchor: 'const handleCopyShareUrl = useCallback(', fate: 'B4' },
-  // ⭐ THE LEDGER'S #13 WAS UNDER-ENUMERATED THREE WAYS. It named "Ctrl+I /
-  // Ctrl+O" — two shortcuts, one file. There are FOUR indicator shortcuts
-  // (Ctrl+I rsi, Ctrl+O macd, Ctrl+B bb, Alt+U vwap) across FOUR regions in TWO
-  // files, and the two regions below are the ones that actually WRITE.
-  { file: 'app/src/components/StockChart.jsx', region: "the toggle: switch — where Ctrl+I/O/B are consumed",
-    anchor: 'switch (target) {', fate: 'B4' },
-  { file: 'app/src/components/StockChart.jsx', region: 'the Alt-key block — Alt+U, the fifth control door',
-    anchor: 'if (e.altKey && !e.ctrlKey && !e.metaKey) {', fate: 'B4' },
+  // ⭐ THE LEDGER'S #13 WAS UNDER-ENUMERATED THREE WAYS, AND B4 TASK 4 RETIRED
+  // ALL FOUR OF ITS REGIONS. It named "Ctrl+I / Ctrl+O" — two shortcuts, one
+  // file. There are FOUR indicator chords (Ctrl+I rsi, Ctrl+O macd, Ctrl+B bb,
+  // Alt+U vwap) across FOUR regions in TWO files: `SHORTCUTS` and
+  // `matchShortcut`'s Ctrl branch DECLARED them, StockChart's `toggle:` switch
+  // and its Alt block CONSUMED them. All four are gone — see
+  // `RETIRED_BY_B4_TASK4` below, and `INDICATOR_CHORDS` two entries down, which
+  // is what replaced them.
 
   // ── layout, labels, the toolbar ──────────────────────────────────────────
   // ⭐ B4 ADJUDICATION A2 (2026-08-03). B3's Task 13 recorded a dispute and
@@ -143,10 +143,19 @@ const LEDGER = [
     anchor: 'export const ENGINE_ROW_DEF_IDS', fate: 'B4' },
 
   // ── the keyboard ─────────────────────────────────────────────────────────
-  { file: 'app/src/components/chart/keyboardShortcuts.js', region: 'the SHORTCUTS table — the help sheet',
-    anchor: "command: 'toggle:rsi'", fate: 'B4' },
-  { file: 'app/src/components/chart/keyboardShortcuts.js', region: "matchShortcut's Ctrl branch",
-    anchor: "if (k === 'i') return 'toggle:rsi'", fate: 'B4' },
+  // ⭐ FOUR REGIONS BECAME ONE, AND THE ONE IS A `keep`. B4 Task 4 generated the
+  // help sheet's four indicator rows and `matchShortcut`'s Ctrl map from this
+  // table, and collapsed the two consumers into one `toggleIndicatorById`.
+  //
+  // It IS on the ledger — it names four indicator ids, so the discovery scan
+  // below flags the file and must find it here — but its fate is `keep`, for the
+  // same reason `RAW_DEFS` is: a key binding is irreducibly a (key, indicator)
+  // pair and no definition can declare "Ctrl+I". What it is NOT is a region a
+  // NEW indicator has to be edited into, which is what the four it replaced were:
+  // an indicator without a chord simply has no chord, and adding one is now a
+  // deliberate edit in ONE place instead of four across two files.
+  { file: 'app/src/components/chart/keyboardShortcuts.js', region: 'INDICATOR_CHORDS — the four chord bindings, declared once',
+    anchor: 'export const INDICATOR_CHORDS', fate: 'keep' },
 
   // ── alerts ───────────────────────────────────────────────────────────────
   { file: 'app/src/components/chart/IndicatorAlertPopover.jsx', region: 'INDICATORS — the alert dropdown, 8',
@@ -206,6 +215,46 @@ const RETIRED_BY_THIS_TASK = [
   },
 ]
 
+/** What B4 TASK 4 RETIRED, and PROVEN retired rather than merely unlisted.
+ *
+ *  ⚠️ TWO OF THE FOUR ARE REGIONS INSIDE A SURVIVING BLOCK, so their old ledger
+ *  anchors (`switch (target) {`, `if (e.altKey && …) {`) still appear — the
+ *  switch still serves `log`/`theme`/`countdown`/`ma`/`volume` and the Alt block
+ *  still serves the watermark, the invert, the settings modal and six more. What
+ *  retired is the per-indicator ENUMERATION inside each, so the marker asserted
+ *  gone is the enumeration, not the block. */
+const RETIRED_BY_B4_TASK4 = [
+  {
+    file: 'app/src/components/chart/keyboardShortcuts.js',
+    region: 'the SHORTCUTS table — four hand-written indicator rows',
+    // The rows are `...INDICATOR_CHORDS.map(…)` now. `indicatorCatalog.test.js`
+    // re-runs the LABEL parser over this file and demands zero indicator rows;
+    // this is the command half of the same retirement.
+    gone: "command: 'toggle:rsi'",
+  },
+  {
+    file: 'app/src/components/chart/keyboardShortcuts.js',
+    region: "matchShortcut's Ctrl branch — five hand-written if-returns",
+    gone: "if (k === 'i') return 'toggle:rsi'",
+  },
+  {
+    file: 'app/src/components/StockChart.jsx',
+    region: "the toggle: switch — case 'rsi' / 'macd' / 'bb' and the raw-writing helper they called",
+    // ⚠️ CODE SHAPE, not a bare name. `updateIndicator` is DELETED rather than
+    // left guarded (an inert helper reads as live logic), and the comment above
+    // the pre-switch lookup explains what it used to do — a bare `includes` on
+    // the identifier would find the explanation and report a regression.
+    gone: "case 'rsi': updateIndicator(",
+  },
+  {
+    file: 'app/src/components/StockChart.jsx',
+    region: 'the Alt-key block — the hand-written KeyU branch',
+    // The lookup is `INDICATOR_CHORDS.find(c => c.modifier === 'alt' && …)`, so
+    // the physical key lives in the chord table and NOT in this file.
+    gone: "'KeyU'",
+  },
+]
+
 /** The number the ledger holds down. Change it ONLY by walking the code.
  *  31 → 26 at B4 Task 3: `IND_OPTS`, `OSC_OPTS`, the right-click `Hide <label>`,
  *  `chartRegion.INDICATOR_LABELS` and `ChartToolbar.OSC` all read
@@ -213,8 +262,15 @@ const RETIRED_BY_THIS_TASK = [
  *  `indicatorCatalog.test.js` → *the four regions Task 3 retired are GONE*); the
  *  fifth, `i-hide`, still exists as a menu item but enumerates nothing — its
  *  label comes from `labelFor(key)`, so it is no longer a site a new indicator
- *  has to be edited into, which is what this ledger counts. */
-const SITE_COUNT = 26
+ *  has to be edited into, which is what this ledger counts.
+ *
+ *  26 → 23 at B4 Task 4, and the arithmetic is 26 − 4 + 1, NOT 26 − 4. The four
+ *  keyboard regions retire into `INDICATOR_CHORDS`, which is itself a new ledger
+ *  entry — fate `keep` — because it hand-names four indicator ids and the
+ *  discovery scan below therefore flags its file. Deleting four and adding one is
+ *  the honest count; "22" would have been a site the scan can see and the ledger
+ *  cannot. */
+const SITE_COUNT = 23
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -249,8 +305,16 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // (spec §8 rebuilds the evaluator). **B4 retires EIGHTEEN, not twenty**, and
   // that correction is worth more than the arithmetic: twenty summed only while
   // a layout table sat in the settings-dialog group. Every later B4 task
-  // DECREMENTS `B4` here; the total stays 31 until a site is deleted outright.
-  it('the retirement column adds up — 13 to B4, 8 to B5, 1 to C, 2 kept, 2 phase bookkeeping', () => {
+  // DECREMENTS `B4` here; the total moves only when a site is deleted outright,
+  // which Tasks 3 and 4 have now both done (31 → 26 → 23).
+  //
+  // ⚠️ A RETIREMENT CAN ADD A ROW. Task 4 deleted four `B4` regions and added
+  // ONE `keep` (`INDICATOR_CHORDS`), so `B4` fell by four while the total fell by
+  // three. "Retired" means "no longer a region a new indicator must be edited
+  // into", not "no line of code names an indicator anywhere" — and the one that
+  // still does has to be ON this ledger, because the discovery scan below can see
+  // it whether or not anybody wrote it down.
+  it('the retirement column adds up — 9 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -263,13 +327,35 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // nothing here says so; the per-site reasoning lives in the comments beside
     // each entry, and that is what a reviewer has to read. "The retirement column
     // adds up" means the column adds up, not that every row is in the right one.
-    expect(counts).toEqual({ B4: 13, B5: 8, C: 1, keep: 2, phase: 2 })
+    expect(counts).toEqual({ B4: 9, B5: 8, C: 1, keep: 3, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
     for (const r of RETIRED_BY_THIS_TASK) {
       expect(read(r.file).includes(r.gone), `${r.file}: ${r.region} came back`).toBe(false)
     }
+  })
+
+  it('⭐ and the four keyboard regions B4 Task 4 retired are GONE too', () => {
+    const back = RETIRED_BY_B4_TASK4
+      .filter(r => read(r.file).includes(r.gone))
+      .map(r => `${r.file} :: ${r.region}`)
+    expect(back,
+      'a retired keyboard region is back in the shipped source. All four are derived from ' +
+      '`INDICATOR_CHORDS` now; a literal beside the derivation is a second source of truth, ' +
+      'which is how Alt+U ended up declared in one file and handled in another.',
+    ).toEqual([])
+    // …and the scan is not vacuous: the derivations that replaced them are really
+    // there, in both files, on both dispatch paths.
+    // ⚠️ NEWLINE-AGNOSTIC. This worktree stores `keyboardShortcuts.js` with CRLF
+    // and `StockChart.jsx` too, so a multi-line `toContain` built with `\n`
+    // matches NOTHING here and reads as "the derivation is missing".
+    const KS = read('app/src/components/chart/keyboardShortcuts.js')
+    expect(KS).toContain('...INDICATOR_CHORDS.map(')
+    expect(KS).toMatch(/INDICATOR_CHORDS\s*\.filter\(c => c\.modifier === 'ctrl'\)/)
+    const SC = read('app/src/components/StockChart.jsx')
+    expect(SC).toContain("INDICATOR_CHORDS.find(c => c.modifier === 'alt' && c.code === e.code)")
+    expect(SC).toContain('INDICATOR_CHORDS.find(c => c.defId === target)')
   })
 
   // ⭐ THE DISCOVERY HALF. The anchored table above catches a site that MOVES.
@@ -323,13 +409,21 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // every later B4 task leaves this set alone, and a scan that stops seeing one
     // of them fails BY NAME — which a count above eleven never could.
     //
-    // ⚠️ NOT "every walkable ledger file": measured, `indicatorRegistry.js` and
-    // `keyboardShortcuts.js` are ledger sites the scan legitimately does not
-    // flag. `ENGINE_ROW_DEF_IDS` is under four ids, and the help sheet spells
-    // them `'toggle:bb'`, which is not a quoted id. The scan's criterion (four or
-    // more hand-listed ids) and the ledger's (one per file/region a new indicator
-    // must be edited into) are different measures, and pretending otherwise is
-    // how a bound becomes a false alarm nobody trusts.
+    // ⚠️ NOT "every walkable ledger file": measured, `indicatorRegistry.js` is a
+    // ledger site the scan legitimately does not flag — `ENGINE_ROW_DEF_IDS` is
+    // under four ids. The scan's criterion (four or more hand-listed ids) and the
+    // ledger's (one per file/region a new indicator must be edited into) are
+    // different measures, and pretending otherwise is how a bound becomes a false
+    // alarm nobody trusts.
+    //
+    // ⛔ THIS NOTE USED TO NAME `keyboardShortcuts.js` HERE TOO, AND B4 TASK 4
+    // FALSIFIED THAT WITHOUT ANY TEST GOING RED. The reason given was that the
+    // help sheet spelled its ids `'toggle:bb'`, which is not a quoted id — true
+    // then, dead now: `INDICATOR_CHORDS` writes `defId: 'rsi'` and three more, so
+    // the scan DOES flag the file. It is on the ledger as a `keep`, which is what
+    // keeps the scan green — and the note is corrected rather than deleted,
+    // because a premise that quietly stops being true is the thing this file is
+    // for.
     const b5Walkable = [...new Set(LEDGER.filter(s => s.fate === 'B5').map(s => s.file))]
       .filter(f => /^app\/src\/.*\.jsx?$/.test(f)).sort()
     expect(b5Walkable.length, 'no B5 walkable file on the ledger — the check below is vacuous')

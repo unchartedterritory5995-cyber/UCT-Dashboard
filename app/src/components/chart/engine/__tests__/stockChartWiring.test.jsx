@@ -258,6 +258,10 @@ const { setIndicatorEnabled, isIndicatorEnabled } = await import('../instanceCon
 // inside this file would be the sixteenth hand-written list wearing the name of
 // the thing that ends them.
 const { catalogRows, labelFor, oscillatorIds } = await import('../../indicatorCatalog')
+// THE FOUR CHORDS, declared once (B4 Task 4). Imported so the dispatch cases
+// below iterate the SHIPPED table rather than a fifth hand-written copy of it —
+// a chord added to the table and not to a test would otherwise be untested.
+const { INDICATOR_CHORDS } = await import('../../keyboardShortcuts')
 // The compute the crosshair's per-plot split rests on — see the equivalence proof
 // next to the two-chip legend case.
 const { computeMACD } = await import('../../indicators')
@@ -1597,7 +1601,10 @@ describe('the reserved band — the instance reserves it, and the engine lands i
   })
 
   it('Ctrl+I hides an engine-drawn RSI — the keystroke, and what the keystroke writes', () => {
-    // `keyboardShortcuts.js:99` → StockChart's `toggle:` handler. ⭐ AT FLIP B IT
+    // `keyboardShortcuts.INDICATOR_CHORDS` → StockChart's `toggle:` handler. (The
+    // line number that used to be here — `keyboardShortcuts.js:99` — named the
+    // hand-written row B4 Task 4 generated away; a comment holding a line number
+    // is a control that rots on the next edit above it.) ⭐ AT FLIP B IT
     // WRITES THE INSTANCE, not just the toggle: the old assertion "the keystroke
     // must not rewrite the instance list" was Flip A's, and keeping it would have
     // meant Ctrl+I clearing a mirror while the chart kept drawing. The MIRROR is
@@ -1783,7 +1790,7 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
   })
 
   it('Ctrl+B hides an engine-drawn BB — the keystroke, and what the keystroke writes', () => {
-    // ⚠️ BB's shortcut is Ctrl+**B** (`keyboardShortcuts.js:101` → StockChart's
+    // ⚠️ BB's shortcut is Ctrl+**B** (`INDICATOR_CHORDS` → StockChart's
     // `toggle:bb`); Ctrl+I is RSI's. ⭐ AT FLIP B IT WRITES THE INSTANCE: the old
     // assertion "the keystroke must not rewrite the instance list" was Flip A's,
     // and keeping it would mean Ctrl+B cleared a mirror while three purple lines
@@ -2330,8 +2337,11 @@ describe('what pixels cannot see, for MACD', () => {
   })
 
   it('Ctrl+O hides an engine-drawn MACD — the keystroke, and what the keystroke writes', () => {
-    // ⚠️ MACD's shortcut is Ctrl+**O** (`keyboardShortcuts.js:100` and `:155` →
-    // `StockChart.jsx:3481`, `toggle:macd`). Ctrl+I is RSI's, Ctrl+B is BB's.
+    // ⚠️ MACD's shortcut is Ctrl+**O** (`INDICATOR_CHORDS` → `matchShortcut`'s
+    // generated Ctrl map → StockChart's `toggle:` dispatch). Ctrl+I is RSI's,
+    // Ctrl+B is BB's. The three line numbers that used to be here all named code
+    // B4 Task 4 generated away — two of them in a `matchShortcut` branch that no
+    // longer has per-indicator lines at all.
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
@@ -2790,14 +2800,18 @@ describe('what pixels cannot see, for VWAP', () => {
 
   it('Alt+U hides an engine-drawn VWAP — the keystroke, and what the keystroke writes', () => {
     // ⚠️ VWAP's shortcut is **Alt+U**, not a Ctrl chord. Ctrl+I is RSI's, Ctrl+O
-    // is MACD's, Ctrl+B is BB's — VWAP is in the Alt family with the display
-    // toggles. It is ALSO the one shortcut in the set that does NOT go through
-    // `keyboardShortcuts.js`'s `toggle:` switch: `SHORTCUTS` declares
-    // `Alt+U -> toggle:vwap`, but `matchShortcut` rejects Alt so the command never
-    // reaches that switch (which has no `case 'vwap'` either). The live handler is
-    // the `e.altKey` block at `StockChart.jsx:3330`, and it writes the same field.
-    // Two declarations, one of them dead — asserting the KEY and the WRITE together
-    // is what makes that discoverable if either moves.
+    // is MACD's, Ctrl+B is BB's. It is ALSO the one chord `matchShortcut` can
+    // never deliver — Alt is rejected on its first line so browser Alt shortcuts
+    // keep working — so `StockChart`'s own `e.altKey` block is the live handler.
+    //
+    // 🟡 THE OLD REASON WENT FALSE AT B4 TASK 4, AND THE CLAIM DID NOT. This
+    // comment used to end "two declarations, one of them dead": `SHORTCUTS`
+    // declared `Alt+U -> toggle:vwap` for a `toggle:` switch that had no
+    // `case 'vwap'` to receive it. There is one declaration now
+    // (`INDICATOR_CHORDS`), the Alt block READS it for the key, and both entry
+    // paths meet at one `toggleIndicatorById`. Asserting the KEY and the WRITE
+    // together is still what makes it discoverable if either moves — which is why
+    // the case survives the premise that motivated it.
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
@@ -3430,5 +3444,128 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
       expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}` && i.deleted),
         `${id} tombstone`).toBe(ENGINE_FLIPPED_DEF_IDS.has(id))
     }
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── TASK 4: FOUR CHORDS, ONE TABLE, ONE DISPATCH (B4) ────────────────────
+//
+// `Ctrl+I` rsi · `Ctrl+O` macd · `Ctrl+B` bb · `Alt+U` vwap — four keys that
+// lived in FOUR regions across TWO files: the `SHORTCUTS` help sheet and
+// `matchShortcut`'s Ctrl branch declared them, and StockChart's `toggle:` switch
+// and its `e.altKey` block consumed them. `matchShortcut` REJECTS Alt, so
+// `toggle:vwap` never reached the switch and the Alt block was Alt+U's only
+// handler — which is how the fourth chord went uncounted three times running.
+//
+// `INDICATOR_CHORDS` declares all four; the help sheet and the Ctrl map are
+// generated from it; and ONE `toggleIndicatorById` consumes it on both paths.
+describe('B4 Task 4 — one dispatch serves every indicator chord', () => {
+  /** The KeyboardEvent init a chord's real modifier produces. The Ctrl path is
+   *  matched on `event.key` by `matchShortcut`; the Alt path is matched on
+   *  `event.code` by StockChart (layout independence — Mac emits special
+   *  characters with Alt held). Both are supplied so neither path is being fed a
+   *  shape the browser would not send. */
+  const chordEvent = (c) => {
+    const key = c.code.slice(3).toLowerCase()
+    return c.modifier === 'alt'
+      ? { altKey: true, code: c.code, key }
+      : { ctrlKey: true, code: c.code, key }
+  }
+
+  const paint = (settings, tf) => {
+    cleanup(); H.reset()
+    render(<StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={settings} />)
+    return H.binderApis[0] ? H.binderApis[0].bindings() : []
+  }
+
+  it('one dispatch serves every indicator chord, Ctrl and Alt alike', () => {
+    for (const c of INDICATOR_CHORDS) {
+      cleanup(); H.reset()
+      const tf = tfFor(c.defId)
+      const off = mergeChartSettings({ indicators: { [c.defId]: { enabled: false } } })
+      expect(isIndicatorEnabled(off, c.defId, ENGINE_FLIPPED_DEF_IDS), `${c.keys} did not start OFF`)
+        .toBe(false)
+      const view = renderChart({ settings: off, tf })
+
+      act(() => { fireEvent.keyDown(document, chordEvent(c)) })
+
+      const next = view.lastSettings()
+      expect(isIndicatorEnabled(next, c.defId, ENGINE_FLIPPED_DEF_IDS), c.keys).toBe(true)
+      expect(next.indicators[c.defId].enabled, `${c.keys} mirror`).toBe(true)
+      // ⛔ THE HALF A RAW BLOB WRITE PASSES. With no stored instance,
+      // `isIndicatorEnabled` falls back to the mirror — so `{...cs, indicators:
+      // {...}}` answers "on" on BOTH assertions above while the engine, which is
+      // the authority for all four of these definitions, still holds nothing.
+      expect((next.indicatorInstances || []).some(i => i && i.defId === c.defId && !i.deleted),
+        `${c.keys} wrote no instance — the chart draws from the INSTANCE for all four`).toBe(true)
+
+      // #2049: repaint from what the keystroke wrote and compare against a chart
+      // born with the indicator on. One copy, never two.
+      view.unmount()
+      const after = paint(next, tf).filter(b => b.defId === c.defId).length
+      const control = paint(setIndicatorEnabled(off, c.defId, true, registry), tf)
+        .filter(b => b.defId === c.defId).length
+      expect(control, `${c.keys} control drew nothing — the comparison is vacuous`).toBeGreaterThan(0)
+      expect(after, `${c.keys} series count`).toBe(control)
+    }
+  })
+
+  it('a chord for a definition with no legacy block still toggles the instance', () => {
+    // ⭐ `vwap` is FLIPPED — its hand-written render block is DELETED, so there is
+    // no `cs.indicators.vwap.enabled` reader left. The write has to reach the
+    // INSTANCE or Alt+U does nothing at all, which is the defect B3 Task 11 found
+    // in the shipped Alt block. Driven from a BARE default blob (no `indicators`
+    // key supplied) so nothing in the fixture pre-seeds the answer.
+    const chord = INDICATOR_CHORDS.find(c => c.defId === 'vwap')
+    expect(chord, 'no ALT chord in the table — this case is asserting on nothing').toBeTruthy()
+    expect(chord.modifier, 'vwap stopped being the Alt chord').toBe('alt')
+    const view = renderChart({ settings: mergeChartSettings(null), tf: tfFor('vwap') })
+
+    act(() => { fireEvent.keyDown(document, chordEvent(chord)) })
+
+    const next = view.lastSettings()
+    expect((next.indicatorInstances || []).some(i => i && i.defId === 'vwap' && !i.deleted),
+      'Alt+U wrote no VWAP instance — the keystroke ticked a box over a chart that disagrees').toBe(true)
+    expect(next.indicators.vwap.enabled, 'Alt+U did not write the mirror').toBe(true)
+  })
+
+  it('Alt+I still inverts the price scale, because the Alt lookup is scoped by MODIFIER', () => {
+    // ⛔ RSI's chord CODE IS ALSO `KeyI`. An Alt lookup matching on `code` alone
+    // (`INDICATOR_CHORDS.find(c => c.code === e.code)`) answers for RSI here,
+    // toggles it, returns — and the invert branch below it is never reached. The
+    // `modifier === 'alt'` clause is the only thing standing between the two.
+    const view = renderChart({ settings: mergeChartSettings(null) })
+
+    act(() => { fireEvent.keyDown(document, { altKey: true, code: 'KeyI' }) })
+
+    const next = view.lastSettings()
+    expect(next.invertScale, 'Alt+I stopped inverting the price scale').toBe(true)
+    expect(isIndicatorEnabled(next, 'rsi', ENGINE_FLIPPED_DEF_IDS), 'Alt+I toggled RSI').toBe(false)
+    expect((next.indicatorInstances || []).filter(i => i && i.defId === 'rsi'),
+      'Alt+I wrote an RSI instance').toEqual([])
+  })
+
+  it('the pre-switch chord lookup does not swallow the toggles that are NOT indicators', () => {
+    // `Ctrl+M` toggles the four MA overlay slots and `Ctrl+V` the volume pane.
+    // Neither is a definition, so both stay `switch` cases — a lookup that
+    // answered for them would route them at `setIndicatorEnabled`, which refuses
+    // an unknown id and returns `cs` UNCHANGED, so the keystroke would do nothing
+    // and `lastSettings()` would throw rather than read as a pass.
+    const base = mergeChartSettings(null)
+    const view = renderChart({ settings: base })
+    // Direction-agnostic: the shipped defaults already enable some MA slots, so
+    // `Ctrl+M`'s "if any are on, turn them all off" is a turn-OFF here. What must
+    // hold is that the keystroke MOVED the overlays, not which way it moved them.
+    const anyOn = (s) => s.overlays.some(o => o && o.enabled)
+    expect(base.overlays.length, 'no MA overlay slots — vacuous').toBeGreaterThan(0)
+
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, code: 'KeyM', key: 'm' }) })
+    const afterMa = view.lastSettings()
+    expect(anyOn(afterMa), 'Ctrl+M did not move the MA overlays').toBe(!anyOn(base))
+
+    act(() => { fireEvent.keyDown(document, { ctrlKey: true, code: 'KeyV', key: 'v' }) })
+    const afterVol = view.lastSettings()
+    expect(afterVol.volume.visible, 'Ctrl+V did not toggle the volume pane')
+      .toBe(!afterMa.volume.visible)
   })
 })

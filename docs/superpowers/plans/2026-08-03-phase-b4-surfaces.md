@@ -101,7 +101,9 @@ It is a dict of eight Python closures. It cannot be derived from JS definitions,
 
 What B4 *can* do, and does (Task 9): stop it being a **twin**. The frontend's `INDICATORS` and `CONDITIONS` are deleted and served from the module that owns the evaluation, so the dropdown can never offer an alert that cannot fire. `INDICATOR_FUNCS` becomes the single naming authority — which is what `keep`-fated sites like `RAW_DEFS` are — but it is genuinely scheduled work, not a permanent list, so it gets its own fate letter rather than being mislabelled `keep`. The ledger's fate legend gains one line.
 
-Final partition after B4: **`{B5: 8, C: 1, keep: 2, phase: 2}`**, `SITE_COUNT = 13`.
+Final partition after B4: every `B4` bucket entry is gone and the other buckets are unchanged **except where a retirement leaves behind one irreducible list, which joins `keep`**. The value is not written here — the assertion in `enumerationSites.test.js` is the authority, and a plan that restates a test's expected literal is a control that rots green (it already rotted once on this plan, at the Task 1 gate).
+
+⚠️ **A retirement can ADD a row, and this section originally assumed it never could.** B4 Task 4 measured the first case: the four keyboard regions collapse into `keyboardShortcuts.INDICATOR_CHORDS`, which hand-names four indicator ids — so the discovery scan flags its file and the ledger must carry it, fate `keep`. `SITE_COUNT` fell by three, not four. Expect the same question at any task whose retirement leaves a (key, indicator) or (case, indicator) pair that no definition can declare.
 
 ### A5 — `colorMode: 'column:<key>'` stays validated-but-inert; `volumeProfile` stays permanently carved out.
 
@@ -929,7 +931,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ### Task 4: The keyboard — four regions, one chord table
 
-Retires ledger sites: `keyboardShortcuts.SHORTCUTS`' indicator rows, `matchShortcut`'s Ctrl branch, `StockChart`'s `toggle:` switch, `StockChart`'s Alt block. **B4 count 13 → 9.**
+Retires ledger sites: `keyboardShortcuts.SHORTCUTS`' indicator rows, `matchShortcut`'s Ctrl branch, `StockChart`'s `toggle:` switch, `StockChart`'s Alt block. **B4 count 13 → 9**, and one new `keep` row (`INDICATOR_CHORDS`) — see Step 6.
 
 The four indicator chords are `Ctrl+I` rsi, `Ctrl+O` macd, `Ctrl+B` bb, `Alt+U` vwap — across four regions in two files, which is the under-count B3 corrected three times (two → three → four). They stay exactly four keys; what changes is that one table declares them, `matchShortcut` matches from it, and one dispatch consumes them.
 
@@ -1140,7 +1142,9 @@ cd app && npx vitest run src/components/chart/keyboardShortcuts.test.js \
 
 Then audit: `grep -rn "toggle:rsi\|toggle:macd\|toggle:bb\|toggle:vwap\|Ctrl.I\|KeyU" app/src --include=*.js --include=*.jsx` and read every hit's REASON. Cases asserting *"Alt+U writes the raw flag"* or *"the switch has a case per indicator"* have lost their premise; invert them. Record rotted / green-while-false counts.
 
-- [ ] **Step 6: Drop the four sites; `SITE_COUNT` 26 → 22, `B4: 9`**
+- [ ] **Step 6: Drop the four sites — `B4` falls by four**
+
+⚠️ **`SITE_COUNT` does NOT fall by four; it fell to 23, and this step said 22.** The four regions retire into `INDICATOR_CHORDS`, which hand-names four indicator ids, so `enumerationSites.test.js`'s discovery scan flags `keyboardShortcuts.js` and the ledger has to carry it — fate `keep`, because a (key, indicator) binding is irreducible and no new indicator has to be edited into it. 26 − 4 + 1 = **23**. "22" would have been a site the scan can see and the ledger cannot, i.e. a red test. The assertion is the authority; no literal is restated here.
 
 - [ ] **Step 7: Gate**
 

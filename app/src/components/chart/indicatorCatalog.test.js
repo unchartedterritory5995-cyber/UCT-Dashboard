@@ -34,8 +34,15 @@ import * as engineRegistry from './engine/nativeRegistry'
 // `ChartToolbar.OSC`, `chartRegion.INDICATOR_LABELS`). It was not a silent
 // green: the parse THREW BY NAME with the instruction attached, and what
 // replaced it (`RETIRED_BY_B4`) re-runs the same patterns and demands ZERO
-// matches — a control that stops looking is a control that rots. Two regions
-// remain: `TOOLBAR_ROWS` (Task 8) and `SHORTCUTS` (Task 4).
+// matches — a control that stops looking is a control that rots.
+//
+// ⭐ TASK 4 RAN IT ON A FIFTH, `SHORTCUTS`. That one did NOT throw — it went
+// red on a comparison instead, because its regex still matches the help sheet's
+// NON-indicator rows (`toggle:ma`, `toggle:volume`, `toggle:log`) and only the
+// `in CHART_DEFAULTS.indicators` filter after it made the result a list of
+// indicators. Its retirement entry therefore carries that filter too: the
+// SAME regex AND the same filter, demanding zero. Only `TOOLBAR_ROWS` (Task 8)
+// is still parsed live.
 
 /** The repo root, found by walking up from wherever vitest was invoked — the
  *  same helper `engine/__tests__/enumerationSites.test.js` uses, and for the same
@@ -54,20 +61,30 @@ const ROOT = (() => {
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 
+/** The KEYBOARD HELP SHEET's indicator rows, as a regex plus the filter that
+ *  makes it a list of INDICATORS. Held as a pair because both halves are needed
+ *  twice: `parseShippedLists` used them to pin the labels, and `RETIRED_BY_B4`
+ *  now re-runs the identical pair demanding zero. The regex ALONE still matches
+ *  `toggle:ma` / `toggle:volume` / `toggle:log`, which are hand-written on
+ *  purpose and must stay — so a retirement check built on the regex alone would
+ *  never go green and would be quietly deleted by whoever hit it. */
+const SHORTCUT_ROW_RE = /\{ keys: '([^']+)', command: 'toggle:([A-Za-z]+)', description: '([^']*)' \}/g
+const SHORTCUT_ROW_IS_INDICATOR = (m) => m[2] in CHART_DEFAULTS.indicators
+
 /** The shipped lists THAT STILL EXIST, read out of the shipped source.
  *
- *  ⭐ FOUR OF THE ORIGINAL SIX ARE GONE, RETIRED BY TASK 3. Their entries were
- *  removed from this function the moment `once()` threw by name — that throw is
- *  the retirement instruction firing exactly as written, not a broken test. What
- *  replaces them is not silence: `RETIRED_BY_B4` below re-runs the SAME regexes
- *  and asserts they now match ZERO times, so "the region is gone" is checked
- *  rather than merely un-checked. `SHIPPED` keeps all six and now stands alone as
- *  the frozen record of what shipped at `d2733adc` for the retired four — which
- *  is what makes the DIFF tables below still mean something after the deletion.
+ *  ⭐ FIVE OF THE ORIGINAL SIX ARE GONE — four retired by Task 3, the help sheet
+ *  by Task 4. Task 3's four entries left this function the moment `once()` threw
+ *  by name; the help sheet's left it when its parse went from four rows to zero
+ *  and the comparison below went red. Neither is replaced by silence:
+ *  `RETIRED_BY_B4` re-runs the SAME patterns and asserts they now match ZERO
+ *  times, so "the region is gone" is checked rather than merely un-checked.
+ *  `SHIPPED` keeps all six and now stands alone as the frozen record of what
+ *  shipped at `d2733adc` for the retired five — which is what makes the DIFF
+ *  tables below still mean something after the deletion.
  */
 function parseShippedLists() {
   const TB = read('app/src/components/chart/ChartToolbar.jsx')
-  const KS = read('app/src/components/chart/keyboardShortcuts.js')
 
   // The toolbar's fifteen hand-written rows: the id comes from the checkbox's
   // `isOn('<id>')` and the label from the `sIndicatorLabel` span in the same row.
@@ -76,25 +93,23 @@ function parseShippedLists() {
     /checked=\{isOn\('([A-Za-z]+)'\)\}[\s\S]{0,600}?<span className=\{styles\.sIndicatorLabel\}>([^<]*)<\/span>/g,
   )) TOOLBAR_ROWS[p[1]] = p[2]
 
-  // The keyboard help sheet, narrowed to the rows that name an INDICATOR —
-  // `toggle:ma`, `toggle:volume`, `toggle:log` and friends are not indicators.
-  const SHORTCUTS = {}
-  for (const p of KS.matchAll(
-    /\{ keys: '([^']+)', command: 'toggle:([A-Za-z]+)', description: '([^']*)' \}/g,
-  )) if (p[2] in CHART_DEFAULTS.indicators) SHORTCUTS[p[2]] = p[3]
-
-  return { TOOLBAR_ROWS, SHORTCUTS }
+  return { TOOLBAR_ROWS }
 }
 
-/** Retired by Task 3, and PROVEN retired: the exact patterns `parseShippedLists`
- *  used to run, each of which must now find nothing. A control that merely stops
- *  looking is a control that rots; this one keeps looking and demands zero. */
+/** Retired by Tasks 3 and 4, and PROVEN retired: the exact patterns
+ *  `parseShippedLists` used to run, each of which must now find nothing. A
+ *  control that merely stops looking is a control that rots; this one keeps
+ *  looking and demands zero. The optional fourth element is the match filter the
+ *  original parse applied — without it the help-sheet pattern would still find
+ *  the non-indicator toggles it was never about. */
 const RETIRED_BY_B4 = [
   ['StockChart.jsx::IND_OPTS', 'app/src/components/StockChart.jsx', /const IND_OPTS = \[/g],
   ['StockChart.jsx::OSC_OPTS', 'app/src/components/StockChart.jsx', /const OSC_OPTS = \[/g],
   ['ChartToolbar.jsx::OSC', 'app/src/components/chart/ChartToolbar.jsx', /const OSC = \[/g],
   ['chartRegion.js::INDICATOR_LABELS', 'app/src/components/chart/chartRegion.js',
     /export const INDICATOR_LABELS = \{/g],
+  ['keyboardShortcuts.js::SHORTCUTS (the four indicator rows)',
+    'app/src/components/chart/keyboardShortcuts.js', SHORTCUT_ROW_RE, SHORTCUT_ROW_IS_INDICATOR],
 ]
 
 // ⭐ GENERATED BY `parseShippedLists()` AT `d2733adc`, NOT TYPED. When it was
@@ -210,27 +225,39 @@ describe('the labels the six replaced lists showed — parsed, pinned, then diff
   it('the frozen A-side IS the shipped source, character for character', () => {
     // ⛔ THE ONE CASE THAT MAKES EVERY OTHER CASE IN THIS BLOCK REAL. Without it
     // `SHIPPED` is a hand-copy and the whole file pins a hand-copy to a hand-copy
-    // — twice-shipped on this branch already. Narrowed by Task 3 to the two
-    // regions that still exist; the other four are asserted GONE below, and
-    // their `SHIPPED` entries are now the frozen record rather than a live pin.
+    // — twice-shipped on this branch already. Narrowed by Task 3 and again by
+    // Task 4 to the ONE region that still exists; the other five are asserted
+    // GONE below, and their `SHIPPED` entries are now the frozen record rather
+    // than a live pin.
     const stillShipped = Object.fromEntries(
-      Object.entries(SHIPPED).filter(([k]) => k === 'TOOLBAR_ROWS' || k === 'SHORTCUTS'),
+      Object.entries(SHIPPED).filter(([k]) => k === 'TOOLBAR_ROWS'),
     )
     expect(parseShippedLists()).toEqual(stillShipped)
   })
 
-  it('⭐ the four regions Task 3 retired are GONE from the shipped source', () => {
+  it('⭐ the five regions Tasks 3 and 4 retired are GONE from the shipped source', () => {
     const survivors = RETIRED_BY_B4
-      .map(([what, file, re]) => [what, [...read(file).matchAll(re)].length])
+      .map(([what, file, re, keep]) => {
+        const hits = [...read(file).matchAll(re)]
+        return [what, (keep ? hits.filter(keep) : hits).length]
+      })
       .filter(([, n]) => n !== 0)
     expect(survivors,
       'a retired enumeration region is back in the shipped source. It is now derived from ' +
       '`indicatorCatalog.js`; a literal beside the derivation is a second source of truth.',
     ).toEqual([])
-    // …and the scan is not vacuous: the file it reads is the real one and the
-    // derivation that replaced those regions is really there.
+    // …and the scan is not vacuous: the files it reads are the real ones and the
+    // derivations that replaced those regions are really there.
     expect(read('app/src/components/StockChart.jsx')).toContain('catalogRows().map((row)')
     expect(read('app/src/components/chart/ChartToolbar.jsx')).toContain('oscillatorIds().filter')
+    expect(read('app/src/components/chart/keyboardShortcuts.js')).toContain('...INDICATOR_CHORDS.map(')
+    // ⛔ AND THE HELP-SHEET PATTERN STILL MATCHES SOMETHING, or its zero above is
+    // a broken regex rather than a retired region. The non-indicator toggles
+    // (`toggle:ma`, `toggle:volume`, `toggle:log`, …) are still hand-written rows
+    // in the same shape, which is exactly why the filter is part of the pair.
+    const all = [...read('app/src/components/chart/keyboardShortcuts.js').matchAll(SHORTCUT_ROW_RE)]
+    expect(all.length, 'the help-sheet row pattern matches nothing at all — the regex rotted')
+      .toBeGreaterThanOrEqual(5)
   })
 
   it('the frozen A-side is six non-empty lists, so no loop below can pass over an empty table', () => {

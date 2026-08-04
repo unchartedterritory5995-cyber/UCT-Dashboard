@@ -447,13 +447,20 @@ took rather than from what the plan estimated.
 9. **Route every control door at `instanceControls`.** There are **six**, and B3
    found them one at a time: the `ChartToolbar` row · right-click **Indicators ▸**
    · right-click **Hide `<label>`** · the Ctrl family (**Ctrl+I** rsi, **Ctrl+O**
-   macd, **Ctrl+B** bb — declared in `keyboardShortcuts.js`, matched in
-   `matchShortcut`, consumed in `StockChart`'s `toggle:` switch) · **Alt+U**
-   (vwap — `matchShortcut` REJECTS Alt, so the live handler is `StockChart`'s
-   `e.altKey` block) · and the **settings tab's generated row**
-   (`indicatorRegistry.applyRowPatch`). A door that writes `cs.indicators.<id>`
-   RAW moves a number nothing renders the moment any other door has created the
-   instance.
+   macd, **Ctrl+B** bb) · **Alt+U** (vwap) · and the **settings tab's generated
+   row** (`indicatorRegistry.applyRowPatch`). A door that writes
+   `cs.indicators.<id>` RAW moves a number nothing renders the moment any other
+   door has created the instance.
+
+   ⚠️ **The keyboard's SHAPE changed at B4 Task 4 and this list did not shrink.**
+   All four chords are declared once in `keyboardShortcuts.INDICATOR_CHORDS`; the
+   help sheet and `matchShortcut`'s Ctrl map are generated from it; and both
+   entry paths — the `toggle:` dispatch for the Ctrl three, `StockChart`'s
+   `e.altKey` block for **Alt+U**, which `matchShortcut` still rejects on purpose
+   — meet at ONE `toggleIndicatorById`. Five doors' worth of routing, one
+   consumer. Do not re-describe the internals here: they are asserted in
+   `keyboardShortcuts.test.js` and `stockChartWiring.test.jsx`, and a runbook that
+   restates a structure is a control that rots green when the structure moves.
 
 10. **Then two builds, same settings**: `--cases <id>_only` = 0, and
     `--perturb-b` on its **settings** colour = non-zero. `enumerationSites.test.js`
