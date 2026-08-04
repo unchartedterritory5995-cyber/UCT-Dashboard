@@ -486,16 +486,82 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // ⛔ AND ITS ONE BLIND SPOT, STATED SO IT IS NOT OVER-TRUSTED: this is a
     // HISTOGRAM. Moving one site B4→B5 fails it (the total is unchanged and the
     // buckets are not) — but SWAPPING the fates of two sites preserves every
-    // count and passes, demonstrated. Two sites then carry each other's phase and
-    // nothing here says so; the per-site reasoning lives in the comments beside
-    // each entry, and that is what a reviewer has to read. "The retirement column
-    // adds up" means the column adds up, not that every row is in the right one.
+    // count and passes, demonstrated. "The retirement column adds up" means the
+    // column adds up, not that every row is in the right one.
+    //
+    // ⭐ THAT BLIND SPOT IS CLOSED BY THE TEST BELOW, AND THIS COMMENT USED TO SAY
+    // OTHERWISE. It read *"the per-site reasoning lives in the comments beside
+    // each entry, and that is what a reviewer has to read"* — true when a human
+    // was the only thing standing between a permutation and a green suite, and
+    // FALSE the moment `LEDGER_FATES` started asserting each row BY NAME. A
+    // comment that describes a gap somebody has since filled is the same rot this
+    // file exists to catch, so it is corrected rather than left.
     //
     // ⛔ AND THERE IS NO `B4: 0`. `reduce` emits no key for a fate with no
     // members, so writing one would never match. **B4's bucket is EMPTY** —
     // every region B4 inherited has been retired, and the ABSENCE of the key is
     // what says so. A `B4` row reappearing here fails this line by name.
     expect(counts).toEqual({ B5: 8, C: 2, keep: 3, phase: 2 })
+  })
+
+  // ⭐ B5 A8. THE ASSERTION ABOVE IS A HISTOGRAM AND B4'S REVIEW MEASURED ITS
+  // BLIND SPOT: swapping two sites' fates preserves every count and passes
+  // (review M6, `.superpowers/sdd/2026-08-03-phase-b4-surfaces/task-1-review.md`).
+  // B5 EMPTIES TWO OF THE FOUR BUCKETS, so the space a permutation can hide in
+  // gets SMALLER and therefore easier to fall into, not harder: with `B5` and
+  // `phase` gone, `{C: 2, keep: 3}` has exactly ten fate-preserving permutations
+  // and every one of them is green above.
+  //
+  // ⛔ BESIDE IT, NOT INSTEAD OF IT, AND THE REASON IS NOT SYMMETRY. The
+  // histogram catches a fate TYPO — `'b5'` makes a SIXTH bucket, which `toEqual`
+  // on the whole object refuses — and a mapping would accept `['…', 'b5']`
+  // happily, because a mapping only asks whether each row says what it said
+  // yesterday. Two different failures, two assertions.
+  //
+  // ⚠️ THE LITERAL BELOW IS DERIVED, NOT TYPED — generated from `LEDGER` itself
+  // and pasted. A hand-copy is the exact defect this branch has shipped twice
+  // (B4 Task 2's `SHIPPED` block; the plan-supplied `CHIPS` table).
+  it('every site names its own fate, so a permutation cannot pass', () => {
+    const pairs = LEDGER.map(s => [`${s.file}::${s.region}`, s.fate])
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+
+    // ⚠️ SORTED BY SITE KEY ALONE, NOT BY THE PAIR. `[k, fate].sort()` would key
+    // on the joined string, so a swapped fate REORDERS the rows and the diff
+    // reads as "everything moved" instead of naming the two rows that changed.
+    //
+    // ⛔ AND BOTH GUARDS BELOW ARE BELTS, NOT THE ASSERTION — said plainly so
+    // nobody re-derives a coverage claim from them. `toEqual` against a
+    // fifteen-row literal already refuses an emptied or truncated `LEDGER`; what
+    // these two buy is a NAMED failure instead of a fifteen-vs-three array dump,
+    // and one thing `toEqual` genuinely cannot see: two rows with the SAME
+    // (file, region), which would make the ledger count a site twice.
+    expect(pairs, 'the mapping and SITE_COUNT disagree').toHaveLength(SITE_COUNT)
+    expect(new Set(pairs.map(p => p[0])).size,
+      'two ledger rows share one (file, region) key — the count is double-counting a site',
+    ).toBe(SITE_COUNT)
+
+    expect(pairs,
+      'a site is fated to a phase it did not have. This is the claim the histogram two tests up ' +
+      'CANNOT make: swapping two sites\' fates leaves every count identical and passes there. ' +
+      'If a fate really moved, regenerate this literal from LEDGER rather than editing a row by ' +
+      'hand, and move the histogram in the same commit.',
+    ).toEqual([
+      ['api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog\'s ONE authority', 'C'],
+      ['api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map', 'C'],
+      ['app/src/components/StockChart.jsx::the hand-written render blocks', 'B5'],
+      ['app/src/components/StockChart.jsx::the hide-all ref array', 'B5'],
+      ['app/src/components/StockChart.jsx::the indicatorData memo — compute calls + shape mapping', 'B5'],
+      ['app/src/components/StockChart.jsx::the series useRef declarations', 'B5'],
+      ['app/src/components/chart/chartDefaults.js::CHART_DEFAULTS.indicators — 15 keyed sections', 'B5'],
+      ['app/src/components/chart/chartDefaults.js::mergeChartSettings\' per-key allow-list — 15 lines', 'B5'],
+      ['app/src/components/chart/engine/flipState.js::ENGINE_FLIPPED_DEF_IDS', 'phase'],
+      ['app/src/components/chart/engine/flipState.js::ENGINE_MIGRATED_DEF_IDS', 'phase'],
+      ['app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE', 'keep'],
+      ['app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once', 'keep'],
+      ['app/src/components/chart/paneMargins.js::PANES — the oscillator stacking list, 9 + volume', 'B5'],
+      ['app/src/pages/charts/ChartsWorkspace.jsx::UCT_DEFAULT_CHART_SETTINGS_JSON — a frozen capture of all 15 sections', 'B5'],
+      ['tools/chart_parity_cases.json::the parity case list', 'keep'],
+    ])
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -868,13 +934,48 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   // is engine-drawn for NOBODY. The category is empty today, and B4's
   // adjudication A1 is that it stays empty.
   //
-  // ⚠️ WHAT IT IS, AND WHAT IT IS NOT. Three of its four clauses are ALSO caught
-  // by `flipB.test.jsx` (both set directions) and `engineEnabledMigration.test.js`
+  // ⚠️ WHAT IT IS, AND WHAT IT IS NOT. Three of its clauses are ALSO caught by
+  // `flipB.test.jsx` (both set directions) and `engineEnabledMigration.test.js`
   // (the Status line) — measured like-for-like, unfiltered, a migrate-without-flip
   // fails SIX assertions across three files and this is one of the six. It is kept
   // for its failure message, for sitting beside the ledger it constrains, and for
-  // the FOURTH clause, which nothing else on this branch carries: the two sets
-  // must refuse a runtime write. Record §10 says exactly this and no more.
+  // two clauses nothing else on this branch carries: the two sets must refuse a
+  // runtime write, and the record must AGREE WITH THE CODE. Record §10 and §11.
+  //
+  // ⭐⭐ B5 RE-READS THE STATUS CLAUSE, BECAUSE B5 IS THE PHASE THAT MOVES IT.
+  //
+  // As shipped by B4 this rail asserted `stillOpen: true` — the record says OPEN,
+  // full stop. That is a TRUE sentence about a branch where nobody was allowed to
+  // resolve it, and it becomes a LIE the moment somebody is: B5 Task 4 DELETES
+  // `engineEnabled` and B5 Task 9 flips this record to RESOLVED. A rail whose
+  // whole content is "the sentence still says OPEN" has exactly one response to
+  // that day — somebody edits `true` to `false`, the suite goes green, and the
+  // clause now asserts *nothing at all*, because "the record does not say OPEN"
+  // constrains no code. That is not a rail retiring; it is a rail INVERTING
+  // SILENTLY, which is this branch's most-repeated defect wearing a new coat.
+  //
+  // So the clause is re-read as a BICONDITIONAL between the record and the code:
+  //
+  //     the record says OPEN  ⟺  `mergeChartSettings` still reads the flag
+  //
+  //   TODAY (before Task 4/9):  status `OPEN`,     flagLives `true`
+  //   AFTER  (after Task 4/9):  status `RESOLVED`, flagLives `false`
+  //
+  // and `recordAgreesWithTheCode` is `true` in BOTH worlds. The transition is one
+  // deliberate two-field edit that CANNOT be made halfway:
+  //
+  //   * resolve the record while the flag still exists → red (the decision claims
+  //     to be answered while the thing it decides is still deciding);
+  //   * delete the flag while the record still says OPEN → red (the code answered
+  //     a question the written decision still calls open — which is exactly how
+  //     `engineEnabled` became something six sites read and nobody had chosen).
+  //
+  // Both directions are mutation-proven, and the second one is the one B4's
+  // `stillOpen: true` could not have caught at all.
+  //
+  // ⚠️ AND THE STATUS TOKEN COMES FROM A CLOSED SET. `OPEN` / `RESOLVED` and
+  // nothing else: a header that says neither, or both, reads `UNREADABLE` and
+  // fails. `!/OPEN/` would have quietly accepted a typo as "resolved".
   //
   // ⚠️ THREE FIXES ARE LOAD-BEARING HERE, each closing a state that passed before:
   //
@@ -904,6 +1005,38 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // second one is how the first stops being the record's answer.
     const statusLines = record.split('\n').filter(l => l.startsWith('**Status:**'))
 
+    /** The header's answer as a token from a CLOSED set. Anything that is neither
+     *  — or both — is `UNREADABLE`, so a typo cannot read as "not OPEN". */
+    const STATUS_TOKENS = ['OPEN', 'RESOLVED']
+    const status = statusLines.length !== 1 ? 'UNREADABLE'
+      : (STATUS_TOKENS.filter(t => new RegExp(`\\b${t}\\b`).test(statusLines[0])).join('+') || 'UNREADABLE')
+
+    /** ⭐ THE OTHER HALF OF THE BICONDITIONAL: does the flag this record is ABOUT
+     *  still decide anything? The probe is the READ — §1 of the record quotes this
+     *  exact line as "the fact" — and not the `CHART_DEFAULTS` declaration, because
+     *  a default nobody consults is precisely what §1 proves the declaration to be.
+     *
+     *  ⛔ COMMENT-STRIPPED, AND THAT IS NOT DECORATION. Every retirement on this
+     *  branch leaves an explanatory comment naming what it deleted (Task 11 hit it
+     *  from one side, Wave B's mount rail from the other). Task 4 deleting the flag
+     *  and writing `// engineEnabled: parsed.engineEnabled === true — GONE` above
+     *  the hole would keep a RAW probe green forever. */
+    const FLAG_READ = /engineEnabled\s*:\s*parsed\s*\.\s*engineEnabled\s*===\s*true/
+
+    // ⛔ THE PROBE'S OWN CONTROLS RUN FIRST, BOTH DIRECTIONS. If the pattern rots,
+    // `flagLives` reads false and the object below fails — with a message pointing
+    // at the flag instead of at the pattern. Ordering these ahead of it is the
+    // difference between "the flag was deleted" and "the probe stopped working".
+    expect(FLAG_READ.test('  engineEnabled: parsed.engineEnabled === true,'),
+      'control: the flag probe matches nothing at all — it rotted, and `flagLives` below is a ' +
+      'broken regex rather than a deleted flag').toBe(true)
+    expect(FLAG_READ.test(stripComments('// engineEnabled: parsed.engineEnabled === true')),
+      'control: a COMMENTED-OUT flag read still counts as a live one. The retirement that ' +
+      'deletes this flag will leave a comment saying so, and a raw probe would read it as the ' +
+      'flag.').toBe(false)
+
+    const flagLives = FLAG_READ.test(stripComments(read('app/src/components/chart/chartDefaults.js')))
+
     /** Does this set actually take a write? Restores itself, and THROWS rather
      *  than leaking a probe id into every case that runs after this one. */
     const takesAWrite = (name, set) => {
@@ -918,7 +1051,9 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 
     expect({
       statusLines: statusLines.length,
-      stillOpen: statusLines.length === 1 && /\bOPEN\b/.test(statusLines[0]),
+      status,
+      flagLives,
+      recordAgreesWithTheCode: (status === 'OPEN') === flagLives,
       migratedNotFlipped: [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
       flippedNotMigrated: [...ENGINE_FLIPPED_DEF_IDS].filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
       mutableSets: [
@@ -934,15 +1069,105 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     'and nothing is authorised to replace it — the indicator renders for NOBODY. mutableSets: ' +
     'a flip set accepted .add() at runtime, which no static rail in this tree can see; restore ' +
     "flipState.js's seal. statusLines: the record must carry exactly ONE **Status:** line, or " +
-    'this rail is reading a sentence instead of the decision. Do NOT weaken any of these to a ' +
+    'this rail is reading a sentence instead of the decision. status/flagLives/' +
+    'recordAgreesWithTheCode: the record and the code have to answer the SAME question the same ' +
+    'way — OPEN means `mergeChartSettings` still reads `parsed.engineEnabled === true`, ' +
+    'RESOLVED means it does not. B5 Task 4 deletes the flag and Task 9 resolves the record: ' +
+    'that is ONE edit to {status: RESOLVED, flagLives: false, recordAgreesWithTheCode: true} ' +
+    'here, made in the commit that does BOTH. Flipping `status` alone to make this green is the ' +
+    'silent inversion this clause was re-read to refuse. Do NOT weaken any of these to a ' +
     'subset check.',
     ).toEqual({
       statusLines: 1,
-      stillOpen: true,
+      status: 'OPEN',
+      flagLives: true,
+      recordAgreesWithTheCode: true,
       migratedNotFlipped: [],
       flippedNotMigrated: [],
       mutableSets: [],
     })
+  })
+
+  // ⭐ AND THE RECORD MAY NOT QUOTE A TEST TITLE THAT DOES NOT EXIST.
+  //
+  // 🔴 THIS IS NOT HYPOTHETICAL — IT WAS ROTTEN AT HEAD, AND FIXING IT IS WHAT
+  // ADDED THIS TEST. §10's closing paragraph sent the reader to
+  // *"`enumerationSites.test.js` → the retirement column adds up"* for the
+  // ledger partition. B4 Task 4 RENAMED that test (it is *"every B4 region is
+  // retired…"* now), so the record's one pointer at the assertion it deliberately
+  // refuses to restate pointed at nothing, and nothing went red. A doc quoting a
+  // test's title is the same control-rot shape as a comment quoting its expected
+  // literal — it stays green while its premise goes false.
+  //
+  // ⛔ BOUNDED ON PURPOSE, AND THE BOUND IS STATED. Only the arrow-and-quote form
+  // (`` `<file>` → *"<title>"* ``) is checked, because that is the form that
+  // promises a verbatim title; the §9 table's italicised PARAPHRASES
+  // (*flipping the default does not heal a stored blob* — lowercased, no quotes)
+  // are prose about a test, not a citation of one, and holding prose to a
+  // byte-match would make this a rail nobody trusts. Whitespace is normalised
+  // first because markdown wraps a citation across lines.
+  //
+  // 🔴 AND THE OBVIOUS SPELLING IS WRONG, MEASURED WHILE WRITING THIS. The first
+  // draft asked `read(file).includes(title)`, which went RED on a title that is
+  // perfectly live — because this very comment quotes the STALE one, and the
+  // paragraph above quotes it too. A file that EXPLAINS a rename contains the old
+  // name; `includes` cannot tell a citation from an explanation, so it would have
+  // called a renamed test "still there" for as long as one comment remembered it.
+  // The probe extracts the file's actual `it(…)` / `describe(…)` titles instead,
+  // comments stripped — the same lesson `sourceScan.js` exists for, arriving from
+  // a third direction.
+  it('⭐ every test title the decision record cites verbatim is a title that exists', () => {
+    const HERE = 'app/src/components/chart/engine/__tests__/'
+
+    /** The titles a suite actually declares — not "text that appears in it". */
+    const titlesIn = (src) => [...stripComments(src)
+      .matchAll(/\b(?:it|describe)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)]
+      .map(m => m[2].replace(/\\(['"\\])/g, '$1'))
+
+    // ⛔ THE EXTRACTOR'S OWN CONTROL, BOTH DIRECTIONS, ON A FIXTURE. A declared
+    // title counts; the same words in a comment do not — which is the exact
+    // confusion that made the first draft of this test red.
+    const FIXTURE = "// it('a title that lives only in a comment')\n" +
+      "it('a declared title')\ndescribe('a declared suite', () => {})"
+    expect(titlesIn(FIXTURE).sort(),
+      'the title extractor reads prose as a declaration, or cannot read a declaration',
+    ).toEqual(['a declared suite', 'a declared title'])
+
+    // ⚠️ BLOCKQUOTE MARKERS COME OFF BEFORE THE WHITESPACE COLLAPSE, and that is
+    // not tidiness — measured here. A citation inside a `>` block wraps as
+    // `…title the\n> decision record…`, and collapsing whitespace first turns the
+    // continuation marker into a WORD: the extracted title reads
+    // `every test title the > decision record cites…` and a live citation is
+    // reported missing. Strip `>` prefixes per line, then join.
+    const md = read('docs/decisions/2026-08-03-engine-enabled-settings-migration.md')
+      .split('\n').map(l => l.replace(/^(?:\s*>)+\s?/, '')).join('\n')
+      .replace(/\s+/g, ' ')
+    const cited = [...md.matchAll(/`([A-Za-z]+\.test\.jsx?)`\s*→\s*\*"([^"]+)"\*/g)]
+      .map(m => ({ file: m[1], title: m[2] }))
+
+    expect(cited.length,
+      'the record cites no test title at all — either the citation form changed and this scan ' +
+      'is stale, or the whitespace normalisation broke').toBeGreaterThanOrEqual(3)
+
+    const missing = cited.filter(c => !titlesIn(read(`${HERE}${c.file}`)).includes(c.title))
+      .map(c => `${c.file} :: ${JSON.stringify(c.title)}`)
+    expect(missing,
+      'the decision record quotes a test title that no longer exists. Whoever renamed the test ' +
+      'left the record pointing at nothing, and a pointer at nothing is worse than no pointer: ' +
+      'it reads as evidence. Rename the citation in the same commit as the test.',
+    ).toEqual([])
+
+    // …and the scan can really FAIL against the REAL file: the renamed title is
+    // gone from this suite's declarations even though the prose above still names
+    // it, and the live one is found. Three green citations otherwise prove only
+    // that `includes` returns true sometimes.
+    const own = titlesIn(read(`${HERE}enumerationSites.test.js`))
+    expect(own.includes('the retirement column adds up'),
+      'control: the OLD, renamed title is a declared title again — the check above proves nothing',
+    ).toBe(false)
+    expect(own.includes('creates no migrated-but-un-flipped definition while the settings migration is open'),
+      'control: the live cited title is not found in its own file — the extractor is broken',
+    ).toBe(true)
   })
 })
 
