@@ -24,3 +24,14 @@ export {
 export { default as EmptyState } from './EmptyState'
 export { default as ConsensusBar, consensusSegments, LABEL_MIN_PCT } from './ConsensusBar'
 export { default as RatingChangeList, actionTone } from './RatingChangeList'
+
+// Charts (P1F-B). Every one of these draws through charts/echartsCore.js or
+// hand-written SVG — no component imports 'echarts' or 'echarts-for-react'.
+export { default as EChart, CHART_INK, echarts } from './charts/echartsCore'
+export {
+  default as LollipopChart,
+  SIZE as LOLLIPOP_SIZE,
+  beatState,
+  buildLollipopOption,
+  horizonLabel,
+} from './charts/LollipopChart'
