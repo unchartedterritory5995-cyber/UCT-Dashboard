@@ -35,3 +35,10 @@ export {
   buildLollipopOption,
   horizonLabel,
 } from './charts/LollipopChart'
+export {
+  default as ReactionBars,
+  SIZE as REACTION_BARS_SIZE,
+  reactionGeometry,
+  reactionStats,
+  outcomeOf,
+} from './charts/ReactionBars'

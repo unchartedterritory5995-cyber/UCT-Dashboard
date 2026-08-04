@@ -1,0 +1,71 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.svg {
+  width: 100%;
+  overflow: visible;
+}
+
+.baseline {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* Realized outcomes only (§3.3). Translucent fills, hairline strokes
+   (dataviz Part C rule 2) — solid bright fills bloom on near-black. */
+.barUp {
+  fill: var(--gain);
+  opacity: 0.85;
+}
+.barDown {
+  fill: var(--loss);
+  opacity: 0.85;
+}
+
+/* Shape channel: solid disc = beat, hollow ring = miss. `fill` is set as an
+   attribute on the element so the ring truly has no fill; these rules own the
+   stroke/colour half. */
+.dotBeat {
+  color: var(--text-bright);
+  stroke: none;
+}
+.dotMiss {
+  stroke: var(--text-bright);
+  stroke-width: 1.2;
+}
+
+.star {
+  fill: var(--ut-gold);
+  font-family: var(--font-sans);
+  font-size: 9px;
+}
+
+/* The ONE gold data-highlight on this canvas: tonight's implied +/- (§3.1). */
+.bracket {
+  stroke: var(--ut-gold);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.8;
+}
+
+.qlabel {
+  fill: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 8px;
+  letter-spacing: var(--ls-normal);
+}
+
+/* PHONE — fewer, larger marks read better than the same density shrunk. */
+@media (max-width: 640px) {
+  .wrap {
+    gap: 2px;
+  }
+  .qlabel {
+    font-size: 7px;
+  }
+}
