@@ -1,9 +1,9 @@
 // app/src/components/research-kit/VerdictChip.jsx
-import InfoTip from './InfoTip'
+import InfoTip, { normalizeInfo } from './InfoTip'
 import { VERDICT_GLYPHS, toneGlyph } from './tones'
 import styles from './VerdictChip.module.css'
 
-const TONE_CLASS = {
+export const TONE_CLASS = {
   positive: 'tonePositive',
   negative: 'toneNegative',
   caution: 'toneCaution',
@@ -43,7 +43,7 @@ export default function VerdictChip({
   const toneCls = styles[TONE_CLASS[tone] || TONE_CLASS.neutral]
   const sizeCls = styles[SIZE_CLASS[size] || SIZE_CLASS.md]
   const mark = glyph === undefined ? toneGlyph(TONE_CLASS[tone] ? tone : 'neutral') : glyph
-  const tip = typeof info === 'string' ? { text: info } : info || null
+  const tip = normalizeInfo(info)
 
   return (
     <span className={`${styles.chip} ${toneCls} ${sizeCls} ${className}`}>

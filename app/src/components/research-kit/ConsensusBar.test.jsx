@@ -96,4 +96,11 @@ describe('ConsensusBar', () => {
     render(<ConsensusBar buy={1} hold={1} sell={1} label="Analyst consensus" />)
     expect(screen.getByText('Analyst consensus')).toBeInTheDocument()
   })
+
+  it('respects the compact prop in the EMPTY branch too', () => {
+    const { container, rerender } = render(<ConsensusBar buy={0} hold={0} sell={0} />)
+    expect(container.firstChild.className).not.toMatch(/compact/)
+    rerender(<ConsensusBar buy={0} hold={0} sell={0} compact />)
+    expect(container.firstChild.className).toMatch(/compact/)
+  })
 })

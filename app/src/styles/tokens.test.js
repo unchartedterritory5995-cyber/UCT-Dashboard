@@ -185,7 +185,10 @@ describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => 
   const resolveToken = (themeBlock, token) => decl(themeBlock, token) ?? decl(ROOT, token)
   const THEME_BLOCKS = { dark: ROOT, oled: OLED }
   const SURFACES = ['--glass-surface', '--glass-elevated', '--glass-chrome']
-  const INKS = ['--text-muted', '--text']
+  // C1 (extended, P1F-B): --text-bright is the shell's heading ink and now sits
+  // on --glass-elevated (the active rail item) and --glass-chrome (banner, rail,
+  // footer), so it belongs in the matrix beside the body and dimmest inks.
+  const INKS = ['--text-muted', '--text', '--text-bright']
 
   const CASES = Object.keys(THEME_BLOCKS).flatMap((themeName) =>
     SURFACES.flatMap((surfaceToken) => INKS.map((inkToken) => [themeName, surfaceToken, inkToken])),

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import InfoTip from './InfoTip'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import InfoTip, { normalizeInfo } from './InfoTip'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -98,5 +100,61 @@ describe('InfoTip', () => {
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     const pop = screen.getByRole('tooltip')
     expect(pop.className).toMatch(/alignRight/)
+  })
+})
+
+describe('normalizeInfo — one copy of the shape rule (§3.4)', () => {
+  it('lifts a bare string into { text }', () => {
+    expect(normalizeInfo('what is this')).toEqual({ text: 'what is this' })
+  })
+
+  it('passes an object through untouched', () => {
+    const o = { text: 'x', href: '/methodology', hrefLabel: 'How →' }
+    expect(normalizeInfo(o)).toBe(o)
+  })
+
+  it('is null for anything without text', () => {
+    expect(normalizeInfo('')).toBeNull()
+    expect(normalizeInfo(null)).toBeNull()
+    expect(normalizeInfo(undefined)).toBeNull()
+    expect(normalizeInfo({})).toBeNull()
+    expect(normalizeInfo({ href: '/x' })).toBeNull()
+  })
+})
+
+// The 44px tap floor cannot be asserted by measurement here: jsdom does no
+// layout, so clientWidth/getBoundingClientRect() are 0 for every element and a
+// size assertion would pass whatever the CSS says. The contract is therefore
+// checked against the stylesheet SOURCE — the same technique as
+// toneClasses.test.js and styles/tokens.test.js.
+//
+// The path is routed through a variable (not a `new URL('literal.css', ...)`
+// string literal) — Vite's import-analysis plugin statically rewrites a
+// literal `new URL('*.css', import.meta.url)` into an asset-URL reference
+// (the same feature it uses for `new URL('./img.png', import.meta.url)`
+// asset imports), which is not a `file:` URL and makes fileURLToPath throw
+// "The URL must be of scheme file". A variable first argument isn't
+// statically analyzable, so Vite leaves it alone — the exact indirection
+// toneClasses.test.js and styles/tokens.test.js already rely on.
+describe('InfoTip.module.css — touch tap target without a row jump', () => {
+  const cssRelPath = './InfoTip.module.css'
+  const CSS = readFileSync(fileURLToPath(new URL(cssRelPath, import.meta.url)), 'utf8')
+  const touchBlock = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? ''
+
+  it('meets the tap floor with an invisible expander, not by growing the button', () => {
+    expect(touchBlock).toMatch(/\.trigger::after/)
+    expect(touchBlock).toMatch(/width:\s*var\(--tap-min\)/)
+    expect(touchBlock).toMatch(/height:\s*var\(--tap-min\)/)
+  })
+
+  it('never sizes the trigger BOX to --tap-min (that is what jumped the row)', () => {
+    const triggerRule = /\.trigger\s*\{([^}]*)\}/g
+    for (const m of CSS.matchAll(triggerRule)) {
+      expect(m[1]).not.toMatch(/(width|height):\s*var\(--tap-min\)/)
+    }
+  })
+
+  it('positions the trigger so the expander can centre on it', () => {
+    expect(/\.trigger\s*\{[^}]*position:\s*relative/.test(CSS)).toBe(true)
   })
 })

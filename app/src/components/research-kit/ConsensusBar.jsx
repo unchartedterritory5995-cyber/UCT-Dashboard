@@ -59,7 +59,7 @@ export default function ConsensusBar({
   if (!segments) {
     return (
       <EmptyState
-        compact
+        compact={compact}
         icon="document"
         title="No analyst coverage"
         hint="Ratings appear here once firms publish on this name."

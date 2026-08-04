@@ -5,6 +5,7 @@
 }
 
 .trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -74,22 +75,25 @@
   right: 0;
 }
 
-/* PHONE */
-@media (max-width: 640px) {
-  .trigger {
+/* TOUCH — the 44px tap floor (--tap-min) is met by an invisible expander, NOT by
+   growing the button. The ⓘ is INLINE inside a label row (EyebrowLabel,
+   VerdictChip), so a 44px layout box re-flowed every eyebrow row on a phone.
+   The hit area is 44px; the box stays 16px. */
+@media (max-width: 1024px) {
+  .trigger::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
     width: var(--tap-min);
     height: var(--tap-min);
-    margin-left: 0;
-  }
-  .pop {
-    max-width: min(280px, calc(100vw - 32px));
+    transform: translate(-50%, -50%);
   }
 }
 
-/* TABLET */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .trigger {
-    width: 20px;
-    height: 20px;
+/* PHONE */
+@media (max-width: 640px) {
+  .pop {
+    max-width: min(280px, calc(100vw - 32px));
   }
 }

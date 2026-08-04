@@ -24,6 +24,19 @@ const VIEWPORT_EDGE_GAP_PX = 8
  * The popover paints on --glass-chrome (>= .92 alpha) so its text never sits on
  * translucency (§3.2 contrast floor).
  */
+/**
+ * The kit's ONE info-prop shape rule: components accept either a bare string or
+ * `{ text, href, hrefLabel }`, and anything without text means "no tip".
+ *
+ * Lives here rather than being re-expressed in every consumer — an expression
+ * repeated at N call sites is one defect, not N (EyebrowLabel and VerdictChip
+ * both carried their own copy).
+ */
+export function normalizeInfo(info) {
+  if (typeof info === 'string') return info ? { text: info } : null
+  return info && info.text ? info : null
+}
+
 export default function InfoTip({
   label,
   text,

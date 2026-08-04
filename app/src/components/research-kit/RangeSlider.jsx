@@ -2,7 +2,7 @@
 import EyebrowLabel from './EyebrowLabel'
 import styles from './RangeSlider.module.css'
 
-const TONE_CLASS = {
+export const TONE_CLASS = {
   positive: 'tonePositive',
   negative: 'toneNegative',
   caution: 'toneCaution',

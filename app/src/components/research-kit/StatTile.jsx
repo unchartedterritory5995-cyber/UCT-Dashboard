@@ -2,7 +2,7 @@
 import EyebrowLabel from './EyebrowLabel'
 import styles from './StatTile.module.css'
 
-const TONE_CLASS = {
+export const TONE_CLASS = {
   elite: 'toneElite',
   strong: 'toneStrong',
   neutral: 'toneNeutral',

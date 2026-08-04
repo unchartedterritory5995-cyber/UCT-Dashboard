@@ -10,6 +10,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { TONE_CLASS as STAT_TILE_TONES } from './StatTile'
+import { TONE_CLASS as VERDICT_CHIP_TONES } from './VerdictChip'
+import { TONE_CLASS as RANGE_SLIDER_TONES } from './RangeSlider'
 
 const read = (rel) =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
@@ -31,29 +34,16 @@ const STAT_TILE = read('./StatTile.module.css')
 const VERDICT_CHIP = read('./VerdictChip.module.css')
 const RANGE_SLIDER = read('./RangeSlider.module.css')
 
-describe('StatTile.module.css — score tone classes exist for real (M1 drift-guard)', () => {
-  it.each(['toneElite', 'toneStrong', 'toneNeutral', 'toneWeak', 'tonePoor'])(
-    '.%s is a real selector',
-    (cls) => {
-      expect(hasSelector(STAT_TILE, cls)).toBe(true)
-    },
-  )
-})
+describe.each([
+  ['StatTile', STAT_TILE_TONES, STAT_TILE],
+  ['VerdictChip', VERDICT_CHIP_TONES, VERDICT_CHIP],
+  ['RangeSlider', RANGE_SLIDER_TONES, RANGE_SLIDER],
+])('%s.module.css — every TONE_CLASS value is a real selector (M1 drift-guard)', (name, map, css) => {
+  it('exports a non-empty TONE_CLASS map', () => {
+    expect(Object.keys(map).length).toBeGreaterThan(0)
+  })
 
-describe('VerdictChip.module.css — verdict tone classes exist for real (M1 drift-guard)', () => {
-  it.each(['tonePositive', 'toneNegative', 'toneCaution', 'toneNeutral', 'toneGold'])(
-    '.%s is a real selector',
-    (cls) => {
-      expect(hasSelector(VERDICT_CHIP, cls)).toBe(true)
-    },
-  )
-})
-
-describe('RangeSlider.module.css — verdict tone classes exist for real (M1 drift-guard)', () => {
-  it.each(['tonePositive', 'toneNegative', 'toneCaution', 'toneNeutral', 'toneGold'])(
-    '.%s is a real selector',
-    (cls) => {
-      expect(hasSelector(RANGE_SLIDER, cls)).toBe(true)
-    },
-  )
+  it.each(Object.values(map))('.%s is a real selector', (cls) => {
+    expect(hasSelector(css, cls)).toBe(true)
+  })
 })

@@ -1,5 +1,5 @@
 // app/src/components/research-kit/EyebrowLabel.jsx
-import InfoTip from './InfoTip'
+import InfoTip, { normalizeInfo } from './InfoTip'
 import styles from './EyebrowLabel.module.css'
 
 /**
@@ -20,7 +20,7 @@ export default function EyebrowLabel({
   id,
   className = '',
 }) {
-  const tip = typeof info === 'string' ? { text: info } : info || null
+  const tip = normalizeInfo(info)
   const plain = typeof children === 'string' ? children : ''
 
   return (
