@@ -49,3 +49,15 @@ export {
   coldStartState,
   impliedVerdict,
 } from './charts/ImpliedVsRealized'
+export {
+  default as RevisionColumns,
+  SIZE as REVISION_COLUMNS_SIZE,
+  revisionTotals,
+  buildRevisionOption,
+} from './charts/RevisionColumns'
+export {
+  default as Histogram,
+  SIZE as HISTOGRAM_SIZE,
+  binValues,
+  buildHistogramOption,
+} from './charts/Histogram'
