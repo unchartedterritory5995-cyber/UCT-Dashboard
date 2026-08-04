@@ -1392,7 +1392,9 @@ export default function ReactionBars({
 }
 
 .star {
-  fill: var(--ut-gold);
+  /* CORRECTION (task review): --warn, not --ut-gold — the star is a caution
+     annotation; gold stays unique to the implied bracket (§3.1 one-gold rule). */
+  fill: var(--warn);
   font-family: var(--font-sans);
   font-size: 9px;
 }
