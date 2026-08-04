@@ -20,7 +20,7 @@ import os
 import re
 import threading
 import time
-from datetime import date as _date, datetime, timezone
+from datetime import date as _date, datetime, timedelta, timezone
 from urllib.parse import quote_plus, urlparse
 
 from api.services import significant_catalysts
@@ -29,7 +29,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v8"   # v8 = robust date extraction (ISO + natural-language) in verify
+HIST_PERIOD = "ytd2026_v9"   # v9 = more-comprehensive recall + real-time recent layer added
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -41,6 +41,7 @@ _HIST_TOP_N = 20              # candidate big-move days fed to the LLM (was 12)
 _MAX_BREAKING = 40            # pre-dedup pool; dedup + relevance trims it
 _HIST_TTL = 6 * 3600
 _LIVE_TTL = 120
+_RECENT_TTL = 20 * 60        # last-10-days catalyst layer refresh (near-real-time)
 _EST_COST_PER_GEN = 0.02  # ~900 Sonnet out-tokens; for the cost log only
 
 # Single-process generate-once dedupe + daily cap (matches the web pod's one-uvicorn
@@ -150,11 +151,14 @@ def _web_catalysts(sym, company, bars, movers):
         f"Return ONLY a JSON object (no prose, no markdown fences):\n"
         f'{{"catalysts": [{{"date": "YYYY-MM-DD", "title": "<3-7 word headline>", '
         f'"description": "<one factual sentence with the specifics>", "direction": "up" or "down"}}]}}\n'
-        f"Include up to {_MAX_HIST_ITEMS} of the most impactful, most recent first. "
+        f"Be COMPREHENSIVE — most active stocks had SEVERAL catalysts this year; return as many "
+        f"real ones as you can find (up to {_MAX_HIST_ITEMS}), not just the top two or three, "
+        f"most recent first. Also include sector/policy events that specifically moved THIS stock "
+        f"(e.g. an import ban or ruling that hit its industry). "
         f"CRITICAL: `date` MUST be the REAL date the event actually happened or was announced "
         f"(the article/press-release date) — NOT a later date the stock moved. Verify each date "
-        f"against its source. Only real, verifiable, company-specific events — no macro/market-"
-        f"wide items, no price targets, no advice."
+        f"against its source. Only real, verifiable events that materially moved the stock — no "
+        f"generic market/macro items, no price targets, no advice."
     )
     system = ("You are a financial news researcher. Search the web and output ONLY the requested "
               "JSON of real, sourced, company-specific stock catalysts. Every date must be the "
@@ -602,14 +606,148 @@ def _breaking_enabled() -> bool:
     return os.environ.get("NEWS_BREAKING_ENABLED", "0") == "1"
 
 
+def _recent_enabled() -> bool:
+    return os.environ.get("NEWS_RECENT_ENABLED", "1") == "1" and _web_enabled()
+
+
+def _recent_catalysts(sym):
+    """Near-real-time layer: a web search scoped to the LAST ~10 DAYS so TODAY's
+    catalyst (e.g. the optical stocks gapping on a policy headline) shows up — the
+    cached year-history can't. Uses each event's REAL date as-is (no snapping — a
+    today-dated catalyst has no completed bar yet). Cached ~20 min by the caller."""
+    if not _recent_enabled():
+        return []
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return []
+    bars = _daily_bars_since(sym)
+    label = f"{sym} stock"
+    query = (
+        f"What are the most significant COMPANY-SPECIFIC catalysts or news events for {label} in "
+        f"the PAST 10 DAYS (including today)? Cover deals, strategic investments, M&A, government "
+        f"or regulatory/policy news that materially affects this company or its sector (e.g. an "
+        f"import ban, tariff, or ruling that moves the stock), product launches, major analyst "
+        f"rating or price-target changes, guidance, and notable stake disclosures. Do NOT include "
+        f"routine quarterly earnings reports.\n\n"
+        f'Return ONLY JSON: {{"catalysts": [{{"date": "YYYY-MM-DD", "title": "<3-7 word headline>", '
+        f'"description": "<one factual sentence>", "direction": "up" or "down"}}]}} — up to 6, most '
+        f"recent first. Use the REAL announcement date. Only real, verifiable events with a source."
+    )
+    system = ("You are a financial news researcher. Search the web and output ONLY the requested "
+              "JSON of real, recent, company-relevant catalysts with accurate dates. No preamble.")
+    try:
+        res = perplexity_search.web_search(query, max_tokens=1000, system=system, mode="fast",
+                                           recency="week", domain_pack="finance")
+    except Exception as exc:
+        _logger.warning("news_catalysts recent failed for %s: %s", sym, exc)
+        return []
+    answer = (res.get("answer") or "").strip()
+    if res.get("error") or not answer:
+        return []
+    a, b = answer.find("{"), answer.rfind("}")
+    if a == -1 or b == -1:
+        return []
+    try:
+        raw = (json.loads(answer[a:b + 1]).get("catalysts")) or []
+    except Exception:
+        return []
+    citations = res.get("citations") or []
+    bar_idx = _build_bar_index(bars)
+    today = _today_iso()
+    lo = (datetime.now(timezone.utc).date() - timedelta(days=14)).isoformat()
+    out = []
+    for i, it in enumerate(raw[:6]):
+        title = (it.get("title") or "").strip()
+        raw_desc = (it.get("description") or "").strip()
+        if not title or significant_catalysts._is_uncertain(title, raw_desc) or _looks_like_earnings(title, raw_desc):
+            continue
+        d = str(it.get("date") or "").strip()[:10]
+        if not _ISO_RE.match(d) or not (lo <= d <= today):
+            continue
+        mp = None
+        direction = (it.get("direction") or "").strip().lower()
+        bar = bar_idx.get(d)
+        if bar and bar.get("c") is not None:                 # completed session → real reaction
+            base = bar.get("_prev_c") or bar.get("o")
+            if base:
+                mp = round((bar["c"] - base) / base * 100, 1)
+                direction = "up" if mp >= 0 else "down"
+        if direction not in ("up", "down"):
+            direction = "up"
+        clean_title = _strip_cites(title)[:90]
+        src, url = _catalyst_link(raw_desc, citations, sym, clean_title)
+        out.append({
+            "date": d, "type": "catalyst", "direction": direction,
+            "title": clean_title, "description": _shorten(_strip_cites(raw_desc), 300) or None,
+            "move_pct": mp, "source": src, "url": url, "ts": _date_ts(d),
+        })
+    return out
+
+
+def _dedup_catalysts(events):
+    """Drop duplicate catalyst events (recent layer overlaps the year history) —
+    keyed by (date, normalized-title-prefix); keeps the first seen. Earnings +
+    breaking pass through untouched."""
+    seen = set()
+    out = []
+    for e in events:
+        if e.get("type") != "catalyst":
+            out.append(e)
+            continue
+        key = (e.get("date"), re.sub(r"[^a-z0-9 ]", "", (e.get("title") or "").lower())[:36])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(e)
+    return out
+
+
+_recent_lock = threading.Lock()
+_recent_inflight: set[str] = set()
+
+
+def _recent_layer(sym):
+    """SWR: serve the cached (or last-known) recent catalysts instantly; refresh in
+    the BACKGROUND when the 20-min TTL lapses — never a Perplexity call on the
+    request path (the 524 threadpool-exhaustion class)."""
+    if not _recent_enabled():
+        return []
+    ck = f"news_recent_{sym}"
+    fresh = cache.get(ck)
+    if fresh is not None:
+        return fresh
+    stale = cache.get(f"{ck}_last") or []
+    with _recent_lock:
+        if sym in _recent_inflight:
+            return stale
+        _recent_inflight.add(sym)
+
+    def _run():
+        try:
+            rec = _recent_catalysts(sym)
+            cache.set(ck, rec, ttl=_RECENT_TTL)
+            cache.set(f"{ck}_last", rec, ttl=24 * 3600)   # stale fallback between refreshes
+        except Exception as exc:
+            _logger.warning("news_catalysts recent refresh failed for %s: %s", sym, exc)
+        finally:
+            with _recent_lock:
+                _recent_inflight.discard(sym)
+
+    threading.Thread(target=_run, daemon=True, name=f"news-recent-{sym}").start()
+    return stale
+
+
 def _combined(sym: str) -> list:
     events = list(_hist_and_earnings(sym))
+    events += _recent_layer(sym)
     if _breaking_enabled():
         live = cache.get(f"news_live_{sym}")
         if live is None:
             live = _breaking_events(sym)
             cache.set(f"news_live_{sym}", live, ttl=_LIVE_TTL)
         events += live
+    events = _dedup_catalysts(events)
     events.sort(key=lambda e: e.get("ts", 0), reverse=True)
     return events
 

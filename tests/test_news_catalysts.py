@@ -3,6 +3,7 @@ generation, generate-once, disabled short-circuit. Mocks bars/earnings/tweets an
 the shared generator; uses a temp DB.
 """
 import time
+from datetime import datetime, timezone
 
 import pytest
 
@@ -21,6 +22,7 @@ def _tmp_db(tmp_path, monkeypatch):
         cache.invalidate(f"news_live_{sym}")
     monkeypatch.setenv("NEWS_CATALYSTS_ENABLED", "1")
     monkeypatch.setenv("NEWS_VERIFY_DATES", "0")   # deterministic phase-1 dates unless a test opts in
+    monkeypatch.setenv("NEWS_RECENT_ENABLED", "0")  # no background recent layer unless a test opts in
     yield
 
 
@@ -329,6 +331,46 @@ class TestWebGrounding:
         monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": []})
         items, _ = service._web_catalysts("NVDA", None, _BARS, [])
         assert [it["title"] for it in items] == ["Real deal"]      # placeholder dropped
+
+
+class TestRecentLayer:
+    def test_recent_catalysts_includes_today(self, monkeypatch):
+        monkeypatch.setenv("NEWS_RECENT_ENABLED", "1")
+        monkeypatch.setattr(service, "_daily_bars_since", lambda sym, lo=service.YTD_LO: [])  # today has no bar
+        import api.services.perplexity_search as pplx
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        answer = ('{"catalysts": [{"date": "' + today + '", "title": "Chinese datacenter ban", '
+                  '"description": "Trump admin drafting ban on Chinese optical imports.[1]", "direction": "up"}]}')
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": ["https://tradingkey.com/x"]})
+        out = service._recent_catalysts("AAOI")
+        assert len(out) == 1
+        assert out[0]["date"] == today and out[0]["type"] == "catalyst"
+        assert out[0]["move_pct"] is None                 # today: no completed bar
+        assert out[0]["url"] == "https://tradingkey.com/x"
+        assert out[0]["description"] == "Trump admin drafting ban on Chinese optical imports."
+
+    def test_recent_rejects_old_dates(self, monkeypatch):
+        monkeypatch.setenv("NEWS_RECENT_ENABLED", "1")
+        monkeypatch.setattr(service, "_daily_bars_since", lambda sym, lo=service.YTD_LO: [])
+        import api.services.perplexity_search as pplx
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {
+            "answer": '{"catalysts": [{"date": "2026-01-15", "title": "Old news", "description": "x", "direction": "up"}]}',
+            "citations": []})
+        assert service._recent_catalysts("AAOI") == []     # outside the ~10-day window
+
+    def test_recent_disabled(self, monkeypatch):
+        monkeypatch.setenv("NEWS_RECENT_ENABLED", "0")
+        assert service._recent_catalysts("AAOI") == []
+
+    def test_dedup_catalysts_collapses_overlap(self):
+        evs = [
+            {"type": "catalyst", "date": "2026-03-11", "title": "Nvidia invests $2 billion", "ts": 2},
+            {"type": "catalyst", "date": "2026-03-11", "title": "Nvidia invests $2 billion!", "ts": 1},  # dup
+            {"type": "earnings", "date": "2026-03-11", "title": "earnings", "ts": 3},
+        ]
+        out = service._dedup_catalysts(evs)
+        assert len([e for e in out if e["type"] == "catalyst"]) == 1
+        assert len([e for e in out if e["type"] == "earnings"]) == 1
 
 
 class TestBreakingHelpers:
