@@ -40,7 +40,8 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS implied_snapshots (
   sym TEXT NOT NULL, report_date TEXT NOT NULL, captured_at TEXT NOT NULL,
   pct REAL NOT NULL, dollar REAL NOT NULL, expiry TEXT, strike REAL, spot REAL,
-  iv_atm REAL, source TEXT, PRIMARY KEY (sym, report_date)
+  iv_atm REAL, source TEXT, fiscal_year INTEGER, fiscal_quarter INTEGER,
+  PRIMARY KEY (sym, report_date)
 );
 CREATE TABLE IF NOT EXISTS grade_snapshots (
   sym TEXT NOT NULL, date TEXT NOT NULL, surface TEXT NOT NULL,
@@ -49,8 +50,29 @@ CREATE TABLE IF NOT EXISTS grade_snapshots (
 );
 """
 
+# Additive migration for a DB file created before fiscal_year/fiscal_quarter
+# existed — CREATE TABLE IF NOT EXISTS above never adds columns to an already-
+# existing table, so an existing /data/implied_moves.db needs an explicit
+# ALTER. Mirrors the PRAGMA table_info(...) guard used by desk_session_announce
+# / education_service / modelbook_service elsewhere in this codebase.
+_FISCAL_KEY_ALTERS = (
+    ("fiscal_year", "ALTER TABLE implied_snapshots ADD COLUMN fiscal_year INTEGER"),
+    ("fiscal_quarter", "ALTER TABLE implied_snapshots ADD COLUMN fiscal_quarter INTEGER"),
+)
+
 _INIT_LOCK = threading.Lock()
 _INITIALIZED: set[str] = set()
+
+
+def _int_or_none(v):
+    """int(v) preserving None — an absent fiscal_year/fiscal_quarter must never
+    coerce to a phantom 0, and a genuine 0 (however implausible) must survive."""
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _canon(sym: str) -> str:
@@ -85,6 +107,11 @@ def _ensure_init() -> None:
             os.makedirs(d, exist_ok=True)
         with closing(_connect()) as c:
             c.executescript(_SCHEMA)
+            cols = {r["name"] for r in c.execute("PRAGMA table_info(implied_snapshots)")}
+            for col_name, alter_sql in _FISCAL_KEY_ALTERS:
+                if col_name not in cols:
+                    c.execute(alter_sql)
+            c.commit()
         _INITIALIZED.add(DB_PATH)
 
 
@@ -99,16 +126,29 @@ def _has_snapshot(sym: str, report_date: str) -> bool:
     return row is not None
 
 
-def record_implied(sym: str, report_date: str, payload: dict, captured_at: str) -> None:
+def record_implied(sym: str, report_date: str, payload: dict, captured_at: str,
+                    fiscal_year: int | None = None, fiscal_quarter: int | None = None) -> None:
+    """`fiscal_year`/`fiscal_quarter` are the provider's own fiscal identifiers
+    (see `upcoming_reporters`) — the pairing key a client uses to join this
+    snapshot to its history row by fiscal identity instead of by `report_date`
+    string equality (a past history row's true announcement date is often
+    unknown). Optional + additive: existing callers that omit them keep
+    writing a row exactly as before (fiscal_year/fiscal_quarter = NULL).
+    INSERT OR IGNORE + the (sym, report_date) PRIMARY KEY still make this
+    first-write-wins and idempotent — a re-run with a different fiscal key on
+    an already-captured (sym, report_date) is silently ignored, same as any
+    other field."""
     _ensure_init()
     with closing(_connect()) as c, c:
         c.execute(
             "INSERT OR IGNORE INTO implied_snapshots "
-            "(sym, report_date, captured_at, pct, dollar, expiry, strike, spot, iv_atm, source) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "(sym, report_date, captured_at, pct, dollar, expiry, strike, spot, iv_atm, source, "
+            "fiscal_year, fiscal_quarter) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (_canon(sym), report_date, captured_at, payload["pct"], payload["dollar"],
              payload.get("expiry"), payload.get("strike"), payload.get("spot"),
-             payload.get("iv_atm"), payload.get("source")),
+             payload.get("iv_atm"), payload.get("source"),
+             _int_or_none(fiscal_year), _int_or_none(fiscal_quarter)),
         )
 
 
@@ -116,8 +156,9 @@ def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
     _ensure_init()
     with closing(_connect()) as c:
         rows = c.execute(
-            "SELECT sym, report_date, captured_at, pct, dollar, expiry FROM implied_snapshots "
-            "WHERE sym = ? ORDER BY report_date DESC LIMIT ?", (_canon(sym), int(limit)),
+            "SELECT sym, report_date, captured_at, pct, dollar, expiry, fiscal_year, fiscal_quarter "
+            "FROM implied_snapshots WHERE sym = ? ORDER BY report_date DESC LIMIT ?",
+            (_canon(sym), int(limit)),
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -163,7 +204,11 @@ def get_grade_history(sym: str, surface: str, limit: int = 30) -> list[dict]:
 def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[dict]:
     """Symbols reporting within `days`, via Finnhub's calendar range. Each row
     carries Finnhub's `hour` field ("bmo"/"amc"/"dmh"/"") so callers can apply
-    session-aware capture logic (see run_nightly_capture).
+    session-aware capture logic (see run_nightly_capture), plus Finnhub's own
+    `fiscal_year`/`fiscal_quarter` (from /calendar/earnings' `year`/`quarter`)
+    — the fiscal identity `record_implied` files the snapshot under, so a
+    later history row keyed on the SAME provider quarter/year (but a different
+    date — the period end, not this announcement date) can still pair with it.
     Empty list on ANY failure — the nightly job then no-ops (holiday-safe)."""
     today = (now or dt.datetime.now()).date()
     # Cache key includes the date — `days` alone collided across calendar days,
@@ -189,7 +234,9 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
         _log.warning("upcoming_reporters fetch failed: %s", e)
         return []
     out = [{"sym": _canon(row.get("symbol")), "report_date": row.get("date"),
-            "hour": row.get("hour") or ""}
+            "hour": row.get("hour") or "",
+            "fiscal_year": _int_or_none(row.get("year")),
+            "fiscal_quarter": _int_or_none(row.get("quarter"))}
            for row in rows if row.get("symbol") and row.get("date")]
     if out:
         _REPORTERS_CACHE.set(key, list(out), _REPORTERS_TTL)
@@ -240,7 +287,9 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
             if payload is None:
                 summary["failed"] += 1
                 continue
-            record_implied(sym, report_date, payload, captured_at)
+            record_implied(sym, report_date, payload, captured_at,
+                            fiscal_year=rep.get("fiscal_year"),
+                            fiscal_quarter=rep.get("fiscal_quarter"))
             summary["captured"] += 1
         except Exception:  # noqa: BLE001 — one bad symbol must never truncate the batch
             _log.warning("[implied-store] capture failed for %s", sym, exc_info=True)

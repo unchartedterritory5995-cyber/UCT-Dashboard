@@ -170,7 +170,12 @@ def get_earnings_intel(ticker: str) -> dict | None:
     """Return earnings intelligence dict for *ticker*, or None on total failure.
 
     Keys returned:
-        beat_history  – list of last 4 quarters [{period, actual, estimate, beat}]
+        beat_history  – list of last 4 quarters
+                         [{period, actual, estimate, beat, surprise, quarter, year}]
+                         `quarter`/`year` are Finnhub's own fiscal identifiers
+                         (present on /stock/earnings) — the fiscal-quarter
+                         pairing key for the implied-vs-realized hero (P2 T8b).
+                         None when Finnhub omits them, never a phantom 0.
         consensus     – {buy, hold, sell, strongBuy, strongSell, period}
         price_target  – {targetHigh, targetLow, targetMean, targetMedian, lastUpdated}
     """
@@ -196,6 +201,13 @@ def get_earnings_intel(ticker: str) -> dict | None:
                 "estimate": estimate,
                 "beat": beat,
                 "surprise": q.get("surprisePercent"),
+                # Purely additive — carried through so the client can pair a
+                # PAST quarter's history row against implied_store's snapshot
+                # (keyed on the announcement date, not this period end) by
+                # fiscal identity instead of by date. `_int_or_none` keeps an
+                # absent value None rather than coercing it to 0.
+                "quarter": _int_or_none(q.get("quarter")),
+                "year": _int_or_none(q.get("year")),
             })
 
     # ── 2. Analyst recommendation consensus ──────────────────────────────────
@@ -238,6 +250,18 @@ def get_earnings_intel(ticker: str) -> dict | None:
     }
     cache.set(cache_key, result, ttl=_CACHE_TTL)
     return result
+
+
+def _int_or_none(v):
+    """int(v) preserving None. A bare `int(v or 0)` would turn an absent
+    quarter/year into a phantom 0 — this keeps absent distinct from a
+    genuine (if implausible) 0 in both directions."""
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _surprise_pct(actual, estimate):

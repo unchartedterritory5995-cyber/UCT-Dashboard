@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import ImpliedVsRealized, {
   SIZE, VIEWBOX, pairQuarters, coldStartState, impliedVerdict, pairGeometry,
 } from './ImpliedVsRealized'
+import { buildQuarters } from '../../research/earningsHistoryModel'
 
 /** Earnings-history rows, oldest-first (§6 row 3). */
 const QUARTERS = [
@@ -50,6 +51,39 @@ describe('pairQuarters — joins the two payloads on report_date', () => {
   it('never throws on null inputs', () => {
     expect(pairQuarters(null, null, null)).toEqual([])
     expect(pairQuarters(QUARTERS, null, null)[0].impliedPct).toBeNull()
+  })
+})
+
+// P2 T8b — THE REGRESSION TEST. Today, `earningsHistoryModel.buildQuarters`
+// keys a PAST quarter's `report_date` off `h.period` (Finnhub /stock/earnings'
+// fiscal PERIOD END, e.g. 2026-06-30), while `implied_store.record_implied`
+// keys its snapshot on the /calendar/earnings ANNOUNCEMENT date (e.g.
+// 2026-07-30, typically 2-8 weeks later). `pairQuarters` joins the two on
+// `report_date` string equality, so a real accrued snapshot can never pair
+// with its own history row — the hollow implied bar never draws for any past
+// quarter. This must FAIL against today's code (no fiscal-key pairing yet)
+// and pass once both sides carry + pair on the provider's own quarter/year.
+describe('pairQuarters — fiscal-quarter identity (P2 T8b regression)', () => {
+  it('pairs a past quarter whose implied snapshot is keyed on the announcement '
+    + 'date against a history row keyed on the period end', () => {
+    // beat_history row as Finnhub /stock/earnings returns it once
+    // earnings_estimates.py carries quarter/year through: period END
+    // 2026-06-30, but the print actually happened weeks later.
+    const beatHistory = [
+      { period: '2026-06-30', actual: 0.91, estimate: 0.88, surprise: 3.4, quarter: 2, year: 2026 },
+    ]
+    const quarters = buildQuarters({
+      beatHistory, histStats: { last_n: [4.1] }, reportDate: null, row: {},
+    })
+    // implied_store keys the snapshot on the /calendar/earnings ANNOUNCEMENT
+    // date, captured the night before — nowhere near the period end above.
+    const impliedHistory = [
+      { sym: 'X', report_date: '2026-07-30', captured_at: '2026-07-29T21:00:00Z',
+        pct: 5.5, dollar: 6.0, fiscal_year: 2026, fiscal_quarter: 2 },
+    ]
+    const pairs = pairQuarters(quarters, impliedHistory, null)
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].impliedPct).toBe(5.5)
   })
 })
 
