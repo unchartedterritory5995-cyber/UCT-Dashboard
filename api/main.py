@@ -100,6 +100,7 @@ from api.routers import fundamentals as fundamentals_router
 from api.routers import analyst as analyst_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
+from api.routers import expected_move as expected_move_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
@@ -2623,6 +2624,19 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
+        # Implied-move nightly capture (post-close, pre-report snapshot for the
+        # history hero). Gated -- ONLY the scheduler job; the read endpoint is
+        # always mounted. 16:35 ET = post options settle (~16:15), pre any
+        # evening maintenance; weekday-only; a holiday yields zero reporters
+        # -> natural no-op.
+        if os.environ.get("IMPLIED_STORE_ENABLED") == "1":
+            from api.services import implied_store as _implied_store
+            _scheduler.add_job(
+                _implied_store.run_nightly_capture,
+                trigger=CronTrigger(hour=16, minute=35, day_of_week="mon-fri", timezone=_ET),
+                id="implied_move_nightly", max_instances=1, replace_existing=True,
+            )
+
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
         # (ticker_types table) fresh so the flow write path classifies new ETFs
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
@@ -4107,6 +4121,7 @@ app.include_router(fundamentals_router.router)
 app.include_router(analyst_router.router)
 app.include_router(filings_router.router)
 app.include_router(research_router.router)
+app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
