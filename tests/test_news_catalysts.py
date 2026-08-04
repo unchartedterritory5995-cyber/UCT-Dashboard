@@ -171,49 +171,49 @@ class TestGeneration:
 
 
 class TestWebGrounding:
-    def test_web_research_grounds_and_tags_source_url(self, monkeypatch):
+    def test_web_catalysts_direct_json(self, monkeypatch):
         _mock_bars(monkeypatch)
         import api.services.perplexity_search as pplx
+        answer = ('Here you go: {"catalysts": [{"date": "2026-01-05", '
+                  '"title": "Meta hyperscaler deal", "description": "Signed a multi-year Meta '
+                  'cloud contract.", "direction": "up"}]}')
         monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {
-            "answer": "On 2026-01-05 the company signed a major cloud deal that spiked shares.",
-            "citations": ["https://finance.yahoo.com/x", "https://tikr.com/y"],
-        })
-        captured = {}
-
-        def _gen(*a, **k):
-            captured["grounding"] = k.get("grounding")
-            return [{"date": "2026-01-05", "title": "Major cloud deal",
-                     "description": "Signed a big cloud contract.", "move_pct": 99.0, "direction": "up"}]
-
-        monkeypatch.setattr(significant_catalysts, "generate", _gen)
-        service._generate_and_store("NVDA")
-        rows = store.get_catalysts("NVDA", service.HIST_PERIOD)
+            "answer": answer, "citations": ["https://finance.yahoo.com/x", "https://tikr.com/y"]})
+        called = {"gen": 0}
+        monkeypatch.setattr(significant_catalysts, "generate",
+                            lambda *a, **k: called.__setitem__("gen", called["gen"] + 1) or [])
+        service._generate_and_store("NBIS")
+        rows = store.get_catalysts("NBIS", service.HIST_PERIOD)
         assert len(rows) == 1
+        assert rows[0]["title"] == "Meta hyperscaler deal"
         assert rows[0]["source"] == "web"
-        assert rows[0]["url"] == "https://finance.yahoo.com/x"       # top citation
-        assert rows[0]["move_pct"] == 10.0                          # recomputed from the real bar
-        assert "cloud deal" in (captured["grounding"] or "").lower()  # research fed as grounding
+        assert rows[0]["url"] == "https://finance.yahoo.com/x"      # top citation
+        assert rows[0]["move_pct"] == 10.0                         # from the real 01-05 bar
+        assert called["gen"] == 0                                  # web path used; no from-memory call
 
-    def test_falls_back_to_ai_when_web_unavailable(self, monkeypatch):
+    def test_falls_back_to_generate_when_web_empty(self, monkeypatch):
         _mock_bars(monkeypatch)
         import api.services.perplexity_search as pplx
-        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"error": "PERPLEXITY_API_KEY not set", "answer": ""})
-        captured = {}
-
-        def _gen(*a, **k):
-            captured["grounding"] = k.get("grounding")
-            return [{"date": "2026-01-05", "title": "X", "move_pct": 10.0, "direction": "up"}]
-
-        monkeypatch.setattr(significant_catalysts, "generate", _gen)
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"error": "no key", "answer": ""})
+        monkeypatch.setattr(significant_catalysts, "generate",
+                            lambda *a, **k: [{"date": "2026-01-05", "title": "X", "move_pct": 10.0, "direction": "up"}])
         service._generate_and_store("NVDA")
         rows = store.get_catalysts("NVDA", service.HIST_PERIOD)
-        assert rows and rows[0]["source"] == "ai"                   # no web → from-memory
-        assert captured["grounding"] is None
+        assert rows and rows[0]["source"] == "ai"                  # no web → from-memory fallback
 
-    def test_web_search_disabled_flag(self, monkeypatch):
+    def test_web_catalysts_disabled_flag(self, monkeypatch):
         monkeypatch.setenv("NEWS_WEB_SEARCH_ENABLED", "0")
-        text, url = service._web_research("NVDA", None, [])
-        assert text is None and url is None
+        items, url = service._web_catalysts("NVDA", None, _BARS, [])
+        assert items is None and url is None
+
+    def test_web_catalysts_filters_uncertain_and_snaps(self, monkeypatch):
+        import api.services.perplexity_search as pplx
+        answer = ('{"catalysts": ['
+                  '{"date": "2026-01-06", "title": "Data unavailable", "description": "cannot be verified"},'
+                  '{"date": "2026-01-05", "title": "Real deal", "description": "Signed a contract.", "direction": "up"}]}')
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": []})
+        items, _ = service._web_catalysts("NVDA", None, _BARS, [])
+        assert [it["title"] for it in items] == ["Real deal"]      # placeholder dropped
 
 
 class TestBreakingHelpers:

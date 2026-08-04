@@ -28,7 +28,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v3"   # bump to force regen (v3 = web-search-grounded catalysts)
+HIST_PERIOD = "ytd2026_v4"   # v4 = Perplexity returns structured catalysts directly
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -58,12 +58,15 @@ def _web_enabled() -> bool:
     return os.environ.get("NEWS_WEB_SEARCH_ENABLED", "1") == "1"
 
 
-def _web_research(sym, company, movers):
-    """Perplexity web search for the stock's REAL 2026 catalysts → (research_text,
-    top_citation_url). The model's training memory can't know post-cutoff catalysts
-    (e.g. META's Jul-2026 'excess AI compute cloud' headline), so we search the web
-    and feed the findings to the structuring pass. Returns (None, None) if disabled
-    / no key / error — the caller falls back to from-memory generation."""
+def _web_catalysts(sym, company, bars, movers):
+    """Perplexity → structured JSON of REAL, web-sourced 2026 catalysts.
+
+    Perplexity IS web-grounded, so it directly knows the actual events + dates
+    (NBIS's Meta hyperscaler deal / NVIDIA investment / Eigen AI acquisition;
+    META's Jul-2026 'excess AI compute cloud' headline). We ask it for JSON
+    directly — NOT via a second model, which (being pre-cutoff) would over-omit
+    these as 'unverifiable'. Snap each date to a real trading day + take the % move
+    from the bar. Returns (items, top_citation_url) or (None, None)."""
     if not _web_enabled():
         return None, None
     try:
@@ -72,32 +75,74 @@ def _web_research(sym, company, movers):
         return None, None
     label = f"{sym} ({company}) stock" if company else f"{sym} stock"
     movers_txt = ", ".join(
-        f"{m['date']} ({'+' if m['pct'] >= 0 else ''}{m['pct']}%)" for m in (movers or [])[:12]
+        f"{m['date']} ({'+' if m['pct'] >= 0 else ''}{m['pct']}%)" for m in (movers or [])[:14]
     )
     query = (
-        f"What were the most significant company-specific catalysts and news events for "
-        f"{label} during 2026 year-to-date? Include major customer/contract deals, strategic "
-        f"investments or funding, mergers and acquisitions, notable institutional stake "
-        f"disclosures, product/platform launches, regulatory or FDA events, analyst rating or "
-        f"price-target changes, guidance updates, and earnings surprises. The stock's biggest "
-        f"single-day moves happened on these dates — explain what specifically drove each: "
-        f"{movers_txt}. For every catalyst give the approximate date (YYYY-MM-DD), exactly what "
-        f"happened in one factual sentence, and whether it pushed the stock up or down. ONLY "
-        f"real, verifiable, company-specific events — no macro/market-wide items, no advice."
+        f"Search the web for the most significant COMPANY-SPECIFIC catalysts and news events for "
+        f"{label} during 2026 (Jan 1 to today). Cover: major customer/partner/contract deals, "
+        f"strategic investments or funding rounds, mergers & acquisitions, notable institutional "
+        f"stake disclosures, product/platform launches, regulatory or FDA events, analyst rating "
+        f"or price-target changes, guidance updates, and earnings surprises. These were the "
+        f"biggest single-day move dates — be sure to explain what drove each: {movers_txt}.\n\n"
+        f"Return ONLY a JSON object (no prose, no markdown fences):\n"
+        f'{{"catalysts": [{{"date": "YYYY-MM-DD", "title": "<3-7 word headline>", '
+        f'"description": "<one factual sentence with the specifics>", "direction": "up" or "down"}}]}}\n'
+        f"Include up to {_MAX_HIST_ITEMS} of the most impactful, most recent first. Use the REAL "
+        f"date each event occurred. Only real, verifiable, company-specific events with a clear "
+        f"source — no macro/market-wide items, no price targets, no advice."
     )
-    system = ("You are a financial research analyst. Search the web and report the real, "
-              "sourced, company-specific stock catalysts requested — concise and factual, each "
-              "attributed to its approximate date. Do not speculate or give investment advice.")
+    system = ("You are a financial news researcher. Search the web and output ONLY the requested "
+              "JSON of real, sourced, company-specific stock catalysts with accurate dates. No "
+              "preamble, no markdown, no commentary.")
     try:
-        res = perplexity_search.web_search(query, max_tokens=1200, system=system,
+        res = perplexity_search.web_search(query, max_tokens=1500, system=system,
                                            mode="fast", domain_pack="finance")
     except Exception as exc:
-        _logger.warning("news_catalysts web research failed for %s: %s", sym, exc)
+        _logger.warning("news_catalysts web catalysts failed for %s: %s", sym, exc)
         return None, None
-    if res.get("error") or not (res.get("answer") or "").strip():
+    answer = (res.get("answer") or "").strip()
+    if res.get("error") or not answer:
+        return None, None
+    s, e = answer.find("{"), answer.rfind("}")
+    if s == -1 or e == -1:
+        return None, None
+    try:
+        raw = (json.loads(answer[s:e + 1]).get("catalysts")) or []
+    except Exception:
         return None, None
     citations = res.get("citations") or []
-    return res["answer"].strip(), (citations[0] if citations else None)
+    top_url = citations[0] if citations else None
+
+    trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
+    day_set = set(trading_days)
+    bar_idx = _build_bar_index(bars)
+    hi = _today_iso()
+    items = []
+    for i, it in enumerate(raw[:_MAX_HIST_ITEMS]):
+        title = (it.get("title") or "").strip()
+        if not title or significant_catalysts._is_uncertain(title, it.get("description")):
+            continue
+        d = significant_catalysts.snap_trading_day(
+            str(it.get("date") or "").strip()[:10], trading_days, day_set, lo=YTD_LO, hi=hi)
+        if not d:
+            continue
+        mp = None
+        direction = (it.get("direction") or "").strip().lower()
+        bar = bar_idx.get(d)
+        if bar and bar.get("c") is not None:
+            base = bar.get("_prev_c") or bar.get("o")
+            if base:
+                mp = round((bar["c"] - base) / base * 100, 1)
+                direction = "up" if mp >= 0 else "down"
+        if direction not in ("up", "down"):
+            direction = "up"
+        items.append({
+            "date": d, "title": title[:90],
+            "description": ((it.get("description") or "").strip()[:400]) or None,
+            "move_pct": mp, "direction": direction, "sort_order": i,
+            "source": "web", "url": top_url,
+        })
+    return (items or None), top_url
 
 
 # ── Breaking-tweet helpers: headline split, relevance filter, near-dup dedup ──
@@ -436,30 +481,30 @@ def _generate_and_store(sym: str) -> None:
         if not bars:
             store.mark_attempt(sym, HIST_PERIOD)
             return
-        # 1) Web-search the stock's REAL 2026 catalysts (grounds the model past its
-        #    training cutoff); 2) the model structures them into dated events.
+        # PRIMARY: Perplexity web search returns the REAL catalysts directly (it knows
+        # the actual 2026 events). FALLBACK: from-memory generation when Perplexity is
+        # unavailable (produces less — the model is pre-cutoff).
         movers = significant_catalysts.rank_big_move_days(bars, top_n=_HIST_TOP_N, direction="both")
-        research, cite_url = _web_research(sym, None, movers)
-        items = significant_catalysts.generate(
-            sym, None, bars, "2026 YTD", direction="both",
-            model=_MODEL, max_items=_MAX_HIST_ITEMS, top_n=_HIST_TOP_N, enabled=True,
-            trading_bounds=(YTD_LO, _today_iso()), grounding=research,
-        )
+        items, _cite = _web_catalysts(sym, None, bars, movers)
+        if not items:
+            gen = significant_catalysts.generate(
+                sym, None, bars, "2026 YTD", direction="both",
+                model=_MODEL, max_items=_MAX_HIST_ITEMS, top_n=_HIST_TOP_N, enabled=True,
+                trading_bounds=(YTD_LO, _today_iso()),
+            )
+            if gen:
+                bar_idx = _build_bar_index(bars)
+                for it in gen:
+                    bar = bar_idx.get(it.get("date"))
+                    if bar and bar.get("c") is not None:
+                        base = bar.get("_prev_c") or bar.get("o")
+                        if base:
+                            mv = round((bar["c"] - base) / base * 100, 1)
+                            it["move_pct"] = mv
+                            it["direction"] = "up" if mv >= 0 else "down"
+                    it["source"] = "ai"
+            items = gen
         if items:
-            bar_idx = _build_bar_index(bars)
-            for it in items:
-                # Recompute the % move + direction from the REAL bar (accurate vs the
-                # model's estimate); tag the source + a citation link when web-sourced.
-                bar = bar_idx.get(it.get("date"))
-                if bar and bar.get("c") is not None:
-                    base = bar.get("_prev_c") or bar.get("o")
-                    if base:
-                        mv = round((bar["c"] - base) / base * 100, 1)
-                        it["move_pct"] = mv
-                        it["direction"] = "up" if mv >= 0 else "down"
-                it["source"] = "web" if research else "ai"
-                if research and cite_url and not it.get("url"):
-                    it["url"] = cite_url
             store.replace_catalysts(sym, HIST_PERIOD, items)
             cache.invalidate(f"news_hist_{sym}")
             store.log_cost(sym, _MODEL, _EST_COST_PER_GEN)
@@ -488,6 +533,25 @@ def _gen_async(sym: str) -> None:
                 _generating.discard(sym)
 
     threading.Thread(target=_run, name=f"news-cat-{sym}", daemon=True).start()
+
+
+def debug_web(sym: str) -> dict:
+    """Admin diagnostic: run the web-catalyst search LIVE (no cache) and return what
+    Perplexity produced, so we can see whether web grounding is actually working."""
+    sym = (sym or "").upper()
+    bars = _daily_bars_since(sym)
+    movers = significant_catalysts.rank_big_move_days(bars, top_n=_HIST_TOP_N, direction="both") if bars else []
+    items, citation = _web_catalysts(sym, None, bars, movers)
+    return {
+        "symbol": sym,
+        "web_enabled": _web_enabled(),
+        "perplexity_key_set": bool(os.environ.get("PERPLEXITY_API_KEY", "").strip()),
+        "bars": len(bars),
+        "movers": movers[:12],
+        "web_items": items,
+        "citation": citation,
+        "period": HIST_PERIOD,
+    }
 
 
 def feed(sym: str) -> dict:
