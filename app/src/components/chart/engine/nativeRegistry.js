@@ -142,7 +142,9 @@ const periodInput = (key, label, dflt, min, max) => ({
 const RAW_DEFS = [
   // ── RSI ──────────────────────────────────────────────────────────────────
   nativeDef('rsi', 'rsi',
-    { name: 'Relative Strength Index', shortName: 'RSI', category: 'Momentum', legendParams: ['period'] },
+    { name: 'Relative Strength Index', shortName: 'RSI', category: 'Momentum', legendParams: ['period'],
+      description: 'Momentum on a 0-100 scale: how much of recent movement has been up.',
+      tags: ['oscillator', 'momentum'] },
     fixedPane(0, 100),
     [
       periodInput('period', 'Period', 14, 2, 100),
@@ -171,7 +173,9 @@ const RAW_DEFS = [
   // `validateInstance` on purpose — an old instance still draws, it just draws
   // the 8 bars it always should have.
   ({ ...nativeDef('macd', 'macd',
-    { name: 'MACD', shortName: 'MACD', category: 'Momentum' },
+    { name: 'MACD', shortName: 'MACD', category: 'Momentum',
+      description: 'The gap between two moving averages, and how fast that gap is changing.',
+      tags: ['oscillator', 'momentum', 'trend'] },
     autoPane,
     [
       periodInput('fastPeriod', 'Fast', 12, 1, 100),
@@ -221,7 +225,9 @@ const RAW_DEFS = [
 
   // ── Bollinger Bands ──────────────────────────────────────────────────────
   nativeDef('bb', 'bb',
-    { name: 'Bollinger Bands', shortName: 'BB', category: 'Volatility' },
+    { name: 'Bollinger Bands', shortName: 'BB', category: 'Volatility',
+      description: 'A moving average with volatility bands, so you can see when range is unusual.',
+      tags: ['overlay', 'volatility', 'bands'] },
     onPrice,
     [
       periodInput('period', 'Period', 20, 2, 200),
@@ -251,6 +257,8 @@ const RAW_DEFS = [
   ({ ...nativeDef('vwap', 'vwap',
     {
       name: 'Session VWAP', shortName: 'VWAP', category: 'Volume',
+      description: 'The session\'s volume-weighted average price — where the day\'s money traded.',
+      tags: ['overlay', 'volume', 'session'],
       // The old `VWAP_TFS` in `StockChart.jsx`, which is DELETED as of Flip B
       // along with the legacy memo that returned [] above 60m. A session indicator
       // does not exist on a daily bar.
@@ -290,7 +298,9 @@ const RAW_DEFS = [
 
   // ── Stochastic ───────────────────────────────────────────────────────────
   nativeDef('stoch', 'stoch',
-    { name: 'Stochastic Oscillator', shortName: 'Stoch', category: 'Momentum' },
+    { name: 'Stochastic Oscillator', shortName: 'Stoch', category: 'Momentum',
+      description: 'Where price closed inside its recent high-low range, smoothed.',
+      tags: ['oscillator', 'momentum'] },
     fixedPane(0, 100),
     [
       periodInput('kPeriod', '%K Period', 14, 1, 100),
@@ -308,7 +318,9 @@ const RAW_DEFS = [
 
   // ── ATR ──────────────────────────────────────────────────────────────────
   nativeDef('atr', 'atr',
-    { name: 'Average True Range', shortName: 'ATR', category: 'Volatility' },
+    { name: 'Average True Range', shortName: 'ATR', category: 'Volatility',
+      description: 'Average size of a bar\'s true range — a volatility number in price units.',
+      tags: ['volatility'] },
     autoPane,
     [
       periodInput('period', 'Period', 14, 1, 100),
@@ -320,7 +332,9 @@ const RAW_DEFS = [
 
   // ── Parabolic SAR ────────────────────────────────────────────────────────
   nativeDef('sar', 'sar',
-    { name: 'Parabolic SAR', shortName: 'SAR', category: 'Trend' },
+    { name: 'Parabolic SAR', shortName: 'SAR', category: 'Trend',
+      description: 'A trailing dot that flips side when the trend does.',
+      tags: ['overlay', 'trend', 'stops'] },
     onPrice,
     [
       { key: 'step', type: 'float', label: 'Step', default: 0.02, min: 0.001, max: 0.1, step: 0.001 },
@@ -335,7 +349,9 @@ const RAW_DEFS = [
 
   // ── Ichimoku Cloud ───────────────────────────────────────────────────────
   nativeDef('ichimoku', 'ichimoku',
-    { name: 'Ichimoku Cloud', shortName: 'Ichimoku', category: 'Trend' },
+    { name: 'Ichimoku Cloud', shortName: 'Ichimoku', category: 'Trend',
+      description: 'A trend system in one picture: two averages, a projected cloud and a lagging line.',
+      tags: ['overlay', 'trend'] },
     onPrice,
     [
       // The three periods are NOT user-editable today (the toolbar exposes only
@@ -365,7 +381,9 @@ const RAW_DEFS = [
 
   // ── MFI ──────────────────────────────────────────────────────────────────
   nativeDef('mfi', 'mfi',
-    { name: 'Money Flow Index', shortName: 'MFI', category: 'Volume' },
+    { name: 'Money Flow Index', shortName: 'MFI', category: 'Volume',
+      description: 'RSI weighted by volume — momentum that only counts when size shows up.',
+      tags: ['oscillator', 'volume', 'momentum'] },
     fixedPane(0, 100),
     [
       periodInput('period', 'Period', 14, 2, 100),
@@ -378,7 +396,9 @@ const RAW_DEFS = [
 
   // ── CCI ──────────────────────────────────────────────────────────────────
   nativeDef('cci', 'cci',
-    { name: 'Commodity Channel Index', shortName: 'CCI', category: 'Momentum' },
+    { name: 'Commodity Channel Index', shortName: 'CCI', category: 'Momentum',
+      description: 'How far price sits from its own average, in units of its typical deviation.',
+      tags: ['oscillator', 'momentum'] },
     autoPane,
     [
       periodInput('period', 'Period', 20, 2, 200),
@@ -392,7 +412,9 @@ const RAW_DEFS = [
 
   // ── Williams %R ──────────────────────────────────────────────────────────
   nativeDef('williamsR', 'williams_r',
-    { name: 'Williams %R', shortName: '%R', category: 'Momentum' },
+    { name: 'Williams %R', shortName: '%R', category: 'Momentum',
+      description: 'Where price closed in its recent range, on a -100 to 0 scale.',
+      tags: ['oscillator', 'momentum'] },
     fixedPane(-100, 0),
     [
       periodInput('period', 'Period', 14, 2, 100),
@@ -407,7 +429,9 @@ const RAW_DEFS = [
 
   // ── ADX / DMI ────────────────────────────────────────────────────────────
   nativeDef('adx', 'adx',
-    { name: 'Average Directional Index', shortName: 'ADX', category: 'Trend' },
+    { name: 'Average Directional Index', shortName: 'ADX', category: 'Trend',
+      description: 'How strong the trend is, regardless of direction, with the two directional lines.',
+      tags: ['trend', 'strength'] },
     fixedPane(0, 100),
     [
       periodInput('period', 'Period', 14, 2, 100),
@@ -424,7 +448,9 @@ const RAW_DEFS = [
 
   // ── OBV ──────────────────────────────────────────────────────────────────
   nativeDef('obv', 'obv',
-    { name: 'On-Balance Volume', shortName: 'OBV', category: 'Volume' },
+    { name: 'On-Balance Volume', shortName: 'OBV', category: 'Volume',
+      description: 'A running volume total that adds on up bars and subtracts on down bars.',
+      tags: ['volume', 'accumulation'] },
     autoPane,
     [
       colorInput('color', 'Color', '#9ca3af'),
@@ -435,7 +461,9 @@ const RAW_DEFS = [
 
   // ── Donchian Channels ────────────────────────────────────────────────────
   nativeDef('donchian', 'donchian',
-    { name: 'Donchian Channels', shortName: 'Donchian', category: 'Volatility' },
+    { name: 'Donchian Channels', shortName: 'Donchian', category: 'Volatility',
+      description: 'The highest high and lowest low of the last N bars, as a channel.',
+      tags: ['overlay', 'breakout', 'channel'] },
     onPrice,
     [
       periodInput('period', 'Period', 20, 2, 200),
