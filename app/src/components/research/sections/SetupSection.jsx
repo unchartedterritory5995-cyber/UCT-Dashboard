@@ -76,27 +76,42 @@ export function moveText(pct) {
   return n == null ? '' : `Priced ±${Math.abs(n).toFixed(1)}% `
 }
 
-/** "Est $0.94 · +4¢ / 30d" — the consensus estimate DRIFT (§4.3.1b, §12: never
- *  "whisper"). Walks the estimates payload's `revisions` for the first period
- *  with a usable current estimate; a 30-days-ago figure that is missing (not
- *  zero) omits the cents clause entirely rather than implying no movement. */
+// The server's own label for tonight's report-quarter row
+// (api/services/research/estimates.py `_PERIOD_LABEL["0q"] = "Current Qtr"`,
+// and `_PERIOD_ORDER` walks `["0q","+1q","0y","+1y"]`). This is the ONLY
+// revisions row this section may speak for.
+const CURRENT_QTR_LABEL = 'Current Qtr'
+
+/** "Est $0.94 · +4¢ / 30d" — the consensus estimate DRIFT for TONIGHT's
+ *  quarter (§4.3.1b, §12: never "whisper"). Pinned to the server's
+ *  `"Current Qtr"` row — NOT "the first row with a usable current estimate".
+ *  Around a print the Current Qtr row's `current` frequently goes null
+ *  (consensus resets post-report) while later periods ("Next Qtr"/"Current
+ *  Yr") stay populated; walking the array for the first usable value would
+ *  then silently present an annual or next-quarter number as tonight's
+ *  estimate, with no period qualifier, inside a modal about tonight's print.
+ *  A missing Current Qtr row (or a null `current` on it) means no drift line,
+ *  full stop — never a fallback to a differently-scoped number. */
 export function driftText(revisions) {
-  for (const r of revisions || []) {
-    const cur = num(r?.current)
-    if (cur == null) continue
-    const ago = num(r?.ago30)
-    if (ago == null) return `Est ${money(cur)}`
-    const cents = Math.round((cur - ago) * 100)
-    const sign = cents > 0 ? '+' : cents < 0 ? '−' : '±'
-    return `Est ${money(cur)} · ${sign}${Math.abs(cents)}¢ / 30d`
-  }
-  return null
+  const row = (revisions || []).find((r) => r?.period === CURRENT_QTR_LABEL)
+  if (!row) return null
+  const cur = num(row.current)
+  if (cur == null) return null
+  const ago = num(row.ago30)
+  if (ago == null) return `Est ${money(cur)}`
+  const cents = Math.round((cur - ago) * 100)
+  const sign = cents > 0 ? '+' : cents < 0 ? '−' : '±'
+  return `Est ${money(cur)} · ${sign}${Math.abs(cents)}¢ / 30d`
 }
 
 export default function SetupSection({ sym, row, reportDate, expectedMove }) {
   const { data: fundamentals } = useFundamentals(sym)
+  // Normalized the same way useEstimates.js/useExpectedMove.js key their SWR
+  // calls — a non-canonical-case `sym` (lowercase, stray whitespace) must not
+  // fragment the cache from every other surface reading this endpoint.
+  const s = (sym || '').toUpperCase().trim()
   const { data: estimates } = useSWR(
-    sym ? `/api/research/estimates/${encodeURIComponent(sym)}` : null, fetcher,
+    s ? `/api/research/estimates/${encodeURIComponent(s)}` : null, fetcher,
     { refreshInterval: 0, revalidateOnFocus: false },
   )
 
@@ -150,7 +165,11 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
 
       <EyebrowLabel>Key stats</EyebrowLabel>
       {!fundamentals ? (
-        <SkeletonBlock height={72} />
+        // `fundamentals` is `undefined` on EVERY user's first render (SWR
+        // before its first resolve) — this is not a rare edge case, it is
+        // what everyone sees first. data-testid so a test can assert this
+        // branch renders without depending on a CSS-module class.
+        <div data-testid="setup-stats-loading"><SkeletonBlock height={72} /></div>
       ) : (
         <div className={styles.stats} data-testid="setup-stats">
           <StatTile label="Mkt cap" value={compactCap(fundamentals.market_cap)} />
