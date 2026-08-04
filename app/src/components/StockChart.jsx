@@ -2208,6 +2208,34 @@ export default function StockChart({
     }
     const settingsLink = (id, label) =>
       showDrawingTools ? [{ id, label, onSelect: openSettings }] : []
+    // ⭐ THE THIRD ENTRY POINT ONTO THE LIBRARY (spec §6: *labelled toolbar
+    // button · right-click → "Add indicator…" · one chord*). It is a USE of the
+    // launcher, not a door: it writes nothing itself, so there is no
+    // `cs.indicators` write here to get wrong. Every add it leads to goes through
+    // the dialog, i.e. through `setIndicatorEnabled`.
+    //
+    // ORDER IS THE SAME CONTRACT `Alt+Shift+A` carries, and it is the same call:
+    // ask the library first, fall through to the settings surface ONLY on a
+    // non-`true` answer. `openIndicatorLibrary` returns `false` on a read-only
+    // mount (it checks the same `chartSettings && onUpdateSettings` pair the
+    // toolbar's own button does), and `toolbarRef.current` is null when the
+    // toolbar was never mounted — the two ways the door can be absent, both
+    // landing on the fallback rather than on nothing.
+    const openIndicatorLibrary = () => {
+      let opened = false
+      try { opened = toolbarRef.current?.openIndicatorLibrary() === true } catch { /* noop */ }
+      if (!opened) openSettings()
+    }
+    // ⛔ AND ITS PRESENCE IS THE READ-ONLY GATE, exactly as `settingsLink`'s is.
+    // A mount with no drawing tools (Model Book, a grid cell) renders no toolbar,
+    // so there is no library and no settings panel to reach — offering the item
+    // there would be a menu row that does nothing, which is the defect class this
+    // phase is retiring, not a smaller version of it.
+    const addIndicatorItem = showDrawingTools ? {
+      id: 'ind-add',
+      label: <><UIcon name="plus" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Add indicator…</>,
+      onSelect: openIndicatorLibrary,
+    } : null
 
     // Price-level + picker helpers (used by the price area / axis regions).
     const hasPrice = Number.isFinite(clickPrice)
@@ -2341,6 +2369,7 @@ export default function StockChart({
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
       }
       items.push(indicatorsItem)
+      if (addIndicatorItem) items.push(addIndicatorItem)
       if (volumeOverlayItem) items.push(volumeOverlayItem)
       secs.push({ id: 'region', title: 'Chart', items })
       if (tfSection) secs.push(tfSection)
@@ -3484,12 +3513,29 @@ export default function StockChart({
           onOpenSettings()
           return
         }
-        // Alt+Shift+A → add indicator: opens the settings panel (its Indicators
-        // section) rather than a duplicate dialog.
-        if (e.shiftKey && e.code === 'KeyA' && typeof onOpenSettings === 'function') {
-          e.preventDefault()
-          onOpenSettings()
-          return
+        // Alt+Shift+A → add indicator: opens the library dialog (B4 Task 7).
+        // ORDER IS THE CONTRACT, not a preference. `openIndicatorLibrary`
+        // returns false on a read-only mount site — it checks the same
+        // `chartSettings && onUpdateSettings` pair the toolbar's button does, so
+        // the chord and the button can never disagree about where the library
+        // exists. Only a false answer falls through to the settings panel, which
+        // is what this chord did before the dialog existed; swapping the order
+        // would open a panel on top of a chart that has a library.
+        if (e.shiftKey && e.code === 'KeyA') {
+          let opened = false
+          try { opened = toolbarRef.current?.openIndicatorLibrary() === true } catch { /* noop */ }
+          if (opened) {
+            e.preventDefault()
+            return
+          }
+          if (typeof onOpenSettings === 'function') {
+            e.preventDefault()
+            onOpenSettings()
+            return
+          }
+          // Neither door exists on this mount: do NOT preventDefault — swallowing
+          // the key here would make Alt+Shift+A a silent no-op instead of falling
+          // through to whatever else listens.
         }
         // Alt+G → open the go-to-date box.
         if (!e.shiftKey && e.code === 'KeyG') {

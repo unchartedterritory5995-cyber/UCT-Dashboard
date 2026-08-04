@@ -3600,3 +3600,171 @@ describe('B4 Task 5 — the share link is derived, not a hand-list of the pilots
     expect(state.markers).toEqual(cs.markers || {})
   })
 })
+
+// ─── B4 TASK 12 — THE EIGHTH DOOR, AND THE TWO WAYS INTO IT ─────────────────
+//
+// ⭐ THE LIBRARY HAS THREE ENTRY POINTS (spec §6) AND ONLY ONE OF THEM WAS
+// GATED. Task 7 shipped the dialog and its labelled toolbar button, and
+// `ChartToolbar.indicatorLibrary.test.jsx` covers that button and the imperative
+// handle in both directions. The other two — `Alt+Shift+A` and the right-click
+// **Add indicator…** row — live in `StockChart`, and neither had a test: the
+// chord was wired by hand after Task 7 handed it back, and the menu row was
+// flagged NOT DONE. This block is both of them.
+//
+// ⛔ NEITHER IS A CONTROL DOOR, AND THAT IS THE CLAIM. They call
+// `toolbarRef.current.openIndicatorLibrary()` — the same imperative handle the
+// toolbar's own button drives — so the census in `controlDoorCensus.test.js`
+// still finds `setIndicatorEnabled` at exactly four call sites. A row that
+// opened the dialog by writing `cs.indicators.<id>` itself would be door eight,
+// and the census is what says so.
+//
+// ⛔ ORDER IS THE CONTRACT ON BOTH. Ask the library FIRST; fall through to the
+// settings surface ONLY on a non-`true` answer. `openIndicatorLibrary` returns
+// `false` on a read-only mount (it checks the same `chartSettings &&
+// onUpdateSettings` pair the button does) and `toolbarRef.current` is null when
+// no toolbar mounted at all — the two ways the door can be absent. Swapping the
+// order opens a settings panel on top of a chart that has a library.
+//
+// ⚠️ THE PIXEL GATE CANNOT SEE ONE LINE OF THIS. The parity route presses no
+// key, mounts no toolbar and has no cursor, so a total regression of both entry
+// points reports 0 changed pixels.
+describe('B4 Task 12 — Alt+Shift+A and right-click both reach the ONE library', () => {
+  /** The dialog's own search box — `Sheet` portals into `document.body`, so this
+   *  is queried on the document rather than on the render container. */
+  const libraryOpen = () => !!document.body.querySelector('[aria-label="Search indicators"]')
+
+  /** Press the chord and hand back the EVENT, so `defaultPrevented` is readable.
+   *  `fireEvent` collapses that into a boolean return nobody reads by accident. */
+  const pressAddIndicator = () => {
+    const ev = new KeyboardEvent('keydown', {
+      altKey: true, shiftKey: true, code: 'KeyA', key: 'A', bubbles: true, cancelable: true,
+    })
+    act(() => { document.dispatchEvent(ev) })
+    return ev
+  }
+
+  it('the chord opens the LIBRARY, and does not also open the settings panel', () => {
+    const onOpenSettings = vi.fn()
+    renderChart({ settings: mergeChartSettings(null), onOpenSettings })
+    expect(libraryOpen(), 'the library was already open — this case cannot fail').toBe(false)
+
+    const ev = pressAddIndicator()
+
+    expect(libraryOpen(), 'Alt+Shift+A did not open the indicator library').toBe(true)
+    // ⭐ THE ORDER, ASSERTED. `onOpenSettings` is what this chord used to call —
+    // unconditionally — so a build that kept the old branch, or that ran BOTH,
+    // passes the line above and fails here.
+    expect(onOpenSettings,
+      'the settings panel opened too — the fall-through fired on a mount that HAS a library')
+      .not.toHaveBeenCalled()
+    expect(ev.defaultPrevented, 'a handled chord must be consumed').toBe(true)
+  })
+
+  it('⛔ on a READ-ONLY mount it falls through to the settings surface — once', () => {
+    // No drawing tools ⇒ no `ChartToolbar` ⇒ no library. This is the mount shape
+    // Model Book and the multi-chart grid cells use.
+    const onOpenSettings = vi.fn()
+    renderChart({ settings: mergeChartSettings(null), showDrawingTools: false, onOpenSettings })
+
+    const ev = pressAddIndicator()
+
+    expect(libraryOpen(), 'a chart with no toolbar sprouted an add-dialog').toBe(false)
+    expect(onOpenSettings, 'the chord did nothing at all on a read-only mount')
+      .toHaveBeenCalledTimes(1)
+    expect(ev.defaultPrevented).toBe(true)
+  })
+
+  it('⛔ and when NEITHER door exists the chord is not swallowed', () => {
+    // ⚠️ THE FAILURE MODE THIS GUARDS IS INVISIBLE FROM THE CHART. A
+    // `preventDefault()` with nothing behind it turns `Alt+Shift+A` into a silent
+    // no-op — the browser never sees the key, and neither does any other
+    // listener. The positive control is the first case above, where the same
+    // press reports `defaultPrevented: true`.
+    renderChart({ settings: mergeChartSettings(null), showDrawingTools: false })
+
+    const ev = pressAddIndicator()
+
+    expect(libraryOpen()).toBe(false)
+    expect(ev.defaultPrevented,
+      'the chord was consumed by a branch that then did nothing — a silent no-op is worse ' +
+      'than an unhandled key, because nothing downstream can pick it up').toBe(false)
+  })
+
+  it('the right-click menu offers "Add indicator…", and it opens the same library', () => {
+    const view = renderChart({ settings: mergeChartSettings(null) })
+    const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
+    const add = sec.items.find(i => i && i.id === 'ind-add')
+    expect(add, 'spec §6\'s third entry point is missing from the right-click menu').toBeTruthy()
+    // It sits WITH the indicator controls, not adrift at the end of the section.
+    const ids = sec.items.filter(Boolean).map(i => i.id)
+    expect(ids.indexOf('ind-add'), 'the add row is not beside the Indicators submenu')
+      .toBe(ids.indexOf('indicators') + 1)
+
+    expect(libraryOpen()).toBe(false)
+    act(() => { add.onSelect() })
+    expect(libraryOpen(), 'the menu row is wired to nothing').toBe(true)
+    // ⛔ AND IT WROTE NOTHING ITSELF. This row is a USE of the launcher, not a
+    // control door: opening a browse surface must not mark the preset custom or
+    // persist a settings blob. `lastSettings()` throws when nothing was written,
+    // which is the assertion.
+    expect(() => view.lastSettings(),
+      'opening the library persisted a settings write — this row is a door after all')
+      .toThrow()
+  })
+
+  it('⛔ a READ-ONLY mount is offered no "Add indicator…" row at all', () => {
+    // Presence IS the gate, exactly as it is for `settingsLink`'s three rows: a
+    // menu row whose target does not exist is a row that does nothing, which is
+    // the defect class this phase retires rather than a smaller version of it.
+    const view = renderChart({ settings: mergeChartSettings(null), showDrawingTools: false })
+    const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
+    expect(sec.items.filter(Boolean).map(i => i.id),
+      'a chart with no toolbar offers a row onto a library it does not have')
+      .not.toContain('ind-add')
+    // …and the same menu on that mount still carries the Indicators submenu, so
+    // the absence above is the gate and not a menu that failed to build.
+    expect(sec.items.filter(Boolean).map(i => i.id), 'control: the Indicators submenu is still here')
+      .toContain('indicators')
+  })
+
+  it('⛔ and if the door disappears between building the menu and clicking it, it still lands', () => {
+    // The one state the presence gate cannot cover: the menu was built while the
+    // toolbar existed and the toolbar is gone by the time the row is clicked.
+    // `toolbarRef.current` is null, `openIndicatorLibrary` is unreachable, and the
+    // fall-through is the only thing between the user and nothing at all.
+    const onOpenSettings = vi.fn()
+    const view = renderChart({ settings: mergeChartSettings(null), onOpenSettings })
+    const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
+    const add = sec.items.find(i => i && i.id === 'ind-add')
+
+    view.unmount()
+    act(() => { add.onSelect() })
+
+    expect(libraryOpen()).toBe(false)
+    expect(onOpenSettings, 'the row became a silent no-op the moment its door went away')
+      .toHaveBeenCalledTimes(1)
+  })
+
+  it('an add made through the menu\'s library moves the INSTANCE and the MIRROR', () => {
+    // End to end through the row this task added: it opens the dialog, the dialog
+    // writes through `setIndicatorEnabled`, and the toolbar's own
+    // `onUpdateSettings` persists it. `atr` is deliberately an UN-FLIPPED
+    // definition — ten of the fourteen still render from a legacy block that
+    // reads the mirror, so an instance-only write works on all four pilots and
+    // does nothing here.
+    const view = renderChart({ settings: mergeChartSettings(null) })
+    const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
+    act(() => { sec.items.find(i => i && i.id === 'ind-add').onSelect() })
+
+    const row = document.body.querySelector('[data-def-id="atr"]')
+    expect(row, 'the library opened without an ATR row — this case asserts on nothing').toBeTruthy()
+    act(() => { fireEvent.click(row) })
+
+    const next = view.lastSettings()
+    expect(next.indicators.atr.enabled, 'the MIRROR did not move — the legacy block still reads it')
+      .toBe(true)
+    expect((next.indicatorInstances || []).some(i => i && i.defId === 'atr' && !i.deleted),
+      'no instance was created — the engine lane sees nothing').toBe(true)
+    expect(isIndicatorEnabled(next, 'atr', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+  })
+})
