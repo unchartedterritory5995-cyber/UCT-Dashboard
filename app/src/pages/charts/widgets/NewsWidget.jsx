@@ -31,6 +31,9 @@ const FILTERS = [
   { key: 'down', label: '▼ Down' },
 ]
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// Beyond this, an item's headline is clamped (with a "Show more" toggle) so a single
+// long wire tweet can't dominate the whole feed.
+const LONG_TITLE_CHARS = 220
 
 function fmtDate(d) {
   if (!d) return ''
@@ -49,10 +52,33 @@ function fmtMove(mp) {
 function titleCase(s) {
   return String(s || '').replace(/(^|\s)(\p{L})/gu, (_m, pre, ch) => pre + ch.toUpperCase())
 }
-// The text placed on the chart: the Title-Cased headline, plus (for earnings) an
-// abbreviated second line per stat — "- EPS 0.08 (+366%)" / "- REV $42.7M (+7%)".
+// Wrap a placed headline into BALANCED lines so a long catalyst never renders as
+// one giant single row on the chart — each line caps near HEADLINE_WRAP_CHARS
+// (≈ half a long wire headline), so e.g. a 70-char headline lands on two rows.
+const HEADLINE_WRAP_CHARS = 36
+function wrapHeadline(text) {
+  const s = String(text || '').trim()
+  if (s.length <= HEADLINE_WRAP_CHARS) return [s]
+  const words = s.split(/\s+/)
+  const nLines = Math.max(2, Math.ceil(s.length / HEADLINE_WRAP_CHARS))
+  const target = Math.ceil(s.length / nLines)   // balanced width per line
+  const lines = []
+  let cur = ''
+  for (const w of words) {
+    if (cur && (cur.length + 1 + w.length) > target && lines.length < nLines - 1) {
+      lines.push(cur); cur = w
+    } else {
+      cur = cur ? `${cur} ${w}` : w
+    }
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+// The text placed on the chart: the Title-Cased headline (wrapped to balanced
+// rows), plus (for earnings) an abbreviated second line per stat — "- EPS 0.08
+// (+366%)" / "- REV $42.7M (+7%)".
 function chartText(e) {
-  const lines = [titleCase(e.title)]
+  const lines = wrapHeadline(titleCase(e.title))
   if (Array.isArray(e.chart_lines)) for (const l of e.chart_lines) if (l) lines.push(`- ${l}`)
   return lines.join('\n')
 }
@@ -235,20 +261,32 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
             // detail — same plain style, no box.
             const expandable = compact && hasDetail
             const showDetail = !compact || (expandable && expandedKey === key)
+            // A very long headline (e.g. a multi-headline wire tweet) is clamped so
+            // one entry can't swallow the feed; a "Show more" toggle reveals it.
+            const titleLong = (e.title?.length || 0) > LONG_TITLE_CHARS
+            const isExpanded = expandedKey === key
+            const rowExpandable = expandable || titleLong
             const canPlace = !!(sym && e.date && e.title)
             const justPlaced = placedKey === key
             return (
               <div
                 key={key}
                 data-news-row
-                className={`${styles.row}${expandable ? ' ' + styles.rowClickable : ''}`}
-                onClick={expandable ? () => setExpandedKey(k => (k === key ? null : key)) : undefined}
+                className={`${styles.row}${rowExpandable ? ' ' + styles.rowClickable : ''}`}
+                onClick={rowExpandable ? () => setExpandedKey(k => (k === key ? null : key)) : undefined}
               >
                 <span className={`${styles.icon} ${dirCls}`} title={SOURCE_LABEL[e.type] || e.type}>
                   <UIcon name={SOURCE_ICON[e.type] || 'bolt'} size={13} />
                 </span>
                 <div className={styles.main}>
-                  <span className={styles.title}>{e.title}</span>
+                  <span className={`${styles.title}${titleLong && !isExpanded ? ' ' + styles.titleClamped : ''}`}>{e.title}</span>
+                  {titleLong && (
+                    <button
+                      type="button"
+                      className={styles.moreToggle}
+                      onClick={(ev) => { ev.stopPropagation(); setExpandedKey(k => (k === key ? null : key)) }}
+                    >{isExpanded ? 'Show less' : 'Show more'}</button>
+                  )}
                   {showDetail && e.description && <div className={styles.desc}>{e.description}</div>}
                   <div className={styles.meta}>
                     <span className={styles.date}>{fmtDate(e.date)}</span>

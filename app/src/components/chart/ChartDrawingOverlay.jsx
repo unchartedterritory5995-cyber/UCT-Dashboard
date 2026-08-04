@@ -780,12 +780,17 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   if (ai == null || !bars[ai]) return null
   const b0 = bars[ai]
   const hi = b0.h ?? b0.high ?? b0.c
+  const lo = b0.l ?? b0.low ?? b0.c
   const op = b0.o ?? b0.open ?? b0.c
+  const cl = b0.c ?? b0.close ?? op
   const aHi = toPixel(b0.t, hi)
   if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) return null   // candle off-screen → defer
   const anchorX = aHi.x, anchorHiY = aHi.y
-  const aOpPx = toPixel(b0.t, op)                       // the leader STARTS at the candle open
-  const openY = (aOpPx && Number.isFinite(aOpPx.y)) ? aOpPx.y : anchorHiY
+  // The leader STARTS at the day's HIGH on a positive (up) day and the LOW on a
+  // negative (down) day — fixed by the candle's own direction, not the open.
+  const aLoPx = toPixel(b0.t, lo)
+  const anchorLoY = (aLoPx && Number.isFinite(aLoPx.y)) ? aLoPx.y : anchorHiY
+  const anchorY = (cl >= op) ? anchorHiY : anchorLoY
 
   ctx.save()
   ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
@@ -860,12 +865,16 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   ]
   const DISTS = [46, 62, 82, 106, 134, 168, 206]   // leader length along the 45° ray
   const BLOCKED = 1e6
+  // A candle near the RIGHT edge is a current/live candle — there's no clean room
+  // to its right (the price axis lives there), so force the headline into the open
+  // space to the LEFT (dr.right = box sits left of the candle).
+  const nearRight = anchorX > pRight - (boxW + 60)
   let best = null, bestCost = Infinity
   for (const dist of DISTS) {
     for (const dr of DIRS) {
       const step = dist / SQRT2
       const attachX0 = anchorX + dr.sx * step
-      const headY0 = openY + dr.sy * step
+      const headY0 = anchorY + dr.sy * step
       let x = dr.right ? attachX0 - firstLineW : attachX0   // box x from the attach side
       let y = headY0 - fs * 0.9                             // headline near the box top
       x = Math.max(plotLeft, Math.min(pRight - boxW, x))
@@ -873,18 +882,19 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
       // Attach point recomputed from the (possibly clamped) box so scoring is honest.
       const ax = dr.right ? x + firstLineW : x
       const hy = y + fs * 0.9
-      let cost = Math.hypot(ax - anchorX, hy - openY)       // leader length (≈ dist)
+      let cost = Math.hypot(ax - anchorX, hy - anchorY)     // leader length (≈ dist)
       cost += (dr.sy < 0 ? -10 : 0) + (dr.sx < 0 ? -6 : 0)  // prefer up + left on ties
+      if (nearRight && !dr.right) cost += BLOCKED            // current candle → never place right
       if (hitsCandles(x, y, boxW, boxH)) cost += BLOCKED
-      if (lineHitsCandles(anchorX, openY, ax, hy)) cost += BLOCKED
+      if (lineHitsCandles(anchorX, anchorY, ax, hy)) cost += BLOCKED
       if (overlapsObstacle(x, y, boxW, boxH)) cost += BLOCKED
       if (cost < bestCost) { bestCost = cost; best = { x, y } }
     }
   }
-  if (!best) best = { x: Math.max(plotLeft, anchorX - firstLineW - 60), y: Math.max(4, openY - 60 - fs) }
+  if (!best) best = { x: Math.max(plotLeft, anchorX - firstLineW - 60), y: Math.max(4, anchorY - 60 - fs) }
   return {
     rect: { x: best.x, y: best.y, w: boxW, h: boxH },
-    anchorPx: { x: anchorX, y: openY },   // the leader anchors at the candle OPEN
+    anchorPx: { x: anchorX, y: anchorY },   // leader anchors at the day's high (up) / low (down)
     firstLineW,
   }
 }
@@ -1387,7 +1397,11 @@ export default function ChartDrawingOverlay({
         if (!res) continue
         const ai = nearestIndex(d.calloutAnchorTime); const b = ai != null ? bars[ai] : null
         if (!b) continue
-        const anchorPrice = b.o ?? b.open ?? b.c   // leader STARTS at the candle open
+        // Leader STARTS at the day's HIGH on a positive (up) day, the LOW on a
+        // negative (down) day — matches placeCalloutPoint's anchor.
+        const bOpen = b.o ?? b.open ?? b.c
+        const bClose = b.c ?? b.close ?? bOpen
+        const anchorPrice = (bClose >= bOpen) ? (b.h ?? b.high ?? b.c) : (b.l ?? b.low ?? b.c)
         const { rect, anchorPx } = res
         const fs = d.fontSize || 13
         const labelPt = asPoint(toChart(rect.x, rect.y))

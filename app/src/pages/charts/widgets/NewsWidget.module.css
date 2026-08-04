@@ -113,6 +113,29 @@
   text-decoration: none;
 }
 a.title:hover { text-decoration: underline; }
+/* A very long item (e.g. a multi-headline wire tweet) is clamped so one entry
+   can't swallow the whole feed; the "Show more" toggle reveals the rest. */
+.titleClamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+  overflow: hidden;
+}
+.moreToggle {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+  cursor: pointer;
+  opacity: 0.85;
+}
+.moreToggle:hover { opacity: 1; text-decoration: underline; }
 .desc {
   font-size: 11px;
   line-height: 1.4;
