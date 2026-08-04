@@ -18,7 +18,8 @@ def test_expected_move_endpoint_shape():
              "pct": 4.0, "dollar": 7.0, "expiry": "2026-05-08"}]
     with patch.object(em_router.implied_move, "get_expected_move", return_value=live), \
          patch.object(em_router.implied_store, "get_implied_history", return_value=hist), \
-         patch.object(em_router.implied_store, "get_earliest_report_date", return_value="2026-05-06"):
+         patch.object(em_router.implied_store, "get_earliest_report_date", return_value="2026-05-06"), \
+         patch.object(em_router.setup_grade, "get_setup_grade", return_value=None):
         r = client.get("/api/research/expected-move/TST?report_date=2026-08-06")
     app.dependency_overrides.clear()
     assert r.status_code == 200
@@ -42,7 +43,8 @@ def test_expected_move_endpoint_degrades_when_store_unreadable():
     import sqlite3
     with patch.object(em_router.implied_move, "get_expected_move", return_value=live), \
          patch.object(em_router.implied_store, "get_implied_history",
-                      side_effect=sqlite3.OperationalError("db locked")):
+                      side_effect=sqlite3.OperationalError("db locked")), \
+         patch.object(em_router.setup_grade, "get_setup_grade", return_value=None):
         r = client.get("/api/research/expected-move/TST")
     app.dependency_overrides.clear()
     assert r.status_code == 200
@@ -59,7 +61,8 @@ def test_expected_move_endpoint_degrades_when_live_read_raises():
     with patch.object(em_router.implied_move, "get_expected_move",
                       side_effect=ValueError("bad json")), \
          patch.object(em_router.implied_store, "get_implied_history", return_value=hist), \
-         patch.object(em_router.implied_store, "get_earliest_report_date", return_value="2026-05-06"):
+         patch.object(em_router.implied_store, "get_earliest_report_date", return_value="2026-05-06"), \
+         patch.object(em_router.setup_grade, "get_setup_grade", return_value=None):
         r = client.get("/api/research/expected-move/TST")
     app.dependency_overrides.clear()
     assert r.status_code == 200

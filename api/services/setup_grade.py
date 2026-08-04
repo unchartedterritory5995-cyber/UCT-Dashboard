@@ -14,12 +14,15 @@ commit — "documented in code" is not a user-facing posture.
 """
 from __future__ import annotations
 
+import concurrent.futures as _cf
 import datetime as _dt
 import logging
 import os
+import time as _time
 
-from api.services import implied_store
-from api.services.cache import cache
+from api.services import implied_move, implied_store
+from api.services.cache import TTLCache, cache
+from api.services.serve_stale import ServeStale
 
 _log = logging.getLogger(__name__)
 
@@ -58,6 +61,42 @@ MAX_SNAPSHOT_SYMBOLS = int(os.environ.get("GRADE_SNAPSHOT_MAX", "120"))
 # The realized-move average is stable for closed quarters; 24h matches the
 # posture the calendar's past-day enrichment already takes.
 _REALIZED_TTL = 24 * 3600
+
+# ── request-path fan-out bounds (the repo's 524 class) ─────────────────────────
+#
+# `gather_inputs` reaches THREE external providers (beat history, estimate
+# revisions, and the realized-move average behind iv_premium — `_rs` is a pure
+# cache lookup and never fetches). They run CONCURRENTLY on a small dedicated
+# pool, mirroring `earnings_enrichment.enrich_earnings_response`'s
+# ThreadPoolExecutor(+timeout) fan-out. Unlike that helper, this pool is
+# MODULE-LEVEL and NEVER shut down: `ThreadPoolExecutor.__exit__` calls
+# `shutdown(wait=True)`, which blocks until every submitted job finishes — a
+# `with ThreadPoolExecutor(...) as pool:` block would silently undo a
+# per-future `result(timeout=)` bound (a hung yfinance call reached through
+# `_avg_abs_realized` would still pin the request thread at cleanup). This
+# mirrors `api/services/yf_util.py`'s `_POOL`: the calling thread is freed even
+# when the worker itself keeps running past the timeout — the leaked thread
+# finishes on its own and is never joined.
+#
+# CHOICE (documented per the review): the yfinance call inside
+# `_avg_abs_realized` is bounded by this per-future `result(timeout=)`, NOT by
+# routing it through `yf_util.bounded_call` — that would mean two independent
+# timeout mechanisms racing each other for no benefit, and `_avg_abs_realized`
+# shares `get_historical_earnings_moves`/`_fetch_quarterly_history` with other
+# callers this module must not modify.
+_GATHER_POOL = _cf.ThreadPoolExecutor(max_workers=3, thread_name_prefix="setup-grade-gather")
+_SOURCE_TIMEOUT = 6.0   # hard per-source ceiling (seconds)
+_GRADE_BUDGET = 10.0    # overall wall-clock ceiling for one gather_inputs call
+
+# TTL + serve-stale front for `get_setup_grade`, mirroring
+# `implied_move.get_expected_move`'s composition exactly: a fresh TTL hit costs
+# ~0, an expired-but-recent grade serves instantly while a rebuild runs behind
+# the caller, and a cold caller single-flights onto one gather+compute. A
+# failed/ungradeable build (`None`) is NEVER remembered — `_grade_is_good` is
+# the gate, same contract as `_move_is_good` in implied_move.py.
+_GRADE_CACHE = TTLCache()
+_GRADE_TTL = 900  # 15 min — matches implied_move's IV-moves-through-session cadence
+_GRADE_STALE = ServeStale("setup_grade", max_age_seconds=7200)
 
 
 def letter_for(score: float) -> str:
@@ -145,7 +184,10 @@ def compute_grade(scored: dict) -> dict | None:
         "detail": present[k][1] if k in present else None,
     } for k in WEIGHTS]
     return {
-        "letter": letter_for(total),
+        # Grade the DISPLAYED score, not the unrounded total — a total like
+        # 70.96 rounds for display to 71.0 (the B+ floor); lettering off the
+        # unrounded value would show "71.0 · B", which reads as a bug.
+        "letter": letter_for(round(total, 1)),
         "score": round(total, 1),
         "basis": None if len(present) == len(WEIGHTS)
                  else f"{len(present)} of {len(WEIGHTS)} inputs",
@@ -192,29 +234,95 @@ def _avg_abs_realized(sym: str):
 
 
 def gather_inputs(sym: str, live_move: dict | None = None) -> dict:
-    """Every source is individually isolated: one dead provider costs one input
-    (visible as the partial basis), never the whole grade."""
+    """Every source is individually isolated AND time-bounded: one dead or
+    HUNG provider costs one input (visible as the partial basis), never the
+    whole grade and never a stuck request-thread (the repo's 524 class).
+
+    `rs_rank` is a pure cache lookup (`rs_ranking.get_rs_for_ticker` never
+    fetches) so it runs inline. The three sources that reach an external
+    provider — beat history, estimate revisions, and the realized-move
+    average behind iv_premium — run CONCURRENTLY on `_GATHER_POOL`, each
+    bounded by `_SOURCE_TIMEOUT` and all together by the overall
+    `_GRADE_BUDGET` wall-clock ceiling. A source that times out is scored
+    identically to one that raised: a missing input, never a crash and never
+    an unbounded wait.
+    """
     sym = (sym or "").upper().strip()
     out: dict = {}
 
-    def _try(key, fn):
+    def _run(fn):
         try:
-            s, d = fn()
+            return fn()
         except Exception:  # noqa: BLE001 — a dead source is a MISSING INPUT, not a 500
+            return None, None
+
+    try:
+        s, d = score_rs_rank(_rs(sym))
+    except Exception:  # noqa: BLE001
+        _log.debug("[setup-grade] input rs_rank failed for %s", sym, exc_info=True)
+        s, d = None, None
+    out["rs_rank"] = None if s is None else (s, d)
+
+    jobs = {
+        "beat_streak": lambda: score_beat_streak(_beat_history(sym)),
+        "revision_30d": lambda: score_revision_30d(_revisions(sym)),
+        "iv_premium": lambda: score_iv_premium((live_move or {}).get("pct"),
+                                                _avg_abs_realized(sym)),
+    }
+    futs = {key: _GATHER_POOL.submit(_run, fn) for key, fn in jobs.items()}
+    deadline = _time.monotonic() + _GRADE_BUDGET
+    for key, fut in futs.items():
+        remaining = max(0.0, deadline - _time.monotonic())
+        try:
+            s, d = fut.result(timeout=min(_SOURCE_TIMEOUT, remaining))
+        except _cf.TimeoutError:
+            _log.warning("[setup-grade] input %s timed out for %s", key, sym)
+            s, d = None, None
+        except Exception:  # noqa: BLE001 — belt-and-suspenders; _run already catches
             _log.debug("[setup-grade] input %s failed for %s", key, sym, exc_info=True)
             s, d = None, None
         out[key] = None if s is None else (s, d)
-
-    _try("beat_streak", lambda: score_beat_streak(_beat_history(sym)))
-    _try("revision_30d", lambda: score_revision_30d(_revisions(sym)))
-    _try("rs_rank", lambda: score_rs_rank(_rs(sym)))
-    _try("iv_premium", lambda: score_iv_premium((live_move or {}).get("pct"),
-                                                _avg_abs_realized(sym)))
     return out
 
 
+def _grade_is_good(payload: dict | None) -> bool:
+    """A None/ungradeable build must never become the value the next caller
+    sees — same contract as `implied_move._move_is_good`."""
+    return payload is not None
+
+
 def get_setup_grade(sym: str, live_move: dict | None = None) -> dict | None:
-    return compute_grade(gather_inputs(sym, live_move=live_move))
+    """Cached + serve-stale front for `compute_grade(gather_inputs(...))`:
+    fresh TTL wins; else the last good grade serves the gap while a rebuild
+    runs behind the caller; else this caller builds synchronously
+    (single-flight) — mirrors `implied_move.get_expected_move` exactly.
+
+    KEYING NOTE: the cache key is symbol-only (does not include `live_move`).
+    All four inputs are slow-moving relative to the 15-min TTL — beat streak/
+    revisions/RS rank at daily cadence, and `live_move` itself is already
+    15-min TTL-cached upstream by `implied_move.get_expected_move` (the ONE
+    call site, the expected-move router, hands through whatever that cache
+    currently holds). A grade built while `live_move` was `None` can therefore
+    stay a partial basis for up to 15 min after a chain read starts
+    succeeding — an accepted tradeoff, not an oversight, matching the staleness
+    `implied_move`'s own TTL already accepts for the straddle itself.
+    """
+    sym_key = (sym or "").upper().strip()
+    key = f"setupgrade::{sym_key}"
+
+    def _build():
+        value = compute_grade(gather_inputs(sym, live_move=live_move))
+        if value is not None:
+            _GRADE_CACHE.set(key, dict(value), _GRADE_TTL)
+        return value
+
+    result = _GRADE_STALE.serve(
+        key,
+        fresh=lambda: _GRADE_CACHE.get(key),
+        build=_build,
+        good=_grade_is_good,
+    )
+    return dict(result) if result is not None else None
 
 
 # ── §12 accountability record ─────────────────────────────────────────────────
@@ -222,29 +330,39 @@ def get_setup_grade(sym: str, live_move: dict | None = None) -> dict | None:
 def run_daily_grade_snapshot(now: _dt.datetime | None = None) -> dict:
     """One persisted grade per upcoming reporter per day (spec §6/§12).
 
-    Runs post-close alongside the implied capture so the recorded grade is the
-    one computed against that evening's implied move. Bounded, deduped and
-    exception-isolated per symbol. `now` is INJECTED — no function in this
-    module may read the clock behind a caller's back.
+    Runs post-close alongside the implied capture (16:40 ET, 5 min after the
+    16:35 ET capture) so the recorded grade is scored against THAT evening's
+    freshly-stored implied move — `get_expected_move` re-fetches only on a
+    cache miss, so this read rides the capture's own warm cache rather than
+    re-hitting the chain. Bounded, deduped and exception-isolated per symbol.
+    `now` is INJECTED and defaults to ET (matching `implied_store._ET`, the
+    timezone every other job in this store already assumes) — no function in
+    this module may read the SERVER's naive local clock behind a caller's back.
     """
-    now = now or _dt.datetime.now()
+    now = now or _dt.datetime.now(implied_store._ET)
     today = now.date().isoformat()
 
     seen: set[str] = set()
-    syms: list[str] = []
+    entries: list[tuple[str, str | None]] = []
     for rep in implied_store.upcoming_reporters(days=14, now=now) or []:
         s = (rep.get("sym") or "").upper().strip()
         if not s or s in seen:
             continue
         seen.add(s)
-        syms.append(s)
-        if len(syms) >= MAX_SNAPSHOT_SYMBOLS:
+        entries.append((s, rep.get("report_date")))
+        if len(entries) >= MAX_SNAPSHOT_SYMBOLS:
             break
 
     summary = {"recorded": 0, "skipped": 0, "failed": 0}
-    for sym in syms:
+    for sym, report_date in entries:
         try:
-            grade = get_setup_grade(sym)
+            try:
+                live = implied_move.get_expected_move(sym, report_date)
+            except Exception:  # noqa: BLE001 — a bad/slow chain read costs iv_premium,
+                # never the whole symbol's grading attempt.
+                _log.debug("[setup-grade] live-move fetch failed for %s", sym, exc_info=True)
+                live = None
+            grade = get_setup_grade(sym, live_move=live)
             if not grade:
                 summary["skipped"] += 1
                 continue

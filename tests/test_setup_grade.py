@@ -1,7 +1,25 @@
 import datetime as dt
+import threading
+import time
 from unittest.mock import patch
 
+import pytest
+
 from api.services import setup_grade as sg
+from api.services.serve_stale import ServeStale
+
+
+@pytest.fixture(autouse=True)
+def _reset_grade_cache():
+    """`get_setup_grade` is now fronted by a module-level TTL cache + ServeStale
+    slot (the fan-out fix). Every test in this file that calls it uses symbol
+    "TST", so without a reset the FIRST test to populate the cache would poison
+    every test that runs after it within the same process — tests would pass
+    or fail depending on execution order rather than their own mocks."""
+    sg._GRADE_CACHE.clear()
+    sg._GRADE_STALE = ServeStale(sg._GRADE_STALE.name, max_age_seconds=sg._GRADE_STALE.max_age)
+    yield
+    sg._GRADE_CACHE.clear()
 
 
 # ── pure sub-scores ───────────────────────────────────────────────────────────
@@ -105,6 +123,21 @@ def test_compute_grade_refuses_to_speak_below_two_inputs():
     assert sg.compute_grade({}) is None
 
 
+def test_compute_grade_letter_reflects_the_displayed_rounded_score():
+    # 70.96 unrounded is a B (just under the 71 B+ floor) but rounds for
+    # DISPLAY to 71.0 — the letter must key off what the user actually sees,
+    # or the card would show "71.0 · B", which reads as a bug. Two equal-value
+    # present inputs make the weighted average equal the input value exactly,
+    # regardless of their relative weights.
+    out = sg.compute_grade({
+        "beat_streak": (70.96, "x"),
+        "rs_rank": (70.96, "y"),
+    })
+    assert out["score"] == 71.0
+    assert sg.letter_for(70.96) == "B"           # sanity: the seam is real
+    assert out["letter"] == "B+"                 # graded off the rounded score
+
+
 # ── gather + orchestration ────────────────────────────────────────────────────
 
 def _boom(*a, **k):
@@ -166,6 +199,49 @@ def test_realized_average_never_caches_a_failure():
     assert cache.keys_with_prefix("setup_grade_realized_TST") == []
 
 
+def test_gather_inputs_bounds_a_hung_source_within_the_budget():
+    # A source that hangs past its timeout must cost exactly that ONE input
+    # (the fan-out fix's core guarantee) — the caller must never wait for it.
+    # The Event is deliberately never `.set()`; `wait(timeout=0.2)` bounds the
+    # background thread's own lifetime so the test process never truly blocks,
+    # but the SOURCE_TIMEOUT below is far shorter, so `gather_inputs` returns
+    # long before that 0.2s elapses.
+    gate = threading.Event()
+
+    def _hangs(*a, **k):
+        gate.wait(timeout=0.2)
+        return [{"beat": True}]   # never reached in time — proves the caller didn't wait
+
+    with patch.object(sg, "_SOURCE_TIMEOUT", 0.02), \
+         patch.object(sg, "_GRADE_BUDGET", 0.05), \
+         patch.object(sg, "_beat_history", _hangs), \
+         patch.object(sg, "_revisions", return_value=[{"up30": 4, "down30": 0}]), \
+         patch.object(sg, "_rs", return_value={"rs_rank": 90}), \
+         patch.object(sg, "_avg_abs_realized", return_value=6.0):
+        t0 = time.monotonic()
+        got = sg.gather_inputs("TST", live_move={"pct": 6.0})
+        elapsed = time.monotonic() - t0
+
+    assert elapsed < 0.2                    # returned well before the hang would resolve
+    assert got["beat_streak"] is None        # timed out -> missing input, never a crash
+    assert got["revision_30d"] is not None   # the other concurrent sources still complete
+    assert got["rs_rank"] is not None
+
+
+def test_get_setup_grade_cache_hit_never_calls_gather_inputs():
+    scored = {
+        "beat_streak": (100.0, "4 of 4 beats"),
+        "revision_30d": (75.0, "6 up / 2 down (30d)"),
+        "rs_rank": (88.0, "RS 88 of 99"),
+        "iv_premium": (50.0, "x"),
+    }
+    with patch.object(sg, "gather_inputs", return_value=scored) as gi:
+        first = sg.get_setup_grade("TST", live_move={"pct": 6.0})
+        second = sg.get_setup_grade("TST", live_move={"pct": 6.0})
+    assert first is not None and second == first
+    assert gi.call_count == 1   # the second call was served from the fresh TTL cache
+
+
 # ── §12 accountability record ─────────────────────────────────────────────────
 
 def test_daily_snapshot_records_one_row_per_symbol_and_dedupes():
@@ -178,6 +254,7 @@ def test_daily_snapshot_records_one_row_per_symbol_and_dedupes():
     with patch.object(sg.implied_store, "upcoming_reporters", return_value=reporters), \
          patch.object(sg.implied_store, "record_grade",
                       side_effect=lambda **kw: calls.append(kw)), \
+         patch.object(sg.implied_move, "get_expected_move", return_value=None), \
          patch.object(sg, "get_setup_grade", return_value=grade):
         summary = sg.run_daily_grade_snapshot(now=dt.datetime(2026, 8, 4, 16, 40))
     assert summary == {"recorded": 2, "skipped": 0, "failed": 0}
@@ -199,6 +276,7 @@ def test_daily_snapshot_skips_ungradeable_and_isolates_one_bad_symbol():
 
     with patch.object(sg.implied_store, "upcoming_reporters", return_value=reporters), \
          patch.object(sg.implied_store, "record_grade"), \
+         patch.object(sg.implied_move, "get_expected_move", return_value=None), \
          patch.object(sg, "get_setup_grade", side_effect=_grade):
         summary = sg.run_daily_grade_snapshot(now=dt.datetime(2026, 8, 4, 16, 40))
     assert summary == {"recorded": 1, "skipped": 1, "failed": 1}
@@ -208,6 +286,7 @@ def test_daily_snapshot_is_bounded():
     reporters = [{"sym": f"S{i}", "report_date": "2026-08-05"} for i in range(500)]
     with patch.object(sg.implied_store, "upcoming_reporters", return_value=reporters), \
          patch.object(sg.implied_store, "record_grade"), \
+         patch.object(sg.implied_move, "get_expected_move", return_value=None), \
          patch.object(sg, "get_setup_grade", return_value={"letter": "C", "inputs": []}), \
          patch.object(sg, "MAX_SNAPSHOT_SYMBOLS", 25):
         summary = sg.run_daily_grade_snapshot(now=dt.datetime(2026, 8, 4, 16, 40))
@@ -220,4 +299,58 @@ def test_daily_snapshot_no_ops_on_an_empty_reporter_list():
          patch.object(sg.implied_store, "record_grade") as rec:
         summary = sg.run_daily_grade_snapshot(now=dt.datetime(2026, 8, 4, 16, 40))
     assert summary == {"recorded": 0, "skipped": 0, "failed": 0}
+    rec.assert_not_called()
+
+
+def test_daily_snapshot_uses_a_freshly_fetched_live_move_for_iv_premium():
+    # 16:40 ET runs 5 min after the implied-move capture — the accountability
+    # record must be scored against THAT evening's freshly captured chain, not
+    # score iv_premium as permanently missing (the bug this test guards: the
+    # old code called `get_setup_grade(sym)` with no live_move at all).
+    reporters = [{"sym": "AAA", "report_date": "2026-08-05", "hour": "amc"}]
+    live = {"pct": 4.0, "dollar": 7.0, "expiry": "2026-08-07", "asof": "x"}
+    calls = []
+    with patch.object(sg.implied_store, "upcoming_reporters", return_value=reporters), \
+         patch.object(sg.implied_store, "record_grade",
+                      side_effect=lambda **kw: calls.append(kw)), \
+         patch.object(sg.implied_move, "get_expected_move", return_value=live) as gem, \
+         patch.object(sg, "_beat_history", return_value=[{"beat": True}, {"beat": True}]), \
+         patch.object(sg, "_revisions", return_value=[{"up30": 4, "down30": 0}]), \
+         patch.object(sg, "_rs", return_value={"rs_rank": 90}), \
+         patch.object(sg, "_avg_abs_realized", return_value=6.0):
+        summary = sg.run_daily_grade_snapshot(now=dt.datetime(2026, 8, 4, 16, 40))
+    assert summary == {"recorded": 1, "skipped": 0, "failed": 0}
+    gem.assert_called_once_with("AAA", "2026-08-05")
+    iv = next(i for i in calls[0]["inputs"] if i["key"] == "iv_premium")
+    assert iv["available"] is True
+
+
+def test_daily_snapshot_isolates_a_raising_live_move_fetch():
+    # A bad/slow chain read must cost only iv_premium for that one symbol,
+    # never sink the symbol's whole grading attempt.
+    reporters = [{"sym": "AAA", "report_date": "2026-08-05"}]
+    with patch.object(sg.implied_store, "upcoming_reporters", return_value=reporters), \
+         patch.object(sg.implied_store, "record_grade"), \
+         patch.object(sg.implied_move, "get_expected_move", side_effect=RuntimeError("boom")), \
+         patch.object(sg, "get_setup_grade", return_value={"letter": "C", "inputs": []}) as gsg:
+        summary = sg.run_daily_grade_snapshot(now=dt.datetime(2026, 8, 4, 16, 40))
+    assert summary == {"recorded": 1, "skipped": 0, "failed": 0}
+    assert gsg.call_args.kwargs["live_move"] is None
+
+
+def test_daily_snapshot_default_now_uses_et_not_naive_local_clock():
+    # `today = now.date().isoformat()` feeds directly into the persisted §12
+    # row's `date` column — a naive `datetime.now()` would silently key off
+    # the SERVER's local clock instead of the ET convention every other
+    # implied-store job assumes (`implied_store._ET`).
+    captured = {}
+
+    def _capture(*, days, now):
+        captured["now"] = now
+        return []
+
+    with patch.object(sg.implied_store, "upcoming_reporters", side_effect=_capture), \
+         patch.object(sg.implied_store, "record_grade") as rec:
+        sg.run_daily_grade_snapshot(now=None)
+    assert captured["now"].tzinfo == sg.implied_store._ET
     rec.assert_not_called()
