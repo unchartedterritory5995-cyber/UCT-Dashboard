@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { resolveChartRegion } from './chartRegion'
+import * as chartRegion from './chartRegion'
 
 // Geometry baseline: 800x400 container, 60px right axis, 24px time axis.
 // Overlay-mode volume band occupies the bottom 15% of pane 0.
@@ -68,5 +69,18 @@ describe('resolveChartRegion', () => {
     expect(resolveChartRegion({ ...sep, x: 300, y: 150 }).type).toBe('price')
     // below divider → volume
     expect(resolveChartRegion({ ...sep, x: 300, y: 340 }).type).toBe('volume')
+  })
+})
+
+// ─── B4 Task 3 ──────────────────────────────────────────────────────────────
+describe('the module knows about geometry and nothing else', () => {
+  it('exports no label table — the region resolver returns a KEY and the catalog names it', () => {
+    // The resolver is pure geometry. A label table living beside it was an
+    // enumeration site in a file whose whole point is not knowing about
+    // indicators — and it was the THIRD spelling of `Williams %R` in the tree.
+    expect(Object.keys(chartRegion)).not.toContain('INDICATOR_LABELS')
+    // ⛔ …and the check is not vacuous: the module still exports the thing it
+    // is FOR, so an empty/mis-resolved namespace cannot pass the line above.
+    expect(Object.keys(chartRegion)).toEqual(['resolveChartRegion'])
   })
 })

@@ -64,15 +64,11 @@ export function resolveChartRegion(p) {
   return { type: 'price' }
 }
 
-// Indicator key → human label for menu titles.
-export const INDICATOR_LABELS = {
-  rsi: 'RSI',
-  macd: 'MACD',
-  stoch: 'Stochastic',
-  atr: 'ATR',
-  cci: 'CCI',
-  williamsR: 'Williams %R',
-  mfi: 'MFI',
-  adx: 'ADX',
-  obv: 'OBV',
-}
+// ⛔ NO LABEL TABLE HERE. `INDICATOR_LABELS` used to live on this line — nine
+// hand-written names in a module whose header says it is "kept free of
+// Lightweight-Charts / DOM objects so it can be unit-tested with plain numbers",
+// i.e. a module whose whole point is not knowing what an indicator is. It was
+// also the THIRD spelling of `Williams %R` in the tree. The resolver returns a
+// KEY; `indicatorCatalog.labelFor(key)` names it, at the one call site that
+// renders a title. `chartRegion.test.js` asserts this file exports the resolver
+// and nothing else, so the table cannot quietly come back.

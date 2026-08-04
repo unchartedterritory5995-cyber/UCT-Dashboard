@@ -513,13 +513,24 @@ describe('Flip B — a shared chart link carries what now decides the picture', 
 // id, so a door still writing it directly ticks a box the chart disagrees with —
 // and "Hide RSI" clears the mirror while the instance keeps drawing.
 //
-// The first two are driven behaviourally above. The right-click menu is built
-// inside `buildRegionSections`, which is only reachable through a real
-// `contextmenu` on a canvas region the jsdom double cannot produce, so it is
-// gated STRUCTURALLY here — anchored on the shipped identifiers, reading the
-// shipped file. ⚠️ A structural rail is weaker than a behavioural one and is used
-// because the alternative is NO gate on two of the four doors; it fails on
-// exactly the edit that would reintroduce the defect.
+// The first two are driven behaviourally above.
+//
+// ⛔ THIS BLOCK'S PREMISE IS DEAD, AND SAYING SO IS THE POINT. It used to open:
+// *"the right-click menu is built inside `buildRegionSections`, which is only
+// reachable through a real `contextmenu` on a canvas region the jsdom double
+// cannot produce, so it is gated STRUCTURALLY here … the alternative is NO gate
+// on two of the four doors."* B4 Task 3 produced that contextmenu — the chart
+// double records the container `createChart` is handed, a rect is stubbed on it
+// for the length of the dispatch, and `stockChartWiring.test.jsx`'s
+// `openContextMenu` scans for the region it wants and reads the sections off the
+// payload. **Both doors are driven behaviourally now**, including the write, for
+// a flipped id and an un-flipped one.
+//
+// These three cases STAY, downgraded from "the only gate" to a source-level
+// backstop: they are what fails if a raw `setCs('indicators.…')` is reintroduced
+// anywhere inside those two blocks, including on a branch no fixture happens to
+// reach. A rail kept for a reason it still has is not the same thing as a rail
+// kept because nobody re-read it.
 describe('Flip B — the right-click doors route through the one reader and the one writer', () => {
   // ⚠️ Resolved from the vitest ROOT, not from `import.meta.url` — the module
   // graph here is served through vite, so `import.meta.url` is an http: URL in
@@ -540,14 +551,14 @@ describe('Flip B — the right-click doors route through the one reader and the 
     const block = slice("const indicatorsItem = {", "// \"Overlay on volume\"")
     expect(block, 'the submenu still reads the legacy toggle directly')
       .not.toMatch(/checked:\s*!!cs\.indicators/)
-    expect(block).toMatch(/checked:\s*indEnabled\(key\)/)
+    expect(block).toMatch(/checked:\s*indEnabled\(row\.id\)/)
   })
 
   it('…and WRITES through setIndEnabled, which routes a flipped id at the instance', () => {
     const block = slice("const indicatorsItem = {", "// \"Overlay on volume\"")
     expect(block, 'the submenu writes `indicators.<key>.enabled` directly')
       .not.toMatch(/setCs\(`indicators\./)
-    expect(block).toMatch(/setIndEnabled\(key,/)
+    expect(block).toMatch(/setIndEnabled\(row\.id,/)
   })
 
   it('right-click "Hide <label>" writes through the same door', () => {

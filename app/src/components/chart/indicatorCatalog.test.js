@@ -23,13 +23,19 @@ import * as engineRegistry from './engine/nativeRegistry'
 // ⭐ THE A-SIDE IS PARSED, NOT HAND-COPIED. This branch has already shipped the
 // hand-copy defect twice: a "pinned against the installed bundle" test that
 // pinned one hand-copy to another, and a slot rail that read a hand-copied
-// `Set`. So `parseShippedLists()` below reads the six lists OUT OF THE SHIPPED
-// SOURCE FILES and `SHIPPED` is proven equal to that parse by its own test case.
-// `SHIPPED` is written down as well as parsed for exactly one reason: Tasks 3, 4
-// and 8 DELETE these six regions, and when they do, the parse case is the one
-// that has to be retired — the A-side it verified today survives as the frozen
-// record of what shipped. Retiring the parse case is a deliberate act with an
-// instruction attached (see `parseShippedLists`), not a silent green.
+// `Set`. So `parseShippedLists()` below reads the STILL-SHIPPED lists OUT OF THE
+// SHIPPED SOURCE FILES and `SHIPPED` is proven equal to that parse by its own
+// test case. `SHIPPED` is written down as well as parsed for exactly one reason:
+// Tasks 3, 4 and 8 DELETE these six regions, and when they do, the parse of that
+// region is the thing that has to be retired — the A-side it verified survives
+// as the frozen record of what shipped.
+//
+// ⭐ TASK 3 RAN THAT RETIREMENT ON FOUR OF THE SIX (`IND_OPTS`, `OSC_OPTS`,
+// `ChartToolbar.OSC`, `chartRegion.INDICATOR_LABELS`). It was not a silent
+// green: the parse THREW BY NAME with the instruction attached, and what
+// replaced it (`RETIRED_BY_B4`) re-runs the same patterns and demands ZERO
+// matches — a control that stops looking is a control that rots. Two regions
+// remain: `TOOLBAR_ROWS` (Task 8) and `SHORTCUTS` (Task 4).
 
 /** The repo root, found by walking up from wherever vitest was invoked — the
  *  same helper `engine/__tests__/enumerationSites.test.js` uses, and for the same
@@ -48,40 +54,20 @@ const ROOT = (() => {
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 
-/** Every regex below must match EXACTLY ONCE. A pattern that matches zero times
- *  returns `{}`, and every label loop over `{}` passes vacuously — which is the
- *  whole failure mode this file is built against. THROWS by name instead. */
-function once(src, re, what) {
-  const m = [...src.matchAll(re)]
-  if (m.length !== 1) {
-    throw new Error(
-      `${what}: the shipped region matched ${m.length} times, expected exactly 1. ` +
-      'If B4 has RETIRED this region, that is expected — delete this list from ' +
-      'parseShippedLists() and say so in the comment on SHIPPED, which then stands ' +
-      'alone as the frozen record of what shipped at d2733adc.',
-    )
-  }
-  return m[0]
-}
-
-function pairList(src, name, what) {
-  const m = once(src, new RegExp(`const ${name} = (\\[[^\\n]*\\])`, 'g'), what)
-  const out = {}
-  for (const p of m[1].matchAll(/\['([A-Za-z_]+)',\s*'([^']*)'\]/g)) out[p[1]] = p[2]
-  return out
-}
-
-/** The six shipped lists, READ OUT OF THE SHIPPED SOURCE. */
+/** The shipped lists THAT STILL EXIST, read out of the shipped source.
+ *
+ *  ⭐ FOUR OF THE ORIGINAL SIX ARE GONE, RETIRED BY TASK 3. Their entries were
+ *  removed from this function the moment `once()` threw by name — that throw is
+ *  the retirement instruction firing exactly as written, not a broken test. What
+ *  replaces them is not silence: `RETIRED_BY_B4` below re-runs the SAME regexes
+ *  and asserts they now match ZERO times, so "the region is gone" is checked
+ *  rather than merely un-checked. `SHIPPED` keeps all six and now stands alone as
+ *  the frozen record of what shipped at `d2733adc` for the retired four — which
+ *  is what makes the DIFF tables below still mean something after the deletion.
+ */
 function parseShippedLists() {
-  const SC = read('app/src/components/StockChart.jsx')
   const TB = read('app/src/components/chart/ChartToolbar.jsx')
-  const CR = read('app/src/components/chart/chartRegion.js')
   const KS = read('app/src/components/chart/keyboardShortcuts.js')
-
-  const INDICATOR_LABELS = {}
-  const crBody = once(CR, /export const INDICATOR_LABELS = \{([\s\S]*?)\n\}/g,
-    'chartRegion.js::INDICATOR_LABELS')[1]
-  for (const p of crBody.matchAll(/^\s*([A-Za-z_]+):\s*'([^']*)',/gm)) INDICATOR_LABELS[p[1]] = p[2]
 
   // The toolbar's fifteen hand-written rows: the id comes from the checkbox's
   // `isOn('<id>')` and the label from the `sIndicatorLabel` span in the same row.
@@ -97,21 +83,28 @@ function parseShippedLists() {
     /\{ keys: '([^']+)', command: 'toggle:([A-Za-z]+)', description: '([^']*)' \}/g,
   )) if (p[2] in CHART_DEFAULTS.indicators) SHORTCUTS[p[2]] = p[3]
 
-  return {
-    IND_OPTS: pairList(SC, 'IND_OPTS', 'StockChart.jsx::IND_OPTS'),
-    OSC_OPTS: pairList(SC, 'OSC_OPTS', 'StockChart.jsx::OSC_OPTS'),
-    TOOLBAR_OSC: pairList(TB, 'OSC', 'ChartToolbar.jsx::OSC'),
-    INDICATOR_LABELS,
-    TOOLBAR_ROWS,
-    SHORTCUTS,
-  }
+  return { TOOLBAR_ROWS, SHORTCUTS }
 }
 
-// ⭐ GENERATED BY `parseShippedLists()` AT `d2733adc`, NOT TYPED. The case
-// `the frozen A-side IS the shipped source` re-parses and compares, so this is a
-// verified transcript rather than a second hand-copy. `git diff d2733adc..HEAD
-// -- app/src/` touches only `enumerationSites.test.js`, so the working tree IS
-// the shipped tree for all six of these regions.
+/** Retired by Task 3, and PROVEN retired: the exact patterns `parseShippedLists`
+ *  used to run, each of which must now find nothing. A control that merely stops
+ *  looking is a control that rots; this one keeps looking and demands zero. */
+const RETIRED_BY_B4 = [
+  ['StockChart.jsx::IND_OPTS', 'app/src/components/StockChart.jsx', /const IND_OPTS = \[/g],
+  ['StockChart.jsx::OSC_OPTS', 'app/src/components/StockChart.jsx', /const OSC_OPTS = \[/g],
+  ['ChartToolbar.jsx::OSC', 'app/src/components/chart/ChartToolbar.jsx', /const OSC = \[/g],
+  ['chartRegion.js::INDICATOR_LABELS', 'app/src/components/chart/chartRegion.js',
+    /export const INDICATOR_LABELS = \{/g],
+]
+
+// ⭐ GENERATED BY `parseShippedLists()` AT `d2733adc`, NOT TYPED. When it was
+// written, `git diff d2733adc..HEAD -- app/src/` touched only
+// `enumerationSites.test.js`, so the working tree WAS the shipped tree and the
+// case `the frozen A-side IS the shipped source` re-parsed and compared every
+// one of the six — a verified transcript, never a hand-copy.
+// ⛔ FOUR OF THE SIX ARE NOW THE FROZEN RECORD ONLY (Task 3 deleted the
+// regions). They stay live B-sides: the diff tables below derive against them,
+// so a label moving without an argument is still a red test.
 const SHIPPED = {
   // ── the two right-click doors ────────────────────────────────────────────
   IND_OPTS: { rsi: 'RSI', macd: 'MACD', bb: 'Bollinger Bands', vwap: 'VWAP', stoch: 'Stochastic', atr: 'ATR', obv: 'OBV', adx: 'ADX' },
@@ -217,11 +210,30 @@ describe('the labels the six replaced lists showed — parsed, pinned, then diff
   it('the frozen A-side IS the shipped source, character for character', () => {
     // ⛔ THE ONE CASE THAT MAKES EVERY OTHER CASE IN THIS BLOCK REAL. Without it
     // `SHIPPED` is a hand-copy and the whole file pins a hand-copy to a hand-copy
-    // — twice-shipped on this branch already.
-    expect(parseShippedLists()).toEqual(SHIPPED)
+    // — twice-shipped on this branch already. Narrowed by Task 3 to the two
+    // regions that still exist; the other four are asserted GONE below, and
+    // their `SHIPPED` entries are now the frozen record rather than a live pin.
+    const stillShipped = Object.fromEntries(
+      Object.entries(SHIPPED).filter(([k]) => k === 'TOOLBAR_ROWS' || k === 'SHORTCUTS'),
+    )
+    expect(parseShippedLists()).toEqual(stillShipped)
   })
 
-  it('parsed six non-empty lists, so no loop below can pass over an empty table', () => {
+  it('⭐ the four regions Task 3 retired are GONE from the shipped source', () => {
+    const survivors = RETIRED_BY_B4
+      .map(([what, file, re]) => [what, [...read(file).matchAll(re)].length])
+      .filter(([, n]) => n !== 0)
+    expect(survivors,
+      'a retired enumeration region is back in the shipped source. It is now derived from ' +
+      '`indicatorCatalog.js`; a literal beside the derivation is a second source of truth.',
+    ).toEqual([])
+    // …and the scan is not vacuous: the file it reads is the real one and the
+    // derivation that replaced those regions is really there.
+    expect(read('app/src/components/StockChart.jsx')).toContain('catalogRows().map((row)')
+    expect(read('app/src/components/chart/ChartToolbar.jsx')).toContain('oscillatorIds().filter')
+  })
+
+  it('the frozen A-side is six non-empty lists, so no loop below can pass over an empty table', () => {
     const sizes = Object.fromEntries(Object.entries(SHIPPED).map(([k, v]) => [k, Object.keys(v).length]))
     expect(sizes).toEqual({
       IND_OPTS: 8, OSC_OPTS: 9, TOOLBAR_OSC: 9, INDICATOR_LABELS: 9, TOOLBAR_ROWS: 15, SHORTCUTS: 4,

@@ -132,6 +132,13 @@ describe('migrateLegacyToInstances', () => {
     expect(byId(out, 'legacy:rsi').placement).toEqual({ target: 'pane' })
   })
 
+  // ⚠️ B4 TASK 3 MOVED THIS CASE'S GUARANTOR, AND THE TITLE IS STILL TRUE. "The
+  // toolbar cannot produce that" used to rest on a hand-written `OSC` list that
+  // happened to omit the price overlays; it now rests on
+  // `oscillatorIds()` = `placement.target === 'pane'`, which is the same field
+  // `resolvePlacement` reads below. The guarantee got stronger, not weaker —
+  // but this case is still the one that holds the LIBRARY side honest if a
+  // future surface hands it a price overlay anyway.
   it('volumeOverlayIndicators never moves a PRICE overlay — the toolbar cannot produce that', () => {
     const out = migrateLegacyToInstances(raw(
       { bb: { enabled: true, period: 20 } },

@@ -104,12 +104,6 @@ const LEDGER = [
     anchor: 'const legChips = [', fate: 'B4' },
 
   // ── StockChart's control doors ───────────────────────────────────────────
-  { file: 'app/src/components/StockChart.jsx', region: 'IND_OPTS — right-click Indicators ▸, 8 names',
-    anchor: 'const IND_OPTS = [', fate: 'B4' },
-  { file: 'app/src/components/StockChart.jsx', region: 'OSC_OPTS — right-click Overlay on volume ▸, 9 names',
-    anchor: 'const OSC_OPTS = [', fate: 'B4' },
-  { file: 'app/src/components/StockChart.jsx', region: 'the right-click Hide <label> item',
-    anchor: "id: 'i-hide'", fate: 'B4' },
   { file: 'app/src/components/StockChart.jsx', region: 'handleCopyShareUrl — the share link',
     anchor: 'const handleCopyShareUrl = useCallback(', fate: 'B4' },
   // ⭐ THE LEDGER'S #13 WAS UNDER-ENUMERATED THREE WAYS. It named "Ctrl+I /
@@ -137,10 +131,6 @@ const LEDGER = [
   // still DEPENDS on it, through `engine/paneMarginsProjection.csForPaneMargins`.
   { file: 'app/src/components/chart/paneMargins.js', region: 'PANES — the oscillator stacking list, 9 + volume',
     anchor: 'const PANES = [', fate: 'B5' },
-  { file: 'app/src/components/chart/chartRegion.js', region: 'INDICATOR_LABELS — 9',
-    anchor: 'export const INDICATOR_LABELS = {', fate: 'B4' },
-  { file: 'app/src/components/chart/ChartToolbar.jsx', region: 'OSC — a SECOND copy of OSC_OPTS, in another file',
-    anchor: "const OSC = [['rsi', 'RSI']", fate: 'B4' },
   { file: 'app/src/components/chart/ChartToolbar.jsx', region: 'the 15 hand-written indicator rows',
     anchor: '{/* Technical Indicators */}', fate: 'B4' },
 
@@ -216,8 +206,15 @@ const RETIRED_BY_THIS_TASK = [
   },
 ]
 
-/** The number the ledger holds down. Change it ONLY by walking the code. */
-const SITE_COUNT = 31
+/** The number the ledger holds down. Change it ONLY by walking the code.
+ *  31 → 26 at B4 Task 3: `IND_OPTS`, `OSC_OPTS`, the right-click `Hide <label>`,
+ *  `chartRegion.INDICATOR_LABELS` and `ChartToolbar.OSC` all read
+ *  `indicatorCatalog.js` now. Four of the five are DELETED outright (proven by
+ *  `indicatorCatalog.test.js` → *the four regions Task 3 retired are GONE*); the
+ *  fifth, `i-hide`, still exists as a menu item but enumerates nothing — its
+ *  label comes from `labelFor(key)`, so it is no longer a site a new indicator
+ *  has to be edited into, which is what this ledger counts. */
+const SITE_COUNT = 26
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -253,7 +250,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // that correction is worth more than the arithmetic: twenty summed only while
   // a layout table sat in the settings-dialog group. Every later B4 task
   // DECREMENTS `B4` here; the total stays 31 until a site is deleted outright.
-  it('the retirement column adds up — 18 to B4, 8 to B5, 1 to C, 2 kept, 2 phase bookkeeping', () => {
+  it('the retirement column adds up — 13 to B4, 8 to B5, 1 to C, 2 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -266,7 +263,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // nothing here says so; the per-site reasoning lives in the comments beside
     // each entry, and that is what a reviewer has to read. "The retirement column
     // adds up" means the column adds up, not that every row is in the right one.
-    expect(counts).toEqual({ B4: 18, B5: 8, C: 1, keep: 2, phase: 2 })
+    expect(counts).toEqual({ B4: 13, B5: 8, C: 1, keep: 2, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -314,9 +311,33 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'Either it is a NEW enumeration site (add it, and raise SITE_COUNT), or it ' +
       'reads the registry and the scan is over-matching (say which, in the ledger).',
     ).toEqual([])
-    // …and the scan itself must not go quietly empty: it found eleven when this
-    // was written, and a scan that finds none is a broken scan, not a clean tree.
-    expect(found.length).toBeGreaterThanOrEqual(11)
+    // …and the scan itself must not go quietly empty: a scan that finds none is
+    // a broken scan, not a clean tree.
+    //
+    // ⛔ THIS BOUND USED TO BE `toBeGreaterThanOrEqual(11)` WITH THE COMMENT
+    // "it found eleven when this was written", AND TASK 3 ROTTED IT — retiring
+    // `chartRegion.INDICATOR_LABELS` took `chartRegion.js` off the scan's list
+    // and the floor with it. Replacing 11 with 10 reschedules the same failure
+    // for Task 4, so the bound is DERIVED from the one part of the ledger B4 may
+    // not touch: its **B5-fated** files. A B5 site retires at the cutover, so
+    // every later B4 task leaves this set alone, and a scan that stops seeing one
+    // of them fails BY NAME — which a count above eleven never could.
+    //
+    // ⚠️ NOT "every walkable ledger file": measured, `indicatorRegistry.js` and
+    // `keyboardShortcuts.js` are ledger sites the scan legitimately does not
+    // flag. `ENGINE_ROW_DEF_IDS` is under four ids, and the help sheet spells
+    // them `'toggle:bb'`, which is not a quoted id. The scan's criterion (four or
+    // more hand-listed ids) and the ledger's (one per file/region a new indicator
+    // must be edited into) are different measures, and pretending otherwise is
+    // how a bound becomes a false alarm nobody trusts.
+    const b5Walkable = [...new Set(LEDGER.filter(s => s.fate === 'B5').map(s => s.file))]
+      .filter(f => /^app\/src\/.*\.jsx?$/.test(f)).sort()
+    expect(b5Walkable.length, 'no B5 walkable file on the ledger — the check below is vacuous')
+      .toBeGreaterThanOrEqual(4)
+    expect(b5Walkable.filter(f => !found.includes(f)),
+      'the discovery scan cannot see a file the LEDGER fates to B5 — a site B4 cannot have ' +
+      'retired. The scan is broken (walk root, regexes, or the `.test.` skip), not the tree.',
+    ).toEqual([])
   })
 })
 

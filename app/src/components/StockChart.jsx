@@ -30,7 +30,8 @@ import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
-import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
+import { resolveChartRegion } from './chart/chartRegion'
+import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -2209,26 +2210,32 @@ export default function StockChart({
       }
       setCs(`indicators.${key}.enabled`, on)
     }
-    const IND_OPTS = [['rsi', 'RSI'], ['macd', 'MACD'], ['bb', 'Bollinger Bands'], ['vwap', 'VWAP'], ['stoch', 'Stochastic'], ['atr', 'ATR'], ['obv', 'OBV'], ['adx', 'ADX']]
+    // Every settings section, labelled once, in registry order. Adding a
+    // definition adds a menu entry; there is no second place to edit. The
+    // hand-written eight this replaced offered rsi/macd/bb/vwap/stoch/atr/obv/adx
+    // — `sar`, `ichimoku`, `mfi`, `cci`, `williamsR`, `donchian` and
+    // `volumeProfile` each had a settings section AND a toolbar row and no way
+    // into the menu a user actually right-clicks. 8 -> 15 is the measured cost
+    // of the hand-written list, not a refactor artefact.
     const indicatorsItem = {
       id: 'indicators', label: <><UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Indicators</>, kind: 'submenu',
-      submenu: IND_OPTS.map(([key, label]) => ({
-        id: 'ind-' + key, label, kind: 'toggle', checked: indEnabled(key),
-        onSelect: () => setIndEnabled(key, !indEnabled(key)),
+      submenu: catalogRows().map((row) => ({
+        id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
+        onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
       })),
     }
-    // "Overlay on volume": move an enabled oscillator into the volume pane
-    // (left axis) instead of its own band. Only sub-pane oscillators that are
-    // currently ON appear (BB/VWAP live on the price scale and can't overlay).
-    const OSC_OPTS = [['rsi', 'RSI'], ['macd', 'MACD'], ['stoch', 'Stochastic'], ['atr', 'ATR'], ['mfi', 'MFI'], ['cci', 'CCI'], ['williamsR', 'Williams %R'], ['adx', 'ADX'], ['obv', 'OBV']]
+    // "Overlay on volume": a PANE oscillator that is currently ON. `placement.target`
+    // is what `resolvePlacement` reads, so the menu and the renderer agree by
+    // construction — a price overlay (bb/vwap/sar/ichimoku/donchian) shares the
+    // candles' scale and can never be moved here.
     const volOverlayCur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
     // …through the same reader, so a flipped oscillator the user deleted cannot
     // still offer "overlay it on the volume pane".
-    const enabledOsc = OSC_OPTS.filter(([key]) => indEnabled(key))
+    const enabledOsc = oscillatorIds().filter((key) => indEnabled(key))
     const volumeOverlayItem = (showVolumeProp === undefined && cs.volume?.visible && enabledOsc.length) ? {
       id: 'voloverlay', label: <><UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Overlay on volume</>, kind: 'submenu',
-      submenu: enabledOsc.map(([key, label]) => ({
-        id: 'vo-' + key, label, kind: 'toggle', checked: volOverlayCur.includes(key),
+      submenu: enabledOsc.map((key) => ({
+        id: 'vo-' + key, label: labelFor(key), kind: 'toggle', checked: volOverlayCur.includes(key),
         onSelect: () => setCs('volumeOverlayIndicators', volOverlayCur.includes(key)
           ? volOverlayCur.filter((k) => k !== key)
           : [...volOverlayCur, key]),
@@ -2249,7 +2256,10 @@ export default function StockChart({
       secs.push({ id: 'region', title: 'Volume', items })
     } else if (region.type === 'indicator') {
       const key = region.key
-      const label = INDICATOR_LABELS[key] || key
+      // The region title and its `Hide <label>` take the SAME short name the
+      // Indicators submenu, the toolbar strip and the legend take. One label,
+      // four surfaces, one source.
+      const label = labelFor(key)
       secs.push({ id: 'region', title: label, items: [
         { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
         ...settingsLink('i-set', `${label} settings…`),

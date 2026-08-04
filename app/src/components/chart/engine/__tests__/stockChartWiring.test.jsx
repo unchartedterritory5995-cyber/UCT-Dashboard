@@ -59,7 +59,13 @@ const H = vi.hoisted(() => ({
   // blob on every paint, for every user, forever. A mutation deleting it survived
   // until this counter existed.
   migrateCalls: 0,
+  // The element `createChart` was handed — i.e. `containerRef.current`, which is
+  // where the `contextmenu` listener lives. Recorded so the right-click cases
+  // below can dispatch a REAL event at it instead of reaching into the component
+  // or querying for a CSS-module class name.
+  chartContainers: [],
   reset() {
+    H.chartContainers.length = 0
     H.addSeriesCalls.length = 0
     H.removedSeries.length = 0
     H.visibilityCalls.length = 0
@@ -178,7 +184,7 @@ vi.mock('lightweight-charts', () => {
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
-    createChart: () => chart,
+    createChart: (el) => { H.chartContainers.push(el); return chart },
     ColorType: { Solid: 'solid', VerticalGradient: 'gradient' },
     CrosshairMode: { Normal: 0, Magnet: 1 },
     LineStyle: { Solid: 0, Dotted: 1, Dashed: 2, LargeDashed: 3 },
@@ -247,7 +253,11 @@ const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartD
 // The FLIP-B writer. Cases that used to move `cs.indicators.<id>.enabled` by hand
 // have to go through it for a flipped id, because that field stopped being the
 // switch — writing it by hand is now a test of a mirror, not of a control.
-const { setIndicatorEnabled } = await import('../instanceControls')
+const { setIndicatorEnabled, isIndicatorEnabled } = await import('../instanceControls')
+// THE ONE LIST. Imported, never re-derived — a second copy of `catalogRows()`
+// inside this file would be the sixteenth hand-written list wearing the name of
+// the thing that ends them.
+const { catalogRows, labelFor, oscillatorIds } = await import('../../indicatorCatalog')
 // The compute the crosshair's per-plot split rests on — see the equivalence proof
 // next to the two-chip legend case.
 const { computeMACD } = await import('../../indicators')
@@ -284,6 +294,101 @@ const barsFor = (tf) => (tf === 'D' ? BARS : INTRADAY_BARS)
 const draw = (settingsOverride, tf = 'D') => render(
   <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={settingsOverride} />,
 )
+
+// ─── THE RIGHT-CLICK MENU, DRIVEN FOR REAL ──────────────────────────────────
+//
+// ⭐ THESE TWO DOORS HAD NO BEHAVIOURAL GATE UNTIL NOW. `flipB.test.jsx` gates
+// them STRUCTURALLY — string matches against the shipped identifiers — and says
+// so, because `buildRegionSections` is only reachable through a `contextmenu` on
+// a canvas region "the jsdom double cannot produce". It can, with two pieces the
+// double was one line away from already having:
+//
+//   1. the CONTAINER. `createChart` now records the element it is handed, which
+//      is `containerRef.current` — the node the listener is attached to. No CSS
+//      module class name to guess at, no reaching into the component.
+//   2. a RECT. jsdom answers 0×0 for every `getBoundingClientRect`, which makes
+//      `plotBottom` negative and every click land on the time axis. Stubbed on
+//      the container for the duration of the dispatch, then removed.
+//
+// ⛔ AND NO COPY OF THE BAND MATH. The obvious harness computes the y of the
+// band it wants from `computePaneMargins` — which is a second implementation of
+// the geometry `openMenuAt` already does, i.e. exactly the twin this phase is
+// retiring, in the file that is retiring them. Instead the helper SCANS y and
+// takes the first click whose resolved region is the one asked for. It reads the
+// region off the payload the component produced, so it cannot drift from the
+// component, and it THROWS BY NAME when no y resolves — which is what a case
+// that forgot to enable its indicator deserves, rather than a green pass over an
+// empty menu.
+const PLOT = { width: 800, height: 400 }
+
+const renderChart = ({ settings = null, tf = 'D', ...props } = {}) => {
+  const persisted = []
+  const view = render(
+    <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)}
+      settingsOverride={settings}
+      onSettingsPersist={(s) => persisted.push(s)}
+      {...props} />,
+  )
+  return {
+    ...view,
+    /** The blob the last menu click wrote. Throws rather than returning
+     *  `undefined` when nothing was written — a menu item wired to nothing must
+     *  fail the case, not read as "no change". */
+    lastSettings: () => {
+      expect(persisted.length,
+        'no settings write reached onSettingsPersist — the menu item wrote nowhere').toBeGreaterThan(0)
+      return persisted.at(-1)
+    },
+  }
+}
+
+/**
+ * Right-click the named REGION and return the sections the component built.
+ *
+ * @param want `{ region: 'price'|'volume'|'indicator'|'overlay'|'priceAxis', key? }`
+ */
+const openContextMenu = (view, want) => {
+  const el = H.chartContainers.at(-1)
+  expect(el, 'no chart container was recorded — the chart never mounted').toBeTruthy()
+  const captured = []
+  const onCtx = (e) => captured.push(e.detail)
+  window.addEventListener('uct:chart-contextmenu', onCtx)
+  const rect = { left: 0, top: 0, right: PLOT.width, bottom: PLOT.height, x: 0, y: 0, ...PLOT, toJSON: () => ({}) }
+  el.getBoundingClientRect = () => rect
+  try {
+    for (let y = 1; y < PLOT.height; y += 1) {
+      captured.length = 0
+      fireEvent.contextMenu(el, { clientX: 120, clientY: y })
+      const hit = captured[0]
+      if (!hit) continue
+      if (hit.region.type !== want.region) continue
+      if (want.key && hit.region.key !== want.key) continue
+      return hit.sections
+    }
+  } finally {
+    delete el.getBoundingClientRect
+    window.removeEventListener('uct:chart-contextmenu', onCtx)
+  }
+  throw new Error(
+    `openContextMenu: no click in the plot resolved to ${JSON.stringify(want)}. ` +
+    'An indicator region only exists while that indicator reserves a band — enable it ' +
+    "in this case's settings, or the menu you are asserting on was never built.",
+  )
+}
+
+/** A section by id, or a named failure. */
+const sectionOf = (sections, id) => {
+  const s = sections.find(x => x.id === id)
+  expect(s, `no '${id}' section in the menu — the case is asserting on nothing`).toBeTruthy()
+  return s
+}
+/** A submenu by item id, or a named failure. */
+const submenuOf = (section, itemId) => {
+  const item = section.items.find(i => i && i.id === itemId)
+  expect(item, `no '${itemId}' item in the '${section.id}' section`).toBeTruthy()
+  expect(item.submenu, `'${itemId}' is not a submenu`).toBeTruthy()
+  return item.submenu
+}
 
 // ─── THE LEGEND READ — POLLED TO STABILITY, NEVER SLEPT ─────────────────────
 //
@@ -3217,5 +3322,113 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     expect(last.indicatorInstances, 'no instance was written — the chart would still draw it')
       .toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
     view.unmount()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── TASK 3: THE TWO RIGHT-CLICK DOORS, DERIVED (B4) ──────────────────────
+//
+// `IND_OPTS` and `OSC_OPTS` were hand-written pair lists inside
+// `buildRegionSections`, and the region title read a third table that lived in
+// `chartRegion.js` — a pure-geometry module whose whole point is not knowing
+// what an indicator is. All three now read `indicatorCatalog.js`.
+//
+// ⭐ THE MEASURED COST OF THE HAND-WRITTEN LIST IS 8 → 15. `sar`, `ichimoku`,
+// `mfi`, `cci`, `williamsR` and `donchian` each had a settings section, a
+// toolbar row AND a definition; `volumeProfile` has a section and a row and is
+// the CARVED-OUT one (no definition — it draws to a sibling canvas). All seven
+// had no way into the menu a user actually right-clicks. That is not a refactor
+// artefact; it is the defect, and `volumeProfile` is exactly the row a
+// definitions-only list drops (B3 Task 11's refusal).
+describe('B4 Task 3 — the right-click doors read the catalog', () => {
+  it('the Indicators submenu offers every settings section, not a hand-picked eight', () => {
+    const view = renderChart({ settings: mergeChartSettings(null) })
+    const items = submenuOf(sectionOf(openContextMenu(view, { region: 'price' }), 'region'), 'indicators')
+    // ⭐ FIFTEEN, not eight — asserted as a NUMBER as well as a list, because
+    // `toEqual` against a derived list would still pass if BOTH sides collapsed.
+    expect(items).toHaveLength(15)
+    expect(items).toHaveLength(catalogRows().length)
+    expect(items.map(i => i.id)).toEqual(catalogRows().map(r => 'ind-' + r.id))
+    expect(items.map(i => i.label)).toEqual(catalogRows().map(r => r.shortName))
+    // …and the A7 diff, spelled out where a reviewer sees it.
+    expect(items.find(i => i.id === 'ind-bb').label).toBe('BB')
+    expect(items.find(i => i.id === 'ind-stoch').label).toBe('Stoch')
+    // …and the row a definitions-only list would have dropped (B3 Task 11's refusal).
+    expect(items.find(i => i.id === 'ind-volumeProfile')).toBeTruthy()
+  })
+
+  it('⭐ …and its entries READ and WRITE through the one reader and the one writer', () => {
+    // ⛔ THE PREMISE `flipB.test.jsx` GATED STRUCTURALLY, NOW DRIVEN. That file
+    // said this door "is only reachable through a real contextmenu on a canvas
+    // region the jsdom double cannot produce". It is reachable; its three source
+    // rails stay as a backstop and this is the behaviour they stood for.
+    for (const [id, flipped] of [['rsi', true], ['stoch', false]]) {
+      cleanup(); H.reset()
+      const view = renderChart({ settings: mergeChartSettings({ indicators: { [id]: { enabled: true } } }) })
+      const items = submenuOf(sectionOf(openContextMenu(view, { region: 'price' }), 'region'), 'indicators')
+      const entry = items.find(i => i.id === 'ind-' + id)
+      expect(entry.checked, `${id} is ON and the menu says otherwise`).toBe(true)
+      act(() => { entry.onSelect() })
+      const next = view.lastSettings()
+      expect(isIndicatorEnabled(next, id, ENGINE_FLIPPED_DEF_IDS), id).toBe(false)
+      expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
+      // …and a FLIPPED id really did move the instance, which is the half a
+      // mirror-only write would have passed.
+      expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}` && i.deleted),
+        `${id} instance`).toBe(flipped)
+    }
+  })
+
+  it('the volume-overlay submenu offers exactly the pane oscillators that are ON', () => {
+    const cs = mergeChartSettings({
+      volume: { visible: true },
+      indicators: { rsi: { enabled: true }, bb: { enabled: true } },
+    })
+    const view = renderChart({ settings: cs })
+    const sub = submenuOf(sectionOf(openContextMenu(view, { region: 'volume' }), 'region'), 'voloverlay')
+    // bb is ON and is a PRICE overlay: it shares the candles' scale and cannot be
+    // moved into the volume pane. Deriving from `placement.target` is what keeps
+    // that true without a second list saying so.
+    expect(sub.map(i => i.id)).toEqual(['vo-rsi'])
+    expect(oscillatorIds(), 'bb is not an oscillator, so it can never appear above')
+      .not.toContain('bb')
+  })
+
+  it('right-click Hide names the indicator the way every other menu does', () => {
+    const view = renderChart({
+      settings: mergeChartSettings({ indicators: { williamsR: { enabled: true } } }),
+    })
+    const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: 'williamsR' }), 'region')
+    // A7: 'Williams %R' -> '%R'. One label, four surfaces, one source.
+    expect(sec.title).toBe('%R')
+    expect(sec.items[0].label).toBe('Hide %R')
+    expect(labelFor('williamsR'), 'the label is the catalog\'s, not a coincidence').toBe('%R')
+  })
+
+  it('and Hide routes at the ONE writer, for a flipped id and an un-flipped one alike', () => {
+    // ⚠️ BOTH ids, deliberately. A flipped id's writer moves the mirror anyway,
+    // so a loop that only ran `rsi` would pass for the wrong reason — B3 measured
+    // that a predicate no row consults cannot be caught lying about that row.
+    for (const id of ['rsi', 'stoch']) {
+      cleanup(); H.reset()
+      const cs = mergeChartSettings({ indicators: { [id]: { enabled: true } } })
+      const view = renderChart({ settings: cs })
+      const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: id }), 'region')
+      expect(sec.items[0].id, id).toBe('i-hide')
+      act(() => { sec.items[0].onSelect() })
+      const next = view.lastSettings()
+      expect(isIndicatorEnabled(next, id, ENGINE_FLIPPED_DEF_IDS), id).toBe(false)
+      // The MIRROR is what an un-flipped id's legacy block reads. Both, always.
+      expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
+      // ⛔ AND THE INSTANCE, WHICH IS THE HALF A RAW `setCs` PASSES. With no
+      // stored instance, `isIndicatorEnabled` falls back to the mirror — so a
+      // `setCs('indicators.rsi.enabled', false)` reads "off" on both assertions
+      // above and still leaves a FLIPPED id's projection drawing on the next
+      // paint. The tombstone is what actually turns it off, and it is only
+      // expected for a flipped id: an un-flipped one has a legacy block to read
+      // the mirror, so writing an instance for it would be the opposite defect.
+      expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}` && i.deleted),
+        `${id} tombstone`).toBe(ENGINE_FLIPPED_DEF_IDS.has(id))
+    }
   })
 })

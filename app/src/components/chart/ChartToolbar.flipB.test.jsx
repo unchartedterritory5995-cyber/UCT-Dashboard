@@ -300,3 +300,60 @@ describe('ChartToolbar — a FLIPPED row writes the instance, and stops being in
     expect(typeof next.indicators.stoch.kPeriod).toBe('number')
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── B4 TASK 3: THE VOLUME-OVERLAY STRIP READS THE CATALOG ────────────────
+//
+// `const OSC = [['rsi','RSI'], … ['williamsR','W%R'], …]` was a SECOND copy of
+// `StockChart`'s `OSC_OPTS`, in another file, spelling `williamsR` a third way.
+// Both strips now derive from `oscillatorIds()` + `labelFor()`, so they cannot
+// drift — and the derivation is on `placement.target`, which is what
+// `resolvePlacement` reads, so the menu, this strip and the RENDERER agree by
+// construction rather than by three people remembering.
+describe('ChartToolbar — the volume-overlay strip is derived, not a second OSC list', () => {
+  const withVolumeOverlaySubjects = () => mergeChartSettings(JSON.stringify({
+    volume: { visible: true },
+    indicators: {
+      williamsR: { enabled: true },   // a PANE oscillator, and the A7 relabel
+      rsi: { enabled: true },         // a PANE oscillator, and FLIPPED
+      bb: { enabled: true },          // a PRICE overlay — must never be offered
+      atr: { enabled: false },        // an oscillator that is OFF
+    },
+  }))
+
+  /** The strip's checkboxes, read off the one row that carries its heading. */
+  const stripLabels = () => {
+    const heading = screen.getByText('Overlay on volume pane:')
+    const row = heading.parentElement
+    return within(row).getAllByRole('checkbox').map(cb => cb.parentElement.textContent.trim())
+  }
+
+  it('offers every ENABLED pane oscillator, under the catalog label', async () => {
+    const user = userEvent.setup()
+    mount(withVolumeOverlaySubjects(), vi.fn())
+    await openPanel(user)
+    // Registry order, which is what `oscillatorIds()` returns.
+    expect(stripLabels()).toEqual(['RSI', '%R'])
+    // ⭐ `%R`, not `W%R`: adjudication A7's cell, on the surface a user reads.
+    expect(stripLabels()).not.toContain('W%R')
+  })
+
+  it('⛔ never offers a PRICE overlay, however enabled it is', async () => {
+    const user = userEvent.setup()
+    mount(withVolumeOverlaySubjects(), vi.fn())
+    await openPanel(user)
+    // `bb` is ON and shares the CANDLES' scale — it cannot be moved into the
+    // volume pane, and `instances.test.js`'s "the toolbar cannot produce that"
+    // rests on exactly this. That guarantee used to be a hand-written list
+    // omitting it; it is now `placement.target !== 'pane'`.
+    expect(stripLabels()).not.toContain('BB')
+    expect(stripLabels()).not.toContain('Bollinger Bands')
+  })
+
+  it('and an OFF oscillator is not offered either — the strip is the enabled set', async () => {
+    const user = userEvent.setup()
+    mount(withVolumeOverlaySubjects(), vi.fn())
+    await openPanel(user)
+    expect(stripLabels()).not.toContain('ATR')
+  })
+})

@@ -10,6 +10,7 @@ import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { engineDrawnInputs, ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
+import { labelFor, oscillatorIds } from './indicatorCatalog'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import styles from './ChartToolbar.module.css'
@@ -479,22 +480,25 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           </div>
         )}
         {(() => {
-          // Move enabled oscillators into the volume pane (left axis).
-          const OSC = [['rsi', 'RSI'], ['macd', 'MACD'], ['stoch', 'Stoch'], ['atr', 'ATR'], ['mfi', 'MFI'], ['cci', 'CCI'], ['williamsR', 'W%R'], ['adx', 'ADX'], ['obv', 'OBV']]
+          // Move enabled oscillators into the volume pane (left axis) — the same
+          // derivation the right-click menu uses, so the two strips cannot drift.
+          // This was a second copy of `StockChart`'s `OSC_OPTS`, in another file,
+          // spelling `williamsR` a third way again (`W%R` here, `Williams %R`
+          // there, `Williams %R` in `chartRegion`).
           // …through `isOn`, the same reader the checkboxes use. For a FLIPPED id
           // the legacy toggle is the MIRROR, not the switch — a deleted RSI must
           // not still offer "overlay it on the volume pane".
-          const enabled = OSC.filter(([k]) => isOn(k))
+          const enabled = oscillatorIds().filter((k) => isOn(k))
           if (!cs.volume.visible || enabled.length === 0) return null
           const cur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
           return (
             <div className={styles.sRow} style={{ marginTop: 6, flexWrap: 'wrap' }}>
               <span style={{ width: '100%', marginBottom: 2, fontSize: 11, opacity: 0.7 }}>Overlay on volume pane:</span>
-              {enabled.map(([k, label]) => (
-                <label key={k} className={styles.sCheck} title={`Render ${label} inside the volume pane`}>
+              {enabled.map((k) => (
+                <label key={k} className={styles.sCheck} title={`Render ${labelFor(k)} inside the volume pane`}>
                   <input type="checkbox" checked={cur.includes(k)}
                     onChange={() => update('volumeOverlayIndicators', cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k])} />
-                  {label}
+                  {labelFor(k)}
                 </label>
               ))}
             </div>
