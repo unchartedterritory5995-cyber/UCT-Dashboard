@@ -21,6 +21,7 @@ import re
 import threading
 import time
 from datetime import date as _date, datetime, timezone
+from urllib.parse import quote_plus, urlparse
 
 from api.services import significant_catalysts
 from api.services.cache import cache
@@ -28,7 +29,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v5"   # v5 = real event dates (no move-anchoring) + per-catalyst links
+HIST_PERIOD = "ytd2026_v6"   # v6 = every web catalyst has a clickable link + domain badge
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -78,6 +79,28 @@ def _pick_citation(desc, citations):
         if 0 <= idx < len(citations):
             return citations[idx]
     return None
+
+
+def _domain_label(url):
+    """finance.yahoo.com → 'yahoo', tikr.com → 'tikr' — a short source badge."""
+    try:
+        host = urlparse(url).netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        parts = host.split(".")
+        return parts[-2] if len(parts) >= 2 else (host or None)
+    except Exception:
+        return None
+
+
+def _catalyst_link(raw_desc, citations, sym, title):
+    """(source_label, url) for a web catalyst. Prefer the catalyst's OWN citation
+    (badge = its domain); otherwise a web search for the exact event so the link is
+    ALWAYS clickable (badge = 'web')."""
+    cite = _pick_citation(raw_desc, citations)
+    if cite:
+        return (_domain_label(cite) or "web"), cite
+    return "web", f"https://www.google.com/search?q={quote_plus(f'{sym} {title}')}"
 
 
 def _looks_like_earnings(title, desc):
@@ -170,11 +193,13 @@ def _web_catalysts(sym, company, bars, movers):
                 direction = "up" if mp >= 0 else "down"
         if direction not in ("up", "down"):
             direction = "up"
+        clean_title = _strip_cites(title)[:90]
+        src, url = _catalyst_link(raw_desc, citations, sym, clean_title)
         items.append({
-            "date": d, "title": _strip_cites(title)[:90],
+            "date": d, "title": clean_title,
             "description": (_strip_cites(raw_desc)[:400]) or None,
             "move_pct": mp, "direction": direction, "sort_order": i,
-            "source": "web", "url": _pick_citation(raw_desc, citations),   # per-catalyst source
+            "source": src, "url": url,          # always clickable; badge = domain or 'web'
         })
     return (items or None), None
 

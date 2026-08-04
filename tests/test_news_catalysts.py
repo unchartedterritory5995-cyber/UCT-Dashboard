@@ -190,10 +190,22 @@ class TestWebGrounding:
         rows = {r["title"]: r for r in store.get_catalysts("NBIS", service.HIST_PERIOD)}
         assert rows["Meta hyperscaler deal"]["url"] == "https://finance.yahoo.com/x"   # [1]
         assert rows["Guidance cut"]["url"] == "https://tikr.com/y"                       # [2] (per-catalyst!)
+        assert rows["Meta hyperscaler deal"]["source"] == "yahoo"                       # domain badge
+        assert rows["Guidance cut"]["source"] == "tikr"
         assert rows["Meta hyperscaler deal"]["description"] == "Signed a multi-year Meta cloud contract."  # [1] stripped
-        assert rows["Meta hyperscaler deal"]["source"] == "web"
         assert rows["Meta hyperscaler deal"]["move_pct"] == 10.0                        # real 01-05 bar
         assert called["gen"] == 0
+
+    def test_web_catalyst_always_has_clickable_link(self, monkeypatch):
+        # A catalyst with NO [N] marker still gets a clickable web-search link.
+        import api.services.perplexity_search as pplx
+        answer = ('{"catalysts": [{"date": "2026-01-05", "title": "France data-center plan", '
+                  '"description": "Announced a 240MW data center in France.", "direction": "up"}]}')
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": []})
+        items, _ = service._web_catalysts("NBIS", None, _BARS, None)
+        assert items[0]["source"] == "web"
+        assert items[0]["url"].startswith("https://www.google.com/search?q=")
+        assert "NBIS" in items[0]["url"]
 
     def test_web_catalysts_excludes_earnings(self, monkeypatch):
         import api.services.perplexity_search as pplx
