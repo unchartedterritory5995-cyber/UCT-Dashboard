@@ -10,14 +10,21 @@ import styles from './PinnedFooter.module.css'
  *
  * Renders NOTHING when it has no actions — an empty pinned bar is chrome for
  * chrome's sake, and it would still eat vertical space on a phone.
+ *
+ * `as` (P2 gate b) — same landmark-scope reasoning as `IdentityBanner`'s: a
+ * `<footer>` only maps to the `contentinfo` landmark when its nearest
+ * sectioning ancestor is the body, and the modal's `role="dialog"` div is not
+ * sectioning content — but rendering `<footer>` there anyway would still read
+ * as a second page-level `contentinfo` outside the modal. The research page
+ * keeps the default; the modal passes `as="div"`.
  */
-export default function PinnedFooter({ children, ariaLabel = 'Actions', className = '' }) {
+export default function PinnedFooter({ children, ariaLabel = 'Actions', as: Tag = 'footer', className = '' }) {
   const items = Children.toArray(children).filter(Boolean)
   if (!items.length) return null
 
   return (
-    <footer className={`${styles.footer} ${className}`} aria-label={ariaLabel}>
+    <Tag className={`${styles.footer} ${className}`} aria-label={ariaLabel}>
       {items}
-    </footer>
+    </Tag>
   )
 }

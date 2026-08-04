@@ -48,4 +48,15 @@ describe('ResearchPage', () => {
     expect(screen.getByText(/Unlock AAPL Research/i)).toBeInTheDocument()
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
+
+  it('honours ?section= so the modal rail links land where they promise', () => {
+    // P2 T6: EarningsResearchModal's rail LINK items deep-open
+    // /research/:sym?section=ownership — this is the whole contract on the
+    // page side. Reuse this suite's existing "which tab is active" oracle
+    // (test above: Overview-only content disappears once another tab is
+    // active) rather than a CSS-module className check.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=ownership' })
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
 })

@@ -52,6 +52,14 @@ export function timingVariant(state) {
  * a different reporter is one step further out from the current one, so it
  * reads left-to-right as price → grade → change-who. Renders nothing when
  * absent, same as every other slot here.
+ *
+ * `as` (P2 gate b) — LANDMARK SCOPE. `<header>` maps to the `banner` landmark
+ * whenever its nearest sectioning ancestor is the body, and a `role="dialog"`
+ * div is NOT sectioning content, so a banner rendered inside the earnings modal
+ * would add a SECOND page banner beside the app's own. The research page (P3)
+ * wants the landmark and keeps the default; the modal passes `as="div"`. This
+ * is a per-surface decision, which is exactly why it is a prop and not a
+ * hardcoded element.
  */
 export default function IdentityBanner({
   logo,
@@ -66,6 +74,7 @@ export default function IdentityBanner({
   grade,
   guidance,
   stepper,
+  as: Tag = 'header',
   className = '',
 }) {
   const state = normalizeLifecycle(lifecycle)
@@ -78,7 +87,7 @@ export default function IdentityBanner({
       : timingText
 
   return (
-    <header className={`${styles.banner} ${className}`} data-lifecycle={state}>
+    <Tag className={`${styles.banner} ${className}`} data-lifecycle={state}>
       {logo && <div className={styles.logo}>{logo}</div>}
 
       <div className={styles.identity}>
@@ -113,6 +122,6 @@ export default function IdentityBanner({
           </span>
         )}
       </div>
-    </header>
+    </Tag>
   )
 }

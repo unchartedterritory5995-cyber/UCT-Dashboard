@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import useResearchOverview from './hooks/useResearchOverview'
 import ResearchHeader from './ResearchHeader'
@@ -16,11 +16,23 @@ import styles from './ResearchPage.module.css'
 
 const TABS = ['Overview', 'Financials', 'Estimates', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings & Events']
 
+// P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
+// (spec §4.3). Seeding the initial tab from that param is the whole contract —
+// the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
+const SECTION_TO_TAB = {
+  overview: 'Overview', financials: 'Financials', estimates: 'Estimates',
+  ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
+  filings: 'Filings & Events',
+}
+
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
   const { isPaid } = useAuth()
-  const [active, setActive] = useState('Overview')
+  const [searchParams] = useSearchParams()
+  const [active, setActive] = useState(
+    () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
+  )
   const data = useResearchOverview(rawSym)
   const sym = data.sym
   const { data: ratingsData } = useRatings(sym)
