@@ -42,3 +42,10 @@ export {
   reactionStats,
   outcomeOf,
 } from './charts/ReactionBars'
+export {
+  default as ImpliedVsRealized,
+  SIZE as IMPLIED_VS_REALIZED_SIZE,
+  pairQuarters,
+  coldStartState,
+  impliedVerdict,
+} from './charts/ImpliedVsRealized'
