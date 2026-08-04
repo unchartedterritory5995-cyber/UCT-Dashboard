@@ -48,7 +48,8 @@ export function SentimentGaugeDisplay({ data }) {
   const barCls = scoreToBarClass(score)
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} data-testid="sentiment-gauge"
+         data-sentiment={label ? String(label).toLowerCase() : 'unknown'}>
       <div className={styles.header}>
         <span className={styles.title}>EARNINGS SENTIMENT</span>
         {label && <span className={`${styles.labelPill} ${labelCls}`}>{label.toUpperCase()}</span>}
