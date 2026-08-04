@@ -1,10 +1,7 @@
 // app/src/components/research-kit/toneClasses.test.js
 //
-// Vitest runs with `css: false`, so `styles.toneGold` resolves to the KEY
-// STRING even when no matching `.toneGold` selector exists in the source
-// .module.css — a typo'd TONE_CLASS entry would silently render an inert
-// class name forever and no render test would ever catch it (the DOM would
-// just carry a class nothing styles).
+// Module classes resolve SCOPED (`_name_hash`) at runtime; that file's own
+// disk-parsing assertions are unaffected.
 //
 // This reads each stylesheet straight off disk (same technique as
 // styles/tokens.test.js — CSS is source text, not JS) and asserts every tone

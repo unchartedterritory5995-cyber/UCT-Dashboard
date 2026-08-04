@@ -115,14 +115,10 @@ export default function HeatGrid({
                   {cols.map((c, i) => {
                     const v = values[i]
                     const tier = heatTier(v, row.stops || DEFAULT_HEAT_STOPS)
-                    // Include both the CSS module class and the tier name as a literal class
-                    // so tests can reliably match on word boundaries (CSS modules use hashed names)
-                    const tierStyleClass = tier ? styles[tier] : ''
-                    const tierNameClass = tier || ''
                     return (
                       <td
                         key={c}
-                        className={`${styles.cell} ${tierStyleClass} ${tierNameClass}`}
+                        className={`${styles.cell} ${tier ? styles[tier] : ''}`}
                         data-testid="rk-heat-cell"
                         data-tier={tier || ''}
                       >
