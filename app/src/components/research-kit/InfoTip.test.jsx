@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import InfoTip from './InfoTip'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('InfoTip', () => {
   it('renders nothing without text', () => {
@@ -62,5 +66,37 @@ describe('InfoTip', () => {
     fireEvent.click(btn)
     fireEvent.mouseDown(screen.getByRole('button', { name: 'elsewhere' }))
     expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  // M4 — viewport collision. jsdom never lays anything out, so
+  // getBoundingClientRect()/clientWidth default to zero; both tests pin
+  // document.documentElement.clientWidth to a realistic viewport so the
+  // comparison is meaningful, then control the popover's own rect.
+  it('keeps left alignment by default when the popover fits the viewport', () => {
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(1024)
+    render(<InfoTip label="A" text="Body." />)
+    fireEvent.click(screen.getByRole('button', { name: 'A' }))
+    const pop = screen.getByRole('tooltip')
+    // Unmocked jsdom rect (all zeros) never overflows a 1024px viewport.
+    expect(pop.className).not.toMatch(/alignRight/)
+  })
+
+  it('adds alignRight when the popover would overflow the viewport', () => {
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(1024)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 900,
+      y: 0,
+      top: 0,
+      left: 900,
+      right: 1200,
+      bottom: 40,
+      width: 300,
+      height: 40,
+      toJSON() {},
+    })
+    render(<InfoTip label="A" text="Body." />)
+    fireEvent.click(screen.getByRole('button', { name: 'A' }))
+    const pop = screen.getByRole('tooltip')
+    expect(pop.className).toMatch(/alignRight/)
   })
 })

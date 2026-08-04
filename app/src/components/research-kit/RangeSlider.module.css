@@ -49,8 +49,12 @@
   transform: translate(-50%, -50%);
 }
 
-/* Row 3 — the fixed end labels. */
+/* Row 3 — the fixed end labels, plus optional band-edge labels overlaid at a
+   computed percentage (position: relative anchors those absolutely-positioned
+   children; the flex layout of the two flow children — min/max — is
+   untouched since absolutely-positioned children never participate in it). */
 .endRow {
+  position: relative;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -58,6 +62,21 @@
 }
 
 .endLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: var(--lh-tight);
+  color: var(--text-muted);
+}
+
+/* Optional band-edge labels (e.g. expected-move break-even prices, §4.3.1a).
+   Centred on their computed percentage like .valueLabel, but dimmer — they
+   annotate the band, not the current value. */
+.bandLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: 400;

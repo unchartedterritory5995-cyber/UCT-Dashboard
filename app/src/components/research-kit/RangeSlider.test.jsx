@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import RangeSlider, { positionPct, labelPct, LABEL_EDGE_CLAMP_PCT } from './RangeSlider'
+import RangeSlider, {
+  positionPct,
+  labelPct,
+  LABEL_EDGE_CLAMP_PCT,
+  resolveBelowLabels,
+  BAND_LABEL_COLLISION_PCT,
+} from './RangeSlider'
 
 describe('positionPct', () => {
   it('maps the range linearly onto 0..100', () => {
@@ -50,13 +56,77 @@ describe('labelPct — the collision rule', () => {
   })
 })
 
+describe('resolveBelowLabels — the band/end-label collision rule (I2)', () => {
+  it('always renders the end labels when their percentages are given', () => {
+    const r = resolveBelowLabels({ minLabelPct: 12, maxLabelPct: 88, bandLoPct: null, bandHiPct: null })
+    expect(r.min).toBe(true)
+    expect(r.max).toBe(true)
+  })
+
+  it('omits an end label whose percentage is null', () => {
+    const r = resolveBelowLabels({ minLabelPct: null, maxLabelPct: 88, bandLoPct: null, bandHiPct: null })
+    expect(r.min).toBe(false)
+    expect(r.max).toBe(true)
+  })
+
+  it('renders a band label that sits well clear of both ends', () => {
+    const r = resolveBelowLabels({ minLabelPct: 12, maxLabelPct: 88, bandLoPct: 40, bandHiPct: 60 })
+    expect(r.bandLo).toBe(true)
+    expect(r.bandHi).toBe(true)
+  })
+
+  it('suppresses a band label within the collision distance of the min end label', () => {
+    const r = resolveBelowLabels({
+      minLabelPct: 12,
+      maxLabelPct: 88,
+      bandLoPct: 12 + BAND_LABEL_COLLISION_PCT, // exactly at the boundary — "within" is inclusive
+      bandHiPct: 60,
+    })
+    expect(r.bandLo).toBe(false)
+    expect(r.bandHi).toBe(true)
+  })
+
+  it('suppresses a band label within the collision distance of the max end label', () => {
+    const r = resolveBelowLabels({
+      minLabelPct: 12,
+      maxLabelPct: 88,
+      bandLoPct: 40,
+      bandHiPct: 88 - BAND_LABEL_COLLISION_PCT,
+    })
+    expect(r.bandHi).toBe(false)
+    expect(r.bandLo).toBe(true)
+  })
+
+  it('renders a band label just past the collision boundary', () => {
+    const r = resolveBelowLabels({
+      minLabelPct: 12,
+      maxLabelPct: 88,
+      bandLoPct: 12 + BAND_LABEL_COLLISION_PCT + 0.01,
+      bandHiPct: null,
+    })
+    expect(r.bandLo).toBe(true)
+  })
+
+  it('never renders a band label whose percentage is null', () => {
+    const r = resolveBelowLabels({ minLabelPct: 12, maxLabelPct: 88, bandLoPct: null, bandHiPct: null })
+    expect(r.bandLo).toBe(false)
+    expect(r.bandHi).toBe(false)
+  })
+
+  it('the end label always wins — a band label sitting exactly on an end label is suppressed', () => {
+    const r = resolveBelowLabels({ minLabelPct: 12, maxLabelPct: 88, bandLoPct: 12, bandHiPct: 88 })
+    expect(r.bandLo).toBe(false)
+    expect(r.bandHi).toBe(false)
+  })
+})
+
 describe('RangeSlider', () => {
   const base = {
     min: 91,
     max: 199,
     value: 182,
-    loLabel: '$91.00',
-    hiLabel: '$199.00',
+    minLabel: '$91.00',
+    maxLabel: '$199.00',
     valueLabel: '$182.00',
   }
 
@@ -89,7 +159,7 @@ describe('RangeSlider', () => {
 
   it('puts every label on tabular numerals', () => {
     const { container } = render(<RangeSlider {...base} />)
-    for (const sel of ['rk-range-valuelabel', 'rk-range-lolabel', 'rk-range-hilabel']) {
+    for (const sel of ['rk-range-valuelabel', 'rk-range-minlabel', 'rk-range-maxlabel']) {
       expect(container.querySelector(`[data-testid="${sel}"]`).className).toMatch(/\bt-num\b/)
     }
   })
@@ -109,14 +179,14 @@ describe('RangeSlider', () => {
 
   it('survives a degenerate range without NaN in the DOM', () => {
     const { container } = render(
-      <RangeSlider min={50} max={50} value={50} lo={50} hi={50} valueLabel="$50.00" loLabel="$50.00" hiLabel="$50.00" />,
+      <RangeSlider min={50} max={50} value={50} lo={50} hi={50} valueLabel="$50.00" minLabel="$50.00" maxLabel="$50.00" />,
     )
     expect(container.innerHTML).not.toMatch(/NaN/)
     expect(parseFloat(container.querySelector('[data-testid="rk-range-marker"]').style.left)).toBe(50)
   })
 
   it('renders the track but no marker when value is missing', () => {
-    const { container } = render(<RangeSlider min={0} max={10} loLabel="0" hiLabel="10" />)
+    const { container } = render(<RangeSlider min={0} max={10} minLabel="0" maxLabel="10" />)
     expect(container.querySelector('[data-testid="rk-range-track"]')).not.toBeNull()
     expect(container.querySelector('[data-testid="rk-range-marker"]')).toBeNull()
   })
@@ -139,5 +209,38 @@ describe('RangeSlider', () => {
     const track = container.querySelector('[data-testid="rk-range-track"]')
     expect(track.getAttribute('role')).toBe('img')
     expect(track.getAttribute('aria-label')).toContain('$182.00')
+  })
+
+  // I2 — expected-move dollar strip: bandLoLabel/bandHiLabel at the lo/hi band
+  // edges, sharing the end-label row, suppressed on collision with min/max.
+  it('renders band-edge labels at the band position when clear of the ends', () => {
+    const { container } = render(<RangeSlider {...base} lo={140} hi={160} bandLoLabel="$140.00" bandHiLabel="$160.00" />)
+    const loLabel = container.querySelector('[data-testid="rk-range-bandlolabel"]')
+    const hiLabel = container.querySelector('[data-testid="rk-range-bandhilabel"]')
+    expect(loLabel).not.toBeNull()
+    expect(hiLabel).not.toBeNull()
+    expect(loLabel.textContent).toBe('$140.00')
+    expect(parseFloat(loLabel.style.left)).toBeCloseTo(labelPct(positionPct(91, 199, 140)), 4)
+    expect(loLabel.className).toMatch(/\bt-num\b/)
+  })
+
+  it('does not render band-edge labels when the props are omitted', () => {
+    const { container } = render(<RangeSlider {...base} lo={140} hi={160} />)
+    expect(container.querySelector('[data-testid="rk-range-bandlolabel"]')).toBeNull()
+    expect(container.querySelector('[data-testid="rk-range-bandhilabel"]')).toBeNull()
+  })
+
+  it('suppresses a band-edge label that collides with the min end label', () => {
+    // min=91 clamps to labelPct(0)=12; a `lo` right at the low edge of the
+    // track lands its label on top of the min label and must be suppressed.
+    const { container } = render(<RangeSlider {...base} lo={92} hi={160} bandLoLabel="$92.00" bandHiLabel="$160.00" />)
+    expect(container.querySelector('[data-testid="rk-range-bandlolabel"]')).toBeNull()
+    expect(container.querySelector('[data-testid="rk-range-bandhilabel"]')).not.toBeNull()
+  })
+
+  it('suppresses a band-edge label that collides with the max end label', () => {
+    const { container } = render(<RangeSlider {...base} lo={140} hi={198} bandLoLabel="$140.00" bandHiLabel="$198.00" />)
+    expect(container.querySelector('[data-testid="rk-range-bandhilabel"]')).toBeNull()
+    expect(container.querySelector('[data-testid="rk-range-bandlolabel"]')).not.toBeNull()
   })
 })

@@ -83,6 +83,20 @@
   color: var(--text-muted);
 }
 
+/* M3 — standard clip-rect sr-only recipe (mirrors the global .sr-only in
+   styles/tokens.css; a local class because this is a CSS module). */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 /* PHONE — the 5-column grid cannot survive 375px, so the row folds into two
    lines: date + firm, then grades + action + PT. */
 @media (max-width: 640px) {

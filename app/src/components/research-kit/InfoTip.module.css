@@ -32,6 +32,7 @@
   top: calc(100% + 6px);
   left: 0;
   z-index: var(--z-dropdown);
+  /* M4: default left-aligned (grows toward the viewport's right edge). */
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -64,6 +65,13 @@
 }
 .popLink:hover {
   text-decoration: underline;
+}
+
+/* M4 — applied when the default left alignment would overflow the viewport's
+   right edge; grows the popover toward the left of the trigger instead. */
+.alignRight {
+  left: auto;
+  right: 0;
 }
 
 /* PHONE */

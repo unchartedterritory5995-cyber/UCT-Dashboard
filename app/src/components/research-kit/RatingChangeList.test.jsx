@@ -95,4 +95,12 @@ describe('RatingChangeList', () => {
     render(<RatingChangeList rows={ROWS} label="Rating changes" />)
     expect(screen.getByText('Rating changes')).toBeInTheDocument()
   })
+
+  it('gives the grades cell an accessible "to" between from and to (M3)', () => {
+    const { container } = render(<RatingChangeList rows={[ROWS[0]]} />)
+    const grades = container.querySelector('[data-testid="rk-rc-grades"]')
+    // The visible arrow is aria-hidden; the accessible text must still read
+    // "from ... to ..." in order, via the sr-only "to" between the grades.
+    expect(grades.textContent).toMatch(/Equal-Weight.*to.*Overweight/)
+  })
 })

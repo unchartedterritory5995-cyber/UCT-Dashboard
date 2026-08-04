@@ -21,11 +21,18 @@ const read = (rel) =>
 const TOKENS = read('./tokens.css')
 const BREADTH = read('../pages/Breadth.module.css')
 
-/** Body text of the first block whose selector matches, by brace matching. */
+/** Body text of the first block whose selector matches, by brace matching.
+ *
+ * M2: anchored with a boundary regex (selector followed by optional
+ * whitespace then `,` or `{`) rather than `indexOf`, which would happily
+ * match `.bgA` inside `.bgAlt`. The selector is escaped so a literal `.` in
+ * e.g. `.t-num` isn't read as a regex wildcard. */
 function block(css, selector) {
-  const i = css.indexOf(selector)
-  if (i === -1) throw new Error(`selector not found: ${selector}`)
-  const open = css.indexOf('{', i)
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`${escaped}\\s*[,{]`)
+  const m = re.exec(css)
+  if (!m) throw new Error(`selector not found: ${selector}`)
+  const open = css.indexOf('{', m.index)
   let depth = 0
   for (let j = open; j < css.length; j++) {
     if (css[j] === '{') depth++
@@ -91,7 +98,7 @@ describe('tokens.css — heat tiers match the Breadth ladder (§3.1)', () => {
 describe('tokens.css — glass surfaces (§3.1)', () => {
   it('defines the glass surface set on the dark default', () => {
     expect(decl(ROOT, '--glass-surface')).toBe('rgba(34, 37, 30, 0.55)')
-    expect(decl(ROOT, '--glass-elevated')).toBe('rgba(42, 45, 36, 0.72)')
+    expect(decl(ROOT, '--glass-elevated')).toBe('rgba(42, 45, 36, 0.58)')
     expect(decl(ROOT, '--glass-border-neutral')).toBe('rgba(224, 218, 200, 0.10)')
     expect(decl(ROOT, '--glass-border-accent')).toBe('rgba(201, 168, 76, 0.42)')
     expect(decl(ROOT, '--glass-inner-glow')).not.toBeNull()
@@ -169,19 +176,27 @@ describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => 
     expect(decl(ROOT, '--bg')).toBe('#0e0f0d')
   })
 
-  it('--text-muted (dimmest permitted ink) meets AA 4.5:1 on composited --glass-surface', () => {
-    const bgRgb = hexRgb(decl(ROOT, '--bg'))
-    const textMutedRgb = hexRgb(decl(ROOT, '--text-muted'))
-    const { rgb: glassRgb, alpha: glassAlpha } = parseRgba(decl(ROOT, '--glass-surface'))
-    const surface = composite(glassRgb, glassAlpha, bgRgb)
-    expect(contrast(textMutedRgb, surface)).toBeGreaterThanOrEqual(4.5)
-  })
+  // C1: the floor covers every glass surface (--glass-surface/-elevated/-chrome)
+  // against both inks permitted on glass (--text-muted, the dimmest; --text,
+  // the body ink), for BOTH the dark :root defaults and the [data-theme="oled"]
+  // overrides. oled never restates --text/--text-muted (they're theme-invariant
+  // ink), so unresolved tokens fall through to :root — the composited color a
+  // user actually sees on either theme, not the flat token in isolation.
+  const resolveToken = (themeBlock, token) => decl(themeBlock, token) ?? decl(ROOT, token)
+  const THEME_BLOCKS = { dark: ROOT, oled: OLED }
+  const SURFACES = ['--glass-surface', '--glass-elevated', '--glass-chrome']
+  const INKS = ['--text-muted', '--text']
 
-  it('--text (body ink) meets AA 4.5:1 on composited --glass-surface', () => {
-    const bgRgb = hexRgb(decl(ROOT, '--bg'))
-    const textRgb = hexRgb(decl(ROOT, '--text'))
-    const { rgb: glassRgb, alpha: glassAlpha } = parseRgba(decl(ROOT, '--glass-surface'))
-    const surface = composite(glassRgb, glassAlpha, bgRgb)
-    expect(contrast(textRgb, surface)).toBeGreaterThanOrEqual(4.5)
+  const CASES = Object.keys(THEME_BLOCKS).flatMap((themeName) =>
+    SURFACES.flatMap((surfaceToken) => INKS.map((inkToken) => [themeName, surfaceToken, inkToken])),
+  )
+
+  it.each(CASES)('%s theme: %s meets AA 4.5:1 for %s', (themeName, surfaceToken, inkToken) => {
+    const themeBlock = THEME_BLOCKS[themeName]
+    const bgRgb = hexRgb(resolveToken(themeBlock, '--bg'))
+    const inkRgb = hexRgb(resolveToken(themeBlock, inkToken))
+    const { rgb: surfRgb, alpha: surfAlpha } = parseRgba(resolveToken(themeBlock, surfaceToken))
+    const composited = composite(surfRgb, surfAlpha, bgRgb)
+    expect(contrast(inkRgb, composited)).toBeGreaterThanOrEqual(4.5)
   })
 })

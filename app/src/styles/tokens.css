@@ -194,7 +194,11 @@
      sits on near-opaque ink. NOTE: backdrop-filter is limited to the modal
      backdrop for perf — kit components must not use it. */
   --glass-surface: rgba(34, 37, 30, 0.55);
-  --glass-elevated: rgba(42, 45, 36, 0.72);
+  /* Alpha capped at 0.58 (was 0.72) — the final-review contrast audit measured
+     --text-muted at 4.28:1 on the composited surface at 0.72, below the §3.2
+     AA 4.5:1 floor; 0.58 is the highest alpha on this base triple that still
+     clears it (tokens.test.js computed-contrast block). */
+  --glass-elevated: rgba(42, 45, 36, 0.58);
   --glass-border-neutral: rgba(224, 218, 200, 0.10);
   --glass-border-accent: rgba(201, 168, 76, 0.42);
   --glass-chrome: rgba(20, 22, 18, 0.94);

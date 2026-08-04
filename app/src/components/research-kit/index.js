@@ -13,7 +13,14 @@ export { default as GlassCard } from './GlassCard'
 export { default as StatTile } from './StatTile'
 export { default as VerdictChip } from './VerdictChip'
 export { SCORE_TONES, VERDICT_TONES, VERDICT_GLYPHS, toneGlyph } from './tones'
-export { default as RangeSlider, positionPct, labelPct, LABEL_EDGE_CLAMP_PCT } from './RangeSlider'
+export {
+  default as RangeSlider,
+  positionPct,
+  labelPct,
+  LABEL_EDGE_CLAMP_PCT,
+  resolveBelowLabels,
+  BAND_LABEL_COLLISION_PCT,
+} from './RangeSlider'
 export { default as EmptyState } from './EmptyState'
 export { default as ConsensusBar, consensusSegments, LABEL_MIN_PCT } from './ConsensusBar'
 export { default as RatingChangeList, actionTone } from './RatingChangeList'

@@ -40,7 +40,43 @@
 }
 
 .action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   margin-top: var(--space-xs);
+}
+
+/* I5 — the built-in retry affordance. Token-based (the canonical form-control
+   geometry, §"Canonical form-control geometry" in tokens.css) so it matches
+   every other button-shaped control in the app rather than inventing a
+   one-off empty-state button style. */
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--control-pad-y) var(--control-pad-x);
+  border: 1px solid var(--glass-border-neutral);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: var(--control-font);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.actionButton:hover {
+  border-color: var(--glass-border-accent);
+  color: var(--ut-gold);
+}
+
+.actionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* PHONE */

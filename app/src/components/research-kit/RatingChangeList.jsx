@@ -75,11 +75,16 @@ export default function RatingChangeList({
             <span className={styles.firm} title={typeof r.firm === 'string' ? r.firm : undefined}>
               {r.firm || '—'}
             </span>
-            <span className={styles.grades}>
+            <span className={styles.grades} data-testid="rk-rc-grades">
               <span className={styles.from}>{r.from || '—'}</span>
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
+              {/* M3: the arrow is aria-hidden with no text alternative, so a
+                  screen reader reads "Equal-Weight Overweight" with no
+                  relationship between them — insert the visually-hidden word
+                  it stands in for. */}
+              <span className={styles.srOnly}>to</span>
               <span className={styles.to}>{r.to || '—'}</span>
             </span>
             <span className={styles.action}>

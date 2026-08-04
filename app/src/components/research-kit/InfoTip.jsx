@@ -1,7 +1,11 @@
 // app/src/components/research-kit/InfoTip.jsx
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../ui/UIcon'
 import styles from './InfoTip.module.css'
+
+/** Minimum gap (px) the popover must keep from the viewport's right edge
+ *  before it flips alignment (M4). */
+const VIEWPORT_EDGE_GAP_PX = 8
 
 /**
  * The kit's ONE learnability affordance (spec §3.4). `EyebrowLabel` and
@@ -28,7 +32,9 @@ export default function InfoTip({
   className = '',
 }) {
   const [open, setOpen] = useState(false)
+  const [alignRight, setAlignRight] = useState(false)
   const wrapRef = useRef(null)
+  const popRef = useRef(null)
   const tipId = useId()
 
   useEffect(() => {
@@ -47,6 +53,24 @@ export default function InfoTip({
     }
   }, [open])
 
+  // M4 — viewport collision: the popover defaults to left-aligned (opens
+  // toward the right of the trigger). On open, measure its actual rendered
+  // edge; if it would run past the viewport's right edge, flip it to
+  // right-aligned (right:0 / left:auto, see .alignRight) instead. Re-measures
+  // on every open so it's correct at whatever scroll/resize state the trigger
+  // is in when clicked. No explicit reset on close: `alignRight` only ever
+  // affects rendering while `open` (the popover span isn't mounted otherwise),
+  // and the next open recomputes it fresh from the current rect regardless of
+  // its stale prior value.
+  useLayoutEffect(() => {
+    if (!open) return
+    const el = popRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const viewportWidth = document.documentElement.clientWidth
+    setAlignRight(rect.right > viewportWidth - VIEWPORT_EDGE_GAP_PX)
+  }, [open])
+
   if (!text) return null
 
   return (
@@ -62,7 +86,12 @@ export default function InfoTip({
         <UIcon name="info" size={12} gold={false} />
       </button>
       {open && (
-        <span className={styles.pop} role="tooltip" id={tipId}>
+        <span
+          ref={popRef}
+          className={`${styles.pop} ${alignRight ? styles.alignRight : ''}`}
+          role="tooltip"
+          id={tipId}
+        >
           <span className={styles.popText}>{text}</span>
           {href && (
             <a className={styles.popLink} href={href} target="_blank" rel="noopener noreferrer">
