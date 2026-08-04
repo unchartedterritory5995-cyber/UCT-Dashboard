@@ -283,6 +283,16 @@ def test_reporter_preferred_negative_eps_estimate_counts_as_present(store):
     assert store._reporter_preferred(has_negative, has_none) is True
 
 
+def test_reporter_preferred_eps_estimate_zero_counts_as_present(store):
+    """The same phantom-zero trap this whole task exists to guard against, on
+    the tie-break's OWN input: a genuine 0.0 eps_estimate is falsy in Python,
+    so a bare truthy check (`if new.get("eps_estimate")`) would wrongly treat
+    it as absent. Must be `is not None`."""
+    has_zero = {"eps_estimate": 0.0, "fiscal_year": 2026, "fiscal_quarter": 1}
+    has_none = {"eps_estimate": None, "fiscal_year": 2030, "fiscal_quarter": 4}
+    assert store._reporter_preferred(has_zero, has_none) is True
+
+
 def test_run_nightly_capture_stores_the_same_identity_regardless_of_reporter_array_order(store):
     """End-to-end: the real GLOO pair, fed through the actual capture loop,
     in both array orders — must store the SAME (fiscal_year, fiscal_quarter)
