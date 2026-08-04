@@ -1,0 +1,260 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, act, waitFor, cleanup } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
+
+import { addIndicator, allowedIndicatorNames, CHART_BUS_EVENTS } from './chartBus'
+import { catalogRows } from '../components/chart/indicatorCatalog'
+import { mergeChartSettings } from '../components/chart/chartDefaults'
+import { isIndicatorEnabled } from '../components/chart/engine/instanceControls'
+import { ENGINE_FLIPPED_DEF_IDS } from '../components/chart/engine/flipState'
+import usePreferences, { parsePref } from '../hooks/usePreferences'
+import useChartIndicatorBus from '../hooks/useChartIndicatorBus'
+
+// ─── 🐛 THE VOICE BUS WAS DEAD, AND IT WAS MEASURED ─────────────────────────
+//
+// `subscribeAll` had an `onIndicator` branch and NO CALL SITE ANYWHERE in
+// `app/src`. The server (`voice_client_action_tools.add_chart_indicator`) answers
+// `{"ok": true, "narration": "Adding atr."}` BEFORE the browser evaluates
+// anything, so Compass told the user it had added the indicator, `addIndicator()`
+// dispatched an event nobody heard, and the chart did not move. On top of that,
+// the allow-list it validated against refused `atr` outright.
+//
+// ⛔ A TEST THAT ASSERTS "THE EVENT WAS EMITTED" PASSES ON THE BROKEN BUILD AND
+// PROVES NOTHING. Every case below that matters asserts the CHART SETTINGS moved
+// — through the same preference every mounted `StockChart` reads — and the last
+// describe asserts a SHIPPED subscriber exists at all, which is the assertion
+// that was false at `d2733adc`.
+
+function Bridge() {
+  useChartIndicatorBus()
+  return null
+}
+
+/** Mount the listener and a probe on the same module-global SWR preferences
+ *  cache, so what the probe reads is what a mounted chart would read. */
+function mountBus(seed) {
+  const posts = []
+  global.fetch = vi.fn(async (url, opts) => {
+    if (opts && opts.method === 'POST') {
+      posts.push(JSON.parse(opts.body))
+      return { ok: true, json: async () => ({ ok: true }) }
+    }
+    return { ok: true, json: async () => (seed || {}) }
+  })
+  const view = renderHook(() => usePreferences(), {
+    wrapper: ({ children }) => (<><Bridge />{children}</>),
+  })
+  return { ...view, posts }
+}
+
+const settingsOf = (view) => mergeChartSettings(parsePref(view.result.current.prefs.chart_settings, null))
+
+beforeEach(() => { vi.restoreAllMocks() })
+afterEach(cleanup)
+
+describe('the add-indicator allow-list is derived, not written down', () => {
+  it('is the catalog plus the MA aliases, and nothing invented', () => {
+    const { indicators, aliases } = allowedIndicatorNames()
+    expect(indicators).toEqual(catalogRows().map(r => r.id.toLowerCase()))
+    expect(aliases).toEqual(['avwap', 'ma9', 'ma20', 'ma50', 'ma200', 'ema9', 'ema20', 'ema50'])
+  })
+
+  it('carries the eleven the hand-written Set refused — and the list is not trivially short', () => {
+    const { indicators } = allowedIndicatorNames()
+    // The shipped Set was {vwap, avwap, ma9, ma20, ma50, ma200, ema9, ema20,
+    // ema50, rsi, macd, bb}: three real indicators out of fifteen.
+    for (const id of ['atr', 'sar', 'ichimoku', 'donchian', 'adx', 'obv', 'mfi',
+      'cci', 'williamsr', 'stoch', 'volumeprofile']) {
+      expect(indicators, `${id} is still refused`).toContain(id)
+    }
+    expect(indicators.length).toBeGreaterThanOrEqual(15)
+  })
+
+  it('accepts every definition by id — and refuses one that does not exist', () => {
+    for (const row of catalogRows()) {
+      expect(addIndicator(row.id), row.id).toBe(row.id.toLowerCase())
+    }
+    // ⚠️ BY ID, NOT BY DISPLAY NAME. `addIndicator` normalises to a lower-cased,
+    // space-stripped id: `row.name` for `bb` is "Bollinger Bands", which
+    // normalises to `bollingerbands` and is NOT accepted. The server's
+    // `_INDICATOR_ALIASES` map is what turns spoken phrases into ids.
+    expect(addIndicator('bollinger bands')).toBe(false)
+    expect(addIndicator('nonsense')).toBe(false)
+    expect(addIndicator('')).toBe(false)
+  })
+
+  it('⚠️ williamsR and volumeProfile survive the lower-casing — the two a strict id match refuses', () => {
+    expect(addIndicator('williamsR')).toBe('williamsr')
+    expect(addIndicator('volumeProfile')).toBe('volumeprofile')
+  })
+})
+
+describe('⭐ and a chart LISTENS — the half that had never existed', () => {
+  it('a voice addIndicator turns the indicator ON in the settings every chart reads', async () => {
+    const H = mountBus()
+    await waitFor(() => expect(H.result.current.loading).toBe(false))
+    expect(settingsOf(H).indicators.atr.enabled, 'precondition').toBe(false)
+
+    await act(async () => { addIndicator('ATR') })
+
+    await waitFor(() => expect(H.posts).toHaveLength(1))
+    const cs = settingsOf(H)
+    expect(cs.indicators.atr.enabled).toBe(true)
+    expect(isIndicatorEnabled(cs, 'atr', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    // …and it was PERSISTED, not just parked in the cache.
+    expect(H.posts[0].key).toBe('chart_settings')
+    expect(parsePref(H.posts[0].value, null).indicators.atr.enabled).toBe(true)
+  })
+
+  it('a FLIPPED definition moves the instance AND the mirror, because it goes through the one writer', async () => {
+    const H = mountBus()
+    await waitFor(() => expect(H.result.current.loading).toBe(false))
+
+    await act(async () => { addIndicator('rsi') })
+
+    await waitFor(() => expect(H.posts).toHaveLength(1))
+    const cs = settingsOf(H)
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS), 'the instance').toBe(true)
+    expect(cs.indicators.rsi.enabled, 'the mirror').toBe(true)
+    expect(cs.indicatorInstances.some(i => i && i.defId === 'rsi' && !i.deleted)).toBe(true)
+  })
+
+  it('williamsR reaches the chart by NAME — a case-sensitive lookup would refuse exactly this one', async () => {
+    const H = mountBus()
+    await waitFor(() => expect(H.result.current.loading).toBe(false))
+    await act(async () => { addIndicator('williamsR') })
+    await waitFor(() => expect(H.posts).toHaveLength(1))
+    expect(settingsOf(H).indicators.williamsR.enabled).toBe(true)
+  })
+
+  it('volumeProfile reaches the chart too — it has no definition, so it takes the OTHER lane', async () => {
+    // `setIndicatorEnabled` returns its input BY IDENTITY for an id the registry
+    // does not know, so routing this through the engine writer would be a silent
+    // no-op — the exact bug being fixed, one layer down.
+    const H = mountBus()
+    await waitFor(() => expect(H.result.current.loading).toBe(false))
+    await act(async () => { addIndicator('volumeProfile') })
+    await waitFor(() => expect(H.posts).toHaveLength(1))
+    expect(settingsOf(H).indicators.volumeProfile.enabled).toBe(true)
+  })
+
+  it('an alias the chart cannot honour is REFUSED at the listener — nothing is written at all', async () => {
+    const SEED = JSON.stringify({ indicators: { rsi: { enabled: true } } })
+    const H = mountBus({ chart_settings: SEED })
+    await waitFor(() => expect(H.result.current.loading).toBe(false))
+
+    expect(addIndicator('avwap'), 'a valid thing to say').toBe('avwap')
+    await act(async () => { addIndicator('ma9'); addIndicator('ema20') })
+
+    // BY IDENTITY: the stored blob is the same string object it started as.
+    expect(H.result.current.prefs.chart_settings).toBe(SEED)
+    expect(H.posts, 'a refused alias must not cost a request').toEqual([])
+  })
+
+  it('unsubscribes on unmount — a listener per remount is a leak, and it would double every write', async () => {
+    const H = mountBus()
+    await waitFor(() => expect(H.result.current.loading).toBe(false))
+    const removed = []
+    const realRemove = window.removeEventListener.bind(window)
+    vi.spyOn(window, 'removeEventListener').mockImplementation((n, f, o) => {
+      removed.push(n); return realRemove(n, f, o)
+    })
+
+    H.unmount()
+    expect(removed).toContain(CHART_BUS_EVENTS.ADD_INDICATOR)
+
+    // …and behaviourally: the torn-down listener does not still write.
+    const before = H.posts.length
+    await act(async () => { addIndicator('ATR') })
+    expect(H.posts.length).toBe(before)
+  })
+})
+
+// ─── THE RAIL THAT WAS RED AT d2733adc ──────────────────────────────────────
+
+const ROOT = (() => {
+  let dir = process.cwd()
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(dir, 'app', 'src', 'components', 'StockChart.jsx'))) return dir
+    const up = path.dirname(dir)
+    if (up === dir) break
+    dir = up
+  }
+  throw new Error(`chartBus rail: could not find the repo root from ${process.cwd()}`)
+})()
+
+describe('the bus has a SHIPPED subscriber, AND something shipped mounts it', () => {
+  /** ⚠️ COMMENTS OUT FIRST, AND IT IS LOAD-BEARING — MEASURED.
+   *
+   *  Both modules involved EXPLAIN in prose that `subscribeAll` had no call site,
+   *  and `GlobalVoiceLayer.jsx` carries a six-line note directly above the mount.
+   *  Without this, `// useChartIndicatorBus()` still matches and the rail reports
+   *  a mounted listener for a commented-out one — the mutation that does exactly
+   *  that SURVIVED the first run of this gauntlet. */
+  const stripComments = (src) => src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+  /** Every non-test module under `app/src` whose LIVE CODE matches a shape. */
+  const matching = (re) => {
+    const out = []
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === 'node_modules') continue
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) { walk(p); continue }
+        if (!/\.jsx?$/.test(e.name)) continue
+        if (e.name.includes('.test.') || p.includes(`${path.sep}__tests__${path.sep}`)) continue
+        if (re.test(stripComments(fs.readFileSync(p, 'utf8')))) {
+          out.push(path.relative(ROOT, p).split(path.sep).join('/'))
+        }
+      }
+    }
+    walk(path.join(ROOT, 'app', 'src'))
+    return out.sort()
+  }
+
+  it('the probe reads CODE, not prose — proven both ways before anything below is believed', () => {
+    const LIVE = 'function X() {\n  useChartIndicatorBus()\n}'
+    const DEAD = 'function X() {\n  // useChartIndicatorBus()\n}'
+    const BLOCK = '/* mounted via useChartIndicatorBus() somewhere else */'
+    const RE = /useChartIndicatorBus\(\)/
+    expect(RE.test(stripComments(LIVE)), 'the probe cannot see a real call').toBe(true)
+    expect(RE.test(stripComments(DEAD)), 'a commented-out mount reads as mounted').toBe(false)
+    expect(RE.test(stripComments(BLOCK)), 'a block comment reads as mounted').toBe(false)
+    // …and a URL in a string must survive the stripper, or every file goes blank.
+    expect(stripComments("const u = 'https://x.dev/a'")).toContain('https://x.dev/a')
+  })
+
+  // `chartBus.js` DEFINES these; defining is not subscribing.
+  const subscribers = () => matching(/subscribeIndicatorAdds\(\s*\(|subscribeAll\(\s*\{/)
+    .filter(f => f !== 'app/src/utils/chartBus.js')
+  const mounters = () => matching(/useChartIndicatorBus\(\)/)
+    .filter(f => f !== 'app/src/hooks/useChartIndicatorBus.js')
+
+  it('⭐ something in the shipped tree actually SUBSCRIBES — at d2733adc nothing did', () => {
+    // ONE OF THE TWO GATES THAT FAIL ON TODAY'S CODE. `subscribeAll` had zero
+    // call sites in `app/src`, so `addIndicator()` emitted into the void while
+    // `voice_client_action_tools.add_chart_indicator` had already answered
+    // `{"ok": true, "narration": "Adding <x>."}`.
+    expect(subscribers(),
+      'nothing in the shipped tree subscribes to the chart bus. `addIndicator()` emits an event ' +
+      'nobody hears, and the server has ALREADY told the user "Adding <x>." — so the assistant ' +
+      'reports success and the chart does not move.',
+    ).toEqual(['app/src/hooks/useChartIndicatorBus.js'])
+  })
+
+  it('⭐ …and something shipped MOUNTS it — a hook nobody calls is exactly as dead as the bus was', () => {
+    // THE SECOND HALF, AND THE ONE A WELL-TESTED MODULE CANNOT FAKE. Every other
+    // case in this file passes against a subscriber that is never mounted.
+    //
+    // EXACTLY ONE mount: sixteen grid cells each subscribing would be sixteen
+    // writers racing on one preference for one spoken sentence. A second mount
+    // has to be argued for HERE.
+    expect(mounters(),
+      'the chart-bus listener is defined and never mounted (or mounted twice). One mount, in the ' +
+      'paid-only voice layer, which is exactly where the emitter can fire.',
+    ).toEqual(['app/src/components/voice/GlobalVoiceLayer.jsx'])
+  })
+})

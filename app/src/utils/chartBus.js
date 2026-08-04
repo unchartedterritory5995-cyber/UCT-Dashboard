@@ -2,14 +2,40 @@
  * Global chart-state event bus.
  *
  * Voice tools (open_ticker, change_chart_timeframe, etc.) dispatch
- * CustomEvents on `window`. Chart-bearing pages (ThemeTrackerPage,
- * Watchlists, Screener, Breadth DrillModal, TickerPopup) subscribe via
- * useChartBus(handler) and react accordingly.
+ * CustomEvents on `window`, and subscribers react.
  *
  * Why an event bus and not a context: chart instances are scattered across
  * many pages with their own state. A bus lets the voice layer fire events
  * without knowing which page is mounted, and any subscriber can listen.
+ *
+ * ⚠️ THIS HEADER USED TO SAY "Chart-bearing pages (ThemeTrackerPage, Watchlists,
+ * Screener, Breadth DrillModal, TickerPopup) subscribe via useChartBus(handler)".
+ * NONE of them did, and there is no `useChartBus` in this tree — the sentence was
+ * a design intention that never shipped, and it read for two phases as a
+ * description of working code. It is corrected rather than deleted, because a
+ * premise that quietly stops being true (or never was) is what the rail at the
+ * bottom of `chartBus.test.jsx` now measures instead of asserting in prose.
+ * TODAY: `ADD_INDICATOR` has exactly one subscriber, `useChartIndicatorBus`;
+ * OPEN_TICKER, CHANGE_TIMEFRAME and CHANGE_TYPE still have NONE.
+ *
+ * ─── 🐛 THE ADD-INDICATOR HALF WAS DEAD, AND IT WAS MEASURED, NOT ASSUMED ───
+ *
+ * `subscribeAll` had `onIndicator` and NO CALL SITE ANYWHERE IN `app/src`. So
+ * `addIndicator()` dispatched into the void, while the SERVER
+ * (`voice_client_action_tools.add_chart_indicator`) had already answered
+ * `{"ok": true, "narration": "Adding atr."}` before the browser ever looked at
+ * it. The user heard Compass say it added the indicator and the chart did not
+ * move — and the allow-list it was checked against carried `ma9`/`ema20`/`avwap`
+ * and refused `atr`, `sar`, `ichimoku`, `donchian`, `adx`, `obv`, `mfi`, `cci`,
+ * `williamsR`, `stoch` and `volumeProfile` outright.
+ *
+ * B4 Task 11 fixes both halves: the list is DERIVED from `indicatorCatalog`, and
+ * `subscribeIndicatorAdds` is the listener that had never existed. It is mounted
+ * ONCE, in `components/voice/GlobalVoiceLayer.jsx` — see `useChartIndicatorBus`
+ * for why there and not per chart.
  */
+
+import { catalogRows } from '../components/chart/indicatorCatalog'
 
 export const CHART_BUS_EVENTS = Object.freeze({
   OPEN_TICKER: 'uct:chart:open-ticker',
@@ -19,10 +45,41 @@ export const CHART_BUS_EVENTS = Object.freeze({
 })
 
 const ALLOWED_TIMEFRAMES = new Set(['1m', '5m', '15m', '30m', '60m', '1h', 'D', 'W', 'M'])
-const ALLOWED_INDICATORS = new Set([
-  'vwap', 'avwap', 'ma9', 'ma20', 'ma50', 'ma200',
-  'ema9', 'ema20', 'ema50', 'rsi', 'macd', 'bb',
+
+/** Overlay slots and the anchored-VWAP DRAWING TOOL. Neither is a definition,
+ *  and neither is an oversight — an MA overlay's identity is POSITIONAL (slot 0
+ *  IS "the 9 EMA" to every blob ever written, and the definition registry has no
+ *  concept of a slot), and AVWAP is a drawing, placed by clicking an anchor bar.
+ *  They are NAMED here rather than silently tolerated, so a ninth has to be
+ *  argued for instead of joining a quiet exemption.
+ *
+ *  ⚠️ THE BUS ACCEPTS THEM AND THE CHART CANNOT HONOUR THEM. That is deliberate:
+ *  they are valid things to SAY, and the listener refuses them by name rather
+ *  than the emitter pretending they were never uttered. */
+const NON_DEFINITION_ALIASES = Object.freeze([
+  'avwap', 'ma9', 'ma20', 'ma50', 'ma200', 'ema9', 'ema20', 'ema50',
 ])
+
+/** Lower-cased id → catalog row.
+ *
+ *  ⚠️ LOWER-CASED ON BOTH SIDES, AND THAT IS THE WHOLE POINT. `addIndicator`
+ *  normalises with `.toLowerCase()`, so `williamsR` arrives as `williamsr` and
+ *  `volumeProfile` as `volumeprofile`. A lookup by `row.id === indicator` would
+ *  refuse exactly those two and nothing else — a bug that looks like nine
+ *  working indicators. */
+function lowerIndex(registry) {
+  return new Map(catalogRows(registry).map(r => [r.id.toLowerCase(), r]))
+}
+
+/** What `addIndicator` accepts, split by WHY it is accepted. Exported so the
+ *  test can assert the derivation instead of a hand-copied list. */
+export function allowedIndicatorNames(registry) {
+  return {
+    indicators: catalogRows(registry).map(r => r.id.toLowerCase()),
+    aliases: [...NON_DEFINITION_ALIASES],
+  }
+}
+
 const ALLOWED_CHART_TYPES = new Set(['candles', 'hollow', 'bars', 'line', 'area'])
 
 function emit(name, detail) {
@@ -61,9 +118,10 @@ export function changeTimeframe(tf) {
   return resolved
 }
 
-export function addIndicator(name) {
+export function addIndicator(name, registry) {
   const normalized = String(name || '').trim().toLowerCase().replace(/\s+/g, '')
-  if (!ALLOWED_INDICATORS.has(normalized)) return false
+  const { indicators, aliases } = allowedIndicatorNames(registry)
+  if (!indicators.includes(normalized) && !aliases.includes(normalized)) return false
   emit(CHART_BUS_EVENTS.ADD_INDICATOR, { indicator: normalized })
   return normalized
 }
@@ -110,4 +168,33 @@ export function subscribeAll(handlers) {
   return () => {
     map.forEach(([name, fn]) => window.removeEventListener(name, fn))
   }
+}
+
+/**
+ * ⭐ THE OTHER HALF — the one that had never existed.
+ *
+ * Resolves an `add-indicator` payload to a CATALOG ROW and hands it to the
+ * caller. Everything about WHICH indicator lives here; everything about HOW a
+ * chart stores it lives in `hooks/useChartIndicatorBus.js`, so the routing rule
+ * is not duplicated into the bus.
+ *
+ * A payload that resolves to no row is one of `NON_DEFINITION_ALIASES` — a
+ * positional MA slot or the AVWAP drawing tool. Those are REFUSED here, by name,
+ * rather than passed on to a writer that would return its input unchanged and
+ * leave "was that honoured?" unanswerable.
+ *
+ * @param {(row: object) => void} onRow  called with the resolved catalog row
+ * @param {object} [registry]            definition registry (defaults to native)
+ * @returns {() => void} unsubscribe — CALL IT. A listener per remount is the
+ *   class `lesson_teardown_must_undo_what_setup_created` names.
+ */
+export function subscribeIndicatorAdds(onRow, registry) {
+  const index = lowerIndex(registry)
+  return subscribeAll({
+    onIndicator: (detail) => {
+      const row = index.get(String((detail && detail.indicator) || '').toLowerCase())
+      if (!row) return
+      onRow(row)
+    },
+  })
 }
