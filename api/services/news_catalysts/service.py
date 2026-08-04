@@ -28,7 +28,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v4"   # v4 = Perplexity returns structured catalysts directly
+HIST_PERIOD = "ytd2026_v5"   # v5 = real event dates (no move-anchoring) + per-catalyst links
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -58,15 +58,44 @@ def _web_enabled() -> bool:
     return os.environ.get("NEWS_WEB_SEARCH_ENABLED", "1") == "1"
 
 
+_CITE_MARK = re.compile(r"\[(\d+)\]")
+
+
+def _strip_cites(text):
+    """Remove Perplexity's inline [N] citation markers + tidy whitespace."""
+    if not text:
+        return text
+    t = _CITE_MARK.sub("", text)
+    return re.sub(r"\s{2,}", " ", t).replace(" .", ".").strip()
+
+
+def _pick_citation(desc, citations):
+    """Map a catalyst's own [N] markers → its specific source url (not a global one)."""
+    if not citations:
+        return None
+    for m in _CITE_MARK.finditer(desc or ""):
+        idx = int(m.group(1)) - 1
+        if 0 <= idx < len(citations):
+            return citations[idx]
+    return None
+
+
+def _looks_like_earnings(title, desc):
+    """Earnings reports are covered by the real FMP earnings layer — exclude them
+    from the web catalysts (avoids duplicates AND hallucinated 'Q2 beat' events)."""
+    blob = f" {title or ''} {desc or ''} ".lower()
+    return ("earnings" in blob or " eps " in blob
+            or "quarterly result" in blob or "quarterly report" in blob)
+
+
 def _web_catalysts(sym, company, bars, movers):
     """Perplexity → structured JSON of REAL, web-sourced 2026 catalysts.
 
     Perplexity IS web-grounded, so it directly knows the actual events + dates
-    (NBIS's Meta hyperscaler deal / NVIDIA investment / Eigen AI acquisition;
-    META's Jul-2026 'excess AI compute cloud' headline). We ask it for JSON
-    directly — NOT via a second model, which (being pre-cutoff) would over-omit
-    these as 'unverifiable'. Snap each date to a real trading day + take the % move
-    from the bar. Returns (items, top_citation_url) or (None, None)."""
+    (NBIS's Meta/NVIDIA/Eigen deals; META's excess-compute cloud headline). We ask
+    it for JSON directly — NOT via a second, pre-cutoff model that would over-omit.
+    CRITICAL: date each event to when it ACTUALLY happened (do NOT anchor to the
+    stock's move-days — that mis-dates catalysts). Returns (items, None)."""
     if not _web_enabled():
         return None, None
     try:
@@ -74,28 +103,29 @@ def _web_catalysts(sym, company, bars, movers):
     except Exception:
         return None, None
     label = f"{sym} ({company}) stock" if company else f"{sym} stock"
-    movers_txt = ", ".join(
-        f"{m['date']} ({'+' if m['pct'] >= 0 else ''}{m['pct']}%)" for m in (movers or [])[:14]
-    )
     query = (
         f"Search the web for the most significant COMPANY-SPECIFIC catalysts and news events for "
-        f"{label} during 2026 (Jan 1 to today). Cover: major customer/partner/contract deals, "
+        f"{label} during 2026 (January 1 to today). Cover: major customer/partner/contract deals, "
         f"strategic investments or funding rounds, mergers & acquisitions, notable institutional "
         f"stake disclosures, product/platform launches, regulatory or FDA events, analyst rating "
-        f"or price-target changes, guidance updates, and earnings surprises. These were the "
-        f"biggest single-day move dates — be sure to explain what drove each: {movers_txt}.\n\n"
+        f"or price-target changes, and standalone guidance updates. "
+        f"Do NOT include quarterly or annual EARNINGS reports/results — those are shown "
+        f"separately.\n\n"
         f"Return ONLY a JSON object (no prose, no markdown fences):\n"
         f'{{"catalysts": [{{"date": "YYYY-MM-DD", "title": "<3-7 word headline>", '
         f'"description": "<one factual sentence with the specifics>", "direction": "up" or "down"}}]}}\n'
-        f"Include up to {_MAX_HIST_ITEMS} of the most impactful, most recent first. Use the REAL "
-        f"date each event occurred. Only real, verifiable, company-specific events with a clear "
-        f"source — no macro/market-wide items, no price targets, no advice."
+        f"Include up to {_MAX_HIST_ITEMS} of the most impactful, most recent first. "
+        f"CRITICAL: `date` MUST be the REAL date the event actually happened or was announced "
+        f"(the article/press-release date) — NOT a later date the stock moved. Verify each date "
+        f"against its source. Only real, verifiable, company-specific events — no macro/market-"
+        f"wide items, no price targets, no advice."
     )
     system = ("You are a financial news researcher. Search the web and output ONLY the requested "
-              "JSON of real, sourced, company-specific stock catalysts with accurate dates. No "
-              "preamble, no markdown, no commentary.")
+              "JSON of real, sourced, company-specific stock catalysts. Every date must be the "
+              "ACTUAL date the event occurred, verified against its source. No preamble, no "
+              "markdown, no commentary.")
     try:
-        res = perplexity_search.web_search(query, max_tokens=1500, system=system,
+        res = perplexity_search.web_search(query, max_tokens=1600, system=system,
                                            mode="fast", domain_pack="finance")
     except Exception as exc:
         _logger.warning("news_catalysts web catalysts failed for %s: %s", sym, exc)
@@ -111,7 +141,6 @@ def _web_catalysts(sym, company, bars, movers):
     except Exception:
         return None, None
     citations = res.get("citations") or []
-    top_url = citations[0] if citations else None
 
     trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
     day_set = set(trading_days)
@@ -120,10 +149,15 @@ def _web_catalysts(sym, company, bars, movers):
     items = []
     for i, it in enumerate(raw[:_MAX_HIST_ITEMS]):
         title = (it.get("title") or "").strip()
-        if not title or significant_catalysts._is_uncertain(title, it.get("description")):
+        raw_desc = (it.get("description") or "").strip()
+        if not title or significant_catalysts._is_uncertain(title, raw_desc):
             continue
+        if _looks_like_earnings(title, raw_desc):
+            continue
+        # Snap the REAL date to the nearest trading day (tight window — a real event
+        # date should already be a session or within a day or two of one).
         d = significant_catalysts.snap_trading_day(
-            str(it.get("date") or "").strip()[:10], trading_days, day_set, lo=YTD_LO, hi=hi)
+            str(it.get("date") or "").strip()[:10], trading_days, day_set, lo=YTD_LO, hi=hi, max_gap=3)
         if not d:
             continue
         mp = None
@@ -137,12 +171,12 @@ def _web_catalysts(sym, company, bars, movers):
         if direction not in ("up", "down"):
             direction = "up"
         items.append({
-            "date": d, "title": title[:90],
-            "description": ((it.get("description") or "").strip()[:400]) or None,
+            "date": d, "title": _strip_cites(title)[:90],
+            "description": (_strip_cites(raw_desc)[:400]) or None,
             "move_pct": mp, "direction": direction, "sort_order": i,
-            "source": "web", "url": top_url,
+            "source": "web", "url": _pick_citation(raw_desc, citations),   # per-catalyst source
         })
-    return (items or None), top_url
+    return (items or None), None
 
 
 # ── Breaking-tweet helpers: headline split, relevance filter, near-dup dedup ──
@@ -484,8 +518,7 @@ def _generate_and_store(sym: str) -> None:
         # PRIMARY: Perplexity web search returns the REAL catalysts directly (it knows
         # the actual 2026 events). FALLBACK: from-memory generation when Perplexity is
         # unavailable (produces less — the model is pre-cutoff).
-        movers = significant_catalysts.rank_big_move_days(bars, top_n=_HIST_TOP_N, direction="both")
-        items, _cite = _web_catalysts(sym, None, bars, movers)
+        items, _cite = _web_catalysts(sym, None, bars, None)
         if not items:
             gen = significant_catalysts.generate(
                 sym, None, bars, "2026 YTD", direction="both",

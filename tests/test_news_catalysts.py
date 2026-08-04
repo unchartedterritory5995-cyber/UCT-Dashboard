@@ -174,22 +174,42 @@ class TestWebGrounding:
     def test_web_catalysts_direct_json(self, monkeypatch):
         _mock_bars(monkeypatch)
         import api.services.perplexity_search as pplx
-        answer = ('Here you go: {"catalysts": [{"date": "2026-01-05", '
-                  '"title": "Meta hyperscaler deal", "description": "Signed a multi-year Meta '
-                  'cloud contract.", "direction": "up"}]}')
+        # Two catalysts citing DIFFERENT sources ([1] and [2]); markers get stripped
+        # from the displayed text and mapped to per-catalyst urls.
+        answer = ('Here you go: {"catalysts": ['
+                  '{"date": "2026-01-05", "title": "Meta hyperscaler deal", '
+                  '"description": "Signed a multi-year Meta cloud contract.[1]", "direction": "up"},'
+                  '{"date": "2026-01-06", "title": "Guidance cut", '
+                  '"description": "Trimmed its outlook.[2]", "direction": "down"}]}')
         monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {
             "answer": answer, "citations": ["https://finance.yahoo.com/x", "https://tikr.com/y"]})
         called = {"gen": 0}
         monkeypatch.setattr(significant_catalysts, "generate",
                             lambda *a, **k: called.__setitem__("gen", called["gen"] + 1) or [])
         service._generate_and_store("NBIS")
-        rows = store.get_catalysts("NBIS", service.HIST_PERIOD)
-        assert len(rows) == 1
-        assert rows[0]["title"] == "Meta hyperscaler deal"
-        assert rows[0]["source"] == "web"
-        assert rows[0]["url"] == "https://finance.yahoo.com/x"      # top citation
-        assert rows[0]["move_pct"] == 10.0                         # from the real 01-05 bar
-        assert called["gen"] == 0                                  # web path used; no from-memory call
+        rows = {r["title"]: r for r in store.get_catalysts("NBIS", service.HIST_PERIOD)}
+        assert rows["Meta hyperscaler deal"]["url"] == "https://finance.yahoo.com/x"   # [1]
+        assert rows["Guidance cut"]["url"] == "https://tikr.com/y"                       # [2] (per-catalyst!)
+        assert rows["Meta hyperscaler deal"]["description"] == "Signed a multi-year Meta cloud contract."  # [1] stripped
+        assert rows["Meta hyperscaler deal"]["source"] == "web"
+        assert rows["Meta hyperscaler deal"]["move_pct"] == 10.0                        # real 01-05 bar
+        assert called["gen"] == 0
+
+    def test_web_catalysts_excludes_earnings(self, monkeypatch):
+        import api.services.perplexity_search as pplx
+        answer = ('{"catalysts": ['
+                  '{"date": "2026-01-06", "title": "Q2 2026 earnings beat", "description": "Strong quarter.", "direction": "up"},'
+                  '{"date": "2026-01-05", "title": "Cloud partnership", "description": "New deal.", "direction": "up"}]}')
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": []})
+        items, _ = service._web_catalysts("NVDA", None, _BARS, None)
+        assert [it["title"] for it in items] == ["Cloud partnership"]   # fake/dup earnings excluded
+
+    def test_strip_and_pick_citation_helpers(self):
+        assert service._strip_cites("A deal.[12][17][9]") == "A deal."
+        cites = ["u0", "u1", "u2"]
+        assert service._pick_citation("text [2] more", cites) == "u1"   # 1-indexed
+        assert service._pick_citation("out of range [99]", cites) is None
+        assert service._pick_citation("no markers", cites) is None
 
     def test_falls_back_to_generate_when_web_empty(self, monkeypatch):
         _mock_bars(monkeypatch)

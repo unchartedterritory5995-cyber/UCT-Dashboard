@@ -68,7 +68,8 @@ def rank_big_move_days(bars: list, top_n: int = 12, direction: str = "up") -> li
 
 
 def snap_trading_day(d: str, trading_days: list, day_set: set, *,
-                     year: int | None = None, lo: str | None = None, hi: str | None = None) -> str | None:
+                     year: int | None = None, lo: str | None = None, hi: str | None = None,
+                     max_gap: int = 5) -> str | None:
     """Snap an LLM date to the nearest real trading day (≤5 days), so a marker
     always lands on an actual bar. Drops dates outside the year (Model Book) or
     outside an ISO lo/hi window (News widget's YTD range), or too far from any
@@ -96,7 +97,7 @@ def snap_trading_day(d: str, trading_days: list, day_set: set, *,
             continue
         if best_diff is None or diff < best_diff:
             best, best_diff = cand, diff
-    return best if (best is not None and best_diff is not None and best_diff <= 5) else None
+    return best if (best is not None and best_diff is not None and best_diff <= max_gap) else None
 
 
 def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items, grounding=None):
