@@ -193,16 +193,140 @@ def _bb_threshold_override(bars: list[dict], params: dict, condition: str) -> Op
 # Dispatch map: indicator → value function. The threshold override hook is
 # applied only for BB; for everything else the user-supplied threshold from
 # the alert row is used verbatim.
+# ⚠️ INSERTION ORDER IS THE DROPDOWN'S ORDER since B4 Task 9, and it is pinned.
+# These eight are re-ordered here to match the order the retired
+# `IndicatorAlertPopover.INDICATORS` literal shipped, so collapsing the twin
+# changes what a user sees by NOTHING. Dict order is irrelevant to the lookup
+# this map exists for, so nothing else depends on it.
 INDICATOR_FUNCS: dict[str, Callable[[list[dict], dict], Optional[float]]] = {
     "rsi": _value_rsi,
     "macd": _value_macd,
+    "bb": _value_bb,
     "stoch": _value_stoch,
     "williams_r": _value_williams_r,
     "cci": _value_cci,
     "mfi": _value_mfi,
     "price_vs_ma": _value_price_vs_ma,
-    "bb": _value_bb,
 }
+
+
+# ─── THE CATALOG — ONE AUTHORITY FOR "WHAT CAN BE ALERTED ON" ────────────────
+#
+# `IndicatorAlertPopover.jsx` used to hand-write INDICATORS (8 entries) and
+# CONDITIONS (a per-indicator map). They were a TWIN of the dict above, and they
+# already disagreed with reality: the create path validates nothing at any of its
+# three layers — the router types `indicator` as a bare `str`, the service
+# inserts it verbatim, the DDL is `TEXT NOT NULL` with no CHECK — so a `vwap`
+# alert can be STORED and can never FIRE (`_evaluate_one` returns `(None, False)`
+# on an `INDICATOR_FUNCS` miss), and no surface reported it.
+#
+# Deriving the dropdown from `INDICATOR_FUNCS` makes that OFFER unrepresentable.
+# It deliberately does NOT validate the create path: an existing stored row keeps
+# behaving exactly as it did (accepted, silently never firing), and closing that
+# hole belongs to the rebuild below, not to a dropdown change.
+#
+# ⛔ SPEC §8 REBUILDS THIS EVALUATOR IN PHASE C (closed-bar evaluation, `prev`
+# from the computed series, `last_value` demoted to delivery-dedup), and §9.5
+# forbids an eager port of the remaining natives. So `INDICATOR_FUNCS` stays
+# HAND-WRITTEN through B4 and its retirement is fated 'C' in the enumeration
+# ledger. What B4 removes is its TWIN, not the list.
+#
+# ⚠️ AND THE FIRES THESE PRODUCE ARE NOT LEDGER-GRADE. This evaluator reads the
+# FORMING bar with cycle-granularity crossings; nothing here may feed the
+# Signature receipts ledger until the closed-bar rebuild lands.
+
+_OSCILLATOR_CONDITIONS: list[dict] = [
+    {"value": "above",       "label": "Above threshold", "needs_threshold": True},
+    {"value": "below",       "label": "Below threshold", "needs_threshold": True},
+    {"value": "cross_above", "label": "Crosses above",   "needs_threshold": True},
+    {"value": "cross_below", "label": "Crosses below",   "needs_threshold": True},
+]
+
+# ⚠️ GROUPED BY SHAPE — the five oscillators that share one condition list, then
+# the three that do not — which is DELIBERATELY NOT `INDICATOR_FUNCS`' order.
+# That is what makes "which dict does `alert_catalog` iterate?" observable: the
+# two have identical KEY SETS by assertion, so iterating the wrong one is an
+# equivalent mutant on every set-based check and only the ORDER can see it.
+ALERT_CONDITIONS: dict[str, list[dict]] = {
+    "rsi": _OSCILLATOR_CONDITIONS,
+    "stoch": _OSCILLATOR_CONDITIONS,
+    "williams_r": _OSCILLATOR_CONDITIONS,
+    "cci": _OSCILLATOR_CONDITIONS,
+    "mfi": _OSCILLATOR_CONDITIONS,
+    # 🔴 TWO DELIBERATE CORRECTIONS TO THE RETIRED FRONTEND LITERAL, BOTH MEASURED.
+    #
+    # 1. `needs_threshold` is TRUE for both crosses. The B4 brief specified False.
+    #    It cannot be: `_value_macd` returns the MACD LINE, `_bb_threshold_override`
+    #    is the only dynamic threshold in this module and it is `bb`-only, and
+    #    `check_condition("cross_above", …)` returns False whenever `threshold is
+    #    None`. A False here would offer an alert that can never fire — the exact
+    #    `vwap` class this task exists to close, re-opened inside the fix.
+    # 2. The LABEL says "level", not "signal". The retired popover collected a
+    #    threshold for these two (its `THRESHOLD_CONDITIONS` was keyed on the
+    #    CONDITION, not on indicator+condition), so the shipped behaviour has
+    #    always been "MACD crosses the number you typed" while the shipped label
+    #    said "signal". The naming authority may not carry that lie. Comparing
+    #    against the signal LINE would need a macd threshold override, which is a
+    #    change to the evaluation lane — spec §8's, in Phase C.
+    "macd": [
+        {"value": "cross_above", "label": "Crosses above level", "needs_threshold": True},
+        {"value": "cross_below", "label": "Crosses below level", "needs_threshold": True},
+        {"value": "cross_zero",  "label": "Crosses zero line",   "needs_threshold": False},
+    ],
+    "bb": [
+        {"value": "touch_upper", "label": "Price touches upper band", "needs_threshold": False},
+        {"value": "touch_lower", "label": "Price touches lower band", "needs_threshold": False},
+    ],
+    "price_vs_ma": [
+        {"value": "above", "label": "Price above MA", "needs_threshold": True},
+        {"value": "below", "label": "Price below MA", "needs_threshold": True},
+    ],
+}
+
+# ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
+# names of the compute functions above — not chart definition ids. `williams_r`
+# is `williamsR` there, and `price_vs_ma` has no definition at ALL: it is a
+# spread (close − MA) this module synthesises. Mapping one onto the other would
+# be a lookup that lies for two of the eight.
+ALERT_LABELS: dict[str, str] = {
+    "rsi": "RSI",
+    "macd": "MACD",
+    "bb": "Bollinger Bands",
+    "stoch": "Stochastic",
+    "williams_r": "Williams %R",
+    "cci": "CCI",
+    "mfi": "MFI",
+    "price_vs_ma": "Price vs MA",
+}
+
+_DEFAULT_THRESHOLDS: dict[str, float] = {
+    "rsi": 70.0,
+    "mfi": 70.0,
+    "williams_r": -20.0,
+    "cci": 100.0,
+    "stoch": 80.0,
+}
+
+
+def alert_catalog() -> list[dict]:
+    """What the alert dropdown may offer.
+
+    Keyed off ``INDICATOR_FUNCS``, so an entry cannot exist for something that
+    cannot be evaluated. Raises ``KeyError`` on a value function with no
+    condition list — a ninth indicator has to fail HERE rather than render an
+    empty second dropdown and an un-submittable form.
+    """
+    return [
+        {
+            "indicator": key,
+            "label": ALERT_LABELS.get(key, key),
+            # A COPY of the list: five keys share `_OSCILLATOR_CONDITIONS`, so a
+            # consumer that mutated what it was handed would edit five entries.
+            "conditions": list(ALERT_CONDITIONS[key]),
+            "default_threshold": _DEFAULT_THRESHOLDS.get(key),
+        }
+        for key in INDICATOR_FUNCS
+    ]
 
 
 # ─── bar fetch ───────────────────────────────────────────────────────────────

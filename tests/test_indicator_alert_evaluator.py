@@ -187,3 +187,179 @@ def test_evaluate_one_empty_bars_returns_none():
     value, triggered = evaluator._evaluate_one(alert, bars=[])
     assert value is None
     assert triggered is False
+
+
+# ─── THE CATALOG — the dropdown's twin, collapsed (B4 Task 9) ────────────────
+#
+# `IndicatorAlertPopover.jsx` used to hand-write INDICATORS (8 entries) and
+# CONDITIONS (a per-indicator map). They were a TWIN of `INDICATOR_FUNCS` and
+# they already disagreed with reality: the create path validates nothing at any
+# of its three layers (the router types `indicator` as a bare `str`, the service
+# inserts it verbatim, the DDL is `TEXT NOT NULL` with no CHECK), so a `vwap`
+# alert can be STORED and can never FIRE — `_evaluate_one` returns (None, False)
+# on an `INDICATOR_FUNCS` miss, and no surface reports it.
+#
+# Deriving the catalog from the dict is what makes the OFFER unrepresentable.
+# It does not, and is not meant to, validate the create path: spec §8 rebuilds
+# this evaluator in Phase C and §9.5 forbids an eager port, so `INDICATOR_FUNCS`
+# stays hand-written and is fated 'C' in the enumeration ledger.
+
+
+def _implemented_conditions() -> set[str]:
+    """Which condition strings `check_condition` can actually answer YES to.
+
+    ⚠️ DERIVED BY PROBE, NEVER HAND-WRITTEN. A literal list here would be a
+    third copy of the same vocabulary — exactly the twin this task retires —
+    and it would agree with `ALERT_CONDITIONS` by construction instead of by
+    evidence. `check_condition` returns False for an unknown condition, so a
+    condition that fires for SOME input is one the evaluator implements.
+    """
+    probes = [
+        # (current, prev, threshold)
+        (10.0, None, 5.0),    # above, touch_upper
+        (1.0, None, 5.0),     # below, touch_lower
+        (10.0, 1.0, 5.0),     # cross_above
+        (1.0, 10.0, 5.0),     # cross_below
+        (1.0, -1.0, None),    # cross_zero (up)
+        (-1.0, 1.0, None),    # cross_zero (down)
+    ]
+
+    def fires(cond: str) -> bool:
+        return any(check_condition(cond, c, p, t) for c, p, t in probes)
+
+    offered = {c["value"] for e in evaluator.alert_catalog() for c in e["conditions"]}
+    return {c for c in offered if fires(c)}
+
+
+def test_catalog_offers_exactly_what_can_be_evaluated():
+    from api.services.indicator_alert_evaluator import INDICATOR_FUNCS, alert_catalog
+
+    assert {e["indicator"] for e in alert_catalog()} == set(INDICATOR_FUNCS)
+
+
+def test_every_catalog_condition_is_one_the_evaluator_implements():
+    implemented = _implemented_conditions()
+    for entry in evaluator.alert_catalog():
+        for cond in entry["conditions"]:
+            assert cond["value"] in implemented, (
+                f'{entry["indicator"]}/{cond["value"]} is offered and not implemented'
+            )
+
+
+def test_the_implemented_probe_is_not_vacuous():
+    """A probe grid that fires for everything would make the test above pass on
+    a condition the evaluator has never heard of."""
+    assert _implemented_conditions(), "the probe found nothing — the grid is broken"
+    assert not any(
+        check_condition("no_such_condition", c, p, t)
+        for c, p, t in [(10.0, 1.0, 5.0), (1.0, 10.0, 5.0), (1.0, -1.0, None)]
+    )
+
+
+def test_catalog_labels_are_not_ids():
+    """A dropdown showing `williams_r` is a dropdown that leaked a key."""
+    for e in evaluator.alert_catalog():
+        assert e["label"] != e["indicator"]
+        assert e["label"].strip()
+
+
+def test_every_catalog_entry_offers_at_least_one_condition():
+    """An indicator with no conditions renders an empty second dropdown and an
+    un-submittable form."""
+    for e in evaluator.alert_catalog():
+        assert e["conditions"], f'{e["indicator"]} offers no condition'
+
+
+def test_adding_a_value_function_without_a_condition_list_fails_loudly():
+    """A ninth indicator with no conditions has to fail HERE, at the catalog,
+    not in a second dropdown that renders empty."""
+    assert set(evaluator.INDICATOR_FUNCS) <= set(evaluator.ALERT_CONDITIONS)
+    assert set(evaluator.ALERT_CONDITIONS) <= set(evaluator.INDICATOR_FUNCS)
+
+
+def test_needs_threshold_is_declared_per_condition_not_guessed():
+    """The popover used to keep its own THRESHOLD_CONDITIONS set. The served
+    entry carries the flag, and a threshold-taking condition must declare it."""
+    threshold_taking = {"above", "below", "cross_above", "cross_below"}
+    for e in evaluator.alert_catalog():
+        for c in e["conditions"]:
+            assert isinstance(c["needs_threshold"], bool)
+            assert c["needs_threshold"] is (c["value"] in threshold_taking), (
+                f'{e["indicator"]}/{c["value"]} declares the wrong threshold need'
+            )
+
+
+def test_a_vwap_alert_is_not_offered_although_it_can_still_be_stored():
+    """The exact defect, both halves, so neither can be quietly re-opened.
+
+    `vwap` is not offered (the dropdown cannot create one) AND it is still
+    accepted by `_evaluate_one` as a silent no-op — the create path is NOT
+    validated by this change, and Phase C owns that.
+    """
+    assert "vwap" not in {e["indicator"] for e in evaluator.alert_catalog()}
+    value, triggered = evaluator._evaluate_one(
+        {
+            "id": 99, "user_id": 1, "sym": "TEST", "indicator": "vwap",
+            "condition": "above", "threshold": 1.0, "tf": "D",
+            "params_json": None, "last_value": None,
+        },
+        bars=_ramp_bars(60),
+    )
+    assert (value, triggered) == (None, False)
+
+
+# ─── the served route (B4 Task 9) ────────────────────────────────────────────
+
+def test_catalog_route_is_registered_and_auth_gated():
+    """A route that is not mounted answers 200 SPA HTML, not 404, so 'the
+    endpoint works' has to be checked against the ROUTE TABLE, not a request.
+
+    ⚠️ INTROSPECTED, NEVER PROBED. `lesson_never_probe_a_mutating_endpoint_to_test_auth`:
+    the dependency is read off `route.dependant` rather than by issuing a request.
+    """
+    from api.routers import indicator_alerts as router_mod
+    from api.middleware.auth_middleware import get_current_user
+
+    routes = [
+        r for r in router_mod.router.routes
+        if getattr(r, "path", None) == "/api/indicator-alerts/catalog"
+    ]
+    assert len(routes) == 1, "the catalog route is not mounted exactly once"
+    route = routes[0]
+    assert "GET" in route.methods
+    deps = [d.call for d in route.dependant.dependencies]
+    assert get_current_user in deps, "the catalog is an enumeration of internals — gate it"
+    assert route.endpoint() == {"catalog": evaluator.alert_catalog()}
+
+
+def test_the_catalog_route_is_declared_before_any_id_route_that_could_swallow_it():
+    """`/catalog` would be parsed as an `alert_id` by a `GET /{alert_id}`
+    declared above it. There is no such route today; this fails if one is added
+    in front of it rather than after."""
+    from api.routers import indicator_alerts as router_mod
+
+    paths = [getattr(r, "path", "") for r in router_mod.router.routes]
+    catalog_at = paths.index("/api/indicator-alerts/catalog")
+    for i, r in enumerate(router_mod.router.routes):
+        path = getattr(r, "path", "")
+        if i < catalog_at and "{alert_id}" in path and "GET" in getattr(r, "methods", set()):
+            raise AssertionError(f"{path} is declared before /catalog and will swallow it")
+
+
+def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
+    """The catalog's order IS the order of the `<select>`.
+
+    Pinned against the order the RETIRED `IndicatorAlertPopover.INDICATORS`
+    literal shipped, so collapsing the twin moved nothing a user sees. It is
+    also the only observable difference between `INDICATOR_FUNCS` and
+    `ALERT_CONDITIONS` — their key SETS are asserted equal above, so a catalog
+    built by iterating the wrong dict is invisible to every set comparison and
+    visible only here.
+    """
+    assert [e["indicator"] for e in evaluator.alert_catalog()] == [
+        "rsi", "macd", "bb", "stoch", "williams_r", "cci", "mfi", "price_vs_ma",
+    ]
+    assert list(evaluator.ALERT_CONDITIONS) != list(evaluator.INDICATOR_FUNCS), (
+        "the two dicts fell into the same order — 'which one is iterated' just "
+        "became unobservable, and the mutation that swaps them is now equivalent"
+    )

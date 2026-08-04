@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user
 from api.services import indicator_alert_service as ias
+from api.services import indicator_alert_evaluator
 
 
 router = APIRouter(prefix="/api/indicator-alerts", tags=["indicator-alerts"])
@@ -31,6 +32,25 @@ class AlertCreate(BaseModel):
 @router.get("")
 def list_my_alerts(user: dict = Depends(get_current_user)):
     return {"alerts": ias.list_for_user(user["id"])}
+
+
+@router.get("/catalog")
+def get_alert_catalog(user: dict = Depends(get_current_user)):
+    """What the alert dropdown may offer.
+
+    Served by the module that EVALUATES, so the dropdown cannot offer an alert
+    that cannot fire — `IndicatorAlertPopover.jsx` used to hand-write its own
+    copy and the two had already drifted apart.
+
+    ⚠️ AUTH-GATED like every other endpoint on this router, deliberately: it is
+    an enumeration of internals, not public content. The popover only renders
+    for a signed-in user, so nothing is lost by gating it.
+
+    ⚠️ DECLARED BEFORE `/{alert_id}` would matter if a GET on that path existed.
+    It does not today (only DELETE and POST /{id}/toggle) — but keep this route
+    above any future `GET /{alert_id}` or `catalog` will be parsed as an id.
+    """
+    return {"catalog": indicator_alert_evaluator.alert_catalog()}
 
 
 @router.post("")

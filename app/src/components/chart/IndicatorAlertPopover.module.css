@@ -190,3 +190,22 @@
   color: var(--loss, #f55);
   border-color: rgba(255, 85, 85, 0.4);
 }
+
+/* The served catalog could not be fetched. The form stays mounted and
+   DISABLED rather than falling back to a hardcoded list — see the component
+   header for why a fallback here would be worse than an empty dropdown. */
+.catalogError {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--loss, #f55);
+  border: 1px solid rgba(255, 85, 85, 0.35);
+  background: rgba(255, 85, 85, 0.08);
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+/* A stored alert whose indicator the evaluator has no value function for. */
+.cannotFire {
+  color: var(--loss, #f55);
+}
