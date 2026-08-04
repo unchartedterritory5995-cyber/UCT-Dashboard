@@ -29,7 +29,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v6"   # v6 = every web catalyst has a clickable link + domain badge
+HIST_PERIOD = "ytd2026_v7"   # v7 = per-catalyst focused date verification (accurate dates)
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -111,6 +111,19 @@ def _looks_like_earnings(title, desc):
             or "quarterly result" in blob or "quarterly report" in blob)
 
 
+def _shorten(text, limit=240):
+    """Trim a long wire-tweet body to ~a couple sentences (the full text stays one
+    click away via the source link). Prefers a sentence end, else a word boundary."""
+    if not text or len(text) <= limit:
+        return text
+    cut = text[:limit]
+    dot = cut.rfind(". ")
+    if dot >= limit * 0.5:
+        return cut[:dot + 1]
+    sp = cut.rfind(" ")
+    return (cut[:sp] if sp > 0 else cut).rstrip(" ,;:-") + "…"
+
+
 def _web_catalysts(sym, company, bars, movers):
     """Perplexity → structured JSON of REAL, web-sourced 2026 catalysts.
 
@@ -165,26 +178,41 @@ def _web_catalysts(sym, company, bars, movers):
         return None, None
     citations = res.get("citations") or []
 
-    trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
-    day_set = set(trading_days)
-    bar_idx = _build_bar_index(bars)
-    hi = _today_iso()
-    items = []
-    for i, it in enumerate(raw[:_MAX_HIST_ITEMS]):
+    # Phase-1 preliminaries (titles/descriptions; the bulk call's dates are often
+    # sloppy — a focused per-catalyst query fixes them below).
+    prelim = []
+    for it in raw[:_MAX_HIST_ITEMS]:
         title = (it.get("title") or "").strip()
         raw_desc = (it.get("description") or "").strip()
         if not title or significant_catalysts._is_uncertain(title, raw_desc):
             continue
         if _looks_like_earnings(title, raw_desc):
             continue
-        # Snap the REAL date to the nearest trading day (tight window — a real event
-        # date should already be a session or within a day or two of one).
-        d = significant_catalysts.snap_trading_day(
-            str(it.get("date") or "").strip()[:10], trading_days, day_set, lo=YTD_LO, hi=hi, max_gap=3)
+        prelim.append({
+            "title": title, "raw_desc": raw_desc,
+            "rough_date": str(it.get("date") or "").strip()[:10],
+            "direction": (it.get("direction") or "").strip().lower(),
+        })
+    if not prelim:
+        return None, None
+
+    # Phase 2: verify each catalyst's REAL announcement date with a FOCUSED query
+    # (a single bulk request mis-dates; a targeted question is accurate — as the
+    # owner observed). Parallel + bounded.
+    verified = _verify_dates(sym, company, prelim)
+
+    trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
+    day_set = set(trading_days)
+    bar_idx = _build_bar_index(bars)
+    hi = _today_iso()
+    items = []
+    for i, p in enumerate(prelim):
+        real = verified[i] or p["rough_date"]
+        d = significant_catalysts.snap_trading_day(real, trading_days, day_set, lo=YTD_LO, hi=hi, max_gap=3)
         if not d:
             continue
         mp = None
-        direction = (it.get("direction") or "").strip().lower()
+        direction = p["direction"]
         bar = bar_idx.get(d)
         if bar and bar.get("c") is not None:
             base = bar.get("_prev_c") or bar.get("o")
@@ -193,15 +221,47 @@ def _web_catalysts(sym, company, bars, movers):
                 direction = "up" if mp >= 0 else "down"
         if direction not in ("up", "down"):
             direction = "up"
-        clean_title = _strip_cites(title)[:90]
-        src, url = _catalyst_link(raw_desc, citations, sym, clean_title)
+        clean_title = _strip_cites(p["title"])[:90]
+        src, url = _catalyst_link(p["raw_desc"], citations, sym, clean_title)
         items.append({
             "date": d, "title": clean_title,
-            "description": (_strip_cites(raw_desc)[:400]) or None,
+            "description": (_strip_cites(p["raw_desc"])[:400]) or None,
             "move_pct": mp, "direction": direction, "sort_order": i,
-            "source": src, "url": url,          # always clickable; badge = domain or 'web'
+            "source": src, "url": url,
         })
     return (items or None), None
+
+
+def _verify_dates(sym, company, prelim):
+    """Focused Perplexity query per catalyst → its exact YYYY-MM-DD announcement
+    date (returns None for that item on failure). Parallel, bounded. Gated by
+    NEWS_VERIFY_DATES (default on)."""
+    if os.environ.get("NEWS_VERIFY_DATES", "1") != "1":
+        return [None] * len(prelim)
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return [None] * len(prelim)
+    label = f"{sym} ({company})" if company else sym
+
+    def _one(p):
+        q = (f'On exactly what calendar date in 2026 was this first ANNOUNCED or reported for '
+             f'{label}: "{p["title"]}". {p["raw_desc"]} '
+             f'Answer with ONLY the announcement/press-release/article date in YYYY-MM-DD format '
+             f'— NOT a later date the stock moved. If you cannot determine it, answer NONE.')
+        try:
+            res = perplexity_search.web_search(q, max_tokens=100, mode="fast", domain_pack="finance")
+        except Exception:
+            return None
+        m = re.search(r"20\d\d-\d{2}-\d{2}", res.get("answer") or "")
+        return m.group(0) if m else None
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=5, thread_name_prefix="news-datever") as ex:
+            return list(ex.map(_one, prelim))
+    except Exception:
+        return [None] * len(prelim)
 
 
 # ── Breaking-tweet helpers: headline split, relevance filter, near-dup dedup ──
@@ -460,7 +520,7 @@ def _breaking_events(sym: str) -> list:
         ev = {
             "date": d, "type": "breaking", "direction": "neutral",
             "title": head or text,          # bold headline only — full body goes to `description`
-            "description": body,
+            "description": _shorten(body),  # cap giant wire dumps; full text via the source link
             "move_pct": None, "source": f"@{handle}", "url": t.get("url"), "ts": int(ts),
         }
         pairs.append((ev, _sig_words(text)))

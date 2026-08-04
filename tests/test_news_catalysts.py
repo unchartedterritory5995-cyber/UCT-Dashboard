@@ -20,6 +20,7 @@ def _tmp_db(tmp_path, monkeypatch):
         cache.invalidate(f"news_hist_{sym}")
         cache.invalidate(f"news_live_{sym}")
     monkeypatch.setenv("NEWS_CATALYSTS_ENABLED", "1")
+    monkeypatch.setenv("NEWS_VERIFY_DATES", "0")   # deterministic phase-1 dates unless a test opts in
     yield
 
 
@@ -238,6 +239,41 @@ class TestWebGrounding:
         items, url = service._web_catalysts("NVDA", None, _BARS, [])
         assert items is None and url is None
 
+    def test_verify_dates_focused_query(self, monkeypatch):
+        monkeypatch.setenv("NEWS_VERIFY_DATES", "1")
+        import api.services.perplexity_search as pplx
+        monkeypatch.setattr(pplx, "web_search", lambda q, *a, **k: {"answer": "It was announced on 2026-03-11."})
+        prelim = [{"title": "Nvidia investment", "raw_desc": "NVDA invested $2B.",
+                   "rough_date": "2026-03-03", "direction": "up"}]
+        assert service._verify_dates("NBIS", "Nebius", prelim) == ["2026-03-11"]
+
+    def test_verify_dates_disabled_returns_none(self, monkeypatch):
+        monkeypatch.setenv("NEWS_VERIFY_DATES", "0")
+        prelim = [{"title": "x", "raw_desc": "y", "rough_date": "2026-01-01", "direction": "up"}]
+        assert service._verify_dates("NBIS", None, prelim) == [None]
+
+    def test_web_catalysts_uses_verified_date_over_rough(self, monkeypatch):
+        monkeypatch.setenv("NEWS_VERIFY_DATES", "1")
+        bars = [
+            {"t": "2026-03-03", "o": 100.0, "c": 100.0},
+            {"t": "2026-03-10", "o": 100.0, "c": 100.0},
+            {"t": "2026-03-11", "o": 100.0, "c": 90.0},   # -10% on the REAL date
+        ]
+        import api.services.perplexity_search as pplx
+
+        def fake(q, *a, **k):
+            if "JSON" in q:   # phase-1 bulk list (rough date 03-03)
+                return {"answer": '{"catalysts": [{"date": "2026-03-03", "title": "Nvidia investment", '
+                                  '"description": "NVDA invested $2B.[1]", "direction": "up"}]}',
+                        "citations": ["https://nvidianews.nvidia.com/x"]}
+            return {"answer": "It was first announced on 2026-03-11."}   # phase-2 focused verify
+
+        monkeypatch.setattr(pplx, "web_search", fake)
+        items, _ = service._web_catalysts("NBIS", "Nebius", bars, None)
+        assert len(items) == 1
+        assert items[0]["date"] == "2026-03-11"          # verified date wins over the rough 03-03
+        assert items[0]["move_pct"] == -10.0             # move on the corrected date
+
     def test_web_catalysts_filters_uncertain_and_snaps(self, monkeypatch):
         import api.services.perplexity_search as pplx
         answer = ('{"catalysts": ['
@@ -283,6 +319,13 @@ class TestBreakingHelpers:
         # Pass late first (newest-first order) — dedup must still keep the earlier ts.
         kept = service._dedup_breaking([(late, service._sig_words(t2)), (early, service._sig_words(t1))])
         assert len(kept) == 1 and kept[0]["ts"] == 100
+
+    def test_shorten_caps_long_body(self):
+        short = "A brief update."
+        assert service._shorten(short) == short              # short bodies untouched
+        long = "First sentence here. " + ("word " * 100)
+        out = service._shorten(long, limit=60)
+        assert len(out) <= 62 and (out.endswith("…") or out.endswith("."))
 
     def test_dedup_keeps_distinct_stories(self):
         a = {"ts": 100, "type": "breaking"}
