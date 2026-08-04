@@ -69,6 +69,18 @@ describe('SectionRail', () => {
     expect(screen.getAllByRole('tab')[0]).toHaveAttribute('aria-controls', 'modal-panel-setup')
   })
 
+  it('drops aria-controls from non-active tabs (their panel is unmounted — GATE c)', () => {
+    // Review round 1, item 6: a consumer that unmounts inactive panels (P2's
+    // EarningsResearchModal) has no element at `{idPrefix}-panel-{id}` for a
+    // non-active tab — that aria-controls would dangle, pointing at nothing.
+    setup({ idPrefix: 'modal' })
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs[0]).toHaveAttribute('aria-controls', 'modal-panel-setup')
+    for (const tab of tabs.slice(1)) {
+      expect(tab).not.toHaveAttribute('aria-controls')
+    }
+  })
+
   it('selects on click', async () => {
     const { onSelect } = setup()
     await userEvent.click(screen.getByRole('tab', { name: 'Brief' }))

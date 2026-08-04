@@ -38,8 +38,6 @@ const PANELS = {
   call: CallSection,
 }
 
-const FOCUSABLE = 'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-
 const fmtEps = (v) => (v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`)
 
 /** The PRINTED/POST result line — pure data, never a claim (§4.2). */
@@ -61,6 +59,50 @@ function fmtLivePrice(live) {
   if (live.change_pct == null) return price
   const arrow = live.change_pct >= 0 ? '▲' : '▼'
   return `${price} ${arrow}${Math.abs(live.change_pct).toFixed(1)}%`
+}
+
+/** A grade input's weight as a percent, or an em dash when the weight itself
+ *  is unknown — `Math.round(null * 100)` is `0`, which would render a
+ *  confident "0%" for a factor that was never actually weighted at zero.
+ *  This phantom-zero trap has bitten seven tasks on this branch (review
+ *  round 1, item 5); guard it explicitly rather than trusting the arithmetic. */
+function fmtInputWeight(weight) {
+  return weight == null ? '—' : `${Math.round(weight * 100)}%`
+}
+
+/** The Setup Grade chip's info-tip breakdown text. `grade.inputs` is
+ *  contractually an array today (the mocked `useExpectedMove` in this suite's
+ *  own test always returns `grade: null`, so nothing exercises this branch
+ *  currently) but a cached older response or a future payload variant could
+ *  omit it — an unguarded `.map` there takes the WHOLE MODAL down (review
+ *  round 1, item 5), not just the chip. */
+function gradeBreakdownText(grade) {
+  const inputs = Array.isArray(grade?.inputs) ? grade.inputs : []
+  return `${SETUP_GRADE_INFO.text}\n${inputs
+    .map((i) => `${i.label} (${fmtInputWeight(i.weight)}): ${i.detail ?? 'unavailable'}`)
+    .join('\n')}`
+}
+
+const FOCUSABLE = 'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Pure: which two elements a Tab-trap should wrap focus between, given the
+ * container and the currently-focused element. Extracted from `onTrapKey` so
+ * the WRAP DECISION is unit-testable without a real browser layout engine —
+ * jsdom never computes layout, so `offsetParent` is always `null` and a naive
+ * DOM-level test can't tell a correct trap from a gutted one (review round 1,
+ * item 1). Visibility is approximated via `offsetParent`, with the currently
+ * active element always eligible (so at minimum the element that just
+ * received focus is trap-able even under jsdom's null-everywhere default).
+ * Returns `null` when there is nothing to trap between.
+ */
+export function resolveTrapTargets(container, activeElement) {
+  if (!container) return null
+  const items = [...container.querySelectorAll(FOCUSABLE)].filter(
+    (el) => el.offsetParent !== null || el === activeElement,
+  )
+  if (!items.length) return null
+  return { first: items[0], last: items[items.length - 1], items }
 }
 
 export default function EarningsResearchModal({
@@ -147,15 +189,27 @@ export default function EarningsResearchModal({
 
   const onTrapKey = useCallback((e) => {
     if (e.key !== 'Tab') return
-    const node = panelRef.current
-    if (!node) return
-    const items = [...node.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement)
-    if (!items.length) return
-    const first = items[0]
-    const last = items[items.length - 1]
+    const targets = resolveTrapTargets(panelRef.current, document.activeElement)
+    if (!targets) return
+    const { first, last } = targets
     if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
   }, [])
+
+  // ── Desktop body-scroll lock (review round 1, item 3). The phone branch
+  //    gets this for free from Sheet's own `lockScroll` (default true) — it
+  //    would be double-locked (and its restore value clobbered by ours) if we
+  //    ran this there too, so it is gated to the non-phone path. Captures and
+  //    restores the PRIOR value rather than hardcoding '' — a caller that
+  //    already had some other overflow set (e.g. a sibling scroll lock) must
+  //    get that back, not an unconditional reset. Mirrors the old
+  //    components/tiles/EarningsModal.jsx:163-165 idiom this replaces.
+  useEffect(() => {
+    if (isPhone) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [isPhone])
 
   const Panel = PANELS[active]
 
@@ -177,12 +231,7 @@ export default function EarningsResearchModal({
       size="sm"
       tone="neutral"
       label={grade.basis ? `Setup Grade ${grade.letter} · ${grade.basis}` : `Setup Grade ${grade.letter}`}
-      info={{
-        ...SETUP_GRADE_INFO,
-        text: `${SETUP_GRADE_INFO.text}\n${grade.inputs
-          .map((i) => `${i.label} (${Math.round(i.weight * 100)}%): ${i.detail ?? 'unavailable'}`)
-          .join('\n')}`,
-      }}
+      info={{ ...SETUP_GRADE_INFO, text: gradeBreakdownText(grade) }}
     />
   ) : null
 
@@ -263,7 +312,8 @@ export default function EarningsResearchModal({
              ariaLabel={`${sym} earnings report`} className={styles.sheet}>
         {/* Sheet's drag-to-dismiss is already confined to its grip element, so
             canvas scrolling never fights the gesture (§4.4). */}
-        <div ref={panelRef} tabIndex={-1} onKeyDown={onTrapKey} className={styles.phoneBody}>
+        <div ref={panelRef} tabIndex={-1} onKeyDown={onTrapKey} className={styles.phoneBody}
+             data-testid="erm-phone-body">
           {body}
         </div>
       </Sheet>

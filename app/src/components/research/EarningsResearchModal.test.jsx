@@ -1,17 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 
-import EarningsResearchModal from './EarningsResearchModal'
+import EarningsResearchModal, { resolveTrapTargets } from './EarningsResearchModal'
 import { SECTIONS } from './railSections'
 import { NOT_ADVICE } from '../../constants/disclaimer'
 import { countGoldHighlights } from '../research-kit/testing/restraint'
 
-vi.mock('../../hooks/useExpectedMove', () => ({
-  default: () => ({ data: { live: null, history: [], history_since: null, grade: null },
-                    isLoading: false }),
+// A controllable mock (not a fixed factory return) — review round 1, item 5
+// needs to override `grade` per-test to exercise the chip's defensive guard
+// and the phantom-zero-weight fix without a second test file.
+const mockUseExpectedMove = vi.fn(() => ({
+  data: { live: null, history: [], history_since: null, grade: null }, isLoading: false,
 }))
+vi.mock('../../hooks/useExpectedMove', () => ({ default: (...args) => mockUseExpectedMove(...args) }))
 // Section bodies are Tasks 7-10; the shell test owns the shell.
 vi.mock('./sections/SetupSection', () => ({ default: () => <div data-testid="panel-setup" /> }))
 vi.mock('./sections/EarningsHistorySection', () => ({ default: () => <div data-testid="panel-history" /> }))
@@ -25,6 +28,15 @@ vi.mock('./sections/CallSection', () => ({ default: () => <div data-testid="pane
 // own polling/dedup behavior.
 const mockLivePrices = vi.fn(() => ({ prices: {} }))
 vi.mock('../../hooks/useLivePrices', () => ({ default: (...args) => mockLivePrices(...args) }))
+
+// review round 1, item 7 — the phone Sheet branch had zero coverage. Partial
+// mock (spread the real module) so Sheet's own `useIsTouch` import from the
+// SAME module keeps working; only `useIsPhone` is overridable per-test.
+const mockUseIsPhone = vi.fn(() => false)
+vi.mock('../../hooks/useBreakpoint', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useIsPhone: (...args) => mockUseIsPhone(...args) }
+})
 
 const row = { sym: 'NVDA', company: 'NVIDIA Corporation', sector: 'Technology',
               verdict: 'pending', eps_estimate: 0.94, reported_eps: null }
@@ -54,6 +66,16 @@ function renderModal(props = {}) {
 beforeEach(() => {
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({}) }))
   mockLivePrices.mockReturnValue({ prices: {} })
+  mockUseExpectedMove.mockReturnValue({
+    data: { live: null, history: [], history_since: null, grade: null }, isLoading: false,
+  })
+  mockUseIsPhone.mockReturnValue(false)
+})
+
+afterEach(() => {
+  // The body-scroll-lock tests (review round 1, item 3) mutate this global —
+  // guarantee isolation even if an assertion above them throws mid-test.
+  document.body.style.overflow = ''
 })
 
 describe('shell structure', () => {
@@ -319,14 +341,83 @@ describe('keyboard + stepping', () => {
     expect(within(stepper).getAllByRole('button')).toHaveLength(2)
   })
 
-  it('traps focus inside the dialog', () => {
-    renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
-    const dlg = screen.getByRole('dialog')
-    const focusables = dlg.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])')
-    const last = focusables[focusables.length - 1]
-    last.focus()
-    fireEvent.keyDown(dlg, { key: 'Tab' })
-    expect(dlg.contains(document.activeElement)).toBe(true)
+  // Review round 1, item 1: the previous version of this test only asserted
+  // `dlg.contains(document.activeElement)` after a Tab press — true whether
+  // or not the wrap logic ran at all, since jsdom never moves focus on Tab by
+  // itself AND `offsetParent` is always null (so the `first`/`last` picking
+  // at resolveTrapTargets was never exercised either). Gutting `onTrapKey`
+  // with an early return left this at 26/26 green. Fixed two ways: the WRAP
+  // DECISION is now a pure, directly-unit-tested helper (below), and this
+  // integration test stubs `offsetParent` so the real visibility filter runs
+  // and actually asserts WHERE focus lands, not just that it stayed put.
+  it('wraps focus: Tab on the last focusable moves to the first, Shift+Tab on the first moves to the last', () => {
+    const offsetParentSpy = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get')
+      .mockReturnValue(document.body)
+    try {
+      renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
+      const dlg = screen.getByRole('dialog')
+      const targets = resolveTrapTargets(dlg, document.activeElement)
+      // Sanity: a real render has more than one focusable (close button,
+      // rail tabs, rail links, stepper chevrons, footer actions) — if this
+      // drops to 0-1 the wrap assertions below would pass vacuously again.
+      expect(targets.items.length).toBeGreaterThan(2)
+
+      targets.last.focus()
+      fireEvent.keyDown(dlg, { key: 'Tab' })
+      expect(document.activeElement).toBe(targets.first)
+
+      targets.first.focus()
+      fireEvent.keyDown(dlg, { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(targets.last)
+    } finally {
+      offsetParentSpy.mockRestore()
+    }
+  })
+})
+
+// ── resolveTrapTargets — the wrap decision, unit-tested directly ────────────
+// (review round 1, item 1). Pure DOM-in/DOM-out: no render(), no jsdom layout
+// dependency to stub around.
+describe('resolveTrapTargets (pure)', () => {
+  afterEach(() => { document.body.innerHTML = '' })
+
+  function makeButtons(n) {
+    const container = document.createElement('div')
+    const buttons = Array.from({ length: n }, (_, i) => {
+      const b = document.createElement('button')
+      b.textContent = `btn${i}`
+      container.appendChild(b)
+      return b
+    })
+    document.body.appendChild(container)
+    return { container, buttons }
+  }
+
+  it('returns null for a falsy container', () => {
+    expect(resolveTrapTargets(null, null)).toBeNull()
+  })
+
+  it('returns null when nothing inside is focusable', () => {
+    const container = document.createElement('div')
+    expect(resolveTrapTargets(container, null)).toBeNull()
+  })
+
+  it('picks first/last from VISIBLE items only (offsetParent-gated)', () => {
+    const { container, buttons } = makeButtons(4)
+    // Simulate real-browser layout: only buttons 0 and 3 are actually
+    // visible (offsetParent non-null); 1 and 2 stay at jsdom's null default.
+    Object.defineProperty(buttons[0], 'offsetParent', { value: document.body, configurable: true })
+    Object.defineProperty(buttons[3], 'offsetParent', { value: document.body, configurable: true })
+    const targets = resolveTrapTargets(container, null)
+    expect(targets.first).toBe(buttons[0])
+    expect(targets.last).toBe(buttons[3])
+  })
+
+  it('the currently-active element is eligible even with no offsetParent (jsdom fallback)', () => {
+    const { container, buttons } = makeButtons(2)
+    const targets = resolveTrapTargets(container, buttons[1])
+    expect(targets.first).toBe(buttons[1])
+    expect(targets.last).toBe(buttons[1])
   })
 })
 
@@ -352,5 +443,143 @@ describe('footer + §12', () => {
   it('keeps the canvas inside the one-gold-highlight budget', () => {
     renderModal()
     expect(countGoldHighlights(screen.getByTestId('erm-canvas'))).toBeLessThanOrEqual(1)
+  })
+})
+
+// ── desktop body-scroll lock (review round 1, item 3) ────────────────────────
+// The old modal being replaced locks body scroll (components/tiles/
+// EarningsModal.jsx:163-165); the phone branch gets it for free from Sheet's
+// own `lockScroll`, but the desktop branch silently dropped it — with
+// `.canvas{overflow-y:auto}` sitting over a `position:fixed` backdrop,
+// wheeling over the backdrop would scroll the page behind the modal.
+describe('desktop body-scroll lock', () => {
+  it('locks body scroll while open and restores the PRIOR value on close (never a hardcoded empty string)', () => {
+    // A non-default starting value proves the restore is a real capture, not
+    // `document.body.style.overflow = ''` — that would still read '' here,
+    // not 'scroll'.
+    document.body.style.overflow = 'scroll'
+    const { unmount } = renderModal()
+    expect(document.body.style.overflow).toBe('hidden')
+    unmount()
+    expect(document.body.style.overflow).toBe('scroll')
+  })
+})
+
+// ── backdrop click + focus restoration (review round 1, item 4) ─────────────
+describe('backdrop click + focus restoration', () => {
+  it('mousedown on the backdrop closes; mousedown that starts/ends inside the dialog does not', () => {
+    // Uses fireEvent.mousedown specifically (not .click) so this FAILS if
+    // the handler is ever changed from onMouseDown to onClick — a click
+    // handler would still fire on a genuine click, but this test would never
+    // dispatch one, so a silently-swapped handler shows up as onClose never
+    // being called at all.
+    const onClose = vi.fn()
+    const { container } = renderModal({ onClose })
+    const backdrop = container.firstChild
+    const dlg = screen.getByRole('dialog')
+
+    fireEvent.mouseDown(dlg)
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.mouseDown(backdrop)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores focus to the triggering element once the modal unmounts', () => {
+    const trigger = document.createElement('button')
+    trigger.textContent = 'open modal'
+    document.body.appendChild(trigger)
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    const { unmount } = renderModal()
+    expect(document.activeElement).not.toBe(trigger)   // focus moved into the dialog on mount
+
+    unmount()
+    expect(document.activeElement).toBe(trigger)
+    trigger.remove()
+  })
+})
+
+// ── grade chip resilience (review round 1, item 5) ───────────────────────────
+// The brief-mandated useExpectedMove mock always returns grade: null, so
+// nothing in the original suite ever rendered this branch. A cached older
+// response or a future payload variant without `.inputs` would throw
+// `Cannot read properties of undefined (reading 'map')` and take the WHOLE
+// MODAL down, not just the chip.
+describe('grade chip — malformed/partial payload resilience', () => {
+  it('does not crash when grade.inputs is missing entirely', () => {
+    mockUseExpectedMove.mockReturnValue({
+      data: { live: null, history: [], history_since: null, grade: { letter: 'B', basis: null } },
+      isLoading: false,
+    })
+    expect(() => renderModal()).not.toThrow()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('renders the chip and distinguishes an unknown weight from a genuine 0% (phantom-zero guard)', () => {
+    mockUseExpectedMove.mockReturnValue({
+      data: {
+        live: null, history: [], history_since: null,
+        grade: {
+          letter: 'B+', basis: '3 of 4',
+          inputs: [
+            { label: 'Beat streak', weight: 0.4, detail: '4 of 4' },
+            { label: 'Revisions', weight: null, detail: null },   // weight genuinely unknown
+          ],
+        },
+      },
+      isLoading: false,
+    })
+    renderModal()
+    expect(screen.getByText('Setup Grade B+ · 3 of 4')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /About Setup Grade/i }))
+    const tip = screen.getByRole('tooltip').textContent
+    expect(tip).toMatch(/Beat streak \(40%\)/)
+    expect(tip).toMatch(/Revisions \(—\)/)
+    expect(tip).not.toMatch(/Revisions \(0%\)/)
+  })
+})
+
+// ── phone Sheet branch (review round 1, item 7) ──────────────────────────────
+// Named in the task title ("...phone sheet") but had zero direct coverage.
+describe('phone Sheet branch', () => {
+  beforeEach(() => { mockUseIsPhone.mockReturnValue(true) })
+
+  it('mounts the Sheet (portal) branch — labelled, and carrying the shared shell body', () => {
+    const { container } = renderModal()
+    const dlg = screen.getByRole('dialog')
+    expect(dlg.getAttribute('aria-modal')).toBe('true')
+    expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
+    // Sheet renders via createPortal straight onto document.body — unlike
+    // the desktop branch, which mounts in-place inside RTL's own render
+    // container. This is the one structural signal that actually PROVES the
+    // Sheet branch (not just "some role=dialog somewhere") mounted, without
+    // relying on a CSS-module class name.
+    expect(container.contains(dlg)).toBe(false)
+    expect(document.body.contains(dlg)).toBe(true)
+    expect(within(dlg).getByTestId('erm-footer')).toBeTruthy()
+    expect(within(dlg).getByTestId('erm-not-advice')).toBeTruthy()
+  })
+
+  it('traps focus inside the sheet too', () => {
+    // The `onKeyDown` trap handler is on the shell's own inner panelRef div
+    // (`erm-phone-body`), a CHILD of Sheet's own role="dialog" panel — not on
+    // the dialog element itself. Firing Tab on the outer dialog (as the
+    // desktop version of this test does) would never reach it: React events
+    // bubble UP from where dispatched, not down into children.
+    const offsetParentSpy = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get')
+      .mockReturnValue(document.body)
+    try {
+      renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
+      const phoneBody = screen.getByTestId('erm-phone-body')
+      const targets = resolveTrapTargets(phoneBody, document.activeElement)
+      expect(targets.items.length).toBeGreaterThan(2)
+      targets.last.focus()
+      fireEvent.keyDown(phoneBody, { key: 'Tab' })
+      expect(document.activeElement).toBe(targets.first)
+    } finally {
+      offsetParentSpy.mockRestore()
+    }
   })
 })

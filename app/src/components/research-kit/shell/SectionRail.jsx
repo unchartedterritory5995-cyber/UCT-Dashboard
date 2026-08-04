@@ -32,6 +32,12 @@ export function nextIndex(current, key, count) {
  *
  * Tablist semantics with roving tabindex: exactly one tab is in the tab order,
  * arrows move selection AND focus, Home/End jump to the ends.
+ *
+ * `aria-controls` is only ever stamped on the ACTIVE tab (review round 1,
+ * item 6). A consuming canvas that unmounts its inactive panels (P2's GATE c,
+ * `EarningsResearchModal`'s own `<Panel/>`) has no element at
+ * `{idPrefix}-panel-{id}` for the other tabs to point at — three of four
+ * `aria-controls` IDREFs would dangle, pointing at nothing, on every render.
  */
 export default function SectionRail({
   sections,
@@ -79,7 +85,7 @@ export default function SectionRail({
               type="button"
               role="tab"
               id={`${idPrefix}-tab-${s.id}`}
-              aria-controls={`${idPrefix}-panel-${s.id}`}
+              aria-controls={isActive ? `${idPrefix}-panel-${s.id}` : undefined}
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}
               className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
