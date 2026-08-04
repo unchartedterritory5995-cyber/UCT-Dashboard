@@ -703,49 +703,97 @@ series moved to pane 1 and pane 0 shrank"*. So the page publishes what it built
 and the harness diffs the two sides as normalised JSON, into
 `report.json`'s `manifest_a` / `manifest_b` / `manifest_diff`.
 
-🔑 **A change that moves pixels but not the manifest, or the manifest but not
-pixels, is a regression by definition: one of the two is lying.** Both
-directions are gated, and the asymmetry between them is deliberate:
+🔑 **A change that moves pixels but not the GEOMETRY, or the geometry but not
+pixels, is a regression by definition: one of the two is lying.**
+
+#### 7.3.1 GEOMETRY and PROVENANCE — the split, and why it exists
+
+🔴 **B5 Task 5's main run exited 1 without one pixel moving.** Four cases
+reported `pass: false` with `changed: 0`, and the entire diff was
+
+```
+panes[0].series[1].key: None -> 'legacy:stoch::k'
+```
+
+Pane count, per-pane height, stretch factor, series `type`, `scaleId`, pane
+`index` and insertion order were **byte-identical**. What moved was the pool
+`key` — *which module created the series*. **That is what a Flip-B migration
+IS**, so every remaining migration trips the rule by construction, and
+`expectManifestChange` does not help (read it: it only ADDS the reverse rule;
+the manifest-without-pixels branch is unconditional).
+
+So `manifest_diff_parts` splits the diff, and the halves are gated differently:
+
+| half | fields | gate |
+|---|---|---|
+| **geometry** | pane count · per-pane `height` · `stretchFactor` · series `type` · `scaleId` · pane `index` · the ORDER of `panes` and `series` · a manifest missing on one side | both cross-checks below, unconditionally |
+| **provenance** | the pool `key`, and nothing else | the case's own `expectProvenance` declaration |
 
 | direction | when it fails | declaration needed |
 |---|---|---|
-| the manifest moved, **0 pixels** did | always | none — a pane layout that differs and paints identically did not happen |
-| pixels moved, the manifest is **identical** | when the case declares `"expectManifestChange": true` | yes — a colour perturbation legitimately moves pixels with unchanged geometry |
+| the **geometry** moved, **0 pixels** did | always | none — a pane layout that differs and paints identically did not happen |
+| pixels moved, the **geometry** is **identical** | when the case declares `"expectManifestChange": true` | yes — a colour perturbation legitimately moves pixels with unchanged geometry |
 | the case declares `expectManifestChange` and **no manifest was published** | always | — otherwise the sharpest assertion in B5 goes vacuous the moment the page stops publishing |
+| a **provenance** change the case did not declare, or one that happens more times than declared | always, pixels or no pixels | `"expectProvenance": [[from, to], …]` |
 
-**A missing manifest is not an error.** Nothing publishes one today, so every
-case reads `null` on both sides and `manifest_diff` is `[]` — a pass, which is
-what keeps the 44-case zero intact. `read_manifest` swallows the read: raising
-would abort a 20-run measurement at run 13 with nothing written down.
+```jsonc
+{ "name": "sar_only",
+  "expectProvenance": [[null, "legacy:sar::sar"]] }
+```
 
-**What the page must expose, and where.** `ChartRender.jsx`, in fixed-bars
-(parity) mode only, immediately **before** it sets `window.__chartReady = true`:
+⛔ **`key` IS NOT SIMPLY DROPPED.** It is the only field that can catch a series
+created by the **wrong module**, and it earned that keep on its first two-build
+outing: `engine_bb_rsi_vs_legacy` built the same series in a *different order* on
+the two sides (side A's read-time migrator walks REGISTRY order; the case's
+`instancesB` began with `bb`) — **0 changed pixels**, because none of them
+overlap, and invisible until side A published a manifest at all.
+
+⚠️ **A declared pair that does NOT occur is recorded, not failed**
+(`provenance_unmet` in `report.json`). The same case file is measured two-build
+(A = the commit before the migration → the keys flip) *and* `--same-build`
+(B vs B → nothing flips, and that run is the determinism proof). Gating
+"declared ⇒ must happen" would turn every same-build run red on exactly the
+cases that matter most.
+
+#### 7.3.2 What the page exposes, and where
+
+`ChartRender.jsx`, in fixed-bars (parity) mode only, defines
+`window.__paneManifest` as a **configurable getter** over `paneLayout.js`'s
+one-slot registry (`registerManifestChart`), which `StockChart.jsx` writes in its
+`createChart` branch. So the shape below is `paneLayout.paneManifest`'s output,
+not a literal anyone maintains:
 
 ```js
 window.__paneManifest = {
-  chartHeight: 620,          // px, the chart container
+  chartHeight: 532,          // px, the PANE STACK (panes + separators, no time axis)
   separatorPx: 1,
-  paneMode: 'bands',         // 'bands' | 'panes' — which layout produced this
   panes: [
-    { index: 0, height: 460, stretchFactor: 1,
-      series: [ { id: 'candles',   type: 'Candlestick', paneIndex: 0, priceScaleId: 'right' },
-                { id: 'rsi:line',  type: 'Line',        paneIndex: 0, priceScaleId: 'rsi'   } ] },
+    { index: 0, height: 414, stretchFactor: 78,
+      series: [ { type: 'Candlestick', scaleId: 'right', key: null },
+                { type: 'Line',        scaleId: 'right', key: 'legacy:bb::upper' } ] },
   ],
 }
 ```
 
-Three things about that object are load-bearing:
+Four things about that object are load-bearing:
 
 * **JSON-serialisable, no functions and no cycles** — it crosses a browser
   boundary through `page.evaluate`.
-* **`id` must be stable and derived from the pool key / instance id**, never from
-  object identity or an array index. An id that changes per render turns every
-  diff into noise and the gate into a coin flip.
+* **`key` must be stable and derived from the pool key / instance id**, never from
+  object identity or an array index. A key that changes per render turns every
+  diff into noise and the gate into a coin flip. A series the engine does not own
+  reads `null` — that is the legacy lane, and it is the `from` side of every
+  migration's `expectProvenance`.
+* **`scaleId` comes from `series.options().priceScaleId`**, NOT from the price
+  scale: `IPriceScaleApi` in lightweight-charts 5.2.0 has no `priceScaleId()`, so
+  the obvious read is `undefined` on every series.
 * **`panes` sorted by index; `series` in INSERTION ORDER within a pane.** Order
   is meaning here — LWC paints by insertion, so a reordered `series` list is a
-  z-order change and the diff is right to report it. `manifest_diff` walks dicts
-  by sorted key (key order across a browser boundary is not ours to trust) and
-  lists by position (position *is* the claim).
+  z-order change and the diff is right to report it. `manifest_diff_parts` walks
+  dicts by sorted key (key order across a browser boundary is not ours to trust)
+  and lists by position (position *is* the claim), and it classifies by LEAF
+  NAME — so a whole `series[3]` appearing on one side only is **geometry**, not
+  something a provenance declaration can wave through.
 
 ### 7.4 What each one costs you if you get it wrong
 
@@ -764,6 +812,11 @@ none of them is hypothetical.
 | `read_manifest`'s `except` → `raise` | `test_a_case_with_regions_but_no_manifest_still_reports…` |
 | `manifest_diff` returning `[]` unconditionally | `test_manifest_diff_names_the_pane_that_moved` |
 | either manifest cross-check | `test_the_MANIFEST_moving_while_no_pixel_moves_is_a_failure`, `test_PIXELS_moving_while_the_manifest_says_nothing_did…` |
+| the geometry cross-check, on a case that declares its provenance | `test_a_GEOMETRY_change_at_zero_pixels_STILL_FAILS_a_case_that_declared_its_provenance` |
+| the provenance gate (accept any `key` change) | `test_an_UNDECLARED_provenance_change_STILL_FAILS`, `test_a_provenance_flip_to_the_WRONG_MODULE_fails…` |
+| putting `key` on the geometry side (i.e. not splitting at all) | `test_a_DECLARED_provenance_flip_at_zero_pixels_PASSES` |
+| putting anything ELSE on the provenance side | `test_a_series_that_appears_on_ONE_SIDE_ONLY_is_GEOMETRY_not_provenance`, `test_a_MISSING_manifest_on_one_side_is_GEOMETRY`, `test_a_reordered_series_list_is_GEOMETRY_because_order_IS_z_order` |
+| `case_entry`'s `expectProvenance` line | `test_case_entry_CARRIES_expectProvenance_out_of_the_case_file` |
 
 ```bash
 PYTHONIOENCODING=utf-8 PYTHONDONTWRITEBYTECODE=1 \

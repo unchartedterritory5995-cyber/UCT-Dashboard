@@ -93,10 +93,14 @@ regression of the same size, and it cannot say WHERE the change landed. So:
     number came from, each with its own expectation, plus ``rest`` — every
     changed pixel outside every declared rectangle, COMPUTED by mask
     subtraction, never declarable, and always expected to be 0.
-  * the PANE MANIFEST (``window.__paneManifest``: pane count, per-pane pixel
-    height, per-series pane index and priceScaleId) is diffed as JSON alongside
-    the pixels, because a change that moves pixels but not the manifest — or the
-    manifest but not pixels — means one of the two is lying.
+  * the PANE MANIFEST (``window.__paneManifest``) is diffed as JSON alongside
+    the pixels, IN TWO HALVES. **GEOMETRY** — pane count, per-pane pixel height,
+    series type, ``priceScaleId``, pane index and INSERTION ORDER — keeps the
+    unconditional cross-check, because a change that moves pixels but not the
+    geometry, or the geometry but not pixels, means one of the two is lying.
+    **PROVENANCE** — the pool ``key``, i.e. which module created the series — is
+    what a Flip-B migration changes on purpose, so a case DECLARES it
+    (``expectProvenance``) and an UNDECLARED provenance change is a failure.
 
 ``--expect`` and ``--tolerance > 0`` are mutually exclusive: one is a declared
 measurement, the other is an escape.
@@ -119,6 +123,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import Counter
 from pathlib import Path
 
 from PIL import Image, ImageChops  # Pillow is already a dependency (requirements.txt)
@@ -693,8 +698,57 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
 #     declaration is what makes the cutover's own cases assert their geometry
 #     structurally instead of inferring it from red rectangles.
 #
+# ─── 🎯 GEOMETRY vs PROVENANCE — THE B5 TASK 5 RULING ────────────────────────
+#
+# 🔴 B5 Task 5 measured the sentence above hitting a case it was never about:
+# `stoch_only` / `atr_only` / their two `engine_*_vs_legacy` twins reported
+# `pass: false` with **`changed: 0`**, and the ENTIRE diff was
+#
+#     panes[0].series[1].key: None -> 'legacy:stoch::k'
+#
+# Pane count, per-pane height, stretch factor, per-series type, `priceScaleId`,
+# pane index and insertion order were BYTE-IDENTICAL. What moved was the pool
+# `key` — *which module created the series*. **That is what a Flip-B migration
+# IS**, so every remaining migration trips the rule by construction, and
+# `expectManifestChange` does not help (that branch only ADDS the reverse rule).
+#
+# So the diff is split, and the two halves are gated differently:
+#
+#   * **GEOMETRY** — everything except `key`: pane count, per-pane height,
+#     stretch factor, series `type`, `scaleId`, pane `index`, and the ORDER of
+#     the `series` and `panes` lists (order IS z-order; LWC paints by insertion).
+#     This half keeps BOTH unconditional rules above. The pixels⇄manifest
+#     cross-check is a statement about geometry: one of the two is lying.
+#   * **PROVENANCE** — the pool `key` alone. A case DECLARES which keys flip and
+#     to what (`expectProvenance: [[from, to], …]`); an observed change whose
+#     `(from, to)` pair the case did not declare — or one that occurs MORE times
+#     than declared — is a failure, on every case, whether or not pixels moved.
+#
+# ⛔ `key` IS NOT SIMPLY DROPPED, and the reason is not hypothetical. It is the
+# only field that can catch a series created by the WRONG MODULE, and it earned
+# that keep on its first two-build outing: `engine_bb_rsi_vs_legacy` built the
+# same series in a DIFFERENT ORDER on the two sides (side A's read-time migrator
+# walks REGISTRY order; the case's `instancesB` started with `bb`) — 0 changed
+# pixels, because none of them overlap, and invisible until side A had a
+# manifest at all.
+#
+# ⚠️ A DECLARED PAIR THAT DOES NOT OCCUR IS **NOT** A FAILURE, deliberately. The
+# same case file is run two-build (A = the commit before the migration, B = after
+# → the keys flip) AND `--same-build` (B vs B → nothing flips, and that run is
+# the determinism proof). Gating "declared ⇒ must happen" would turn every
+# same-build determinism run red on the cases that matter most. Unmet
+# declarations are RECORDED (`provenance_unmet` in report.json) instead.
+#
 # A MISSING manifest is not an error. Nothing publishes one today, and a raise
 # here would abort a 20-run measurement at run 13 with nothing written down.
+
+
+#: The manifest leaf names that record PROVENANCE rather than geometry.
+#: One entry, and the whole ruling above hangs off it: `key` is the pool key
+#: `paneLayout.paneManifest` copies off the binder's binding, i.e. the identity
+#: of the module that created the series. Everything else the manifest carries
+#: describes WHERE and WHAT, which is geometry.
+PROVENANCE_LEAVES = frozenset({"key"})
 
 
 def read_manifest(page):
@@ -716,48 +770,146 @@ def read_manifest(page):
     return value if isinstance(value, dict) else None
 
 
-def manifest_diff(a, b):
-    """A list of human-readable ``path: a -> b`` lines, empty when identical.
+def manifest_diff_parts(a, b) -> dict:
+    """The manifest diff, split into ``geometry`` and ``provenance``.
 
     Compared as plain data, not as objects: the manifest crosses a browser
     boundary, so key order is not ours to trust — every dict is walked by SORTED
     key, while lists keep their order because in this manifest order IS meaning
     (LWC paints by insertion, so a reordered `series` list is a z-order change).
 
-    ``[]`` when BOTH sides are absent — that is today's state on every case in
-    the file and it must stay a pass. One side absent is an asymmetry and says
-    so.
-    """
-    if a is None and b is None:
-        return []
-    if a is None or b is None:
-        return ["manifest missing on " + ("A" if a is None else "B")]
-    out = []
+    Both lists are ``[]`` when BOTH sides are absent — that is a pass. One side
+    absent is an asymmetry, and it is GEOMETRY: a side that published no manifest
+    published no geometry, and calling it provenance would let a case declare its
+    way past a page that stopped publishing.
 
-    def walk(path, x, y):
+    Returns ``{"geometry": [line], "provenance": [line], "provenance_pairs":
+    [(from, to)]}``. The pairs are what `expectProvenance` is matched against —
+    the PATH is deliberately not part of that match, because a series that
+    changed pane or position has already failed the geometry half.
+    """
+    empty = {"geometry": [], "provenance": [], "provenance_pairs": []}
+    if a is None and b is None:
+        return empty
+    if a is None or b is None:
+        return {**empty,
+                "geometry": ["manifest missing on " + ("A" if a is None else "B")]}
+    geometry: list[str] = []
+    provenance: list[str] = []
+    pairs: list[tuple] = []
+
+    def walk(path, leaf, x, y):
         if isinstance(x, dict) and isinstance(y, dict):
             for k in sorted(set(x) | set(y)):
-                walk(f"{path}.{k}" if path else k, x.get(k), y.get(k))
+                walk(f"{path}.{k}" if path else k, k, x.get(k), y.get(k))
         elif isinstance(x, list) and isinstance(y, list):
+            # The list INDEX is not a leaf name — a `series[3].key` is still a
+            # `key`, and a whole `series[3]` appearing on one side only is still
+            # geometry, because its leaf is the `series` that holds it.
             for i in range(max(len(x), len(y))):
-                walk(f"{path}[{i}]", x[i] if i < len(x) else None, y[i] if i < len(y) else None)
+                walk(f"{path}[{i}]", leaf, x[i] if i < len(x) else None,
+                     y[i] if i < len(y) else None)
         elif x != y:
-            out.append(f"{path}: {x!r} -> {y!r}")
+            line = f"{path}: {x!r} -> {y!r}"
+            if leaf in PROVENANCE_LEAVES:
+                provenance.append(line)
+                pairs.append((x, y))
+            else:
+                geometry.append(line)
 
-    walk("", a, b)
+    walk("", None, a, b)
+    return {"geometry": geometry, "provenance": provenance, "provenance_pairs": pairs}
+
+
+def manifest_diff(a, b):
+    """Every manifest diff line, geometry first — the REPORT's flat view.
+
+    Kept as the reporting shape (`report.json`'s `manifest_diff`, report.md's
+    A → B listing) because a reader wants one list of what moved. The GATE reads
+    `manifest_diff_parts`, because the two halves are gated differently.
+    """
+    parts = manifest_diff_parts(a, b)
+    return parts["geometry"] + parts["provenance"]
+
+
+def _pair_key(pair) -> str:
+    """A hashable, JSON-stable identity for one ``(from, to)`` provenance pair.
+
+    `json.dumps` and not the tuple itself: the observed values cross a browser
+    boundary and the declared ones come out of the case file, so both are JSON
+    scalars — but a future manifest field could carry a list, and an unhashable
+    value must not raise inside the gate.
+    """
+    return json.dumps(list(pair), sort_keys=True, default=str)
+
+
+def provenance_verdict(declared, pairs) -> tuple[str | None, list]:
+    """``(failure_reason_or_None, unmet_declarations)`` for one run.
+
+    ⛔ THE GATE IS ONE-SIDED, AND THE SIDE MATTERS. An observed provenance change
+    the case did not declare — or one that happens MORE times than it declared —
+    FAILS. A declared change that did not happen is RETURNED, not failed: see the
+    block above for why (the same case runs two-build AND `--same-build`).
+    """
+    want = Counter(_pair_key(p) for p in (declared or []))
+    got = Counter(_pair_key(p) for p in pairs)
+    extra = got - want
+    unmet = want - got
+    unmet_pairs = [json.loads(k) for k, n in unmet.items() for _ in range(n)]
+    if not extra:
+        return None, unmet_pairs
+    shown = "; ".join(f"{json.loads(k)[0]!r} -> {json.loads(k)[1]!r}"
+                      + (f" (x{n})" if n > 1 else "")
+                      for k, n in list(extra.items())[:4])
+    return ("UNDECLARED pane-manifest provenance change — a series was created by a "
+            "module the case did not declare: " + shown +
+            ". Declare it with `expectProvenance` if it is the migration, or find "
+            "out which module built it if it is not"), unmet_pairs
+
+
+def validate_provenance(declared, case_name: str = "?"):
+    """Refuse an `expectProvenance` block that could make the gate unfalsifiable.
+
+    Same posture as `validate_regions`: a declaration that cannot be matched is
+    worse than none at all, because it reads like a live gate. Two refusals:
+
+      * a pair that is not exactly ``[from, to]`` — anything else silently
+        matches nothing, so every provenance change reads as UNDECLARED and the
+        case fails for a reason nobody can act on;
+      * a pair whose two sides are EQUAL — it can never occur (the diff only
+        emits a line when they differ), so it is a declaration that only ever
+        lands in `provenance_unmet` while looking like a gate.
+
+    ``None`` in and ``None`` out: a case that declares nothing declares nothing.
+    """
+    if declared is None:
+        return None
+    if not isinstance(declared, list):
+        raise SystemExit(f"case {case_name}: expectProvenance must be a list of [from, to] pairs")
+    out = []
+    for pair in declared:
+        if not isinstance(pair, list) or len(pair) != 2:
+            raise SystemExit(
+                f"case {case_name}: each expectProvenance entry must be a two-element "
+                f"[from, to] list; got {pair!r}")
+        if pair[0] == pair[1]:
+            raise SystemExit(
+                f"case {case_name}: expectProvenance pair {pair!r} declares a key changing "
+                "to itself, which the diff can never emit — it would gate nothing")
+        out.append([pair[0], pair[1]])
     return out
 
 
 def manifest_verdict(entry: dict, run: dict) -> str | None:
-    """Why this run's pane manifest contradicts its pixels, or None.
+    """Why this run's pane manifest contradicts its pixels or its case, or None.
 
-    Both directions of "one of the two is lying", and the asymmetry between them
-    is deliberate — see the block above.
+    Both directions of "one of the two is lying" on the GEOMETRY half, and the
+    asymmetry between them is deliberate — see the block above. The PROVENANCE
+    half is gated against the case's own declaration instead, on every case.
     """
     a, b = run.get("manifest_a"), run.get("manifest_b")
-    lines = run.get("manifest_diff")
-    if lines is None:
-        lines = manifest_diff(a, b)
+    parts = run.get("manifest_parts") or manifest_diff_parts(a, b)
+    lines = parts["geometry"]
     comparable = a is not None and b is not None
 
     if entry.get("expect_manifest_change"):
@@ -771,6 +923,11 @@ def manifest_verdict(entry: dict, run: dict) -> str | None:
                     "geometry change and the geometry says nothing changed")
     if comparable and lines and not run.get("changed"):
         return ("the pane manifest changed but 0 pixels did: " + "; ".join(lines[:3]))
+    if comparable:
+        reason, _unmet = provenance_verdict(entry.get("expect_provenance"),
+                                            parts["provenance_pairs"])
+        if reason:
+            return reason
     return None
 
 
@@ -970,6 +1127,7 @@ def case_entry(case: dict, *, tolerance: int, expect: int | None) -> dict:
     """
     regions = case.get("regions")
     validate_regions(regions)
+    declared_provenance = validate_provenance(case.get("expectProvenance"), case["name"])
     return {
         "name": case["name"],
         "tolerance": case.get("tolerance", tolerance) or tolerance,
@@ -983,6 +1141,9 @@ def case_entry(case: dict, *, tolerance: int, expect: int | None) -> dict:
         "expect_regions": {r["name"]: r["expect"] for r in (regions or [])
                            if "expect" in r} or None,
         "expect_manifest_change": bool(case.get("expectManifestChange")),
+        # `[[from, to], …]` — which pool keys this case's migration flips, and to
+        # what. See `provenance_verdict`: undeclared FAILS, unmet is recorded.
+        "expect_provenance": declared_provenance,
         "regions": regions,
         "runs": [],
     }
@@ -1059,6 +1220,19 @@ def collapse_case(entry: dict) -> dict:
     entry["manifest_diff"] = next(
         (r["manifest_diff"] for r in runs if r.get("manifest_diff") is not None),
         manifest_diff(runs[0].get("manifest_a"), runs[0].get("manifest_b")) if runs else [])
+    # The two halves, reported separately: a reader of report.json must be able
+    # to see that a case's whole diff was provenance without re-deriving it.
+    parts = next((r["manifest_parts"] for r in runs if r.get("manifest_parts") is not None),
+                 manifest_diff_parts(runs[0].get("manifest_a"), runs[0].get("manifest_b"))
+                 if runs else manifest_diff_parts(None, None))
+    entry["manifest_geometry_diff"] = parts["geometry"]
+    entry["manifest_provenance_diff"] = parts["provenance"]
+    # ⚠️ RECORDED, NOT GATED — a declared pair that did not occur is the normal
+    # state of a `--same-build` determinism run. It is here so a declaration that
+    # has rotted (the migration it names is long done, or it was never right) is
+    # visible in the report instead of quietly matching nothing.
+    _reason, entry["provenance_unmet"] = provenance_verdict(
+        entry.get("expect_provenance"), parts["provenance_pairs"])
     clean = sum(1 for r in runs if not run_failures(entry, r))
     entry["clean_runs"] = clean
     entry["flake_bound_95"] = round(flake_bound(clean), 6) if runs and clean == len(runs) else None
@@ -1151,7 +1325,8 @@ def write_report(report: dict, out_dir: Path) -> None:
 
     declared = [r for r in report["results"]
                 if r.get("expect") is not None or r.get("expect_regions")
-                or r.get("regions") or r.get("manifest_diff")]
+                or r.get("regions") or r.get("manifest_diff")
+                or r.get("expect_provenance") or r.get("provenance_unmet")]
     if declared:
         lines += [
             "",
@@ -1178,9 +1353,27 @@ def write_report(report: dict, out_dir: Path) -> None:
                        else "— (measured, not gated)")
                 lines.append(f"| `{r['name']}` | {name} | {counts.get(name, '—')} | {exp} |")
         for r in declared:
-            if r.get("manifest_diff"):
+            geo = r.get("manifest_geometry_diff")
+            prov = r.get("manifest_provenance_diff")
+            if geo is None and prov is None and r.get("manifest_diff"):
+                # A hand-built entry (or an older report.json) that carries only
+                # the flat list. Show it rather than dropping it.
                 lines += ["", f"**`{r['name']}` — pane manifest A → B:**", ""]
                 lines += [f"- `{line}`" for line in r["manifest_diff"][:40]]
+                continue
+            if geo:
+                lines += ["", f"**`{r['name']}` — pane manifest GEOMETRY A → B "
+                              "(gated unconditionally against the pixels):**", ""]
+                lines += [f"- `{line}`" for line in geo[:40]]
+            if prov:
+                head = ("declared" if r.get("expect_provenance") else "UNDECLARED")
+                lines += ["", f"**`{r['name']}` — pane manifest PROVENANCE A → B "
+                              f"({head}) — which module created the series:**", ""]
+                lines += [f"- `{line}`" for line in prov[:40]]
+            if r.get("provenance_unmet"):
+                lines += ["", f"**`{r['name']}` — declared provenance that did NOT occur "
+                              "(recorded, not gated):**", ""]
+                lines += [f"- `{p[0]!r} -> {p[1]!r}`" for p in r["provenance_unmet"][:20]]
         fails = [(r["name"], m) for r in report["results"]
                  for m in (r.get("expectation_failures") or [])]
         if fails:
@@ -1558,8 +1751,10 @@ def main() -> int:
                     run.update(diff(shots["a"], shots["b"],
                                     out_dir / "diff" / f"{case['name']}{sfx}.png",
                                     regions=entry.get("regions")))
-                    run["manifest_diff"] = manifest_diff(run.get("manifest_a"),
-                                                         run.get("manifest_b"))
+                    run["manifest_parts"] = manifest_diff_parts(run.get("manifest_a"),
+                                                                run.get("manifest_b"))
+                    run["manifest_diff"] = (run["manifest_parts"]["geometry"]
+                                            + run["manifest_parts"]["provenance"])
                 except Exception as e:  # noqa: BLE001
                     run["error"] = f"{type(e).__name__}: {e}"
                     run["size_mismatch"] = False
@@ -1577,8 +1772,11 @@ def main() -> int:
                     if run.get("regions"):
                         extra = " regions=" + " ".join(
                             f"{k}:{v}" for k, v in run["regions"].items())
-                    if run.get("manifest_diff"):
-                        extra += f" manifest_diff={len(run['manifest_diff'])} line(s)"
+                    parts = run.get("manifest_parts") or {}
+                    if parts.get("geometry"):
+                        extra += f" manifest_geometry={len(parts['geometry'])} line(s)"
+                    if parts.get("provenance"):
+                        extra += f" manifest_provenance={len(parts['provenance'])} line(s)"
                     print(f"[{case['name']:24}] run {run_idx}/{args.repeat} "
                           f"changed={run['changed']:>8} ({run['pct']}%) "
                           f"shots={run.get('shots_a')}/{run.get('shots_b')}{extra}")

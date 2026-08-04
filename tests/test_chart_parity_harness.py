@@ -1291,6 +1291,244 @@ def test_a_case_with_no_manifest_ANYWHERE_is_unaffected():
     assert entry["manifest_diff"] == []
 
 
+# ─── GEOMETRY vs PROVENANCE (the B5 Task 5 ruling, landed at Task 6) ─────────
+#
+# 🔴 THE MEASUREMENT THAT FORCED THIS. Task 5's main parity run exited 1 with
+# `changed: 0` on four cases, and the ENTIRE diff was
+# `panes[0].series[1].key: None -> 'legacy:stoch::k'` — the pool key, i.e. WHICH
+# MODULE created the series. Pane count, per-pane height, series type,
+# `priceScaleId`, pane index and insertion order were byte-identical. That is
+# what a Flip-B migration IS, so every remaining migration trips the
+# "manifest moved, pixels didn't" rule by construction.
+#
+# The rule is a statement about GEOMETRY. So the diff is split, and the halves
+# are gated differently: geometry keeps the unconditional cross-check; the pool
+# `key` is PROVENANCE and a case declares it. ⛔ `key` is NOT dropped — it is the
+# only field that can catch a series built by the wrong module, and it earned
+# that keep by catching one (`engine_bb_rsi_vs_legacy`'s two sides built the same
+# series in a different ORDER at 0 changed pixels).
+
+_GEO_A = {"chartHeight": 594, "separatorPx": 1, "panes": [
+    {"index": 0, "height": 594, "series": [
+        {"type": "Candlestick", "scaleId": "right", "key": None},
+        {"type": "Line", "scaleId": "right", "key": None}]}]}
+
+
+def _with(manifest, **series1):
+    out = json.loads(json.dumps(manifest))
+    out["panes"][0]["series"][1].update(series1)
+    return out
+
+
+def test_the_manifest_diff_SPLITS_geometry_from_provenance():
+    b = _with(_GEO_A, key="legacy:sar::sar")
+    b["panes"][0]["height"] = 505
+    parts = cp.manifest_diff_parts(_GEO_A, b)
+    assert parts["geometry"] == ["panes[0].height: 594 -> 505"]
+    assert parts["provenance"] == [
+        "panes[0].series[1].key: None -> 'legacy:sar::sar'"]
+    assert parts["provenance_pairs"] == [(None, "legacy:sar::sar")]
+    # The flat view a reader gets is still every line, geometry first.
+    assert cp.manifest_diff(_GEO_A, b) == parts["geometry"] + parts["provenance"]
+
+
+def test_a_series_that_appears_on_ONE_SIDE_ONLY_is_GEOMETRY_not_provenance():
+    """The classification is by LEAF NAME, and a whole series object's leaf is the
+    `series` list that holds it — otherwise a case could declare its way past an
+    engine that created a series legacy never drew."""
+    b = json.loads(json.dumps(_GEO_A))
+    b["panes"][0]["series"].append({"type": "Line", "scaleId": "right", "key": "x::y"})
+    parts = cp.manifest_diff_parts(_GEO_A, b)
+    assert parts["provenance"] == []
+    assert len(parts["geometry"]) == 1 and "series[2]" in parts["geometry"][0]
+
+
+def test_a_MISSING_manifest_on_one_side_is_GEOMETRY():
+    """A side that published no manifest published no geometry. Filing it as
+    provenance would let `expectProvenance` license a page that stopped
+    publishing."""
+    parts = cp.manifest_diff_parts(None, _GEO_A)
+    assert parts["geometry"] == ["manifest missing on A"]
+    assert parts["provenance"] == []
+
+
+def test_a_DECLARED_provenance_flip_at_zero_pixels_PASSES():
+    """⭐ THE RULING. This is exactly what a Flip-B migration produces: the same
+    picture, a different owner. Before the split this case exited 1."""
+    entry = {"name": "x", "tolerance": 0,
+             "expect_provenance": [[None, "legacy:sar::sar"]],
+             "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                       "manifest_a": _GEO_A,
+                       "manifest_b": _with(_GEO_A, key="legacy:sar::sar")}]}
+    assert cp.collapse_case(entry)["pass"] is True
+    assert entry["manifest_geometry_diff"] == []
+    assert entry["manifest_provenance_diff"] == [
+        "panes[0].series[1].key: None -> 'legacy:sar::sar'"]
+
+
+def test_an_UNDECLARED_provenance_change_STILL_FAILS():
+    """⛔ THE HALF THE SPLIT MUST NOT GIVE AWAY. A case that declares nothing gets
+    no licence: a series created by a module nobody named is a failure, at 0
+    changed pixels, on every case."""
+    entry = {"name": "x", "tolerance": 0,
+             "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                       "manifest_a": _GEO_A,
+                       "manifest_b": _with(_GEO_A, key="legacy:sar::sar")}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("UNDECLARED" in m for m in entry["expectation_failures"])
+
+
+def test_a_provenance_flip_to_the_WRONG_MODULE_fails_a_case_that_declared_the_right_one():
+    """The declaration says which keys flip AND TO WHAT. Matching on "some key
+    changed" would pass a series the engine built under another definition's
+    identity, which is the whole reason `key` was not simply dropped."""
+    entry = {"name": "x", "tolerance": 0,
+             "expect_provenance": [[None, "legacy:sar::sar"]],
+             "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                       "manifest_a": _GEO_A,
+                       "manifest_b": _with(_GEO_A, key="legacy:ichimoku::tenkan")}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("legacy:ichimoku::tenkan" in m for m in entry["expectation_failures"])
+
+
+def test_declaring_ONE_flip_does_not_license_TWO():
+    """A MULTISET, not a set. A second series acquiring the same key is a
+    double-draw, and it is invisible in the pixels when the two overlap."""
+    b = json.loads(json.dumps(_GEO_A))
+    b["panes"][0]["series"][0]["key"] = "legacy:sar::sar"
+    b["panes"][0]["series"][1]["key"] = "legacy:sar::sar"
+    entry = {"name": "x", "tolerance": 0,
+             "expect_provenance": [[None, "legacy:sar::sar"]],
+             "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                       "manifest_a": _GEO_A, "manifest_b": b}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("legacy:sar::sar" in m for m in entry["expectation_failures"])
+    # The control that it really is the COUNT that failed it: one occurrence of
+    # the very same pair, same declaration, passes.
+    ok = dict(entry, runs=[{**entry["runs"][0],
+                            "manifest_b": _with(_GEO_A, key="legacy:sar::sar")}])
+    assert cp.collapse_case(ok)["pass"] is True
+
+
+def test_a_GEOMETRY_change_at_zero_pixels_STILL_FAILS_a_case_that_declared_its_provenance():
+    """⛔ THE SPLIT MUST NOT DISARM THE UNCONDITIONAL RULE. `expectProvenance` is
+    a licence for ONE field. A pane that moved 89 px while the picture did not is
+    still one of the two witnesses lying, declaration or no declaration."""
+    b = _with(_GEO_A, key="legacy:sar::sar")
+    b["panes"][0]["height"] = 505
+    entry = {"name": "x", "tolerance": 0,
+             "expect_provenance": [[None, "legacy:sar::sar"]],
+             "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                       "manifest_a": _GEO_A, "manifest_b": b}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert any("594" in m and "505" in m for m in entry["expectation_failures"])
+
+
+def test_a_pane_HEIGHT_change_CANNOT_BE_DECLARED_AWAY_as_provenance():
+    """⛔ THE SPLIT'S OTHER EDGE, and the one a mutation found. Widening
+    `PROVENANCE_LEAVES` by one geometry field is invisible to every test above —
+    an UNDECLARED height change still fails, just with a provenance message. What
+    separates the two is a case that DECLARES the height flip: geometry cannot be
+    licensed, provenance can, so this passes only while `height` is geometry."""
+    b = json.loads(json.dumps(_GEO_A))
+    b["panes"][0]["height"] = 505
+    entry = {"name": "x", "tolerance": 0,
+             "expect_provenance": [[594, 505]],
+             "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                       "manifest_a": _GEO_A, "manifest_b": b}]}
+    assert cp.collapse_case(entry)["pass"] is False
+    assert entry["manifest_geometry_diff"] == ["panes[0].height: 594 -> 505"]
+    assert entry["manifest_provenance_diff"] == []
+
+
+def test_a_reordered_series_list_is_GEOMETRY_because_order_IS_z_order():
+    """The `engine_bb_rsi_vs_legacy` shape — two sides that built the same series
+    in a different ORDER, at 0 changed pixels because none of them overlap. The
+    type/scaleId comparison at each POSITION is what sees it, and it must stay on
+    the geometry side of the split or a migration case declares straight past it."""
+    a = {"panes": [{"index": 0, "height": 594, "series": [
+        {"type": "Line", "scaleId": "rsi", "key": "legacy:rsi::rsi"},
+        {"type": "Line", "scaleId": "right", "key": "legacy:bb::upper"}]}]}
+    b = {"panes": [{"index": 0, "height": 594, "series": [
+        {"type": "Line", "scaleId": "right", "key": "legacy:bb::upper"},
+        {"type": "Line", "scaleId": "rsi", "key": "legacy:rsi::rsi"}]}]}
+    parts = cp.manifest_diff_parts(a, b)
+    assert any("scaleId" in line for line in parts["geometry"]), parts
+    entry = cp.collapse_case({
+        "name": "x", "tolerance": 0,
+        # Even fully declared, the ORDER change is geometry and fails.
+        "expect_provenance": [["legacy:rsi::rsi", "legacy:bb::upper"],
+                              ["legacy:bb::upper", "legacy:rsi::rsi"]],
+        "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                  "manifest_a": a, "manifest_b": b}]})
+    assert entry["pass"] is False
+
+
+def test_a_declared_flip_that_did_NOT_happen_is_RECORDED_not_failed():
+    """⚠️ DELIBERATE, AND THE REASON IS A REAL RUN. The same case file is measured
+    two-build (A = before the migration, B = after → the keys flip) AND
+    `--same-build` (B vs B → nothing flips, and that run is the determinism
+    proof). Gating "declared ⇒ must happen" turns every same-build run red on the
+    cases that matter most. It is recorded so a rotted declaration is visible."""
+    entry = cp.collapse_case({
+        "name": "x", "tolerance": 0,
+        "expect_provenance": [[None, "legacy:sar::sar"]],
+        "runs": [{"run": 1, "changed": 0, "size_mismatch": False,
+                  "manifest_a": _GEO_A, "manifest_b": json.loads(json.dumps(_GEO_A))}]})
+    assert entry["pass"] is True
+    assert entry["provenance_unmet"] == [[None, "legacy:sar::sar"]]
+
+
+def test_expectProvenance_refuses_a_malformed_declaration():
+    with pytest.raises(SystemExit) as ei:
+        cp.validate_provenance(["legacy:sar::sar"], "sar_only")
+    assert "two-element" in str(ei.value)
+    with pytest.raises(SystemExit):
+        cp.validate_provenance({"a": "b"}, "sar_only")
+
+
+def test_expectProvenance_refuses_a_pair_that_can_never_occur():
+    """A key changing to itself emits no diff line, so it would sit in the case
+    file forever looking like a gate and matching nothing."""
+    with pytest.raises(SystemExit) as ei:
+        cp.validate_provenance([["legacy:sar::sar", "legacy:sar::sar"]], "sar_only")
+    assert "itself" in str(ei.value)
+
+
+def test_case_entry_CARRIES_expectProvenance_out_of_the_case_file():
+    """The wiring rail, in the shape `test_main_carries_the_case_file_REGIONS…`
+    exists for: drop the one line in `case_entry` and every provenance
+    declaration in the file goes quietly inert while the suite stays green."""
+    entry = cp.case_entry({"name": "sar_only",
+                           "expectProvenance": [[None, "legacy:sar::sar"]]},
+                          tolerance=0, expect=None)
+    assert entry["expect_provenance"] == [[None, "legacy:sar::sar"]]
+    assert cp.case_entry({"name": "bb_only"}, tolerance=0,
+                         expect=None)["expect_provenance"] is None
+
+
+def test_every_expectProvenance_in_the_REAL_case_file_validates():
+    """Run through the SAME construction `main()` uses, so a declaration the
+    validator would refuse cannot sit in the file until a Chromium run finds it.
+
+    ⏳ THE FLOOR IS THE CURRENT STATE AND IS MEANT TO GO RED. Nothing declares
+    provenance at the moment the split lands, because nothing has been migrated
+    since it did. B5 Task 6 flips `sar` and `ichimoku`, and **every case that
+    turns either of them on flips a pool key** — so the first migration to land
+    fails this line and has to raise the floor deliberately."""
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    declared = []
+    for raw in doc["cases"]:
+        entry = cp.case_entry({**doc["defaults"], **raw}, tolerance=0, expect=None)
+        if entry["expect_provenance"]:
+            declared.append(raw["name"])
+            for pair in entry["expect_provenance"]:
+                assert len(pair) == 2 and pair[0] != pair[1]
+    assert declared == [], (
+        f"{declared} now declare provenance — raise this floor to the migrated "
+        "set rather than deleting the rail")
+
+
 # ─── the CLI, and the refusal that keeps the two mechanisms apart ────────────
 
 def test_expect_and_a_tolerance_BUDGET_cannot_both_be_declared(monkeypatch, tmp_path):
