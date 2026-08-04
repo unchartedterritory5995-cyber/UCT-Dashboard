@@ -1,4 +1,13 @@
 // app/src/components/research-kit/charts/LollipopChart.jsx
+//
+// ⚠️ P2 HARD REQUIREMENT (SDD ledger, this plan's progress.md): jsdom has no
+// canvas, so `renderLollipopItem.test.jsx` proves the drawing CONTRACT against
+// a stub `api` (fixed index*20 / 200-value*100 coordinates) — it never renders
+// a real ECharts custom-series frame. That stub-api coverage is a deliberate
+// risk the plan accepted, on the condition that LollipopChart is verified in a
+// REAL BROWSER (a ticker with both reported and not-yet-reported quarters)
+// before P2's review closes. Do not treat the green test suite alone as proof
+// the lollipop actually paints correctly.
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
