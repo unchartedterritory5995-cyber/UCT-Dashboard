@@ -398,6 +398,17 @@ export function createBinder({ chart, LWC }) {
         // case is a fresh page load and never photographs a transition.) Benign
         // while nothing crosses — `chart.addSeries` also appends, so an engine
         // create and a legacy create land in the same place — and the rail
+        // 🔴 …EXCEPT THAT SOMETHING CROSSES NOW. This note used to end *"That day
+        // is `vwap`/`sar`/`ichimoku`/`donchian`"*, and B5 Task 5 arrived first:
+        // `stoch` and `atr` are pane oscillators that the VOLUME-OVERLAY toggle
+        // moves between pane 0 and the volume pane, so this branch's
+        // `series.moveToPane` fires on a live chart today. It is measured in
+        // `stockChartWiring.test.jsx` → *"the VOLUME-OVERLAY path, mid-session"*,
+        // which asserts the series is RELOCATED rather than destroyed (the
+        // hand-written block recreated it) and that `H.moveToPaneCalls` is
+        // non-empty. What is still true is the rest of this paragraph: the
+        // z-order rails and the pixel gate are both blind to it, which is why the
+        // expiry rail keeps its name and now says which fixture it speaks for.
         // `⏳ EXPIRES when a pooled series first CROSSES PANES` goes red the day
         // it stops being true. That day is `vwap`/`sar`/`ichimoku`/`donchian`.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))

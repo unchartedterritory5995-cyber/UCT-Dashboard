@@ -102,8 +102,16 @@ const LEDGER = [
     anchor: 'rsi:  { ...CHART_DEFAULTS.indicators.rsi,', fate: 'B5' },
 
   // ── StockChart's render lane ─────────────────────────────────────────────
+  // ⚠️ THE ANCHOR MOVED AT B5 TASK 5, AND THE SITE DID NOT. It was
+  // `const stochKRef     = useRef(null)` — the first ref in the block — until
+  // Stochastic and ATR were flipped and their three refs DELETED. The region is
+  // still here (sar, ichimoku ×5, mfi, cci, williamsR, adx ×3, obv, donchian ×3),
+  // so this is an anchor repair, not a retirement: the row keeps its `B5` fate
+  // and the count is unchanged. `sarSeriesRef` is the new first survivor and
+  // retires at Task 6, which will move the anchor again — by design, because a
+  // stale anchor fails BY NAME rather than passing on a region that emptied.
   { file: 'app/src/components/StockChart.jsx', region: 'the series useRef declarations',
-    anchor: 'const stochKRef     = useRef(null)', fate: 'B5' },
+    anchor: 'const sarSeriesRef  = useRef(null)', fate: 'B5' },
   { file: 'app/src/components/StockChart.jsx', region: 'the indicatorData memo — compute calls + shape mapping',
     anchor: 'const indicatorData = useMemo(', fate: 'B5' },
   { file: 'app/src/components/StockChart.jsx', region: 'the hand-written render blocks',
@@ -654,24 +662,48 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(SC).toContain('const registerLegacyChip = useCallback(')
     expect(SC).toContain('crosshairData.chips')
     expect(read('app/src/components/chart/engine/readout.js')).toContain('export function chipsFrom(')
-    // ⛔ AND THE SIX CHIPS THAT WOULD OTHERWISE HAVE VANISHED ARE DECLARED. The
-    // obvious B4 — render `engineChips()` directly — deletes `%K`, `%D`,
-    // `ATR(14)`, `SAR`, `TK` and `KJ` for every user, because those four
-    // definitions are NOT migrated and produce no bindings. This is the source
-    // half of that claim; `legendFromDefinitions.test.jsx` is the behavioural one.
+    // ⛔ AND ALL NINE CHIPS ARE DECLARED ON THEIR DEFINITIONS. The obvious B4 —
+    // render `engineChips()` directly — deleted `%K`, `%D`, `ATR(14)`, `SAR`,
+    // `TK` and `KJ` for every user, because those four definitions produced no
+    // bindings. This is the source half of that claim;
+    // `legendFromDefinitions.test.jsx` is the behavioural one, and it is where
+    // the LANE each chip comes from is asserted.
     const declared = engineRegistry.listDefinitions().flatMap(
       d => d.plots.filter(p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
         .map(p => `${d.id}::${p.key}`)).sort()
-    expect(declared, 'a chip-bearing plot lost its `legend` declaration — six users\' chips ' +
-      'disappear the moment one of the un-migrated four loses it').toEqual([
+    expect(declared, 'a chip-bearing plot lost its `legend` declaration — a user\'s chip ' +
+      'disappears the moment one of these nine loses it, on EITHER lane').toEqual([
       'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
       'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
     ])
-    // …and B4 got there WITHOUT migrating any of them, which is the constraint
-    // that made the whole design necessary.
-    for (const id of ['stoch', 'atr', 'sar', 'ichimoku']) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id), `${id} was migrated — B4 ships ZERO migrations`).toBe(false)
+    // ⭐ AND THE SPLIT BETWEEN THE TWO LANES, WHICH IS WHAT B5 MOVES. This loop
+    // used to read *"for `stoch`, `atr`, `sar`, `ichimoku`: NOT migrated — B4
+    // ships ZERO migrations"* and it went RED at B5 Task 5, which is the correct
+    // way for it to notice. It is INVERTED rather than deleted, and it is failable
+    // in BOTH directions: a definition on the wrong side of this partition is
+    // either a chip drawn twice (migrated while its legacy registration lives) or
+    // a chip drawn by nobody (flipped with no binding). The lists move once per
+    // B5 migration task and are the ledger of which chips have changed lane.
+    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr']
+    const LEGACY_LANE_CHIPS = ['sar', 'ichimoku']
+    for (const id of ENGINE_LANE_CHIPS) {
+      expect(ENGINE_MIGRATED_DEF_IDS.has(id),
+        `${id} carries a chip and is NOT migrated — its chip comes from the legacy lane, ` +
+        'so move it back to LEGACY_LANE_CHIPS').toBe(true)
+      expect(ENGINE_FLIPPED_DEF_IDS.has(id),
+        `${id} is migrated but not flipped — with engineEnabled deleted that is an ` +
+        'indicator drawn by NOTHING').toBe(true)
     }
+    for (const id of LEGACY_LANE_CHIPS) {
+      expect(ENGINE_MIGRATED_DEF_IDS.has(id),
+        `${id} was migrated — its chip now comes from the ENGINE lane, so move it to ` +
+        'ENGINE_LANE_CHIPS (and retire its registerLegacyChip calls in the same commit)').toBe(false)
+    }
+    // …and the two lists really do partition the six chip-bearing definitions, so
+    // neither can silently shrink.
+    expect([...ENGINE_LANE_CHIPS, ...LEGACY_LANE_CHIPS].sort(),
+      'the two lanes stopped covering every chip-bearing definition')
+      .toEqual([...new Set(declared.map(k => k.split('::')[0]))].sort())
     // ⛔ AND THE PATTERNS STILL MATCH SOMETHING, so five zeroes above cannot be
     // five broken regexes.
     const PROBE = 'export const LEGACY_SLOTS = ({}) export function chipsBySlot(x) ' +

@@ -101,8 +101,17 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
       'a FLIPPED definition was greyed — the short-circuit is not reaching unwiredKeys').toBeUndefined()
     // …and the same definition under a NON-flipped id is greyed, so the "live"
     // above is the short-circuit and not a predicate that never greys anything.
+    //
+    // ⚠️ THE UN-FLIPPED ID IS A MOVING SUBJECT AND HAS TO BE ASSERTED. It was
+    // `stoch` until B5 Task 5 flipped Stochastic, at which point this probe was
+    // comparing two FLIPPED definitions and the second `expect` could only fail.
+    // `mfi` is the successor; the line below is what makes the next flip say so
+    // instead of quietly turning the control into a restatement of the first half.
+    const UNFLIPPED_PROBE_ID = 'mfi'
+    expect(ENGINE_FLIPPED_DEF_IDS.has(UNFLIPPED_PROBE_ID),
+      `${UNFLIPPED_PROBE_ID} is flipped now — this probe needs an un-flipped id`).toBe(false)
     const unflipped = listEngineIndicators(
-      base(), { listDefinitions: () => [{ ...probeDef, id: 'stoch' }] },
+      base(), { listDefinitions: () => [{ ...probeDef, id: UNFLIPPED_PROBE_ID }] },
     )[0]
     expect(unflipped.fields.find((f) => f.key === 'notInTheBlob').disabled).toBe(NOT_IN_BLOB)
   })

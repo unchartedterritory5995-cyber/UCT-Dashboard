@@ -221,8 +221,11 @@ describe('the blob shapes themselves — without these the cases below prove not
     }
   })
 
-  it('all four pilots are the flipped set — the subject of every case here', () => {
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'macd', 'rsi', 'vwap'])
+  it('the flipped set is the four pilots plus B5\'s — the subject of every case here', () => {
+    // ⭐ `stoch` and `atr` joined at B5 Task 5. The blobs below are unchanged and
+    // so are their expectations, which is the claim: a stored July blob renders
+    // the same chart after two more definitions move lane.
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'macd', 'rsi', 'stoch', 'vwap'])
   })
 })
 

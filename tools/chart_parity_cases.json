@@ -420,7 +420,7 @@
     },
     {
       "name": "engine_bb_rsi_vs_legacy",
-      "why": "THE PILOT PAIR TOGETHER. A price overlay and a banded oscillator in one render, which is the only case that can see the engine drawing its series contiguously where legacy interleaves them, and the only one where a pooled series can cross between the two placement paths within a single sync.",
+      "why": "THE PILOT PAIR TOGETHER. A price overlay and a banded oscillator in one render, which is the only case that can see the engine drawing its series contiguously where legacy interleaves them, and the only one where a pooled series can cross between the two placement paths within a single sync. ⭐ B5 TASK 5 REORDERED `instancesB` INTO REGISTRY ORDER, and the PANE MANIFEST is what found it. Side A gets its instances from the read-time migrator, which walks the REGISTRY (rsi, macd, bb, …); side B was handed this list, which began with `bb`. So the two sides created the same series in a DIFFERENT ORDER — and LWC z-stacks by insertion. It read 0 changed pixels throughout, because none of these series overlap; what it would have hidden is a real z-order difference on the day one of them did. Invisible until B5 Task 4 gave side A a manifest to publish, at which point the manifest cross-check reported `panes[0].series[1].key: 'legacy:rsi::rsi' -> 'legacy:bb::upper'` on both of these cases. The list now matches the order a real chart builds them in; the measured diff is unchanged at 0.",
       "settings": {
         "indicators": {
           "bb": {
@@ -438,6 +438,19 @@
       },
       "instancesB": [
         {
+          "instanceId": "legacy:rsi",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "color": "#7b68ee"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        },
+        {
           "instanceId": "legacy:bb",
           "defId": "bb",
           "defVersion": 1,
@@ -448,19 +461,6 @@
           },
           "placement": {
             "target": "price"
-          },
-          "hidden": false
-        },
-        {
-          "instanceId": "legacy:rsi",
-          "defId": "rsi",
-          "defVersion": 1,
-          "inputs": {
-            "period": 14,
-            "color": "#7b68ee"
-          },
-          "placement": {
-            "target": "pane"
           },
           "hidden": false
         }
@@ -502,7 +502,7 @@
     },
     {
       "name": "engine_bb_rsi_macd_vs_legacy",
-      "why": "ALL THREE PILOTS AT ONCE: a price overlay plus TWO extra bands. The only case that can see a pane-ordering or pane-height regression caused by the engine reserving bands through `computePaneMargins` while drawing all its series at one z-position — and the only one where a single sync binds five pool slots across two placement paths and two pool keys. Its settings mirror `bb_rsi_macd`, which is the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. Expected 0 px.",
+      "why": "ALL THREE PILOTS AT ONCE: a price overlay plus TWO extra bands. The only case that can see a pane-ordering or pane-height regression caused by the engine reserving bands through `computePaneMargins` while drawing all its series at one z-position — and the only one where a single sync binds five pool slots across two placement paths and two pool keys. Its settings mirror `bb_rsi_macd`, which is the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. Expected 0 px. ⭐ B5 TASK 5 REORDERED `instancesB` INTO REGISTRY ORDER, and the PANE MANIFEST is what found it. Side A gets its instances from the read-time migrator, which walks the REGISTRY (rsi, macd, bb, …); side B was handed this list, which began with `bb`. So the two sides created the same series in a DIFFERENT ORDER — and LWC z-stacks by insertion. It read 0 changed pixels throughout, because none of these series overlap; what it would have hidden is a real z-order difference on the day one of them did. Invisible until B5 Task 4 gave side A a manifest to publish, at which point the manifest cross-check reported `panes[0].series[1].key: 'legacy:rsi::rsi' -> 'legacy:bb::upper'` on both of these cases. The list now matches the order a real chart builds them in; the measured diff is unchanged at 0.",
       "settings": {
         "indicators": {
           "bb": {
@@ -527,20 +527,6 @@
         }
       },
       "instancesB": [
-        {
-          "instanceId": "legacy:bb",
-          "defId": "bb",
-          "defVersion": 1,
-          "inputs": {
-            "period": 20,
-            "stdDev": 2,
-            "color": "rgba(156,39,176,0.85)"
-          },
-          "placement": {
-            "target": "price"
-          },
-          "hidden": false
-        },
         {
           "instanceId": "legacy:rsi",
           "defId": "rsi",
@@ -567,6 +553,20 @@
           },
           "placement": {
             "target": "pane"
+          },
+          "hidden": false
+        },
+        {
+          "instanceId": "legacy:bb",
+          "defId": "bb",
+          "defVersion": 1,
+          "inputs": {
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "placement": {
+            "target": "price"
           },
           "hidden": false
         }
@@ -855,14 +855,92 @@
       ]
     },
     {
+      "name": "engine_stoch_vs_legacy",
+      "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:stoch` out of `indicators.stoch.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy Stochastic block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement or draw order, which is the compatibility path EVERY existing user is on and the one no `<id>_only` case exercises. ⚠️ Its real force is under `--perturb-b-instances '{\"kPeriod\": 21}'`: a period appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and a %K period is the knob that moves both this definition's lines and neither of its guides.",
+      "settings": {
+        "indicators": {
+          "stoch": {
+            "enabled": true,
+            "kPeriod": 14,
+            "dPeriod": 3,
+            "kColor": "#FF6B6B",
+            "dColor": "#4ECDC4"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:stoch",
+          "defId": "stoch",
+          "defVersion": 1,
+          "inputs": {
+            "kPeriod": 14,
+            "dPeriod": 3,
+            "kColor": "#FF6B6B",
+            "dColor": "#4ECDC4"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_atr_vs_legacy",
+      "why": "The same projected-vs-stored route for ATR, and THE ONLY CASE THAT RENDERS AN `autoScale: true` OSCILLATOR BAND THROUGH THE ENGINE ON BOTH SIDES. `resolvePlacement` reads `placement.scale` to decide between `{autoScale:false, minimum, maximum}` and `{autoScale:true}`; ATR is the only migrated definition that takes the second branch, so this is where a scale-option set that silently inherited the previous tenant's frozen range shows up — the pooling hazard `placement.js`'s TRAP #2 exists for, whose symptom is an ATR of 2.7 drawn as a flat line on the floor of a band framed for a 0-100 oscillator. ⚠️ Perturb `{\"period\": 21}`, not a colour: the period is the only knob that proves the compute ran.",
+      "settings": {
+        "indicators": {
+          "atr": {
+            "enabled": true,
+            "period": 14,
+            "color": "#FFA726"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:atr",
+          "defId": "atr",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "color": "#FFA726"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
       "name": "stoch_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 5's TWO-BUILD measurement for Stochastic: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. It is the only case that renders a MULTI-PLOT banded oscillator through the engine — %K and %D share one named `stoch` price scale and one reserved band, and the two 80/20 guides hang off %K's series (`planBindings` puts an instance's guides on its FIRST data-bearing plot, which is where the shipped block put them). A case with one plot cannot see a second line landing on the wrong scale, drawn in the wrong order, or carrying the other's dash pattern — `stoch.d` leaking `lineStyle: 2` onto a pooled neighbour is a MEASURED example in `pool.js`'s own header. `indicators.stoch.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into.",
+      "settings": {
+        "indicators": {
+          "stoch": {
+            "enabled": true,
+            "kPeriod": 14,
+            "dPeriod": 3,
+            "kColor": "#FF6B6B",
+            "dColor": "#4ECDC4"
+          }
+        }
+      }
     },
     {
       "name": "atr_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 5's two-build measurement for ATR, and the regression class NO OTHER CASE IN THIS FILE CAN SEE: it is the first and only case that renders an `autoScale: true` oscillator band through the engine. Every banded pilot before it declares a FIXED range — RSI and Stochastic pass `{autoScale:false, minimum:0, maximum:100}` — so a `resolvePlacement` that emitted the fixed-range branch for every pane definition would be green on all of them and would pin ATR's price-unit values to 0-100, flattening the line onto the floor of its band. ATR's band is also SHORTER than every 0-100 oscillator's (`placement.pane.height` 0.13 vs 0.15, i.e. `{top: 0.87}` vs `{top: 0.85}`), so a placement that assumed symmetry with `stoch` would draw into the wrong rectangle. It draws no guides, which is what makes the `createPriceLine` count assertable at zero.",
+      "settings": {
+        "indicators": {
+          "atr": {
+            "enabled": true,
+            "period": 14,
+            "color": "#FFA726"
+          }
+        }
+      }
     },
     {
       "name": "sar_only",

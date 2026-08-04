@@ -386,14 +386,15 @@ sanity-check the harness before migrating an indicator.
 ## 5. Migrating one more indicator — the whole checklist
 
 Phase B3 took four indicators through both flips (RSI, Bollinger Bands, MACD,
-VWAP). **Eleven definitions are still on the legacy lane** — `stoch`, `atr`,
-`sar`, `ichimoku`, `mfi`, `cci`, `williamsR`, `adx`, `obv`, `donchian`, plus
+VWAP), and **B5 Task 5 took two more — `stoch` and `atr`, migrated and flipped in
+ONE commit.** **Eight definitions are still on the legacy lane** — `sar`,
+`ichimoku`, `mfi`, `cci`, `williamsR`, `adx`, `obv`, `donchian` — plus
 `volumeProfile`, which is **permanently carved out** and is not on this list at
 all (it draws to a sibling canvas, not through `addSeries`; see
 `nativeRegistry.CARVED_OUT_INDICATOR_KEYS`).
 
-This is what each of the remaining ten costs, written from what the four actually
-took rather than from what the plan estimated.
+This is what each of the remaining eight costs, written from what the six
+actually took rather than from what the plan estimated.
 
 ### 5.1 The steps
 
@@ -445,9 +446,18 @@ took rather than from what the plan estimated.
    `macdColor` / `signalColor`), name the real key or the perturbation is a no-op
    that reports 0.
 
-7. **Declare its legend chips** — `plots[].legend` plus a `readout.LEGACY_SLOTS`
-   entry — or the readout silently loses them. **The pixel gate cannot see a
-   legend nobody hovered**, so this needs its own DOM test with a legacy control.
+7. **Declare its legend chips** — `plots[].legend` on the definition — or the
+   readout silently loses them. **The pixel gate cannot see a legend nobody
+   hovered**, so this needs its own DOM test with a legacy control.
+   🔴 THIS STEP USED TO SAY *"plus a `readout.LEGACY_SLOTS` entry"*, and **B4
+   Task 10 DELETED `LEGACY_SLOTS`** — `enumerationSites.test.js` asserts it cannot
+   come back. All nine shipped chips are declared on their definitions already, so
+   a migration ADDS NOTHING here. What it does instead is **retire that
+   definition's `registerLegacyChip` calls in the SAME commit** that gives it an
+   engine binding: the chip's text is identical on both lanes by design, so a
+   registration left behind produces the chip TWICE, one exactly on top of the
+   other. `legendFromDefinitions.test.jsx` asserts the LANE each chip comes from
+   as a SEPARATE case from its text, for exactly that reason.
 
 8. **DELETE, don't guard.** Flip B is the deletion: the hand-written block, its
    `useRef`s, its `indicatorData` branch, its hide-all entry, its crosshair read.

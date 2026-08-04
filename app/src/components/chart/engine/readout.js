@@ -22,33 +22,54 @@
 //
 // 🔴 THIS HEADER USED TO SAY `LEGACY_SLOTS` WAS "deleted at B4, when the legend
 // renders `engineChips()` directly". **THAT PLAN WOULD HAVE DELETED SIX CHIPS FOR
-// EVERY USER.** Nine chips ship; only three of them (RSI's line and MACD's line
-// and signal) belong to a FLIPPED definition, so only three come out of
-// `engineChips`. The other six — Stochastic's %K and %D, ATR, SAR and Ichimoku's
-// tenkan and kijun — belong to definitions that are NOT
-// migrated, are drawn by hand-written legacy blocks, and have no bindings at all.
+// EVERY USER.** Nine chips ship, and at B4 only three of them (RSI's line and
+// MACD's line and signal) belonged to a FLIPPED definition, so only three came
+// out of `engineChips`. The other six belonged to definitions that were NOT
+// migrated, were drawn by hand-written legacy blocks, and had no bindings at all.
 //
-// ⚠️ THOSE SIX ARE NAMED IN PROSE ON PURPOSE. `enumerationSites.test.js`'s
-// discovery scan flags any shipped module that names four or more indicator ids,
-// and it does not strip comments — writing them as `<id>::<plotKey>` pairs put
-// this file on the scan's list for a paragraph that enumerates nothing. Measured,
-// not guessed.
-// A legend rendering `engineChips()` alone would simply stop printing them, and
-// **no pixel gate could see it**: a headless capture has no cursor.
+// ⭐ B5 TASK 5 MOVED THREE OF THOSE SIX ONTO THE ENGINE — Stochastic's %K and %D,
+// and ATR — by MIGRATING their definitions, which is a change of SOURCE and not
+// of text: the chips come off the same `plots[].legend` blocks, through this same
+// pipeline, character for character. **THREE remain on the legacy lane: SAR, and
+// Ichimoku's tenkan and kijun.** They retire at Task 6, and until then a legend
+// rendering `engineChips()` alone would simply stop printing them — and **no
+// pixel gate could see it**, because a headless capture has no cursor.
 //
-// ⛔ AND "MIGRATE THOSE FOUR THEN" IS THE WRONG TURN, NOT THE FIX. B4 ships ZERO
-// migrations — `FLIPPED === MIGRATED` is a Global Constraint asserted both ways,
-// and `docs/decisions/2026-08-03-engine-enabled-settings-migration.md` is still
-// OPEN, so a migrated-but-un-flipped definition would be engine-drawn for NOBODY.
+// ⚠️ THE SURVIVORS ARE NAMED IN PROSE, NOT AS `<id>::<plotKey>` PAIRS, AND THE
+// REASON HAS CHANGED — 🔴 THIS PARAGRAPH USED TO SAY THE DISCOVERY SCAN "does not
+// strip comments", WHICH HAS BEEN FALSE SINCE B4 TASK 10 FIXED IT. It reads
+// `stripComments(src)` now (`enumerationSites.test.js` → *"the scan reads CODE,
+// not prose"*, whose own fixture is this file's old paragraph), so prose cannot
+// flag a module however many ids it names. What survives is the HABIT and its
+// reason: a comment that enumerates ids is the shape a reader mistakes for a
+// list, and it is the shape the scan was once fooled by — so the words stay
+// words. A premise that quietly stopped being true is exactly what this branch
+// keeps finding, so it is corrected here rather than left to read as live.
 //
-// THE ADJUDICATED DESIGN (A3), and it needs no migration at all: `engineChips`
+// ⛔ AND "MIGRATE THOSE THREE THEN" WAS THE WRONG TURN FOR B4, AND IS THE RIGHT
+// ONE FOR B5 — the difference is a decision, not an opinion. B4 shipped ZERO
+// migrations because `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`
+// was OPEN and a migrated-but-un-flipped definition would have been engine-drawn
+// for NOBODY. B5 Task 4 RESOLVED that record by deleting `engineEnabled`, and B5
+// migrates and flips in ONE commit, so the intermediate state the objection was
+// about is never created. `FLIPPED === MIGRATED` is still asserted both ways.
+//
+// THE ADJUDICATED DESIGN (A3), and it needed no migration at all: `engineChips`
 // already turned *(series, definition, instance inputs)* into *(label, colour,
 // decimals, text)*, and only the SERIES SOURCE was engine-specific. So the
 // formatting half is extracted into `chipsFrom(entries, …)` and fed a SECOND
 // series source — `StockChart`'s `legacyChipEntriesRef`, keyed `<defId>::<plotKey>`
 // and registered at the legacy `addSeries` sites that are already fated B5. One
-// formatting pipeline, two lanes, and the six legacy chips are now declared on
-// their own definitions' `plots[].legend` instead of hand-written in the legend.
+// formatting pipeline, two lanes, and all six legacy chips were declared on their
+// own definitions' `plots[].legend` instead of hand-written in the legend.
+//
+// ⭐ WHICH IS WHY B5'S MIGRATIONS COST THE LEGEND NOTHING. A definition that
+// gains an engine binding starts producing its chip through `engineChips`, off
+// the SAME declaration the legacy lane was already reading — so a flip retires
+// two `registerLegacyChip` calls and changes not one character of the readout.
+// That is the property, and it is asserted rather than assumed: the nine chips
+// are compared character for character at every flip, and the LANE each one comes
+// from is a SEPARATE assertion, because a chip drawn twice is invisible in text.
 
 // (`LEGACY_SLOTS`, `chipsBySlot` and the per-chip `slot` field were deleted here
 //  by B4 Task 10 — the legend renders `crosshairData.chips` directly and there is

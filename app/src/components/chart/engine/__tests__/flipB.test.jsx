@@ -195,10 +195,13 @@ const ctx = () => {
 const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
 
 describe('Flip B — the set itself', () => {
-  it('flips all four pilots, and stays a SUBSET of the migrated set', () => {
+  it('flips the four pilots AND B5\'s migrations, and stays a SUBSET of the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['bb', 'macd', 'rsi', 'vwap'])
+    // ⭐ `stoch` and `atr` joined at B5 Task 5, migrated and flipped in ONE
+    // commit. This literal moves once per B5 migration task, deliberately: it is
+    // the place a flip has to be WRITTEN DOWN, not derived.
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'macd', 'rsi', 'stoch', 'vwap'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
@@ -265,21 +268,27 @@ describe('Flip B — the instance list is the read authority', () => {
     //
     // What is still true and still worth a rail is the OTHER edge of the same
     // filter: a definition the engine has never been given never reaches it,
-    // whatever the flag says, and its legacy block goes on drawing it. Stoch is
-    // the subject because it is a pane oscillator with its own named scale —
-    // the same shape MACD had — so a filter that leaked would look identical.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('stoch'),
-      'stoch migrated — this negative control needs a new subject').toBe(false)
+    // whatever the flag says, and its legacy block goes on drawing it. The
+    // subject has to be a pane oscillator with its own named scale — the same
+    // shape MACD had — so a filter that leaked would look identical.
+    //
+    // ⚠️ THE SUBJECT MOVED AGAIN AT B5 TASK 5, AND IT WILL MOVE AT TASK 7. It was
+    // `stoch` until Stochastic migrated; it is `mfi` now, which is the same shape
+    // (`fixedPane(0, 100)`, own `mfi` scale, hand-written block). Every subject
+    // this control can have is on the cutover's list, so the assertion below is
+    // what tells the next migrator to move it rather than to delete it.
+    expect(ENGINE_MIGRATED_DEF_IDS.has('mfi'),
+      'mfi migrated — this negative control needs a new subject').toBe(false)
     // ⚠️ THE LOOP USED TO BE OVER `engineEnabled` — "with the flag off AND on".
     // B5 Task 4 deleted the key, so it is over a LEFTOVER value a stale blob or an
     // old share link can still carry, and the claim is that none of them starts
     // anything. Same two runs, and the second is still the one that could fail.
     for (const leftover of [undefined, true]) {
       cleanup(); H.reset()
-      draw({ engineEnabled: leftover, indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3 } } })
-      expect(bound(), `stoch reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
-      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'stoch').length,
-        'the legacy Stochastic block stopped drawing').toBeGreaterThan(0)
+      draw({ engineEnabled: leftover, indicators: { mfi: { enabled: true, period: 14 } } })
+      expect(bound(), `mfi reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
+      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'mfi').length,
+        'the legacy MFI block stopped drawing').toBeGreaterThan(0)
     }
   })
 

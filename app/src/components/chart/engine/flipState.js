@@ -106,7 +106,7 @@ const EMPTY_INPUTS = sealedMap([])
  * eligibility hook's answer and the timeframe's. A reader that treats this set as
  * a paint list will be wrong on every daily chart from B3 Task 8 onward.
  */
-export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap'])
+export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr'])
 
 /**
  * THE FLIP-B SET. Definition ids for which the INSTANCE list is the read
@@ -172,12 +172,31 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap'])
  * sites. `StockChart` now activates the engine on `ENGINE_FLIPPED_DEF_IDS.size > 0`
  * alone. Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
  *
+ * ⭐ B5 TASK 5 ADDED `stoch` AND `atr`, TO BOTH SETS IN ONE COMMIT. That is the
+ * cutover's standing rule rather than a choice made here: with `engineEnabled`
+ * deleted (Task 4) a migrated-but-un-flipped definition is drawn by NOTHING —
+ * not "engine-drawn for flag-holders", which is what it used to mean — so the
+ * two sets move together or the indicator disappears. `enumerationSites.test.js`
+ * refuses the intermediate state in both directions, and `flipB.test.jsx`
+ * asserts the equality, so a fifth definition migrated without being flipped is
+ * a red test rather than an invisible deletion.
+ *
+ * ⚠️ AND THEY WENT IN REGISTRY ORDER, WHICH IS LOAD-BEARING FOR A DIFFERENT
+ * REASON THAN THE OVERLAYS'. `stoch` and `atr` are PANE oscillators, each on its
+ * own named scale in its own band, so the z-stacking hazard the paragraph above
+ * describes for the five price overlays does not apply to them. What does apply
+ * is that `binder.sync()` runs BEFORE every remaining legacy block, so a pane
+ * oscillator migrated out of registry order would be inserted ahead of an
+ * un-migrated one it currently sits behind — invisible while nothing overlaps,
+ * and a real z-order change the moment the volume-pane OVERLAY path puts two of
+ * them on one shared left axis. Registry order costs nothing and closes it.
+ *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
  * cannot import from it. `StockChart` re-exports it so the plan's stated
  * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
  */
-export const ENGINE_FLIPPED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap'])
+export const ENGINE_FLIPPED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr'])
 
 /**
  * The migrated definitions this settings blob hands to the engine.
