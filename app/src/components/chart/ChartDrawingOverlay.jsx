@@ -794,6 +794,7 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   const tlines = String(text || '').split('\n')
   let tw = 24
   for (const ln of tlines) tw = Math.max(tw, ctx.measureText(ln).width)
+  const firstLineW = tlines.length ? ctx.measureText(tlines[0]).width : tw   // headline width
   const boxW = tw + 2                                     // tight to the text
   const boxH = Math.max(1, tlines.length) * fontSize * 1.4
   // Visible candle high/low segments (pixels) so the label + line dodge candles.
@@ -874,6 +875,7 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
     rect: { x: best.x, y: best.y, w: boxW, h: boxH },
     anchorPx: { x: anchorX, y: best.anchorLow ? anchorLoY : anchorHiY },
     anchorLow: best.anchorLow,
+    firstLineW,
   }
 }
 
@@ -1377,22 +1379,25 @@ export default function ChartDrawingOverlay({
         if (!b) continue
         const anchorPrice = res.anchorLow ? (b.l ?? b.low ?? b.c) : (b.h ?? b.high ?? b.c)
         const { rect, anchorPx } = res
+        const fs = d.fontSize || 13
         const labelPt = asPoint(toChart(rect.x, rect.y))
         if (!labelPt) continue
-        // Measure the small text↔line gap from where the label ACTUALLY renders (its
-        // point re-snapped to a bar), NOT the raw search rect, so the leader comes
-        // CLOSE to the text without touching it. End = the box edge nearest the
-        // candle, pulled back a small GAP.
+        // Attach the leader to the HEADLINE (first line) — near its right end when the
+        // candle sits to the right, else its left — at the first line's height, a small
+        // GAP off the text. (Owner ask: the line meets the right of the headline, not
+        // the bottom-right of the whole multi-line block.) Measured from where the
+        // label ACTUALLY renders (its point re-snapped to a bar), not the search rect.
         const lp = toPixel(labelPt.time, labelPt.price)
         const bx = (lp && Number.isFinite(lp.x)) ? lp.x : rect.x
         const by = (lp && Number.isFinite(lp.y)) ? lp.y : rect.y
-        const nx = Math.max(bx, Math.min(bx + rect.w, anchorPx.x))
-        const ny = Math.max(by, Math.min(by + rect.h, anchorPx.y))
-        const dx = nx - anchorPx.x, dy = ny - anchorPx.y
-        const len = Math.hypot(dx, dy) || 1
-        const GAP = 4
-        const ex = len > GAP ? nx - (dx / len) * GAP : nx
-        const ey = len > GAP ? ny - (dy / len) * GAP : ny
+        const flw = Number.isFinite(res.firstLineW) ? res.firstLineW : rect.w
+        const headY = by + fs * 0.9                          // ~vertical center of the headline
+        const attachX = anchorPx.x >= bx + flw / 2 ? bx + flw : bx   // side facing the candle
+        const ddx = anchorPx.x - attachX, ddy = anchorPx.y - headY
+        const dlen = Math.hypot(ddx, ddy) || 1
+        const GAP = 8
+        const ex = attachX + (ddx / dlen) * GAP
+        const ey = headY + (ddy / dlen) * GAP
         const endPt = asPoint(toChart(ex, ey))
         if (!endPt) continue
         // Stamp THIS chart's current drawing default (color + width) so a placed
