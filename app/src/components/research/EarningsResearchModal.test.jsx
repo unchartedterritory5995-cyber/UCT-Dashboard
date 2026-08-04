@@ -526,6 +526,7 @@ describe('grade chip — malformed/partial payload resilience', () => {
           inputs: [
             { label: 'Beat streak', weight: 0.4, detail: '4 of 4' },
             { label: 'Revisions', weight: null, detail: null },   // weight genuinely unknown
+            { label: 'IV premium', weight: 0, detail: 'no chain' }, // genuinely zero-weighted
           ],
         },
       },
@@ -538,6 +539,11 @@ describe('grade chip — malformed/partial payload resilience', () => {
     expect(tip).toMatch(/Beat streak \(40%\)/)
     expect(tip).toMatch(/Revisions \(—\)/)
     expect(tip).not.toMatch(/Revisions \(0%\)/)
+    // The other direction of the same guard: a real zero is a real number, not
+    // an absence. Without this, "fixing" the phantom-zero by rendering — for
+    // every falsy weight would still pass the assertions above.
+    expect(tip).toMatch(/IV premium \(0%\)/)
+    expect(tip).not.toMatch(/IV premium \(—\)/)
   })
 })
 
