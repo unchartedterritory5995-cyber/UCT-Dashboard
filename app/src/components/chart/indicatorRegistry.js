@@ -41,12 +41,36 @@
 //   · the VOLUME PANE, which is not an indicator at all — it has no definition,
 //     no compute, and a `visible` flag rather than an `enabled` one.
 //
+// ─── B4 TASK 6: EVERY DEFINITION GETS A ROW, AND THE LIST OF WHICH ONES DO IS
+// ─── DELETED ────────────────────────────────────────────────────────────────
+//
+// `ENGINE_ROW_DEF_IDS` — "the migrated definitions that KEEP a settings-tab row
+// until B4" — is GONE. It existed only while SOME definitions had a generated
+// row and others did not, and the rail that guarded it (*every id that keeps a
+// generated row still has a control that exists NOWHERE ELSE*) was written to go
+// RED on exactly this change. `listEngineIndicators` walks
+// `registry.listDefinitions()` now, so a definition added to `nativeRegistry`
+// brings its own row, its own controls and its own section with it.
+//
+// ⭐ THIS CLOSES THE MACD GAP THE LEDGER MEASURED. `macdColor` and `signalColor`
+// had a control on NO surface — not the toolbar, not the settings tab. A
+// generated MACD row carries both, because the definition declares both.
+//
+// ⛔ AND IT IS NOT `listDefinitions()` WITH A WRAPPER. `volumeProfile` is a
+// settings section with no definition (it draws to a sibling 2D canvas), so a
+// list built from definitions alone silently DROPS its row — the user-facing
+// regression B3 Task 11 refused. `listAllIndicators` appends
+// `indicatorCatalog.CARVED_OUT_ROWS`, whose `fields` are the one hand-written
+// field table left in the platform and sit next to the exemption they belong to.
+//
 // ─── ⛔ THE RAIL ────────────────────────────────────────────────────────────
 //
 // A definition id in `ENGINE_MIGRATED_DEF_IDS` may NOT appear in
 // `listIndicators()`. `engine/__tests__/enumerationSites.test.js` fails if one
 // does. VWAP was the last overlap; its row moved to `listEngineIndicators()`,
-// which hand-writes no field at all.
+// which hand-writes no field at all. Its successor rail is *every declared input
+// of every definition is reachable from the generated dialog* — a rail that
+// retires without a successor is how this file grew the problem it is retiring.
 //
 // ─── AND ONE READER, ONE WRITER ─────────────────────────────────────────────
 //
@@ -73,6 +97,11 @@
 import { isInstanceTombstone } from './chartDefaults'
 import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
 import { isIndicatorEnabled, setIndicatorEnabled, setIndicatorInput } from './engine/instanceControls'
+// ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
+// carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
+// because a predicate — or a field table — copied into two files is precisely
+// the twin this whole phase is retiring.
+import { CARVED_OUT_ROWS, unwiredKeys, NOT_IN_BLOB } from './indicatorCatalog'
 
 export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
@@ -113,23 +142,6 @@ export const VOLUME_FIELDS = [
 ]
 
 // ─── THE ENGINE-OWNED ROWS ──────────────────────────────────────────────────
-
-/**
- * The migrated definitions that KEEP a settings-tab row until B4.
- *
- * ⛔ THIS IS NOT "which indicators exist" — it is "which migrated definitions
- * have a control on this surface that exists NOWHERE ELSE". VWAP is the whole
- * list because `ChartToolbar` gives it a checkbox and a colour swatch, and its
- * definition declares four inputs.
- *
- * ⚠️ THE RAIL THAT RETIRES IT. `enumerationSites.test.js` asserts that every id
- * here still has at least one declared input the toolbar cannot reach. The day
- * B4's generated settings dialog reaches all four, that assertion goes RED and
- * whoever is holding it is told to delete the row — rather than the row
- * surviving as a duplicate of a surface that now covers it. A comment saying
- * "remove this at B4" is exactly how this file grew the problem it is retiring.
- */
-export const ENGINE_ROW_DEF_IDS = Object.freeze(['vwap'])
 
 /** Normalise an enum option to the `[value, label]` pair the tab renders.
  *  `defSchema.enumOptionValue` accepts three shapes; the renderer accepts one. */
@@ -215,27 +227,38 @@ function drawnValues(def, settings) {
 }
 
 /**
- * The engine-owned rows — GENERATED, never hand-written.
+ * The engine-owned rows — GENERATED, never hand-written, ONE PER DEFINITION.
  *
  * `registry` is the module namespace of `engine/nativeRegistry` (or anything
- * with `getDefinition`), passed in rather than imported so this file does not
+ * with `listDefinitions`), passed in rather than imported so this file does not
  * pull the whole registry into every consumer of `MA_FIELDS`.
  *
- * A definition the registry does not know is SKIPPED rather than rendered
- * blank: `defSchema`'s line applies — a control that refuses to appear is a bug
+ * A registry that lists nothing produces no rows rather than rendering blank
+ * ones: `defSchema`'s line applies — a control that refuses to appear is a bug
  * report; a control that appears and writes nowhere is a support ticket with no
- * answer in it.
+ * answer in it. Same for a declared input whose TYPE has no control
+ * (`fieldFromInput` returns null): it renders nothing.
  */
 export function listEngineIndicators(settings, registry) {
-  const get = (registry && typeof registry.getDefinition === 'function')
-    ? (id) => registry.getDefinition(id)
-    : (typeof registry === 'function' ? registry : () => null)
+  const defs = (registry && typeof registry.listDefinitions === 'function')
+    ? registry.listDefinitions()
+    : []
   const rows = []
-  for (const defId of ENGINE_ROW_DEF_IDS) {
-    const def = get(defId)
-    if (!def) continue
-    const fields = fieldsFromDefinition(def)
-    if (!fields.length) continue
+  for (const def of (Array.isArray(defs) ? defs : [])) {
+    if (!def || typeof def.id !== 'string') continue
+    const declared = fieldsFromDefinition(def)
+    if (!declared.length) continue
+    // ⛔ A CONTROL THE BLOB CANNOT CARRY IS GREYED, WITH THE REASON. `ichimoku`
+    // declares three periods `CHART_DEFAULTS.indicators.ichimoku` has never had,
+    // and it is UN-FLIPPED — its hand-written block calls `computeIchimoku(bars)`
+    // with no arguments. Three live number boxes reading `undefined` and writing
+    // keys nobody reads is the defect. The predicate short-circuits on FLIPPED,
+    // so VWAP's four stay live; `indicatorCatalog.test.js` proves that
+    // short-circuit is load-bearing by running one probe through it both ways.
+    const unwired = unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)
+    const fields = unwired.size
+      ? declared.map((f) => (unwired.has(f.key) ? { ...f, disabled: NOT_IN_BLOB } : f))
+      : declared
     const meta = def.meta || {}
     // "(intraday only)" is DERIVED: a definition that declares a timeframe list
     // excluding the daily bar is a session indicator, and saying so on the row
@@ -296,12 +319,42 @@ export function listIndicators(settings) {
   return rows
 }
 
-/** Every row the Indicators tab renders, hand-written first then generated —
- *  the order the shipped tab has always shown (MAs, Volume, VWAP). The modal
- *  derives its SECTION LIST from this, so adding a definition to
- *  `ENGINE_ROW_DEF_IDS` does not also mean editing a group array over there. */
+/**
+ * The rows for the settings sections that have NO engine definition and are not
+ * MA overlays or the volume pane. `volumeProfile` is the whole list: it draws to
+ * a sibling 2D canvas, so there is nothing to instantiate and nothing to derive.
+ *
+ * ⛔ `engineOwned: false` IS LOAD-BEARING. `applyRowPatch` routes a row at
+ * `instanceControls` when and only when it is engine-owned, and
+ * `setIndicatorEnabled` returns the settings BY IDENTITY for a def the registry
+ * does not know — so a `true` here would make the toggle silently do nothing.
+ * The row writes its settings slice through `patchFor`, like the MA overlays.
+ */
+function listCarvedOutIndicators(settings) {
+  return CARVED_OUT_ROWS.map((row) => ({
+    id: row.id,
+    engineOwned: false,
+    label: row.name,
+    group: row.shortName,
+    fields: row.fields,
+    path: { kind: 'indicator', key: row.id },
+    values: (settings && settings.indicators && settings.indicators[row.id]) || {},
+    canToggle: true,
+    enabled: settings?.indicators?.[row.id]?.enabled === true,
+  }))
+}
+
+/** Every row the Indicators tab renders: the hand-written ones whose identity
+ *  cannot be derived (MA overlays, the volume pane), then ONE PER DEFINITION,
+ *  then the carved-out sections. The modal derives its SECTION LIST from this,
+ *  so adding a definition to `nativeRegistry` brings its own section with it and
+ *  there is no group array to forget to edit. */
 export function listAllIndicators(settings, registry) {
-  return [...listIndicators(settings), ...listEngineIndicators(settings, registry)]
+  return [
+    ...listIndicators(settings),
+    ...listEngineIndicators(settings, registry),
+    ...listCarvedOutIndicators(settings),
+  ]
 }
 
 /** Read/write helper so the tab never hardcodes a settings path. */

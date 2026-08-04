@@ -8,8 +8,8 @@ import {
   applyRowPatch,
   patchFor,
   readEnabled,
-  ENGINE_ROW_DEF_IDS,
 } from './indicatorRegistry'
+import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { mergeChartSettings, CHART_DEFAULTS, instanceTombstone } from './chartDefaults'
 import * as engineRegistry from './engine/nativeRegistry'
 import { ENGINE_MIGRATED_DEF_IDS } from './engine/flipState'
@@ -36,16 +36,34 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
     ])
   })
 
-  it('every id that KEEPS a row is a migrated definition the registry no longer describes', () => {
-    for (const id of ENGINE_ROW_DEF_IDS) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id), `${id} has an engine-owned row but no engine`).toBe(true)
-      expect(engineRegistry.getDefinition(id), `${id} has no definition`).toBeTruthy()
+  // ⭐ INVERTED AT B4 TASK 6, NOT DELETED. It read *"every id that KEEPS a row is
+  // a migrated definition"* and looped over `ENGINE_ROW_DEF_IDS`, which was the
+  // one-element list `['vwap']`. That list is gone: EVERY definition keeps a
+  // row, migrated or not. The claim that survives — and the one that could have
+  // gone wrong in this change — is the opposite: a generated row must exist for
+  // every definition, and it must not exist for anything that has no definition
+  // and no carved-out exemption.
+  it('every generated row is a definition, and every definition has a generated row', () => {
+    const ids = listEngineIndicators(mergeChartSettings(null), engineRegistry).map((r) => r.id)
+    expect(ids, 'a definition lost its generated row, or a row appeared for a non-definition')
+      .toEqual(engineRegistry.listDefinitions().map((d) => d.id))
+    expect(ids, 'VWAP is still one of them — it was the FIRST, at B3 Task 12').toContain('vwap')
+    for (const id of ENGINE_MIGRATED_DEF_IDS) {
+      expect(ids, `${id} is migrated and has no row`).toContain(id)
     }
   })
 
-  it('the tab still shows the same three sections, in the same order', () => {
+  it('the tab shows Moving averages, Volume, then one section per definition, then the carved-out ones', () => {
     const groups = [...new Set(listAllIndicators(mergeChartSettings(null), engineRegistry).map((r) => r.group))]
-    expect(groups).toEqual(['Moving averages', 'Volume', 'VWAP'])
+    expect(groups).toEqual([
+      'Moving averages', 'Volume',
+      ...engineRegistry.listDefinitions().map((d) => d.meta.shortName),
+      ...CARVED_OUT_ROWS.map((r) => r.shortName),
+    ])
+    // ⛔ AND THE CARVED-OUT ROW IS STILL THERE. A section list derived from
+    // definitions ALONE would drop `volumeProfile` — the user-facing regression
+    // B3 Task 11 refused when it was asked to delete VWAP's row.
+    expect(groups).toContain('Vol Profile')
   })
 })
 
@@ -82,7 +100,7 @@ describe('the VWAP row is DERIVED from the definition, not written here', () => 
     expect(vwapRow(settings).label).toContain('(intraday only)')
     // The note is derived, not typed: a definition with no timeframe list gets none.
     const noTfs = { ...VWAP_DEF, meta: { ...VWAP_DEF.meta, timeframes: undefined } }
-    const rows = listEngineIndicators(settings, { getDefinition: () => noTfs })
+    const rows = listEngineIndicators(settings, { listDefinitions: () => [noTfs] })
     expect(rows[0].label).not.toContain('intraday')
   })
 

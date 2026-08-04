@@ -649,12 +649,13 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           {activeTab === 'indicators' && (<>
           {/* Rendered ENTIRELY from the rows — no per-indicator JSX, and no
               hardcoded section list either. The groups come from the rows in row
-              order, so a definition added to `ENGINE_ROW_DEF_IDS` brings its own
-              section with it. The three group names used to be an array literal
-              here, and it was an enumeration site of its own: a row in a group
-              nobody had listed rendered NOTHING, silently, until someone
-              remembered to add it. `enumerationSites.test.js` fails if it
-              returns. */}
+              order, so a definition added to `nativeRegistry` brings its own
+              section with it (B4 Task 6 deleted `ENGINE_ROW_DEF_IDS`, the list
+              of which definitions got a generated row; every one of them does
+              now). The three group names used to be an array literal here, and
+              it was an enumeration site of its own: a row in a group nobody had
+              listed rendered NOTHING, silently, until someone remembered to add
+              it. `enumerationSites.test.js` fails if it returns. */}
           {[...new Set(indRows.map((r) => r.group))].map((group) => {
             const rows = indRows.filter((r) => r.group === group)
             if (!rows.length) return null

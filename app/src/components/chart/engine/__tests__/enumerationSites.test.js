@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } from '../flipState'
-import { listIndicators, listEngineIndicators, ENGINE_ROW_DEF_IDS } from '../../indicatorRegistry'
+import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
 import * as engineRegistry from '../nativeRegistry'
 
@@ -135,12 +135,15 @@ const LEDGER = [
     anchor: '{/* Technical Indicators */}', fate: 'B4' },
 
   // ── the settings tab ─────────────────────────────────────────────────────
-  // ⭐ WHAT THIS TASK LEFT. `listIndicators()` no longer names an indicator at
-  // all; the one remaining list is which migrated definitions still need a row
-  // because the toolbar cannot express their inputs. The rail that retires it is
-  // at the bottom of this file.
-  { file: 'app/src/components/chart/indicatorRegistry.js', region: 'ENGINE_ROW_DEF_IDS — the rows the toolbar cannot cover',
-    anchor: 'export const ENGINE_ROW_DEF_IDS', fate: 'B4' },
+  // ⭐ RETIRED BY B4 TASK 6. `ENGINE_ROW_DEF_IDS` — "which migrated definitions
+  // still need a row because the toolbar cannot express their inputs" — is
+  // DELETED, and the rail at the bottom of this file that demanded its deletion
+  // fired exactly as written. `listEngineIndicators` walks
+  // `registry.listDefinitions()`, so there is no list of which ids get a row and
+  // nothing for a new indicator to be edited into. Proven gone in
+  // `RETIRED_BY_B4_TASK6`, and its successor rail — *every declared input of
+  // every definition is reachable from the generated dialog* — is at the bottom
+  // of this file where the retired one used to be.
 
   // ── the keyboard ─────────────────────────────────────────────────────────
   // ⭐ FOUR REGIONS BECAME ONE, AND THE ONE IS A `keep`. B4 Task 4 generated the
@@ -158,10 +161,14 @@ const LEDGER = [
     anchor: 'export const INDICATOR_CHORDS', fate: 'keep' },
 
   // ── alerts ───────────────────────────────────────────────────────────────
-  { file: 'app/src/components/chart/IndicatorAlertPopover.jsx', region: 'INDICATORS — the alert dropdown, 8',
-    anchor: 'const INDICATORS = [', fate: 'B4' },
-  { file: 'app/src/components/chart/IndicatorAlertPopover.jsx', region: 'CONDITIONS — per-indicator condition lists',
-    anchor: 'const CONDITIONS = {', fate: 'B4' },
+  // ⭐ RETIRED BY B4 (`0d0d4c93`, the alert-catalog task). `INDICATORS` and
+  // `CONDITIONS` — a five-part frontend twin of `INDICATOR_FUNCS` that already
+  // DISAGREED with it — are gone; the popover fetches
+  // `GET /api/indicator-alerts/catalog`, derived from the evaluator, so the
+  // dropdown can no longer offer an alert that cannot fire. Proven gone in
+  // `RETIRED_BY_B4_ALERTS`. ⚠️ Recorded HERE, by Wave A, because this file has
+  // exactly ONE writer this phase — a ledger with two writers is how a
+  // retirement lands with nobody's count moving.
   // ⭐ B4 ADJUDICATION A4 (2026-08-03). DEFERRED to Phase C, not retired by B4.
   // Eight Python closures cannot be derived from a JS definition, and spec §8
   // REBUILDS this evaluator in C. Deriving it in B4 would mean porting compute
@@ -255,6 +262,31 @@ const RETIRED_BY_B4_TASK4 = [
   },
 ]
 
+/** What B4 TASK 6 RETIRED. `ENGINE_ROW_DEF_IDS` is a CODE SHAPE, not a bare
+ *  name: `indicatorRegistry.js`'s header now EXPLAINS that the constant is gone,
+ *  and a bare `includes` would find the explanation and report the deletion as a
+ *  regression — the trap Task 11 hit from the other side. */
+const RETIRED_BY_B4_TASK6 = [
+  {
+    file: 'app/src/components/chart/indicatorRegistry.js',
+    region: 'ENGINE_ROW_DEF_IDS — the hand-written list of which definitions get a generated row',
+    gone: 'export const ENGINE_ROW_DEF_IDS',
+  },
+]
+
+/** What the B4 ALERT-CATALOG task retired (`0d0d4c93`), proven retired rather
+ *  than merely unlisted. Two of the five names it deleted are the ledger's own
+ *  anchors; the other three (`OSCILLATOR_CONDITIONS`, `THRESHOLD_CONDITIONS`,
+ *  the popover's `INDICATOR_LABELS`) were part of the same twin and are held to
+ *  the same zero so the region cannot come back one constant at a time. */
+const RETIRED_BY_B4_ALERTS = [
+  ['INDICATORS — the alert dropdown', /const\s+INDICATORS\s*=\s*\[/g],
+  ['CONDITIONS — per-indicator condition lists', /const\s+CONDITIONS\s*=\s*\{/g],
+  ['OSCILLATOR_CONDITIONS', /const\s+OSCILLATOR_CONDITIONS\s*=/g],
+  ['THRESHOLD_CONDITIONS', /const\s+THRESHOLD_CONDITIONS\s*=/g],
+  ['INDICATOR_LABELS (the popover\'s own copy)', /const\s+INDICATOR_LABELS\s*=/g],
+]
+
 /** The number the ledger holds down. Change it ONLY by walking the code.
  *  31 → 26 at B4 Task 3: `IND_OPTS`, `OSC_OPTS`, the right-click `Hide <label>`,
  *  `chartRegion.INDICATOR_LABELS` and `ChartToolbar.OSC` all read
@@ -269,8 +301,21 @@ const RETIRED_BY_B4_TASK4 = [
  *  entry — fate `keep` — because it hand-names four indicator ids and the
  *  discovery scan below therefore flags its file. Deleting four and adding one is
  *  the honest count; "22" would have been a site the scan can see and the ledger
- *  cannot. */
-const SITE_COUNT = 23
+ *  cannot.
+ *
+ *  23 → 22 at B4 Task 6: `indicatorRegistry.ENGINE_ROW_DEF_IDS`, deleted
+ *  outright. Nothing replaces it — every definition gets a row, so there is no
+ *  list of which ones do. ⚠️ The brief for that task said the count was 21 → 20
+ *  and `B4: 8 → 7`; both were stale by two tasks. The measured numbers are the
+ *  ones asserted, here and in the partition below.
+ *
+ *  22 → 20 in the same commit, for the ALERT-CATALOG task's two sites
+ *  (`0d0d4c93`, landed by a parallel wave). ⚠️ A ledger is only worth its count
+ *  if the count MOVES WITH THE CODE, and a retirement landing in one wave while
+ *  the ledger is edited in another is precisely how a site retires with nobody's
+ *  number changing — so this phase gives the file ONE writer and the writer
+ *  records every landed retirement, not only its own. */
+const SITE_COUNT = 20
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -314,7 +359,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('the retirement column adds up — 9 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('the retirement column adds up — 6 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -327,13 +372,44 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // nothing here says so; the per-site reasoning lives in the comments beside
     // each entry, and that is what a reviewer has to read. "The retirement column
     // adds up" means the column adds up, not that every row is in the right one.
-    expect(counts).toEqual({ B4: 9, B5: 8, C: 1, keep: 3, phase: 2 })
+    expect(counts).toEqual({ B4: 6, B5: 8, C: 1, keep: 3, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
     for (const r of RETIRED_BY_THIS_TASK) {
       expect(read(r.file).includes(r.gone), `${r.file}: ${r.region} came back`).toBe(false)
     }
+  })
+
+  it('⭐ and the settings-row list B4 Task 6 retired is GONE too', () => {
+    const back = RETIRED_BY_B4_TASK6
+      .filter(r => read(r.file).includes(r.gone))
+      .map(r => `${r.file} :: ${r.region}`)
+    expect(back,
+      'the hand-written list of which definitions get a generated row is back. Every ' +
+      'definition gets one now; a list beside the derivation is a second source of truth.',
+    ).toEqual([])
+    // …and the scan is not vacuous: the derivation that replaced it is really
+    // there, walking the registry rather than a list of ids.
+    expect(read('app/src/components/chart/indicatorRegistry.js'))
+      .toContain('registry.listDefinitions()')
+  })
+
+  it('⭐ and the alert dropdown\'s five-part twin of INDICATOR_FUNCS is GONE', () => {
+    const src = read('app/src/components/chart/IndicatorAlertPopover.jsx')
+    const back = RETIRED_BY_B4_ALERTS
+      .filter(([, re]) => [...src.matchAll(re)].length !== 0)
+      .map(([what]) => what)
+    expect(back,
+      'the alert dropdown is enumerating indicators again. It is served from ' +
+      '`GET /api/indicator-alerts/catalog`, derived from the evaluator, so the dropdown ' +
+      'cannot offer an alert that cannot fire. A local list restores that possibility — and ' +
+      'a FALLBACK list is the worst version, because it only shows when the fetch fails.',
+    ).toEqual([])
+    // …and the replacement is really there: the popover FETCHES the catalog, and
+    // the backend site that now owns the naming is still on the ledger, fate C.
+    expect(src).toContain('useIndicatorAlertCatalog')
+    expect(read('api/services/indicator_alert_evaluator.py')).toContain('INDICATOR_FUNCS')
   })
 
   it('⭐ and the four keyboard regions B4 Task 4 retired are GONE too', () => {
@@ -587,13 +663,16 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
       'a second one is a second source of truth per indicator.',
     ).toEqual(['MA_FIELDS', 'VOLUME_FIELDS'])
 
-    // …and the row really is built from the definition: every declared input,
-    // in declaration order, no more and no fewer.
-    for (const id of ENGINE_ROW_DEF_IDS) {
-      const def = engineRegistry.getDefinition(id)
-      const row = listEngineIndicators(mergeChartSettings(null), engineRegistry).find(r => r.id === id)
-      expect(row, `${id} has no generated row`).toBeTruthy()
-      expect(row.fields.map(f => f.key), id).toEqual(def.inputs.map(i => i.key))
+    // …and every row really is built from its definition: every declared input,
+    // in declaration order, no more and no fewer. ⚠️ This used to loop over
+    // `ENGINE_ROW_DEF_IDS` (one id). B4 Task 6 deleted that list, so it loops
+    // over the REGISTRY — which is the point of the deletion.
+    const rows = listEngineIndicators(mergeChartSettings(null), engineRegistry)
+    expect(rows.length, 'no generated rows at all — the loop below is vacuous').toBeGreaterThan(0)
+    for (const def of engineRegistry.listDefinitions()) {
+      const row = rows.find(r => r.id === def.id)
+      expect(row, `${def.id} has no generated row`).toBeTruthy()
+      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.map(i => i.key))
     }
   })
 
@@ -670,26 +749,49 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     ).toEqual(UNREACHABLE_FROM_THE_TOOLBAR)
   })
 
-  // ⛔ THE RAIL THAT FAILS WHEN B4 LANDS. `ENGINE_ROW_DEF_IDS` exists only
-  // because a control lives on that surface ALONE. The day B4's generated dialog
-  // covers VWAP's opacity / line style / line width, this goes RED and whoever is
-  // holding it is told to delete the row — instead of the row surviving as a
-  // duplicate of the surface that now covers it. A comment saying "remove at B4"
-  // is precisely how this file grew the problem it is retiring.
-  it('every id that keeps a generated row still has a control that exists NOWHERE ELSE', () => {
-    for (const id of ENGINE_ROW_DEF_IDS) {
-      const covered = toolbarInputs(id)
-      const only = engineRegistry.getDefinition(id).inputs.map(i => i.key).filter(k => !covered.has(k))
-      expect(only.length,
-        `${id}'s generated settings row no longer carries anything the toolbar cannot: B4 has ` +
-        'landed for this definition. DELETE the row from ENGINE_ROW_DEF_IDS.',
-      ).toBeGreaterThan(0)
+  // ⛔ THE SUCCESSOR RAIL, AND THE RAIL IT SUCCEEDS FIRED AS DESIGNED.
+  //
+  // What used to be here was *"every id that keeps a generated row still has a
+  // control that exists NOWHERE ELSE"*, iterating `ENGINE_ROW_DEF_IDS`. That
+  // constant existed only while SOME definitions had a generated row and others
+  // did not; B4 Task 6 gave every definition one and deleted it, which is
+  // exactly the deletion that rail was written to demand. It is REPLACED, not
+  // removed — a rail that retires without a successor is how this file grew the
+  // problem it is retiring.
+  //
+  // The question changed with the answer: not "which ids keep a row" but "is
+  // there a declared input NO surface can reach". `UNREACHABLE_FROM_THE_TOOLBAR`
+  // above is on its way to being EVERYTHING (Task 8 deletes the toolbar's
+  // fifteen rows), and this is what makes that safe.
+  it('every declared input of every definition is reachable from the generated dialog', () => {
+    const rows = listEngineIndicators(mergeChartSettings(null), engineRegistry)
+    const gaps = []
+    for (const def of engineRegistry.listDefinitions()) {
+      const row = rows.find(r => r.id === def.id)
+      const reachable = new Set((row ? row.fields : []).map(f => f.key))
+      for (const i of def.inputs) if (!reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
     }
+    expect(gaps,
+      'a declared input has no control anywhere. That is the state MACD\'s macdColor / ' +
+      'signalColor were in for the whole of B3 — measured, pinned, and B4\'s to close.',
+    ).toEqual([])
+    // …and it is not vacuous: the definitions really do declare inputs.
+    expect(engineRegistry.listDefinitions().flatMap(d => d.inputs).length,
+      'no definition declares an input — the loop above proves nothing').toBeGreaterThan(20)
   })
 
-  it('and nothing was silently dropped: a migrated id with NO row has full toolbar coverage, or is named above', () => {
+  it('MACD\'s two colours have a control now — the gap B3 measured and could not close', () => {
+    const row = listEngineIndicators(mergeChartSettings(null), engineRegistry).find(r => r.id === 'macd')
+    const colors = row.fields.filter(f => f.type === 'color').map(f => f.key)
+    expect(colors).toEqual(['macdColor', 'signalColor'])
+    expect(row.fields.find(f => f.key === 'macdColor').disabled).toBeUndefined()
+    // …and the pin above still records that the TOOLBAR cannot reach them, so
+    // this closure is visible as a closure rather than as a table edit.
+    expect(UNREACHABLE_FROM_THE_TOOLBAR.macd).toEqual(['macdColor', 'signalColor'])
+  })
+
+  it('and nothing was silently dropped: every migrated id\'s toolbar gap is named above', () => {
     for (const id of ENGINE_MIGRATED_DEF_IDS) {
-      if (ENGINE_ROW_DEF_IDS.includes(id)) continue
       const covered = toolbarInputs(id)
       const uncovered = engineRegistry.getDefinition(id).inputs.map(i => i.key).filter(k => !covered.has(k))
       expect(uncovered,

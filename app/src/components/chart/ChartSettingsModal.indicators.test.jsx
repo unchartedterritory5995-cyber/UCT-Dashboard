@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings, instanceTombstone } from './chartDefaults'
-import { getDefinition } from './engine/nativeRegistry'
+import { getDefinition, listDefinitions } from './engine/nativeRegistry'
+import { CARVED_OUT_ROWS } from './indicatorCatalog'
 
 // ─── THE INDICATORS TAB, END TO END ─────────────────────────────────────────
 //
@@ -34,7 +35,7 @@ const WITH_INSTANCE = {
 }
 
 describe('ChartSettingsModal — the Indicators tab renders the generated row', () => {
-  it('shows Moving averages, Volume and VWAP — the sections come from the ROWS', () => {
+  it('shows Moving averages, Volume and one section per indicator — from the ROWS', () => {
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openIndicators()
     // ⚠️ `document.body`, not render()'s container: the modal is PORTALED, so a
@@ -46,7 +47,18 @@ describe('ChartSettingsModal — the Indicators tab renders the generated row', 
     // themselves — "Volume" is also a row label, and a getByText would find that
     // instead and pass whether or not the section exists.
     const labels = [...container.querySelectorAll('[class*="sectionLabel"]')].map(n => n.textContent)
-    expect(labels).toEqual(['Moving averages', 'Volume', 'VWAP'])
+    // ⭐ WIDENED AT B4 TASK 6, AND DERIVED RATHER THAN RETYPED. This read
+    // `['Moving averages', 'Volume', 'VWAP']` while VWAP was the only definition
+    // with a generated row. Every definition has one now, so the expectation is
+    // built from the registry — a section list typed here is the hardcoded group
+    // array this very case was written to catch coming back.
+    expect(labels).toEqual([
+      'Moving averages', 'Volume',
+      ...listDefinitions().map(d => d.meta.shortName),
+      ...CARVED_OUT_ROWS.map(r => r.shortName),
+    ])
+    expect(labels.length, 'the section list collapsed — a row in a group nobody listed renders NOTHING')
+      .toBeGreaterThan(15)
   })
 
   it('offers exactly the controls the DEFINITION declares, by its own labels', () => {
