@@ -209,7 +209,7 @@ const asLegacyPoints = (pts) => pts.map(p => (
  */
 const guidesFor = (defId) => {
   const def = engineRegistry.getDefinition(defId)
-  if (!def) throw new Error(`guidesFor: no definition ${defId!== undefined ? String(defId) : 'undefined'}`)
+  if (!def) throw new Error(`guidesFor: no definition named ${String(defId)}`)
   const { F } = sync(
     { instanceId: `probe:${defId}`, defId, defVersion: 1, inputs: {}, placement: { target: 'pane' }, hidden: false },
     { indicators: { [defId]: { enabled: true } } }, null)
@@ -226,6 +226,20 @@ const guidesFor = (defId) => {
 // ─── the three transcriptions ───────────────────────────────────────────────
 
 describe('the three single-line oscillators, transcribed', () => {
+  it('⛔ guidesFor THROWS BY NAME on a miss — it never loops over nothing', () => {
+    // ⛔ THE HELPER'S OWN GATE, AND IT IS NOT CEREMONY. B4 measured a "throws by
+    // name on zero matches" guarantee that was simply FALSE, and a `guidesFor`
+    // that answered `[]` would turn every guide assertion in this file into a
+    // comparison against an empty list — green, and about nothing. Both misses
+    // are covered: an id the registry does not know, and a real definition that
+    // declares no `hlines` plot at all (`atr` is the one).
+    expect(() => guidesFor('mfiX')).toThrow(/no definition named mfiX/)
+    expect(() => guidesFor('atr')).toThrow(/created ZERO price lines/)
+    // …and the control that the helper WORKS, so the two throws above are not
+    // simply "this helper always throws".
+    expect(guidesFor('mfi')).toHaveLength(2)
+  })
+
   it('reserves a band for each, and all three are the SAME 0.15-height band', () => {
     // Non-vacuity for every scale assertion below, and the one place these three
     // genuinely are symmetric: `paneMargins.PANES` gives cci, williamsR and mfi

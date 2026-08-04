@@ -18,7 +18,12 @@ import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeV
 // second computation here would be a silent duplicate whose only observable
 // effect is CPU. Both functions still exist and are still what the definitions
 // call; this file simply no longer imports them.
-import { toHeikinAshi, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
+// ⛔ AND NO `computeMFI` / `computeCCI` / `computeWilliamsR` (B5 Task 7) — three
+// more flipped, three more imports gone. `computeParabolicSAR`/`computeIchimoku`
+// left at Task 6 the same way. What is left in this import is exactly the four
+// natives StockChart still calls by hand: `adx`, `obv`, `donchian` and the
+// Heikin-Ashi transform, which is not an indicator at all.
+import { toHeikinAshi, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
@@ -1733,12 +1738,13 @@ export default function StockChart({
   // (B5 Task 6) — six more, same reason. `sar` is the first `markers` plot the
   // pool has ever held, and a stale ref to a series the pool may hand to an RSI
   // line is exactly the leak `pool.js`'s complete-key-set rule exists for.
+  // ⛔ AND NO `mfiSeriesRef` / `cciSeriesRef` / `williamsRSeriesRef` (B5 Task 7)
+  // — three more, same reason. `mfi` is the RECEIVING half of the measured
+  // `stoch.d → mfi.mfi` pool leak in `pool.js`'s header, so a second handle to a
+  // series the pool re-purposes is precisely the shape that leak takes.
   const compareSeriesRef = useRef(null)
   const comparisonSeriesRefs = useRef(new Map()) // sym -> LineSeries (multi-symbol comparison overlays)
   const vpCanvasRef = useRef(null)
-  const mfiSeriesRef       = useRef(null)
-  const cciSeriesRef       = useRef(null)
-  const williamsRSeriesRef = useRef(null)
   const adxSeriesRef       = useRef(null)
   const adxPlusDIRef       = useRef(null)
   const adxMinusDIRef      = useRef(null)
@@ -4174,15 +4180,13 @@ export default function StockChart({
     // arguments, which is why the definition's three declared periods were the
     // only greyed controls in the app; the engine passes the instance's, whose
     // defaults are the same 9/26/52 the no-argument call fell back to.
-    const mfiRaw = ind.mfi?.enabled
-      ? computeMFI(filteredBars, ind.mfi.period)
-      : []
-    const cciRaw = ind.cci?.enabled
-      ? computeCCI(filteredBars, ind.cci.period)
-      : []
-    const williamsRRaw = ind.williamsR?.enabled
-      ? computeWilliamsR(filteredBars, ind.williamsR.period)
-      : []
+    // ⛔ AND NO `mfi` / `cci` / `williamsR` BRANCHES (B5 Task 7). Their three
+    // entries in the returned object went with them, and `StockChart` no longer
+    // imports `computeMFI` / `computeCCI` / `computeWilliamsR` at all — a compute
+    // still called here for a flipped id is a silent duplicate whose only
+    // observable effect is CPU, which is the classic way a "migrated" indicator
+    // keeps costing what it cost before. `enumerationSites.test.js` asserts that
+    // a flipped id calls no compute in this memo.
     const adxRaw = ind.adx?.enabled
       ? computeADX(filteredBars, ind.adx.period)
       : { adx: [], plusDI: [], minusDI: [] }
@@ -4197,9 +4201,6 @@ export default function StockChart({
     // downstream _applyData can hand the renderer a `value: NaN`.
     const line = (pts) => pts.map(p => indPoint(adjustTime(p.time), p.value))
     return {
-      mfi:       line(mfiRaw),
-      cci:       line(cciRaw),
-      williamsR: line(williamsRRaw),
       adx: {
         adx:     line(adxRaw.adx),
         plusDI:  line(adxRaw.plusDI),
@@ -6448,78 +6449,36 @@ export default function StockChart({
     // had. No pixel case can see it; `legendFromDefinitions.test.jsx` asserts it
     // in the DOM, with the control that it really is the developing bar.
 
-    // ── MFI sub-pane (0-100, 80/20 reference lines) ──
-    if (indicatorData.mfi.length) {
-      const mfiColor = cs.indicators?.mfi?.color || '#c084fc'
-      const mfiTgt = ensureIndTarget('mfi', [mfiSeriesRef])
-      if (!mfiSeriesRef.current) {
-        mfiSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: mfiTgt.scaleId,
-          color: mfiColor,
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, mfiTgt.pane)
-        applyIndScale('mfi', mfiSeriesRef.current, mfiTgt, { autoScale: false, minimum: 0, maximum: 100 })
-        mfiSeriesRef.current.createPriceLine({ price: 80, color: 'rgba(192,132,252,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-        mfiSeriesRef.current.createPriceLine({ price: 20, color: 'rgba(192,132,252,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-      } else {
-        mfiSeriesRef.current.applyOptions({ color: mfiColor })
-        applyIndScale('mfi', mfiSeriesRef.current, mfiTgt)
-      }
-      _applyData(mfiSeriesRef.current, indicatorData.mfi)
-    } else if (mfiSeriesRef.current) {
-      try { chart.removeSeries(mfiSeriesRef.current) } catch {}
-      mfiSeriesRef.current = null
-    }
-
-    // ── CCI sub-pane (±300 typical, +100/0/-100 reference lines) ──
-    if (indicatorData.cci.length) {
-      const cciColor = cs.indicators?.cci?.color || '#fbbf24'
-      const cciTgt = ensureIndTarget('cci', [cciSeriesRef])
-      if (!cciSeriesRef.current) {
-        cciSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: cciTgt.scaleId,
-          color: cciColor,
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, cciTgt.pane)
-        applyIndScale('cci', cciSeriesRef.current, cciTgt, { autoScale: true })
-        cciSeriesRef.current.createPriceLine({ price:  100, color: 'rgba(251,191,36,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-        cciSeriesRef.current.createPriceLine({ price:    0, color: 'rgba(251,191,36,0.2)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
-        cciSeriesRef.current.createPriceLine({ price: -100, color: 'rgba(251,191,36,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-      } else {
-        cciSeriesRef.current.applyOptions({ color: cciColor })
-        applyIndScale('cci', cciSeriesRef.current, cciTgt)
-      }
-      _applyData(cciSeriesRef.current, indicatorData.cci)
-    } else if (cciSeriesRef.current) {
-      try { chart.removeSeries(cciSeriesRef.current) } catch {}
-      cciSeriesRef.current = null
-    }
-
-    // ── Williams %R sub-pane (-100..0, -20/-80 reference lines) ──
-    if (indicatorData.williamsR.length) {
-      const wrColor = cs.indicators?.williamsR?.color || '#60a5fa'
-      const wrTgt = ensureIndTarget('williamsR', [williamsRSeriesRef])
-      if (!williamsRSeriesRef.current) {
-        williamsRSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: wrTgt.scaleId,
-          color: wrColor,
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, wrTgt.pane)
-        applyIndScale('williamsR', williamsRSeriesRef.current, wrTgt, { autoScale: false, minimum: -100, maximum: 0 })
-        williamsRSeriesRef.current.createPriceLine({ price: -20, color: 'rgba(96,165,250,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-        williamsRSeriesRef.current.createPriceLine({ price: -80, color: 'rgba(96,165,250,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-      } else {
-        williamsRSeriesRef.current.applyOptions({ color: wrColor })
-        applyIndScale('williamsR', williamsRSeriesRef.current, wrTgt)
-      }
-      _applyData(williamsRSeriesRef.current, indicatorData.williamsR)
-    } else if (williamsRSeriesRef.current) {
-      try { chart.removeSeries(williamsRSeriesRef.current) } catch {}
-      williamsRSeriesRef.current = null
-    }
+    // ⭐ FLIP B, B5 TASK 7 — MFI, CCI AND WILLIAMS %R ARE GONE FROM HERE.
+    //
+    // Three single-line pane oscillators, migrated and flipped in one commit
+    // (with `engineEnabled` deleted at Task 4, a migrated-but-un-flipped
+    // definition is drawn by NOTHING). Each was one `addSeries` plus a handful
+    // of `createPriceLine` guides; all three are drawn by the ENGINE now, from
+    // the instance list, at the sync call above. The three `useRef`s, the three
+    // `indicatorData` branches and the three hide-all entries went with them.
+    //
+    // ⚠️ THE GUIDES WERE THE WHOLE JOB. The series halves are a repeat of ATR's;
+    // what is not a repeat is that an omitted SERIES option means "keep what's
+    // there" while an omitted `createPriceLine` option means LWC's OWN DEFAULT
+    // — which for `lineStyle` is Dashed. That asymmetry cost 379 changed pixels
+    // on RSI's 50-midline at B3, and this task carried SEVEN guides in THREE
+    // shapes across it: MFI's 80/20 dashed pair, CCI's ±100 dashed bands with a
+    // LARGE-dashed zero line (the only definition in the registry with two
+    // guide styles), and Williams %R's −20/−80 on a NEGATIVE scale.
+    //
+    // ⚠️ ONE MEASURED DIFFERENCE, AND IT IS ORDER ONLY: this block created CCI's
+    // three lines as `100, 0, -100`; the engine walks plots in declaration order
+    // and each plot's levels in array order, so it creates them as `100, -100,
+    // 0`. Three horizontal lines at three distinct prices never overlap, so
+    // insertion order is invisible in the picture — stated here and asserted in
+    // `mfiCciWilliamsFlipParity.test.js` rather than left to be re-discovered.
+    //
+    // ⚠️ AND WILLIAMS %R'S SCALE IS `-100..0`, WHOSE `max` IS ZERO. The engine
+    // picks the pinned branch on `Number.isFinite(min) && Number.isFinite(max)`
+    // (`placement.js`); a truthiness guard would send BOTH williamsR (max 0) and
+    // mfi (min 0) down the `autoScale: true` branch and lose the `autoScale:
+    // false` that freezes a pooled scale against re-invalidation.
 
     // ── ADX/DMI sub-pane (ADX + +DI + -DI) ──
     const adxCfg = cs.indicators?.adx
@@ -8665,13 +8624,13 @@ export default function StockChart({
       // list MUST be a declared ref (there is no build-time check for this).
       volumeSeriesRef,
       // ⛔ NO bb*/rsi refs (B3 Task 10), NO vwap/macd refs (B3 Task 11), NO
-      // stoch*/atr refs (B5 Task 5) and NO sar/ichimoku* refs (B5 Task 6) — all
-      // eight definitions are FLIPPED, and this list lost SIX entries at Task 6
-      // alone. They are reached through the engine's binding map at the bottom of
-      // this effect, which is why the declutter toggle keeps working for them
-      // without anyone editing this list. That is the whole point: this array
-      // SHRINKS at every flip and the toggle's behaviour does not change.
-      mfiSeriesRef, cciSeriesRef, williamsRSeriesRef,
+      // stoch*/atr refs (B5 Task 5), NO sar/ichimoku* refs (B5 Task 6) and NO
+      // mfi/cci/williamsR refs (B5 Task 7) — all ELEVEN definitions are FLIPPED,
+      // and this list lost SIX entries at Task 6 and THREE more here. They are
+      // reached through the engine's binding map at the bottom of this effect,
+      // which is why the declutter toggle keeps working for them without anyone
+      // editing this list. That is the whole point: this array SHRINKS at every
+      // flip and the toggle's behaviour does not change.
       adxSeriesRef, adxPlusDIRef, adxMinusDIRef, obvSeriesRef,
       donchianUpperRef, donchianMiddleRef, donchianLowerRef,
     ].forEach(set)

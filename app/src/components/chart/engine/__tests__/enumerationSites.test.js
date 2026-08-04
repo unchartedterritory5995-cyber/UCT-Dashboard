@@ -102,21 +102,26 @@ const LEDGER = [
     anchor: 'rsi:  { ...CHART_DEFAULTS.indicators.rsi,', fate: 'B5' },
 
   // ── StockChart's render lane ─────────────────────────────────────────────
-  // ⚠️ THE ANCHOR HAS MOVED TWICE AND THE SITE HAS NOT. It was
+  // ⚠️ THE ANCHOR HAS MOVED THREE TIMES AND THE SITE HAS NOT. It was
   // `const stochKRef     = useRef(null)` until B5 Task 5 flipped Stochastic and
-  // ATR, then `const sarSeriesRef  = useRef(null)` until B5 Task 6 flipped SAR
-  // and Ichimoku and deleted SIX more refs with them. The region is still here
-  // (mfi, cci, williamsR, adx ×3, obv, donchian ×3), so both moves were anchor
+  // ATR, `const sarSeriesRef  = useRef(null)` until B5 Task 6 flipped SAR and
+  // Ichimoku and deleted SIX more refs with them, and `const mfiSeriesRef` until
+  // B5 Task 7 flipped MFI, CCI and Williams %R and deleted THREE more. The region
+  // is still here (adx ×3, obv, donchian ×3), so all three moves were anchor
   // repairs and not retirements: the row keeps its `B5` fate and the count is
   // unchanged. It retires at Task 8, when the last block goes. Each move went RED
   // BY NAME rather than passing on a region that had emptied — which is the whole
   // reason the anchor is an exact string and not a regex.
   { file: 'app/src/components/StockChart.jsx', region: 'the series useRef declarations',
-    anchor: 'const mfiSeriesRef       = useRef(null)', fate: 'B5' },
+    anchor: 'const adxSeriesRef       = useRef(null)', fate: 'B5' },
   { file: 'app/src/components/StockChart.jsx', region: 'the indicatorData memo — compute calls + shape mapping',
     anchor: 'const indicatorData = useMemo(', fate: 'B5' },
+  // ⚠️ AND SO HAS THIS ONE, FOR THE SAME REASON: `if (indicatorData.williamsR
+  // .length) {` was Task 7's last render block. `adxD` is the ADX block's own
+  // local, so the anchor still names a LINE OF THE REGION rather than a nearby
+  // comment that would survive the region's deletion.
   { file: 'app/src/components/StockChart.jsx', region: 'the hand-written render blocks',
-    anchor: 'if (indicatorData.williamsR.length) {', fate: 'B5' },
+    anchor: 'if (adxD.adx.length) {', fate: 'B5' },
   // ⭐ RETIRED BY B4 TASK 10, TOGETHER — the nine crosshair value reads, the
   // hand-written `legChips` array and `readout.LEGACY_SLOTS` were one mechanism
   // and could only go as one. Proven gone in `RETIRED_BY_B4_TASK10`.
@@ -972,23 +977,72 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
 
 describe('what B3 retired — a FLIPPED definition has no hand-written lane left', () => {
   const SRC = read('app/src/components/StockChart.jsx')
+  // ⚠️ COMMENT-STRIPPED, AND B5 TASK 7 IS WHY. These probes used to read the RAW
+  // source, which is safe only while every deleted identifier is written WITHOUT
+  // its call parentheses in the tombstone that replaced it. It is not: Task 6's
+  // flip note says *"`computeIchimoku(filteredBars)` was called here with NO
+  // arguments"* — TWICE — so `calls(SRC, ...)` reports a live call from a comment
+  // about a deleted one, and the moment `ichimoku` joined the tables below the
+  // rail would have gone red on prose. `sourceScan.stripComments` is the same
+  // stripper the chip probes use, and the control below proves it is load-bearing
+  // here rather than decorative.
+  const CODE = stripComments(SRC)
 
-  /** defId → the series refs its legacy render block owned. */
+  /** defId → the series refs its legacy render block owned.
+   *
+   * ⭐ B5 TASK 7 COMPLETED THIS TABLE, AND FINDING IT INCOMPLETE IS THE POINT.
+   * It held the FOUR B3 pilots only, so `REFS[id] || []` made the loop below a
+   * NO-OP for every definition B5 flipped — the rail got quietly weaker at Task
+   * 5 and again at Task 6 and nothing said so, because a loop that iterates an
+   * empty list is indistinguishable from a loop that found nothing wrong. The
+   * names are recovered from the commits that deleted them (`1ee1bab3` for
+   * stoch/atr, `cb8b8136` for sar/ichimoku, this task's own parent for the
+   * three below), and the TOTALITY case underneath makes the next migration
+   * fill it in rather than inherit the same silence. */
   const REFS = {
     rsi: ['rsiSeriesRef'],
     bb: ['bbUpperRef', 'bbMiddleRef', 'bbLowerRef'],
     macd: ['macdLineRef', 'macdSignalRef', 'macdHistRef'],
     vwap: ['vwapSeriesRef'],
+    stoch: ['stochKRef', 'stochDRef'],
+    atr: ['atrSeriesRef'],
+    sar: ['sarSeriesRef'],
+    ichimoku: ['ichimokuTenkanRef', 'ichimokuKijunRef', 'ichimokuSpanARef',
+      'ichimokuSpanBRef', 'ichimokuChikouRef'],
+    mfi: ['mfiSeriesRef'],
+    cci: ['cciSeriesRef'],
+    williamsR: ['williamsRSeriesRef'],
   }
   /** …and the compute its `indicatorData` branch called. */
-  const COMPUTES = { rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP' }
+  const COMPUTES = {
+    rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
+    stoch: 'computeStochastic', atr: 'computeATR', sar: 'computeParabolicSAR',
+    ichimoku: 'computeIchimoku', mfi: 'computeMFI', cci: 'computeCCI',
+    williamsR: 'computeWilliamsR',
+  }
+
+  it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
+    // The gate on the finding above. `REFS[id] || []` and `if (fn && …)` both
+    // pass by DEFAULT for an id nobody listed, so without this the two cases
+    // below shrink in coverage every time the flip set grows and stay green.
+    const missing = [...ENGINE_FLIPPED_DEF_IDS].filter(id => !REFS[id] || !COMPUTES[id])
+    expect(missing,
+      'a flipped definition has no row in REFS/COMPUTES, so the two cases below assert '
+      + 'NOTHING about it. Add the refs its deleted block owned and the compute its '
+      + 'indicatorData branch called — both are in the commit that deleted them.')
+      .toEqual([])
+    // …and non-vacuous: the set really has members, and really has more than the
+    // four B3 pilots this table used to stop at.
+    expect(ENGINE_FLIPPED_DEF_IDS.size).toBeGreaterThan(4)
+    expect(Object.values(REFS).flat().length).toBeGreaterThan(10)
+  })
 
   it('declares no series ref and creates no series for a flipped id', () => {
     const failures = []
     for (const id of ENGINE_FLIPPED_DEF_IDS) {
       for (const ref of (REFS[id] || [])) {
-        if (declaresRef(SRC, ref)) failures.push(`${id}: ${ref} is declared again`)
-        if (usesRef(SRC, ref)) failures.push(`${id}: ${ref}.current is read or written again`)
+        if (declaresRef(CODE, ref)) failures.push(`${id}: ${ref} is declared again`)
+        if (usesRef(CODE, ref)) failures.push(`${id}: ${ref}.current is read or written again`)
       }
     }
     expect(failures).toEqual([])
@@ -998,15 +1052,28 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     const failures = []
     for (const id of ENGINE_FLIPPED_DEF_IDS) {
       const fn = COMPUTES[id]
-      if (fn && calls(SRC, fn)) failures.push(`${id}: StockChart calls ${fn}() again — a silent duplicate`)
+      if (fn && calls(CODE, fn)) failures.push(`${id}: StockChart calls ${fn}() again — a silent duplicate`)
     }
     expect(failures).toEqual([])
+  })
+
+  it('⛔ and the STRIPPER is load-bearing, not decorative — measured on ichimoku', () => {
+    // The control for the `CODE` switch above. `computeIchimoku(` appears in the
+    // RAW file, in the flip note that describes the call Task 6 DELETED, so a
+    // raw-source probe reports a live second computation that does not exist —
+    // and reports it for a definition whose row was only added at Task 7, which
+    // is why nothing caught it earlier.
+    expect(calls(SRC, 'computeIchimoku'), 'the tombstone stopped naming the call it '
+      + 'replaced — this control has lost its subject, pick another deleted compute')
+      .toBe(true)
+    expect(calls(CODE, 'computeIchimoku'), 'the stripper let a commented call through')
+      .toBe(false)
   })
 
   it('keeps no Flip-A guard for a flipped id — the block should be GONE, not guarded', () => {
     const failures = []
     for (const id of ENGINE_FLIPPED_DEF_IDS) {
-      if (SRC.includes(`engineOwned.has('${id}')`)) failures.push(`${id}: a Flip-A guard survived its Flip B`)
+      if (CODE.includes(`engineOwned.has('${id}')`)) failures.push(`${id}: a Flip-A guard survived its Flip B`)
     }
     expect(failures).toEqual([])
   })

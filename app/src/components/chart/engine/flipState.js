@@ -108,6 +108,7 @@ const EMPTY_INPUTS = sealedMap([])
  */
 export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
   'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
+  'mfi', 'cci', 'williamsR',
 ])
 
 /**
@@ -211,6 +212,31 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
  * callers and are DELETED. `readout.chipsFrom` keeps its second-source shape —
  * `engineChips` is one caller of it, and Phase C's server lane is the next.
  *
+ * ⭐ B5 TASK 7 ADDED `mfi`, `cci` AND `williamsR` — three single-line pane
+ * oscillators, and the first migration of this phase whose whole risk is in the
+ * GUIDES rather than in the series. Each is one line plot plus `hlines` levels,
+ * so the series half is a repeat of `atr`'s; what is not a repeat is that the
+ * three carry THREE DIFFERENT GUIDE SHAPES and THREE DIFFERENT SCALES, and an
+ * omitted `createPriceLine` option means LWC's OWN DEFAULT rather than "keep
+ * what's there" (the asymmetry that cost 379 px on RSI's 50-midline at B3):
+ *
+ *   · `mfi`       80 / 20, dashed, on a `fixedPane(0, 100)` scale;
+ *   · `cci`       ±100 dashed PLUS a LARGE-dashed zero line — the only
+ *     definition in the registry with two guide styles — on an `autoPane`,
+ *     i.e. the only unbounded one of the three;
+ *   · `williamsR` −20 / −80 on a `fixedPane(-100, 0)` scale, drawn from a
+ *     `williams_r` plot key while its settings key stays `williamsR`.
+ *
+ * ⚠️ AND THEY WENT IN REGISTRY ORDER FOR THE PANE-OSCILLATOR REASON, NOT THE
+ * OVERLAY ONE. Like `stoch`/`atr` these three own their own named scales in
+ * their own bands, so the z-stacking hazard the price-overlay paragraph above
+ * describes does not apply; what applies is that `binder.sync()` runs BEFORE
+ * every remaining legacy block, so an oscillator migrated out of registry order
+ * would be inserted ahead of an un-migrated one it currently sits behind. That
+ * is invisible while nothing overlaps and real the moment the volume-overlay
+ * path puts two of them on one shared left axis — which `mfi`, `cci` and
+ * `williamsR` are all eligible for, exactly as `stoch` and `atr` are.
+ *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
  * cannot import from it. `StockChart` re-exports it so the plan's stated
@@ -218,6 +244,7 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
  */
 export const ENGINE_FLIPPED_DEF_IDS = sealedSet([
   'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
+  'mfi', 'cci', 'williamsR',
 ])
 
 /**

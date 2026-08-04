@@ -24,6 +24,7 @@ import {
 } from './pool'
 import { MAIN_PRICE_SCALE_ID, AUTOSCALE_MODES, resolvePlacement } from './placement'
 import { PLOT_STYLES } from './defSchema'
+import { ENGINE_MIGRATED_DEF_IDS } from './flipState'
 import * as registry from './nativeRegistry'
 // The INSTALLED renderer, imported for one purpose: to read its real series
 // defaults. This is the only `lightweight-charts` import under `engine/` outside
@@ -375,6 +376,26 @@ describe('seriesOptionsForPlot', () => {
     // does not name is the previous tenant's option until something overwrites it.
     expect(seriesOptionsForPlot(plotOf('rsi', 'rsi'), {}).lineStyle).toBe(0)     // solid
     expect(seriesOptionsForPlot(plotOf('bb', 'upper'), {}).lineStyle).toBe(2)    // dashed
+
+    // ⭐ B5 TASK 7 — THE NAMED PAIR ITSELF, AND ITS PREMISE IS NOW STRONGER
+    // RATHER THAN WEAKER. The paragraph above names `stoch.d → mfi.mfi`, and
+    // until this task `mfi` was drawn by a hand-written block: the pool could
+    // never actually hold an MFI, so the measured leak described a hazard the
+    // engine could not yet reach. Both ends are ENGINE-bound now, so the
+    // re-purpose the sentence describes is a thing that can happen on a real
+    // chart — asserted here rather than left as prose, together with the two
+    // memberships that make it true. (Take either id out of the flip sets and
+    // this case is testing a lane that no longer exists.)
+    expect(ENGINE_MIGRATED_DEF_IDS.has('stoch'), 'the leak\'s SOURCE is not engine-bound').toBe(true)
+    expect(ENGINE_MIGRATED_DEF_IDS.has('mfi'), 'the leak\'s SINK is not engine-bound').toBe(true)
+    expect(poolKey(plotOf('stoch', 'd')), 'the pair no longer shares a pool bucket')
+      .toBe(poolKey(plotOf('mfi', 'mfi')))
+    expect(plotOf('stoch', 'd').lineStyle, '%D stopped being the dashed one').toBe('dashed')
+    expect(plotOf('mfi', 'mfi').lineStyle, 'mfi started declaring a style — pick another sink')
+      .toBeUndefined()
+    expect(seriesOptionsForPlot(plotOf('stoch', 'd'), {}).lineStyle).toBe(2)
+    expect(seriesOptionsForPlot(plotOf('mfi', 'mfi'), {}).lineStyle,
+      'an MFI re-purposed out of %D\'s bucket renders DASHED').toBe(0)
   })
 
   // ⚠️ THE REGRESSION THIS PAIR EXISTS FOR. Every test above passes `{}` as the

@@ -270,6 +270,14 @@ const JULY_BLOB = JSON.stringify({
       tenkanColor: '#991111', kijunColor: '#992222', spanAColor: '#993333',
       spanBColor: '#994444', chikouColor: '#995555',
     },
+    // ⭐ ADDED AT B5 TASK 7, WHICH FLIPPED THESE THREE, for the same reason the
+    // Task 6 pair above was added: the "every FLIPPED indicator the blob had on
+    // is engine-drawn" case compares against the WHOLE flip set, so a fixture
+    // that stops naming every flipped id could only be repaired by weakening
+    // that expectation into one that can never fail.
+    mfi: { enabled: true, period: 21, color: '#aa1111' },
+    cci: { enabled: true, period: 34, color: '#aa2222' },
+    williamsR: { enabled: true, period: 28, color: '#aa3333' },
     volumeProfile: { enabled: true, bins: 48, color: '#666666', pocColor: '#777777' },
   },
 })
@@ -296,7 +304,7 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     ).toEqual([])
     // Named explicitly, because "the loop found nothing" and "the loop ran zero
     // times" read the same in a green suite.
-    expect(Object.keys(stored)).toHaveLength(9)
+    expect(Object.keys(stored)).toHaveLength(12)
     expect(cs.indicators.vwap.opacity).toBe(40)
     expect(cs.indicators.vwap.lineStyle).toBe('dashed')
     expect(cs.indicators.rsi.period).toBe(9)
@@ -304,6 +312,12 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     // merge could plausibly have dropped or defaulted.
     expect(cs.indicators.sar.step).toBe(0.03)
     expect(cs.indicators.ichimoku.chikouColor).toBe('#995555')
+    // B5 Task 7's three — a non-default period on each, because a period is the
+    // one input the merge has a second copy of (the definition's declared
+    // default) and therefore the one it could silently win.
+    expect(cs.indicators.mfi.period).toBe(21)
+    expect(cs.indicators.cci.period).toBe(34)
+    expect(cs.indicators.williamsR.period).toBe(28)
   })
 
   it('no key is resurrected — the merged blob names the flag nowhere', () => {

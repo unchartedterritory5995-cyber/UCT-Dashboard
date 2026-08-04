@@ -360,10 +360,16 @@ describe('ChartToolbar — the volume-overlay strip is derived, not a second OSC
   const withVolumeOverlaySubjects = () => mergeChartSettings(JSON.stringify({
     volume: { visible: true },
     indicators: {
-      williamsR: { enabled: true },   // a PANE oscillator, and the A7 relabel
+      // ⚠️ THE `FLIPPED` ANNOTATION USED TO SIT ON `rsi` ALONE, AND THE CONTRAST
+      // IT IMPLIED WENT FALSE AT B5 TASK 7 WITHOUT THIS FILE GOING RED —
+      // `williamsR` is flipped too now. The strip derives from
+      // `oscillatorIds()` + `labelFor()`, which read `placement.target` and the
+      // catalog, and NEITHER of those is a function of the flip set, so the
+      // behaviour is genuinely unchanged. Only the comment was wrong.
+      williamsR: { enabled: true },   // a PANE oscillator, FLIPPED, and the A7 relabel
       rsi: { enabled: true },         // a PANE oscillator, and FLIPPED
       bb: { enabled: true },          // a PRICE overlay — must never be offered
-      atr: { enabled: false },        // an oscillator that is OFF
+      atr: { enabled: false },        // an oscillator that is OFF (and flipped)
     },
   }))
 

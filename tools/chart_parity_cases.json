@@ -187,17 +187,32 @@
       "regions": [
         {
           "name": "price_top",
-          "box": [0, 0, 1200, 391],
+          "box": [
+            0,
+            0,
+            1200,
+            391
+          ],
           "expect": 0
         },
         {
           "name": "rsi_band",
-          "box": [0, 391, 1200, 460],
+          "box": [
+            0,
+            391,
+            1200,
+            460
+          ],
           "expect": 0
         },
         {
           "name": "volume_and_axis",
-          "box": [0, 460, 1200, 620],
+          "box": [
+            0,
+            460,
+            1200,
+            620
+          ],
           "expect": 0
         }
       ],
@@ -1180,18 +1195,199 @@
     },
     {
       "name": "mfi_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 7's TWO-BUILD measurement for the Money Flow Index: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. Structurally it is `atr_only` plus GUIDES, and the guides are the whole reason it exists: an omitted SERIES option means “keep what's there” while an omitted `createPriceLine` option means LWC's OWN DEFAULT, which for `lineStyle` is Dashed — the asymmetry that cost 379 changed pixels on RSI's 50-midline at B3. MFI's 80 and 20 lines are the same shape, on a `fixedPane(0, 100)` scale whose `min` is ZERO and therefore FALSY, so `resolvePlacement` reaching the pinned branch depends on `Number.isFinite` and not on truthiness. `indicators.mfi.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into. ⚠️ Perturb `{\"period\": 21}`, not a colour: a period appears in NO option object, and MFI's NaN head is period-dependent by construction.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:mfi::mfi"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "mfi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#c084fc"
+          }
+        }
+      }
     },
     {
       "name": "cci_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 7's two-build measurement for the Commodity Channel Index, and THE ONLY CASE IN THIS FILE THAT RENDERS TWO GUIDE STYLES FROM ONE INSTANCE. `cci` declares ±100 as `dashed` (LWC LineStyle 2) and a separate zero line as `largeDashed` (3); a transcription that dropped either style would take LWC's own price-line default, which IS Dashed — so the ±100 pair would still look right and only the zero line would change, which is exactly the 379-px shape RSI's midline had. It is also the only UNBOUNDED one of the three (`autoPane`, so `{autoScale: true}` with no `minimum`/`maximum`), which makes it the second case in the branch's history — after `engine_atr_vs_legacy` — to render an autoscaled oscillator band through the engine, and the first to do it with guides sitting on that autoscaled axis. ⚠️ ONE ORDER DIFFERENCE, MEASURED AND EXPECTED TO BE INVISIBLE: the shipped block creates the three price lines as `100, 0, -100`; the engine walks plots in declaration order and each plot's levels in array order, so it creates them as `100, -100, 0`. Three horizontal lines at three distinct prices never overlap, so this case reading 0 is what proves insertion order does not reach the canvas here. ⚠️ Perturb `{\"period\": 40}`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:cci::cci"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "cci": {
+            "enabled": true,
+            "period": 20,
+            "color": "#fbbf24"
+          }
+        }
+      }
     },
     {
       "name": "williams_r_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 7's two-build measurement for Williams %R, and THE ONLY CASE IN THIS FILE ON A NEGATIVE PRICE SCALE. `fixedPane(-100, 0)` means the band's `maximum` is ZERO and its `minimum` is -100, so BOTH the pinned-range branch in `resolvePlacement` and every guide level (-20, -80) are numbers a truthiness check treats as absent or as “no range”. The guides are also the only ones in the registry drawn BELOW zero, so a sign error puts them off the top of the band instead of inside it while the line itself — which never leaves [-100, 0] — goes on rendering, i.e. the failure is silent in every assertion that only looks at the series. ⚠️ AND THE PLOT KEY IS SNAKE_CASE (`williams_r`) WHILE THE SETTINGS KEY IS NOT (`williamsR`). A migration that harmonised the two would bind nothing — `computeFor` returns a column named `williams_r`, a plot key that no longer matches it produces no data and no series — and THIS CASE WOULD READ 0 CHANGED PIXELS BECAUSE NEITHER SIDE DRAWS. The unit suite (`mfiCciWilliamsFlipParity.test.js`) is the only gate on that; no pixel case can be. ⚠️ Perturb `{\"period\": 28}`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:williamsR::williams_r"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "williamsR": {
+            "enabled": true,
+            "period": 14,
+            "color": "#60a5fa"
+          }
+        }
+      }
+    },
+    {
+      "name": "engine_mfi_vs_legacy",
+      "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:mfi` out of `indicators.mfi.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy MFI block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `mfi_only` does not exercise. ⚠️ Its real force is under `--perturb-b-instances` with `{\"period\": 21}`: a period appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and MFI's period moves the line while leaving both guides exactly where they were.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:mfi::mfi"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "mfi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#c084fc"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:mfi",
+          "defId": "mfi",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "color": "#c084fc"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_cci_vs_legacy",
+      "why": "The same projected-vs-stored route for CCI, and the only one of the three where the band the engine renders into is AUTOSCALED. `resolvePlacement` reads `placement.scale` to choose between `{autoScale:false, minimum, maximum}` and `{autoScale:true}`; `cci` takes the second branch, so this is where a scale-option set that silently inherited a previous tenant's frozen range shows up — the pooling hazard `placement.js`'s TRAP #2 exists for. It is also the only case where the guides sit on an axis whose extent the LINE decides: change the period and the autoscale re-frames, so ±100 and 0 move on the canvas even though their PRICES did not. ⚠️ Perturb `{\"period\": 40}`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:cci::cci"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "cci": {
+            "enabled": true,
+            "period": 20,
+            "color": "#fbbf24"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:cci",
+          "defId": "cci",
+          "defVersion": 1,
+          "inputs": {
+            "period": 20,
+            "color": "#fbbf24"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_williams_r_vs_legacy",
+      "why": "The same projected-vs-stored route for Williams %R, on the file's only NEGATIVE scale. The read-time migrator has to project an instance whose defId is `williamsR` while its one plot is keyed `williams_r`; a projection that used either spelling for both would produce an instance the binder drops, and a dropped instance is a VANISHED SERIES — which the pane manifest classifies as GEOMETRY, and no `expectProvenance` waves geometry through. ⚠️ Perturb `{\"period\": 28}`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:williamsR::williams_r"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "williamsR": {
+            "enabled": true,
+            "period": 14,
+            "color": "#60a5fa"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:williamsR",
+          "defId": "williamsR",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "color": "#60a5fa"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_three_bands_stacked",
+      "why": "mfi + cci + williamsR together are the only case with THREE ADJACENT OSCILLATOR BANDS WHOSE SCALES DIFFER (0..100 pinned, autoScale, -100..0 pinned). It is what sees a band mis-stacked by one slot or a scale range leaking between adjacent price scales — neither of which any single-indicator case can produce, because with one oscillator on there is only one band and only one named scale to inherit from. `computePaneMargins` stacks them bottom-to-top as cci {top .85}, williamsR {top .70, bottom .15}, mfi {top .55, bottom .30}, so a one-slot shift moves 15% of the chart height, and a leaked `{minimum:-100, maximum:0}` onto the `mfi` scale would frame an 0..100 oscillator upside down. Seven guides are drawn across the three, in three shapes and two styles. ⚠️ No `instancesB`: BOTH sides project from the mirror, which is the state a real user with three oscillators on is actually in.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:mfi::mfi"
+        ],
+        [
+          null,
+          "legacy:cci::cci"
+        ],
+        [
+          null,
+          "legacy:williamsR::williams_r"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "mfi": {
+            "enabled": true,
+            "period": 14,
+            "color": "#c084fc"
+          },
+          "cci": {
+            "enabled": true,
+            "period": 20,
+            "color": "#fbbf24"
+          },
+          "williamsR": {
+            "enabled": true,
+            "period": 14,
+            "color": "#60a5fa"
+          }
+        }
+      }
     },
     {
       "name": "adx_only",

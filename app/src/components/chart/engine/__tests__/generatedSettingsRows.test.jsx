@@ -148,9 +148,14 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     // ⚠️ THE UN-FLIPPED ID IS A MOVING SUBJECT AND HAS TO BE ASSERTED. It was
     // `stoch` until B5 Task 5 flipped Stochastic, at which point this probe was
     // comparing two FLIPPED definitions and the second `expect` could only fail.
-    // `mfi` is the successor; the line below is what makes the next flip say so
-    // instead of quietly turning the control into a restatement of the first half.
-    const UNFLIPPED_PROBE_ID = 'mfi'
+    // `mfi` was the successor until B5 Task 7 flipped it; `adx` is the successor
+    // now, and the line below is what makes the next flip say so instead of
+    // quietly turning the control into a restatement of the first half. ⚠️ ONLY
+    // THREE CANDIDATES ARE LEFT (`adx`, `obv`, `donchian`) and Task 8 takes all
+    // three — whoever holds it has to give this probe a CONSTRUCTED un-flipped
+    // id, the way the flipped half above is already a constructed definition,
+    // rather than another real one.
+    const UNFLIPPED_PROBE_ID = 'adx'
     expect(ENGINE_FLIPPED_DEF_IDS.has(UNFLIPPED_PROBE_ID),
       `${UNFLIPPED_PROBE_ID} is flipped now — this probe needs an un-flipped id`).toBe(false)
     const unflipped = listEngineIndicators(

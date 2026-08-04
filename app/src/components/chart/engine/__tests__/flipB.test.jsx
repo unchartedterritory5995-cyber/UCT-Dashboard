@@ -198,11 +198,12 @@ describe('Flip B — the set itself', () => {
   it('flips the four pilots AND B5\'s migrations, and stays a SUBSET of the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6 —
-    // each pair migrated and flipped in ONE commit. This literal moves once per
-    // B5 migration task, deliberately: it is the place a flip has to be WRITTEN
-    // DOWN, not derived.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch', 'vwap'])
+    // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6,
+    // and `mfi`, `cci` and `williamsR` at Task 7 — each group migrated and
+    // flipped in ONE commit. This literal moves once per B5 migration task,
+    // deliberately: it is the place a flip has to be WRITTEN DOWN, not derived.
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
+      ['atr', 'bb', 'cci', 'ichimoku', 'macd', 'mfi', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
@@ -273,23 +274,28 @@ describe('Flip B — the instance list is the read authority', () => {
     // subject has to be a pane oscillator with its own named scale — the same
     // shape MACD had — so a filter that leaked would look identical.
     //
-    // ⚠️ THE SUBJECT MOVED AGAIN AT B5 TASK 5, AND IT WILL MOVE AT TASK 7. It was
-    // `stoch` until Stochastic migrated; it is `mfi` now, which is the same shape
-    // (`fixedPane(0, 100)`, own `mfi` scale, hand-written block). Every subject
-    // this control can have is on the cutover's list, so the assertion below is
-    // what tells the next migrator to move it rather than to delete it.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('mfi'),
-      'mfi migrated — this negative control needs a new subject').toBe(false)
+    // ⚠️ THE SUBJECT HAS NOW MOVED THREE TIMES: `stoch` → `mfi` (B5 Task 5) →
+    // `adx` (B5 Task 7). Each time for the same reason and each time going RED
+    // by name rather than passing on a definition that had migrated underneath
+    // it. `adx` is the same shape the two before it were — `fixedPane(0, 100)`,
+    // its own named `adx` scale, a hand-written block — so a filter that leaked
+    // would look identical. Every subject this control can have is on the
+    // cutover's list, and `adx` is one of the LAST THREE (`adx`, `obv`,
+    // `donchian`); Task 8 takes them, and the assertion below is what tells that
+    // migrator this control has run out of subjects and has to move down a level
+    // the way `stockChartWiring`'s chip control did at Task 6.
+    expect(ENGINE_MIGRATED_DEF_IDS.has('adx'),
+      'adx migrated — this negative control needs a new subject').toBe(false)
     // ⚠️ THE LOOP USED TO BE OVER `engineEnabled` — "with the flag off AND on".
     // B5 Task 4 deleted the key, so it is over a LEFTOVER value a stale blob or an
     // old share link can still carry, and the claim is that none of them starts
     // anything. Same two runs, and the second is still the one that could fail.
     for (const leftover of [undefined, true]) {
       cleanup(); H.reset()
-      draw({ engineEnabled: leftover, indicators: { mfi: { enabled: true, period: 14 } } })
-      expect(bound(), `mfi reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
-      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'mfi').length,
-        'the legacy MFI block stopped drawing').toBeGreaterThan(0)
+      draw({ engineEnabled: leftover, indicators: { adx: { enabled: true, period: 14 } } })
+      expect(bound(), `adx reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
+      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'adx').length,
+        'the legacy ADX block stopped drawing').toBeGreaterThan(0)
     }
   })
 

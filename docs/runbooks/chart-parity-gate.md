@@ -1194,9 +1194,14 @@ The harness deep-merges preset → case settings, base64url-encodes the result i
 `?indicators=`, and the page merges that over its own settings with
 `mergeSettingsOverride` — the same function the multi-chart grid uses.
 
-The twelve un-migrated natives are already listed as `status: "placeholder"` with
-empty settings. B3 fills each one in as it migrates it; the list states the whole
-obligation up front rather than quietly shrinking to whatever was easy.
+The un-migrated natives are listed as `status: "placeholder"` with empty settings,
+and each migration fills its own in; the list states the whole obligation up front
+rather than quietly shrinking to whatever was easy. It said **twelve** when B3
+wrote it and the number has been falling ever since — **four** remain after B5
+Task 7 (`adx`, `obv`, `donchian`, `volume_profile`), out of 44 cases of which 40
+run by default. Do not re-state the count here: `--include-placeholders` and a
+`grep status` both answer it, and a number in prose is the one thing in this file
+that nothing can fail on.
 
 **Do not change `defaults.fixedbars`, `w`, `h` or the preset** without recapturing
 every stored baseline — they are part of what a baseline PNG *means*. Likewise

@@ -414,8 +414,16 @@ export function createBinder({ chart, LWC }) {
         // offers it for pane oscillators only, and `migrateLegacyToInstances`
         // refuses to honour the list for a price target), so migrating them adds
         // no new crossing. `donchian` is the last price overlay and Task 8 is the
-        // last chance for one; the crossing that DOES happen is still the
-        // volume-overlay one, on `stoch` and `atr`.
+        // last chance for one.
+        // ⚠️ AND THE LIST OF DEFINITIONS THAT *CAN* CROSS GREW AT B5 TASK 7. That
+        // last sentence used to read *"the crossing that DOES happen is still the
+        // volume-overlay one, on `stoch` and `atr`"* and Task 7 falsified it
+        // without anything going red: `mfi`, `cci` and `williamsR` are PANE
+        // oscillators too, so all five are eligible for `ensureIndTarget`'s
+        // `volSeparatePane && volOverlaySet.has(key)` branch and all five can
+        // relocate on a live chart. `adx` and `obv` join at Task 8, which makes
+        // the eventual list every pane oscillator there is. The MECHANISM is
+        // unchanged and so is the blind spot; only the count moved.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
         attempt(() => series.applyOptions(options))
       }

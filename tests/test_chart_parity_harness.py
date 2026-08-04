@@ -1538,13 +1538,36 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
     assert sorted(declared) == sorted([
         "engine_ichimoku_vs_legacy", "engine_price_overlay_zorder",
         "engine_sar_vs_legacy", "ichimoku_only", "sar_only",
+        # ⭐ B5 TASK 7 RAISED THIS FLOOR, exactly as the docstring said the next
+        # migration would. Seven more: the three filled `<id>_only` placeholders,
+        # their three projected-vs-stored twins, and the three-band stack.
+        "cci_only", "mfi_only", "williams_r_only",
+        "engine_cci_vs_legacy", "engine_mfi_vs_legacy",
+        "engine_williams_r_vs_legacy", "engine_three_bands_stacked",
     ]), f"the set of provenance-declaring cases moved: {sorted(declared)}"
     # ⭐ AND THE COUNTS ARE THE MIGRATION'S OWN SHAPE, not a total. `sar` is ONE
     # plot; `ichimoku` is FIVE; the z-order case turns both on and therefore
     # declares six. A case that declared the wrong NUMBER of flips would be
-    # licensing a series it did not migrate.
-    assert [len(v) for _, v in sorted(declared.items())] == [5, 6, 1, 5, 1], (
-        {k: len(v) for k, v in sorted(declared.items())})
+    # licensing a series it did not migrate. Task 7's seven are all ONE plot per
+    # definition — the three oscillators are single-line — so each `<id>_only`
+    # and each `engine_<id>_vs_legacy` declares 1 and the three-band stack
+    # declares 3. ⚠️ THE GUIDES ARE NOT IN THESE NUMBERS AND MUST NOT BE: an
+    # `hlines` plot creates PRICE LINES, not a series, so it has no pool key and
+    # nothing in the manifest — `cci`'s three guides are ZERO extra provenance.
+    assert {k: len(v) for k, v in sorted(declared.items())} == {
+        "cci_only": 1,
+        "engine_cci_vs_legacy": 1,
+        "engine_ichimoku_vs_legacy": 5,
+        "engine_mfi_vs_legacy": 1,
+        "engine_price_overlay_zorder": 6,
+        "engine_sar_vs_legacy": 1,
+        "engine_three_bands_stacked": 3,
+        "engine_williams_r_vs_legacy": 1,
+        "ichimoku_only": 5,
+        "mfi_only": 1,
+        "sar_only": 1,
+        "williams_r_only": 1,
+    }, {k: len(v) for k, v in sorted(declared.items())}
 
 
 # ─── the CLI, and the refusal that keeps the two mechanisms apart ────────────

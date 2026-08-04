@@ -77,6 +77,14 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
     // `ichimoku`'s two) a real `legend` block, so this case went RED — a control
     // firing on a real change, not rotting green. It is re-pointed at `mfi`,
     // which is one of the definitions that genuinely has no chip anywhere.
+    //
+    // ⭐ AND B5 TASK 7 MADE ITS PREMISE STRONGER RATHER THAN FALSIFYING IT —
+    // audited, not assumed. When `mfi` was chosen it was drawn by a hand-written
+    // block, so `engineChips` could never be handed one in production and this
+    // case described a path that did not exist; `mfi` is engine-drawn now, so it
+    // describes the live one. What the case asserts is unchanged, because the
+    // claim was always about the DEFINITION declaring no `legend` block and
+    // never about which lane draws it.
     const inst = { instanceId: 'legacy:mfi', defId: 'mfi', inputs: {} }
     const b = binding('mfi', 'mfi')
     expect(engineChips([b], seriesData([[b, 42.5]]), engineRegistry, [inst])).toEqual([])
