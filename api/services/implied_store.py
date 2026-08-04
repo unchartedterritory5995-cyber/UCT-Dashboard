@@ -75,6 +75,18 @@ def _int_or_none(v):
         return None
 
 
+def _float_or_none(v):
+    """float(v) preserving None — used for eps_estimate's presence check in
+    `_reporter_preferred`; a real negative estimate must never be treated as
+    falsy/absent, and a malformed value must never crash the tie-break."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _canon(sym: str) -> str:
     """Canonical store form — matches the repo-wide convention in
     groups.py/theme_index.py/theme_performance.py: uppercase, dot→hyphen
@@ -236,11 +248,74 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
     out = [{"sym": _canon(row.get("symbol")), "report_date": row.get("date"),
             "hour": row.get("hour") or "",
             "fiscal_year": _int_or_none(row.get("year")),
-            "fiscal_quarter": _int_or_none(row.get("quarter"))}
+            "fiscal_quarter": _int_or_none(row.get("quarter")),
+            # Carried ONLY as `_dedupe_reporters`' tie-break input (review
+            # round 1, CRITICAL) — a real epsEstimate marks the genuine row
+            # when Finnhub lists the same (sym, date) twice under two
+            # different fiscal quarters (observed live: GLOO 2026-08-17).
+            "eps_estimate": _float_or_none(row.get("epsEstimate"))}
            for row in rows if row.get("symbol") and row.get("date")]
     if out:
         _REPORTERS_CACHE.set(key, list(out), _REPORTERS_TTL)
     return out
+
+
+def _reporter_preferred(new: dict, old: dict) -> bool:
+    """Deterministic, ORDER-INDEPENDENT tie-break between two reporter rows
+    sharing the same (sym, report_date) — see `_dedupe_reporters`. A real
+    `eps_estimate` (the row Finnhub is actually tracking a consensus for)
+    beats a null one (an apparent placeholder); on a tie, the higher
+    (fiscal_year, fiscal_quarter) — the more forward-looking print — wins.
+    `is not None`, never a truthy check: a genuine `eps_estimate` of 0.0 (or
+    a negative EPS, e.g. GLOO's -0.187) must count as present."""
+    new_has = new.get("eps_estimate") is not None
+    old_has = old.get("eps_estimate") is not None
+    if new_has != old_has:
+        return new_has
+    absent = -1  # sentinel below any real fiscal_year/fiscal_quarter (never 0 or negative in practice)
+    new_key = (new.get("fiscal_year") if new.get("fiscal_year") is not None else absent,
+               new.get("fiscal_quarter") if new.get("fiscal_quarter") is not None else absent)
+    old_key = (old.get("fiscal_year") if old.get("fiscal_year") is not None else absent,
+               old.get("fiscal_quarter") if old.get("fiscal_quarter") is not None else absent)
+    return new_key > old_key
+
+
+def _dedupe_reporters(reporters: list[dict]) -> tuple[list[dict], int]:
+    """Finnhub's /calendar/earnings can list the SAME (sym, report_date)
+    MORE THAN ONCE under DIFFERENT fiscal quarters — observed live:
+        GLOO 2026-08-17 -> {"quarter":2,"year":2027,"epsEstimate":-0.187}
+                        and {"quarter":2,"year":2026,"epsEstimate":null}
+    `record_implied`'s identity is (sym, report_date) — see its docstring for
+    why it can't be fiscal-keyed (SQLite doesn't dedupe NULLs in a composite
+    PK, and a fiscal-keyed PK would break idempotency for every row written
+    without a fiscal key). Left undeduped, whichever of these two rows
+    happens to appear FIRST in Finnhub's array is the one `_has_snapshot`/
+    `INSERT OR IGNORE` files the PERMANENT snapshot under — an artifact of
+    provider array order, not anything meaningful. Once captured, that
+    identity can never be corrected (the implied move at the time isn't
+    reconstructible), and the wrong fiscal quarter either never pairs with
+    its real history row (bar never draws) or pairs against the WRONG
+    quarter's realized move (feeds a false number into the RICH/CHEAP chip).
+
+    Resolves via `_reporter_preferred` (real eps_estimate first, higher
+    (year, quarter) as the tie-break) — a fixed comparison, not "first wins",
+    so the result is the SAME regardless of the array's order.
+
+    Returns (deduped_reporters, collision_count) — collision_count is
+    surfaced in `run_nightly_capture`'s summary rather than silently folding
+    into `skipped`."""
+    best: dict[tuple, dict] = {}
+    collisions = 0
+    for rep in reporters:
+        k = (rep.get("sym"), rep.get("report_date"))
+        prev = best.get(k)
+        if prev is None:
+            best[k] = rep
+            continue
+        collisions += 1
+        if _reporter_preferred(rep, prev):
+            best[k] = rep
+    return list(best.values()), collisions
 
 
 def run_nightly_capture(now: dt.datetime | None = None) -> dict:
@@ -253,6 +328,10 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     Never stores a failure; existing (sym, report_date) rows are kept
     (first-write-wins — with the narrow window the first write IS the
     T-1/T-0-pre-report write).
+    Deduped by (sym, report_date) BEFORE the window filter (review round 1,
+    CRITICAL) — see `_dedupe_reporters` — so a duplicate-fiscal-quarter row
+    from Finnhub can never let array order decide which identity a permanent
+    snapshot files under; `summary["collisions"]` counts how many resolved.
     Exception isolation: one bad symbol never truncates the batch."""
     now = now or dt.datetime.now(_ET)
     today = now.date()
@@ -260,6 +339,13 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     window_end = today + dt.timedelta(days=window_days)
 
     reporters = upcoming_reporters(days=14, now=now)
+    reporters, dupe_collisions = _dedupe_reporters(reporters)
+    if dupe_collisions:
+        # warning, not info — this is Finnhub disagreeing with itself about a
+        # reporter's fiscal quarter; worth a human noticing even though the
+        # collision itself was resolved deterministically.
+        _log.warning("[implied-store] resolved %d duplicate (sym, report_date) "
+                     "reporter row(s) from Finnhub", dupe_collisions)
     in_window = []
     for rep in reporters:
         try:
@@ -269,7 +355,7 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
         if today <= rd <= window_end:
             in_window.append(rep)
 
-    summary = {"captured": 0, "skipped": 0, "failed": 0}
+    summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": dupe_collisions}
     captured_at = now.isoformat(timespec="seconds")
     today_iso = today.isoformat()
     for rep in in_window:

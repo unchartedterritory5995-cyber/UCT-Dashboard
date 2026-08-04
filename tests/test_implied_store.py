@@ -60,7 +60,7 @@ def test_run_nightly_capture_stores_only_successes(store):
 def test_run_nightly_capture_noop_when_no_reporters(store):
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
-    assert summary == {"captured": 0, "skipped": 0, "failed": 0}
+    assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0}
 
 
 def test_run_nightly_capture_isolates_a_raising_reporter(store):
@@ -74,7 +74,7 @@ def test_run_nightly_capture_isolates_a_raising_reporter(store):
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", side_effect=fake_move):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
-    assert summary == {"captured": 2, "skipped": 0, "failed": 1}
+    assert summary == {"captured": 2, "skipped": 0, "failed": 1, "collisions": 0}
     assert store.get_implied_history("OK2"), "reporters after the raiser must still capture"
 
 
@@ -220,6 +220,92 @@ def test_run_nightly_capture_carries_fiscal_key_through_to_the_stored_row(store)
     rows = store.get_implied_history("TST")
     assert rows[0]["fiscal_year"] == 2026
     assert rows[0]["fiscal_quarter"] == 3
+
+
+# ── Review round 1 CRITICAL — duplicate-announcement-date reporter ─────────
+# Live observation: Finnhub's /calendar/earnings listed GLOO's 2026-08-17
+# report TWICE under two DIFFERENT fiscal quarters — one with a real
+# epsEstimate (the genuine row) and one with epsEstimate=null (an apparent
+# placeholder). Left undeduped, `_has_snapshot`/`INSERT OR IGNORE` files the
+# PERMANENT snapshot under whichever row happened to be first in Finnhub's
+# array — provider array order, not anything meaningful — and that identity
+# can never be corrected after the fact.
+_GLOO_REAL = {"sym": "GLOO", "report_date": "2026-08-17", "hour": "amc",
+              "fiscal_year": 2027, "fiscal_quarter": 2, "eps_estimate": -0.187}
+_GLOO_PLACEHOLDER = {"sym": "GLOO", "report_date": "2026-08-17", "hour": "amc",
+                     "fiscal_year": 2026, "fiscal_quarter": 2, "eps_estimate": None}
+
+
+def test_dedupe_reporters_prefers_the_row_with_a_real_eps_estimate(store):
+    deduped, collisions = store._dedupe_reporters([_GLOO_REAL, _GLOO_PLACEHOLDER])
+    assert collisions == 1
+    assert len(deduped) == 1
+    assert deduped[0]["fiscal_year"] == 2027 and deduped[0]["fiscal_quarter"] == 2
+
+
+def test_dedupe_reporters_is_order_independent(store):
+    """The exact GLOO pair, in BOTH array orders — must resolve to the SAME
+    fiscal identity either way. This is the whole point of the fix: order
+    must never decide identity."""
+    order_a, collisions_a = store._dedupe_reporters([_GLOO_REAL, _GLOO_PLACEHOLDER])
+    order_b, collisions_b = store._dedupe_reporters([_GLOO_PLACEHOLDER, _GLOO_REAL])
+    assert collisions_a == collisions_b == 1
+    assert order_a[0]["fiscal_year"] == order_b[0]["fiscal_year"] == 2027
+    assert order_a[0]["fiscal_quarter"] == order_b[0]["fiscal_quarter"] == 2
+
+
+def test_dedupe_reporters_no_collision_when_dates_differ(store):
+    """Two DIFFERENT (sym, report_date) reporters are never merged — dedup
+    keys on the pair, not the symbol alone."""
+    a = {"sym": "GLOO", "report_date": "2026-08-17", "hour": "amc",
+         "fiscal_year": 2027, "fiscal_quarter": 2, "eps_estimate": -0.187}
+    b = {"sym": "GLOO", "report_date": "2026-11-16", "hour": "amc",
+         "fiscal_year": 2027, "fiscal_quarter": 3, "eps_estimate": -0.1}
+    deduped, collisions = store._dedupe_reporters([a, b])
+    assert collisions == 0
+    assert len(deduped) == 2
+
+
+def test_reporter_preferred_tie_break_on_fiscal_key_when_both_have_no_estimate(store):
+    """When NEITHER row has an eps_estimate, the tie-break falls to the
+    higher (year, quarter) — deterministic either way, not first-wins."""
+    older = {"eps_estimate": None, "fiscal_year": 2026, "fiscal_quarter": 2}
+    newer = {"eps_estimate": None, "fiscal_year": 2027, "fiscal_quarter": 2}
+    assert store._reporter_preferred(newer, older) is True
+    assert store._reporter_preferred(older, newer) is False
+
+
+def test_reporter_preferred_negative_eps_estimate_counts_as_present(store):
+    """A genuinely negative eps_estimate (GLOO's -0.187) must never be
+    treated as absent — this is the `is not None` guard, not a truthy check."""
+    has_negative = {"eps_estimate": -0.187, "fiscal_year": 2026, "fiscal_quarter": 1}
+    has_none = {"eps_estimate": None, "fiscal_year": 2030, "fiscal_quarter": 4}
+    assert store._reporter_preferred(has_negative, has_none) is True
+
+
+def test_run_nightly_capture_stores_the_same_identity_regardless_of_reporter_array_order(store):
+    """End-to-end: the real GLOO pair, fed through the actual capture loop,
+    in both array orders — must store the SAME (fiscal_year, fiscal_quarter)
+    either way, and must count exactly one collision."""
+    now = dt.datetime(2026, 8, 16, 21, 0)  # today = 2026-08-16; window default 1d -> 08-17 in-window
+
+    for order_name, order in (("A_then_B", [_GLOO_REAL, _GLOO_PLACEHOLDER]),
+                               ("B_then_A", [_GLOO_PLACEHOLDER, _GLOO_REAL])):
+        # Fresh DB per order so first-write-wins from a prior iteration can't
+        # mask a real order-dependence bug.
+        with patch.object(store, "upcoming_reporters", return_value=list(order)), \
+             patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+            summary = store.run_nightly_capture(now=now)
+        assert summary["captured"] == 1, order_name
+        assert summary["collisions"] == 1, order_name
+        rows = store.get_implied_history("GLOO")
+        assert len(rows) == 1, order_name
+        assert rows[0]["fiscal_year"] == 2027, order_name
+        assert rows[0]["fiscal_quarter"] == 2, order_name
+        # Reset for the next order in this loop.
+        import sqlite3
+        with sqlite3.connect(store.DB_PATH) as c:
+            c.execute("DELETE FROM implied_snapshots WHERE sym = 'GLOO'")
 
 
 def test_schema_migration_adds_fiscal_columns_to_a_pre_existing_db(tmp_path, monkeypatch):
