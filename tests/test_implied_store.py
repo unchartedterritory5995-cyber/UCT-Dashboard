@@ -59,3 +59,18 @@ def test_run_nightly_capture_noop_when_no_reporters(store):
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
     assert summary == {"captured": 0, "skipped": 0, "failed": 0}
+
+
+def test_run_nightly_capture_isolates_a_raising_reporter(store):
+    reporters = [{"sym": "OK1", "report_date": "2026-08-06"},
+                 {"sym": "BOOM", "report_date": "2026-08-06"},
+                 {"sym": "OK2", "report_date": "2026-08-06"}]
+    def fake_move(sym, report_date=None):
+        if sym == "BOOM":
+            raise RuntimeError("chain exploded")
+        return _payload()
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store.implied_move, "get_expected_move", side_effect=fake_move):
+        summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
+    assert summary == {"captured": 2, "skipped": 0, "failed": 1}
+    assert store.get_implied_history("OK2"), "reporters after the raiser must still capture"

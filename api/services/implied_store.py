@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 from contextlib import closing
 
 import httpx
@@ -42,18 +43,46 @@ CREATE TABLE IF NOT EXISTS grade_snapshots (
 );
 """
 
+_INIT_LOCK = threading.Lock()
+_INITIALIZED: set[str] = set()
 
-def _conn() -> sqlite3.Connection:
+
+def _connect() -> sqlite3.Connection:
+    """Open a connection with WAL pragma (no schema init)."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     c = sqlite3.connect(DB_PATH, timeout=5)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
-    c.executescript(_SCHEMA)
     return c
 
 
+def _ensure_init() -> None:
+    """Run schema initialization once per DB_PATH (double-checked lock pattern)."""
+    global _INITIALIZED
+    if DB_PATH in _INITIALIZED:
+        return
+    with _INIT_LOCK:
+        if DB_PATH in _INITIALIZED:
+            return
+        with closing(_connect()) as c:
+            c.executescript(_SCHEMA)
+        _INITIALIZED.add(DB_PATH)
+
+
+def _has_snapshot(sym: str, report_date: str) -> bool:
+    """Check if a snapshot exists for this (sym, report_date) pair."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        row = c.execute(
+            "SELECT 1 FROM implied_snapshots WHERE sym = ? AND report_date = ? LIMIT 1",
+            (sym.upper(), report_date),
+        ).fetchone()
+    return row is not None
+
+
 def record_implied(sym: str, report_date: str, payload: dict, captured_at: str) -> None:
-    with closing(_conn()) as c, c:
+    _ensure_init()
+    with closing(_connect()) as c, c:
         c.execute(
             "INSERT OR IGNORE INTO implied_snapshots "
             "(sym, report_date, captured_at, pct, dollar, expiry, strike, spot, iv_atm, source) "
@@ -65,7 +94,8 @@ def record_implied(sym: str, report_date: str, payload: dict, captured_at: str) 
 
 
 def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
-    with closing(_conn()) as c:
+    _ensure_init()
+    with closing(_connect()) as c:
         rows = c.execute(
             "SELECT sym, report_date, captured_at, pct, dollar, expiry FROM implied_snapshots "
             "WHERE sym = ? ORDER BY report_date DESC LIMIT ?", (sym.upper(), int(limit)),
@@ -74,7 +104,8 @@ def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
 
 
 def record_grade(sym: str, date: str, surface: str, grade: str, inputs: dict) -> None:
-    with closing(_conn()) as c, c:
+    _ensure_init()
+    with closing(_connect()) as c, c:
         c.execute(
             "INSERT OR REPLACE INTO grade_snapshots (sym, date, surface, grade, inputs_json) "
             "VALUES (?,?,?,?,?)",
@@ -83,7 +114,8 @@ def record_grade(sym: str, date: str, surface: str, grade: str, inputs: dict) ->
 
 
 def get_grade_history(sym: str, surface: str, limit: int = 30) -> list[dict]:
-    with closing(_conn()) as c:
+    _ensure_init()
+    with closing(_connect()) as c:
         rows = c.execute(
             "SELECT sym, date, surface, grade, inputs_json FROM grade_snapshots "
             "WHERE sym = ? AND surface = ? ORDER BY date DESC LIMIT ?",
@@ -130,20 +162,24 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
 
 def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     """Post-close capture for every symbol reporting within 14 days.
-    Never stores a failure; existing (sym, report_date) rows are kept (first-write-wins)."""
+    Never stores a failure; existing (sym, report_date) rows are kept (first-write-wins).
+    Exception isolation: one bad symbol never truncates the batch."""
     reporters = upcoming_reporters(days=14, now=now)
     summary = {"captured": 0, "skipped": 0, "failed": 0}
     captured_at = (now or dt.datetime.now()).isoformat(timespec="seconds")
     for rep in reporters:
-        if get_implied_history(rep["sym"], limit=1) and \
-           get_implied_history(rep["sym"], limit=1)[0]["report_date"] == rep["report_date"]:
-            summary["skipped"] += 1
-            continue
-        payload = implied_move.get_expected_move(rep["sym"], rep["report_date"])
-        if payload is None:
+        try:
+            if _has_snapshot(rep["sym"], rep["report_date"]):
+                summary["skipped"] += 1
+                continue
+            payload = implied_move.get_expected_move(rep["sym"], rep["report_date"])
+            if payload is None:
+                summary["failed"] += 1
+                continue
+            record_implied(rep["sym"], rep["report_date"], payload, captured_at)
+            summary["captured"] += 1
+        except Exception:  # noqa: BLE001 — one bad symbol must never truncate the batch
+            _log.warning("[implied-store] capture failed for %s", rep.get("sym"), exc_info=True)
             summary["failed"] += 1
-            continue
-        record_implied(rep["sym"], rep["report_date"], payload, captured_at)
-        summary["captured"] += 1
     _log.info("[implied-store] nightly capture: %s", summary)
     return summary
