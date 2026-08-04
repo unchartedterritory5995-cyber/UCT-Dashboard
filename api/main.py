@@ -2637,6 +2637,19 @@ async def lifespan(app: FastAPI):
                 id="implied_move_nightly", max_instances=1, coalesce=True, replace_existing=True,
             )
 
+            # §12 accountability record: one persisted Setup Grade per upcoming
+            # reporter per day. 16:40 ET = 5 min after the implied capture, so
+            # the grade is scored against that evening's freshly-stored implied.
+            # SAME flag as the capture on purpose — they write the same store in
+            # the same nightly window; a second flag would let the accountability
+            # record silently diverge from the data it grades.
+            from api.services import setup_grade as _setup_grade
+            _scheduler.add_job(
+                _setup_grade.run_daily_grade_snapshot,
+                trigger=CronTrigger(hour=16, minute=40, day_of_week="mon-fri", timezone=_ET),
+                id="setup_grade_daily", max_instances=1, coalesce=True, replace_existing=True,
+            )
+
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
         # (ticker_types table) fresh so the flow write path classifies new ETFs
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
