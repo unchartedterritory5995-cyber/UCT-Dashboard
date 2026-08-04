@@ -69,6 +69,19 @@ export function pairQuarters(quarters, impliedHistory, live) {
     // First write wins: the store's own first-write-wins rule already makes the
     // earliest snapshot the honest pre-report one.
     if (k && !byDate.has(k)) byDate.set(k, pct)
+    // MINOR (P2 T8b review r1) — this does NOT inherit byDate's "earliest is
+    // honest" reasoning. `report_date` is the store's PRIMARY KEY, so byDate's
+    // per-date first-write-wins IS the store's own invariant. A fiscal key has
+    // no such guarantee: a rescheduled print is captured TWICE under two
+    // DIFFERENT report_dates but the SAME fiscal_year/fiscal_quarter, and
+    // `impliedHistory` arrives report_date DESC (newest first) — so "first
+    // occurrence wins" here resolves to the NEWER report_date, i.e. the LATEST
+    // capture for that fiscal identity, not necessarily the temporally-first
+    // one. Verified: report_date DESC array [(newer, pct=9.9), (older,
+    // pct=5.5)] resolves byFiscal to 9.9. Treated as correct on purpose — the
+    // most recent known snapshot for a quarter beats a stale one from before
+    // the reschedule — but it is a deliberate resolution rule, not an
+    // accidental inheritance of byDate's semantics.
     const fk = fiscalKey(num(row?.fiscal_year), num(row?.fiscal_quarter))
     if (fk && !byFiscal.has(fk)) byFiscal.set(fk, pct)
   }

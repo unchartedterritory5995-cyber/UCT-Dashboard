@@ -128,6 +128,27 @@ describe('pairQuarters — fiscal key phantom-zero guard', () => {
   })
 })
 
+// MINOR (P2 T8b review r1) — byFiscal resolves a fiscal key spanning TWO
+// report_dates (a rescheduled print, captured twice) to the LATER capture,
+// not the temporally-first one — a DIFFERENT rule than byDate's "earliest is
+// honest" (byDate's guarantee comes from report_date being the store's own
+// PRIMARY KEY; a fiscal key has no such guarantee). Because impliedHistory
+// arrives report_date DESC, "first occurrence wins" here means "newest
+// report_date wins".
+describe('pairQuarters — a rescheduled print resolves to the LATEST fiscal-keyed capture', () => {
+  it('report_date DESC array [newer capture, older capture] resolves byFiscal to the newer one', () => {
+    const quarters = [{ quarter: 'Q2 26', report_date: null, reported: true, reaction_pct: 1.0,
+                         fiscal_year: 2026, fiscal_quarter: 2 }]
+    // DESC by report_date, as implied_store.get_implied_history returns it:
+    // the RESCHEDULED (newer report_date) capture appears FIRST.
+    const impliedHistory = [
+      { report_date: '2026-07-30', pct: 9.9, fiscal_year: 2026, fiscal_quarter: 2 },   // rescheduled, newer date
+      { report_date: '2026-07-23', pct: 5.5, fiscal_year: 2026, fiscal_quarter: 2 },   // original date
+    ]
+    expect(pairQuarters(quarters, impliedHistory, null)[0].impliedPct).toBe(9.9)
+  })
+})
+
 // Requirement 2 — impliedVerdict (the RICH/CHEAP chip) requires 3 fully-paired
 // PAST quarters. Before this task that bar was structurally unreachable for
 // any real accrued history (report_date never matched); the fiscal key makes
