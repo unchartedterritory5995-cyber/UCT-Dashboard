@@ -48,15 +48,6 @@
   white-space: nowrap;
 }
 
-.sector {
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
 .timing {
   display: flex;
   align-items: center;

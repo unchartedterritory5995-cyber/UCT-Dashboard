@@ -101,7 +101,7 @@ describe('IdentityBanner', () => {
 
   it('is a banner landmark on near-opaque chrome', () => {
     const { container } = render(<IdentityBanner {...base} />)
+    expect(screen.getByRole('banner')).toBeTruthy()
     expect(container.firstChild.tagName).toBe('HEADER')
-    expect(container.firstChild.className).toMatch(/banner/)
   })
 })

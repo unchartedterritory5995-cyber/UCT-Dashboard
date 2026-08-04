@@ -1,4 +1,5 @@
 // app/src/components/research-kit/shell/IdentityBanner.jsx
+import EyebrowLabel from '../EyebrowLabel'
 import styles from './IdentityBanner.module.css'
 
 /** The §4.5 report-night state machine, in order. */
@@ -76,7 +77,7 @@ export default function IdentityBanner({
           <span className={styles.sym}>{sym}</span>
           {company && <span className={styles.company}>{company}</span>}
         </div>
-        {sector && <div className={styles.sector}>{sector}</div>}
+        {sector && <EyebrowLabel>{sector}</EyebrowLabel>}
       </div>
 
       <div className={styles.timing}>
