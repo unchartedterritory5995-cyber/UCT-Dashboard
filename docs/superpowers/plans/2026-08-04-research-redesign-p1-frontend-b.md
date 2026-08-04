@@ -1392,9 +1392,11 @@ export default function ReactionBars({
 }
 
 .star {
-  /* CORRECTION (task review): --warn, not --ut-gold — the star is a caution
-     annotation; gold stays unique to the implied bracket (§3.1 one-gold rule). */
-  fill: var(--warn);
+  /* CORRECTION 2 (re-review): --warn COLLIDES with --ut-gold (identical hex in
+     every theme), so the first correction was a visual no-op. --score-weak
+     (#e08a3c) is the caution-adjacent token actually distinct from gold; gold
+     stays unique to the implied bracket (§3.1 one-gold rule). */
+  fill: var(--score-weak);
   font-family: var(--font-sans);
   font-size: 9px;
 }
