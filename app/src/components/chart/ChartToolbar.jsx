@@ -5,6 +5,7 @@ import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
+import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { engineDrawnInputs, ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
@@ -987,6 +988,15 @@ function ChartToolbar({
   const [showWidths, setShowWidths] = useState(false)
   const [showFonts, setShowFonts] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  // ── THE INDICATOR LIBRARY (spec §6) ───────────────────────────────────────
+  //
+  // Held HERE rather than in `StockChart`, for one reason that is also the
+  // read-only mount-site rule: this component already renders the settings panel
+  // behind `chartSettings && onUpdateSettings`, and a chart mounted read-only
+  // passes no `onUpdateSettings`. Gating the library on the SAME pair means a
+  // read-only chart cannot sprout an add-dialog, without a second prop that
+  // could disagree with the first (spec §5 "mount-site scoping").
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   const colorRef = useRef(null)
@@ -996,14 +1006,24 @@ function ChartToolbar({
   const compareRef = useRef(null)
   const alertRef = useRef(null)
 
-  // Imperative API: lets the chart's right-click menu open the settings panel.
+  // Imperative API: lets the chart's right-click menu open the settings panel,
+  // and lets `Alt+Shift+A` open the indicator library. ⚠️ `openIndicatorLibrary`
+  // is a NO-OP on a read-only mount site — it checks the same pair the button
+  // does, so the chord and the button cannot disagree about where the library is
+  // available. `StockChart` calls it; it does not own the state.
+  const canManageIndicators = !!(chartSettings && onUpdateSettings)
   useImperativeHandle(ref, () => ({
     openSettings: () => {
       setShowColors(false)
       setShowWidths(false)
       setShowSettings(true)
     },
-  }), [])
+    openIndicatorLibrary: () => {
+      if (!canManageIndicators) return false
+      setLibraryOpen(true)
+      return true
+    },
+  }), [canManageIndicators])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1267,6 +1287,21 @@ function ChartToolbar({
           )}
         </div>
 
+        {/* Indicators — spec §6 asks for a LABELLED button, "not icon-only in
+            v1": the add-flow is the thing users are hunting for and a glyph is a
+            guess. Gated on the same pair as the settings panel, so a read-only
+            mount site (which passes no `onUpdateSettings`) gets neither. */}
+        {canManageIndicators && (
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.indicatorsBtn} ${libraryOpen ? styles.active : ''}`}
+            onClick={() => { setLibraryOpen(true); closeOthers(null) }}
+            title="Indicators — browse and add"
+          >
+            <UIcon name="breadth" size={14} /> Indicators
+          </button>
+        )}
+
         {/* Chart settings */}
         {chartSettings && onUpdateSettings && (
           <div ref={settingsRef} className={styles.pickerWrap}>
@@ -1281,6 +1316,21 @@ function ChartToolbar({
               <ChartSettingsPanel chartSettings={chartSettings} onUpdateSettings={onUpdateSettings} />
             )}
           </div>
+        )}
+
+        {/* ⛔ MOUNTED AT TOOLBAR LEVEL, NOT INSIDE THE SETTINGS PANEL. The panel
+            closes on outside mousedown, and `Sheet` portals to `document.body` —
+            a dialog rendered as the panel's child would be unmounted by the very
+            click that opened it. It also has to outlive the panel: Task 8's
+            launcher opens it FROM the panel. */}
+        {canManageIndicators && (
+          <IndicatorLibraryDialog
+            open={libraryOpen}
+            onClose={() => setLibraryOpen(false)}
+            settings={cs}
+            onChange={onUpdateSettings}
+            registry={engineRegistry}
+          />
         )}
 
         <div className={styles.sep} />

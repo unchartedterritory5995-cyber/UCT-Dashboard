@@ -56,6 +56,15 @@ export const CARVED_OUT_ROWS = Object.freeze([
     engineOwned: false,
     description: 'Traded volume binned by price over the visible range, with the point of control marked.',
     tags: Object.freeze(['volume', 'profile']),
+    // ⛔ DECLARED, NOT INVENTED. The library dialog renders a repaint badge from
+    // this field and NOTHING else — a badge is a factual claim about the
+    // indicator, and self-disclosed prose is how a product ends up telling users
+    // a repainting indicator does not repaint. This section has no definition to
+    // declare it, so it declares `null` and the row shows no badge, which is the
+    // honest answer for a canvas overlay that rebins on every range change.
+    repaint: null,
+    tier: 'free',
+    sessionOnly: false,
     fields: Object.freeze([
       Object.freeze({ key: 'bins', label: 'Bins', type: 'number', min: 8, max: 50, step: 1 }),
       Object.freeze({ key: 'color', label: 'Color', type: 'color' }),
@@ -81,6 +90,16 @@ function rowFor(def) {
     engineOwned: true,
     description: meta.description || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
+    // ── the three facts the library dialog badges, all DECLARED ──────────────
+    // `repaint` and `tier` come straight off the definition; a definition that
+    // declares neither gets no badge rather than a default one, because "free"
+    // and "non-repainting" are claims and a missing declaration is not a claim.
+    repaint: meta.repaint || null,
+    tier: meta.tier || null,
+    // …and "intraday only" is DERIVED from the timeframe list the definition
+    // publishes, the same derivation the generated settings row's label uses. A
+    // definition with no timeframe list runs on every timeframe.
+    sessionOnly: Array.isArray(meta.timeframes) && !meta.timeframes.includes('D'),
   }
 }
 

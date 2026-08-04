@@ -521,3 +521,17 @@
   line-height: 1;
   pointer-events: none;
 }
+
+/* ── The Indicators launcher (spec §6: "not icon-only in v1") ────────────────
+   `.btn` is a 24px square built for a glyph; this one carries a WORD, so it
+   overrides the width and adds room for the label. Everything else — the
+   canvas-derived background, the hover step, `.active` — is inherited, so it
+   still reads as one of the toolbar's own controls. */
+.indicatorsBtn {
+  width: auto;
+  gap: 5px;
+  padding: 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}

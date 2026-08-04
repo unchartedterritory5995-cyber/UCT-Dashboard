@@ -1,0 +1,134 @@
+/* The indicator library (spec §6). No colour literals: every value is a token
+   from `styles/tokens.css` (spec §7), and at most ONE gold element — the tier
+   badge, which does not render today because every native is `tier: free`. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.search {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.search:focus {
+  outline: none;
+  border-color: var(--border-accent);
+}
+.search::placeholder { color: var(--text-muted); }
+
+.empty {
+  padding: 18px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.group { display: flex; flex-direction: column; gap: 4px; }
+
+.groupHead {
+  margin: 0;
+  padding: 2px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.list { list-style: none; margin: 0; padding: 0; }
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  /* Touch target — every row is a control (spec §7 / tokens.css). */
+  min-height: var(--tap-min);
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.row:hover, .row:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+  border-color: var(--border);
+}
+.rowOn { background: var(--bg-elevated); border-color: var(--border-accent); }
+
+.check {
+  flex: 0 0 16px;
+  padding-top: 2px;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--gain);
+}
+
+.main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.name { font-size: 14px; color: var(--text-bright); }
+
+.chip {
+  padding: 1px 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* "Intraday only" — a scope note, not a warning. */
+.pill {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--info);
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 4px;
+}
+
+/* The repaint badge. ⛔ INFORMATIONAL, NEVER ERROR-COLOURED (spec §6 state 9):
+   "non-repainting" is a factual property of the indicator, and painting a fact
+   red teaches users to read a correct indicator as a broken one. */
+.badge {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* The ONE gold element on this surface. Renders only for a non-free tier, which
+   no native declares today. */
+.tier {
+  padding: 1px 6px;
+  font-size: 10px;
+  text-transform: capitalize;
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 4px;
+}
+
+.blurb {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
