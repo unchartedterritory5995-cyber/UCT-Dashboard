@@ -77,6 +77,7 @@ export {
   HEAT_TIERS,
   DEFAULT_HEAT_STOPS,
   formatSigned,
+  HEATGRID_SIZE,
 } from './charts/HeatGrid'
 export {
   default as MetricTrendChart,

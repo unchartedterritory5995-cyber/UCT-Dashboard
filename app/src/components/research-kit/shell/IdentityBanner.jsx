@@ -44,6 +44,14 @@ export function timingVariant(state) {
  *
  * ONE TICKING ELEMENT (§3.1): the countdown slot renders in exactly one state.
  * Prices update without animation — do not add a transition to the price slot.
+ *
+ * `stepper` (I4) is an optional trailing slot for the §4.4 phone
+ * reporter-stepping chevrons (prev/next name reporting today). It renders in
+ * the banner's trailing area, after price/grade — that area is already the
+ * "controls about THIS identity" region (price, then grade), and stepping to
+ * a different reporter is one step further out from the current one, so it
+ * reads left-to-right as price → grade → change-who. Renders nothing when
+ * absent, same as every other slot here.
  */
 export default function IdentityBanner({
   logo,
@@ -57,6 +65,7 @@ export default function IdentityBanner({
   price,
   grade,
   guidance,
+  stepper,
   className = '',
 }) {
   const state = normalizeLifecycle(lifecycle)
@@ -83,7 +92,7 @@ export default function IdentityBanner({
       <div className={styles.timing}>
         {line && (
           <span
-            className={`${styles.line} ${variant === 'result' ? styles.lineResult : ''}`}
+            className={`${styles.line} ${variant === 'result' ? `${styles.lineResult} t-num` : ''}`}
             data-testid="rk-banner-line"
           >
             {line}
@@ -98,6 +107,11 @@ export default function IdentityBanner({
       <div className={styles.right}>
         {price && <span className={`${styles.price} t-num`}>{price}</span>}
         {grade && <span className={styles.grade}>{grade}</span>}
+        {stepper && (
+          <span className={styles.stepper} data-testid="rk-banner-stepper">
+            {stepper}
+          </span>
+        )}
       </div>
     </header>
   )

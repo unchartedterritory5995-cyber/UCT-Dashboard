@@ -1,7 +1,7 @@
 // app/src/components/research-kit/charts/MetricTrendChart.jsx
 import EmptyState from '../EmptyState'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
-import { formatSigned } from './HeatGrid'
+import { formatSigned } from './format'
 import styles from './MetricTrendChart.module.css'
 
 /** §3.4 skeleton size contract. */

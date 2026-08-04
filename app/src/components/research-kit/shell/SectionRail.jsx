@@ -47,6 +47,13 @@ export default function SectionRail({
   const refs = useRef([])
 
   const activeIdx = Math.max(0, list.findIndex((s) => s.id === active))
+  // The tablist's roving tabindex must land SOMEWHERE reachable even when
+  // `active` matches nothing in `list` (a stale id, or null before the first
+  // section is chosen): `activeIdx` already falls back to 0 above, but
+  // `isActive` used to compare against the raw `active` prop, so an unmatched
+  // id left EVERY tab's tabIndex at -1 — a tablist the keyboard can't enter.
+  // Deriving the compared id from the same fallback index keeps both in sync.
+  const activeId = list[activeIdx]?.id
 
   const onKeyDown = (e) => {
     const target = nextIndex(activeIdx, e.key, list.length)
@@ -57,11 +64,14 @@ export default function SectionRail({
     refs.current[target]?.focus()
   }
 
+  // The nav landmark gets its own accessible name too — it wraps the non-tab
+  // `links` group (§4.3) as well as the tablist, so it is a distinct landmark
+  // concern from the tablist's own aria-label, not a duplicate of it.
   return (
-    <nav className={`${styles.rail} ${className}`}>
+    <nav className={`${styles.rail} ${className}`} aria-label={ariaLabel}>
       <div className={styles.tabs} role="tablist" aria-label={ariaLabel} aria-orientation="vertical">
         {list.map((s, i) => {
-          const isActive = s.id === active
+          const isActive = s.id === activeId
           return (
             <button
               key={s.id}

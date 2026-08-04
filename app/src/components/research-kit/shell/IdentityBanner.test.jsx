@@ -99,6 +99,18 @@ describe('IdentityBanner', () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
+  // I4 — the optional phone reporter-stepping chevrons slot.
+  it('renders the stepper slot when given', () => {
+    render(<IdentityBanner {...base} stepper={<button type="button">›</button>} />)
+    expect(screen.getByTestId('rk-banner-stepper')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '›' })).toBeInTheDocument()
+  })
+
+  it('renders no stepper slot when absent', () => {
+    render(<IdentityBanner {...base} />)
+    expect(screen.queryByTestId('rk-banner-stepper')).toBeNull()
+  })
+
   it('is a banner landmark on near-opaque chrome', () => {
     const { container } = render(<IdentityBanner {...base} />)
     expect(screen.getByRole('banner')).toBeTruthy()

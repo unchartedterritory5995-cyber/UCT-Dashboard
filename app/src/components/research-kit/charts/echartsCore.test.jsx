@@ -4,6 +4,19 @@
 //      bundle, this fails instead of the bundle silently doubling;
 //   2. CHART_INK matches tokens.css — canvas can't read CSS variables, so the
 //      hexes are mirrored by hand and would otherwise fork silently.
+//
+// I5 — RELABELLED: as of P1F-B, `vendor-echarts` (vite.config.js) still holds
+// nothing but BreadthCharts/TreemapView/Journal 2.0's full-entry imports —
+// zero file in the app imports research-kit yet, so a build-time "the chunk
+// didn't grow" measurement taken today is meaningless: there is no kit-side
+// weight ON the chunk for it to have grown BY. Measuring it now would just
+// reconfirm this file's own no-op, not prove tree-shaking works. THE REAL
+// GATE, until then, is this source-text registration test above — it is the
+// only thing that can fail if a future edit widens the `echarts.use([...])`
+// list or reaches for the full entry point. The honest bundle number (does
+// the chunk actually stay flat once real chart weight lands on it) must be
+// RE-MEASURED at P2's first `import … from '.../research-kit'` in a live
+// page, not assumed from this test's green run.
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'

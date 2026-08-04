@@ -13,7 +13,22 @@ import EyebrowLabel from '../EyebrowLabel'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
 import styles from './LollipopChart.module.css'
 
-/** §3.4 skeleton size contract: `<SkeletonBlock size={LollipopChart.SIZE} />`. */
+/**
+ * §3.4 skeleton size contract. `SIZE` is a NAMED EXPORT, not a static on the
+ * default export — `LollipopChart.SIZE` is `undefined` (I3). Import it through
+ * the barrel instead:
+ *
+ *   import { LollipopChart, LOLLIPOP_SIZE, EyebrowLabel } from '.../research-kit'
+ *
+ * `SIZE`/`LOLLIPOP_SIZE` is the CHART BOX only (the ECharts canvas) — it does
+ * NOT include this component's own `EyebrowLabel` or its horizon caption line
+ * below the chart. To reserve the component's FULL rendered height with zero
+ * layout shift, compose both pieces:
+ *
+ *   {isLoading
+ *     ? <><EyebrowLabel>Estimate vs reported</EyebrowLabel><SkeletonBlock size={LOLLIPOP_SIZE} /></>
+ *     : <LollipopChart quarters={quarters} label="Estimate vs reported" />}
+ */
 export const SIZE = { width: '100%', height: 240 }
 
 const num = (v) => {

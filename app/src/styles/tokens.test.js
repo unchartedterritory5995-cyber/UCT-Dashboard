@@ -188,7 +188,11 @@ describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => 
   // C1 (extended, P1F-B): --text-bright is the shell's heading ink and now sits
   // on --glass-elevated (the active rail item) and --glass-chrome (banner, rail,
   // footer), so it belongs in the matrix beside the body and dimmest inks.
-  const INKS = ['--text-muted', '--text', '--text-bright']
+  // --text-heading (final-wave addendum): IdentityBanner's price line
+  // (`.price`, IdentityBanner.module.css) also sits directly on --glass-chrome
+  // using this token, so it needs the same computed-contrast proof as the
+  // other inks that render on glass.
+  const INKS = ['--text-muted', '--text', '--text-bright', '--text-heading']
 
   const CASES = Object.keys(THEME_BLOCKS).flatMap((themeName) =>
     SURFACES.flatMap((surfaceToken) => INKS.map((inkToken) => [themeName, surfaceToken, inkToken])),

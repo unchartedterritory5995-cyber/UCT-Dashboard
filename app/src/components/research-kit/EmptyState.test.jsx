@@ -62,6 +62,11 @@ describe('EmptyState', () => {
     expect(container.firstChild.getAttribute('style')).toBeNull()
   })
 
+  it('reserves a minHeight box when given (computed geometry, allowed inline)', () => {
+    const { container } = render(<EmptyState title="No expected-move history yet" minHeight={140} />)
+    expect(container.firstChild.style.minHeight).toBe('140px')
+  })
+
   // I5 — the built-in retry affordance.
   it('renders no retry button by default', () => {
     render(<EmptyState title="x" />)

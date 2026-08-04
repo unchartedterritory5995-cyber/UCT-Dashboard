@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import HeatGrid, { heatTier, HEAT_TIERS, DEFAULT_HEAT_STOPS, formatSigned } from './HeatGrid'
+import HeatGrid, { heatTier, HEAT_TIERS, DEFAULT_HEAT_STOPS, formatSigned, HEATGRID_SIZE } from './HeatGrid'
 
 const COLUMNS = ['Q2 26', 'Q1 26', 'Q4 25', 'Q3 25']
 const ROWS = [
@@ -61,6 +61,22 @@ describe('formatSigned', () => {
 
   it('honours a decimals override', () => {
     expect(formatSigned(12.345, { unit: '%', decimals: 2 })).toBe('+12.35%')
+  })
+})
+
+// I3 — an estimator (not a constant): scales with the row count.
+describe('HEATGRID_SIZE — the §3.4 skeleton size estimator', () => {
+  it('grows with the given row count', () => {
+    const two = HEATGRID_SIZE(2)
+    const eight = HEATGRID_SIZE(8)
+    expect(two.width).toBe('100%')
+    expect(eight.height).toBeGreaterThan(two.height)
+  })
+
+  it('falls back to a reasonable default on a bogus row count', () => {
+    expect(HEATGRID_SIZE(0)).toEqual(HEATGRID_SIZE())
+    expect(HEATGRID_SIZE(-3)).toEqual(HEATGRID_SIZE())
+    expect(Number.isFinite(HEATGRID_SIZE(NaN).height)).toBe(true)
   })
 })
 

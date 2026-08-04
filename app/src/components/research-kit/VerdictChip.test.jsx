@@ -67,4 +67,23 @@ describe('VerdictChip tone mapping', () => {
     const { container } = render(<VerdictChip tone="positive" />)
     expect(container.firstChild).toBeNull()
   })
+
+  it('stamps the chip identity marker (§4.2)', () => {
+    const { container } = render(<VerdictChip label="X" />)
+    expect(container.firstChild).toHaveAttribute('data-rk-identity', 'chip')
+  })
+
+  // I6 — the gold data-highlight audit hook.
+  it('stamps data-rk-gold only on the gold tone', () => {
+    const { container: gold } = render(<VerdictChip tone="gold" label="PREMIUM RICH" />)
+    expect(gold.firstChild).toHaveAttribute('data-rk-gold', '')
+
+    const { container: positive } = render(<VerdictChip tone="positive" label="BEAT" />)
+    expect(positive.firstChild).not.toHaveAttribute('data-rk-gold')
+  })
+
+  it('does not stamp data-rk-gold when an unknown tone falls back to neutral', () => {
+    const { container } = render(<VerdictChip tone="chartreuse" label="X" />)
+    expect(container.firstChild).not.toHaveAttribute('data-rk-gold')
+  })
 })

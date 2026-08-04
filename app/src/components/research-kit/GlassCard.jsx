@@ -16,6 +16,10 @@ import styles from './GlassCard.module.css'
  * If you are about to pass `accent` to a second card in the same canvas, the
  * answer is that one of them is not the hero.
  *
+ * `accent` stamps `data-rk-accent` on the rendered element (I6) — the audit
+ * hook `testing/restraint.js` counts, rather than inferring an accented
+ * surface from this module's Vite-scoped CSS class name.
+ *
  * NO backdrop-filter: §3.1 limits it to the modal backdrop (perf). The modal
  * shell itself is opaque; at most ONE translucency level inside it.
  *
@@ -41,7 +45,12 @@ export default function GlassCard({
     .join(' ')
 
   return (
-    <Tag className={cls} aria-label={ariaLabel} {...rest}>
+    <Tag
+      className={cls}
+      aria-label={ariaLabel}
+      data-rk-accent={accent ? '' : undefined}
+      {...rest}
+    >
       {children}
     </Tag>
   )

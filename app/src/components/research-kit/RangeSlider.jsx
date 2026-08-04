@@ -100,7 +100,9 @@ export function resolveBelowLabels({ minLabelPct, maxLabelPct, bandLoPct, bandHi
  *     the same `labelPct` clamp as the value label, sharing the end-label row
  *     below the track; suppressed via `resolveBelowLabels` when they'd collide
  *     with a fixed end label.
- *   tone          — VERDICT_TONES; colours the band + marker
+ *   tone          — VERDICT_TONES; colours the band + marker. `tone="gold"`
+ *                   also stamps `data-rk-gold` on the wrap (I6) — the
+ *                   §3.1 one-gold-data-highlight-per-canvas audit hook.
  */
 export default function RangeSlider({
   min,
@@ -149,7 +151,10 @@ export default function RangeSlider({
       .join(', ')
 
   return (
-    <div className={`${styles.wrap} ${className}`}>
+    <div
+      className={`${styles.wrap} ${className}`}
+      data-rk-gold={tone === 'gold' ? '' : undefined}
+    >
       {label && <EyebrowLabel info={info}>{label}</EyebrowLabel>}
 
       <div className={styles.valueRow} data-testid="rk-range-valuerow">

@@ -115,4 +115,27 @@ describe('SectionRail', () => {
     setup({ ariaLabel: 'Modal sections' })
     expect(screen.getByRole('tablist', { name: 'Modal sections' })).toBeInTheDocument()
   })
+
+  it('labels the wrapping nav landmark too, not just the tablist', () => {
+    setup({ ariaLabel: 'Modal sections' })
+    expect(screen.getByRole('navigation', { name: 'Modal sections' })).toBeInTheDocument()
+  })
+
+  // I1 — an `active` id that matches nothing must not strand the whole
+  // tablist at tabIndex=-1 (keyboard-unreachable).
+  it('falls back to the first tab when active matches nothing in the list', () => {
+    setup({ active: 'nonexistent' })
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs[0]).toHaveAttribute('tabindex', '0')
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+    expect(tabs[1]).toHaveAttribute('tabindex', '-1')
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('falls back to the first tab when active is null', () => {
+    setup({ active: null })
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs[0]).toHaveAttribute('tabindex', '0')
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+  })
 })

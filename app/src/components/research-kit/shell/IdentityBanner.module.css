@@ -96,6 +96,12 @@
   display: inline-flex;
 }
 
+/* I4 — the optional phone reporter-stepping chevrons, trailing price/grade. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* PHONE — identity + line stack, actions wrap to their own row. */
 @media (max-width: 640px) {
   .banner {

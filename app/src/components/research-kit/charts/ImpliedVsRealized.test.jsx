@@ -177,6 +177,31 @@ describe('ImpliedVsRealized', () => {
     expect(screen.queryByText(/PREMIUM/)).toBeNull()
   })
 
+  // I2 — coldStartState.cold counts the LIVE current quarter as "recorded",
+  // so a warm-by-that-count sample can still fall below impliedVerdict's
+  // stricter 3-fully-paired-PAST-quarters bar. 2 stored (Q3 25, Q4 25) + the
+  // live current quarter = 3 "recorded" (not cold), but only 2 fully-paired
+  // past quarters (below MIN_PAIRED) — no chip. The gap must not go silent:
+  // the coverage caption renders anyway.
+  it('I2: renders the coverage caption when there is no chip, even though coldStartState reads warm', () => {
+    const pairs = pairQuarters(QUARTERS.slice(2), IMPLIED.slice(0, 2), LIVE)
+    const cold = coldStartState(pairs, '2025-08-06')
+    expect(cold.cold).toBe(false)
+    expect(cold.caption).toBeNull()
+    expect(impliedVerdict(pairs, LIVE)).toBeNull()
+
+    render(
+      <ImpliedVsRealized
+        quarters={QUARTERS.slice(2)}
+        impliedHistory={IMPLIED.slice(0, 2)}
+        live={LIVE}
+        historySince="2025-08-06"
+      />,
+    )
+    expect(screen.queryByText(/PREMIUM/)).toBeNull()
+    expect(screen.getByTestId('rk-ivr-cold')).toHaveTextContent('Implied tracking since 2025-08 · 3/8 recorded')
+  })
+
   it('marks the current quarter without spending the canvas gold (§3.1)', () => {
     const { container } = render(<ImpliedVsRealized {...warm} />)
     const now = container.querySelectorAll('[data-testid="rk-ivr-now"]')

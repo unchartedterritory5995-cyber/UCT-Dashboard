@@ -1,7 +1,10 @@
 // app/src/components/research-kit/charts/HeatGrid.jsx
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
+import { formatSigned } from './format'
 import styles from './HeatGrid.module.css'
+
+export { formatSigned }
 
 /** The tokenised Breadth ladder (§3.1). 'a' is available for metrics with a
  *  genuine caution band; the default diverging ladder does not use it. */
@@ -9,6 +12,23 @@ export const HEAT_TIERS = ['g3', 'g2', 'g1', 'a', 'r1', 'r2', 'r3']
 
 /** [extreme, strong, flat] on a diverging percent metric. */
 export const DEFAULT_HEAT_STOPS = [50, 20, 0]
+
+/**
+ * §3.4 skeleton size contract — an ESTIMATOR, not a constant, unlike this
+ * kit's chart SIZE exports. HeatGrid is a `<table>` whose height scales with
+ * `rows.length` (a header row + one row per metric), so there is no single
+ * honest fixed box the way an SVG/ECharts canvas has one. Callers that know
+ * the row count ahead of the fetch resolving (the common case — the metric
+ * list is usually static; only the VALUES are loading) get an accurate
+ * reservation; a caller that doesn't can pass a reasonable guess and accept
+ * the resulting layout nudge, same as any other loading table in the app.
+ *
+ *   <SkeletonBlock size={HEATGRID_SIZE(expectedRowCount)} />
+ */
+export function HEATGRID_SIZE(rowCount = 6, { rowHeight = 34, headerHeight = 34 } = {}) {
+  const n = Number.isFinite(rowCount) && rowCount > 0 ? rowCount : 6
+  return { width: '100%', height: headerHeight + n * rowHeight }
+}
 
 /**
  * Heat tier for one value. Pure.
@@ -28,17 +48,6 @@ export function heatTier(value, stops = DEFAULT_HEAT_STOPS) {
   if (n <= -extreme) return 'r3'
   if (n <= -strong) return 'r2'
   return 'r1'
-}
-
-/** "+12.4%" — the sign is ALWAYS visible (§3.3). Em-dash for nothing. */
-export function formatSigned(value, { unit = '', decimals = 1 } = {}) {
-  const n = Number(value)
-  if (!Number.isFinite(n) || value === null || value === '' || value === undefined) return '—'
-  const sign = n > 0 ? '+' : ''
-  // Proper rounding to handle floating point precision (e.g., 12.35 should be 12.4)
-  const factor = Math.pow(10, decimals)
-  const rounded = Math.round(n * factor) / factor
-  return `${sign}${rounded.toFixed(decimals)}${unit}`
 }
 
 /**

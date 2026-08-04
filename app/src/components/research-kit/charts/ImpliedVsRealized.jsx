@@ -80,12 +80,21 @@ export function coldStartState(pairs, historySince, { minPaired = MIN_PAIRED, to
   const recorded = (pairs || []).filter((p) => p.impliedPct != null).length
   const cold = recorded < minPaired
   const since = typeof historySince === 'string' && historySince.length >= 7 ? historySince.slice(0, 7) : null
+  // `coverageText` is computed UNCONDITIONALLY (unlike `caption`, which stays
+  // null when warm — existing contract, left alone). I2: `recorded` here
+  // counts every quarter with an impliedPct, INCLUDING the live current
+  // quarter, so `cold` can be false (warm) while `impliedVerdict` still
+  // returns null (it requires fully-paired PAST quarters only, a stricter
+  // count). The component needs this text even in that warm-but-chipless gap
+  // — see the `chip`/`coverageCaption` wiring below.
+  const coverageText = `Implied tracking since ${since ?? '—'} · ${recorded}/${total} recorded`
   return {
     cold,
     recorded,
     total,
     since,
-    caption: cold ? `Implied tracking since ${since ?? '—'} · ${recorded}/${total} recorded` : null,
+    caption: cold ? coverageText : null,
+    coverageText,
   }
 }
 
@@ -102,7 +111,12 @@ export function impliedVerdict(pairs, live) {
 
   const avgImplied = mean(both.map((p) => Math.abs(p.impliedPct)))
   const avgRealized = mean(both.map((p) => Math.abs(p.realizedPct)))
-  const livePct = num(live?.pct)
+  // An implied move is a magnitude, never signed, but the source payload is
+  // just a number — Math.abs() BEFORE both the ± display and the rich/cheap
+  // comparison so a stray negative `live.pct` can't flip the verdict or print
+  // "priced ±-6.2%".
+  const livePctRaw = num(live?.pct)
+  const livePct = livePctRaw == null ? null : Math.abs(livePctRaw)
   // Judge tonight's price when we have it; fall back to the historical average.
   const reference = livePct ?? avgImplied
   const rich = avgRealized < reference
@@ -213,9 +227,17 @@ export default function ImpliedVsRealized({
 
   const geo = pairGeometry(plotted)
   const chip = cold.cold ? null : impliedVerdict(paired, live)
+  // I2: coldStartState's `cold` flag counts the LIVE current quarter as
+  // "recorded", so it can read warm (cold.cold === false, cold.caption ===
+  // null) while impliedVerdict still refuses to speak (it needs 3 fully-paired
+  // PAST quarters, a stricter bar). Rendering neither a chip nor a caption in
+  // that gap left the hero silently empty. Whenever there is no chip — cold OR
+  // not — the coverage disclosure renders instead, so the widget never shows
+  // nothing.
+  const coverageCaption = chip ? null : cold.coverageText
   const built = ariaLabel || (chip
     ? `Implied versus realized move by quarter. ${chip.label}.`
-    : `Realized move by quarter. ${cold.caption ?? ''}`.trim())
+    : `Realized move by quarter. ${coverageCaption ?? ''}`.trim())
 
   return (
     <div className={`${styles.wrap} ${className}`}>
@@ -268,9 +290,9 @@ export default function ImpliedVsRealized({
       {chip && (
         <VerdictChip label={chip.label} tone={chip.tone} glyph={chip.glyph} size="sm" info={info} />
       )}
-      {cold.caption && (
+      {coverageCaption && (
         <div className={`${styles.cold} t-num`} data-testid="rk-ivr-cold">
-          {cold.caption}
+          {coverageCaption}
         </div>
       )}
     </div>

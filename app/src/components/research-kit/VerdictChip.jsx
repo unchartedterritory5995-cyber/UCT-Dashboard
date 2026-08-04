@@ -29,6 +29,12 @@ const SIZE_CLASS = { sm: 'sizeSm', md: 'sizeMd' }
  *
  * `info` adds the optional ⓘ (§3.4) — used for the partial-basis case
  * ("B+ · 3 of 4 inputs") and to link the methodology page (§12).
+ *
+ * Stamps `data-rk-identity="chip"` always (a verdict is a CHIP, never the
+ * ring RatingCrown stamps `data-rk-identity="ring"` — §4.2, P2 asserts the two
+ * never coexist for the same fact) and `data-rk-gold` when `tone="gold"` — the
+ * I6 audit hook `testing/restraint.js` counts the latter toward the §3.1
+ * one-gold-data-highlight-per-canvas budget.
  */
 export default function VerdictChip({
   label,
@@ -40,13 +46,21 @@ export default function VerdictChip({
 }) {
   if (label == null || label === '') return null
 
-  const toneCls = styles[TONE_CLASS[tone] || TONE_CLASS.neutral]
+  // Normalised once: an unrecognised tone falls back to 'neutral' for both the
+  // glyph AND the I6 gold data-highlight check below, so a bogus tone can
+  // never be mistaken for the gold surface.
+  const normalizedTone = TONE_CLASS[tone] ? tone : 'neutral'
+  const toneCls = styles[TONE_CLASS[normalizedTone]]
   const sizeCls = styles[SIZE_CLASS[size] || SIZE_CLASS.md]
-  const mark = glyph === undefined ? toneGlyph(TONE_CLASS[tone] ? tone : 'neutral') : glyph
+  const mark = glyph === undefined ? toneGlyph(normalizedTone) : glyph
   const tip = normalizeInfo(info)
 
   return (
-    <span className={`${styles.chip} ${toneCls} ${sizeCls} ${className}`}>
+    <span
+      className={`${styles.chip} ${toneCls} ${sizeCls} ${className}`}
+      data-rk-identity="chip"
+      data-rk-gold={normalizedTone === 'gold' ? '' : undefined}
+    >
       {mark != null && mark !== '' && (
         <span className={styles.glyph} data-testid="rk-chip-glyph" aria-hidden="true">
           {mark}

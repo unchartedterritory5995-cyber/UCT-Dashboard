@@ -25,6 +25,11 @@ import styles from './EmptyState.module.css'
  * Iconography is UIcon — no emoji, ever (see the icon names in
  * components/ui/UIcon.jsx; 'document', 'search', 'clock', 'warning', 'chart'
  * and 'noEntry' are the useful ones here).
+ *
+ * `minHeight` (number, px) is COMPUTED GEOMETRY — a chart reserving its own
+ * rendered box while empty (e.g. matching a sibling chart's SIZE height) — so
+ * it is the one permitted inline style, same exception as RangeSlider's
+ * position percentages.
  */
 export default function EmptyState({
   icon = 'document',
@@ -34,10 +39,14 @@ export default function EmptyState({
   action,
   onRetry,
   retryLabel = 'Retry',
+  minHeight,
   className = '',
 }) {
   return (
-    <div className={`${styles.wrap} ${compact ? styles.compact : ''} ${className}`}>
+    <div
+      className={`${styles.wrap} ${compact ? styles.compact : ''} ${className}`}
+      style={minHeight != null ? { minHeight } : undefined}
+    >
       <UIcon name={icon} size={compact ? 16 : 22} className={styles.icon} gold={false} />
       <div className={styles.title} data-testid="rk-empty-title">
         {title}

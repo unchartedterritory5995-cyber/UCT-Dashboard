@@ -130,7 +130,9 @@ export function reactionStats(rows) {
  *   • dot fill       = EPS outcome, SOLID disc on a beat / HOLLOW ring on a miss
  *   • ★              = beat-but-closed-down, the divergence worth noticing
  *   • gold dashed pair = tonight's implied ±move. This is the ONE gold
- *     data-highlight on this canvas (§3.1) — do not add another.
+ *     data-highlight on this canvas (§3.1) — do not add another. Stamped
+ *     `data-rk-gold` (I6) once on the enclosing `<g>`, not per line, so the
+ *     audit hook in `testing/restraint.js` counts the pair as one highlight.
  */
 export default function ReactionBars({
   quarters,
@@ -174,7 +176,10 @@ export default function ReactionBars({
         data-testid="rk-reaction"
       >
         {geo.bracket && (
-          <>
+          // I6: the pair of dashed lines is ONE gold data-highlight (§3.1),
+          // so the audit attribute is stamped once on the enclosing group —
+          // stamping it on each <line> would double-count a single highlight.
+          <g data-rk-gold="">
             <line
               className={styles.bracket}
               data-testid="rk-reaction-bracket"
@@ -185,7 +190,7 @@ export default function ReactionBars({
               data-testid="rk-reaction-bracket"
               x1="0" y1={geo.bracket.bottom} x2={geo.width} y2={geo.bracket.bottom}
             />
-          </>
+          </g>
         )}
 
         <line className={styles.baseline} x1="0" y1={geo.baselineY} x2={geo.width} y2={geo.baselineY} />
@@ -211,6 +216,7 @@ export default function ReactionBars({
               <text
                 className={styles.star}
                 data-testid="rk-reaction-star"
+                data-rk-star=""
                 x={b.cx} y={b.dotY - 6}
                 textAnchor="middle"
               >

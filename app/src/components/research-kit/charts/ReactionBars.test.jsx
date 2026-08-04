@@ -142,7 +142,9 @@ describe('ReactionBars', () => {
     const stars = container.querySelectorAll('[data-testid="rk-reaction-star"]')
     expect(stars).toHaveLength(1)
     expect(stars[0].textContent).toBe('★')
-    expect(stars[0].getAttribute('class')).toMatch(/star/)  // styling hook is applied
+    // data-rk-star is the class-shape-independent oracle (module classes are
+    // scoped, e.g. `_star_<hash>`) — a className regex would be the wrong seam.
+    expect(stars[0]).toHaveAttribute('data-rk-star', '')
   })
 
   it('draws the implied bracket only when an implied move is given', () => {
@@ -150,6 +152,12 @@ describe('ReactionBars', () => {
     expect(container.querySelector('[data-testid="rk-reaction-bracket"]')).toBeNull()
     rerender(<ReactionBars quarters={ROWS} impliedPct={7} impliedLabel="through Fri Aug 8" />)
     expect(container.querySelectorAll('[data-testid="rk-reaction-bracket"]')).toHaveLength(2)
+  })
+
+  // I6 — the bracket PAIR is one gold data-highlight, not two.
+  it('stamps data-rk-gold once on the bracket group, not once per line', () => {
+    const { container } = render(<ReactionBars quarters={ROWS} impliedPct={7} />)
+    expect(container.querySelectorAll('[data-rk-gold]')).toHaveLength(1)
   })
 
   it('keeps dots circular at any width (never preserveAspectRatio=none)', () => {

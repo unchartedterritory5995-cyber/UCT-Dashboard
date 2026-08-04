@@ -198,6 +198,15 @@ describe('RangeSlider', () => {
     expect(container.querySelector('[data-testid="rk-range-marker"]').className).toMatch(/toneNeutral/)
   })
 
+  // I6 — the gold data-highlight audit hook.
+  it('stamps data-rk-gold on the wrap only for the gold tone', () => {
+    const { container: gold } = render(<RangeSlider {...base} tone="gold" />)
+    expect(gold.firstChild).toHaveAttribute('data-rk-gold', '')
+
+    const { container: neutral } = render(<RangeSlider {...base} tone="neutral" />)
+    expect(neutral.firstChild).not.toHaveAttribute('data-rk-gold')
+  })
+
   it('renders an optional eyebrow with an ⓘ', () => {
     render(<RangeSlider {...base} label="52-week range" info="Where price sits in its yearly range." />)
     expect(screen.getByText('52-week range')).toBeInTheDocument()
