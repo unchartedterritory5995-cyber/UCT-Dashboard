@@ -86,9 +86,16 @@ Useful flags: `--cases a b c` · `--include-placeholders` · `--out DIR` ·
 
 Two builds is the wrong instrument for a migration that is already in the tree:
 every unrelated commit between them shows up in the diff. A case carrying
-`instancesB` sends those instances to side B as `?instances=`, which also arms
-`engineEnabled` — so side A draws the LEGACY indicator, side B draws the
-ENGINE's, from the same `dist`, one URL parameter apart.
+`instancesB` sends those instances to side B as `?instances=` — so side A draws
+the LEGACY indicator, side B draws the ENGINE's, from the same `dist`, one URL
+parameter apart.
+
+⚠️ **This paragraph said the param "also arms `engineEnabled`" until B5 Task 4.**
+It did, and that route was the ONLY write of the flag in shipped source. The flag
+is deleted (`docs/decisions/2026-08-04-engine-enabled-deleted.md`); `?instances=`
+now merges instances alone, which is what it always meant. The case file's own
+`why` strings still carry the old sentence — they are prose in a data file the
+harness reads, and they are `tools/`' owner's to correct.
 
 ```bash
 cd app && npm run build && cd ..
@@ -404,9 +411,12 @@ took rather than from what the plan estimated.
    `ENGINE_MIGRATED_DEF_IDS` so that splitting them is a red test rather than a
    discovery. ⛔ **If you split them, read
    `docs/decisions/2026-08-03-engine-enabled-settings-migration.md` first** — a
-   migrated-but-un-flipped definition needs `cs.engineEnabled`, **no existing
-   user has it, and flipping the default cannot give it to them.** That is an
-   indicator that renders for nobody.
+   migrated-but-un-flipped definition NEEDED `cs.engineEnabled`, **no existing
+   user had it, and flipping the default could not give it to them.** That is an
+   indicator that renders for nobody. ⭐ **B5 Task 4 deleted the flag**, which
+   removes the rescue rather than the hazard: a migrated-but-un-flipped
+   definition is now drawn by NOTHING at all, and
+   `enumerationSites.test.js` refuses to let one exist.
 
 3. Add `'<id>'` to `ENGINE_MIGRATED_DEF_IDS` **and** `ENGINE_FLIPPED_DEF_IDS`
    (`engine/flipState.js` — not `StockChart.jsx`; `ChartToolbar` is rendered BY
@@ -507,9 +517,13 @@ wrongly-named input key (step 6).
   retires with it. B4 shipped **ZERO** migrations, so `ENGINE_FLIPPED_DEF_IDS`
   still equals `ENGINE_MIGRATED_DEF_IDS` and B5 inherits ten un-flipped
   definitions and the six legacy `addSeries` sites the legend registers chips at;
-* the `engineEnabled` **settings migration** — unresolved, gated, and numbered:
-  `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`. Still **OPEN**
-  at the end of B4, and safe only while `FLIPPED === MIGRATED`.
+* the `engineEnabled` **settings migration** — ✅ **RESOLVED at B5 Task 4 by
+  DELETING the flag**: `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`
+  §12 and `docs/decisions/2026-08-04-engine-enabled-deleted.md`. It was OPEN at the
+  end of B4 and safe only while `FLIPPED === MIGRATED`; deletion is safe for the
+  same reason, and `enumerationSites.test.js` now asserts the record's header and
+  the code agree as a biconditional. ⚠️ **The MIRROR is not resolved** —
+  `cs.indicators` and its allow-list retire at B5 Task 9.
 
 ---
 
