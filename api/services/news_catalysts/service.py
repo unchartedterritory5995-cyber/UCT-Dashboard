@@ -513,6 +513,17 @@ def _historical_events(sym: str) -> list:
     return out
 
 
+def _pct_paren(v):
+    """+366% / -5% in parentheses for the abbreviated chart lines (None → '')."""
+    if v is None:
+        return ""
+    try:
+        n = round(float(v))
+    except (TypeError, ValueError):
+        return ""
+    return f" ({'+' if n >= 0 else ''}{n}%)"
+
+
 def _earnings_events(sym: str, bar_idx: dict) -> list:
     out = []
     try:
@@ -521,28 +532,59 @@ def _earnings_events(sym: str, bar_idx: dict) -> list:
     except Exception as exc:
         _logger.warning("news_catalysts earnings fetch failed for %s: %s", sym, exc)
         return out
+
+    # Ordered trading days (from the bar index) so we can anchor to the REACTION day.
+    dates = sorted(bar_idx.keys())
+    pos = {d: i for i, d in enumerate(dates)}
+
+    def _move_at(i):
+        if i < 0 or i >= len(dates):
+            return None
+        b = bar_idx.get(dates[i])
+        if not b or b.get("c") is None:
+            return None
+        base = b.get("_prev_c") or b.get("o")
+        if not base:
+            return None
+        return round((b["c"] - base) / base * 100, 1)
+
+    def _reaction(d0):
+        """The trading day the stock actually REACTED to the print. A pre-market/BMO
+        report reacts intraday on the report day; an after-close/AMC report reacts the
+        NEXT session (e.g. BLZE reports after close → the gap lands on the following
+        candle). We don't get a BMO/AMC flag from the provider, so infer it from price:
+        of {report day, next trading day} take the bigger single-day move, biased
+        slightly toward the report day so a mere continuation day never steals the
+        anchor. Returns (reaction_date, reaction_move_pct)."""
+        import bisect
+        i0 = pos.get(d0)
+        if i0 is None:
+            j = bisect.bisect_left(dates, d0)
+            if j >= len(dates):
+                return d0, None          # report in the future — no bar yet
+            i0 = j                        # report day wasn't a session → its next one
+        m0 = _move_at(i0)
+        m1 = _move_at(i0 + 1)
+        if m1 is not None and (m0 is None or abs(m1) > abs(m0) + 0.5):
+            return dates[i0 + 1], m1
+        return dates[i0], m0
+
     for e in (markers.get("earnings") or []):
-        d = str(e.get("date") or "")[:10]
-        if not d or d < YTD_LO:
+        d0 = str(e.get("date") or "")[:10]
+        if not d0 or d0 < YTD_LO:
             continue
-        # Direction/move from the report-day price REACTION when the bar exists
-        # (a beat can still sell off), else fall back to beat/miss.
-        move = None
-        direction = None
-        bar = bar_idx.get(d)
-        if bar and bar.get("c") is not None:
-            base = bar.get("_prev_c") or bar.get("o")
-            if base:
-                move = round((bar["c"] - base) / base * 100, 1)
-                direction = "up" if move >= 0 else "down"
+        # Anchor the marker to the reaction day (not the raw report day).
+        d, move = _reaction(d0)
+        direction = ("up" if move >= 0 else "down") if move is not None else None
         beat = e.get("beat")
         if direction is None:
             direction = "up" if beat else "down" if beat is False else "neutral"
         fq, fy = e.get("fiscal_quarter"), e.get("fiscal_year")
         qlabel = f"Q{fq} FY{fy} " if fq and fy else ""
-        verdict = "beat" if beat else "miss" if beat is False else "report"
-        title = f"{qlabel}earnings — {verdict}".strip()
-        # Full highlights (dropdown) — EPS, revenue, surprise, report-day reaction.
+        # Title Case (owner ask): "Q2 FY2026 Earnings — Beat".
+        verdict = "Beat" if beat else "Miss" if beat is False else "Report"
+        title = f"{qlabel}Earnings — {verdict}".strip()
+        # Full highlights (widget dropdown) — EPS, revenue, surprise, reaction.
         details = []
         if e.get("eps_actual") is not None:
             eps = f"EPS {_eps_fmt(e['eps_actual'])}"
@@ -556,18 +598,28 @@ def _earnings_events(sym: str, bar_idx: dict) -> list:
             if rev_e:
                 rev += f" vs {rev_e} est"
             details.append(rev)
-        if e.get("surprise") is not None:
-            details.append(f"{'+' if e['surprise'] >= 0 else ''}{e['surprise']}% EPS surprise")
+        eps_sp = e.get("eps_surprise_pct", e.get("surprise"))
+        if eps_sp is not None:
+            details.append(f"{'+' if eps_sp >= 0 else ''}{eps_sp}% EPS surprise")
         if move is not None:
-            details.append(f"{'+' if move >= 0 else ''}{move}% on the report day")
+            details.append(f"{'+' if move >= 0 else ''}{move}% earnings reaction")
+        # Abbreviated lines for the ON-CHART marker's second line (owner ask):
+        #   - EPS 0.08 (+366%)
+        #   - REV $42.7M (+7%)
+        chart_lines = []
+        if e.get("eps_actual") is not None:
+            chart_lines.append(f"EPS {_eps_fmt(e['eps_actual'])}{_pct_paren(eps_sp)}")
+        if rev_a:
+            chart_lines.append(f"REV {rev_a}{_pct_paren(e.get('revenue_surprise_pct'))}")
         out.append({
             "date": d, "type": "earnings", "direction": direction,
             "title": title,
             # Inline (wide) shows the two headline stats; the dropdown shows all details.
             "description": "; ".join(details[:2]) or None,
             "details": details or None,
+            "chart_lines": chart_lines or None,
             # PRICE reaction only — NEVER the EPS surprise (a tiny estimate makes that a
-            # nonsense % like -168%). None until the report day's daily bar completes.
+            # nonsense % like -168%). None until the reaction day's daily bar completes.
             "move_pct": move,
             "source": "earnings", "url": None, "ts": _date_ts(d),
         })

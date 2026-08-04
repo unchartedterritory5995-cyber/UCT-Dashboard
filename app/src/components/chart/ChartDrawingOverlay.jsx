@@ -789,8 +789,13 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
 
   ctx.save()
   ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
-  const boxW = Math.max(24, ctx.measureText(text || '').width) + 2   // tight to the text
-  const boxH = fontSize * 1.4
+  // Multi-line labels (earnings: headline + EPS/REV lines): box = widest line ×
+  // line count, so placement + the leader endpoint account for the full block.
+  const tlines = String(text || '').split('\n')
+  let tw = 24
+  for (const ln of tlines) tw = Math.max(tw, ctx.measureText(ln).width)
+  const boxW = tw + 2                                     // tight to the text
+  const boxH = Math.max(1, tlines.length) * fontSize * 1.4
   // Visible candle high/low segments (pixels) so the label + line dodge candles.
   let from = 0, to = bars.length - 1
   if (vRange) { from = Math.max(0, Math.floor(vRange.from) - 1); to = Math.min(bars.length - 1, Math.ceil(vRange.to) + 1) }
@@ -808,8 +813,10 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
     if (d.type !== 'text' || !d.points?.length || d.calloutAnchorTime == null) continue
     const p = toPixel(d.points[0].time, d.points[0].price)
     if (!p || !Number.isFinite(p.x)) continue
-    const ow = Math.max(24, ctx.measureText((d.text || '').split('\n')[0]).width) + 4
-    obstacles.push({ x: p.x, y: p.y, w: ow, h: (d.fontSize || 13) * 1.6 })
+    const olines = String(d.text || '').split('\n')
+    let ow = 24
+    for (const ln of olines) ow = Math.max(ow, ctx.measureText(ln).width)
+    obstacles.push({ x: p.x, y: p.y, w: ow + 2, h: Math.max(1, olines.length) * (d.fontSize || 13) * 1.4 })
   }
   ctx.restore()
 

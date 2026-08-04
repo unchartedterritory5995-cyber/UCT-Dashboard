@@ -100,7 +100,7 @@ test('place drops TWO separate, linked drawings: a text label + a trendline lead
   const [symB, line] = drawingsStore.addDrawing.mock.calls[1]
   expect(symA).toBe('NVDA'); expect(symB).toBe('NVDA')
   expect(label).toMatchObject({
-    type: 'text', text: 'AI supply deal', calloutRole: 'label',
+    type: 'text', text: 'AI Supply Deal', calloutRole: 'label',   // Title-Cased on the chart
     calloutAnchorTime: '2026-03-10', calloutAutoPlace: true,
   })
   expect(line).toMatchObject({ type: 'trendline', calloutRole: 'line', calloutAutoPlace: true })
@@ -110,6 +110,17 @@ test('place drops TWO separate, linked drawings: a text label + a trendline lead
   expect(label.points).toEqual([]); expect(line.points).toEqual([])
   // Color/width are NOT set here — the chart's overlay stamps its own drawing default.
   expect(label.color).toBeUndefined(); expect(line.color).toBeUndefined()
+})
+
+test('placing an earnings catalyst adds the Title-Cased headline + abbreviated EPS/REV lines', () => {
+  mockNews = { status: 'ready', events: [
+    { date: '2026-05-05', type: 'earnings', direction: 'up', title: 'Q2 FY2026 Earnings — Beat',
+      move_pct: 18.8, source: 'earnings', chart_lines: ['EPS 0.08 (+366%)', 'REV $42.7M (+7%)'] },
+  ] }
+  render(<Wrap />)
+  fireEvent.click(screen.getByTitle('Place headline on chart'))
+  const [, label] = drawingsStore.addDrawing.mock.calls[0]
+  expect(label.text).toBe('Q2 FY2026 Earnings — Beat\n- EPS 0.08 (+366%)\n- REV $42.7M (+7%)')
 })
 
 test('place is a one-time action, not a toggle — clicking twice places two catalysts (4 drawings)', () => {

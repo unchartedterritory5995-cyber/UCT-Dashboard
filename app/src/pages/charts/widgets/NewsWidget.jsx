@@ -43,6 +43,19 @@ function fmtMove(mp) {
   if (!Number.isFinite(n)) return ''
   return `${n >= 0 ? '+' : ''}${Number.isInteger(n) ? n : n.toFixed(1)}%`
 }
+// Capitalize the first letter of every word, leaving the rest untouched (owner ask:
+// "all catalyst labels capitalized on every word"). Preserves acronyms/tickers/$/%
+// (e.g. FY2026, EPS, $42.7M stay as-is; "earnings — beat" → "Earnings — Beat").
+function titleCase(s) {
+  return String(s || '').replace(/(^|\s)(\p{L})/gu, (_m, pre, ch) => pre + ch.toUpperCase())
+}
+// The text placed on the chart: the Title-Cased headline, plus (for earnings) an
+// abbreviated second line per stat — "- EPS 0.08 (+366%)" / "- REV $42.7M (+7%)".
+function chartText(e) {
+  const lines = [titleCase(e.title)]
+  if (Array.isArray(e.chart_lines)) for (const l of e.chart_lines) if (l) lines.push(`- ${l}`)
+  return lines.join('\n')
+}
 
 export default function NewsWidget({ color, opts, onOptsChange }) {
   const { groupSyms } = useWorkspace()
@@ -69,10 +82,11 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
     const cid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `cid-${date}-${Math.round(Date.now() / 1000)}`
-    // Label (headline) — the overlay fills its point + color via the placement pass.
+    // Label (headline + abbreviated earnings stats) — the overlay fills its point +
+    // color via the placement pass. Title-Cased; earnings get the EPS/REV second line.
     drawingsStore.addDrawing(sym, {
       type: 'text',
-      text: e.title,
+      text: chartText(e),
       fontSize: 13,
       points: [],
       calloutRole: 'label',

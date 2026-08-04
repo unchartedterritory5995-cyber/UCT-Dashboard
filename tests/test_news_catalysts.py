@@ -117,6 +117,43 @@ class TestMerge:
         assert any("Revenue $40.60B vs $39.90B est" in d for d in det)
         assert "Revenue $40.60B vs $39.90B est" in (earn["description"] or "")   # inline carries revenue
 
+    def test_earnings_anchors_to_reaction_day_amc(self, monkeypatch):
+        # Reported after close 05-04 (tiny move that day) → the stock GAPS the next
+        # session → the marker anchors to 05-05, not the report day.
+        bars = [
+            {"t": "2026-05-01", "o": 100.0, "c": 100.0},
+            {"t": "2026-05-04", "o": 100.0, "c": 101.0},   # report day (AMC) — +1%
+            {"t": "2026-05-05", "o": 101.0, "c": 120.0},   # reaction — +18.8%
+        ]
+        monkeypatch.setattr(service, "_daily_bars_since", lambda s, lo=service.YTD_LO: list(bars))
+        _mock_earnings(monkeypatch, [
+            {"date": "2026-05-04", "beat": True, "eps_surprise_pct": 366.0, "eps_actual": 0.08,
+             "eps_estimate": 0.017, "revenue_actual": 42_700_000, "revenue_estimate": 39_900_000,
+             "revenue_surprise_pct": 7.0, "fiscal_quarter": 2, "fiscal_year": 2026},
+        ])
+        _mock_tweets(monkeypatch, [])
+        earn = [e for e in service._combined("BLZE") if e["type"] == "earnings"][0]
+        assert earn["date"] == "2026-05-05"       # reaction day, not 05-04
+        assert earn["move_pct"] == 18.8
+        assert earn["title"] == "Q2 FY2026 Earnings — Beat"   # Title Case
+        # Abbreviated on-chart second-line stats.
+        assert earn["chart_lines"] == ["EPS 0.08 (+366%)", "REV $42.7M (+7%)"]
+
+    def test_earnings_bmo_stays_on_report_day(self, monkeypatch):
+        # Reported pre-market 05-04 (big move that day), next day quiet → stays 05-04.
+        bars = [
+            {"t": "2026-05-01", "o": 100.0, "c": 100.0},
+            {"t": "2026-05-04", "o": 100.0, "c": 118.0},   # report day (BMO) — +18%
+            {"t": "2026-05-05", "o": 118.0, "c": 119.0},   # next day — +0.8%
+        ]
+        monkeypatch.setattr(service, "_daily_bars_since", lambda s, lo=service.YTD_LO: list(bars))
+        _mock_earnings(monkeypatch, [
+            {"date": "2026-05-04", "beat": True, "fiscal_quarter": 2, "fiscal_year": 2026},
+        ])
+        _mock_tweets(monkeypatch, [])
+        earn = [e for e in service._combined("XYZ") if e["type"] == "earnings"][0]
+        assert earn["date"] == "2026-05-04" and earn["move_pct"] == 18.0
+
     def test_pre_2026_earnings_filtered(self, monkeypatch):
         _mock_bars(monkeypatch)
         _mock_earnings(monkeypatch, [{"date": "2025-11-01", "beat": True}])
