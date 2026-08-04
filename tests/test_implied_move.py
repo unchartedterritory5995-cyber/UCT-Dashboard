@@ -1,3 +1,5 @@
+import threading
+import time
 from unittest.mock import patch
 from api.services import implied_move as im
 
@@ -57,3 +59,72 @@ def test_compute_expected_move_none_on_mismatched_atm_strikes():
 
 def test_select_report_expiry_malformed_nonempty_date_returns_none():
     assert im.select_report_expiry(["2026-08-07"], "not-a-date") is None
+
+# ── Task 3: TTL cache + serve-stale front for get_expected_move ────────────────
+# Every test forgets the ServeStale slot for its key (not just the TTL cache):
+# `_MOVE_STALE` is a module-level singleton, so a value another test remembered
+# for the same (sym, report_date) key would otherwise leak in as a stale hit.
+
+def test_get_expected_move_caches_success(monkeypatch):
+    key = "expmove::TST::2026-08-06"
+    im._MOVE_CACHE.clear()
+    im._MOVE_STALE.forget(key)
+    calls = {"n": 0}
+    def fake_compute(sym, rd):
+        calls["n"] += 1
+        return {"pct": 5.0, "dollar": 9.2, "expiry": "2026-08-07", "strike": 185.0,
+                "spot": 184.0, "call_mid": 4.7, "put_mid": 4.5, "iv_atm": 0.6,
+                "horizon": "through 2026-08-07", "asof": "x", "source": "massive-chain"}
+    monkeypatch.setattr(im, "compute_expected_move", fake_compute)
+    a = im.get_expected_move("TST", "2026-08-06")
+    b = im.get_expected_move("TST", "2026-08-06")
+    assert a == b and calls["n"] == 1, "second call must be served from cache"
+
+def test_get_expected_move_never_caches_failure(monkeypatch):
+    key = "expmove::TST::2026-08-06"
+    im._MOVE_CACHE.clear()
+    im._MOVE_STALE.forget(key)
+    calls = {"n": 0}
+    def fake_compute(sym, rd):
+        calls["n"] += 1
+        return None
+    monkeypatch.setattr(im, "compute_expected_move", fake_compute)
+    assert im.get_expected_move("TST", "2026-08-06") is None
+    assert im.get_expected_move("TST", "2026-08-06") is None
+    assert calls["n"] == 2, "a None result must never be remembered"
+
+def test_get_expected_move_single_flight_collapses_concurrent_cold_calls(monkeypatch):
+    """ServeStale's per-key build lock: N concurrent cold callers collapse onto
+    exactly one `compute_expected_move` call, not N (the single-flight rule)."""
+    key = "expmove::TST::2026-08-06"
+    im._MOVE_CACHE.clear()
+    im._MOVE_STALE.forget(key)
+    calls = {"n": 0}
+    calls_lock = threading.Lock()
+
+    def fake_compute(sym, rd):
+        with calls_lock:
+            calls["n"] += 1
+        time.sleep(0.1)  # hold the build long enough for the others to queue on the lock
+        return {"pct": 5.0, "dollar": 9.2, "expiry": "2026-08-07", "strike": 185.0,
+                "spot": 184.0, "call_mid": 4.7, "put_mid": 4.5, "iv_atm": 0.6,
+                "horizon": "through 2026-08-07", "asof": "x", "source": "massive-chain"}
+
+    monkeypatch.setattr(im, "compute_expected_move", fake_compute)
+
+    n = 6
+    barrier = threading.Barrier(n)
+    results = [None] * n
+
+    def worker(i):
+        barrier.wait(timeout=2)
+        results[i] = im.get_expected_move("TST", "2026-08-06")
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=3)
+
+    assert calls["n"] == 1, "concurrent cold callers must collapse onto one build"
+    assert all(r is not None for r in results), "every caller must still get a result"

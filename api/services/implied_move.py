@@ -10,6 +10,8 @@ import datetime as _dt
 import logging
 
 from api.services import polygon_options
+from api.services.cache import TTLCache
+from api.services.serve_stale import ServeStale
 
 _log = logging.getLogger(__name__)
 
@@ -109,6 +111,39 @@ def compute_expected_move(sym: str, report_date: str | None) -> dict | None:
     }
 
 
-# Task 3 replaces this alias with the ServeStale-fronted version; the router
-# and store bind to THIS name so their code never changes.
-get_expected_move = compute_expected_move
+# ── Task 3: TTL cache + serve-stale front for `compute_expected_move` ──────────
+#
+# Mirrors the composition `_WEEKLY_STALE` uses in `api/routers/calendar.py`:
+# a 15-min TTL cache for the instant-fresh path, backed by a ServeStale slot
+# that serves the last good straddle (bounded 2h) while a rebuild runs behind
+# the caller, with single-flight collapsing concurrent cold callers onto one
+# `compute_expected_move` call via ServeStale's per-key build lock. A failed
+# build is never written to either cache — `_move_is_good` is the gate.
+_MOVE_CACHE = TTLCache()
+_MOVE_TTL = 900  # 15 min — IV moves through the session, but not tick-by-tick
+_MOVE_STALE = ServeStale("expected_move", max_age_seconds=7200)
+
+
+def _move_is_good(payload: dict | None) -> bool:
+    """A None/failed build must never become the value the next caller sees."""
+    return payload is not None
+
+
+def get_expected_move(sym: str, report_date: str | None = None) -> dict | None:
+    """Cached front for `compute_expected_move`: fresh TTL cache wins; else the
+    last good straddle serves the gap while a background refresh runs; else
+    this caller builds synchronously (single-flight)."""
+    key = f"expmove::{(sym or '').upper()}::{report_date or ''}"
+
+    def _build():
+        value = compute_expected_move(sym, report_date)
+        if value is not None:
+            _MOVE_CACHE.set(key, value, _MOVE_TTL)
+        return value
+
+    return _MOVE_STALE.serve(
+        key,
+        fresh=lambda: _MOVE_CACHE.get(key),
+        build=_build,
+        good=_move_is_good,
+    )
