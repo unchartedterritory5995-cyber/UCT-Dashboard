@@ -11,6 +11,8 @@ export const NEWS_WIDGET_DEFAULTS = {
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // event title / ticker text color
+  upColor: '#1ae51a',                               // up % / up-direction accent
+  downColor: '#ff5b5b',                             // down % / down-direction accent
 }
 
 /** Deep-merge saved settings over defaults (tolerates partial/older blobs). */
@@ -36,6 +38,8 @@ export function newsWidgetStyleVars(s) {
   const vars = {}
 
   if (s.textColor && s.textColor !== D.textColor) vars['--news-text'] = s.textColor
+  if (s.upColor && s.upColor !== D.upColor) vars['--news-up'] = s.upColor
+  if (s.downColor && s.downColor !== D.downColor) vars['--news-down'] = s.downColor
 
   if (isCustomCanvas(s)) {
     const solid = s.bgMode === 'gradient' ? (s.bgGradient?.top || s.bg) : s.bg

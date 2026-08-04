@@ -57,6 +57,38 @@ test('gear button opens the settings panel', () => {
   expect(screen.getByTestId('news-settings')).toBeInTheDocument()
 })
 
+test('compact mode: row is click-to-expand with full details; wide shows inline', () => {
+  const orig = global.ResizeObserver
+  let cb
+  global.ResizeObserver = class {
+    constructor(c) { cb = c }
+    observe() { cb([{ contentRect: { width: 300 } }]) }   // narrow → compact
+    disconnect() {}
+  }
+  mockNews = {
+    status: 'ready',
+    events: [
+      { date: '2026-03-10', type: 'earnings', direction: 'up', title: 'Q3 earnings — beat',
+        description: 'EPS 1.2', details: ['EPS 1.20 vs 1.10 est', 'Revenue $40.6B vs $39.9B est', '+8.8% on the report day'],
+        move_pct: 8.8, source: 'earnings' },
+    ],
+  }
+  render(<Wrap />)
+  // Compact: details hidden until the row is clicked.
+  expect(screen.queryByText('Revenue $40.6B vs $39.9B est')).toBeNull()
+  fireEvent.click(screen.getByText('Q3 earnings — beat'))
+  expect(screen.getByText('Revenue $40.6B vs $39.9B est')).toBeInTheDocument()
+  global.ResizeObserver = orig
+})
+
+test('date includes the year', () => {
+  mockNews = { status: 'ready', events: [
+    { date: '2026-03-10', type: 'catalyst', direction: 'up', title: 'X', move_pct: 5, source: 'ai' },
+  ] }
+  render(<Wrap />)
+  expect(screen.getByText('Mar 10, 2026')).toBeInTheDocument()
+})
+
 test('up filter shows only up-direction events', () => {
   mockNews = {
     status: 'ready',

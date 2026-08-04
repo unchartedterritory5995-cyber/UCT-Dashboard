@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 from datetime import date as _date, datetime, timezone
@@ -27,15 +28,16 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026"
+HIST_PERIOD = "ytd2026_v2"   # bump to force regen under looser criteria + placeholder filter
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
 _TWEET_HOURS = int(os.environ.get("NEWS_TWEET_WINDOW_HOURS", "48") or 48)
 _RETRY_AFTER = int(os.environ.get("NEWS_CATALYSTS_RETRY_AFTER", "86400") or 86400)
 _DAILY_CAP = int(os.environ.get("NEWS_CATALYSTS_DAILY_CAP", "300") or 300)  # generations/day (per process)
-_MAX_HIST_ITEMS = 8
-_MAX_BREAKING = 25
+_MAX_HIST_ITEMS = 12          # a bit more coverage (was 8)
+_HIST_TOP_N = 20              # candidate big-move days fed to the LLM (was 12)
+_MAX_BREAKING = 40            # pre-dedup pool; dedup + relevance trims it
 _HIST_TTL = 6 * 3600
 _LIVE_TTL = 120
 _EST_COST_PER_GEN = 0.02  # ~900 Sonnet out-tokens; for the cost log only
@@ -50,6 +52,120 @@ _gen_count = 0
 
 def _enabled() -> bool:
     return os.environ.get("NEWS_CATALYSTS_ENABLED", "1") == "1"
+
+
+# ── Breaking-tweet helpers: headline split, relevance filter, near-dup dedup ──
+_CASHTAG = re.compile(r"\$([A-Za-z]{1,6})\b")
+_URL = re.compile(r"https?://\S+")
+_STOP = {
+    "update", "exclusive", "breaking", "alert", "said", "says", "sources", "source",
+    "with", "from", "that", "this", "have", "will", "they", "been", "about", "would",
+    "could", "their", "into", "after", "over", "more", "than", "amid", "what", "when",
+    "were", "also", "just", "your", "which", "while",
+}
+
+
+def _fmt_usd(v):
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return None
+    a = abs(n)
+    if a >= 1e12: return f"${n / 1e12:.2f}T"
+    if a >= 1e9:  return f"${n / 1e9:.2f}B"
+    if a >= 1e6:  return f"${n / 1e6:.1f}M"
+    if a >= 1e3:  return f"${n / 1e3:.0f}K"
+    return f"${n:.2f}"
+
+
+def _eps_fmt(v):
+    try:
+        return f"{float(v):.2f}"
+    except (TypeError, ValueError):
+        return str(v)
+
+
+def _split_headline(text):
+    """(headline, body): the bold headline is just the lead line; the rest is detail.
+    Wire posts pack a full story into one tweet — show only the headline bold."""
+    t = (text or "").strip()
+    t = re.sub(r"^(?:[\U0001F000-\U0001FAFF -➿←-⇿\s•\-])+", "", t)
+    t = re.sub(r"^(UPDATE|EXCLUSIVE|BREAKING|ALERT|JUST IN)\s*:?\s*", "", t, flags=re.I).strip()
+    if not t:
+        return (text or "").strip(), None
+    cuts = []
+    for pat in (r"\s[-–—]\s\$", r"👉", r"\shttps?://", r"\n", r"\s▶", r"\bKey Highlights\b", r"\bWhy This Matters\b"):
+        m = re.search(pat, t)
+        if m:
+            cuts.append(m.start())
+    # An ALL-CAPS lead: cut where the caps run gives way to a Title/lower-case word.
+    m = re.match(r"^([A-Z0-9$&.,'\"%()\-/ ]{14,}?)(?=[A-Z][a-z])", t)
+    if m:
+        cuts.append(m.end())
+    # Otherwise the first real sentence break.
+    m = re.search(r"(?<=[a-z])\.\s+(?=[A-Z])", t)
+    if m:
+        cuts.append(m.end() - 1)
+    cut = min([c for c in cuts if c >= 14], default=None)
+    if cut:
+        head = t[:cut].strip(" -–—:•").strip()
+        body = t[cut:].strip(" -–—:•👉▶").strip()
+        return (head or t), (body or None)
+    return t, None
+
+
+def _cashtags(text):
+    out, seen = [], set()
+    for m in _CASHTAG.finditer(text or ""):
+        tk = m.group(1).upper()
+        if tk not in seen:
+            seen.add(tk)
+            out.append(tk)
+    return out
+
+
+def _tweet_relevant(text, sym, headline):
+    """Keep a tweet only when the stock is a real SUBJECT, not one of many tickers
+    name-dropped in a roundup (owner ask: don't show a post just because $SYM appears)."""
+    sym = sym.upper()
+    tags = _cashtags(text)
+    if len(tags) <= 2:
+        return True                                   # 1-2 tickers → a genuine subject
+    if tags and tags[0] == sym:
+        return True                                   # the primary/first ticker
+    if re.search(rf"\${re.escape(sym)}\b", headline or "", re.I):
+        return True                                   # named in the headline itself
+    return False                                      # buried among many cashtags → skip
+
+
+def _sig_words(text):
+    t = _URL.sub("", text or "")
+    t = _CASHTAG.sub("", t)
+    return {w for w in re.findall(r"[a-z]{4,}", t.lower()) if w not in _STOP}
+
+
+def _jaccard(a, b):
+    if not a or not b:
+        return 0.0
+    union = len(a | b)
+    return (len(a & b) / union) if union else 0.0
+
+
+def _dedup_breaking(pairs):
+    """Collapse near-duplicate wire posts (same story, different accounts), keeping
+    the EARLIEST (fastest) one. pairs = [(event, sig_words)]."""
+    kept = []
+    for ev, words in pairs:
+        merged = False
+        for k in kept:
+            if _jaccard(words, k["words"]) >= 0.55:
+                if ev["ts"] < k["ev"]["ts"]:
+                    k["ev"], k["words"] = ev, words   # keep the earlier one
+                merged = True
+                break
+        if not merged:
+            kept.append({"ev": ev, "words": words})
+    return [k["ev"] for k in kept]
 
 
 def _today_iso() -> str:
@@ -140,17 +256,30 @@ def _earnings_events(sym: str, bar_idx: dict) -> list:
         qlabel = f"Q{fq} FY{fy} " if fq and fy else ""
         verdict = "beat" if beat else "miss" if beat is False else "report"
         title = f"{qlabel}earnings — {verdict}".strip()
-        parts = []
+        # Full highlights (dropdown) — EPS, revenue, surprise, report-day reaction.
+        details = []
         if e.get("eps_actual") is not None:
-            eps = f"EPS {e['eps_actual']}"
+            eps = f"EPS {_eps_fmt(e['eps_actual'])}"
             if e.get("eps_estimate") is not None:
-                eps += f" vs {e['eps_estimate']} est"
-            parts.append(eps)
+                eps += f" vs {_eps_fmt(e['eps_estimate'])} est"
+            details.append(eps)
+        rev_a = _fmt_usd(e.get("revenue_actual"))
+        if rev_a:
+            rev = f"Revenue {rev_a}"
+            rev_e = _fmt_usd(e.get("revenue_estimate"))
+            if rev_e:
+                rev += f" vs {rev_e} est"
+            details.append(rev)
         if e.get("surprise") is not None:
-            parts.append(f"{'+' if e['surprise'] >= 0 else ''}{e['surprise']}% surprise")
+            details.append(f"{'+' if e['surprise'] >= 0 else ''}{e['surprise']}% EPS surprise")
+        if move is not None:
+            details.append(f"{'+' if move >= 0 else ''}{move}% on the report day")
         out.append({
             "date": d, "type": "earnings", "direction": direction,
-            "title": title, "description": "; ".join(parts) or None,
+            "title": title,
+            # Inline (wide) shows the two headline stats; the dropdown shows all details.
+            "description": "; ".join(details[:2]) or None,
+            "details": details or None,
             "move_pct": move if move is not None else e.get("surprise"),
             "source": "earnings", "url": None, "ts": _date_ts(d),
         })
@@ -165,20 +294,28 @@ def _breaking_events(sym: str) -> list:
     except Exception as exc:
         _logger.warning("news_catalysts tweets fetch failed for %s: %s", sym, exc)
         return out
+    pairs = []
     for t in rows[:_MAX_BREAKING]:
         ts = t.get("created_at")
-        if not ts:
+        text = (t.get("text") or "").strip()
+        if not ts or not text:
+            continue
+        head, body = _split_headline(text)
+        # Relevance: skip a post that only name-drops this ticker among many.
+        if not _tweet_relevant(text, sym, head):
             continue
         d = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
-        text = (t.get("text") or "").strip()
-        title = text[:90] + ("…" if len(text) > 90 else "")
         handle = (t.get("author_handle") or "wire").lstrip("@")
-        out.append({
+        ev = {
             "date": d, "type": "breaking", "direction": "neutral",
-            "title": title, "description": text if len(text) > 90 else None,
+            "title": head or text,          # bold headline only — full body goes to `description`
+            "description": body,
             "move_pct": None, "source": f"@{handle}", "url": t.get("url"), "ts": int(ts),
-        })
-    return out
+        }
+        pairs.append((ev, _sig_words(text)))
+    deduped = _dedup_breaking(pairs)                # collapse same story → keep earliest
+    deduped.sort(key=lambda e: e["ts"], reverse=True)
+    return deduped
 
 
 def _hist_and_earnings(sym: str) -> list:
@@ -254,7 +391,7 @@ def _generate_and_store(sym: str) -> None:
             return
         items = significant_catalysts.generate(
             sym, None, bars, "2026 YTD", direction="both",
-            model=_MODEL, max_items=_MAX_HIST_ITEMS, enabled=True,
+            model=_MODEL, max_items=_MAX_HIST_ITEMS, top_n=_HIST_TOP_N, enabled=True,
             trading_bounds=(YTD_LO, _today_iso()),
         )
         if items:

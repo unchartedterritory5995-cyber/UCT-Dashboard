@@ -98,6 +98,21 @@ class TestMerge:
         # even though it was a beat, proving price-reaction (not beat/miss) wins.
         assert earn["direction"] == "up" and earn["move_pct"] == 33.3
 
+    def test_earnings_details_include_revenue(self, monkeypatch):
+        _mock_bars(monkeypatch)
+        _mock_earnings(monkeypatch, [
+            {"date": "2026-03-10", "beat": True, "surprise": 19.0, "eps_actual": 0.41,
+             "eps_estimate": 0.3446, "revenue_actual": 40_600_000_000,
+             "revenue_estimate": 39_900_000_000, "fiscal_quarter": 4, "fiscal_year": 2025},
+        ])
+        _mock_tweets(monkeypatch, [])
+        events = service._combined("NVDA")
+        earn = [e for e in events if e["type"] == "earnings"][0]
+        det = earn["details"]
+        assert any("EPS 0.41 vs 0.34 est" in d for d in det)      # estimate rounded to 2dp
+        assert any("Revenue $40.60B vs $39.90B est" in d for d in det)
+        assert "Revenue $40.60B vs $39.90B est" in (earn["description"] or "")   # inline carries revenue
+
     def test_pre_2026_earnings_filtered(self, monkeypatch):
         _mock_bars(monkeypatch)
         _mock_earnings(monkeypatch, [{"date": "2025-11-01", "beat": True}])
@@ -153,3 +168,62 @@ class TestGeneration:
         _mock_bars(monkeypatch)
         out = service.feed("NVDA")
         assert out["status"] == "ready"                 # no generation attempted
+
+
+class TestBreakingHelpers:
+    def test_split_headline_allcaps_lead(self):
+        head, body = service._split_headline(
+            "MORGAN STANLEY SEES CLOUD SPENDING SURGING TO $1.2T Morgan Stanley expects global cloud capital spending to reach $1.2 trillion."
+        )
+        assert head == "MORGAN STANLEY SEES CLOUD SPENDING SURGING TO $1.2T"
+        assert body and body.startswith("Morgan Stanley expects")
+
+    def test_split_headline_dash_cashtags(self):
+        head, body = service._split_headline(
+            "UPDATE: Trump Administration Drafting Ban on New Chinese Data Center Component Imports - $POET $COHR $LITE 👉 Key Highlights: ..."
+        )
+        assert head == "Trump Administration Drafting Ban on New Chinese Data Center Component Imports"
+        assert body and body.startswith("$POET")
+
+    def test_relevance_filters_passing_mention(self):
+        text = ("AMAZON $AMZN TOPS $3 TRILLION Shares rose, joining Nvidia $NVDA, "
+                "Alphabet $GOOGL, Microsoft $MSFT and Apple $AAPL")
+        head, _ = service._split_headline(text)
+        assert service._tweet_relevant(text, "MSFT", head) is False   # buried among many
+        assert service._tweet_relevant(text, "AMZN", head) is True    # subject / first / headline
+
+    def test_relevance_keeps_two_ticker_tweet(self):
+        text = "$AMD launches a chip to rival $NVDA in AI accelerators"
+        head, _ = service._split_headline(text)
+        assert service._tweet_relevant(text, "NVDA", head) is True
+
+    def test_dedup_keeps_earliest_of_near_duplicates(self):
+        t1 = "Trump administration drafting ban on Chinese data center component imports"
+        t2 = "UPDATE: Trump Administration Drafting Ban on New Chinese Data Center Component Imports for AI"
+        early = {"ts": 100, "title": "early", "type": "breaking"}
+        late = {"ts": 200, "title": "late", "type": "breaking"}
+        # Pass late first (newest-first order) — dedup must still keep the earlier ts.
+        kept = service._dedup_breaking([(late, service._sig_words(t2)), (early, service._sig_words(t1))])
+        assert len(kept) == 1 and kept[0]["ts"] == 100
+
+    def test_dedup_keeps_distinct_stories(self):
+        a = {"ts": 100, "type": "breaking"}
+        b = {"ts": 200, "type": "breaking"}
+        kept = service._dedup_breaking([
+            (a, service._sig_words("Company announces record quarterly revenue growth")),
+            (b, service._sig_words("Regulators open antitrust probe into advertising practices")),
+        ])
+        assert len(kept) == 2
+
+    def test_breaking_relevance_end_to_end(self, monkeypatch):
+        # A 5-ticker roundup where MSFT is only name-dropped → excluded from MSFT feed.
+        _mock_bars(monkeypatch)
+        _mock_earnings(monkeypatch, [])
+        _mock_tweets(monkeypatch, [
+            {"id": "1", "author_handle": "faststocknewss",
+             "text": "AMAZON $AMZN TOPS $3 TRILLION Shares rose, joining $NVDA, $GOOGL, $MSFT and $AAPL",
+             "created_at": 1000, "url": "http://x/1"},
+        ])
+        cache.invalidate("news_live_MSFT")
+        events = service._breaking_events("MSFT")
+        assert events == []

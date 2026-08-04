@@ -147,6 +147,11 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
           {/* Text */}
           <div className={styles.sectionLabel}>Text</div>
           <Row label="Text color" hint="titles & tickers">{swatch('textColor', 'Text')}</Row>
+
+          {/* % Change */}
+          <div className={styles.sectionLabel}>% Change</div>
+          <Row label="Up">{swatch('upColor', 'Up %')}</Row>
+          <Row label="Down">{swatch('downColor', 'Down %')}</Row>
         </div>
       </div>
 

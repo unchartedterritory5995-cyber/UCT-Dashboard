@@ -14,6 +14,20 @@ import re
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+# The model's knowledge cutoff can predate a recent period, so it sometimes emits an
+# honest "I can't verify this" placeholder instead of a real catalyst. Drop those.
+_UNCERTAIN_MARKERS = (
+    "data unavailable", "cannot be verified", "can't be verified", "unable to verify",
+    "cannot verify", "not verifiable", "beyond my knowledge", "knowledge cutoff",
+    "no specific catalyst", "no verifiable", "unclear catalyst", "unknown catalyst",
+    "could not identify", "no reliable", "fabricat", "would be misleading",
+)
+
+
+def _is_uncertain(title, description) -> bool:
+    blob = f"{title or ''} {description or ''}".lower()
+    return any(k in blob for k in _UNCERTAIN_MARKERS)
+
 # Default model mirrors the Model Book generator (MODELBOOK_LLM_MODEL).
 import os as _os
 _DEFAULT_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -135,9 +149,11 @@ def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, ma
         f"Stock: {symbol} ({company or symbol}). Period: {period_label}.\n\n"
         f"The stock's largest single-day MOVES in this period (date -> that day's % move; "
         f"negative = down):\n{movers_txt}\n\n"
-        f"Identify the {max_items} most impactful, COMPANY-SPECIFIC catalysts that drove a "
-        f"sharp move in {symbol} during this period — INCLUDE BOTH bullish events that spiked "
-        f"it up AND negative events that sank it.\n"
+        f"Identify up to {max_items} COMPANY-SPECIFIC catalysts that drove a notable move in "
+        f"{symbol} during this period — INCLUDE BOTH bullish events that spiked it up AND "
+        f"negative events that sank it. Aim for good COVERAGE of the period: include the major "
+        f"catalysts AND the moderately significant company-specific news, not only the biggest "
+        f"one or two. It's fine to return several.\n"
         'Return JSON exactly: {"catalysts": [{"date": "YYYY-MM-DD", "title": "...", '
         '"description": "...", "move_pct": 0.0, "direction": "up"}, ...]}, ordered most '
         "impactful first.\n"
@@ -153,15 +169,17 @@ def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, ma
         "approvals/rejections, analyst rating changes, M&A, guidance, recalls, litigation, "
         "index changes). Do NOT include market-wide or macro catalysts (Fed/rates, broad "
         "market or sector moves, index-wide themes, 'risk-on/off' sentiment).\n"
-        "- Factual and specific to the period. If unsure of the exact news for a given day, "
-        "attribute it to the most likely company-specific driver. No price targets, no "
+        "- Factual and specific to the period. If you cannot confidently identify the real "
+        "company-specific catalyst for a day, OMIT that day — do NOT output a placeholder "
+        "(e.g. \"data unavailable\", \"cannot be verified\") and do NOT fabricate. Return "
+        "only the catalysts you are reasonably confident are real. No price targets, no "
         "buy/sell advice."
     )
     return system, prompt
 
 
 def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=None,
-             model=None, max_items=5, enabled=True, client=None,
+             model=None, max_items=5, top_n=12, enabled=True, client=None,
              trading_bounds=None):
     """Claude → list of the period's top catalysts, each anchored to a real
     big-move trading day. Returns None on any failure (caller writes no rows).
@@ -179,7 +197,7 @@ def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=No
             return None
         trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
         day_set = set(trading_days)
-        movers = rank_big_move_days(bars, top_n=12, direction=direction)
+        movers = rank_big_move_days(bars, top_n=top_n, direction=direction)
         if not movers:
             return None
         if client is None:
@@ -209,6 +227,9 @@ def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=No
         for i, it in enumerate(raw[:max_items]):
             title = (it.get("title") or "").strip()
             if not title:
+                continue
+            # Drop honest "I can't verify this" placeholders (post-cutoff periods).
+            if _is_uncertain(title, it.get("description")):
                 continue
             d = snap_trading_day((it.get("date") or "").strip(), trading_days, day_set, year=year, lo=lo, hi=hi)
             if not d:

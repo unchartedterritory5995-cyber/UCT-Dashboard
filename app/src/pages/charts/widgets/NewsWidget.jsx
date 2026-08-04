@@ -34,8 +34,8 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 function fmtDate(d) {
   if (!d) return ''
   const parts = String(d).slice(0, 10).split('-')
-  const m = Number(parts[1]), day = Number(parts[2])
-  return (m >= 1 && m <= 12) ? `${MON[m - 1]} ${day}` : String(d)
+  const y = Number(parts[0]), m = Number(parts[1]), day = Number(parts[2])
+  return (m >= 1 && m <= 12) ? `${MON[m - 1]} ${day}, ${y}` : String(d)
 }
 function fmtMove(mp) {
   const n = Number(mp)
@@ -86,6 +86,33 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     [events, filter],
   )
   const generating = status === 'generating'
+
+  // ── Compact detection — when the column is too narrow to auto-show the
+  // description inline, rows become click-to-expand instead (owner ask). ──
+  const [compact, setCompact] = useState(false)
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width || el.clientWidth
+      setCompact(w < 360)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Expanded row (compact mode only). Close on symbol/filter/width change, and on
+  // any click that isn't inside a row (i.e. "click away anywhere").
+  const [expandedKey, setExpandedKey] = useState(null)
+  useEffect(() => { setExpandedKey(null) }, [sym, filter, compact])
+  useEffect(() => {
+    if (expandedKey == null) return
+    const onDown = (e) => {
+      if (!e.target.closest?.('[data-news-row]')) setExpandedKey(null)
+    }
+    document.addEventListener('mousedown', onDown, true)
+    return () => document.removeEventListener('mousedown', onDown, true)
+  }, [expandedKey])
 
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
@@ -144,21 +171,44 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
           {shown.map((e, i) => {
             const dir = e.direction || 'neutral'
             const dirCls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.neutral
+            const key = `${e.type}-${e.date}-${i}`
+            const hasMore = !!(e.description || (e.details && e.details.length) || e.url)
+            const expandable = compact && hasMore
+            const expanded = expandable && expandedKey === key
             return (
-              <div key={`${e.type}-${e.date}-${i}`} className={styles.row}>
+              <div
+                key={key}
+                data-news-row
+                className={`${styles.row}${expandable ? ' ' + styles.rowClickable : ''}`}
+                onClick={expandable ? () => setExpandedKey(k => (k === key ? null : key)) : undefined}
+              >
                 <span className={`${styles.icon} ${dirCls}`} title={SOURCE_LABEL[e.type] || e.type}>
                   <UIcon name={SOURCE_ICON[e.type] || 'bolt'} size={13} />
                 </span>
                 <div className={styles.main}>
-                  {e.url
-                    ? <a className={styles.title} href={e.url} target="_blank" rel="noreferrer">{e.title}</a>
+                  {(!compact && e.url)
+                    ? <a className={styles.title} href={e.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>{e.title}</a>
                     : <span className={styles.title}>{e.title}</span>}
-                  {e.description && <div className={styles.desc}>{e.description}</div>}
+                  {/* Inline description only when wide (auto-shows more info). */}
+                  {!compact && e.description && <div className={styles.desc}>{e.description}</div>}
                   <div className={styles.meta}>
                     <span className={styles.date}>{fmtDate(e.date)}</span>
                     {e.move_pct != null && <span className={`${styles.move} ${dirCls}`}>{fmtMove(e.move_pct)}</span>}
                     <span className={styles.source}>{e.source}</span>
                   </div>
+                  {expanded && (
+                    <div className={styles.dropdown}>
+                      {e.details && e.details.length > 0
+                        ? <ul className={styles.dropDetails}>{e.details.map((d, j) => <li key={j}>{d}</li>)}</ul>
+                        : (e.description && <div className={styles.dropText}>{e.description}</div>)}
+                      {e.url && (
+                        <a className={styles.dropLink} href={e.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>Open source ↗</a>
+                      )}
+                      {!(e.details && e.details.length) && !e.description && !e.url && (
+                        <div className={styles.dropEmpty}>No additional details.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )

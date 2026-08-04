@@ -149,3 +149,25 @@ class TestGenerate:
         # A non-JSON-object body (no braces) → generate() returns None, not raise.
         out = sc.generate("X", "X", BARS, "2026", client=_FakeClient("no json here"))
         assert out is None
+
+    def test_filters_data_unavailable_placeholders(self):
+        payload = {"catalysts": [
+            {"date": "2026-01-08", "title": "Data unavailable",
+             "description": "Specific catalyst for this date cannot be verified; fabricating would be misleading.",
+             "move_pct": 20.0, "direction": "up"},
+            {"date": "2026-01-05", "title": "AI deal", "description": "Real catalyst.",
+             "move_pct": 10.0, "direction": "up"},
+        ]}
+        out = sc.generate("X", "X", BARS, "2026 YTD", direction="both",
+                          client=_FakeClient(payload), trading_bounds=("2026-01-01", "2026-12-31"))
+        assert [o["title"] for o in out] == ["AI deal"]     # placeholder dropped
+
+    def test_top_n_param_widens_candidate_pool(self):
+        # top_n flows into rank_big_move_days (more candidate days for the LLM).
+        payload = {"catalysts": [{"date": "2026-01-05", "title": "X", "move_pct": 10.0, "direction": "up"}]}
+        client = _FakeClient(payload)
+        sc.generate("X", "X", BARS, "2026 YTD", direction="both", top_n=20, client=client,
+                    trading_bounds=("2026-01-01", "2026-12-31"))
+        # The prompt lists candidate movers; with our 4-bar fixture there are only a
+        # few, but the call must succeed and pass through top_n without error.
+        assert client.calls
