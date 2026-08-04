@@ -2426,6 +2426,7 @@ export default function ChartDrawingOverlay({
             onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
+            onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             canReorder={!!reorderDrawing && drawings.length > 1}
             onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
@@ -2543,7 +2544,7 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
@@ -2580,6 +2581,9 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   const curColor = drawing?.color || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
   const dashed = drawing?.lineStyle === 'dashed'
+  const isText = drawing?.type === 'text'
+  const curFontSize = Math.round(drawing?.fontSize || 13)
+  const bumpFont = (delta) => onSetFontSize?.(Math.max(8, Math.min(64, curFontSize + delta)))
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
@@ -2651,6 +2655,40 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
       </button>
 
       <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+
+      {/* Text size — text annotations only. Steps the selected label's font size;
+          "Save as default" (below) then persists it as the size for NEW text. */}
+      {isText && onSetFontSize && (
+        <>
+          <div style={{ ...rowStyle }}>
+            <span style={labelStyle}>Text size</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => bumpFont(-1)}
+                title="Smaller"
+                aria-label="Smaller text"
+                style={{
+                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
+                }}
+              >A−</button>
+              <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
+              <button
+                onClick={() => bumpFont(1)}
+                title="Bigger"
+                aria-label="Bigger text"
+                style={{
+                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
+                }}
+              >A+</button>
+            </span>
+          </div>
+          <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+        </>
+      )}
 
       {levelSupported && (
         <>
@@ -2725,7 +2763,7 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
         <MenuAction
           label={savedFlash ? 'Saved as default ✓' : 'Save as default'}
           onClick={() => {
-            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid' })
+            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid', ...(isText ? { fontSize: curFontSize } : {}) })
             setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
           }}
           big={sheet}

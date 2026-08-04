@@ -9672,6 +9672,7 @@ export default function StockChart({
             color={drawColor}
             lineWidth={drawWidth}
             lineStyle={cs.drawingDefaults?.style || 'solid'}
+            fontSize={cs.drawingDefaults?.fontSize ?? 13}
             magnet={magnet}
             drawings={cs.hideDrawings ? [] : drawings}
             addDrawing={addDrawing}
