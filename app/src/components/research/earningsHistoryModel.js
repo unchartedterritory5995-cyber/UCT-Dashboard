@@ -7,26 +7,38 @@
 // the interim. The row shape emitted here is the FROZEN one the kit charts
 // were built against, so P4 swaps the source with zero component change.
 //
-// DECISION 1 (amended, P2 T8b review r2) — INDEX ALIGNMENT, GUARDED. `beat_
-// history` (Finnhub, <=4) and `hist_stats.last_n` (<=8 next-day moves,
-// newest-first) share no key, so they can only be zipped by INDEX. That
-// requires beat_history to ALSO be newest-first — which Finnhub does NOT
-// guarantee: live data proved a symbol whose /stock/earnings periods arrived
-// non-monotonic (`2026-06-30, 2025-12-31, 2026-03-31`) AND with only 3 of 4
-// quarters present. Zipping that raw order pairs the WRONG quarter's realized
-// move to the correctly-fiscal-paired implied bar — not just imprecise
-// (the prior framing) but ACTIVELY WRONG, silently feeding a false number
-// into the RICH/CHEAP chip. Two guards:
-//   1. beat_history is SORTED by period descending before zipping — newest-
-//      first is now GUARANTEED, not assumed.
-//   2. The zip is only TRUSTED when every period parsed AND the sorted
-//      length matches `moves`' length exactly — a length mismatch means one
-//      side's window doesn't correspond quarter-for-quarter with the other's
-//      (a hidden gap), and index alignment past that point can't be told
-//      apart from a coincidence. Untrusted -> every row's `reaction_pct` is
-//      null, never guessed. Per §12: showing nothing beats showing a
-//      confidently wrong number. `historyBasis()` still states the count AND
-//      the method — every number carries its denominator (§2).
+// DECISION 1 (amended, P2 T8b review r2, REVERSED review r3) — INDEX
+// ALIGNMENT, GUARDED. `beat_history` (Finnhub /stock/earnings, <=4) and
+// `hist_stats.last_n` (<=8 next-day moves, newest-first) share no key, so
+// they can only be zipped by INDEX. That requires beat_history to ALSO be
+// newest-first — which Finnhub does NOT guarantee: live data proved a symbol
+// whose /stock/earnings periods arrived non-monotonic
+// (`2026-06-30, 2025-12-31, 2026-03-31`). Zipping that raw order pairs the
+// WRONG quarter's realized move to the correctly-fiscal-paired implied bar.
+// Fix: beat_history is SORTED by period descending before zipping — newest-
+// first is now GUARANTEED, not assumed. Still trusted only when every period
+// parses (dayKey succeeds) — an unparseable period can't be sorted reliably,
+// so its presence revokes trust for the WHOLE zip.
+//
+// review r2 ALSO required the sorted length to match `moves`' length exactly,
+// reasoning a mismatch signals a hidden gap. review r3 REVERSED that: it's
+// wrong for the DOMINANT real case. beat_history is Finnhub `/stock/earnings
+// ?limit=4` (<=4); `last_n` is FMP/AV `[:8]` (<=8) — two INDEPENDENT provider
+// CAPS, not a gap. Live measurement across 12 real symbols: length-match rate
+// was 1 in 12; requiring equality blanked `reaction_pct` for ~92% of symbols
+// and made the RICH/CHEAP chip permanently unreachable almost everywhere —
+// trading a rare wrong number for a universally blank chart, worse than the
+// bug it fixed. Both sides are newest-first anchored at the SAME newest
+// quarter, so PARTIAL pairing over the shorter list is correct for a
+// cap-driven mismatch — `moves[i]` naturally reads `undefined` -> `null`
+// beyond its own bound, no length check needed. `historyBasis()` states the
+// count AND the method — every number carries its denominator (§2).
+//
+// RESIDUAL (documented, not fixed — the argument for P4's unified endpoint):
+// if the two sides' NEWEST entries are actually different quarters (a gap at
+// index 0, not merely a shorter/longer tail), index 0 still pairs wrongly.
+// `last_n` is a bare number array with no dates, so that specific alignment
+// is unprovable in this client-side shape.
 //
 // DECISION 2 — THE REPORT-DATE ROW STAYS `reported: false` UNTIL ITS REACTION
 // IS KNOWN. `ImpliedVsRealized.pairQuarters` identifies the current quarter by
@@ -134,13 +146,13 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
     return ka < kb ? 1 : -1   // descending: newer (larger ISO string) first
   })
 
-  // Trusted ONLY when every period parsed AND the two lists are the SAME
-  // length. A length mismatch means one side's window doesn't correspond
-  // quarter-for-quarter with the other's (a hidden gap in whichever is
-  // shorter) — sorting alone can't fix that, and guessing past it is exactly
-  // the "confidently wrong number" §12 forbids.
+  // Trusted when every period parsed (see DECISION 1) — a length mismatch
+  // between beat_history and last_n is NOT distrust; it's the DOMINANT case
+  // (different provider caps), and moves[i] already reads undefined -> null
+  // beyond its own bound, so partial pairing over the shorter list falls out
+  // naturally without a length check.
   const everyPeriodParsed = sortedHist.every((h) => dayKey(h?.period) != null)
-  const indexAlignmentTrusted = everyPeriodParsed && sortedHist.length === moves.length
+  const indexAlignmentTrusted = everyPeriodParsed
 
   // Both sources are newest-first (sortedHist now GUARANTEED so); build
   // newest-first, then reverse ONCE.
@@ -201,9 +213,17 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   return past
 }
 
-/** The caption that states what this composition IS. Null when there is none. */
+/** The caption that states what this composition IS. Null when there is none.
+ *  The "reactions aligned by index" clause is conditional on at least one
+ *  reaction actually having been paired (P2 T8b review r3, Minor) — an
+ *  unparseable period or an empty `last_n` can leave every `reaction_pct`
+ *  null, and asserting an alignment method that produced nothing contradicts
+ *  §2 ("every number carries its denominator"). */
 export function historyBasis(rows) {
-  const reported = (rows || []).filter((r) => r.reported).length
-  if (!reported) return null
-  return `${reported} reported quarters · reactions aligned by index`
+  const reportedRows = (rows || []).filter((r) => r.reported)
+  if (!reportedRows.length) return null
+  const hasReactions = reportedRows.some((r) => r.reaction_pct != null)
+  return hasReactions
+    ? `${reportedRows.length} reported quarters · reactions aligned by index`
+    : `${reportedRows.length} reported quarters`
 }

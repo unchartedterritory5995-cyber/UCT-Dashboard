@@ -55,21 +55,22 @@ describe('buildQuarters', () => {
     expect(rows.map(r => r.reaction_pct)).toEqual([-1.0, 5.5, -4.1, 8.2, null])
   })
 
-  // AMENDED (P2 T8b review r2, IMPORTANT #3): previously this asserted
-  // PARTIAL pairing — the two newest quarters got real reactions from the
-  // shorter `last_n`, the two oldest got null. The reviewer's ruling
-  // supersedes that: a length mismatch between beat_history and last_n means
-  // one side's window doesn't correspond quarter-for-quarter with the
-  // other's, and index alignment can't be told apart from a coincidence past
-  // that point — proven live (a symbol with non-monotonic, 3-of-4
-  // beat_history) to actively mis-assign, not just approximate. The name
-  // stands, now taken to its logical conclusion: when the pairing can't be
-  // trusted for EVERY row, it invents a reaction for NONE of them.
-  it('never invents a reaction it does not have — including a length mismatch, which now drops ALL reactions', () => {
+  // RESTORED to its original partial-pairing expectation (P2 T8b review r3):
+  // review r2 briefly required this to drop ALL reactions on a length
+  // mismatch, reasoning a mismatch signals a hidden gap. review r3 reversed
+  // that ruling as factually wrong for the dominant case — beat_history
+  // (Finnhub, <=4) and last_n (FMP/AV, <=8) are two INDEPENDENT provider
+  // caps, not a gap, and live measurement across 12 symbols found the
+  // length-match rate was 1-in-12, so requiring equality blanked
+  // reaction_pct for ~92% of symbols. Both sides are newest-first anchored
+  // at the same newest quarter, so partial pairing over the shorter list
+  // (the two newest quarters get real reactions, the two oldest — beyond
+  // last_n's shorter bound — get null) is correct, not a gap-guessing risk.
+  it('never invents a reaction it does not have', () => {
     const rows = buildQuarters({
       beatHistory, histStats: { last_n: [8.2, -4.1] }, reportDate: '2026-08-06', row,
     })
-    expect(rows.map(r => r.reaction_pct)).toEqual([null, null, null, null, null])
+    expect(rows.map(r => r.reaction_pct)).toEqual([null, null, -4.1, 8.2, null])
   })
 
   it('keeps a genuine 0 reaction instead of turning it into null', () => {
@@ -127,6 +128,34 @@ describe('historyBasis', () => {
     const rows = buildQuarters({ beatHistory, histStats, reportDate: '2026-08-06', row })
     expect(historyBasis(rows)).toBe('4 reported quarters · reactions aligned by index')
     expect(historyBasis([])).toBeNull()
+  })
+
+  // P2 T8b review r3, Minor — the "reactions aligned by index" clause must
+  // not assert an alignment method that produced NOTHING (§2: every number
+  // carries its denominator).
+  it('omits "reactions aligned by index" when no reaction was actually paired (last_n empty)', () => {
+    const rows = buildQuarters({
+      beatHistory: [beatHistory[0]], histStats: null, reportDate: null, row: {},
+    })
+    expect(rows[0].reported).toBe(true)
+    expect(rows[0].reaction_pct).toBeNull()
+    expect(historyBasis(rows)).toBe('1 reported quarters')
+  })
+
+  it('omits "reactions aligned by index" when an unparseable period revoked trust for the whole zip', () => {
+    const rows = buildQuarters({
+      beatHistory: [{ period: 'garbage', actual: 1, estimate: 1, surprise: 0 }],
+      histStats: { last_n: [1.0] }, reportDate: null, row: {},
+    })
+    expect(rows.every((r) => r.reaction_pct == null)).toBe(true)
+    expect(historyBasis(rows)).toBe('1 reported quarters')
+  })
+
+  it('still states the method when at least one reaction paired, even if others in the set did not', () => {
+    const rows = buildQuarters({
+      beatHistory, histStats: { last_n: [8.2] }, reportDate: '2026-08-06', row,
+    })
+    expect(historyBasis(rows)).toBe('4 reported quarters · reactions aligned by index')
   })
 })
 
@@ -377,13 +406,18 @@ describe('buildQuarters — current-row suppression on a fiscal-identity match (
   })
 })
 
-// DECISION 1 amendment (P2 T8b review r2, IMPORTANT #3) — beat_history is
-// NOT guaranteed newest-first by the provider, and the index-zip against
-// hist_stats.last_n must not guess past a length mismatch or an unparseable
-// period. Real GLOO shape: /stock/earnings returned periods NON-MONOTONIC
-// (2026-06-30, 2025-12-31, 2026-03-31 — chronologically 06-30 > 03-31 >
-// 12-31, i.e. scrambled) and only 3 of 4 quarters.
-describe('buildQuarters — beat_history sort + index-alignment trust (DECISION 1, review r2)', () => {
+// DECISION 1 amendment (P2 T8b review r2, REVERSED in part by review r3) —
+// beat_history is NOT guaranteed newest-first by the provider, so it's
+// sorted before zipping against hist_stats.last_n. Real GLOO shape:
+// /stock/earnings returned periods NON-MONOTONIC (2026-06-30, 2025-12-31,
+// 2026-03-31 — chronologically 06-30 > 03-31 > 12-31, i.e. scrambled).
+// review r2 ALSO required last_n's length to match exactly (a length
+// mismatch = distrust); review r3 reversed that specific piece as wrong for
+// the dominant real case — beat_history (Finnhub, <=4) and last_n (FMP/AV,
+// <=8) are two INDEPENDENT provider caps, not a gap, and requiring equality
+// blanked reaction_pct for ~92% of symbols live. The sort + the
+// unparseable-period guard both survive review r3 unchanged.
+describe('buildQuarters — beat_history sort + index-alignment trust (DECISION 1, review r2/r3)', () => {
   // Finnhub's ACTUAL raw order for this shape — NOT newest-first.
   const glooRawOrder = [
     { period: '2026-06-30', actual: 0.50, estimate: 0.40, surprise: 25.0, quarter: 2, year: 2026 },
@@ -412,22 +446,50 @@ describe('buildQuarters — beat_history sort + index-alignment trust (DECISION 
     // would be -2.0, not 3.0).
   })
 
-  it('a length mismatch after sorting still drops ALL reactions, not just the unmatched tail', () => {
+  // REVERSED (P2 T8b review r3): review r2 asserted this dropped ALL
+  // reactions on a length mismatch. Live measurement across 12 real symbols
+  // (AAPL/MSFT/NVDA/TSLA/AMZN/GOOGL/META/AMD/JPM/WMT/COST all beat_history=4
+  // vs last_n=8; only GLOO length-matched) proved that wrong for the
+  // DOMINANT case: the two providers cap differently, so a mismatch is a
+  // CAP, not a gap. This is the realistic AAPL-style shape: 4-quarter
+  // beat_history vs 8-move last_n — the dominant real-world ratio.
+  it('a length mismatch (the DOMINANT real-world case: 4-quarter beat_history vs 8-move last_n) pairs the overlap, not nothing', () => {
+    const fourQuarters = [
+      { period: '2026-06-30', actual: 0.91, estimate: 0.88, surprise: 3.4, quarter: 2, year: 2026 },
+      { period: '2026-03-31', actual: 0.80, estimate: 0.82, surprise: -2.4, quarter: 1, year: 2026 },
+      { period: '2025-12-31', actual: 0.75, estimate: 0.70, surprise: 7.1, quarter: 4, year: 2025 },
+      { period: '2025-09-30', actual: 0.66, estimate: 0.66, surprise: 0, quarter: 3, year: 2025 },
+    ]
+    const eightMoves = [8.2, -4.1, 5.5, -1.0, 3.0, -2.0, 1.5, -0.5]  // only the first 4 correspond
     const rows = buildQuarters({
-      beatHistory: glooRawOrder, histStats: { last_n: [5.0, -2.0, 3.0, 9.9] },  // length 4, hist length 3
-      reportDate: null, row: {},
+      beatHistory: fourQuarters, histStats: { last_n: eightMoves }, reportDate: null, row: {},
     })
-    expect(rows).toHaveLength(3)
-    expect(rows.every((r) => r.reaction_pct === null)).toBe(true)
+    expect(rows).toHaveLength(4)
+    expect(rows.every((r) => r.reaction_pct != null)).toBe(true)
+    // oldest-first: Q3 25 -> Q4 25 -> Q1 26 -> Q2 26
+    expect(rows.map((r) => r.reaction_pct)).toEqual([-1.0, 5.5, -4.1, 8.2])
   })
 
-  it('an unparseable period anywhere in beat_history revokes trust for the WHOLE zip', () => {
+  it('a SHORTER last_n than beat_history still pairs the overlap, leaving the untouched OLDER quarters null (never invents beyond what it has)', () => {
+    const fourQuarters = [
+      { period: '2026-06-30', actual: 0.91, estimate: 0.88, surprise: 3.4, quarter: 2, year: 2026 },
+      { period: '2026-03-31', actual: 0.80, estimate: 0.82, surprise: -2.4, quarter: 1, year: 2026 },
+      { period: '2025-12-31', actual: 0.75, estimate: 0.70, surprise: 7.1, quarter: 4, year: 2025 },
+      { period: '2025-09-30', actual: 0.66, estimate: 0.66, surprise: 0, quarter: 3, year: 2025 },
+    ]
+    const rows = buildQuarters({
+      beatHistory: fourQuarters, histStats: { last_n: [8.2, -4.1] }, reportDate: null, row: {},
+    })
+    expect(rows.map((r) => r.reaction_pct)).toEqual([null, null, -4.1, 8.2])
+  })
+
+  it('an unparseable period anywhere in beat_history STILL revokes trust for the WHOLE zip (unaffected by the r3 reversal)', () => {
     const withGarbage = [
       ...glooRawOrder,
       { period: 'garbage', actual: 0.10, estimate: 0.10, surprise: 0, quarter: 3, year: 2026 },
     ]
     const rows = buildQuarters({
-      beatHistory: withGarbage, histStats: { last_n: [1, 2, 3, 4] },  // length MATCHES (4) but one period is bad
+      beatHistory: withGarbage, histStats: { last_n: [1, 2, 3, 4] },
       reportDate: null, row: {},
     })
     expect(rows).toHaveLength(4)
@@ -437,7 +499,7 @@ describe('buildQuarters — beat_history sort + index-alignment trust (DECISION 
     expect(rows.some((r) => r.period_end === null)).toBe(true)
   })
 
-  it('trusts the zip again once lengths match exactly, even after sorting (the common case is unaffected)', () => {
+  it('a matching length still pairs everything (the GLOO shape itself, unaffected by the r3 reversal)', () => {
     const rows = buildQuarters({
       beatHistory: glooRawOrder, histStats: { last_n: [5.0, -2.0, 3.0] },
       reportDate: null, row: {},
