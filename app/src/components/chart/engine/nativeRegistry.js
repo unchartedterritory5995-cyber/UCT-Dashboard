@@ -524,8 +524,21 @@ const RAW_DEFS = [
     [
       { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'solid', role: 'secondary' },
       // Same band shape as BB, opposite styling: Donchian's edges are solid and
-      // its middle is LWC LineStyle 3 (LargeDashed) — unnameable, so unstated.
-      { key: 'middle', label: 'Mid', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, role: 'primary' },
+      // its middle is LWC LineStyle 3 (LargeDashed).
+      //
+      // 🔴 THIS LINE USED TO CARRY NO `lineStyle` AND A COMMENT SAYING LineStyle
+      // 3 WAS *"unnameable, so unstated"*. That was true when `PLOT_LINE_STYLES`
+      // was `solid|dashed|dotted` and FALSE from the moment `largeDashed` joined
+      // it — the same extension RSI's 50-midline forced at 379 changed pixels,
+      // recorded at the top of this file for the three GUIDES that needed it and
+      // not applied to the one SERIES that did. And "unstated" is not "keep what
+      // is there" one level down either: `pool.seriesOptionsForPlot` resolves an
+      // absent plot `lineStyle` to **solid** on purpose (complete key set — a
+      // re-purposed series must not inherit a dash), so the engine would have
+      // drawn Donchian's mid-line SOLID where `StockChart.jsx:6550` draws it
+      // large-dashed. No series count, no scale assertion and no `edges` check
+      // can see that; `adxObvDonchianFlipParity.test.js` asserts it directly.
+      { key: 'middle', label: 'Mid', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'largeDashed', role: 'primary' },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'solid', role: 'secondary' },
     ]),
 ]
