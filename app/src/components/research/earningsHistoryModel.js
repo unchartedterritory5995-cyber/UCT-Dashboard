@@ -35,6 +35,23 @@
 // /calendar/earnings and verified live to agree for the same event — carried
 // on every row below. `report_date` equality remains `pairQuarters`' fallback
 // for a snapshot recorded before this task (no fiscal key yet).
+//
+// DECISION 4 (P2 T8b review r1, IMPORTANT) — THE CURRENT ROW IS SUPPRESSED
+// ONCE ITS FISCAL IDENTITY ALREADY EXISTS AMONG THE PAST ROWS. Fiscal-key
+// pairing (DECISION 3) fixed real accrued history — but it also means that
+// on the night Finnhub's /stock/earnings first carries the just-printed
+// quarter while `reportDate` (sourced from the calendar and not yet rolled
+// forward to the NEXT quarter) still names that SAME quarter, `buildQuarters`
+// would emit TWO rows for one real-world print: the past row (now correctly
+// fiscal-keyed) and DECISION 2's `reported:false` current row. Both pair
+// against the same implied snapshot and both draw a hollow bar — on the one
+// night the modal is most likely open. `row.quarter`/`row.year` (the SAME
+// Finnhub fiscal fields as `beat_history`, threaded onto the calendar row by
+// whatever wires this modal to a real calendar entry) let this be detected
+// deterministically instead of by date heuristics; when the caller hasn't
+// supplied them yet, this is a no-op and DECISION 2 behaves exactly as
+// before — matches the "before this quarter's fiscal key is known, never
+// suppress" safety direction.
 
 const num = (v) => {
   // Number(null) === 0 — a bare Number()+isFinite check turns every missing
@@ -117,10 +134,27 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   if (!rd && !past.length) return []
   if (!rd) return past
 
+  // The calendar row's own fiscal identity, when the caller has it (see
+  // DECISION 4) — same Finnhub quarter/year fields as beat_history, so the
+  // current row labels and keys identically to a past row for the SAME print.
+  const currentFiscalYear = num(row?.year)
+  const currentFiscalQuarter = num(row?.quarter)
+  const alreadyInPast = currentFiscalYear != null && currentFiscalQuarter != null
+    && past.some((p) => p.fiscal_year === currentFiscalYear && p.fiscal_quarter === currentFiscalQuarter)
+  if (alreadyInPast) {
+    // DECISION 4: the print already landed in beat_history under this exact
+    // fiscal quarter — the past row above already carries its full outcome
+    // (actual EPS, reaction). A second `reported:false` row for the identical
+    // quarter would draw the SAME implied bar twice.
+    return past
+  }
+
   past.push(emptyRow({
-    quarter: quarterLabel(rd),
+    quarter: quarterLabel(rd, currentFiscalQuarter, currentFiscalYear),
     report_date: rd,
     period_end: rd,
+    fiscal_year: currentFiscalYear,
+    fiscal_quarter: currentFiscalQuarter,
     reported: false,                       // see DECISION 2
     eps_estimate: num(row?.eps_estimate),
     eps_actual: num(row?.reported_eps),

@@ -284,3 +284,85 @@ describe('buildQuarters — fiscal key (P2 T8b)', () => {
     expect(rows[0].quarter).toBe('Q2 26')
   })
 })
+
+// DECISION 4 (P2 T8b review r1, IMPORTANT) — the current row must not
+// duplicate a quarter that already landed in beat_history, and when it is
+// still genuinely current, it must label + key the SAME way as a past row
+// for the identical print.
+describe('buildQuarters — current-row suppression on a fiscal-identity match (DECISION 4)', () => {
+  // The print already landed in beat_history under fiscal Q2 2026 (Finnhub's
+  // /stock/earnings has caught up), but `reportDate` (from the calendar) still
+  // names that same announcement — the exact print-night race the reviewer
+  // reproduced.
+  const justPrinted = [
+    { period: '2026-06-30', actual: 0.91, estimate: 0.88, surprise: 3.4, quarter: 2, year: 2026 },
+  ]
+
+  it('does not append a duplicate current row when its fiscal identity already reported', () => {
+    const rows = buildQuarters({
+      beatHistory: justPrinted, histStats: { last_n: [4.1] }, reportDate: '2026-07-30',
+      row: { quarter: 2, year: 2026, eps_estimate: 0.88, reported_eps: 0.91 },
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].reported).toBe(true)
+    expect(rows[0].fiscal_year).toBe(2026)
+    expect(rows[0].fiscal_quarter).toBe(2)
+  })
+
+  it('still appends the current row when its fiscal identity has NOT reported yet', () => {
+    const rows = buildQuarters({
+      beatHistory: justPrinted, histStats: { last_n: [4.1] }, reportDate: '2026-10-28',
+      row: { quarter: 3, year: 2026, eps_estimate: 0.95, reported_eps: null },
+    })
+    expect(rows).toHaveLength(2)
+    expect(rows[1].reported).toBe(false)
+    expect(rows[1].fiscal_year).toBe(2026)
+    expect(rows[1].fiscal_quarter).toBe(3)
+  })
+
+  it('still appends the current row when the caller has not threaded quarter/year onto it '
+    + '(no fiscal key to compare — the pre-existing, unchanged behavior)', () => {
+    const rows = buildQuarters({
+      beatHistory: justPrinted, histStats: { last_n: [4.1] }, reportDate: '2026-07-30',
+      row: { eps_estimate: 0.88, reported_eps: 0.91 },   // no quarter/year at all
+    })
+    expect(rows).toHaveLength(2)
+    expect(rows[1].reported).toBe(false)
+  })
+
+  it('labels the current row from its own quarter/year, matching a past row for the same print', () => {
+    // Off-calendar fiscal year (AAPL-style): period end 2026-09-30 is fiscal
+    // Q1 2027, announced 2026-10-28 — the review's exact "Q1 27 vs ±Q4 26"
+    // mislabel scenario, here with a DIFFERENT (not-yet-reported) quarter so
+    // the row is not suppressed.
+    const rows = buildQuarters({
+      beatHistory: justPrinted, histStats: { last_n: [4.1] }, reportDate: '2026-10-28',
+      row: { quarter: 1, year: 2027, eps_estimate: 2.0, reported_eps: null },
+    })
+    const current = rows[rows.length - 1]
+    expect(current.quarter).toBe('Q1 27')
+  })
+
+  it('falls back to the period-end derivation for the current row label when no fiscal key is supplied', () => {
+    const rows = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-10-28', row: {},
+    })
+    expect(rows[0].quarter).toBe('Q4 26')   // pre-existing calendar-fiscal derivation, unchanged
+  })
+
+  it('fiscal_year/fiscal_quarter on the current row: a genuine 0 survives; explicit null stays null', () => {
+    const zero = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-10-28',
+      row: { quarter: 0, year: 0 },
+    })
+    expect(zero[0].fiscal_quarter).toBe(0)
+    expect(zero[0].fiscal_year).toBe(0)
+
+    const none = buildQuarters({
+      beatHistory: [], histStats: null, reportDate: '2026-10-28',
+      row: { quarter: null, year: null },
+    })
+    expect(none[0].fiscal_quarter).toBeNull()
+    expect(none[0].fiscal_year).toBeNull()
+  })
+})
