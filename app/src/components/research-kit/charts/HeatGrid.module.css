@@ -1,0 +1,112 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+/* The dense-grid branch of the house responsive guidance: horizontal scroll
+   with a frozen first column, NOT card mode — card mode destroys the regional
+   perception that makes a heat grid worth building. */
+.scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+}
+
+.caption {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  padding-bottom: var(--space-xs);
+}
+
+.corner,
+.rowHead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--glass-chrome);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.colHead {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rowButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.rowButton:hover .rowButtonHint {
+  color: var(--text-bright);
+}
+.rowButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rowButtonHint {
+  color: var(--text-muted);
+}
+
+.cell {
+  padding: var(--space-xs) var(--space-sm);
+  text-align: right;
+  border: 1px solid var(--glass-border-neutral);
+}
+
+/* UNIFORM INK (§3.3): every cell's number wears the same colour. The tint below
+   is the only per-cell colour, and the number is always readable on it. */
+.value {
+  font-size: var(--text-base);
+  color: var(--text-bright);
+}
+
+.g3 { background: var(--heat-g3); }
+.g2 { background: var(--heat-g2); }
+.g1 { background: var(--heat-g1); }
+.a  { background: var(--heat-a); }
+.r1 { background: var(--heat-r1); }
+.r2 { background: var(--heat-r2); }
+.r3 { background: var(--heat-r3); }
+
+/* PHONE */
+@media (max-width: 640px) {
+  .corner,
+  .rowHead,
+  .cell {
+    padding: var(--space-xs);
+  }
+  .value {
+    font-size: var(--text-sm);
+  }
+}

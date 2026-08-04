@@ -71,3 +71,15 @@ export {
   COMPONENT_ORDER,
 } from './RatingCrown'
 export { default as CheckupRow, normalizeStatus } from './CheckupRow'
+export {
+  default as HeatGrid,
+  heatTier,
+  HEAT_TIERS,
+  DEFAULT_HEAT_STOPS,
+  formatSigned,
+} from './charts/HeatGrid'
+export {
+  default as MetricTrendChart,
+  SIZE as METRIC_TREND_SIZE,
+  buildTrendOption,
+} from './charts/MetricTrendChart'
