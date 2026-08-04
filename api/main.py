@@ -2634,7 +2634,7 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(
                 _implied_store.run_nightly_capture,
                 trigger=CronTrigger(hour=16, minute=35, day_of_week="mon-fri", timezone=_ET),
-                id="implied_move_nightly", max_instances=1, replace_existing=True,
+                id="implied_move_nightly", max_instances=1, coalesce=True, replace_existing=True,
             )
 
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference

@@ -23,6 +23,7 @@ def test_expected_move_endpoint_shape():
     assert r.status_code == 200
     body = r.json()
     assert body["live"]["pct"] == 6.8 and body["history"][0]["report_date"] == "2026-05-06"
+    assert body["history_since"] == "2026-05-06"
 
 
 def test_expected_move_endpoint_requires_auth():
@@ -30,3 +31,19 @@ def test_expected_move_endpoint_requires_auth():
     client = TestClient(app)
     r = client.get("/api/research/expected-move/TST")
     assert r.status_code in (401, 403)
+
+
+def test_expected_move_endpoint_degrades_when_store_unreadable():
+    client, app, em_router = _client_with_auth()
+    live = {"pct": 6.8, "dollar": 12.5, "expiry": "2026-08-07", "strike": 185.0,
+            "spot": 184.0, "call_mid": 6.3, "put_mid": 6.2, "iv_atm": 0.6,
+            "horizon": "through 2026-08-07", "asof": "x", "source": "massive-chain"}
+    import sqlite3
+    with patch.object(em_router.implied_move, "get_expected_move", return_value=live), \
+         patch.object(em_router.implied_store, "get_implied_history",
+                      side_effect=sqlite3.OperationalError("db locked")):
+        r = client.get("/api/research/expected-move/TST")
+    app.dependency_overrides.clear()
+    assert r.status_code == 200
+    body = r.json()
+    assert body["live"]["pct"] == 6.8 and body["history"] == [] and body["history_since"] is None
