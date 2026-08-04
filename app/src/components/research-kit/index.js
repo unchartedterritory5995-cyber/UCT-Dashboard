@@ -1,0 +1,12 @@
+// app/src/components/research-kit/index.js
+//
+// The research-kit barrel (spec §3.4). Both redesigned surfaces — the earnings
+// modal and /research/:sym — import their vocabulary from here so "the modal is
+// the page in miniature" is enforced by construction rather than by discipline.
+//
+// LOADING IDIOM: there is no Skeleton in this kit. Use the EXISTING
+// components/Skeleton.jsx `SkeletonBlock` with its `size` contract — a second
+// identically-named component is explicitly banned (§3.4).
+export { default as InfoTip } from './InfoTip'
+export { default as EyebrowLabel } from './EyebrowLabel'
+export { default as GlassCard } from './GlassCard'

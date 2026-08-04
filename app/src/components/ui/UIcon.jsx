@@ -232,6 +232,13 @@ const ICONS = {
       <path d="M12 10v4.2M12 17.4v.2" />
     </>
   ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 10.8v5.4" />
+      <path d="M12 7.6v.5" />
+    </>
+  ),
   sparkle: (
     <path d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z" />
   ),

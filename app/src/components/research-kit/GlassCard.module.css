@@ -1,0 +1,36 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: var(--space-lg);
+  border: 1px solid var(--glass-border-neutral);
+  border-radius: var(--radius-xl);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-inner-glow);
+  /* Deliberately NOT overflow:hidden — see the component JSDoc. */
+}
+
+.elevated {
+  background: var(--glass-elevated);
+}
+
+.accent {
+  border-color: var(--glass-border-accent);
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .card {
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* TABLET */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .card {
+    padding: var(--space-md);
+  }
+}

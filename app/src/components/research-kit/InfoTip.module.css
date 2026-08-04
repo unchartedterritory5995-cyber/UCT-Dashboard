@@ -1,0 +1,87 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: var(--space-xs);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.trigger:hover {
+  color: var(--text-bright);
+}
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: max-content;
+  max-width: 260px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--glass-border-neutral);
+  border-radius: var(--radius-lg);
+  /* Near-opaque ink: tooltip copy must never sit on a translucent surface. */
+  background: var(--glass-chrome);
+  box-shadow: var(--shadow-popover);
+  text-transform: none;
+  letter-spacing: var(--ls-normal);
+}
+
+.popText {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: var(--text-bright);
+}
+
+.popLink {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--info);
+  text-decoration: none;
+}
+.popLink:hover {
+  text-decoration: underline;
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .trigger {
+    width: var(--tap-min);
+    height: var(--tap-min);
+    margin-left: 0;
+  }
+  .pop {
+    max-width: min(280px, calc(100vw - 32px));
+  }
+}
+
+/* TABLET */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .trigger {
+    width: 20px;
+    height: 20px;
+  }
+}
