@@ -1366,6 +1366,81 @@ export default function OptionsFlowDashboard() {
     }
   };
 
+  // Preview-first path: capture Bull + Bear as PNGs and show them in a modal so
+  // the render can be eyeballed BEFORE anything hits Discord. The modal's push
+  // reuses these exact captured blobs (no re-render), so what you preview is
+  // byte-for-byte what gets posted.
+  const previewWatchlistImages = async () => {
+    setWlPreviewBusy(true);
+    try {
+      let h2c = window.html2canvas;
+      if (!h2c) {
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        document.head.appendChild(s);
+        await new Promise(r => { s.onload = r; s.onerror = () => r(); });
+        h2c = window.html2canvas;
+      }
+      if (!h2c) { setStatus("❌ Could not load screenshot library"); setWlPreviewBusy(false); return; }
+      const dateRange = FD ? FD.dateRange || "" : "";
+      const imgs = [];
+      const cap = async (el, side, filename, label) => {
+        if (!el) return;
+        const canvas = await h2c(el, { backgroundColor: P.bg, scale: 2, useCORS: true });
+        const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+        if (blob) imgs.push({ side, url: URL.createObjectURL(blob), blob, filename, label });
+      };
+      await cap(wlBullRef.current, "Bull", `UCT_Bull_Watchlist_${wlDate}.png`, `${discordLabel} — BULL`);
+      await cap(wlBearRef.current, "Bear", `UCT_Bear_Watchlist_${wlDate}.png`, `${discordLabel} — BEAR`);
+      if (!imgs.length) {
+        setStatus("⚠️ No watchlist sections to capture (set the view to “Both”)");
+        setTimeout(() => setStatus(""), 3500);
+      } else {
+        setWlPreview({ imgs, dateRange, pushing: false });
+      }
+    } catch (e) {
+      setStatus(`❌ Preview error: ${e.message}`);
+    }
+    setWlPreviewBusy(false);
+  };
+
+  const closeWlPreview = () => {
+    setWlPreview(prev => {
+      if (prev) prev.imgs.forEach(i => { try { URL.revokeObjectURL(i.url); } catch { /* noop */ } });
+      return null;
+    });
+  };
+
+  const pushPreviewToDiscord = async () => {
+    if (!wlPreview || wlPreview.pushing) return;
+    setWlPreview(prev => prev ? { ...prev, pushing: true } : prev);
+    const results = [];
+    for (const img of wlPreview.imgs) {
+      const fd = new FormData();
+      fd.append("file", img.blob, img.filename);
+      fd.append("label", img.label);
+      fd.append("date_range", wlPreview.dateRange || "");
+      try {
+        const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
+        const data = await resp.json();
+        results.push({ side: img.side, ok: data.ok, kb: data.size_kb, error: data.error });
+      } catch (e) {
+        results.push({ side: img.side, ok: false, error: e.message });
+      }
+      await new Promise(r => setTimeout(r, 600));  // Discord rate-limit spacing
+    }
+    const ok = results.filter(r => r.ok);
+    const fail = results.filter(r => !r.ok);
+    if (ok.length && !fail.length) {
+      const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
+      setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
+    } else {
+      setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
+    }
+    setTimeout(() => setStatus(""), 4000);
+    closeWlPreview();
+  };
+
   const screenshotPushDiscord = async () => {
     setDiscordImgPushing(true);
     try {
@@ -2094,6 +2169,9 @@ export default function OptionsFlowDashboard() {
   // ─── Discord Push ───────────────────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
   const [discordImgPushing, setDiscordImgPushing] = useState(false);
+  // Preview-before-push: {imgs:[{side,url,blob,filename,label}], dateRange, pushing} | null
+  const [wlPreview, setWlPreview] = useState(null);
+  const [wlPreviewBusy, setWlPreviewBusy] = useState(false);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
   const [discordCount, setDiscordCount] = useState(10);
 
@@ -8506,6 +8584,44 @@ export default function OptionsFlowDashboard() {
                       {discordPushing ? "…" : "⚡ Unusual"}
                     </button>
                   </div>
+                  <button onClick={previewWatchlistImages} disabled={wlPreviewBusy}
+                    title="Render the Bull + Bear watchlists as two images and preview them before pushing to Discord"
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlPreviewBusy?P.bd:"#5865F2"), background:"transparent",
+                      color:wlPreviewBusy?P.dm:"#5865F2", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                    {wlPreviewBusy ? "📸 Rendering…" : "📸 Preview Images"}
+                  </button>
+                  {wlPreview && (
+                    <div onClick={closeWlPreview}
+                      style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+                      <div onClick={e=>e.stopPropagation()}
+                        style={{ background:P.bg, border:"1px solid "+P.bl, borderRadius:10, padding:16, maxWidth:"95vw", maxHeight:"92vh", overflow:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.6)" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, marginBottom:12, flexWrap:"wrap" }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:P.wh, fontFamily:"inherit" }}>
+                            📸 Discord Preview — {discordLabel} <span style={{ color:P.dm, fontWeight:600 }}>· exactly what will post</span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <button onClick={pushPreviewToDiscord} disabled={wlPreview.pushing}
+                              style={{ padding:"6px 16px", borderRadius:5, border:"none", background:wlPreview.pushing?"#5865F266":"#5865F2", color:"#fff", fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                              {wlPreview.pushing ? "Pushing…" : "📤 Push to Discord"}
+                            </button>
+                            <button onClick={closeWlPreview} disabled={wlPreview.pushing}
+                              style={{ padding:"6px 14px", borderRadius:5, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", gap:12, alignItems:"flex-start", flexWrap:"wrap", justifyContent:"center" }}>
+                          {wlPreview.imgs.map(img => (
+                            <div key={img.side} style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"center" }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:img.side==="Bull"?"#57F287":"#ED4245", fontFamily:"inherit" }}>{img.side} · {img.label}</div>
+                              <img src={img.url} alt={img.side+" watchlist preview"}
+                                style={{ maxWidth:"44vw", maxHeight:"74vh", borderRadius:6, border:"1px solid "+P.bl, display:"block" }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <button onClick={wlFetchOI} disabled={wlOILoading}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
