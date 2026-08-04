@@ -257,6 +257,7 @@ const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartD
 // have to go through it for a flipped id, because that field stopped being the
 // switch — writing it by hand is now a test of a mirror, not of a control.
 const { setIndicatorEnabled, isIndicatorEnabled } = await import('../instanceControls')
+const { migrateLegacyToInstances } = await import('../instances')
 // THE ONE LIST. Imported, never re-derived — a second copy of `catalogRows()`
 // inside this file would be the sixteenth hand-written list wearing the name of
 // the thing that ends them.
@@ -593,23 +594,40 @@ describe('StockChart × indicator engine — NOTHING TO DRAW is the whole safety
     // authority for at all — the filter that decides that is per definition, and
     // this is its closed state.
     //
-    // ⚠️ AND IT HAS NOW MOVED A THIRD TIME. ATR was the subject until B5 Task 5
-    // migrated it, and the assertion below is what said so — it went RED rather
-    // than the case quietly asserting "a flipped instance draws nothing", which
-    // would have been a false claim passing for the wrong reason. `mfi` was the
-    // successor until B5 Task 7 migrated it; `adx` is the successor now — a pane
-    // oscillator with its own named scale and a hand-written block, i.e. exactly
-    // the shape this closed state is about. ⚠️ THE FOURTH SUBJECT, AND THE LAST
-    // GENERATION OF THEM: `adx`, `obv` and `donchian` are all that remain, and
-    // Task 8 takes the three together.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('adx'),
-      'adx migrated — this dark-state control needs a new subject').toBe(false)
-    draw({ indicatorInstances: [{
-      instanceId: 'legacy:adx', defId: 'adx', inputs: { period: 14, adxColor: '#e5e7eb' },
-      placement: { target: 'pane' }, hidden: false,
-    }] })
-    expect(H.binderCreated).toHaveLength(0)
-    expect(H.syncCalls).toHaveLength(0)
+    // ⚠️ AND IT MOVED A THIRD TIME (ATR at B5 Task 5), A FOURTH (`mfi` at Task
+    // 7), A FIFTH (`adx`) — AND THEN THE SUBJECTS RAN OUT. Every one of those
+    // moves went RED by name rather than letting the case quietly assert "a
+    // flipped instance draws nothing", which would have been a false claim
+    // passing for the wrong reason. B5 Task 8 took the last three (`adx`, `obv`,
+    // `donchian`), so `ENGINE_MIGRATED_DEF_IDS` equals `listDefinitions()` and no
+    // real id can serve here again.
+    //
+    // ⛔ SO IT MOVES DOWN A LEVEL RATHER THAN BEING DELETED. The claim is about
+    // the FILTER's closed state, not about any indicator, and two subjects can
+    // never expire: `volumeProfile`, the one indicator key with NO definition at
+    // all (structurally carved out, not series-expressible, and spec §5 keeps it
+    // that way), and a defId the registry has never heard of — the shape a stale
+    // share link or a hand-edited blob produces. Neither may start the engine and
+    // neither may throw.
+    for (const instances of [
+      [{ instanceId: 'legacy:volumeProfile', defId: 'volumeProfile', inputs: {}, hidden: false }],
+      [{ instanceId: 'x:bogus', defId: '__notADefinition', inputs: {}, hidden: false }],
+    ]) {
+      cleanup(); H.reset()
+      draw({ indicatorInstances: instances })
+      expect(H.binderCreated, `${instances[0].defId} started the engine`).toHaveLength(0)
+      expect(H.syncCalls, `${instances[0].defId} synced the engine`).toHaveLength(0)
+    }
+    // ⛔ AND THE CONTROL THAT THIS IS A CLOSED FILTER AND NOT A DEAD COMPONENT:
+    // the same chart with a REAL flipped instance DOES construct a binder.
+    cleanup(); H.reset()
+    draw({ indicatorInstances: [RSI_INSTANCE] })
+    expect(H.binderCreated, 'the engine never starts at all — the loop above is vacuous')
+      .toHaveLength(1)
+    // …and the real population really is exhausted, which is WHY these subjects
+    // are structural. The day a definition ships un-migrated, this says so.
+    expect(registry.listDefinitions().map(d => d.id).filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+      'an un-migrated definition exists again — drive this on the REAL one too').toEqual([])
   })
 
   it('⭐ …but a FLIPPED definition runs the engine anyway — it has no other renderer', () => {
@@ -699,23 +717,25 @@ describe('StockChart × indicator engine — with something to draw', () => {
     // would have been about a binder that does not exist. The state that still
     // reaches a LIVE binder holding nothing is an instance of a definition the
     // engine is not the authority for.
-    // ⚠️ SUBJECT MOVED AT B5 TASK 5 — ATR is migrated, `mfi` is its successor —
-    // AND AGAIN AT B5 TASK 7, which migrated `mfi`. `adx` is the successor.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('adx'),
-      'adx migrated — this control needs a new subject').toBe(false)
+    // ⚠️ SUBJECT MOVED AT B5 TASK 5 (ATR → `mfi`), AGAIN AT TASK 7 (`mfi` →
+    // `adx`) — AND THEN RAN OUT AT TASK 8, which flipped the last three. It moves
+    // DOWN A LEVEL rather than being deleted: the claim is that a LIVE binder
+    // holding one thing adds exactly one thing, and the id it must ignore is now
+    // `volumeProfile` — the one indicator key with no definition at all, carved
+    // out structurally rather than by a set membership that keeps expiring.
+    expect(registry.getDefinition('volumeProfile'),
+      'volumeProfile gained a definition — this control needs re-reading').toBeNull()
     draw(undefined)
     const darkSeries = H.addSeriesCalls.length
     cleanup(); H.reset()
 
     draw({ indicatorInstances: [
-      { instanceId: 'legacy:adx', defId: 'adx', inputs: { period: 14, adxColor: '#e5e7eb' },
-        placement: { target: 'pane' }, hidden: false },
+      { instanceId: 'legacy:volumeProfile', defId: 'volumeProfile', inputs: {}, hidden: false },
       RSI_INSTANCE,
     ] })
     expect(H.syncCalls.length, 'no sync — the comparison below is not about the engine')
       .toBeGreaterThan(0)
-    // RSI's one series, and NOTHING for the ADX instance — whose legacy block is
-    // also silent, because the instance list does not move the legacy mirror.
+    // RSI's one series, and NOTHING for the volumeProfile instance.
     expect(H.addSeriesCalls).toHaveLength(darkSeries + 1)
     expect(H.binderApis[0].bindings()).toHaveLength(1)
   })
@@ -911,13 +931,17 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
     expect(gated, 'no migrated definition declares meta.timeframes — tfFor is inert').not.toHaveLength(0)
   })
 
-  it('an instance of a NOT-yet-migrated definition is refused rather than double-drawn', () => {
-    const notMigrated = registry.listDefinitions()
-      .map(d => d.id)
-      .filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id))
-    expect(notMigrated.length, 'every definition is migrated — this case is now empty').toBeGreaterThan(0)
+  it('an indicator the engine is NOT the authority for is refused rather than double-drawn', () => {
+    // ⚠️ THE POPULATION THIS CASE WAS WRITTEN OVER IS GONE (B5 Task 8): every
+    // definition is migrated, so `notMigrated[0]` was `undefined` and the loop
+    // asserted about nothing. The claim survives on the one indicator key that
+    // is refused STRUCTURALLY rather than by a set that keeps shrinking —
+    // `volumeProfile`, which has no definition, is not series-expressible (a
+    // horizontal histogram on its own canvas) and is carved out by name.
+    const defId = 'volumeProfile'
+    expect(registry.getDefinition(defId), 'volumeProfile gained a definition').toBeNull()
+    expect(registry.CARVED_OUT_INDICATOR_KEYS.has(defId)).toBe(true)
 
-    const defId = notMigrated[0]
     const legacyOn = { indicators: { [defId]: { enabled: true } } }
     draw(legacyOn)
     const legacyOnly = H.addSeriesCalls.length
@@ -926,8 +950,14 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
     draw({ ...legacyOn, indicatorInstances: [instanceOf(defId)] })
     // The binder never sees it, so it cannot draw a second copy …
     expect(bound()).toHaveLength(0)
-    // … and the legacy block is untouched, so the indicator is still on the chart.
+    // … and its own rendering is untouched, so the indicator is still on the chart.
     expect(H.addSeriesCalls.length).toBe(legacyOnly)
+    // ⛔ AND THE CONTROL THAT `instanceOf` REALLY DOES PRODUCE SOMETHING THE
+    // ENGINE WOULD OTHERWISE BIND: the same helper on a migrated id binds.
+    cleanup(); H.reset()
+    draw({ indicators: { rsi: { enabled: true } }, indicatorInstances: [instanceOf('rsi')] })
+    expect(bound().length, 'instanceOf produces an instance nothing ever binds — vacuous')
+      .toBeGreaterThan(0)
   })
 })
 
@@ -971,20 +1001,43 @@ describe('an engine series is inserted where its legacy twin would have been', (
     expect(engineIdx).toBeLessThan(bbIdx)
   })
 
-  it('and BEFORE every other legacy indicator block, not just the first', () => {
+  it('and BEFORE the whole rest of the chart, not just the first block', () => {
+    // 🔴 THE PREMISE THIS CASE WAS BUILT ON EXPIRED AT B5 TASK 8, AND IT WAS
+    // GREEN WHILE FALSE FIRST. It used `['macd', 'obv']` as "other LEGACY
+    // indicator blocks" — `macd` was flipped at B3 Task 11 and `obv` at Task 8,
+    // so BOTH landmarks are now drawn by the ENGINE, at the same call site as the
+    // RSI it is being compared to. It kept passing because the engine binds in
+    // INSTANCE-LIST order and the explicit `RSI_INSTANCE` leads that list — i.e.
+    // for a reason that has nothing to do with the claim.
+    //
+    // ⛔ THE CLAIM THAT SURVIVES, AND IT IS STRONGER THAN THE ONE IT REPLACES:
+    // the engine's series are a CONTIGUOUS SUFFIX of everything the chart draws.
+    // Contiguous, because the engine draws its whole set at ONE call site and
+    // registry order is therefore the only thing controlling z-order WITHIN it —
+    // a call site that split in two would let a hand-written series land in the
+    // middle of the indicator stack. A SUFFIX, because with no legacy indicator
+    // block left the engine is the last thing to draw, so every candle, every
+    // volume bar and every MA overlay is underneath every indicator, which is the
+    // shipped picture. A new hand-written series added after the sync call fails
+    // this by name; the old form could not have seen one.
     draw({
       indicatorInstances: [RSI_INSTANCE],
-      indicators: { rsi: { enabled: true }, bb: { enabled: true }, macd: { enabled: true }, obv: { enabled: true } },
+      indicators: { rsi: { enabled: true }, bb: { enabled: true } },
     })
-    const engineIdx = idxWhere(o => o.priceScaleId === 'rsi')
-    // -1 is LESS THAN every index, so without this the loop below passes when the
-    // engine drew nothing at all.
-    expect(engineIdx, 'the engine drew nothing').toBeGreaterThan(-1)
-    for (const scale of ['macd', 'obv']) {
-      const legacyIdx = idxWhere(o => o.priceScaleId === scale)
-      expect(legacyIdx, `${scale} did not draw`).toBeGreaterThan(-1)
-      expect(engineIdx, `engine must precede the ${scale} block`).toBeLessThan(legacyIdx)
-    }
+    const engineSeries = new Set(bound().map(b => b.series))
+    expect(engineSeries.size, 'the engine bound nothing — this case is vacuous').toBe(4)
+    const engineIdxs = H.addSeriesCalls
+      .map((c, i) => (engineSeries.has(c.series) ? i : -1)).filter(i => i >= 0)
+    expect(engineIdxs, 'the engine bound a series the chart never created').toHaveLength(4)
+    expect(engineIdxs.at(-1) - engineIdxs[0], 'the engine\'s series are no longer contiguous — '
+      + 'something hand-written is being drawn in the middle of the indicator stack')
+      .toBe(engineIdxs.length - 1)
+    expect(engineIdxs.at(-1), 'a series is created AFTER the engine\'s block — it will paint '
+      + 'OVER every indicator, which is the z-order inversion this rail exists for')
+      .toBe(H.addSeriesCalls.length - 1)
+    // …and the prefix really is non-empty, so "suffix" is not "the whole list".
+    expect(engineIdxs[0], 'the engine drew first — there is no candle or volume series before it')
+      .toBeGreaterThan(0)
   })
 
   it('⏳ EXPIRES when a pooled series first CROSSES PANES — the rails above go blind then', () => {
@@ -1245,6 +1298,7 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // and every definition that is not migrated declares NONE. Break either half
     // and a user loses a chip the day their indicator is drawn by the surviving
     // hand-written block — which is what the deleted registrar used to prevent.
+    // ⭐ AND AT B5 TASK 8 THE SECOND HALF BECAME A TOTALITY CLAIM — see below.
     const declaresChip = (d) => (d.plots || []).some(
       p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
     const chipBearing = registry.listDefinitions().filter(declaresChip).map(d => d.id)
@@ -1257,36 +1311,53 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
         `${id} declares a chip and is NOT migrated — with the legacy chip lane deleted, ` +
         'nothing produces that chip and the legend loses it silently').toBe(true)
     }
-    // …and the other direction, over a NON-EMPTY set (THREE definitions are
-    // still un-migrated at Task 7 — `adx`, `obv`, `donchian`), so this half
-    // cannot pass by iterating nothing. ⚠️ Task 8 empties it, and when it does
-    // this half has no subjects: it must move DOWN A LEVEL (assert the flip set
-    // COVERS every chip-bearing definition and that the set is total) rather
-    // than be deleted, exactly as the chip control did at Task 6.
-    expect(unmigrated.length, 'nothing is un-migrated — this half is vacuous').toBeGreaterThan(0)
-    for (const id of unmigrated) {
-      expect(declaresChip(registry.getDefinition(id)),
-        `${id} gained a legend block while un-migrated — its chip has no producer`).toBe(false)
-    }
+    // ⭐⭐ AND THE OTHER DIRECTION MOVED DOWN A LEVEL AT B5 TASK 8, EXACTLY AS THE
+    // NOTE THAT STOOD HERE SAID IT WOULD HAVE TO. It read *"over a NON-EMPTY set
+    // (THREE definitions are still un-migrated at Task 7 — `adx`, `obv`,
+    // `donchian`)"* and asserted that each of them declares no `legend` block.
+    // Task 8 migrated all three, so that loop iterates zero times.
+    //
+    // What replaces it is the TOTALITY the loop was standing in for: the flip set
+    // COVERS every chip-bearing definition because it covers every definition
+    // there is. Stated as an equality rather than as a subset, so a chip-bearing
+    // definition arriving un-migrated — the thing whose chip would have no
+    // producer — fails it by name in either direction.
+    expect(unmigrated, 'an un-migrated definition exists again — restore the per-id loop, '
+      + 'because a chip-bearing one among them loses its chip silently').toEqual([])
+    expect([...ENGINE_MIGRATED_DEF_IDS].sort(),
+      'the migrated set is no longer TOTAL, so "every chip-bearing definition is migrated" '
+      + 'has stopped being implied and needs its own loop again')
+      .toEqual(registry.listDefinitions().map(d => d.id).sort())
+    // …and the chip-bearing set is a PROPER subset of it, so the coverage claim is
+    // not the trivial one that both sides are empty.
+    expect(chipBearing.length).toBeGreaterThan(0)
+    expect(chipBearing.length).toBeLessThan(ENGINE_MIGRATED_DEF_IDS.size)
 
-    // …and the behavioural half, on a real chart: an un-migrated definition draws
-    // its line through its legacy block and contributes NO chip to the legend.
-    // ⚠️ SUBJECT MOVED AT B5 TASK 7 — `mfi` is migrated; `obv` is the successor
-    // and is the same shape for this claim (a single-line pane oscillator with a
-    // hand-written block and no `legend` declaration).
+    // …and the behavioural half, on a real chart. ⚠️ ITS SUBJECT MOVED TOO —
+    // `mfi` at Task 5, `obv` at Task 7, and Task 8 took `obv`. The claim was "an
+    // indicator whose definition declares no `legend` block contributes NO chip",
+    // and that is still live and still failable; what changed is that the
+    // indicator is now drawn by the ENGINE rather than by a legacy block, which
+    // makes it a STRONGER subject: the engine lane is the one that could emit a
+    // chip for any plot that declares one, so a `legend` block added to `obv` by
+    // accident would now really put "OBV" in the legend.
     const OBV_COLOR = '#9ca3af'
-    expect(ENGINE_MIGRATED_DEF_IDS.has('obv'), 'obv is migrated — pick another subject').toBe(false)
+    expect(ENGINE_FLIPPED_DEF_IDS.has('obv'), 'obv is not engine-drawn — this half is about '
+      + 'the ENGINE lane emitting no chip for a definition that declares none').toBe(true)
     const view = draw({
       ...RSI_ON,
-      indicatorInstances: [RSI_INSTANCE],
+      indicatorInstances: [RSI_INSTANCE, {
+        instanceId: 'legacy:obv', defId: 'obv', inputs: { color: OBV_COLOR },
+        placement: { target: 'pane' }, hidden: false,
+      }],
       indicators: { ...RSI_ON.indicators, obv: { enabled: true, color: OBV_COLOR } },
     })
     const obvLine = H.addSeriesCalls.filter(c => c.options && c.options.color === OBV_COLOR)
-    expect(obvLine, 'no legacy OBV line — vacuous').toHaveLength(1)
+    expect(obvLine, 'no OBV line at all — vacuous').toHaveLength(1)
     const text = await hover(view, [[obvLine[0].series, { value: 54.3 }]])
-    expect(text, 'the engine lane is still drawing — the RSI control chip is missing')
+    expect(text, 'the engine lane is not drawing — the RSI control chip is missing')
       .toContain('RSI(14)')
-    expect(text, 'an un-migrated definition produced a chip from somewhere').not.toContain('OBV')
+    expect(text, 'a definition that declares no legend block produced a chip').not.toContain('OBV')
   })
 
   it('⭐ BOTH MACD chips survive the deletion of macdLineRef AND macdSignalRef', async () => {
@@ -1837,23 +1908,38 @@ describe('BB Flip A — the legacy block stands down, z-order is preserved', () 
     expect(first).toBeGreaterThan(lastMa)
   })
 
-  it('still draws BEFORE every un-migrated legacy indicator block', () => {
-    // The engine draws its whole set contiguously at ONE call site; legacy
-    // interleaves its blocks down the function. That call site sits where BB's
-    // block is, so everything legacy still draws — MACD, OBV, and the ten others
-    // — must stay after it. If the call site ever moved DOWN, the engine's BB
-    // would paint under a legacy overlay it paints over today.
-    draw({
-      ...BB_ON, indicatorInstances: [BB_INSTANCE],
-      indicators: { ...BB_ON.indicators, macd: { enabled: true }, obv: { enabled: true } },
-    })
-    const bbIdx = H.addSeriesCalls.findIndex(c => (c.options || {}).color === BB_COLOUR)
-    expect(bbIdx, 'the engine drew no BB').toBeGreaterThan(-1)
-    for (const scale of ['macd', 'obv']) {
-      const legacyIdx = H.addSeriesCalls.findIndex(c => (c.options || {}).priceScaleId === scale)
-      expect(legacyIdx, `${scale} did not draw`).toBeGreaterThan(-1)
-      expect(bbIdx, `engine BB must precede the ${scale} block`).toBeLessThan(legacyIdx)
-    }
+  it('and BB is drawn in REGISTRY order relative to every other engine series', () => {
+    // 🔴 THE PREMISE THIS CASE WAS BUILT ON EXPIRED AT B5 TASK 8, AND — LIKE ITS
+    // SIBLING IN THE I-3 BLOCK — IT WAS GREEN WHILE FALSE FIRST. It read *"still
+    // draws BEFORE every un-migrated legacy indicator block"* and used `macd` and
+    // `obv` as those blocks; `macd` was flipped at B3 Task 11 and `obv` at B5
+    // Task 8, so both are engine-drawn, at the SAME call site as the BB it is
+    // compared against. It went on passing because the binder follows the
+    // INSTANCE LIST and the explicit `BB_INSTANCE` leads it — a property of the
+    // fixture, not of the claim.
+    //
+    // ⛔ WHAT THE CASE WAS ACTUALLY PROTECTING — z-order between BB and the
+    // things drawn around it — IS NOW ENTIRELY INTERNAL TO THE ENGINE, so that is
+    // where it is asserted. `migrateLegacyToInstances` walks the REGISTRY, so a
+    // blob with several indicators on projects them in registry order and the
+    // binder inserts them in that order; LWC z-stacks by insertion. `bb` is third
+    // in the registry, `macd` second, `obv` thirteenth — so a blob with all three
+    // must draw macd, bb, obv in that order and nothing else.
+    // ⚠️ THE BLOB'S KEY ORDER IS DELIBERATELY THE REVERSE OF THE REGISTRY'S. A
+    // migrator that simply echoed `Object.keys(cs.indicators)` would look
+    // identical on any blob written in registry order, so the fixture has to
+    // disagree with the answer.
+    const BLOB_ORDER = { obv: { enabled: true }, bb: { enabled: true }, macd: { enabled: true } }
+    draw({ indicators: BLOB_ORDER })
+    const order = bound().map(b => b.defId).filter((id, i, a) => id !== a[i - 1])
+    expect(order, 'the projected instance list is no longer in registry order — LWC z-stacks '
+      + 'by insertion, so this reorders every overlapping indicator on the chart')
+      .toEqual(['macd', 'bb', 'obv'])
+    const registryOrder = registry.listDefinitions().map(d => d.id)
+      .filter(id => order.includes(id))
+    expect(order).toEqual(registryOrder)
+    expect(Object.keys(BLOB_ORDER), 'the fixture blob is already in registry order, so this '
+      + 'control cannot tell a registry walk from a key echo').not.toEqual(registryOrder)
   })
 })
 
@@ -2375,33 +2461,48 @@ describe('MACD Flip A — the legacy block stands down, all three plots move tog
     expect(guides[0].series).toBe(onMacdScale()[0].series)
   })
 
-  it('leaves the other legacy indicator blocks alone — ownership is per definition', () => {
-    // 🔴 GREEN WHILE FALSE UNTIL B5 TASK 5, AND THIS IS THE FIX. The pair was
-    // `['stoch', 'obv']`, and after Stochastic was flipped the `stoch` half went
-    // on passing for the WRONG REASON: a series still appears on the `stoch`
-    // scale, but the ENGINE draws it, so the case claimed a legacy block was
-    // untouched while asserting on the thing that replaced it. Both subjects must
-    // be UN-FLIPPED, and the assertion below is what said so at Task 7 — where
-    // `mfi` flipped and the pair became `['adx', 'obv']`, the last two un-flipped
-    // PANE oscillators there are.
-    const LEGACY_SUBJECTS = ['adx', 'obv']
-    for (const id of LEGACY_SUBJECTS) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id),
-        `${id} is flipped — its series comes from the ENGINE now, so this case would ` +
-        'assert that the engine drew it, not that a legacy block was left alone').toBe(false)
-    }
+  it('an EXPLICIT instance list is the whole of what the engine draws — ownership is per definition', () => {
+    // 🔴 GREEN WHILE FALSE UNTIL B5 TASK 5, THEN RE-POINTED TWICE, AND NOW MOVED
+    // DOWN A LEVEL. The pair was `['stoch', 'obv']`; after Stochastic was flipped
+    // the `stoch` half went on passing for the WRONG REASON (a series still
+    // appears on the `stoch` scale, but the ENGINE draws it), so Task 5 added the
+    // un-flipped assertion below and Task 7 moved the pair to `['adx', 'obv']` —
+    // the last two un-flipped PANE oscillators there were. **B5 Task 8 flipped
+    // both**, so there is no un-flipped subject left and the old form could only
+    // fail.
+    //
+    // ⛔ WHAT IT WAS PROTECTING SURVIVES, AND IT IS THE `hasData` GATE RATHER THAN
+    // A POPULATION: an EXPLICIT `indicatorInstances` list is authoritative, so a
+    // legacy MIRROR that is `enabled: true` for a definition with no instance in
+    // that list must NOT resurrect it. That is the compatibility rule every
+    // stored blob depends on (`migrateLegacyToInstances` reserves ids it already
+    // sees and projects only the rest), and it is failable in both directions.
     draw({
       ...MACD_ON, indicatorInstances: [MACD_INSTANCE],
       indicators: { ...MACD_ON.indicators, adx: { enabled: true }, obv: { enabled: true } },
     })
-    for (const scale of LEGACY_SUBJECTS) {
+    // The two mirror-only ids ARE projected — that is the shipped compatibility
+    // path — so they draw, and they draw through the ENGINE now, on their own
+    // named scales exactly where their deleted blocks put them.
+    for (const scale of ['adx', 'obv']) {
       expect(H.addSeriesCalls.some(c => (c.options || {}).priceScaleId === scale),
         `${scale} stopped drawing`).toBe(true)
     }
-    // …and the engine really did hold only MACD, so "left alone" means the engine
-    // did not take them rather than that nothing ran.
-    expect(new Set(bound().map(b => b.defId)), 'the engine claimed something it does not own')
-      .toEqual(new Set(['macd']))
+    expect(new Set(bound().map(b => b.defId)), 'a mirror-only id was not projected — every '
+      + 'existing user\'s blob is mirror-only, so this is the compatibility path itself')
+      .toEqual(new Set(['macd', 'adx', 'obv']))
+    // …and the other direction: a TOMBSTONE in the explicit list beats the mirror,
+    // so "the instance list is authoritative" is not just "everything draws".
+    cleanup(); H.reset()
+    draw({
+      ...MACD_ON,
+      indicatorInstances: [MACD_INSTANCE, { instanceId: 'legacy:adx', defId: 'adx', deleted: true }],
+      indicators: { ...MACD_ON.indicators, adx: { enabled: true }, obv: { enabled: true } },
+    })
+    expect(new Set(bound().map(b => b.defId)), 'a tombstoned id came back from the mirror')
+      .toEqual(new Set(['macd', 'obv']))
+    expect(H.addSeriesCalls.some(c => (c.options || {}).priceScaleId === 'adx'),
+      'a tombstoned indicator still drew').toBe(false)
   })
 })
 
@@ -3390,16 +3491,20 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 // Rewriting them rather than deleting them is the point: each one still names a
 // way the machinery could be wrong, in the direction it can now be wrong in.
 describe('the Flip-B machinery, live (Task 10)', () => {
-  it('ENGINE_FLIPPED_DEF_IDS is exactly the eleven migrated ids, and EQUALS the migrated set', () => {
+  it('ENGINE_FLIPPED_DEF_IDS is exactly the fourteen migrated ids, and EQUALS the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
     // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6,
-    // `mfi`, `cci` and `williamsR` at Task 7 — each group in one commit with its
-    // migration. ⚠️ THE TITLE NO LONGER SPELLS THE SET OUT: eight ids fitted in a
-    // test name and eleven do not, and a title that lists a stale eight while the
-    // body asserts eleven is the control-rot shape this branch keeps finding.
+    // `mfi`, `cci` and `williamsR` at Task 7, and `adx`, `obv` and `donchian` at
+    // Task 8 — each group in one commit with its migration. ⚠️ THE TITLE NO
+    // LONGER SPELLS THE SET OUT: eight ids fitted in a test name and fourteen do
+    // not, and a title that lists a stale eight while the body asserts fourteen
+    // is the control-rot shape this branch keeps finding. It names the COUNT, and
+    // the count is now `listDefinitions().length` — every series-expressible
+    // definition there is.
     expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
-      ['atr', 'bb', 'cci', 'ichimoku', 'macd', 'mfi', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
@@ -3450,8 +3555,9 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // counter to the set it iterated is a tautology that survives the set being
     // emptied; the number is what makes "the flipped set is empty" a failure.
     // It moves once per B5 migration task — 4 → 6 at Task 5, 6 → 8 at Task 6,
-    // 8 → 11 at Task 7.
-    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(11)
+    // 8 → 11 at Task 7, 11 → 14 at Task 8 — where it stops, because fourteen is
+    // every series-expressible definition there is.
+    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(14)
   })
 
   it('csForPaneMargins changes ONE FIELD and carries the rest of the blob through', () => {
@@ -3556,12 +3662,16 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // which is the whole reason the pair is spelled with its answer beside it
     // rather than derived from `ENGINE_FLIPPED_DEF_IDS` (a derived expectation
     // agrees with the code by construction and can never catch this).
-    // ⚠️ AND IT MOVED AGAIN AT B5 TASK 7, WHICH FLIPPED `mfi`. `adx` is the
-    // successor and the same shape for this claim (a settings section with a
-    // hand-written block whose mirror IS the switch).
-    expect(ENGINE_FLIPPED_DEF_IDS.has('adx'),
-      'adx is flipped — the un-flipped half of this pair needs a new subject').toBe(false)
-    for (const [id, flipped] of [['rsi', true], ['adx', false]]) {
+    // ⚠️ AND IT MOVED AGAIN AT B5 TASK 7 (`mfi` → `adx`) — AND THEN RAN OUT AT
+    // TASK 8, which flipped the last three. The pair was FLIPPED vs UN-FLIPPED
+    // and the un-flipped side has no member; it moves DOWN A LEVEL to the pair
+    // that is still real and still asymmetric: a definition the engine owns
+    // (`rsi`), and the CARVED-OUT key it does not (`volumeProfile`, which has no
+    // definition at all, so `setIndicatorEnabled` can only move its mirror).
+    // Both must toggle off through the menu; only the first may write an instance.
+    expect(registry.getDefinition('volumeProfile'),
+      'volumeProfile gained a definition — this pair needs re-reading').toBeNull()
+    for (const [id, flipped] of [['rsi', true], ['volumeProfile', false]]) {
       cleanup(); H.reset()
       const view = renderChart({ settings: mergeChartSettings({ indicators: { [id]: { enabled: true } } }) })
       const items = submenuOf(sectionOf(openContextMenu(view, { region: 'price' }), 'region'), 'indicators')
@@ -3989,35 +4099,44 @@ describe('B4 Task 12 — Alt+Shift+A and right-click both reach the ONE library'
     // writes through `setIndicatorEnabled`, and the toolbar's own
     // `onUpdateSettings` persists it.
     //
-    // ⚠️ THE SUBJECT MOVED AT B5 TASK 5. It was `atr`, chosen precisely BECAUSE it
-    // was UN-FLIPPED — the mirror is what an un-flipped definition's legacy block
-    // reads, so an instance-only write would leave it undrawn. ATR is flipped now,
-    // and this case would have gone on passing while measuring the easy half.
-    // `mfi` was the successor until B5 Task 7 flipped it; `adx` is the successor
-    // now and the assertion below is what says so next time. ⚠️ Task 8 takes the
-    // last three, and this case is one of the several whose subject runs out
-    // there — the mirror half of it only means something for a definition whose
-    // LEGACY BLOCK reads the mirror, so when none is left the case has to be
-    // re-pointed at what the mirror is FOR (an un-migrated reader) rather than
-    // kept alive on a flipped id.
-    const UNFLIPPED = 'adx'
-    expect(ENGINE_FLIPPED_DEF_IDS.has(UNFLIPPED),
-      `${UNFLIPPED} is flipped — this case needs an un-flipped subject or the MIRROR ` +
-      'assertion stops being about a legacy block that reads it').toBe(false)
+    // ⚠️ THE SUBJECT MOVED AT B5 TASK 5 (`atr` → `mfi`), AGAIN AT TASK 7 (`mfi` →
+    // `adx`), AND RAN OUT AT TASK 8. It was always chosen for being UN-FLIPPED,
+    // because the mirror was what an un-flipped definition's legacy block read
+    // and an instance-only write would have left it undrawn. There is no
+    // un-flipped definition left, and the note that stood here said what to do:
+    // re-point the MIRROR half at **what the mirror is FOR** rather than keep it
+    // alive on a flipped id.
+    //
+    // ⛔ AND WHAT IT IS FOR IS THE ROUND TRIP. `indicators.<id>` is the shape a
+    // chart is SHARED and RESTORED in — `handleCopyShareUrl` writes exactly that
+    // map, a preset stamps a whole blob over `indicatorInstances`, and
+    // `migrateLegacyToInstances` PROJECTS the instance list back out of it on
+    // read. So an add that moved only the instance is correct until the blob
+    // makes one trip without its instances, and then the indicator is gone. That
+    // is driven here, on a FLIPPED subject, which is now the only kind there is.
+    const ADDED = 'donchian'
+    expect(ENGINE_FLIPPED_DEF_IDS.has(ADDED), `${ADDED} is not engine-drawn`).toBe(true)
     const view = renderChart({ settings: mergeChartSettings(null) })
     const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
     act(() => { sec.items.find(i => i && i.id === 'ind-add').onSelect() })
 
-    const row = document.body.querySelector(`[data-def-id="${UNFLIPPED}"]`)
-    expect(row, `the library opened without an ${UNFLIPPED} row — this case asserts on nothing`).toBeTruthy()
+    const row = document.body.querySelector(`[data-def-id="${ADDED}"]`)
+    expect(row, `the library opened without a ${ADDED} row — this case asserts on nothing`).toBeTruthy()
     act(() => { fireEvent.click(row) })
 
     const next = view.lastSettings()
-    expect(next.indicators[UNFLIPPED].enabled, 'the MIRROR did not move — the legacy block still reads it')
-      .toBe(true)
-    expect((next.indicatorInstances || []).some(i => i && i.defId === UNFLIPPED && !i.deleted),
+    expect(next.indicators[ADDED].enabled, 'the MIRROR did not move').toBe(true)
+    expect((next.indicatorInstances || []).some(i => i && i.defId === ADDED && !i.deleted),
       'no instance was created — the engine lane sees nothing').toBe(true)
-    expect(isIndicatorEnabled(next, UNFLIPPED, ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(next, ADDED, ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    // ⭐ AND THE MIRROR SURVIVES THE TRIP — the half that makes writing it matter
+    // now that no legacy block reads it. Drop `indicatorInstances`, which is what
+    // a share link and a preset both do, and the read-time migrator must rebuild
+    // the instance from the mirror alone.
+    expect(migrateLegacyToInstances({ ...next, indicatorInstances: [] }, registry)
+      .some(i => i && i.defId === ADDED && !i.deleted),
+    'the mirror did not survive a blob round trip — a share link would drop this indicator')
+      .toBe(true)
   })
 })
 
@@ -4759,6 +4878,487 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       .toEqual(['bb', 'macd', 'rsi', 'vwap'])
     for (const id of ['mfi', 'cci', 'williamsR']) {
       expect(INDICATOR_CHORDS.some(c => c.defId === id), id + ' gained a chord').toBe(false)
+    }
+  })
+})
+
+describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component', () => {
+  const ADX_ON = { adx: { enabled: true, period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' } }
+  const OBV_ON = { obv: { enabled: true, color: '#9ca3af' } }
+  const DON_ON = { donchian: { enabled: true, period: 20, color: 'rgba(96,165,250,0.5)' } }
+  const ADX_INSTANCE = {
+    instanceId: 'engine-test:adx', defId: 'adx', defVersion: 1,
+    inputs: { period: 21, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' },
+    placement: { target: 'pane' }, hidden: false,
+  }
+  const OBV_INSTANCE = {
+    instanceId: 'engine-test:obv', defId: 'obv', defVersion: 1,
+    inputs: { color: '#9ca3af' }, placement: { target: 'pane' }, hidden: false,
+  }
+  const DON_INSTANCE = {
+    instanceId: 'engine-test:donchian', defId: 'donchian', defVersion: 1,
+    inputs: { period: 55, color: 'rgba(96,165,250,0.5)' },
+    placement: { target: 'price' }, hidden: false,
+  }
+  const RSI_ON_HERE = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
+  const hover = (view, extraSeriesData) => settledLegend(view, crosshairAt(BARS, extraSeriesData))
+  const onScale = (id) => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === id)
+  const boundFor = (id) => bound().filter(b => b.defId === id)
+  const bandNow = (id) => {
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx, 'no sync happened — the band assertion would be vacuous').toBeTruthy()
+    return ctx.paneMargins[id]
+  }
+  const guidesOn = (bindings) => {
+    const owned = new Set(bindings.map(b => b.series))
+    return H.priceLineCalls.filter(c => owned.has(c.series)).map(c => c.options)
+  }
+
+  it('all three are flipped, and none draws a second copy from a legacy block', () => {
+    // The non-vacuity gate for the whole block, in both directions: flipped (so
+    // the engine is the authority) AND drawn exactly once (so the deletion of the
+    // hand-written blocks really happened rather than being guarded).
+    for (const id of ['adx', 'obv', 'donchian']) {
+      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id + ' is not flipped').toBe(true)
+      expect(ENGINE_MIGRATED_DEF_IDS.has(id), id + ' is not migrated').toBe(true)
+    }
+    draw({ indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON } })
+    expect(boundFor('adx'), 'the engine did not draw all three ADX lines').toHaveLength(3)
+    expect(boundFor('obv'), 'the engine did not draw OBV').toHaveLength(1)
+    expect(boundFor('donchian'), 'the engine did not draw all three Donchian lines').toHaveLength(3)
+    // ⛔ THE DOUBLE-DRAW RAIL. Four series on the `adx` scale would mean the
+    // legacy block is still drawing beside the engine — invisible in a pixel diff
+    // (two identical lines on top of each other) and obvious here.
+    expect(onScale('adx'), 'a fourth line on the adx scale — the legacy block survived').toHaveLength(3)
+    expect(onScale('obv'), 'two OBV lines').toHaveLength(1)
+    const donLines = H.addSeriesCalls.filter(
+      c => c.options && c.options.color === DON_ON.donchian.color)
+    expect(donLines, 'the Donchian channel is drawn twice').toHaveLength(3)
+  })
+
+  it('⭐ DONCHIAN\'S MIDDLE LINE IS LargeDashed, at the component', () => {
+    // ⛔ THE ONE THING IN THIS TASK NO SERIES COUNT AND NO SCALE ASSERTION CAN
+    // SEE. The shipped block built its three with `style: 0, 3, 0`; the
+    // definition declared NO `lineStyle` on the `middle`, and
+    // `pool.seriesOptionsForPlot` resolves an absent plot style to SOLID — so
+    // the engine would have drawn the mid-line solid and every "three Donchian
+    // lines" count above would still pass.
+    draw({ indicators: { ...DON_ON } })
+    const donLines = H.addSeriesCalls.filter(
+      c => c.options && c.options.color === DON_ON.donchian.color)
+    expect(donLines, 'no Donchian lines — this case is vacuous').toHaveLength(3)
+    expect(donLines.map(c => c.options.lineStyle),
+      'Donchian\'s mid-line lost its LargeDashed (3) — solid|solid|solid is what an omitted '
+      + '`lineStyle` produces, and it is the same picture as its two edges').toEqual([0, 3, 0])
+    // …and BB is the CONTROL, because it is the same band shape with the opposite
+    // styling: dashed edges around a solid middle. A mix-up between the two
+    // definitions would swap these two arrays and nothing else would notice.
+    cleanup(); H.reset()
+    draw({ indicators: { ...BB_CONTROL } })
+    const bbLines = H.addSeriesCalls.filter(c => c.options && c.options.color === BB_CONTROL.bb.color)
+    expect(bbLines.map(c => c.options.lineStyle), 'BB is the opposite shape').toEqual([2, 0, 2])
+  })
+
+  it('⭐ ADX\'s ONE guide sits on the ADX LINE, not on +DI or -DI', () => {
+    // A guide is a `createPriceLine`, present in no binding and no manifest, so
+    // no series assertion can see it move. Drawn on +DI it would be at the same
+    // price, in the same colour, on the same scale — identical until the two
+    // series are hidden independently, which is what the declutter toggle does.
+    draw({ indicators: { ...ADX_ON } })
+    const lines = boundFor('adx')
+    expect(lines.map(b => b.plotKey)).toEqual(['adx', 'plusDI', 'minusDI'])
+    expect(guidesOn([lines[0]]).map(g => g.price), 'the ADX line lost its guide').toEqual([25])
+    expect(guidesOn([lines[1], lines[2]]), 'a guide landed on a directional line').toEqual([])
+    const g = guidesOn([lines[0]])[0]
+    expect(g.lineStyle, 'the guide changed dash').toBe(2)
+    expect(g.lineWidth).toBe(1)
+    expect(g.color).toBe('rgba(229,231,235,0.3)')
+    expect(g.axisLabelVisible, 'the guide put a label on the axis').toBe(false)
+    expect('title' in g, 'the guide gained a title the shipped call never passed').toBe(false)
+    // …and the other two definitions draw NO guides at all, which is the half a
+    // "one guide exists" count cannot state.
+    expect(guidesOn(boundFor('obv'))).toEqual([])
+    expect(guidesOn(boundFor('donchian'))).toEqual([])
+  })
+
+  it('⭐ ADX ARRIVING and DEPARTING mid-session: nothing → three lines, a guide and a band → nothing', () => {
+    // ⛔ THE DIRECTION A USER ACTUALLY PERFORMS, and the one no parity case can
+    // photograph. A band left reserved for a departed indicator is a permanently
+    // short price pane; a band never reserved is the "oscillator drawn on top of
+    // the volume bars" defect; an orphaned guide is a horizontal line at 25
+    // across a pane that no longer holds an ADX.
+    const off = {
+      indicators: { ...BB_CONTROL, adx: { ...ADX_ON.adx, enabled: false } },
+      indicatorInstances: [],
+    }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(bound(), 'the control instance did not draw — every phase below is vacuous').toHaveLength(3)
+    expect(bandNow('adx'), 'a band was reserved for an ADX nobody asked for').toBeUndefined()
+    expect(onScale('adx'), 'something drew ADX while it was off').toHaveLength(0)
+
+    const on = setIndicatorEnabled(off, 'adx', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    const arrived = boundFor('adx')
+    expect(arrived, 'arriving mid-session drew the wrong number of lines').toHaveLength(3)
+    expect(bandNow('adx'), 'arriving mid-session reserved no band').toEqual({ top: 0.85, bottom: 0 })
+    expect(guidesOn(arrived).map(g => g.price), 'arriving mid-session drew no guide').toEqual([25])
+    expect(onScale('adx'), 'a fourth line appeared on the adx scale').toHaveLength(3)
+
+    const offAgain = setIndicatorEnabled(on, 'adx', false, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    expect(boundFor('adx'), 'departing mid-session left a line behind').toHaveLength(0)
+    for (const b of arrived) {
+      expect(H.removedSeries, 'a departed ADX line is still on the chart').toContain(b.series)
+    }
+    expect(bandNow('adx'), 'departing mid-session left its band reserved').toBeUndefined()
+  })
+
+  it('⭐ OBV ARRIVING and DEPARTING mid-session — the AUTOSCALED band on 1e8 values', () => {
+    // The autoscale seam on a REAL scale. `obv` declares no range at all, so the
+    // scale options are `{autoScale: true}` with no `minimum`/`maximum` — and a
+    // band that inherited a departed neighbour's frozen 0-100 would frame a
+    // hundred-million-scale column inside a hundred points.
+    const off = {
+      indicators: { ...BB_CONTROL, obv: { ...OBV_ON.obv, enabled: false } },
+      indicatorInstances: [],
+    }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(bound()).toHaveLength(3)
+    expect(bandNow('obv')).toBeUndefined()
+
+    const on = setIndicatorEnabled(off, 'obv', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    const arrived = boundFor('obv')
+    expect(arrived, 'arriving mid-session drew nothing').toHaveLength(1)
+    // ⭐ `paneMargins.PANES` gives obv `baseH: 0.13`, NOT the 0.15 every
+    // oscillator before it in this phase had — so a band copied from mfi's case
+    // would be wrong by two hundredths of the chart.
+    expect(bandNow('obv'), 'arriving mid-session reserved the wrong band')
+      .toEqual({ top: 0.87, bottom: 0 })
+    expect(guidesOn(arrived), 'OBV drew a guide it has never had').toEqual([])
+    // …and the DATA really is 1e8-scale, so the seam is not theoretical.
+    const data = H.setDataCalls.filter(c => c.series === arrived[0].series).at(-1)
+    expect(data, 'no data reached OBV').toBeTruthy()
+    expect(Math.max(...data.data.map(p => Math.abs(p.value || 0)))).toBeGreaterThan(1e7)
+    // ⭐ AND ITS ZERO SEED SURVIVES — bar 0 is `0`, not whitespace. A preserved
+    // quirk, transcribed rather than corrected.
+    expect(data.data[0], 'OBV\'s zero seed became whitespace')
+      .toEqual({ time: data.data[0].time, value: 0 })
+
+    const offAgain = setIndicatorEnabled(on, 'obv', false, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    expect(boundFor('obv'), 'departing mid-session left the line behind').toHaveLength(0)
+    expect(H.removedSeries).toContain(arrived[0].series)
+    expect(bandNow('obv'), 'departing mid-session left its band reserved').toBeUndefined()
+  })
+
+  it('⭐ DONCHIAN ARRIVING and DEPARTING mid-session — a PRICE OVERLAY reserves NO band', () => {
+    // ⛔ THE ASYMMETRY THAT MAKES THIS ONE DIFFERENT FROM THE OTHER TWO, and the
+    // one a copy-paste of them would get wrong: a price overlay shares the
+    // CANDLES' pane and scale, so it must reserve NO band at all. A band reserved
+    // for it would shorten the price pane for an indicator that draws inside it.
+    const off = {
+      indicators: { ...BB_CONTROL, donchian: { ...DON_ON.donchian, enabled: false } },
+      indicatorInstances: [],
+    }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    expect(bound()).toHaveLength(3)
+    const mainBefore = bandNow('main')
+
+    const on = setIndicatorEnabled(off, 'donchian', true, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    const arrived = boundFor('donchian')
+    expect(arrived, 'arriving mid-session drew the wrong number of lines').toHaveLength(3)
+    expect(bandNow('donchian'), 'a price overlay reserved a band').toBeUndefined()
+    expect(bandNow('main'), 'the price pane moved for a price overlay').toEqual(mainBefore)
+    for (const b of arrived) {
+      expect(b.scaleId, 'a Donchian line landed off the candles\' scale').toBe('right')
+    }
+    // …and it is autoscale-EXCLUDED, which is the seam B3 Task 1 priced at 38,491
+    // changed pixels: Donchian's edges are the window's extremes by construction,
+    // so a line allowed to drive the main scale reframes every candle.
+    const created = H.addSeriesCalls.filter(c => c.options && c.options.color === DON_ON.donchian.color)
+    expect(created).toHaveLength(3)
+    for (const c of created) {
+      expect(typeof c.options.autoscaleInfoProvider).toBe('function')
+      expect(c.options.autoscaleInfoProvider(),
+        'a Donchian line is driving the candles\' autoscale').toBe(null)
+    }
+
+    const offAgain = setIndicatorEnabled(on, 'donchian', false, registry)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    expect(boundFor('donchian'), 'departing mid-session left a line behind').toHaveLength(0)
+    for (const b of arrived) expect(H.removedSeries).toContain(b.series)
+  })
+
+  it('⭐ PROJECTED ↔ STORED, both directions, all three — the SAME series throughout', () => {
+    // The second crossover, and the one every existing user is on: a blob with
+    // only the legacy mirror is PROJECTED into instances at read time, and a
+    // stored instance for the same definition must take over WITHOUT the pool
+    // destroying and recreating the series (#2049), and without the projection
+    // going on drawing a second copy beside it.
+    for (const [id, instance, count] of [
+      ['adx', ADX_INSTANCE, 3], ['obv', OBV_INSTANCE, 1], ['donchian', DON_INSTANCE, 3],
+    ]) {
+      cleanup(); H.reset()
+      const projectedOnly = { indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON } }
+      const view = render(
+        <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />)
+      const before = boundFor(id)
+      expect(before, id + ': the projection drew the wrong number of lines').toHaveLength(count)
+      expect(before[0].key, id + ': it was not the PROJECTED instance').toContain('legacy:' + id)
+      const first = before.map(b => b.series)
+
+      view.rerender(
+        <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+          settingsOverride={{ ...projectedOnly, indicatorInstances: [instance] }} />)
+      const stored = boundFor(id)
+      expect(stored, id + ': the stored instance drew the wrong number of lines').toHaveLength(count)
+      expect(stored[0].key, id + ': the projection is still drawing beside the stored instance')
+        .toContain(instance.instanceId)
+      expect(stored.map(b => b.series), id + ': the hand-over recreated the series').toEqual(first)
+
+      view.rerender(
+        <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+          settingsOverride={{ ...projectedOnly, indicatorInstances: [] }} />)
+      const back = boundFor(id)
+      expect(back, id + ': it vanished when the stored instance was removed').toHaveLength(count)
+      expect(back[0].key, id + ': nothing projected it back').toContain('legacy:' + id)
+      expect(back.map(b => b.series), id + ': the hand-over back recreated the series').toEqual(first)
+      for (const s of first) {
+        expect(H.removedSeries,
+          id + ': the hand-over removed a series the pool should have absorbed').not.toContain(s)
+      }
+      view.unmount()
+    }
+  })
+
+  it('⭐ #2049: a period change RESTYLES the same seven series, and the guide is not churned', () => {
+    // The open LWC issue this branch is built around: mass `removeSeries` is a
+    // 2-4 s main-thread block. A period change is the harder half — it changes
+    // the NUMBERS, so a naive implementation recreates. ⚠️ OBV IS THE ODD ONE:
+    // it declares no period at all, so its half of this case is a COLOUR, which
+    // is written down here rather than left as an unexplained asymmetry.
+    const base = {
+      indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON },
+      indicatorInstances: [ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE],
+    }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
+    const before = bound().map(b => b.series)
+    expect(before, 'nothing was drawn — this case is vacuous').toHaveLength(7)
+    const createdBefore = H.addSeriesCalls.length
+    const guidesBefore = H.priceLineCalls.length
+    expect(guidesBefore, 'no guides at all — the churn assertion below is vacuous').toBe(1)
+
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={{
+      ...base,
+      indicatorInstances: [
+        { ...ADX_INSTANCE, inputs: { ...ADX_INSTANCE.inputs, period: 34, adxColor: '#00ff00' } },
+        { ...OBV_INSTANCE, inputs: { color: '#0000ff' } },
+        { ...DON_INSTANCE, inputs: { period: 89, color: '#ff00ff' } },
+      ],
+    }} />)
+
+    expect(bound().map(b => b.series).sort(), 'a restyle destroyed and recreated a series')
+      .toEqual([...before].sort())
+    expect(H.addSeriesCalls.length, 'a restyle created a new series').toBe(createdBefore)
+    expect(H.removedSeries.filter(s => before.includes(s)),
+      'a restyle removed a series — this is exactly #2049').toHaveLength(0)
+    // ⚠️ THE GUIDE DID NOT MOVE — 25 is a literal, not an input — so the guide
+    // signature is unchanged and LWC (which has no "update a price line") is
+    // asked for nothing.
+    expect(H.priceLineCalls.length, 'a restyle re-created the guide').toBe(guidesBefore)
+    // …and the NUMBERS really moved with the period, which is what tells a live
+    // compute from a replay: a period appears in NO option object.
+    const adxLine = boundFor('adx')[0]
+    const adxData = H.setDataCalls.filter(c => c.series === adxLine.series).at(-1)
+    expect(adxData.data.findIndex(p => Number.isFinite(p.value)),
+      'ADX\'s period never reached the compute').toBe(67)
+  })
+
+  it('⛔ the declutter toggle reaches all seven — AND still hides the VOLUME series', () => {
+    // ⭐ THIS IS THE FIRST PAINT AFTER THE HIDE-ALL REF ARRAY WAS **DELETED**
+    // (not shortened — it had no indicator entries left). Two halves:
+    //
+    //   1. every engine series is reached, through the binding map AND through
+    //      `binder.sync` — the second is what stops the ~1 Hz extended-hours
+    //      re-assert from silently re-showing what the user just hid;
+    //   2. THE VOLUME SERIES IS STILL HIDDEN. Volume was the FIRST entry in that
+    //      array and it is not an indicator — no definition, no instance, no
+    //      binding — so a `.forEach(set)` deletion takes it with it, and no pixel
+    //      case can see that (the parity page presses no keys).
+    const settings = {
+      volume: { visible: true },
+      indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON },
+    }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
+    const series = bound().map(b => b.series)
+    expect(series, 'nothing was bound — this case is vacuous').toHaveLength(7)
+    const volume = H.addSeriesCalls.find(
+      c => c.options && c.options.priceFormat && c.options.priceFormat.type === 'custom')
+    expect(volume, 'no volume series — half of this case is vacuous').toBeTruthy()
+    expect(H.syncCalls.at(-1).indicatorsHidden).toBe(false)
+
+    act(() => { fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' }) })
+    for (const s of series) {
+      expect(H.visibilityCalls.filter(v => v.series === s && v.visible === false).length,
+        'a flipped indicator was missed by the declutter toggle').toBeGreaterThan(0)
+    }
+    expect(H.visibilityCalls.filter(v => v.series === volume.series && v.visible === false).length,
+      'the VOLUME series was not hidden — it went with the deleted ref array').toBeGreaterThan(0)
+
+    const before = H.syncCalls.length
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)}
+        settingsOverride={settings} />)
+    expect(H.syncCalls.length, 'no further sync — the assertion below would be vacuous')
+      .toBeGreaterThan(before)
+    expect(H.syncCalls.at(-1).indicatorsHidden, 'the next paint would re-show them').toBe(true)
+
+    act(() => { fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' }) })
+    for (const s of [...series, volume.series]) {
+      expect(H.visibilityCalls.filter(v => v.series === s && v.visible === true).length)
+        .toBeGreaterThan(0)
+    }
+  })
+
+  it('a settings round-trip survives BOTH allow-lists, and the chart follows', () => {
+    // ⛔ TWO ALLOW-LISTS, AND A KEY MISSING FROM EITHER IS SILENTLY DROPPED ON
+    // EVERY READ. `mergeChartSettings` is the per-key one; `mergeSettingsOverride`
+    // is the second, which a grid cell's per-cell override goes through.
+    const merged = mergeChartSettings(JSON.stringify({
+      indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON },
+      indicatorInstances: [ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE],
+    }))
+    expect(merged.indicatorInstances).toEqual([ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE])
+    // ⭐ ADX CARRIES THREE COLOURS OFF ONE SECTION — the widest per-key row in
+    // the allow-list, and the one where a dropped key is a line that renders in
+    // LWC's default blue rather than not at all.
+    expect(merged.indicators.adx).toMatchObject(ADX_ON.adx)
+    expect(merged.indicators.obv).toMatchObject(OBV_ON.obv)
+    expect(merged.indicators.donchian).toMatchObject(DON_ON.donchian)
+
+    const out = mergeSettingsOverride(merged, {
+      indicatorInstances: [{ instanceId: 'engine-test:donchian', inputs: { period: 89 } }],
+    })
+    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(3)
+    expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:donchian').inputs)
+      .toEqual({ ...DON_INSTANCE.inputs, period: 89 })
+    expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:adx')).toEqual(ADX_INSTANCE)
+
+    // …and the round-tripped blob draws it, once, with the patched period. The
+    // period is read off the DATA, because it appears in no option object — a
+    // longer Donchian period pushes the first finite bar further right.
+    draw(out)
+    const don = boundFor('donchian')
+    expect(don, 'the round-tripped blob drew the wrong number of lines').toHaveLength(3)
+    const donData = H.setDataCalls.filter(c => c.series === don[0].series).at(-1)
+    expect(donData, 'no data reached Donchian — the period assertion below is vacuous').toBeTruthy()
+    expect(donData.data.findIndex(p => Number.isFinite(p.value)),
+      'the patched period never reached the compute').toBe(88)
+  })
+
+  it('the VOLUME-OVERLAY path, mid-session, for a THREE-SERIES definition', () => {
+    // ⚠️ WHAT NO EARLIER TASK COULD DRIVE: every definition migrated before this
+    // one binds ONE or TWO series, so "the instance relocated" and "a series
+    // relocated" were the same sentence. ADX binds THREE on ONE scale, so a
+    // relocation that moved the primary and left the two directional lines behind
+    // would put +DI and -DI on a scale their own line has left.
+    const overlaid = {
+      volume: { visible: true },
+      volumeOverlayIndicators: ['adx'],
+      indicators: { ...ADX_ON },
+    }
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={overlaid} />)
+    const onLeft = H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'left')
+    expect(onLeft, 'the overlay path drew the wrong number of lines on the left axis').toHaveLength(3)
+    for (const c of onLeft) expect(c.paneIndex, 'an overlaid line landed off the volume pane').toBe(1)
+    const before = bound().map(b => b.series)
+    expect(before).toHaveLength(3)
+
+    view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={{ ...overlaid, volumeOverlayIndicators: [] }} />)
+    const after = bound()
+    expect(after, 'a line vanished when the oscillator left the volume pane').toHaveLength(3)
+    // ⚠️ #2049, AND THE DIFFERENCE FROM LEGACY: the hand-written block DESTROYED
+    // and recreated a series whose target scale changed (`ensureIndTarget`, now
+    // deleted); the engine RELOCATES it.
+    expect(after.map(b => b.series), 'the pool destroyed and recreated a line').toEqual(before)
+    for (const s of before) expect(H.removedSeries).not.toContain(s)
+    expect(H.moveToPaneCalls.length, 'nothing relocated').toBeGreaterThan(0)
+    for (const b of after) {
+      expect(b.scaleId, 'a line did not go back to its own named scale').toBe('adx')
+    }
+    // …and the guide came back with them, on the primary line and nowhere else.
+    expect(guidesOn([after[0]]).map(g => g.price)).toEqual([25])
+  })
+
+  it('none of the three adds a legend chip, and the nine are still the nine', async () => {
+    // ⛔ THE ABSENCE IS THE ASSERTION, AND IT IS TRANSCRIBED RATHER THAN
+    // IMPROVED. None of these definitions declares a `plots[].legend` block, so
+    // none produced a chip on the legacy lane and none produces one on the engine
+    // lane. The risk the flip creates is the OPPOSITE of a lost chip: the engine
+    // lane emits a chip for any plot that declares one, so a `legend: {}` added
+    // in passing would put SEVEN new chips in a legend that has printed nine
+    // since B4.
+    for (const id of ['adx', 'obv', 'donchian']) {
+      expect(registry.getDefinition(id).plots.filter(p => p.legend), id).toEqual([])
+    }
+    const view = draw({
+      indicators: { ...RSI_ON_HERE.indicators, ...ADX_ON, ...OBV_ON, ...DON_ON },
+    })
+    const drawn = ['adx', 'obv', 'donchian'].flatMap(id => boundFor(id))
+    expect(drawn, 'one of the three never drew — this case is vacuous').toHaveLength(7)
+    const text = await hover(view, [
+      [boundFor('rsi')[0].series, { value: 54.3 }],
+      ...drawn.map(b => [b.series, { value: 42.5 }]),
+    ])
+    expect(text, 'the engine lane stopped drawing — the control chip is missing').toContain('RSI(14)')
+    for (const label of ['ADX', '+DI', '-DI', 'OBV', 'Upper', 'Mid', 'Lower']) {
+      expect(text, label + ' gained a chip the shipped legend never printed').not.toContain(label)
+    }
+  })
+
+  it('none of the three has a keyboard chord, and that is UNCHANGED by the flip', () => {
+    // ⚠️ STATED RATHER THAN ASSUMED. The failure it guards against is a chord
+    // added later that writes `cs.indicators.<id>` RAW and moves a number nothing
+    // renders.
+    expect(INDICATOR_CHORDS.map(c => c.defId).sort(), 'a chord was added or removed')
+      .toEqual(['bb', 'macd', 'rsi', 'vwap'])
+    for (const id of ['adx', 'obv', 'donchian']) {
+      expect(INDICATOR_CHORDS.some(c => c.defId === id), id + ' gained a chord').toBe(false)
+    }
+  })
+
+  it('⭐⭐ DONCHIAN IS INSERTED LAST AMONG THE FIVE PRICE OVERLAYS, on a real chart', () => {
+    // ⛔ THE REASON THIS TASK COULD NOT BE REORDERED WITH TASK 6. LWC z-stacks by
+    // INSERTION, and the engine draws its whole set contiguously at ONE call
+    // site — so the order the five overlays reach `addSeries` is the order they
+    // paint over each other, and it has to be the shipped one:
+    // `bb, vwap, sar, ichimoku, donchian`. `migrateLegacyToInstances` walks the
+    // REGISTRY, which is what makes that true for a blob written in any order.
+    //
+    // ⚠️ THE FIXTURE'S KEY ORDER IS DELIBERATELY THE REVERSE, so a migrator that
+    // echoed `Object.keys(cs.indicators)` would look nothing like this.
+    const BLOB = {
+      indicators: {
+        donchian: { enabled: true }, ichimoku: { enabled: true }, sar: { enabled: true },
+        vwap: { enabled: true }, bb: { enabled: true },
+      },
+    }
+    draw(BLOB, '5')
+    const order = bound().map(b => b.defId).filter((id, i, a) => id !== a[i - 1])
+    expect(order, 'the five price overlays are no longer inserted in registry order — every '
+      + 'one of them shares the candles\' pane and scale, so this changes which line wins the '
+      + 'pixel wherever two of them cross')
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    expect(Object.keys(BLOB.indicators), 'the fixture blob is already in registry order, so this '
+      + 'control cannot tell a registry walk from a key echo').not.toEqual(order)
+    // …and every one of the five really is on the candles' scale, which is what
+    // makes their relative order matter at all.
+    for (const b of bound()) {
+      expect(b.scaleId, b.defId + ' left the candles\' scale').toBe('right')
     }
   })
 })

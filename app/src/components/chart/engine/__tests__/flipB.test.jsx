@@ -199,11 +199,20 @@ describe('Flip B — the set itself', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
     // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6,
-    // and `mfi`, `cci` and `williamsR` at Task 7 — each group migrated and
-    // flipped in ONE commit. This literal moves once per B5 migration task,
-    // deliberately: it is the place a flip has to be WRITTEN DOWN, not derived.
+    // `mfi`, `cci` and `williamsR` at Task 7, and `adx`, `obv` and `donchian` at
+    // Task 8 — each group migrated and flipped in ONE commit. This literal moves
+    // once per B5 migration task, deliberately: it is the place a flip has to be
+    // WRITTEN DOWN, not derived.
+    //
+    // ⭐⭐ AND IT HAS MOVED FOR THE LAST TIME. Fourteen is every series-expressible
+    // definition there is, so this literal now equals `listDefinitions()` — the
+    // equality Task 13 deletes both sets in favour of. Written out rather than
+    // derived precisely because a derived expectation agrees with the code by
+    // construction: an id silently dropped from the registry would keep a derived
+    // version green and fails this one by name.
     expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
-      ['atr', 'bb', 'cci', 'ichimoku', 'macd', 'mfi', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
@@ -260,43 +269,60 @@ describe('Flip B — the instance list is the read authority', () => {
     expect(bound()).toHaveLength(4)
   })
 
-  it('…and a NON-MIGRATED definition never reaches the engine, flag on or off', () => {
-    // ⚠️ THE SUBJECT MOVED, BECAUSE TASK 11 TOOK THE OLD ONE. This case used to
-    // read "an UN-FLIPPED migrated definition still needs the flag", with `macd`
-    // as its subject — the narrowing that kept the flip per-definition. `macd` is
-    // flipped now and the migrated set has no un-flipped member at all, so that
-    // wording has no subject and the case above (`NOTHING is migrated-but-
-    // un-flipped`) is what watches for one appearing.
+  it('…and a definition the engine was NEVER GIVEN never reaches it, leftover flag or not', () => {
+    // ⚠️ THE SUBJECT MOVED FOUR TIMES AND THEN RAN OUT, WHICH IS THE POINT OF
+    // THIS PARAGRAPH. It was `macd` (Task 11's narrowing), then `stoch` (B5 Task
+    // 5), then `mfi` (Task 7), then `adx` — each time going RED by name rather
+    // than passing on a definition that had migrated underneath it, and each time
+    // the note said the next migrator would have to move it again. B5 TASK 8 TOOK
+    // THE LAST THREE (`adx`, `obv`, `donchian`), so **there is no un-migrated
+    // definition left and there never will be**: `ENGINE_FLIPPED_DEF_IDS` equals
+    // `listDefinitions()`.
     //
-    // What is still true and still worth a rail is the OTHER edge of the same
-    // filter: a definition the engine has never been given never reaches it,
-    // whatever the flag says, and its legacy block goes on drawing it. The
-    // subject has to be a pane oscillator with its own named scale — the same
-    // shape MACD had — so a filter that leaked would look identical.
+    // ⛔ SO IT MOVES DOWN A LEVEL RATHER THAN BEING DELETED, exactly as
+    // `stockChartWiring`'s chip control did at Task 6. A control with no subject
+    // that stays green is a defect; a control whose subject was a POPULATION is
+    // re-pointed at the MECHANISM that population was standing in for. Two
+    // subjects, neither of which can ever expire:
     //
-    // ⚠️ THE SUBJECT HAS NOW MOVED THREE TIMES: `stoch` → `mfi` (B5 Task 5) →
-    // `adx` (B5 Task 7). Each time for the same reason and each time going RED
-    // by name rather than passing on a definition that had migrated underneath
-    // it. `adx` is the same shape the two before it were — `fixedPane(0, 100)`,
-    // its own named `adx` scale, a hand-written block — so a filter that leaked
-    // would look identical. Every subject this control can have is on the
-    // cutover's list, and `adx` is one of the LAST THREE (`adx`, `obv`,
-    // `donchian`); Task 8 takes them, and the assertion below is what tells that
-    // migrator this control has run out of subjects and has to move down a level
-    // the way `stockChartWiring`'s chip control did at Task 6.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('adx'),
-      'adx migrated — this negative control needs a new subject').toBe(false)
-    // ⚠️ THE LOOP USED TO BE OVER `engineEnabled` — "with the flag off AND on".
-    // B5 Task 4 deleted the key, so it is over a LEFTOVER value a stale blob or an
-    // old share link can still carry, and the claim is that none of them starts
-    // anything. Same two runs, and the second is still the one that could fail.
+    //   1. `volumeProfile` — the ONE indicator key with NO definition at all. It
+    //      is structurally carved out (`CARVED_OUT_INDICATOR_KEYS`), it is not
+    //      series-expressible (a horizontal histogram on its own canvas), and
+    //      spec §5 keeps it that way — so "an indicator the engine has never been
+    //      given" has a permanent instance.
+    //   2. a defId the registry does not know at all — the shape a stale share
+    //      link or a hand-edited blob produces.
+    //
+    // Both must reach the engine as NOTHING, and neither may throw.
     for (const leftover of [undefined, true]) {
       cleanup(); H.reset()
-      draw({ engineEnabled: leftover, indicators: { adx: { enabled: true, period: 14 } } })
-      expect(bound(), `adx reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
-      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'adx').length,
-        'the legacy ADX block stopped drawing').toBeGreaterThan(0)
+      draw({
+        engineEnabled: leftover,
+        indicators: { volumeProfile: { enabled: true } },
+        indicatorInstances: [
+          { instanceId: 'legacy:volumeProfile', defId: 'volumeProfile', inputs: {}, hidden: false },
+          { instanceId: 'x:bogus', defId: '__notADefinition', inputs: {}, hidden: false },
+        ],
+      })
+      expect(bound(), `something reached the engine with a leftover flag ${leftover}`).toHaveLength(0)
+      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'volumeProfile').length,
+        'the engine invented a volumeProfile scale').toBe(0)
     }
+    // ⛔ AND THE CONTROL THAT THIS IS A FILTER AND NOT A DEAD ENGINE: the same
+    // chart with a REAL flipped definition on binds it. Without this the loop
+    // above passes on a component that draws nothing at all.
+    cleanup(); H.reset()
+    draw({
+      indicators: { volumeProfile: { enabled: true }, rsi: { enabled: true, period: 14 } },
+    })
+    expect(bound(), 'the engine bound nothing — the loop above proves nothing').toHaveLength(1)
+    expect(rsiSeries()).toHaveLength(1)
+    // …and the two reasons the two subjects are refused are DIFFERENT, which is
+    // why both are here: one has no definition to resolve, the other is not in
+    // the flip set. The first is the durable one.
+    expect(registry.getDefinition('volumeProfile'), 'volumeProfile gained a definition — '
+      + 'this control needs re-reading, and so does spec §5').toBeNull()
+    expect(registry.CARVED_OUT_INDICATOR_KEYS.has('volumeProfile')).toBe(true)
   })
 
   it('a stored INSTANCE beats a false legacy toggle — instances are authoritative', () => {

@@ -519,6 +519,70 @@ describe('paneManifest reads the renderer back', () => {
     expect(m.panes[0].series[0].scaleId).toBe('macd')
   })
 
+  // ─── B5 TASK 8: AN OMITTED `priceScaleId` IS RESOLVED, NOT REPORTED AS NULL ──
+  //
+  // 🔴 MEASURED, ON THE LAST MIGRATION, AND IT COST A RED GATE FIRST. `donchian`
+  // is the ONE legacy indicator block that created its series WITHOUT a
+  // `priceScaleId` (sar/ichimoku/mfi/cci/williamsR/adx/obv and the MA overlays
+  // all pass one), and LWC leaves the option `undefined` in that case — it
+  // resolves it only at insertion time. So the legacy build reported
+  // `scaleId: null` for three series that sat on exactly the `'right'` scale the
+  // engine names explicitly, and the migration read as a **GEOMETRY** change of
+  // three `scaleId`s with **0 changed pixels** — the one shape the gate refuses
+  // unconditionally and `expectProvenance` cannot declare away.
+  //
+  // ⛔ THE FIX IS AT THE INSTRUMENT, NOT AT THE GATE. A manifest field called
+  // `scaleId` has to mean WHICH SCALE THE SERIES IS ON; reporting which option
+  // the caller happened to pass is a different question, and it is not the one
+  // the geometry rule is asking.
+  const chartWithScales = (panes, opts) => ({ panes: () => panes, options: () => opts })
+  const noIdSeries = { seriesType: () => 'Line', options: () => ({ color: '#fff' }) }
+
+  it.each([
+    ['only the right scale visible', { leftPriceScale: { visible: false }, rightPriceScale: { visible: true } }, 'right'],
+    ['only the left scale visible', { leftPriceScale: { visible: true }, rightPriceScale: { visible: false } }, 'left'],
+    ['both visible — the chart\'s declared preference decides',
+      { leftPriceScale: { visible: true }, rightPriceScale: { visible: true }, defaultVisiblePriceScaleId: 'left' }, 'left'],
+    ['neither visible — the same preference, same rule',
+      { leftPriceScale: { visible: false }, rightPriceScale: { visible: false }, defaultVisiblePriceScaleId: 'right' }, 'right'],
+  ])('a series with no priceScaleId reads the scale LWC will put it on — %s', (_l, opts, want) => {
+    const m = paneManifest(chartWithScales([fakePane(0, 88, 88, [noIdSeries])], opts), [])
+    expect(m.panes[0].series[0].scaleId).toBe(want)
+  })
+
+  it('⭐ and the two default scales stay TELLABLE APART, which is why this is not a tolerance', () => {
+    // Before the resolution both of these read `null` and a series that had
+    // moved from one axis to the other was INVISIBLE to the geometry rule.
+    const onLeft = paneManifest(chartWithScales([fakePane(0, 88, 88, [noIdSeries])],
+      { leftPriceScale: { visible: true }, rightPriceScale: { visible: false } }), [])
+    const onRight = paneManifest(chartWithScales([fakePane(0, 88, 88, [noIdSeries])],
+      { leftPriceScale: { visible: false }, rightPriceScale: { visible: true } }), [])
+    expect(onLeft.panes[0].series[0].scaleId).not.toBe(onRight.panes[0].series[0].scaleId)
+  })
+
+  it('an EXPLICIT priceScaleId still wins over the chart default — the resolution is a fallback', () => {
+    const explicit = fakeSeries('Line', 'macd')
+    const m = paneManifest(chartWithScales([fakePane(0, 88, 88, [explicit])],
+      { leftPriceScale: { visible: false }, rightPriceScale: { visible: true } }), [])
+    expect(m.panes[0].series[0].scaleId).toBe('macd')
+  })
+
+  it('a BINDING\'s scaleId still wins over the chart default too', () => {
+    const m = paneManifest(chartWithScales([fakePane(0, 88, 88, [noIdSeries])],
+      { leftPriceScale: { visible: false }, rightPriceScale: { visible: true } }),
+    [{ series: noIdSeries, key: 'legacy:x::y', scaleId: 'adx' }])
+    expect(m.panes[0].series[0].scaleId).toBe('adx')
+  })
+
+  it.each([
+    ['a chart with no options() at all', { panes: () => [] }],
+    ['a chart whose options() throws', { panes: () => [], options: () => { throw new Error('gone') } }],
+    ['options() that name no scales', { panes: () => [], options: () => ({}) }],
+  ])('a chart that cannot say which scale is default reports null, never a guess — %s', (_l, c) => {
+    const m = paneManifest({ ...c, panes: () => [fakePane(0, 88, 88, [noIdSeries])] }, [])
+    expect(m.panes[0].series[0].scaleId).toBeNull()
+  })
+
   it.each([
     ['null', null],
     ['a chart with no panes() at all', {}],

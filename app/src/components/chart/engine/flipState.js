@@ -96,7 +96,10 @@ const EMPTY_INPUTS = sealedMap([])
  * and the engine's copy is inserted ABOVE an overlay it currently sits below.
  * They must therefore migrate in registry order, which
  * `stockChartWiring.test.jsx` pins ("no price overlay is migrated ahead of an
- * earlier one").
+ * earlier one"). ⭐ ALL FIVE ARE IN AS OF B5 TASK 8, so that rail's remaining
+ * job is to refuse a REORDER of the registry rather than a mis-ordered
+ * migration — and the instance list is what the binder actually inserts in, so
+ * `migrateLegacyToInstances` walking the registry is the thing holding it up.
  *
  * ⚠️ MEMBERSHIP IS NOT "IS IT DRAWN RIGHT NOW". `vwap` is in this set and draws
  * on NO daily chart — `engine/eligibility.js` removes it above 60-minute bars,
@@ -108,7 +111,7 @@ const EMPTY_INPUTS = sealedMap([])
  */
 export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
   'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
-  'mfi', 'cci', 'williamsR',
+  'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian',
 ])
 
 /**
@@ -237,6 +240,33 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
  * path puts two of them on one shared left axis — which `mfi`, `cci` and
  * `williamsR` are all eligible for, exactly as `stoch` and `atr` are.
  *
+ * ⭐⭐ B5 TASK 8 ADDED `adx`, `obv` AND `donchian` — THE LAST THREE — AND WITH
+ * THEM **THERE IS NOT ONE HAND-WRITTEN INDICATOR RENDER BLOCK LEFT IN
+ * `StockChart.jsx`.** That is not a milestone sentence, it is a testable one:
+ * `ENGINE_FLIPPED_DEF_IDS.size === listDefinitions().length` and the two are the
+ * SAME FOURTEEN IDS, which is the equality Task 13 deletes both sets in favour
+ * of. Four ledger rows retire in the same commit because they were ONE
+ * mechanism — the series `useRef`s, the `indicatorData` memo, the render blocks
+ * and the hide-all ref array — and `StockChart` now imports ZERO `compute*`
+ * functions, which is the behavioural half of that claim (a format-exact regex
+ * could not have caught a re-added import with no caller; that guard is in
+ * `enumerationSites.test.js`).
+ *
+ * ⚠️ AND THE THREE WENT IN REGISTRY ORDER FOR **BOTH** OF THE REASONS THE
+ * PARAGRAPHS ABOVE SPLIT APART, because this is the only task that carries one
+ * of each. `adx` and `obv` are PANE oscillators, so their hazard is the latent
+ * one — `binder.sync()` runs before every remaining legacy block, and with the
+ * lane now empty that clause has finally run out of subjects; what remains real
+ * for them is the volume-overlay path, which can put two oscillators on one
+ * shared left axis (`adx` and `obv` are the last two definitions to become
+ * relocation-eligible, so that is now EVERY pane oscillator there is).
+ * `donchian` is the LAST PRICE OVERLAY, and its hazard is the visible one: it
+ * shares the CANDLES' pane and scale with `bb`, `vwap`, `sar` and `ichimoku`,
+ * all four already engine-drawn and inserted contiguously at the sync call, so
+ * `donchian` had to come after them or LWC's insertion-order z-stacking would
+ * have put it UNDER two overlays it sits on top of today. Migrating it at Task 6
+ * would have inverted exactly that.
+ *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
  * cannot import from it. `StockChart` re-exports it so the plan's stated
@@ -244,7 +274,7 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
  */
 export const ENGINE_FLIPPED_DEF_IDS = sealedSet([
   'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
-  'mfi', 'cci', 'williamsR',
+  'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian',
 ])
 
 /**

@@ -439,13 +439,58 @@ export function currentPaneManifest() {
  * (`typings.d.ts`) — and `priceScaleId()` is not one of them, so the obvious
  * `series.priceScale().priceScaleId()` reads `undefined` on every series and the
  * manifest would silently report `null` for the field the cutover is most
- * supposed to be watched on. `SeriesOptionsCommon.priceScaleId` is real and
- * resolved.
+ * supposed to be watched on. (`ISeriesApi.priceScale()` does compute the true id
+ * internally — `series._internal_priceScale()._internal_id()`, dev bundle
+ * :12758 — but only to construct a fresh `PriceScaleApi`, which exposes neither
+ * the id nor a stable identity: `chart.priceScale(id)` returns a NEW object on
+ * every call, :13152, so an identity comparison cannot recover it either.)
+ *
+ * 🔴 AND `SeriesOptionsCommon.priceScaleId` IS **NOT** RESOLVED — this paragraph
+ * used to end by saying it was, and B5 Task 8 measured that false. LWC leaves the
+ * option `undefined` when the caller omits it and resolves it only at insertion
+ * (`targetScaleId = priceScaleId !== undefined ? priceScaleId :
+ * defaultVisiblePriceScaleId()`, :7334-7335), so a series created WITHOUT the
+ * option reported `null` here while sitting on exactly the same scale as its
+ * neighbour that passed `'right'`. That is not a nuance: `donchian`'s shipped
+ * block is the ONE legacy indicator block that omitted `priceScaleId` (`sar`,
+ * `ichimoku`, `mfi`, `cci`, `williamsR`, `adx`, `obv` and the MA overlays all
+ * pass it), so migrating it moved three `scaleId`s from `None` to `'right'` with
+ * **0 changed pixels** — a GEOMETRY diff, which no `expectProvenance` can declare
+ * away and which the gate is designed to refuse. The renderer had not changed;
+ * the manifest was reporting WHICH OPTION WAS PASSED rather than WHICH SCALE THE
+ * SERIES IS ON, and geometry means the second.
+ *
+ * ⛔ SO AN ABSENT OPTION IS RESOLVED THE WAY LWC RESOLVES IT, from the chart's
+ * own PUBLIC options (`_defaultVisibleScaleId`), and the candles — which have
+ * always omitted it too — now report `'right'` instead of `null`. This is
+ * strictly STRONGER, not a tolerance: two series on DIFFERENT default scales
+ * used to read identically (`null` both), and now they read `'right'` and
+ * `'left'`.
  */
+/**
+ * Which scale LWC will put a series on when its options carry no `priceScaleId`.
+ *
+ * A transcription of `ChartModel._internal_defaultVisiblePriceScaleId`
+ * (lightweight-charts 5.2.0 dev bundle :7214-7222) over the PUBLIC
+ * `chart.options()`: when exactly one of the two default scales is visible that
+ * one wins, otherwise the chart's declared `defaultVisiblePriceScaleId` does.
+ * `null` when the chart cannot answer — a manifest never guesses.
+ */
+function _defaultVisibleScaleId(chart) {
+  let o = null
+  try { o = chart && typeof chart.options === 'function' ? chart.options() : null } catch { o = null }
+  if (!o) return null
+  const left = o.leftPriceScale?.visible === true
+  const right = o.rightPriceScale?.visible === true
+  if (left !== right) return left ? 'left' : 'right'
+  return o.defaultVisiblePriceScaleId ?? null
+}
+
 export function paneManifest(chart, bindings) {
   let panes
   try { panes = chart && typeof chart.panes === 'function' ? chart.panes() : null } catch { panes = null }
   if (!Array.isArray(panes)) return null
+  const dfltScaleId = _defaultVisibleScaleId(chart)
 
   const byPane = new Map()
   for (const b of (Array.isArray(bindings) ? bindings : [])) {
@@ -472,7 +517,7 @@ export function paneManifest(chart, bindings) {
         try { opts = typeof s?.options === 'function' ? s.options() : null } catch { opts = null }
         return {
           type: typeof s?.seriesType === 'function' ? s.seriesType() : null,
-          scaleId: opts?.priceScaleId ?? meta.scaleId ?? null,
+          scaleId: opts?.priceScaleId ?? meta.scaleId ?? dfltScaleId,
           key: meta.key ?? null,
         }
       }),

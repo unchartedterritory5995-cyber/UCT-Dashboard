@@ -3,6 +3,7 @@ import { createBinder } from '../binder'
 import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
 import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
+import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } from '../flipState'
 import { computeADX, computeOBV, computeDonchian } from '../../indicators'
 import { computePaneMargins } from '../../paneMargins'
 import { createFakeChart, makeBars } from './fakeChart'
@@ -317,22 +318,73 @@ describe('adx — three lines, one scale, one guide', () => {
   })
 
   it('asserts the FULL price-scale set on the adx scale — three times, identically', () => {
-    // ⚠️ THE SHIPPED BLOCK CALLS `applyIndScale` ONCE (on the ADX line alone);
-    // the binder asserts per BINDING, so three lines is THREE calls. That is a
-    // difference in CALL COUNT and not in the picture: all three series carry
-    // `priceScaleId: 'adx'`, so `series.priceScale()` is the SAME scale object
-    // and the second and third calls set it to what it already holds. Stated as
-    // three identical objects rather than smoothed to one, and it is the same
-    // shape Task 5 recorded for `stoch`'s two lines.
+    // ⛔🔴 THE SHIPPED BLOCK CALLS `applyIndScale` ONCE (on the ADX line alone)
+    // AND SO DOES THE BINDER — SINCE THIS TASK, AND IT COST 11,913 CHANGED
+    // PIXELS TO LEARN. This comment used to end *"that is a difference in CALL
+    // COUNT and not in the picture… the second and third calls set it to what it
+    // already holds"*, and the PAYLOAD half of that was true. The ORDER half was
+    // not: `autoScale: false` does not compute anything, it stops the range ever
+    // being recomputed, and the range is materialised the first time anything
+    // asks — which a `priceScale().applyOptions` does. The second call landed
+    // between `setData(adx)` and `setData(plusDI)`, so the engine's adx scale
+    // froze at 15.5154..59.0249 (the ADX line's OWN extent) where the shipped
+    // build holds 5.1746..59.0249 (all three lines). Measured on the two-build
+    // gate with the scale range read out of the live chart.
+    // ⭐ `stoch` could not have caught it: `%D` is a moving average OF `%K`, so
+    // `%K`'s extent already contains it.
     const { F } = sync(ADX_INSTANCE, ADX_CS, { adx: ADX_BAND })
     const scaleCalls = F.callsOf('priceScale.applyOptions')
-    expect(scaleCalls).toHaveLength(3)
+    expect(scaleCalls, 'the adx scale was written more than once in one sync — '
+      + 'the repeat is what froze its range on the ADX line alone').toHaveLength(1)
     for (const call of scaleCalls) {
       expect(call.args[0]).toEqual(
         legacyBandScale(ADX_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
     }
     // …and they really are one scale, which is what makes the repeat inert.
     expect(new Set(F.callsOf('addSeries').map(c => c.args[1].priceScaleId)).size).toBe(1)
+  })
+
+  it('⛔⭐ EVERY SERIES EXISTS BEFORE ANY OF THEM HAS DATA — the 11,913-px ordering', () => {
+    // 🔴 THE ONE REAL PIXEL REGRESSION IN THIS TASK, AND NO OTHER ASSERTION IN
+    // THIS FILE COULD SEE IT. Every option object, every scale payload, every
+    // guide, the whole pane manifest AND THE SERIES DATA THEMSELVES were
+    // identical between the shipped block and the engine — read off the live
+    // charts, both sides: adx n=173 min 15.5154 max 59.0249, plusDI n=186 min
+    // 5.1746, minusDI n=186 min 6.2697. What differed was the frozen RANGE:
+    // legacy 5.1746..59.0249, engine 15.5154..59.0249 — the ADX line alone.
+    //
+    // `autoScale: false` computes nothing; it stops the range from ever being
+    // recomputed (`_internal_recalculatePriceScale` returns early for a non-auto
+    // scale). The range is then materialised the first time something asks, from
+    // the sources that HAVE DATA at that moment. The shipped block creates all
+    // three series, calls `applyIndScale` ONCE, and only then feeds data, so
+    // nothing is materialisable until every line is in. The binder interleaved
+    // create → scale → data per binding, so the scale was asked twice more, each
+    // time between two siblings' `setData` calls.
+    //
+    // ⚠️ BOTH HALVES ARE REQUIRED AND EACH WAS MEASURED INSUFFICIENT ALONE:
+    //   • create-all-first, scale still per binding  → 11,913 px
+    //   • scale once, creates still interleaved      → 11,913 px
+    //   • both (the shipped shape)                   →      0 px
+    const { F } = sync(ADX_INSTANCE, ADX_CS, { adx: ADX_BAND })
+    const methods = F.calls.map(c => c.method)
+    const lastAdd = methods.lastIndexOf('addSeries')
+    const firstScale = methods.indexOf('priceScale.applyOptions')
+    const firstGuide = methods.indexOf('createPriceLine')
+    const firstData = methods.indexOf('setData')
+    // Non-vacuity FIRST — an empty log satisfies every ordering claim below.
+    expect(F.count('addSeries'), 'nothing was created — the ordering is vacuous').toBe(3)
+    expect(F.count('setData')).toBe(3)
+    expect(firstGuide, 'no guide was created').toBeGreaterThan(-1)
+    // …and the claim, in the shipped block's own order.
+    expect(firstScale,
+      'the adx price scale was written before all three of its series existed')
+      .toBeGreaterThan(lastAdd)
+    expect(F.count('priceScale.applyOptions'),
+      'the scale was written more than once in one sync — the repeat is what froze '
+      + 'the range on whichever sibling already had data').toBe(1)
+    expect(firstGuide).toBeGreaterThan(firstScale)
+    expect(firstData).toBeGreaterThan(firstGuide)
   })
 
   it('the guide lands on the ADX line itself — not on +DI, not on -DI', () => {
@@ -738,20 +790,42 @@ describe('the last three together', () => {
     // ⭐ `paneMargins.PANES` order is bottom-of-chart → top: obv sits BELOW adx.
     expect(paneMargins.obv).toEqual({ top: 0.87, bottom: 0 })
     expect(paneMargins.adx).toEqual({ top: 0.72, bottom: 0.13 })
-    // FOUR scale calls — one per PANE-definition BINDING (adx ×3, obv ×1). The
-    // price overlay asserts none: `scaleOptions: null` is "the scale belongs to
+    // TWO scale calls — one per PANE-definition SCALE (adx, obv). The price
+    // overlay asserts none: `scaleOptions: null` is "the scale belongs to
     // somebody else", and writing scaleMargins there would move the candles.
+    // 🔴 IT WAS FOUR — one per BINDING — UNTIL B5 TASK 8 MEASURED THE REPEAT AT
+    // 11,913 px on `adx_only`. See `binder.js` TRAP #6: a second write landing
+    // between two siblings' `setData` calls freezes the range on the first
+    // sibling alone. The PAYLOADS are unchanged and still asserted whole.
     // ⭐ TWO DIFFERENT RANGES ON TWO ADJACENT AXES, ASSERTED TOGETHER. A range
     // leaking from one to the next is the pooled-scale hazard, and it is
     // invisible on any case that turns on one oscillator at a time.
     expect(F.callsOf('priceScale.applyOptions').map(c => c.args[0])).toEqual([
       legacyBandScale(paneMargins.adx, { autoScale: false, minimum: 0, maximum: 100 }),
-      legacyBandScale(paneMargins.adx, { autoScale: false, minimum: 0, maximum: 100 }),
-      legacyBandScale(paneMargins.adx, { autoScale: false, minimum: 0, maximum: 100 }),
       legacyBandScale(paneMargins.obv, { autoScale: true }),
     ])
     // One guide across the three, and it is ADX's.
     expect(F.count('createPriceLine')).toBe(1)
+  })
+
+  it('⭐⭐ the lane is finished — every series-expressible definition is flipped', () => {
+    // The equality Task 13 deletes both sets in favour of. Asserted as a SET
+    // rather than a size so a definition swapped for another cannot hold the
+    // count still, and both directions are covered by the sorted comparison.
+    expect(ENGINE_FLIPPED_DEF_IDS.size).toBe(engineRegistry.listDefinitions().length)
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort())
+      .toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
+    expect(ENGINE_FLIPPED_DEF_IDS.size, 'fourteen series-expressible natives').toBe(14)
+    // …and MIGRATED equals FLIPPED, which is what B5's "migrate and flip in one
+    // commit" rule means: with `engineEnabled` deleted (Task 4) a
+    // migrated-but-un-flipped definition is drawn by NOTHING.
+    expect([...ENGINE_MIGRATED_DEF_IDS].sort()).toEqual([...ENGINE_FLIPPED_DEF_IDS].sort())
+    // …and volumeProfile is in NEITHER, structurally: it is not series-expressible
+    // (a horizontal histogram against the price axis, drawn on its own canvas), so
+    // it has no definition to flip and is carved out by name.
+    expect(ENGINE_FLIPPED_DEF_IDS.has('volumeProfile')).toBe(false)
+    expect(engineRegistry.CARVED_OUT_INDICATOR_KEYS.has('volumeProfile')).toBe(true)
+    expect(engineRegistry.getDefinition('volumeProfile')).toBeNull()
   })
 
   it('none of the three declares a legend block, so none adds a chip', () => {

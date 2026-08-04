@@ -29,18 +29,34 @@ const CS = {
 const PANE_KEYS = ['obv', 'atr', 'adx', 'macd', 'cci', 'williamsR', 'mfi', 'stoch', 'rsi']
 
 describe('csForPaneMargins — instances drive the bands without touching paneMargins.js', () => {
-  it('with NO flipped ids it returns the SAME object — a true no-op', () => {
-    // Task 9 lands dark. If this ever allocated, every chart would recompute its
-    // margins from a fresh object on every paint for no reason — and the wiring
-    // test's identity assertion would be measuring a different thing than this.
+  // ⚠️⛔ THE TWO CASES BELOW ARE UNIT CLAIMS WITH NO LIVE PATH AS OF B5 TASK 8,
+  // AND THAT IS SAID HERE RATHER THAN LEFT TO BE DISCOVERED. Their subject is
+  // "`flippedIds` is empty", and `ENGINE_FLIPPED_DEF_IDS` now holds all fourteen
+  // series-expressible definitions — so no shipped call site can reach the
+  // short-circuit any more: `StockChart` passes the constant, and the constant is
+  // never empty. They are KEPT, deliberately, because the short-circuit is real
+  // code with a real cost if it is deleted (every chart would allocate a fresh
+  // settings object on every paint) and because an empty set is exactly what a
+  // future caller — a test double, a Phase-C lane that owns a different set —
+  // would hand it.
+  //
+  // ⛔ WHAT IS NOT ALLOWED IS TO GO ON READING THEM AS "the dark state is inert".
+  // That sentence was true while B3/B4 were landing dark and it is now a claim
+  // about an unreachable branch, which is precisely how a comment rots: the
+  // assertion stays green, the reason underneath it stops being true, and the
+  // next reader inherits a guarantee about production that nothing measures. The
+  // live claim is the DEEP-EQUAL one below.
+  it('with NO flipped ids it returns the SAME object — a true no-op (UNIT ONLY)', () => {
+    // If this ever allocated, a caller holding an empty set would recompute its
+    // margins from a fresh object on every paint for no reason.
     expect(csForPaneMargins(CS, [], new Set())).toBe(CS)
   })
 
-  it('…and the short-circuit is on the FLIP SET, not on an empty instance list', () => {
-    // The dark state is "nothing is flipped", which is not the same fact as
-    // "there are no instances". A blob carrying instances (every Flip-A chart
-    // does) must still take the identity path while `ENGINE_FLIPPED_DEF_IDS` is
-    // empty — otherwise Task 9 is not inert on exactly the charts that matter.
+  it('…and the short-circuit is on the FLIP SET, not on an empty instance list (UNIT ONLY)', () => {
+    // "Nothing is flipped" is not the same fact as "there are no instances", and
+    // a blob carrying instances must still take the identity path when the set it
+    // is handed is empty. ⚠️ NO PRODUCTION CALLER CAN PRODUCE THAT STATE ANY
+    // MORE — see the block above.
     const instances = migrateLegacyToInstances(CS, engineRegistry)
     expect(instances.length, 'no instances — this case is vacuous').toBeGreaterThan(0)
     expect(csForPaneMargins(CS, instances, new Set())).toBe(CS)

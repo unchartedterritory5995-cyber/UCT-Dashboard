@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } from '../flipState'
 import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
@@ -55,6 +56,15 @@ const ROOT = (() => {
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 
+/** A deterministic ramp long enough for every native's longest lookback
+ *  (ichimoku's senkouB is 52; adx needs 2x its period). Local rather than
+ *  imported so this file stays dependency-free on the engine's test fixtures. */
+const PROBE_BARS = Array.from({ length: 300 }, (_, i) => {
+  const base = 100 + Math.sin(i / 7) * 8 + i * 0.05
+  return { t: 1_700_000_000 + i * 86_400, o: base, h: base + 1.5, l: base - 1.5,
+    c: base + Math.cos(i / 5) * 0.8, v: 1_000_000 + (i % 17) * 5_000 }
+})
+
 /** Comments say things like "⛔ NO `rsiSeriesRef`", so a bare `includes` on an
  *  identifier finds the note that says it is gone. Every source probe below
  *  therefore matches a CODE SHAPE — `x.current`, `const x`, `f(` — never a bare
@@ -63,6 +73,44 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 const usesRef = (src, ref) => new RegExp(`${ref}\\s*\\.\\s*current`).test(src)
 const declaresRef = (src, ref) => new RegExp(`const\\s+${ref}\\b`).test(src)
 const calls = (src, fn) => src.includes(`${fn}(`)
+
+/** Every `compute*` name a source text imports from `chart/indicators`.
+ *
+ *  ⭐ THE ONE GUARD IN THIS FILE THAT IS BEHAVIOURAL RATHER THAN FORMAT-EXACT.
+ *  `RETIRED_BY_B5_TASK8`'s four patterns describe SHAPES that must not come
+ *  back; this describes a PROPERTY that must hold — StockChart computes nothing
+ *  — and a re-added import with no caller satisfies every one of those four
+ *  patterns while breaking this. `toHeikinAshi` is deliberately NOT matched: it
+ *  is a candle transform, not an indicator, and it is the only thing the import
+ *  is allowed to carry.
+ *
+ *  ⚠️ MULTIPLE import statements are walked, not just the first — re-adding a
+ *  SECOND `import { … } from './chart/indicators'` line is the easiest way to
+ *  bring one back without touching the line that is already there. */
+const computeNamesIn = (src) => [
+  ...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*'\.\/chart\/indicators'/g),
+].flatMap(m => m[1].split(',').map(x => x.trim()).filter(x => /^compute[A-Z]/.test(x)))
+
+/** …and the SAME extractor over a historical revision of the same file, so the
+ *  `[]` above is measured against a known non-empty answer rather than trusted.
+ *
+ *  ⛔ THROWS BY NAME rather than returning `[]` when git cannot produce the
+ *  file. A non-vacuity control that answers `[]` on failure asserts the same
+ *  thing as the case it is guarding, which is the shape B4 measured a
+ *  "throws by name" guarantee failing to have. */
+const computeNamesAt = (sha) => {
+  let src
+  try {
+    src = execFileSync('git', ['show', `${sha}:app/src/components/StockChart.jsx`],
+      { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  } catch (e) {
+    throw new Error(
+      `computeNamesAt: git could not read StockChart.jsx at ${sha} (${e && e.message}). `
+      + 'This is the NON-VACUITY control for "imports no compute function"; returning an '
+      + 'empty list here would make that case assert nothing.')
+  }
+  return computeNamesIn(src)
+}
 
 /** Which indicator ids a source text hand-names, by the discovery scan's own
  *  three shapes: a quoted id, an object key, an optional-chained read.
@@ -102,26 +150,25 @@ const LEDGER = [
     anchor: 'rsi:  { ...CHART_DEFAULTS.indicators.rsi,', fate: 'B5' },
 
   // ── StockChart's render lane ─────────────────────────────────────────────
-  // ⚠️ THE ANCHOR HAS MOVED THREE TIMES AND THE SITE HAS NOT. It was
-  // `const stochKRef     = useRef(null)` until B5 Task 5 flipped Stochastic and
-  // ATR, `const sarSeriesRef  = useRef(null)` until B5 Task 6 flipped SAR and
-  // Ichimoku and deleted SIX more refs with them, and `const mfiSeriesRef` until
-  // B5 Task 7 flipped MFI, CCI and Williams %R and deleted THREE more. The region
-  // is still here (adx ×3, obv, donchian ×3), so all three moves were anchor
-  // repairs and not retirements: the row keeps its `B5` fate and the count is
-  // unchanged. It retires at Task 8, when the last block goes. Each move went RED
-  // BY NAME rather than passing on a region that had emptied — which is the whole
-  // reason the anchor is an exact string and not a regex.
-  { file: 'app/src/components/StockChart.jsx', region: 'the series useRef declarations',
-    anchor: 'const adxSeriesRef       = useRef(null)', fate: 'B5' },
-  { file: 'app/src/components/StockChart.jsx', region: 'the indicatorData memo — compute calls + shape mapping',
-    anchor: 'const indicatorData = useMemo(', fate: 'B5' },
-  // ⚠️ AND SO HAS THIS ONE, FOR THE SAME REASON: `if (indicatorData.williamsR
-  // .length) {` was Task 7's last render block. `adxD` is the ADX block's own
-  // local, so the anchor still names a LINE OF THE REGION rather than a nearby
-  // comment that would survive the region's deletion.
-  { file: 'app/src/components/StockChart.jsx', region: 'the hand-written render blocks',
-    anchor: 'if (adxD.adx.length) {', fate: 'B5' },
+  // ⭐⭐ RETIRED BY B5 TASK 8, ALL FOUR OF THEM, TOGETHER — the series `useRef`
+  // declarations, the `indicatorData` memo, the hand-written render blocks and
+  // the hide-all ref array. They were ONE mechanism: refs held the series the
+  // blocks created, the memo computed what the blocks drew, and the array hid
+  // what the refs held. `adx`, `obv` and `donchian` were the last three
+  // definitions any of them served, so all four empty in the same commit and
+  // there is not one hand-written indicator render block left in the file.
+  //
+  // ⚠️ THE `useRef` ROW'S ANCHOR HAD MOVED THREE TIMES WITHOUT THE SITE MOVING
+  // — `stochKRef` (B5 Task 5) → `sarSeriesRef` (Task 6) → `mfiSeriesRef` (Task
+  // 7) → `adxSeriesRef` — and the render-block row's twice. Every one of those
+  // went RED BY NAME rather than passing on a region that had emptied, which is
+  // the whole reason an anchor is an exact string and not a regex. This time
+  // there is no successor to move to, so they RETIRE: proven gone in
+  // `RETIRED_BY_B5_TASK8`, which re-runs all four anchors as `\s+`-tolerant
+  // patterns and demands ZERO matches — plus one BEHAVIOURAL guard a
+  // format-exact pattern cannot make (StockChart imports zero `compute*`
+  // functions), because B4 measured that reintroducing a literal with only the
+  // spaces around `=` removed left a demand-zero guard green.
   // ⭐ RETIRED BY B4 TASK 10, TOGETHER — the nine crosshair value reads, the
   // hand-written `legChips` array and `readout.LEGACY_SLOTS` were one mechanism
   // and could only go as one. Proven gone in `RETIRED_BY_B4_TASK10`.
@@ -133,8 +180,6 @@ const LEDGER = [
   // moved the last three (sar, ichimoku ×2), leaving zero registrations. Proven
   // gone in `RETIRED_BY_B5_TASK6` — as IDENTIFIERS, comment-stripped, because a
   // dead registrar with no callers reads exactly like a live one.
-  { file: 'app/src/components/StockChart.jsx', region: 'the hide-all ref array',
-    anchor: 'const set = (ref) =>', fate: 'B5' },
 
   // ── StockChart's control doors ───────────────────────────────────────────
   // ⭐ RETIRED BY B4 TASK 5. `handleCopyShareUrl` hand-listed exactly the four B3
@@ -388,6 +433,36 @@ const RETIRED_BY_B5_TASK6 = [
     'LEGACY_CHIP_ORDER -- the legacy lane ordering constant', /\bLEGACY_CHIP_ORDER\b/g],
 ]
 
+/** ⭐⭐ WHAT B5 TASK 8 RETIRED — the four StockChart regions that were ONE
+ *  mechanism, held to zero as SHAPES rather than as literal strings.
+ *
+ *  ⚠️ A FORMAT-EXACT "demand zero" IS BRITTLE AND B4 MEASURED IT: reintroducing
+ *  a full eight-entry literal with only the spaces around `=` removed left the
+ *  guard green AND the discovery scan green — a second source of truth back
+ *  beside the derivation with nothing red. Every pattern below therefore uses
+ *  `\s+` rather than literal spaces (the `useRef` anchor in particular was
+ *  column-aligned with SEVEN spaces before its `=`).
+ *
+ *  ⛔ AND PATTERNS ALONE ARE NOT ENOUGH, WHICH IS WHY THE CASE BELOW CARRIES A
+ *  BEHAVIOURAL GUARD BESIDE THEM: `StockChart.jsx` imports ZERO `compute*`
+ *  functions from `chart/indicators.js`. A re-added `import { computeATR }` with
+ *  no caller matches none of these four shapes and would sail through — and it
+ *  is the exact shape a partial revert leaves behind.
+ *
+ *  ⛔ COMMENT-STRIPPED, for the reason Task 6's block states: `StockChart.jsx`
+ *  names `indicatorData`, `adxSeriesRef` and `set` in the tombstone paragraphs
+ *  where they used to live, so a raw read reports them alive forever. */
+const RETIRED_BY_B5_TASK8 = [
+  ['app/src/components/StockChart.jsx',
+    'the series useRef declarations', /const\s+adxSeriesRef\s+=\s+useRef\(/g],
+  ['app/src/components/StockChart.jsx',
+    'the indicatorData memo', /const\s+indicatorData\s*=\s*useMemo\(/g],
+  ['app/src/components/StockChart.jsx',
+    'the hand-written render blocks', /if\s*\(adxD\.adx\.length\)/g],
+  ['app/src/components/StockChart.jsx',
+    'the hide-all ref array', /const\s+set\s*=\s*\(ref\)\s*=>/g],
+]
+
 const RETIRED_BY_B4_TASK10 = [
   ['app/src/components/chart/engine/readout.js',
     'LEGACY_SLOTS — the legend slot bridge', /export\s+const\s+LEGACY_SLOTS\s*=/g],
@@ -467,8 +542,21 @@ const RETIRED_BY_B4_ALERTS = [
  *  discovery scan structurally cannot see — `voice_client_action_tools.py`'s
  *  `_INDICATOR_ALIASES`, the voice phrase map — found by the wave that fixed the
  *  voice bus. Fate `C`. ⚠️ The ledger's number is only worth something if it
- *  moves with the CODE, and that includes a site nobody retired. */
-const SITE_COUNT = 15
+ *  moves with the CODE, and that includes a site nobody retired.
+ *
+ *  ⭐⭐ 15 → 11 at B5 TASK 8, THE BIGGEST SINGLE MOVE THIS LEDGER HAS RECORDED,
+ *  and it is FOUR ROWS IN ONE COMMIT because they were one mechanism: the
+ *  series `useRef` declarations, the `indicatorData` memo, the hand-written
+ *  render blocks and the hide-all ref array. `adx`, `obv` and `donchian` were
+ *  the last three definitions any of the four served. Nothing is ADDED: the
+ *  engine's binding map replaces all four and it enumerates nothing.
+ *
+ *  ⚠️ AND `B5`'S BUCKET DOES NOT EMPTY. Three B5 rows survive this task —
+ *  `chartDefaults`' two 15-key regions and `ChartsWorkspace`'s frozen capture,
+ *  which Task 10 takes, plus `paneMargins.PANES`, which Task 12 does. A phase
+ *  whose bucket empties one task early is a phase whose remaining work is
+ *  invisible here, so the histogram below still carries a `B5` key. */
+const SITE_COUNT = 11
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -512,7 +600,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('every B4 region is retired — 8 to B5, 2 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('every B4 region is retired — 4 to B5, 2 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -536,7 +624,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // members, so writing one would never match. **B4's bucket is EMPTY** —
     // every region B4 inherited has been retired, and the ABSENCE of the key is
     // what says so. A `B4` row reappearing here fails this line by name.
-    expect(counts).toEqual({ B5: 8, C: 2, keep: 3, phase: 2 })
+    expect(counts).toEqual({ B5: 4, C: 2, keep: 3, phase: 2 })
   })
 
   // ⭐ B5 A8. THE ASSERTION ABOVE IS A HISTOGRAM AND B4'S REVIEW MEASURED ITS
@@ -583,10 +671,6 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       ['api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog\'s ONE authority', 'C'],
       ['api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map', 'C'],
-      ['app/src/components/StockChart.jsx::the hand-written render blocks', 'B5'],
-      ['app/src/components/StockChart.jsx::the hide-all ref array', 'B5'],
-      ['app/src/components/StockChart.jsx::the indicatorData memo — compute calls + shape mapping', 'B5'],
-      ['app/src/components/StockChart.jsx::the series useRef declarations', 'B5'],
       ['app/src/components/chart/chartDefaults.js::CHART_DEFAULTS.indicators — 15 keyed sections', 'B5'],
       ['app/src/components/chart/chartDefaults.js::mergeChartSettings\' per-key allow-list — 15 lines', 'B5'],
       ['app/src/components/chart/engine/flipState.js::ENGINE_FLIPPED_DEF_IDS', 'phase'],
@@ -780,6 +864,104 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     }
   })
 
+  // ⭐⭐ B5 TASK 8 — THE FOUR REGIONS THAT WERE ONE MECHANISM, PROVEN GONE.
+  //
+  // Patterns AND behaviour, deliberately, because neither is sufficient alone.
+  // B4 measured that a format-exact "demand zero" stayed green against a
+  // reintroduction with only the spaces around `=` removed, so the patterns are
+  // `\s+`-tolerant SHAPES; and a shape cannot see an `import { computeATR }` with
+  // no caller, which is exactly what a partial revert of this task leaves behind.
+  it('⛔ the four regions RETIRED_BY_B5_TASK8 took are GONE, not merely unlisted', () => {
+    const SC = read('app/src/components/StockChart.jsx')
+    const CODE = stripComments(SC)
+    const lingering = RETIRED_BY_B5_TASK8
+      .filter(([, , re]) => [...CODE.matchAll(re)].length !== 0)
+      .map(([file, what]) => `${file} :: ${what}`)
+    expect(lingering,
+      'the hand-written indicator lane is back. All fourteen series-expressible definitions '
+      + 'are FLIPPED, so a ref / memo branch / render block / hide-all entry here has no '
+      + 'subject: it is dead code that reads as a mechanism, and a block left beside a live '
+      + 'binding draws that indicator TWICE, invisibly.',
+    ).toEqual([])
+
+    // ⛔ THE TWO CONTROLS THIS PROBE CANNOT DO WITHOUT: the patterns match
+    // something, and the STRIPPER is what makes them come back empty. The probe
+    // below is deliberately spaced DIFFERENTLY from the shipped source it
+    // replaces — one space where the `useRef` row had seven, none around the
+    // memo's `=` — which is the reintroduction B4 measured slipping past a
+    // literal-string guard.
+    const PROBE_B5T8 = 'const adxSeriesRef = useRef(null) const indicatorData=useMemo(() => ({})) '
+      + 'if (adxD.adx.length) { const set=(ref) => ref.current'
+    for (const [, what, re] of RETIRED_BY_B5_TASK8) {
+      expect([...PROBE_B5T8.matchAll(re)].length, `${what}: retirement pattern matches nothing`)
+        .toBeGreaterThan(0)
+    }
+    // …and the RAW source still names three of the four, in the tombstones, so a
+    // probe without the stripper would report them alive forever.
+    // ⛔ …AND THE RAW SOURCE STILL MATCHES ONE OF THE FOUR, WHICH IS WHAT MAKES
+    // THE STRIPPER LOAD-BEARING RATHER THAN DECORATIVE. The hide-all tombstone
+    // quotes the shape it replaced verbatim (`const set = (ref) => …`), so a
+    // probe reading RAW source reports that region alive. MEASURED, not assumed —
+    // if this ever drops to zero the stripper has stopped being tested here and
+    // the control needs a new subject, exactly as Task 7's `computeIchimoku`
+    // control does.
+    const rawHits = RETIRED_BY_B5_TASK8.filter(([, , re]) => [...SC.matchAll(re)].length !== 0)
+      .map(([, what]) => what)
+    expect(rawHits,
+      'no tombstone reproduces a retired shape any more — a probe reading RAW source would '
+      + 'now pass WITHOUT the stripper, so this file has stopped measuring that it is needed')
+      .toEqual(['the hide-all ref array'])
+  })
+
+  // ⛔⭐ THE BEHAVIOURAL HALF, AND IT IS THE ONE A FORMAT-EXACT PATTERN CANNOT
+  // MAKE. A re-added `import { computeATR } from './chart/indicators'` with no
+  // caller matches none of the four shapes above and would sail through — and it
+  // is precisely what a partial revert leaves behind, because the import is the
+  // first thing you re-add and the last thing you notice.
+  it('⛔ StockChart imports no compute function at all — the lane is the ENGINE lane', () => {
+    const names = computeNamesIn(stripComments(read('app/src/components/StockChart.jsx')))
+    expect(names,
+      'StockChart is importing a compute function again. Every one of the fourteen '
+      + 'series-expressible definitions is FLIPPED, so its columns are computed ONCE, by the '
+      + 'definition that declares it, at bind time — a second call here is a silent duplicate '
+      + 'whose only observable effect is CPU.').toEqual([])
+    // ⛔ NON-VACUITY, MEASURED AGAINST THE REAL PRE-MIGRATION FILE RATHER THAN A
+    // SYNTHETIC STRING: the SAME extractor over `StockChart.jsx` at `084eeded`
+    // (B4's head, before B5 flipped anything) finds TEN names. A `[]` from the
+    // line above is only worth something if this line is not also `[]`.
+    expect(computeNamesAt('084eeded').sort()).toEqual([
+      'computeADX', 'computeATR', 'computeCCI', 'computeDonchian', 'computeIchimoku',
+      'computeMFI', 'computeOBV', 'computeParabolicSAR', 'computeStochastic', 'computeWilliamsR',
+    ])
+    // …and `toHeikinAshi` is NOT a compute function and is still imported — the
+    // control that the extractor is selecting rather than emptying the list.
+    expect(read('app/src/components/StockChart.jsx'))
+      .toContain("import { toHeikinAshi } from './chart/indicators'")
+  })
+
+  // ⛔⭐ AND THE TEN `compute*` EXPORTS THEMSELVES MUST NOT BE DELETED, WHICH IS
+  // THE OPPOSITE CLAIM TO THE ONE ABOVE AND IS EASY TO GET BACKWARDS. StockChart
+  // importing none of them does NOT make them dead: `nativeRegistry`'s
+  // `NATIVE_COMPUTE` adapters call every one, the golden fixtures assert them
+  // against the Python lane at 1e-9, and deleting one would take an indicator off
+  // every chart while leaving this file's `[]` above perfectly green.
+  it('⛔ …and every definition still resolves a compute — the exports are NOT dead', () => {
+    const defs = engineRegistry.listDefinitions()
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(14)
+    for (const def of defs) {
+      expect(def.compute && def.compute.kind, def.id).toBe('native')
+      expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
+      const cols = engineRegistry.computeFor(def, PROBE_BARS, {})
+      expect(Object.keys(cols).sort(), `${def.id}: columns`)
+        .toEqual([...engineRegistry.columnKeys(def)].sort())
+      for (const [key, col] of Object.entries(cols)) {
+        expect(engineRegistry.hasAnyFinite(col),
+          `${def.id}.${key} computed NOTHING — its compute* export is gone or renamed, and `
+          + 'the indicator is off every chart').toBe(true)
+      }
+    }
+  })
+
   it('⭐ and the share link no longer hand-lists the four pilots', () => {
     const src = read('app/src/components/StockChart.jsx')
     const back = RETIRED_BY_B4_TASK5
@@ -908,8 +1090,19 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // for.
     const b5Walkable = [...new Set(LEDGER.filter(s => s.fate === 'B5').map(s => s.file))]
       .filter(f => /^app\/src\/.*\.jsx?$/.test(f)).sort()
-    expect(b5Walkable.length, 'no B5 walkable file on the ledger — the check below is vacuous')
-      .toBeGreaterThanOrEqual(4)
+    // ⚠️ THE FLOOR MOVED 4 → 3 AT B5 TASK 8, AND THAT IS A RETIREMENT AND NOT A
+    // WEAKENING. `StockChart.jsx` carried FOUR B5-fated rows and now carries
+    // none: the four regions were one mechanism and they retired together, so
+    // the file drops off the ledger entirely and out of this DEDUPED file set.
+    // The three that remain — `chartDefaults.js` (twice), `paneMargins.js`,
+    // `ChartsWorkspace.jsx` — are Tasks 10 and 12's, so this floor moves exactly
+    // twice more and both times by a deletion nobody can do quietly.
+    expect(b5Walkable, 'no B5 walkable file on the ledger — the check below is vacuous')
+      .toEqual([
+        'app/src/components/chart/chartDefaults.js',
+        'app/src/components/chart/paneMargins.js',
+        'app/src/pages/charts/ChartsWorkspace.jsx',
+      ])
     expect(b5Walkable.filter(f => !found.includes(f)),
       'the discovery scan cannot see a file the LEDGER fates to B5 — a site B4 cannot have ' +
       'retired. The scan is broken (walk root, regexes, or the `.test.` skip), not the tree.',
@@ -1012,13 +1205,21 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     mfi: ['mfiSeriesRef'],
     cci: ['cciSeriesRef'],
     williamsR: ['williamsRSeriesRef'],
+    // ⭐⭐ B5 TASK 8 — THE LAST SEVEN REFS, AND WITH THEM THIS TABLE COVERS THE
+    // WHOLE FLIP SET FOR THE FIRST TIME BY CONSTRUCTION RATHER THAN BY LUCK: the
+    // totality case below cannot be satisfied by omission any more, because
+    // there is no fifteenth definition to omit.
+    adx: ['adxSeriesRef', 'adxPlusDIRef', 'adxMinusDIRef'],
+    obv: ['obvSeriesRef'],
+    donchian: ['donchianUpperRef', 'donchianMiddleRef', 'donchianLowerRef'],
   }
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
     stoch: 'computeStochastic', atr: 'computeATR', sar: 'computeParabolicSAR',
     ichimoku: 'computeIchimoku', mfi: 'computeMFI', cci: 'computeCCI',
-    williamsR: 'computeWilliamsR',
+    williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
+    donchian: 'computeDonchian',
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -1035,6 +1236,11 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // four B3 pilots this table used to stop at.
     expect(ENGINE_FLIPPED_DEF_IDS.size).toBeGreaterThan(4)
     expect(Object.values(REFS).flat().length).toBeGreaterThan(10)
+    // ⭐ AND THE COVERAGE IS NOW TOTAL IN BOTH DIRECTIONS: every DEFINITION has a
+    // row, not merely every flipped one, so the tables cannot shrink behind a
+    // set that has stopped growing.
+    expect(Object.keys(REFS).sort()).toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
+    expect(Object.keys(COMPUTES).sort()).toEqual(Object.keys(REFS).sort())
   })
 
   it('declares no series ref and creates no series for a flipped id', () => {

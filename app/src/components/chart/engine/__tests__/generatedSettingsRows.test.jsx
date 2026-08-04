@@ -145,19 +145,31 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     // …and the same definition under a NON-flipped id is greyed, so the "live"
     // above is the short-circuit and not a predicate that never greys anything.
     //
-    // ⚠️ THE UN-FLIPPED ID IS A MOVING SUBJECT AND HAS TO BE ASSERTED. It was
-    // `stoch` until B5 Task 5 flipped Stochastic, at which point this probe was
-    // comparing two FLIPPED definitions and the second `expect` could only fail.
-    // `mfi` was the successor until B5 Task 7 flipped it; `adx` is the successor
-    // now, and the line below is what makes the next flip say so instead of
-    // quietly turning the control into a restatement of the first half. ⚠️ ONLY
-    // THREE CANDIDATES ARE LEFT (`adx`, `obv`, `donchian`) and Task 8 takes all
-    // three — whoever holds it has to give this probe a CONSTRUCTED un-flipped
-    // id, the way the flipped half above is already a constructed definition,
-    // rather than another real one.
-    const UNFLIPPED_PROBE_ID = 'adx'
+    // ⚠️ THE UN-FLIPPED ID WAS A MOVING SUBJECT AND B5 TASK 8 EXHAUSTED IT. It
+    // was `stoch` (until B5 Task 5), then `mfi` (until Task 7), then `adx` — each
+    // time going RED by name rather than quietly turning this control into a
+    // restatement of the first half. Task 8 flipped the last three, so
+    // `ENGINE_FLIPPED_DEF_IDS` equals `listDefinitions()` and NO REAL ID CAN
+    // SERVE HERE AGAIN.
+    //
+    // ⛔ SO THE PROBE IS CONSTRUCTED, exactly as its FLIPPED half already was.
+    // That is the point the note above anticipated: this case is about
+    // `unwiredKeys` reading the flip SET, not about any particular indicator, and
+    // a synthetic id is a STRONGER subject than a real one because it can never
+    // migrate underneath the case. The id is deliberately un-registrable-looking
+    // so nobody mistakes it for a definition.
+    const UNFLIPPED_PROBE_ID = '__unflippedProbe'
     expect(ENGINE_FLIPPED_DEF_IDS.has(UNFLIPPED_PROBE_ID),
-      `${UNFLIPPED_PROBE_ID} is flipped now — this probe needs an un-flipped id`).toBe(false)
+      'the synthetic probe id joined the flip set — pick another').toBe(false)
+    // ⛔ AND THE NON-VACUITY THAT A SYNTHETIC ID COSTS: it must be absent from
+    // the blob AND from the registry, or `listEngineIndicators` would resolve it
+    // to something real and the greying below would be about that instead.
+    expect(engineRegistry.getDefinition(UNFLIPPED_PROBE_ID)).toBeNull()
+    expect(UNFLIPPED_PROBE_ID in CHART_DEFAULTS.indicators).toBe(false)
+    // …and the real population really is exhausted, which is WHY it is synthetic.
+    expect(engineRegistry.listDefinitions().filter(d => !ENGINE_FLIPPED_DEF_IDS.has(d.id)),
+      'an un-flipped definition exists again — a REAL subject is available and is the '
+      + 'better one, because it exercises the shipped blob shape too').toEqual([])
     const unflipped = listEngineIndicators(
       base(), { listDefinitions: () => [{ ...probeDef, id: UNFLIPPED_PROBE_ID }] },
     )[0]

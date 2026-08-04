@@ -1544,6 +1544,12 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
         "cci_only", "mfi_only", "williams_r_only",
         "engine_cci_vs_legacy", "engine_mfi_vs_legacy",
         "engine_williams_r_vs_legacy", "engine_three_bands_stacked",
+        # ⭐⭐ B5 TASK 8 RAISED IT AGAIN, AND FOR THE LAST TIME: `adx`, `obv` and
+        # `donchian` are the last three series-expressible definitions, so no
+        # future migration can raise this floor. Six more — three filled
+        # `<id>_only` placeholders and their three projected-vs-stored twins.
+        "adx_only", "obv_only", "donchian_only",
+        "engine_adx_vs_legacy", "engine_obv_vs_legacy", "engine_donchian_vs_legacy",
     ]), f"the set of provenance-declaring cases moved: {sorted(declared)}"
     # ⭐ AND THE COUNTS ARE THE MIGRATION'S OWN SHAPE, not a total. `sar` is ONE
     # plot; `ichimoku` is FIVE; the z-order case turns both on and therefore
@@ -1554,17 +1560,35 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
     # declares 3. ⚠️ THE GUIDES ARE NOT IN THESE NUMBERS AND MUST NOT BE: an
     # `hlines` plot creates PRICE LINES, not a series, so it has no pool key and
     # nothing in the manifest — `cci`'s three guides are ZERO extra provenance.
+    #
+    # ⭐⭐ B5 TASK 8'S SIX ARE NOT ALL 1, WHICH IS WHY THIS DICT EARNS ITS KEEP.
+    # `obv` is one plot; `adx` is THREE (the ADX line plus +DI and -DI, all on
+    # one named scale) and `donchian` is THREE (upper, middle, lower — the
+    # `middle` is a `band`, and a band IS a line here, so it has a pool key and a
+    # manifest entry like any other). ⚠️ ADX'S GUIDE IS NOT IN THESE NUMBERS AND
+    # MUST NOT BE, for the same reason cci's three were not.
     assert {k: len(v) for k, v in sorted(declared.items())} == {
+        "adx_only": 3,
         "cci_only": 1,
+        "donchian_only": 3,
+        "engine_adx_vs_legacy": 3,
         "engine_cci_vs_legacy": 1,
+        "engine_donchian_vs_legacy": 3,
         "engine_ichimoku_vs_legacy": 5,
         "engine_mfi_vs_legacy": 1,
-        "engine_price_overlay_zorder": 6,
+        "engine_obv_vs_legacy": 1,
+        # ⭐⭐ 6 → 9 AT B5 TASK 8, AND THE THREE IT GAINED ARE THE POINT OF THE
+        # CASE. This is the only case that turns `donchian` on beside `sar` and
+        # `ichimoku`, so the last migration flips three more pool keys here than
+        # anywhere `donchian_only` could see. Left at 6 it read as a live gate
+        # while every run reported three UNDECLARED provenance lines.
+        "engine_price_overlay_zorder": 9,
         "engine_sar_vs_legacy": 1,
         "engine_three_bands_stacked": 3,
         "engine_williams_r_vs_legacy": 1,
         "ichimoku_only": 5,
         "mfi_only": 1,
+        "obv_only": 1,
         "sar_only": 1,
         "williams_r_only": 1,
     }, {k: len(v) for k, v in sorted(declared.items())}

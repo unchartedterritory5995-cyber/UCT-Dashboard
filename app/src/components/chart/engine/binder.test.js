@@ -338,11 +338,34 @@ describe('every bind re-asserts the FULL scale option set — trap #2', () => {
     expect(applied[0].args[0].minimum, 'RSI\'s 0-100 must not linger').toBeUndefined()
   })
 
-  it('the scale is applied on EVERY pass, for every bound series', () => {
+  it('the scale is applied on EVERY PASS — but ONCE per scale, not once per series', () => {
+    // 🔴 THIS ASSERTED `2` — ONE WRITE PER BOUND SERIES — UNTIL B5 TASK 8
+    // MEASURED THE SECOND WRITE AT 11,913 CHANGED PIXELS. `autoScale: false`
+    // freezes the range at whatever the autoscale walk can see when it is
+    // first materialised, and a second `priceScale().applyOptions` landing
+    // BETWEEN two siblings' `setData` calls materialises it from the first
+    // sibling alone. `adx`'s scale came out 15.5154..59.0249 (the ADX line's
+    // own extent) where the shipped block gives 5.1746..59.0249 (all three).
+    // The shipped blocks call `applyIndScale` ONCE; so does this now.
+    //
+    // ⛔ TRAP #2 IS UNCHANGED AND THAT IS THE POINT OF THE SECOND HALF: its
+    // subject is a POOLED series inheriting a scale an earlier tenant left
+    // frozen, which is a claim about every SYNC. Both passes still write.
     binder.sync(ctxFor([inst('stoch')]))
-    expect(fake.count('priceScale.applyOptions')).toBe(2)
+    expect(fake.count('priceScale.applyOptions'),
+      'stoch binds TWO series on ONE scale — that is one write, not two').toBe(1)
     fake.reset()
     binder.sync(ctxFor([inst('stoch')]))
+    expect(fake.count('priceScale.applyOptions'),
+      'the second pass wrote nothing — TRAP #2 is about every SYNC').toBe(1)
+  })
+
+  it('…and TWO definitions on TWO scales still get TWO writes — it is per SCALE', () => {
+    // The non-vacuity half: 'once' must not have become 'once per sync'.
+    fake.reset()
+    binder.sync(ctxFor([inst('stoch'), inst('rsi')]))
+    const ids = fake.callsOf('addSeries').map((c) => c.args[1].priceScaleId)
+    expect(new Set(ids).size, 'both definitions landed on one scale — vacuous').toBe(2)
     expect(fake.count('priceScale.applyOptions')).toBe(2)
   })
 })

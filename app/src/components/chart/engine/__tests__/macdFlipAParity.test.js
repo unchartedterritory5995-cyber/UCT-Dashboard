@@ -235,7 +235,14 @@ describe('MACD Flip A — two lines, a histogram, one guide', () => {
     // one value, not three different bands. It is stated as a COUNT rather than
     // looped over with `length > 0`, because "at least one" would hide the day a
     // definition's plots start disagreeing about their own scale.
-    expect(applied, 'nothing asserted the band — this case is vacuous').toHaveLength(3)
+    // 🔴 THE COUNT WAS THREE UNTIL B5 TASK 8 MEASURED THE REPEAT AT 11,913 px.
+    // The binder wrote the scale once per BINDING; a second
+    // `priceScale().applyOptions` landing between two siblings' `setData`
+    // calls MATERIALISES the frozen range from the first sibling alone
+    // (`adx` came out 15.5154..59.0249 against the shipped 5.1746..59.0249).
+    // The shipped blocks call `applyIndScale` ONCE, so the binder does too —
+    // `binder.js` TRAP #6. The payload is unchanged and still asserted whole.
+    expect(applied, 'nothing asserted the band — this case is vacuous').toHaveLength(1)
     for (const call of applied) expect(call.args[0]).toEqual(legacyScaleOptions(BAND))
     // Stated separately: RSI and Stochastic pin 0-100 here. MACD's range is data,
     // so a `fixedPane(...)` definition would frame the pane wrong in a way the
@@ -254,7 +261,10 @@ describe('MACD Flip A — two lines, a histogram, one guide', () => {
     binder.sync(ctxFor([INSTANCE]))
     binder.sync(ctxFor([INSTANCE]))
     const applied = F.callsOf('priceScale.applyOptions')
-    expect(applied).toHaveLength(6)
+    // 🔴 SIX UNTIL B5 TASK 8 — see the case above and `binder.js` TRAP #6. TWO is
+    // the claim that matters here and it is UNWEAKENED: the second SYNC writes
+    // the whole object again, which is the whole of trap #2.
+    expect(applied).toHaveLength(2)
     for (const call of applied) expect(call.args[0]).toEqual(legacyScaleOptions(BAND))
   })
 

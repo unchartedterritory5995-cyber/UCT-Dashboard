@@ -227,7 +227,8 @@ describe('the blob shapes themselves — without these the cases below prove not
     // so are their expectations, which is the claim: a stored July blob renders
     // the same chart after SEVEN more definitions move lane.
     expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
-      ['atr', 'bb', 'cci', 'ichimoku', 'macd', 'mfi', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
+        'stoch', 'vwap', 'williamsR'])
   })
 })
 

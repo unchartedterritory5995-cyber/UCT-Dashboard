@@ -10,20 +10,20 @@ import { createWatermarkPrimitive, composeWatermarkLines } from './chart/waterma
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
-// ⛔ NO `computeBB` / `computeRSI`. Both are FLIPPED (B3 Task 10) and are called
-// by their engine definitions now; importing them here again is how a "migrated"
-// indicator quietly keeps paying for a second computation nothing renders.
-// ⛔ NO `computeStochastic` / `computeATR` (B5 Task 5) — both are FLIPPED, so the
-// engine computes their columns from the same `filteredBars` at bind time and a
-// second computation here would be a silent duplicate whose only observable
-// effect is CPU. Both functions still exist and are still what the definitions
-// call; this file simply no longer imports them.
-// ⛔ AND NO `computeMFI` / `computeCCI` / `computeWilliamsR` (B5 Task 7) — three
-// more flipped, three more imports gone. `computeParabolicSAR`/`computeIchimoku`
-// left at Task 6 the same way. What is left in this import is exactly the four
-// natives StockChart still calls by hand: `adx`, `obv`, `donchian` and the
-// Heikin-Ashi transform, which is not an indicator at all.
-import { toHeikinAshi, computeADX, computeOBV, computeDonchian } from './chart/indicators'
+// ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
+// THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
+// every column is computed once, by the definition that declares it, at bind
+// time, from the same `filteredBars`. A `compute*` name reappearing in this
+// import is a silent duplicate whose only observable effect is CPU — the classic
+// way a "migrated" indicator keeps costing what it cost before — and it is now a
+// BEHAVIOURAL assertion rather than a comment: `enumerationSites.test.js` reads
+// this import list and demands it be empty, with a non-vacuity control that finds
+// TEN names at `084eeded`. (The count went 10 → 8 → 5 → 3 → 0 across Tasks 5, 6,
+// 7 and 8; only the last of those is a shape a format-exact regex could not fake.)
+//
+// `toHeikinAshi` is NOT an indicator — it is a candle transform that rewrites the
+// OHLC the price series draws — so it stays, and it is the only thing left here.
+import { toHeikinAshi } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
@@ -99,14 +99,12 @@ const EMPTY_CHIPS = Object.freeze([])
 // `StockChart.jsx` as its home, and `flipState.js` is where it can actually live
 // without `ChartToolbar` importing from the component that renders it.
 export { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS }
-// ── Indicator points → Lightweight Charts data ───────────────────────────────
-// `chart/indicators.js` returns arrays ALIGNED to the bars, NaN-padded before
-// the first computable bar. LWC rejects `value: NaN` outright, so a non-finite
-// point has to become a WHITESPACE item — `{ time }` with no `value` — which is
-// how you tell LWC "this bar exists, this series has nothing on it". Without
-// this conversion a NaN leaks into the renderer and shows up as a line diving
-// to zero, or a pane autoscaling to include 0.
-const indPoint = (time, value) => (Number.isFinite(value) ? { time, value } : { time })
+// ⛔ `indPoint` STOOD HERE, AND IT WENT WITH THE `indicatorData` MEMO (B5 Task
+// 8) — its only caller. It turned each NaN-padded compute output into an LWC
+// WHITESPACE item (`{time}` with no `value`), because LWC rejects `value: NaN`
+// outright and a leaked NaN renders as a line diving to zero. That conversion is
+// not gone from the app, it moved: `binder.js`'s `toPoints` does it for every
+// engine-drawn series, once, from the Float64Array column.
 // True for an LWC whitespace item (no value, and no OHLC either — candle and
 // volume data go through the same _applyData).
 const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === undefined
@@ -1703,7 +1701,12 @@ export default function StockChart({
   const indexScaleRef = useRef({ range: null, pin: false })  // fixed price range for the index pane's autoscaleInfoProvider (pins it steady across ticker switches; pin=false in Percent mode)
   const lastIndexSigRef = useRef(null)  // signature of the last-drawn index line/MA so we SKIP setData+relayout when flipping tickers in the same year (the index line is identical → no millisecond glitch)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
-  const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
+  // ⛔ `indScaleRef` STOOD HERE AND WENT WITH `ensureIndTarget` (B5 Task 8). It
+  // remembered each indicator's last price-scale id so the volume-overlay toggle
+  // could DESTROY and recreate its series in the right pane — the exact
+  // destroy/recreate #2049 forbids. The engine relocates a pooled series with
+  // `moveToPane` + `moveSeriesToScale` instead, keeping the same series object,
+  // and `binder.js` owns that bookkeeping.
   // The indicator engine (Phase B), as `{ chart, binder }`. NULL while the chart
   // holds no instances — nothing is constructed and nothing is called, which is the
   // lands-dark contract (it used to say "while the flag is off"; B5 Task 4 deleted
@@ -1742,16 +1745,18 @@ export default function StockChart({
   // — three more, same reason. `mfi` is the RECEIVING half of the measured
   // `stoch.d → mfi.mfi` pool leak in `pool.js`'s header, so a second handle to a
   // series the pool re-purposes is precisely the shape that leak takes.
+  //
+  // ⛔⭐ AND NO `adxSeriesRef` / `adxPlusDIRef` / `adxMinusDIRef` /
+  // `obvSeriesRef` / `donchianUpperRef` / `donchianMiddleRef` /
+  // `donchianLowerRef` (B5 TASK 8) — THE LAST SEVEN, WHICH IS WHY THE LEDGER ROW
+  // *"the series useRef declarations"* RETIRES HERE RATHER THAN MOVING ITS ANCHOR
+  // A FOURTH TIME. There is no indicator series in this component that the
+  // engine's binding map does not own, so this is not a shrinking list any more:
+  // it is a deleted region, and `enumerationSites.test.js`'s `RETIRED_BY_B5_TASK8`
+  // re-runs its anchor and demands ZERO matches.
   const compareSeriesRef = useRef(null)
   const comparisonSeriesRefs = useRef(new Map()) // sym -> LineSeries (multi-symbol comparison overlays)
   const vpCanvasRef = useRef(null)
-  const adxSeriesRef       = useRef(null)
-  const adxPlusDIRef       = useRef(null)
-  const adxMinusDIRef      = useRef(null)
-  const obvSeriesRef       = useRef(null)
-  const donchianUpperRef   = useRef(null)
-  const donchianMiddleRef  = useRef(null)
-  const donchianLowerRef   = useRef(null)
   const priceLineRefs = useRef([])
   // Identity guard so updateChart doesn't tear down + rebuild price lines on
   // every real-time tick. mergedPriceLines is useMemo'd, so when its deps
@@ -2052,7 +2057,11 @@ export default function StockChart({
   // (useMemo) later in the function body — using them at this point would
   // hit a TDZ ReferenceError.
   const overlayDataRef = useRef(null)
-  const indicatorDataRef = useRef(null)
+  // ⛔ `indicatorDataRef` STOOD HERE AND WENT WITH THE MEMO IT MIRRORED (B5
+  // Task 8). The crosshair read it for the nine indicator chips; those became
+  // `crosshairData.chips`, built by handing the engine's BINDINGS to
+  // `readout.engineChips`, at B4 Task 10. A ref mirroring a value that no
+  // longer exists is a null nothing reads.
   const comparisonDataRef = useRef(null)
   const livePricesRef = useRef(null)
   const resolvedTfRef = useRef(null)   // current tf, for the imperative daily-candle fast writer (writer E)
@@ -4156,64 +4165,34 @@ export default function StockChart({
     }
   }, [frameFadeAlpha, candleFrameFade, overlayData])
 
-  const indicatorData = useMemo(() => {
-    const ind = cs.indicators || {}
-    // ⛔ NO `rsi` / `bb` / `macd` / `vwap` BRANCHES. All four are FLIPPED (B3
-    // Tasks 10 and 11): the engine computes their columns from the same
-    // `filteredBars` at bind time, and a second computation here would be a silent
-    // duplicate whose only observable effect is CPU — the classic way a "migrated"
-    // indicator keeps costing what it cost before. `computeRSI` / `computeBB` /
-    // `computeVWAP` / `computeMACD` still exist and are still what the engine's
-    // definitions call; StockChart no longer imports the last two at all.
-    //
-    // ⛔ AND NO `stoch` / `atr` BRANCHES EITHER (B5 Task 5), for the same reason.
-    // Their two entries in the returned object went with them: a `stoch: {k, d}`
-    // shape and an `atr: []` that nothing reads is the shape a deleted block
-    // leaves behind, and `enumerationSites.test.js` asserts a flipped id calls no
-    // compute here.
-    //
-    // ⚠️ THE MACD HEAD-MASK WENT WITH IT. `MACD_HEAD_MASK` had TWO readers while
-    // both lanes existed and now has ONE — `nativeRegistry`'s `COLUMN_HOLDS`.
-    // `docs/decisions/2026-08-02-macd-head-mask.md` records that.
-    // ⛔ AND NO `sar` / `ichimoku` BRANCHES (B5 Task 6), for the same reason
-    // again. ⚠️ `computeIchimoku(filteredBars)` was called here with NO
-    // arguments, which is why the definition's three declared periods were the
-    // only greyed controls in the app; the engine passes the instance's, whose
-    // defaults are the same 9/26/52 the no-argument call fell back to.
-    // ⛔ AND NO `mfi` / `cci` / `williamsR` BRANCHES (B5 Task 7). Their three
-    // entries in the returned object went with them, and `StockChart` no longer
-    // imports `computeMFI` / `computeCCI` / `computeWilliamsR` at all — a compute
-    // still called here for a flipped id is a silent duplicate whose only
-    // observable effect is CPU, which is the classic way a "migrated" indicator
-    // keeps costing what it cost before. `enumerationSites.test.js` asserts that
-    // a flipped id calls no compute in this memo.
-    const adxRaw = ind.adx?.enabled
-      ? computeADX(filteredBars, ind.adx.period)
-      : { adx: [], plusDI: [], minusDI: [] }
-    const obvRaw = ind.obv?.enabled
-      ? computeOBV(filteredBars)
-      : []
-    const donchianRaw = ind.donchian?.enabled
-      ? computeDonchian(filteredBars, ind.donchian.period)
-      : { upper: [], middle: [], lower: [] }
-    // Every compute output is bar-aligned and NaN-padded; `indPoint` turns each
-    // not-yet-computable position into an LWC whitespace item here, once, so no
-    // downstream _applyData can hand the renderer a `value: NaN`.
-    const line = (pts) => pts.map(p => indPoint(adjustTime(p.time), p.value))
-    return {
-      adx: {
-        adx:     line(adxRaw.adx),
-        plusDI:  line(adxRaw.plusDI),
-        minusDI: line(adxRaw.minusDI),
-      },
-      obv: line(obvRaw),
-      donchian: {
-        upper:  line(donchianRaw.upper),
-        middle: line(donchianRaw.middle),
-        lower:  line(donchianRaw.lower),
-      },
-    }
-  }, [filteredBars, cs.indicators, resolvedTf, adjustTime, vwapOverride])
+  // ⛔⭐ THE `indicatorData` MEMO STOOD HERE, AND B5 TASK 8 DELETED THE WHOLE OF
+  // IT — the ledger row *"the indicatorData memo — compute calls + shape
+  // mapping"* retires with it.
+  //
+  // It was the hand-written lane's compute stage: for each un-migrated native it
+  // read `cs.indicators.<id>.enabled`, called that native's `compute*` with the
+  // stored period, and mapped the result into LWC point arrays through `indPoint`
+  // and `adjustTime`. Every one of those steps now happens once, inside the
+  // engine: `nativeRegistry.computeFor` calls the SAME function from the SAME
+  // `filteredBars`, `binder.js`'s `toPoints` does the whitespace conversion, and
+  // the binder threads the same `adjustTime`. There is nothing left to compute
+  // here, and a `compute*` call reappearing in this file is a silent duplicate
+  // whose only observable effect is CPU.
+  //
+  // ⚠️ ITS DEPENDENCY ARRAY OUTLIVED ITS BODY BY THREE TASKS, WHICH IS WORTH
+  // RECORDING RATHER THAN QUIETLY DROPPING. The last version read
+  // `[filteredBars, cs.indicators, resolvedTf, adjustTime, vwapOverride]` while
+  // the body referenced only the first, second and fourth: `resolvedTf` and
+  // `vwapOverride` had been dead deps since B3 Task 11 deleted the VWAP branch
+  // that read them. They are checked, not assumed, before this deletion —
+  // `vwapOverride` in particular has its own forced-instance path (`:5908`, which
+  // Model Book's `IntradayDayPopover` depends on and which B3 Task 11 nearly
+  // broke for every user), and it does NOT route through this memo. `grep -n
+  // "indicatorData" StockChart.jsx` returns nothing but this paragraph.
+  //
+  // ⛔ AND THE MACD HEAD-MASK IS NOT AFFECTED. `MACD_HEAD_MASK` lost its second
+  // reader at B3 Task 11 (`docs/decisions/2026-08-02-macd-head-mask.md`);
+  // `nativeRegistry`'s `COLUMN_HOLDS` has been its only one since.
 
   // ── Comparison symbol % return data ──
   const comparisonData = useMemo(() => {
@@ -5985,32 +5964,23 @@ export default function StockChart({
     const csMargins = csForPaneMargins(cs, engineInstances, ENGINE_FLIPPED_DEF_IDS)
     const paneMargins = computePaneMargins(csMargins, showVolume && volData.length > 0 && !volSeparatePane, volOverlaySet)
     const VOL_PANE_INDEX = 1
-    // Resolve an indicator's target (pane + price-scale id). Overlaid → volume
-    // pane's left axis; otherwise its own named scale in pane 0 (= today).
-    const indTarget = (key) => (volSeparatePane && volOverlaySet.has(key))
-      ? { pane: VOL_PANE_INDEX, scaleId: 'left' }
-      : { pane: 0, scaleId: key }
-    // Recreate the series when its target scale changes (scale id / pane are
-    // fixed at creation). refs = the series ref(s) for that indicator.
-    const ensureIndTarget = (key, refs) => {
-      const tgt = indTarget(key)
-      if (indScaleRef.current[key] != null && indScaleRef.current[key] !== tgt.scaleId) {
-        for (const r of refs) { if (r.current) { try { chart.removeSeries(r.current) } catch {}; r.current = null } }
-      }
-      indScaleRef.current[key] = tgt.scaleId
-      return tgt
-    }
-    // Apply the scale options for an indicator given its target. Overlaid uses a
-    // visible, autoscaled left axis; non-overlaid keeps its pane-0 band config.
-    const applyIndScale = (key, series, tgt, bandExtra) => {
-      try {
-        if (tgt.scaleId === 'left') {
-          series.priceScale().applyOptions({ borderVisible: false, visible: true, autoScale: true, scaleMargins: { top: 0.12, bottom: 0.04 } })
-        } else {
-          series.priceScale().applyOptions({ borderVisible: false, scaleMargins: paneMargins[key] || { top: 0.82, bottom: 0 }, ...(bandExtra || {}) })
-        }
-      } catch {}
-    }
+    // ⛔⭐ `indTarget` / `ensureIndTarget` / `applyIndScale` STOOD HERE AND WENT
+    // WITH THE LAST THREE RENDER BLOCKS (B5 Task 8) — they had no other callers.
+    // Together they were the legacy lane's placement: which pane and which named
+    // price scale an oscillator lands on, whether the volume-overlay toggle moved
+    // it to the volume pane's shared left axis, and what to assert on that scale.
+    // `engine/placement.js` answers all three now, as a PURE function returning
+    // `{paneIndex, scaleId, scaleOptions, autoscale}` — and `volOverlaySet` and
+    // `VOL_PANE_INDEX` above are handed to it at the sync call rather than closed
+    // over here.
+    //
+    // ⚠️ ONE OF THEM WAS A DESTROY/RECREATE AND THAT IS THE UPGRADE, not a
+    // like-for-like move: `ensureIndTarget` REMOVED an indicator's series and
+    // nulled its ref whenever its target scale changed, so every volume-overlay
+    // toggle destroyed and rebuilt the series — the exact pattern LWC #2049
+    // (still open) makes unsafe. The binder relocates the SAME series object with
+    // `moveToPane` + `moveSeriesToScale`, which `stockChartWiring.test.jsx` drives
+    // mid-session in both directions.
 
     if (showVolume && volData.length) {
       // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
@@ -6480,94 +6450,51 @@ export default function StockChart({
     // mfi (min 0) down the `autoScale: true` branch and lose the `autoScale:
     // false` that freezes a pooled scale against re-invalidation.
 
-    // ── ADX/DMI sub-pane (ADX + +DI + -DI) ──
-    const adxCfg = cs.indicators?.adx
-    const adxD = indicatorData.adx
-    if (adxD.adx.length) {
-      const adxTgt = ensureIndTarget('adx', [adxSeriesRef, adxPlusDIRef, adxMinusDIRef])
-      if (!adxSeriesRef.current) {
-        adxSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: adxTgt.scaleId,
-          color: adxCfg?.adxColor || '#e5e7eb',
-          lineWidth: 2,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, adxTgt.pane)
-        adxPlusDIRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: adxTgt.scaleId,
-          color: adxCfg?.plusDIColor || '#22c55e',
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, adxTgt.pane)
-        adxMinusDIRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: adxTgt.scaleId,
-          color: adxCfg?.minusDIColor || '#ef4444',
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, adxTgt.pane)
-        applyIndScale('adx', adxSeriesRef.current, adxTgt, { autoScale: false, minimum: 0, maximum: 100 })
-        adxSeriesRef.current.createPriceLine({ price: 25, color: 'rgba(229,231,235,0.3)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
-      } else {
-        adxSeriesRef.current.applyOptions({  color: adxCfg?.adxColor     || '#e5e7eb' })
-        adxPlusDIRef.current.applyOptions({  color: adxCfg?.plusDIColor  || '#22c55e' })
-        adxMinusDIRef.current.applyOptions({ color: adxCfg?.minusDIColor || '#ef4444' })
-        applyIndScale('adx', adxSeriesRef.current, adxTgt)
-      }
-      _applyData(adxSeriesRef.current, adxD.adx)
-      _applyData(adxPlusDIRef.current, adxD.plusDI)
-      _applyData(adxMinusDIRef.current, adxD.minusDI)
-    } else {
-      for (const ref of [adxSeriesRef, adxPlusDIRef, adxMinusDIRef]) {
-        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
-      }
-    }
-
-    // ── OBV sub-pane (cumulative, autoscale — values can be huge) ──
-    if (indicatorData.obv.length) {
-      const obvColor = cs.indicators?.obv?.color || '#9ca3af'
-      const obvTgt = ensureIndTarget('obv', [obvSeriesRef])
-      if (!obvSeriesRef.current) {
-        obvSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: obvTgt.scaleId,
-          color: obvColor,
-          lineWidth: 1,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        }, obvTgt.pane)
-        applyIndScale('obv', obvSeriesRef.current, obvTgt, { autoScale: true })
-      } else {
-        obvSeriesRef.current.applyOptions({ color: obvColor })
-        applyIndScale('obv', obvSeriesRef.current, obvTgt)
-      }
-      _applyData(obvSeriesRef.current, indicatorData.obv)
-    } else if (obvSeriesRef.current) {
-      try { chart.removeSeries(obvSeriesRef.current) } catch {}
-      obvSeriesRef.current = null
-    }
-
-    // ── Donchian Channels (3 LineSeries on main price scale, like BB) ──
-    const donchianColor = cs.indicators?.donchian?.color || 'rgba(96,165,250,0.5)'
-    const DONCHIAN_BANDS = [
-      { ref: donchianUpperRef,  data: indicatorData.donchian.upper,  style: 0 },
-      { ref: donchianMiddleRef, data: indicatorData.donchian.middle, style: 3 },
-      { ref: donchianLowerRef,  data: indicatorData.donchian.lower,  style: 0 },
-    ]
-    for (const { ref, data, style } of DONCHIAN_BANDS) {
-      if (data.length) {
-        if (!ref.current) {
-          ref.current = chart.addSeries(LineSeries, {
-            color: donchianColor, lineWidth: 1, lineStyle: style,
-            priceLineVisible: false, lastValueVisible: false,
-            crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
-          })
-        } else {
-          ref.current.applyOptions({ color: donchianColor })
-        }
-        _applyData(ref.current, data)
-      } else if (ref.current) {
-        try { chart.removeSeries(ref.current) } catch {}
-        ref.current = null
-      }
-    }
-
+    // ⭐⭐ FLIP B, B5 TASK 8 — ADX, OBV AND DONCHIAN ARE GONE FROM HERE, AND SO
+    // IS THE LANE. There is not one hand-written indicator render block left in
+    // this file: all fourteen series-expressible definitions are drawn by the
+    // ENGINE, from the instance list, at the sync call above. Four ledger rows
+    // retire together because they were ONE mechanism — the `useRef`s, the
+    // `indicatorData` memo, these blocks, and the hide-all array.
+    //
+    // ⚠️ THREE DIFFERENT SHAPES, AND EACH NEEDED SOMETHING A SYMMETRY ARGUMENT
+    // WOULD HAVE MISSED:
+    //
+    //   · `adx` — THREE lines on ONE named scale, plus a single guide at 25 on
+    //     the ADX line (not on +DI). Its `fixedPane(0, 100)` has a **min of
+    //     ZERO**, which is FALSY: `resolvePlacement` reaches the pinned branch on
+    //     `Number.isFinite`, and a `scale.min && scale.max` guard would send it to
+    //     `autoScale: true` and lose the `autoScale: false` that freezes a pooled
+    //     scale (TRAP #2). Williams %R sprang the same trap from the `max` end at
+    //     Task 7. ⚠️ The binder asserts a price scale per BINDING, so ADX's three
+    //     lines make THREE identical `priceScale().applyOptions` calls where this
+    //     block made one — a call count, not a picture, because all three carry
+    //     `priceScaleId: 'adx'` and therefore share one scale object.
+    //   · `obv` — the only definition with NO period input at all, and the only
+    //     one whose values run to 1e8, so it is the case that actually exercises
+    //     the autoscale seam on a REAL scale (B3 Task 1 measured `exclude` on an
+    //     autoscaled band collapsing it to -0.5..0.5, moving a price of 30 from
+    //     y=371 to y=-1640.78). ⭐ AND ITS ZERO SEED IS PRESERVED: `computeOBV`
+    //     starts bar 0 at `0` where every other native NaN-pads its head, so OBV
+    //     is the one series here with no whitespace at all. TRANSCRIBED, NOT
+    //     CORRECTED — correcting it is a measured, owner-facing decision of the
+    //     shape the MACD head-mask (88 px) and the VWAP anchor (2,590 px) got.
+    //   · `donchian` — the LAST price overlay, which is why it lands last: LWC
+    //     z-stacks by insertion and the engine draws its whole set contiguously
+    //     where BB's block used to be, so migrating it ahead of `sar`/`ichimoku`
+    //     would have put it UNDER two overlays it sits on top of today.
+    //     ⛔⭐ AND ITS MIDDLE LINE IS `LargeDashed`, WHICH THE DEFINITION DID NOT
+    //     SAY. This block built its three with `style: 0, 3, 0`; `donchian.middle`
+    //     carried no `lineStyle` behind a comment calling LineStyle 3
+    //     "unnameable" — true before `largeDashed` joined `PLOT_LINE_STYLES`,
+    //     false after. `pool.seriesOptionsForPlot` resolves an absent plot style
+    //     to SOLID (complete key set), so the engine would have drawn the mid-line
+    //     solid. No series count and no scale assertion could see it; the
+    //     definition names it now and `adxObvDonchianFlipParity.test.js` asserts
+    //     it. This block also passed NO `priceScaleId` and no pane argument, so
+    //     LWC defaulted both; `placement.js` resolves `price` to
+    //     `MAIN_PRICE_SCALE_ID` explicitly — the same answer, and the explicit
+    //     form is what stops a pooled band stranding on somebody else's scale.
     // ── Symbol comparison overlay ──
     if (comparisonData.length) {
       if (!compareSeriesRef.current) {
@@ -7056,7 +6983,7 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -7965,7 +7892,6 @@ export default function StockChart({
   // without forcing the subscription useEffect below to re-run on every change.
   useEffect(() => {
     overlayDataRef.current = overlayData
-    indicatorDataRef.current = indicatorData
     comparisonDataRef.current = comparisonData
     livePricesRef.current = livePrices
     resolvedOverlaysRef.current = resolvedOverlays
@@ -7995,7 +7921,6 @@ export default function StockChart({
     // so the subscription survives live ticks without tearing down.
     const processCrosshair = (param) => {
       const overlayData = overlayDataRef.current
-      const indicatorData = indicatorDataRef.current
       const comparisonData = comparisonDataRef.current
       const livePrices = livePricesRef.current
       const resolvedOverlays = resolvedOverlaysRef.current
@@ -8615,33 +8540,33 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady) return
     const vis = !indicatorsHidden
-    const set = (ref) => { try { ref.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
-    ;[
-      // NB: the MA tail refs live in the ARRAY ref overlayTailSeriesRefs (plural,
-      // handled with overlaySeriesRefs below). A phantom singular
-      // `overlayTailSeriesRef` here shipped 2026-07-22 and crashed /charts with a
-      // ReferenceError the moment any chart mounted — every identifier in this
-      // list MUST be a declared ref (there is no build-time check for this).
-      volumeSeriesRef,
-      // ⛔ NO bb*/rsi refs (B3 Task 10), NO vwap/macd refs (B3 Task 11), NO
-      // stoch*/atr refs (B5 Task 5), NO sar/ichimoku* refs (B5 Task 6) and NO
-      // mfi/cci/williamsR refs (B5 Task 7) — all ELEVEN definitions are FLIPPED,
-      // and this list lost SIX entries at Task 6 and THREE more here. They are
-      // reached through the engine's binding map at the bottom of this effect,
-      // which is why the declutter toggle keeps working for them without anyone
-      // editing this list. That is the whole point: this array SHRINKS at every
-      // flip and the toggle's behaviour does not change.
-      adxSeriesRef, adxPlusDIRef, adxMinusDIRef, obvSeriesRef,
-      donchianUpperRef, donchianMiddleRef, donchianLowerRef,
-    ].forEach(set)
+    // ⭐⭐ THE HIDE-ALL REF ARRAY IS GONE (B5 Task 8), AND WITH IT THE FOURTH AND
+    // LAST OF THE LEDGER ROWS THIS TASK RETIRES. It was `const set = (ref) => …`
+    // over a hand-written list of every indicator series ref; it shrank at every
+    // flip (B3 Task 10, B3 Task 11, B5 Tasks 5, 6, 7) and this task took its last
+    // SEVEN entries — adx ×3, obv, donchian ×3. There is no indicator ref left to
+    // list, so the array is not shorter, it is DELETED: every indicator series is
+    // reached through the engine's binding map at the bottom of this effect,
+    // which is why the declutter toggle keeps working for all fourteen without
+    // anyone editing anything. The failure class the old NB described — a name in
+    // that list that is not a declared ref is a ReferenceError at runtime and
+    // nothing catches it at build time (it shipped once, 2026-07-22, and crashed
+    // /charts on mount) — is now unreachable, because there is no list.
+    //
+    // ⚠️ VOLUME IS NOT AN INDICATOR AND DOES NOT RETIRE WITH THEM. It was the
+    // FIRST entry in that array and it has no definition, no instance and no
+    // binding, so deleting the array without this line would silently stop the
+    // declutter toggle hiding the volume series — a behaviour change no pixel
+    // case could see (the parity page draws no keystroke) and exactly the kind of
+    // thing a `.forEach(set)` deletion takes with it by accident.
+    try { volumeSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ }
     const setAll = (arr) => { if (Array.isArray(arr)) arr.forEach(s => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }) }
     setAll(overlaySeriesRefs.current)
     setAll(overlayTailSeriesRefs.current)
-    // Engine-owned series are ITERATED, never hand-listed. The array above is the
-    // failure class the warning describes — a name in it that isn't a declared ref
-    // is a ReferenceError at runtime and nothing catches it at build time. Every
-    // series the engine draws is reached through its binding map instead, so an
-    // indicator added in B3 hides with the toggle without anyone editing a list.
+    // Engine-owned series are ITERATED, never hand-listed — and as of B5 Task 8
+    // that is the ONLY way an indicator is reached here. This is the first paint
+    // after the hide-all array lost its last seven entries, so it is also the
+    // proof that the binding map really does carry the toggle for all fourteen.
     if (engineRef.current) {
       try { setAll(engineRef.current.binder.bindings().map(b => b.series)) } catch { /* disposed */ }
     }

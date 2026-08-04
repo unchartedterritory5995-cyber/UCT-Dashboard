@@ -205,21 +205,50 @@ describe('the volume-overlay strip survives — it is not an indicator control',
 // B4 could not exhaust.
 describe('engineDrawnInputs — the MIGRATED-ID filter', () => {
   it('drops an un-migrated instance, and reports a migrated one in full', () => {
-    const unmigrated = engineRegistry.listDefinitions()
-      .map(d => d.id)
-      .filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id))
-    expect(unmigrated, 'every definition is migrated — this control is now empty').not.toHaveLength(0)
-
-    for (const defId of unmigrated) {
-      const cs = settingsWith({
-        indicatorInstances: [{
-          instanceId: `legacy:${defId}`, defId, defVersion: 1,
-          inputs: {}, placement: engineRegistry.getDefinition(defId).placement, hidden: false,
-        }],
-      })
-      expect(engineDrawnDefIds(cs, engineRegistry).has(defId), `${defId} was reported as engine-drawn`).toBe(false)
-      expect(engineDrawnInputs(cs, engineRegistry).has(defId), defId).toBe(false)
+    // ⚠️ ITS POPULATION RAN OUT AT B5 TASK 8, AND THE FILTER DID NOT. Every
+    // definition in the shipped registry is migrated now, so a loop over the
+    // un-migrated ones iterates ZERO times — green, and about nothing. The claim
+    // is about `engineDrawnInputs`' MIGRATED-ID FILTER, not about any particular
+    // indicator, so it moves DOWN A LEVEL: the filter is driven with a SYNTHETIC
+    // registry that knows a definition the migrated set does not.
+    //
+    // ⛔ A SYNTHETIC *REGISTRY*, NOT A SYNTHETIC INSTANCE. An instance with an
+    // unknown `defId` is dropped by `normalizeInstances` (there is no definition
+    // to validate it against) and would never reach the filter at all — the case
+    // would pass for the wrong reason, which is the exact defect this branch keeps
+    // finding. Handing `engineDrawnInputs` a registry that RESOLVES the id makes
+    // the migrated-id check the only thing left that can refuse it.
+    const UNMIGRATED_ID = '__unmigratedProbe'
+    expect(ENGINE_MIGRATED_DEF_IDS.has(UNMIGRATED_ID)).toBe(false)
+    const real = engineRegistry.getDefinition('rsi')
+    const probeDef = { ...real, id: UNMIGRATED_ID }
+    const probeRegistry = {
+      getDefinition: (id) => (id === UNMIGRATED_ID ? probeDef : engineRegistry.getDefinition(id)),
+      listDefinitions: () => [...engineRegistry.listDefinitions(), probeDef],
     }
+    const instanceOf = (id, def) => settingsWith({
+      indicatorInstances: [{
+        instanceId: `legacy:${id}`, defId: id, defVersion: def.version,
+        inputs: {}, placement: def.placement, hidden: false,
+      }],
+    })
+    // ⛔ THE CONTROL THAT MAKES THE REFUSAL BELOW MEAN SOMETHING: the SAME
+    // instance shape, under a MIGRATED id, IS reported. Without it a filter that
+    // refused everything — or a validator that dropped the probe before the
+    // filter ever saw it — would look identical.
+    expect(engineDrawnDefIds(instanceOf('rsi', real), engineRegistry).has('rsi'),
+      'the probe SHAPE is refused by the validator, not by the migrated-id filter — '
+      + 'the refusal below would prove nothing').toBe(true)
+    expect(engineDrawnDefIds(instanceOf(UNMIGRATED_ID, probeDef), probeRegistry).has(UNMIGRATED_ID),
+      'an un-migrated definition was reported as engine-drawn').toBe(false)
+    expect(engineDrawnInputs(instanceOf(UNMIGRATED_ID, probeDef), probeRegistry).has(UNMIGRATED_ID))
+      .toBe(false)
+    // …and the real population really is exhausted, which is WHY this is
+    // synthetic. The day a definition ships un-migrated, this line says so and
+    // the REAL subject is the better one (it exercises the shipped blob too).
+    expect(engineRegistry.listDefinitions().map(d => d.id).filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+      'an un-migrated definition exists again — drive this control on the REAL one as well')
+      .toEqual([])
 
     // …and the positive half, so this is a FILTER and not a blanket "return
     // nothing": a migrated definition's instance IS reported, inputs and all.

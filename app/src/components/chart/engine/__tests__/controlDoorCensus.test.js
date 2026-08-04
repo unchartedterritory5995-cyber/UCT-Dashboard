@@ -7,6 +7,7 @@ import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from '../i
 import { applyRowPatch } from '../../indicatorRegistry'
 import { ENGINE_FLIPPED_DEF_IDS } from '../flipState'
 import * as engineRegistry from '../nativeRegistry'
+import { migrateLegacyToInstances } from '../instances'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ─── THE CONTROL-DOOR CENSUS ────────────────────────────────────────────────
@@ -324,20 +325,29 @@ describe('the control-door census — how many doors, and whether an eighth exis
 
   // ─── THE MIRROR, ON ALL FOUR B4 SURFACES ──────────────────────────────────
   //
-  // ⛔ WHY THIS IS THE ASSERTION AND NOT "the instance moved". TEN of the
-  // fourteen definitions are still drawn by a hand-written legacy block, and
-  // every one of those blocks gates on `cs.indicators[id].enabled`. A door that
-  // wrote only the INSTANCE would work perfectly on all four B3 pilots — the
-  // ones every earlier suite exercises — and do NOTHING on the other ten. That
-  // asymmetry is why the mirror is checked per definition rather than on a
-  // sample, and why the un-flipped ids are the ones that can actually fail.
+  // ⛔ WHY THIS IS THE ASSERTION AND NOT "the instance moved" — AND THE REASON
+  // CHANGED AT B5 TASK 8 RATHER THAN EXPIRING WITH IT.
+  //
+  // It USED to be: ten of the fourteen definitions are still drawn by a
+  // hand-written legacy block gating on `cs.indicators[id].enabled`, so a door
+  // that wrote only the INSTANCE would work on the four pilots every earlier
+  // suite exercises and do NOTHING on the other ten. **That population is gone**
+  // — all fourteen are flipped and there is no legacy block left to read the
+  // mirror — so the un-flipped filter this guard stood on iterated ZERO times
+  // and the guard could only fail.
+  //
+  // ⭐ THE MIRROR IS STILL LOAD-BEARING, FOR A DIFFERENT AND MORE DURABLE
+  // READER, and that is what this case moves down to. `indicators.<id>` is the
+  // shape a chart is SHARED and RESTORED in: `handleCopyShareUrl` writes exactly
+  // that map, a preset / reset stamps a whole blob over `indicatorInstances`,
+  // and `migrateLegacyToInstances` PROJECTS the instance list back out of it on
+  // read. So a door that wrote only the instance produces a chart that is
+  // correct right up until the blob makes a round trip without its instances —
+  // and then the indicator is simply gone. That is DRIVEN below, per definition,
+  // rather than asserted about a population that no longer exists.
   it('the four B4 surfaces all move the MIRROR as well as the instance', () => {
     const defs = engineRegistry.listDefinitions()
     expect(defs.length, 'no definitions — the loop below proves nothing').toBeGreaterThan(10)
-    const unflipped = defs.filter(d => !ENGINE_FLIPPED_DEF_IDS.has(d.id))
-    expect(unflipped.length,
-      'every definition is flipped, so an instance-only write would be indistinguishable ' +
-      'from a correct one and this case could not fail').toBeGreaterThan(0)
 
     for (const def of defs) {
       const base = mergeChartSettings(null)
@@ -355,6 +365,20 @@ describe('the control-door census — how many doors, and whether an eighth exis
       const viaRow = applyRowPatch({ engineOwned: true, defId: def.id }, { enabled: true }, base, engineRegistry)
       expect(viaRow.indicators[def.id].enabled, `${def.id}: applyRowPatch left the MIRROR off`).toBe(true)
       expect(isIndicatorEnabled(viaRow, def.id, ENGINE_FLIPPED_DEF_IDS), def.id).toBe(true)
+
+      // ⭐ AND THE MIRROR REALLY IS WHAT SURVIVES A ROUND TRIP. Drop
+      // `indicatorInstances` — which is what a share link, a preset and a reset
+      // all do — and the read-time migrator has to rebuild the instance from the
+      // mirror alone. An instance-only write fails HERE, by name, for every
+      // definition, and it does so without needing an un-flipped one to exist.
+      const roundTripped = migrateLegacyToInstances({ ...on, indicatorInstances: [] }, engineRegistry)
+      expect(roundTripped.some(i => i && i.defId === def.id && !i.deleted),
+        `${def.id}: the mirror did not survive a blob round trip — a share link or a `
+        + 'preset would drop this indicator entirely').toBe(true)
+      // …and the control that the projection is not simply putting everything
+      // back: the OFF blob projects nothing for it.
+      expect(migrateLegacyToInstances({ ...off, indicatorInstances: [] }, engineRegistry)
+        .some(i => i && i.defId === def.id), `${def.id}: an OFF mirror still projected`).toBe(false)
 
       // ── an INPUT write mirrors too, or the legacy block draws the old period ──
       const input = def.inputs.find(i => i.type === 'int' || i.type === 'float')

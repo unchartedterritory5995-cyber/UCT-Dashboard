@@ -354,7 +354,24 @@ export function createBinder({ chart, LWC }) {
       return points
     }
 
-    const next = []
+    /** Scale writes already made THIS sync — see TRAP #6 below. Keyed by pane,
+     *  scale id AND payload, so a second definition wanting a DIFFERENT scale
+     *  state on the same axis still gets its write. */
+    const scalesWritten = new Set()
+
+    // ── TRAP #5: EVERY SERIES ON A SCALE MUST EXIST BEFORE ANY OF THEM HAS
+    //             DATA. Measured at B5 Task 8; it cost 11,913 changed pixels.
+    //
+    // See TRAP #6 below for the mechanism. Both halves are required and each was
+    // measured INSUFFICIENT ALONE: creating all three of `adx`'s series up front
+    // while the scale was still written per binding reads 11,913, and writing the
+    // scale once while the siblings are still created between `setData` calls
+    // reads 11,913 too. The shipped block does both, so the binder does both.
+    //
+    // Pass one CREATES (and relocates/restyles) every series; pass two writes the
+    // scale, the guides and the data. Both walk `bind` in the same order, so
+    // insertion order — which IS z-order — is unchanged.
+    const prepared = []
     for (const b of bind) {
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
@@ -421,14 +438,37 @@ export function createBinder({ chart, LWC }) {
         // without anything going red: `mfi`, `cci` and `williamsR` are PANE
         // oscillators too, so all five are eligible for `ensureIndTarget`'s
         // `volSeparatePane && volOverlaySet.has(key)` branch and all five can
-        // relocate on a live chart. `adx` and `obv` join at Task 8, which makes
-        // the eventual list every pane oscillator there is. The MECHANISM is
-        // unchanged and so is the blind spot; only the count moved.
+        // relocate on a live chart.
+        // ⭐⭐ AND B5 TASK 8 CLOSED THAT LIST: `adx` and `obv` joined, so it is
+        // now EVERY PANE OSCILLATOR THERE IS — nine of them — and `donchian`
+        // took the last price-overlay slot without adding a crossing (a price
+        // target is still not movable by the volume-overlay toggle). The
+        // MECHANISM is unchanged and so is the blind spot; only the count moved,
+        // and it has stopped moving.
+        //
+        // ⏳ WHAT REPLACES THE BLIND SPOT, AND WHEN. The rails are blind because
+        // they read `addSeries` CALL ORDER, which a relocation does not touch.
+        // Task 10's PANE MANIFEST is the successor: it records, per pane, each
+        // series' index and `priceScaleId` and is diffed as JSON alongside the
+        // pixels, so a series that changed pane or z-position without changing a
+        // pixel — and a pixel that changed without the manifest moving — are both
+        // failures BY DEFINITION rather than things nobody can see. Until then
+        // the expiry rail in `stockChartWiring.test.jsx` keeps its name and says
+        // which fixture it speaks for.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
         attempt(() => series.applyOptions(options))
       }
 
-      // ── TRAP #2: the FULL set, every bind, create branch or not ──
+      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles })
+    }
+
+    // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
+    const next = []
+    for (const p of prepared) {
+      const { b, paneIndex, scaleId, scaleOptions, series } = p
+      let { guideHandles } = p
+
+      // ── TRAP #2: the FULL set, every SYNC, create branch or not ──
       //
       // `scaleOptions === null` means ASSERT NOTHING — a price overlay lands on
       // the candles' own axis and writing `scaleMargins` there would move the
@@ -436,7 +476,44 @@ export function createBinder({ chart, LWC }) {
       // no-op in 5.2.0 (`merge(dst, {rightPriceScale: null})` iterates nothing)
       // but it fired a full price-scale update on every bind and contradicted
       // placement's own docstring, so the guard says out loud what was meant.
-      if (scaleOptions) attempt(() => series.priceScale().applyOptions(scaleOptions))
+      //
+      // ── TRAP #6: ONCE PER SCALE PER SYNC, NOT ONCE PER BINDING ──
+      //
+      // 🔴 THIS READ *"every BIND"* AND IT COST 11,913 CHANGED PIXELS ON `adx`.
+      // Measured on the two-build gate at B5 Task 8; the picture, the option
+      // payloads, the pane manifest and the SERIES DATA were all identical, and
+      // the ONLY difference was the frozen price range: the legacy build's `adx`
+      // scale held **5.1746 … 59.0249** (the extent of all THREE lines) and the
+      // engine's held **15.5154 … 59.0249** — the ADX line's own extent, exactly.
+      //
+      // `autoScale: false` does not compute anything (`PriceScale.applyOptions`
+      // just `merge`s the flag, `…development.mjs:4541`); what it does is stop
+      // `_internal_recalculatePriceScale` from ever running again (`:5456`). The
+      // range is then materialised the first time anything asks for it, from the
+      // sources that have data AT THAT MOMENT — and a `priceScale().applyOptions`
+      // is one of the things that asks. The shipped block calls `applyIndScale`
+      // **once**, before any of its series has data, so nothing is materialisable
+      // and the range is computed at paint from all three. The binder called it
+      // once per BINDING: the second call landed between `setData(adx)` and
+      // `setData(plusDI)` and froze the scale on the ADX line alone.
+      //
+      // ⭐ WHY NOTHING CAUGHT IT UNTIL THE LAST MIGRATION. It is invisible unless
+      // a definition puts SEVERAL series on ONE PINNED scale whose extents are
+      // not nested. `stoch` is the only earlier one, and `%D` is a moving average
+      // OF `%K`, so `%K`'s extent already contains it and freezing on `%K` alone
+      // gives the same answer. `adx` is the first where it does not.
+      //
+      // ⭐ THE TRAP #2 GUARANTEE IS UNCHANGED. Its subject was always a POOLED
+      // series inheriting a scale some earlier tenant left frozen, and that is a
+      // claim about every SYNC, not about every binding within one. The repeats
+      // were inert on the payload (this file's own tests called them so) and were
+      // never inert on the ORDER.
+      const scaleWriteKey = `${paneIndex}|${scaleId}`
+      const scaleSig = scaleOptions ? scaleWriteKey + '|' + JSON.stringify(scaleOptions) : null
+      if (scaleOptions && !scalesWritten.has(scaleSig)) {
+        scalesWritten.add(scaleSig)
+        attempt(() => series.priceScale().applyOptions(scaleOptions))
+      }
 
       // ── TRAP #3: the previous tenant's guides ──
       //

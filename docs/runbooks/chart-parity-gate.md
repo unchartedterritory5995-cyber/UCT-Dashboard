@@ -805,7 +805,9 @@ Four things about that object are load-bearing:
   migration's `expectProvenance`.
 * **`scaleId` comes from `series.options().priceScaleId`**, NOT from the price
   scale: `IPriceScaleApi` in lightweight-charts 5.2.0 has no `priceScaleId()`, so
-  the obvious read is `undefined` on every series.
+  the obvious read is `undefined` on every series. **And when the caller omitted
+  the option, `paneManifest` resolves it the way LWC does** — see the box below;
+  before B5 Task 8 it reported `null`, which is a different question's answer.
 * **`panes` sorted by index; `series` in INSERTION ORDER within a pane.** Order
   is meaning here — LWC paints by insertion, so a reordered `series` list is a
   z-order change and the diff is right to report it. `manifest_diff_parts` walks
@@ -813,6 +815,50 @@ Four things about that object are load-bearing:
   and lists by position (position *is* the claim), and it classifies by LEAF
   NAME — so a whole `series[3]` appearing on one side only is **geometry**, not
   something a provenance declaration can wave through.
+
+#### 7.3.3 ⛔ AN OMITTED `priceScaleId` IS RESOLVED, NOT REPORTED AS `null`
+
+Measured on B5 Task 8, the **last** migration, and it turned the whole gate red
+before it was understood — so it is written down here rather than left in a
+report.
+
+`donchian` is the **one** legacy indicator block that created its series with no
+`priceScaleId` at all (`sar`, `ichimoku`, `mfi`, `cci`, `williamsR`, `adx`, `obv`
+and the MA overlays all pass one; the CANDLES do not either). LWC leaves the
+option `undefined` in that case and resolves it only at insertion —
+`targetScaleId = priceScaleId !== undefined ? priceScaleId :
+defaultVisiblePriceScaleId()` (dev bundle :7334-7335). So the legacy build
+reported `scaleId: null` for three series sitting on exactly the `'right'` scale
+the engine names explicitly, and migrating `donchian` read as:
+
+```
+geometry     panes[0].series[11..13].scaleId: None -> 'right'
+provenance   panes[0].series[11..13].key:     None -> 'legacy:donchian::*'
+changed      0
+```
+
+**Three geometry lines with zero changed pixels** — the one shape
+`manifest_verdict` refuses unconditionally, and the shape `expectProvenance` is
+deliberately unable to declare away (§7.3.1). Nothing had moved; the manifest was
+answering *which option was passed* where the geometry rule asks *which scale the
+series is on*.
+
+The fix is at the **instrument**, not at the gate:
+`paneLayout._defaultVisibleScaleId(chart)` transcribes LWC's own resolution over
+the PUBLIC `chart.options()` (one of the two default scales visible ⇒ that one,
+otherwise `defaultVisiblePriceScaleId`), and `paneManifest` uses it as the last
+fallback. That is **strictly stronger** than reporting `null`: two series on
+DIFFERENT default axes used to read identically, and now read `'right'` and
+`'left'`. A chart that cannot answer still reports `null` — a manifest never
+guesses.
+
+⚠️ **If you are gating a build pair that straddles this change**, the instrument
+must be on BOTH sides (as `?priceline=0` is), and it must be shown pixel-neutral.
+Task 8 did that with a dedicated run of the pure pre-migration build against the
+same build plus the instrument patch: **46 live cases, 0 changed pixels on every
+one, 0 provenance lines, and the only manifest lines in the entire run were 60 ×
+`scaleId: None -> 'right'`** — i.e. the instrument's own resolution and nothing
+else.
 
 ### 7.4 What each one costs you if you get it wrong
 
@@ -1194,14 +1240,16 @@ The harness deep-merges preset → case settings, base64url-encodes the result i
 `?indicators=`, and the page merges that over its own settings with
 `mergeSettingsOverride` — the same function the multi-chart grid uses.
 
-The un-migrated natives are listed as `status: "placeholder"` with empty settings,
-and each migration fills its own in; the list states the whole obligation up front
+The un-migrated natives were listed as `status: "placeholder"` with empty settings,
+and each migration filled its own in; the list stated the whole obligation up front
 rather than quietly shrinking to whatever was easy. It said **twelve** when B3
-wrote it and the number has been falling ever since — **four** remain after B5
-Task 7 (`adx`, `obv`, `donchian`, `volume_profile`), out of 44 cases of which 40
-run by default. Do not re-state the count here: `--include-placeholders` and a
-`grep status` both answer it, and a number in prose is the one thing in this file
-that nothing can fail on.
+wrote it and the number fell at every migration. **B5 Task 8 emptied it**: `adx`,
+`obv` and `donchian` were the last three series-expressible natives, so the only
+remaining placeholder is `volume_profile`, which has no engine definition at all
+(it is not series-expressible — a horizontal histogram on its own canvas — and
+spec §5 carves it out by name). Do not re-state the count here:
+`--include-placeholders` and a `grep status` both answer it, and a number in prose
+is the one thing in this file that nothing can fail on.
 
 **Do not change `defaults.fixedbars`, `w`, `h` or the preset** without recapturing
 every stored baseline — they are part of what a baseline PNG *means*. Likewise

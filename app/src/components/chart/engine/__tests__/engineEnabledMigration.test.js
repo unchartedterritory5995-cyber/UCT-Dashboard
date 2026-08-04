@@ -278,6 +278,17 @@ const JULY_BLOB = JSON.stringify({
     mfi: { enabled: true, period: 21, color: '#aa1111' },
     cci: { enabled: true, period: 34, color: '#aa2222' },
     williamsR: { enabled: true, period: 28, color: '#aa3333' },
+    // ⭐⭐ ADDED AT B5 TASK 8 — THE LAST THREE, and with them this fixture names
+    // EVERY series-expressible definition there is, so the "every FLIPPED
+    // indicator the blob had on is engine-drawn" case below compares two lists
+    // that are now the same fourteen and can never again be repaired by
+    // weakening the expectation. `donchian` is the first PRICE OVERLAY this
+    // fixture has ever had to add (Task 6's `sar`/`ichimoku` were already here),
+    // and `obv` is the only definition with no period at all — so its stored
+    // COLOUR is what has to survive the merge.
+    adx: { enabled: true, period: 21, adxColor: '#bb1111', plusDIColor: '#bb2222', minusDIColor: '#bb3333' },
+    obv: { enabled: true, color: '#bb4444' },
+    donchian: { enabled: true, period: 55, color: '#bb5555' },
     volumeProfile: { enabled: true, bins: 48, color: '#666666', pocColor: '#777777' },
   },
 })
@@ -304,7 +315,7 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     ).toEqual([])
     // Named explicitly, because "the loop found nothing" and "the loop ran zero
     // times" read the same in a green suite.
-    expect(Object.keys(stored)).toHaveLength(12)
+    expect(Object.keys(stored)).toHaveLength(15)
     expect(cs.indicators.vwap.opacity).toBe(40)
     expect(cs.indicators.vwap.lineStyle).toBe('dashed')
     expect(cs.indicators.rsi.period).toBe(9)
@@ -318,6 +329,14 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     expect(cs.indicators.mfi.period).toBe(21)
     expect(cs.indicators.cci.period).toBe(34)
     expect(cs.indicators.williamsR.period).toBe(28)
+    // B5 Task 8's three. `adx` carries THREE colours off one section (the merge's
+    // widest per-key allow-list row); `obv` has no period at all, so its colour is
+    // the only thing that can survive or not; `donchian` is a non-default period
+    // on a PRICE OVERLAY, which no earlier addition to this fixture tested.
+    expect(cs.indicators.adx.period).toBe(21)
+    expect(cs.indicators.adx.minusDIColor).toBe('#bb3333')
+    expect(cs.indicators.obv.color).toBe('#bb4444')
+    expect(cs.indicators.donchian.period).toBe(55)
   })
 
   it('no key is resurrected — the merged blob names the flag nowhere', () => {

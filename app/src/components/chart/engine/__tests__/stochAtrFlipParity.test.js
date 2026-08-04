@@ -203,9 +203,18 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
   it('asserts the FULL price-scale set — the band AND the 0-100 fixed range', () => {
     const { F } = sync(STOCH_INSTANCE, STOCH_CS, STOCH_BAND)
     const scaleCalls = F.callsOf('priceScale.applyOptions')
-    // ONE call: the guides and both lines share the `stoch` scale, and the
-    // binder asserts it per BINDING — so two lines is two calls, both identical.
-    expect(scaleCalls).toHaveLength(2)
+    // ONE call: the guides and both lines share the `stoch` scale.
+    // 🔴 THE COUNT WAS TWO UNTIL B5 TASK 8 MEASURED THE REPEAT AT 11,913 px.
+    // The binder wrote the scale once per BINDING; a second
+    // `priceScale().applyOptions` landing between two siblings' `setData`
+    // calls MATERIALISES the frozen range from the first sibling alone
+    // (`adx` came out 15.5154..59.0249 against the shipped 5.1746..59.0249).
+    // The shipped blocks call `applyIndScale` ONCE, so the binder does too —
+    // `binder.js` TRAP #6. The payload is unchanged and still asserted whole.
+    // ⭐ AND `stoch` IS WHY IT SURVIVED TEN MIGRATIONS: `%D` is a moving average
+    // OF `%K`, so `%K`'s extent already contains it and freezing on `%K` alone
+    // gives the same range. `adx` is the first definition where that is false.
+    expect(scaleCalls).toHaveLength(1)
     for (const call of scaleCalls) {
       expect(call.args[0]).toEqual(
         legacyBandScale(STOCH_BAND, { autoScale: false, minimum: 0, maximum: 100 }))

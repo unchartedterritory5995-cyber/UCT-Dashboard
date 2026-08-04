@@ -1093,6 +1093,18 @@
         [
           null,
           "legacy:ichimoku::chikou"
+        ],
+        [
+          null,
+          "legacy:donchian::upper"
+        ],
+        [
+          null,
+          "legacy:donchian::middle"
+        ],
+        [
+          null,
+          "legacy:donchian::lower"
         ]
       ],
       "tf": "5",
@@ -1391,18 +1403,197 @@
     },
     {
       "name": "adx_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 8's TWO-BUILD measurement for ADX/DMI: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. It is the only definition in this task with a GUIDE (one line at 25, dashed, on the ADX line itself and NOT on +DI), and the only three-line instance sharing ONE named scale — so it is what sees a guide attached to the wrong series or a per-plot scale write. ⚠️ Its `fixedPane(0, 100)` has a `min` of ZERO, which is FALSY: `resolvePlacement` reaches the pinned branch on `Number.isFinite`, and a truthiness guard would drop the `autoScale: false` that freezes a pooled scale — williamsR sprang the same trap from the `max` end at Task 7. `indicators.adx.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into. ⚠️ Perturb `{\"period\": 21}`, not a colour — a period appears in NO option object, and ADX's NaN head is period-dependent by construction (27 → 41 on the 260-bar fixture).",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:adx::adx"
+        ],
+        [
+          null,
+          "legacy:adx::plusDI"
+        ],
+        [
+          null,
+          "legacy:adx::minusDI"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "adx": {
+            "enabled": true,
+            "period": 14,
+            "adxColor": "#e5e7eb",
+            "plusDIColor": "#22c55e",
+            "minusDIColor": "#ef4444"
+          }
+        }
+      }
     },
     {
       "name": "obv_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 8's TWO-BUILD measurement for On-Balance Volume, and THE ONE CASE THAT ACTUALLY EXERCISES THE AUTOSCALE SEAM ON A REAL SCALE. Every other oscillator's column sits in a small range; OBV's runs to 1e8, so an inverted `autoscaleInfoProvider` here is the most visible mistake available in this task — B3 Task 1 measured what `exclude` does to an autoscaled band (RSI's column collapsed to -0.5..0.5 and `priceToCoordinate(30)` went 371 → -1640.78). It is also the one definition with NO declared range at all (`autoPane`), so `{autoScale: true}` and nothing else must reach the scale. ⭐ AND ITS ZERO SEED IS PRESERVED: `computeOBV` starts bar 0 at 0 where every other native NaN-pads its head. TRANSCRIBED, NOT CORRECTED — correcting it is a measured, owner-facing decision of the shape the MACD head-mask (88 px) and the VWAP anchor (2,590 px) got. ⛔ ITS FAIL-PROOF IS A COLOUR, NOT A PERIOD, AND THAT EXEMPTION IS WRITTEN DOWN HERE RATHER THAN LEFT IMPLICIT: `obv` declares NO period input — `computeOBV(bars)` takes the bars alone — so there is nothing a period could move. Every other case on this branch perturbs a period precisely because a period appears in no option object; for this one that rule does not apply, and a period perturbation would be a silent no-op reading 0 px and looking exactly like a pass.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:obv::obv"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "obv": {
+            "enabled": true,
+            "color": "#9ca3af"
+          }
+        }
+      }
     },
     {
       "name": "donchian_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 8's TWO-BUILD measurement for Donchian Channels — THE LAST PRICE OVERLAY, which is why it lands last: LWC z-stacks by insertion and the engine draws its whole set contiguously where BB's block used to be, so migrating it ahead of `sar`/`ichimoku` would have put it UNDER two overlays it sits on top of today. It carries NO `priceScaleId` in the shipped block (LWC defaults it to the candles' scale) while `placement.js` resolves `price` to `MAIN_PRICE_SCALE_ID` EXPLICITLY — the same answer for a different reason, and the explicit form is what stops a pooled band stranding on somebody else's scale. `autoscaleInfoProvider` is load-bearing here in the way B3 Task 1 priced at 38,491 changed pixels: Donchian's upper IS the highest high of the window and its lower the lowest low, so the channel is always at or outside the candles' own extent. ⛔⭐ AND ITS MIDDLE LINE IS `LargeDashed` (LWC LineStyle 3) WHILE THE DEFINITION DECLARED NO `lineStyle` AT ALL, behind a comment calling LineStyle 3 \"unnameable\" — true before `largeDashed` joined `PLOT_LINE_STYLES`, false after; `pool.seriesOptionsForPlot` resolves an absent plot style to SOLID, so the engine would have drawn the mid-line solid. That is the one thing in this task no series count and no scale assertion could see. ⚠️ Perturb `{\"period\": 21}`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:donchian::upper"
+        ],
+        [
+          null,
+          "legacy:donchian::middle"
+        ],
+        [
+          null,
+          "legacy:donchian::lower"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "donchian": {
+            "enabled": true,
+            "period": 20,
+            "color": "rgba(96,165,250,0.5)"
+          }
+        }
+      }
+    },
+    {
+      "name": "engine_adx_vs_legacy",
+      "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:adx` out of `indicators.adx.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy ADX block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `adx_only` does not exercise. ⚠️ Its real force is under `--perturb-b-instances` with `{\"period\": 21}`: a period appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and ADX's period moves all THREE lines while leaving the guide at 25 exactly where it was.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:adx::adx"
+        ],
+        [
+          null,
+          "legacy:adx::plusDI"
+        ],
+        [
+          null,
+          "legacy:adx::minusDI"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "adx": {
+            "enabled": true,
+            "period": 14,
+            "adxColor": "#e5e7eb",
+            "plusDIColor": "#22c55e",
+            "minusDIColor": "#ef4444"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:adx",
+          "defId": "adx",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14,
+            "adxColor": "#e5e7eb",
+            "plusDIColor": "#22c55e",
+            "minusDIColor": "#ef4444"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_obv_vs_legacy",
+      "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:obv` out of `indicators.obv.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy OBV block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `obv_only` does not exercise. ⛔ ITS PERTURBATION IS A COLOUR AND NOT A PERIOD, and that is an EXEMPTION rather than an oversight: `obv` declares no period input at all, so there is nothing a period perturbation could move and the run would report 0 px and read as a pass. `{\"color\": \"#00ff00\"}` is what this case can be falsified with, and it was.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:obv::obv"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "obv": {
+            "enabled": true,
+            "color": "#9ca3af"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:obv",
+          "defId": "obv",
+          "defVersion": 1,
+          "inputs": {
+            "color": "#9ca3af"
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_donchian_vs_legacy",
+      "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:donchian` out of `indicators.donchian.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy Donchian block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `donchian_only` does not exercise. ⭐ It is also the ONLY engine-vs-projection case for a definition whose three plots land on the CANDLES' shared scale, so a projection that lost the `autoscale: 'exclude'` half would reframe the whole price pane rather than move one line. ⚠️ Perturb `{\"period\": 21}`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:donchian::upper"
+        ],
+        [
+          null,
+          "legacy:donchian::middle"
+        ],
+        [
+          null,
+          "legacy:donchian::lower"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "donchian": {
+            "enabled": true,
+            "period": 20,
+            "color": "rgba(96,165,250,0.5)"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:donchian",
+          "defId": "donchian",
+          "defVersion": 1,
+          "inputs": {
+            "period": 20,
+            "color": "rgba(96,165,250,0.5)"
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
+        }
+      ]
     },
     {
       "name": "volume_profile_only",

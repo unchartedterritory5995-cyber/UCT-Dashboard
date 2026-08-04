@@ -336,7 +336,7 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
 the evaluator). That is the decision; the resulting histogram is **not restated
-here**. `enumerationSites.test.js` → *"every B4 region is retired — 8 to B5, 2 to
+here**. `enumerationSites.test.js` → *"every B4 region is retired — 4 to B5, 2 to
 C, 3 kept, 2 phase bookkeeping"* asserts it, and every B4 task decrements the `B4`
 bucket, so a number copied into this paragraph would be a control that rots green
 — read it there.
