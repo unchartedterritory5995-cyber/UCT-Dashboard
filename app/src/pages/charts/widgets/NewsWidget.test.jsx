@@ -101,13 +101,15 @@ test('place drops TWO separate, linked drawings: a text label + a trendline lead
   expect(symA).toBe('NVDA'); expect(symB).toBe('NVDA')
   expect(label).toMatchObject({
     type: 'text', text: 'AI supply deal', calloutRole: 'label',
-    calloutAnchorTime: '2026-03-10', calloutAutoPlace: true, color: '#c9a84c',
+    calloutAnchorTime: '2026-03-10', calloutAutoPlace: true,
   })
-  expect(line).toMatchObject({ type: 'trendline', calloutRole: 'line', calloutAutoPlace: true, color: '#c9a84c' })
+  expect(line).toMatchObject({ type: 'trendline', calloutRole: 'line', calloutAutoPlace: true })
   // Linked by a shared id, but two independent drawings; overlay fills their points.
   expect(label.calloutId).toBeTruthy()
   expect(line.calloutId).toBe(label.calloutId)
   expect(label.points).toEqual([]); expect(line.points).toEqual([])
+  // Color/width are NOT set here — the chart's overlay stamps its own drawing default.
+  expect(label.color).toBeUndefined(); expect(line.color).toBeUndefined()
 })
 
 test('place is a one-time action, not a toggle — clicking twice places two catalysts (4 drawings)', () => {

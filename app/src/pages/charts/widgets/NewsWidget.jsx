@@ -15,7 +15,6 @@ import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
-import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
@@ -58,16 +57,11 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   // (linked only by a shared calloutId the overlay uses to place them together, then
   // never again). From there each can be moved, recolored, or deleted on its own —
   // the widget tracks no on/off state. We write straight to the shared per-symbol
-  // drawings store, so every chart on this ticker shows them. The overlay runs the
+  // drawings store, so every chart on this ticker shows them. COLOR + WIDTH are left
+  // for the chart's overlay to stamp at placement from ITS current drawing default
+  // (what the user last "Saved as default"), so a placed catalyst always matches —
+  // the News widget can't see that per-widget default. The overlay also runs the
   // Model-Book blank-space search once to position them clear of the candles.
-  const drawColor = useMemo(
-    () => mergeChartSettings(prefs?.chart_settings)?.drawingDefaults?.color || '#c9a84c',
-    [prefs?.chart_settings],
-  )
-  const drawWidth = useMemo(
-    () => mergeChartSettings(prefs?.chart_settings)?.drawingDefaults?.width || 1,
-    [prefs?.chart_settings],
-  )
   const [placedKey, setPlacedKey] = useState(null)   // transient "✓ placed" flash
   const placedTimerRef = useRef(null)
   useEffect(() => () => { if (placedTimerRef.current) clearTimeout(placedTimerRef.current) }, [])
@@ -75,11 +69,10 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
     const cid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `cid-${date}-${Math.round(Date.now() / 1000)}`
-    // Label (headline) — the overlay fills its point via the blank-space search.
+    // Label (headline) — the overlay fills its point + color via the placement pass.
     drawingsStore.addDrawing(sym, {
       type: 'text',
       text: e.title,
-      color: drawColor,
       fontSize: 13,
       points: [],
       calloutRole: 'label',
@@ -87,11 +80,9 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
       calloutAnchorTime: date,   // candle the placement anchors to
       calloutAutoPlace: true,
     })
-    // Leader line — the overlay fills its endpoints (candle → just short of the text).
+    // Leader line — the overlay fills its endpoints + color/width at placement.
     drawingsStore.addDrawing(sym, {
       type: 'trendline',
-      color: drawColor,
-      lineWidth: drawWidth,
       points: [],
       calloutRole: 'line',
       calloutId: cid,
@@ -100,7 +91,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     setPlacedKey(rowKey)
     if (placedTimerRef.current) clearTimeout(placedTimerRef.current)
     placedTimerRef.current = setTimeout(() => setPlacedKey(null), 1400)
-  }, [sym, drawColor, drawWidth])
+  }, [sym])
   const settings = useMemo(
     () => mergeNewsWidgetSettings(parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
     [prefs],

@@ -789,8 +789,8 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
 
   ctx.save()
   ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
-  const boxW = Math.max(24, ctx.measureText(text || '').width) + 4
-  const boxH = fontSize * 1.6
+  const boxW = Math.max(24, ctx.measureText(text || '').width) + 2   // tight to the text
+  const boxH = fontSize * 1.4
   // Visible candle high/low segments (pixels) so the label + line dodge candles.
   let from = 0, to = bars.length - 1
   if (vRange) { from = Math.max(0, Math.floor(vRange.from) - 1); to = Math.min(bars.length - 1, Math.ceil(vRange.to) + 1) }
@@ -1370,23 +1370,30 @@ export default function ChartDrawingOverlay({
         if (!b) continue
         const anchorPrice = res.anchorLow ? (b.l ?? b.low ?? b.c) : (b.h ?? b.high ?? b.c)
         const { rect, anchorPx } = res
-        // Line end = nearest box edge to the anchor, pulled back a GAP so the line
-        // and the text read as two separate marks with clear space between them.
-        const nx = Math.max(rect.x, Math.min(rect.x + rect.w, anchorPx.x))
-        const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorPx.y))
+        const labelPt = asPoint(toChart(rect.x, rect.y))
+        if (!labelPt) continue
+        // Measure the small text↔line gap from where the label ACTUALLY renders (its
+        // point re-snapped to a bar), NOT the raw search rect, so the leader comes
+        // CLOSE to the text without touching it. End = the box edge nearest the
+        // candle, pulled back a small GAP.
+        const lp = toPixel(labelPt.time, labelPt.price)
+        const bx = (lp && Number.isFinite(lp.x)) ? lp.x : rect.x
+        const by = (lp && Number.isFinite(lp.y)) ? lp.y : rect.y
+        const nx = Math.max(bx, Math.min(bx + rect.w, anchorPx.x))
+        const ny = Math.max(by, Math.min(by + rect.h, anchorPx.y))
         const dx = nx - anchorPx.x, dy = ny - anchorPx.y
         const len = Math.hypot(dx, dy) || 1
-        const GAP = 14
+        const GAP = 4
         const ex = len > GAP ? nx - (dx / len) * GAP : nx
         const ey = len > GAP ? ny - (dy / len) * GAP : ny
-        const labelPt = asPoint(toChart(rect.x, rect.y))
         const endPt = asPoint(toChart(ex, ey))
-        if (!labelPt || !endPt) continue
-        // Fill the label (drop the callout bookkeeping → plain text drawing).
-        updateDrawing(d.id, { points: [labelPt], calloutAutoPlace: false }, { record: false })
-        // Fill the companion line from the candle to just short of the text.
+        if (!endPt) continue
+        // Stamp THIS chart's current drawing default (color + width) so a placed
+        // catalyst matches whatever the user last "Saved as default" for drawings —
+        // then each is a normal, independently-recolorable drawing.
+        updateDrawing(d.id, { points: [labelPt], color, calloutAutoPlace: false }, { record: false })
         const line = drawings.find(x => x.calloutRole === 'line' && x.calloutId === d.calloutId)
-        if (line) updateDrawing(line.id, { points: [{ time: b.t, price: anchorPrice }, endPt], calloutAutoPlace: false }, { record: false })
+        if (line) updateDrawing(line.id, { points: [{ time: b.t, price: anchorPrice }, endPt], color, lineWidth, calloutAutoPlace: false }, { record: false })
       }
     }
 
