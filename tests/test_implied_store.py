@@ -378,6 +378,68 @@ def test_run_nightly_capture_hour_collision_resolves_identically_both_orders(sto
             f"{order_name}: bmo must win deterministically -> skipped, never stored"
 
 
+# ── Review round 3 CRITICAL — `_hour_rank` must normalize the SAME way
+# `run_nightly_capture` does (`.lower()`), and the bias must be proven
+# load-bearing rather than an accident of ASCII string ordering.
+_DUPH_BMO_UPPER = {"sym": "DUPH", "report_date": "2026-08-17", "hour": "BMO",
+                   "fiscal_year": 2026, "fiscal_quarter": 2, "eps_estimate": None}
+# 'dmh' sorts ABOVE 'bmo' in plain ASCII/canonical-string order ('d'=100 >
+# 'b'=98) — unlike 'amc' (which happens to sort below 'bmo' by accident), so
+# a bmo/dmh collision is what actually PROVES _hour_rank's bias is
+# load-bearing: without it, canonical-string comparison alone would pick
+# 'dmh' (wrong/unsafe direction), not 'bmo'.
+_DUPH_DMH = {"sym": "DUPH", "report_date": "2026-08-17", "hour": "dmh",
+             "fiscal_year": 2026, "fiscal_quarter": 2, "eps_estimate": None}
+
+
+def test_hour_rank_is_case_and_whitespace_insensitive(store):
+    assert store._hour_rank("BMO") == 1
+    assert store._hour_rank("Bmo") == 1
+    assert store._hour_rank(" bmo ") == 1
+    assert store._hour_rank("amc") == 0
+    assert store._hour_rank("AMC") == 0
+    assert store._hour_rank(None) == 0
+    assert store._hour_rank("") == 0
+
+
+def test_hour_rank_bias_is_load_bearing_against_an_hour_that_sorts_above_bmo(store):
+    """'dmh' > 'bmo' in canonical-string order, so a mutation hardcoding
+    _hour_rank to always return 0 would survive a bmo/amc test (ASCII
+    already favours bmo there by accident) but must die here: without the
+    explicit bias, the bmo/dmh tie falls through to canonical comparison and
+    'dmh' wins -- the WRONG (unsafe) direction."""
+    order_a, _ = store._dedupe_reporters([_DUPH_BMO, _DUPH_DMH])
+    order_b, _ = store._dedupe_reporters([_DUPH_DMH, _DUPH_BMO])
+    assert order_a[0]["hour"] == order_b[0]["hour"] == "bmo"
+
+
+def test_dedupe_reporters_hour_tie_break_is_case_insensitive(store):
+    """Review round 3 CRITICAL — run_nightly_capture normalizes hour with
+    .lower() before the bmo-today check; _hour_rank must match that
+    normalization or an uppercase 'BMO' row silently loses its safety bias."""
+    order_a, _ = store._dedupe_reporters([_DUPH_BMO_UPPER, _DUPH_AMC])
+    order_b, _ = store._dedupe_reporters([_DUPH_AMC, _DUPH_BMO_UPPER])
+    assert order_a[0]["hour"] == order_b[0]["hour"] == "BMO"
+
+
+def test_run_nightly_capture_hour_collision_case_insensitive_both_orders(store):
+    """End-to-end: an uppercase 'BMO' row must resolve identically to the
+    lowercase case — skipped, never stored, regardless of array order.
+    Verified broken before the fix: [BMO, amc] captured=1/stored=1 (an
+    IV-crushed value written permanently), while a lone 'BMO' row (no
+    collision) correctly skips -- proving the bug was specific to the
+    tie-break, not the bmo-today check itself."""
+    now = dt.datetime(2026, 8, 17, 21, 0)  # today == the report_date itself
+
+    for order_name, order in (("BMO_then_amc", [_DUPH_BMO_UPPER, _DUPH_AMC]),
+                               ("amc_then_BMO", [_DUPH_AMC, _DUPH_BMO_UPPER])):
+        with patch.object(store, "upcoming_reporters", return_value=list(order)), \
+             patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+            summary = store.run_nightly_capture(now=now)
+        assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1}, order_name
+        assert not store.get_implied_history("DUPH"), order_name
+
+
 # ── Review round 2 IMPORTANT #2 — the collision warning must not read as
 # noise: scoped to collisions that are BOTH inside tonight's capture window
 # AND genuinely content-differing (not a harmless byte-identical repeat).

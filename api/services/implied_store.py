@@ -261,19 +261,29 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
 
 
 def _hour_rank(hour) -> int:
-    """1 for 'bmo', else 0. 'bmo' is the ONE hour value `run_nightly_capture`
-    branches on (the bmo-today skip, read one line after `_dedupe_reporters`
-    resolves) — review round 2 CRITICAL: a collision that ties on eps_estimate
-    presence and fiscal_year/fiscal_quarter but genuinely differs on `hour`
-    used to fall through to array order, meaning WHICH candidate's `hour`
-    survived decided whether tonight's capture fired at all (or worse, ran
-    under the wrong session and stored an IV-crushed value under
-    first-write-wins). When ambiguous, bias toward 'bmo' — the SAFE direction:
-    wrongly resolving to 'bmo' costs one quarter's pre-report snapshot (no
-    data, honestly cold); wrongly resolving to anything else risks silently
-    storing a corrupted post-report value forever. Per §12: showing nothing
-    beats showing a confidently wrong number."""
-    return 1 if hour == "bmo" else 0
+    """1 for 'bmo' (case/whitespace-insensitive), else 0. 'bmo' is the ONE
+    hour value `run_nightly_capture` branches on (the bmo-today skip, read
+    one line after `_dedupe_reporters` resolves) — review round 2 CRITICAL:
+    a collision that ties on eps_estimate presence and fiscal_year/
+    fiscal_quarter but genuinely differs on `hour` used to fall through to
+    array order, meaning WHICH candidate's `hour` survived decided whether
+    tonight's capture fired at all (or worse, ran under the wrong session
+    and stored an IV-crushed value under first-write-wins). When ambiguous,
+    bias toward 'bmo' — the SAFE direction: wrongly resolving to 'bmo' costs
+    one quarter's pre-report snapshot (no data, honestly cold); wrongly
+    resolving to anything else risks silently storing a corrupted
+    post-report value forever. Per §12: showing nothing beats showing a
+    confidently wrong number.
+
+    Review round 3 CRITICAL — MUST normalize the same way
+    `run_nightly_capture` does (`.lower()` at the bmo-today check, one line
+    after this resolves) or the bias silently breaks: `_hour_rank("BMO")`
+    with a bare `== "bmo"` returns 0, tying with 'amc' (also 0), and the
+    canonical-string fallback then picks whichever sorts greater in plain
+    ASCII — 'BMO' < 'amc' ('B'=66 < 'a'=97) — so 'amc' would win and a
+    genuinely-bmo row could be captured as if pre-report, storing an
+    IV-crushed value permanently. Verified live."""
+    return 1 if (hour or "").strip().lower() == "bmo" else 0
 
 
 def _reporter_sort_key(rep: dict) -> tuple:
