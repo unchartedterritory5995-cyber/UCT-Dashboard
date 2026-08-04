@@ -190,6 +190,67 @@ describe('§4.5 lifecycle', () => {
   })
 })
 
+// ── §4.5 poll interval teardown — every exit path (controller amendment #4,
+//    promoted from Task 5's review) ─────────────────────────────────────────
+// The suite above already proves teardown on MODAL CLOSE (unmount, in "polls
+// actuals ONLY while open..."). The two paths below are the ones a shallow
+// dependency-array read could still get wrong: stepping to another symbol
+// (the parent hands the modal a fresh onPollActuals closure per row — the
+// realistic step-to-a-new-reporter signal, since `row` itself isn't a poll
+// effect dependency) and a lifecycle advance past IMMINENT while the SAME
+// callback stays mounted (actuals arrive -> PRINTED). PRE never starts a
+// timer in the first place (see "does NOT poll in PRE" above), so there is
+// nothing to tear down on a PRE transition — IMMINENT -> PRINTED is the
+// meaningful "state advance stops the poll" case the amendment is guarding.
+describe('§4.5 poll interval teardown — every exit path', () => {
+  const IMMINENT_NOW = Date.parse('2026-08-06T16:30:00-04:00')
+
+  it('tears down on stepping to another symbol (new onPollActuals identity)', () => {
+    vi.useFakeTimers()
+    const onPollActuals1 = vi.fn()
+    const onPollActuals2 = vi.fn()
+    const { rerender } = renderModal({
+      nowMs: IMMINENT_NOW, onPollActuals: onPollActuals1, isTodayReporter: true,
+    })
+    vi.advanceTimersByTime(45000)
+    expect(onPollActuals1).toHaveBeenCalledTimes(1)
+
+    rerender(withProviders(
+      <EarningsResearchModal
+        row={{ ...row, sym: 'AAPL' }} label="AFTER MARKET CLOSE" reportDate="2026-08-06" timing="amc"
+        section={null} onSectionChange={() => {}} onClose={() => {}}
+        onStepPrev={null} onStepNext={null} stepping={false}
+        onPollActuals={onPollActuals2} isTodayReporter nowMs={IMMINENT_NOW}
+      />,
+    ))
+    vi.advanceTimersByTime(45000)
+    expect(onPollActuals1).toHaveBeenCalledTimes(1)   // old interval never fires again
+    expect(onPollActuals2).toHaveBeenCalledTimes(1)   // new interval picked up cleanly
+    vi.useRealTimers()
+  })
+
+  it('tears down when the lifecycle advances past IMMINENT (actuals arrive -> PRINTED)', () => {
+    vi.useFakeTimers()
+    const onPollActuals = vi.fn()
+    const { rerender } = renderModal({ nowMs: IMMINENT_NOW, onPollActuals, isTodayReporter: true })
+    vi.advanceTimersByTime(45000)
+    expect(onPollActuals).toHaveBeenCalledTimes(1)
+
+    rerender(withProviders(
+      <EarningsResearchModal
+        row={{ ...row, reported_eps: 0.98, eps_estimate: 0.94, surprise_pct: '+4.3%' }}
+        label="AFTER MARKET CLOSE" reportDate="2026-08-06" timing="amc"
+        section={null} onSectionChange={() => {}} onClose={() => {}}
+        onStepPrev={null} onStepNext={null} stepping={false}
+        onPollActuals={onPollActuals} isTodayReporter nowMs={IMMINENT_NOW}
+      />,
+    ))
+    vi.advanceTimersByTime(90000)
+    expect(onPollActuals).toHaveBeenCalledTimes(1)   // no further calls once PRINTED — no orphan interval
+    vi.useRealTimers()
+  })
+})
+
 // ── price slot (controller amendment) ────────────────────────────────────────
 // The plan's own coverage table deferred the banner's `price` slot to a later
 // task; the controller overruled that for P2 — it rides the SAME shared
