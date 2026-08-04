@@ -17,7 +17,8 @@ def test_expected_move_endpoint_shape():
     hist = [{"sym": "TST", "report_date": "2026-05-06", "captured_at": "c",
              "pct": 4.0, "dollar": 7.0, "expiry": "2026-05-08"}]
     with patch.object(em_router.implied_move, "get_expected_move", return_value=live), \
-         patch.object(em_router.implied_store, "get_implied_history", return_value=hist):
+         patch.object(em_router.implied_store, "get_implied_history", return_value=hist), \
+         patch.object(em_router.implied_store, "get_earliest_report_date", return_value="2026-05-06"):
         r = client.get("/api/research/expected-move/TST?report_date=2026-08-06")
     app.dependency_overrides.clear()
     assert r.status_code == 200
@@ -47,3 +48,21 @@ def test_expected_move_endpoint_degrades_when_store_unreadable():
     assert r.status_code == 200
     body = r.json()
     assert body["live"]["pct"] == 6.8 and body["history"] == [] and body["history_since"] is None
+
+
+def test_expected_move_endpoint_degrades_when_live_read_raises():
+    """I3: a raising live read (e.g. a bad-json parse from the options chain)
+    must degrade to live=None, not 500 the endpoint — history still serves."""
+    client, app, em_router = _client_with_auth()
+    hist = [{"sym": "TST", "report_date": "2026-05-06", "captured_at": "c",
+             "pct": 4.0, "dollar": 7.0, "expiry": "2026-05-08"}]
+    with patch.object(em_router.implied_move, "get_expected_move",
+                      side_effect=ValueError("bad json")), \
+         patch.object(em_router.implied_store, "get_implied_history", return_value=hist), \
+         patch.object(em_router.implied_store, "get_earliest_report_date", return_value="2026-05-06"):
+        r = client.get("/api/research/expected-move/TST")
+    app.dependency_overrides.clear()
+    assert r.status_code == 200
+    body = r.json()
+    assert body["live"] is None
+    assert body["history"] == hist

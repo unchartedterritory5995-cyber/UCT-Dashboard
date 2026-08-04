@@ -2,6 +2,7 @@ import threading
 import time
 from unittest.mock import patch
 from api.services import implied_move as im
+from api.services import polygon_options as po
 
 def test_select_report_expiry_picks_first_on_or_after():
     exps = ["2026-08-07", "2026-08-14", "2026-08-21"]
@@ -128,3 +129,64 @@ def test_get_expected_move_single_flight_collapses_concurrent_cold_calls(monkeyp
 
     assert calls["n"] == 1, "concurrent cold callers must collapse onto one build"
     assert all(r is not None for r in results), "every caller must still get a result"
+
+
+# ── I8: get_expected_move must return/store independent copies ────────────────
+
+def test_get_expected_move_returns_independent_copies(monkeypatch):
+    key = "expmove::TST::2026-08-06"
+    im._MOVE_CACHE.clear()
+    im._MOVE_STALE.forget(key)
+
+    def fake_compute(sym, rd):
+        return {"pct": 5.0, "dollar": 9.2, "expiry": "2026-08-07", "strike": 185.0,
+                "spot": 184.0, "call_mid": 4.7, "put_mid": 4.5, "iv_atm": 0.6,
+                "horizon": "through 2026-08-07", "asof": "x", "source": "massive-chain"}
+    monkeypatch.setattr(im, "compute_expected_move", fake_compute)
+
+    out = im.get_expected_move("TST", "2026-08-06")
+    out["pct"] = 999  # mutate the caller's copy
+
+    again = im.get_expected_move("TST", "2026-08-06")
+    assert again["pct"] == 5.0, \
+        "a caller mutating its returned payload must never corrupt the cached/stale value"
+
+
+# ── C2: class-share symbol mapping must reach BOTH provider calls ──────────────
+
+def _po_contract(strike, side, exp="2026-08-07", price=410.0, bid=6.0, ask=6.2):
+    return {
+        "details": {"ticker": f"O:BRKB{strike}{side[0].upper()}", "strike_price": strike,
+                    "expiration_date": exp, "contract_type": side, "shares_per_contract": 100},
+        "last_quote": {"bid": bid, "ask": ask}, "last_trade": {"price": (bid + ask) / 2},
+        "day": {}, "greeks": {"delta": 0.5}, "implied_volatility": 0.3,
+        "open_interest": 10, "underlying_asset": {"price": price, "ticker": "BRK.B"},
+        "break_even_price": strike + ask,
+    }
+
+
+def test_compute_expected_move_maps_class_share_symbol_end_to_end():
+    """This is the test that would have caught the unreachable-mapping bug:
+    get_chain mapped BRK-B -> BRK.B but list_expirations's underlying_ticker
+    param did not, so Polygon returned zero expirations for any class-share
+    ticker. Drives the REAL list_expirations + get_chain (only _safe_get is
+    patched, not the two functions) so both outgoing provider calls are
+    exercised end-to-end."""
+    po._CACHE.clear()
+    calls = []
+
+    def fake_safe_get(url, params=None):
+        calls.append((url, dict(params or {})))
+        if "reference/options/contracts" in url:
+            return {"results": [{"expiration_date": "2026-08-07"}]}
+        return {"results": [_po_contract(410, "call"), _po_contract(410, "put")]}
+
+    with patch.object(po, "_safe_get", side_effect=fake_safe_get):
+        out = im.compute_expected_move("BRK-B", "2026-08-06")
+
+    assert len(calls) == 2, "must call both the expirations endpoint and the chain snapshot"
+    for url, params in calls:
+        combined = url + " " + " ".join(f"{k}={v}" for k, v in params.items())
+        assert "BRK.B" in combined, f"BRK-B must reach Polygon as BRK.B: {url} {params}"
+
+    assert out is not None and out["dollar"] > 0

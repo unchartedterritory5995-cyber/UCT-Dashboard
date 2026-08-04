@@ -75,6 +75,37 @@ def test_get_chain_pagination_is_bounded():
     assert "error" not in out, "bounded pagination must still return the collected pages"
 
 
+def test_get_chain_pagination_stops_at_wall_clock_budget(monkeypatch):
+    """I7: pagination has a per-operation wall-clock budget (20s) independent
+    of the 8-page cap, so a stuck/looping cursor can't pin a thread forever —
+    it must yield the partial chain collected so far instead of erroring."""
+    po._CACHE.clear()
+    calls = {"n": 0}
+    looping = {"results": [_contract(100, "call")],
+               "next_url": "https://api.massive.com/v3/snapshot/options/TST?cursor=loop"}
+
+    def fake_get(url, params=None):
+        calls["n"] += 1
+        return looping
+
+    def mock_http_get(url, timeout=None):
+        calls["n"] += 1
+        response_mock = type('Response', (), {})()
+        response_mock.json = lambda: looping
+        response_mock.raise_for_status = lambda: None
+        return response_mock
+
+    monotonic_values = iter([0, 25])
+    monkeypatch.setattr(po.time, "monotonic", lambda: next(monotonic_values))
+
+    with patch.object(po, "_safe_get", side_effect=fake_get):
+        with patch.object(po._http, "get", side_effect=mock_http_get):
+            out = po.get_chain("TST", expiration="2026-08-07")
+
+    assert calls["n"] == 1, "the wall-clock budget must stop pagination after the first page"
+    assert "error" not in out, "a budget-truncated chain is still a valid partial result"
+
+
 def test_next_url_page_preserves_cursor_real_httpx(monkeypatch):
     po._CACHE.clear()
     monkeypatch.setenv("MASSIVE_API_KEY", "TESTKEY")

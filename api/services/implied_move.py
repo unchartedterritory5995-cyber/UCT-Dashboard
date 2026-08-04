@@ -132,18 +132,26 @@ def _move_is_good(payload: dict | None) -> bool:
 def get_expected_move(sym: str, report_date: str | None = None) -> dict | None:
     """Cached front for `compute_expected_move`: fresh TTL cache wins; else the
     last good straddle serves the gap while a background refresh runs; else
-    this caller builds synchronously (single-flight)."""
+    this caller builds synchronously (single-flight).
+
+    Copy discipline: the TTL cache, the ServeStale slot, and the value handed
+    back to THIS caller are three independent dict objects. `TTLCache.get()`
+    returns the exact object it was given (no internal copy), so without this
+    a caller mutating its returned payload (e.g. `out["pct"] = ...`) would
+    corrupt what every future caller — and the stale-serve fallback — sees.
+    """
     key = f"expmove::{(sym or '').upper()}::{report_date or ''}"
 
     def _build():
         value = compute_expected_move(sym, report_date)
         if value is not None:
-            _MOVE_CACHE.set(key, value, _MOVE_TTL)
+            _MOVE_CACHE.set(key, dict(value), _MOVE_TTL)
         return value
 
-    return _MOVE_STALE.serve(
+    result = _MOVE_STALE.serve(
         key,
         fresh=lambda: _MOVE_CACHE.get(key),
         build=_build,
         good=_move_is_good,
     )
+    return dict(result) if result is not None else None

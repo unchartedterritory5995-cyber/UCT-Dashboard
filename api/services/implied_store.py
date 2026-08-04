@@ -2,9 +2,12 @@
 
 Why nightly & pre-report: 'implied at the time' history for the paired-bars
 hero. A morning-after capture stores IV-crushed values and poisons the pair —
-capture runs post-close (options quotes settle ~4:15 ET) for tonight's AMC
-and all names reporting within the next 14 days.
-First-write-wins per (sym, report_date): the earliest snapshot is the honest
+capture runs post-close (options quotes settle ~4:15 ET) for tonight's AMC +
+reporters through today+WINDOW (env IMPLIED_CAPTURE_WINDOW_DAYS, default 1),
+with bmo-today excluded (it already reported this morning; a post-report
+capture would store IV-crushed values).
+First-write-wins per (sym, report_date): with the narrowed window the first
+write IS the T-1/T-0-pre-report write — the earliest snapshot is the honest
 pre-report implied; later recaptures never overwrite it.
 """
 from __future__ import annotations
@@ -16,6 +19,7 @@ import os
 import sqlite3
 import threading
 from contextlib import closing
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -23,6 +27,8 @@ from api.services import implied_move
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
+
+_ET = ZoneInfo("America/New_York")
 
 _DATA_DIR = os.environ.get("DATA_DIR") or ("/data" if os.path.isdir("/data") else os.path.join(os.getcwd(), "data"))
 DB_PATH = os.environ.get("IMPLIED_STORE_DB", os.path.join(_DATA_DIR, "implied_moves.db"))
@@ -47,9 +53,16 @@ _INIT_LOCK = threading.Lock()
 _INITIALIZED: set[str] = set()
 
 
+def _canon(sym: str) -> str:
+    """Canonical store form — matches the repo-wide convention in
+    groups.py/theme_index.py/theme_performance.py: uppercase, dot→hyphen
+    class-share notation (BRK.B and BRK-B must key the same row)."""
+    return (sym or "").strip().upper().replace(".", "-")
+
+
 def _connect() -> sqlite3.Connection:
-    """Open a connection with WAL pragma (no schema init)."""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    """Open a connection with WAL pragma (no schema init, no directory creation —
+    see _ensure_init)."""
     c = sqlite3.connect(DB_PATH, timeout=5)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
@@ -57,13 +70,19 @@ def _connect() -> sqlite3.Connection:
 
 
 def _ensure_init() -> None:
-    """Run schema initialization once per DB_PATH (double-checked lock pattern)."""
+    """Run schema initialization once per DB_PATH (double-checked lock pattern).
+    Also owns directory creation — a bare filename DB_PATH (no directory
+    component, e.g. in tests) must not crash `os.makedirs`, and this runs once
+    per process instead of on every connection."""
     global _INITIALIZED
     if DB_PATH in _INITIALIZED:
         return
     with _INIT_LOCK:
         if DB_PATH in _INITIALIZED:
             return
+        d = os.path.dirname(DB_PATH)
+        if d:
+            os.makedirs(d, exist_ok=True)
         with closing(_connect()) as c:
             c.executescript(_SCHEMA)
         _INITIALIZED.add(DB_PATH)
@@ -75,7 +94,7 @@ def _has_snapshot(sym: str, report_date: str) -> bool:
     with closing(_connect()) as c:
         row = c.execute(
             "SELECT 1 FROM implied_snapshots WHERE sym = ? AND report_date = ? LIMIT 1",
-            (sym.upper(), report_date),
+            (_canon(sym), report_date),
         ).fetchone()
     return row is not None
 
@@ -87,7 +106,7 @@ def record_implied(sym: str, report_date: str, payload: dict, captured_at: str) 
             "INSERT OR IGNORE INTO implied_snapshots "
             "(sym, report_date, captured_at, pct, dollar, expiry, strike, spot, iv_atm, source) "
             "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (sym.upper(), report_date, captured_at, payload["pct"], payload["dollar"],
+            (_canon(sym), report_date, captured_at, payload["pct"], payload["dollar"],
              payload.get("expiry"), payload.get("strike"), payload.get("spot"),
              payload.get("iv_atm"), payload.get("source")),
         )
@@ -98,9 +117,21 @@ def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
     with closing(_connect()) as c:
         rows = c.execute(
             "SELECT sym, report_date, captured_at, pct, dollar, expiry FROM implied_snapshots "
-            "WHERE sym = ? ORDER BY report_date DESC LIMIT ?", (sym.upper(), int(limit)),
+            "WHERE sym = ? ORDER BY report_date DESC LIMIT ?", (_canon(sym), int(limit)),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_earliest_report_date(sym: str) -> str | None:
+    """MIN(report_date) for a symbol — drives the router's `history_since`
+    without drifting once more than `limit` snapshots exist for a name."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        row = c.execute(
+            "SELECT MIN(report_date) AS md FROM implied_snapshots WHERE sym = ?",
+            (_canon(sym),),
+        ).fetchone()
+    return row["md"] if row and row["md"] is not None else None
 
 
 def record_grade(sym: str, date: str, surface: str, grade: str, inputs: dict) -> None:
@@ -109,7 +140,7 @@ def record_grade(sym: str, date: str, surface: str, grade: str, inputs: dict) ->
         c.execute(
             "INSERT OR REPLACE INTO grade_snapshots (sym, date, surface, grade, inputs_json) "
             "VALUES (?,?,?,?,?)",
-            (sym.upper(), date, surface, grade, json.dumps(inputs, separators=(",", ":"))),
+            (_canon(sym), date, surface, grade, json.dumps(inputs, separators=(",", ":"))),
         )
 
 
@@ -119,7 +150,7 @@ def get_grade_history(sym: str, surface: str, limit: int = 30) -> list[dict]:
         rows = c.execute(
             "SELECT sym, date, surface, grade, inputs_json FROM grade_snapshots "
             "WHERE sym = ? AND surface = ? ORDER BY date DESC LIMIT ?",
-            (sym.upper(), surface, int(limit)),
+            (_canon(sym), surface, int(limit)),
         ).fetchall()
     out = []
     for r in rows:
@@ -130,16 +161,20 @@ def get_grade_history(sym: str, surface: str, limit: int = 30) -> list[dict]:
 
 
 def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[dict]:
-    """Symbols reporting within `days`, via Finnhub's calendar range.
+    """Symbols reporting within `days`, via Finnhub's calendar range. Each row
+    carries Finnhub's `hour` field ("bmo"/"amc"/"dmh"/"") so callers can apply
+    session-aware capture logic (see run_nightly_capture).
     Empty list on ANY failure — the nightly job then no-ops (holiday-safe)."""
-    key = f"impstore::reporters::{days}"
+    today = (now or dt.datetime.now()).date()
+    # Cache key includes the date — `days` alone collided across calendar days,
+    # serving yesterday's reporter list (and yesterday's report_dates) all day.
+    key = f"impstore::reporters::{days}::{today.isoformat()}"
     cached = _REPORTERS_CACHE.get(key)
     if cached is not None:
         return list(cached)
     api_key = os.environ.get("FINNHUB_API_KEY", "").strip()
     if not api_key:
         return []
-    today = (now or dt.datetime.now()).date()
     try:
         r = httpx.get(
             "https://finnhub.io/api/v1/calendar/earnings",
@@ -153,7 +188,8 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
     except Exception as e:  # noqa: BLE001 — any failure → empty, never cached
         _log.warning("upcoming_reporters fetch failed: %s", e)
         return []
-    out = [{"sym": (row.get("symbol") or "").upper(), "report_date": row.get("date")}
+    out = [{"sym": _canon(row.get("symbol")), "report_date": row.get("date"),
+            "hour": row.get("hour") or ""}
            for row in rows if row.get("symbol") and row.get("date")]
     if out:
         _REPORTERS_CACHE.set(key, list(out), _REPORTERS_TTL)
@@ -161,25 +197,53 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
 
 
 def run_nightly_capture(now: dt.datetime | None = None) -> dict:
-    """Post-close capture for every symbol reporting within 14 days.
-    Never stores a failure; existing (sym, report_date) rows are kept (first-write-wins).
+    """Post-close T-1 capture: only reporters whose report_date falls within
+    [today, today+WINDOW] (env IMPLIED_CAPTURE_WINDOW_DAYS, default 1) are even
+    considered — rows outside the window are silently filtered (not counted).
+    Within that window, a report_date == today with hour == "bmo" is skipped
+    (counted): it already reported this morning, and a post-report capture
+    would store IV-crushed values instead of the honest pre-report implied.
+    Never stores a failure; existing (sym, report_date) rows are kept
+    (first-write-wins — with the narrow window the first write IS the
+    T-1/T-0-pre-report write).
     Exception isolation: one bad symbol never truncates the batch."""
+    now = now or dt.datetime.now(_ET)
+    today = now.date()
+    window_days = int(os.environ.get("IMPLIED_CAPTURE_WINDOW_DAYS", "1"))
+    window_end = today + dt.timedelta(days=window_days)
+
     reporters = upcoming_reporters(days=14, now=now)
-    summary = {"captured": 0, "skipped": 0, "failed": 0}
-    captured_at = (now or dt.datetime.now()).isoformat(timespec="seconds")
+    in_window = []
     for rep in reporters:
         try:
-            if _has_snapshot(rep["sym"], rep["report_date"]):
+            rd = dt.date.fromisoformat(rep.get("report_date") or "")
+        except ValueError:
+            continue  # malformed date — silently filtered, never counted
+        if today <= rd <= window_end:
+            in_window.append(rep)
+
+    summary = {"captured": 0, "skipped": 0, "failed": 0}
+    captured_at = now.isoformat(timespec="seconds")
+    today_iso = today.isoformat()
+    for rep in in_window:
+        sym = rep.get("sym")
+        report_date = rep.get("report_date")
+        hour = (rep.get("hour") or "").lower()
+        try:
+            if report_date == today_iso and hour == "bmo":
                 summary["skipped"] += 1
                 continue
-            payload = implied_move.get_expected_move(rep["sym"], rep["report_date"])
+            if _has_snapshot(sym, report_date):
+                summary["skipped"] += 1
+                continue
+            payload = implied_move.get_expected_move(sym, report_date)
             if payload is None:
                 summary["failed"] += 1
                 continue
-            record_implied(rep["sym"], rep["report_date"], payload, captured_at)
+            record_implied(sym, report_date, payload, captured_at)
             summary["captured"] += 1
         except Exception:  # noqa: BLE001 — one bad symbol must never truncate the batch
-            _log.warning("[implied-store] capture failed for %s", rep.get("sym"), exc_info=True)
+            _log.warning("[implied-store] capture failed for %s", sym, exc_info=True)
             summary["failed"] += 1
     _log.info("[implied-store] nightly capture: %s", summary)
     return summary

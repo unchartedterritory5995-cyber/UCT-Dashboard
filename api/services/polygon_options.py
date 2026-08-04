@@ -12,6 +12,7 @@ Endpoints used:
 
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Any
 
@@ -55,8 +56,11 @@ def list_expirations(ticker: str) -> dict[str, Any]:
     sym = (ticker or "").upper().strip()
     if not sym:
         return {"error": "ticker required"}
+    api_sym = to_polygon_symbol(sym)
 
-    cache_key = f"pgxopt::exps::{sym}"
+    # Cache key uses the MAPPED (Polygon dot-notation) form so a class-share
+    # ticker's cache entry lines up with get_chain's — see to_polygon_symbol.
+    cache_key = f"pgxopt::exps::{api_sym}"
     cached = _CACHE.get(cache_key)
     if cached is not None:
         return dict(cached)
@@ -66,7 +70,7 @@ def list_expirations(ticker: str) -> dict[str, Any]:
         data = _safe_get(
             f"{_BASE}/v3/reference/options/contracts",
             params={
-                "underlying_ticker": sym,
+                "underlying_ticker": api_sym,
                 "expired": "false",
                 "expiration_date.gte": today,
                 "limit": 1000,
@@ -137,20 +141,30 @@ def get_chain(ticker: str, expiration: str = "",
         return {"error": "ticker required"}
 
     n = max(2, min(20, int(strikes_around_spot or 6)))
-    cache_key = f"pgxopt::chain::{sym}::{expiration}::{n}"
+    api_sym = to_polygon_symbol(sym)
+    # Cache key uses the MAPPED form — same reasoning as list_expirations.
+    cache_key = f"pgxopt::chain::{api_sym}::{expiration}::{n}"
     cached = _CACHE.get(cache_key)
     if cached is not None:
         return dict(cached)
 
     try:
-        api_sym = to_polygon_symbol(sym)
         params: dict[str, Any] = {"limit": 250}
         if expiration:
             params["expiration_date"] = expiration
         results: list[dict] = []
         url = f"{_BASE}/v3/snapshot/options/{api_sym}"
         pages = 0
+        start = time.monotonic()  # per-OPERATION pagination budget (below) — distinct
+        # from the 12s per-request _TIMEOUT; a stuck/looping cursor must yield a
+        # partial chain, not pin an anyio threadpool worker indefinitely.
         while url and pages < 8:  # 8 × 250 = 2000 contracts — beyond any single-expiry chain
+            if pages > 0 and time.monotonic() - start > 20:
+                _log.warning(
+                    "polygon chain pagination for %s truncated by 20s wall-clock "
+                    "budget after %d page(s) — returning partial chain", sym, pages,
+                )
+                break
             if pages == 0:
                 data = _safe_get(url, params=params)
             else:
