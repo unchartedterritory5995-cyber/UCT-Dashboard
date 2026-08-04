@@ -332,6 +332,195 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
 the evaluator). That is the decision; the resulting histogram is **not restated
-here**. `enumerationSites.test.js` → *"the retirement column adds up"* asserts it,
-and every B4 task decrements the `B4` bucket, so a number copied into this
-paragraph would be a control that rots green — read it there.
+here**. `enumerationSites.test.js` → *"every B4 region is retired — 8 to B5, 2 to
+C, 3 kept, 2 phase bookkeeping"* asserts it, and every B4 task decrements the `B4`
+bucket, so a number copied into this paragraph would be a control that rots green
+— read it there.
+
+> 🔴 **CORRECTED 2026-08-04 (B5 Task 1), and the correction is the point.** This
+> sentence cited that test as *"the retirement column adds up"* — the title it had
+> when §10 was written, and **B4 Task 4 renamed it**. Nothing went red: a decision
+> record's one pointer at the assertion it deliberately refuses to restate had
+> pointed at a test that does not exist for four tasks. A doc quoting a test title
+> is the same control-rot shape as a comment quoting its expected literal, and it
+> is now **failable** — `enumerationSites.test.js` → *"⭐ every test title the
+> decision record cites verbatim is a title that exists"* extracts this file's
+> `` `<file>` → *"<title>"* `` citations and resolves each against the suite's
+> actual declared titles.
+
+## 11. B5's adjudication — 2026-08-04
+
+**Status is UNCHANGED: OPEN.** B5 Task 1 does not resolve this record; **B5 Task 9
+does**, and §8.2 is why. This section is what Task 9 has to come back and read.
+
+### 11.1 B5 adopts §8.2 in full, and takes the LARGER reading of it
+
+§8.2's default recommendation was *"require migrate-and-flip-together; delete the
+flag at B5."* B5 adopts it **verbatim and completely**:
+
+* **all ten remaining natives migrate and flip TOGETHER**, in registry order, in
+  the same commit each (`stoch`+`atr` → `sar`+`ichimoku` → `mfi`+`cci`+`williamsR`
+  → `adx`+`obv`+`donchian`). The migrated-but-un-flipped category of §4.1 is
+  therefore never created, exactly as it never was in B4;
+* **and then the flag is deleted — but the flag is not the whole job.** §7 says
+  `engineEnabled` "can be deleted at B5 along with the rest of `cs.indicators`",
+  and that clause is load-bearing. The ledger fates BOTH `chartDefaults.js` rows
+  (`CHART_DEFAULTS.indicators`' fifteen keyed sections AND `mergeChartSettings`'
+  fifteen-line allow-list) to B5, so retiring the flag alone would leave the
+  mirror it guards standing. B5 splits the work across two tasks **for
+  measurability, not for scope**:
+
+  | | what goes | why it is its own commit |
+  |---|---|---|
+  | **Task 4** | `engineEnabled`, at all six sites | `mergeChartSettings` is on every chart path — this is the LAST commit in which a change to it can be measured at absolute 0 changed pixels, before any geometry moves |
+  | **Task 9** | the MIRROR — `settingsVersion` 1→2, a read-time fold of `cs.indicators.<id>` into `indicatorInstances` **only below version 2**, `CHART_DEFAULTS.indicators` shrunk to `volumeProfile`, the allow-list to one line | this is the versioned read-time migration §6 R1a describes, arriving for the DATA rather than for the flag, and it is asserted **by what it destroys** |
+
+**§6 R1a is therefore shipped, and shipped for the reason §6 gives** — it must
+reach BLOBS, not defaults; an explicit stored value must still win; it is gated
+from a JSON string. What changed since §6 was written is only *what it migrates*:
+not "turn the flag on for everyone" but "fold the legacy sections forward once,
+below version 2, so a deleted indicator never returns."
+
+**§6 R2 — the seventh writer — still applies unchanged.** `PRESETS[*]`,
+`resetToDefaults`, `ChartSettingsModal`'s `JSON.parse(JSON.stringify(CHART_DEFAULTS))`
+and `ChartsWorkspace`'s `uctDefaultChartSettings()` all spread `CHART_DEFAULTS`, so
+they follow the shrink — and `PRESETS[*].settings.settingsVersion` must be the NEW
+version, or a theme click writes a blob the migrator re-migrates forever.
+
+### 11.2 The rail was RE-READ, not deleted — and here is what it now asserts
+
+`enumerationSites.test.js` → *"creates no migrated-but-un-flipped definition while
+the settings migration is open"* used to assert `stillOpen: true`: *the header
+still says OPEN*. That is a true sentence about a branch on which nobody was
+permitted to resolve it, and B5 is the phase that resolves it. A rail whose whole
+content is "the sentence still says OPEN" has exactly one response to that day —
+somebody edits `true` to `false`, the suite goes green, and the clause constrains
+nothing, because *"the record does not say OPEN"* is not a claim about any code.
+**That is not a rail retiring; it is a rail inverting silently.**
+
+It is re-read as a **biconditional between this record and the code**:
+
+> the header says **OPEN** ⟺ `mergeChartSettings` still reads `parsed.engineEnabled === true`
+
+| | header `**Status:**` | the flag is still read | `recordAgreesWithTheCode` |
+|---|---|---|---|
+| **before Task 4/9** (today) | `OPEN` | yes | `true` |
+| **after Task 4/9** | `RESOLVED` | no | `true` |
+
+so the transition is ONE deliberate two-field edit that cannot be made halfway:
+
+* **resolve this record while the flag still exists → red.** The decision claims
+  to be answered while the thing it decides is still deciding.
+* **delete the flag while this record still says OPEN → red.** The code answered a
+  question the written decision still calls open — which is precisely how
+  `engineEnabled` came to be read by six sites that nobody had chosen. **This
+  direction is new**; `stillOpen: true` could not catch it at all.
+
+Three details are load-bearing and are stated so Task 9 does not have to
+rediscover them. The status token comes from a **closed set** (`OPEN` / `RESOLVED`;
+neither, or both, reads `UNREADABLE` and fails), so a typo cannot pass as
+"resolved". The `**Status:**` header line is still **isolated and counted**
+(`statusLines: 1`) — the R-I1 defect. And the flag probe reads **comment-stripped**
+source: every retirement on this branch leaves a comment naming what it deleted, so
+a raw probe would read Task 4's own tombstone as the flag and stay green forever.
+
+The other clauses are unchanged and hold in BOTH worlds, which is why they are not
+conditioned on the status: `FLIPPED === MIGRATED` in both directions, and both flip
+sets refusing a runtime `.add()` (`Object.freeze(new Set())` does **not** block
+`.add()` — measured).
+
+### 11.3 B5's baseline, by command
+
+Same discipline as §10, and the same reason: `.superpowers/` is gitignored, so a
+count written to a scratch report does not survive into the repo — this branch has
+already lost one that way — and the branch's prose numbers have needed correcting
+before (§10's "84 chart pytest" collected **86**).
+
+Measured on a clean tree at **`60abd6fb`**, which is byte-identical to `084eeded`
+for every file except `docs/superpowers/plans/2026-08-04-phase-b5-cutover.md`
+(`git diff --stat 084eeded 60abd6fb` = 1 file changed, +2917, docs only):
+
+| command | count at `60abd6fb` |
+|---|---|
+| `cd app && npx vitest run` | **4,215 tests / 418 files**, exit 0 |
+| `python -m pytest tests/test_indicator_compute.py tests/test_indicator_golden.py tests/test_indicator_alert_evaluator.py tests/test_indicator_alert_service.py -q` | **78 passed**, exit 0 |
+| `python -m pytest tests/test_chart_parity_harness.py tests/test_chart_markers.py tests/test_chart_news.py tests/test_chart_health_alerts.py tests/test_admin_chart_health.py tests/test_charts_layout_service.py -q` | **86 passed**, exit 0 |
+
+⚠️ **The indicator selection moved 67 → 78 across B4; the chart selection did not
+move at all.** Both are the same four- and six-file selections §10 records — the
+commands are copied verbatim so the two rows are comparable, and the delta is B4's
+alert-catalog work, not a different selection.
+
+**Re-measured after Task 1's edits**, same three commands:
+
+| command | after Task 1 | delta |
+|---|---|---|
+| `cd app && npx vitest run` | **4,217 / 418**, exit 0 | **+2 tests, +0 files** — the per-site fate mapping and the citation rail, both added to an existing file |
+| indicator pytest (4 files) | **78 passed**, exit 0 | unchanged |
+| chart pytest (6 files) | **116 passed**, exit 0 | ⚠️ **+30, and NONE of it is this task's** — see below |
+
+⛔ **THE CHART PYTEST DELTA IS NOT ATTRIBUTABLE TO TASK 1, AND SAYING SO IS THE
+POINT.** Task 1 touches no Python: its whole diff is one JS test file, one JS
+comment block, and two markdown files. The +30 is a PARALLEL agent's in-flight,
+uncommitted work on `tests/test_chart_parity_harness.py` (37 → 67 collected on its
+own) plus `tools/chart_parity.py` and `tools/chart_parity_cases.json`, none of
+which are in Task 1's commit. **The honest number for this task is the one
+measured on a clean tree — 86 — and it is unchanged by anything Task 1 did.** A
+count taken from a shared worktree while another writer is live is a count of two
+people's work; recording it as one person's is exactly how "84" survived four
+tasks.
+
+### 11.4 ⭐ HANDOFF TO TASK 4 — `engineOwned` has had ZERO readers since Flip B
+
+Found by B5 Task 1 reading the code rather than the ledgers, and recorded here
+because **Task 4 is the task that deletes this flag's machinery** and this is a
+piece of it that no test, no lint and no ledger currently names. Task 1 did not
+touch `StockChart.jsx` — that file has exactly one writer per phase and it is
+Task 4's.
+
+**The measurement** (`StockChart.jsx` at `60abd6fb`, comments stripped with
+`engine/__tests__/sourceScan.stripComments` so an explanatory comment cannot be
+mistaken for a reader):
+
+| symbol | occurrences in CODE | what they are |
+|---|---|---|
+| `engineOwned` | **1** | the declaration at **`StockChart.jsx:5918`**, and nothing else |
+| `engineOwnedDefIds` | 2 | the import (line 42) and the single call on 5918 |
+| `EMPTY_OWNED` | 2 | the declaration (line 63) and the `else` arm of 5918 |
+
+```js
+const engineOwned = engineActive ? engineOwnedDefIds(engineInstances, engineRegistry) : EMPTY_OWNED
+```
+
+The value is computed and never read. The whole chain — the import, `EMPTY_OWNED`,
+and `engineOwnedDefIds`' only production call site in `app/src` — exists to
+produce it.
+
+**Why, exactly, and why nothing went red.** `engineOwned` was the Flip-A arbiter:
+a legacy block guarded on `!engineOwned.has('X')`. Flip B **deleted the blocks**
+rather than guarding them, so the last consumer went with `macd` and `vwap` at
+`400005ee`. `enumerationSites.test.js` → *"keeps no Flip-A guard for a flipped id —
+the block should be GONE, not guarded"* asserts `engineOwned.has('<id>')` is
+ABSENT for every flipped id, and `FLIPPED === MIGRATED`, so that rail **demands**
+the emptiness it produced — it is doing its job, and the leftover it leaves behind
+is invisible to it by construction.
+
+**But five comment paragraphs still describe it as live**, at
+`StockChart.jsx:5660-5663`, `5703-5709`, `5780-5783`, `5910-5914` and
+`6293-6295` — including *"`engineOwnedDefIds` is the arbiter … X's legacy block
+guards on `!engineOwned.has('X')`"*, a guard shape the same suite asserts cannot
+exist. **This is the control-rot shape in its purest form: five paragraphs of
+present-tense prose about a mechanism that has not run since Flip B.**
+
+**Task 4's instruction, precisely:** delete the binding at `:5918`, the
+`engineOwnedDefIds` import, and `EMPTY_OWNED` if `:5918` was its only user — then
+**rewrite the five paragraphs rather than deleting them**, in the past tense, the
+way this branch has recorded every other retirement, because "why is there no
+arbiter" is a question the next reader will otherwise ask of an empty space.
+⚠️ `engineOwnedDefIds` itself is **not** dead — it is `paneMarginsProjection`'s
+stated model and it keeps its own suite; only StockChart's call is.
+
+⚠️ **Not fixed at Task 1, deliberately.** It is a shipped-source edit in a file
+this phase gives one writer at a time, and it is Task 4's file. It is recorded
+here rather than in `.superpowers/` because `.superpowers/` is gitignored — the
+same reason §11.3 exists.

@@ -603,9 +603,20 @@ function toColumn(points, length) {
  * contiguous 44×4 px region at `x ∈ [136,179]`, `y ∈ [394,397]`. Re-measured at
  * the flip itself and confirmed. Record: `docs/decisions/2026-08-02-macd-head-mask.md`.
  *
- * This is still the ONE place to change it, and BOTH lanes still read it: the
- * engine's `COLUMN_HOLDS` below, and — because `macd` is not migrated — the legacy
- * `indicatorData` memo in `StockChart.jsx`, which is what a user actually sees.
+ * ⭐ ONE CONSTANT, ONE READER — AND THIS PARAGRAPH USED TO CLAIM TWO.
+ *
+ * It read *"BOTH lanes still read it: the engine's `COLUMN_HOLDS` below, and —
+ * because `macd` is not migrated — the legacy `indicatorData` memo in
+ * `StockChart.jsx`, which is what a user actually sees."* **`macd` was migrated
+ * AND flipped at B3 Task 11 (`400005ee`)**, which deleted that memo branch with
+ * the rest of the block — that commit's own message says the mask "drops from two
+ * readers to one", and this comment did not move. So the sentence stayed green
+ * while its stated REASON went false, and it named the wrong lane as the one a
+ * user sees. See `StockChart.jsx:4144-4146`, which records the deletion in place.
+ *
+ * `COLUMN_HOLDS` below is now the ONLY consumer, and it is `{}` while
+ * `MACD_HEAD_MASK` is false. Kept, not deleted: reversal is one edit, and it is
+ * priced at the same 88 px (`docs/decisions/2026-08-02-macd-head-mask.md`).
  * Turning it back on is a VISIBLE change at the very start of history on every
  * MACD chart, so it would need the same treatment the drop got:
  *
