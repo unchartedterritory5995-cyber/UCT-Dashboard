@@ -483,21 +483,78 @@ wrongly-named input key (step 6).
 ### 5.3 What is NOT on this checklist, and where it lives instead
 
 * the **settings-dialog rework** and the generated per-instance dialog — spec §6,
-  **B4**. The ledger regions waiting on it are the `B4` bucket of
-  `enumerationSites.test.js` → *"the retirement column adds up"*; **read the
-  count there, it is not restated here.** Every B4 task decrements that bucket
-  and every phase-B5 handover moves rows between buckets, so a breakdown copied
-  into this runbook is a control that rots green — which is exactly what the
-  literal that used to sit on this line was. ⚠️ **B4's plan re-adjudicated two of
-  what B3 handed it** — `paneMargins.PANES` to **B5** (a layout table B4's own
-  Global Constraints forbid it from modifying: a site a phase may not touch
-  cannot carry that phase's fate) and `indicator_alert_evaluator.INDICATOR_FUNCS`
-  to the new fate **C** (spec §8 rebuilds the evaluator; B4 only collapses its
-  frontend twin into it);
+  **B4, and B4 is DONE**. Its ledger bucket is EMPTY: every region B4 inherited
+  has been retired, and the partition assertion in `enumerationSites.test.js` →
+  *"every B4 region is retired"* now carries **no `B4` key at all** (`reduce`
+  emits nothing for a fate with no members, so `B4: 0` would never match). What
+  B4 retired, in the order it landed: the five name lists into `indicatorCatalog`
+  · the four keyboard regions into `INDICATOR_CHORDS` · the alert dropdown's
+  five-part twin of `INDICATOR_FUNCS` · the settings tab's `ENGINE_ROW_DEF_IDS` ·
+  the toolbar's fifteen indicator rows · the voice bus's `ALLOWED_INDICATORS` ·
+  the share link's four hand-written pilots · the legend's three-part enumeration.
+  **Read the live count and partition in that test, never here** — every task
+  moved them, and a breakdown copied into this runbook is a control that rots
+  green, which is exactly what the literal that used to sit on this line was.
+  ⚠️ **B4's plan re-adjudicated two of what B3 handed it** — `paneMargins.PANES`
+  to **B5** (a layout table B4's own Global Constraints forbid it from modifying:
+  a site a phase may not touch cannot carry that phase's fate) and
+  `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate **C** (spec §8
+  rebuilds the evaluator; B4 only collapsed its frontend twin into it). A third
+  fate-`C` row was ADDED rather than retired: `voice_client_action_tools.py`'s
+  `_INDICATOR_ALIASES`, a Python phrase map the JS discovery scan structurally
+  cannot see;
 * **Flip C**, bands becoming real LWC panes — **B5**, and `paneMargins.PANES`
-  retires with it;
+  retires with it. B4 shipped **ZERO** migrations, so `ENGINE_FLIPPED_DEF_IDS`
+  still equals `ENGINE_MIGRATED_DEF_IDS` and B5 inherits ten un-flipped
+  definitions and the six legacy `addSeries` sites the legend registers chips at;
 * the `engineEnabled` **settings migration** — unresolved, gated, and numbered:
-  `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`.
+  `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`. Still **OPEN**
+  at the end of B4, and safe only while `FLIPPED === MIGRATED`.
+
+---
+
+## 6. The B4 surfaces, and why the pixel gate cannot see them
+
+**Every number in this runbook is about a `<canvas>` that a headless browser
+rendered from `/chart-render`.** Phase B4 shipped almost nothing that reaches
+that canvas — it reworked the surfaces AROUND the chart — so a clean 24-case
+zero across the whole phase is an **import-graph and effect-graph check, not a
+UI check**, and reading it as a pass is the single easiest way to ship a B4
+regression.
+
+The parity route is structurally blind to all of it, and each blindness has a
+mechanism, not a caveat:
+
+| B4 deliverable | why `/chart-render` cannot see it | the suite that IS the gate |
+|---|---|---|
+| the indicator **library dialog** (Task 7) | the route mounts **no `ChartToolbar`**, so the launcher, the imperative handle and the dialog never exist | `ChartToolbar.indicatorLibrary.test.jsx`, `IndicatorLibraryDialog.test.jsx` |
+| the **generated settings rows** (Task 6) | no settings modal and no toolbar panel is mounted | `generatedSettingsRows.test.jsx`, `enumerationSites.test.js` → *every declared input … is reachable* |
+| the **"Manage indicators →" launcher** (Task 8) | same — no toolbar | `enumerationSites.test.js` → *the toolbar's fifteen rows … are GONE*, `ChartToolbar.*.test.jsx` |
+| the **four indicator chords** (Task 4) | the route installs **no keyboard listener** and no case presses a key | `stockChartWiring.test.jsx` → *one dispatch serves every indicator chord* |
+| **`Alt+Shift+A`** and right-click **Add indicator…** (Task 12) | no keyboard listener, **no cursor**, no `contextmenu` is ever dispatched | `stockChartWiring.test.jsx` → *Alt+Shift+A and right-click both reach the ONE library* |
+| the two **right-click doors** (Task 3) | the route has no pointer; `buildRegionSections` is only reachable through a real `contextmenu` on the canvas | `stockChartWiring.test.jsx` → *B4 Task 3 — the right-click doors read the catalog* |
+| the **share link** (Task 5) | the route **builds no share URL** and mounts no share popover | `stockChartWiring.test.jsx` → *B4 Task 5 — the share link is derived* |
+| the **legend rewrite** (Task 10) | `ChartRender.jsx` **CSS-hides the legend**, the export never composites it, and **no case hovers** — the legend has no crosshair to read | `legendFromDefinitions.test.jsx` (17 DOM cases), `readout.test.js` |
+| the **voice bus** (Task 11) | `GlobalVoiceLayer` is `lazy()` and paid-gated; the route mounts no voice layer and emits no event | `chartBus.test.jsx`, `useChartIndicatorBus` cases |
+| the **alert catalog** (Task 9) | the popover is not mounted and the endpoint is not called | `IndicatorAlertPopover.test.jsx`, `tests/test_indicator_alert_service.py` |
+
+**This is the same mechanism as `readout.js`'s header records**, and B3 measured
+it: `engine_bb_vs_legacy` read **0 changed pixels** under a mutation that a
+purpose-built case read **281 px** on. A zero is only evidence about what the
+case actually renders.
+
+**So what IS a clean B4 zero worth?** Exactly this, and it is worth having: the
+phase touched `StockChart.jsx` on every task — its callback graph, its effect
+dependency arrays, its imports — and a 0 across 24 cases × 5 repeats says none of
+that moved a pixel of the chart itself. It is the regression check on the part of
+B4 that runs on the render path. It says nothing whatever about the part that
+does not.
+
+⚠️ **Do not "fix" this by adding a toolbar to the parity route.** The route is
+deliberately minimal so that a pixel diff means *the chart changed*; mounting
+chrome into it would make every future chrome change a pixel event and destroy
+the signal the gate exists for. The DOM suites are the gate for chrome, and the
+column above is which one.
 
 ---
 

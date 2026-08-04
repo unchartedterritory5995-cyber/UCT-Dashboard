@@ -135,12 +135,22 @@ describe('ENGINE_ENABLED_MIGRATION — a stored blob on ship day', () => {
 // the settings tab. They all route through `instanceControls` now.
 //
 // ⭐ THE PRESETS ARE A SEVENTH WRITER OF A DIFFERENT KIND, AND NO LEDGER WALK
-// OPENED IT. `applyPreset` (`ChartToolbar.jsx`, and again in `Settings.jsx`) and
-// `resetToDefaults` (`Settings.jsx`) write a WHOLE `chart_settings` blob built by
-// spreading `CHART_DEFAULTS` — so they stamp `engineEnabled` and
+// OPENED IT. `applyPreset` and the Reset buttons write a WHOLE `chart_settings`
+// blob built from `CHART_DEFAULTS` — so they stamp `engineEnabled` and
 // `indicatorInstances` over whatever the user had. That is the same hazard class
 // as `ChartsWorkspace`'s frozen capture, which was a Flip-B ship-blocker until
 // `uctDefaultChartSettings()` was made to stamp the keys from the default.
+//
+// 🔴 THIS NOTE USED TO NAME THE SITES — *"`applyPreset` (ChartToolbar.jsx, and
+// again in Settings.jsx) and `resetToDefaults` (Settings.jsx)"* — AND IT WAS
+// INCOMPLETE, measured at B4 Task 12 by the first scan anyone ran for whole-blob
+// writers. It missed `ChartToolbar`'s OWN Reset button and, more importantly,
+// `ChartSettingsModal.jsx`'s (`JSON.parse(JSON.stringify(CHART_DEFAULTS))`) — the
+// workspace's centred settings modal, which no test named. The site list is now
+// ASSERTED in `controlDoorCensus.test.js` ("the whole-blob sites are the measured
+// three") rather than restated here, because a list in a comment beside a test
+// that does not check it is a control that rots green — which is precisely what
+// this one did.
 //
 // It is NOT an enumeration site — a preset names no indicator, so a sixteenth
 // costs zero edits there and the discovery scan cannot see it. It IS a place the
