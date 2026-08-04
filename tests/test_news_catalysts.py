@@ -138,8 +138,19 @@ class TestMerge:
         assert earn["direction"] == "down"       # from beat=False
         assert any("-168.3% EPS surprise" in d for d in earn["details"])   # still in details
 
-    def test_breaking_excluded_by_default(self, monkeypatch):
-        # Default (no NEWS_BREAKING_ENABLED) → no wire tweets in the merged feed.
+    def test_breaking_wire_layer_on_by_default(self, monkeypatch):
+        # Default (NEWS_BREAKING_ENABLED unset) → the curated news-wire layer IS on.
+        _mock_bars(monkeypatch)
+        _mock_earnings(monkeypatch, [])
+        _mock_tweets(monkeypatch, [
+            {"id": "1", "author_handle": "DeItaone", "text": "NBIS big headline",
+             "created_at": 1000, "url": "http://x/1"},
+        ])
+        events = service._combined("NBIS")
+        assert [e for e in events if e["type"] == "breaking"]
+
+    def test_breaking_layer_can_be_disabled(self, monkeypatch):
+        monkeypatch.setenv("NEWS_BREAKING_ENABLED", "0")
         _mock_bars(monkeypatch)
         _mock_earnings(monkeypatch, [])
         _mock_tweets(monkeypatch, [
@@ -443,14 +454,43 @@ class TestBreakingHelpers:
         assert len(kept) == 2
 
     def test_breaking_relevance_end_to_end(self, monkeypatch):
-        # A 5-ticker roundup where MSFT is only name-dropped → excluded from MSFT feed.
+        # A 5-ticker roundup (from a WIRE account) where MSFT is only name-dropped
+        # → excluded from MSFT's feed by the relevance filter (not the wire filter).
         _mock_bars(monkeypatch)
         _mock_earnings(monkeypatch, [])
         _mock_tweets(monkeypatch, [
-            {"id": "1", "author_handle": "faststocknewss",
+            {"id": "1", "author_handle": "WallStEngine",
              "text": "AMAZON $AMZN TOPS $3 TRILLION Shares rose, joining $NVDA, $GOOGL, $MSFT and $AAPL",
              "created_at": 1000, "url": "http://x/1"},
         ])
         cache.invalidate("news_live_MSFT")
         events = service._breaking_events("MSFT")
         assert events == []
+
+    def test_breaking_drops_non_wire_accounts(self, monkeypatch):
+        # A lower-signal aggregator/retail handle is dropped even with a clean headline.
+        _mock_bars(monkeypatch)
+        _mock_tweets(monkeypatch, [
+            {"id": "1", "author_handle": "AIStockSavvy", "text": "NVDA breaking headline",
+             "created_at": 1000, "url": "http://x/1"},
+        ])
+        assert service._breaking_events("NVDA") == []
+
+    def test_breaking_keeps_sector_policy_event_for_all_listed(self, monkeypatch):
+        # The catalyst we were MISSING: a policy headline (no ticker in the headline)
+        # that lists many optical names → kept for EACH of them from a wire account.
+        _mock_bars(monkeypatch)
+        _mock_tweets(monkeypatch, [
+            {"id": "1", "author_handle": "DeItaone",
+             "text": ("Trump administration drafting ban on Chinese data center hardware "
+                      "- $AAOI $COHR $LITE $CIEN $VIAV $GLW"),
+             "created_at": 1000, "url": "http://x/1"},
+        ])
+        for sym in ("AAOI", "COHR", "LITE", "CIEN", "VIAV", "GLW"):
+            evs = service._breaking_events(sym)
+            assert evs and evs[0]["type"] == "breaking", sym
+            assert evs[0]["title"].startswith("Trump administration"), sym
+
+    def test_wire_accounts_env_override(self, monkeypatch):
+        monkeypatch.setenv("NEWS_WIRE_ACCOUNTS", "@Foo, bar")
+        assert service._wire_accounts() == {"foo", "bar"}

@@ -34,6 +34,11 @@ YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
 _TWEET_HOURS = int(os.environ.get("NEWS_TWEET_WINDOW_HOURS", "48") or 48)
+# Only the real news WIRES carry breaking catalysts — not the lower-signal
+# aggregator/retail accounts the tweet store also ingests (AIStockSavvy,
+# markflowchatter, faststocknewss…). Owner ask: "just the main news wires."
+# Env-overridable (comma-separated handles, with/without @).
+_DEFAULT_WIRE_ACCOUNTS = "deitaone,financialjuice,benzinga,wallstengine,firstsquawk,livesquawk"
 _RETRY_AFTER = int(os.environ.get("NEWS_CATALYSTS_RETRY_AFTER", "86400") or 86400)
 _DAILY_CAP = int(os.environ.get("NEWS_CATALYSTS_DAILY_CAP", "300") or 300)  # generations/day (per process)
 _MAX_HIST_ITEMS = 12          # a bit more coverage (was 8)
@@ -394,16 +399,28 @@ def _cashtags(text):
 
 def _tweet_relevant(text, sym, headline):
     """Keep a tweet only when the stock is a real SUBJECT, not one of many tickers
-    name-dropped in a roundup (owner ask: don't show a post just because $SYM appears)."""
+    name-dropped in a roundup (owner ask: don't show a post just because $SYM appears).
+
+    The hard case is a multi-ticker post. Two kinds look identical by cashtag count:
+      • "AMAZON $AMZN TOPS $3T … joining $MSFT $AAPL"  → about AMZN; MSFT is a passer-by
+      • "US drafting ban on China datacenter gear - $AAOI $COHR $LITE $CIEN"  → a POLICY
+        event that genuinely hits EVERY listed name (owner: this is the one we were missing)
+    The distinguisher is the HEADLINE: if it names ANOTHER ticker, the post is about that
+    company; if it names no ticker (a general/policy headline), it's relevant to all."""
     sym = sym.upper()
     tags = _cashtags(text)
-    if len(tags) <= 2:
-        return True                                   # 1-2 tickers → a genuine subject
+    if len(tags) <= 1:
+        return True                                   # single subject
+    hl = headline or ""
+    if re.search(rf"\${re.escape(sym)}\b", hl, re.I):
+        return True                                   # this stock is IN the headline
+    if any(re.search(rf"\${re.escape(tk)}\b", hl, re.I) for tk in tags if tk != sym):
+        return False                                  # a DIFFERENT stock owns the headline
     if tags and tags[0] == sym:
-        return True                                   # the primary/first ticker
-    if re.search(rf"\${re.escape(sym)}\b", headline or "", re.I):
-        return True                                   # named in the headline itself
-    return False                                      # buried among many cashtags → skip
+        return True                                   # leads the cashtag list
+    # No ticker in the headline → a general/sector/policy event affecting every listed
+    # name. Keep it, but guard against a giant movers-roundup dump.
+    return len(tags) <= 10
 
 
 def _sig_words(text):
@@ -565,18 +582,25 @@ def _breaking_events(sym: str) -> list:
     except Exception as exc:
         _logger.warning("news_catalysts tweets fetch failed for %s: %s", sym, exc)
         return out
+    wires = _wire_accounts()
     pairs = []
     for t in rows[:_MAX_BREAKING]:
         ts = t.get("created_at")
         text = (t.get("text") or "").strip()
         if not ts or not text:
             continue
+        # Wire-only: drop the tweet store's lower-signal aggregator/retail accounts.
+        handle = (t.get("author_handle") or "").lstrip("@")
+        if wires and handle.lower() not in wires:
+            continue
         head, body = _split_headline(text)
         # Relevance: skip a post that only name-drops this ticker among many.
         if not _tweet_relevant(text, sym, head):
             continue
+        # Drop vague "moved on optimism" non-events even from a wire.
+        if _is_vague_move(head or text, body or ""):
+            continue
         d = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
-        handle = (t.get("author_handle") or "wire").lstrip("@")
         ev = {
             "date": d, "type": "breaking", "direction": "neutral",
             "title": head or text,          # bold headline only — full body goes to `description`
@@ -621,9 +645,17 @@ def _hist_and_earnings(sym: str) -> list:
 
 
 def _breaking_enabled() -> bool:
-    # OFF by default (owner: just web catalysts + earnings for now). Re-enable the
-    # curated wire-tweet layer by setting NEWS_BREAKING_ENABLED=1.
-    return os.environ.get("NEWS_BREAKING_ENABLED", "0") == "1"
+    # ON by default: the curated news-WIRE layer is the fast real-time signal for
+    # breaking sector/policy catalysts (e.g. a Reuters China datacenter-ban wire)
+    # that Perplexity's index lags on. Kill with NEWS_BREAKING_ENABLED=0.
+    return os.environ.get("NEWS_BREAKING_ENABLED", "1") == "1"
+
+
+def _wire_accounts() -> set:
+    """The allowlisted news-wire handles (lowercased, no @). Only these carry
+    breaking catalysts; the tweet store's aggregator/retail accounts are dropped."""
+    raw = os.environ.get("NEWS_WIRE_ACCOUNTS", _DEFAULT_WIRE_ACCOUNTS)
+    return {h.strip().lower().lstrip("@") for h in raw.split(",") if h.strip()}
 
 
 def _recent_enabled() -> bool:
@@ -870,15 +902,19 @@ def debug_web(sym: str) -> dict:
     movers = significant_catalysts.rank_big_move_days(bars, top_n=_HIST_TOP_N, direction="both") if bars else []
     items, citation = _web_catalysts(sym, None, bars, movers)
     recent = _recent_catalysts(sym)          # LIVE recent-layer result (today's drivers)
+    breaking = _breaking_events(sym) if _breaking_enabled() else []   # curated news-wire layer
     return {
         "symbol": sym,
         "web_enabled": _web_enabled(),
         "recent_enabled": _recent_enabled(),
+        "breaking_enabled": _breaking_enabled(),
+        "wire_accounts": sorted(_wire_accounts()),
         "perplexity_key_set": bool(os.environ.get("PERPLEXITY_API_KEY", "").strip()),
         "bars": len(bars),
         "movers": movers[:12],
         "web_items": items,
         "recent_items": recent,
+        "breaking_items": breaking,
         "citation": citation,
         "period": HIST_PERIOD,
     }
