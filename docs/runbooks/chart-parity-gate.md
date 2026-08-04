@@ -386,14 +386,21 @@ sanity-check the harness before migrating an indicator.
 ## 5. Migrating one more indicator — the whole checklist
 
 Phase B3 took four indicators through both flips (RSI, Bollinger Bands, MACD,
-VWAP), and **B5 Task 5 took two more — `stoch` and `atr`, migrated and flipped in
-ONE commit.** **Eight definitions are still on the legacy lane** — `sar`,
-`ichimoku`, `mfi`, `cci`, `williamsR`, `adx`, `obv`, `donchian` — plus
-`volumeProfile`, which is **permanently carved out** and is not on this list at
-all (it draws to a sibling canvas, not through `addSeries`; see
+VWAP); **B5 Task 5 took `stoch` and `atr`** and **B5 Task 6 took `sar` and
+`ichimoku`** — each pair migrated and flipped in ONE commit. **Six definitions
+are still on the legacy lane** — `mfi`, `cci`, `williamsR`, `adx`, `obv`,
+`donchian` — plus `volumeProfile`, which is **permanently carved out** and is not
+on this list at all (it draws to a sibling canvas, not through `addSeries`; see
 `nativeRegistry.CARVED_OUT_INDICATOR_KEYS`).
 
-This is what each of the remaining eight costs, written from what the six
+⚠️ **The legend's LEGACY lane is gone as of Task 6.** All nine shipped chips come
+from `binder.bindings()`, and `registerLegacyChip` / `legacyChipEntriesRef` /
+`csIndicatorsRef` / `LEGACY_CHIP_ORDER` are deleted — the six survivors above
+declare no `legend` block, which is what made that safe. A migration no longer
+has a "retire its chip registrations" step; it has an "assert the chip-bearing
+set is still fully migrated" one (`stockChartWiring.test.jsx`).
+
+This is what each of the remaining six costs, written from what the eight
 actually took rather than from what the plan estimated.
 
 ### 5.1 The steps
@@ -452,12 +459,21 @@ actually took rather than from what the plan estimated.
    🔴 THIS STEP USED TO SAY *"plus a `readout.LEGACY_SLOTS` entry"*, and **B4
    Task 10 DELETED `LEGACY_SLOTS`** — `enumerationSites.test.js` asserts it cannot
    come back. All nine shipped chips are declared on their definitions already, so
-   a migration ADDS NOTHING here. What it does instead is **retire that
-   definition's `registerLegacyChip` calls in the SAME commit** that gives it an
+   a migration ADDS NOTHING here. What it USED to do instead was **retire that
+   definition's `registerLegacyChip` calls in the SAME commit** that gave it an
    engine binding: the chip's text is identical on both lanes by design, so a
-   registration left behind produces the chip TWICE, one exactly on top of the
-   other. `legendFromDefinitions.test.jsx` asserts the LANE each chip comes from
-   as a SEPARATE case from its text, for exactly that reason.
+   registration left behind produced the chip TWICE, one exactly on top of the
+   other.
+   🔴 **THAT STEP IS ALSO GONE AS OF B5 TASK 6**, which retired the last three
+   registrations (`sar::sar`, `ichimoku::tenkan`, `ichimoku::kijun`) and deleted
+   `registerLegacyChip`, `legacyChipEntriesRef`, `csIndicatorsRef` and
+   `LEGACY_CHIP_ORDER` with them. The six definitions still on the legacy lane
+   declare no `legend` block at all, so a migration has nothing to retire — and
+   the claim that replaces it is **"every chip-bearing definition is migrated"**
+   (`stockChartWiring.test.jsx`), which goes red if a NEW definition gains a
+   `legend` block before it gains a binding. `legendFromDefinitions.test.jsx`
+   still asserts the LANE each chip comes from as a SEPARATE case from its text,
+   because the empty legacy list is now the thing that would go wrong.
 
 8. **DELETE, don't guard.** Flip B is the deletion: the hand-written block, its
    `useRef`s, its `indicatorData` branch, its hide-all entry, its crosshair read.
@@ -525,8 +541,11 @@ wrongly-named input key (step 6).
   cannot see;
 * **Flip C**, bands becoming real LWC panes — **B5**, and `paneMargins.PANES`
   retires with it. B4 shipped **ZERO** migrations, so `ENGINE_FLIPPED_DEF_IDS`
-  still equals `ENGINE_MIGRATED_DEF_IDS` and B5 inherits ten un-flipped
-  definitions and the six legacy `addSeries` sites the legend registers chips at;
+  still equals `ENGINE_MIGRATED_DEF_IDS` and B5 inherited ten un-flipped
+  definitions and the six legacy `addSeries` sites the legend registered chips at.
+  ⭐ **Tasks 5 and 6 took four of the ten and ALL SIX of the chip sites**, so the
+  legend's second lane is retired; six un-flipped definitions remain, none of them
+  chip-bearing;
 * the `engineEnabled` **settings migration** — ✅ **RESOLVED at B5 Task 4 by
   DELETING the flag**: `docs/decisions/2026-08-03-engine-enabled-settings-migration.md`
   §12 and `docs/decisions/2026-08-04-engine-enabled-deleted.md`. It was OPEN at the

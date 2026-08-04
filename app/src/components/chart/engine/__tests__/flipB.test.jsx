@@ -198,10 +198,11 @@ describe('Flip B — the set itself', () => {
   it('flips the four pilots AND B5\'s migrations, and stays a SUBSET of the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    // ⭐ `stoch` and `atr` joined at B5 Task 5, migrated and flipped in ONE
-    // commit. This literal moves once per B5 migration task, deliberately: it is
-    // the place a flip has to be WRITTEN DOWN, not derived.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'macd', 'rsi', 'stoch', 'vwap'])
+    // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6 —
+    // each pair migrated and flipped in ONE commit. This literal moves once per
+    // B5 migration task, deliberately: it is the place a flip has to be WRITTEN
+    // DOWN, not derived.
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch', 'vwap'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 

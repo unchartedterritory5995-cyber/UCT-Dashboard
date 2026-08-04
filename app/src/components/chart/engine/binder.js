@@ -409,8 +409,13 @@ export function createBinder({ chart, LWC }) {
         // non-empty. What is still true is the rest of this paragraph: the
         // z-order rails and the pixel gate are both blind to it, which is why the
         // expiry rail keeps its name and now says which fixture it speaks for.
-        // `⏳ EXPIRES when a pooled series first CROSSES PANES` goes red the day
-        // it stops being true. That day is `vwap`/`sar`/`ichimoku`/`donchian`.
+        // ⚠️ AND `sar`/`ichimoku` ARE OFF THAT LIST AS OF B5 TASK 6: they are
+        // PRICE overlays, which the volume-overlay toggle cannot move (the menu
+        // offers it for pane oscillators only, and `migrateLegacyToInstances`
+        // refuses to honour the list for a price target), so migrating them adds
+        // no new crossing. `donchian` is the last price overlay and Task 8 is the
+        // last chance for one; the crossing that DOES happen is still the
+        // volume-overlay one, on `stoch` and `atr`.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
         attempt(() => series.applyOptions(options))
       }

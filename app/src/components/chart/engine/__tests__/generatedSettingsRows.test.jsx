@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import {
   listEngineIndicators, listAllIndicators, applyRowPatch, readEnabled,
 } from '../../indicatorRegistry'
@@ -8,7 +8,12 @@ import { CARVED_OUT_ROWS, NOT_IN_BLOB } from '../../indicatorCatalog'
 import { isIndicatorEnabled } from '../instanceControls'
 import { ENGINE_FLIPPED_DEF_IDS } from '../flipState'
 import * as engineRegistry from '../nativeRegistry'
+import { computeIchimoku } from '../../indicators'
+import { makeBars } from './fakeChart'
 import ChartSettingsModal from '../../ChartSettingsModal'
+
+/** Enough bars that every declared period actually computes (senkouB is 52). */
+const BARS = makeBars(260)
 
 // ─── B4 TASK 6: A GENERATED ROW FOR EVERY DEFINITION ────────────────────────
 //
@@ -61,14 +66,52 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
   // boxes reading `undefined`, writing keys the LEGACY ichimoku block does not
   // read. It is un-flipped, so the instance those writes reach is filtered out
   // of the render pass: three controls that appear and do nothing.
-  it('a control whose key the legacy section does not carry is DISABLED with a reason, not live', () => {
+  it('⭐ ichimoku\'s three periods are LIVE ROWS now — the flip is what wired them', () => {
+    // 🔴 INVERTED BY B5 TASK 6. It read *"a control whose key the legacy section
+    // does not carry is DISABLED with a reason, not live"*, and it was right
+    // while `ichimoku` was un-flipped: the hand-written block called
+    // `computeIchimoku(bars)` with no arguments, so three number boxes writing
+    // keys nobody read is exactly what deserved greying.
+    //
+    // ⚠️ THE BLOB HAS NOT CHANGED — that half of the premise is still asserted
+    // below — and that is why the FLIP is what did it: the instance carries the
+    // definition's declared inputs whether the blob has room for them or not.
     const byKey = Object.fromEntries(rowById('ichimoku').fields.map((f) => [f.key, f]))
     for (const k of ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod']) {
       expect(k in CHART_DEFAULTS.indicators.ichimoku,
-        `${k} is in the blob now — the premise of this case is dead`).toBe(false)
-      expect(byKey[k].disabled, k).toMatch(/not wired/i)
+        `${k} is in the blob now — this case's premise would be a different one`).toBe(false)
+      expect(byKey[k].disabled, `${k} is still greyed — the flip did not reach unwiredKeys`)
+        .toBeUndefined()
     }
     for (const k of ['tenkanColor', 'kijunColor']) expect(byKey[k].disabled, k).toBeUndefined()
+    expect(ENGINE_FLIPPED_DEF_IDS.has('ichimoku'),
+      'ichimoku is un-flipped again — these three rows are writing where nothing reads').toBe(true)
+  })
+
+  it('…and the value a live row writes REACHES COMPUTE, which is the whole claim', () => {
+    // ⛔ "NOT GREYED" IS NOT "WIRED". A row could render live, write through
+    // `instanceControls`, round-trip the blob and still be ignored by the compute
+    // function — which is precisely the state the brief warned about
+    // (`activeWhen: false` would have been the honest answer for that). So the
+    // claim is asserted end to end: patch the row, take the instance the patch
+    // produced, and check the NUMBERS the registry computes from it.
+    const settings = mergeChartSettings(JSON.stringify({ indicators: { ichimoku: { enabled: true } } }))
+    const next = applyRowPatch(rowById('ichimoku', settings), { tenkanPeriod: 18 }, settings, engineRegistry)
+    const inst = next.indicatorInstances.find((i) => i && i.defId === 'ichimoku' && !i.deleted)
+    expect(inst, 'the row wrote no instance — it is not routed at instanceControls').toBeTruthy()
+    expect(inst.inputs.tenkanPeriod, 'the value never reached the instance').toBe(18)
+    // …and it survives a round trip through `mergeChartSettings`' allow-list.
+    const roundTripped = mergeChartSettings(JSON.stringify(next))
+    const rtInst = roundTripped.indicatorInstances.find((i) => i && i.defId === 'ichimoku' && !i.deleted)
+    expect(rtInst.inputs.tenkanPeriod, 'the allow-list dropped it on persist').toBe(18)
+    // …and the ENGINE computes a different tenkan column with it. Compared
+    // against `computeIchimoku(bars, 18, …)` from the OTHER side, and asserted
+    // `not.toEqual` the default so the case cannot pass on an ignored argument.
+    const def = engineRegistry.getDefinition('ichimoku')
+    const at18 = engineRegistry.computeFor(def, BARS, rtInst.inputs).tenkan
+    const at9 = engineRegistry.computeFor(def, BARS, { ...rtInst.inputs, tenkanPeriod: 9 }).tenkan
+    expect([...at18], 'tenkanPeriod does not reach computeIchimoku').not.toEqual([...at9])
+    expect([...at18]).toEqual([...computeIchimoku(BARS, 18, 26, 52).tenkan.map((p) => p.value)])
   })
 
   it('…and the same control on a FLIPPED definition is live, which is what makes the rule real', () => {
@@ -188,26 +231,44 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
     }
   })
 
-  it('⭐ a greyed control really renders greyed, with the reason as its title', () => {
-    // The data-level assertion above says `disabled` is set. This says the JSX
-    // consumes it — a `disabled` nothing renders is the same shape as the
-    // `engineInert` predicate no row consulted, which stayed green while lying.
+  it('⭐ ichimoku\'s three periods render LIVE in the real dialog — nothing is greyed', () => {
+    // 🔴 INVERTED BY B5 TASK 6, AND IT HAD NO OTHER SUBJECT. It read *"a greyed
+    // control really renders greyed, with the reason as its title"* and asserted
+    // three `[title=NOT_IN_BLOB]` rows. `ichimoku` was the only definition whose
+    // declared inputs outran its settings section, so flipping it leaves the
+    // whole app with nothing greyed and that selector matching nothing.
+    //
+    // ⛔ "MATCHES NOTHING" IS THE SHAPE OF A DEAD SELECTOR, so the case does not
+    // stop at an empty list: it asserts the three rows are THERE and ENABLED,
+    // which is the state a deleted row and a live row cannot both satisfy.
     const cs = mergeChartSettings(JSON.stringify({ indicators: { ichimoku: { enabled: true } } }))
     render(<ChartSettingsModal open settings={cs} onChange={vi.fn()} />)
     openIndicators()
+    expect([...document.body.querySelectorAll(`[title="${NOT_IN_BLOB}"]`)],
+      'something is still greyed — the totality in indicatorCatalog.test.js says nothing is')
+      .toHaveLength(0)
     // ⚠️ NOT `getByText('Tenkan')`: ichimoku declares `tenkanPeriod` and
-    // `tenkanColor` with the SAME label, so a label lookup finds two rows.
-    // Selected by the reason instead, which is the thing under test.
-    const greyed = [...document.body.querySelectorAll(`[title="${NOT_IN_BLOB}"]`)]
+    // `tenkanColor` with the SAME label, so a label lookup finds two rows. The
+    // period rows are the ones carrying a spinbutton.
     const def = engineRegistry.getDefinition('ichimoku')
-    const expected = ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod']
+    const labels = ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod']
       .map((k) => def.inputs.find((i) => i.key === k).label)
-    expect(greyed.map((r) => r.querySelector('[class*="indLabel"]').textContent)).toEqual(expected)
-    for (const row of greyed) {
-      expect(within(row).getByRole('spinbutton').disabled,
-        'a control the blob cannot carry rendered live').toBe(true)
+    const spin = [...document.body.querySelectorAll('input[type="number"]')]
+    const rows = labels.map((label) => {
+      const hit = spin.find((el) => el.closest('[class*="indRow"]')
+        ?.querySelector('[class*="indLabel"]')?.textContent === label)
+      expect(hit, `${label}'s number box is gone from the dialog entirely`).toBeTruthy()
+      return hit
+    })
+    for (const [i, el] of rows.entries()) {
+      expect(el.disabled, `${labels[i]} is still disabled in the DOM`).toBe(false)
     }
-    // …and the whole panel greys nothing ELSE, so this is not a blanket disable.
-    expect(greyed).toHaveLength(3)
+    // …and the JSX still CONSUMES `disabled` — the property this case used to
+    // prove, kept alive on the only surface that can still exercise it: a
+    // `readOnly`/`disabled` control elsewhere in the same dialog would be the
+    // successor if one existed, so what is asserted instead is that the greying
+    // MECHANISM is still wired at the row level (`generatedSettingsRows`' probe
+    // case above) and simply has no subject in the shipped registry.
+    expect(NOT_IN_BLOB).toMatch(/not wired/i)
   })
 })

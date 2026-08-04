@@ -442,13 +442,31 @@ describe('the carved-out section keeps its row and never reaches the engine', ()
 })
 
 describe('unwiredKeys — a control the legacy settings section cannot carry is greyed WITH A REASON', () => {
-  it('greys ichimoku\'s three declared periods, which CHART_DEFAULTS has never carried', () => {
+  it('⭐ NOTHING is greyed any more — ichimoku was the last one, and Task 6 flipped it', () => {
+    // 🔴 INVERTED BY B5 TASK 6. This case read *"greys ichimoku's three declared
+    // periods, which CHART_DEFAULTS has never carried"* — and it was right for as
+    // long as `ichimoku` was un-flipped: its hand-written block called
+    // `computeIchimoku(bars)` with NO arguments, so three number boxes reading
+    // `undefined` and writing keys nobody read was the honest thing to grey.
+    //
+    // ⭐ THE FLIP IS WHAT WIRED THEM, and it did not need `activeWhen: false`.
+    // `computeIchimoku(bars, tenkanPeriod, kijunPeriod, senkouBPeriod)` DOES
+    // honour all three; the engine passes the INSTANCE's inputs, whose declared
+    // defaults are the same 9/26/52 the no-argument call fell back to. So the
+    // three become live controls that reach compute, at zero changed pixels —
+    // asserted end to end in `generatedSettingsRows.test.jsx` and
+    // `sarIchimokuFlipParity.test.js`.
     const def = engineRegistry.getDefinition('ichimoku')
-    expect([...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)])
+    expect([...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)]).toEqual([])
+    // ⛔ THE CONTROL, AND WITHOUT IT THIS CASE IS UNFALSIFIABLE: a `unwiredKeys`
+    // that returned an empty Set unconditionally would satisfy the line above
+    // forever. With an EMPTY flip set — bypassing the short-circuit — the
+    // predicate still finds exactly ichimoku's three, because
+    // `CHART_DEFAULTS.indicators.ichimoku` still has no key for them.
+    expect([...unwiredKeys(def, new Set())])
       .toEqual(['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod'])
-    // …and its five colours ARE in the blob, so they stay live.
-    const greyed = unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)
-    expect(def.inputs.map(i => i.key).filter(k => !greyed.has(k)))
+    // …and its five colours ARE in the blob, so they were never greyed either.
+    expect(def.inputs.map(i => i.key).filter(k => !unwiredKeys(def, new Set()).has(k)))
       .toEqual(['tenkanColor', 'kijunColor', 'spanAColor', 'spanBColor', 'chikouColor'])
     expect(NOT_IN_BLOB).toMatch(/not wired/i)
   })
@@ -473,14 +491,26 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
 
   it('is total over the registry — every definition answers, none throws', () => {
     const greyed = {}
+    const greyedIfNothingFlipped = {}
     for (const def of engineRegistry.listDefinitions()) {
       const keys = [...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)]
       if (keys.length) greyed[def.id] = keys
+      const raw = [...unwiredKeys(def, new Set())]
+      if (raw.length) greyedIfNothingFlipped[def.id] = raw
     }
-    // ⭐ MEASURED, not asserted loosely: ichimoku is the ONLY definition whose
-    // declared inputs outrun its settings section. A second one appearing here
-    // is three more controls that write where nothing reads.
-    expect(greyed).toEqual({ ichimoku: ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod'] })
+    // 🔴 THE TOTALITY INVERTED AT B5 TASK 6, and the inversion is the interesting
+    // half. It read `{ichimoku: [three periods]}` — ichimoku was the ONLY
+    // definition whose declared inputs outran its settings section, and it is now
+    // FLIPPED, so the map is empty and nothing in the app is greyed at all.
+    expect(greyed).toEqual({})
+    // ⛔ AND THE SAME WALK WITH AN EMPTY FLIP SET IS THE CONTROL, because an
+    // `unwiredKeys` welded to `new Set()` would satisfy the line above for every
+    // definition forever. The BLOB has not changed: ichimoku is still the only
+    // definition whose declared inputs outrun `CHART_DEFAULTS`, and a SECOND one
+    // appearing here would still be controls that write where nothing reads —
+    // this is where it would show up.
+    expect(greyedIfNothingFlipped)
+      .toEqual({ ichimoku: ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod'] })
   })
 })
 

@@ -259,6 +259,17 @@ const JULY_BLOB = JSON.stringify({
     vwap: { enabled: true, color: '#abcdef', opacity: 40, lineStyle: 'dashed', lineWidth: 3 },
     stoch: { enabled: true, kPeriod: 21, dPeriod: 5, kColor: '#333333', dColor: '#444444' },
     atr: { enabled: true, period: 21, color: '#555555' },
+    // ⭐ ADDED AT B5 TASK 6, WHICH FLIPPED THESE TWO. Without them the "every
+    // FLIPPED indicator the blob had on is engine-drawn" case below could only be
+    // satisfied by weakening its expectation to whatever the fixture happened to
+    // carry — a comparison that can never fail. A July user could have had SAR
+    // and Ichimoku on, with their own colours, and this is that user.
+    sar: { enabled: true, step: 0.03, maxStep: 0.3, color: '#888888' },
+    ichimoku: {
+      enabled: true,
+      tenkanColor: '#991111', kijunColor: '#992222', spanAColor: '#993333',
+      spanBColor: '#994444', chikouColor: '#995555',
+    },
     volumeProfile: { enabled: true, bins: 48, color: '#666666', pocColor: '#777777' },
   },
 })
@@ -285,10 +296,14 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     ).toEqual([])
     // Named explicitly, because "the loop found nothing" and "the loop ran zero
     // times" read the same in a green suite.
-    expect(Object.keys(stored)).toHaveLength(7)
+    expect(Object.keys(stored)).toHaveLength(9)
     expect(cs.indicators.vwap.opacity).toBe(40)
     expect(cs.indicators.vwap.lineStyle).toBe('dashed')
     expect(cs.indicators.rsi.period).toBe(9)
+    // B5 Task 6's two, named the same way: a float input and a colour the
+    // merge could plausibly have dropped or defaulted.
+    expect(cs.indicators.sar.step).toBe(0.03)
+    expect(cs.indicators.ichimoku.chikouColor).toBe('#995555')
   })
 
   it('no key is resurrected — the merged blob names the flag nowhere', () => {
@@ -309,11 +324,19 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     expect(on.length).toBeGreaterThan(0)
   })
 
-  it('…and the un-migrated ten are untouched, drawn by their legacy blocks', () => {
+  it('…and the MIRROR still carries every stored value, flipped or not', () => {
+    // 🔴 THIS TITLE READ *"the un-migrated ten are untouched, drawn by their
+    // legacy blocks"* AND STAYED GREEN WHILE FALSE: `stoch` and `atr` were
+    // migrated at B5 Task 5, so two of its three subjects were engine-drawn while
+    // the sentence said they were not. The assertions themselves were always
+    // about the MIRROR — `cs.indicators.<id>` — which is exactly the thing that
+    // must survive a flip untouched, so the claim is restated rather than moved.
     const cs = mergeChartSettings(JSON.parse(JULY_BLOB))
     expect(cs.indicators.stoch.enabled).toBe(true)
     expect(cs.indicators.stoch.kPeriod).toBe(21)
     expect(cs.indicators.atr.enabled).toBe(true)
+    // `volumeProfile` is the genuinely un-migrated one — a canvas overlay with no
+    // definition at all, which is why it can never be flipped.
     expect(cs.indicators.volumeProfile.enabled).toBe(true)
     expect(cs.indicators.volumeProfile.bins).toBe(48)
   })

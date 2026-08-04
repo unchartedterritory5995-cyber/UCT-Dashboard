@@ -18,7 +18,7 @@ import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeV
 // second computation here would be a silent duplicate whose only observable
 // effect is CPU. Both functions still exist and are still what the definitions
 // call; this file simply no longer imports them.
-import { toHeikinAshi, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
+import { toHeikinAshi, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
@@ -54,7 +54,7 @@ import { eligibleInstances } from './chart/engine/eligibility'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
 import { csForPaneMargins } from './chart/engine/paneMarginsProjection'
 import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
-import { engineChips, chipsFrom } from './chart/engine/readout'
+import { engineChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
@@ -78,25 +78,13 @@ const EMPTY_INSTANCES = Object.freeze([])
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
 
-/**
- * The order the LEGACY lane's chips appear in, DERIVED from the registry.
- *
- * ⚠️ A `Map`'s insertion order is the order a key was FIRST set, so a chart that
- * starts with an indicator off and turns it on later would push its chips to the
- * END of the legend — a re-ordering no pixel gate could see and nothing would
- * report. Registry order × plot order IS the shipped `legChips` order, so the
- * ordering is read off the definitions rather than written down beside them.
- *
- * ⚠️ IT STILL SPANS THE WHOLE REGISTRY, and after B5 Task 5 most of what it names
- * has no legacy entry to fetch — `entries.get(k)` returns undefined for every
- * flipped id and `.filter(Boolean)` drops it. That is deliberate: the constant
- * describes an ORDER, not a membership, so it needs no edit at a flip and cannot
- * be the place a migration forgets to touch. The lane's own membership is
- * whatever `registerLegacyChip` has put in the map, which is the surviving
- * hand-written blocks and nothing else.
- */
-const LEGACY_CHIP_ORDER = engineRegistry.listDefinitions()
-  .flatMap(d => (d.plots || []).map(p => `${d.id}::${p.key}`))
+// ⛔ `LEGACY_CHIP_ORDER` STOOD HERE AND IS DELETED (B5 Task 6). It was the order
+// the LEGACY lane's chips appeared in, derived from the registry so that a chart
+// which turned an indicator on late could not push its chips to the end of the
+// legend (a `Map` orders by FIRST set). With `sar` and `ichimoku` flipped there
+// are no legacy registrations left to order — every chip comes from
+// `engineChips`, whose order is the BINDING order, which is instance order ×
+// plot order. See the note where `legacyChipEntriesRef` used to be.
 
 // THE DOUBLE-DRAW RAIL, and the toolbar's "am I still connected to anything?"
 // predicate. Both live in `engine/flipState.js` because `ChartToolbar` is
@@ -1741,15 +1729,13 @@ export default function StockChart({
   // re-purposes. See the flip note where their render blocks used to be.
   // ⛔ AND NO `stochKRef` / `stochDRef` / `atrSeriesRef` (B5 Task 5) — same
   // reason, same deletion. The engine's binding map owns those three series.
-  const sarSeriesRef  = useRef(null)
+  // ⛔ AND NO `sarSeriesRef` / `ichimoku{Tenkan,Kijun,SpanA,SpanB,Chikou}Ref`
+  // (B5 Task 6) — six more, same reason. `sar` is the first `markers` plot the
+  // pool has ever held, and a stale ref to a series the pool may hand to an RSI
+  // line is exactly the leak `pool.js`'s complete-key-set rule exists for.
   const compareSeriesRef = useRef(null)
   const comparisonSeriesRefs = useRef(new Map()) // sym -> LineSeries (multi-symbol comparison overlays)
   const vpCanvasRef = useRef(null)
-  const ichimokuTenkanRef = useRef(null)
-  const ichimokuKijunRef  = useRef(null)
-  const ichimokuSpanARef  = useRef(null)
-  const ichimokuSpanBRef  = useRef(null)
-  const ichimokuChikouRef = useRef(null)
   const mfiSeriesRef       = useRef(null)
   const cciSeriesRef       = useRef(null)
   const williamsRSeriesRef = useRef(null)
@@ -2076,37 +2062,25 @@ export default function StockChart({
   // legend the RAW blob — including the records `normalizeInstances` dropped and
   // the definitions the engine is not allowed to draw.
   const engineInstancesRef = useRef(EMPTY_INSTANCES)
-  // ── THE LEGACY LANE'S CHIP ENTRIES (B4 Task 10) ────────────────────────────
+  // ── ⛔ THE LEGACY LANE'S CHIP ENTRIES ARE GONE (B5 Task 6) ──────────────────
   //
-  // `'<defId>::<plotKey>'` → `{defId, plotKey, series, lastValue}`, written where
-  // each hand-written indicator series is CREATED and deleted where it is
-  // removed, so an entry's lifetime is the series' lifetime by construction
-  // rather than by a second list somebody has to keep in step.
+  // `legacyChipEntriesRef`, `registerLegacyChip`, `csIndicatorsRef` and the
+  // module-scope `LEGACY_CHIP_ORDER` stood here. B4 Task 10 built them because
+  // six of the nine shipped chips belonged to definitions that were NOT migrated
+  // and had no bindings, so rendering `engineChips()` alone would have deleted
+  // those six chips for every user, invisibly — a headless capture has no cursor.
   //
-  // ⛔ WHY THIS EXISTS AT ALL, since the obvious B4 was "render `engineChips()`
-  // directly": six of the nine shipped chips belonged to definitions that were
-  // NOT migrated and had no bindings, so rendering the engine lane alone would
-  // have deleted those six chips for every user, invisibly — a headless capture
-  // has no cursor. See `engine/readout.js`'s header.
+  // Task 5 moved three of the six onto the engine and Task 6 moved the last three
+  // (`sar::sar`, `ichimoku::tenkan`, `ichimoku::kijun`). With zero registrations
+  // left the map, the registrar, the inputs ref and the order constant have no
+  // callers, and dead code that used to be a mechanism reads as a mechanism — so
+  // they are DELETED rather than left empty. All nine chips now come out of
+  // `engineChips`, off the same `plots[].legend` blocks, character for character.
   //
-  // ⭐ B5 TASK 5 TOOK TWO OF THOSE FOUR DEFINITIONS ONTO THE ENGINE, and this map
-  // is now down to THREE entries — `sar`'s one and `ichimoku`'s two. It shrinks
-  // once more at Task 6 and is deleted with the last of them; until then the
-  // reason above is exactly as load-bearing as it was on day one, for a smaller
-  // set. ⚠️ The chips it lost did NOT disappear: they moved LANE, to the engine's
-  // bindings, off the same `plots[].legend` blocks.
-  const legacyChipEntriesRef = useRef(null)
-  if (legacyChipEntriesRef.current === null) legacyChipEntriesRef.current = new Map()
-  /** Register (or, with a null series, UNregister) one legacy chip-bearing plot. */
-  const registerLegacyChip = useCallback((defId, plotKey, series, lastValue) => {
-    const key = `${defId}::${plotKey}`
-    if (!series) { legacyChipEntriesRef.current.delete(key); return }
-    legacyChipEntriesRef.current.set(key, { defId, plotKey, series, lastValue })
-  }, [])
-  // The LEGACY lane's inputs, for the one formatting pipeline. `cs.indicators` is
-  // right here and wrong for the engine lane — see `chipsFrom`'s `inputsFor`.
-  // A REF because the crosshair subscription re-runs only on `chartReady`.
-  const csIndicatorsRef = useRef(null)
+  // ⚠️ `readout.chipsFrom` KEEPS its second-source shape and its `inputsFor`
+  // parameter. It is not vestigial: `engineChips` is one caller of it, and the
+  // reason it was extracted — a second lane with its own series source and its
+  // own inputs — is exactly what Phase C's server lane needs.
 
   const [activeTool, setActiveTool] = useState(null)
   const activeToolRef = useRef(activeTool)
@@ -4195,12 +4169,11 @@ export default function StockChart({
     // ⚠️ THE MACD HEAD-MASK WENT WITH IT. `MACD_HEAD_MASK` had TWO readers while
     // both lanes existed and now has ONE — `nativeRegistry`'s `COLUMN_HOLDS`.
     // `docs/decisions/2026-08-02-macd-head-mask.md` records that.
-    const sarRaw = ind.sar?.enabled
-      ? computeParabolicSAR(filteredBars, ind.sar.step, ind.sar.maxStep)
-      : []
-    const ichimokuRaw = ind.ichimoku?.enabled
-      ? computeIchimoku(filteredBars)
-      : { tenkan: [], kijun: [], spanA: [], spanB: [], chikou: [] }
+    // ⛔ AND NO `sar` / `ichimoku` BRANCHES (B5 Task 6), for the same reason
+    // again. ⚠️ `computeIchimoku(filteredBars)` was called here with NO
+    // arguments, which is why the definition's three declared periods were the
+    // only greyed controls in the app; the engine passes the instance's, whose
+    // defaults are the same 9/26/52 the no-argument call fell back to.
     const mfiRaw = ind.mfi?.enabled
       ? computeMFI(filteredBars, ind.mfi.period)
       : []
@@ -4224,20 +4197,6 @@ export default function StockChart({
     // downstream _applyData can hand the renderer a `value: NaN`.
     const line = (pts) => pts.map(p => indPoint(adjustTime(p.time), p.value))
     return {
-      // SAR carries `isUptrend` alongside the value (a preserved quirk — see
-      // indicators.js); a padded point stays pure whitespace.
-      sar: sarRaw.map(p => (
-        Number.isFinite(p.value)
-          ? { time: adjustTime(p.time), value: p.value, isUptrend: p.isUptrend }
-          : { time: adjustTime(p.time) }
-      )),
-      ichimoku: {
-        tenkan: line(ichimokuRaw.tenkan),
-        kijun:  line(ichimokuRaw.kijun),
-        spanA:  line(ichimokuRaw.spanA),
-        spanB:  line(ichimokuRaw.spanB),
-        chikou: line(ichimokuRaw.chikou),
-      },
       mfi:       line(mfiRaw),
       cci:       line(cciRaw),
       williamsR: line(williamsRRaw),
@@ -6299,6 +6258,15 @@ export default function StockChart({
     // order a migrated blob is built in (bb, vwap, sar, ichimoku, donchian) is
     // already the legacy render order for the five price overlays.
     //
+    // ⭐ AND AS OF B5 TASK 6 FOUR OF THOSE FIVE LAND HERE. `bb`, `vwap`, `sar` and
+    // `ichimoku` are all engine-drawn and are inserted contiguously at this call,
+    // in registry order; `donchian` is the one still-legacy price overlay and its
+    // block runs BELOW, so it stays on top of the other four — which is exactly
+    // the shipped stacking. That is why the two tasks could not be reordered:
+    // migrating `donchian` first would have put the engine's copy of it UNDER
+    // `sar` and `ichimoku` instead of over them, and LWC z-stacks by insertion.
+    // `engine_price_overlay_zorder` is the pixel case for it.
+    //
     // Everything it reads is still a LOCAL of `updateChart` — `chart`, the render
     // plan (`_noop`/`_incr`/`_freshChart`), `_applyData`, `paneMargins`, the
     // volume-overlay decision, `filteredBars`, `adjustTime`. That is why it is
@@ -6428,76 +6396,57 @@ export default function StockChart({
     // 0.15, i.e. `{top: 0.87}` vs `{top: 0.85}`), it draws no guides, and its
     // chip carries the period in brackets where Stochastic's two carry none.
 
-    // ── Parabolic SAR (dots on main price scale) ──
-    if (indicatorData.sar.length) {
-      const sarColor = cs.indicators?.sar?.color || '#ffeb3b'
-      if (!sarSeriesRef.current) {
-        sarSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'right',
-          color: sarColor,
-          lineWidth: 0,
-          pointMarkersVisible: true,
-          pointMarkersRadius: 3,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-          autoscaleInfoProvider: () => null,
-        })
-      } else {
-        sarSeriesRef.current.applyOptions({ color: sarColor })
-      }
-      // Strip `isUptrend` before LWC sees it; whitespace points stay whitespace.
-      _applyData(sarSeriesRef.current, indicatorData.sar.map(p => indPoint(p.time, p.value)))
-      registerLegacyChip('sar', 'sar', sarSeriesRef.current, () => indicatorDataRef.current?.sar?.at(-1)?.value)
-    } else {
-      if (sarSeriesRef.current) {
-        try { chart.removeSeries(sarSeriesRef.current) } catch {}
-        sarSeriesRef.current = null
-      }
-      registerLegacyChip('sar', 'sar', null)
-    }
+    // ── Parabolic SAR: FLIPPED (B5 Task 6) ───────────────────────────────────
+    //
+    // Drawn by the ENGINE, from the instance list, at the sync call above.
+    // `sarSeriesRef`, the `indicatorData.sar` branch and the hide-all entry are
+    // deleted with the block — that deletion IS Flip B.
+    //
+    // ⚠️ IT IS THE FIRST `markers` PLOT THE BINDER HAS EVER CREATED, and that is
+    // not a spelling difference. `poolKey('markers') === 'line'` — a `markers`
+    // plot IS a LineSeries with `lineWidth: 0` and point markers on, which is
+    // what this block built by hand — so the POOL can re-purpose SAR's series as
+    // any other line, and `pool.js`'s header records the measured leak that
+    // follows: `sar → rsi` left `pointMarkersVisible: true` behind, i.e. an RSI
+    // line with a dot on every bar. The complete-key-set rule closes it, and
+    // `sarIchimokuFlipParity.test.js` asserts it on that exact pair.
+    //
+    // ⚠️ AND IT IS A PRICE OVERLAY ON THE CANDLES' SHARED SCALE, so
+    // `autoscaleInfoProvider: () => null` — B3 Task 1's seam, measured at 38,491
+    // changed pixels when a price overlay was allowed to drive the main scale —
+    // is carried by `placement.target: 'price'` rather than by this call.
 
-    // ── Ichimoku Cloud (5 LineSeries on main price scale) ──
-    const ichiCfg = cs.indicators?.ichimoku
-    const ichiD = indicatorData.ichimoku
-    if (ichiD.tenkan.length) {
-      const createIfNeeded = (ref, opts) => {
-        if (!ref.current) {
-          ref.current = chart.addSeries(LineSeries, {
-            priceScaleId: 'right',
-            ...opts,
-            priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-            autoscaleInfoProvider: () => null,
-          })
-        } else {
-          ref.current.applyOptions({ color: opts.color })
-        }
-      }
-      createIfNeeded(ichimokuTenkanRef, { color: ichiCfg?.tenkanColor || '#26C6DA', lineWidth: 1 })
-      createIfNeeded(ichimokuKijunRef,  { color: ichiCfg?.kijunColor  || '#EF5350', lineWidth: 1 })
-      createIfNeeded(ichimokuSpanARef,  { color: ichiCfg?.spanAColor  || 'rgba(76,175,80,0.5)', lineWidth: 1 })
-      createIfNeeded(ichimokuSpanBRef,  { color: ichiCfg?.spanBColor  || 'rgba(239,83,80,0.5)', lineWidth: 1 })
-      createIfNeeded(ichimokuChikouRef, { color: ichiCfg?.chikouColor || 'rgba(255,235,59,0.7)', lineWidth: 1, lineStyle: 2 })
-      _applyData(ichimokuTenkanRef.current, ichiD.tenkan)
-      _applyData(ichimokuKijunRef.current, ichiD.kijun)
-      _applyData(ichimokuSpanARef.current, ichiD.spanA)
-      _applyData(ichimokuSpanBRef.current, ichiD.spanB)
-      _applyData(ichimokuChikouRef.current, ichiD.chikou)
-      // ⚠️ TENKAN AND KIJUN ONLY, AND WITH NO FALLBACK THUNK — both transcribed
-      // from the shipped legend, which read `dt?.value ?? null` for these two and
-      // printed NO chip at all for spanA / spanB / chikou. Ichimoku is the one
-      // block whose legacy read had no developing-bar fallback; giving it one
-      // here would be a behaviour change, so `spanA`/`spanB`/`chikou` declare no
-      // `legend` block and these two declare no `lastValue`.
-      registerLegacyChip('ichimoku', 'tenkan', ichimokuTenkanRef.current)
-      registerLegacyChip('ichimoku', 'kijun', ichimokuKijunRef.current)
-    } else {
-      for (const ref of [ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef]) {
-        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
-      }
-      registerLegacyChip('ichimoku', 'tenkan', null)
-      registerLegacyChip('ichimoku', 'kijun', null)
-    }
+    // ── Ichimoku Cloud: FLIPPED (B5 Task 6) ──────────────────────────────────
+    //
+    // All FIVE lines are drawn by the ENGINE, from ONE instance, at the sync call
+    // above. The five `useRef`s, the `indicatorData.ichimoku` branch and the five
+    // hide-all entries are deleted with the block.
+    //
+    // ⚠️ THREE PRESERVED QUIRKS CAME ACROSS UNTOUCHED, and `indicators.js`
+    // records all three deliberately: spanA and spanB are NOT forward-displaced
+    // (every other product draws the cloud 26 bars ahead of price), and chikou IS
+    // back-shifted 26 bars, so the last 26 slots of that column are the NaN pad.
+    // TRANSCRIBED, NOT CORRECTED — correcting any of them is a measured,
+    // owner-facing decision of the shape the MACD head-mask (88 px) and the VWAP
+    // session anchor (2,590 px) got, never something a migration does in passing.
+    //
+    // ⚠️ AND THE THREE PERIODS ARE LIVE NOW. This block called
+    // `computeIchimoku(filteredBars)` with NO arguments, so `tenkanPeriod`,
+    // `kijunPeriod` and `senkouBPeriod` were declared by the definition, absent
+    // from `CHART_DEFAULTS.indicators.ichimoku`, and the only greyed controls in
+    // the whole app (`indicatorCatalog.unwiredKeys`). `computeIchimoku` DOES
+    // honour its three arguments and the engine passes the instance's, whose
+    // defaults are the same 9/26/52 the no-argument call fell back to — so they
+    // become working controls at zero pixels.
+    //
+    // ⭐ ONE NAMED BEHAVIOUR CHANGE, AND IT IS THE ONLY ONE: TK and KJ now print
+    // on the DEVELOPING bar. This block registered them with a series and NO
+    // thunk, so on the newest bar — the one the bars-push writer appends before
+    // the indicator series has a point — the two chips printed nothing. The
+    // engine lane's `lastValue` is a number, so they print, which is the same gap
+    // B3 closed for RSI (review finding I-3) and which every other chip already
+    // had. No pixel case can see it; `legendFromDefinitions.test.jsx` asserts it
+    // in the DOM, with the control that it really is the developing bar.
 
     // ── MFI sub-pane (0-100, 80/20 reference lines) ──
     if (indicatorData.mfi.length) {
@@ -7148,7 +7097,7 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, registerLegacyChip])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -8065,10 +8014,9 @@ export default function StockChart({
     resolvedTfRef.current = resolvedTf
     onCrosshairMoveRef.current = onCrosshairMove
     volMaDataRef.current = volMaData
-    // The LEGACY lane's chip inputs (colours + periods). Mirrored here for the
-    // same reason as everything else in this effect: `processCrosshair` reads
-    // refs so the subscription survives a live tick without a tear-down.
-    csIndicatorsRef.current = cs.indicators
+    // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
+    // lane's inputs. That lane has no producer after B5 Task 6, and the engine
+    // lane resolves inputs per INSTANCE inside `engineChips`.
   })
 
   // ── Crosshair legend: subscribe to hover events ──
@@ -8172,7 +8120,7 @@ export default function StockChart({
       const change = (prevClose != null) ? (c - prevClose) : (c - o)
       const changePct = (prevClose != null && prevClose) ? ((change / prevClose) * 100) : (o ? ((change / o) * 100) : 0)
 
-      // ── THE INDICATOR CHIPS — ONE PIPELINE, TWO LANES (B4 Task 10) ────────
+      // ── THE INDICATOR CHIPS — ONE PIPELINE, ONE LANE (B5 Task 6) ──────────
       //
       // ⛔ THE PIXEL GATE CANNOT SEE ANY OF THIS, AND THAT IS THE WHOLE REASON
       // IT IS SHAPED THIS WAY. A headless capture has no cursor, so no chip is
@@ -8182,24 +8130,22 @@ export default function StockChart({
       // What used to be here: nine hand-written `<indicator>Ref.current` reads
       // producing nine numeric `crosshairData` fields, plus a `LEGACY_SLOTS`
       // bridge that let an engine-drawn chip land in the field its legacy twin
-      // occupied. All of it is gone. Both lanes now hand `chipsFrom` a list of
-      // `{defId, plotKey, series, lastValue}` entries and get formatted chips
+      // occupied. All of it is gone. `engineChips` hands `chipsFrom` a list of
+      // `{defId, plotKey, series, lastValue}` entries and gets formatted chips
       // back — label, colour and precision from `plots[].legend` +
-      // `meta.legendParams` + that lane's own inputs.
+      // `meta.legendParams` + the INSTANCE's inputs.
       //
-      //   · ENGINE lane — `binder.bindings()`, inputs from the INSTANCE.
-      //     Currently `rsi::rsi`, `macd::macd`, `macd::signal`, and — since B5
-      //     Task 5 flipped Stochastic and ATR — `stoch::k`, `stoch::d`,
-      //     `atr::atr`.
-      //   · LEGACY lane — `legacyChipEntriesRef`, filled where each hand-written
-      //     series is created, inputs from `cs.indicators[defId]`. Currently
-      //     `sar::sar`, `ichimoku::tenkan`, `ichimoku::kijun` — three of the six
-      //     that would have VANISHED had B4 done the obvious thing and rendered
-      //     `engineChips()` alone; the other three now come from the engine lane
-      //     with the same text, which is a change of SOURCE that no assertion on
-      //     the rendered text could see.
-      //
-      // Engine lane first, then legacy, which is the shipped order.
+      // ⭐ AND THE SECOND LANE IS GONE. B4 Task 10 built a LEGACY lane because
+      // six of the nine shipped chips belonged to definitions that were NOT
+      // migrated and had no bindings, so rendering `engineChips()` alone would
+      // have deleted those six for every user, invisibly. Task 5 moved three
+      // (`stoch::k`, `stoch::d`, `atr::atr`) and Task 6 moved the last three
+      // (`sar::sar`, `ichimoku::tenkan`, `ichimoku::kijun`), so all nine now come
+      // from the bindings — a change of SOURCE that no assertion on the rendered
+      // TEXT could see, which is why `legendFromDefinitions.test.jsx` records the
+      // two call sites through a pass-through mock and asserts the lists with
+      // `toEqual` (a chip drawn twice is invisible in text, and
+      // `arrayContaining` was measured to let it through).
       //
       // Wrapped, because this runs on the rAF flush: a disposed binder throwing
       // here would take the whole legend down mid-hover.
@@ -8209,17 +8155,7 @@ export default function StockChart({
           ? engineChips(engineRef.current.binder.bindings(), param.seriesData,
               engineRegistry, engineInstancesRef.current)
           : EMPTY_CHIPS
-        const entries = legacyChipEntriesRef.current
-        const legacy = entries.size
-          ? chipsFrom(
-              LEGACY_CHIP_ORDER.map(k => entries.get(k)).filter(Boolean),
-              param.seriesData, engineRegistry,
-              // ⛔ THE LEGACY LANE HAS NO INSTANCES, so its inputs are the legacy
-              // section — and that is the ONLY lane this is right for. The engine
-              // lane resolves per instance inside `engineChips`.
-              (defId) => (csIndicatorsRef.current || {})[defId])
-          : EMPTY_CHIPS
-        if (engine.length || legacy.length) chips = [...engine, ...legacy]
+        if (engine.length) chips = engine
       } catch { /* disposed mid-hover */ }
 
       let compareValue = null
@@ -8729,13 +8665,12 @@ export default function StockChart({
       // list MUST be a declared ref (there is no build-time check for this).
       volumeSeriesRef,
       // ⛔ NO bb*/rsi refs (B3 Task 10), NO vwap/macd refs (B3 Task 11), NO
-      // stoch*/atr refs (B5 Task 5) — all six are FLIPPED. They are reached
-      // through the engine's binding map at the bottom of this effect, which is
-      // why the declutter toggle keeps working for them without anyone editing
-      // this list. That is the whole point: this array SHRINKS at every flip and
-      // the toggle's behaviour does not change.
-      sarSeriesRef,
-      ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef,
+      // stoch*/atr refs (B5 Task 5) and NO sar/ichimoku* refs (B5 Task 6) — all
+      // eight definitions are FLIPPED, and this list lost SIX entries at Task 6
+      // alone. They are reached through the engine's binding map at the bottom of
+      // this effect, which is why the declutter toggle keeps working for them
+      // without anyone editing this list. That is the whole point: this array
+      // SHRINKS at every flip and the toggle's behaviour does not change.
       mfiSeriesRef, cciSeriesRef, williamsRSeriesRef,
       adxSeriesRef, adxPlusDIRef, adxMinusDIRef, obvSeriesRef,
       donchianUpperRef, donchianMiddleRef, donchianLowerRef,
@@ -10013,11 +9948,12 @@ export default function StockChart({
         // indicator produced (`(e && e.text) || text`).
         //
         // Now it maps `crosshairData.chips`, which `processCrosshair` builds by
-        // handing BOTH lanes' entries to `readout.chipsFrom`. Label, colour and
-        // precision come from `plots[].legend`, `meta.legendParams` and each
-        // lane's own inputs. There is nothing here for a new indicator to be
+        // handing the engine's BINDINGS to `readout.engineChips`. Label, colour
+        // and precision come from `plots[].legend`, `meta.legendParams` and the
+        // INSTANCE's inputs. There is nothing here for a new indicator to be
         // edited into, and both layouts below render the same array so they still
-        // cannot drift apart.
+        // cannot drift apart. (It said "BOTH lanes' entries" until B5 Task 6
+        // retired the legacy lane's last three registrations — there is one lane.)
         //
         // ⚠️ THE COMPARISON CHIP STAYS HAND-WRITTEN, and that is not an oversight.
         // It is a SYMBOL overlay, not an indicator: no definition, no `plots[]`,

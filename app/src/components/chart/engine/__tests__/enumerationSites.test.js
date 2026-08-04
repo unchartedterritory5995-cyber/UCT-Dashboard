@@ -102,27 +102,32 @@ const LEDGER = [
     anchor: 'rsi:  { ...CHART_DEFAULTS.indicators.rsi,', fate: 'B5' },
 
   // ── StockChart's render lane ─────────────────────────────────────────────
-  // ⚠️ THE ANCHOR MOVED AT B5 TASK 5, AND THE SITE DID NOT. It was
-  // `const stochKRef     = useRef(null)` — the first ref in the block — until
-  // Stochastic and ATR were flipped and their three refs DELETED. The region is
-  // still here (sar, ichimoku ×5, mfi, cci, williamsR, adx ×3, obv, donchian ×3),
-  // so this is an anchor repair, not a retirement: the row keeps its `B5` fate
-  // and the count is unchanged. `sarSeriesRef` is the new first survivor and
-  // retires at Task 6, which will move the anchor again — by design, because a
-  // stale anchor fails BY NAME rather than passing on a region that emptied.
+  // ⚠️ THE ANCHOR HAS MOVED TWICE AND THE SITE HAS NOT. It was
+  // `const stochKRef     = useRef(null)` until B5 Task 5 flipped Stochastic and
+  // ATR, then `const sarSeriesRef  = useRef(null)` until B5 Task 6 flipped SAR
+  // and Ichimoku and deleted SIX more refs with them. The region is still here
+  // (mfi, cci, williamsR, adx ×3, obv, donchian ×3), so both moves were anchor
+  // repairs and not retirements: the row keeps its `B5` fate and the count is
+  // unchanged. It retires at Task 8, when the last block goes. Each move went RED
+  // BY NAME rather than passing on a region that had emptied — which is the whole
+  // reason the anchor is an exact string and not a regex.
   { file: 'app/src/components/StockChart.jsx', region: 'the series useRef declarations',
-    anchor: 'const sarSeriesRef  = useRef(null)', fate: 'B5' },
+    anchor: 'const mfiSeriesRef       = useRef(null)', fate: 'B5' },
   { file: 'app/src/components/StockChart.jsx', region: 'the indicatorData memo — compute calls + shape mapping',
     anchor: 'const indicatorData = useMemo(', fate: 'B5' },
   { file: 'app/src/components/StockChart.jsx', region: 'the hand-written render blocks',
     anchor: 'if (indicatorData.williamsR.length) {', fate: 'B5' },
   // ⭐ RETIRED BY B4 TASK 10, TOGETHER — the nine crosshair value reads, the
   // hand-written `legChips` array and `readout.LEGACY_SLOTS` were one mechanism
-  // and could only go as one. The legend renders `crosshairData.chips`, which
-  // `processCrosshair` builds by handing BOTH lanes' entries to
-  // `readout.chipsFrom`; six chips that no engine binding produces (stoch's two,
-  // atr, sar, ichimoku's two) come from `legacyChipEntriesRef`, registered where
-  // each hand-written series is created. Proven gone in `RETIRED_BY_B4_TASK10`.
+  // and could only go as one. Proven gone in `RETIRED_BY_B4_TASK10`.
+  //
+  // ⭐ AND THE SECOND LANE B4 BUILT IN THEIR PLACE IS ITSELF RETIRED, BY B5 TASK
+  // 6. `legacyChipEntriesRef` / `registerLegacyChip` / `csIndicatorsRef` /
+  // `LEGACY_CHIP_ORDER` existed because six of the nine chips belonged to
+  // definitions with no bindings; Task 5 moved three onto the engine and Task 6
+  // moved the last three (sar, ichimoku ×2), leaving zero registrations. Proven
+  // gone in `RETIRED_BY_B5_TASK6` — as IDENTIFIERS, comment-stripped, because a
+  // dead registrar with no callers reads exactly like a live one.
   { file: 'app/src/components/StockChart.jsx', region: 'the hide-all ref array',
     anchor: 'const set = (ref) =>', fate: 'B5' },
 
@@ -361,6 +366,23 @@ const RETIRED_BY_B4_TASK5 = [
  *  guard was measured GREEN against a reintroduction with only the spaces around
  *  `=` removed. Each of these is the SHAPE the thing has to wear, whatever it is
  *  called and however it is spaced. */
+/** B5 Task 6's deletions, as IDENTIFIERS rather than call shapes.
+ *
+ *  ⛔ THE PROBE MUST READ COMMENT-STRIPPED SOURCE, and this suite's own *"the
+ *  scan reads CODE, not prose"* case is the reason: `StockChart.jsx` names all
+ *  four of these in the tombstone paragraphs where they used to live, on purpose,
+ *  so a raw `includes` reports every one of them alive forever. */
+const RETIRED_BY_B5_TASK6 = [
+  ['app/src/components/StockChart.jsx',
+    'registerLegacyChip -- the legacy chip registrar', /\bregisterLegacyChip\b/g],
+  ['app/src/components/StockChart.jsx',
+    'legacyChipEntriesRef -- the legacy lane entry map', /\blegacyChipEntriesRef\b/g],
+  ['app/src/components/StockChart.jsx',
+    'csIndicatorsRef -- the legacy lane inputs mirror', /\bcsIndicatorsRef\b/g],
+  ['app/src/components/StockChart.jsx',
+    'LEGACY_CHIP_ORDER -- the legacy lane ordering constant', /\bLEGACY_CHIP_ORDER\b/g],
+]
+
 const RETIRED_BY_B4_TASK10 = [
   ['app/src/components/chart/engine/readout.js',
     'LEGACY_SLOTS — the legend slot bridge', /export\s+const\s+LEGACY_SLOTS\s*=/g],
@@ -659,9 +681,37 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([])
     // …and the replacements are really there, on all three sides.
     const SC = read('app/src/components/StockChart.jsx')
-    expect(SC).toContain('const registerLegacyChip = useCallback(')
     expect(SC).toContain('crosshairData.chips')
+    expect(SC).toContain('engineChips(engineRef.current.binder.bindings()')
     expect(read('app/src/components/chart/engine/readout.js')).toContain('export function chipsFrom(')
+
+    // ⭐ AND B5 TASK 6 RETIRED THE SECOND LANE ITSELF. Four identifiers, read off
+    // COMMENT-STRIPPED source: `StockChart.jsx` names every one of them in the
+    // tombstone paragraphs where they used to live, so a raw read reports them
+    // alive forever — the exact defect this suite's own *"the scan reads CODE,
+    // not prose"* case exists for.
+    const stripped = stripComments(SC)
+    const lingering = RETIRED_BY_B5_TASK6
+      .filter(([, , re]) => [...stripped.matchAll(re)].length !== 0)
+      .map(([file, what]) => `${file} :: ${what}`)
+    expect(lingering,
+      'the legacy chip lane is back. With sar and ichimoku flipped it has no producer, '
+      + 'so a registrar here is dead code that reads as a mechanism — and a registration '
+      + 'left beside a live binding draws that chip TWICE, invisibly.',
+    ).toEqual([])
+    // ⛔ THE TWO CONTROLS THIS PROBE CANNOT DO WITHOUT: the patterns match
+    // something, and the STRIPPER is what makes them come back empty. A raw read
+    // of the same file still finds all four — in the tombstones.
+    const PROBE_B5T6 = 'registerLegacyChip( legacyChipEntriesRef.current '
+      + 'csIndicatorsRef.current LEGACY_CHIP_ORDER.map'
+    for (const [, what, re] of RETIRED_BY_B5_TASK6) {
+      expect([...PROBE_B5T6.matchAll(re)].length, `${what}: retirement pattern matches nothing`)
+        .toBeGreaterThan(0)
+    }
+    expect(RETIRED_BY_B5_TASK6.filter(([, , re]) => [...SC.matchAll(re)].length !== 0).length,
+      'the RAW source no longer names them anywhere — this probe would then pass without '
+      + 'the stripper, and would be blind to a comment hiding a live call')
+      .toBe(RETIRED_BY_B5_TASK6.length)
     // ⛔ AND ALL NINE CHIPS ARE DECLARED ON THEIR DEFINITIONS. The obvious B4 —
     // render `engineChips()` directly — deleted `%K`, `%D`, `ATR(14)`, `SAR`,
     // `TK` and `KJ` for every user, because those four definitions produced no
@@ -684,8 +734,13 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // either a chip drawn twice (migrated while its legacy registration lives) or
     // a chip drawn by nobody (flipped with no binding). The lists move once per
     // B5 migration task and are the ledger of which chips have changed lane.
-    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr']
-    const LEGACY_LANE_CHIPS = ['sar', 'ichimoku']
+    // ⭐ B5 TASK 6 EMPTIED THE LEGACY HALF. The partition survives as a partition
+    // — the union assertion below still refuses a silent shrink on either side —
+    // and the empty list is now itself a claim: it is what licensed deleting the
+    // registrar, and re-populating it without also re-adding a producer is a chip
+    // drawn by nobody.
+    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku']
+    const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_MIGRATED_DEF_IDS.has(id),
         `${id} carries a chip and is NOT migrated — its chip comes from the legacy lane, ` +
@@ -696,9 +751,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     }
     for (const id of LEGACY_LANE_CHIPS) {
       expect(ENGINE_MIGRATED_DEF_IDS.has(id),
-        `${id} was migrated — its chip now comes from the ENGINE lane, so move it to ` +
-        'ENGINE_LANE_CHIPS (and retire its registerLegacyChip calls in the same commit)').toBe(false)
+        `${id} was migrated — its chip now comes from the ENGINE lane, so move it to `
+        + 'ENGINE_LANE_CHIPS (and retire its registerLegacyChip calls in the same commit)').toBe(false)
     }
+    // ⛔ AN EMPTY LOOP PROVES NOTHING, AND THIS IS WHAT REPLACES IT. The legacy
+    // lane is empty BECAUSE its registrar is gone; the two facts move together or
+    // the legend loses a chip (registrar gone, id still listed here) or draws one
+    // twice (id moved to the engine lane, registrar left behind).
+    expect(LEGACY_LANE_CHIPS, 'a chip is back on the legacy lane — see RETIRED_BY_B5_TASK6, '
+      + 'which asserts that lane has no registrar left to produce it').toEqual([])
     // …and the two lists really do partition the six chip-bearing definitions, so
     // neither can silently shrink.
     expect([...ENGINE_LANE_CHIPS, ...LEGACY_LANE_CHIPS].sort(),

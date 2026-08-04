@@ -106,7 +106,9 @@ const EMPTY_INPUTS = sealedMap([])
  * eligibility hook's answer and the timeframe's. A reader that treats this set as
  * a paint list will be wrong on every daily chart from B3 Task 8 onward.
  */
-export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr'])
+export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
+  'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
+])
 
 /**
  * THE FLIP-B SET. Definition ids for which the INSTANCE list is the read
@@ -191,12 +193,32 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap', '
  * and a real z-order change the moment the volume-pane OVERLAY path puts two of
  * them on one shared left axis. Registry order costs nothing and closes it.
  *
+ * ⭐ B5 TASK 6 ADDED `sar` AND `ichimoku`, AND THEY ARE THE PRICE-OVERLAY HALF OF
+ * THE PARAGRAPH ABOVE RATHER THAN A REPEAT OF IT. `stoch`/`atr` are pane
+ * oscillators whose ordering hazard is latent (it needs the volume-overlay path
+ * to put two of them on one axis); these two share the CANDLES' pane and the
+ * CANDLES' scale with `bb`, `vwap` and `donchian`, so LWC's insertion-order
+ * z-stacking makes registry order visible TODAY, on every chart that turns two of
+ * them on. `bb` and `vwap` were already engine-drawn, `donchian` is still legacy
+ * and is drawn AFTER the sync call, so `bb, vwap, sar, ichimoku` land contiguously
+ * at the sync site and `donchian` stays on top — which is exactly the shipped
+ * order. Migrating `donchian` (Task 8) ahead of these two would have inverted it.
+ *
+ * ⚠️ AND WITH THEM THE LEGACY CHIP REGISTRY IS GONE. `sar::sar`,
+ * `ichimoku::tenkan` and `ichimoku::kijun` were the last three of the six
+ * `registerLegacyChip` registrations, so `registerLegacyChip`,
+ * `legacyChipEntriesRef`, `csIndicatorsRef` and `LEGACY_CHIP_ORDER` have no
+ * callers and are DELETED. `readout.chipsFrom` keeps its second-source shape —
+ * `engineChips` is one caller of it, and Phase C's server lane is the next.
+ *
  * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
  * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
  * cannot import from it. `StockChart` re-exports it so the plan's stated
  * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
  */
-export const ENGINE_FLIPPED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr'])
+export const ENGINE_FLIPPED_DEF_IDS = sealedSet([
+  'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
+])
 
 /**
  * The migrated definitions this settings blob hands to the engine.

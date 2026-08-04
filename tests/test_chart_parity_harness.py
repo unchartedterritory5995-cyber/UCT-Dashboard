@@ -1511,22 +1511,40 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
     """Run through the SAME construction `main()` uses, so a declaration the
     validator would refuse cannot sit in the file until a Chromium run finds it.
 
-    ⏳ THE FLOOR IS THE CURRENT STATE AND IS MEANT TO GO RED. Nothing declares
-    provenance at the moment the split lands, because nothing has been migrated
-    since it did. B5 Task 6 flips `sar` and `ichimoku`, and **every case that
-    turns either of them on flips a pool key** — so the first migration to land
-    fails this line and has to raise the floor deliberately."""
+    ⏳ THE FLOOR IS THE CURRENT STATE AND IS MEANT TO GO RED. It read `== []` when
+    the split landed, because nothing had been migrated since it did — and B5
+    Task 6 (`sar` + `ichimoku`) failed that line on its first run and raised it
+    here, deliberately. **Every case that turns a newly-flipped indicator on flips
+    a pool key**, so the next migration fails it too.
+
+    ⛔ AND THE `from` SIDE IS ASSERTED TO BE `null`, WHICH IS THE WHOLE CLAIM. A
+    Flip-B migration moves a series from the LEGACY lane (no binder binding, so
+    `key` reads `null`) to the engine's. A declared pair whose `from` is another
+    module's key is not a migration — it is a series changing hands between two
+    engine definitions, and it must be argued for here rather than joining the
+    list."""
     doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
-    declared = []
+    declared = {}
     for raw in doc["cases"]:
         entry = cp.case_entry({**doc["defaults"], **raw}, tolerance=0, expect=None)
         if entry["expect_provenance"]:
-            declared.append(raw["name"])
+            declared[raw["name"]] = entry["expect_provenance"]
             for pair in entry["expect_provenance"]:
                 assert len(pair) == 2 and pair[0] != pair[1]
-    assert declared == [], (
-        f"{declared} now declare provenance — raise this floor to the migrated "
-        "set rather than deleting the rail")
+                assert pair[0] is None, (
+                    f"{raw['name']} declares {pair!r}: a migration's `from` is the "
+                    "LEGACY lane, which has no binding and therefore no key")
+                assert pair[1].startswith("legacy:"), pair
+    assert sorted(declared) == sorted([
+        "engine_ichimoku_vs_legacy", "engine_price_overlay_zorder",
+        "engine_sar_vs_legacy", "ichimoku_only", "sar_only",
+    ]), f"the set of provenance-declaring cases moved: {sorted(declared)}"
+    # ⭐ AND THE COUNTS ARE THE MIGRATION'S OWN SHAPE, not a total. `sar` is ONE
+    # plot; `ichimoku` is FIVE; the z-order case turns both on and therefore
+    # declares six. A case that declared the wrong NUMBER of flips would be
+    # licensing a series it did not migrate.
+    assert [len(v) for _, v in sorted(declared.items())] == [5, 6, 1, 5, 1], (
+        {k: len(v) for k, v in sorted(declared.items())})
 
 
 # ─── the CLI, and the refusal that keeps the two mechanisms apart ────────────

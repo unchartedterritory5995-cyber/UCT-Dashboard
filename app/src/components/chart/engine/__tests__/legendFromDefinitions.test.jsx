@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips } from './legendProbe'
+import { stripComments } from './sourceScan'
+
+/** `StockChart.jsx`, resolved from THIS file rather than from `process.cwd()` —
+ *  vitest is run from `app/` and from the repo root at different times. */
+const STOCK_CHART_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)), '../../../StockChart.jsx')
+const readFileSync = fs.readFileSync
 
 // ─── B4 TASK 10 — THE LEGEND, RENDERED FROM THE DEFINITIONS ─────────────────
 //
@@ -14,11 +24,19 @@ import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips } 
 // below carries a control.
 //
 // ⛔ AND THE OBVIOUS B4 WOULD HAVE DELETED SIX CHIPS FOR EVERY USER. Nine chips
-// ship; only three belong to a FLIPPED definition. A legend rendering
-// `engineChips()` alone stops printing `%K`, `%D`, `ATR(14)`, `SAR`, `TK` and
-// `KJ` — silently, invisibly, and with every test green. So the legend renders
+// ship; at B4 only three belonged to a FLIPPED definition. A legend rendering
+// `engineChips()` alone stopped printing `%K`, `%D`, `ATR(14)`, `SAR`, `TK` and
+// `KJ` — silently, invisibly, and with every test green. So the legend rendered
 // TWO lanes through ONE formatting pipeline (`readout.chipsFrom`), and the six
-// legacy chips are declared on their own definitions' `plots[].legend`.
+// legacy chips were declared on their own definitions' `plots[].legend`.
+//
+// ⭐ AND AS OF B5 TASK 6 THERE IS ONE LANE AGAIN, WHICH IS WHY THE LANE RECORDER
+// BELOW IS THE SHARPEST THING IN THIS FILE. Task 5 moved `%K`, `%D` and `ATR(14)`
+// onto the engine and Task 6 moved `SAR`, `TK` and `KJ`, so all nine chips come
+// from `binder.bindings()` and `registerLegacyChip` / `legacyChipEntriesRef` /
+// `csIndicatorsRef` / `LEGACY_CHIP_ORDER` are DELETED. The rendered text did not
+// change by one character at either step — which is exactly the change no
+// assertion on the rendered text could ever see.
 //
 // ⚠️ THE EXPECTATIONS ARE PARSED OUT OF THE SHIPPED SOURCE, NOT HAND-TYPED.
 // `shippedLegendChips()` reads the pre-B4 `legChips` array from `git show
@@ -254,43 +272,64 @@ const chipTexts = (view) => {
 const expected = (key, v) => `${SHIPPED[key].label} ${v.toFixed(SHIPPED[key].decimals)}`
 
 describe('B4 Task 10 — the legend renders from the definitions, on both lanes', () => {
-  it('the fixture really does turn on both lanes — engine AND legacy', () => {
+  it('the fixture draws all nine, and EVERY chip-bearing definition is now flipped', () => {
     // ⛔ THE NON-VACUITY GATE FOR EVERY CASE BELOW. If `ALL_NINE_ON()` failed to
     // draw, say, Ichimoku, `seriesByChip` would throw — but a case asserting
     // "no chip for X" would pass for the wrong reason. Six DEFINITIONS carry the
     // nine chips.
     //
-    // 🔴 THIS CASE USED TO END *"four of them (`stoch`, `atr`, `sar`, `ichimoku`)
-    // are NOT migrated and MUST NOT BE — B4 ships zero migrations"*, AND B5 TASK 5
-    // FALSIFIED HALF OF IT. `stoch` and `atr` are migrated and flipped; `sar` and
-    // `ichimoku` are not, until Task 6. The claim that matters is unchanged and is
-    // now stated as the PARTITION rather than as a blanket refusal: both lanes
-    // have to be live for this fixture to gate anything, and the moment either
-    // side is empty the "one pipeline, two lanes" cases below are testing one lane
-    // twice.
+    // 🔴 THIS CASE HAS BEEN INVERTED TWICE, AND SAYING SO IS THE POINT. At B4 it
+    // ended *"four of them (`stoch`, `atr`, `sar`, `ichimoku`) are NOT migrated
+    // and MUST NOT BE — B4 ships zero migrations"*; B5 Task 5 falsified half of it
+    // and it became a PARTITION (four flipped, two not); **B5 Task 6 empties the
+    // second half of that partition entirely.** All six chip-bearing definitions
+    // are flipped, so the LEGACY lane has no producer — which is not a loss of
+    // coverage, it is the fact that licensed deleting `registerLegacyChip`, and it
+    // is asserted here rather than inferred.
     const view = draw(ALL_NINE_ON())
     const byChip = seriesByChip()
     expect(byChip.size).toBe(9)
     expect([...new Set(CHIPS.map(([k]) => k.split('::')[0]))].sort())
       .toEqual(['atr', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch'])
-    for (const id of ['rsi', 'macd', 'stoch', 'atr']) {
+    for (const id of ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku']) {
       expect(ENGINE_FLIPPED_DEF_IDS.has(id),
-        `${id} is not flipped — the ENGINE lane no longer carries its chip`).toBe(true)
-    }
-    for (const id of ['sar', 'ichimoku']) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id),
-        `${id} is flipped — the LEGACY lane is empty and this fixture gates ONE lane, not two`)
-        .toBe(false)
+        `${id} is not flipped — the ENGINE lane no longer carries its chip, and the `
+        + 'LEGACY lane that used to carry it has been deleted').toBe(true)
     }
     view.unmount()
   })
 
-  it('⭐ and %K, %D and ATR now come from the ENGINE lane, not from legacyChipEntriesRef', async () => {
+  it('⛔ and the legacy chip REGISTRAR is gone from the SOURCE, not merely unused', () => {
+    // ⛔ A DEAD MECHANISM READS AS A MECHANISM. `registerLegacyChip` re-added as a
+    // no-op with no callers is invisible to every assertion in this file — the
+    // chips would still all come from the engine lane — so the only thing that can
+    // see it is a probe on the IDENTIFIERS, WITH COMMENTS STRIPPED. The stripping
+    // is not decoration: `StockChart.jsx` names all four of them in the tombstone
+    // paragraphs where they used to live, on purpose, so a raw read of the file
+    // would report them alive forever.
+    const src = stripComments(readFileSync(STOCK_CHART_PATH, 'utf-8'))
+    for (const ident of ['registerLegacyChip', 'legacyChipEntriesRef',
+      'csIndicatorsRef', 'LEGACY_CHIP_ORDER']) {
+      expect(src, `${ident} is still live code in StockChart.jsx`).not.toContain(ident)
+    }
+    // The controls: the probe is not blind, and the stripper did not eat the file.
+    expect(src, 'the source probe read nothing').toContain('engineChips')
+    expect(src).toContain('engineInstancesRef')
+    expect(src.length).toBeGreaterThan(50_000)
+  })
+
+  it('⭐ ALL NINE now come from the ENGINE lane, and the legacy lane produces NOTHING', async () => {
     // ⭐ THE SOURCE FLIPS EVEN THOUGH THE TEXT DOES NOT. Without this the
     // migration could have left the legacy registration in place beside the new
     // engine binding and the chip would be produced twice — one exactly on top of
     // the other in the same colour with the same number, invisible in text and
     // invisible to every pixel case (a headless capture has no cursor).
+    //
+    // ⭐ SAR, TK AND KJ ARE THE LAST THREE TO MOVE (B5 Task 6), SO THE LEGACY LIST
+    // IS NOW EMPTY — and that empty list is the assertion. `chipsFrom` is recorded
+    // at StockChart's own call site; `engineChips` calls the module-INTERNAL
+    // `chipsFrom` and therefore never trips this recorder, so ONE surviving
+    // `registerLegacyChip('sar', …)` would put `sar::sar` straight back on it.
     const view = draw(ALL_NINE_ON())
     const values = Object.fromEntries(CHIPS.map(([k], i) => [k, 10 + i * 1.111111]))
     await settledLegend(view, crosshairWith(values))
@@ -298,18 +337,19 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // ⛔ `toEqual`, NOT `arrayContaining`, ON BOTH SIDES. `arrayContaining` on the
     // legacy list is exactly the assertion a left-behind registration survives.
     expect([...H.legacyChipKeys].sort(),
-      'the legacy lane still holds a chip for a FLIPPED definition — that chip is now ' +
-      'drawn twice, and the text is identical either way')
-      .toEqual(['ichimoku::kijun', 'ichimoku::tenkan', 'sar::sar'])
+      'the legacy lane still holds a chip — that chip is now drawn twice, and the ' +
+      'rendered text is identical either way')
+      .toEqual([])
     expect([...H.engineChipKeys].sort(),
       'a flipped definition produced no engine chip — the legend lost it silently')
-      .toEqual(['atr::atr', 'macd::macd', 'macd::signal', 'rsi::rsi', 'stoch::d', 'stoch::k'])
+      .toEqual(['atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd',
+        'macd::signal', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k'])
 
-    // …and the two lanes are DISJOINT and cover the nine. A key on both lists is
-    // the double-draw; a key on neither is a chip nobody prints.
+    // …and the ONE lane covers the nine with no duplicates. A key twice is the
+    // double-draw; a key missing is a chip nobody prints.
     const all = [...H.engineChipKeys, ...H.legacyChipKeys]
-    expect(new Set(all).size, 'a chip is produced by BOTH lanes').toBe(all.length)
-    expect(all.sort(), 'the two lanes stopped covering the nine shipped chips')
+    expect(new Set(all).size, 'a chip is produced twice').toBe(all.length)
+    expect(all.sort(), 'the engine lane stopped covering the nine shipped chips')
       .toEqual(CHIPS.map(([k]) => k).sort())
     view.unmount()
   })
@@ -380,11 +420,16 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
       .toEqual(CHIPS.map(([k]) => expected(k, values[k])))
   })
 
-  it('chips appear in binding order — engine lane first, then legacy, the shipped order', async () => {
-    // The shipped order is rsi · macd · SIG · %K · %D · ATR · SAR · TK · KJ,
-    // which is engine-then-legacy AND registry order within each lane. A `Map`'s
-    // insertion order would have put a late-enabled Stochastic at the END; the
-    // legacy lane is sorted by `LEGACY_CHIP_ORDER`, derived from the registry.
+  it('chips appear in BINDING order, which is the shipped order', async () => {
+    // The shipped order is rsi · macd · SIG · %K · %D · ATR · SAR · TK · KJ.
+    // ⭐ IT USED TO READ "engine lane first, then legacy, registry order within
+    // each", AND IT SURVIVED THE TWO LANES COLLAPSING INTO ONE WITHOUT AN EDIT:
+    // the read-time migrator walks the REGISTRY, so instance order IS registry
+    // order, and `planBindings` walks each definition's plots in declaration
+    // order. That is the same sequence the two lanes happened to produce — which
+    // is why Task 6 could DELETE `LEGACY_CHIP_ORDER` (whose whole job was to stop
+    // a `Map`'s first-set ordering putting a late-enabled indicator at the END)
+    // rather than replace it with something.
     const view = draw(ALL_NINE_ON())
     const values = Object.fromEntries(CHIPS.map(([k], i) => [k, 20 + i]))
     await settledLegend(view, crosshairWith(values))
@@ -422,23 +467,63 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     expect(new Set(texts.map(t => t.split(' ')[0])).size, 'two chips share a label').toBe(9)
   })
 
-  it('the developing-bar fallback survives on BOTH lanes', async () => {
+  it('⭐ TK and KJ now print on the DEVELOPING bar, which they never did before', async () => {
     // ⛔ THE NORMAL LIVE CASE, NOT AN EDGE ONE. The bars-push writer appends the
     // developing candle before the indicator has it, so the hovered bar carries
     // no point for the indicator series. Legacy printed the last computed value;
     // an engine chip that printed NOTHING was a readout regression no pixel gate
     // could see (B3 I-3). Here NO chip series carries a value at all.
+    //
+    // ⭐⭐ B5 TASK 6'S ONE NAMED BEHAVIOUR CHANGE, AND IT IS ASSERTED RATHER THAN
+    // ALLOWED TO LAND SILENTLY.
+    //
+    //   BEFORE: this case expected SEVEN labels —
+    //   ['%D', '%K', 'ATR(14)', 'MACD', 'RSI(14)', 'SAR', 'SIG'] — and its own
+    //   comment said *"⚠️ Ichimoku does NOT, and that is TRANSCRIBED not broken:
+    //   the shipped read was `dt?.value ?? null` with no `indicatorData`
+    //   fallback"*. `StockChart.jsx:6492-6493` registered `ichimoku::tenkan` and
+    //   `::kijun` with a series and **no thunk**, so on the developing bar the
+    //   two chips printed nothing at all.
+    //
+    //   AFTER: NINE. The engine lane's fallback is `binding.lastValue`, which is
+    //   a NUMBER on every binding — there is no per-registration opt-out to
+    //   transcribe — so TK and KJ fall back like every other chip. This is the
+    //   same gap B3 closed for RSI as review finding I-3, every other chip
+    //   already had it, and **no pixel case can see any of it** (a headless
+    //   capture has no cursor), which is exactly why it is written down here.
     const view = draw(ALL_NINE_ON())
     const text = await settledLegend(view, crosshairWith(null))
     const labels = chipTexts(view).map(t => t.split(' ')[0])
     expect(text.length, 'the legend read is empty').toBeGreaterThan(10)
-    // ENGINE lane (`binding.lastValue`) and LEGACY lane (the registered thunk)
-    // both fall back. ⚠️ Ichimoku does NOT, and that is TRANSCRIBED not broken:
-    // the shipped read was `dt?.value ?? null` with no `indicatorData` fallback,
-    // so giving it one here would be a behaviour change B4 does not make.
-    expect(labels.sort(), 'a lane lost its developing-bar fallback')
-      .toEqual(['%D', '%K', 'ATR(14)', 'MACD', 'RSI(14)', 'SAR', 'SIG'].sort())
+    expect(labels.sort(), 'a chip lost its developing-bar fallback')
+      .toEqual(['%D', '%K', 'ATR(14)', 'KJ', 'MACD', 'RSI(14)', 'SAR', 'SIG', 'TK'].sort())
+    // …and TK/KJ print a real formatted number, not a blank or a NaN.
+    for (const label of ['TK', 'KJ']) {
+      const chip = chipTexts(view).find(t => t.startsWith(`${label} `))
+      expect(chip, `${label} printed no chip on the developing bar`).toMatch(/^(TK|KJ) -?\d+\.\d{2}$/)
+    }
     for (const t of chipTexts(view)) expect(t, 'a fallback chip printed NaN').not.toMatch(/NaN/)
+  })
+
+  it('…and the control: it really IS the developing bar, not just "a bar"', async () => {
+    // ⛔ WITHOUT THIS, THE CASE ABOVE PASSES ON A CROSSHAIR THAT SIMPLY HOVERED A
+    // NORMAL BAR. The claim is about the state where the CANDLE has a point at
+    // the hovered time and the indicator series does NOT — so both halves are
+    // asserted on the same event: the candle is in `seriesData`, and not one
+    // chip-bearing series is.
+    const view = draw(ALL_NINE_ON())
+    const param = crosshairWith(null)
+    const candle = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(param.seriesData.has(candle.series),
+      'the candle is absent — this is not the developing-bar state').toBe(true)
+    const chipSeries = [...seriesByChip().values()]
+    expect(chipSeries.length).toBe(9)
+    for (const s of chipSeries) {
+      expect(param.seriesData.has(s),
+        'a chip series HAS a point at the hovered time — the fallback is not what printed').toBe(false)
+    }
+    await settledLegend(view, param)
+    expect(chipTexts(view)).toHaveLength(9)
   })
 
   it('a hidden instance emits no chip, and re-showing brings the same one back', async () => {

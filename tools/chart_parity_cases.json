@@ -960,14 +960,223 @@
       }
     },
     {
+      "name": "engine_sar_vs_legacy",
+      "why": "LEGACY on A, ENGINE on B, one URL parameter apart — the measurement that isolates the migration from every unrelated commit between two builds. Side A carries the legacy toggle alone; side B is handed the same instance explicitly through `?instances=`. ⚠️ Its real force is under `--perturb-b-instances '{\"step\": 0.04}'`: a step appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and the acceleration factor is the knob that moves every dot in the series. ⚠️ THE BRIEF'S PERTURBATION FOR THE ICHIMOKU TWIN (`conversionPeriod`) IS NOT A DECLARED INPUT of that definition — `validateInstance` would DROP the instance and the diff would measure a deleted indicator rather than a recomputed one. Use `tenkanPeriod`.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:sar::sar"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "sar": {
+            "enabled": true,
+            "step": 0.02,
+            "maxStep": 0.2,
+            "color": "#ffeb3b"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:sar",
+          "defId": "sar",
+          "defVersion": 1,
+          "inputs": {
+            "step": 0.02,
+            "maxStep": 0.2,
+            "color": "#ffeb3b"
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_ichimoku_vs_legacy",
+      "why": "The same legacy-on-A / engine-on-B route for the Ichimoku Cloud, on ONE build. It is the only case where FIVE series come out of a single instance, so it is where a plan that bound four of five, or bound them in the wrong order, or gave the dash to the wrong one, shows up as pixels rather than as a unit-test expectation. ⚠️ Perturb `--perturb-b-instances '{\"tenkanPeriod\": 18}'`, NOT a colour and NOT the brief's `conversionPeriod`: that key is not a declared input, so `validateInstance` drops the whole instance and the diff measures a deleted indicator. `tenkanPeriod` moves the tenkan line AND spanA (which is the tenkan/kijun midpoint) and leaves kijun, spanB and chikou alone, which is the shape that proves the compute ran per plot.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:ichimoku::tenkan"
+        ],
+        [
+          null,
+          "legacy:ichimoku::kijun"
+        ],
+        [
+          null,
+          "legacy:ichimoku::spanA"
+        ],
+        [
+          null,
+          "legacy:ichimoku::spanB"
+        ],
+        [
+          null,
+          "legacy:ichimoku::chikou"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "ichimoku": {
+            "enabled": true,
+            "tenkanColor": "#26C6DA",
+            "kijunColor": "#EF5350",
+            "spanAColor": "rgba(76,175,80,0.2)",
+            "spanBColor": "rgba(239,83,80,0.2)",
+            "chikouColor": "rgba(255,235,59,0.7)"
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:ichimoku",
+          "defId": "ichimoku",
+          "defVersion": 1,
+          "inputs": {
+            "tenkanColor": "#26C6DA",
+            "kijunColor": "#EF5350",
+            "spanAColor": "rgba(76,175,80,0.2)",
+            "spanBColor": "rgba(239,83,80,0.2)",
+            "chikouColor": "rgba(255,235,59,0.7)"
+          },
+          "placement": {
+            "target": "price"
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "engine_price_overlay_zorder",
+      "why": "THE ONLY CASE WHERE FOUR ENGINE PRICE OVERLAYS AND ONE LEGACY PRICE OVERLAY SHARE PANE 0'S RIGHT SCALE, and it is what sees an insertion-order inversion between `bb`/`vwap`/`sar`/`ichimoku` and `donchian`. The engine draws everything it owns CONTIGUOUSLY at one call site, which sits where BB's block used to be — before every remaining legacy block — so the four migrated overlays land in registry order and `donchian`'s hand-written block runs after them and stays on top. That is the shipped stacking, and migrating `donchian` (Task 8) AHEAD of these two would have inverted it: the engine's copy of it would be inserted UNDER `sar` and `ichimoku` instead of over them, and LWC z-stacks by insertion. `engine_bb_over_overlays` sees the call SITE (does the engine land after volume and the MA overlays); this sees the ORDER among the overlays themselves. Ten overlapping translucent lines on one scale: three Bollinger, one VWAP, one SAR dot row, five Ichimoku, three Donchian. ⚠️ tf 5 / intraday5m is not a preference — `vwap` is gated to intraday timeframes, so on the daily fixture it renders nothing on either side and one fifth of this case would be a permanent silent zero.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:sar::sar"
+        ],
+        [
+          null,
+          "legacy:ichimoku::tenkan"
+        ],
+        [
+          null,
+          "legacy:ichimoku::kijun"
+        ],
+        [
+          null,
+          "legacy:ichimoku::spanA"
+        ],
+        [
+          null,
+          "legacy:ichimoku::spanB"
+        ],
+        [
+          null,
+          "legacy:ichimoku::chikou"
+        ]
+      ],
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
+      "settings": {
+        "indicators": {
+          "bb": {
+            "enabled": true,
+            "period": 20,
+            "stdDev": 2,
+            "color": "rgba(156,39,176,0.85)"
+          },
+          "vwap": {
+            "enabled": true,
+            "color": "#26C6DA",
+            "opacity": 100,
+            "lineStyle": "solid",
+            "lineWidth": 1
+          },
+          "sar": {
+            "enabled": true,
+            "step": 0.02,
+            "maxStep": 0.2,
+            "color": "#ffeb3b"
+          },
+          "ichimoku": {
+            "enabled": true,
+            "tenkanColor": "#26C6DA",
+            "kijunColor": "#EF5350",
+            "spanAColor": "rgba(76,175,80,0.2)",
+            "spanBColor": "rgba(239,83,80,0.2)",
+            "chikouColor": "rgba(255,235,59,0.7)"
+          },
+          "donchian": {
+            "enabled": true,
+            "period": 20,
+            "color": "rgba(96,165,250,0.5)"
+          }
+        }
+      }
+    },
+    {
       "name": "sar_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 6's TWO-BUILD measurement for Parabolic SAR: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. It is the ONLY case in this file that renders a `markers` plot through the engine. `poolKey('markers') === 'line'` — a markers plot IS a LineSeries with `lineWidth: 0` and point markers on, which is exactly what the shipped block builds — so the pool can re-purpose SAR's series as any other line, and `pool.js`'s header records the MEASURED consequence: `sar` → `rsi` leaked `pointMarkersVisible: true`, i.e. an RSI line with a dot on every bar. It is also a PRICE OVERLAY on the candles' shared scale, so it is the third case (after `engine_bb_vs_legacy` and the VWAP pair) that renders `autoscaleInfoProvider: () => null` on the main price scale — the seam B3 Task 1 measured at 38,491 changed pixels when it was missing, and SAR's dots sit BELOW price in an uptrend and above it in a downtrend, which is exactly the shape that stretches a range. `indicators.sar.enabled` stays TRUE on both sides on purpose: it is what the read-time migrator projects the instance from on side B.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:sar::sar"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "sar": {
+            "enabled": true,
+            "step": 0.02,
+            "maxStep": 0.2,
+            "color": "#ffeb3b"
+          }
+        }
+      }
     },
     {
       "name": "ichimoku_only",
-      "status": "placeholder",
-      "settings": {}
+      "why": "B5 Task 6's two-build measurement for the Ichimoku Cloud, and the ONLY case in this file that renders FIVE plots from ONE instance. Side A draws the five lines through the hand-written block, side B through the ENGINE. Four regression classes no smaller case can see: (1) the five must be created in DECLARATION order — LWC z-stacks by insertion, so spanA over spanB and spanB over spanA are different pictures wherever the cloud edges cross; (2) chikou is the ONLY one carrying `lineStyle: 2`, and a dash landing on the wrong line of five is a picture a one-plot case cannot produce; (3) all five are autoscale-EXCLUDED on the candles' shared scale, so one of them driving the main autoscale re-scales the whole price pane; (4) THREE PRESERVED QUIRKS ride through untouched — spanA and spanB are NOT forward-displaced (every other product draws the cloud 26 bars ahead) and chikou IS back-shifted 26 bars, so the last 26 slots of that column are the NaN pad. Transcribed, not corrected. ⚠️ The legacy memo called `computeIchimoku(filteredBars)` with NO arguments; the definition declares the same 9/26/52 the no-argument call defaults to, which is why this migration is 0 px AND why the three periods stop being greyed.",
+      "expectProvenance": [
+        [
+          null,
+          "legacy:ichimoku::tenkan"
+        ],
+        [
+          null,
+          "legacy:ichimoku::kijun"
+        ],
+        [
+          null,
+          "legacy:ichimoku::spanA"
+        ],
+        [
+          null,
+          "legacy:ichimoku::spanB"
+        ],
+        [
+          null,
+          "legacy:ichimoku::chikou"
+        ]
+      ],
+      "settings": {
+        "indicators": {
+          "ichimoku": {
+            "enabled": true,
+            "tenkanColor": "#26C6DA",
+            "kijunColor": "#EF5350",
+            "spanAColor": "rgba(76,175,80,0.2)",
+            "spanBColor": "rgba(239,83,80,0.2)",
+            "chikouColor": "rgba(255,235,59,0.7)"
+          }
+        }
+      }
     },
     {
       "name": "mfi_only",

@@ -1213,37 +1213,59 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(await hoverDevelopingBar(engineView)).toContain(legacyChip[0])
   })
 
-  it('leaves a NON-migrated indicator chip exactly as the legacy block wrote it', async () => {
-    // ⚠️ THE SUBJECT HAS MOVED TWICE. It was MACD until B3 Task 6 and ATR until
-    // B5 Task 5; the claim needs a definition the engine does NOT draw, so its
-    // chip must still come from `cs.indicators.<id>` through the legacy lane — a
-    // pipeline that hijacked every entry would break the ten definitions it has
-    // not reached. SAR is the subject now, and it is one of only THREE chips left
-    // on that lane (its own, plus Ichimoku's two), so this control has exactly one
-    // task left before it has no subject at all: Task 6.
-    expect(ENGINE_MIGRATED_DEF_IDS.has('sar'),
-      'SAR has migrated — this negative control needs a new subject').toBe(false)
-    const SAR_COLOR = '#ffeb3b'
+  it('⭐ a NON-migrated definition emits no chip at all — and that is not a loss', async () => {
+    // 🔴 THIS CONTROL RAN OUT OF SUBJECTS AT B5 TASK 6, AND IT MOVED DOWN A LEVEL
+    // RATHER THAN BEING DELETED — exactly as B3 Task 8 did for `engineInert`.
+    //
+    // It read *"leaves a NON-migrated indicator chip exactly as the legacy block
+    // wrote it"* and its subject moved twice: MACD until B3 Task 6, ATR until B5
+    // Task 5, SAR until now. The claim needed a definition the engine does NOT
+    // draw whose chip still came from `cs.indicators.<id>` through the LEGACY
+    // lane. Task 6 flipped `sar` and `ichimoku`, retiring the last three
+    // registrations, so the legacy lane has no producer and there is no such
+    // definition left — not because coverage was lost, but because the six
+    // chip-bearing definitions are exactly the six that are migrated.
+    //
+    // ⛔ SO THE CLAIM IS RESTATED AT THE FLIP-SET FILTER, WHERE IT IS STILL
+    // FALSIFIABLE: every definition that DECLARES a `legend` block is migrated,
+    // and every definition that is not migrated declares NONE. Break either half
+    // and a user loses a chip the day their indicator is drawn by the surviving
+    // hand-written block — which is what the deleted registrar used to prevent.
+    const declaresChip = (d) => (d.plots || []).some(
+      p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
+    const chipBearing = registry.listDefinitions().filter(declaresChip).map(d => d.id)
+    const unmigrated = registry.listDefinitions()
+      .filter(d => !ENGINE_MIGRATED_DEF_IDS.has(d.id)).map(d => d.id)
+    expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
+      .toEqual(['atr', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch'])
+    for (const id of chipBearing) {
+      expect(ENGINE_MIGRATED_DEF_IDS.has(id),
+        `${id} declares a chip and is NOT migrated — with the legacy chip lane deleted, ` +
+        'nothing produces that chip and the legend loses it silently').toBe(true)
+    }
+    // …and the other direction, over a NON-EMPTY set (six definitions are still
+    // un-migrated at Task 6), so this half cannot pass by iterating nothing.
+    expect(unmigrated.length, 'nothing is un-migrated — this half is vacuous').toBeGreaterThan(0)
+    for (const id of unmigrated) {
+      expect(declaresChip(registry.getDefinition(id)),
+        `${id} gained a legend block while un-migrated — its chip has no producer`).toBe(false)
+    }
+
+    // …and the behavioural half, on a real chart: an un-migrated definition draws
+    // its line through its legacy block and contributes NO chip to the legend.
+    const MFI_COLOR = '#c084fc'
+    expect(ENGINE_MIGRATED_DEF_IDS.has('mfi'), 'mfi is migrated — pick another subject').toBe(false)
     const view = draw({
       ...RSI_ON,
       indicatorInstances: [RSI_INSTANCE],
-      indicators: { ...RSI_ON.indicators, sar: { enabled: true, step: 0.02, maxStep: 0.2, color: SAR_COLOR } },
+      indicators: { ...RSI_ON.indicators, mfi: { enabled: true, period: 14, color: MFI_COLOR } },
     })
-    // ⚠️ BY COLOUR, NOT BY PRICE SCALE. SAR is a PRICE overlay — it lands on the
-    // candles' own `right` scale, which the candles and every MA share — so the
-    // scale-id lookup the ATR version used would have found the wrong series (or
-    // several). Its declared default colour is unique among the shipped defaults.
-    const sarLine = H.addSeriesCalls.filter(c => c.options && c.options.color === SAR_COLOR)
-    expect(sarLine, 'no legacy SAR line — vacuous').toHaveLength(1)
-    // 0.25 rather than a value whose 4th decimal is a rounding coin-flip — this
-    // case is about WHICH code path formatted the chip, not about `toFixed`.
-    expect(await hover(view, [[sarLine[0].series, { value: 0.25 }]])).toContain('SAR 0.2500')
-    // …and the COLOUR came from `cs.indicators.sar`, which is the half that is
-    // genuinely lane-specific: the engine lane resolves per INSTANCE and there is
-    // no SAR instance on this chart.
-    const span = [...view.container.querySelectorAll('span')].find(s => s.textContent === 'SAR 0.2500')
-    expect(span.style.color.replace(/\s/g, ''), 'the SAR chip is not wearing the legacy section\'s colour')
-      .toBe('rgb(255,235,59)')
+    const mfiLine = H.addSeriesCalls.filter(c => c.options && c.options.color === MFI_COLOR)
+    expect(mfiLine, 'no legacy MFI line — vacuous').toHaveLength(1)
+    const text = await hover(view, [[mfiLine[0].series, { value: 54.3 }]])
+    expect(text, 'the engine lane is still drawing — the RSI control chip is missing')
+      .toContain('RSI(14)')
+    expect(text, 'an un-migrated definition produced a chip from somewhere').not.toContain('MFI')
   })
 
   it('⭐ BOTH MACD chips survive the deletion of macdLineRef AND macdSignalRef', async () => {
@@ -3345,11 +3367,12 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 // Rewriting them rather than deleting them is the point: each one still names a
 // way the machinery could be wrong, in the direction it can now be wrong in.
 describe('the Flip-B machinery, live (Task 10)', () => {
-  it('ENGINE_FLIPPED_DEF_IDS is exactly {atr, bb, macd, rsi, stoch, vwap}, and EQUALS the migrated set', () => {
+  it('ENGINE_FLIPPED_DEF_IDS is exactly {atr, bb, ichimoku, macd, rsi, sar, stoch, vwap}, and EQUALS the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
-    // ⭐ `stoch` and `atr` joined at B5 Task 5, in one commit with their migration.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'macd', 'rsi', 'stoch', 'vwap'])
+    // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6 —
+    // each pair in one commit with its migration.
+    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(['atr', 'bb', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch', 'vwap'])
     for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
   })
 
@@ -3399,8 +3422,8 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // ⚠️ A LITERAL, NOT `ENGINE_FLIPPED_DEF_IDS.size`. Comparing the loop's own
     // counter to the set it iterated is a tautology that survives the set being
     // emptied; the number is what makes "the flipped set is empty" a failure.
-    // It moves once per B5 migration task — 4 → 6 at Task 5.
-    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(6)
+    // It moves once per B5 migration task — 4 → 6 at Task 5, 6 → 8 at Task 6.
+    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(8)
   })
 
   it('csForPaneMargins changes ONE FIELD and carries the rest of the blob through', () => {

@@ -30,10 +30,22 @@
 // ⭐ B5 TASK 5 MOVED THREE OF THOSE SIX ONTO THE ENGINE — Stochastic's %K and %D,
 // and ATR — by MIGRATING their definitions, which is a change of SOURCE and not
 // of text: the chips come off the same `plots[].legend` blocks, through this same
-// pipeline, character for character. **THREE remain on the legacy lane: SAR, and
-// Ichimoku's tenkan and kijun.** They retire at Task 6, and until then a legend
-// rendering `engineChips()` alone would simply stop printing them — and **no
-// pixel gate could see it**, because a headless capture has no cursor.
+// pipeline, character for character.
+//
+// ⭐⭐ AND B5 TASK 6 MOVED THE LAST THREE — SAR, and Ichimoku's tenkan and kijun.
+// **THE LEGACY LANE IS EMPTY, AND ITS MACHINERY IS DELETED**: `StockChart`'s
+// `legacyChipEntriesRef`, `registerLegacyChip`, `csIndicatorsRef` and
+// `LEGACY_CHIP_ORDER` have no callers and are gone. Every one of the nine chips
+// now comes from `engineChips`, and the rendered text did not change by one
+// character at either step — which is why the LANE is asserted separately and
+// why **no pixel gate could ever have seen any of this** (a headless capture has
+// no cursor).
+//
+// ⚠️ `chipsFrom`'S SECOND-SOURCE SHAPE STAYS, AND IT IS NOT VESTIGIAL. It takes
+// an entry LIST and an `inputsFor` resolver rather than reading bindings itself,
+// so `engineChips` is one caller of it and the next is Phase C's server lane —
+// the same series-source-and-inputs seam, with the values arriving over the wire.
+// Deleting the parameter would be deleting the reason the function was extracted.
 //
 // ⚠️ THE SURVIVORS ARE NAMED IN PROSE, NOT AS `<id>::<plotKey>` PAIRS, AND THE
 // REASON HAS CHANGED — 🔴 THIS PARAGRAPH USED TO SAY THE DISCOVERY SCAN "does not
@@ -59,14 +71,15 @@
 // decimals, text)*, and only the SERIES SOURCE was engine-specific. So the
 // formatting half is extracted into `chipsFrom(entries, …)` and fed a SECOND
 // series source — `StockChart`'s `legacyChipEntriesRef`, keyed `<defId>::<plotKey>`
-// and registered at the legacy `addSeries` sites that are already fated B5. One
+// and registered at the legacy `addSeries` sites that were fated B5. One
 // formatting pipeline, two lanes, and all six legacy chips were declared on their
 // own definitions' `plots[].legend` instead of hand-written in the legend.
 //
 // ⭐ WHICH IS WHY B5'S MIGRATIONS COST THE LEGEND NOTHING. A definition that
 // gains an engine binding starts producing its chip through `engineChips`, off
-// the SAME declaration the legacy lane was already reading — so a flip retires
-// two `registerLegacyChip` calls and changes not one character of the readout.
+// the SAME declaration the legacy lane was already reading — so a flip retired
+// its `registerLegacyChip` calls and changed not one character of the readout,
+// six times over, until there were none left to retire.
 // That is the property, and it is asserted rather than assumed: the nine chips
 // are compared character for character at every flip, and the LANE each one comes
 // from is a SEPARATE assertion, because a chip drawn twice is invisible in text.
@@ -121,18 +134,21 @@ function resolvePlotColor(plot, inputs, def) {
  * instance's own inputs, for the engine lane and the legacy lane alike.
  *
  * @param {object[]} entries `[{defId, plotKey, series, lastValue, instanceId}]`.
- *        The engine lane maps its BINDINGS in (`engineChips` below);
- *        `StockChart`'s legacy render blocks register theirs as they create each
- *        series. A plot with NO `legend` block emits nothing, which is how the
- *        un-declared plots stay chip-less — Ichimoku's `spanA`/`spanB`/`chikou`,
- *        every `hlines` guide, and the ten definitions with no chip at all.
+ *        The engine lane maps its BINDINGS in (`engineChips` below). ⚠️ It is the
+ *        only caller in the tree as of B5 Task 6 — the legacy lane that was the
+ *        second one is deleted — and the parameter stays because a second SOURCE
+ *        with its own inputs is the seam Phase C's server lane needs. A plot with
+ *        NO `legend` block emits nothing, which is how the un-declared plots stay
+ *        chip-less — Ichimoku's `spanA`/`spanB`/`chikou`, every `hlines` guide,
+ *        and the eight definitions with no chip at all.
  * @param {Map} seriesData `crosshairMove` param's `seriesData` map.
  * @param {object|Function} registry
  * @param {Function} inputsFor `(defId, instanceId) => inputs`. The INSTANCE's own
- *        inputs for the engine lane; `cs.indicators[defId]` for the legacy lane,
- *        which has no instances. ⛔ Reading `cs.indicators[defId]` for BOTH would
- *        be wrong the moment a second instance of one definition exists: two RSI
- *        lines at different periods would print the same number twice.
+ *        inputs for the engine lane; it was `cs.indicators[defId]` for the legacy
+ *        lane, which had no instances. ⛔ Reading `cs.indicators[defId]` for BOTH
+ *        would have been wrong the moment a second instance of one definition
+ *        exists: two RSI lines at different periods would print the same number
+ *        twice. That is the reason this is a PARAMETER and not a lookup inside.
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
  *        order the entries were given.
  */
