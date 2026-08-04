@@ -8,27 +8,73 @@ import { SkeletonBlock } from '../../Skeleton'
 import useEarningsBrief from '../../../hooks/useEarningsBrief'
 import styles from './BriefSection.module.css'
 
-// §12: visibly attribute AI prose, but never fabricate a fact this endpoint
-// doesn't actually give us — there is no per-brief generation timestamp in
-// the payload, only a wall-clock "as of" reading.
-function provenance() {
-  const t = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  return `AI · updated ${t}`
+// §12: visibly attribute AI prose. Review r1 I2 — this used to read
+// `AI · updated {wall-clock now}`, which asserts a freshness fact the payload
+// can't support: neither generator returns a generation timestamp
+// (api/services/engine.py's `_generate_earnings_analysis`/`_generate_earnings_
+// preview` result dicts), and a brief is cached 12h + persisted across
+// redeploys, so a day-old brief would have rendered "updated" at whatever
+// time the user happened to open the modal. State WHAT this is, not a WHEN
+// the payload can't back up.
+const PROVENANCE = 'AI · earnings brief'
+
+// M2: a blank-but-present string ('   ') is truthy in JS, so a naive `{x &&
+// <p>{x}</p>}` still renders an empty paragraph / empty link / empty bullet.
+// engine.py:1037 defaults news fields to `""` on a missing Finnhub field, so
+// this isn't hypothetical. Collapse blank to null so "absent" reads as
+// absent everywhere, not as a real-but-empty answer.
+function clean(v) {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return t ? t : null
 }
 
 export default function BriefSection({ sym, row, stepping }) {
   // `stepping` is true while the settle debounce is pending on THIS symbol —
-  // i.e. it was reached by arrow/chevron, not by a click.
-  const { data, isLoading, generate } = useEarningsBrief(sym, { cachedOnly: !!stepping })
+  // i.e. it was reached by arrow/chevron, not by a click. (The actual GATE
+  // no longer trusts this flag alone — see useEarningsBrief's `firstSym`
+  // identity check, review r1 C1 — but it's still a legitimate additional
+  // signal, so it's still passed through.)
+  const { data, isLoading, generate, retry } = useEarningsBrief(sym, { cachedOnly: !!stepping })
 
   if (isLoading) return <SkeletonBlock height={200} />
 
+  // I1: a rejected fetch AND the backend's own error fallback (engine.py's
+  // earnings-analysis except-branch, which returns `{..., error: str(e)}`
+  // with every content field empty) must NOT render as "no source material
+  // yet" — that's a confident claim about a transport/LLM failure. `fetcher`
+  // resolves both a thrown fetch and a non-ok response (incl. a 429 off the
+  // endpoint's 10/minute limiter) to `null`.
+  const hasError = data === null || data?.error != null
+  if (hasError) {
+    return (
+      <EmptyState
+        icon="warning"
+        title="Brief unavailable right now"
+        hint="Something went wrong generating or fetching this brief — it isn't a comment on the name."
+        onRetry={retry}
+      />
+    )
+  }
+
   const isPending = (row?.verdict || '').toLowerCase() === 'pending'
-  const headline = data?.analysis_headline
-  const bodyText = isPending ? data?.preview_text : (data?.analysis_summary || data?.analysis)
-  const bullets = (isPending ? data?.preview_bullets : data?.analysis_bullets) || []
-  const quotes = data?.key_quotes || []
-  const news = data?.news || []
+  const headline = clean(data?.analysis_headline)
+  const bodyText = isPending
+    ? clean(data?.preview_text)
+    : (clean(data?.analysis_summary) || clean(data?.analysis))
+  const bullets = ((isPending ? data?.preview_bullets : data?.analysis_bullets) || [])
+    .map(clean).filter(Boolean)
+  const quotes = (data?.key_quotes || [])
+    .map((q) => ({ topic: clean(q?.topic), quote: clean(q?.quote) }))
+    .filter((q) => q.quote)
+  const news = (data?.news || [])
+    .map((n) => ({
+      headline: clean(n?.headline), source: clean(n?.source), url: clean(n?.url), time: clean(n?.time),
+    }))
+    // A blank href re-opens the CURRENT page in a new tab; a blank headline
+    // is a link with no visible text. Both need a real headline AND a real
+    // url to be worth a card.
+    .filter((n) => n.headline && n.url)
   const hasContent = !!(headline || bodyText || bullets.length || quotes.length || news.length)
 
   if (!hasContent) {
@@ -87,7 +133,7 @@ export default function BriefSection({ sym, row, stepping }) {
         </>
       )}
 
-      <div className={styles.provenance} data-testid="brief-provenance">{provenance()}</div>
+      <div className={styles.provenance} data-testid="brief-provenance">{PROVENANCE}</div>
     </div>
   )
 }

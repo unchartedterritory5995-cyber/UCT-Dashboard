@@ -73,10 +73,30 @@ describe('CallSection', () => {
     expect(screen.getByTestId('call-provenance').textContent).toMatch(/^AI ·/)
   })
 
-  it('shows no AI provenance line when there is no recap yet', () => {
+  // Review r1 I3 — this used to assert the OPPOSITE (no provenance without a
+  // recap), which left the panel's first AI content unattributed: the
+  // SentimentGauge (an AI score + rationale + drivers, "AI-derived" per
+  // api/routers/earnings_intel.py) self-fetches and renders whenever this
+  // section mounts, recap or not. §12 requires AI prose to be visibly
+  // attributed, so the line moved ABOVE the gauge and now covers both
+  // branches.
+  it('attributes the AI gauge even when no recap has posted yet', () => {
     recapData = { ticker: 'NVDA', recap: null, webcast_url: null, rating_changes: [] }
     renderCall({ lifecycle: 'PRINTED' })
-    expect(screen.queryByTestId('call-provenance')).toBeNull()
+    expect(screen.getByTestId('call-provenance').textContent).toMatch(/^AI ·/)
+  })
+
+  // The attribution must precede the content it attributes — a provenance
+  // line rendered BELOW the gauge leaves the first thing the reader sees
+  // unlabelled, which is the defect I3 named.
+  it('the provenance line renders BEFORE the gauge, not after it', () => {
+    recapData = wrapper
+    const { container } = renderCall()
+    const prov = screen.getByTestId('call-provenance')
+    const gauge = container.querySelector('[data-testid="sentiment-gauge"]')
+    expect(gauge).toBeTruthy()
+    // DOCUMENT_POSITION_FOLLOWING === the gauge comes after the provenance
+    expect(prov.compareDocumentPosition(gauge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('never says "verdict"', () => {

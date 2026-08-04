@@ -5,7 +5,7 @@
 // at all — and the section offers "Generate brief" if nothing is cached. A
 // symbol opened by CLICK requests the normal endpoint, which is the existing
 // (cost-guarded, cached) behaviour.
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import useSWR from 'swr'
 
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -33,7 +33,24 @@ export default function useEarningsBrief(sym, { cachedOnly = false } = {}) {
     setEscalated(false)
   }
 
-  const wantCached = cachedOnly && !escalated
+  // Review round 1, C1 — CRITICAL: `cachedOnly` alone (sourced from the
+  // caller's `stepping` flag) does NOT gate the shipped GATE. `stepping` is
+  // `rawSym !== settledSym` (useSettledSym.js) and this hook is fed
+  // `settledSym`, so by construction `stepping` is ALREADY false at the exact
+  // render where `sym` (this hook's `s`) becomes the new symbol — the flag
+  // and "sym just changed" can never be true in the same render, no matter
+  // how a caller wires it. Trusting it means the panel silently un-gates the
+  // LLM endpoint the instant every step settles.
+  //
+  // Gate on IDENTITY instead: `firstSym` is the symbol this hook instance
+  // first saw (i.e. the one the modal was opened on) and — being a ref — it
+  // never changes for the life of the instance. On a mounted instance `s`
+  // only ever changes via a step (there is no other route to a new symbol
+  // without a remount), so "not the first symbol" IS "reached by stepping",
+  // independent of `stepping`'s flawed timing. `cachedOnly` stays as an OR'd
+  // input so an explicit caller override still works.
+  const firstSym = useRef(s)
+  const wantCached = (cachedOnly || s !== firstSym.current) && !escalated
   const key = s
     ? `/api/earnings-analysis/${encodeURIComponent(s)}${wantCached ? '?cached_only=1' : ''}`
     : null
@@ -44,7 +61,15 @@ export default function useEarningsBrief(sym, { cachedOnly = false } = {}) {
     dedupingInterval: 5 * 60 * 1000,
   })
 
-  const generate = useCallback(() => { setEscalated(true); mutate() }, [mutate])
+  // M1: `generate` used to also call `mutate()` here — redundant. Flipping
+  // `escalated` changes `key` (drops `?cached_only=1`), and a KEY change is
+  // already what makes SWR fetch; the extra `mutate()` fired a SECOND request
+  // against the still-current (about-to-be-stale) key on a 10/minute endpoint.
+  const generate = useCallback(() => { setEscalated(true) }, [])
+  // A plain revalidate of the CURRENT key — for retrying a failed fetch
+  // without changing cached-only/escalated semantics (a network blip on a
+  // cached-only probe should retry the probe, not silently start billing).
+  const retry = useCallback(() => { mutate() }, [mutate])
 
-  return { data: data || null, isLoading: isLoading && !data, generate, escalated }
+  return { data: data || null, isLoading: isLoading && !data, generate, retry }
 }
