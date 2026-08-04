@@ -76,21 +76,35 @@ export function pairQuarters(quarters, impliedHistory, live) {
  * than draw two bars where one is guesswork, the widget shows realized bars +
  * the current implied and says exactly how much history exists.
  */
-export function coldStartState(pairs, historySince, { minPaired = MIN_PAIRED, total = TARGET_QUARTERS } = {}) {
-  const recorded = (pairs || []).filter((p) => p.impliedPct != null).length
-  const cold = recorded < minPaired
+export function coldStartState(
+  pairs, historySince,
+  { minPaired = MIN_PAIRED, total = TARGET_QUARTERS, recorded = null } = {},
+) {
+  // RULED (P2): `n` in "n/8 recorded" counts STORED history snapshots only —
+  // never tonight's live implied. `pairs` cannot answer that, because
+  // pairQuarters fills the current quarter's impliedPct from `live`. When the
+  // caller knows the stored count it passes it; the internal count stays as
+  // the fallback for callers that have only pairs.
+  // `Number.isFinite(recorded)` is deliberate on the RAW value: Number(null)
+  // is 0, so `Number.isFinite(Number(recorded))` would silently accept null
+  // as a stored count of zero.
+  const counted = Number.isFinite(recorded)
+    ? recorded
+    : (pairs || []).filter((p) => p.impliedPct != null).length
+  const cold = counted < minPaired
   const since = typeof historySince === 'string' && historySince.length >= 7 ? historySince.slice(0, 7) : null
   // `coverageText` is computed UNCONDITIONALLY (unlike `caption`, which stays
-  // null when warm — existing contract, left alone). I2: `recorded` here
+  // null when warm — existing contract, left alone). I2: `counted` here
   // counts every quarter with an impliedPct, INCLUDING the live current
-  // quarter, so `cold` can be false (warm) while `impliedVerdict` still
-  // returns null (it requires fully-paired PAST quarters only, a stricter
-  // count). The component needs this text even in that warm-but-chipless gap
-  // — see the `chip`/`coverageCaption` wiring below.
-  const coverageText = `Implied tracking since ${since ?? '—'} · ${recorded}/${total} recorded`
+  // quarter (unless the caller passed a stored `recorded` count), so `cold`
+  // can be false (warm) while `impliedVerdict` still returns null (it
+  // requires fully-paired PAST quarters only, a stricter count). The
+  // component needs this text even in that warm-but-chipless gap — see the
+  // `chip`/`coverageCaption` wiring below.
+  const coverageText = `Implied tracking since ${since ?? '—'} · ${counted}/${total} recorded`
   return {
     cold,
-    recorded,
+    recorded: counted,
     total,
     since,
     caption: cold ? coverageText : null,
@@ -203,9 +217,10 @@ export default function ImpliedVsRealized({
   height = SIZE.height,
   className = '',
   ariaLabel,
+  recordedCount = null,
 }) {
   const paired = pairQuarters(quarters, impliedHistory, live)
-  const cold = coldStartState(paired, historySince)
+  const cold = coldStartState(paired, historySince, { recorded: recordedCount })
 
   const plotted = cold.cold
     // Cold start: a sparse hollow bar invites a false read, so only the current

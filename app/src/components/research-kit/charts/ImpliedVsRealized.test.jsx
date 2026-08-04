@@ -220,3 +220,32 @@ describe('ImpliedVsRealized', () => {
     expect(SIZE).toEqual({ width: '100%', height: VIEWBOX.height })
   })
 })
+
+describe('recordedCount (P2 ruling: n counts STORED snapshots only)', () => {
+  const quarters = [
+    { quarter: 'Q1 26', report_date: '2026-02-05', reported: true, reaction_pct: 4.1 },
+    { quarter: 'Q2 26', report_date: '2026-05-06', reported: true, reaction_pct: -2.2 },
+    { quarter: 'Q3 26', report_date: '2026-08-06', reported: false, reaction_pct: null },
+  ]
+
+  it('coldStartState prefers the passed stored count over the pair count', () => {
+    const pairs = pairQuarters(quarters, [], { pct: 6.8 })   // only the LIVE one is filled
+    expect(coldStartState(pairs, '2026-08').recorded).toBe(1)        // legacy behaviour
+    expect(coldStartState(pairs, '2026-08', { recorded: 0 }).recorded).toBe(0)
+    expect(coldStartState(pairs, '2026-08', { recorded: 0 }).coverageText)
+      .toBe('Implied tracking since 2026-08 · 0/8 recorded')
+  })
+
+  it('null/undefined recordedCount falls back to the internal count (not zero)', () => {
+    const pairs = pairQuarters(quarters, [], { pct: 6.8 })
+    expect(coldStartState(pairs, '2026-08', { recorded: null }).recorded).toBe(1)
+    expect(coldStartState(pairs, '2026-08', {}).recorded).toBe(1)
+  })
+
+  it('the caption never counts tonight’s live implied', () => {
+    render(<ImpliedVsRealized quarters={quarters} impliedHistory={[]}
+                              live={{ pct: 6.8 }} historySince="2026-08" recordedCount={0} />)
+    expect(screen.getByTestId('rk-ivr-cold').textContent).toBe(
+      'Implied tracking since 2026-08 · 0/8 recorded')
+  })
+})
