@@ -142,7 +142,7 @@ describe('ReactionBars', () => {
     const stars = container.querySelectorAll('[data-testid="rk-reaction-star"]')
     expect(stars).toHaveLength(1)
     expect(stars[0].textContent).toBe('★')
-    expect(stars[0].className).toBeTruthy()  // CSS module class is applied for styling
+    expect(stars[0].getAttribute('class')).toMatch(/star/)  // styling hook is applied
   })
 
   it('draws the implied bracket only when an implied move is given', () => {

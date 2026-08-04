@@ -40,8 +40,9 @@
 }
 
 .star {
-  /* caution annotation — gold stays unique to the implied bracket (§3.1) */
-  fill: var(--warn);
+  /* caution annotation in --score-weak: --warn collides with --ut-gold
+     (identical hex, every theme) — gold stays unique to the implied bracket (§3.1) */
+  fill: var(--score-weak);
   font-family: var(--font-sans);
   font-size: 9px;
 }
