@@ -114,8 +114,33 @@ const nativeDef = (id, fn, meta, placement, inputs, plots) => ({
  *  (`priceScale().setVisibleRange`, which IS a pixel change). The half that does
  *  work is `autoScale:false`: it FREEZES the range against re-invalidation, which
  *  is exactly the pooling hazard `placement`'s TRAP #2 exists for. */
-const fixedPane = (min, max) => ({ target: 'pane', scale: { min, max } })
-const autoPane = { target: 'pane' }
+/**
+ * `pane.height` — THE PANE'S DEFAULT HEIGHT, AS A FRACTION OF THE CHART.
+ *
+ * ⭐ These nine numbers are `paneMargins.PANES`' nine `baseH` values, and this is
+ * where they retire to. That table was three different facts wearing one coat —
+ * nine heights, a stack ORDER, and a volume row — and only the heights are a
+ * per-indicator property. So the heights become definition data (here), the
+ * order becomes the instance list's order, and volume becomes one constant
+ * (`paneLayout.VOLUME_PANE_HEIGHT`). Moving the whole table would have been a
+ * rename; this is the retirement (plan §A5).
+ *
+ * The payoff is that a sixteenth oscillator costs ONE definition and zero edits
+ * to any list: `paneLayout.computePaneLayout` reads
+ * `placement.pane.height ?? DEFAULT_PANE_HEIGHT`, so a definition that says
+ * nothing gets 0.15 — the value six of these nine already use.
+ *
+ * ⚠️ A PRICE OVERLAY DECLARES NO `pane` AT ALL. `bb`, `vwap`, `sar`, `ichimoku`
+ * and `donchian` share the candles' pane, so a height on one of them would
+ * reserve vertical space for something that draws inside somebody else's — the
+ * successor of the claim `enumerationSites.test.js` already makes about them
+ * gaining no key in `paneMargins.js`. `paneLayout.test.js` asserts it.
+ *
+ * ⚠️ `paneLayout.test.js` READS `paneMargins.js` AND COMPARES, key by key, so
+ * these values cannot drift from the shipped table while it still ships.
+ */
+const fixedPane = (min, max, height) => ({ target: 'pane', scale: { min, max }, pane: { height } })
+const autoPane = (height) => ({ target: 'pane', pane: { height } })
 const onPrice = { target: 'price' }
 
 const colorInput = (key, label, dflt) => ({ key, type: 'color', label, default: dflt })
@@ -145,7 +170,7 @@ const RAW_DEFS = [
     { name: 'Relative Strength Index', shortName: 'RSI', category: 'Momentum', legendParams: ['period'],
       description: 'Momentum on a 0-100 scale: how much of recent movement has been up.',
       tags: ['oscillator', 'momentum'] },
-    fixedPane(0, 100),
+    fixedPane(0, 100, 0.15),
     [
       periodInput('period', 'Period', 14, 2, 100),
       colorInput('color', 'Color', '#7b68ee'),
@@ -176,7 +201,7 @@ const RAW_DEFS = [
     { name: 'MACD', shortName: 'MACD', category: 'Momentum',
       description: 'The gap between two moving averages, and how fast that gap is changing.',
       tags: ['oscillator', 'momentum', 'trend'] },
-    autoPane,
+    autoPane(0.17),
     [
       periodInput('fastPeriod', 'Fast', 12, 1, 100),
       periodInput('slowPeriod', 'Slow', 26, 1, 200),
@@ -301,7 +326,7 @@ const RAW_DEFS = [
     { name: 'Stochastic Oscillator', shortName: 'Stoch', category: 'Momentum',
       description: 'Where price closed inside its recent high-low range, smoothed.',
       tags: ['oscillator', 'momentum'] },
-    fixedPane(0, 100),
+    fixedPane(0, 100, 0.15),
     [
       periodInput('kPeriod', '%K Period', 14, 1, 100),
       periodInput('dPeriod', '%D Period', 3, 1, 20),
@@ -333,7 +358,7 @@ const RAW_DEFS = [
       // it the chip reads `ATR 2.7000`, which is the mutation that proves it.
       legendParams: ['period'],
       tags: ['volatility'] },
-    autoPane,
+    autoPane(0.13),
     [
       periodInput('period', 'Period', 14, 1, 100),
       colorInput('color', 'Color', '#FFA726'),
@@ -411,7 +436,7 @@ const RAW_DEFS = [
     { name: 'Money Flow Index', shortName: 'MFI', category: 'Volume',
       description: 'RSI weighted by volume — momentum that only counts when size shows up.',
       tags: ['oscillator', 'volume', 'momentum'] },
-    fixedPane(0, 100),
+    fixedPane(0, 100, 0.15),
     [
       periodInput('period', 'Period', 14, 2, 100),
       colorInput('color', 'Color', '#c084fc'),
@@ -426,7 +451,7 @@ const RAW_DEFS = [
     { name: 'Commodity Channel Index', shortName: 'CCI', category: 'Momentum',
       description: 'How far price sits from its own average, in units of its typical deviation.',
       tags: ['oscillator', 'momentum'] },
-    autoPane,
+    autoPane(0.15),
     [
       periodInput('period', 'Period', 20, 2, 200),
       colorInput('color', 'Color', '#fbbf24'),
@@ -442,7 +467,7 @@ const RAW_DEFS = [
     { name: 'Williams %R', shortName: '%R', category: 'Momentum',
       description: 'Where price closed in its recent range, on a -100 to 0 scale.',
       tags: ['oscillator', 'momentum'] },
-    fixedPane(-100, 0),
+    fixedPane(-100, 0, 0.15),
     [
       periodInput('period', 'Period', 14, 2, 100),
       colorInput('color', 'Color', '#60a5fa'),
@@ -459,7 +484,7 @@ const RAW_DEFS = [
     { name: 'Average Directional Index', shortName: 'ADX', category: 'Trend',
       description: 'How strong the trend is, regardless of direction, with the two directional lines.',
       tags: ['trend', 'strength'] },
-    fixedPane(0, 100),
+    fixedPane(0, 100, 0.15),
     [
       periodInput('period', 'Period', 14, 2, 100),
       colorInput('adxColor', 'ADX', '#e5e7eb'),
@@ -478,7 +503,7 @@ const RAW_DEFS = [
     { name: 'On-Balance Volume', shortName: 'OBV', category: 'Volume',
       description: 'A running volume total that adds on up bars and subtracts on down bars.',
       tags: ['volume', 'accumulation'] },
-    autoPane,
+    autoPane(0.13),
     [
       colorInput('color', 'Color', '#9ca3af'),
     ],

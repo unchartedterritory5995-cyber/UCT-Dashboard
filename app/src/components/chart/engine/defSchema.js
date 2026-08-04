@@ -552,6 +552,34 @@ function validatePlacement(placement, errors) {
   }
   checkVocabulary(placement.target, PLACEMENT_TARGETS, [], 'placement.target', 'placement target', errors)
 
+  // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
+  // supplies `DEFAULT_PANE_HEIGHT` when absent. It lives on the definition
+  // because a pane height is a per-indicator property — which is what lets a
+  // sixteenth indicator cost one definition and zero list edits (plan §A5), and
+  // what retires `paneMargins.PANES`' nine `baseH` values into data rather than
+  // renaming the table. It is a DEFAULT, not a lock: an instance may carry its
+  // own once panes are user-resizable (Phase C).
+  //
+  // The bound is `0 < h < 1` and it is exclusive at BOTH ends on purpose. `0` is
+  // a pane that reserves no space (which is what "not a pane" means, and the
+  // placement target already says that); `1` is a pane that takes the whole
+  // chart, leaving the price area nothing — the `top + bottom > 1` throw
+  // `computePaneMargins`' shave exists to prevent, arriving from the other side.
+  // A string `'0.15'` is rejected like every other behavioural value: coerced, it
+  // would multiply as a number in one place and concatenate in another.
+  if (placement.pane !== undefined && placement.pane !== null) {
+    if (!isPlainObject(placement.pane)) {
+      errors.push(`placement.pane: expected an object, got ${fmt(placement.pane)}`)
+    } else if (placement.pane.height !== undefined
+               && !(isFiniteNumber(placement.pane.height)
+                    && placement.pane.height > 0 && placement.pane.height < 1)) {
+      errors.push(
+        `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
+        `the pane's default height — got ${fmt(placement.pane.height)}`,
+      )
+    }
+  }
+
   const { scale } = placement
   if (scale === undefined || scale === null) return
   if (!isPlainObject(scale)) {

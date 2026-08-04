@@ -46,6 +46,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart from '../components/StockChart'
 import { mergeSettingsOverride } from '../components/chart/chartDefaults'
+import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
@@ -436,6 +437,40 @@ export default function ChartRender() {
 
     return () => { cancelled = true; clearTimeout(timer) }
   }, [sym, tf, settingsSettled, fixtureSettled])
+
+  // ── `window.__paneManifest` — the parity harness's structural read ─────────
+  //
+  // `tools/chart_parity.py::read_manifest` evaluates `window.__paneManifest ??
+  // null` after `__chartReady`, diffs A against B as JSON, and puts the result in
+  // `report.json`. It is the plan's discriminator #3: a change that moves pixels
+  // but not the manifest, or the manifest but not the pixels, is a regression by
+  // definition — one of the two is lying.
+  //
+  // PUBLISHED ONLY IN FIXED-BARS MODE, for the same reason the footer clock is
+  // frozen there: an always-on global on the export path is a thing the gate has
+  // to be told to ignore, and a thing nobody remembers to tell it. `?fixedbars=`
+  // is already the "this render is being measured" switch.
+  //
+  // ⚠️ A GETTER, NOT A VALUE, and that is load-bearing twice over. The manifest
+  // describes what the RENDERER built, so it cannot be computed before the chart
+  // exists — and this page never learns when that is: `StockChart` keeps its
+  // `IChartApi` in a ref and exposes it through no prop, no ref and no callback.
+  // A getter sidesteps the ordering entirely: the harness reads it after
+  // `__chartReady`, and the read is what builds the answer.
+  //
+  // ⚠️ IT READS `null` UNTIL A CHART REGISTERS ITSELF (`paneLayout`'s
+  // `registerManifestChart`), which is one line inside StockChart's create branch
+  // and belongs to the task that owns that file. `null` is the CONTRACTED value
+  // for "this page published no manifest" — the harness records it with a stated
+  // reason and skips the A/B diff rather than raising at run 13 of 20.
+  useEffect(() => {
+    if (!fixedBars) return undefined
+    Object.defineProperty(window, '__paneManifest', {
+      configurable: true,
+      get: () => currentPaneManifest(),
+    })
+    return () => { try { delete window.__paneManifest } catch { /* non-configurable */ } }
+  }, [fixedBars])
 
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
