@@ -78,15 +78,26 @@ _REALIZED_TTL = 24 * 3600
 # when the worker itself keeps running past the timeout — the leaked thread
 # finishes on its own and is never joined.
 #
-# CHOICE (documented per the review): the yfinance call inside
-# `_avg_abs_realized` is bounded by this per-future `result(timeout=)`, NOT by
-# routing it through `yf_util.bounded_call` — that would mean two independent
-# timeout mechanisms racing each other for no benefit, and `_avg_abs_realized`
-# shares `get_historical_earnings_moves`/`_fetch_quarterly_history` with other
-# callers this module must not modify.
-_GATHER_POOL = _cf.ThreadPoolExecutor(max_workers=3, thread_name_prefix="setup-grade-gather")
+# max_workers=6 (not 3): one request's three legs at a time is zero slack — a
+# handful of concurrently-hung `_avg_abs_realized` calls across different
+# symbols would permanently consume every worker (a request queued behind them
+# would time out on ALL its inputs, not just iv_premium, silently nulling every
+# grade until restart). 6 gives one full request's worth of headroom even if a
+# previous request already leaked workers.
+#
+# CHOICE (documented per the review): `_avg_abs_realized`'s yfinance leg is
+# bounded via `yfinance_pool.run_in_pool(..., timeout=5)` — the SAME
+# nested-timeout precedent `_revisions` already relies on
+# (`research.estimates._fetch` wraps its own yfinance call the identical way).
+# That bound, not this pool's own `_SOURCE_TIMEOUT`, is what actually frees a
+# `_GATHER_POOL` worker: `fut.result(timeout=)` below only bounds how long the
+# CALLING thread waits, not how long the submitted callable keeps running once
+# started — without the inner bound, the worker thread itself stays pinned on
+# the raw `_yf.Ticker(sym).history()` call indefinitely.
+_GATHER_POOL = _cf.ThreadPoolExecutor(max_workers=6, thread_name_prefix="setup-grade-gather")
 _SOURCE_TIMEOUT = 6.0   # hard per-source ceiling (seconds)
 _GRADE_BUDGET = 10.0    # overall wall-clock ceiling for one gather_inputs call
+_REALIZED_YF_TIMEOUT = 5.0  # bound on the yfinance leg inside _avg_abs_realized
 
 # TTL + serve-stale front for `get_setup_grade`, mirroring
 # `implied_move.get_expected_move`'s composition exactly: a fresh TTL hit costs
@@ -219,14 +230,30 @@ def _rs(sym: str):
 
 def _avg_abs_realized(sym: str):
     """Average |next-day move| over the stored quarters. Cached 24h; a FAILED
-    fetch is NEVER cached as a value (lesson_market_cap_cache_poison)."""
+    fetch is NEVER cached as a value (lesson_market_cap_cache_poison).
+
+    `get_historical_earnings_moves` reaches a raw `_yf.Ticker(sym).history()`
+    call with no timeout of its own — the one genuinely UNBOUNDED leg in this
+    module (see `_GATHER_POOL`'s comment). Bounded here at the call site via
+    `yfinance_pool.run_in_pool(..., timeout=_REALIZED_YF_TIMEOUT)` rather than
+    editing `earnings_enrichment.py` itself, which is shared with the
+    calendar's request path — the blast radius of a wrong timeout value stays
+    inside this module. A timeout raises `concurrent.futures.TimeoutError`,
+    which the caller (`gather_inputs`'s `_run`) already treats as a missing
+    input, same as any other exception.
+    """
     key = f"setup_grade_realized_{sym.upper()}"
     hit = cache.get(key)
     if hit is not None:
         return hit
     from api.services.earnings_enrichment import get_historical_earnings_moves
     from api.services.engine import _fetch_quarterly_history
-    raw = get_historical_earnings_moves(sym, _fetch_quarterly_history(sym))
+    from api.services.yfinance_pool import run_in_pool
+
+    def _fetch():
+        return get_historical_earnings_moves(sym, _fetch_quarterly_history(sym))
+
+    raw = run_in_pool(_fetch, timeout=_REALIZED_YF_TIMEOUT)
     val = _num((raw or {}).get("avg_abs_move_pct"))
     if val is not None:
         cache.set(key, val, ttl=_REALIZED_TTL)
@@ -297,18 +324,19 @@ def get_setup_grade(sym: str, live_move: dict | None = None) -> dict | None:
     runs behind the caller; else this caller builds synchronously
     (single-flight) — mirrors `implied_move.get_expected_move` exactly.
 
-    KEYING NOTE: the cache key is symbol-only (does not include `live_move`).
-    All four inputs are slow-moving relative to the 15-min TTL — beat streak/
-    revisions/RS rank at daily cadence, and `live_move` itself is already
-    15-min TTL-cached upstream by `implied_move.get_expected_move` (the ONE
-    call site, the expected-move router, hands through whatever that cache
-    currently holds). A grade built while `live_move` was `None` can therefore
-    stay a partial basis for up to 15 min after a chain read starts
-    succeeding — an accepted tradeoff, not an oversight, matching the staleness
-    `implied_move`'s own TTL already accepts for the straddle itself.
+    KEYING NOTE: the cache key carries a basis dimension (`iv`/`noiv`), not
+    just the symbol. A grade built while `live_move` was `None` (3-of-4
+    partial basis) and one built once `live_move` is available (full 4-of-4)
+    are DIFFERENT payloads — sharing one slot would let a stale partial basis
+    sit beside a chain that has already started succeeding for up to the full
+    15-min TTL, contradicting the whole reason the grade rides the
+    expected-move payload (§ the router-fold rationale: consistency with
+    `live` on the SAME response). Two slots means the partial→full transition
+    recomputes fresh on the very first request where `live_move` exists,
+    instead of waiting out the TTL.
     """
     sym_key = (sym or "").upper().strip()
-    key = f"setupgrade::{sym_key}"
+    key = f"setupgrade::{sym_key}::{'iv' if live_move else 'noiv'}"
 
     def _build():
         value = compute_grade(gather_inputs(sym, live_move=live_move))

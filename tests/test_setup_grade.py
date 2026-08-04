@@ -199,17 +199,33 @@ def test_realized_average_never_caches_a_failure():
     assert cache.keys_with_prefix("setup_grade_realized_TST") == []
 
 
+def test_avg_abs_realized_bounds_the_yfinance_leg_via_run_in_pool():
+    # Gap (a) fix, half 1: get_historical_earnings_moves reaches a raw
+    # `_yf.Ticker(sym).history()` call with no timeout of its own — the one
+    # genuinely unbounded leg in this module. _avg_abs_realized must route it
+    # through yfinance_pool.run_in_pool (never call it directly), the same
+    # nested-timeout precedent `research.estimates._fetch` already relies on.
+    from api.services.cache import cache
+    cache.invalidate("setup_grade_realized_TST")
+    with patch("api.services.yfinance_pool.run_in_pool",
+               return_value={"avg_abs_move_pct": 6.0}) as rip:
+        assert sg._avg_abs_realized("TST") == 6.0
+    assert rip.call_count == 1
+    assert rip.call_args.kwargs.get("timeout") == sg._REALIZED_YF_TIMEOUT
+
+
 def test_gather_inputs_bounds_a_hung_source_within_the_budget():
     # A source that hangs past its timeout must cost exactly that ONE input
     # (the fan-out fix's core guarantee) — the caller must never wait for it.
-    # The Event is deliberately never `.set()`; `wait(timeout=0.2)` bounds the
+    # The Event is deliberately never `.set()`; `wait(timeout=1.0)` bounds the
     # background thread's own lifetime so the test process never truly blocks,
-    # but the SOURCE_TIMEOUT below is far shorter, so `gather_inputs` returns
-    # long before that 0.2s elapses.
+    # and the margin against SOURCE_TIMEOUT/the elapsed assertion is wide
+    # (1.0s hang vs a 0.02s timeout vs a 0.5s assertion ceiling) so the check
+    # can't flake on a loaded CI box.
     gate = threading.Event()
 
     def _hangs(*a, **k):
-        gate.wait(timeout=0.2)
+        gate.wait(timeout=1.0)
         return [{"beat": True}]   # never reached in time — proves the caller didn't wait
 
     with patch.object(sg, "_SOURCE_TIMEOUT", 0.02), \
@@ -222,7 +238,7 @@ def test_gather_inputs_bounds_a_hung_source_within_the_budget():
         got = sg.gather_inputs("TST", live_move={"pct": 6.0})
         elapsed = time.monotonic() - t0
 
-    assert elapsed < 0.2                    # returned well before the hang would resolve
+    assert elapsed < 0.5                    # returned well before the 1.0s hang would resolve
     assert got["beat_streak"] is None        # timed out -> missing input, never a crash
     assert got["revision_30d"] is not None   # the other concurrent sources still complete
     assert got["rs_rank"] is not None
@@ -240,6 +256,70 @@ def test_get_setup_grade_cache_hit_never_calls_gather_inputs():
         second = sg.get_setup_grade("TST", live_move={"pct": 6.0})
     assert first is not None and second == first
     assert gi.call_count == 1   # the second call was served from the fresh TTL cache
+
+
+def test_get_setup_grade_recomputes_when_a_live_move_newly_arrives():
+    # Gap (b): a grade cached under a MISSING live_move (3-of-4 partial) must
+    # NOT be served once a live_move becomes available — the cache key carries
+    # the basis dimension so the partial->full transition recomputes on the
+    # very first request that has a live_move, not after the 15-min TTL.
+    scored_partial = {
+        "beat_streak": (100.0, "4 of 4 beats"),
+        "revision_30d": (75.0, "6 up / 2 down (30d)"),
+        "rs_rank": (88.0, "RS 88 of 99"),
+        "iv_premium": None,
+    }
+    scored_full = dict(scored_partial, iv_premium=(50.0, "x"))
+    with patch.object(sg, "gather_inputs", side_effect=[scored_partial, scored_full]) as gi:
+        first = sg.get_setup_grade("TST", live_move=None)
+        second = sg.get_setup_grade("TST", live_move={"pct": 6.0})
+    assert first["basis"] == "3 of 4 inputs"
+    assert second["basis"] is None
+    assert gi.call_count == 2   # a real live_move must recompute, never serve the noiv slot
+
+
+def test_gather_inputs_pool_has_slack_when_three_workers_are_stuck():
+    # Gap (a): _avg_abs_realized's yfinance leg used to be the one genuinely
+    # UNBOUNDED call in this module — even with it now bounded via
+    # yfinance_pool.run_in_pool, this test independently proves the SECOND
+    # half of the fix: raising _GATHER_POOL from 3 to 6 workers. Simulates
+    # three permanently-stuck iv_premium legs (as if their inner bound had
+    # somehow still not freed the worker) and asserts a fourth symbol's other
+    # two concurrent legs are NOT starved behind them — the pool has slack.
+    gate = threading.Event()  # never set until teardown; these 3 hang forever
+
+    def _hangs_forever(*a, **k):
+        gate.wait()
+        return 6.0  # never reached inside the test
+
+    try:
+        with patch.object(sg, "_avg_abs_realized", _hangs_forever), \
+             patch.object(sg, "_beat_history", return_value=[{"beat": True}]), \
+             patch.object(sg, "_revisions", return_value=[{"up30": 4, "down30": 0}]), \
+             patch.object(sg, "_rs", return_value={"rs_rank": 90}), \
+             patch.object(sg, "_SOURCE_TIMEOUT", 0.05), \
+             patch.object(sg, "_GRADE_BUDGET", 0.1):
+            # Occupy 3 _GATHER_POOL workers permanently: each symbol's
+            # iv_premium job blocks on `gate` forever (its own outer timeout
+            # only frees the CALLING thread, not the worker thread actually
+            # running the hung callable) while beat_streak/revision_30d free
+            # their workers back up almost immediately.
+            for sym in ("AAA", "BBB", "CCC"):
+                sg.gather_inputs(sym, live_move={"pct": 6.0})
+
+            # A 4th symbol must still be served promptly: with max_workers=6
+            # and only 3 stuck, 3 idle workers remain for DDD's 3 jobs.
+            t0 = time.monotonic()
+            got = sg.gather_inputs("DDD", live_move={"pct": 6.0})
+            elapsed = time.monotonic() - t0
+
+        assert elapsed < 0.5
+        assert got["beat_streak"] is not None    # NOT queued behind the stuck workers
+        assert got["revision_30d"] is not None
+        assert got["rs_rank"] is not None
+        assert got["iv_premium"] is None          # its own leg still hangs -> times out
+    finally:
+        gate.set()  # release the 3 (now 4) leaked background threads
 
 
 # ── §12 accountability record ─────────────────────────────────────────────────
