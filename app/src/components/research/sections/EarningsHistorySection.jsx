@@ -79,13 +79,18 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove }
     <div className={styles.wrap}>
       <LollipopChart quarters={quarters} valueFormatter={eps} />
 
-      {/* Same quarter axis, directly beneath — that adjacency IS the section. */}
-      <ReactionBars
-        quarters={quarters}
-        impliedPct={impliedPct}
-        impliedLabel={impliedPct != null ? `Implied ±${Math.abs(impliedPct).toFixed(1)}%` : undefined}
-        info={IMPLIED_MOVE_INFO}
-      />
+      {/* Same quarter axis, directly beneath — that adjacency IS the section.
+          F-1: `.reactionWrap` insets this to the SAME left/right pixels as
+          LollipopChart's ECharts grid (see the CSS module comment) so the
+          two axes' quarter columns actually line up on screen. */}
+      <div className={styles.reactionWrap}>
+        <ReactionBars
+          quarters={quarters}
+          impliedPct={impliedPct}
+          impliedLabel={impliedPct != null ? `Implied ±${Math.abs(impliedPct).toFixed(1)}%` : undefined}
+          info={IMPLIED_MOVE_INFO}
+        />
+      </div>
 
       <div className={styles.stats} data-testid="history-stats">
         <StatTile label="Avg move" value={stats.avgAbs != null ? `±${stats.avgAbs.toFixed(1)}%` : null} />
@@ -96,7 +101,7 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove }
 
       <EyebrowLabel>By quarter</EyebrowLabel>
       <div className={styles.tableWrap}>
-        <table className={styles.table} data-testid="history-table">
+        <table className={styles.table} data-testid="history-table" aria-label="Earnings by quarter">
           <thead>
             <tr>
               <th scope="col">QUARTER</th>

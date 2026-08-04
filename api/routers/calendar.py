@@ -2116,7 +2116,16 @@ def _build_enrichment_for_date(target: str) -> dict:
                 "avg_abs_move": raw.get("avg_abs_move_pct"),
                 "up_count":     up,
                 "total":        n,
-                "last_n":       list(reversed(moves[:8])),   # newest first, capped 8
+                # `moves` is ALREADY newest-first — it is a verbatim passthrough
+                # of `_fetch_quarterly_history`'s GUARANTEED newest-first order
+                # (see that function's docstring). A `reversed()` used to sit
+                # here, written for a since-superseded AV-only/oldest-first
+                # world; left in place after FMP became primary, it silently
+                # flipped every emitted `last_n` to oldest-first — the opposite
+                # of this line's own comment (P2 T9 review, CRITICAL: every
+                # per-quarter reaction pairing downstream was reading the WRONG
+                # quarter's move). Do not reintroduce it.
+                "last_n":       moves[:8],   # newest first, capped 8
             }
         except Exception:
             return None

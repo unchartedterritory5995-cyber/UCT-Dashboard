@@ -145,4 +145,146 @@ describe('EarningsHistorySection', () => {
     expect(caps.textContent).toMatch(/CLOSED UP/i)
     expect(caps.textContent).toMatch(/0\s*\/\s*2/)
   })
+
+  // ── P2 T9 review round 1 — Important findings ────────────────────────────
+
+  // F-2: the headline requirement ("same quarter axis") previously had no
+  // gate — passing ReactionBars `reported` (a filtered subset) or a reversed
+  // copy of `quarters` both survived at exit 0, because the only axis
+  // assertion read the LOLLIPOP side. This reads the reaction strip's own
+  // rendered quarter labels and requires them to equal the lollipop's
+  // xAxis.data, same order — the two charts' `quarters` input must be
+  // identical, not just similarly-shaped. (This is also the gate that would
+  // have caught the Critical `last_n` mis-pairing bug, had it reordered the
+  // row set rather than the reaction VALUES within a fixed row set.)
+  it('draws the reaction strip on the identical quarter axis as the lollipop chart', () => {
+    renderSection()
+    const axis = capturedOption.xAxis?.data ?? capturedOption.xAxis?.[0]?.data
+    const reactionSvg = screen.getByTestId('rk-reaction')
+    // Element-tag query, not a CSS-module class — `<text>` is unhashed. The
+    // divergence-star marker is ALSO a `<text>`, so it's excluded by its own
+    // data-testid (rk-reaction-star) rather than by a class-shape guess.
+    const labels = Array.from(reactionSvg.querySelectorAll('text'))
+      .filter((t) => t.getAttribute('data-testid') !== 'rk-reaction-star')
+      .map((t) => t.textContent)
+    expect(labels).toEqual(axis)
+  })
+
+  // F-3: recomputing "Closed up" from `reactionStats(quarters)` instead of
+  // `row.hist_stats.up_count/total` (the brief's original draft) was
+  // previously UNTESTED — every earlier fixture happened to have the two
+  // denominators equal, so swapping back to the raw provider fields would
+  // silently survive. `last_n` (FMP/AV, <=8) and `beat_history` (Finnhub,
+  // <=4) are independent caps (earningsHistoryModel.js DECISION 1) — this
+  // fixture constructs the DOMINANT real-world mismatch (measured live at
+  // 11 of 12 symbols) and requires the caption to match what the chart/table
+  // actually show (4), not the provider's raw sample size (8).
+  it('captions "closed up" against what is actually paired and visible, not the raw provider denominator', () => {
+    const wideProviderRow = {
+      sym: 'WIDE',
+      beat_history: [
+        { period: '2026-06-30', actual: 1.0, estimate: 0.9, beat: true, surprise: 11.1 },
+        { period: '2026-03-31', actual: 0.8, estimate: 0.9, beat: false, surprise: -11.1 },
+        { period: '2025-12-31', actual: 0.7, estimate: 0.6, beat: true, surprise: 16.7 },
+        { period: '2025-09-30', actual: 0.6, estimate: 0.6, beat: true, surprise: 0 },
+      ],
+      // 8 next-day moves on record (FMP/AV cap) but only 4 reported quarters
+      // (Finnhub beat_history cap) — only the first 4 moves ever pair.
+      hist_stats: { up_count: 2, total: 8, last_n: [5, -5, 5, -5, 5, -5, 5, -5] },
+    }
+    renderSection({ row: wideProviderRow, reportDate: null })
+    const caps = screen.getByTestId('history-stats')
+    expect(caps.textContent).toMatch(/2\s*\/\s*4/)
+    expect(caps.textContent).not.toMatch(/2\s*\/\s*8/)
+  })
+
+  // F-5: three of the four caption numerals (Avg move, Best, Worst) had no
+  // zero-direction gate — gating any of them on VALUE truthiness instead of
+  // presence would silently blank a genuine 0.0% reading. Two fixtures:
+  // all-flat moves (avgAbs itself lands on exactly 0) and a mixed pair that
+  // puts a real zero at BEST, then WORST, independently.
+  it('renders a real zero average move rather than blanking it', () => {
+    const flatRow = {
+      sym: 'FLAT0',
+      beat_history: [
+        { period: '2026-06-30', actual: 1.0, estimate: 1.0, beat: false, surprise: 0 },
+        { period: '2026-03-31', actual: 0.9, estimate: 0.9, beat: false, surprise: 0 },
+      ],
+      hist_stats: { last_n: [0, 0] },
+    }
+    renderSection({ row: flatRow, reportDate: null })
+    expect(screen.getByTestId('history-stats').textContent).toMatch(/±0\.0%/)
+  })
+
+  it('renders a real zero BEST reaction rather than blanking it', () => {
+    const row0Best = {
+      sym: 'ZBEST',
+      beat_history: [
+        { period: '2026-06-30', actual: 1.0, estimate: 1.0, beat: false, surprise: 0 },
+        { period: '2026-03-31', actual: 0.9, estimate: 1.0, beat: false, surprise: -10 },
+      ],
+      hist_stats: { last_n: [0, -2.0] },   // newest (Q2 26) flat, prior quarter down 2%
+    }
+    renderSection({ row: row0Best, reportDate: null })
+    const caps = screen.getByTestId('history-stats')
+    expect(caps.textContent).toMatch(/BEST/i)
+    expect(caps.textContent).toMatch(/0\.0%/)
+    expect(caps.textContent).toMatch(/-2\.0%/)
+  })
+
+  it('renders a real zero WORST reaction rather than blanking it', () => {
+    const row0Worst = {
+      sym: 'ZWORST',
+      beat_history: [
+        { period: '2026-06-30', actual: 1.0, estimate: 0.9, beat: true, surprise: 11.1 },
+        { period: '2026-03-31', actual: 0.9, estimate: 1.0, beat: false, surprise: -10 },
+      ],
+      hist_stats: { last_n: [2.0, 0] },   // newest (Q2 26) up 2%, prior quarter flat
+    }
+    renderSection({ row: row0Worst, reportDate: null })
+    const caps = screen.getByTestId('history-stats')
+    expect(caps.textContent).toMatch(/WORST/i)
+    expect(caps.textContent).toMatch(/\+2\.0%/)
+    expect(caps.textContent).toMatch(/0\.0%/)
+  })
+
+  // F-6: `eps()`'s negative-sign handling had no fixture with a loss-making
+  // quarter — dropping the sign would silently render a loss as a profit.
+  it('renders a negative EPS with its sign — never shows a loss as a profit', () => {
+    const lossRow = {
+      sym: 'LOSS',
+      beat_history: [
+        { period: '2026-06-30', actual: -0.12, estimate: -0.20, beat: true, surprise: 40 },
+      ],
+      hist_stats: { last_n: [3.0] },
+    }
+    renderSection({ row: lossRow, reportDate: null })
+    const table = screen.getByTestId('history-table')
+    const dataRow = within(table).getAllByRole('row')[1]
+    const cells = within(dataRow).getAllByRole('cell').map((c) => c.textContent.trim())
+    expect(cells[1]).toBe('-$0.12 / -$0.20')
+  })
+
+  // F-7: the REV column's null guard was untested, and `revenue_actual` is
+  // null on EVERY historical row today (Finnhub /stock/earnings carries no
+  // revenue field — see the code comment on `rev()`) — the single column
+  // with zero existing coverage and the dominant risk of a silently-dropped
+  // guard rendering five rows of confident fake $0 revenue.
+  it('renders an em dash for revenue on every history row — never a phantom $0', () => {
+    renderSection()
+    const table = screen.getByTestId('history-table')
+    const revCells = within(table).getAllByRole('row').slice(1)
+      .map((r) => within(r).getAllByRole('cell')[3].textContent.trim())
+    expect(revCells.length).toBeGreaterThan(0)
+    expect(revCells.every((c) => c === '—')).toBe(true)
+    expect(revCells.some((c) => c === '$0M')).toBe(false)
+  })
+
+  // Minor: the table needs a programmatic name — the adjacent EyebrowLabel
+  // ("By quarter") is visually beside it but not associated via aria-*.
+  it('gives the quarterly table a programmatic accessible name', () => {
+    renderSection()
+    const table = screen.getByTestId('history-table')
+    expect(table.getAttribute('aria-label') || table.querySelector('caption')).toBeTruthy()
+  })
 })

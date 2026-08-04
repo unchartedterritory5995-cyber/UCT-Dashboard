@@ -1,4 +1,28 @@
 .wrap { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+/* F-1 (P2 T9 review, IMPORTANT): LollipopChart draws inside an ECharts grid
+   inset `left:44 right:14` (echartsCore.js GRID_BASE) — FIXED pixels, not a
+   percentage, regardless of container width. ReactionBars' own viewBox
+   (0..320) has NO such margin — its bars/baseline span edge-to-edge — so
+   without a matching inset the two quarter axes read ~124px apart on a
+   real canvas (measured on a ~726px-wide section) despite sharing the exact
+   same `quarters` array. Padding this wrapper by the SAME 44/14 makes
+   ReactionBars' rendered content box land in the identical pixel span as
+   LollipopChart's ECharts grid, so index i's quarter sits under index i's
+   lollipop on both charts.
+   `svg { height: auto }` is an ELEMENT selector — CSS Modules hashes CLASS
+   names, not element selectors, so this is not a hashed-class test-oracle
+   trap. It must carry `!important`: ReactionBars sets the SVG's height via
+   an inline `style={{ height }}` (rk-kit/charts/ReactionBars.jsx SIZE
+   default 132px), and an inline style attribute always outranks an external
+   stylesheet rule of equal importance — `height: auto` alone would be a
+   silent no-op. With the fixed 132px height gone, the SVG's own
+   `viewBox`+`preserveAspectRatio="xMidYMid meet"` sizes it to the CONTAINER's
+   width at its true 320:132 aspect ratio instead of letterboxing inside a
+   too-short fixed box. */
+.reactionWrap { padding: 0 14px 0 44px; }
+.reactionWrap svg { height: auto !important; }
+
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-sm); }
 .tableWrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }

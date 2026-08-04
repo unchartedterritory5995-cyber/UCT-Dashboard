@@ -190,7 +190,33 @@ def _fetch_quarterly_history(sym: str) -> list:
     code (yoy_eps_growth, beat_streak, beat_history computation) keeps
     working unchanged. Each item: {reportedDate, fiscalDateEnding,
     reportedEPS, estimatedEPS, surprise, surprisePercentage, reportTime}.
+
+    GUARANTEED newest-first (sorted by reportedDate/fiscalDateEnding
+    descending) — regardless of source. Every consumer treats index 0 as
+    "most recent quarter": the YoY/beat-streak indexing right below in this
+    module (`quarters[0]` vs `quarters[4]`, `quarters[:4]`), and
+    `get_historical_earnings_moves`'s `moves_pct`, which `calendar.py`
+    re-emits verbatim as `hist_stats.last_n`. Before this fix that ordering
+    was an ASSUMPTION, not a guarantee — live-verified newest-first for FMP
+    (the dominant path), but never normalized, so `calendar.py`'s downstream
+    `reversed()` (written for a since-superseded AV-only, oldest-first world)
+    silently flipped `last_n` to oldest-first end-to-end, mispairing every
+    reaction to the wrong quarter (P2 T9 review, CRITICAL). Sorting HERE — the
+    one place every consumer's input funnels through — makes the contract
+    true for both the FMP and the AV-fallback path, instead of true only when
+    FMP happens to answer.
     """
+    def _newest_first(rows: list) -> list:
+        # ISO 'YYYY-MM-DD' strings sort correctly as plain strings. A blank/
+        # unparseable date sorts to '' which — under reverse=True — lands
+        # LAST, never masquerading as "most recent" and never corrupting the
+        # index-0-is-newest contract every consumer relies on.
+        return sorted(
+            rows,
+            key=lambda q: (q.get("reportedDate") or q.get("fiscalDateEnding") or ""),
+            reverse=True,
+        )
+
     import requests as _r
     fmp_key = os.environ.get("FMP_API_KEY", "")
     if fmp_key:
@@ -231,7 +257,7 @@ def _fetch_quarterly_history(sym: str) -> list:
                     except (TypeError, ValueError):
                         continue
                 if out:
-                    return out
+                    return _newest_first(out)
         except Exception as e:
             _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
 
@@ -246,7 +272,7 @@ def _fetch_quarterly_history(sym: str) -> list:
             av_resp = _av_get(_r, av_url, timeout=_AV_TIMEOUT_SECS)
             quarters = av_resp.get("quarterlyEarnings", [])
             if quarters:
-                return quarters
+                return _newest_first(quarters)
         except Exception as e:
             _logger.warning("AV quarterly history failed for %s: %s", sym, e)
 
