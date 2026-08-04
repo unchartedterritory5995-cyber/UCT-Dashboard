@@ -626,7 +626,10 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
 
 def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     """Post-close capture for every symbol reporting within 14 days.
-    Never stores a failure; existing (sym, report_date) rows are kept (first-write-wins)."""
+    Never stores a failure; existing (sym, report_date) rows are kept (first-write-wins).
+    CORRECTION (task-review finding): each reporter iteration MUST be wrapped in its own
+    try/except (log + failed += 1 + continue) — without it one bad symbol aborts the whole
+    nightly batch. Use a direct exists-query for the skip check, not get_implied_history."""
     reporters = upcoming_reporters(days=14, now=now)
     summary = {"captured": 0, "skipped": 0, "failed": 0}
     captured_at = (now or dt.datetime.now()).isoformat(timespec="seconds")
