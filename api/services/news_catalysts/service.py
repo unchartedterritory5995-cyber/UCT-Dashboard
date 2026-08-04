@@ -624,21 +624,26 @@ def _recent_catalysts(sym):
     bars = _daily_bars_since(sym)
     label = f"{sym} stock"
     query = (
-        f"What are the most significant COMPANY-SPECIFIC catalysts or news events for {label} in "
-        f"the PAST 10 DAYS (including today)? Cover deals, strategic investments, M&A, government "
-        f"or regulatory/policy news that materially affects this company or its sector (e.g. an "
-        f"import ban, tariff, or ruling that moves the stock), product launches, major analyst "
-        f"rating or price-target changes, guidance, and notable stake disclosures. Do NOT include "
-        f"routine quarterly earnings reports.\n\n"
+        f"What is DRIVING {label}'s price right now — today and over the past week? Include the "
+        f"very latest breaking news. Cover BOTH company-specific events (deals, investments, M&A, "
+        f"product news, analyst rating/price-target changes, guidance, stake disclosures) AND any "
+        f"SECTOR-WIDE or POLICY/REGULATORY event moving {label} and its peers (e.g. a tariff, an "
+        f"import ban, an export rule, a government or agency ruling — including news reported this "
+        f"morning by outlets like Reuters/Bloomberg). If {sym} is gapping or spiking today, "
+        f"identify exactly why. Do NOT include routine quarterly earnings reports.\n\n"
         f'Return ONLY JSON: {{"catalysts": [{{"date": "YYYY-MM-DD", "title": "<3-7 word headline>", '
         f'"description": "<one factual sentence>", "direction": "up" or "down"}}]}} — up to 6, most '
-        f"recent first. Use the REAL announcement date. Only real, verifiable events with a source."
+        f"recent first. Use the REAL date each was reported. Only real, verifiable events with a source."
     )
-    system = ("You are a financial news researcher. Search the web and output ONLY the requested "
-              "JSON of real, recent, company-relevant catalysts with accurate dates. No preamble.")
+    system = ("You are a real-time financial news researcher. Search the live web (including "
+              "today's breaking headlines) and output ONLY the requested JSON of real, recent "
+              "catalysts — company-specific AND sector/policy events — with accurate dates. No preamble.")
     try:
+        # General web (not just curated finance domains) so a breaking Reuters/Bloomberg
+        # POLICY headline is reachable; recency=week catches today's driver AND the few-day
+        # gap since the cached history was generated.
         res = perplexity_search.web_search(query, max_tokens=1000, system=system, mode="fast",
-                                           recency="week", domain_pack="finance")
+                                           recency="week", domain_pack="general")
     except Exception as exc:
         _logger.warning("news_catalysts recent failed for %s: %s", sym, exc)
         return []
@@ -841,13 +846,16 @@ def debug_web(sym: str) -> dict:
     bars = _daily_bars_since(sym)
     movers = significant_catalysts.rank_big_move_days(bars, top_n=_HIST_TOP_N, direction="both") if bars else []
     items, citation = _web_catalysts(sym, None, bars, movers)
+    recent = _recent_catalysts(sym)          # LIVE recent-layer result (today's drivers)
     return {
         "symbol": sym,
         "web_enabled": _web_enabled(),
+        "recent_enabled": _recent_enabled(),
         "perplexity_key_set": bool(os.environ.get("PERPLEXITY_API_KEY", "").strip()),
         "bars": len(bars),
         "movers": movers[:12],
         "web_items": items,
+        "recent_items": recent,
         "citation": citation,
         "period": HIST_PERIOD,
     }
