@@ -3573,7 +3573,7 @@ describe('HeatGrid', () => {
     // oracle is the data attribute (CheckupRow idiom):
     expect(cells[0].getAttribute('data-tier')).toBe('g3')
     expect(cells[0]).toHaveTextContent('+62.0%')
-    expect(cells[3].className).toMatch(/\br1\b/)
+    expect(cells[3].getAttribute('data-tier')).toBe('r1')
     expect(cells[3]).toHaveTextContent('-3.0%')
   })
 
@@ -3581,7 +3581,7 @@ describe('HeatGrid', () => {
     const { container } = render(<HeatGrid columns={COLUMNS} rows={ROWS} />)
     const last = container.querySelectorAll('[data-testid="rk-heat-cell"]')[7]
     expect(last).toHaveTextContent('—')
-    expect(last.className).not.toMatch(/\b(g1|g2|g3|r1|r2|r3|a)\b/)
+    expect(last.getAttribute('data-tier')).toBe('')
   })
 
   it('keeps cell text in ONE ink — the tint is the only per-cell colour (§3.3)', () => {
