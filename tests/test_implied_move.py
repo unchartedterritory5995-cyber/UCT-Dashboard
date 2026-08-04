@@ -38,3 +38,22 @@ def test_compute_expected_move_returns_none_on_chain_error():
                       return_value={"expirations": ["2026-08-07"]}), \
          patch.object(im.polygon_options, "get_chain", return_value={"error": "no chain data"}):
         assert im.compute_expected_move("TST", "2026-08-06") is None
+
+def test_compute_expected_move_none_on_non_numeric_inputs():
+    weird = _chain()
+    weird["spot"] = "n/a"
+    with patch.object(im.polygon_options, "list_expirations",
+                      return_value={"expirations": ["2026-08-07"]}), \
+         patch.object(im.polygon_options, "get_chain", return_value=weird):
+        assert im.compute_expected_move("TST", "2026-08-06") is None
+
+def test_compute_expected_move_none_on_mismatched_atm_strikes():
+    ch = _chain()
+    ch["puts"][0]["strike"] = 190.0
+    with patch.object(im.polygon_options, "list_expirations",
+                      return_value={"expirations": ["2026-08-07"]}), \
+         patch.object(im.polygon_options, "get_chain", return_value=ch):
+        assert im.compute_expected_move("TST", "2026-08-06") is None
+
+def test_select_report_expiry_malformed_nonempty_date_returns_none():
+    assert im.select_report_expiry(["2026-08-07"], "not-a-date") is None
