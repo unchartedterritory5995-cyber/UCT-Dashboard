@@ -29,7 +29,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v7"   # v7 = per-catalyst focused date verification (accurate dates)
+HIST_PERIOD = "ytd2026_v8"   # v8 = robust date extraction (ISO + natural-language) in verify
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -232,6 +232,36 @@ def _web_catalysts(sym, company, bars, movers):
     return (items or None), None
 
 
+_MONTHS = {m: i + 1 for i, m in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+_ISO_RE = re.compile(r"(20\d\d)-(\d{2})-(\d{2})")
+_MDY_RE = re.compile(
+    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d\d)\b", re.I)
+_DMY_RE = re.compile(
+    r"\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+(20\d\d)\b", re.I)
+
+
+def _extract_iso_date(text):
+    """First date in `text` as YYYY-MM-DD — handles ISO AND natural-language forms
+    ('May 18, 2026', '18 May 2026') so a prose Perplexity answer still yields a date."""
+    if not text:
+        return None
+    m = _ISO_RE.search(text)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    m = _MDY_RE.search(text)
+    if m:
+        mo = _MONTHS.get(m.group(1)[:3].lower())
+        if mo:
+            return f"{m.group(3)}-{mo:02d}-{int(m.group(2)):02d}"
+    m = _DMY_RE.search(text)
+    if m:
+        mo = _MONTHS.get(m.group(2)[:3].lower())
+        if mo:
+            return f"{m.group(3)}-{mo:02d}-{int(m.group(1)):02d}"
+    return None
+
+
 def _verify_dates(sym, company, prelim):
     """Focused Perplexity query per catalyst → its exact YYYY-MM-DD announcement
     date (returns None for that item on failure). Parallel, bounded. Gated by
@@ -245,16 +275,20 @@ def _verify_dates(sym, company, prelim):
     label = f"{sym} ({company})" if company else sym
 
     def _one(p):
-        q = (f'On exactly what calendar date in 2026 was this first ANNOUNCED or reported for '
+        q = (f'On exactly what calendar date was this news FIRST released/announced for '
              f'{label}: "{p["title"]}". {p["raw_desc"]} '
-             f'Answer with ONLY the announcement/press-release/article date in YYYY-MM-DD format '
-             f'— NOT a later date the stock moved. If you cannot determine it, answer NONE.')
+             f'Give the original announcement/press-release/article date (the day the news '
+             f'first broke — NOT a later date the stock moved or a filing "as of" date). '
+             f'Answer with ONLY that date as YYYY-MM-DD. If you cannot determine it, answer NONE.')
         try:
-            res = perplexity_search.web_search(q, max_tokens=100, mode="fast", domain_pack="finance")
+            res = perplexity_search.web_search(q, max_tokens=120, mode="fast", domain_pack="finance")
         except Exception:
             return None
-        m = re.search(r"20\d\d-\d{2}-\d{2}", res.get("answer") or "")
-        return m.group(0) if m else None
+        d = _extract_iso_date(res.get("answer") or "")
+        # Guard against a nonsense parse: keep it within the YTD window.
+        if d and YTD_LO <= d <= _today_iso():
+            return d
+        return None
 
     try:
         from concurrent.futures import ThreadPoolExecutor

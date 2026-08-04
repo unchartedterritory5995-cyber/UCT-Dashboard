@@ -252,6 +252,27 @@ class TestWebGrounding:
         prelim = [{"title": "x", "raw_desc": "y", "rough_date": "2026-01-01", "direction": "up"}]
         assert service._verify_dates("NBIS", None, prelim) == [None]
 
+    def test_extract_iso_date_handles_prose(self):
+        assert service._extract_iso_date("It was announced on May 18, 2026.") == "2026-05-18"
+        assert service._extract_iso_date("Filed 18 March 2026 per the release.") == "2026-03-18"
+        assert service._extract_iso_date("The 2026-03-11 announcement...") == "2026-03-11"
+        assert service._extract_iso_date("Announced March 3rd, 2026") == "2026-03-03"
+        assert service._extract_iso_date("no date here") is None
+
+    def test_verify_dates_parses_natural_language(self, monkeypatch):
+        monkeypatch.setenv("NEWS_VERIFY_DATES", "1")
+        import api.services.perplexity_search as pplx
+        monkeypatch.setattr(pplx, "web_search", lambda q, *a, **k: {"answer": "It was first announced on March 11, 2026."})
+        prelim = [{"title": "Nvidia investment", "raw_desc": "x", "rough_date": "2026-03-03", "direction": "up"}]
+        assert service._verify_dates("NBIS", "Nebius", prelim) == ["2026-03-11"]
+
+    def test_verify_dates_rejects_out_of_window(self, monkeypatch):
+        monkeypatch.setenv("NEWS_VERIFY_DATES", "1")
+        import api.services.perplexity_search as pplx
+        monkeypatch.setattr(pplx, "web_search", lambda q, *a, **k: {"answer": "That happened on 2025-11-02."})
+        prelim = [{"title": "x", "raw_desc": "y", "rough_date": "2026-03-03", "direction": "up"}]
+        assert service._verify_dates("NBIS", None, prelim) == [None]   # pre-2026 rejected → keep rough
+
     def test_web_catalysts_uses_verified_date_over_rough(self, monkeypatch):
         monkeypatch.setenv("NEWS_VERIFY_DATES", "1")
         bars = [
