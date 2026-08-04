@@ -57,27 +57,25 @@ test('gear button opens the settings panel', () => {
   expect(screen.getByTestId('news-settings')).toBeInTheDocument()
 })
 
-test('compact mode: row is click-to-expand with full details; wide shows inline', () => {
+test('very-thin mode: row is click-to-reveal; the reveal is the inline description', () => {
   const orig = global.ResizeObserver
   let cb
   global.ResizeObserver = class {
     constructor(c) { cb = c }
-    observe() { cb([{ contentRect: { width: 300 } }]) }   // narrow → compact
+    observe() { cb([{ contentRect: { width: 300 } }]) }   // < 320 → very-thin
     disconnect() {}
   }
   mockNews = {
     status: 'ready',
     events: [
       { date: '2026-03-10', type: 'earnings', direction: 'up', title: 'Q3 earnings — beat',
-        description: 'EPS 1.2', details: ['EPS 1.20 vs 1.10 est', 'Revenue $40.6B vs $39.9B est', '+8.8% on the report day'],
-        move_pct: 8.8, source: 'earnings' },
+        description: 'EPS 1.20 vs 1.10 est; Revenue $40.6B vs $39.9B est', move_pct: 8.8, source: 'earnings' },
     ],
   }
   render(<Wrap />)
-  // Compact: details hidden until the row is clicked.
-  expect(screen.queryByText('Revenue $40.6B vs $39.9B est')).toBeNull()
+  expect(screen.queryByText(/Revenue \$40\.6B/)).toBeNull()          // hidden until clicked
   fireEvent.click(screen.getByText('Q3 earnings — beat'))
-  expect(screen.getByText('Revenue $40.6B vs $39.9B est')).toBeInTheDocument()
+  expect(screen.getByText(/Revenue \$40\.6B/)).toBeInTheDocument()   // same plain .desc revealed
   global.ResizeObserver = orig
 })
 

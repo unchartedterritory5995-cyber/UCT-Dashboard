@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS news_catalysts (
   move_pct      REAL,               -- signed single-day % move (+ up / - down)
   direction     TEXT,               -- 'up' | 'down'
   sort_order    INTEGER NOT NULL DEFAULT 0,
-  source        TEXT    NOT NULL DEFAULT 'ai',
+  source        TEXT    NOT NULL DEFAULT 'ai',   -- 'web' (web-researched) | 'ai' (from-memory fallback)
+  url           TEXT,               -- top source citation (web-researched catalysts)
   created_at    INTEGER NOT NULL,
   UNIQUE(symbol, period, catalyst_date, title)
 );
@@ -62,13 +63,20 @@ def _init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        # Forward-compat: add new columns to an existing DB (no IF NOT EXISTS on cols).
+        for col, decl in (("url", "TEXT"),):
+            try:
+                c.execute(f"ALTER TABLE news_catalysts ADD COLUMN {col} {decl}")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" not in str(e).lower():
+                    raise
         c.commit()
 
 
 def get_catalysts(symbol: str, period: str) -> list[dict]:
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            "SELECT catalyst_date, title, description, move_pct, direction, sort_order, source "
+            "SELECT catalyst_date, title, description, move_pct, direction, sort_order, source, url "
             "FROM news_catalysts WHERE symbol=? AND period=? "
             "ORDER BY catalyst_date DESC, sort_order",
             (symbol.upper(), period),
@@ -86,7 +94,7 @@ def replace_catalysts(symbol: str, period: str, items: list[dict]) -> None:
             c.execute(
                 "INSERT OR IGNORE INTO news_catalysts "
                 "(symbol, period, catalyst_date, title, description, move_pct, direction, "
-                " sort_order, source, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " sort_order, source, url, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     sym, period,
                     it.get("date") or it.get("catalyst_date"),
@@ -96,6 +104,7 @@ def replace_catalysts(symbol: str, period: str, items: list[dict]) -> None:
                     it.get("direction"),
                     it.get("sort_order", i),
                     it.get("source", "ai"),
+                    it.get("url"),
                     now,
                 ),
             )

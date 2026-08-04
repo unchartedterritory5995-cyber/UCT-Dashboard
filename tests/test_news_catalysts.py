@@ -170,6 +170,52 @@ class TestGeneration:
         assert out["status"] == "ready"                 # no generation attempted
 
 
+class TestWebGrounding:
+    def test_web_research_grounds_and_tags_source_url(self, monkeypatch):
+        _mock_bars(monkeypatch)
+        import api.services.perplexity_search as pplx
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {
+            "answer": "On 2026-01-05 the company signed a major cloud deal that spiked shares.",
+            "citations": ["https://finance.yahoo.com/x", "https://tikr.com/y"],
+        })
+        captured = {}
+
+        def _gen(*a, **k):
+            captured["grounding"] = k.get("grounding")
+            return [{"date": "2026-01-05", "title": "Major cloud deal",
+                     "description": "Signed a big cloud contract.", "move_pct": 99.0, "direction": "up"}]
+
+        monkeypatch.setattr(significant_catalysts, "generate", _gen)
+        service._generate_and_store("NVDA")
+        rows = store.get_catalysts("NVDA", service.HIST_PERIOD)
+        assert len(rows) == 1
+        assert rows[0]["source"] == "web"
+        assert rows[0]["url"] == "https://finance.yahoo.com/x"       # top citation
+        assert rows[0]["move_pct"] == 10.0                          # recomputed from the real bar
+        assert "cloud deal" in (captured["grounding"] or "").lower()  # research fed as grounding
+
+    def test_falls_back_to_ai_when_web_unavailable(self, monkeypatch):
+        _mock_bars(monkeypatch)
+        import api.services.perplexity_search as pplx
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"error": "PERPLEXITY_API_KEY not set", "answer": ""})
+        captured = {}
+
+        def _gen(*a, **k):
+            captured["grounding"] = k.get("grounding")
+            return [{"date": "2026-01-05", "title": "X", "move_pct": 10.0, "direction": "up"}]
+
+        monkeypatch.setattr(significant_catalysts, "generate", _gen)
+        service._generate_and_store("NVDA")
+        rows = store.get_catalysts("NVDA", service.HIST_PERIOD)
+        assert rows and rows[0]["source"] == "ai"                   # no web → from-memory
+        assert captured["grounding"] is None
+
+    def test_web_search_disabled_flag(self, monkeypatch):
+        monkeypatch.setenv("NEWS_WEB_SEARCH_ENABLED", "0")
+        text, url = service._web_research("NVDA", None, [])
+        assert text is None and url is None
+
+
 class TestBreakingHelpers:
     def test_split_headline_allcaps_lead(self):
         head, body = service._split_headline(

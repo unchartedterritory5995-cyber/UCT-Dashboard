@@ -95,7 +95,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     if (!el || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect?.width || el.clientWidth
-      setCompact(w < 360)
+      setCompact(w < 320)   // only the very-thin widget hides detail behind a click
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -172,9 +172,12 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
             const dir = e.direction || 'neutral'
             const dirCls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.neutral
             const key = `${e.type}-${e.date}-${i}`
-            const hasMore = !!(e.description || (e.details && e.details.length) || e.url)
-            const expandable = compact && hasMore
-            const expanded = expandable && expandedKey === key
+            const hasDetail = !!e.description
+            // Only the very-thin widget hides the detail behind a click; every
+            // wider size auto-shows it inline. The revealed text IS the inline
+            // detail — same plain style, no box.
+            const expandable = compact && hasDetail
+            const showDetail = !compact || (expandable && expandedKey === key)
             return (
               <div
                 key={key}
@@ -186,29 +189,15 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
                   <UIcon name={SOURCE_ICON[e.type] || 'bolt'} size={13} />
                 </span>
                 <div className={styles.main}>
-                  {(!compact && e.url)
-                    ? <a className={styles.title} href={e.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>{e.title}</a>
-                    : <span className={styles.title}>{e.title}</span>}
-                  {/* Inline description only when wide (auto-shows more info). */}
-                  {!compact && e.description && <div className={styles.desc}>{e.description}</div>}
+                  <span className={styles.title}>{e.title}</span>
+                  {showDetail && e.description && <div className={styles.desc}>{e.description}</div>}
                   <div className={styles.meta}>
                     <span className={styles.date}>{fmtDate(e.date)}</span>
                     {e.move_pct != null && <span className={`${styles.move} ${dirCls}`}>{fmtMove(e.move_pct)}</span>}
-                    <span className={styles.source}>{e.source}</span>
+                    {e.url
+                      ? <a className={styles.source} href={e.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>{e.source}</a>
+                      : <span className={styles.source}>{e.source}</span>}
                   </div>
-                  {expanded && (
-                    <div className={styles.dropdown}>
-                      {e.details && e.details.length > 0
-                        ? <ul className={styles.dropDetails}>{e.details.map((d, j) => <li key={j}>{d}</li>)}</ul>
-                        : (e.description && <div className={styles.dropText}>{e.description}</div>)}
-                      {e.url && (
-                        <a className={styles.dropLink} href={e.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>Open source ↗</a>
-                      )}
-                      {!(e.details && e.details.length) && !e.description && !e.url && (
-                        <div className={styles.dropEmpty}>No additional details.</div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             )

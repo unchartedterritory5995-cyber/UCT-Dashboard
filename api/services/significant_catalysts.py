@@ -99,9 +99,11 @@ def snap_trading_day(d: str, trading_days: list, day_set: set, *,
     return best if (best is not None and best_diff is not None and best_diff <= 5) else None
 
 
-def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items):
+def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items, grounding=None):
     """(system, prompt) pair. The 'up' branch is byte-identical to Model Book's
-    original so its bullish-only output never changes."""
+    original so its bullish-only output never changes. `grounding` (web-research
+    text) is injected into the 'both' branch so the model structures REAL, sourced
+    catalysts instead of guessing from training memory (post-cutoff periods)."""
     if direction == "up":
         gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
         movers_txt = "\n".join(f"- {m['date']} -> +{m['pct']}%" for m in movers)
@@ -145,10 +147,18 @@ def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, ma
               "single-day moves — both sharp UP moves and sharp DOWN moves — for a trader's "
               "news feed. Be factual and specific to the period. Output JSON only — no "
               "preamble, no fences.")
+    research_block = ""
+    if grounding:
+        research_block = (
+            "WEB RESEARCH (real, sourced findings about this stock's catalysts this period — "
+            "base your catalysts on THIS research; do NOT invent anything it doesn't support):\n"
+            f"{str(grounding).strip()[:6000]}\n\n"
+        )
     prompt = (
         f"Stock: {symbol} ({company or symbol}). Period: {period_label}.\n\n"
         f"The stock's largest single-day MOVES in this period (date -> that day's % move; "
         f"negative = down):\n{movers_txt}\n\n"
+        f"{research_block}"
         f"Identify up to {max_items} COMPANY-SPECIFIC catalysts that drove a notable move in "
         f"{symbol} during this period — INCLUDE BOTH bullish events that spiked it up AND "
         f"negative events that sank it. Aim for good COVERAGE of the period: include the major "
@@ -180,7 +190,7 @@ def _build_prompt(symbol, company, period_label, gain_pct, movers, direction, ma
 
 def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=None,
              model=None, max_items=5, top_n=12, enabled=True, client=None,
-             trading_bounds=None):
+             trading_bounds=None, grounding=None):
     """Claude → list of the period's top catalysts, each anchored to a real
     big-move trading day. Returns None on any failure (caller writes no rows).
 
@@ -205,7 +215,7 @@ def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=No
             client = _get_anthropic_client()
         if client is None:
             return None
-        system, prompt = _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items)
+        system, prompt = _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items, grounding)
         msg = client.messages.create(
             model=model or _DEFAULT_MODEL, max_tokens=900, temperature=0.5,
             system=system, messages=[{"role": "user", "content": prompt}],
