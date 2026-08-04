@@ -1,0 +1,123 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--glass-border-neutral);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--lh-tight);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.date {
+  color: var(--text-muted);
+}
+
+.firm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.grades {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.from {
+  color: var(--text-muted);
+}
+
+.arrow {
+  color: var(--text-muted);
+}
+
+.to {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+/* An explicit wrapper for the VerdictChip so the phone grid-area assignment is
+   a named class, not a fragile :nth-last-child() on a component's output. */
+.action {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.pt {
+  justify-self: end;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.more {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* PHONE — the 5-column grid cannot survive 375px, so the row folds into two
+   lines: date + firm, then grades + action + PT. */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-areas:
+      'date firm'
+      'grades grades'
+      'action pt';
+    row-gap: 4px;
+    padding: var(--space-sm) 0;
+  }
+  .date {
+    grid-area: date;
+  }
+  .firm {
+    grid-area: firm;
+  }
+  .grades {
+    grid-area: grades;
+    white-space: normal;
+  }
+  .action {
+    grid-area: action;
+    justify-self: start;
+  }
+  .pt {
+    grid-area: pt;
+  }
+}
+
+/* TABLET */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .row {
+    grid-template-columns: 78px minmax(0, 1fr) auto auto auto;
+    gap: var(--space-xs);
+  }
+}
