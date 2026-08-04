@@ -53,13 +53,19 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const { prefs, setPref } = usePreferences()
 
   // ── "Place on chart" — one-time action, NOT a toggle ──
-  // Drops the catalyst headline onto the linked chart as an ordinary, EDITABLE
-  // text drawing anchored to its candle (a leader line the drawing overlay draws
-  // + auto-places in blank space). From there it's a normal drawing the user can
-  // move, restyle, or delete — the widget tracks no on/off state. We write straight
-  // to the shared per-symbol drawings store, so every chart on this ticker shows it.
+  // Drops the catalyst onto the linked chart as TWO ordinary, separately editable
+  // drawings: a `text` headline + a `trendline` leader connecting it to the candle
+  // (linked only by a shared calloutId the overlay uses to place them together, then
+  // never again). From there each can be moved, recolored, or deleted on its own —
+  // the widget tracks no on/off state. We write straight to the shared per-symbol
+  // drawings store, so every chart on this ticker shows them. The overlay runs the
+  // Model-Book blank-space search once to position them clear of the candles.
   const drawColor = useMemo(
     () => mergeChartSettings(prefs?.chart_settings)?.drawingDefaults?.color || '#c9a84c',
+    [prefs?.chart_settings],
+  )
+  const drawWidth = useMemo(
+    () => mergeChartSettings(prefs?.chart_settings)?.drawingDefaults?.width || 1,
     [prefs?.chart_settings],
   )
   const [placedKey, setPlacedKey] = useState(null)   // transient "✓ placed" flash
@@ -68,19 +74,33 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const placeOnChart = useCallback((e, rowKey) => {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
+    const cid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `cid-${date}-${Math.round(Date.now() / 1000)}`
+    // Label (headline) — the overlay fills its point via the blank-space search.
     drawingsStore.addDrawing(sym, {
       type: 'text',
       text: e.title,
       color: drawColor,
       fontSize: 13,
-      points: [],                 // filled by the overlay's blank-space auto-placement
-      calloutAnchorTime: date,    // the candle to connect the leader line to
+      points: [],
+      calloutRole: 'label',
+      calloutId: cid,
+      calloutAnchorTime: date,   // candle the placement anchors to
+      calloutAutoPlace: true,
+    })
+    // Leader line — the overlay fills its endpoints (candle → just short of the text).
+    drawingsStore.addDrawing(sym, {
+      type: 'trendline',
+      color: drawColor,
+      lineWidth: drawWidth,
+      points: [],
+      calloutRole: 'line',
+      calloutId: cid,
       calloutAutoPlace: true,
     })
     setPlacedKey(rowKey)
     if (placedTimerRef.current) clearTimeout(placedTimerRef.current)
     placedTimerRef.current = setTimeout(() => setPlacedKey(null), 1400)
-  }, [sym, drawColor])
+  }, [sym, drawColor, drawWidth])
   const settings = useMemo(
     () => mergeNewsWidgetSettings(parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
     [prefs],

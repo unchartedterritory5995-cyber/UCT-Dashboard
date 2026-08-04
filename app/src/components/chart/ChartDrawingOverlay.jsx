@@ -253,29 +253,14 @@ function renderCup(ctx, pts) {
   ctx.stroke()
 }
 
-function renderText(ctx, pts, drawing, opacity = 1, anchorPx = null) {
+function renderText(ctx, pts, drawing, opacity = 1) {
   if (!pts.length || !drawing.text || opacity <= 0.02) return
   const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
   const prevAlpha = ctx.globalAlpha
   ctx.globalAlpha = prevAlpha * opacity
   ctx.font = `${fs}px "Instrument Sans", sans-serif`
-  const lines = drawing.text.split('\n')
-  // Catalyst callout (News widget): a thin diagonal leader line from the anchor
-  // candle to the nearest edge of the text box, drawn UNDER the text so it never
-  // strikes through the words. Only when an on-screen anchor pixel was resolved.
-  if (anchorPx && Number.isFinite(anchorPx.x) && Number.isFinite(anchorPx.y)) {
-    let boxW = 0
-    for (const ln of lines) boxW = Math.max(boxW, ctx.measureText(ln).width)
-    const left = pts[0].x, right = pts[0].x + boxW
-    const top = pts[0].y + fs * 0.35, bottom = pts[0].y + lines.length * fs * 1.3
-    const nx = Math.max(left, Math.min(right, anchorPx.x))
-    const ny = Math.max(top, Math.min(bottom, anchorPx.y))
-    const la = ctx.globalAlpha
-    ctx.globalAlpha = la * 0.85
-    ctx.beginPath(); ctx.moveTo(anchorPx.x, anchorPx.y); ctx.lineTo(nx, ny); ctx.stroke()
-    ctx.globalAlpha = la
-  }
   ctx.fillStyle = ctx.strokeStyle
+  const lines = drawing.text.split('\n')
   lines.forEach((line, i) => {
     ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.3)
   })
@@ -781,12 +766,15 @@ function offsetPoints(points) {
 }
 
 // ─── Catalyst callout auto-placement (News widget) ───────────────────────────
-// A text drawing the News widget drops carries points:[] + calloutAnchorTime +
-// calloutAutoPlace. Pick a blank spot near its candle — the same idea as the Model
-// Book callout overlay: dodge every visible candle AND any callouts already placed —
-// and return { point:{time,price}, anchorLow } for the label's TOP-LEFT. The overlay
-// stores it (clearing calloutAutoPlace), after which it's an ordinary draggable text.
-function placeCalloutPoint({ ctx, bars, toPixel, toChart, nearestIndex, drawings, anchorTime, text, fontSize, plotRight, h, vRange }) {
+// A News-widget catalyst is TWO linked drawings — a `text` label + a `trendline`
+// leader — each independently editable. Both arrive with points:[] + a shared
+// calloutId; the label carries calloutAnchorTime + calloutAutoPlace. This picks a
+// blank spot near the anchor candle (same idea as the Model Book callout overlay:
+// dodge every visible candle AND any callouts already placed) and returns the label
+// box + the anchor pixel; the overlay converts those to chart points for BOTH
+// drawings. Returns null when the anchor candle isn't on screen (placement is
+// deferred until it scrolls in). PIXELS only — the caller does the pixel→chart map.
+function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorTime, text, fontSize, plotRight, h, vRange }) {
   if (!bars?.length) return null
   const ai = nearestIndex(anchorTime)
   if (ai == null || !bars[ai]) return null
@@ -794,10 +782,7 @@ function placeCalloutPoint({ ctx, bars, toPixel, toChart, nearestIndex, drawings
   const hi = b0.h ?? b0.high ?? b0.c
   const lo = b0.l ?? b0.low ?? b0.c
   const aHi = toPixel(b0.t, hi)
-  if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) {
-    // Off-screen candle → simple data-space fallback above the high (no pixel search).
-    return { point: { time: b0.t, price: hi != null ? hi * 1.06 : null }, anchorLow: false }
-  }
+  if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) return null   // candle off-screen → defer
   const anchorX = aHi.x, anchorHiY = aHi.y
   const aLoPx = toPixel(b0.t, lo)
   const anchorLoY = (aLoPx && Number.isFinite(aLoPx.y)) ? aLoPx.y : anchorHiY
@@ -878,14 +863,9 @@ function placeCalloutPoint({ ctx, bars, toPixel, toChart, nearestIndex, drawings
     }
   }
   if (!best) best = { x: Math.max(plotLeft, anchorX - boxW / 2), y: Math.max(4, anchorHiY - 30 - boxH), anchorLow: false }
-  const pt = toChart(best.x, best.y)
-  if (!pt) return null
   return {
-    point: {
-      time: pt.time, price: pt.price,
-      ...(pt.futureBars != null ? { futureBars: pt.futureBars } : {}),
-      ...(pt.paneRelY != null ? { paneRelY: pt.paneRelY } : {}),
-    },
+    rect: { x: best.x, y: best.y, w: boxW, h: boxH },
+    anchorPx: { x: anchorX, y: best.anchorLow ? anchorLoY : anchorHiY },
     anchorLow: best.anchorLow,
   }
 }
@@ -1361,22 +1341,52 @@ export default function ChartDrawingOverlay({
     }
 
     // ── Callout auto-placement (News-widget catalysts) ──
-    // A text drawing dropped by the News widget arrives with empty points +
-    // calloutAutoPlace: pick a blank spot near its candle ONCE (dodging candles),
-    // store it, then it's a normal draggable text drawing. Only on the user-drawings
-    // overlay (updateDrawing present); annotation overlays skip it (NOOP add/update).
-    if (typeof updateDrawing === 'function') {
+    // A catalyst is TWO linked drawings the News widget drops (shared calloutId):
+    // a `text` LABEL (calloutRole 'label' + calloutAnchorTime + calloutAutoPlace)
+    // and a `trendline` LINE ('line'), both with empty points. The label drives ONE
+    // blank-space placement (dodging candles); we then fill BOTH — the label's box
+    // point and the line from the anchor candle to a point that stops a small GAP
+    // short of the text — via updateDrawing (idempotent by id, so N same-symbol
+    // charts can't duplicate). After that they're two ordinary, separately editable/
+    // deletable/colorable drawings. Only on the user-drawings overlay (real updateDrawing).
+    if (typeof updateDrawing === 'function' && typeof toChart === 'function') {
       let vRange = null
       try { vRange = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.() } catch { /* none */ }
+      const asPoint = (p) => p && ({
+        time: p.time, price: p.price,
+        ...(p.futureBars != null ? { futureBars: p.futureBars } : {}),
+        ...(p.paneRelY != null ? { paneRelY: p.paneRelY } : {}),
+      })
       for (const d of drawings) {
-        if (d.type !== 'text' || !d.calloutAutoPlace || d.calloutAnchorTime == null) continue
+        if (d.type !== 'text' || d.calloutRole !== 'label' || !d.calloutAutoPlace || d.calloutAnchorTime == null) continue
         if (d.points && d.points.length) continue
         const res = placeCalloutPoint({
-          ctx, bars, toPixel, toChart, nearestIndex, drawings,
+          ctx, bars, toPixel, nearestIndex, drawings,
           anchorTime: d.calloutAnchorTime, text: d.text, fontSize: d.fontSize || 13,
           plotRight, h, vRange,
         })
-        if (res?.point) updateDrawing(d.id, { points: [res.point], calloutAutoPlace: false, calloutAnchorLow: res.anchorLow }, { record: false })
+        if (!res) continue
+        const ai = nearestIndex(d.calloutAnchorTime); const b = ai != null ? bars[ai] : null
+        if (!b) continue
+        const anchorPrice = res.anchorLow ? (b.l ?? b.low ?? b.c) : (b.h ?? b.high ?? b.c)
+        const { rect, anchorPx } = res
+        // Line end = nearest box edge to the anchor, pulled back a GAP so the line
+        // and the text read as two separate marks with clear space between them.
+        const nx = Math.max(rect.x, Math.min(rect.x + rect.w, anchorPx.x))
+        const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorPx.y))
+        const dx = nx - anchorPx.x, dy = ny - anchorPx.y
+        const len = Math.hypot(dx, dy) || 1
+        const GAP = 14
+        const ex = len > GAP ? nx - (dx / len) * GAP : nx
+        const ey = len > GAP ? ny - (dy / len) * GAP : ny
+        const labelPt = asPoint(toChart(rect.x, rect.y))
+        const endPt = asPoint(toChart(ex, ey))
+        if (!labelPt || !endPt) continue
+        // Fill the label (drop the callout bookkeeping → plain text drawing).
+        updateDrawing(d.id, { points: [labelPt], calloutAutoPlace: false }, { record: false })
+        // Fill the companion line from the candle to just short of the text.
+        const line = drawings.find(x => x.calloutRole === 'line' && x.calloutId === d.calloutId)
+        if (line) updateDrawing(line.id, { points: [{ time: b.t, price: anchorPrice }, endPt], calloutAutoPlace: false }, { record: false })
       }
     }
 
@@ -1444,24 +1454,7 @@ export default function ChartDrawingOverlay({
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
-        case 'text': {
-          // Catalyst callout: resolve the anchor candle's pixel (high, or low for a
-          // down-hung label) so renderText can draw the leader line to it. The anchor
-          // rides the candle by time/price, so it stays glued through pan/zoom and as
-          // the user drags the label around.
-          let anchorPx = null
-          if (d.calloutAnchorTime != null) {
-            const ai = nearestIndex(d.calloutAnchorTime)
-            if (ai != null && bars[ai]) {
-              const b = bars[ai]
-              const price = d.calloutAnchorLow ? (b.l ?? b.low ?? b.c) : (b.h ?? b.high ?? b.c)
-              const ap = toPixel(b.t, price)
-              if (ap && Number.isFinite(ap.x) && Number.isFinite(ap.y)) anchorPx = { x: ap.x, y: ap.y }
-            }
-          }
-          renderText(ctx, pts, d, textOpacity, anchorPx)
-          break
-        }
+        case 'text': renderText(ctx, pts, d, textOpacity); break
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break

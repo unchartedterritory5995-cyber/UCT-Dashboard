@@ -89,26 +89,28 @@ test('date includes the year', () => {
   expect(screen.getByText('Mar 10, 2026')).toBeInTheDocument()
 })
 
-test('place button drops the headline onto the linked chart as an editable text drawing', () => {
+test('place drops TWO separate, linked drawings: a text label + a trendline leader', () => {
   mockNews = { status: 'ready', events: [
     { date: '2026-03-10', type: 'catalyst', direction: 'up', title: 'AI supply deal', move_pct: 12, source: 'web' },
   ] }
   render(<Wrap />)
   fireEvent.click(screen.getByTitle('Place headline on chart'))
-  expect(drawingsStore.addDrawing).toHaveBeenCalledTimes(1)
-  const [sym, d] = drawingsStore.addDrawing.mock.calls[0]
-  expect(sym).toBe('NVDA')
-  expect(d).toMatchObject({
-    type: 'text',
-    text: 'AI supply deal',
-    calloutAnchorTime: '2026-03-10',
-    calloutAutoPlace: true,
-    color: '#c9a84c',       // default drawing color (mergeChartSettings default)
+  expect(drawingsStore.addDrawing).toHaveBeenCalledTimes(2)
+  const [symA, label] = drawingsStore.addDrawing.mock.calls[0]
+  const [symB, line] = drawingsStore.addDrawing.mock.calls[1]
+  expect(symA).toBe('NVDA'); expect(symB).toBe('NVDA')
+  expect(label).toMatchObject({
+    type: 'text', text: 'AI supply deal', calloutRole: 'label',
+    calloutAnchorTime: '2026-03-10', calloutAutoPlace: true, color: '#c9a84c',
   })
-  expect(d.points).toEqual([])   // overlay fills the label point via blank-space search
+  expect(line).toMatchObject({ type: 'trendline', calloutRole: 'line', calloutAutoPlace: true, color: '#c9a84c' })
+  // Linked by a shared id, but two independent drawings; overlay fills their points.
+  expect(label.calloutId).toBeTruthy()
+  expect(line.calloutId).toBe(label.calloutId)
+  expect(label.points).toEqual([]); expect(line.points).toEqual([])
 })
 
-test('place is a one-time action, not a toggle — clicking twice adds two drawings', () => {
+test('place is a one-time action, not a toggle — clicking twice places two catalysts (4 drawings)', () => {
   mockNews = { status: 'ready', events: [
     { date: '2026-03-10', type: 'catalyst', direction: 'up', title: 'AI supply deal', move_pct: 12, source: 'web' },
   ] }
@@ -116,7 +118,7 @@ test('place is a one-time action, not a toggle — clicking twice adds two drawi
   const btn = screen.getByTitle('Place headline on chart')
   fireEvent.click(btn)
   fireEvent.click(btn)
-  expect(drawingsStore.addDrawing).toHaveBeenCalledTimes(2)
+  expect(drawingsStore.addDrawing).toHaveBeenCalledTimes(4)   // 2 drawings × 2 clicks
   // No persistent pressed/toggled state (it's not aria-pressed).
   expect(btn.getAttribute('aria-pressed')).toBeNull()
 })
