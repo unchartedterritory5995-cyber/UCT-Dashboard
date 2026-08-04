@@ -1,0 +1,113 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Row 1 — the floating value label. Its own row, so it can never collide with
+   the fixed end labels (see labelPct's JSDoc). */
+.valueRow {
+  position: relative;
+  height: 15px;
+}
+
+.valueLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  color: var(--text-bright);
+}
+
+/* Row 2 — the track. */
+.track {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--glass-border-neutral);
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  opacity: 0.55;
+}
+
+.marker {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+}
+
+/* Row 3 — the fixed end labels. */
+.endRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.endLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: var(--lh-tight);
+  color: var(--text-muted);
+}
+
+.tonePositive {
+  background: var(--gain);
+}
+.toneNegative {
+  background: var(--loss);
+}
+.toneCaution {
+  background: var(--warn);
+}
+.toneNeutral {
+  background: var(--text-bright);
+}
+.toneGold {
+  background: var(--ut-gold);
+}
+
+/* Band tint is always softer than the marker so the marker stays the focal
+   mark; re-stating opacity here keeps the two channels distinguishable. */
+.band.toneNeutral {
+  background: var(--text-muted);
+  opacity: 0.35;
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .track {
+    height: 6px;
+  }
+  .marker {
+    width: 3px;
+    height: 16px;
+  }
+  .valueRow {
+    height: 17px;
+  }
+}
+
+/* TABLET */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .track {
+    height: 5px;
+  }
+  .marker {
+    height: 14px;
+  }
+}
