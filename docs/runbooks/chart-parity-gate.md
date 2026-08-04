@@ -476,15 +476,17 @@ wrongly-named input key (step 6).
 ### 5.3 What is NOT on this checklist, and where it lives instead
 
 * the **settings-dialog rework** and the generated per-instance dialog — spec §6,
-  **B4**. **Eighteen** ledger regions wait on it (`enumerationSites.test.js`
-  asserts the breakdown `{B4: 18, B5: 8, C: 1, keep: 2, phase: 2}`, so B4 retiring
-  one silently is a red test). ⚠️ **It was twenty until B4's plan re-adjudicated
-  two of them** — `paneMargins.PANES` to **B5** (a layout table B4's own Global
-  Constraints forbid it from modifying: a site a phase may not touch cannot carry
-  that phase's fate) and `indicator_alert_evaluator.INDICATOR_FUNCS` to the new
-  fate **C** (spec §8 rebuilds the evaluator; B4 only collapses its frontend twin
-  into it). The old `{B4: 20, B5: 7, …}` summed to 31 only while a layout table
-  sat in the settings-dialog group;
+  **B4**. The ledger regions waiting on it are the `B4` bucket of
+  `enumerationSites.test.js` → *"the retirement column adds up"*; **read the
+  count there, it is not restated here.** Every B4 task decrements that bucket
+  and every phase-B5 handover moves rows between buckets, so a breakdown copied
+  into this runbook is a control that rots green — which is exactly what the
+  literal that used to sit on this line was. ⚠️ **B4's plan re-adjudicated two of
+  what B3 handed it** — `paneMargins.PANES` to **B5** (a layout table B4's own
+  Global Constraints forbid it from modifying: a site a phase may not touch
+  cannot carry that phase's fate) and `indicator_alert_evaluator.INDICATOR_FUNCS`
+  to the new fate **C** (spec §8 rebuilds the evaluator; B4 only collapses its
+  frontend twin into it);
 * **Flip C**, bands becoming real LWC panes — **B5**, and `paneMargins.PANES`
   retires with it;
 * the `engineEnabled` **settings migration** — unresolved, gated, and numbered:

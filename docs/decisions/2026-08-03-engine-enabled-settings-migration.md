@@ -273,22 +273,43 @@ migrate-and-flip-together; delete the flag at B5.**
 
 **Made failable, not asserted.** `enumerationSites.test.js` → *"creates no
 migrated-but-un-flipped definition while the settings migration is open"* reads
-this file's Status line and both flip sets together, and asserts the PAIR:
-`{stillOpen: true, stranded: []}`. It goes red on the day someone migrates
-without flipping AND this record still says OPEN — which is exactly the pair of
-facts that produces an indicator rendering for nobody. It goes red the other way
-too, and deliberately: **resolving this record's Status without updating the rail
-is also a red test**, because a resolved record is the moment the rail's premise
-has to be re-read rather than the moment it should go quiet. Both halves were
-mutation-proven (M3 migrates `stoch` without flipping it; M4 flips the Status
-line to RESOLVED; both exit 1 under `-t 'no migrated-but-un-flipped'`).
+this file's Status line and both flip sets together and asserts them as one
+object. It goes red on the day someone migrates without flipping AND this record
+still says OPEN — which is exactly the pair of facts that produces an indicator
+rendering for nobody. It goes red the other way too, and deliberately:
+**resolving this record's Status without updating the rail is also a red test**,
+because a resolved record is the moment the rail's premise has to be re-read
+rather than the moment it should go quiet. Both halves are mutation-proven
+(migrate `stoch` without flipping it; flip the Status line to RESOLVED; both
+exit 1 under `-t 'no migrated-but-un-flipped'`).
 
-⚠️ **The two rails on this fact are not redundant, and one run cannot tell them
-apart.** `flipB.test.jsx` asserts the two sets are EQUAL — the double-draw /
-deleted-projection consequence. This one asserts *equal WHILE THE RECORD IS
-OPEN* — the stranded-user consequence. M3 was therefore run twice, with
-`flipB.test.jsx` out of the selection and then in it, so "the rail fires" is a
-measurement of THIS rail and not of the older one standing behind it.
+⚠️ **CORRECTED 2026-08-03 (Task 3). This record previously claimed the two rails
+"are not redundant, and one run cannot tell them apart". The measurement did not
+support it and the claim is withdrawn.** The evidence offered was a double run of
+the migrate-without-flip mutation with `flipB.test.jsx` out of the selection and
+then in it — but the OUT run was `-t`-filtered to this rail's own title, and a
+filtered run can only ever report one test. Like-for-like, both **unfiltered**,
+that mutation fails **four** assertions without `flipB` and **six** with it. This
+rail is one of six, not the one.
+
+**What it does carry that nothing else does.** As shipped in Task 1 the rail was
+*strictly weaker* than the two rails beside it: it fired only when `flipB` or
+`engineEnabledMigration` already fired, while three states fired those and not
+it. Task 3 repaired all three and added the clause that makes it non-redundant:
+
+* the Status match is **isolated to the header line and counted**, so appending a
+  second `**Status:** … OPEN` line can no longer keep it green after the header
+  has been resolved (the old whole-file `RegExp.test` did exactly that);
+* it asserts the **equality in both directions** — `migrated \ flipped` alone was
+  the subset check its own failure message forbade, and the missing direction
+  (flipped-but-not-migrated) is the worse one: the legacy block is deleted and
+  nothing is authorised to replace it;
+* ⭐ it **probes both flip sets for mutability**, which no other rail in the tree
+  does. `Object.freeze(new Set([…]))` does not stop `.add()`, so a runtime
+  `ENGINE_MIGRATED_DEF_IDS.add('stoch')` created the stranded category for real
+  while every static rail read the source and saw nothing. `flipState.js` now
+  seals the mutators; deleting that seal is red **here and green everywhere
+  else** — measured: the pair reports `50 passed`, exit 0, and this rail exits 1.
 
 **B4's baseline, by command.** The branch's prose says "84 chart pytest"; that
 number matches no command — the six-file selection below collects **86** at
@@ -310,7 +331,7 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 **The ledger partition B4 starts from.** A2 re-fated `paneMargins.PANES` to B5
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
-the evaluator). `enumerationSites.test.js` now asserts
-**`{B4: 18, B5: 8, C: 1, keep: 2, phase: 2}`**, `SITE_COUNT = 31`. The old
-`{B4: 20, B5: 7, …}` summed to 31 only while a layout table sat in the
-settings-dialog group.
+the evaluator). That is the decision; the resulting histogram is **not restated
+here**. `enumerationSites.test.js` → *"the retirement column adds up"* asserts it,
+and every B4 task decrements the `B4` bucket, so a number copied into this
+paragraph would be a control that rots green — read it there.

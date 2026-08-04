@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the indicator library dialog and the auto-generated settings UI from spec §6, and retire the twenty enumeration regions Phase B3 handed to B4 — so that adding a sixteenth indicator costs one definition and zero list edits.
+**Goal:** Ship the indicator library dialog and the auto-generated settings UI from spec §6, and retire the enumeration regions Phase B3 handed to B4 (the `B4` bucket of `enumerationSites.test.js` — that assertion is the count; this plan does not carry a second copy of it) — so that adding a sixteenth indicator costs one definition and zero list edits.
 
 **Architecture:** Every list of indicator NAMES in the app becomes a projection of `engine/nativeRegistry.listDefinitions()` through one new derivation module, `chart/indicatorCatalog.js`. Every list of indicator CONTROLS becomes a projection of that definition's declared `inputs[]` through the already-proven `fieldsFromDefinition` (B3 Task 12). Every WRITE keeps routing through the one writer B3 established, `engine/instanceControls.js`, so the new surfaces are not new control doors. **B4 migrates no indicator and flips no indicator** — the four pilots stay the whole migrated set, `ENGINE_FLIPPED_DEF_IDS === ENGINE_MIGRATED_DEF_IDS` holds at every commit, and the open `ENGINE_ENABLED_MIGRATION` decision therefore stays harmless and stays open (§ "Adjudications", below).
 
@@ -172,7 +172,7 @@ Nothing else in any of the six lists changes a character.
 
 Stated once, because it applies to every task and the honest answer is uncomfortable.
 
-`tools/chart_parity.py` drives the headless `/r/chart` route, which mounts `ChartRender`. **That route renders no toolbar, no settings modal, no context menu, no library dialog, and it has no cursor — so it draws no legend chips either.** Eleven of the nineteen regions B4 retires are therefore structurally invisible to it, and the twelfth (the legend) is invisible for the reason `readout.js`'s header already records: a headless capture has no crosshair, so no chip is drawn on either side and the diff is 0 whether the rewrite is right or wrong.
+`tools/chart_parity.py` drives the headless `/r/chart` route, which mounts `ChartRender`. **That route renders no toolbar, no settings modal, no context menu, no library dialog, and it has no cursor — so it draws no legend chips either.** Most of the regions B4 retires are therefore structurally invisible to it — every one that lives in a toolbar, a menu, a modal or the help sheet, and the twelfth (the legend) is invisible for the reason `readout.js`'s header already records: a headless capture has no crosshair, so no chip is drawn on either side and the diff is 0 whether the rewrite is right or wrong.
 
 That does not make the gate optional. Every task in this plan touches at least one module on every chart's render path — `chartDefaults`, `nativeRegistry`, `StockChart`, `readout` — so the 24-case set at **0 changed pixels, 5/5 runs, both build identities named** is this phase's *regression* gate, and its own failability is proven each run by the two standing self-tests:
 
@@ -356,7 +356,7 @@ In §11's `ENGINE_ENABLED_MIGRATION` row, append to the Basis cell: *"**B4 (2026
 
 **Pixels: none, and that claim is checkable.** This task changes tests and documents only. Assert it: `git diff --name-only d2733adc` must contain no path under `app/src` outside `__tests__/`. No bundled byte can move, so no parity run is warranted and running one would only spend an hour proving the harness still works.
 
-**Non-pixel assertions:** the partition equals `{B4: 19, B5: 8, C: 1, keep: 2, phase: 2}`; all 31 anchors still appear exactly once; the discovery scan still finds ≥ 11 modules; the no-stranding rail passes; and both the spec row and the record still carry `ENGINE_ENABLED_MIGRATION` as a **delimited token** (`\bENGINE_ENABLED_MIGRATION\b` — `toContain` is satisfied by `ENGINE_ENABLED_MIGRATION_DRAFT`, which passed 1,626 tests on this branch).
+**Non-pixel assertions:** the partition assertion in `enumerationSites.test.js` is green with `B4` DECREMENTED by the two re-fates and the other four buckets unchanged (⛔ **the expected value is not written here** — this line used to carry `{B4: 19, …}`, which sums to 32 and cannot hold with `SITE_COUNT = 31`; a gate that restates a test's literal is a control that rots, and this one rotted before the task it gates was finished); every anchor still appears exactly once; the discovery scan still finds ≥ 11 modules; the no-stranding rail passes; and both the spec row and the record still carry `ENGINE_ENABLED_MIGRATION` as a **delimited token** (`\bENGINE_ENABLED_MIGRATION\b` — `toContain` is satisfied by `ENGINE_ENABLED_MIGRATION_DRAFT`, which passed 1,626 tests on this branch).
 
 **Mutation gauntlet.** Protocol as in Global Constraints. Selection:
 `src/components/chart/engine/__tests__/enumerationSites.test.js src/components/chart/engine/__tests__/engineEnabledMigration.test.js`
@@ -384,9 +384,12 @@ git commit -m "test(ledger): B4 adjudicates site 15 to B5 and site 18 to C, and 
 
 paneMargins.PANES is a layout table B4 is forbidden from modifying, so it cannot
 carry B4's fate; INDICATOR_FUNCS is a dict of Python closures that spec section 8
-rebuilds in C. Partition {B4:18, B5:8, C:1, keep:2, phase:2}.
+rebuilds in C. The partition is the assertion in enumerationSites.test.js; it is
+not restated here, because every later B4 task decrements its B4 bucket.
 
-The new rail reads the decision record's Status line and both flip sets together,
+The new rail reads the decision record's Status HEADER line (isolated and
+counted) and asserts FLIPPED === MIGRATED in BOTH directions, plus that neither
+set accepts a runtime write,
 so migrating a definition without flipping it while ENGINE_ENABLED_MIGRATION is
 OPEN is a red test rather than an indicator that renders for nobody.
 
@@ -740,7 +743,7 @@ Retires ledger sites: `StockChart.IND_OPTS`, `StockChart.OSC_OPTS`, `StockChart`
 - Modify: `app/src/components/StockChart.jsx:2212` (`IND_OPTS`), `:2223` (`OSC_OPTS`), `:2252-2256` (region title + `i-hide`)
 - Modify: `app/src/components/chart/chartRegion.js:67-78` (delete `INDICATOR_LABELS`)
 - Modify: `app/src/components/chart/ChartToolbar.jsx:483` (`OSC`)
-- Modify: `app/src/components/chart/engine/__tests__/enumerationSites.test.js` (drop 5 sites, `SITE_COUNT` 31 → 26, partition `B4: 14`)
+- Modify: `app/src/components/chart/engine/__tests__/enumerationSites.test.js` (drop 5 sites, `SITE_COUNT` 31 → 26, and decrement the partition's `B4` bucket by the 5 retired — ⛔ this line used to say `B4: 14`, contradicting Step 5 below; **Step 5 is the instruction**, and the test is the authority)
 - Modify: `app/src/components/chart/engine/__tests__/stockChartWiring.test.jsx` (the menu cases)
 - Modify: `app/src/components/chart/chartRegion.test.js` if it references `INDICATOR_LABELS`
 
@@ -2586,7 +2589,7 @@ cd app && npx vitest run src/components/chart/engine/__tests__/enumerationSites.
 `SITE_COUNT = 13`; the partition is `{B5: 8, C: 1, keep: 2, phase: 2}`; every anchor appears exactly once; the discovery scan finds ≥ 4 known modules and no unknown one.
 
 Then update, in the same commit:
-- runbook §5.3 — *"the settings-dialog rework … **B4**. Twenty ledger regions wait on it"* becomes a record of what B4 retired and what is left, and gains **§6, "The B4 surfaces and why the pixel gate cannot see them"**: the parity route mounts no toolbar, no modal, no menu, no dialog and has no cursor, so eleven of the nineteen regions are structurally invisible and the twelfth (the legend) is invisible by the same mechanism as `readout.js`'s header records. Name the DOM suites that ARE the gate.
+- runbook §5.3 — *"the settings-dialog rework … **B4**"* becomes a record of what B4 retired and what is left, carrying **no copy of the partition** (name the test instead), and gains **§6, "The B4 surfaces and why the pixel gate cannot see them"**: the parity route mounts no toolbar, no modal, no menu, no dialog and has no cursor, so every region that lives in one of those surfaces is structurally invisible, and the legend is invisible by the same mechanism as `readout.js`'s header records. Name the DOM suites that ARE the gate.
 - spec §5's enumeration paragraph — the count, what B4 retired, and the two re-fates with their reasons.
 
 - [ ] **Step 7: Mutation gauntlet on the census, and a whole-suite control**
@@ -2626,7 +2629,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Self-review against the spec
 
-**Spec coverage.** §6's surfaces: library dialog (Task 7 — search-first, add-and-stay-open, checkmarks, three entry points, `Sheet` touch mapping, About/blurb, category groups); settings form spec (Task 6 — one input per row, label left/control right, `disabled` renders greyed with a reason, numeric bounds from the definition); the "Manage indicators →" launcher (Task 8, spec's own words). §7 tokens: no new colour literals; the repaint badge is informational-styled, never error-coloured; ≤ 1 gold element. §5's enumeration ledger: all nineteen regions accounted for — eighteen retired, one re-fated (A2), one deferred with reasons (A4). §3.1's `$ref` grammar, §4's compute contract and §9's rel-tol rule are **untouched by construction** — no task changes a compute, a plot style, a colour, a bound or a placement.
+**Spec coverage.** §6's surfaces: library dialog (Task 7 — search-first, add-and-stay-open, checkmarks, three entry points, `Sheet` touch mapping, About/blurb, category groups); settings form spec (Task 6 — one input per row, label left/control right, `disabled` renders greyed with a reason, numeric bounds from the definition); the "Manage indicators →" launcher (Task 8, spec's own words). §7 tokens: no new colour literals; the repaint badge is informational-styled, never error-coloured; ≤ 1 gold element. §5's enumeration ledger: every region B3 handed over is accounted for — retired, re-fated (A2) or deferred with reasons (A4); the arithmetic is the partition assertion's, not this paragraph's (the sentence that used to sit here said "nineteen" and itemised to twenty). §3.1's `$ref` grammar, §4's compute contract and §9's rel-tol rule are **untouched by construction** — no task changes a compute, a plot style, a colour, a bound or a placement.
 
 **Deliberately deferred, with reasons:** spec §6's instance-state inventory items 1/2/4/5/6/10 (loading, refreshing, compute error, server unavailable, premium locked, version-migrated) — every native is `tier: free`, synchronous and local, so five of the six states are unreachable today and building them would be untested scaffolding; they land with the server lane in Phase C. §6's deletion guard ("N alerts use this instance") needs the Phase-C alert engine to know what an instance-bound alert is. §6's sparkline thumbnails and one-click Starter Set — additive, no enumeration retired, no dependency created. Multi-instance ("RSI(7) and RSI(14) at once") — `instanceControls` is per-definition at v1 by design and spec §5 puts per-chart sets in C.
 

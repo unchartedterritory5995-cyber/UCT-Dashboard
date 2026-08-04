@@ -16,8 +16,47 @@
 
 import { normalizeInstances } from './instances'
 
-const EMPTY = Object.freeze(new Set())
-const EMPTY_INPUTS = Object.freeze(new Map())
+/**
+ * A collection that REFUSES a write, which `Object.freeze` does not give you.
+ *
+ * ⛔ `Object.freeze(new Set([…]))` DOES NOT FREEZE THE SET. `Object.isFrozen`
+ * answers `true` and `.add()` / `.delete()` still succeed — a Set's contents
+ * live in an internal slot, not in own properties, so `freeze` seals the wrapper
+ * and nothing else. Measured directly, not assumed:
+ *
+ *     isFrozen: true · add() SUCCEEDED · delete() SUCCEEDED
+ *
+ * That matters here and almost nowhere else, because the two sets below are not
+ * caches — each membership is a SHIPPED decision with a pixel number and a
+ * 24-case parity run behind it. A `ENGINE_MIGRATED_DEF_IDS.add('stoch')` at
+ * module scope creates the stranded category (`docs/decisions/2026-08-03-…`
+ * §4.1) for real, at runtime, and every STATIC rail on this branch reads the
+ * source and sees nothing — worse, an `.add()` inside a function body (a flag
+ * path, a dev branch) is invisible to all of them. Shadowing the three mutators
+ * with own properties and THEN freezing makes the write throw where it happens
+ * instead of one screen away in a chart nobody screenshotted; freezing after the
+ * assignment is what stops the guard itself from being reassigned.
+ *
+ * `enumerationSites.test.js`'s no-stranding rail probes this seal, so deleting
+ * it is a red test rather than a silent return to the old premise.
+ */
+function sealed(collection, mutators) {
+  for (const op of mutators) {
+    collection[op] = () => {
+      throw new TypeError(
+        `flipState: ${op}() on a flip set. Membership is a shipped decision with a parity ` +
+        'number behind it, not runtime state — edit the literal and re-run the gate.',
+      )
+    }
+  }
+  return Object.freeze(collection)
+}
+
+const sealedSet = (ids) => sealed(new Set(ids), ['add', 'delete', 'clear'])
+const sealedMap = (entries) => sealed(new Map(entries), ['set', 'delete', 'clear'])
+
+const EMPTY = sealedSet([])
+const EMPTY_INPUTS = sealedMap([])
 
 /**
  * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw —
@@ -60,7 +99,7 @@ const EMPTY_INPUTS = Object.freeze(new Map())
  * eligibility hook's answer and the timeframe's. A reader that treats this set as
  * a paint list will be wrong on every daily chart from B3 Task 8 onward.
  */
-export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd', 'vwap']))
+export const ENGINE_MIGRATED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap'])
 
 /**
  * THE FLIP-B SET. Definition ids for which the INSTANCE list is the read
@@ -126,7 +165,7 @@ export const ENGINE_MIGRATED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd
  * cannot import from it. `StockChart` re-exports it so the plan's stated
  * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
  */
-export const ENGINE_FLIPPED_DEF_IDS = Object.freeze(new Set(['rsi', 'bb', 'macd', 'vwap']))
+export const ENGINE_FLIPPED_DEF_IDS = sealedSet(['rsi', 'bb', 'macd', 'vwap'])
 
 /**
  * The migrated definitions this settings blob hands to the engine.

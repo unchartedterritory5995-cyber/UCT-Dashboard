@@ -258,6 +258,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
     // while the ledger silently held a site nobody's phase owns.
+    //
+    // ⛔ AND ITS ONE BLIND SPOT, STATED SO IT IS NOT OVER-TRUSTED: this is a
+    // HISTOGRAM. Moving one site B4→B5 fails it (the total is unchanged and the
+    // buckets are not) — but SWAPPING the fates of two sites preserves every
+    // count and passes, demonstrated. Two sites then carry each other's phase and
+    // nothing here says so; the per-site reasoning lives in the comments beside
+    // each entry, and that is what a reviewer has to read. "The retirement column
+    // adds up" means the column adds up, not that every row is in the right one.
     expect(counts).toEqual({ B4: 18, B5: 8, C: 1, keep: 2, phase: 2 })
   })
 
@@ -367,27 +375,83 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   // MIGRATED-but-UN-FLIPPED definition needs `cs.engineEnabled`, NO existing user
   // has it, and flipping the default cannot give it to them — so that definition
   // is engine-drawn for NOBODY. The category is empty today, and B4's
-  // adjudication A1 is that it stays empty. `flipB.test.jsx` asserts the two sets
-  // are EQUAL; this asserts WHY, reads the record's own Status line, and names
-  // the file to open. CLOSING the record is what makes this negotiable — until
-  // then it is not, and a "subset" relaxation turns the rail back into a comment.
+  // adjudication A1 is that it stays empty.
   //
-  // ⚠️ THE ASSERTION IS THE PAIR, not the stranded list. Anchored on the record's
-  // bold `**Status:**` line and not on a bare `OPEN`, because this file contains
-  // the word "OPEN" in prose and a loose match would keep passing after the
-  // record is resolved — which is the moment the rail is supposed to be re-read
-  // rather than the moment it is supposed to go quiet.
+  // ⚠️ WHAT IT IS, AND WHAT IT IS NOT. Three of its four clauses are ALSO caught
+  // by `flipB.test.jsx` (both set directions) and `engineEnabledMigration.test.js`
+  // (the Status line) — measured like-for-like, unfiltered, a migrate-without-flip
+  // fails SIX assertions across three files and this is one of the six. It is kept
+  // for its failure message, for sitting beside the ledger it constrains, and for
+  // the FOURTH clause, which nothing else on this branch carries: the two sets
+  // must refuse a runtime write. Record §10 says exactly this and no more.
+  //
+  // ⚠️ THREE FIXES ARE LOAD-BEARING HERE, each closing a state that passed before:
+  //
+  //   1. THE STATUS LINE IS ISOLATED AND COUNTED. `/\*\*Status:\*\*…\bOPEN\b/.test(md)`
+  //      scans the WHOLE document, so flipping the header to RESOLVED and
+  //      appending any second `**Status:** … OPEN` line below turned this green
+  //      while the decision it guards had been resolved. It also broke this
+  //      file's own "every anchor appears EXACTLY ONCE" convention — and §10,
+  //      added by the same task, already opens `**Status is UNCHANGED: OPEN.**`,
+  //      one character from tripping it. So: split, count, and read the ONE line.
+  //   2. THE PAIR IS AN EQUALITY, IN BOTH DIRECTIONS. `migrated \ flipped === []`
+  //      IS `migrated ⊆ flipped` — it was the subset check its own message
+  //      forbade. The Global Constraint is `FLIPPED === MIGRATED`, and the other
+  //      direction is the worse half: flipped-but-not-migrated means the legacy
+  //      block is DELETED and nothing is authorised to replace it, so the
+  //      indicator vanishes for everyone, not just for the flag-less.
+  //   3. THE SETS ARE PROBED FOR MUTABILITY, not assumed immutable.
+  //      `Object.freeze(new Set())` does not stop `.add()`, so a module-scope
+  //      `ENGINE_MIGRATED_DEF_IDS.add('stoch')` used to create the stranded
+  //      category for real while every static rail read the source and saw
+  //      nothing. `flipState.js` now seals the mutators; this probe is what
+  //      fails if that seal is deleted.
   it('creates no migrated-but-un-flipped definition while the settings migration is open', () => {
     const record = read('docs/decisions/2026-08-03-engine-enabled-settings-migration.md')
-    const stillOpen = /\*\*Status:\*\*[^\n]*\bOPEN\b/.test(record)
-    const stranded = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
-    expect({ stillOpen, stranded },
-      'A definition was migrated without being flipped while ENGINE_ENABLED_MIGRATION is OPEN. ' +
-      'It is engine-drawn ONLY on a chart with cs.engineEnabled === true, and NO stored blob has ' +
-      'that. Either flip it in this same change, or ship the versioned read-time migration FIRST ' +
-      '(record §6 R1a, its own commit, gated from a JSON string) and re-run all 24 parity cases. ' +
-      'Do NOT weaken this assertion to a subset check.',
-    ).toEqual({ stillOpen: true, stranded: [] })
+    // The HEADER occurrence, not "somewhere in the file". `engineEnabledMigration.test.js`
+    // takes the first such line; this additionally refuses a second one, because a
+    // second one is how the first stops being the record's answer.
+    const statusLines = record.split('\n').filter(l => l.startsWith('**Status:**'))
+
+    /** Does this set actually take a write? Restores itself, and THROWS rather
+     *  than leaking a probe id into every case that runs after this one. */
+    const takesAWrite = (name, set) => {
+      const before = [...set].join(',')
+      try { set.add('__seal_probe__') } catch { return null }
+      try { set.delete('__seal_probe__') } catch { /* reported below */ }
+      if ([...set].join(',') !== before) {
+        throw new Error(`${name} accepted a write this probe could not undo — restore it by hand`)
+      }
+      return name
+    }
+
+    expect({
+      statusLines: statusLines.length,
+      stillOpen: statusLines.length === 1 && /\bOPEN\b/.test(statusLines[0]),
+      migratedNotFlipped: [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
+      flippedNotMigrated: [...ENGINE_FLIPPED_DEF_IDS].filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+      mutableSets: [
+        takesAWrite('ENGINE_MIGRATED_DEF_IDS', ENGINE_MIGRATED_DEF_IDS),
+        takesAWrite('ENGINE_FLIPPED_DEF_IDS', ENGINE_FLIPPED_DEF_IDS),
+      ].filter(Boolean),
+    },
+    'FLIPPED === MIGRATED is a Global Constraint and this asserts the EQUALITY, both ways. ' +
+    'migratedNotFlipped: the definition is engine-drawn ONLY on a chart with ' +
+    'cs.engineEnabled === true and NO stored blob has that — flip it in this same change, or ' +
+    'ship the versioned read-time migration FIRST (record §6 R1a, its own commit, gated from a ' +
+    'JSON string) and re-run all 24 parity cases. flippedNotMigrated: the legacy block is gone ' +
+    'and nothing is authorised to replace it — the indicator renders for NOBODY. mutableSets: ' +
+    'a flip set accepted .add() at runtime, which no static rail in this tree can see; restore ' +
+    "flipState.js's seal. statusLines: the record must carry exactly ONE **Status:** line, or " +
+    'this rail is reading a sentence instead of the decision. Do NOT weaken any of these to a ' +
+    'subset check.',
+    ).toEqual({
+      statusLines: 1,
+      stillOpen: true,
+      migratedNotFlipped: [],
+      flippedNotMigrated: [],
+      mutableSets: [],
+    })
   })
 })
 
