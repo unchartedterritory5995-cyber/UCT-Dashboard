@@ -29,7 +29,7 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v9"   # v9 = more-comprehensive recall + real-time recent layer added
+HIST_PERIOD = "ytd2026_v10"  # v10 = drop vague 'moved on optimism' non-catalysts
 YTD_LO = "2026-01-01"
 
 _MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
@@ -112,6 +112,26 @@ def _looks_like_earnings(title, desc):
             or "quarterly result" in blob or "quarterly report" in blob)
 
 
+_VAGUE_MARKERS = (
+    "no company-specific", "no specific news", "no specific catalyst", "no fundamental",
+    "no material news", "no new company", "no clear catalyst", "profit-taking", "profit taking",
+    "took profits", "risk-off", "risk-on", "rotation out", "rotating out", "high-beta",
+    "investor enthusiasm", "growing enthusiasm", "increased optimism", "growing optimism",
+    "renewed optimism", "broad optimism", "general optimism", "sector-specific sentiment",
+    "improved sentiment", "positive sentiment", "momentum names", "aggressive buying",
+    "buying interest", "bargain hunting", "short covering", "increased volatility",
+    "heightened volatility",
+)
+
+
+def _is_vague_move(title, desc):
+    """Drop 'catalysts' that just DESCRIBE a price move with no specific event —
+    'surged on optimism', 'sold off on profit-taking', 'no company-specific news',
+    'high-beta risk-off'. The owner only wants concrete, named catalysts."""
+    blob = f" {title or ''} {desc or ''} ".lower()
+    return any(k in blob for k in _VAGUE_MARKERS)
+
+
 def _shorten(text, limit=240):
     """Trim a long wire-tweet body to ~a couple sentences (the full text stays one
     click away via the source link). Prefers a sentence end, else a word boundary."""
@@ -190,7 +210,7 @@ def _web_catalysts(sym, company, bars, movers):
         raw_desc = (it.get("description") or "").strip()
         if not title or significant_catalysts._is_uncertain(title, raw_desc):
             continue
-        if _looks_like_earnings(title, raw_desc):
+        if _looks_like_earnings(title, raw_desc) or _is_vague_move(title, raw_desc):
             continue
         prelim.append({
             "title": title, "raw_desc": raw_desc,
@@ -622,18 +642,19 @@ def _recent_catalysts(sym):
     except Exception:
         return []
     bars = _daily_bars_since(sym)
-    label = f"{sym} stock"
     query = (
-        f"What is DRIVING {label}'s price right now — today and over the past week? Include the "
-        f"very latest breaking news. Cover BOTH company-specific events (deals, investments, M&A, "
-        f"product news, analyst rating/price-target changes, guidance, stake disclosures) AND any "
-        f"SECTOR-WIDE or POLICY/REGULATORY event moving {label} and its peers (e.g. a tariff, an "
-        f"import ban, an export rule, a government or agency ruling — including news reported this "
-        f"morning by outlets like Reuters/Bloomberg). If {sym} is gapping or spiking today, "
-        f"identify exactly why. Do NOT include routine quarterly earnings reports.\n\n"
+        f"Why is {sym} stock moving today, and what specific news has driven it over the last day "
+        f"or two? Search the live web including this morning's headlines. Name the EXACT catalyst "
+        f"behind any gap or spike — it may be a company event (deal, investment, contract, M&A, "
+        f"product, analyst action, guidance, stake) OR an INDUSTRY / POLICY / REGULATORY development "
+        f"affecting {sym} and its sector (e.g. a tariff, an import/export ban, or a government "
+        f"ruling — such as a report that the U.S. is drafting a ban on Chinese data-center or "
+        f"optical hardware). Do NOT include routine quarterly earnings reports, and do NOT include "
+        f"vague 'moved on optimism/sentiment/profit-taking' items with no concrete catalyst.\n\n"
         f'Return ONLY JSON: {{"catalysts": [{{"date": "YYYY-MM-DD", "title": "<3-7 word headline>", '
-        f'"description": "<one factual sentence>", "direction": "up" or "down"}}]}} — up to 6, most '
-        f"recent first. Use the REAL date each was reported. Only real, verifiable events with a source."
+        f'"description": "<one factual sentence naming the specific catalyst and source>", '
+        f'"direction": "up" or "down"}}]}} — up to 6, most recent first. Use the REAL date each was '
+        f"reported. Only real, verifiable events with a concrete named catalyst and a source."
     )
     system = ("You are a real-time financial news researcher. Search the live web (including "
               "today's breaking headlines) and output ONLY the requested JSON of real, recent "
@@ -665,7 +686,9 @@ def _recent_catalysts(sym):
     for i, it in enumerate(raw[:6]):
         title = (it.get("title") or "").strip()
         raw_desc = (it.get("description") or "").strip()
-        if not title or significant_catalysts._is_uncertain(title, raw_desc) or _looks_like_earnings(title, raw_desc):
+        if not title or significant_catalysts._is_uncertain(title, raw_desc):
+            continue
+        if _looks_like_earnings(title, raw_desc) or _is_vague_move(title, raw_desc):
             continue
         d = str(it.get("date") or "").strip()[:10]
         if not _ISO_RE.match(d) or not (lo <= d <= today):

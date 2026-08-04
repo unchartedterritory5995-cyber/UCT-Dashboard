@@ -236,6 +236,23 @@ class TestWebGrounding:
         assert items[0]["url"].startswith("https://www.google.com/search?q=")
         assert "NBIS" in items[0]["url"]
 
+    def test_is_vague_move_helper(self):
+        assert service._is_vague_move("AAOI surge", "driven by growing investor enthusiasm for AI") is True
+        assert service._is_vague_move("Selloff", "no company-specific fundamental news") is True
+        assert service._is_vague_move("High-beta risk-off", "rotating out of momentum names") is True
+        assert service._is_vague_move("Meta cloud deal", "signed a multi-year cloud contract") is False
+
+    def test_web_catalysts_drops_vague_moves(self, monkeypatch):
+        import api.services.perplexity_search as pplx
+        answer = ('{"catalysts": ['
+                  '{"date": "2026-01-06", "title": "AAOI shares surge 16.9%", '
+                  '"description": "Shares jumped amid growing investor enthusiasm for AI plays.", "direction": "up"},'
+                  '{"date": "2026-01-05", "title": "Meta cloud deal", '
+                  '"description": "Signed a real multi-year contract.", "direction": "up"}]}')
+        monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": []})
+        items, _ = service._web_catalysts("AAOI", None, _BARS, None)
+        assert [it["title"] for it in items] == ["Meta cloud deal"]   # vague optimism dropped
+
     def test_web_catalysts_excludes_earnings(self, monkeypatch):
         import api.services.perplexity_search as pplx
         answer = ('{"catalysts": ['
