@@ -728,6 +728,8 @@ router = APIRouter(prefix="/api/research", tags=["research"])
 def expected_move(sym: str, report_date: str | None = Query(default=None),
                   user=Depends(get_current_user)):
     live = implied_move.get_expected_move(sym, report_date)
+    # CORRECTION (task-review finding): the history read MUST degrade to [] on any
+    # store error (unreadable/corrupt DB) — never 500 the endpoint; live still serves.
     history = implied_store.get_implied_history(sym, limit=8)
     return {
         "live": live,
