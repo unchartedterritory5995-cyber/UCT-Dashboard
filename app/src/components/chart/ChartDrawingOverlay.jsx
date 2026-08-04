@@ -780,12 +780,12 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   if (ai == null || !bars[ai]) return null
   const b0 = bars[ai]
   const hi = b0.h ?? b0.high ?? b0.c
-  const lo = b0.l ?? b0.low ?? b0.c
+  const op = b0.o ?? b0.open ?? b0.c
   const aHi = toPixel(b0.t, hi)
   if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) return null   // candle off-screen → defer
   const anchorX = aHi.x, anchorHiY = aHi.y
-  const aLoPx = toPixel(b0.t, lo)
-  const anchorLoY = (aLoPx && Number.isFinite(aLoPx.y)) ? aLoPx.y : anchorHiY
+  const aOpPx = toPixel(b0.t, op)                       // the leader STARTS at the candle open
+  const openY = (aOpPx && Number.isFinite(aOpPx.y)) ? aOpPx.y : anchorHiY
 
   ctx.save()
   ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
@@ -846,35 +846,45 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   const overlapsObstacle = (x, y, bw, bh) =>
     obstacles.some(o => !(x + bw < o.x - 6 || o.x + o.w < x - 6 || y + bh < o.y - 4 || o.y + o.h < y - 4))
 
-  const DIRS = [{ dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: 1, dy: 1 }]
-  const DISTS = [22, 30, 42, 58, 78, 104, 136, 176]
+  // Build a SMOOTH ~45° leader (owner ask): put the headline attach point on a 45°
+  // ray from the candle open, then derive the box from it. `right` = the box sits
+  // left of the candle so the leader meets the headline's RIGHT edge (and vice-versa).
+  // Take the nearest such placement that clears candles + other labels.
+  const fs = fontSize
+  const SQRT2 = Math.SQRT2
+  const DIRS = [
+    { sx: -1, sy: -1, right: true },   // up-left (preferred)
+    { sx: 1, sy: -1, right: false },   // up-right
+    { sx: -1, sy: 1, right: true },    // down-left
+    { sx: 1, sy: 1, right: false },    // down-right
+  ]
+  const DISTS = [46, 62, 82, 106, 134, 168, 206]   // leader length along the 45° ray
   const BLOCKED = 1e6
   let best = null, bestCost = Infinity
   for (const dist of DISTS) {
     for (const dr of DIRS) {
-      const anchorY = dr.dy > 0 ? anchorLoY : anchorHiY   // down-labels hang off the low
-      const tx = anchorX + dr.dx * dist
-      const ty = anchorY + dr.dy * dist
-      let x = dr.dx > 0 ? tx : tx - boxW
-      let y = dr.dy < 0 ? ty - boxH : ty
+      const step = dist / SQRT2
+      const attachX0 = anchorX + dr.sx * step
+      const headY0 = openY + dr.sy * step
+      let x = dr.right ? attachX0 - firstLineW : attachX0   // box x from the attach side
+      let y = headY0 - fs * 0.9                             // headline near the box top
       x = Math.max(plotLeft, Math.min(pRight - boxW, x))
       y = Math.max(4, Math.min(priceBottom - boxH, y))
-      const nx = Math.max(x, Math.min(x + boxW, anchorX))
-      const ny = Math.max(y, Math.min(y + boxH, anchorY))
-      let cost = Math.hypot(nx - anchorX, ny - anchorY)
-      cost += (dr.dy < 0 ? -8 : 0) + (dr.dx < 0 ? -6 : 0)   // gentle top-left lean on ties
-      if (Math.abs(nx - anchorX) < 6 || Math.abs(ny - anchorY) < 6) cost += 4000   // force a real diagonal
+      // Attach point recomputed from the (possibly clamped) box so scoring is honest.
+      const ax = dr.right ? x + firstLineW : x
+      const hy = y + fs * 0.9
+      let cost = Math.hypot(ax - anchorX, hy - openY)       // leader length (≈ dist)
+      cost += (dr.sy < 0 ? -10 : 0) + (dr.sx < 0 ? -6 : 0)  // prefer up + left on ties
       if (hitsCandles(x, y, boxW, boxH)) cost += BLOCKED
-      if (lineHitsCandles(anchorX, anchorY, nx, ny)) cost += BLOCKED
+      if (lineHitsCandles(anchorX, openY, ax, hy)) cost += BLOCKED
       if (overlapsObstacle(x, y, boxW, boxH)) cost += BLOCKED
-      if (cost < bestCost) { bestCost = cost; best = { x, y, anchorLow: dr.dy > 0 } }
+      if (cost < bestCost) { bestCost = cost; best = { x, y } }
     }
   }
-  if (!best) best = { x: Math.max(plotLeft, anchorX - boxW / 2), y: Math.max(4, anchorHiY - 30 - boxH), anchorLow: false }
+  if (!best) best = { x: Math.max(plotLeft, anchorX - firstLineW - 60), y: Math.max(4, openY - 60 - fs) }
   return {
     rect: { x: best.x, y: best.y, w: boxW, h: boxH },
-    anchorPx: { x: anchorX, y: best.anchorLow ? anchorLoY : anchorHiY },
-    anchorLow: best.anchorLow,
+    anchorPx: { x: anchorX, y: openY },   // the leader anchors at the candle OPEN
     firstLineW,
   }
 }
@@ -1377,7 +1387,7 @@ export default function ChartDrawingOverlay({
         if (!res) continue
         const ai = nearestIndex(d.calloutAnchorTime); const b = ai != null ? bars[ai] : null
         if (!b) continue
-        const anchorPrice = res.anchorLow ? (b.l ?? b.low ?? b.c) : (b.h ?? b.high ?? b.c)
+        const anchorPrice = b.o ?? b.open ?? b.c   // leader STARTS at the candle open
         const { rect, anchorPx } = res
         const fs = d.fontSize || 13
         const labelPt = asPoint(toChart(rect.x, rect.y))
