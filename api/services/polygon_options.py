@@ -151,10 +151,15 @@ def get_chain(ticker: str, expiration: str = "",
         url = f"{_BASE}/v3/snapshot/options/{api_sym}"
         pages = 0
         while url and pages < 8:  # 8 × 250 = 2000 contracts — beyond any single-expiry chain
-            data = _safe_get(url, params=params)
+            if pages == 0:
+                data = _safe_get(url, params=params)
+            else:
+                sep = "&" if "?" in url else "?"
+                r = _http.get(f"{url}{sep}apiKey={_api_key()}", timeout=_TIMEOUT)
+                r.raise_for_status()
+                data = r.json()
             results.extend(data.get("results") or [])
             url = data.get("next_url")
-            params = None  # next_url embeds the cursor + original params
             pages += 1
     except RuntimeError as e:
         return {"error": str(e)}
