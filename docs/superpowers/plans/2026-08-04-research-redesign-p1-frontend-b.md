@@ -3568,7 +3568,10 @@ describe('HeatGrid', () => {
   it('tints each cell by tier and ALWAYS shows the signed number', () => {
     const { container } = render(<HeatGrid columns={COLUMNS} rows={ROWS} />)
     const cells = container.querySelectorAll('[data-testid="rk-heat-cell"]')
-    expect(cells[0].className).toMatch(/\bg3\b/)
+    // CORRECTION (Task 6 fix round 2): className regexes are the WRONG seam —
+    // vitest scopes module classes (_g3_hash) so \b regexes fail; the semantic
+    // oracle is the data attribute (CheckupRow idiom):
+    expect(cells[0].getAttribute('data-tier')).toBe('g3')
     expect(cells[0]).toHaveTextContent('+62.0%')
     expect(cells[3].className).toMatch(/\br1\b/)
     expect(cells[3]).toHaveTextContent('-3.0%')
