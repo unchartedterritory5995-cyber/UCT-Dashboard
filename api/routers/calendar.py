@@ -1976,6 +1976,29 @@ _ENRICH_ACQUIRE_TIMEOUT = 8.0
 _ENRICH_EM_POOL = _TPE(max_workers=4, thread_name_prefix="cal-em")
 
 
+def _cutover_on() -> bool:
+    """spec §6: the calendar's expected-move switches off the delayed yfinance
+    straddle onto the in-house Massive chain. Read at CALL time so the flag can
+    be flipped (and tested) without a module reload. Default OFF."""
+    return os.environ.get("IMPLIED_ENRICHMENT_CUTOVER") == "1"
+
+
+def _inhouse_move(sym: str, target: str) -> dict | None:
+    """In-house straddle mapped into the calendar-enrichment shape.
+
+    ROUNDING IS LOAD-BEARING: the outgoing yfinance builder rounded pct to 1dp
+    and `pages/calendar/CalendarDayTable.jsx:87` prints `±${pct}%` with no
+    formatter, so an unrounded float renders ±6.234567891%. FE readers of
+    `expected_move` were swept — only `.pct` is consumed anywhere, so the
+    call_mark→call_mid field rename rides along harmlessly.
+    """
+    from api.services import implied_move as _im
+    out = _im.get_expected_move(sym, target)
+    if not out:
+        return None
+    return {**out, "pct": round(out["pct"], 1), "dollar": round(out["dollar"], 2)}
+
+
 def _bounded_em(fn, timeout: float = 15.0):
     """Run an implied-move callable with a hard timeout on the dedicated pool.
     Returns None on timeout or any exception (the calling thread is freed)."""
@@ -2103,10 +2126,13 @@ def _build_enrichment_for_date(target: str) -> dict:
         hist = None
         hist_stats = None
         if not is_past:
-            # _bounded_em: a hung yfinance option-chain call frees this worker
-            # after the timeout instead of pinning it (524-outage class), on a
-            # pool ISOLATED from yf_util's shared one.
-            move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
+            # _bounded_em: a hung chain call frees this worker after the timeout
+            # instead of pinning it (524-outage class), on a pool ISOLATED from
+            # yf_util's shared one. BOTH branches ride it.
+            if _cutover_on():
+                move = _bounded_em(lambda s=sym: _inhouse_move(s, target))
+            else:
+                move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None

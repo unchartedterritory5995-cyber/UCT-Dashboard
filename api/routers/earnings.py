@@ -219,8 +219,26 @@ def earnings_intel(ticker: str):
 
 @router.get("/api/earnings-analysis/{sym}")
 @limiter.limit("10/minute")
-def earnings_analysis(request: Request, sym: str):
+def earnings_analysis(request: Request, sym: str, cached_only: bool = False):
     sym = sym.upper()
+
+    # §4.3.3 / §7: arrow-key stepping across a 40-name day must never auto-fire
+    # the LLM path. `cached_only=1` answers ONLY from the two cache keys the
+    # generators write and returns `cached: false` instead of generating — the
+    # Brief section then renders a "Generate brief" affordance. This branch does
+    # no provider work at all, which is what makes it safe to fire on every step.
+    if cached_only:
+        for key in (f"earnings_analysis_v2_{sym}", f"earnings_preview_v2_{sym}"):
+            hit = cache.get(key)
+            if hit:
+                return {**hit, "cached": True}
+        return {
+            "sym": sym, "cached": False,
+            "analysis": None, "analysis_headline": None, "analysis_summary": None,
+            "analysis_bullets": [], "preview_text": "", "preview_bullets": [],
+            "beat_history": [], "yoy_eps_growth": None, "beat_streak": None,
+            "news": [], "key_quotes": [],
+        }
 
     # Find the earnings row for this sym (provides context to the analysis).
     # Search today's bmo/amc first, then fall back to the weekly calendar for
