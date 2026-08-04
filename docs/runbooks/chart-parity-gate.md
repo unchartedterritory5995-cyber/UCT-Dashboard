@@ -558,6 +558,200 @@ column above is which one.
 
 ---
 
+## 7. The declared-diff gate — what B5 uses instead of zero
+
+Every gate in this runbook up to here has been `changed <= tolerance` with
+`tolerance == 0`. **B5's cutover turns the indicator bands into real LWC panes,
+so it changes the picture by construction** and that sentence stops being
+available for the one commit that does it.
+
+**A `--tolerance` cannot replace it, and raising one is not the move.** A budget
+passes anything under the budget — so it also passes the *next* change of the
+same size, silently, forever after; and it cannot say *where* the change landed,
+which is the only question that matters when the intended change is "the
+oscillator strip moved and the price pane did not". `--tolerance` stays what it
+has always been on this branch: an escape that needs a written reason.
+
+Four mechanisms replace it. Each one is failable, and each one's failure was
+driven before it was believed.
+
+### 7.1 `expect` — an EQUALITY, on every run
+
+```jsonc
+{ "name": "macd_headmask", "expect": 88 }
+```
+
+```bash
+python tools/chart_parity.py --base-a $A --base-b $B --cases macd_headmask --repeat 20
+python tools/chart_parity.py --base-a $A --base-b $B --cases rsi_only --expect 1004   # one-off
+```
+
+* **It is `==`, not `<=`.** A diff *smaller* than the declared number **fails**.
+  That is the whole difference: a tolerance of 88 passes 87, and 87 means the
+  change that was signed off is not the change that happened.
+* **It is every run, not the worst.** Variance is itself a failure, because a
+  number that moves is a number nobody can sign off. `clean_runs` counts against
+  the *same* predicate as the verdict, so `flake_bound_95` can never again be
+  computed from runs the verdict rejected.
+* It is not new physics — it is the mechanism that already priced two decisions
+  by hand, promoted into a field: the **MACD head-mask at 88 px** and the **VWAP
+  session anchor at 2,590 px**, both 20/20 runs with zero variance.
+* `--expect N` and `--tolerance > 0` are **mutually exclusive** and the tool
+  refuses the pair. One is a declared, measured, signed-off number; the other is
+  an allowance. A run carrying both has a verdict nobody can state.
+
+A case with an `expect` reads `= N` in `report.md`'s table; a case without one
+still reads `<= N`. **Adding an `expect` to a case is a decision that needs a
+measurement behind it**, the same way a `toleranceReason` does.
+
+### 7.2 `regions` — and a `rest` bucket nobody can declare
+
+```jsonc
+"regions": [
+  { "name": "price_top",       "box": [0,   0, 1200, 391], "expect": 0 },
+  { "name": "rsi_band",        "box": [0, 391, 1200, 460], "expect": 0 },
+  { "name": "volume_and_axis", "box": [0, 460, 1200, 620], "expect": 0 }
+]
+```
+
+* Region counts come from **the same mask the headline number came from**, so
+  they cannot disagree with it.
+* **`rest` is every changed pixel outside every declared rectangle.** It is
+  COMPUTED, by mask subtraction — not `changed - sum(regions)`, which goes
+  *negative* the moment two rectangles overlap — and a case **may not declare
+  it** (`validate_regions` refuses the name). Its expectation is always 0. That
+  is the entire reason the region gate cannot be gamed: a cutover that moves a
+  pixel into a rectangle nobody named lands in `rest` and fails.
+* Three more refusals, for the same reason a zero-area check exists at all: a
+  **duplicate name**, a **zero-area box**, and a **box that falls off the
+  canvas** (Pillow pads a crop past the edge with black, which counts as
+  *unchanged* — so an off-canvas region under-reports forever instead of
+  failing).
+* **A region without `expect` is measured and reported but not gated.** That is
+  how a new rectangle gets its number before anyone signs off on it. The moment
+  any region in the block declares an expectation, the block is gated and `rest`
+  is gated with it.
+
+⚠️ **A case that gains a `regions` block loses nothing.** The headline `changed`
+is still whole-canvas and still reported, and the case's own verdict against
+`tolerance`/`expect` is unchanged. Regions add a **second, finer** verdict; they
+never replace the first.
+
+**MEASURE A BOUNDARY, DO NOT GUESS IT.** `rsi_only`'s three rectangles above were
+found by perturbing one thing at a time and reading the changed-pixel bounding
+box out of the diff — `candles.upColor` → 1,894 px in `y[164,391)`,
+`indicators.rsi.color` → 1,004 px in `y[391,454)`, `volume.upColor` → 32,327 px
+in `y[469,572)` — which is what makes `y=391` the exact row where the candles
+stop and the RSI band starts. **And the split was then proven to discriminate:**
+re-running those two perturbations WITH the regions declared reports
+`{price_top: 1894, rsi_band: 0}` and `{price_top: 0, rsi_band: 1004}`. A
+rectangle that has never been shown to separate anything is decoration.
+
+```bash
+# how those boundaries were measured — one perturbation, one bounding box
+python tools/chart_parity.py --base-a $A --same-build --dist-a $D --dist-b $D \
+    --cases rsi_only --perturb-b '{"candles": {"upColor": "#1ae51b"}}' --out /tmp/ink
+python - <<'PY'
+from PIL import Image, ImageChops
+a = Image.open('/tmp/ink/a/rsi_only.png').convert('RGB')
+b = Image.open('/tmp/ink/b/rsi_only.png').convert('RGB')
+r, g, bl = ImageChops.difference(a, b).split()
+m = ImageChops.lighter(ImageChops.lighter(r, g), bl).point(lambda p: 255 if p else 0)
+print(m.getbbox())            # (x0, y0, x1, y1) of everything that moved
+PY
+```
+
+⚠️ **The rectangles in `rsi_only` are TODAY's band boundaries, not the
+cutover's.** The RSI band is a `scaleMargins` band *inside* pane 0 and it sits
+**above** the volume pane; at Flip C it becomes a real pane *below* volume, so
+those rows move and `price_plot` becomes one rectangle instead of two. **B5 Task
+11 re-prices every rectangle** against the cutover geometry and writes the
+per-region `expect`s the owner signs off on. The arithmetic that keeps
+`price_plot` at **absolute 0** is pane 0's margins re-expressed as fractions of
+*pane 0's* height, with the separator budget taken out of the **oscillators** —
+never out of pane 0.
+
+### 7.3 The pane manifest — geometry asserted structurally, not inferred
+
+A screenshot can say the picture changed. It cannot say the **pane count**
+changed, and it cannot tell *"the RSI band moved down 4 px"* from *"the RSI
+series moved to pane 1 and pane 0 shrank"*. So the page publishes what it built
+and the harness diffs the two sides as normalised JSON, into
+`report.json`'s `manifest_a` / `manifest_b` / `manifest_diff`.
+
+🔑 **A change that moves pixels but not the manifest, or the manifest but not
+pixels, is a regression by definition: one of the two is lying.** Both
+directions are gated, and the asymmetry between them is deliberate:
+
+| direction | when it fails | declaration needed |
+|---|---|---|
+| the manifest moved, **0 pixels** did | always | none — a pane layout that differs and paints identically did not happen |
+| pixels moved, the manifest is **identical** | when the case declares `"expectManifestChange": true` | yes — a colour perturbation legitimately moves pixels with unchanged geometry |
+| the case declares `expectManifestChange` and **no manifest was published** | always | — otherwise the sharpest assertion in B5 goes vacuous the moment the page stops publishing |
+
+**A missing manifest is not an error.** Nothing publishes one today, so every
+case reads `null` on both sides and `manifest_diff` is `[]` — a pass, which is
+what keeps the 44-case zero intact. `read_manifest` swallows the read: raising
+would abort a 20-run measurement at run 13 with nothing written down.
+
+**What the page must expose, and where.** `ChartRender.jsx`, in fixed-bars
+(parity) mode only, immediately **before** it sets `window.__chartReady = true`:
+
+```js
+window.__paneManifest = {
+  chartHeight: 620,          // px, the chart container
+  separatorPx: 1,
+  paneMode: 'bands',         // 'bands' | 'panes' — which layout produced this
+  panes: [
+    { index: 0, height: 460, stretchFactor: 1,
+      series: [ { id: 'candles',   type: 'Candlestick', paneIndex: 0, priceScaleId: 'right' },
+                { id: 'rsi:line',  type: 'Line',        paneIndex: 0, priceScaleId: 'rsi'   } ] },
+  ],
+}
+```
+
+Three things about that object are load-bearing:
+
+* **JSON-serialisable, no functions and no cycles** — it crosses a browser
+  boundary through `page.evaluate`.
+* **`id` must be stable and derived from the pool key / instance id**, never from
+  object identity or an array index. An id that changes per render turns every
+  diff into noise and the gate into a coin flip.
+* **`panes` sorted by index; `series` in INSERTION ORDER within a pane.** Order
+  is meaning here — LWC paints by insertion, so a reordered `series` list is a
+  z-order change and the diff is right to report it. `manifest_diff` walks dicts
+  by sorted key (key order across a browser boundary is not ours to trust) and
+  lists by position (position *is* the claim).
+
+### 7.4 What each one costs you if you get it wrong
+
+Each row is a mutation that was actually applied and the check that turned red;
+none of them is hypothetical.
+
+| break this | and this fails |
+|---|---|
+| `outside = ImageChops.subtract(mask, covered)` → `outside = mask` | `test_overlapping_regions_do_not_double_count_into_rest`, `test_region_counts_split_the_same_mask…` — ⚠️ NOT `test_rest_is_computed…`, whose single changed pixel is outside every region and reads 1 either way |
+| `rest` by arithmetic (`changed - sum(regions)`) | `test_overlapping_regions_do_not_double_count_into_rest` (it goes to −1) |
+| the `name == "rest"` refusal | `test_declaring_a_region_named_rest_is_refused` |
+| the zero-area refusal | `test_a_zero_area_region_is_refused` |
+| `expect` as `<=` instead of `==` | `test_expect_is_an_EQUALITY_and_a_smaller_diff_fails_too` |
+| `expect` on the worst run instead of every run | `test_expect_demands_zero_variance_across_every_run` — ⚠️ only because that case varies a run **downward** (87 against an expect of 88). Written with 89 alone it was **not lethal**: the deviating run *was* the worst one, so a worst-run check caught it by accident and the test was gating something weaker than its name |
+| the region-expectation loop | `test_a_region_expectation_fails_the_case_even_when_the_total_matches` |
+| `read_manifest`'s `except` → `raise` | `test_a_case_with_regions_but_no_manifest_still_reports…` |
+| `manifest_diff` returning `[]` unconditionally | `test_manifest_diff_names_the_pane_that_moved` |
+| either manifest cross-check | `test_the_MANIFEST_moving_while_no_pixel_moves_is_a_failure`, `test_PIXELS_moving_while_the_manifest_says_nothing_did…` |
+
+```bash
+PYTHONIOENCODING=utf-8 PYTHONDONTWRITEBYTECODE=1 \
+  python -m pytest tests/test_chart_parity_harness.py -q
+```
+
+`PYTHONDONTWRITEBYTECODE=1` is not decoration: a same-size mutation applied
+within one second of the last one imports the PREVIOUS mutation's `.pyc` and the
+gauntlet grades the wrong file.
+
+---
+
 ## Which build am I measuring? — the four refusals
 
 Every number this tool prints is a claim about a specific build, and until
