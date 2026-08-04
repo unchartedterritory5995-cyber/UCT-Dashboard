@@ -19,6 +19,23 @@ describe('quarterLabel', () => {
     expect(quarterLabel(null)).toBe('')
     expect(quarterLabel('garbage')).toBe('')
   })
+
+  // Requirement 3 (P2 T8b) — off-calendar fiscal year. AAPL's fiscal Q1 ends
+  // in December, so a period end of 2025-12-27 is fiscal Q1 2026 by AAPL's own
+  // calendar, NOT "Q4 25" (what the period-end-only derivation above would
+  // say). The provider's own quarter/year must win when present.
+  it('labels an off-calendar fiscal year from the providers own quarter/year, not the period end', () => {
+    expect(quarterLabel('2025-12-27', 1, 2026)).toBe('Q1 26')
+    // Same period end, no provider fields: falls back to the (here, WRONG for
+    // an off-calendar filer) calendar derivation — demonstrates exactly why
+    // the provider fields must be preferred when available.
+    expect(quarterLabel('2025-12-27')).toBe('Q4 25')
+  })
+
+  it('ignores a partial provider pair (only one of quarter/year present) and falls back', () => {
+    expect(quarterLabel('2025-12-27', 1, null)).toBe('Q4 25')
+    expect(quarterLabel('2025-12-27', null, 2026)).toBe('Q4 25')
+  })
 })
 
 describe('buildQuarters', () => {
@@ -83,8 +100,12 @@ describe('buildQuarters', () => {
 
   it('emits every field of the frozen row shape', () => {
     const rows = buildQuarters({ beatHistory, histStats, reportDate: '2026-08-06', row })
+    // fiscal_year/fiscal_quarter (P2 T8b) are an ADDITIVE extension of the
+    // frozen shape — the provider's own fiscal identity, carried so a client
+    // can pair a past row against its implied snapshot without report_date.
     expect(Object.keys(rows[0]).sort()).toEqual([
       'drift_pct', 'eps_actual', 'eps_estimate', 'eps_estimate_high', 'eps_estimate_low',
+      'fiscal_quarter', 'fiscal_year',
       'gap_pct', 'period_end', 'quarter', 'reaction_pct', 'report_date', 'reported',
       'revenue_actual', 'revenue_estimate', 'revenue_surprise_pct', 'session', 'surprise_pct',
     ])
@@ -202,5 +223,64 @@ describe('buildQuarters — no report date', () => {
     expect(rows).toHaveLength(beatHistory.length)
     expect(rows.every((r) => r.reported)).toBe(true)
     expect(rows.map((r) => r.quarter)).toEqual(['Q3 25', 'Q4 25', 'Q1 26', 'Q2 26'])
+  })
+})
+
+// P2 T8b — the fiscal key carried onto every historical row: what
+// ImpliedVsRealized.pairQuarters pairs on instead of report_date.
+describe('buildQuarters — fiscal key (P2 T8b)', () => {
+  it('carries the period_end and the fiscal key as DISTINCT fields, and leaves report_date null', () => {
+    const oneQuarter = [
+      { period: '2026-06-30', actual: 0.91, estimate: 0.88, surprise: 3.4, quarter: 2, year: 2026 },
+    ]
+    const rows = buildQuarters({
+      beatHistory: oneQuarter, histStats: { last_n: [4.1] }, reportDate: null, row: {},
+    })
+    expect(rows[0].period_end).toBe('2026-06-30')
+    expect(rows[0].fiscal_quarter).toBe(2)
+    expect(rows[0].fiscal_year).toBe(2026)
+    // The true announcement date isn't in this source (only the period end
+    // is) — leaving it null, not silently filled with the period end, is
+    // the whole point of this task (DECISION 3).
+    expect(rows[0].report_date).toBeNull()
+  })
+
+  // Requirement 3, end-to-end through buildQuarters (quarterLabel is
+  // exercised directly above; this proves the full row gets it too).
+  it('off-calendar fiscal year: period end 2025-12-27 with quarter=1/year=2026 labels Q1 26, not Q4 25', () => {
+    const oneQuarter = [
+      { period: '2025-12-27', actual: 1.91, estimate: 1.85, surprise: 3.2, quarter: 1, year: 2026 },
+    ]
+    const rows = buildQuarters({
+      beatHistory: oneQuarter, histStats: { last_n: [2.0] }, reportDate: null, row: {},
+    })
+    expect(rows[0].quarter).toBe('Q1 26')
+  })
+
+  it('fiscal_year/fiscal_quarter: a genuine 0 survives; an explicit null stays null (not phantom 0)', () => {
+    const zeroFiscal = [{ ...beatHistory[0], quarter: 0, year: 0 }]
+    const reportedZero = buildQuarters({
+      beatHistory: zeroFiscal, histStats: { last_n: [1.0] }, reportDate: '2026-08-06', row,
+    })
+    expect(reportedZero[0].fiscal_quarter).toBe(0)
+    expect(reportedZero[0].fiscal_year).toBe(0)
+
+    const nullFiscal = [{ ...beatHistory[0], quarter: null, year: null }]
+    const reportedNull = buildQuarters({
+      beatHistory: nullFiscal, histStats: { last_n: [1.0] }, reportDate: '2026-08-06', row,
+    })
+    expect(reportedNull[0].fiscal_quarter).toBeNull()
+    expect(reportedNull[0].fiscal_year).toBeNull()
+  })
+
+  it('a beatHistory row with no quarter/year at all (older source shape) leaves the fiscal key null', () => {
+    const noFiscal = [{ period: '2026-06-30', actual: 0.91, estimate: 0.88, surprise: 3.4 }]
+    const rows = buildQuarters({
+      beatHistory: noFiscal, histStats: { last_n: [4.1] }, reportDate: null, row: {},
+    })
+    expect(rows[0].fiscal_quarter).toBeNull()
+    expect(rows[0].fiscal_year).toBeNull()
+    // Falls back to the period-end derivation for the label.
+    expect(rows[0].quarter).toBe('Q2 26')
   })
 })

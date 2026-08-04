@@ -87,6 +87,89 @@ describe('pairQuarters — fiscal-quarter identity (P2 T8b regression)', () => {
   })
 })
 
+// Requirement 4 — a snapshot recorded BEFORE this task (no fiscal_year/
+// fiscal_quarter column populated) must still pair via the report_date
+// fallback, so real accrued history captured before this ships is never
+// orphaned.
+describe('pairQuarters — report_date fallback for a pre-migration snapshot (Requirement 4)', () => {
+  it('pairs via report_date equality when neither side carries a fiscal key', () => {
+    const quarters = [
+      { quarter: 'Q4 25', report_date: '2025-11-05', reported: true, reaction_pct: -3.0 },
+    ]
+    const impliedHistory = [{ report_date: '2025-11-05', pct: 7.5 }]  // pre-migration row
+    const pairs = pairQuarters(quarters, impliedHistory, null)
+    expect(pairs[0].impliedPct).toBe(7.5)
+  })
+
+  it('falls back to report_date when the history row has a fiscal key but the stored snapshot does not', () => {
+    const quarters = [
+      { quarter: 'Q4 25', report_date: '2025-11-05', reported: true, reaction_pct: -3.0,
+        fiscal_year: 2025, fiscal_quarter: 4 },
+    ]
+    const impliedHistory = [{ report_date: '2025-11-05', pct: 7.5 }]  // no fiscal key yet
+    const pairs = pairQuarters(quarters, impliedHistory, null)
+    expect(pairs[0].impliedPct).toBe(7.5)
+  })
+})
+
+describe('pairQuarters — fiscal key phantom-zero guard', () => {
+  it('a genuine 0 fiscal_quarter/fiscal_year still pairs — 0 is not "absent"', () => {
+    const quarters = [{ quarter: 'Q0 00', report_date: null, reported: true, reaction_pct: 1.0,
+                         fiscal_year: 0, fiscal_quarter: 0 }]
+    const impliedHistory = [{ report_date: '2026-01-01', pct: 3.3, fiscal_year: 0, fiscal_quarter: 0 }]
+    expect(pairQuarters(quarters, impliedHistory, null)[0].impliedPct).toBe(3.3)
+  })
+
+  it('a null fiscal key never coerces to 0 and so never collides with a genuine 0 on the other side', () => {
+    const quarters = [{ quarter: 'Q?', report_date: null, reported: true, reaction_pct: 1.0,
+                         fiscal_year: null, fiscal_quarter: null }]
+    const impliedHistory = [{ report_date: '2026-01-01', pct: 3.3, fiscal_year: 0, fiscal_quarter: 0 }]
+    expect(pairQuarters(quarters, impliedHistory, null)[0].impliedPct).toBeNull()
+  })
+})
+
+// Requirement 2 — impliedVerdict (the RICH/CHEAP chip) requires 3 fully-paired
+// PAST quarters. Before this task that bar was structurally unreachable for
+// any real accrued history (report_date never matched); the fiscal key makes
+// it reachable.
+describe('impliedVerdict — reachable via fiscal-key pairing (Requirement 2)', () => {
+  const beatHistory = [   // newest-first, as Finnhub returns it
+    { period: '2026-06-30', actual: 0.95, estimate: 1.00, surprise: -5.0, quarter: 2, year: 2026 },
+    { period: '2026-03-31', actual: 0.80, estimate: 0.75, surprise: 6.7, quarter: 1, year: 2026 },
+    { period: '2025-12-31', actual: 0.70, estimate: 0.65, surprise: 7.7, quarter: 4, year: 2025 },
+  ]
+  const histStats = { last_n: [2.0, -1.5, 3.0] }  // newest-first realized reactions
+  // Snapshots keyed on the ANNOUNCEMENT date (weeks after each period end
+  // above) — exactly the shape that never paired before this task.
+  const impliedHistory = [
+    { report_date: '2026-07-30', pct: 6.0, fiscal_year: 2026, fiscal_quarter: 2 },
+    { report_date: '2026-04-29', pct: 5.5, fiscal_year: 2026, fiscal_quarter: 1 },
+    { report_date: '2026-01-28', pct: 5.0, fiscal_year: 2025, fiscal_quarter: 4 },
+  ]
+
+  it('three past quarters pair fully via the fiscal key, and impliedVerdict returns a chip', () => {
+    const quarters = buildQuarters({ beatHistory, histStats, reportDate: null, row: {} })
+    const pairs = pairQuarters(quarters, impliedHistory, null)
+    expect(pairs).toHaveLength(3)
+    expect(pairs.every((p) => p.impliedPct != null && p.realizedPct != null)).toBe(true)
+    expect(impliedVerdict(pairs, null)).not.toBeNull()
+  })
+
+  it('renders the RICH/CHEAP chip in the hero once three past quarters pair', () => {
+    const quarters = buildQuarters({ beatHistory, histStats, reportDate: null, row: {} })
+    render(
+      <ImpliedVsRealized
+        quarters={quarters}
+        impliedHistory={impliedHistory}
+        live={null}
+        historySince="2025-10-01"
+        recordedCount={impliedHistory.length}
+      />,
+    )
+    expect(screen.getByText(/PREMIUM (RICH|CHEAP)/)).toBeInTheDocument()
+  })
+})
+
 describe('coldStartState (§4.3.1a)', () => {
   it('is cold under three recorded implied quarters and captions honestly', () => {
     const pairs = pairQuarters(QUARTERS.slice(3), IMPLIED.slice(0, 1), LIVE)

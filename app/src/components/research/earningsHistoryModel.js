@@ -22,6 +22,19 @@
 // PRICE REACTION, not the EPS print; the print is carried by the banner result
 // line and the History table. Cost: LollipopChart draws that quarter dashed on
 // print night. Accepted; P4 fixes it with independent flags.
+//
+// DECISION 3 (P2 T8b) — `report_date` AND `period_end` ARE NOT THE SAME
+// CONCEPT AND MUST NOT COLLAPSE. `beat_history` (Finnhub /stock/earnings)
+// gives only the fiscal PERIOD END (e.g. `2026-06-30`); the true announcement
+// date (`api/services/implied_store.py` keys its snapshots on it) is 2-8
+// weeks later and isn't in this source. A past row therefore carries
+// `period_end` but leaves `report_date: null` — filling it with the period
+// end is exactly the bug that made `pairQuarters` unable to ever match a real
+// implied snapshot. Pairing instead rides `fiscal_year`/`fiscal_quarter` —
+// Finnhub's own fiscal identifiers, present on BOTH /stock/earnings and
+// /calendar/earnings and verified live to agree for the same event — carried
+// on every row below. `report_date` equality remains `pairQuarters`' fallback
+// for a snapshot recorded before this task (no fiscal key yet).
 
 const num = (v) => {
   // Number(null) === 0 — a bare Number()+isFinite check turns every missing
@@ -37,8 +50,19 @@ const dayKey = (d) => {
   return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null
 }
 
-/** '2026-06-30' -> 'Q2 26'. Calendar-fiscal assumption, same as the Model Book. */
-export function quarterLabel(iso) {
+/**
+ * '2026-06-30' -> 'Q2 26'. Calendar-fiscal derivation, same as the Model Book —
+ * the FALLBACK when the provider's own `quarter`/`year` aren't available.
+ *
+ * When `quarter`/`year` ARE passed (Finnhub's own fiscal identifiers, present
+ * on both /stock/earnings and /calendar/earnings — verified live to agree for
+ * the same event), they win outright. This is what makes an off-calendar
+ * fiscal year (AAPL: fiscal Q1 ends in December) label correctly — the
+ * period-end derivation below would call a December-ending quarter "Q4",
+ * which is wrong for AAPL's actual fiscal Q1.
+ */
+export function quarterLabel(iso, quarter, year) {
+  if (quarter != null && year != null) return `Q${quarter} ${String(year).slice(-2)}`
   const k = dayKey(iso)
   if (!k) return ''
   const [y, m] = k.split('-')
@@ -53,6 +77,10 @@ function emptyRow(overrides) {
     eps_actual: null, surprise_pct: null,
     revenue_estimate: null, revenue_actual: null, revenue_surprise_pct: null,
     reaction_pct: null, gap_pct: null, drift_pct: null,
+    // The provider's own fiscal identity (Finnhub quarter/year) — the pairing
+    // key ImpliedVsRealized.pairQuarters uses instead of report_date equality
+    // (P2 T8b). null when the source row didn't carry it.
+    fiscal_year: null, fiscal_quarter: null,
     ...overrides,
   }
 }
@@ -62,16 +90,28 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   const moves = Array.isArray(histStats?.last_n) ? histStats.last_n : []
 
   // Both sources are newest-first; build newest-first, then reverse ONCE.
-  const past = hist.map((h, i) => emptyRow({
-    quarter: quarterLabel(h?.period),
-    report_date: dayKey(h?.period),
-    period_end: dayKey(h?.period),
-    reported: true,
-    eps_estimate: num(h?.estimate),
-    eps_actual: num(h?.actual),
-    surprise_pct: num(h?.surprise),
-    reaction_pct: num(moves[i]),
-  })).reverse()
+  const past = hist.map((h, i) => {
+    const fiscalYear = num(h?.year)
+    const fiscalQuarter = num(h?.quarter)
+    return emptyRow({
+      quarter: quarterLabel(h?.period, fiscalQuarter, fiscalYear),
+      // `h.period` (Finnhub /stock/earnings) is the fiscal PERIOD END, not the
+      // announcement date — `report_date` and `period_end` are semantically
+      // different concepts (see the module comment above). The true
+      // announcement date for an already-reported quarter isn't in this
+      // source, so report_date stays null rather than being filled with the
+      // period end (that collapse is the P2 T8b bug this guards against).
+      report_date: null,
+      period_end: dayKey(h?.period),
+      fiscal_year: fiscalYear,
+      fiscal_quarter: fiscalQuarter,
+      reported: true,
+      eps_estimate: num(h?.estimate),
+      eps_actual: num(h?.actual),
+      surprise_pct: num(h?.surprise),
+      reaction_pct: num(moves[i]),
+    })
+  }).reverse()
 
   const rd = dayKey(reportDate)
   if (!rd && !past.length) return []

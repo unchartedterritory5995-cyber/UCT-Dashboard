@@ -33,9 +33,25 @@ const dayKey = (d) => {
 }
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length
 
+// The provider's own fiscal identity (Finnhub quarter/year — present on both
+// /stock/earnings and /calendar/earnings, verified live to agree for the same
+// event) as a Map key. null when either side is missing so a row with no
+// fiscal key never accidentally collides with another (e.g. two rows both
+// missing the field would otherwise both key as "null:null").
+const fiscalKey = (fy, fq) => (fy != null && fq != null ? `${fy}:${fq}` : null)
+
 /**
- * Pairs earnings-history rows (realized) with implied snapshots (expectation)
- * on `report_date`, oldest-first.
+ * Pairs earnings-history rows (realized) with implied snapshots (expectation),
+ * oldest-first.
+ *
+ * PAIRING KEY (P2 T8b): the provider's fiscal identity (`fiscal_year` +
+ * `fiscal_quarter`) when BOTH sides carry it — a history row's `report_date`
+ * is usually unknown for an already-reported quarter (see
+ * earningsHistoryModel.js DECISION 3), so date equality alone can never match
+ * real accrued history. `report_date` string equality is kept as the
+ * FALLBACK so a snapshot recorded before this task (no fiscal key yet) still
+ * pairs, and so the CURRENT quarter — whose `report_date` IS the real
+ * announcement date — keeps working exactly as before.
  *
  * Both payloads arrive exactly as their endpoints return them:
  *   quarters       — GET /api/research/earnings-history/{sym}, oldest-first
@@ -46,17 +62,27 @@ const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length
  */
 export function pairQuarters(quarters, impliedHistory, live) {
   const byDate = new Map()
+  const byFiscal = new Map()
   for (const row of impliedHistory || []) {
+    const pct = num(row?.pct)
     const k = dayKey(row?.report_date)
     // First write wins: the store's own first-write-wins rule already makes the
     // earliest snapshot the honest pre-report one.
-    if (k && !byDate.has(k)) byDate.set(k, num(row?.pct))
+    if (k && !byDate.has(k)) byDate.set(k, pct)
+    const fk = fiscalKey(num(row?.fiscal_year), num(row?.fiscal_quarter))
+    if (fk && !byFiscal.has(fk)) byFiscal.set(fk, pct)
   }
 
   return (quarters || []).map((q, i) => {
     const k = dayKey(q?.report_date)
+    const qfk = fiscalKey(num(q?.fiscal_year), num(q?.fiscal_quarter))
     const isCurrent = q?.reported === false
-    let impliedPct = k && byDate.has(k) ? byDate.get(k) : null
+    let impliedPct = null
+    if (qfk && byFiscal.has(qfk)) {
+      impliedPct = byFiscal.get(qfk)
+    } else if (k && byDate.has(k)) {
+      impliedPct = byDate.get(k)
+    }
     if (impliedPct == null && isCurrent) impliedPct = num(live?.pct)
     return {
       key: q?.quarter ?? String(i),
