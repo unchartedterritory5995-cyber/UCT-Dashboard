@@ -104,8 +104,14 @@ const LEDGER = [
     anchor: 'const legChips = [', fate: 'B4' },
 
   // ── StockChart's control doors ───────────────────────────────────────────
-  { file: 'app/src/components/StockChart.jsx', region: 'handleCopyShareUrl — the share link',
-    anchor: 'const handleCopyShareUrl = useCallback(', fate: 'B4' },
+  // ⭐ RETIRED BY B4 TASK 5. `handleCopyShareUrl` hand-listed exactly the four B3
+  // pilots, so "Copy chart link" SILENTLY DROPPED every other indicator — a link
+  // shared from a chart with Stochastic and ATR on arrived with neither, and
+  // nothing said so. The callback still exists (it is the share door, not a list),
+  // but it enumerates nothing: `catalogRows()` supplies the keys and
+  // `isIndicatorEnabled` supplies each answer. Like `i-hide` at Task 3, it stops
+  // being a region a new indicator has to be edited into, which is what this
+  // ledger counts. Proven gone in `RETIRED_BY_B4_TASK5`.
   // ⭐ THE LEDGER'S #13 WAS UNDER-ENUMERATED THREE WAYS, AND B4 TASK 4 RETIRED
   // ALL FOUR OF ITS REGIONS. It named "Ctrl+I / Ctrl+O" — two shortcuts, one
   // file. There are FOUR indicator chords (Ctrl+I rsi, Ctrl+O macd, Ctrl+B bb,
@@ -299,6 +305,27 @@ const RETIRED_BY_B4_TASK8 = [
   ['an inline indicators[key] write', /indicators\s*:\s*\{[^}]*\[\s*key\s*\]/g],
 ]
 
+/** What B4 TASK 5 RETIRED: the share link's four hand-written pilot rows.
+ *
+ *  ⚠️ A REGEX SHAPE, NOT A LITERAL, AND THE REVIEWER'S FINDING IS WHY. Task 3's
+ *  `RETIRED_BY_B4` demanded a literal string be absent, and reintroducing the
+ *  eight-entry list with ONLY THE SPACES AROUND `=` REMOVED left it green. These
+ *  tolerate arbitrary whitespace, and the shape they match — `<id>: { enabled:` —
+ *  is the one a hand-written per-indicator row in a state object has to wear
+ *  whatever it is called.
+ *
+ *  ⛔ AND THE STRONGER GUARD IS BEHAVIOURAL, NOT HERE. `stockChartWiring.test.jsx`
+ *  asserts the ENCODED key set equals `catalogRows()`' id set, which no
+ *  reintroduction can satisfy while dropping a section. This one catches the
+ *  other half — a hand-written list of ALL fifteen, which would encode the right
+ *  keys and still be a second source of truth. */
+const RETIRED_BY_B4_TASK5 = [
+  ['rsi', /\brsi\s*:\s*\{\s*enabled\s*:/g],
+  ['macd', /\bmacd\s*:\s*\{\s*enabled\s*:/g],
+  ['bb', /\bbb\s*:\s*\{\s*enabled\s*:/g],
+  ['vwap', /\bvwap\s*:\s*\{\s*enabled\s*:/g],
+]
+
 /** What the B4 ALERT-CATALOG task retired (`0d0d4c93`), proven retired rather
  *  than merely unlisted. Two of the five names it deleted are the ledger's own
  *  anchors; the other three (`OSCILLATOR_CONDITIONS`, `THRESHOLD_CONDITIONS`,
@@ -347,8 +374,11 @@ const RETIRED_BY_B4_ALERTS = [
 /** …and 19 → 18 for the voice bus (`e427a09b`), landed by the same parallel
  *  wave. Two retirements in this commit are not this wave's own work; both are
  *  recorded because the ledger's number is only worth something if it moves with
- *  the CODE, whoever wrote it. */
-const SITE_COUNT = 18
+ *  the CODE, whoever wrote it.
+ *
+ *  18 → 17 at B4 Task 5: `handleCopyShareUrl`'s four hand-written pilot rows.
+ *  Nothing is added — the callback survives and enumerates nothing. */
+const SITE_COUNT = 17
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -392,7 +422,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('the retirement column adds up — 4 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('the retirement column adds up — 3 to B4, 8 to B5, 1 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -405,7 +435,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // nothing here says so; the per-site reasoning lives in the comments beside
     // each entry, and that is what a reviewer has to read. "The retirement column
     // adds up" means the column adds up, not that every row is in the right one.
-    expect(counts).toEqual({ B4: 4, B5: 8, C: 1, keep: 3, phase: 2 })
+    expect(counts).toEqual({ B4: 3, B5: 8, C: 1, keep: 3, phase: 2 })
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -481,6 +511,31 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // the backend site that now owns the naming is still on the ledger, fate C.
     expect(src).toContain('useIndicatorAlertCatalog')
     expect(read('api/services/indicator_alert_evaluator.py')).toContain('INDICATOR_FUNCS')
+  })
+
+  it('⭐ and the share link no longer hand-lists the four pilots', () => {
+    const src = read('app/src/components/StockChart.jsx')
+    const back = RETIRED_BY_B4_TASK5
+      .filter(([, re]) => [...src.matchAll(re)].length !== 0)
+      .map(([what]) => what)
+    expect(back,
+      'the share link is enumerating indicators again. It derives from `catalogRows()` and ' +
+      'answers through `isIndicatorEnabled`; a hand-list here means a recipient silently loses ' +
+      'every indicator the list forgot — which is exactly what it did for Stochastic and ATR.',
+    ).toEqual([])
+    // …and the replacement is really there, reading through the ONE list and the
+    // ONE reader.
+    expect(src).toContain('indicators: Object.fromEntries(catalogRows().map((row) => [')
+    expect(src).toContain("isIndicatorEnabled(cs, row.id, ENGINE_FLIPPED_DEF_IDS)")
+    // ⛔ AND THE PATTERNS STILL MATCH SOMETHING. Four zeroes above are the
+    // EXPECTED answer, which makes a broken regex indistinguishable from a
+    // retired region — so each one is run against the shape it is supposed to
+    // find, including the whitespace-stripped variant that defeated Task 3's
+    // literal-string guard.
+    const PROBE = "{ rsi: { enabled: true }, macd:{enabled:false}, bb : { enabled : x }, vwap:\t{\tenabled: y } }"
+    for (const [what, re] of RETIRED_BY_B4_TASK5) {
+      expect([...PROBE.matchAll(re)].length, `${what}'s retirement pattern matches nothing at all`).toBe(1)
+    }
   })
 
   it('⭐ and the four keyboard regions B4 Task 4 retired are GONE too', () => {

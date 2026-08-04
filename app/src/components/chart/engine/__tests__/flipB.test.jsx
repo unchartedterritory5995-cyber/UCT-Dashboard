@@ -374,10 +374,29 @@ describe('Flip B — the control surfaces write instances', () => {
     expect(rsiSeries(), 'it came back on refresh — the tombstone did not persist').toHaveLength(0)
   })
 
-  it('the alert popover still lists RSI, because the mirror is written', () => {
-    // `IndicatorAlertPopover` reads its own INDICATORS list and the evaluator
-    // reads `cs.indicators`. Neither knows about instances, and neither should
-    // have to for the pilot pair to flip.
+  it('the legacy mirror moves with the instance, in both directions', () => {
+    // ⛔ THIS NOTE WAS WRONG TWICE, AND THE ASSERTIONS WERE FINE — corrected at B4
+    // rather than deleted, because a comment that states a false REASON is the
+    // same rot class as a doc quoting a test's expected literal.
+    //
+    // It used to read: "`IndicatorAlertPopover` reads its own INDICATORS list and
+    // the evaluator reads `cs.indicators`."
+    //   1. THE LIST IS GONE. B4's alert-catalog task (`0d0d4c93`) deleted the
+    //      popover's `INDICATORS`/`CONDITIONS`; it fetches
+    //      `GET /api/indicator-alerts/catalog`, derived from the evaluator.
+    //   2. **THE POPOVER NEVER READ `cs.indicators` AT ALL** — not before B4 and
+    //      not after. It reads the catalog and writes an alert row.
+    //   3. And the EVALUATOR does not read chart settings either: it takes its
+    //      parameters from `params_json` on the alert row and its bars from
+    //      `bars_sqlite`. `cs.indicators` reaches it through neither.
+    //
+    // What is actually true — and what these assertions have always checked — is
+    // narrower and still worth a case: `setIndicatorEnabled` writes the INSTANCE
+    // and the legacy MIRROR together, in both directions, so any surface still
+    // reading `cs.indicators.<id>.enabled` (the screener, the `?indicators=`
+    // render route, a tab on an older build) agrees with the chart.
+    // `instanceControls.test.js` owns the write-through invariant in general;
+    // this is the flipped-pilot instance of it.
     let cs = { indicators: { rsi: { enabled: false, period: 14 } }, indicatorInstances: [] }
     cs = setIndicatorEnabled(cs, 'rsi', true, registry)
     expect(cs.indicators.rsi.enabled).toBe(true)
@@ -421,13 +440,20 @@ describe('Flip B — the right-click menu is a control surface too', () => {
 // ─── ENUMERATION SITE #20 — "Copy chart link" after the authority flipped ───
 //
 // ⛔ A FLIP-B LANDMINE THE PLAN ASSIGNED TO THIS TASK. `handleCopyShareUrl`
-// hand-lists exactly the four B3 pilots and carried NEITHER `indicatorInstances`
-// NOR `engineEnabled`. At Flip A that was harmless: `cs.indicators.<id>.enabled`
-// was the authority, so a shared link reproduced the chart. **At Flip B `enabled`
-// stops being the authority** — the sender's RSI may exist only as an instance,
-// and a tombstone can make a still-true toggle mean "off" — so the link would
-// have silently dropped RSI and Bollinger Bands from every shared chart, and the
-// RECIPIENT's own tombstone would have swallowed the toggle it did carry.
+// carried NEITHER `indicatorInstances` NOR `engineEnabled`. At Flip A that was
+// harmless: `cs.indicators.<id>.enabled` was the authority, so a shared link
+// reproduced the chart. **At Flip B `enabled` stops being the authority** — the
+// sender's RSI may exist only as an instance, and a tombstone can make a
+// still-true toggle mean "off" — so the link would have silently dropped RSI and
+// Bollinger Bands from every shared chart, and the RECIPIENT's own tombstone
+// would have swallowed the toggle it did carry.
+//
+// ⚠️ THE OTHER HALF OF THAT SENTENCE IS NOW STALE AND IS DELIBERATELY GONE. This
+// note used to open "hand-lists exactly the four B3 pilots"; **B4 Task 5 ended
+// the hand-list** — `handleCopyShareUrl` derives its key set from `catalogRows()`
+// and answers each one through `isIndicatorEnabled`. The cases below are about
+// the ENGINE KEYS and are unaffected; the derivation's own gate lives in
+// `stockChartWiring.test.jsx` → *"B4 Task 5 — the share link is derived"*.
 describe('Flip B — a shared chart link carries what now decides the picture', () => {
   const applyState = (state) => {
     window.history.replaceState({}, '', `?state=${chartStateToUrl(state)}`)

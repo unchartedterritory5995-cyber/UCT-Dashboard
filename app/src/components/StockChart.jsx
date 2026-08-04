@@ -2407,10 +2407,17 @@ export default function StockChart({
     }
   }, [buildScreenshotOpts])
 
-  // ── ENUMERATION SITE #20, AND WHY FLIP B IS WHERE IT HAD TO BE FIXED ───────
+  // ── ENUMERATION SITE #20 — RETIRED AT B4 TASK 5, AND WHY IN TWO STEPS ──────
   //
-  // This hand-lists exactly the four B3 pilots and carried NEITHER
-  // `indicatorInstances` NOR `engineEnabled`. At Flip A that was harmless —
+  // ⚠️ THE TWO HALVES LANDED A PHASE APART, so the tense matters: B3 added the
+  // engine keys, B4 Task 5 ended the hand-list. Until B3 this carried NEITHER
+  // `indicatorInstances` NOR `engineEnabled`; until B4 it still enumerated
+  // exactly the four pilots, and "Copy chart link" silently dropped everything
+  // else — a link shared from a chart with Stochastic and ATR on arrived with
+  // neither. It now enumerates NOTHING: see the comment on `indicators:` below.
+  //
+  // The instance/flag half, which is B3's and still load-bearing:
+  // At Flip A a hand-list was merely incomplete —
   // `cs.indicators.<id>.enabled` was still the authority, so a shared link
   // reproduced the chart. **At Flip B `enabled` stops being the authority**: the
   // sender's RSI may exist only as an instance (a tombstone can even make a
@@ -2430,12 +2437,20 @@ export default function StockChart({
       chartType: cs.chartType,
       heikinAshi: cs.heikinAshi,
       logScale: cs.logScale,
-      indicators: {
-        rsi: { enabled: isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS) },
-        macd: { enabled: isIndicatorEnabled(cs, 'macd', ENGINE_FLIPPED_DEF_IDS) },
-        bb: { enabled: isIndicatorEnabled(cs, 'bb', ENGINE_FLIPPED_DEF_IDS) },
-        vwap: { enabled: isIndicatorEnabled(cs, 'vwap', ENGINE_FLIPPED_DEF_IDS) },
-      },
+      // Every settings section, answered through the ONE reader (B4 Task 5).
+      // Hand-listing the four B3 pilots meant a link shared from a chart with
+      // Stochastic or ATR on arrived with them OFF and nothing said so — the
+      // recipient's chart simply drew neither. `catalogRows()` is
+      // `definitions ∪ CARVED_OUT_INDICATOR_KEYS`, so `volumeProfile` (a canvas
+      // overlay with no definition) travels too.
+      //
+      // ⚠️ `isIndicatorEnabled` rather than the raw `cs.indicators[id].enabled`,
+      // and that is not defensive style: for a FLIPPED id the instance is the
+      // authority, so a tombstoned RSI whose legacy mirror still says `true`
+      // would otherwise come back ON on the recipient's chart.
+      indicators: Object.fromEntries(catalogRows().map((row) => [
+        row.id, { enabled: isIndicatorEnabled(cs, row.id, ENGINE_FLIPPED_DEF_IDS) },
+      ])),
       engineEnabled: cs.engineEnabled === true,
       indicatorInstances: Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [],
       comparisonSymbols: cs.comparisonSymbols || [],

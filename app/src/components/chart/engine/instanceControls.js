@@ -11,16 +11,43 @@
 // ─── WHY THE LEGACY SECTION IS STILL WRITTEN ────────────────────────────────
 //
 // Flip B makes the INSTANCE the READ authority for the chart. It does NOT make
-// `cs.indicators` dead data: the alert evaluator, `IndicatorAlertPopover`, the
-// screener, the `?indicators=` render route and any tab still running an older
-// build all read that section and know nothing about instances. So every write
-// here goes to BOTH — the instance, and a write-through MIRROR.
+// `cs.indicators` dead data. So every write here goes to BOTH — the instance,
+// and a write-through MIRROR.
 //
-// That is not redundancy for its own sake. Without the mirror, "turn RSI off"
-// leaves an RSI alert evaluating against a section that still says `enabled:
-// true` with a stale period, and nothing anywhere reports it. With it, the
-// invariant is simple and testable: **the mirror always agrees with the
-// instance**, and `instanceControls.test.js` asserts both sides on every write.
+// ⚠️ THE REASONS BELOW WERE RE-MEASURED AT B4 AND TWO OF THE ORIGINAL FOUR WERE
+// FALSE. This note used to name "the alert evaluator, `IndicatorAlertPopover`,
+// the screener, the `?indicators=` render route and any tab still running an
+// older build". The popover **never** read this section — not before B4's
+// alert-catalog task and not after; it renders `GET /api/indicator-alerts/catalog`
+// and writes an alert row. The evaluator does not read chart settings either: it
+// takes its parameters from the alert row's `params_json` and its bars from
+// `bars_sqlite` (`api/services/indicator_alert_evaluator.py`). And no screener
+// reads it at all. The mirror is still load-bearing; the justification was not.
+//
+// WHO ACTUALLY READS `cs.indicators.<id>` TODAY, each one checked:
+//   · `StockChart`'s ten un-migrated render blocks — `indicatorData` gates every
+//     one of them on `cs.indicators[id].enabled`. This is the big one, and it is
+//     why a flipped id's mirror still has to move: a definition leaves the flip
+//     set the day its block comes back.
+//   · `computePaneMargins`, through `engine/paneMarginsProjection.csForPaneMargins`
+//     — the band layout is keyed off `cs.indicators[key].enabled`, which is
+//     exactly why that projection exists.
+//   · the settings surfaces — `ChartSettingsModal` / `ChartToolbar` rows resolve
+//     `{kind:'indicator', key}` to `settings.indicators[key]`.
+//   · the `?indicators=` render route (`pages/ChartRender.jsx`), which merges a
+//     PARTIAL legacy blob through `mergeSettingsOverride` and carries no
+//     instances at all.
+//   · any tab still running an older build — `chart_settings` is one server-side
+//     blob and an old bundle writes only this half of it.
+//
+// ⛔ AND THE "STALE PERIOD" MECHANISM THE OLD NOTE DESCRIBED DOES NOT EXIST. It
+// claimed that without the mirror, "turn RSI off" leaves an RSI alert evaluating
+// against a section that still says `enabled: true` with a stale period. Alerts
+// do not read this section in either direction, so no write here can arm or
+// disarm one. What the mirror really buys is a single, testable invariant —
+// **the mirror always agrees with the instance** — which is what keeps the five
+// readers above from disagreeing with the chart, and which
+// `instanceControls.test.js` asserts on both sides of every write.
 //
 // The reverse direction is already handled: `migrateLegacyToInstances` projects a
 // legacy toggle into an instance at read time, so a write from an un-migrated

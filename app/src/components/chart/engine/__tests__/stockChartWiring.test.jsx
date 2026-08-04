@@ -265,6 +265,9 @@ const { INDICATOR_CHORDS } = await import('../../keyboardShortcuts')
 // The compute the crosshair's per-plot split rests on — see the equivalence proof
 // next to the two-chip legend case.
 const { computeMACD } = await import('../../indicators')
+// The share link's DECODER — the recipient's half. Task 5 only widens what goes
+// IN; decoding the real artifact is how "what goes in" is read back out.
+const { urlToChartState } = await import('../../chartScreenshot')
 
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'engine-test:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
@@ -342,6 +345,31 @@ const renderChart = ({ settings = null, tf = 'D', ...props } = {}) => {
       expect(persisted.length,
         'no settings write reached onSettingsPersist — the menu item wrote nowhere').toBeGreaterThan(0)
       return persisted.at(-1)
+    },
+    /**
+     * Drive the SHARE door for real and return the URL that reached the clipboard.
+     *
+     * ⚠️ THE SPY IS NOT OPTIONAL. `handleCopyShareUrl` swallows its own failure in
+     * a bare `catch {}` (`StockChart.jsx`), and jsdom has no `navigator.clipboard`
+     * — so without stubbing one, the whole door is a no-op and every assertion
+     * below would be about a URL nobody ever produced. The call COUNT is asserted
+     * too: "wrote something" and "wrote exactly once" are different claims, and
+     * the popover fires this on a click.
+     */
+    copyShareUrl: async () => {
+      const writeText = vi.fn(() => Promise.resolve())
+      Object.defineProperty(window.navigator, 'clipboard', { value: { writeText }, configurable: true })
+      const open = view.container.querySelector('[aria-label="Share chart"]')
+      expect(open, 'no share button on the toolbar — the door this case drives does not exist').toBeTruthy()
+      await act(async () => { fireEvent.click(open) })
+      const row = [...view.container.querySelectorAll('button')]
+        .filter(b => /Copy Share URL/.test(b.textContent || ''))
+      expect(row, 'the share popover has no "Copy Share URL" row').toHaveLength(1)
+      await act(async () => { fireEvent.click(row[0]) })
+      expect(writeText, 'nothing reached the clipboard — the share door copied NOTHING, and its ' +
+        'bare `catch {}` means a build that copies nothing looks identical to one that works')
+        .toHaveBeenCalledTimes(1)
+      return writeText.mock.calls[0][0]
     },
   }
 }
@@ -3567,5 +3595,86 @@ describe('B4 Task 4 — one dispatch serves every indicator chord', () => {
     const afterVol = view.lastSettings()
     expect(afterVol.volume.visible, 'Ctrl+V did not toggle the volume pane')
       .toBe(!afterMa.volume.visible)
+  })
+})
+
+// ─── B4 TASK 5 — THE SHARE LINK CARRIES EVERY DEFINITION ────────────────────
+//
+// ⛔ THE DEFECT THIS REPLACES, RECORDED BY B3's TASK 2 REVIEW. `handleCopyShareUrl`
+// hand-listed exactly `rsi`, `macd`, `bb`, `vwap` — the four B3 pilots — so "Copy
+// chart link" SILENTLY DROPPED every other indicator. A recipient of a link
+// shared from a chart with Stochastic and ATR on got a chart with neither, and
+// nothing anywhere said so.
+//
+// ⚠️ THE PIXEL GATE CANNOT SEE ANY OF THIS. The parity route never builds a share
+// URL, mounts no toolbar and clicks nothing; its 0 is a regression check on
+// StockChart's `useCallback` graph and evidence of NOTHING about this door.
+describe('B4 Task 5 — the share link is derived, not a hand-list of the pilots', () => {
+  /** The decoded `state` blob a recipient's chart would apply. */
+  const sharedState = (url) => urlToChartState(new URL(url).searchParams.get('state'))
+
+  it('the share link carries every indicator that is on, not the four pilots', async () => {
+    const cs = mergeChartSettings({
+      indicators: { rsi: { enabled: true }, stoch: { enabled: true }, atr: { enabled: true } },
+    })
+    const view = renderChart({ settings: cs })
+    const state = sharedState(await view.copyShareUrl())
+
+    // ⭐ THE DEFECT: `stoch` and `atr` were simply ABSENT from the encoded blob, so
+    // the recipient's chart drew neither and nothing said so.
+    expect(Object.keys(state.indicators).sort(),
+      'the encoded indicator set is not the catalog — a section the link cannot carry is a ' +
+      'section the recipient silently loses').toEqual(catalogRows().map(r => r.id).sort())
+    expect(state.indicators.stoch.enabled, 'Stochastic did not survive the link').toBe(true)
+    expect(state.indicators.atr.enabled, 'ATR did not survive the link').toBe(true)
+    // …and the derivation did not turn everything on: an OFF section still reads off.
+    expect(state.indicators.macd.enabled).toBe(false)
+    // ⛔ NON-VACUITY, AND IT IS THE WHOLE POINT OF `catalogRows()` OVER THE
+    // DEFINITIONS. `volumeProfile` is a carved-out CANVAS overlay with no engine
+    // definition; a list built from `listDefinitions()` alone drops it, which is
+    // the exact regression B3 Task 11 refused.
+    expect(state.indicators.volumeProfile, 'the carved-out canvas overlay fell out of the link')
+      .toBeTruthy()
+    expect(Object.keys(state.indicators).length).toBeGreaterThan(4)
+  })
+
+  it('and it answers through the ONE reader, so a tombstoned flipped id reads off', async () => {
+    // The legacy mirror still says `enabled: true` after a hand-corruption; only
+    // `isIndicatorEnabled` knows the INSTANCE wins for a flipped id. Reading the
+    // raw flag here would put a deleted RSI back on the recipient's chart.
+    const off = setIndicatorEnabled(
+      mergeChartSettings({ indicators: { rsi: { enabled: true } } }), 'rsi', false, registry)
+    expect(off.indicators.rsi.enabled, 'control: the mirror moved with the instance').toBe(false)
+    // ⚠️ A TOMBSTONE IS `{instanceId, deleted:true}` AND CARRIES NO `defId`
+    // (`chartDefaults.instanceTombstone`), so it is found by its instance id.
+    expect(off.indicatorInstances.some(i => i && i.instanceId === 'legacy:rsi' && i.deleted === true),
+      'control: no tombstone was written — this case has nothing to disagree with').toBe(true)
+
+    // …a blob where the mirror DISAGREES with the tombstone. For a FLIPPED id the
+    // instance is the authority, and this is the only shape that can tell the two
+    // readers apart.
+    const corrupt = { ...off, indicators: { ...off.indicators, rsi: { ...off.indicators.rsi, enabled: true } } }
+    expect(isIndicatorEnabled(corrupt, 'rsi', ENGINE_FLIPPED_DEF_IDS),
+      'the reader itself disagrees with this case — the fixture is wrong, not the code').toBe(false)
+
+    const view = renderChart({ settings: corrupt })
+    const state = sharedState(await view.copyShareUrl())
+    expect(state.indicators.rsi.enabled,
+      'the link read the raw mirror — a deleted RSI comes back on the recipient\'s chart').toBe(false)
+  })
+
+  it('carries the instances and the flag verbatim, so a shared engine chart stays one', async () => {
+    const cs = setIndicatorEnabled(mergeChartSettings(null), 'bb', true, registry)
+    expect(cs.indicatorInstances.length, 'no instance to carry — vacuous').toBeGreaterThan(0)
+    const view = renderChart({ settings: cs })
+    const state = sharedState(await view.copyShareUrl())
+    expect(state.indicatorInstances, 'the sender\'s instances did not reach the link')
+      .toEqual(cs.indicatorInstances)
+    expect(state.engineEnabled).toBe(cs.engineEnabled === true)
+    // …and the four keys this task did NOT touch are still there.
+    expect(state.sym).toBe('AAPL')
+    expect(state.tf).toBe('D')
+    expect(state.comparisonSymbols).toEqual(cs.comparisonSymbols || [])
+    expect(state.markers).toEqual(cs.markers || {})
   })
 })
