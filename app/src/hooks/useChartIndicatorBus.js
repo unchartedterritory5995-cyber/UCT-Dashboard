@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import usePreferences from './usePreferences'
-import { subscribeIndicatorAdds } from '../utils/chartBus'
+import { subscribeIndicatorAdds } from '../utils/chartBusIndicators'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { applyRowPatch } from '../components/chart/indicatorRegistry'
 import * as engineRegistry from '../components/chart/engine/nativeRegistry'
@@ -15,6 +15,14 @@ import * as engineRegistry from '../components/chart/engine/nativeRegistry'
  * site anywhere in `app/src`. Meanwhile the server already answers
  * `{"ok": true, "narration": "Adding atr."}` before the browser sees the action,
  * so Compass told the user it had added the indicator and the chart did not move.
+ *
+ * ⛔ THIS MODULE IS THE ONLY BRIDGE INTO THE CHART MODULE GRAPH. It is imported
+ * only by `voice/GlobalVoiceLayer`, which is `lazy()` and paid-gated, so
+ * `indicatorCatalog` / `nativeRegistry` / `indicatorRegistry` ride the voice
+ * chunk. Importing `chartBusIndicators` (or anything under `components/chart`)
+ * from `utils/chartBus.js` instead puts the definition registry in the EAGER
+ * entry chunk for every free user — measured at +12.98 kB gzip. See that
+ * module's header.
  *
  * ─── WHY HERE AND NOT IN `StockChart` ───────────────────────────────────────
  *

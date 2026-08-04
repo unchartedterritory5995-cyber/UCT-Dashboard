@@ -3,7 +3,8 @@ import { renderHook, act, waitFor, cleanup } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { addIndicator, allowedIndicatorNames, CHART_BUS_EVENTS } from './chartBus'
+import { addIndicator, CHART_BUS_EVENTS } from './chartBus'
+import { allowedIndicatorNames, resolveIndicatorAdd } from './chartBusIndicators'
 import { catalogRows } from '../components/chart/indicatorCatalog'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { isIndicatorEnabled } from '../components/chart/engine/instanceControls'
@@ -71,22 +72,58 @@ describe('the add-indicator allow-list is derived, not written down', () => {
     expect(indicators.length).toBeGreaterThanOrEqual(15)
   })
 
-  it('accepts every definition by id — and refuses one that does not exist', () => {
+  it('resolves every definition by id — and refuses a word that is not one', () => {
     for (const row of catalogRows()) {
-      expect(addIndicator(row.id), row.id).toBe(row.id.toLowerCase())
+      const { row: hit, reason } = resolveIndicatorAdd(row.id.toLowerCase())
+      expect(reason, row.id).toBe('honoured')
+      expect(hit.id, row.id).toBe(row.id)
     }
     // ⚠️ BY ID, NOT BY DISPLAY NAME. `addIndicator` normalises to a lower-cased,
     // space-stripped id: `row.name` for `bb` is "Bollinger Bands", which
-    // normalises to `bollingerbands` and is NOT accepted. The server's
-    // `_INDICATOR_ALIASES` map is what turns spoken phrases into ids.
-    expect(addIndicator('bollinger bands')).toBe(false)
-    expect(addIndicator('nonsense')).toBe(false)
-    expect(addIndicator('')).toBe(false)
+    // normalises to `bollingerbands`. The SERVER's `_INDICATOR_ALIASES` map is
+    // what turns a spoken phrase into an id.
+    expect(resolveIndicatorAdd('bollingerbands').reason).toBe('unknown')
   })
 
   it('⚠️ williamsR and volumeProfile survive the lower-casing — the two a strict id match refuses', () => {
     expect(addIndicator('williamsR')).toBe('williamsr')
     expect(addIndicator('volumeProfile')).toBe('volumeprofile')
+    expect(resolveIndicatorAdd('williamsr').row.id).toBe('williamsR')
+    expect(resolveIndicatorAdd('volumeprofile').row.id).toBe('volumeProfile')
+  })
+
+  it('names the two refusal classes apart — an alias is not the same as a non-word', () => {
+    // The eight are legitimate things to SAY; this surface cannot draw them.
+    // Collapsing the two would make "add a 9 EMA" and "add asdf" the same event.
+    expect(resolveIndicatorAdd('ma9').reason).toBe('alias')
+    expect(resolveIndicatorAdd('avwap').reason).toBe('alias')
+    expect(resolveIndicatorAdd('asdf').reason).toBe('unknown')
+  })
+})
+
+describe('the emitter validates SHAPE; the listener validates VOCABULARY', () => {
+  // ⛔ THIS SPLIT IS A BUNDLE CONSTRAINT, NOT A STYLE CHOICE. `chartBus.js` is in
+  // the eager entry chunk; deriving the vocabulary there put the definition
+  // registry in first paint for every free user (+12.98 kB gzip, measured). The
+  // bus already worked this way: `openTicker` emits any non-empty symbol.
+  it('emits a well-formed token even when no chart can draw it', () => {
+    expect(addIndicator('nonsense')).toBe('nonsense')
+    expect(addIndicator('bollinger bands')).toBe('bollingerbands')
+  })
+
+  it('and refuses something that is not a token at all', () => {
+    expect(addIndicator('')).toBe(false)
+    expect(addIndicator('   ')).toBe(false)
+    expect(addIndicator(null)).toBe(false)
+    expect(addIndicator('<script>')).toBe(false)
+  })
+
+  it('every catalog id IS a well-formed token — the two halves cannot disagree', () => {
+    // If a future definition id contained a character the emitter rejects, the
+    // listener could resolve it and the emitter would never let it through.
+    for (const row of catalogRows()) {
+      expect(addIndicator(row.id), row.id).toBe(row.id.toLowerCase())
+    }
   })
 })
 
@@ -227,11 +264,20 @@ describe('the bus has a SHIPPED subscriber, AND something shipped mounts it', ()
     expect(stripComments("const u = 'https://x.dev/a'")).toContain('https://x.dev/a')
   })
 
-  // `chartBus.js` DEFINES these; defining is not subscribing.
+  /** Defining is not calling. Derived from the EXPORT, never a hardcoded path —
+   *  the two bus modules were one module an hour ago, and a path list would have
+   *  silently started reporting the definition as a subscriber.
+   *
+   *  ⚠️ TWO SEPARATE PREDICATES, and the difference is load-bearing:
+   *  `useChartIndicatorBus.js` DEFINES the hook (so it is not a mounter) and
+   *  CALLS `subscribeIndicatorAdds` (so it IS the subscriber). One shared
+   *  predicate excluded it from both and reported the bus as dead. */
+  const defines = (f, re) => re.test(fs.readFileSync(path.join(ROOT, f), 'utf8'))
+
   const subscribers = () => matching(/subscribeIndicatorAdds\(\s*\(|subscribeAll\(\s*\{/)
-    .filter(f => f !== 'app/src/utils/chartBus.js')
+    .filter(f => !defines(f, /export function (subscribeIndicatorAdds|subscribeAll)\b/))
   const mounters = () => matching(/useChartIndicatorBus\(\)/)
-    .filter(f => f !== 'app/src/hooks/useChartIndicatorBus.js')
+    .filter(f => !defines(f, /export default function useChartIndicatorBus\b/))
 
   it('⭐ something in the shipped tree actually SUBSCRIBES — at d2733adc nothing did', () => {
     // ONE OF THE TWO GATES THAT FAIL ON TODAY'S CODE. `subscribeAll` had zero
@@ -243,6 +289,31 @@ describe('the bus has a SHIPPED subscriber, AND something shipped mounts it', ()
       'nobody hears, and the server has ALREADY told the user "Adding <x>." — so the assistant ' +
       'reports success and the chart does not move.',
     ).toEqual(['app/src/hooks/useChartIndicatorBus.js'])
+  })
+
+  // ⛔ THE RAIL THAT KEEPS THE BUNDLE FIX. Deriving the vocabulary inside
+  // `chartBus.js` is the obvious, tidy-looking edit, it passes every behavioural
+  // case in this file, and it silently moves the definition registry out of a
+  // lazy chunk into the EAGER entry chunk: +12.98 kB gzip on first paint for
+  // every free user, who can use neither voice nor charts. Measured A/B, two
+  // builds from one tree, one variable. A `manualChunks` entry cannot undo it —
+  // a static import from an eager module is eager by definition.
+  it('⛔ chartBus.js imports NOTHING from the chart module graph — it is in the eager entry chunk', () => {
+    const src = stripComments(fs.readFileSync(path.join(ROOT, 'app/src/utils/chartBus.js'), 'utf8'))
+    const chartImports = [...src.matchAll(/^\s*import[^;\n]*from\s+['"]([^'"]+)['"]/gm)]
+      .map(m => m[1])
+      .filter(spec => /components\/chart|engine\//.test(spec))
+    expect(chartImports,
+      'chartBus.js reaches into the chart module graph. It is reachable from the EAGER entry chunk ' +
+      '(useRealtimeSession <- CompassTodayTile/CompassAssistButton), so this drags nativeRegistry into ' +
+      'first paint for every free user. Put it in chartBusIndicators.js, which only the lazy paid-only ' +
+      'voice chunk imports.',
+    ).toEqual([])
+    // …and the probe can see such an import when there IS one.
+    expect([...`import { catalogRows } from '../components/chart/indicatorCatalog'`
+      .matchAll(/^\s*import[^;\n]*from\s+['"]([^'"]+)['"]/gm)]
+      .map(m => m[1]).filter(s => /components\/chart|engine\//.test(s)),
+    ).toEqual(['../components/chart/indicatorCatalog'])
   })
 
   it('⭐ …and something shipped MOUNTS it — a hook nobody calls is exactly as dead as the bus was', () => {
