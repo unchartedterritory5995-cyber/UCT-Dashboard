@@ -157,4 +157,50 @@ describe('phantom-zero guard — both directions on every computed numeric field
     expect(noRev[0].revenue_estimate).toBeNull()
     expect(noRev[0].revenue_actual).toBeNull()
   })
+
+  // CODE-REVIEW FOLLOWUP (see task-7-report.md addendum): these three closed a
+  // gap the reviewer proved by mutation — every case above exercises `num()`
+  // through the CURRENT-quarter call sites (`row?.eps_estimate` /
+  // `row?.reported_eps` / `row?.rev_estimate` / `row?.rev_actual`), but the
+  // HISTORICAL call sites (`h?.estimate` / `h?.surprise` inside the
+  // `hist.map(...)` at buildQuarters:70/72) had no null-direction fixture
+  // anywhere — every `beatHistory` entry in this file always carries a real
+  // number. A naive-cast regression on either line passed all 14 tests before
+  // these were added.
+  it('eps_estimate (historical): a genuine 0 estimate survives; an explicit null stays null', () => {
+    const zeroEst = [{ ...beatHistory[0], estimate: 0 }]
+    const reportedZero = buildQuarters({
+      beatHistory: zeroEst, histStats: { last_n: [1.0] }, reportDate: '2026-08-06', row,
+    })
+    expect(reportedZero[0].eps_estimate).toBe(0)
+
+    const nullEst = [{ ...beatHistory[0], estimate: null }]
+    const reportedNull = buildQuarters({
+      beatHistory: nullEst, histStats: { last_n: [1.0] }, reportDate: '2026-08-06', row,
+    })
+    expect(reportedNull[0].eps_estimate).toBeNull()
+  })
+
+  it('surprise_pct (historical): an explicit null stays null (0-survives already covered above)', () => {
+    const nullSurprise = [{ ...beatHistory[0], surprise: null }]
+    const rows = buildQuarters({
+      beatHistory: nullSurprise, histStats: { last_n: [1.0] }, reportDate: '2026-08-06', row,
+    })
+    expect(rows[0].surprise_pct).toBeNull()
+  })
+})
+
+// CODE-REVIEW FOLLOWUP — the `if (!rd) return past` branch (buildQuarters:78)
+// had no coverage at all: deleting it outright still left 14/14 green, because
+// every other test passes a real `reportDate`. This is a real production path
+// (a symbol with beat history but no known/scheduled next earnings date) and a
+// regression here would silently append a blank current-quarter row regardless
+// of `rd`.
+describe('buildQuarters — no report date', () => {
+  it('returns just the reported history, unmodified, when reportDate is explicitly null', () => {
+    const rows = buildQuarters({ beatHistory, histStats, reportDate: null, row })
+    expect(rows).toHaveLength(beatHistory.length)
+    expect(rows.every((r) => r.reported)).toBe(true)
+    expect(rows.map((r) => r.quarter)).toEqual(['Q3 25', 'Q4 25', 'Q1 26', 'Q2 26'])
+  })
 })
