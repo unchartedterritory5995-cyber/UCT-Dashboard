@@ -87,6 +87,14 @@ describe('reactionGeometry', () => {
     expect(Number.isFinite(g.scaleMax)).toBe(true)
     expect(g.scaleMax).toBeGreaterThan(0)
   })
+
+  it('distinguishes a real zero from a missing reaction', () => {
+    const g = reactionGeometry([Q('Q1', 0, 5), Q('Q2', null, 5)], {})
+    expect(g.bars[0].value).toBe(0)           // real zero
+    expect(g.bars[0].h).toBe(0)               // no bar
+    expect(g.bars[1].value).toBeNull()        // missing reaction
+    expect(g.bars[1].h).toBe(0)               // no bar (same visual outcome)
+  })
 })
 
 describe('reactionStats — the numbers P2 puts in the StatTile caption row', () => {
@@ -134,6 +142,7 @@ describe('ReactionBars', () => {
     const stars = container.querySelectorAll('[data-testid="rk-reaction-star"]')
     expect(stars).toHaveLength(1)
     expect(stars[0].textContent).toBe('★')
+    expect(stars[0].className).toBeTruthy()  // CSS module class is applied for styling
   })
 
   it('draws the implied bracket only when an implied move is given', () => {
