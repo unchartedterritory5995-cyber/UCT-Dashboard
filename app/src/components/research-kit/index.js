@@ -10,3 +10,6 @@
 export { default as InfoTip } from './InfoTip'
 export { default as EyebrowLabel } from './EyebrowLabel'
 export { default as GlassCard } from './GlassCard'
+export { default as StatTile } from './StatTile'
+export { default as VerdictChip } from './VerdictChip'
+export { SCORE_TONES, VERDICT_TONES, VERDICT_GLYPHS, toneGlyph } from './tones'
