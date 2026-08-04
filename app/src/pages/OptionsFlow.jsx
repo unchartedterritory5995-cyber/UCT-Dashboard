@@ -1372,6 +1372,8 @@ export default function OptionsFlowDashboard() {
   // byte-for-byte what gets posted.
   const previewWatchlistImages = async () => {
     setWlPreviewBusy(true);
+    // Cap the captured rows to the Discord "Top N" dropdown (99 = All → no cap).
+    const limitN = discordCount >= 99 ? null : discordCount;
     try {
       let h2c = window.html2canvas;
       if (!h2c) {
@@ -1381,7 +1383,12 @@ export default function OptionsFlowDashboard() {
         await new Promise(r => { s.onload = r; s.onerror = () => r(); });
         h2c = window.html2canvas;
       }
-      if (!h2c) { setStatus("❌ Could not load screenshot library"); setWlPreviewBusy(false); return; }
+      if (!h2c) { setStatus("❌ Could not load screenshot library"); return; }
+      // Apply the Top-N cap, then let React re-render + the browser paint before
+      // html2canvas reads the DOM. The "Rendering…" overlay (wlPreviewBusy) masks
+      // the brief reflow; wlCaptureLimit is reset in finally so the live view restores.
+      setWlCaptureLimit(limitN);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const dateRange = FD ? FD.dateRange || "" : "";
       const imgs = [];
       const cap = async (el, side, filename, label) => {
@@ -1400,8 +1407,10 @@ export default function OptionsFlowDashboard() {
       }
     } catch (e) {
       setStatus(`❌ Preview error: ${e.message}`);
+    } finally {
+      setWlCaptureLimit(null);
+      setWlPreviewBusy(false);
     }
-    setWlPreviewBusy(false);
   };
 
   const closeWlPreview = () => {
@@ -2172,6 +2181,9 @@ export default function OptionsFlowDashboard() {
   // Preview-before-push: {imgs:[{side,url,blob,filename,label}], dateRange, pushing} | null
   const [wlPreview, setWlPreview] = useState(null);
   const [wlPreviewBusy, setWlPreviewBusy] = useState(false);
+  // Top-N cap applied to the Bull/Bear columns DURING image capture only (null =
+  // show all). Mirrors the Discord "Top N" dropdown so the image matches the text push.
+  const [wlCaptureLimit, setWlCaptureLimit] = useState(null);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
   const [discordCount, setDiscordCount] = useState(10);
 
@@ -8622,6 +8634,11 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                   )}
+                  {wlPreviewBusy && !wlPreview && (
+                    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", color:P.wh, fontSize:13, fontWeight:700, fontFamily:"inherit" }}>
+                      📸 Rendering preview…
+                    </div>
+                  )}
                   <button onClick={wlFetchOI} disabled={wlOILoading}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
@@ -8687,6 +8704,9 @@ export default function OptionsFlowDashboard() {
               const filtBear = wlBear.filter(dteOk);
               const sortedBullIdx = filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0));
               const sortedBearIdx = filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0));
+              // During image capture, cap the rendered rows to the Discord "Top N" dropdown.
+              const capBullIdx = wlCaptureLimit ? sortedBullIdx.slice(0, wlCaptureLimit) : sortedBullIdx;
+              const capBearIdx = wlCaptureLimit ? sortedBearIdx.slice(0, wlCaptureLimit) : sortedBearIdx;
               const splitHalf = (sorted) => {
                 const mid = Math.ceil(sorted.length / 2); return [sorted.slice(0, mid), sorted.slice(mid)];
               };
@@ -8705,10 +8725,10 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
+                    <span style={{ fontSize:9, color:P.dm }}>{capBullIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {filtBull.length>0 ? sortedBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
+                    {filtBull.length>0 ? capBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -8726,10 +8746,10 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
+                    <span style={{ fontSize:9, color:P.dm }}>{capBearIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {filtBear.length>0 ? sortedBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
+                    {filtBear.length>0 ? capBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
