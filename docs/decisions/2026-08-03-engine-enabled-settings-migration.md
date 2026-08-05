@@ -1,7 +1,7 @@
 # Decision: `engineEnabled` is false in every stored blob, and no phase plan has a settings migration
 
 **Decision id:** `ENGINE_ENABLED_MIGRATION`
-**Status:** ✅ **RESOLVED 2026-08-04 by B5 Task 4 — the flag is DELETED, at every site. §8.2's default recommendation was adopted in full; §12 records what resolved it, and what Task 9 still owes.**
+**Status:** ✅ **RESOLVED 2026-08-04 by B5 Task 4 — the flag is DELETED, at every site. §8.2's default recommendation was adopted in full; §12 records what resolved it, and §12.6 records B5 Task 9 shipping the DATA half (§6 R1a) that Task 4 left owing.**
 **Owner of the read:** `app/src/components/chart/chartDefaults.js` → `mergeChartSettings`.
 **Adjudication row:** `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §11.
 **Raised by:** Phase B3 Task 10, as the reason its brief's two requirements could not both hold. **Carried unresolved** by Tasks 10, 11 and 12. **Written down and gated:** Task 13, the whole-branch gate.
@@ -336,10 +336,16 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
 the evaluator). That is the decision; the resulting histogram is **not restated
-here**. `enumerationSites.test.js` → *"every B4 region is retired — 4 to B5, 2 to
-C, 3 kept, 2 phase bookkeeping"* asserts it, and every B4 task decrements the `B4`
+here**. `enumerationSites.test.js` → *"every B4 region is retired — 1 to B5, 2 to
+C, 3 kept, 2 phase bookkeeping"* asserts it, and every B4 task decremented the `B4`
 bucket, so a number copied into this paragraph would be a control that rots green
 — read it there.
+
+> ⭐ **RE-CITED 2026-08-04 (B5 Task 9).** B5 Task 9 retired the ledger's three
+> settings-blob rows and the histogram moved `B5: 4` → `B5: 1`, which renamed the
+> test. The rail added by Task 1 — *"⭐ every test title the decision record cites
+> verbatim is a title that exists"* — **went red on this exact line**, which is
+> the second time it has caught this citation and the reason it exists.
 
 > 🔴 **CORRECTED 2026-08-04 (B5 Task 1), and the correction is the point.** This
 > sentence cited that test as *"the retirement column adds up"* — the title it had
@@ -621,7 +627,48 @@ vwap opacity → **2,601 px**, candles `#1ae51b` → **1,953 px**.
 ### 12.5 What is still open, and it is not this
 
 `ENGINE_ENABLED_DELETED` (`docs/decisions/2026-08-04-engine-enabled-deleted.md`)
-carries the deletion itself. **The MIRROR is Task 9's and is not resolved by this
+carries the deletion itself. **The MIRROR was Task 9's and is not resolved by this
 record**: `cs.indicators`' fifteen keyed sections and the fifteen-line allow-list
 are both fated B5, §11.1 splits them into Task 9, and §6 R1a describes the shape.
 This record's subject was the flag, and the flag is gone.
+
+⭐ **Task 9 has since shipped it — §12.6.**
+
+### 12.6 What B5 Task 9 shipped, and the two things §6 got wrong
+
+**§6 R1a, in full.** `settingsVersion` 1 → 2, with a read-time fold of every
+stored `cs.indicators.<id>` into `indicatorInstances` that runs **only below
+version 2**; `CHART_DEFAULTS.indicators` down to `volumeProfile` alone; the
+per-key allow-list down to one line. Ledger **11 → 8** (rows 1, 2 and 14 retire
+together — the table, the allow-list that let it survive a read, and
+`ChartsWorkspace`'s frozen capture of it), partition `{B5: 1, C: 2, keep: 3,
+phase: 2}`.
+
+**What a July blob does, measured:** every indicator that was on is still on,
+with the same period / colour / opacity / line style, in the shipped stack order,
+no key resurrected, and **the user does nothing** — no reset, no re-tick, no
+re-login. `engineEnabledMigration.test.js` → *"every indicator is still on, with
+the same period / colour / opacity / line style"* walks a fourteen-section July
+capture key by key, off the stored fixture, into the seeded instances.
+
+**① §6 R2's hazard was real and is closed by an unconditional stamp.** The fold
+is gated on the STORED version; what is EMITTED is always the current version.
+A preset that echoed the stored `settingsVersion` would re-run the migration on
+every load and re-seed instances the user had since deleted.
+
+**② §6 R1a DID NOT NAME THE DOUBLE-SEED, AND IT IS THE WORST FAILURE AVAILABLE
+HERE.** `migrateLegacyToInstances` reserves ids per INSTANCE ID; a legacy toggle
+is per DEFINITION. A blob holding `{instanceId: 'grid-cell-3:rsi', defId: 'rsi'}`
+plus `indicators.rsi.enabled` therefore seeds a SECOND `legacy:rsi` — two RSI
+lines — and unlike the render-time version of the same defect (§6.1, which
+`StockChart.updateChart` already guards) the answer here is **written back at
+version 2 and never re-migrated**. The fold applies the same rule: a projection is
+outranked by a LIVE stored instance of the same definition.
+
+**③ And one thing the fold does NOT preserve, stated rather than discovered.**
+`setIndicatorInput` on a switched-OFF indicator writes the legacy MIRROR alone
+(typing a period beside an unchecked box must not add the indicator to the chart).
+The mirror no longer survives a read, so that value is lost on reload where it
+used to persist. That is the settings model this phase is moving to — an
+indicator's settings belong to the INSTANCE, and there is no instance — and it is
+recorded here rather than left to be found.
