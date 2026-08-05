@@ -385,13 +385,33 @@ sanity-check the harness before migrating an indicator.
 
 ## 5. Migrating one more indicator — the whole checklist
 
+> 🔴🔴 **THIS WHOLE SECTION IS HISTORICAL AS OF B5 TASK 8 + TASK 12, AND IT IS
+> KEPT RATHER THAN EDITED.** There is **no legacy lane left to migrate off** —
+> Task 8 took the last three (`adx`, `obv`, `donchian`) and the six-definitions
+> paragraph below has been false since. And Flip C (Task 12) **deleted
+> `chart/paneMargins.js`**, so step 4's whole subject is gone.
+>
+> Editing ten steps into a description of a world that no longer exists would be
+> worse than leaving them: what makes a checklist useful is that somebody
+> followed it, and eight people did. Read it as the RECORD of how the fifteen
+> migrations were done. The only step that still describes live work is **step 4,
+> rewritten in place below** — because a doc that names a DELETED FILE is worse
+> than one that names a stale number: the stale number reads as out of date, and
+> the deleted file reads as a place to go.
+>
+> **What a SIXTEENTH indicator costs today** is one `nativeDef(...)` in
+> `nativeRegistry.js` — including its `placement.pane.height` — plus a parity
+> case. There is no band to add, no render block to write, no chip to register
+> and no toolbar row to edit; `enumerationSites.test.js` is what says so.
+
 Phase B3 took four indicators through both flips (RSI, Bollinger Bands, MACD,
 VWAP); **B5 Task 5 took `stoch` and `atr`** and **B5 Task 6 took `sar` and
 `ichimoku`** — each pair migrated and flipped in ONE commit. **Six definitions
 are still on the legacy lane** — `mfi`, `cci`, `williamsR`, `adx`, `obv`,
 `donchian` — plus `volumeProfile`, which is **permanently carved out** and is not
 on this list at all (it draws to a sibling canvas, not through `addSeries`; see
-`nativeRegistry.CARVED_OUT_INDICATOR_KEYS`).
+`nativeRegistry.CARVED_OUT_INDICATOR_KEYS`). *(All six were taken by B5 Tasks 7
+and 8. The sentence is left as written for the same reason the section is.)*
 
 ⚠️ **The legend's LEGACY lane is gone as of Task 6.** All nine shipped chips come
 from `binder.bindings()`, and `registerLegacyChip` / `legacyChipEntriesRef` /
@@ -432,11 +452,26 @@ actually took rather than from what the plan estimated.
    only one lands. **A price overlay must not be migrated ahead of an earlier one
    in registry order** — LWC z-stacks by insertion.
 
-4. **Give it a band if it is an oscillator.** `chart/paneMargins.js` `PANES` is
-   the stacking list; an id absent from it gets no reserved band and the
-   placement adapter falls back. `paneMargins.js` is **consumed, never modified
-   for a price overlay** — `enumerationSites.test.js` asserts a price overlay
-   gains no key there.
+4. **Declare its pane height if it is an oscillator** — `placement.pane.height`
+   on the definition, which `defSchema.validateDefinition` validates and
+   `nativeRegistry` declares. ⭐ **REWRITTEN AT B5 TASK 12.** This step used to
+   say *"`chart/paneMargins.js` `PANES` is the stacking list"*; **that file is
+   DELETED**. A pane height is a per-indicator property now, so a new oscillator
+   costs one field and no list edit at all, and an id that declares none gets
+   `paneLayout.DEFAULT_PANE_HEIGHT` (0.15, the value six of the nine use). The
+   geometry comes from `paneLayout.computePaneLayout`, which answers both "which
+   pane, how tall" and — through `layout.bands` — the band question the retired
+   module answered.
+   **A price overlay declares NO pane at all**: a height on `bb` would reserve
+   vertical space for something that draws inside the candles' pane.
+   `enumerationSites.test.js` → *"a price overlay reserves no vertical space —
+   adjudication A6, at its new address"* asserts it, and proves the predicate
+   catches a constructed overlay that does declare one.
+   ⛔ The STACK ORDER is no longer a constant at all — it is the instance list's
+   order, i.e. user data, which is what makes the panes reorderable. The order
+   the stack shipped in is frozen once, in
+   `engine/instances.FROZEN_SHIPPED_STACK_ORDER`, purely so the v1→v2 fold seeds
+   every existing user's list the way their chart already looks.
 
 5. **Fill in `<id>_only` and add `engine_<id>_vs_legacy`** to
    `chart_parity_cases.json`. A session indicator takes `intraday5m`; everything
@@ -539,8 +574,13 @@ wrongly-named input key (step 6).
   fate-`C` row was ADDED rather than retired: `voice_client_action_tools.py`'s
   `_INDICATOR_ALIASES`, a Python phrase map the JS discovery scan structurally
   cannot see;
-* **Flip C**, bands becoming real LWC panes — **B5**, and `paneMargins.PANES`
-  retires with it. B4 shipped **ZERO** migrations, so `ENGINE_FLIPPED_DEF_IDS`
+* **Flip C**, bands becoming real LWC panes — ✅ **APPLIED at B5 Task 12,
+  2026-08-05** (`docs/decisions/2026-08-04-flip-c-pane-geometry.md`, ACCEPTED),
+  and `paneMargins.PANES` retired with it: `chart/paneMargins.js` and
+  `engine/paneMarginsProjection.js` are **deleted**, and the geometry — both the
+  panes and the bands — comes from `engine/paneLayout.computePaneLayout`. It is
+  the ONE commit on this branch that moves a pixel, and it moves them under a
+  per-case EXACT `expect` rather than a budget. B4 shipped **ZERO** migrations, so `ENGINE_FLIPPED_DEF_IDS`
   still equals `ENGINE_MIGRATED_DEF_IDS` and B5 inherited ten un-flipped
   definitions and the six legacy `addSeries` sites the legend registered chips at.
   ⭐ **Tasks 5 and 6 took four of the ten and ALL SIX of the chip sites**, so the
