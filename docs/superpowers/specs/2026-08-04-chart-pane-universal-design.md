@@ -319,3 +319,50 @@ admin user:
 - Chart Settings modal opens from the menu with all five tabs.
 
 No visual or behavioral difference from pre-refactor `/charts` was observed.
+
+---
+
+## Phase B outcome — 10 surfaces adopted (2026-08-05)
+
+Branch `feat/chart-pane-adopt-tickerpopup` (stacked on Phase A, pushed, **not merged**).
+
+**Now rendering ChartPane:** `TickerPopup` · `mobile/TickerHubSheet` · `Breadth` ·
+`CustomScan` · `DarkPool` · `ThemeTrackerPage` · `Watchlists` ·
+`journal-2-0/.../PositionDetailPage` · `journal-2-0/.../TradeDetailPage` ·
+`research/tabs/OverviewTab` — plus `ChartWidget` itself.
+
+**Not adopted, deliberately** (adopting would be a regression): `ChartRender` (headless PNG
+export), `grid/GridChartCell` (locked `backgroundWarm={false}`), `admin/PatternReview`,
+`screener/ChartsGallery` (frozen thumbnails), `IntradayDayPopover` (curated exhibit, ~15
+styling overrides). **`OptionsFlow` (×2) is BLOCKED on partner ack** — Ravi co-edits it on
+master; it is the owner's original example and should be first once acked.
+
+**Numbers:** full suite `3839 passed / 3 failed`, and all three failures are in the
+pre-existing `origin/master` set (master fails five — the same three plus `Calendar.realModal`
+and `RapidTagFlow`). Zero introduced. `ChartPane-*.js` is one shared 15.67 kB gz lazy chunk
+across all ten surfaces; the entry chunk is **115.92 kB gz, unchanged**.
+
+**Adoption costs learned — apply these to any future surface:**
+1. **ChartPane is a heavier lazy chunk than bare `StockChart`** (it pulls the symbol search,
+   day gain, market clock and settings modal). On a cold open the *module* fetch, not the
+   data, holds the Suspense fallback up. Warm it on the earliest reliable signal — TickerPopup
+   warms it on ticker hover. It also makes `findBy*` race under full-suite parallel load; the
+   house idiom is `findByTestId(..., {}, { timeout: 8000 })`.
+2. **ChartPane needs an `AuthProvider`** — it calls `useFlagged()` internally, so test files
+   mounting it must include `useAuth` in their AuthContext mock.
+3. **Retire the host's own chrome, not just its timeframe row.** ChartPane's identity row
+   already renders a live symbol search, so a host that keeps its own ends up with two ticker
+   inputs stacked.
+4. **Audit props explicitly.** Everything ChartPane doesn't own goes through `stockChartProps`
+   (spread last). A dropped `darkPoolBars`, `hideJournalOverlay` or `volumeSeparatePane` still
+   renders a perfectly plausible chart — no test catches it.
+
+**Verification gaps — do NOT record these as done:**
+- Live-browser confirmed for `/charts` and `TickerPopup` only. The other eight rest on tests
+  plus prop audits.
+- `DarkPool` could not be seen locally: `/api/darkpool/prebuild` stays `pending` on a box with
+  no flow data, and the chart mount is gated behind it, so the ChartPane chunk is never even
+  requested. Established by network trace, not assumption — it is *not* a conversion defect.
+- `ThemeTrackerPage`, `CustomScan` and `Watchlists` have **no test coverage of the chart mount
+  at all** — mutating `sym` to a bogus value left their suites green, because their tests
+  render in `embedded` mode which hides the chart panel. Worth closing before merge.
