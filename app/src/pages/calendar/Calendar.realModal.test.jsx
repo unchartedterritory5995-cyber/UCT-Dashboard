@@ -25,6 +25,7 @@ import {
   unstable_HistoryRouter as HistoryRouter,
   UNSAFE_createBrowserHistory as createBrowserHistory,
 } from 'react-router-dom'
+import { SWRConfig } from 'swr'
 import { AuthProvider } from '../../context/AuthContext'
 
 // One loaded week. Thu 2026-08-06 AMC carries 13 reporters — 12 filler names
@@ -130,11 +131,22 @@ const renderAt = (url) => {
   window.history.replaceState(null, '', url)
   const history = createBrowserHistory({ window, v5Compat: true })
   return render(
-    <AuthProvider>
-      <HistoryRouter history={history}>
-        <Routes><Route path="/calendar" element={<Calendar />} /></Routes>
-      </HistoryRouter>
-    </AuthProvider>,
+    // Fresh SWR cache PER RENDER. SWR's default cache is module-global, so the
+    // one test below that opts into the REAL useWeekEnrichment (real useSWR,
+    // real fetch) otherwise inherits whatever key state earlier renders left
+    // behind — including a resolved `enrich:…` entry, which makes its
+    // deliberately-pending fetch look already-answered and the assertion race
+    // the dedupe window. That showed up as a gate passing in isolation (3/3)
+    // and failing in the full 420-file run: load changed the interleaving, not
+    // the logic. Isolating the cache removes cross-test state as a variable
+    // instead of widening a timeout until the flake hides.
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <AuthProvider>
+        <HistoryRouter history={history}>
+          <Routes><Route path="/calendar" element={<Calendar />} /></Routes>
+        </HistoryRouter>
+      </AuthProvider>
+    </SWRConfig>,
   )
 }
 
@@ -150,7 +162,7 @@ describe('the real modal, mounted the real way, with real sections (C1)', () => 
   it('GATE a regression: the real Earnings History section renders REAL rows, not the empty state', async () => {
     renderAt('/calendar?week=2026-08-03&earnings=NVDA&esection=history')
     // The exact string the production defect rendered for every symbol.
-    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    expect(await screen.findByTestId('history-table', {}, { timeout: 8000 })).toBeTruthy()
     expect(screen.queryByText('No reported quarters yet')).toBeNull()
     const rows = screen.getAllByRole('row')
     // header + 3 quarters from ENRICHMENT.NVDA.beat_history
@@ -249,7 +261,7 @@ describe('the modal must not freeze on an un-enriched row (Task 12)', () => {
     act(() => { pushEnrichmentUpdate(ENRICHMENT) })
 
     // The modal must self-heal onto the now-enriched row, not stay frozen.
-    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    expect(await screen.findByTestId('history-table', {}, { timeout: 8000 })).toBeTruthy()
     expect(screen.queryByText('No reported quarters yet')).toBeNull()
   })
 })
@@ -315,7 +327,17 @@ describe('the modal must not freeze on an un-enriched row — REAL useWeekEnrich
       await enrichmentPending
     })
 
-    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    // Generous timeout ON PURPOSE. The assertion is deterministic — the fetch
+    // resolves only when this test says so — but the chain it waits on is four
+    // real async hops (fetch .then -> SWR state -> the resolution effect ->
+    // re-render), and under full-suite thread contention that can exceed
+    // testing-library's 1000ms default. It did: this passed in isolation (3/3)
+    // and failed in the full 420-file run. A load-sensitive gate gets written
+    // off as "flaky" and then ignored, which is how gates die — and this one
+    // guards the enrichment path that four GATE a defects hid behind. Widening
+    // the budget costs nothing when the code is correct, and the test still
+    // fails outright when it is not.
+    expect(await screen.findByTestId('history-table', {}, { timeout: 8000 })).toBeTruthy()
     expect(screen.queryByText('No reported quarters yet')).toBeNull()
   })
 })
@@ -374,7 +396,7 @@ describe('independent enrichment fields must not freeze each other out (Task 12 
     // expired) — the ONLY field that changed since stage 1.
     act(() => { pushEnrichmentUpdate(ENRICHMENT) })
 
-    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    expect(await screen.findByTestId('history-table', {}, { timeout: 8000 })).toBeTruthy()
     expect(screen.queryByText('No reported quarters yet')).toBeNull()
   })
 })
