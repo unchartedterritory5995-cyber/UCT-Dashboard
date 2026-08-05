@@ -32,6 +32,7 @@ import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
+import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { usePatternDetections } from '../hooks/usePatternDetections'
@@ -1496,6 +1497,8 @@ export default function StockChart({
   const zonesCtlRef = useRef(null)        // dark-pool level-zones series primitive controller
   const zonesAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const lastDpZonesRef = useRef(undefined) // identity guard — see the setZones call
+  const pdlCtlRef = useRef(null)          // previous-day H/L/C lines series primitive controller
+  const pdlAttachedRef = useRef(false)    // guard: re-attach on candle-series swap
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const splitBadgeRef = useRef(null)      // splits "S" badge primitive controller
@@ -4992,6 +4995,7 @@ export default function StockChart({
       splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
       divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
       zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
+      pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
     }
 
     if (!candleSeriesRef.current) {
@@ -6196,6 +6200,29 @@ export default function StockChart({
       if (lastDpZonesRef.current !== dpZones) {
         lastDpZonesRef.current = dpZones
         zonesCtlRef.current.setZones(dpZones)
+      }
+    }
+
+    // ── Previous-day High / Low / Close lines (custom v5 series primitive) ──
+    // INTRADAY only: each line anchors at the candle that made that level and
+    // extends to the current candle (redrawn every frame → grows as bars form).
+    // Off (empty draw-list) on D/W/M or when all three are disabled.
+    if (candleSeriesRef.current) {
+      if (!pdlCtlRef.current) pdlCtlRef.current = createPrevDayLevelsPrimitive()
+      if (!pdlAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(pdlCtlRef.current.primitive)
+          pdlAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const pdl = cs.prevDayLevels
+      const pdlIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
+      const pdlOn = pdlIntraday && pdl && (pdl.high?.enabled || pdl.low?.enabled || pdl.close?.enabled)
+      if (pdlOn) {
+        const lv = computePrevDayLevels(ohlcData)
+        pdlCtlRef.current.setLines(buildPrevDayLines(lv, pdl), lv?.endTime)
+      } else {
+        pdlCtlRef.current.setLines([], null)
       }
     }
 

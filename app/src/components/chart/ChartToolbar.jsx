@@ -753,6 +753,34 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, volumePaneFixed =
         </div>
       </div>
 
+      {/* Previous-day High / Low / Close reference lines (intraday only) */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Prev-day levels · intraday</span>
+        {[['high', 'Prev high', '#3cb868'], ['low', 'Prev low', '#e74c3c'], ['close', 'Prev close', '#9aa0a6']].map(([key, label, def]) => {
+          const c = cs.prevDayLevels?.[key] || {}
+          const setPdl = (patch) => onUpdateSettings({ ...cs, prevDayLevels: { ...cs.prevDayLevels, [key]: { ...c, ...patch } }, preset: 'custom' })
+          return (
+            <div className={styles.sRow} key={key}>
+              <label className={styles.sCheck}>
+                <input type="checkbox" checked={!!c.enabled} onChange={e => setPdl({ enabled: e.target.checked })} />
+                {label}
+              </label>
+              {c.enabled && (<>
+                <ColorPicker value={c.color || def} onChange={v => setPdl({ color: v })} />
+                <select className={styles.sMiniSelect} value={c.style || 'dashed'} onChange={e => setPdl({ style: e.target.value })}>
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                </select>
+                <select className={styles.sMiniSelect} value={c.width || 1} onChange={e => setPdl({ width: Number(e.target.value) })}>
+                  {[1, 2, 3, 4].map(w => <option key={w} value={w}>{w}px</option>)}
+                </select>
+              </>)}
+            </div>
+          )
+        })}
+      </div>
+
       {/* Crosshair */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Crosshair</span>
