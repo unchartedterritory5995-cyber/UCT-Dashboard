@@ -886,7 +886,7 @@ export default function ChartSettingsModal({
                     <div className={styles.hdrRowCtl}>
                       {c.enabled && (<>
                         <select
-                          className={styles.select}
+                          className={styles.sizeSelect}
                           aria-label={`${label} line style`}
                           value={c.style || 'dashed'}
                           onChange={(e) => setPrevDay(key, { style: e.target.value })}
@@ -894,7 +894,7 @@ export default function ChartSettingsModal({
                           {LINE_STYLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>
                         <select
-                          className={styles.select}
+                          className={styles.sizeSelect}
                           aria-label={`${label} line width`}
                           value={c.width || 1}
                           onChange={(e) => setPrevDay(key, { width: Number(e.target.value) })}
