@@ -2,13 +2,22 @@ import { describe, it, expect } from 'vitest'
 import { resolveCatalystAnchor } from './ChartDrawingOverlay'
 
 // Build a day of 5-minute intraday bars (numeric ET-anchored unix seconds).
-function intradayDay(day, { bigAt = [], bigVol = 1000, baseVol = 100 } = {}) {
+// bigVolAt/bigRangeAt inject volume / range expansion at specific indices.
+function intradayDay(day, {
+  bigVolAt = [], bigVol = 1000, baseVol = 100,
+  bigRangeAt = [], bigRange = 20,
+} = {}) {
   const t0 = Math.floor(Date.parse(`${day}T13:30:00Z`) / 1000) // 9:30 ET (EDT)
   const bars = []
   for (let i = 0; i < 80; i++) {
-    bars.push({ t: t0 + i * 300, o: 100, h: 101, l: 99, c: 100, v: baseVol })
+    bars.push({ t: t0 + i * 300, o: 100, h: 101, l: 99, c: 100, v: baseVol }) // range = 2
   }
-  bigAt.forEach((i, k) => { bars[i].v = Array.isArray(bigVol) ? bigVol[k] : bigVol })
+  bigVolAt.forEach((i, k) => { bars[i].v = Array.isArray(bigVol) ? bigVol[k] : bigVol })
+  bigRangeAt.forEach((i, k) => {
+    const r = Array.isArray(bigRange) ? bigRange[k] : bigRange
+    bars[i].h = 100 + r / 2
+    bars[i].l = 100 - r / 2
+  })
   return bars
 }
 
@@ -19,18 +28,21 @@ describe('resolveCatalystAnchor', () => {
     expect(resolveCatalystAnchor('2026-08-05', bars, nearest)).toBe(1)
   })
 
-  it('intraday: snaps a date anchor to the FIRST big-volume candle of that session', () => {
-    // Peak volume at index 31; index 30 is the first candle >= 50% of the peak.
-    const bars = intradayDay('2026-08-05', { bigAt: [30, 31], bigVol: [800, 1000] })
-    const idx = resolveCatalystAnchor('2026-08-05', bars, () => null)
-    expect(idx).toBe(30)
+  it('intraday: snaps to the FIRST candle expanding on BOTH range and volume', () => {
+    // Index 10 = a big-VOLUME-only open surge (small range) — must be SKIPPED.
+    // Index 30 = big volume AND big range = where the news broke → expected.
+    const bars = intradayDay('2026-08-05', {
+      bigVolAt: [10, 30], bigVol: 1500, bigRangeAt: [30], bigRange: 20,
+    })
+    expect(resolveCatalystAnchor('2026-08-05', bars, () => null)).toBe(30)
   })
 
-  it('intraday: falls back to the max-volume candle when nothing crosses the threshold', () => {
-    // All equal except one slightly higher → that one is both the first >=50% and the max.
-    const bars = intradayDay('2026-08-05', { bigAt: [42], bigVol: 250, baseVol: 100 })
-    const idx = resolveCatalystAnchor('2026-08-05', bars, () => null)
-    expect(idx).toBe(42)
+  it('intraday: falls back to the greatest combined range×volume expansion', () => {
+    // Nothing crosses 2× both, but index 42 is elevated on both → highest product.
+    const bars = intradayDay('2026-08-05', {
+      bigVolAt: [42], bigVol: 150, bigRangeAt: [42], bigRange: 3,
+    })
+    expect(resolveCatalystAnchor('2026-08-05', bars, () => null)).toBe(42)
   })
 
   it('intraday: returns null (defers) when the anchor day is not in the loaded bars', () => {

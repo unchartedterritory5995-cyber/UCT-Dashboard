@@ -80,6 +80,20 @@ export function createPrevDayLevelsPrimitive() {
       draw: (target) => {
         if (!chart || !series || lines.length === 0) return
         const ts = chart.timeScale()
+        // Right end tracks the LIVE developing bar so the lines grow to the current
+        // candle exactly like the MA overlays (which _extendOverlaysLive drags forward
+        // on every tick). draw() runs on every chart repaint — including the
+        // series.update() the live writers fire — and series.data() reflects that
+        // update, so reading its last bar time here keeps the right end pinned to the
+        // newest candle even between SWR refreshes (when the static `endTime` lags).
+        let liveEnd = endTime
+        try {
+          const d = series.data()
+          if (d && d.length) {
+            const lt = d[d.length - 1]?.time
+            if (lt != null) liveEnd = lt
+          }
+        } catch { /* series.data unavailable → fall back to endTime */ }
         try {
           target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
             ctx.save()
@@ -94,7 +108,7 @@ export function createPrevDayLevelsPrimitive() {
               try { x0 = ts.timeToCoordinate(lv.startTime) } catch { /* off-scale */ }
               if (x0 == null) x0 = 0
               let x1 = null
-              try { x1 = endTime != null ? ts.timeToCoordinate(endTime) : null } catch { /* off-scale */ }
+              try { x1 = liveEnd != null ? ts.timeToCoordinate(liveEnd) : null } catch { /* off-scale */ }
               if (x1 == null) x1 = mediaSize.width
               if (x1 <= x0) continue
               const yy = Math.round(y) + 0.5

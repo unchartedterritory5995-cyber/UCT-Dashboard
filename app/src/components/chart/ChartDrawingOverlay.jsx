@@ -797,10 +797,33 @@ export function resolveCatalystAnchor(anchorTime, bars, nearestIndex) {
   for (let i = seed + 1; i < bars.length; i++) { if (etDateStr(bars[i].t) === day) idxs.push(i); else break }
   if (!idxs.length) return null   // day not loaded → defer (don't fall back to a wrong bar)
   const volOf = (i) => Number(bars[i].v ?? bars[i].volume ?? 0)
+  const rngOf = (i) => {
+    const h = bars[i].h ?? bars[i].high, l = bars[i].l ?? bars[i].low
+    return (h != null && l != null) ? Math.abs(h - l) : 0
+  }
+  // Session averages to measure EXPANSION against.
+  let sumV = 0, sumR = 0, n = 0
+  for (const i of idxs) { sumV += volOf(i); sumR += rngOf(i); n++ }
+  const avgV = n ? sumV / n : 0
+  const avgR = n ? sumR / n : 0
+  // Where the news broke = the FIRST candle that expands on BOTH range AND volume
+  // (≥2× the session average of each) — the classic catalyst breakout/breakdown bar
+  // (owner ask: "first large range expansion AND volume expansion candle"), NOT just
+  // the first big-volume bar (which fired on the 9:30 open long before the news move).
+  if (avgV > 0 && avgR > 0) {
+    const hit = idxs.find(i => volOf(i) >= 2 * avgV && rngOf(i) >= 2 * avgR)
+    if (hit != null) return hit
+    // Fallback: the single candle with the greatest combined range × volume expansion.
+    let best = idxs[0], bestScore = -1
+    for (const i of idxs) {
+      const s = (volOf(i) / avgV) * (rngOf(i) / avgR)
+      if (s > bestScore) { bestScore = s; best = i }
+    }
+    return best
+  }
+  // Last resort (no usable volume/range): first candle ≥50% of peak volume, else peak.
   let maxV = 0
   for (const i of idxs) maxV = Math.max(maxV, volOf(i))
-  // First candle whose volume is a major fraction of the session peak = where the
-  // catalyst hit; fall back to the outright highest-volume candle.
   let target = maxV > 0 ? idxs.find(i => volOf(i) >= maxV * 0.5) : null
   if (target == null) { target = idxs[0]; for (const i of idxs) if (volOf(i) > volOf(target)) target = i }
   return target
@@ -821,17 +844,14 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   if (ai == null || !bars[ai]) return null
   const b0 = bars[ai]
   const hi = b0.h ?? b0.high ?? b0.c
-  const lo = b0.l ?? b0.low ?? b0.c
-  const op = b0.o ?? b0.open ?? b0.c
-  const cl = b0.c ?? b0.close ?? op
   const aHi = toPixel(b0.t, hi)
   if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) return null   // candle off-screen → defer
   const anchorX = aHi.x, anchorHiY = aHi.y
-  // The leader STARTS at the day's HIGH on a positive (up) day and the LOW on a
-  // negative (down) day — fixed by the candle's own direction, not the open.
-  const aLoPx = toPixel(b0.t, lo)
-  const anchorLoY = (aLoPx && Number.isFinite(aLoPx.y)) ? aLoPx.y : anchorHiY
-  const anchorY = (cl >= op) ? anchorHiY : anchorLoY
+  // The leader connects at the candle's HIGH (top) for BOTH up and down catalysts, so
+  // the headline floats UP into the blank space above the move (owner ask, matches the
+  // reference). Anchoring a big down-breakdown at its LOW pushed the blank-space search
+  // far to the right and dragged the leader off-screen — the reported bug.
+  const anchorY = anchorHiY
 
   ctx.save()
   ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
@@ -1447,11 +1467,9 @@ export default function ChartDrawingOverlay({
           plotRight, h, vRange,
         })
         if (!res) continue
-        // Leader STARTS at the day's HIGH on a positive (up) day, the LOW on a
-        // negative (down) day — matches placeCalloutPoint's anchor.
-        const bOpen = b.o ?? b.open ?? b.c
-        const bClose = b.c ?? b.close ?? bOpen
-        const anchorPrice = (bClose >= bOpen) ? (b.h ?? b.high ?? b.c) : (b.l ?? b.low ?? b.c)
+        // Leader connects at the candle's HIGH for both directions (matches
+        // placeCalloutPoint's anchor) so the headline floats up into blank space.
+        const anchorPrice = (b.h ?? b.high ?? b.c)
         const { rect, anchorPx } = res
         const fs = calloutFs
         const labelPt = asPoint(toChart(rect.x, rect.y))
@@ -1995,7 +2013,12 @@ export default function ChartDrawingOverlay({
       // the delta MUST add futureBars — otherwise it saturates at the last bar and
       // an endpoint can't be dragged past the current candle into the future.
       const effLogical = (c) => {
-        const base = c?.time != null ? (timeToIndex.get(c.time) ?? 0) : 0
+        // nearestIndex (NOT exact timeToIndex.get) — on a live intraday chart a
+        // stored point time can drift off an exact bar key (bars get re-bucketed /
+        // sanitized), and an exact miss `?? 0` would resolve to index 0 → the point
+        // snaps horizontally to the far-left first bar. nearestIndex snaps to the
+        // containing bar instead, matching how the line is RENDERED.
+        const base = c?.time != null ? (nearestIndex(c.time) ?? 0) : 0
         return base + (Number.isFinite(c?.futureBars) ? c.futureBars : 0)
       }
       const timeDelta = coords.time && drag.startCoords.time
@@ -2037,7 +2060,7 @@ export default function ChartDrawingOverlay({
       const moveX = (p) => {
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : (timeToIndex.get(p.time) ?? 0)
+          : (nearestIndex(p.time) ?? 0)   // nearest, not exact — see effLogical note
         const rawIdx = origIdx + timeDelta
         if (rawIdx > _lastIdx) {
           return { time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
@@ -2075,7 +2098,7 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
+  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
@@ -2197,7 +2220,7 @@ export default function ChartDrawingOverlay({
         const _lastIdx = bars.length - 1
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : timeToIndex.get(p.time)
+          : nearestIndex(p.time)   // nearest, not exact — mirrors the drag's moveX
         if (origIdx != null) {
           const rawIdx = origIdx + dBars
           if (rawIdx > _lastIdx) {

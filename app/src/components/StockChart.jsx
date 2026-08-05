@@ -1619,6 +1619,7 @@ export default function StockChart({
   const bbMiddleRef   = useRef(null)
   const bbLowerRef    = useRef(null)
   const vwapSeriesRef = useRef(null)
+  const lastVwapValueRef = useRef(null)   // newest computed VWAP value, for the live-bar extend
   const rsiSeriesRef  = useRef(null)
   const stochKRef     = useRef(null)
   const stochDRef     = useRef(null)
@@ -2986,6 +2987,12 @@ export default function StockChart({
         try { series[i].update({ time: tSec, value: val }) } catch { /* time regressed / disposed */ }
       }
     }
+    // VWAP rides the same live-extend (it's a session cumulative, not in overlaySeriesRefs):
+    // hold its newest value to the developing bar so the line reaches the current candle
+    // exactly like the MAs, instead of stopping a bar short between SWR refreshes.
+    if (vwapSeriesRef.current && lastVwapValueRef.current != null) {
+      try { vwapSeriesRef.current.update({ time: tSec, value: lastVwapValueRef.current }) } catch { /* time regressed / disposed */ }
+    }
   }, [adjustTime])
 
   // Filter bars to regular session only when extended hours hidden
@@ -3659,14 +3666,23 @@ export default function StockChart({
           }
         }
       }
-      // Paint the pre-market preview candle (the appended last bar) muted white.
+      // Paint the pre-market preview candle (the appended last bar) in the user's
+      // chosen up/down candle color (owner ask — was a muted white). "Up" = the
+      // pre-market price sits above the prior RTH close (net-change basis, what a
+      // trader means by up/down in pre-market), falling back to open/close.
       if (sessionPreviewLastBar && arr.length) {
         const i = arr.length - 1
-        arr[i] = { ...arr[i], color: SESSION_PREVIEW_COLOR, borderColor: SESSION_PREVIEW_COLOR, wickColor: SESSION_PREVIEW_COLOR }
+        const c = arr[i]
+        const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
+        const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+        const prevC = i > 0 ? arr[i - 1].close : c.open
+        const isUp = (c.close != null && prevC != null) ? c.close >= prevC : (c.close >= c.open)
+        const col = isUp ? effUp : effDown
+        arr[i] = { ...c, color: col, borderColor: col, wickColor: col }
       }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme]
+    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, cs.candles.upColor, cs.candles.downColor]
   )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
@@ -5586,8 +5602,14 @@ export default function StockChart({
           // formatter so the axis abbreviates no matter which source wins.
           priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
         }
+        const _vmColor = cs.volume?.maColor || VOL_MA_COLOR
+        const _vmWidth = Number(cs.volume?.maLineWidth) || 1
         if (!volMaSeriesRef.current) {
-          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: cs.volume?.maColor || VOL_MA_COLOR, lineWidth: Number(cs.volume?.maLineWidth) || 1, ..._vmOpts }, _vmPane)
+          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: _vmColor, lineWidth: _vmWidth, ..._vmOpts }, _vmPane)
+        } else {
+          // Was set only at creation → changing the Volume MA color/width in settings
+          // had no effect until remount. Re-apply on every settings change.
+          try { volMaSeriesRef.current.applyOptions({ color: _vmColor, lineWidth: _vmWidth }) } catch { /* disposed */ }
         }
         _applyData(volMaSeriesRef.current, baseVM)
         if (_vmFade) {
@@ -5761,9 +5783,15 @@ export default function StockChart({
         })
       }
       _applyData(vwapSeriesRef.current, indicatorData.vwap)
+      // Cache the newest VWAP value so the live-bar extend can pin the line to the
+      // developing candle (session VWAP barely moves per intraday bar, so holding the
+      // last value to the live bar is visually exact until the next full recompute).
+      const _lastVw = indicatorData.vwap[indicatorData.vwap.length - 1]
+      lastVwapValueRef.current = (_lastVw && Number.isFinite(_lastVw.value)) ? _lastVw.value : null
     } else if (vwapSeriesRef.current) {
       try { chart.removeSeries(vwapSeriesRef.current) } catch {}
       vwapSeriesRef.current = null
+      lastVwapValueRef.current = null
     }
 
     // ── RSI sub-pane ──

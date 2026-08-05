@@ -329,6 +329,25 @@ export default function ChartsWorkspace() {
     })
   }, [setPref])
 
+  // If prefs arrive AFTER initial render (the SWR fetch usually resolves a beat after
+  // mount), pick up the saved group syms — otherwise the useState seed above ran while
+  // prefs was still undefined, left every group null, and the chart widget fell back to
+  // SPY on every refresh (owner report: "charts revert to SPY"). Mirrors the layout
+  // re-hydration above; one-shot so it never clobbers a live in-session ticker change.
+  const groupsLoadedFromPrefsRef = useRef(false)
+  useEffect(() => {
+    if (groupsLoadedFromPrefsRef.current) return
+    const raw = prefs?.charts_workspace_groups
+    if (raw == null) return
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (parsed && typeof parsed === 'object') {
+        setGroupSymsState({ A: null, B: null, C: null, D: null, ...parsed })
+        groupsLoadedFromPrefsRef.current = true
+      }
+    } catch { /* malformed pref → keep current */ }
+  }, [prefs?.charts_workspace_groups])
+
   // Crosshair sync bus: a stable pub/sub so a hovered chart can broadcast its
   // crosshair to same-color-group siblings WITHOUT re-rendering the grid at
   // mouse-move rate (only the receiving widgets re-render via local state).
