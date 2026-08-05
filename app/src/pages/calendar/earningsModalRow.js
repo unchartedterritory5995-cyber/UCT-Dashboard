@@ -18,6 +18,18 @@ export function calcSurprise(act, est) {
 }
 
 // Calendar entry → EarningsModal row shape.
+//
+// GATE a (Task 12, found in a live browser): this used to return ONLY the eight
+// print fields below. That was correct for the OLD tile modal, which never drew
+// history — but the research modal's Earnings History section reads
+// `row.beat_history` / `row.hist_stats` (see EarningsHistorySection's
+// `buildQuarters({beatHistory: row?.beat_history, histStats: row?.hist_stats})`).
+// `mergeEnrichment` (useCalendarData.js) already attaches both to the ENTRY, and
+// this function then dropped them on the floor, so the section rendered "No
+// reported quarters yet" for every symbol on every path — CAT included, on a day
+// it had reported $8.17 vs $6.25 est. No unit test caught it because each one
+// hand-authored a `row` fixture that already contained `beat_history`; the real
+// row never did. Carry the enrichment overlay through.
 export function toModalRow(entry) {
   const v = verdict(entry.eps_act, entry.eps_est)
   return {
@@ -29,6 +41,12 @@ export function toModalRow(entry) {
     rev_actual:       entry.rev_act,
     rev_estimate:     entry.rev_est,
     rev_surprise_pct: calcSurprise(entry.rev_act, entry.rev_est),
+    // Enrichment overlay — absent on an un-enriched entry, which the section
+    // already handles via its EmptyState. `?? null` keeps "absent" explicit
+    // rather than letting `undefined` read as a missing key.
+    beat_history:     entry.beat_history ?? null,
+    hist_stats:       entry.hist_stats ?? null,
+    expected_move:    entry.expected_move ?? null,
   }
 }
 
