@@ -115,15 +115,27 @@ for one prefs key.
 
 Fixed in `breadth_collector.py` + `morning_wire_engine.py` (uct-intelligence `3c9200d`,
 morning-wire `4daf1ef`), and the column was rebuilt from NAAIM's own published weekly
-series: 97 rows restored to real values, 52 correctly nulled. Reconstruction validated
-at 56/56 against rows written while the scrape still worked.
+series. Validated at 56/56 against rows written while the scrape still worked.
+**All 149 rows now carry real readings** (29 distinct values).
 
-It stays out of the Sentiment preset for a different reason now: **NAAIM's own survey has
-not published since 2026-04-29**, so the series legitimately ends there. Still selectable
-in the picker. A test asserts no preset references it.
+### The upstream story (corrected 2026-08-05)
 
-A permanent detector for this defect class ships as
-`uct-intelligence/scripts/breadth_freeze_audit.py`.
+A first pass concluded NAAIM's feed was dead. That was wrong, and searching beyond the
+one source overturned it:
+
+- NAAIM moved the live Exposure Index to a **paid subscription on 2026-08-01**.
+- The free chart embed is **~3 months delayed**, not dead — it keeps advancing.
+- Weekly numbers were public right up to the paywall, so 2026-05-06 → 2026-07-29 was
+  recoverable. Those agreed with the official embed on **all 8 overlapping dates**.
+
+So NAAIM stays out of presets for a third reason: its *forward* coverage is unreliable
+(recent weeks routinely missing, backfilling ~13 weeks later). Fine to select
+deliberately; a poor default. A test asserts no preset references it.
+
+Two supporting tools ship in uct-intelligence:
+`scripts/breadth_freeze_audit.py` (detects this defect class) and
+`scripts/naaim_backfill.py` (heals history as the delayed feed catches up, and refuses
+to either blank a value or regress it to an older reading).
 
 ## Known nits (pre-existing, not introduced here)
 

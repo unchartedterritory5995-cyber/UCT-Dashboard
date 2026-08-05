@@ -181,10 +181,12 @@ export function unitOf(key) {
 // therefore ordered intended-left-first.
 //
 // NAAIM is deliberately absent. The collector bug that pinned it to 75.00 is
-// fixed and its history rebuilt (2026-08-05), but NAAIM's own feed has not
-// published since 2026-04-29 — so the series legitimately ends there and is
-// null after. Still selectable in the picker; just not preset material until
-// the survey resumes.
+// fixed and its history is now complete and real (rebuilt 2026-08-05).
+//
+// It stays out of presets because its FORWARD coverage is unreliable: NAAIM
+// moved the live index to a paid subscription on 2026-08-01, and the only free
+// feed left runs a ~3-month delay. So the most recent weeks are routinely
+// missing and backfill later. Fine to select deliberately; a poor default.
 
 export const CHART_PRESETS = [
   {
