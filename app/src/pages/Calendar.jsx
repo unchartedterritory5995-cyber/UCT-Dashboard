@@ -342,11 +342,33 @@ export default function Calendar() {
       return
     }
 
+    const hit = resolveFeedEntry(want, days)
+
+    // Task 14 (found live, AMD/CAT 2026-08-04): a miss here is NOT the same as
+    // "this symbol doesn't report in this week" while `data` — the raw payload
+    // behind `days` for whichever week is currently selected — is still
+    // loading. `days` is legitimately `{}` before the FIRST /api/calendar
+    // response for this week lands, and treating that transient emptiness as
+    // authoritative fired the /next-report fallback before the real week data
+    // ever got a chance to answer. That fallback answers "when does this
+    // symbol report NEXT" against FMP/Finnhub — which excludes a report that
+    // has ALREADY happened today (epsActual now populated) — so a same-week
+    // deep link raced its own correct resolution into a jump 13 weeks out,
+    // then (useCalendar's `keepPreviousData` is false) orphaned the real
+    // current-week payload entirely once the URL's `week` param moved,
+    // degrading the row to the minimal fallback when the wrong week couldn't
+    // corroborate it either. Wait for the real payload before trusting a miss.
+    if (!hit && !data) return
+
     // C3: bump openSeq in the SAME call as the setSelected it's paired with
     // — see the doc comment on openMarkerRef above. `commit` centralizes
     // that pairing so every setSelected in this ladder does it identically;
     // only fires when THIS effect run is resolving the symbol onSelect just
     // asked to open (never on a step, which never touches openMarkerRef).
+    // Computed AFTER the `!data` bail above — clearing the fresh-open marker
+    // before the week payload has even loaded would strand the NEXT (real)
+    // resolution without it, silently dropping the openSeq bump that gives
+    // the ErrorBoundary a fresh mount on a genuine fresh open.
     const isFreshOpen = openMarkerRef.current === want
     if (isFreshOpen) openMarkerRef.current = null
     const commit = (row) => {
@@ -354,7 +376,6 @@ export default function Calendar() {
       setSelected(row)
     }
 
-    const hit = resolveFeedEntry(want, days)
     if (hit) {
       resolveRef.current = null
       commit({ row: toModalRow(hit.entry), label: timingLabel(hit.timing),
@@ -372,6 +393,12 @@ export default function Calendar() {
     fetch(`/api/calendar/next-report?sym=${encodeURIComponent(want)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        // Stale-response guard (Task 14): this ask may have been superseded
+        // by a resolution that already succeeded — via resolveFeedEntry
+        // finding the symbol once real data landed, or a different symbol's
+        // ask — while it was in flight. A late answer must never act once
+        // it's no longer the live ask for `want`.
+        if (resolveRef.current !== want) return
         const monday = d?.date ? mondayOf(d.date) : null
         if (monday) route.jumpToWeek(monday)
         else {
@@ -380,10 +407,11 @@ export default function Calendar() {
         }
       })
       .catch(() => {
+        if (resolveRef.current !== want) return
         commit({ row: { sym: want }, label: timingLabel(null),
                  reportDate: null, timing: null })
       })
-  }, [route.sym, days])       // eslint-disable-line react-hooks/exhaustive-deps
+  }, [route.sym, days, data])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Stepping across the open day's reporters ──────────────────────────────
   const daySyms = useMemo(() => {
