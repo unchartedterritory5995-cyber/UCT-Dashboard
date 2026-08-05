@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import ChartMetaRow from '../../../components/chart/pane/ChartMetaRow'
-import SymbolSearch from '../../../components/chart/SymbolSearch'
+import ChartIdentityRow from '../../../components/chart/pane/ChartIdentityRow'
 import ShareToFloor from '../../../components/community/ShareToFloor'
-import ChartMarketClock from './ChartMarketClock'
 import { useWorkspace } from '../WorkspaceContext'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
@@ -17,7 +16,6 @@ import useTickerMeta from '../../../hooks/useTickerMeta'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
-import ChartDayGain from './ChartDayGain'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import { VOLUME_PANE_SURFACE_FIXED } from '../../../components/chart/indicatorRegistry'
 import TimeframeMenu from './TimeframeMenu'
@@ -471,72 +469,28 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
           toggle + clock onto a second line. */}
-      <div className={styles.chartHeaderTop}>
-        <div className={styles.symbolSlot}>
-          <SymbolSearch
-            ref={searchRef}
-            sym={sym}
-            onSymbolChange={handleSymbolChange}
-            hideIcon
-            fullLabel
-            logoSym={themeIdx.isIndex ? null : sym}
-            brandLogo={themeIdx.isIndex}
-            displayLabel={headerLabel}
-            labelColor={hdrColors.title || null}
-            boundsRef={focusableRef}
-            themeVars={menuVars}
-          />
-        </div>
-        {hdr.showChange && (themeIdx.isIndex ? (
-          idxGain && (
-            <span className={styles.chartDayGain} style={{ color: idxGain.up
-              ? (hdrColors.dayChangeUp || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'))
-              : (hdrColors.dayChangeDown || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47')) }}>
-              {idxGain.up ? '+' : ''}{idxGain.abs.toFixed(2)} ({idxGain.up ? '+' : ''}{idxGain.pct.toFixed(2)}%)
-            </span>
-          )
-        ) : (
-          <ChartDayGain sym={sym} upOverride={hdrColors.dayChangeUp || null} downOverride={hdrColors.dayChangeDown || null} />
-        ))}
-        {/* Session toggle (Regular Hours / Include Post-Market or Extended) + the
-            live market clock — moved up onto the ticker row, right-aligned. */}
-        <div className={styles.headerTopRight}>
-          {isDWMtf && (
-            <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${sessionView === 'regular' ? styles.sessionBtnActive : ''}`}
-                onClick={() => setSessionView('regular')}
-                title="Regular trading hours only"
-              >Regular Hours</button>
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${sessionView === 'extended' ? styles.sessionBtnActive : ''}`}
-                onClick={() => { if (extEnabled) setSessionView('extended') }}
-                disabled={!extEnabled}
-                title={extEnabled ? extLabel : 'Available during pre-market and post-market'}
-              >{extLabel}</button>
-            </div>
-          )}
-          {!isDWMtf && (
-            <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours">
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${!extHoursOn ? styles.sessionBtnActive : ''}`}
-                onClick={() => setExtHours(false)}
-                title="Regular session only (9:30–4:00 ET), overnight gaps"
-              >Regular Hours</button>
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${extHoursOn ? styles.sessionBtnActive : ''}`}
-                onClick={() => setExtHours(true)}
-                title="Include pre-market + post-market bars"
-              >Extended Hours</button>
-            </div>
-          )}
-          <ChartMarketClock />
-        </div>
-      </div>
+      <ChartIdentityRow
+        searchRef={searchRef}
+        sym={sym}
+        displayLabel={headerLabel}
+        labelColor={hdrColors.title || null}
+        logoSym={themeIdx.isIndex ? null : sym}
+        brandLogo={themeIdx.isIndex}
+        boundsRef={focusableRef}
+        themeVars={menuVars}
+        onSymbolChange={handleSymbolChange}
+        showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}
+        dayGain={themeIdx.isIndex ? idxGain : null}
+        dayGainColors={{
+          up: hdrColors.dayChangeUp || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
+          down: hdrColors.dayChangeDown || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
+        }}
+        session={isDWMtf
+          ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel }
+          : { mode: 'intraday', extHoursOn, onExtHours: setExtHours }}
+        showClock
+        styles={styles}
+      />
       <div className={styles.tfBar}>
         {visibleTfs.map(([code, label]) => (
           <button
