@@ -14,8 +14,7 @@ import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useTickerMeta from '../../../hooks/useTickerMeta'
-import { mergeChartSettings } from '../../../components/chart/chartDefaults'
-import { menuThemeVars } from '../../../utils/dividerColor'
+import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import UIcon from '../../../components/ui/UIcon'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import { VOLUME_PANE_SURFACE_FIXED } from '../../../components/chart/indicatorRegistry'
@@ -197,41 +196,24 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // (so existing layouts look identical), and NEW widgets start from it; the
   // moment you change a setting it's stored on that surface's own blob in `opts`
   // and diverges. Main tab → opts.settings; extra tab → its chartTabs[i].settings.
-  const globalCs = mergeChartSettings(prefs.chart_settings)
   const activeStoredSettings = isMainTab ? (opts?.settings || null) : (activeExtra?.settings || null)
-  const activeStoredCs = useMemo(
-    () => (activeStoredSettings ? mergeChartSettings(activeStoredSettings) : null),
-    [activeStoredSettings],
-  )
-  // Aliased to `chartCs` so every existing read below (header, menus, StockChart
-  // props) becomes surface-scoped automatically. Inherit the global seed until edited.
-  const chartCs = activeStoredCs || globalCs
   // Identity-stable full-blob override handed to StockChart (null = inherit global).
   const settingsOverride = useMemo(() => activeStoredSettings || null, [activeStoredSettings])
-  // The single write sink for the ACTIVE surface. NEVER writes the global pref —
-  // that isolation is the whole point (the "editing one chart changes the other"
-  // bug was every widget sharing the one global blob). StockChart's internal
-  // settings writes route here too via onSettingsPersist.
-  const writeActiveSettings = useCallback((nextFull) => {
-    if (isMainTab) onOptsChange?.({ ...(opts || {}), settings: nextFull })
-    else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { settings: nextFull }))
-  }, [isMainTab, activeExtra, opts, onOptsChange])
+  // Per-surface settings resolution + the single write sink for the ACTIVE
+  // surface. Passing `onStore` is what keeps this widget/tab's writes OUT of
+  // the global chart_settings pref — that isolation is the whole point (the
+  // "editing one chart changes the other" bug was every widget sharing the one
+  // global blob) and it holds even on a brand-new widget whose
+  // `activeStoredSettings` is still null (see useChartSurfaceSettings).
+  const { cs: chartCs, menuVars, write: writeActiveSettings, patchHeader } = useChartSurfaceSettings({
+    stored: activeStoredSettings,
+    onStore: (next) => {
+      if (isMainTab) onOptsChange?.({ ...(opts || {}), settings: next })
+      else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { settings: next }))
+    },
+    chartsTheme,
+  })
   const extHoursOn = chartCs.extendedHoursShading ?? true
-  // Canvas-matched palette for the chart popup menus (ticker search / timeframe /
-  // right-click). White+gold on a light canvas, dark OLED on a dark one.
-  const menuCanvasColor = chartsTheme === 'sunrise'
-    ? '#eaf3fb'
-    : (chartCs.bgMode === 'gradient' ? (chartCs.bgGradient?.top || chartCs.background) : chartCs.background)
-  // On a user GRADIENT canvas the popups paint a translucent copy of that same
-  // gradient so they read as part of the chart wherever they open, instead of a
-  // flat slab of the top color. Sunrise keeps its solid light treatment.
-  const menuGradient = (chartsTheme !== 'sunrise' && chartCs.bgMode === 'gradient' && chartCs.bgGradient)
-    ? { top: chartCs.bgGradient.top, bottom: chartCs.bgGradient.bottom }
-    : null
-  const menuVars = useMemo(
-    () => menuThemeVars(menuCanvasColor, menuGradient ? { gradient: menuGradient } : undefined) || {},
-    [menuCanvasColor, menuGradient?.top, menuGradient?.bottom],
-  )
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -256,9 +238,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     return codes.map(c => [c, tfLabel(c)])
   })()
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
-  const patchHeader = useCallback((patch) => {
-    writeActiveSettings({ ...chartCs, header: { ...chartCs.header, ...patch }, preset: 'custom' })
-  }, [chartCs, writeActiveSettings])
   const toggleTfFav = useCallback((code) => {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
     patchHeader({ timeframes: fav.includes(code) ? fav.filter(c => c !== code) : [...fav, code] })
