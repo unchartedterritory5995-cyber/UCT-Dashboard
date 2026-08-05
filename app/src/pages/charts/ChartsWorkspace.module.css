@@ -285,6 +285,86 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
+/* ── Widget-level tabs — one slot holding several widgets of different types ──
+   Rendered INLINE in the widget header (the drag bar), between the color dot and
+   the pop-out/close controls. The tab chips appear only once a slot has ≥1 extra
+   tab, so single-widget slots look unchanged; the "+" add-tab button is always
+   present so any widget can grow tabs. */
+.wtabStrip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.wtabStrip::-webkit-scrollbar { height: 0; }
+.wtabChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--widget-text, var(--text-muted, #8b8674));
+  cursor: pointer;
+  border: 1px solid transparent;
+  flex: 0 0 auto;
+}
+.wtabChip:hover {
+  color: var(--widget-text-strong, var(--text, #e5e7eb));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.05));
+}
+.wtabChipActive {
+  color: var(--widget-text-strong, var(--text, #e5e7eb));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
+  border-color: var(--widget-divider-strong, rgba(255, 255, 255, 0.14));
+  font-weight: 600;
+}
+.wtabLabel { white-space: nowrap; }
+.wtabClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.55;
+}
+.wtabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
+.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: #4ade80; background: rgba(74, 222, 128, 0.14); }
+.wtabAdd {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 600;
+}
+.wtabAdd:hover { color: var(--ut-gold, #c9a84c); }
+/* Portaled to document.body + positioned `fixed` (inline top/left) so it escapes
+   the widget's overflow:hidden and never clips on a short widget. */
+.wtabAddMenu {
+  position: fixed;
+  z-index: 6000;
+  width: 156px;
+  background: var(--bg-elevated, #0f141b);
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 5px;
+  padding: 4px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
 .tfBar {
   display: flex;
   flex-wrap: wrap;

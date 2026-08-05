@@ -536,6 +536,25 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  // Replace a whole widget object in place — used by the widget-level tab system,
+  // which routes every tab add/close/select and per-active-tab color/opts edit
+  // through one atomic swap (the reducer already computed the next widget). Keeps
+  // the widget's grid position (x/y/w/h) since those live on the same object.
+  const handleReplaceWidget = useCallback((id, nextWidget) => {
+    setLayout(prev => {
+      // Take the reducer's widget WHOLESALE (so closing the last tab, which drops
+      // the wtabs/activeWtab keys entirely, actually clears them) but keep the LIVE
+      // grid geometry from `prev` — the reducer computed from a render-time snapshot
+      // that could be stale if a drag/resize landed in between.
+      const widgets = prev.widgets.map(w => (
+        w.id === id ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w
+      ))
+      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   const handleAddWidget = useCallback((type) => {
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
@@ -971,6 +990,7 @@ export default function ChartsWorkspace() {
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
+              onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
             />
           </div>
@@ -985,6 +1005,7 @@ export default function ChartsWorkspace() {
     onRemove: handleRemoveWidget,
     onColorChange: handleColorChange,
     onOptsChange: handleOptsChange,
+    onReplaceWidget: handleReplaceWidget,
     onPopOut: handlePopOutWidget,
   }
 
@@ -1231,6 +1252,7 @@ export default function ChartsWorkspace() {
                 onRemove={() => handleRemovePoppedWidget(w.id)}
                 onColorChange={(c) => handleColorChange(w.id, c)}
                 onOptsChange={(opts) => handleOptsChange(w.id, opts)}
+                onReplaceWidget={handleReplaceWidget}
               />
             </PopoutShell>
           </PopoutWindow>

@@ -193,6 +193,16 @@ export default function ProfileWidget({ color }) {
           title="Stock Profile Settings"
           perfLabel="Performance"
           extraSections={[{
+            label: 'Header',
+            rows: [
+              { key: 'headerBg', label: 'Header color' },
+              { key: 'headerShow', label: 'Show', type: 'segmented', options: [
+                { key: 'both', label: 'Both' },
+                { key: 'ticker', label: 'Ticker' },
+                { key: 'company', label: 'Company' },
+              ] },
+            ],
+          }, {
             label: 'Earnings Surprise',
             rows: [{ key: 'surpUpColor', label: 'Positive' }, { key: 'surpDownColor', label: 'Negative' }],
           }]}
@@ -206,12 +216,15 @@ export default function ProfileWidget({ color }) {
         />
       )}
 
-      {/* Header: logo + ticker + company name + gear */}
+      {/* Header: logo + ticker + company name + gear.
+          `headerShow` (⚙) chooses ticker / company / both. */}
       <div className={styles.bar}>
         <span className={styles.symWrap}>
-          {sym && <CompanyLogo sym={sym} size={18} name={company} tile />}
-          <span className={styles.sym}>{sym || '—'}</span>
-          {sym && company && <span className={styles.company}>({company})</span>}
+          {sym && <CompanyLogo sym={sym} size={18} name={company} round />}
+          {settings.headerShow !== 'company' && <span className={styles.sym}>{sym || '—'}</span>}
+          {sym && company && settings.headerShow === 'both' && <span className={styles.company}>({company})</span>}
+          {sym && company && settings.headerShow === 'company' && <span className={styles.sym}>{company}</span>}
+          {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
         <button
           ref={settingsBtnRef}
@@ -250,6 +263,18 @@ export default function ProfileWidget({ color }) {
             </div>
           </div>
 
+          {/* ── Company description + this-year thematic narrative ── */}
+          {(profile?.company_desc || profile?.run_story) ? (
+            <div className={styles.prose}>
+              {profile.company_desc && <p className={styles.desc}>{profile.company_desc}</p>}
+              {profile.run_story && <p className={styles.story}>{profile.run_story}</p>}
+            </div>
+          ) : status === 'generating' ? (
+            <div className={styles.generating}>
+              <span className={styles.spinner} /> Writing company profile…
+            </div>
+          ) : null}
+
           {/* ── Earnings: last 4 reported quarters ── */}
           {earnings && earnings.length > 0 && (
             <div className={styles.earnWrap}>
@@ -282,18 +307,6 @@ export default function ProfileWidget({ color }) {
               </table>
             </div>
           )}
-
-          {/* ── Company description + this-year thematic narrative ── */}
-          {(profile?.company_desc || profile?.run_story) ? (
-            <div className={styles.prose}>
-              {profile.company_desc && <p className={styles.desc}>{profile.company_desc}</p>}
-              {profile.run_story && <p className={styles.story}>{profile.run_story}</p>}
-            </div>
-          ) : status === 'generating' ? (
-            <div className={styles.generating}>
-              <span className={styles.spinner} /> Writing company profile…
-            </div>
-          ) : null}
 
           {/* ── More Info: 4 key metrics + company profile ── */}
           <div className={styles.keyWrap}>

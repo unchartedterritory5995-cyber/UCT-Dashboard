@@ -312,7 +312,8 @@
   align-items: flex-start;
   flex-wrap: nowrap;
   gap: 3px;
-  top: 44px;
+  top: 34px;           /* tuck just under the drawing toolbar (its bottom ≈ 30px) */
+  left: 4px;           /* align the value strip's left edge with the toolbar's (left: 4px) */
   right: 8px;          /* let the value row use the full chart width before wrapping */
   background: none;
   padding: 0;

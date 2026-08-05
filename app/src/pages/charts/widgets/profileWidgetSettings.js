@@ -15,6 +15,8 @@ export const PROFILE_WIDGET_DEFAULTS = {
   downColor: '#ff5b5b',                             // negative performance
   surpUpColor: '#6a7bff',                           // positive earnings surprise %
   surpDownColor: '#ff5b5b',                         // negative earnings surprise %
+  headerBg: '#0e0f0d',                              // header bar fill (default = canvas → inherits/transparent)
+  headerShow: 'both',                               // 'both' | 'ticker' | 'company'
 }
 
 /** Deep-merge saved settings over defaults (tolerates partial/older blobs). */
@@ -40,6 +42,7 @@ export function profileWidgetStyleVars(s) {
   const vars = {}
 
   if (s.textColor && s.textColor !== D.textColor) vars['--prof-text'] = s.textColor
+  if (s.headerBg && s.headerBg !== D.headerBg) vars['--prof-header-bg'] = s.headerBg
   if (s.upColor && s.upColor !== D.upColor) vars['--prof-up'] = s.upColor
   if (s.downColor && s.downColor !== D.downColor) vars['--prof-down'] = s.downColor
   if (s.surpUpColor && s.surpUpColor !== D.surpUpColor) vars['--prof-surp-up'] = s.surpUpColor

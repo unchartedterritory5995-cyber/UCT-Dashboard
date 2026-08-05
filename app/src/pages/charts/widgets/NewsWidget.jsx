@@ -14,8 +14,10 @@ import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
+import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import UIcon from '../../../components/ui/UIcon'
+import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
   NEWS_WIDGET_SETTINGS_KEY, NEWS_WIDGET_DEFAULTS,
@@ -86,6 +88,9 @@ function chartText(e) {
 export default function NewsWidget({ color, opts, onOptsChange }) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
+  // Company name for the header (⚙ "Show" = ticker / company / both) + logo hint.
+  // Lightweight, localStorage-seeded, shared with the chart watermark.
+  const { name: company } = useTickerMeta(sym)
 
   // ── Appearance settings (⚙) — mirrors the other widget settings ──
   const { prefs, setPref } = usePreferences()
@@ -203,6 +208,18 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
+          title="News & Catalysts Settings"
+          extraSections={[{
+            label: 'Header',
+            rows: [
+              { key: 'headerBg', label: 'Header color' },
+              { key: 'headerShow', label: 'Show', type: 'segmented', options: [
+                { key: 'both', label: 'Both' },
+                { key: 'ticker', label: 'Ticker' },
+                { key: 'company', label: 'Company' },
+              ] },
+            ],
+          }]}
           settings={settings}
           onChange={patchSettings}
           onReset={resetSettings}
@@ -213,9 +230,16 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
         />
       )}
 
-      {/* Header: symbol chip + up/down filter pills + gear */}
+      {/* Header: logo + ticker/company + up/down filter pills + gear.
+          `headerShow` (⚙) chooses ticker / company / both. */}
       <div className={styles.bar}>
-        <span className={styles.sym}>{sym || '—'}</span>
+        <span className={styles.symWrap}>
+          {sym && <CompanyLogo sym={sym} size={18} name={company} round />}
+          {settings.headerShow !== 'company' && <span className={styles.sym}>{sym || '—'}</span>}
+          {sym && company && settings.headerShow === 'both' && <span className={styles.company}>({company})</span>}
+          {sym && company && settings.headerShow === 'company' && <span className={styles.sym}>{company}</span>}
+          {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
+        </span>
         <div className={styles.filters}>
           {FILTERS.map(f => (
             <button

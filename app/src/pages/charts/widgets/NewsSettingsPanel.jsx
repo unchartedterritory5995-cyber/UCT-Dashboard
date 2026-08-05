@@ -153,12 +153,24 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
           <Row label="Up">{swatch('upColor', 'Up %')}</Row>
           <Row label="Down">{swatch('downColor', 'Down %')}</Row>
 
-          {/* Optional extra color sections (e.g. earnings Surprise up/down) */}
+          {/* Optional extra sections — color swatches (default) or a segmented
+             * pick control (row.type === 'segmented', e.g. Header shows Ticker/
+             * Company/Both). */}
           {extraSections.map(sec => (
             <div key={sec.label}>
               <div className={styles.sectionLabel}>{sec.label}</div>
               {sec.rows.map(r => (
-                <Row key={r.key} label={r.label} hint={r.hint}>{swatch(r.key, r.label)}</Row>
+                <Row key={r.key} label={r.label} hint={r.hint}>
+                  {r.type === 'segmented' ? (
+                    <div className={styles.seg}>
+                      {r.options.map(o => (
+                        <button key={o.key}
+                          className={`${styles.segBtn}${s[r.key] === o.key ? ' ' + styles.segBtnOn : ''}`}
+                          onClick={() => set({ [r.key]: o.key })}>{o.label}</button>
+                      ))}
+                    </div>
+                  ) : swatch(r.key, r.label)}
+                </Row>
               ))}
             </div>
           ))}
