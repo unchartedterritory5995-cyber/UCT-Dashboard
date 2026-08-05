@@ -7,6 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
+import useSavedColors from '../../hooks/useSavedColors'
 import UIcon from '../../components/ui/UIcon'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
@@ -47,6 +48,7 @@ export default function WatchlistSettingsPanel({
   const [pos, setPos] = useState(null)               // settings-menu position (left of the watchlist)
   const [activeTarget, setActiveTarget] = useState(null)  // { target, label } — which color is being edited
   const [colorPos, setColorPos] = useState(null)     // ColorPanel position (right of the menu)
+  const { savedColors, saveColor, deleteColor } = useSavedColors()  // global saved colors (shared w/ chart)
   const [tplName, setTplName] = useState('')         // "save current look" name field
   const [tplMenuOpen, setTplMenuOpen] = useState(false)   // Templates ▾ dropdown showing
   const [savingTpl, setSavingTpl] = useState(false)       // inline "name your look" row showing
@@ -303,6 +305,9 @@ export default function WatchlistSettingsPanel({
             value={targetValue(activeTarget.target)}
             onChange={(hex) => setColorTarget(activeTarget.target, hex)}
             onClose={() => setActiveTarget(null)}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
           />
         </div>
       )}

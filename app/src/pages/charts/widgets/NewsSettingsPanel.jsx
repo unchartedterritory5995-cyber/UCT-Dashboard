@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
+import useSavedColors from '../../../hooks/useSavedColors'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './NewsSettingsPanel.module.css'
 
@@ -31,6 +32,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
   const [colorPos, setColorPos] = useState(null)
+  const { savedColors, saveColor, deleteColor } = useSavedColors()
 
   // Place the menu on the side of the widget facing the middle of the layout.
   useLayoutEffect(() => {
@@ -184,6 +186,9 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
             value={targetValue(activeTarget.target)}
             onChange={(hex) => setColorTarget(activeTarget.target, hex)}
             onClose={() => setActiveTarget(null)}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
           />
         </div>
       )}

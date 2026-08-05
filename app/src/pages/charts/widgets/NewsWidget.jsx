@@ -215,7 +215,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
           extraSections={[{
             label: 'Header',
             rows: [
-              { key: 'headerBg', label: 'Header color' },
+              { key: 'headerColor', label: 'Header color', hint: 'ticker & name' },
               { key: 'headerShow', label: 'Show', type: 'segmented', options: [
                 { key: 'both', label: 'Both' },
                 { key: 'ticker', label: 'Ticker' },

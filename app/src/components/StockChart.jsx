@@ -9357,9 +9357,9 @@ export default function StockChart({
       {!showFatalError && chartReady && (
         <div
           className={styles.scaleToggle}
-          /* Sit above the time axis + the corner resize handle (both ~20-26px) so
-             the toggle never overlaps the widget's SE drag handle. */
-          style={{ bottom: boldCandles ? '28px' : `calc(28px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane).main.bottom})` }}
+          /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
+             it just clear of the SE corner resize handle). */
+          style={{ bottom: '3px' }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button

@@ -13,7 +13,7 @@ export const NEWS_WIDGET_DEFAULTS = {
   textColor: '#e0dac8',                             // event title / ticker text color
   upColor: '#1ae51a',                               // up % / up-direction accent
   downColor: '#ff5b5b',                             // down % / down-direction accent
-  headerBg: '#0e0f0d',                              // header bar fill (default = canvas → inherits/transparent)
+  headerColor: '#e0dac8',                           // ticker + company NAME text color (default = text-bright)
   headerShow: 'both',                               // 'both' | 'ticker' | 'company'
 }
 
@@ -40,7 +40,7 @@ export function newsWidgetStyleVars(s) {
   const vars = {}
 
   if (s.textColor && s.textColor !== D.textColor) vars['--news-text'] = s.textColor
-  if (s.headerBg && s.headerBg !== D.headerBg) vars['--news-header-bg'] = s.headerBg
+  if (s.headerColor && s.headerColor !== D.headerColor) vars['--news-header-text'] = s.headerColor
   if (s.upColor && s.upColor !== D.upColor) vars['--news-up'] = s.upColor
   if (s.downColor && s.downColor !== D.downColor) vars['--news-down'] = s.downColor
 

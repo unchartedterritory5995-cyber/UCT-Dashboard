@@ -500,8 +500,8 @@
   z-index: 45;
   display: flex;
   gap: 1px;
-  padding: 2px 3px;
-  border-radius: 6px;
+  padding: 1px 2px;
+  border-radius: 5px;
   background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.72));
   border: 1px solid var(--chart-panel-border-low, rgba(255, 255, 255, 0.06));
   backdrop-filter: blur(2px);
@@ -521,12 +521,12 @@
   color: var(--chart-panel-text-strong-low, #e2dfd6);
   opacity: 0.82;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   line-height: 1;
-  padding: 2px 7px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease, opacity 0.12s ease;
 }
