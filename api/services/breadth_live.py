@@ -180,12 +180,27 @@ def _anchorable(key: str) -> bool:
 # same population; otherwise the "basis shift" is really a headcount difference
 # and subtracting it invents a number.
 #
-# TWO-SIDED, and tight. At 0.9812 coverage the anchor overshot every count on
-# 2026-07-31 (near_52w_high +24, stage2 +23) and anchoring scored WORSE than
-# raw that day — the only session out of ten where it did. Seeing 1.4% MORE
-# names than the collector (2026-07-28) breaks it the same way, which a
-# one-sided floor would have waved through.
-MAX_COVERAGE_DRIFT = 0.005
+# TWO-SIDED: seeing 1.4% MORE names than the collector breaks a count anchor
+# exactly as seeing 1.4% fewer does, and a one-sided floor waved 2026-07-28
+# through.
+#
+# The BOUND follows from what the anchor trades. Anchoring a count injects an
+# error of roughly the coverage drift, and removes a price-basis bias of ~6-8%
+# on the long-window counts. So it is worth doing while drift stays well under
+# that bias, and stops being worth doing as they converge. Measured, mean
+# |error| over the anchored metrics, raw -> anchored:
+#
+#   coverage 0.9812   5.44% -> 4.23%   helps
+#   coverage 1.0140   6.26% -> 4.73%   helps
+#   coverage 0.7182   the percentages invert sign; clearly past the line
+#
+# 3% sits comfortably above the 0.7-2% drift normal operation produces and
+# comfortably below the bias being removed.
+#
+# (An earlier 0.5% came from reading 2026-07-31 as "anchoring made it worse".
+# That reading was taken BEFORE the >=21-session lookback rule stopped
+# anchoring short-window metrics, which is what had actually gone wrong there.)
+MAX_COVERAGE_DRIFT = 0.03
 
 # A percentage survives a small headcount difference where a count cannot — but
 # NOT an arbitrary one. On 2026-07-27 bars.db held 72% of the universe and even

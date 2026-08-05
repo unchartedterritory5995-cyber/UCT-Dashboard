@@ -487,10 +487,13 @@ def test_coverage_guard_is_two_sided():
     """Seeing 1.4% MORE names than the collector breaks a count anchor exactly
     as seeing 1.4% fewer does — a one-sided floor waved 2026-07-28 through."""
     assert bl._coverage_ok(1.0)
-    assert bl._coverage_ok(0.997) and bl._coverage_ok(1.003)
-    assert not bl._coverage_ok(0.981)
-    assert not bl._coverage_ok(1.014)
+    assert bl._coverage_ok(0.981) and bl._coverage_ok(1.014)   # measured: helps
+    assert not bl._coverage_ok(0.95)
+    assert not bl._coverage_ok(1.05)
+    assert not bl._coverage_ok(0.7182)                          # measured: hurts
     assert not bl._coverage_ok(None)
+    # Symmetric: a surplus is as disqualifying as a shortfall.
+    assert bl._coverage_ok(1 - bl.MAX_COVERAGE_DRIFT) == bl._coverage_ok(1 + bl.MAX_COVERAGE_DRIFT)
 
 
 @pytest.fixture
@@ -538,14 +541,14 @@ def test_counts_are_withheld_when_bars_saw_a_different_population(basis):
     how many names you saw, so anchoring them would invent a number.
     """
     stored = {"universe_count": 3722, "pct_above_200sma": 65.9, "stage2_count": 1210}
-    prev = {"universe_count": 3648, "pct_above_200sma": 62.1, "stage2_count": 1186}
-    b = basis(stored, prev)                       # 98.0% — 2% short
+    prev = {"universe_count": 3573, "pct_above_200sma": 62.1, "stage2_count": 1186}
+    b = basis(stored, prev)          # 96% — past the count bound, inside the ratio one
     assert b["counts_anchored"] is False
     assert b["ratios_anchored"] is True
     assert "stage2_count" in b["withheld"]
     assert "pct_above_200sma" in b["shift"]
 
-    today = {"universe_count": 3650, "pct_above_200sma": 63.0, "stage2_count": 1190}
+    today = {"universe_count": 3575, "pct_above_200sma": 63.0, "stage2_count": 1190}
     out = bl.apply_anchor(today, b)
     assert out["stage2_count"] == 1190            # untouched, honestly raw
     assert out["pct_above_200sma"] == 66.8        # 65.9 + 0.9

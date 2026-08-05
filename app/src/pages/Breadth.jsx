@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
+import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import {
@@ -901,10 +902,35 @@ export default function Breadth() {
 
   const AAII_KEYS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread'])
 
-  const rows = data?.rows ?? []
-  const lastUpdated = rows[0]?._created_at
-    ? formatETFull(rows[0]._created_at + 'Z')
+  const storedRows = data?.rows ?? []
+
+  // Intraday breadth sits ON TOP of the stored history, never in place of it.
+  // The backend withholds the live read the moment the 4:15 collector writes
+  // today's row, so an estimate never sits beside the number it estimated.
+  const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' })
+  const rows = useMemo(
+    () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
+    [liveBreadth.row, storedRows],
+  )
+
+  const lastUpdated = storedRows[0]?._created_at
+    ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
+
+  // "2:47 PM" reads as a moment in the session; a raw ISO date on a provisional
+  // row reads as another finished day, which is exactly what it is not.
+  const liveClock = useMemo(() => {
+    if (!liveBreadth.asOf) return 'LIVE'
+    try {
+      return new Date(liveBreadth.asOf).toLocaleTimeString('en-US', {
+        timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
+      })
+    } catch { return 'LIVE' }
+  }, [liveBreadth.asOf])
+  const liveTitle = liveBreadth.row
+    ? `Provisional — computed ${liveClock} ET against ${liveBreadth.meta?.universe_size ?? '—'} names. `
+      + `The 4:15 PM collector writes the day's authoritative row.`
+    : undefined
   const visibleCols = useMemo(
     () => COLS.filter(col => !collapsed.has(col.group) && !customize.hidden.has(col.key)),
     [collapsed, customize.hidden],
@@ -1145,8 +1171,17 @@ export default function Breadth() {
             </thead>
             <tbody>
               {rows.map((row, ri) => (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)}`}>
-                  <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
+                  <td className={`${styles.td} ${styles.dateCell}`}>
+                    {row._live
+                      ? (
+                        <span className={styles.liveStamp} title={liveTitle}>
+                          <span className={styles.livePulse} aria-hidden="true" />
+                          {liveClock}
+                        </span>
+                      )
+                      : row.date}
+                  </td>
                   {groupSpans.flatMap(gs => {
                     if (collapsed.has(gs.group)) {
                       // Placeholder cell to match the colSpan=1 rowSpan=2 header cell
@@ -1215,12 +1250,30 @@ export default function Breadth() {
                       const isStaleAaii = AAII_KEYS.has(col.key) &&
                         row.aaii_survey_date &&
                         row.aaii_survey_date !== row.date
-                      const isDrillable = !!col.drillKey
+                      // Intraday there are no per-metric stock lists to open —
+                      // the collector builds those with the row at 4:15.
+                      const isDrillable = !!col.drillKey && !row._live
+                      // A number carried from last night is not a live reading,
+                      // and one that reconciles to ~8% should not look like one
+                      // that reconciles to a point.
+                      const liveGrade = row._live
+                        ? (liveBreadth.carried?.has(col.key) ? 'carried'
+                          : liveBreadth.accuracy?.[col.key] ?? null)
+                        : null
                       return (
                         <td
                           key={col.key}
-                          className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''}`}
-                          title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : isDrillable ? `Click to see stocks` : undefined}
+                          className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
+                          title={
+                            liveGrade === 'carried'
+                              ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
+                              : liveGrade === 'approximate'
+                                ? 'Provisional, reconciles to roughly 10%'
+                                : liveBreadth.partial?.has(col.key) && row._live
+                                  ? 'Builds through the session — only complete at the close'
+                                  : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
+                                    : isDrillable ? 'Click to see stocks' : undefined
+                          }
                           onClick={isDrillable ? () => openDrill(row.date, col) : undefined}
                         >
                           {fmtCell(col, val)}

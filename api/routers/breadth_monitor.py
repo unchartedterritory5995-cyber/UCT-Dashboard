@@ -69,9 +69,22 @@ def get_breadth_live(force: bool = False):
     if not payload.get("ok"):
         raise HTTPException(status_code=503, detail=payload.get("reason", "unavailable"))
 
-    latest = svc.get_latest() or {}
-    payload["carried"] = {k: latest[k] for k in live.NOT_LIVE if latest.get(k) is not None}
+    recent = svc.get_history(11)
+    latest = recent[0] if recent else {}
+    carried = {k: latest[k] for k in live.NOT_LIVE if latest.get(k) is not None}
+    payload["carried"] = carried
     payload["carried_from"] = latest.get("date")
+
+    # Once the collector has written today's row there is nothing provisional
+    # left to say — the authoritative number replaces the estimate rather than
+    # sitting beside it.
+    payload["superseded"] = bool(latest.get("date")
+                                 and latest["date"] >= payload["session_date"])
+
+    # The row a surface renders: live metrics + carried fields, run through the
+    # same derivation every stored row gets.
+    payload["row"] = svc.derive_live_row({**carried, **payload["metrics"],
+                                          "date": payload["session_date"]}, recent)
     return payload
 
 

@@ -119,11 +119,38 @@ Measured: median `pct_above_*` error falls from **2.00 points on the level to
 safe in both regimes. Every response publishes `basis_shift` per metric — the
 divergence is a number on screen, not a secret.
 
-**Counts are anchored only when both sides counted the same population.** A
-percentage is coverage-invariant; a count scales with how many names you saw.
-If `live(prior).universe_count` is below 98% of the stored count, the gap is a
-headcount difference rather than a price-basis offset, and subtracting it would
-invent a number — so counts fall back to raw and `anchor_withheld` says so.
+**Anchoring is applied only where the mechanism says it helps** — metrics whose
+level reaches back ≥ 21 sessions. A metric built from ONE day-over-day change
+carries almost no dividend bias (a name is touched only on its ex-date), so
+subtracting yesterday's error from today's just injects noise. Replaying four
+fully-covered sessions, every metric at or above that threshold improved when
+anchored and every one below it got worse:
+
+| anchored | raw → anchored | left raw | raw → anchored |
+|---|---|---|---|
+| `pct_above_200sma` | 2.73% → 0.43% | `pct_above_5sma` | 0.15% → 0.30% |
+| `stage4_count` | 9.34% → 1.58% | `up_4pct_today` | 0.93% → 2.18% |
+| `up_50pct_month` | 10.86% → 2.27% | `down_4pct_today` | 0.73% → 3.36% |
+| `near_52w_high` | 7.39% → 1.99% | `adv_decline` | 0.97% → 2.02% |
+| `up_25pct_quarter` | 3.84% → 1.06% | `up_vol_ratio` | 1.71% → 6.21% |
+
+The threshold follows the mechanism; the data agreed. It was not fitted.
+
+**Both sides must have counted the same population.** A percentage is
+coverage-invariant where the missing names are few; a count scales directly with
+how many you saw. Anchoring a count injects an error of roughly the coverage
+drift while removing a 6–8% price-basis bias, so it is worth doing while drift
+stays well under that bias — measured, it still helps at 1.9% drift (5.44% →
+4.23%) and at 1.4% (6.26% → 4.73%). Counts are therefore anchored within **3%**
+headcount drift, **two-sided**: seeing 1.4% MORE names breaks it exactly as
+seeing 1.4% fewer does, and a one-sided floor waved 2026-07-28 through.
+
+Percentages get a looser **5%** bound rather than none: at 72% coverage even
+`pct_above_200sma` went the wrong way when anchored, because the names bars.db
+carries are the actively-viewed ones — bigger, more liquid, likelier to be above
+their averages. A missing quarter of the market is not a random sample. Beyond
+that bound nothing is anchored, `anchor_withheld` names every field affected,
+and the payload carries `degraded: true`.
 
 ## The gate
 
@@ -142,13 +169,26 @@ A wider gap means the live number is misleading, not merely imprecise.
   the collector's eleven metric functions and asserts the live path reproduces
   them exactly on frames with gaps, part-way listings and deliberate ties. A
   drift check re-reads the real collector and fails if the copies fall behind.
-  Mutation-tested: **19 injected defects, 19 killed**, unmutated control green
-  either side.
-- **Percentages: reconciled on real data.** Five sessions replayed against the
-  stored rows — 32 of 35 anchored percentage readings inside tolerance; the
-  three misses are short-window MAs on one high-volatility day, 1.1–1.5 points.
-- **Counts: pending.** They must be reconciled against a `bars.db` holding the
-  full universe.
+  Mutation-tested: **24 injected defects, 24 killed**, unmutated control green
+  either side, every mutation proven to have applied.
+- **Reconciled against production bars.** Six sessions replayed. The four whose
+  headcount matched the collector within ~0.5% **pass every metric**, while the
+  raw path still fails 5–8 per session — so the gate is not a rubber stamp. The
+  two at 1.4–1.9% drift land 2 and 3 metrics outside their envelopes (down from
+  7 raw each); the offenders differ each session, which is edge noise rather
+  than a systematic defect. `bars_coverage` ships in the payload so a consumer
+  can tell a clean day from a marginal one.
+- **End-to-end.** The endpoint runs in **4.6s cold, instant warm**, against a
+  13,067-name snapshot and a 2,720-name universe.
+
+### A note on how the coverage bound was set
+
+It was first written at 0.5%, from reading 2026-07-31 as "anchoring made it
+worse". That reading predated the ≥ 21-session lookback rule — short-window
+metrics being anchored was what had actually gone wrong. Re-measured afterwards,
+anchoring helps at that coverage, and the tight bound was costing live counts a
+6–8% bias for no reason. The lesson is the ordinary one: a threshold set from a
+judgement is only as good as the configuration it was judged in.
 
 ### One deliberate deviation
 
