@@ -97,13 +97,25 @@ def run_gate(_path=None, cases=None):
     p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     out = strip(p.stdout + p.stderr)
-    # A gate failure names the case and what it expected — that IS the "failing
-    # test" for the reach check below.
-    names = re.findall(r"(?m)^\s*[-*]?\s*`?(\w+)`?\s*(?:FAIL|failed).*$", out)
-    fails = re.findall(r"run \d+: [^\n]+", out)
+    # ⛔ THE REASON COMES OFF THE ARTEFACT, NOT OFF STDOUT. `report.json` records
+    # `expectation_failures` per case — "run 1: region price_plot = 2926, expected
+    # 500" — which is exactly the "which check fired" the reach test needs. The
+    # first draft of this regexed the console summary, which prints the WORST
+    # number and not the reason, so every gate mutation came back SUSPECT with an
+    # empty failing list: a kill nobody could attribute.
+    fails = []
+    try:
+        rep = json.loads((ROOT / "tools" / "chart_parity_out_mut"
+                          / "report.json").read_text(encoding="utf-8"))
+        for entry in rep.get("results", []):
+            fails += entry.get("expectation_failures") or []
+            if entry.get("error"):
+                fails.append(str(entry["error"]))
+    except Exception as e:                                     # noqa: BLE001
+        fails.append(f"(no report.json: {e})")
     return {"rc": p.returncode, "passed": 0 if p.returncode else 1,
             "failed": 1 if p.returncode else 0,
-            "failing": fails or names, "out": out}
+            "failing": fails, "out": out}
 
 
 # ── mutations ────────────────────────────────────────────────────────────────
