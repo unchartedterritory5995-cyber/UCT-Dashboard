@@ -624,6 +624,14 @@ def compute_metrics(levels: dict, prices: dict[str, float],
     with np.errstate(invalid="ignore"):
         m["pct_above_20ema"] = _pct(px > ema_prev, have & ~np.isnan(ema_prev))
 
+    # `universe_count` is names that PRINTED today; the moving-average family is
+    # computed only over names that also have enough history for the window. On
+    # a healthy bars.db those are the same population, but a thin or
+    # mid-backfill database makes them diverge badly — 2,720 priced against ~100
+    # measured — and a consumer reading only `universe_count` would believe the
+    # sample was 27x what it was. Publish what was actually measured.
+    m["_measured"] = int((have & levels["sma_ok"][200]).sum())
+
     # ── period returns ───────────────────────────────────────────────────────
     n_frame = levels["n_dates"] + 1     # the collector's frame includes today
     for up_key, dn_key, bars, thresh in _PERIOD_RETURNS:
@@ -934,6 +942,31 @@ def _market_open() -> bool:
         return n.weekday() < 5 and 930 <= n.hour * 100 + n.minute < 1600
 
 
+def _session_started(now: Optional[datetime] = None) -> bool:
+    """Has today's session begun — regardless of whether it is still open?
+
+    NOT the same question as `_market_open`. Keying the live read on "open"
+    left a hole: at 16:00 the provisional row disappeared and the collector's
+    authoritative row does not land until ~16:30, so the day's number went
+    missing for half an hour. The estimate should be REPLACED by the real row,
+    never vanish ahead of it.
+
+    Before the open is a different case and is deliberately excluded: most of
+    the universe has no pre-market trade, so the snapshot falls back to
+    yesterday's close for those names and breadth reads exactly unchanged —
+    true, and useless.
+    """
+    n = now or _now_et()
+    return n.weekday() < 5 and (n.hour * 100 + n.minute) >= 930
+
+
+# A weekday past 09:30 is not necessarily a TRADING day — holidays pass that
+# test with a snapshot in which almost nothing has traded. Rather than carry a
+# market calendar, ask the tape: on a real session the large majority of the
+# universe has volume within minutes of the open.
+MIN_TRADED_SHARE = 0.20
+
+
 def warm() -> dict:
     """Build the day's levels + anchor off the request path.
 
@@ -979,6 +1012,13 @@ def compute_live(force: bool = False) -> dict:
     prices = {t: d["last_price"] for t, d in snap.items() if d.get("last_price")}
     vols = {t: d["today_vol"] for t, d in snap.items() if d.get("today_vol")}
 
+    # Share of the BREADTH universe that has actually traded today — the
+    # holiday tell, and a cheap read on how far into the session we are.
+    universe = set(levels["tickers"])
+    traded = sum(1 for t in universe if vols.get(t))
+    traded_share = traded / len(universe) if universe else 0.0
+    session_live = _session_started() and traded_share >= MIN_TRADED_SHARE
+
     metrics = compute_metrics(levels, prices, vols)
     metrics.update(compute_index_metrics(levels.get("index") or {}, prices))
 
@@ -994,11 +1034,17 @@ def compute_live(force: bool = False) -> dict:
         "provisional": True,
         "as_of": et.isoformat(timespec="seconds"),
         "levels_as_of": _iso(levels["as_of_ts"]),
-        "session_date": _iso(_ts_int(et.date())) if _market_open() else _iso(levels["as_of_ts"]),
+        "session_date": _iso(_ts_int(et.date())) if session_live else _iso(levels["as_of_ts"]),
         "market_open": _market_open(),
+        "session_live": session_live,
+        "traded_share": round(traded_share, 4),
         "universe_size": len(levels["tickers"]),
         "universe_date": levels.get("universe_date"),
         "snapshot_size": len(snap),
+        # Names that actually carried a full 200-day window into the read —
+        # the honest sample size, which `universe_size` is not when bars.db is
+        # thin or mid-backfill.
+        "measured": metrics.get("_measured"),
         "metrics": apply_anchor(metrics, basis),
         "raw_metrics": metrics,
         "anchored": bool(basis),

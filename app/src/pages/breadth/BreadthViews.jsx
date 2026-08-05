@@ -13,6 +13,7 @@ import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
 import QuickPresetSwitcher from './QuickPresetSwitcher'
 import { VIEW_CONFIG, optionsSchema } from './views/viewMetricConfig'
 import customizeStyles from './CustomizePanel.module.css'
+import signalStyles from './views/signals.module.css'
 import TreemapView from './views/TreemapView'
 import RingsView from './views/RingsView'
 import TugView from './views/TugView'
@@ -23,7 +24,7 @@ import ScoreboardView from './views/ScoreboardView'
 import EqualizerView from './views/EqualizerView'
 import UIcon from '../../components/ui/UIcon'
 
-export default function BreadthViews({ rows, onDrill }) {
+export default function BreadthViews({ rows, onDrill, live = null, liveStamp = null }) {
   // Computed inside the component (not module top-level) to dodge the
   // Breadth.jsx ⇆ BreadthViews circular-import TDZ: HM_METRICS is only
   // initialized by render time, not during module evaluation.
@@ -62,6 +63,7 @@ export default function BreadthViews({ rows, onDrill }) {
   }, [rows])
 
   const currentRow = filledRows[rowIdx] ?? filledRows[0]
+  const isLiveRow = !!currentRow?._live
   const prevRow = filledRows[rowIdx + 3]
   // Newest-first window up to the current cursor, for time-series styles
   // (Timeline grid, Scoreboard sparklines).
@@ -76,10 +78,14 @@ export default function BreadthViews({ rows, onDrill }) {
     return out
   }, [rows])
 
-  const visibleMetrics = useMemo(
-    () => ALL_METRICS.filter(m => views.visibleKeys.has(m.key)),
-    [ALL_METRICS, views.visibleKeys],
-  )
+  // On the live row the per-metric stock lists don't exist yet — the collector
+  // builds them with the row at 4:15. Dropping `drillKey` is what turns every
+  // view's own `clickable = !!m.drillKey` off, so the tiles stop offering a
+  // click that would 404, without eight view components each needing to know.
+  const visibleMetrics = useMemo(() => {
+    const shown = ALL_METRICS.filter(m => views.visibleKeys.has(m.key))
+    return isLiveRow ? shown.map(({ drillKey, ...m }) => m) : shown
+  }, [ALL_METRICS, views.visibleKeys, isLiveRow])
   const visibleKeys = useMemo(() => new Set(visibleMetrics.map(m => m.key)), [visibleMetrics])
   const normalize = useMemo(
     () => (metric, row) => normalizeMetric(metric, row, pctileByKey),
@@ -98,8 +104,8 @@ export default function BreadthViews({ rows, onDrill }) {
   // Views call onDrill(metric); Breadth's openDrill expects (date, metric). Bridge
   // here so view components stay date-agnostic.
   const drill = useMemo(
-    () => (metric) => onDrill(currentRow?.date, metric),
-    [onDrill, currentRow],
+    () => (metric) => { if (!isLiveRow) onDrill(currentRow?.date, metric) },
+    [onDrill, currentRow, isLiveRow],
   )
 
   if (!currentRow) return null
@@ -116,7 +122,18 @@ export default function BreadthViews({ rows, onDrill }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => setRowIdx(p => Math.min(p + 1, rows.length - 1))}
                   disabled={rowIdx >= rows.length - 1} aria-label="Previous day">←</button>
-          <span style={{ font: '600 12px Instrument Sans, sans-serif', color: '#cbd5e1' }}>{currentRow.date}</span>
+          {currentRow._live ? (
+            <span
+              className={signalStyles.liveTag}
+              title={`Provisional — computed ${liveStamp ?? 'now'} ET. The 4:15 PM `
+                + `collector writes the day's authoritative reading.`}
+            >
+              <span className={signalStyles.livePulse} aria-hidden="true" />
+              LIVE · {liveStamp ?? 'now'}
+            </span>
+          ) : (
+            <span style={{ font: '600 12px Instrument Sans, sans-serif', color: '#cbd5e1' }}>{currentRow.date}</span>
+          )}
           <button onClick={() => setRowIdx(p => Math.max(p - 1, 0))}
                   disabled={rowIdx === 0} aria-label="Next day">→</button>
           {rowIdx > 0 && <button onClick={() => setRowIdx(0)}>LATEST</button>}

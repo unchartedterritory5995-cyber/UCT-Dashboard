@@ -667,3 +667,54 @@ def test_carried_fields_are_never_claimed_as_live():
     live = bl.compute_metrics(levels, prices, vols)
     for key in bl.NOT_LIVE:
         assert key not in live, f"{key} is listed NOT_LIVE but compute_metrics emits it"
+
+
+# ── Session window ───────────────────────────────────────────────────────────
+# Keying the live read on "is the market OPEN" left a half-hour hole: at 16:00
+# the provisional row vanished and the collector's real row does not land until
+# ~16:30. The estimate must be REPLACED by the authoritative row, never
+# disappear ahead of it.
+
+@pytest.mark.parametrize("when,started", [
+    ("2026-08-05 08:30", False),   # pre-market: most names have no trade yet
+    ("2026-08-05 09:29", False),
+    ("2026-08-05 09:30", True),    # the open
+    ("2026-08-05 13:44", True),
+    ("2026-08-05 16:00", True),    # closed, collector has NOT run — still ours
+    ("2026-08-05 16:29", True),
+    ("2026-08-05 23:59", True),
+    ("2026-08-08 12:00", False),   # Saturday
+    ("2026-08-09 12:00", False),   # Sunday
+])
+def test_the_session_window_runs_from_the_open_to_the_collector_handoff(when, started):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    now = datetime.strptime(when, "%Y-%m-%d %H:%M").replace(
+        tzinfo=ZoneInfo("America/New_York"))
+    assert bl._session_started(now) is started
+
+
+def test_a_holiday_is_caught_by_the_tape_not_a_calendar():
+    """A weekday past 09:30 is not necessarily a trading day. Rather than carry
+    a market calendar, the guard asks how much of the universe has volume."""
+    assert bl.MIN_TRADED_SHARE > 0
+    assert 0.5 >= bl.MIN_TRADED_SHARE >= 0.05   # loose enough for the first
+    #                                             minutes, tight enough for a holiday
+
+
+def test_the_payload_reports_what_was_MEASURED_not_just_what_printed():
+    """`universe_count` is names that printed today; the MA family also needs
+    enough history. A thin bars.db makes those diverge badly (2,720 priced vs
+    ~100 measured), and a consumer reading only the first would believe the
+    sample was 27x what it was."""
+    cdf, vdf = _frame(seed=83, n_tickers=40, n_dates=300)
+    # Half the names listed only recently — priced today, but no 200-day window.
+    cdf.iloc[:250, :20] = np.nan
+    vdf.iloc[:250, :20] = np.nan
+    levels, prices, vols = _split(cdf, vdf)
+    live = bl.compute_metrics(levels, prices, vols)
+    assert live["universe_count"] == 40
+    assert live["_measured"] == 20
+    # And the percentage really is computed over the measured 20, matching the
+    # collector's own validity rule.
+    assert live["pct_above_200sma"] == pct_above_sma(cdf, 200)

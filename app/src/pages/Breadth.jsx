@@ -907,7 +907,7 @@ export default function Breadth() {
   // Intraday breadth sits ON TOP of the stored history, never in place of it.
   // The backend withholds the live read the moment the 4:15 collector writes
   // today's row, so an estimate never sits beside the number it estimated.
-  const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' })
+  const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' })
   const rows = useMemo(
     () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
     [liveBreadth.row, storedRows],
@@ -917,18 +917,9 @@ export default function Breadth() {
     ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
 
-  // "2:47 PM" reads as a moment in the session; a raw ISO date on a provisional
-  // row reads as another finished day, which is exactly what it is not.
-  const liveClock = useMemo(() => {
-    if (!liveBreadth.asOf) return 'LIVE'
-    try {
-      return new Date(liveBreadth.asOf).toLocaleTimeString('en-US', {
-        timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
-      })
-    } catch { return 'LIVE' }
-  }, [liveBreadth.asOf])
+  const liveClock = liveBreadth.clock ?? 'LIVE'
   const liveTitle = liveBreadth.row
-    ? `Provisional — computed ${liveClock} ET against ${liveBreadth.meta?.universe_size ?? '—'} names. `
+    ? `Provisional — computed ${liveClock} ET across ${liveBreadth.measured ?? '—'} names. `
       + `The 4:15 PM collector writes the day's authoritative row.`
     : undefined
   const visibleCols = useMemo(
@@ -1089,7 +1080,7 @@ export default function Breadth() {
 
 
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthViews rows={rows} onDrill={openDrill} />
+        <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock} />
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (

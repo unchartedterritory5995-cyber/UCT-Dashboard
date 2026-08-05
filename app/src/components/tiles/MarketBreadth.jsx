@@ -4,6 +4,7 @@ import TileCard from '../TileCard'
 import MARelationship from './MARelationship'
 import { SkeletonTileContent } from '../Skeleton'
 import UIcon from '../ui/UIcon'
+import { useLiveBreadth } from '../../hooks/useLiveBreadth'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -56,6 +57,12 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
 export default function MarketBreadth({ data: propData }) {
   const { data: fetched } = useMobileSWR(propData !== undefined ? null : '/api/breadth', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const data = propData !== undefined ? propData : fetched
+  // The exposure rating this tile leads with is pushed by the morning wire and
+  // is NOT derivable intraday — so nothing above becomes live. What IS live is
+  // participation, and % above the 50-day is the reading that answers "is the
+  // market still working right now". It reconciles to within a point, the
+  // tightest grade the gate measures, which is why it is the one shown here.
+  const live = useLiveBreadth()
 
   if (!data) {
     return <TileCard icon="breadth" title="UCT Exposure Rating"><SkeletonTileContent lines={3} /></TileCard>
@@ -89,6 +96,18 @@ export default function MarketBreadth({ data: propData }) {
 
       {expNote && <p className={styles.scoreNote}>{expNote}</p>}
       {expGate && expReason && <p className={styles.gateNote}><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{expReason}</p>}
+
+      {live.row?.pct_above_50sma != null && (
+        <div className={styles.liveRow} title={
+          `Provisional — computed ${live.clock} ET across ${live.measured ?? '—'} names. `
+          + `The 4:15 PM collector writes the day's authoritative reading.`
+        }>
+          <span className={styles.livePulse} aria-hidden="true" />
+          <span className={styles.liveLabel}>ABOVE 50-DAY NOW</span>
+          <strong className={styles.liveValue}>{live.row.pct_above_50sma.toFixed(1)}%</strong>
+          <span className={styles.liveStamp}>{live.clock} ET</span>
+        </div>
+      )}
 
       <MARelationship maData={maData} />
     </TileCard>

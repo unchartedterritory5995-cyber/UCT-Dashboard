@@ -103,3 +103,39 @@ describe('useLiveBreadth', () => {
     await waitFor(() => expect(result.current.row).toBeNull())
   })
 })
+
+describe('useLiveBreadth polling cadence', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('backs off once the collector has written the day', async () => {
+    // The hook is mounted on the Dashboard — the busiest page. Polling a
+    // payload that cannot change until tomorrow's open is pure cost.
+    const { refreshIntervalFor } = await import('./useLiveBreadth')
+    expect(refreshIntervalFor(payload())).toBe(60_000)
+    expect(refreshIntervalFor(payload({ superseded: true }))).toBe(15 * 60_000)
+    expect(refreshIntervalFor(null)).toBe(15 * 60_000)
+  })
+})
+
+describe('useLiveBreadth degraded coverage', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('shows nothing when bars measured a different population', async () => {
+    // Seen for real against a thin local bars.db: 2,720 names priced but only
+    // ~100 carrying enough history, so pct_above_50sma described a different
+    // market. A fresher view of the same metric is useful; a different metric
+    // wearing the same name is not.
+    mockFetch(payload({ degraded: true }))
+    const { result } = renderHook(() => useLiveBreadth(), { wrapper })
+    await waitFor(() => expect(result.current.meta).toBeTruthy())
+    expect(result.current.row).toBeNull()
+    expect(result.current.degraded).toBe(true)
+  })
+
+  it('still shows the row at normal coverage', async () => {
+    mockFetch(payload({ degraded: false, measured: 2701 }))
+    const { result } = renderHook(() => useLiveBreadth(), { wrapper })
+    await waitFor(() => expect(result.current.row).toBeTruthy())
+    expect(result.current.measured).toBe(2701)
+  })
+})

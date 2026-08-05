@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **Branch:** `feat/breadth-live`
-**Status:** P1 in progress
+**Status:** P1 + P2 built on the branch; not deployed
 
 ## Problem
 
@@ -28,9 +28,12 @@ A live refresh is **~0.6s**, comfortable at a 60s cadence.
 ⚠️ The naive levels query took **597s** because it read all 12.7M daily bars.
 The windowed form (`ts >= cutoff`, ~1M bars) is 200× faster. Keep the window.
 
-Production `bars.db` coverage was sampled before designing: 25/25 universe
-tickers had daily bars current to the session. The local dev copy does **not**
-(102 of 2,720) — do not attempt reconciliation against local bars.
+Production `bars.db` carries the full universe; the local dev copy does **not**
+(102 of 2,720 for a current session), so it cannot reconcile counts. Pull
+production's instead — it is reachable from the R2 snapshot rail
+(`api/services/data_sync.py`, bucket `uct-bars-snapshots`, ~4 GB gz / 14.65 GB
+extracted). Stream it and extract only `bars.db`: the repo's own
+`download_snapshot()` reads the whole body into memory.
 
 ## Architecture
 
@@ -43,13 +46,17 @@ tickers had daily bars current to the session. The local dev copy does **not**
 - `compute_live()` — one full-market snapshot compared against those levels.
   Cached ~60s.
 
-**`GET /api/breadth-monitor/live`** → `{as_of, session_date, metrics,
-universe_counted, provisional: true, stale_fields: {...}}`
+**`GET /api/breadth-monitor/live`** → `{as_of, session_date, session_live,
+metrics, raw_metrics, basis_shift, accuracy, carried, carried_from, row,
+universe_count, measured, bars_coverage, degraded, superseded,
+provisional: true}` — the anchored numbers and the raw ones side by side, so
+the correction applied is inspectable rather than implied.
 
-**Storage.** The collector remains the ONLY writer of `breadth_snapshots`.
-Intraday readings go to a separate store. The permanent daily series stays
-authoritative — this is deliberate after the NAAIM incident, where provisional
-data reaching a permanent series went unnoticed for 93 sessions.
+**Storage.** The collector remains the ONLY writer of `breadth_snapshots`; this
+module never writes it. Nothing intraday is persisted at all yet — a separate
+intraday store is P3. The permanent daily series stays authoritative, which is
+deliberate after the NAAIM incident, where provisional data reaching a permanent
+series went unnoticed for 93 sessions.
 
 ## Metric parity — the part that must be exact
 
@@ -61,7 +68,7 @@ wearing the same name. Definitions are mirrored from the collector verbatim:
 | `pct_above_5/10/40/50/100/200sma` | `close > rolling(n).mean()`, % of **valid** names, 1 dp |
 | `pct_above_20ema` | **EMA** `ewm(span=20, adjust=False)` — NOT an SMA |
 | `up/down_4pct_today` | `count_period_return(closes, 1, 0.04, ±1)`, `>=` threshold |
-| `up/down_20pct_5d`, `25pct_month/quarter`, `50pct_month`, `magna_±` | same helper, `bars` = 5/21/63/21/34 |
+| `up/down_20pct_5d`, `25pct_month/quarter`, `50pct_month`, `magna_±` | same helper, `bars` = 5/21/**65**/21/34 |
 | `new_52w_highs` / `new_20d_highs` | `close >= rolling(n).max() * 0.999` — window **includes today**, computed from **closes** not intraday highs |
 | `new_52w_lows` / `new_20d_lows` | `close <= rolling(n).min() * 1.001` |
 | `new_ath` | `count_nd_highs(closes, min(252, len-1))` — a 252-day high; equals `new_52w_highs` in practice |
@@ -199,14 +206,51 @@ data, not a gain, so the live path excludes it and reports the occurrence in
 `_zero_prev_close` rather than letting it inflate advancers. Pinned by a test
 that asserts BOTH behaviours so the difference stays a decision.
 
-## Surfaces (P2, after the gate)
+## Surfaces
 
-Monitor today-row · Views tiles · Data Charts final point · Dashboard tile —
-each with an "as of 2:47 PM ET" stamp and provisional styling, replaced by the
-authoritative row at 4:15 ET.
+All four read the same hook, so none can disagree about whether a reading is
+live, and all four vanish the moment the collector writes the day.
 
-## Phases
+- **Monitor today-row** — gold rail, a pulsing clock instead of a date, carried
+  fields dimmed and italic like a stale AAII survey, `approximate` metrics
+  marked, drill-down off.
+- **Views / heatmap** — the date cursor shows `LIVE · 1:44 PM`. Drill is
+  disabled by stripping `drillKey` from the metrics passed down, which is what
+  turns off each view's own `clickable = !!m.drillKey` without eight components
+  needing to learn about liveness. A second guard in the container refuses the
+  call outright, for a future view that wires onClick directly.
+- **Data Charts** — the live point extends every line to now, marked with a dot
+  at the tip only, plus a dashed `LIVE 1:44 PM` vertical. Kept out of the legend:
+  it is an annotation, not a metric the user chose to plot.
+- **Dashboard tile** — the exposure rating it leads with is pushed by the
+  morning wire and is NOT derivable intraday, so nothing above it becomes live.
+  What is live is participation: `% above the 50-day now`, below a rule, with
+  its own timestamp. It reconciles to within a point — the tightest grade the
+  gate measures — which is why it is the one shown.
 
-1. **Service + endpoint + reconciliation harness + Monitor today-row.**
-2. Views tiles, Dashboard tile, Data Charts live point.
-3. Intraday store + day-path sparkline.
+### Two windows that had to be right
+
+`session_started` is deliberately NOT `market_open`. Keying on "open" left a
+half-hour hole: at 16:00 the provisional row vanished and the collector's row
+does not land until ~16:30. The estimate is REPLACED by the authoritative row,
+never withdrawn ahead of it. Before the open is excluded for the opposite
+reason — most of the universe has no pre-market trade, so the snapshot falls
+back to yesterday's close and breadth reads exactly unchanged: true, and useless.
+
+A weekday past 09:30 is not necessarily a trading day. Rather than carry a
+market calendar, the guard asks the tape: on a real session most of the universe
+has volume, so `traded_share < 20%` means a holiday.
+
+### Two numbers, not one
+
+`universe_count` is names that PRINTED today; `measured` is names that also
+carried enough history for the moving-average family. On a healthy `bars.db`
+they are the same population — against a thin one they read 2,720 and ~100, and
+a consumer seeing only the first would believe the sample was 27× what it was.
+Past 5% coverage drift the read is flagged `degraded` and no surface renders it:
+at that point it is not a fresher view of the metric, it is a different metric.
+
+## Later
+
+**P3:** intraday store + day-path sparkline.
+

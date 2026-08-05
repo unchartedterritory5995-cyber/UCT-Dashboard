@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import useSWR from 'swr'
+import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import UIcon from '../components/ui/UIcon'
@@ -52,6 +53,7 @@ function offsetDate(days) {
 
 export default function BreadthCharts() {
   const { data, isLoading, error, mutate } = useSWR('/api/breadth-monitor?days=365', fetcher)
+  const live = useLiveBreadth()
   const { prefs, setPref } = usePreferences()
 
   const [expanded, setExpanded] = useState({})
@@ -94,12 +96,22 @@ export default function BreadthCharts() {
     return () => clearTimeout(saveTimerRef.current)
   }, [selectedOverride, extremesOverride, selected, notableExtremes, setPref])
 
+  // The provisional row extends every line to NOW. It is appended, never
+  // substituted: the backend withholds it the moment the 4:15 collector writes
+  // the day, so a stored point and an estimate of that same point can't both
+  // appear. The date filter still applies — scrolling back in time drops it.
   const rows = useMemo(() => {
     if (!data?.rows) return []
-    return data.rows
+    const all = live.row ? [...data.rows, live.row] : data.rows
+    return all
       .filter(r => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [data, fromDate, toDate])
+  }, [data, live.row, fromDate, toDate])
+
+  const liveIndex = useMemo(
+    () => (live.row ? rows.findIndex(r => r._live) : -1),
+    [rows, live.row],
+  )
 
   const activePreset = useMemo(() => matchPreset(selected), [selected])
 
@@ -134,12 +146,41 @@ export default function BreadthCharts() {
       type: 'line',
       data: rows.map(r => [r.date, r[key] ?? null]),
       yAxisIndex: axisByKey[key] ?? 0,
-      symbol: 'none',
+      // Every line is dotless EXCEPT its provisional tip, so the eye can tell
+      // where measured history stops and the intraday estimate begins.
+      symbol: liveIndex >= 0
+        ? (v, prm) => (prm.dataIndex === liveIndex ? 'circle' : 'none')
+        : 'none',
+      symbolSize: 7,
       smooth: 0.35,
       lineStyle: { width: 2 },
       itemStyle: { color: PALETTE[i % PALETTE.length] },
       connectNulls: false,
     }))
+
+    if (liveIndex >= 0) {
+      series.push({
+        name: '__live_now__',
+        type: 'line',
+        data: [],
+        yAxisIndex: 0,
+        silent: true,
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          animation: false,
+          label: {
+            formatter: `LIVE ${live.clock ?? ''}`.trim(),
+            position: 'insideEndTop',
+            color: '#c9a84c',
+            fontSize: 10,
+            fontWeight: 600,
+          },
+          lineStyle: { color: '#c9a84c', type: 'dashed', width: 1, opacity: 0.65 },
+          data: [{ xAxis: rows[liveIndex].date }],
+        },
+      })
+    }
 
     // The 5–90 levels only mean anything against a percentage axis, so draw
     // them on whichever axis the pct family landed on — and not at all when no
@@ -259,7 +300,7 @@ export default function BreadthCharts() {
       ],
       series,
     }
-  }, [selected, rows, notableExtremes])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock])
 
   return (
     <div className={styles.container}>
