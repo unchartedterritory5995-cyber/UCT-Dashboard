@@ -1,7 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import useSWR from 'swr'
-import StockChart from '../components/StockChart'
-import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
@@ -16,6 +14,11 @@ import UIcon from '../components/ui/UIcon'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
+
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
 // Chart helpers removed — using StockChart component
 
@@ -783,7 +786,6 @@ export default function CustomScan({ allCandidates }) {
           {selectedSym ? (
             <>
               <div className={styles.chartHeader}>
-                <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
                 <span className={styles.chartName}>{selectedName}</span>
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
@@ -795,19 +797,20 @@ export default function CustomScan({ allCandidates }) {
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
-                <div className={styles.chartPeriodTabs}>
-                  {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
-                    <button
-                      key={p}
-                      className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}
-                      onClick={() => setChartPeriod(p)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
-              <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
+              {/* ChartPane owns the identity row (ticker search + company name +
+                  session toggle + clock) and the timeframe bar now — the page's
+                  own SymbolSearch + period-tabs row used to sit here and would
+                  just duplicate ChartPane's canonical ones, so both are retired. */}
+              <Suspense fallback={<div className={styles.chartEmpty}>Loading chart…</div>}>
+                <ChartPane
+                  sym={selectedSym}
+                  tf={chartPeriod}
+                  onSymbolChange={setSelectedSym}
+                  onTfChange={setChartPeriod}
+                  stored={null}
+                />
+              </Suspense>
             </>
           ) : (
             <div className={styles.chartEmpty}>
