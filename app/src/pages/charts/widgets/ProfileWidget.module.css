@@ -213,6 +213,35 @@
 }
 .link:hover { text-decoration: underline; }
 
+/* ── Sympathy stocks — clickable ticker chips ── */
+.sympWrap {
+  padding: 12px 12px 16px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--prof-chrome-strong, var(--prof-text, #e0dac8));
+  background: var(--prof-row-hover, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.10));
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.chip:hover {
+  color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  border-color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  background: var(--prof-row-hover, rgba(255, 255, 255, 0.10));
+}
+
 /* States */
 .empty {
   padding: 16px 12px;

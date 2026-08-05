@@ -70,11 +70,17 @@ function fmtShares(v) {
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
   return String(Math.round(n))
 }
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 function fmtEarnDate(iso) {
   if (!iso) return '—'
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
-  return (m >= 1 && m <= 12) ? `${MON[m - 1]} ${d}, ${y}` : String(iso)
+  return (m && d && y) ? `${m}/${d}/${y}` : String(iso)
+}
+// Compact price: drop the cents on higher-priced names so a 52W range fits.
+function fmtPrice(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  const digits = Math.abs(n) >= 100 ? 0 : 2
+  return `$${n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
 }
 function websiteDomain(url) {
   return String(url || '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
@@ -82,7 +88,7 @@ function websiteDomain(url) {
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
 export default function ProfileWidget({ color }) {
-  const { groupSyms } = useWorkspace()
+  const { groupSyms, setGroupSym } = useWorkspace()
   const sym = groupSyms?.[color] || null
 
   // ── Appearance settings (⚙) — mirrors the News widget ──
@@ -120,12 +126,16 @@ export default function ProfileWidget({ color }) {
     jsonFetcher,
     { refreshInterval: 600000, dedupingInterval: 60000, revalidateOnFocus: false },
   )
-  // The four key metrics (always shown; '—' when unavailable).
+  // Key metrics (always shown; '—' when unavailable).
   const keyItems = useMemo(() => ([
     { label: 'Market Cap', value: fund?.market_cap || '—' },
     { label: 'Next Earnings', value: fmtEarnDate(fund?.next_earnings) },
     { label: 'Float', value: fmtShares(fund?.float_shares) },
     { label: 'Short Interest', value: fund?.short_pct_float != null ? `${Number(fund.short_pct_float).toFixed(1)}%` : '—' },
+    { label: 'P/E (Fwd)', value: fund?.forward_pe != null ? Number(fund.forward_pe).toFixed(1) : '—' },
+    { label: 'Beta', value: fund?.beta != null ? Number(fund.beta).toFixed(2) : '—' },
+    { label: '52W Range', value: (fund?.week52_low != null && fund?.week52_high != null) ? `${fmtPrice(fund.week52_low)} – ${fmtPrice(fund.week52_high)}` : '—' },
+    { label: 'Div Yield', value: (fund?.div_yield != null && Number(fund.div_yield) > 0) ? `${Number(fund.div_yield).toFixed(2)}%` : '—' },
   ]), [fund])
   // Company profile rows (only shown when present).
   const infoItems = useMemo(() => {
@@ -145,6 +155,23 @@ export default function ProfileWidget({ color }) {
     if (fund?.employees != null) out.push({ label: 'Employees', value: Number(fund.employees).toLocaleString() })
     return out
   }, [fund])
+
+  // Sympathy stocks — the closest related names from the SAME group-peers engine
+  // the Multi-Chart group feature uses (theme holdings → industry cohort → AI
+  // peers). Cached hard on the backend (~6h), so fetch once per symbol.
+  const { data: peersData } = useMobileSWR(
+    sym ? `/api/groups/peers?sym=${encodeURIComponent(sym)}&n=10` : null,
+    jsonFetcher,
+    { refreshInterval: 0, dedupingInterval: 3600000, revalidateOnFocus: false },
+  )
+  const peers = useMemo(() => {
+    const raw = Array.isArray(peersData?.peers) ? peersData.peers : []
+    return raw
+      .map(p => (typeof p === 'string' ? p : p?.sym))
+      .filter(Boolean)
+      .filter(s => s !== sym)
+      .slice(0, 10)
+  }, [peersData, sym])
 
   const hasStats = !!stats && (stats.ytd_gain_pct != null || stats.avg_dollar_vol != null)
   const year = new Date().getFullYear()
@@ -287,6 +314,24 @@ export default function ProfileWidget({ color }) {
               </div>
             )}
           </div>
+
+          {/* ── Sympathy stocks (clickable peer chips) ── */}
+          {peers.length > 0 && (
+            <div className={styles.sympWrap}>
+              <div className={styles.sectionLabel}>Sympathy Stocks</div>
+              <div className={styles.chips}>
+                {peers.map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={styles.chip}
+                    onClick={() => setGroupSym?.(color, t)}
+                    title={`Show ${t}`}
+                  >{t}</button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
