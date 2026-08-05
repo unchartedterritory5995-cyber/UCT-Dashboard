@@ -580,9 +580,16 @@ on a split that does not divide evenly.
 * **every open chart is reordered** — the oscillators move below the volume pane.
   §3's `mid_panes` column is what that costs, and it is the largest single slice of
   the diff on most cases.
-* 🔴 **AND THE OSCILLATORS ARE REORDERED AMONG THEMSELVES — FOUND BY B5 TASK 12,
-  AFTER THE OWNER ANSWERED, AND IT IS THE ONE THING ON THIS PAGE THE OWNER WAS NOT
-  SHOWN.** Under `'bands'` the stack order is `paneMargins.PANES` — a constant.
+* ✅ **AND THE OSCILLATORS ARE *NOT* REORDERED AMONG THEMSELVES — B5 TASK 13
+  APPLIED `SHIPPED_STACK_ORDER` AND RE-MEASURED.** The paragraph below is Task
+  12's finding, kept in full because it is the measurement; what changed is the
+  fix, recorded at the end of it. The fold now seeds the instance list in shipped
+  stack order, so a migrated user's panes come out stacked exactly as their bands
+  are today, and `engine_three_bands_stacked` — the case where registry order and
+  stack order disagree — fell from **163,656 px to 161,036 px**, which is the
+  2,620 px the reorder was costing. **The loss below is WITHDRAWN.**
+
+* 🔴 *(Task 12's finding, as measured, and the reason Task 13 exists.)* Under `'bands'` the stack order is `paneMargins.PANES` — a constant.
   Under `'panes'` it is the INSTANCE LIST's order, and the v1→v2 fold seeds that
   list in **REGISTRY** order, not in the shipped stack order. Those two disagree:
   today, top-to-bottom, `rsi · stoch · mfi · williamsR · cci · macd · adx · atr ·
@@ -601,9 +608,31 @@ on a split that does not divide evenly.
     decision, priced separately, not something to slip into the commit that
     applies a different one.
   * **What is written down instead.** `instances.js` and `paneLayout.js` both
-    claimed the order WAS applied at Flip C; both docstrings are corrected, and
-    `settingsBlobMigration.test.js` pins the measured order so the claim cannot
-    drift back into prose. **This is an owner call and it is open.**
+    claimed the order WAS applied at Flip C; both docstrings were corrected by
+    Task 12, and corrected AGAIN by Task 13 — this paragraph has now been wrong in
+    both directions, which is why the one in `paneLayout.js` says so and points at
+    the test rather than restating the fact.
+  * ✅ **CLOSED BY B5 TASK 13 (`c1a5ca69`).** The fix is in the SEED, not in a sort
+    inside `computePaneLayout`: the layout is not the only reader of the instance
+    list — the legend prints in binding order, which walks the same list — so a
+    sort in the layout would give the panes back their order and leave the legend
+    behind it, invisibly, because no parity case hovers. `instanceControls`' writer
+    moved with the fold (one order, two producers). Task 9's z-order refusal is
+    answered rather than ignored: it was measured under `'bands'`, where all nine
+    oscillators share pane 0; under `'panes'` the only series left sharing pane 0
+    are the five PRICE OVERLAYS, and they are the tail of `SHIPPED_STACK_ORDER` in
+    registry order, so their relative insertion order is byte-identical
+    (`engine_price_overlay_zorder` is the case that would have caught a move, and
+    it reads 1,200 — the separator token and nothing else).
+  * ⚠️ **AND IT IS NOT FREE, WHICH IS THE HONEST HALF.** Today's shipped LEGEND and
+    today's shipped BAND STACK disagree: the crosshair legend lists `MACD` before
+    `%K`, while the band stack puts `stoch` ABOVE `macd`. One list cannot preserve
+    both. The panes win — they are the surface the owner answered about, and the
+    one a user looks at — so the legend's chip ORDER moves to match the stack it
+    sits above. **The chips themselves, their labels, their decimals and their text
+    are unchanged character for character**; three cases in
+    `legendFromDefinitions.test.jsx` pin the new order, and one of them fails if
+    the two orders ever collapse onto each other and this note goes stale.
 * **the price pane is no longer pixel-identical** — but the residue is now
   sub-pixel rounding rather than a re-fit (§1), 2,791 px instead of 49,429.
 * **a height disagreement is now silent-ish** — a `console.warn` and a counter
