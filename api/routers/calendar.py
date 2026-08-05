@@ -2094,7 +2094,7 @@ def _build_enrichment_for_date(target: str) -> dict:
            else _ENRICH_TTL_FUTURE_WEEK)
 
     from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
-    from api.services.earnings_estimates import get_earnings_intel
+    from api.services.earnings_estimates import get_earnings_intel, fh_budget_denied_total
 
     def _compute_hist_stats(sym: str) -> dict | None:
         """Return compact hist_stats from get_historical_earnings_moves.
@@ -2164,6 +2164,16 @@ def _build_enrichment_for_date(target: str) -> dict:
     # someone else's compute; SWR's next poll picks up the winner's cache.
     if not _ENRICH_SEMAPHORE.acquire(timeout=_ENRICH_ACQUIRE_TIMEOUT):
         return cache.get(ck) or {}
+    # Snapshot the process-wide Finnhub token-bucket denial counter before the
+    # fan-out. A heavy day (80+ symbols × 3 Finnhub calls each) can exceed the
+    # provider's ~60/min budget within this one build — the bucket sheds the
+    # excess (Task 13) instead of storming into 429s, but the symbols it shed
+    # come back with no beat_history, not because they lack one but because
+    # this pass never got to them. `throttled` (below) tells those two cases
+    # apart so a THROTTLED build doesn't lock in that partial coverage for
+    # `_ENRICH_TTL_PAST` (12h) / `_ENRICH_TTL_FUTURE_WEEK` (4h) — see the ttl
+    # override after the fan-out.
+    denied_before = fh_budget_denied_total()
     out: dict = {}
     try:
         # Re-check under the semaphore — a queued duplicate request for the
@@ -2177,11 +2187,25 @@ def _build_enrichment_for_date(target: str) -> dict:
     finally:
         _ENRICH_SEMAPHORE.release()
 
+    # Any denial during the window this build ran in means SOME Finnhub call
+    # here (or from concurrent Finnhub activity elsewhere in the process —
+    # the bucket is process-wide, same scope as the existing 429 cooldown)
+    # was shed for budget, not because the data doesn't exist. Caching that
+    # as if it were a complete, stable result would starve those symbols of
+    # `beat_history` for hours. Erring toward "recheck sooner than strictly
+    # necessary" is the safe direction; erring the other way is the bug this
+    # task exists to fix.
+    throttled = fh_budget_denied_total() > denied_before
+    if throttled:
+        ttl = _ENRICH_TTL
+
     _ENRICH_STATS[target] = {
         "total":     len(syms),
         "with_em":   sum(1 for v in out.values() if v.get("expected_move")),
         "with_hist": sum(1 for v in out.values() if v.get("hist_stats")),
+        "with_beats": sum(1 for v in out.values() if v.get("beat_history")),
         "past":      is_past,
+        "throttled": throttled,
         "computed_at": datetime.now(_ET).isoformat(timespec="seconds"),
     }
     # Bound the telemetry dict (it would otherwise grow one key per browsed day)

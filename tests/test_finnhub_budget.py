@@ -31,10 +31,14 @@ class _Resp:
 def _reset_state(monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
     ee._fh_cooldown_until = 0.0
+    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
+    ee._fh_bucket_updated = ee._time.monotonic()
     for path in ("/stock/earnings", "/stock/recommendation", "/stock/price-target"):
         cache.invalidate(f"fh_forbidden_{path}")
     yield
     ee._fh_cooldown_until = 0.0
+    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
+    ee._fh_bucket_updated = ee._time.monotonic()
 
 
 def _count_calls(monkeypatch, response):
@@ -110,6 +114,65 @@ def test_intel_success_still_cached_normally(monkeypatch):
     cache.invalidate("earnings_intel_GOODQ")
 
 
+# ── Proactive token-bucket rate limit (Task 13, 2026-08-04) ─────────────────
+# A heavy earnings day (80+ symbols × 3 Finnhub calls each via
+# get_earnings_intel) fires far more calls than Finnhub's 60/min budget
+# within a couple of seconds — well before the REACTIVE cooldown above ever
+# sees a 429. The bucket sheds the excess proactively, before any network
+# call, so most bursts never 429 at all.
+
+def test_token_bucket_sheds_once_budget_spent(monkeypatch):
+    calls = _count_calls(monkeypatch, _Resp(200, [{"actual": 1.0}]))
+    ee._fh_bucket_tokens = 3.0
+    ee._fh_bucket_updated = ee._time.monotonic()
+    for _ in range(3):
+        assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) == [{"actual": 1.0}]
+    assert calls["n"] == 3
+    # Budget exhausted — the 4th call is shed with NO network call, not a 429.
+    assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) is None
+    assert calls["n"] == 3
+
+
+def test_token_bucket_refills_over_time(monkeypatch):
+    calls = _count_calls(monkeypatch, _Resp(200, [{"actual": 1.0}]))
+    ee._fh_bucket_tokens = 0.0
+    ee._fh_bucket_updated = ee._time.monotonic() - 60.0  # pretend a full minute elapsed
+    assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) == [{"actual": 1.0}]
+    assert calls["n"] == 1
+
+
+def test_token_bucket_denial_never_touches_the_network_or_the_cooldown(monkeypatch):
+    """A budget-shed call must be indistinguishable, side-effect-wise, from
+    never having been made — it must NOT engage the reactive 429 cooldown
+    (that would incorrectly zero every OTHER caller too)."""
+    calls = _count_calls(monkeypatch, _Resp(200, []))
+    ee._fh_bucket_tokens = 0.0
+    ee._fh_bucket_updated = ee._time.monotonic()
+    assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) is None
+    assert calls["n"] == 0
+    assert ee._fh_cooldown_until == 0.0
+
+
+def test_junk_symbol_skip_is_not_counted_against_the_budget(monkeypatch):
+    """A symbol Finnhub can never resolve is filtered before the bucket check
+    — it was never going to be a network call, so it must not count as a
+    'throttled' denial (that would falsely mark a clean build as degraded)."""
+    _count_calls(monkeypatch, _Resp(200, []))
+    before = ee.fh_budget_denied_total()
+    assert ee._fh_get("/stock/earnings", {"symbol": "^VIX", "limit": 4}) is None
+    assert ee.fh_budget_denied_total() == before
+
+
+def test_fh_budget_denied_total_counts_shed_calls(monkeypatch):
+    _count_calls(monkeypatch, _Resp(200, []))
+    ee._fh_bucket_tokens = 0.0
+    ee._fh_bucket_updated = ee._time.monotonic()
+    before = ee.fh_budget_denied_total()
+    ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4})
+    ee._fh_get("/stock/recommendation", {"symbol": "AAPL"})
+    assert ee.fh_budget_denied_total() - before == 2
+
+
 def test_engine_company_news_routes_through_budgeted_fh_get():
     """engine.py's per-symbol news sweeps must not hand-roll Finnhub requests —
     raw calls bypass the shared 429 cooldown and re-created the storm."""
@@ -174,3 +237,23 @@ def test_sticky_actuals_never_raise(monkeypatch):
     cal._merge_sticky_actuals({"2026-07-15": _day([{"sym": "A", "eps_act": 1.0,
                                                     "eps_est": None, "rev_act": None,
                                                     "rev_est": None}])}, "2026-07-15")
+
+
+def test_the_budget_stays_under_finnhubs_published_limit():
+    """The safety MARGIN itself, not just the bucket mechanism.
+
+    Every other test here sets `_fh_bucket_tokens` explicitly to exercise
+    deny/refill behaviour — correct, but it means the constant could be raised
+    to 100/min and the whole suite would still pass while the 429 storm this
+    fix exists to prevent quietly returned. Finnhub's published free-tier limit
+    is 60 calls/min; the budget must sit strictly under it, with real headroom
+    for the calls made elsewhere in the codebase that bypass `_fh_get`
+    entirely (a known, documented gap).
+    """
+    FINNHUB_PUBLISHED_LIMIT = 60.0
+    assert ee._FH_RATE_LIMIT_PER_MIN < FINNHUB_PUBLISHED_LIMIT, (
+        "the token budget must stay under Finnhub's 60/min or it cannot "
+        "prevent the 429 storm it was written for"
+    )
+    # ...and not so far under that a normal day is throttled for no reason.
+    assert ee._FH_RATE_LIMIT_PER_MIN >= 30.0

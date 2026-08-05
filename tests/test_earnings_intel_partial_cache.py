@@ -54,9 +54,13 @@ class _Resp:
 def _reset_state(monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
     ee._fh_cooldown_until = 0.0
+    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
+    ee._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
     yield
     ee._fh_cooldown_until = 0.0
+    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
+    ee._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
 
 
