@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 import BriefSection from './BriefSection'
+import useSettledSym from '../../../hooks/useSettledSym'
 
 const row = { sym: 'NVDA', verdict: 'pending' }
 const calls = []
@@ -128,6 +129,31 @@ describe('BriefSection', () => {
     expect(calls.every(u => u.includes('cached_only=1'))).toBe(true)
   })
 
+  // The test above hand-picks `stepping={false}` on both renders to model the
+  // failure moment directly. This companion drives the actual PRODUCTION
+  // composition — a REAL `useSettledSym` debounce feeding both `sym` and
+  // `stepping` into BriefSection, exactly as a correctly-wired calendar page
+  // must — so it can't be dismissed as "a constant that never occurs in
+  // shipped usage." `useSettledSym`'s SETTLE_MS=200 real setTimeout has to
+  // actually elapse before `settled` (and therefore this component's `sym`)
+  // becomes the new symbol.
+  function SteppingHarness({ rawSym }) {
+    const { settled, stepping } = useSettledSym(rawSym)
+    return <BriefSection sym={settled} row={row} stepping={stepping} />
+  }
+
+  it('CRITICAL, real composition: an arrow-step through the ACTUAL settle-debounce still gates as cached-only', async () => {
+    calls.length = 0
+    const { rerender } = render(<SteppingHarness rawSym="NVDA" />)
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    expect(calls[0]).not.toContain('cached_only') // first symbol settles immediately — click-open behavior
+
+    calls.length = 0
+    rerender(<SteppingHarness rawSym="AAPL" />)
+    await waitFor(() => expect(calls.some((u) => u.includes('AAPL'))).toBe(true), { timeout: 3000 })
+    expect(calls.every((u) => u.includes('cached_only=1'))).toBe(true)
+  }, 5000)
+
   // I1: a transport/LLM failure must not be reported as an editorial fact
   // about the company ("not enough source material on this name").
   it('a failed fetch renders a failure state with a retry, not a claim about source material', async () => {
@@ -172,14 +198,20 @@ describe('BriefSection', () => {
 
   // M1: flipping `escalated` changes the SWR key, and a key change is itself
   // what triggers the fetch — the old extra `mutate()` fired a second request
-  // against the about-to-be-stale key, on a 10/minute endpoint.
-  it('Generate brief fires exactly one request', async () => {
+  // against the about-to-be-stale key, on a 10/minute endpoint. That redundant
+  // call targets the SAME (still cached-only) key the click started from, so
+  // it must be counted in the TOTAL, not filtered by `cached_only` — a filter
+  // here would blind-spot exactly the call this regression re-adds.
+  it('Generate brief fires exactly one request total, not a redundant second one', async () => {
     renderBrief({ stepping: true })
     const btn = await screen.findByRole('button', { name: /generate brief/i })
     calls.length = 0
     fireEvent.click(btn)
-    await waitFor(() => expect(calls.some(u => !u.includes('cached_only'))).toBe(true))
-    expect(calls.filter(u => !u.includes('cached_only')).length).toBe(1)
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    // Give an accidental extra fetch a tick to land before counting.
+    await new Promise((r) => setTimeout(r, 30))
+    expect(calls.length).toBe(1)
+    expect(calls[0]).not.toContain('cached_only')
   })
 
   // M2: `'   '` is truthy, so a naive `{x && <p>{x}</p>}` renders an empty

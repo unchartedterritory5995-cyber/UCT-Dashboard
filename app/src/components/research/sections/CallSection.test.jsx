@@ -107,7 +107,9 @@ describe('CallSection', () => {
 })
 
 it('GATE e: the restyled gauge reports its tone as data, not as a class name', async () => {
-  vi.doUnmock('../../calendar/SentimentGauge')
+  // M4: no `vi.mock('../../calendar/SentimentGauge', ...)` exists in this file
+  // (only its `useSentiment` hook is mocked above), so there is nothing to
+  // undo here — `vi.doUnmock` on a never-mocked module is a no-op. Dropped.
   const { SentimentGaugeDisplay } = await import('../../calendar/SentimentGauge')
   render(<SentimentGaugeDisplay data={{ score: 0.7, label: 'bullish', drivers: [] }} />)
   const el = screen.getByTestId('sentiment-gauge')
