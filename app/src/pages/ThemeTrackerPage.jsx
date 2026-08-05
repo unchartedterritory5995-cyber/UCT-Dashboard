@@ -18,7 +18,7 @@ import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import { menuThemeVars } from '../utils/dividerColor'
 import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel'
-import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_FONT_PX, mergeThemeTrackerSettings, themeTrackerStyleVars } from './theme-tracker/themeTrackerSettings'
+import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_FONT_PX, mergeThemeTrackerSettings, themeTrackerStyleVars, themeTrackerDefaultsForTheme } from './theme-tracker/themeTrackerSettings'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
 
@@ -238,8 +238,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
   // ── Theme Tracker appearance settings (⚙ panel) — mirrors the watchlist's ──
   const { prefs, setPref } = usePreferences()
+  // Uncustomized (no saved pref) → DEFAULTS FOR THE CURRENT APP THEME (light → white
+  // canvas + dark text), so the ⚙ swatches and the surface follow the site theme.
   const ttSettings = useMemo(
-    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null)),
+    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null) ?? themeTrackerDefaultsForTheme(prefs?.theme)),
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -249,8 +251,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify({ ...ttSettings, ...patch }))
   }, [ttSettings, setPref])
   const resetSettings = useCallback(() => {
-    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(THEME_TRACKER_DEFAULTS))
-  }, [setPref])
+    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(themeTrackerDefaultsForTheme(prefs?.theme)))
+  }, [setPref, prefs])
   const ttStyle = useMemo(() => themeTrackerStyleVars(ttSettings), [ttSettings])
   // Canvas-matched palette for the settings panel (light/gold on a light canvas,
   // dark on a dark one) — same mechanism as the chart/watchlist popup menus.

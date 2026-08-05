@@ -305,6 +305,10 @@ export default function ChartSettingsModal({
     // Earnings beat/miss badge colors (also color the popover surprise rows).
     earnBeat: ['markers', 'earningsBeat'],
     earnMiss: ['markers', 'earningsMiss'],
+    // Previous-day H/L/C line colors (Markers tab).
+    pdlHighColor: ['prevDayLevels', 'high', 'color'],
+    pdlLowColor: ['prevDayLevels', 'low', 'color'],
+    pdlCloseColor: ['prevDayLevels', 'close', 'color'],
   }
   const setColorTarget = (target, hex) => {
     if (typeof target === 'string' && target.startsWith('ind:')) {
@@ -369,6 +373,9 @@ export default function ChartSettingsModal({
       case 'swingBg': return swing.bg || settings.background || '#0e0f0d'
       case 'earnBeat': return evtMarkers.earningsBeat || '#1ae51a'
       case 'earnMiss': return evtMarkers.earningsMiss || '#c41f2d'
+      case 'pdlHighColor': return settings.prevDayLevels?.high?.color || '#3cb868'
+      case 'pdlLowColor': return settings.prevDayLevels?.low?.color || '#e74c3c'
+      case 'pdlCloseColor': return settings.prevDayLevels?.close?.color || '#9aa0a6'
       default: return '#1ae51a'
     }
   }
@@ -391,6 +398,12 @@ export default function ChartSettingsModal({
   const setSwing = (patch) => setSetting({ swingLabels: { ...swing, ...patch } })
   const evtMarkers = settings?.markers || {}
   const setMarker = (key, v) => setSetting({ markers: { ...evtMarkers, [key]: v } })
+  // Previous-day H/L/C reference lines (Markers tab).
+  const pdl = settings?.prevDayLevels || {}
+  const setPrevDay = (key, patch) => setSetting({ prevDayLevels: { ...pdl, [key]: { ...(pdl[key] || {}), ...patch } } })
+  const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]
+  const PDL_COLOR_TARGET = { high: 'pdlHighColor', low: 'pdlLowColor', close: 'pdlCloseColor' }
+  const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
   const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
   const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News']]
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
@@ -859,6 +872,46 @@ export default function ChartSettingsModal({
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Prev-day levels — intraday</div>
+            <div className={styles.card}>
+              {PDL_LINES.map(([key, label]) => {
+                const c = pdl[key] || {}
+                return (
+                  <div className={styles.field} key={key}>
+                    <span className={styles.fieldLabel}>{label}</span>
+                    <div className={styles.hdrRowCtl}>
+                      {c.enabled && (<>
+                        <select
+                          className={styles.sizeSelect}
+                          aria-label={`${label} line style`}
+                          value={c.style || 'dashed'}
+                          onChange={(e) => setPrevDay(key, { style: e.target.value })}
+                        >
+                          {LINE_STYLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <select
+                          className={styles.sizeSelect}
+                          aria-label={`${label} line width`}
+                          value={c.width || 1}
+                          onChange={(e) => setPrevDay(key, { width: Number(e.target.value) })}
+                        >
+                          {[1, 2, 3, 4].map((w) => <option key={w} value={w}>{w}px</option>)}
+                        </select>
+                        {colorSwatch(PDL_COLOR_TARGET[key], `${label} color`)}
+                      </>)}
+                      <button
+                        type="button" role="switch" aria-checked={!!c.enabled} aria-label={label}
+                        className={`${styles.toggle} ${c.enabled ? styles.toggleOn : ''}`}
+                        onClick={() => setPrevDay(key, { enabled: !c.enabled })}
+                      ><span className={styles.toggleKnob} /></button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </section>
 

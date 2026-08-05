@@ -1955,6 +1955,16 @@ _recent_fill_sem = threading.Semaphore(
 _RECENT_SELFHEAL = os.environ.get("MASSIVE_RECENT_SELFHEAL", "1") == "1"
 _RECENT_FILL_LEASE_SEC = float(os.environ.get("MASSIVE_RECENT_FILL_LEASE_SEC", "45"))
 _RECENT_SEM_WAIT_SEC = float(os.environ.get("MASSIVE_RECENT_SEM_WAIT_SEC", "20"))
+# GIL breathing room for the WS keepalive (2026-08-05). The _row_to_alert classify
+# loop in _compute_recent is a ~70s CPU pin that, on the flow-worker, runs in a
+# daemon thread (the "recent-warmer" / "massive-recent-fill" threads) and starves
+# the async Massive WS keepalive on the main loop thread -> 1011 ping-timeout ->
+# reconnect gap -> lost prints (NVDA 6750-lot sweep lost in the 10:36 ET reconnect).
+# A tiny sleep every N classified rows releases the GIL so the event-loop thread
+# can answer the ping mid-scan. ~40 yields over an 80k scan ≈ 20ms total; the
+# classification result is unchanged. Kill-switch: MASSIVE_FILL_YIELD_ROWS=0.
+_FILL_YIELD_ROWS = int(os.environ.get("MASSIVE_FILL_YIELD_ROWS", "1500"))  # 0 disables
+_FILL_YIELD_SEC = float(os.environ.get("MASSIVE_FILL_YIELD_SEC", "0.0005"))
 # ck -> (owning_lock, unix ts that lock was acquired). The LOCK OBJECT is the
 # fill's identity token: a steal swaps in a FRESH lock, so a stolen-from thread
 # can tell (by identity) that the lease no longer belongs to it. See _release_fill.
@@ -2490,7 +2500,9 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     # were built above while the flow.db connection was open; a contaminated
     # bid-sell is demoted to Not-Clean below, BEFORE the grade/tier filters so it
     # is filtered on its new "size"/Not-Clean tier, not its original Bear.
-    for r in rows:
+    for _i, r in enumerate(rows):
+        if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
+            time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
         a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
         if a is None:
             skipped_unclassified += 1

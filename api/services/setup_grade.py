@@ -355,6 +355,27 @@ def get_setup_grade(sym: str, live_move: dict | None = None) -> dict | None:
 
 # ── §12 accountability record ─────────────────────────────────────────────────
 
+# Startup catch-up (2026-08-05 incident) — mirrors implied_store.py's
+# CAPTURE_HOUR_ET/capture_due_by exactly, 5 minutes later (this job is meant
+# to run right after the implied capture so it rides that evening's freshly
+# stored chain read). See implied_store.py's "startup catch-up" section for
+# the full rationale (why misfire_grace_time can't cover a process restart)
+# and `implied_store.latest_grade_date` for the DB-side half of this
+# predicate, used together by api/main.py's IMPLIED_STORE_ENABLED startup
+# block.
+GRADE_SNAPSHOT_HOUR_ET = 16
+GRADE_SNAPSHOT_MINUTE_ET = 40
+
+
+def grade_snapshot_due_by(now_et: _dt.datetime) -> bool:
+    """True iff the §12 snapshot's weekday trigger window has opened as of
+    `now_et` (Mon–Fri, at/after 16:40 ET). Pure — same shape and same
+    weekday-only/holiday-harmless reasoning as `implied_store.capture_due_by`."""
+    if now_et.weekday() >= 5:
+        return False
+    return (now_et.hour, now_et.minute) >= (GRADE_SNAPSHOT_HOUR_ET, GRADE_SNAPSHOT_MINUTE_ET)
+
+
 def run_daily_grade_snapshot(now: _dt.datetime | None = None) -> dict:
     """One persisted grade per upcoming reporter per day (spec §6/§12).
 

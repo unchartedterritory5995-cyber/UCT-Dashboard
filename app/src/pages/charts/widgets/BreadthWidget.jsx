@@ -34,7 +34,7 @@ import EqualizerView from '../../breadth/views/EqualizerView'
 import TimelineView from '../../breadth/views/TimelineView'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
 import {
-  BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings,
+  BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme,
   breadthWidgetStyleVars, customBreadthColors, isLightCanvas,
   LIGHT_TIER_CELL_COLORS, LIGHT_TIER_TIP_COLORS,
 } from './breadthWidgetSettings'
@@ -115,8 +115,11 @@ export default function BreadthWidget({ opts, onOptsChange }) {
 
   // ── Appearance settings (⚙ panel) — mirrors the other widget settings ──
   const { prefs, setPref } = usePreferences()
+  // Uncustomized (no saved pref) → DEFAULTS FOR THE CURRENT APP THEME (light → white
+  // canvas + dark header/value text), so the ⚙ swatches and the surface follow the
+  // site theme (the heat-map tiles keep their own colors).
   const bwSettings = useMemo(
-    () => mergeBreadthWidgetSettings(parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null)),
+    () => mergeBreadthWidgetSettings(parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(prefs?.theme)),
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -126,8 +129,8 @@ export default function BreadthWidget({ opts, onOptsChange }) {
     setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify({ ...bwSettings, ...patch }))
   }, [bwSettings, setPref])
   const resetSettings = useCallback(() => {
-    setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify(BREADTH_WIDGET_DEFAULTS))
-  }, [setPref])
+    setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify(breadthDefaultsForTheme(prefs?.theme)))
+  }, [setPref, prefs])
   const bwStyle = useMemo(() => breadthWidgetStyleVars(bwSettings), [bwSettings])
   const bwMenuVars = useMemo(() => {
     const canvas = bwSettings.bgMode === 'gradient' ? (bwSettings.bgGradient?.top || bwSettings.bg) : bwSettings.bg

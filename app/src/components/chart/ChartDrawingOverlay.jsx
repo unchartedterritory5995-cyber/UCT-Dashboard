@@ -765,6 +765,68 @@ function offsetPoints(points) {
   }))
 }
 
+// 'YYYY-MM-DD' in America/New_York for a unix-seconds bar time. Formatter built
+// once (Intl construction is the expensive part).
+const _etDateFmt = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+  : null
+function etDateStr(tSeconds) {
+  if (!_etDateFmt) return null
+  try { return _etDateFmt.format(new Date(tSeconds * 1000)) } catch { return null }
+}
+
+// Resolve a catalyst's anchor to a bar index. A catalyst carries only a DATE
+// ('YYYY-MM-DD'). On a DAILY/WEEKLY chart that maps straight to a bar via
+// nearestIndex. On an INTRADAY chart the bars are numeric epochs, so the date
+// would fail nearestIndex's type check (returning null → the callout never
+// places). Instead we snap to the candle where the news actually broke: the FIRST
+// high-volume candle of that ET session (fallback: the day's max-volume candle).
+// Binary-searched to a mid-day seed so it's cheap even when the day isn't loaded.
+export function resolveCatalystAnchor(anchorTime, bars, nearestIndex) {
+  if (!bars?.length) return null
+  const intraday = typeof bars[0].t === 'number'
+  const isDate = typeof anchorTime === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(anchorTime)
+  if (!intraday || !isDate) return nearestIndex(anchorTime)
+  const day = anchorTime.slice(0, 10)
+  const approx = Math.floor(Date.parse(`${day}T16:30:00Z`) / 1000)   // ~12:30 ET seed
+  if (!Number.isFinite(approx)) return nearestIndex(anchorTime)
+  let lo = 0, hi = bars.length - 1, seed = 0
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (bars[m].t <= approx) { seed = m; lo = m + 1 } else hi = m - 1 }
+  const idxs = []
+  for (let i = seed; i >= 0; i--) { if (etDateStr(bars[i].t) === day) idxs.unshift(i); else break }
+  for (let i = seed + 1; i < bars.length; i++) { if (etDateStr(bars[i].t) === day) idxs.push(i); else break }
+  if (!idxs.length) return null   // day not loaded → defer (don't fall back to a wrong bar)
+  const volOf = (i) => Number(bars[i].v ?? bars[i].volume ?? 0)
+  const rngOf = (i) => {
+    const h = bars[i].h ?? bars[i].high, l = bars[i].l ?? bars[i].low
+    return (h != null && l != null) ? Math.abs(h - l) : 0
+  }
+  // Session averages to measure EXPANSION against.
+  let sumV = 0, sumR = 0, n = 0
+  for (const i of idxs) { sumV += volOf(i); sumR += rngOf(i); n++ }
+  const avgV = n ? sumV / n : 0
+  const avgR = n ? sumR / n : 0
+  // Where the news broke = the day's single biggest RANGE × VOLUME expansion — the
+  // classic catalyst breakout/breakdown bar. Using the MAX (not the first candle to
+  // cross a threshold) means an unrelated early-session spike (the 9:30 open) never
+  // wins over the real news candle (owner: "first large range + volume expansion
+  // candle... where the news broke" = the dominant move, e.g. the 12pm drop).
+  if (avgV > 0 && avgR > 0) {
+    let best = idxs[0], bestScore = -1
+    for (const i of idxs) {
+      const s = (volOf(i) / avgV) * (rngOf(i) / avgR)
+      if (s > bestScore) { bestScore = s; best = i }
+    }
+    return best
+  }
+  // Last resort (no usable volume/range): first candle ≥50% of peak volume, else peak.
+  let maxV = 0
+  for (const i of idxs) maxV = Math.max(maxV, volOf(i))
+  let target = maxV > 0 ? idxs.find(i => volOf(i) >= maxV * 0.5) : null
+  if (target == null) { target = idxs[0]; for (const i of idxs) if (volOf(i) > volOf(target)) target = i }
+  return target
+}
+
 // ─── Catalyst callout auto-placement (News widget) ───────────────────────────
 // A News-widget catalyst is TWO linked drawings — a `text` label + a `trendline`
 // leader — each independently editable. Both arrive with points:[] + a shared
@@ -780,17 +842,14 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
   if (ai == null || !bars[ai]) return null
   const b0 = bars[ai]
   const hi = b0.h ?? b0.high ?? b0.c
-  const lo = b0.l ?? b0.low ?? b0.c
-  const op = b0.o ?? b0.open ?? b0.c
-  const cl = b0.c ?? b0.close ?? op
   const aHi = toPixel(b0.t, hi)
   if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) return null   // candle off-screen → defer
   const anchorX = aHi.x, anchorHiY = aHi.y
-  // The leader STARTS at the day's HIGH on a positive (up) day and the LOW on a
-  // negative (down) day — fixed by the candle's own direction, not the open.
-  const aLoPx = toPixel(b0.t, lo)
-  const anchorLoY = (aLoPx && Number.isFinite(aLoPx.y)) ? aLoPx.y : anchorHiY
-  const anchorY = (cl >= op) ? anchorHiY : anchorLoY
+  // The leader connects at the candle's HIGH (top) for BOTH up and down catalysts, so
+  // the headline floats UP into the blank space above the move (owner ask, matches the
+  // reference). Anchoring a big down-breakdown at its LOW pushed the blank-space search
+  // far to the right and dragged the leader off-screen — the reported bug.
+  const anchorY = anchorHiY
 
   ctx.save()
   ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
@@ -853,48 +912,48 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
 
   // Build a SMOOTH ~45° leader (owner ask): put the headline attach point on a 45°
   // ray from the candle open, then derive the box from it. `right` = the box sits
-  // left of the candle so the leader meets the headline's RIGHT edge (and vice-versa).
-  // Take the nearest such placement that clears candles + other labels.
+  // Place the headline near the anchor candle. DETERMINISTIC candidate set (not a
+  // scored search): try a small set of fixed offsets around the candle, prefer the
+  // first that sits FULLY on-screen and clears the candles/other labels, else the
+  // first fully on-screen one, else a hard-clamped on-screen box. This can NEVER
+  // degenerate into the off-screen "line streaks off the left with no headline" bug
+  // the old scored search produced (it happily picked a blocked, edge-clamped spot).
   const fs = fontSize
-  const SQRT2 = Math.SQRT2
-  const DIRS = [
-    { sx: -1, sy: -1, right: true },   // up-left (preferred)
-    { sx: 1, sy: -1, right: false },   // up-right
-    { sx: -1, sy: 1, right: true },    // down-left
-    { sx: 1, sy: 1, right: false },    // down-right
-  ]
-  const DISTS = [46, 62, 82, 106, 134, 168, 206]   // leader length along the 45° ray
-  const BLOCKED = 1e6
-  // A candle near the RIGHT edge is a current/live candle — there's no clean room
-  // to its right (the price axis lives there), so force the headline into the open
-  // space to the LEFT (dr.right = box sits left of the candle).
-  const nearRight = anchorX > pRight - (boxW + 60)
-  let best = null, bestCost = Infinity
-  for (const dist of DISTS) {
-    for (const dr of DIRS) {
-      const step = dist / SQRT2
-      const attachX0 = anchorX + dr.sx * step
-      const headY0 = anchorY + dr.sy * step
-      let x = dr.right ? attachX0 - firstLineW : attachX0   // box x from the attach side
-      let y = headY0 - fs * 0.9                             // headline near the box top
-      x = Math.max(plotLeft, Math.min(pRight - boxW, x))
-      y = Math.max(4, Math.min(priceBottom - boxH, y))
-      // Attach point recomputed from the (possibly clamped) box so scoring is honest.
-      const ax = dr.right ? x + firstLineW : x
-      const hy = y + fs * 0.9
-      let cost = Math.hypot(ax - anchorX, hy - anchorY)     // leader length (≈ dist)
-      cost += (dr.sy < 0 ? -10 : 0) + (dr.sx < 0 ? -6 : 0)  // prefer up + left on ties
-      if (nearRight && !dr.right) cost += BLOCKED            // current candle → never place right
-      if (hitsCandles(x, y, boxW, boxH)) cost += BLOCKED
-      if (lineHitsCandles(anchorX, anchorY, ax, hy)) cost += BLOCKED
-      if (overlapsObstacle(x, y, boxW, boxH)) cost += BLOCKED
-      if (cost < bestCost) { bestCost = cost; best = { x, y } }
+  const G = 44                                   // leader length / gap from the candle
+  const roomRight = anchorX < pRight - (boxW + G + 8)
+  // Offsets are (attachDX, headDY, right?) where right? = box sits LEFT of the attach
+  // point (leader meets its right edge). Prefer up-right blank space, then up-left,
+  // then the down variants. When there's no room right, only the left variants apply.
+  const CANDS = roomRight
+    ? [{ dx: G, dy: -G, right: false }, { dx: -G, dy: -G, right: true }, { dx: G, dy: G, right: false }, { dx: -G, dy: G, right: true }]
+    : [{ dx: -G, dy: -G, right: true }, { dx: -G, dy: G, right: true }]
+  const boxFor = (c) => {
+    const x = c.right ? (anchorX + c.dx - firstLineW) : (anchorX + c.dx)
+    const y = anchorY + c.dy - fs * 0.9
+    return { x, y, ax: c.right ? x + firstLineW : x, hy: y + fs * 0.9 }
+  }
+  const onScreen = (b) => b.x >= plotLeft && b.x <= pRight - boxW && b.y >= 6 && b.y <= priceBottom - boxH
+  let best = null, firstOnScreen = null
+  for (const c of CANDS) {
+    const b = boxFor(c)
+    if (!onScreen(b)) continue
+    if (!firstOnScreen) firstOnScreen = b
+    if (!hitsCandles(b.x, b.y, boxW, boxH) && !lineHitsCandles(anchorX, anchorY, b.ax, b.hy) && !overlapsObstacle(b.x, b.y, boxW, boxH)) {
+      best = b; break
     }
   }
-  if (!best) best = { x: Math.max(plotLeft, anchorX - firstLineW - 60), y: Math.max(4, anchorY - 60 - fs) }
+  if (!best) best = firstOnScreen
+  if (!best) {
+    // Anchor jammed in a corner (every candidate off-screen) → clamp a box on-screen,
+    // preferring up-right; drop below the anchor if there's no vertical room above.
+    let x = Math.max(plotLeft, Math.min(pRight - boxW, anchorX + (roomRight ? G : -G - boxW)))
+    let y = Math.max(6, Math.min(priceBottom - boxH, anchorY - G - boxH))
+    if (y <= 7 && anchorY + G + boxH < priceBottom) y = anchorY + G
+    best = { x, y }
+  }
   return {
     rect: { x: best.x, y: best.y, w: boxW, h: boxH },
-    anchorPx: { x: anchorX, y: anchorY },   // leader anchors at the day's high (up) / low (down)
+    anchorPx: { x: anchorX, y: anchorY },   // leader anchors at the candle's high
     firstLineW,
   }
 }
@@ -1393,19 +1452,22 @@ export default function ChartDrawingOverlay({
         // overlay's `fontSize` prop = cs.drawingDefaults.fontSize) unless this
         // drawing already carries its own size.
         const calloutFs = d.fontSize || fontSize
+        // Resolve the anchor to a real candle FIRST — on an intraday chart a
+        // catalyst's date snaps to the session's big-volume candle (where the news
+        // broke); daily/weekly stay on the daily bar. Everything downstream anchors
+        // to that candle's EXACT time so placeCalloutPoint + the leader line agree.
+        const ai = resolveCatalystAnchor(d.calloutAnchorTime, bars, nearestIndex)
+        const b = ai != null ? bars[ai] : null
+        if (!b) continue
         const res = placeCalloutPoint({
           ctx, bars, toPixel, nearestIndex, drawings,
-          anchorTime: d.calloutAnchorTime, text: d.text, fontSize: calloutFs,
+          anchorTime: b.t, text: d.text, fontSize: calloutFs,
           plotRight, h, vRange,
         })
         if (!res) continue
-        const ai = nearestIndex(d.calloutAnchorTime); const b = ai != null ? bars[ai] : null
-        if (!b) continue
-        // Leader STARTS at the day's HIGH on a positive (up) day, the LOW on a
-        // negative (down) day — matches placeCalloutPoint's anchor.
-        const bOpen = b.o ?? b.open ?? b.c
-        const bClose = b.c ?? b.close ?? bOpen
-        const anchorPrice = (bClose >= bOpen) ? (b.h ?? b.high ?? b.c) : (b.l ?? b.low ?? b.c)
+        // Leader connects at the candle's HIGH for both directions (matches
+        // placeCalloutPoint's anchor) so the headline floats up into blank space.
+        const anchorPrice = (b.h ?? b.high ?? b.c)
         const { rect, anchorPx } = res
         const fs = calloutFs
         const labelPt = asPoint(toChart(rect.x, rect.y))
@@ -1949,7 +2011,12 @@ export default function ChartDrawingOverlay({
       // the delta MUST add futureBars — otherwise it saturates at the last bar and
       // an endpoint can't be dragged past the current candle into the future.
       const effLogical = (c) => {
-        const base = c?.time != null ? (timeToIndex.get(c.time) ?? 0) : 0
+        // nearestIndex (NOT exact timeToIndex.get) — on a live intraday chart a
+        // stored point time can drift off an exact bar key (bars get re-bucketed /
+        // sanitized), and an exact miss `?? 0` would resolve to index 0 → the point
+        // snaps horizontally to the far-left first bar. nearestIndex snaps to the
+        // containing bar instead, matching how the line is RENDERED.
+        const base = c?.time != null ? (nearestIndex(c.time) ?? 0) : 0
         return base + (Number.isFinite(c?.futureBars) ? c.futureBars : 0)
       }
       const timeDelta = coords.time && drag.startCoords.time
@@ -1991,7 +2058,7 @@ export default function ChartDrawingOverlay({
       const moveX = (p) => {
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : (timeToIndex.get(p.time) ?? 0)
+          : (nearestIndex(p.time) ?? 0)   // nearest, not exact — see effLogical note
         const rawIdx = origIdx + timeDelta
         if (rawIdx > _lastIdx) {
           return { time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
@@ -2029,7 +2096,7 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
+  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
@@ -2151,7 +2218,7 @@ export default function ChartDrawingOverlay({
         const _lastIdx = bars.length - 1
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : timeToIndex.get(p.time)
+          : nearestIndex(p.time)   // nearest, not exact — mirrors the drag's moveX
         if (origIdx != null) {
           const rawIdx = origIdx + dBars
           if (rawIdx > _lastIdx) {

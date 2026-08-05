@@ -38,6 +38,21 @@ export const BREADTH_WIDGET_DEFAULTS = {
 }
 
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
+// Seed values for an uncustomized widget on the LIGHT app theme: white canvas +
+// dark header/value text (the heat-map tiles keep their own colors). So the ⚙
+// swatches AND the surface follow the site theme until edited.
+export const BREADTH_WIDGET_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  headerColor: '#1f2328',
+  valueColor: '#1f2328',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function breadthDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...BREADTH_WIDGET_DEFAULTS, ...BREADTH_WIDGET_LIGHT_OVERRIDES }
+    : BREADTH_WIDGET_DEFAULTS
+}
+
 export function mergeBreadthWidgetSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}
   // The single `textColor` briefly shipped (2026-07-22) before splitting into

@@ -26,6 +26,21 @@ export const FUNDAMENTALS_DEFAULTS = {
   downColor: '#c41f2d',
 }
 
+// Seed values for an UNCUSTOMIZED widget on the LIGHT app theme (white canvas +
+// dark text) so the ⚙ swatches AND the surface follow the site theme until edited.
+export const FUNDAMENTALS_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  textColor: '#1f2328',
+  upColor: '#0a5c22',
+  downColor: '#7d1620',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function fundamentalsDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...FUNDAMENTALS_DEFAULTS, ...FUNDAMENTALS_LIGHT_OVERRIDES }
+    : FUNDAMENTALS_DEFAULTS
+}
+
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
 export function mergeFundamentalsSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}

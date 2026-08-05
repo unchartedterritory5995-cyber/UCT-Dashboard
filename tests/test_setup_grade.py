@@ -434,3 +434,52 @@ def test_daily_snapshot_default_now_uses_et_not_naive_local_clock():
         sg.run_daily_grade_snapshot(now=None)
     assert captured["now"].tzinfo == sg.implied_store._ET
     rec.assert_not_called()
+
+
+# ── Startup catch-up (2026-08-05 incident) — mirrors implied_store's
+# capture_due_by/latest_capture_date pair, 5 minutes later. See
+# tests/test_implied_store.py's "Startup catch-up" section for the root-cause
+# proof against the installed apscheduler; these tests cover the §12
+# snapshot's own decision boundary + the end-to-end recovery.
+
+def test_grade_snapshot_due_by_weekday_and_time_boundaries():
+    et = sg.implied_store._ET
+    assert sg.grade_snapshot_due_by(dt.datetime(2026, 8, 5, 16, 39, tzinfo=et)) is False
+    assert sg.grade_snapshot_due_by(dt.datetime(2026, 8, 5, 16, 40, tzinfo=et)) is True
+    assert sg.grade_snapshot_due_by(dt.datetime(2026, 8, 5, 23, 0, tzinfo=et)) is True
+    assert sg.grade_snapshot_due_by(dt.datetime(2026, 8, 8, 20, 0, tzinfo=et)) is False  # Saturday
+    assert sg.grade_snapshot_due_by(dt.datetime(2026, 8, 9, 20, 0, tzinfo=et)) is False  # Sunday
+
+
+def test_grade_snapshot_catchup_end_to_end_records_todays_row(tmp_path, monkeypatch):
+    """Regression for the §12 half of the 2026-08-05 incident: reproduces
+    "nothing recorded today, past the 16:40 ET trigger" against a REAL
+    (temp) implied_store DB and proves running exactly what
+    api/main.py's `_grade_snapshot_catchup_background` runs
+    (`run_daily_grade_snapshot`) closes the gap — visible via
+    `implied_store.latest_grade_date`, the same query the startup block uses
+    to decide whether to fire. Before this task's fix, `grade_snapshot_due_by`
+    does not exist on `setup_grade` at all, so this test fails with an
+    AttributeError; after the fix it passes."""
+    monkeypatch.setenv("IMPLIED_STORE_DB", str(tmp_path / "implied.db"))
+    import importlib
+    importlib.reload(sg.implied_store)
+
+    now = dt.datetime(2026, 8, 5, 16, 41, tzinfo=sg.implied_store._ET)
+    reporters = [{"sym": "AAA", "report_date": "2026-08-06", "hour": "amc"}]
+    grade = {"letter": "B+", "score": 71.2, "basis": None, "inputs_present": 4,
+             "inputs_total": 4, "inputs": [{"key": "rs_rank"}], "asof": "x"}
+
+    # Exactly the pair api/main.py's IMPLIED_STORE_ENABLED startup block checks.
+    assert sg.grade_snapshot_due_by(now) is True
+    assert sg.implied_store.latest_grade_date(sg.SURFACE) != now.date().isoformat(), \
+        "nothing recorded yet today -- this IS the 'lost the night' state"
+
+    with patch.object(sg.implied_store, "upcoming_reporters", return_value=reporters), \
+         patch.object(sg.implied_move, "get_expected_move", return_value=None), \
+         patch.object(sg, "get_setup_grade", return_value=grade):
+        # Exactly what _grade_snapshot_catchup_background (api/main.py) runs.
+        summary = sg.run_daily_grade_snapshot(now=now)
+
+    assert summary == {"recorded": 1, "skipped": 0, "failed": 0}
+    assert sg.implied_store.latest_grade_date(sg.SURFACE) == now.date().isoformat()
