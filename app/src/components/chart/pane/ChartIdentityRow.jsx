@@ -21,6 +21,7 @@ export default function ChartIdentityRow({
   dayGainColors = {},
   session = null,
   showClock = true,
+  rightSlot = null,
   styles,
 }) {
   return (
@@ -41,7 +42,13 @@ export default function ChartIdentityRow({
             themeVars={themeVars}
           />
         ) : (
-          <span className={styles.symbolStatic} style={labelColor ? { color: labelColor } : undefined}>
+          // Same test id the SymbolSearch branch renders under, so one query
+          // addresses the identity label whichever branch a surface is on.
+          <span
+            data-testid="sym-label"
+            className={styles.symbolStatic}
+            style={labelColor ? { color: labelColor } : undefined}
+          >
             {displayLabel}
           </span>
         )}
@@ -88,6 +95,7 @@ export default function ChartIdentityRow({
           </div>
         )}
         {showClock && <ChartMarketClock />}
+        {rightSlot}
       </div>
     </div>
   )
