@@ -10,24 +10,6 @@
   font-family: var(--font-sans);
 }
 
-/* On the LIGHT app theme the workspace keeps chart chrome dark (.widget re-asserts
-   --bg:#000). News follows the SITE theme instead, so an uncustomized widget is
-   white with dark text — re-flip the light tokens on the root. A customized widget
-   emits its own --news-* vars, which still win. */
-:global([data-theme='light']) [data-charts-theme='default'] .root {
-  --bg: #ffffff;
-  --bg-surface: #f4f5f6;
-  --bg-elevated: #ffffff;
-  --bg-hover: rgba(0, 0, 0, 0.05);
-  --border: #e3e5e7;
-  --text: #1f2328;
-  --text-muted: #57606a;
-  --text-bright: #0b0e11;
-  --text-heading: #161a1e;
-  --ut-gold: #7a5c16;
-  --ut-green-bright: #0a5c22;
-  --ut-red-bright: #7d1620;
-}
 
 /* Header bar: symbol + up/down filter pills + gear */
 .bar {

@@ -496,7 +496,7 @@
    so it changes with the chosen chart canvas instead of the old fixed slate. */
 .scaleToggle {
   position: absolute;
-  right: 6px;
+  right: 12px;
   z-index: 45;
   display: flex;
   gap: 1px;

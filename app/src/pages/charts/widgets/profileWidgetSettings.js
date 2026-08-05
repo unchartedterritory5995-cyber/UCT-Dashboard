@@ -19,6 +19,23 @@ export const PROFILE_WIDGET_DEFAULTS = {
   headerShow: 'both',                               // 'both' | 'ticker' | 'company'
 }
 
+// Seed values for an UNCUSTOMIZED widget on the LIGHT app theme: white canvas +
+// near-black text/accents, so the settings swatches AND the rendered widget both
+// follow the site theme until the user picks explicit colors.
+export const PROFILE_WIDGET_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  textColor: '#1f2328',
+  headerColor: '#1f2328',
+  upColor: '#0a5c22',
+  downColor: '#7d1620',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function profileDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...PROFILE_WIDGET_DEFAULTS, ...PROFILE_WIDGET_LIGHT_OVERRIDES }
+    : PROFILE_WIDGET_DEFAULTS
+}
+
 /** Deep-merge saved settings over defaults (tolerates partial/older blobs). */
 export function mergeProfileWidgetSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}

@@ -36,7 +36,15 @@ const PANEL_ROW_H = 30
 const GUTTER = 8
 const GAP = 4
 
-export default function LeverageInverseControl({ sym, onSelect, themeVars = null }) {
+export default function LeverageInverseControl({ sym, onSelect, themeVars = null, candleColors = null }) {
+  // Long/short + factor labels track the chart's candle up/down colors so the pill
+  // and the family panel match the canvas (e.g. blue up / pink down) out of the box.
+  const liVars = candleColors?.up || candleColors?.down
+    ? {
+        ...(candleColors.up ? { '--li-up': candleColors.up } : {}),
+        ...(candleColors.down ? { '--li-down': candleColors.down } : {}),
+      }
+    : null
   const { family, hasFamily } = useSingleStockEtfs(sym)
   // Panel state carries the sym it was opened FOR: `open` derives false the
   // moment the ticker changes under us (via this control or any other path),
@@ -217,7 +225,7 @@ export default function LeverageInverseControl({ sym, onSelect, themeVars = null
         <div
           ref={panelRef}
           className={styles.panel}
-          style={{ ...(themeVars || {}), top: panel.top, left: panel.left, maxHeight: panel.maxHeight }}
+          style={{ ...(themeVars || {}), ...(liVars || {}), top: panel.top, left: panel.left, maxHeight: panel.maxHeight }}
           role="menu"
           aria-label={`${family.underlying} single-stock ETFs`}
         >
