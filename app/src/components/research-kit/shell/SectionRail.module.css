@@ -92,6 +92,15 @@
   }
   .item {
     white-space: nowrap;
+    /* The vertical rail sets `min-height: var(--tap-min)`, which is the whole
+       target on desktop where the item spans the rail's width. Flipped to a
+       horizontal chip row the item shrinks to its label, so the SHORT axis
+       becomes the width — measured live at a real 390px viewport: Setup 38px,
+       Brief 35px, Call 34px, all under the 44px floor this repo sets in
+       `--tap-min`. Height alone passing is the trap: a 34x44 chip still misses
+       a thumb horizontally. Constrain the axis that actually got small. */
+    min-width: var(--tap-min);
+    justify-content: center;
   }
 }
 
