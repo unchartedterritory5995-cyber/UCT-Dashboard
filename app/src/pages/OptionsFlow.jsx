@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import ChartPane from "../components/chart/pane/ChartPane";
+import TickerPopup from "../components/TickerPopup";
 import DarkPool from "./DarkPool";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
@@ -506,6 +507,11 @@ export default function OptionsFlowDashboard() {
   // different ticker without closing the modal. Submit on Enter.
   const [chartModalSearch, setChartModalSearch] = useState("");
   const [hdrSearch, setHdrSearch] = useState("");  // header ticker search -> opens chart modal from any tab
+  // Right-click (long-press on touch) a ticker cell in the Top Flow / Leaderboard
+  // tables -> open the full /charts-quality chart via TickerPopup in controlled
+  // mode. Separate from the bespoke chartModal above (left-click paths); one
+  // popup rendered at page level, never per-row.
+  const [chartSym, setChartSym] = useState(null);
   // Dark pool overlay toggle — global setting persisted to localStorage so it
   // survives reloads. Applies to the main chart modal (which all ticker-click
   // entry points across tabs feed into). Default ON since dark pool zones are
@@ -6034,7 +6040,8 @@ export default function OptionsFlowDashboard() {
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
                 onClick={()=>{ setCExp(isExp ? null : tk.sym); }}>
-                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
+                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}
+                  onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); setChartSym(tk.sym); }}>
                   {tk.sym}
                   
                   {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
@@ -6638,7 +6645,8 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=r._rank<=3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:r._rank<=3?P.ac:P.dm, fontSize:12 }}>{r._rank}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}
+                          onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); setChartSym(r.sym); }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
@@ -8954,6 +8962,11 @@ export default function OptionsFlowDashboard() {
           <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
         </div>
         </>)}
+
+        {/* Right-click-to-chart popup — one instance for the whole page, never
+            per-row. Controlled mode: TickerPopup renders no trigger, just the
+            full ChartPane modal, opened/closed by chartSym. */}
+        {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import UIcon from "../components/ui/UIcon";
 import ShareToFloor from "../components/community/ShareToFloor";
+import TickerPopup from "../components/TickerPopup";
 
 /**
  * LiveFlow — subscriber-facing
@@ -522,7 +523,7 @@ function UserBlocklistPanel({ visible, onSaved }) {
 // ─── Alert row ────────────────────────────────────────────────────────────────
 function AlertRow({
   alert, isNew, tier, tierMeta, tierColor, directionTinted, isAdmin,
-  onFilterTicker, onFilterContract, onFilterAlertName,
+  onFilterTicker, onFilterContract, onFilterAlertName, onOpenChart,
   activeTicker, activeContract, activeAlertName,
 }) {
   const isCall = alert.cp === "C";
@@ -612,9 +613,12 @@ function AlertRow({
         )}
       </td>
       {/* Ticker — clickable to filter feed to just this ticker. Active filter
-          state shows with a colored background. */}
+          state shows with a colored background. Right-click (long-press on
+          Chrome/Android touch) opens the full chart instead — left-click's
+          filter behavior is untouched. */}
       <td
         onClick={onFilterTicker ? () => onFilterTicker(alert.ticker) : undefined}
+        onContextMenu={onOpenChart ? (e) => { e.preventDefault(); onOpenChart(alert.ticker); } : undefined}
         title={onFilterTicker ? `Filter to ${alert.ticker}` : undefined}
         style={{
           padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13,
@@ -1261,6 +1265,10 @@ export default function LiveFlow() {
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());  // key: T|C|S|E
   const [alertNameFilter, setAlertNameFilter] = useState(new Set());
+  // Right-click (long-press on touch) a ticker cell → open the full chart via
+  // TickerPopup in controlled mode. Independent of the click-to-filter state
+  // above — one popup rendered at page level, never per-row.
+  const [chartSym, setChartSym] = useState(null);
   // ─── Sort state ──────────────────────────────────────────────────────────
   // col: 'time' | 'premium' | 'grade'. dir: 'asc' | 'desc'. Default newest
   // first (time desc) — matches how a trader scans the live feed.
@@ -2301,6 +2309,7 @@ export default function LiveFlow() {
                     onFilterTicker={(t) => toggleInSet(setTickerFilter, t)}
                     onFilterContract={(c) => toggleInSet(setContractFilter, c)}
                     onFilterAlertName={(n) => toggleInSet(setAlertNameFilter, n)}
+                    onOpenChart={setChartSym}
                     activeTicker={tickerFilter.has(a.ticker)}
                     activeContract={contractFilter.has(`${a.ticker}|${a.cp}|${a.strike}|${a.exp}`)}
                     activeAlertName={alertNameFilter.has(a.alertName)}
@@ -2338,6 +2347,11 @@ export default function LiveFlow() {
           updated {relTime(new Date(now).toISOString())}
         </div>
       </div>
+
+      {/* Right-click-to-chart popup — one instance for the whole page, never
+          per-row. Controlled mode: TickerPopup renders no trigger, just the
+          full ChartPane modal, opened/closed by chartSym. */}
+      {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
     </div>
   );
 }
