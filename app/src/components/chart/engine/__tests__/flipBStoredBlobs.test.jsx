@@ -167,7 +167,7 @@ beforeEach(() => {
 })
 afterEach(() => { __setPaneModeForTest(null) })
 
-const { default: StockChart, ENGINE_FLIPPED_DEF_IDS } = await import('../../../StockChart')
+const { default: StockChart, ENGINE_OWNED } = await import('../../../StockChart')
 const { mergeChartSettings, CHART_DEFAULTS } = await import('../../chartDefaults')
 const { computePaneLayout, __setPaneModeForTest } = await import('../paneLayout')
 const { migrateLegacyToInstances } = await import('../instances')
@@ -277,12 +277,12 @@ describe('the blob shapes themselves — without these the cases below prove not
     }
   })
 
-  it('the flipped set is the four pilots plus B5\'s — the subject of every case here', () => {
+  it('the engine owns every definition — the subject of every case here', () => {
     // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6,
     // `mfi`, `cci` and `williamsR` at Task 7. The blobs below are unchanged and
     // so are their expectations, which is the claim: a stored July blob renders
     // the same chart after SEVEN more definitions move lane.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
+    expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
         'stoch', 'vwap', 'williamsR'])
   })

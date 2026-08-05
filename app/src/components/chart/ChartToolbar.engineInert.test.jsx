@@ -41,7 +41,7 @@ import userEvent from '@testing-library/user-event'
 import ChartToolbar from './ChartToolbar'
 import { mergeChartSettings, instanceTombstone } from './chartDefaults'
 import { AuthContext } from '../../context/AuthContext'
-import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds, engineDrawnInputs } from './engine/flipState'
+import { ENGINE_OWNED, engineDrawnDefIds, engineDrawnInputs } from './engine/flipState'
 import { setIndicatorEnabled } from './engine/instanceControls'
 import { catalogRows } from './indicatorCatalog'
 import * as engineRegistry from './engine/nativeRegistry'
@@ -219,7 +219,7 @@ describe('engineDrawnInputs — the MIGRATED-ID filter', () => {
     // finding. Handing `engineDrawnInputs` a registry that RESOLVES the id makes
     // the migrated-id check the only thing left that can refuse it.
     const UNMIGRATED_ID = '__unmigratedProbe'
-    expect(ENGINE_MIGRATED_DEF_IDS.has(UNMIGRATED_ID)).toBe(false)
+    expect(ENGINE_OWNED.has(UNMIGRATED_ID)).toBe(false)
     const real = engineRegistry.getDefinition('rsi')
     const probeDef = { ...real, id: UNMIGRATED_ID }
     const probeRegistry = {
@@ -246,7 +246,7 @@ describe('engineDrawnInputs — the MIGRATED-ID filter', () => {
     // …and the real population really is exhausted, which is WHY this is
     // synthetic. The day a definition ships un-migrated, this line says so and
     // the REAL subject is the better one (it exercises the shipped blob too).
-    expect(engineRegistry.listDefinitions().map(d => d.id).filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+    expect(engineRegistry.listDefinitions().map(d => d.id).filter(id => !ENGINE_OWNED.has(id)),
       'an un-migrated definition exists again — drive this control on the REAL one as well')
       .toEqual([])
 
@@ -283,7 +283,7 @@ describe('engineDrawnInputs — the MIGRATED-ID filter', () => {
   // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md` §2, site 3.
   it('⭐ a blob with NO flag reports a FLIPPED id in full — the divergence is gone', () => {
     const cs = settingsWith({ indicatorInstances: [MACD_INSTANCE] })
-    expect(ENGINE_FLIPPED_DEF_IDS.has('macd'), 'macd is not flipped — this case has no subject').toBe(true)
+    expect(ENGINE_OWNED.has('macd'), 'macd is not flipped — this case has no subject').toBe(true)
     expect('engineEnabled' in cs, 'the fixture still carries the deleted key').toBe(false)
     expect(engineDrawnInputs(cs, engineRegistry).has('macd'),
       'the engine-drawn read went back to answering from a flag').toBe(true)

@@ -25,7 +25,7 @@ import {
 import { MAIN_PRICE_SCALE_ID, AUTOSCALE_MODES, resolvePlacement } from './placement'
 import { computePaneLayout } from './paneLayout'
 import { PLOT_STYLES } from './defSchema'
-import { ENGINE_MIGRATED_DEF_IDS } from './flipState'
+import { ENGINE_OWNED } from './flipState'
 import * as registry from './nativeRegistry'
 // The INSTALLED renderer, imported for one purpose: to read its real series
 // defaults. This is the only `lightweight-charts` import under `engine/` outside
@@ -387,8 +387,8 @@ describe('seriesOptionsForPlot', () => {
     // chart — asserted here rather than left as prose, together with the two
     // memberships that make it true. (Take either id out of the flip sets and
     // this case is testing a lane that no longer exists.)
-    expect(ENGINE_MIGRATED_DEF_IDS.has('stoch'), 'the leak\'s SOURCE is not engine-bound').toBe(true)
-    expect(ENGINE_MIGRATED_DEF_IDS.has('mfi'), 'the leak\'s SINK is not engine-bound').toBe(true)
+    expect(ENGINE_OWNED.has('stoch'), 'the leak\'s SOURCE is not engine-bound').toBe(true)
+    expect(ENGINE_OWNED.has('mfi'), 'the leak\'s SINK is not engine-bound').toBe(true)
     expect(poolKey(plotOf('stoch', 'd')), 'the pair no longer shares a pool bucket')
       .toBe(poolKey(plotOf('mfi', 'mfi')))
     expect(plotOf('stoch', 'd').lineStyle, '%D stopped being the dashed one').toBe('dashed')

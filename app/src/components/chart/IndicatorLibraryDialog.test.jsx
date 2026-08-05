@@ -4,7 +4,7 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
 import { catalogRows } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
-import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
 
 // ─── THE BROWSE / ADD SURFACE (spec §6) ─────────────────────────────────────
@@ -79,7 +79,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     fireEvent.click(screen.getByRole('option', { name: /Average True Range/ }))
     expect(onChange).toHaveBeenCalledTimes(1)
     const next = onChange.mock.calls[0][0]
-    expect(isIndicatorEnabled(next, 'atr', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(next, 'atr', ENGINE_OWNED)).toBe(true)
     expect(next.indicators.atr.enabled).toBe(true)     // the mirror an un-flipped block reads
     // ⛔ AND IT WENT THROUGH `instanceControls`. A raw slice write moves the
     // mirror and nothing else — the eighth-door regression, and the mirror
@@ -95,7 +95,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     expect(screen.getByRole('option', { name: /Relative Strength Index/ }).getAttribute('aria-selected')).toBe('true')
     fireEvent.click(screen.getByRole('option', { name: /Relative Strength Index/ }))
     const next = onChange.mock.calls[0][0]
-    expect(isIndicatorEnabled(next, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(false)
+    expect(isIndicatorEnabled(next, 'rsi', ENGINE_OWNED)).toBe(false)
     // The tombstone, not just the mirror: the mirror alone comes back on the
     // next paint because the migrator re-projects it.
     expect(next.indicatorInstances.some((i) => i.instanceId === 'legacy:rsi' && i.deleted === true)).toBe(true)

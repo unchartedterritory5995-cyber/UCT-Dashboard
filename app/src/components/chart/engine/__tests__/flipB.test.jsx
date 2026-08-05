@@ -4,11 +4,15 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
+import { stripComments } from './sourceScan'
+
+/** `StockChart.jsx`, resolved from the vitest root (`app/`). */
+const STOCK_CHART_PATH = resolve(process.cwd(), 'src/components/StockChart.jsx')
 
 // ─── FLIP B: THE INSTANCE LIST IS THE READ AUTHORITY (B3 Task 10) ───────────
 //
 // ⭐ THIS FILE WAS `flipBWithANonEmptySet.test.jsx`, WHICH MOCKED
-// `ENGINE_FLIPPED_DEF_IDS` TO `{rsi}` BECAUSE THE SHIPPED SET WAS EMPTY. Task 10
+// `ENGINE_OWNED` TO `{rsi}` BECAUSE THE SHIPPED SET WAS EMPTY. Task 10
 // flipped `rsi` AND `bb` for real, so the mock would now UNDER-state the shipped
 // set: its "an UN-FLIPPED migrated definition is untouched" case named `bb`, and
 // it would have gone on passing — green, against a constant that no longer
@@ -195,7 +199,7 @@ beforeEach(() => {
 })
 afterEach(() => { __setPaneModeForTest(null) })
 
-const { default: StockChart, ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } = await import('../../../StockChart')
+const { default: StockChart, ENGINE_OWNED } = await import('../../../StockChart')
 const { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } = await import('../instanceControls')
 const registry = await import('../nativeRegistry')
 const { computePaneLayout, __setPaneModeForTest } = await import('../paneLayout')
@@ -245,13 +249,20 @@ describe('Flip B — the set itself', () => {
     // derived precisely because a derived expectation agrees with the code by
     // construction: an id silently dropped from the registry would keep a derived
     // version green and fails this one by name.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
+    expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
         'stoch', 'vwap', 'williamsR'])
-    for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
+    // ⭐ B5 TASK 13: this line used to read `ENGINE_MIGRATED_DEF_IDS` on the left
+    // and `ENGINE_FLIPPED_DEF_IDS` on the right — the subset relation. With both
+    // literals deleted the honest form is the one that can still FAIL: everything
+    // the registry lists is owned, and nothing else is.
+    for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
+    expect(ENGINE_OWNED.has('volumeProfile'), 'volumeProfile has no definition and must not '
+      + 'be engine-owned — the carve-out is STRUCTURAL now, not an omission').toBe(false)
+    expect(ENGINE_OWNED.has('not::a::definition')).toBe(false)
   })
 
-  it('⭐ …and NOTHING is migrated-but-UN-FLIPPED — the rail that re-opens three decisions', () => {
+  it('⭐ …and "migrated but un-flipped" has no expressible form — what replaced the rail', () => {
     // ⛔ THIS IS NOT A RESTATEMENT OF THE CASE ABOVE. Task 11 deleted three
     // things whose only justification is that this list is EMPTY:
     //
@@ -266,11 +277,42 @@ describe('Flip B — the set itself', () => {
     // wrong again — and the symptom of (1) is a double-drawn indicator, which is
     // the single most-repeated defect on this branch and is invisible in a
     // screenshot. So it fails HERE, loudly, at the moment the premise changes.
-    const unflipped = [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id))
-    expect(unflipped,
-      'a MIGRATED definition is not FLIPPED. Flip A is live again, and StockChart\'s '
-      + '`hidden` projection (deleted in Task 11) has to come back with it — see the '
-      + 'note where it used to be, and `vwapOverride`\'s forced-instance gate').toEqual([])
+    // ⭐⭐ B5 TASK 13 DELETED BOTH SETS, so the set difference this case computed is
+    // now `X \ X` and would pass for ever. The three deletions above are still only
+    // safe while the category is empty, and the successor is STRUCTURAL: the
+    // category was "a definition the engine is authoritative for whose legacy render
+    // block still exists". There is no legacy render block — anywhere — so the
+    // category cannot be populated without a whole new one being written, and THAT
+    // is what is asserted here instead.
+    // ⛔ THE PROBE IS THE IMPORT LIST, NOT EVERY `compute*(` IN THE FILE.
+    // `StockChart` still owns arithmetic that is not an indicator — the four MA
+    // overlay slots (`computeSMA`/`computeEMA`), `computeDefaultLogicalRange` —
+    // and a raw call-site scan reads those as legacy blocks and fails on a chart
+    // that is perfectly correct. What a returning render block CANNOT avoid is
+    // IMPORTING the compute it draws with.
+    // …and it is scoped to `chart/indicators`, the module the fourteen computes
+    // live in. `computeSessionTagLines` and `computeSessionBands` come from the
+    // session-preview modules and are not indicator arithmetic; a probe that
+    // failed on those would be a probe nobody could keep green honestly.
+    const importedNames = (text) => [...stripComments(text)
+      .matchAll(/import\s*\{([^}]*)\}\s*from\s*'([^']*indicators[^']*)'/g)]
+      .flatMap(m => m[1].split(',').map(x => x.trim().split(/\s+as\s+/)[0].trim()))
+    const src = readFileSync(STOCK_CHART_PATH, 'utf8')
+    expect(importedNames(src).filter(id => /^compute[A-Z]/.test(id)),
+      'a hand-written indicator computation is imported into StockChart.jsx again. "Migrated '
+      + 'but not flipped" is live in the only form it can still take, and StockChart\'s `hidden` '
+      + 'projection (deleted at Task 11) has to come back with it — see the note where it used '
+      + 'to be, and `vwapOverride`\'s forced-instance gate.').toEqual([])
+    // ⛔ NON-VACUITY, THREE WAYS: the file really was read, the probe really does
+    // see an import of that shape, and a COMMENTED-OUT one does not count (every
+    // retirement on this branch leaves a comment naming what it deleted).
+    expect(src.length, 'StockChart.jsx read as empty — the probe is vacuous').toBeGreaterThan(1000)
+    expect(importedNames("import { computeRSI, x } from './chart/indicators'")
+      .filter(id => /^compute[A-Z]/.test(id)),
+    'control: the probe cannot see a compute import at all').toEqual(['computeRSI'])
+    expect(importedNames("// import { computeRSI } from './chart/indicators'")
+      .filter(id => /^compute[A-Z]/.test(id)),
+    'control: a commented-out import counts as a live one').toEqual([])
   })
 })
 
@@ -311,7 +353,7 @@ describe('Flip B — the instance list is the read authority', () => {
     // than passing on a definition that had migrated underneath it, and each time
     // the note said the next migrator would have to move it again. B5 TASK 8 TOOK
     // THE LAST THREE (`adx`, `obv`, `donchian`), so **there is no un-migrated
-    // definition left and there never will be**: `ENGINE_FLIPPED_DEF_IDS` equals
+    // definition left and there never will be**: `ENGINE_OWNED` equals
     // `listDefinitions()`.
     //
     // ⛔ SO IT MOVES DOWN A LEVEL RATHER THAN BEING DELETED, exactly as
@@ -466,9 +508,9 @@ describe('Flip B — the control surfaces write instances', () => {
   it('a settings round-trip survives: on → off → re-read stays off', () => {
     let cs = { indicators: { rsi: { enabled: false, period: 14, color: '#7b68ee' } }, indicatorInstances: [] }
     cs = setIndicatorEnabled(cs, 'rsi', true, registry)
-    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_OWNED)).toBe(true)
     cs = setIndicatorEnabled(cs, 'rsi', false, registry)
-    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(false)
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_OWNED)).toBe(false)
 
     cleanup(); H.reset()
     draw({ ...cs })
@@ -529,7 +571,7 @@ describe('Flip B — the right-click menu is a control surface too', () => {
       indicators: { rsi: { enabled: true } },
       indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }],
     }
-    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS),
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_OWNED),
       'the menu and the chart disagree about whether RSI is on').toBe(false)
     draw(cs)
     expect(rsiSeries(), 'and the chart agrees with the menu').toHaveLength(0)
@@ -628,7 +670,7 @@ describe('Flip B — a shared chart link carries what now decides the picture', 
       indicators: { rsi: { enabled: true } },
       indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }],
     }
-    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS),
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_OWNED),
       'the reader the share state uses would put a deleted RSI in the link').toBe(false)
     expect(cs.indicators.rsi.enabled,
       'the raw toggle and the reader agree — this case cannot see the bug').toBe(true)
@@ -744,7 +786,7 @@ describe('Flip B — MACD', () => {
   const MACD_ON = { indicators: { macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } } }
 
   it('is flipped, and its legacy block is GONE', () => {
-    expect(ENGINE_FLIPPED_DEF_IDS.has('macd')).toBe(true)
+    expect(ENGINE_OWNED.has('macd')).toBe(true)
     // ⚠️ REACHED THROUGH A TOMBSTONE, not through a flag-off legacy blob. The
     // brief's version drew `{indicators:{macd:{enabled:true}}}` with the flag off
     // and expected zero series — but that is the COMPATIBILITY case and it draws
@@ -825,7 +867,7 @@ describe('Flip B — VWAP', () => {
   const VWAP_ON = { indicators: { vwap: VWAP_CFG } }
 
   it('is flipped, and its legacy block is GONE', () => {
-    expect(ENGINE_FLIPPED_DEF_IDS.has('vwap')).toBe(true)
+    expect(ENGINE_OWNED.has('vwap')).toBe(true)
     // ⚠️ INTRADAY, or the eligibility gate hides it and this proves nothing.
     drawIntraday({ ...VWAP_ON, indicatorInstances: [{ instanceId: 'legacy:vwap', deleted: true }] })
     expect(vwapSeries(), 'a legacy VWAP block still exists').toHaveLength(0)

@@ -15,6 +15,7 @@
 // legend slot rail in this same fix round). One list, two importers.
 
 import { normalizeInstances } from './instances'
+import { getDefinition, listDefinitions } from './nativeRegistry'
 
 /**
  * A collection that REFUSES a write, which `Object.freeze` does not give you.
@@ -26,19 +27,18 @@ import { normalizeInstances } from './instances'
  *
  *     isFrozen: true · add() SUCCEEDED · delete() SUCCEEDED
  *
- * That matters here and almost nowhere else, because the two sets below are not
- * caches — each membership is a SHIPPED decision with a pixel number and a
- * 24-case parity run behind it. A `ENGINE_MIGRATED_DEF_IDS.add('stoch')` at
- * module scope creates the stranded category (`docs/decisions/2026-08-03-…`
- * §4.1) for real, at runtime, and every STATIC rail on this branch reads the
- * source and sees nothing — worse, an `.add()` inside a function body (a flag
- * path, a dev branch) is invisible to all of them. Shadowing the three mutators
- * with own properties and THEN freezing makes the write throw where it happens
- * instead of one screen away in a chart nobody screenshotted; freezing after the
- * assignment is what stops the guard itself from being reassigned.
- *
- * `enumerationSites.test.js`'s no-stranding rail probes this seal, so deleting
- * it is a red test rather than a silent return to the old premise.
+ * ⭐ B5 TASK 13 — ITS ORIGINAL SUBJECTS ARE GONE AND THIS PARAGRAPH IS IN THE
+ * PAST TENSE. It was written for the two flip sets: each membership was a SHIPPED
+ * decision with a pixel number behind it, and an
+ * `ENGINE_MIGRATED_DEF_IDS.add('stoch')` at module scope created the stranded
+ * category (`docs/decisions/2026-08-03-…` §4.1) for real, at runtime, invisibly to
+ * every static rail on this branch. Both sets are DELETED — membership is
+ * `engineOwnsDefId`, a registry lookup, and a runtime `.add()` has nothing to add
+ * to. What still uses `sealed` is `EMPTY` / `EMPTY_INPUTS`, the two shared
+ * immutable returns below: a caller that mutated one would corrupt every OTHER
+ * caller's answer, which is the same class of bug in a smaller blast radius.
+ * Shadowing the mutators and THEN freezing makes such a write throw where it
+ * happens rather than one screen away.
  */
 function sealed(collection, mutators) {
   for (const op of mutators) {
@@ -59,225 +59,76 @@ const EMPTY = sealedSet([])
 const EMPTY_INPUTS = sealedMap([])
 
 /**
- * THE DOUBLE-DRAW RAIL. The definition ids the engine is allowed to draw.
+ * ⭐⭐ B5 TASK 13 — `ENGINE_MIGRATED_DEF_IDS` AND `ENGINE_FLIPPED_DEF_IDS` ARE
+ * DELETED, AND THIS ONE MEMBERSHIP TEST IS WHAT REPLACED THEM.
  *
- * 🔴 THIS SENTENCE USED TO END *"— exactly those whose legacy block in
- * `StockChart.jsx` carries `&& !engineOwned.has('<id>')`"*, and it has been false
- * since Flip B: Flip B DELETED the blocks instead of guarding them, so no such
- * guard exists for any id in this set — `enumerationSites.test.js` → *"keeps no
- * Flip-A guard for a flipped id — the block should be GONE, not guarded"* asserts
- * that it cannot. B5 Task 4 deleted `StockChart`'s last `engineOwnedDefIds` call
- * with it (the value had zero readers). The paragraph below is kept because it is
- * the reason this set exists at all; read it in the past tense for Flip A.
+ * They were two hand-written fourteen-id literals, and by B5 Task 8 they had
+ * become EQUAL — to each other, and to `listDefinitions().map(d => d.id)`. Three
+ * copies of one fact is the shape this whole phase has been retiring, and the
+ * ledger carried both of them as `phase`-fated rows: *"they describe a state that
+ * ends when the migration does"*. The migration ended. A `phase` row whose phase
+ * has arrived is a control that rots green — it goes on passing while the thing it
+ * described stopped existing — so the rows are DELETED rather than re-fated.
  *
- * `engineOwnedDefIds` answered "which legacy blocks stand down", and the binder
- * separately draws whatever instances it is handed. Those are two decisions, and
- * before this they could disagree: an instance of a definition whose legacy block
- * has no guard meant the ENGINE drew it *and* the legacy block drew it, on the
- * same scale, in the same band — a silently double-drawn indicator, which reads
- * as a slightly bolder line and nothing else. The documented B3 obligation was
- * "add one line per migrated indicator", and nothing FAILED if B3 forgot one.
+ * ⛔ WHAT THE TWO SETS GUARANTEED, AND WHAT REPLACES IT. `ENGINE_MIGRATED` said
+ * "the engine is the authority for this definition" and `ENGINE_FLIPPED` said "and
+ * its hand-written render block is GONE"; the pair made the double-draw impossible
+ * to reach by accident, because a definition in the second set without the first
+ * meant an indicator drawn by NOBODY. Neither guarantee is expressible as a list
+ * any more, because the thing they were lists OF is empty: `StockChart.jsx`
+ * contains no hand-written indicator render block and imports zero `compute*`
+ * functions, which `enumerationSites.test.js` asserts BEHAVIOURALLY (a
+ * format-exact regex could not catch a re-added import with no caller). So the
+ * successor guarantee is structural rather than enumerated: **a definition is
+ * engine-drawn iff the registry knows it**, and the day somebody adds a
+ * hand-written block back, the zero-`compute*`-imports rail is what fails.
  *
- * Filtering the instance list through this set makes the pairing structural: a
- * definition that is not here is drawn by its legacy block only, exactly as it
- * always has been, and a definition that IS here has a test asserting that its
- * legacy block stands down (`stockChartWiring.test.jsx`). B3's step is now: add
- * the guard AND add the id — and the test fails if only the id lands.
+ * ⚠️ A `.has()` FACADE, NOT A `Set`. Every consumer asked `X.has(defId)`, and the
+ * point of this change is that the answer now comes from the REGISTRY on each
+ * call. Freezing a derived Set would re-create the copy — a snapshot taken at
+ * import, which a late `registerDefinition` would silently contradict. It also
+ * enumerates NOTHING on purpose: a caller that wants the ids has to ask
+ * `listDefinitions()`, which is the authority, and a caller that wanted `.size`
+ * wanted `engineDrawsAnything()`.
  *
- * ⚠️ EXPORTED FOR THAT TEST, which iterates it, and re-exported by `StockChart`
- * so its importers do not have to move. Keep it a Set of definition ids.
- *
- * ⚠️ ORDER IS NOT FREE FOR A PRICE OVERLAY. The engine draws every series it owns
- * contiguously at ONE call site; legacy interleaves its blocks down
- * `updateChart`. For the five overlays that share the CANDLES' pane and scale —
- * `bb`, `vwap`, `sar`, `ichimoku`, `donchian`, in that order both in the registry
- * and in `StockChart.jsx` — LWC's insertion-order z-stacking makes that
- * difference visible: migrate a LATER one while an EARLIER one is still legacy
- * and the engine's copy is inserted ABOVE an overlay it currently sits below.
- * They must therefore migrate in registry order, which
- * `stockChartWiring.test.jsx` pins ("no price overlay is migrated ahead of an
- * earlier one"). ⭐ ALL FIVE ARE IN AS OF B5 TASK 8, so that rail's remaining
- * job is to refuse a REORDER of the registry rather than a mis-ordered
- * migration — and the instance list is what the binder actually inserts in, so
- * `migrateLegacyToInstances` walking the registry is the thing holding it up.
- *
- * ⚠️ MEMBERSHIP IS NOT "IS IT DRAWN RIGHT NOW". `vwap` is in this set and draws
- * on NO daily chart — `engine/eligibility.js` removes it above 60-minute bars,
- * exactly as `VWAP_TFS` used to remove the legacy one (that constant, and the
- * block that read it, are deleted). Membership means "the engine is
- * the authority for this definition"; whether authority produces a line is the
- * eligibility hook's answer and the timeframe's. A reader that treats this set as
- * a paint list will be wrong on every daily chart from B3 Task 8 onward.
+ * ⭐ AND `volumeProfile` IS EXCLUDED STRUCTURALLY RATHER THAN BY OMISSION. It was
+ * absent from both literals because nobody typed it; it is absent from this
+ * because it has no definition — it is a settings key with no compute, no plots
+ * and no inputs, and `validateDefinition` never saw it. The two look identical
+ * from the outside and only one of them survives somebody adding a fifteenth
+ * indicator.
  */
-export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
-  'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
-  'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian',
-])
+export function engineOwnsDefId(defId) {
+  return typeof defId === 'string' && !!getDefinition(defId)
+}
 
 /**
- * THE FLIP-B SET. Definition ids for which the INSTANCE list is the read
- * authority and the legacy render block has been DELETED.
+ * The reader every former flip-set consumer takes — `has`, `size` and iteration,
+ * every one of them ANSWERED BY THE REGISTRY AT THE MOMENT IT IS ASKED.
  *
- * `ENGINE_FLIPPED_DEF_IDS ⊆ ENGINE_MIGRATED_DEF_IDS`, always: an id can only be
- * flipped after its engine copy has been proven pixel-identical. A test asserts
- * the subset relation, because the reverse — flipped but not migrated — means the
- * legacy block is gone and nothing replaced it.
- *
- * ⭐ TASK 10 OPENED IT: `rsi` and `bb`. Their legacy render blocks, their
- * `useRef`s, their `indicatorData` branches, their hide-all entries and RSI's
- * crosshair fallback are DELETED, and what reads this set now decides real
- * behaviour rather than nothing:
- *
- *   · ⭐ B5 TASK 12: the geometry reads the INSTANCE LIST directly now. This
- *     said `csForPaneMargins` rewrote `indicators.<id>.enabled` from the
- *     instance list so the bands would follow it; Flip C deleted both that
- *     projection and `paneMargins.js`, and `paneLayout.computePaneLayout` takes
- *     the instances as its only input;
- *   · StockChart's instance read runs `migrateLegacyToInstances` and accepts a
- *     PROJECTED instance for a flipped id only — a whole-set gate would move all
- *     four pilots on the first flip, which is exactly what flipping one at a time
- *     with a pixel number each exists to prevent;
- *   · StockChart's Flip-A `hidden` projection is SKIPPED for a flipped id (the
- *     instance is the switch now, not the legacy toggle) and still applies to the
- *     un-flipped migrated ones;
- *   · `ChartToolbar`'s period/colour rows for these ids are LIVE again and write
- *     through `instanceControls`, because a flipped id is the only one whose
- *     control has a writer to route to.
- *
- * ⭐ TASK 11 CLOSED IT: `macd` and `vwap`. **The set now EQUALS
- * `ENGINE_MIGRATED_DEF_IDS`**, and that equality is not a coincidence to be
- * enjoyed — it is a state with consequences that were resolved deliberately
- * rather than left inert:
- *
- *   · Flip A is OVER. There is no migrated-but-un-flipped definition left, so
- *     StockChart's `hidden` projection (Task 2's "the legacy toggle is still the
- *     switch") had no reachable subject and was DELETED with its `legacyEnabled`
- *     helper. `flipB.test.jsx` asserts the equality, so the day B4 migrates a
- *     fifth definition WITHOUT flipping it, that assertion fails and whoever is
- *     holding it is told the projection has to come back;
- *   · `vwapOverride` no longer needs a flag to manufacture its forced instance —
- *     the flag-gated version would have lost the Model Book popup's VWAP on every
- *     existing user's chart, because there is no legacy block left to catch it;
- *   · 🔴 THIS BULLET USED TO SAY *"`ChartToolbar`'s `engineInert` is now
- *     identically false. The predicate and its 34 row bindings STAY (they are what
- *     a B4 migration reactivates)"* — **and B4 Task 8 deleted all of it** when
- *     spec §6 replaced the fifteen per-indicator rows with one launcher. The
- *     predicate, `inertTitle`, `shownInput` and the 34 bindings are gone;
- *     `ChartToolbar.engineInert.test.jsx` was RETARGETED to assert they stay gone.
- *     A present-tense paragraph about a mechanism that has not existed for a whole
- *     phase is the control-rot shape this branch keeps finding, so it is corrected
- *     in place rather than deleted.
- *
- * ⛔⭐ AND THE ENGINE RUNS FOR THEM UNCONDITIONALLY — B5 TASK 4 DELETED THE FLAG.
- * `engineEnabled` was the opt-in for the engine as a SECOND renderer — a chart
- * that could already draw the indicator by hand. A FLIPPED definition has no
- * hand-written block left, so gating it on an opt-in flag did not make the engine
- * dark, it would have DELETED the indicator; and every stored blob in production
- * had the flag absent, i.e. false, with no user action able to change that. So the
- * narrowing this paragraph used to describe ("activate when the set is non-empty,
- * and while the flag is off show flipped ids only") was inert the moment the two
- * sets became equal, and the flag it was written against is gone at all seven
- * sites. `StockChart` now activates the engine on `ENGINE_FLIPPED_DEF_IDS.size > 0`
- * alone. Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
- *
- * ⭐ B5 TASK 5 ADDED `stoch` AND `atr`, TO BOTH SETS IN ONE COMMIT. That is the
- * cutover's standing rule rather than a choice made here: with `engineEnabled`
- * deleted (Task 4) a migrated-but-un-flipped definition is drawn by NOTHING —
- * not "engine-drawn for flag-holders", which is what it used to mean — so the
- * two sets move together or the indicator disappears. `enumerationSites.test.js`
- * refuses the intermediate state in both directions, and `flipB.test.jsx`
- * asserts the equality, so a fifth definition migrated without being flipped is
- * a red test rather than an invisible deletion.
- *
- * ⚠️ AND THEY WENT IN REGISTRY ORDER, WHICH IS LOAD-BEARING FOR A DIFFERENT
- * REASON THAN THE OVERLAYS'. `stoch` and `atr` are PANE oscillators, each on its
- * own named scale in its own band, so the z-stacking hazard the paragraph above
- * describes for the five price overlays does not apply to them. What does apply
- * is that `binder.sync()` runs BEFORE every remaining legacy block, so a pane
- * oscillator migrated out of registry order would be inserted ahead of an
- * un-migrated one it currently sits behind — invisible while nothing overlaps,
- * and a real z-order change the moment the volume-pane OVERLAY path puts two of
- * them on one shared left axis. Registry order costs nothing and closes it.
- *
- * ⭐ B5 TASK 6 ADDED `sar` AND `ichimoku`, AND THEY ARE THE PRICE-OVERLAY HALF OF
- * THE PARAGRAPH ABOVE RATHER THAN A REPEAT OF IT. `stoch`/`atr` are pane
- * oscillators whose ordering hazard is latent (it needs the volume-overlay path
- * to put two of them on one axis); these two share the CANDLES' pane and the
- * CANDLES' scale with `bb`, `vwap` and `donchian`, so LWC's insertion-order
- * z-stacking makes registry order visible TODAY, on every chart that turns two of
- * them on. `bb` and `vwap` were already engine-drawn, `donchian` is still legacy
- * and is drawn AFTER the sync call, so `bb, vwap, sar, ichimoku` land contiguously
- * at the sync site and `donchian` stays on top — which is exactly the shipped
- * order. Migrating `donchian` (Task 8) ahead of these two would have inverted it.
- *
- * ⚠️ AND WITH THEM THE LEGACY CHIP REGISTRY IS GONE. `sar::sar`,
- * `ichimoku::tenkan` and `ichimoku::kijun` were the last three of the six
- * `registerLegacyChip` registrations, so `registerLegacyChip`,
- * `legacyChipEntriesRef`, `csIndicatorsRef` and `LEGACY_CHIP_ORDER` have no
- * callers and are DELETED. `readout.chipsFrom` keeps its second-source shape —
- * `engineChips` is one caller of it, and Phase C's server lane is the next.
- *
- * ⭐ B5 TASK 7 ADDED `mfi`, `cci` AND `williamsR` — three single-line pane
- * oscillators, and the first migration of this phase whose whole risk is in the
- * GUIDES rather than in the series. Each is one line plot plus `hlines` levels,
- * so the series half is a repeat of `atr`'s; what is not a repeat is that the
- * three carry THREE DIFFERENT GUIDE SHAPES and THREE DIFFERENT SCALES, and an
- * omitted `createPriceLine` option means LWC's OWN DEFAULT rather than "keep
- * what's there" (the asymmetry that cost 379 px on RSI's 50-midline at B3):
- *
- *   · `mfi`       80 / 20, dashed, on a `fixedPane(0, 100)` scale;
- *   · `cci`       ±100 dashed PLUS a LARGE-dashed zero line — the only
- *     definition in the registry with two guide styles — on an `autoPane`,
- *     i.e. the only unbounded one of the three;
- *   · `williamsR` −20 / −80 on a `fixedPane(-100, 0)` scale, drawn from a
- *     `williams_r` plot key while its settings key stays `williamsR`.
- *
- * ⚠️ AND THEY WENT IN REGISTRY ORDER FOR THE PANE-OSCILLATOR REASON, NOT THE
- * OVERLAY ONE. Like `stoch`/`atr` these three own their own named scales in
- * their own bands, so the z-stacking hazard the price-overlay paragraph above
- * describes does not apply; what applies is that `binder.sync()` runs BEFORE
- * every remaining legacy block, so an oscillator migrated out of registry order
- * would be inserted ahead of an un-migrated one it currently sits behind. That
- * is invisible while nothing overlaps and real the moment the volume-overlay
- * path puts two of them on one shared left axis — which `mfi`, `cci` and
- * `williamsR` are all eligible for, exactly as `stoch` and `atr` are.
- *
- * ⭐⭐ B5 TASK 8 ADDED `adx`, `obv` AND `donchian` — THE LAST THREE — AND WITH
- * THEM **THERE IS NOT ONE HAND-WRITTEN INDICATOR RENDER BLOCK LEFT IN
- * `StockChart.jsx`.** That is not a milestone sentence, it is a testable one:
- * `ENGINE_FLIPPED_DEF_IDS.size === listDefinitions().length` and the two are the
- * SAME FOURTEEN IDS, which is the equality Task 13 deletes both sets in favour
- * of. Four ledger rows retire in the same commit because they were ONE
- * mechanism — the series `useRef`s, the `indicatorData` memo, the render blocks
- * and the hide-all ref array — and `StockChart` now imports ZERO `compute*`
- * functions, which is the behavioural half of that claim (a format-exact regex
- * could not have caught a re-added import with no caller; that guard is in
- * `enumerationSites.test.js`).
- *
- * ⚠️ AND THE THREE WENT IN REGISTRY ORDER FOR **BOTH** OF THE REASONS THE
- * PARAGRAPHS ABOVE SPLIT APART, because this is the only task that carries one
- * of each. `adx` and `obv` are PANE oscillators, so their hazard is the latent
- * one — `binder.sync()` runs before every remaining legacy block, and with the
- * lane now empty that clause has finally run out of subjects; what remains real
- * for them is the volume-overlay path, which can put two oscillators on one
- * shared left axis (`adx` and `obv` are the last two definitions to become
- * relocation-eligible, so that is now EVERY pane oscillator there is).
- * `donchian` is the LAST PRICE OVERLAY, and its hazard is the visible one: it
- * shares the CANDLES' pane and scale with `bb`, `vwap`, `sar` and `ichimoku`,
- * all four already engine-drawn and inserted contiguously at the sync call, so
- * `donchian` had to come after them or LWC's insertion-order z-stacking would
- * have put it UNDER two overlays it sits on top of today. Migrating it at Task 6
- * would have inverted exactly that.
- *
- * ⚠️ IT LIVES HERE, NOT IN `StockChart.jsx`, for the same reason
- * `ENGINE_MIGRATED_DEF_IDS` does: `ChartToolbar` is rendered BY StockChart and
- * cannot import from it. `StockChart` re-exports it so the plan's stated
- * interface (`ENGINE_FLIPPED_DEF_IDS` from `StockChart.jsx`) still holds.
+ * ⛔ NOT A `Set`, AND THAT IS THE POINT. A derived `new Set(listDefinitions()…)`
+ * is a COPY taken at import time: it reads exactly like this from every call site
+ * and silently contradicts the registry the moment a definition is registered
+ * after this module loads. The two shapes are indistinguishable in a green test
+ * suite, which is how the branch got two fourteen-id literals in the first place.
+ * `size` and `[Symbol.iterator]` are getters over `listDefinitions()`.
  */
-export const ENGINE_FLIPPED_DEF_IDS = sealedSet([
-  'rsi', 'bb', 'macd', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
-  'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian',
-])
+export const ENGINE_OWNED = Object.freeze({
+  has: engineOwnsDefId,
+  get size() { return listDefinitions().length },
+  [Symbol.iterator]() {
+    return listDefinitions().map((d) => d && d.id)[Symbol.iterator]()
+  },
+})
+
+/** Is the engine drawing ANYTHING — the successor to `ENGINE_FLIPPED_DEF_IDS.size
+ *  > 0`, which StockChart reads to decide whether to run the binder at all. A
+ *  registry with no definitions is not a state this app can reach; the call is
+ *  kept because "the engine is active" is a question with an answer, and a
+ *  constant `true` written inline is a claim nobody can find later. */
+export function engineDrawsAnything() {
+  return listDefinitions().length > 0
+}
 
 /**
  * The migrated definitions this settings blob hands to the engine.
@@ -345,7 +196,12 @@ export function engineDrawnInputs(cs, registry) {
   if (!Array.isArray(raw) || raw.length === 0) return EMPTY_INPUTS
   const out = new Map()
   for (const inst of normalizeInstances(raw, registry).kept) {
-    if (!ENGINE_MIGRATED_DEF_IDS.has(inst.defId)) continue
+    // ⭐ B5 TASK 13: a REGISTRY lookup, where a hand-written set stood. It is
+    // belt-and-braces either way -- `normalizeInstances` already drops an
+    // instance whose defId the registry does not know -- and it stays because
+    // the two answers are the same answer now and this is where a reader looks
+    // for it.
+    if (!engineOwnsDefId(inst.defId)) continue
     if (out.has(inst.defId)) continue
     out.set(inst.defId, inst.inputs || {})
   }

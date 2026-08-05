@@ -34,7 +34,7 @@ import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { catalogRows } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
-import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
@@ -56,7 +56,7 @@ export function matches(row, q) {
 export function isRowOn(row, settings) {
   return row.carvedOut
     ? settings?.indicators?.[row.id]?.enabled === true
-    : isIndicatorEnabled(settings, row.id, ENGINE_FLIPPED_DEF_IDS)
+    : isIndicatorEnabled(settings, row.id, ENGINE_OWNED)
 }
 
 export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry }) {

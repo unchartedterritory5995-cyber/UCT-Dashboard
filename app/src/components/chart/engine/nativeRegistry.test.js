@@ -29,7 +29,7 @@ import { migrateLegacyToInstances } from './instances'
 // where it is DECLARED, and the two are the same frozen Set object. Importing
 // the 10k-line component (and lightweight-charts with it) into a registry test
 // would buy nothing and cost the whole render tree.
-import { ENGINE_MIGRATED_DEF_IDS } from './flipState'
+import { ENGINE_OWNED } from './flipState'
 import { computeMACD, computeRSI, computeParabolicSAR } from '../indicators'
 import { CHART_DEFAULTS } from '../chartDefaults'
 
@@ -433,12 +433,12 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
   })
 
   it('a carved-out key can never be migrated — the flip would delete the overlay', () => {
-    // `ENGINE_MIGRATED_DEF_IDS` is what makes a legacy block stand down. Adding a
+    // `ENGINE_OWNED` is what makes a legacy block stand down. Adding a
     // carved-out key there would silence the canvas effect for an indicator the
     // engine cannot draw, and the volume profile would simply vanish — no engine
     // series takes its place, because there is no definition to bind.
     for (const k of CARVED_OUT_INDICATOR_KEYS) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(k), `${k} is carved out and must never be migrated`).toBe(false)
+      expect(ENGINE_OWNED.has(k), `${k} is carved out and must never be migrated`).toBe(false)
     }
   })
 

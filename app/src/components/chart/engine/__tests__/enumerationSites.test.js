@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } from '../flipState'
+import { ENGINE_OWNED } from '../flipState'
 import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
@@ -323,10 +323,28 @@ const LEDGER = [
   { file: 'app/src/components/chart/engine/instances.js',
     region: 'FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays',
     anchor: 'const FROZEN_SHIPPED_STACK_ORDER = [', fate: 'keep' },
-  { file: 'app/src/components/chart/engine/flipState.js', region: 'ENGINE_MIGRATED_DEF_IDS',
-    anchor: 'export const ENGINE_MIGRATED_DEF_IDS', fate: 'phase' },
-  { file: 'app/src/components/chart/engine/flipState.js', region: 'ENGINE_FLIPPED_DEF_IDS',
-    anchor: 'export const ENGINE_FLIPPED_DEF_IDS', fate: 'phase' },
+  // ⛔⭐⭐ RETIRED AT B5 TASK 13 — `ENGINE_MIGRATED_DEF_IDS` and
+  // `ENGINE_FLIPPED_DEF_IDS`, the last two `phase`-fated rows. Their fate meant
+  // *"they describe a state that ends when the migration does"*, and the
+  // migration ended: by B5 Task 8 the two literals were EQUAL to each other and
+  // to `listDefinitions().map(d => d.id)`, so both were a third copy of the
+  // registry. **A `phase` row whose phase has ARRIVED is a control that rots
+  // green** — it goes on passing while the thing it described stops existing —
+  // which is why they are DELETED rather than re-fated to `keep`.
+  //
+  // What replaced them is one registry lookup, `flipState.engineOwnsDefId`, and
+  // the `ENGINE_OWNED` facade over it: `has`, `size` and iteration all answered
+  // by `listDefinitions()` at the moment they are asked. It hand-lists nothing,
+  // so it is not a site; and `volumeProfile` — which was absent from both
+  // literals because nobody typed it — is now absent because it HAS NO
+  // DEFINITION. The two look identical from outside and only one of them
+  // survives a fifteenth indicator.
+  //
+  // ⚠️ THE GUARANTEE THEY CARRIED IS NAMED IN `RETIRED_BY_THIS_TASK` BELOW, not
+  // dropped: "migrated but not flipped" meant an indicator drawn by NOBODY, and
+  // the successor is structural — `StockChart.jsx` imports zero `compute*`
+  // functions and holds no hand-written render block, asserted behaviourally in
+  // this file.
 
   // ── everything else that hand-lists indicators ───────────────────────────
   // ⭐ RETIRED BY B4 (`e427a09b`, the voice-bus task, landed by a parallel wave).
@@ -655,8 +673,23 @@ const RETIRED_BY_B4_ALERTS = [
  *  `keep`: a historical record of the order every existing user's panes are in,
  *  never a catalogue a new indicator is edited into. So the ledger reads
  *  `{C: 2, keep: 4, phase: 2}` — one row out, one row in, and nothing this phase
- *  still owes. */
-const SITE_COUNT = 8
+ *  still owes.
+ *
+ *  ⭐⭐ B5 TASK 13 CLOSES IT AT `{C: 2, keep: 4}`, SIX ROWS, AND THERE IS NO
+ *  `phase` KEY AT ALL. The two flip sets are deleted (see the tombstone in
+ *  `LEDGER` where they stood), so every row that is left is either Phase C's
+ *  (two, both of them PYTHON, and the JS discovery scan below structurally
+ *  cannot see either) or a `keep` — a place where hand-listing indicator ids is
+ *  the right answer and always will be.
+ *
+ *  ⚠️ THE HAND-OFF BRIEF SAID `{C: 2, keep: 3}`. It is FOUR, and the arithmetic
+ *  is the tell: 8 − 2 = 6 = 2 + 4. The brief carried `keep: 3` forward from
+ *  Task 12's brief, which predicted the ledger would SHRINK to seven at Flip C;
+ *  Task 12 measured that it did not (inlining the stack order created
+ *  `FROZEN_SHIPPED_STACK_ORDER`, a `keep`), and that correction never reached
+ *  the next brief. Reported rather than reconciled by deleting a row nobody
+ *  argued for. */
+const SITE_COUNT = 6
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -700,7 +733,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('every B4 region is retired — 2 to C, 4 kept, 2 phase bookkeeping, and NO B5 key', () => {
+  it('every B4 region is retired — 2 to C, 4 kept, and NO B4, B5 or phase key', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -725,7 +758,22 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // **Both buckets are EMPTY**: every region B4 inherited has been retired, and
     // Flip C took the last one B5 owed. The ABSENCE of each key is what says so;
     // a `B4` or `B5` row reappearing here fails this line by name.
-    expect(counts).toEqual({ C: 2, keep: 4, phase: 2 })
+    //
+    // ⭐⭐ B5 TASK 13 REMOVED THE `phase` BUCKET, AND THAT IS THE PHASE ENDING.
+    // The two flip sets were the only rows carrying it, and `phase` meant "this
+    // row describes a state that ends when the migration does". The migration is
+    // over — `ENGINE_FLIPPED_DEF_IDS` had become equal to `ENGINE_MIGRATED_DEF_IDS`
+    // AND to the registry — so a row still sitting in that bucket would be a
+    // control that goes on passing about something that stopped existing. Three
+    // empty buckets now say three different things by their ABSENCE: no `B4`
+    // (B4 retired everything it inherited), no `B5` (Flip C took the last one),
+    // no `phase` (the flip sets are deleted, not re-fated).
+    expect(counts).toEqual({ C: 2, keep: 4 })
+    // …and by NAME, because a histogram cannot tell an absent bucket from a
+    // bucket somebody renamed.
+    expect(LEDGER.filter(s2 => s2.fate === 'phase'),
+      're-opening a `phase` fate means a migration is running again — say which').toEqual([])
+    expect(LEDGER.filter(s2 => s2.fate === 'B5' || s2.fate === 'B4'), 'B4/B5 re-opened').toEqual([])
   })
 
   // ⭐ B5 A8. THE ASSERTION ABOVE IS A HISTOGRAM AND B4'S REVIEW MEASURED ITS
@@ -772,8 +820,6 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       ['api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog\'s ONE authority', 'C'],
       ['api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map', 'C'],
-      ['app/src/components/chart/engine/flipState.js::ENGINE_FLIPPED_DEF_IDS', 'phase'],
-      ['app/src/components/chart/engine/flipState.js::ENGINE_MIGRATED_DEF_IDS', 'phase'],
       ['app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays', 'keep'],
       ['app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE', 'keep'],
       ['app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once', 'keep'],
@@ -929,15 +975,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id),
+      expect(ENGINE_OWNED.has(id),
         `${id} carries a chip and is NOT migrated — its chip comes from the legacy lane, ` +
         'so move it back to LEGACY_LANE_CHIPS').toBe(true)
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id),
+      expect(ENGINE_OWNED.has(id),
         `${id} is migrated but not flipped — with engineEnabled deleted that is an ` +
         'indicator drawn by NOTHING').toBe(true)
     }
     for (const id of LEGACY_LANE_CHIPS) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id),
+      expect(ENGINE_OWNED.has(id),
         `${id} was migrated — its chip now comes from the ENGINE lane, so move it to `
         + 'ENGINE_LANE_CHIPS (and retire its registerLegacyChip calls in the same commit)').toBe(false)
     }
@@ -1117,7 +1163,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // …and the replacement is really there, reading through the ONE list and the
     // ONE reader.
     expect(src).toContain('indicators: Object.fromEntries(catalogRows().map((row) => [')
-    expect(src).toContain("isIndicatorEnabled(cs, row.id, ENGINE_FLIPPED_DEF_IDS)")
+    expect(src).toContain("isIndicatorEnabled(cs, row.id, ENGINE_OWNED)")
     // ⛔ AND THE PATTERNS STILL MATCH SOMETHING. Four zeroes above are the
     // EXPECTED answer, which makes a broken regex indistinguishable from a
     // retired region — so each one is run against the shape it is supposed to
@@ -1399,7 +1445,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // The gate on the finding above. `REFS[id] || []` and `if (fn && …)` both
     // pass by DEFAULT for an id nobody listed, so without this the two cases
     // below shrink in coverage every time the flip set grows and stay green.
-    const missing = [...ENGINE_FLIPPED_DEF_IDS].filter(id => !REFS[id] || !COMPUTES[id])
+    const missing = [...ENGINE_OWNED].filter(id => !REFS[id] || !COMPUTES[id])
     expect(missing,
       'a flipped definition has no row in REFS/COMPUTES, so the two cases below assert '
       + 'NOTHING about it. Add the refs its deleted block owned and the compute its '
@@ -1407,7 +1453,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       .toEqual([])
     // …and non-vacuous: the set really has members, and really has more than the
     // four B3 pilots this table used to stop at.
-    expect(ENGINE_FLIPPED_DEF_IDS.size).toBeGreaterThan(4)
+    expect(ENGINE_OWNED.size).toBeGreaterThan(4)
     expect(Object.values(REFS).flat().length).toBeGreaterThan(10)
     // ⭐ AND THE COVERAGE IS NOW TOTAL IN BOTH DIRECTIONS: every DEFINITION has a
     // row, not merely every flipped one, so the tables cannot shrink behind a
@@ -1418,7 +1464,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 
   it('declares no series ref and creates no series for a flipped id', () => {
     const failures = []
-    for (const id of ENGINE_FLIPPED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       for (const ref of (REFS[id] || [])) {
         if (declaresRef(CODE, ref)) failures.push(`${id}: ${ref} is declared again`)
         if (usesRef(CODE, ref)) failures.push(`${id}: ${ref}.current is read or written again`)
@@ -1429,7 +1475,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 
   it('runs no second computation for a flipped id — the engine computes it once', () => {
     const failures = []
-    for (const id of ENGINE_FLIPPED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       const fn = COMPUTES[id]
       if (fn && calls(CODE, fn)) failures.push(`${id}: StockChart calls ${fn}() again — a silent duplicate`)
     }
@@ -1451,15 +1497,15 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 
   it('keeps no Flip-A guard for a flipped id — the block should be GONE, not guarded', () => {
     const failures = []
-    for (const id of ENGINE_FLIPPED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       if (CODE.includes(`engineOwned.has('${id}')`)) failures.push(`${id}: a Flip-A guard survived its Flip B`)
     }
     expect(failures).toEqual([])
   })
 
   // ⚠️ NOT ASSERTED HERE, ON PURPOSE: "a migrated-but-un-flipped definition still
-  // has its guard". That category is EMPTY (`ENGINE_FLIPPED_DEF_IDS` equals
-  // `ENGINE_MIGRATED_DEF_IDS`), so the loop would iterate zero times and pass
+  // has its guard". That category is EMPTY (`ENGINE_OWNED` equals
+  // `ENGINE_OWNED`), so the loop would iterate zero times and pass
   // whatever it claimed. `flipB.test.jsx` owns the live claim — it asserts the
   // two sets are EQUAL, naming the three deletions that rest on it, so B4 gets a
   // red test rather than a double-drawn indicator. What IS asserted here, below,
@@ -1545,7 +1591,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   //      indicator vanishes for everyone, not just for the flag-less.
   //   3. THE SETS ARE PROBED FOR MUTABILITY, not assumed immutable.
   //      `Object.freeze(new Set())` does not stop `.add()`, so a module-scope
-  //      `ENGINE_MIGRATED_DEF_IDS.add('stoch')` used to create the stranded
+  //      `ENGINE_OWNED.add('stoch')` used to create the stranded
   //      category for real while every static rail read the source and saw
   //      nothing. `flipState.js` now seals the mutators; this probe is what
   //      fails if that seal is deleted.
@@ -1555,8 +1601,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   // biconditional above made that mandatory in the commit that deleted the flag,
   // not optional at Task 9), so *"while the settings migration is open"* is no
   // longer a live condition, and the two set-difference clauses are BOTH SATISFIED
-  // BY TWO EMPTY SETS. That is the hole: a phase that emptied `ENGINE_MIGRATED_DEF_IDS`
-  // and `ENGINE_FLIPPED_DEF_IDS` together would pass every clause here while every
+  // BY TWO EMPTY SETS. That is the hole: a phase that emptied `ENGINE_OWNED`
+  // and `ENGINE_OWNED` together would pass every clause here while every
   // indicator on every chart stopped being drawn by anything.
   //
   // ⛔ SO THE RAIL GAINS COMPLETENESS RATHER THAN LOSING ANYTHING: the two sets
@@ -1619,23 +1665,23 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       status,
       flagLives,
       recordAgreesWithTheCode: (status === 'OPEN') === flagLives,
-      migratedNotFlipped: [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
-      flippedNotMigrated: [...ENGINE_FLIPPED_DEF_IDS].filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+      migratedNotFlipped: [...ENGINE_OWNED].filter(id => !ENGINE_OWNED.has(id)),
+      flippedNotMigrated: [...ENGINE_OWNED].filter(id => !ENGINE_OWNED.has(id)),
       // ⭐ B5 TASK 9: COMPLETENESS. The two clauses above are set DIFFERENCES and
       // two empty sets satisfy both. After the cutover the settings blob no longer
       // carries an indicator's enable flag, so a definition outside the flip set
       // has no legacy section to fall back on and no block to draw it — it renders
       // for nobody, silently, and the equality above would still be green.
       unmigratedDefinitions: engineRegistry.listDefinitions()
-        .map(d => d.id).filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+        .map(d => d.id).filter(id => !ENGINE_OWNED.has(id)),
       unflippedDefinitions: engineRegistry.listDefinitions()
-        .map(d => d.id).filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
+        .map(d => d.id).filter(id => !ENGINE_OWNED.has(id)),
       // …and the sets are not empty, which is what stops the three `[]`s above
       // being satisfied by a registry that lists nothing either.
-      flipSetSize: ENGINE_FLIPPED_DEF_IDS.size,
+      flipSetSize: ENGINE_OWNED.size,
       mutableSets: [
-        takesAWrite('ENGINE_MIGRATED_DEF_IDS', ENGINE_MIGRATED_DEF_IDS),
-        takesAWrite('ENGINE_FLIPPED_DEF_IDS', ENGINE_FLIPPED_DEF_IDS),
+        takesAWrite('ENGINE_OWNED', ENGINE_OWNED),
+        takesAWrite('ENGINE_OWNED', ENGINE_OWNED),
       ].filter(Boolean),
     },
     'FLIPPED === MIGRATED is a Global Constraint and this asserts the EQUALITY, both ways. ' +
@@ -1758,7 +1804,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 describe('adjudication A6 — the settings tab lists nothing the engine owns', () => {
   it('listIndicators() contains no migrated definition, by id or by settings path', () => {
     const rows = listIndicators(mergeChartSettings(null))
-    const owned = rows.filter(r => ENGINE_MIGRATED_DEF_IDS.has(r.id) || ENGINE_MIGRATED_DEF_IDS.has(r.path?.key))
+    const owned = rows.filter(r => ENGINE_OWNED.has(r.id) || ENGINE_OWNED.has(r.path?.key))
     expect(owned.map(r => r.id),
       'a hand-written settings row and an engine definition are two sources of truth for one indicator',
     ).toEqual([])
@@ -1905,12 +1951,12 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
   // still worth failing on, and a helper that stops looking is a control that
   // rots — the same reason `RETIRED_BY_B4` re-runs its patterns demanding zero.
   const UNREACHABLE_FROM_THE_TOOLBAR = Object.fromEntries(
-    [...ENGINE_MIGRATED_DEF_IDS].map(id => [id, engineRegistry.getDefinition(id).inputs.map(i => i.key)]),
+    [...ENGINE_OWNED].map(id => [id, engineRegistry.getDefinition(id).inputs.map(i => i.key)]),
   )
 
   it('pins exactly which declared inputs the toolbar cannot reach', () => {
     const measured = {}
-    for (const id of ENGINE_MIGRATED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       const covered = toolbarInputs(id)
       measured[id] = engineRegistry.getDefinition(id).inputs.map(i => i.key).filter(k => !covered.has(k))
     }
@@ -1973,7 +2019,7 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
   })
 
   it('and nothing was silently dropped: every migrated id\'s toolbar gap is named above', () => {
-    for (const id of ENGINE_MIGRATED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       const covered = toolbarInputs(id)
       const uncovered = engineRegistry.getDefinition(id).inputs.map(i => i.key).filter(k => !covered.has(k))
       expect(uncovered,

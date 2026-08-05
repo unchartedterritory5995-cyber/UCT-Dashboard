@@ -6,7 +6,7 @@ import {
   CARVED_OUT_ROWS, unwiredKeys, NOT_IN_BLOB,
 } from './indicatorCatalog'
 import { CHART_DEFAULTS, mergeChartSettings } from './chartDefaults'
-import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 import { setIndicatorEnabled, setIndicatorInput } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 
@@ -464,7 +464,7 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
     // asserted end to end in `generatedSettingsRows.test.jsx` and
     // `sarIchimokuFlipParity.test.js`.
     const def = engineRegistry.getDefinition('ichimoku')
-    expect([...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)]).toEqual([])
+    expect([...unwiredKeys(def, ENGINE_OWNED)]).toEqual([])
     // ⛔ THE CONTROL, AND WITHOUT IT THIS CASE IS UNFALSIFIABLE: a `unwiredKeys`
     // that returned an empty Set unconditionally would satisfy the line above
     // forever. With an EMPTY flip set — bypassing the short-circuit — the
@@ -487,7 +487,7 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
   it('leaves VWAP\'s four inputs LIVE — the control that proves the predicate is not over-wide', () => {
     const def = engineRegistry.getDefinition('vwap')
     expect(def.inputs.map(i => i.key)).toEqual(['color', 'opacity', 'lineStyle', 'lineWidth'])
-    expect([...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)]).toEqual([])
+    expect([...unwiredKeys(def, ENGINE_OWNED)]).toEqual([])
     // ⭐ AND FOR THE STRONG REASON, not the short-circuit — which is now the ONLY
     // reason available, and that is itself the claim. B5 Task 9 deleted every
     // legacy section, so an un-flipped definition's controls are ALL unwired; the
@@ -501,7 +501,7 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
     // hand-written block is gone and the instance is the authority — nothing to
     // grey. The same probe un-flipped is still drawn from the blob, so it is.
     const probe = { id: 'vwap', inputs: [{ key: 'notInTheBlob', type: 'int' }] }
-    expect([...unwiredKeys(probe, ENGINE_FLIPPED_DEF_IDS)]).toEqual([])
+    expect([...unwiredKeys(probe, ENGINE_OWNED)]).toEqual([])
     expect([...unwiredKeys(probe, new Set())]).toEqual(['notInTheBlob'])
   })
 
@@ -509,7 +509,7 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
     const greyed = {}
     const greyedIfNothingFlipped = {}
     for (const def of engineRegistry.listDefinitions()) {
-      const keys = [...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)]
+      const keys = [...unwiredKeys(def, ENGINE_OWNED)]
       if (keys.length) greyed[def.id] = keys
       const raw = [...unwiredKeys(def, new Set())]
       if (raw.length) greyedIfNothingFlipped[def.id] = raw

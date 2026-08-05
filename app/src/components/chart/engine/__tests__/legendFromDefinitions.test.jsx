@@ -189,7 +189,7 @@ beforeEach(() => {
 const { default: StockChart } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
 const { mergeChartSettings } = await import('../../chartDefaults')
-const { ENGINE_FLIPPED_DEF_IDS } = await import('../flipState')
+const { ENGINE_OWNED } = await import('../flipState')
 const { computePaneLayout } = await import('../paneLayout')
 const { stackRank } = await import('../instances')
 
@@ -302,7 +302,7 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     expect([...new Set(CHIPS.map(([k]) => k.split('::')[0]))].sort())
       .toEqual(['atr', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch'])
     for (const id of ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku']) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id),
+      expect(ENGINE_OWNED.has(id),
         `${id} is not flipped — the ENGINE lane no longer carries its chip, and the `
         + 'LEGACY lane that used to carry it has been deleted').toBe(true)
     }

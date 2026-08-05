@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { stripComments } from './sourceScan'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
-import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS, engineDrawnInputs } from '../flipState'
+import { ENGINE_OWNED, engineDrawnInputs } from '../flipState'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from '../instanceControls'
 import { SHIPPED_STACK_ORDER } from '../instances'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
@@ -142,7 +142,7 @@ describe('engineEnabled is DELETED — the flag that decides nothing stops exist
     expect(cs.indicators.rsi, 'the legacy mirror survived the fold').toBeUndefined()
     expect(cs.indicatorInstances.map(i => i.defId)).toEqual(['rsi'])
     expect(cs.indicatorInstances[0].inputs).toEqual({ period: 14 })
-    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_OWNED)).toBe(true)
   })
 
   // ⭐ THE OLD RULE, KEPT AS THE THING THAT MUST NO LONGER HOLD.
@@ -177,7 +177,7 @@ describe('engineEnabled is DELETED — the flag that decides nothing stops exist
     const cs = mergeChartSettings(JSON.parse('{"engineEnabled":false,"indicators":{"rsi":{"enabled":true}}}'))
     expect('engineEnabled' in cs).toBe(false)
     // The RSI the user had on is still on, and still engine-drawn.
-    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(cs, 'rsi', ENGINE_OWNED)).toBe(true)
   })
 
   it('the toolbar shows the DRAWN inputs on every chart now, not the legacy mirror', () => {
@@ -390,10 +390,10 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
 
   it('every FLIPPED indicator the blob had on is engine-drawn, from the mirror alone', () => {
     const cs = mergeChartSettings(JSON.parse(JULY_BLOB))
-    const on = [...ENGINE_FLIPPED_DEF_IDS]
-      .filter(id => isIndicatorEnabled(cs, id, ENGINE_FLIPPED_DEF_IDS)).sort()
+    const on = [...ENGINE_OWNED]
+      .filter(id => isIndicatorEnabled(cs, id, ENGINE_OWNED)).sort()
     expect(on, 'a flipped indicator the July user had ON is no longer reported on')
-      .toEqual([...ENGINE_FLIPPED_DEF_IDS].sort())
+      .toEqual([...ENGINE_OWNED].sort())
     expect(on.length).toBeGreaterThan(0)
   })
 
@@ -564,7 +564,12 @@ describe('ENGINE_ENABLED_MIGRATION — the record, and the spec row', () => {
       'enumerationSites.test.js is red for exactly this').not.toMatch(/\bOPEN\b/)
     // the two facts the resolution rests on have to be IN it, not implied by it
     expect(md).toContain('parsed.engineEnabled === true')
-    expect(md).toContain('ENGINE_FLIPPED_DEF_IDS')
+    // ⭐ B5 TASK 13: this read `ENGINE_MIGRATED_DEF_IDS`, and that literal is
+    // DELETED — the record's §4.1 argument is about the CATEGORY, not the set, so
+    // the citation moves to the sentence rather than to the identifier. Keeping a
+    // dead identifier here would have made the record un-editable; deleting the
+    // line would have left §4.1 uncited.
+    expect(md.toLowerCase()).toContain('migrated')
   })
 
   it('the deletion has its own record, APPLIED, naming what went at each site', () => {
@@ -589,12 +594,22 @@ describe('ENGINE_ENABLED_MIGRATION — the record, and the spec row', () => {
     expect(spec).toContain('2026-08-03-engine-enabled-settings-migration.md')
   })
 
-  it('⛔ and the two sets are still EQUAL, which is what makes deletion safe', () => {
+  it('⛔ and the category the flag distinguished cannot be POPULATED at all', () => {
     // Record §4.1: the flag's only remaining job was to tell a MIGRATED-but-
     // UN-FLIPPED definition from a flipped one. Deleting it is only safe while
     // that category is empty, and this is the assertion that says so HERE, beside
     // the deletion, rather than leaving it to a rail three files away.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual([...ENGINE_MIGRATED_DEF_IDS].sort())
-    expect(ENGINE_FLIPPED_DEF_IDS.size).toBeGreaterThan(0)
+    //
+    // ⭐⭐ B5 TASK 13: it used to compare `ENGINE_MIGRATED_DEF_IDS` with
+    // `ENGINE_FLIPPED_DEF_IDS`. Both are deleted, and the category is now
+    // UNREPRESENTABLE rather than merely empty — engine-owned IS registry-known,
+    // one predicate, so there is no second list left to disagree with the first.
+    const ids = engineRegistry.listDefinitions().map(d => d.id)
+    expect(ids.filter(id => !ENGINE_OWNED.has(id)),
+      'the registry lists a definition the engine does not own — the category is back')
+      .toEqual([])
+    expect(ids.length).toBeGreaterThan(0)
+    expect(ENGINE_OWNED.has('volumeProfile'),
+      'volumeProfile is engine-owned — the structural carve-out broke').toBe(false)
   })
 })

@@ -6,7 +6,7 @@ import {
 import { mergeChartSettings, CHART_DEFAULTS } from '../../chartDefaults'
 import { CARVED_OUT_ROWS, NOT_IN_BLOB } from '../../indicatorCatalog'
 import { isIndicatorEnabled } from '../instanceControls'
-import { ENGINE_FLIPPED_DEF_IDS } from '../flipState'
+import { ENGINE_OWNED } from '../flipState'
 import * as engineRegistry from '../nativeRegistry'
 import { computeIchimoku } from '../../indicators'
 import { makeBars } from './fakeChart'
@@ -89,7 +89,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
         .toBeUndefined()
     }
     for (const k of ['tenkanColor', 'kijunColor']) expect(byKey[k].disabled, k).toBeUndefined()
-    expect(ENGINE_FLIPPED_DEF_IDS.has('ichimoku'),
+    expect(ENGINE_OWNED.has('ichimoku'),
       'ichimoku is un-flipped again — these three rows are writing where nothing reads').toBe(true)
   })
 
@@ -170,7 +170,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
   })
 
   it('⭐ the flip set really reaches unwiredKeys — proven on a probe, both ways', () => {
-    const flippedId = [...ENGINE_FLIPPED_DEF_IDS][0]
+    const flippedId = [...ENGINE_OWNED][0]
     const probeDef = {
       ...engineRegistry.getDefinition(flippedId),
       inputs: [
@@ -193,7 +193,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     // was `stoch` (until B5 Task 5), then `mfi` (until Task 7), then `adx` — each
     // time going RED by name rather than quietly turning this control into a
     // restatement of the first half. Task 8 flipped the last three, so
-    // `ENGINE_FLIPPED_DEF_IDS` equals `listDefinitions()` and NO REAL ID CAN
+    // `ENGINE_OWNED` equals `listDefinitions()` and NO REAL ID CAN
     // SERVE HERE AGAIN.
     //
     // ⛔ SO THE PROBE IS CONSTRUCTED, exactly as its FLIPPED half already was.
@@ -203,7 +203,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     // migrate underneath the case. The id is deliberately un-registrable-looking
     // so nobody mistakes it for a definition.
     const UNFLIPPED_PROBE_ID = '__unflippedProbe'
-    expect(ENGINE_FLIPPED_DEF_IDS.has(UNFLIPPED_PROBE_ID),
+    expect(ENGINE_OWNED.has(UNFLIPPED_PROBE_ID),
       'the synthetic probe id joined the flip set — pick another').toBe(false)
     // ⛔ AND THE NON-VACUITY THAT A SYNTHETIC ID COSTS: it must be absent from
     // the blob AND from the registry, or `listEngineIndicators` would resolve it
@@ -211,7 +211,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     expect(engineRegistry.getDefinition(UNFLIPPED_PROBE_ID)).toBeNull()
     expect(UNFLIPPED_PROBE_ID in CHART_DEFAULTS.indicators).toBe(false)
     // …and the real population really is exhausted, which is WHY it is synthetic.
-    expect(engineRegistry.listDefinitions().filter(d => !ENGINE_FLIPPED_DEF_IDS.has(d.id)),
+    expect(engineRegistry.listDefinitions().filter(d => !ENGINE_OWNED.has(d.id)),
       'an un-flipped definition exists again — a REAL subject is available and is the '
       + 'better one, because it exercises the shipped blob shape too').toEqual([])
     const unflipped = listEngineIndicators(
@@ -224,7 +224,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     for (const def of DEFS) {
       const settings = base()
       const next = applyRowPatch(rowById(def.id, settings), { enabled: true }, settings, engineRegistry)
-      expect(isIndicatorEnabled(next, def.id, ENGINE_FLIPPED_DEF_IDS), def.id).toBe(true)
+      expect(isIndicatorEnabled(next, def.id, ENGINE_OWNED), def.id).toBe(true)
       expect(next.indicators[def.id].enabled, `${def.id} mirror`).toBe(true)
       // …and it really went through `instanceControls`: a raw `patchFor` write
       // moves the mirror and nothing else, which is doors five and six all over
@@ -257,7 +257,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
   })
 
   it('reads OFF over a tombstone the legacy mirror still calls on, for every flipped id', () => {
-    for (const id of ENGINE_FLIPPED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       const on = mergeChartSettings(JSON.stringify({ indicators: { [id]: { enabled: true } } }))
       const off = applyRowPatch(rowById(id, on), { enabled: false }, on, engineRegistry)
       expect(off.indicatorInstances.some((i) => i.instanceId === `legacy:${id}` && i.deleted === true), id).toBe(true)

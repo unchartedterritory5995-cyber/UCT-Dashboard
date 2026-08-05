@@ -6,7 +6,7 @@
 // the row has to come back to life, or the honesty fix inverts into a working
 // control that looks dead.
 //
-// ⭐ THE MOCK IS GONE. Task 9 wrote this file with `ENGINE_FLIPPED_DEF_IDS` MOCKED
+// ⭐ THE MOCK IS GONE. Task 9 wrote this file with `ENGINE_OWNED` MOCKED
 // to `{rsi}`, because the shipped set was empty and an inertness proof cannot tell
 // a machine that is dark from one that does not work. Task 10 flipped `rsi` and
 // `bb` for real, so the mock would now UNDER-state the shipped set — and its "bb
@@ -21,9 +21,9 @@ import { AuthContext } from '../../context/AuthContext'
 import ChartToolbar from './ChartToolbar'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
-import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } from './engine/flipState'
-import { normalizeInstances } from './engine/instances'
+import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
+import { normalizeInstances } from './engine/instances'
 
 const RSI_7 = {
   instanceId: 'legacy:rsi', defId: 'rsi', defVersion: 1,
@@ -74,11 +74,16 @@ describe('the SHIPPED set is the subject — without a non-empty one every case 
     // definition is ever migrated WITHOUT being flipped, `engineInert` goes live
     // again and this file's "a migrated row is a live writer" premise is false.
     for (const id of ['rsi', 'bb', 'macd', 'vwap']) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id).toBe(true)
+      expect(ENGINE_OWNED.has(id), id).toBe(true)
     }
-    expect([...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
-      'a migrated definition is not flipped — its row is INERT again, and this file '
-      + 'asserts every migrated row is a live writer').toEqual([])
+    // ⭐ B5 TASK 13: the set difference that stood here compared the two flip sets,
+    // and both are deleted — `X \ X` is empty for ever. The premise this file needs
+    // is "every row the toolbar shows is a live writer", and the form of it that
+    // can still fail is that the engine owns every definition the registry lists.
+    expect(engineRegistry.listDefinitions().map(d => d.id).filter(id => !ENGINE_OWNED.has(id)),
+      'the registry lists a definition the engine does not own — that row is INERT again, '
+      + 'and this file asserts every row is a live writer').toEqual([])
+    expect(ENGINE_OWNED.size, 'the engine owns nothing — every row is inert').toBeGreaterThan(0)
   })
 })
 

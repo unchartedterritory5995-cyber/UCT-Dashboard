@@ -65,7 +65,7 @@
 //
 // ─── ⛔ THE RAIL ────────────────────────────────────────────────────────────
 //
-// A definition id in `ENGINE_MIGRATED_DEF_IDS` may NOT appear in
+// A definition id in `ENGINE_OWNED` may NOT appear in
 // `listIndicators()`. `engine/__tests__/enumerationSites.test.js` fails if one
 // does. VWAP was the last overlap; its row moved to `listEngineIndicators()`,
 // which hand-writes no field at all. Its successor rail is *every declared input
@@ -95,7 +95,7 @@
 // Showing them inert is honest; showing them live would silently do nothing.
 
 import { isInstanceTombstone } from './chartDefaults'
-import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled, setIndicatorEnabled, setIndicatorInput } from './engine/instanceControls'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
@@ -280,7 +280,7 @@ export function listEngineIndicators(settings, registry) {
     // keys nobody reads is the defect. The predicate short-circuits on FLIPPED,
     // so VWAP's four stay live; `indicatorCatalog.test.js` proves that
     // short-circuit is load-bearing by running one probe through it both ways.
-    const unwired = unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)
+    const unwired = unwiredKeys(def, ENGINE_OWNED)
     const fields = unwired.size
       ? declared.map((f) => (unwired.has(f.key) ? { ...f, disabled: NOT_IN_BLOB } : f))
       : declared
@@ -305,7 +305,7 @@ export function listEngineIndicators(settings, registry) {
       canToggle: true,
       // Read through the ONE reader every other control door uses, so a
       // tombstone cannot leave this toggle ticked over a chart with no line.
-      enabled: isIndicatorEnabled(settings, def.id, ENGINE_FLIPPED_DEF_IDS),
+      enabled: isIndicatorEnabled(settings, def.id, ENGINE_OWNED),
     })
   }
   return rows

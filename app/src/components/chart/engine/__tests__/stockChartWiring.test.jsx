@@ -289,7 +289,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
 
-const { default: StockChart, ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } = await import('../../../StockChart')
+const { default: StockChart, ENGINE_OWNED } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
 // The two settings ALLOW-LISTS a migrated instance has to survive — see the
 // round-trip suite at the bottom of this file.
@@ -677,7 +677,7 @@ describe('StockChart × indicator engine — NOTHING TO DRAW is the whole safety
     // moves went RED by name rather than letting the case quietly assert "a
     // flipped instance draws nothing", which would have been a false claim
     // passing for the wrong reason. B5 Task 8 took the last three (`adx`, `obv`,
-    // `donchian`), so `ENGINE_MIGRATED_DEF_IDS` equals `listDefinitions()` and no
+    // `donchian`), so `ENGINE_OWNED` equals `listDefinitions()` and no
     // real id can serve here again.
     //
     // ⛔ SO IT MOVES DOWN A LEVEL RATHER THAN BEING DELETED. The claim is about
@@ -704,7 +704,7 @@ describe('StockChart × indicator engine — NOTHING TO DRAW is the whole safety
       .toHaveLength(1)
     // …and the real population really is exhausted, which is WHY these subjects
     // are structural. The day a definition ships un-migrated, this says so.
-    expect(registry.listDefinitions().map(d => d.id).filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+    expect(registry.listDefinitions().map(d => d.id).filter(id => !ENGINE_OWNED.has(id)),
       'an un-migrated definition exists again — drive this on the REAL one too').toEqual([])
   })
 
@@ -952,7 +952,7 @@ describe('legacy suppression — an engine instance stands its legacy block down
 // `!engineOwned.has(...)` guard meant BOTH drew it, on the same scale, in the
 // same band. The symptom is a slightly bolder line and nothing else. The
 // documented B3 obligation was "one line per migrated indicator", and nothing
-// FAILED if B3 forgot one. `ENGINE_MIGRATED_DEF_IDS` pairs the two, and this is
+// FAILED if B3 forgot one. `ENGINE_OWNED` pairs the two, and this is
 // the test that makes forgetting fail.
 //
 // ⚠️ ITS MECHANISM CHANGED UNDER IT AT TASK 11, AND THE CLAIM DID NOT — audited
@@ -973,10 +973,10 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
   const instanceOf = (defId) => ({ instanceId: `legacy:${defId}`, defId, inputs: {}, hidden: false })
 
   it('names at least one definition — otherwise every case below is vacuous', () => {
-    expect(ENGINE_MIGRATED_DEF_IDS.size).toBeGreaterThan(0)
+    expect(ENGINE_OWNED.size).toBeGreaterThan(0)
   })
 
-  it.each([...ENGINE_MIGRATED_DEF_IDS])(
+  it.each([...ENGINE_OWNED])(
     '%s: legacy toggle ON + an engine instance ⇒ the SAME number of series as legacy alone',
     (defId) => {
       // Series COUNT, not scale id: it holds for a price overlay (which has no
@@ -1007,14 +1007,14 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
     // `0 === 0`… except that `legacyOnly > 0` catches it. This states the rule the
     // other way round so the intent survives a refactor of that assertion: every
     // migrated definition's chosen tf must be one it declares.
-    for (const defId of ENGINE_MIGRATED_DEF_IDS) {
+    for (const defId of ENGINE_OWNED) {
       const tfs = registry.getDefinition(defId)?.meta?.timeframes
       if (Array.isArray(tfs) && tfs.length) expect(tfs, defId).toContain(tfFor(defId))
       else expect(tfFor(defId), defId).toBe('D')
     }
     // …and at least one of them is genuinely gated, or `tfFor` is dead code
     // dressed as a rule. VWAP is that one from Task 8 onward.
-    const gated = [...ENGINE_MIGRATED_DEF_IDS].filter(id => registry.getDefinition(id)?.meta?.timeframes)
+    const gated = [...ENGINE_OWNED].filter(id => registry.getDefinition(id)?.meta?.timeframes)
     expect(gated, 'no migrated definition declares meta.timeframes — tfFor is inert').not.toHaveLength(0)
   })
 
@@ -1399,11 +1399,11 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
       p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
     const chipBearing = registry.listDefinitions().filter(declaresChip).map(d => d.id)
     const unmigrated = registry.listDefinitions()
-      .filter(d => !ENGINE_MIGRATED_DEF_IDS.has(d.id)).map(d => d.id)
+      .filter(d => !ENGINE_OWNED.has(d.id)).map(d => d.id)
     expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
       .toEqual(['atr', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch'])
     for (const id of chipBearing) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id),
+      expect(ENGINE_OWNED.has(id),
         `${id} declares a chip and is NOT migrated — with the legacy chip lane deleted, ` +
         'nothing produces that chip and the legend loses it silently').toBe(true)
     }
@@ -1420,14 +1420,14 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // producer — fails it by name in either direction.
     expect(unmigrated, 'an un-migrated definition exists again — restore the per-id loop, '
       + 'because a chip-bearing one among them loses its chip silently').toEqual([])
-    expect([...ENGINE_MIGRATED_DEF_IDS].sort(),
+    expect([...ENGINE_OWNED].sort(),
       'the migrated set is no longer TOTAL, so "every chip-bearing definition is migrated" '
       + 'has stopped being implied and needs its own loop again')
       .toEqual(registry.listDefinitions().map(d => d.id).sort())
     // …and the chip-bearing set is a PROPER subset of it, so the coverage claim is
     // not the trivial one that both sides are empty.
     expect(chipBearing.length).toBeGreaterThan(0)
-    expect(chipBearing.length).toBeLessThan(ENGINE_MIGRATED_DEF_IDS.size)
+    expect(chipBearing.length).toBeLessThan(ENGINE_OWNED.size)
 
     // …and the behavioural half, on a real chart. ⚠️ ITS SUBJECT MOVED TOO —
     // `mfi` at Task 5, `obv` at Task 7, and Task 8 took `obv`. The claim was "an
@@ -1438,7 +1438,7 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // chip for any plot that declares one, so a `legend` block added to `obv` by
     // accident would now really put "OBV" in the legend.
     const OBV_COLOR = '#9ca3af'
-    expect(ENGINE_FLIPPED_DEF_IDS.has('obv'), 'obv is not engine-drawn — this half is about '
+    expect(ENGINE_OWNED.has('obv'), 'obv is not engine-drawn — this half is about '
       + 'the ENGINE lane emitting no chip for a definition that declares none').toBe(true)
     const view = draw({
       ...RSI_ON,
@@ -1477,7 +1477,7 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // MACD lane after this flip — the engine draws all three plots or none — so
     // the state it names cannot be constructed at all. What IS reachable, and is
     // what the re-coupling breaks, is two engine plots carrying two values.
-    expect(ENGINE_FLIPPED_DEF_IDS.has('macd')).toBe(true)
+    expect(ENGINE_OWNED.has('macd')).toBe(true)
     const view = draw({
       ...RSI_ON,
       indicators: { ...RSI_ON.indicators, macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
@@ -2100,12 +2100,12 @@ describe('the five price overlays migrate in REGISTRY order, or z-order inverts'
   const PRICE_ORDER = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian']
 
   it('no price overlay is migrated ahead of an earlier one', () => {
-    const migratedPrice = PRICE_ORDER.filter(id => ENGINE_MIGRATED_DEF_IDS.has(id))
+    const migratedPrice = PRICE_ORDER.filter(id => ENGINE_OWNED.has(id))
     expect(migratedPrice.length,
       'no price overlay has migrated — this rail is vacuous until one has').toBeGreaterThan(0)
     const lastMigrated = PRICE_ORDER.indexOf(migratedPrice.at(-1))
     for (let i = 0; i <= lastMigrated; i++) {
-      expect(ENGINE_MIGRATED_DEF_IDS.has(PRICE_ORDER[i]),
+      expect(ENGINE_OWNED.has(PRICE_ORDER[i]),
         `${PRICE_ORDER[i]} must migrate before ${PRICE_ORDER[lastMigrated]} — see the plan's z-order rule`)
         .toBe(true)
     }
@@ -3691,7 +3691,7 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 // ⭐ THIS SUITE USED TO ASSERT INERTNESS, AND EVERY ONE OF ITS CASES WAS A
 // CONTROL WHOSE PREMISE TASK 10 FALSIFIED. Task 9 landed
 // `paneMarginsProjection`, `instanceControls` and the gated read-time migrator
-// with `ENGINE_FLIPPED_DEF_IDS` EMPTY, and proved each way "nothing changed"
+// with `ENGINE_OWNED` EMPTY, and proved each way "nothing changed"
 // could have been false. `rsi` and `bb` are flipped now, so:
 //
 //   · "the set is empty"                     → it is exactly {bb, rsi}, still ⊆ migrated
@@ -3738,7 +3738,7 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 // which is now an identity comparison one case below can make.
 
 describe('the Flip-B machinery, live (Task 10)', () => {
-  it('ENGINE_FLIPPED_DEF_IDS is exactly the fourteen migrated ids, and EQUALS the migrated set', () => {
+  it('ENGINE_OWNED is exactly the fourteen migrated ids, and EQUALS the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
     // replaced it — an indicator that renders nothing at all.
     // ⭐ `stoch` and `atr` joined at B5 Task 5, `sar` and `ichimoku` at Task 6,
@@ -3749,10 +3749,10 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // is the control-rot shape this branch keeps finding. It names the COUNT, and
     // the count is now `listDefinitions().length` — every series-expressible
     // definition there is.
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort()).toEqual(
+    expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
         'stoch', 'vwap', 'williamsR'])
-    for (const id of ENGINE_FLIPPED_DEF_IDS) expect(ENGINE_MIGRATED_DEF_IDS.has(id), id).toBe(true)
+    for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
   it('a legacy toggle alone draws the ENGINE\'s series — the read-time migrator', () => {
@@ -3799,7 +3799,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // structural claim (the migrator is per definition, not per set) asserted in
     // the direction that is now reachable, and it grows with the set.
     let seen = 0
-    for (const defId of ENGINE_FLIPPED_DEF_IDS) {
+    for (const defId of ENGINE_OWNED) {
       cleanup(); H.reset()
       draw({ indicators: { [defId]: { enabled: true } } }, tfFor(defId))
       const bound = H.binderApis[0].bindings().filter(b => b.defId === defId)
@@ -3807,7 +3807,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
         + 'block left, that is the indicator deleted for every existing user').toBeGreaterThan(0)
       seen += 1
     }
-    // ⚠️ A LITERAL, NOT `ENGINE_FLIPPED_DEF_IDS.size`. Comparing the loop's own
+    // ⚠️ A LITERAL, NOT `ENGINE_OWNED.size`. Comparing the loop's own
     // counter to the set it iterated is a tautology that survives the set being
     // emptied; the number is what makes "the flipped set is empty" a failure.
     // It moves once per B5 migration task — 4 → 6 at Task 5, 6 → 8 at Task 6,
@@ -3929,7 +3929,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // ⚠️ THE UN-FLIPPED HALF IS A MOVING SUBJECT. It was `stoch` until B5 Task 5
     // flipped Stochastic, at which point the `false` expectation below went RED —
     // which is the whole reason the pair is spelled with its answer beside it
-    // rather than derived from `ENGINE_FLIPPED_DEF_IDS` (a derived expectation
+    // rather than derived from `ENGINE_OWNED` (a derived expectation
     // agrees with the code by construction and can never catch this).
     // ⚠️ AND IT MOVED AGAIN AT B5 TASK 7 (`mfi` → `adx`) — AND THEN RAN OUT AT
     // TASK 8, which flipped the last three. The pair was FLIPPED vs UN-FLIPPED
@@ -3948,7 +3948,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
       expect(entry.checked, `${id} is ON and the menu says otherwise`).toBe(true)
       act(() => { entry.onSelect() })
       const next = view.lastSettings()
-      expect(isIndicatorEnabled(next, id, ENGINE_FLIPPED_DEF_IDS), id).toBe(false)
+      expect(isIndicatorEnabled(next, id, ENGINE_OWNED), id).toBe(false)
       expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
       // …and a FLIPPED id really did move the instance, which is the half a
       // mirror-only write would have passed.
@@ -4006,7 +4006,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
       expect(sec.items[0].id, id).toBe('i-hide')
       act(() => { sec.items[0].onSelect() })
       const next = view.lastSettings()
-      expect(isIndicatorEnabled(next, id, ENGINE_FLIPPED_DEF_IDS), id).toBe(false)
+      expect(isIndicatorEnabled(next, id, ENGINE_OWNED), id).toBe(false)
       // The MIRROR is what an un-flipped id's legacy block reads. Both, always.
       expect(next.indicators[id].enabled, `${id} mirror`).toBe(false)
       // ⛔ AND THE INSTANCE, WHICH IS THE HALF A RAW `setCs` PASSES. With no
@@ -4017,7 +4017,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
       // expected for a flipped id: an un-flipped one has a legacy block to read
       // the mirror, so writing an instance for it would be the opposite defect.
       expect((next.indicatorInstances || []).some(i => i.instanceId === `legacy:${id}` && i.deleted),
-        `${id} tombstone`).toBe(ENGINE_FLIPPED_DEF_IDS.has(id))
+        `${id} tombstone`).toBe(ENGINE_OWNED.has(id))
     }
   })
 })
@@ -4058,14 +4058,14 @@ describe('B4 Task 4 — one dispatch serves every indicator chord', () => {
       cleanup(); H.reset()
       const tf = tfFor(c.defId)
       const off = mergeChartSettings({ indicators: { [c.defId]: { enabled: false } } })
-      expect(isIndicatorEnabled(off, c.defId, ENGINE_FLIPPED_DEF_IDS), `${c.keys} did not start OFF`)
+      expect(isIndicatorEnabled(off, c.defId, ENGINE_OWNED), `${c.keys} did not start OFF`)
         .toBe(false)
       const view = renderChart({ settings: off, tf })
 
       act(() => { fireEvent.keyDown(document, chordEvent(c)) })
 
       const next = view.lastSettings()
-      expect(isIndicatorEnabled(next, c.defId, ENGINE_FLIPPED_DEF_IDS), c.keys).toBe(true)
+      expect(isIndicatorEnabled(next, c.defId, ENGINE_OWNED), c.keys).toBe(true)
       expect(next.indicators[c.defId].enabled, `${c.keys} mirror`).toBe(true)
       // ⛔ THE HALF A RAW BLOB WRITE PASSES. With no stored instance,
       // `isIndicatorEnabled` falls back to the mirror — so `{...cs, indicators:
@@ -4115,7 +4115,7 @@ describe('B4 Task 4 — one dispatch serves every indicator chord', () => {
 
     const next = view.lastSettings()
     expect(next.invertScale, 'Alt+I stopped inverting the price scale').toBe(true)
-    expect(isIndicatorEnabled(next, 'rsi', ENGINE_FLIPPED_DEF_IDS), 'Alt+I toggled RSI').toBe(false)
+    expect(isIndicatorEnabled(next, 'rsi', ENGINE_OWNED), 'Alt+I toggled RSI').toBe(false)
     expect((next.indicatorInstances || []).filter(i => i && i.defId === 'rsi'),
       'Alt+I wrote an RSI instance').toEqual([])
   })
@@ -4201,7 +4201,7 @@ describe('B4 Task 5 — the share link is derived, not a hand-list of the pilots
     // instance is the authority, and this is the only shape that can tell the two
     // readers apart.
     const corrupt = { ...off, indicators: { ...off.indicators, rsi: { ...off.indicators.rsi, enabled: true } } }
-    expect(isIndicatorEnabled(corrupt, 'rsi', ENGINE_FLIPPED_DEF_IDS),
+    expect(isIndicatorEnabled(corrupt, 'rsi', ENGINE_OWNED),
       'the reader itself disagrees with this case — the fixture is wrong, not the code').toBe(false)
 
     const view = renderChart({ settings: corrupt })
@@ -4395,7 +4395,7 @@ describe('B4 Task 12 — Alt+Shift+A and right-click both reach the ONE library'
     // makes one trip without its instances, and then the indicator is gone. That
     // is driven here, on a FLIPPED subject, which is now the only kind there is.
     const ADDED = 'donchian'
-    expect(ENGINE_FLIPPED_DEF_IDS.has(ADDED), `${ADDED} is not engine-drawn`).toBe(true)
+    expect(ENGINE_OWNED.has(ADDED), `${ADDED} is not engine-drawn`).toBe(true)
     const view = renderChart({ settings: mergeChartSettings(null) })
     const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
     act(() => { sec.items.find(i => i && i.id === 'ind-add').onSelect() })
@@ -4408,7 +4408,7 @@ describe('B4 Task 12 — Alt+Shift+A and right-click both reach the ONE library'
     expect(next.indicators[ADDED].enabled, 'the MIRROR did not move').toBe(true)
     expect((next.indicatorInstances || []).some(i => i && i.defId === ADDED && !i.deleted),
       'no instance was created — the engine lane sees nothing').toBe(true)
-    expect(isIndicatorEnabled(next, ADDED, ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(next, ADDED, ENGINE_OWNED)).toBe(true)
     // ⭐ AND THE MIRROR SURVIVES THE TRIP — the half that makes writing it matter
     // now that no legacy block reads it. Drop `indicatorInstances`, which is what
     // a share link and a preset both do, and the read-time migrator must rebuild
@@ -4466,8 +4466,8 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     // the engine is the authority) AND drawn exactly once (so the deletion of the
     // hand-written block really happened rather than being guarded).
     for (const id of ['stoch', 'atr']) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id + ' is not flipped').toBe(true)
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id), id + ' is not migrated').toBe(true)
+      expect(ENGINE_OWNED.has(id), id + ' is not flipped').toBe(true)
+      expect(ENGINE_OWNED.has(id), id + ' is not migrated').toBe(true)
     }
     draw({ indicators: { ...STOCH_ON, ...ATR_ON } })
     expect(boundFor('stoch'), 'the engine did not draw %K and %D').toHaveLength(2)
@@ -4824,8 +4824,8 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     // the engine is the authority) AND drawn exactly once (so the deletion of the
     // hand-written blocks really happened rather than being guarded).
     for (const id of ['mfi', 'cci', 'williamsR']) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id + ' is not flipped').toBe(true)
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id), id + ' is not migrated').toBe(true)
+      expect(ENGINE_OWNED.has(id), id + ' is not flipped').toBe(true)
+      expect(ENGINE_OWNED.has(id), id + ' is not migrated').toBe(true)
     }
     draw({ indicators: { ...MFI_ON, ...CCI_ON, ...WR_ON } })
     for (const id of ['mfi', 'cci', 'williamsR']) {
@@ -5218,8 +5218,8 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     // the engine is the authority) AND drawn exactly once (so the deletion of the
     // hand-written blocks really happened rather than being guarded).
     for (const id of ['adx', 'obv', 'donchian']) {
-      expect(ENGINE_FLIPPED_DEF_IDS.has(id), id + ' is not flipped').toBe(true)
-      expect(ENGINE_MIGRATED_DEF_IDS.has(id), id + ' is not migrated').toBe(true)
+      expect(ENGINE_OWNED.has(id), id + ' is not flipped').toBe(true)
+      expect(ENGINE_OWNED.has(id), id + ' is not migrated').toBe(true)
     }
     draw({ indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON } })
     expect(boundFor('adx'), 'the engine did not draw all three ADX lines').toHaveLength(3)
@@ -5758,7 +5758,7 @@ describe('the chart options StockChart builds under PANE_MODE panes', () => {
     // half — two functions, two settings projections. Both retired: the layout
     // carries the band map AND the pane decomposition, off the same quantised
     // stack, and takes no `cs` at all.
-    const instances = migrateLegacyToInstances(SETTINGS(), registry, ENGINE_FLIPPED_DEF_IDS)
+    const instances = migrateLegacyToInstances(SETTINGS(), registry, ENGINE_OWNED)
     const layout = computePaneLayout(instances, {
       chartHeight: 300, hasVolumeBand: false, separatorPx: SEPARATOR_PX, firstPaneIndex: 1,
     })

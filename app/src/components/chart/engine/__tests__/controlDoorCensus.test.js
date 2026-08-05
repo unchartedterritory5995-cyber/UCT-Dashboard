@@ -5,7 +5,7 @@ import { stripComments } from './sourceScan'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from '../instanceControls'
 import { applyRowPatch } from '../../indicatorRegistry'
-import { ENGINE_FLIPPED_DEF_IDS } from '../flipState'
+import { ENGINE_OWNED } from '../flipState'
 import * as engineRegistry from '../nativeRegistry'
 import { migrateLegacyToInstances } from '../instances'
 
@@ -163,7 +163,7 @@ const RAW_WRITE_EXCEPTIONS = [
     'do nothing. Every other row in that dialog goes through the writer'],
   ['app/src/components/StockChart.jsx',
     'the UN-FLIPPED lane of `setIndEnabled` — one `setCs(`indicators.${key}.enabled`)` ' +
-    'inside the ONE menu writer, taken only when the id is not in ENGINE_FLIPPED_DEF_IDS ' +
+    'inside the ONE menu writer, taken only when the id is not in ENGINE_OWNED ' +
     '(which includes `volumeProfile`, which has no definition at all). A flipped id ' +
     'leaves before it; that branch is what `stockChartWiring` drives for both'],
   ['app/src/pages/charts/ChartsWorkspace.jsx',
@@ -368,7 +368,7 @@ describe('the control-door census — how many doors, and whether an eighth exis
       // ── and the one the settings rows + the voice bus go through ──
       const viaRow = applyRowPatch({ engineOwned: true, defId: def.id }, { enabled: true }, base, engineRegistry)
       expect(viaRow.indicators[def.id].enabled, `${def.id}: applyRowPatch left the MIRROR off`).toBe(true)
-      expect(isIndicatorEnabled(viaRow, def.id, ENGINE_FLIPPED_DEF_IDS), def.id).toBe(true)
+      expect(isIndicatorEnabled(viaRow, def.id, ENGINE_OWNED), def.id).toBe(true)
 
       // ⭐ AND THE MIRROR REALLY IS WHAT SURVIVES A ROUND TRIP. Drop
       // `indicatorInstances` — which is what a share link, a preset and a reset

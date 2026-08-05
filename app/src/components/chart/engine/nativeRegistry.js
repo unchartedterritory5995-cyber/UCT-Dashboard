@@ -864,9 +864,12 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
  *
  * It gets a `compute.kind: 'primitive'` lane when one exists — the same lane
  * `zones` and `bgband` are waiting on, Phase C/D. Until then the legacy canvas
- * effect IS the implementation, and NO B3 flip may delete it: adding a carved-out
- * key to `flipState.ENGINE_MIGRATED_DEF_IDS` would stand its legacy block down
- * with no engine series to take over, and the profile would simply vanish.
+ * effect IS the implementation, and no flip may delete it. ⭐ B5 TASK 13 MADE THAT
+ * STRUCTURAL RATHER THAN A RULE: it used to read *"adding a carved-out key to
+ * `flipState.ENGINE_MIGRATED_DEF_IDS` would stand its legacy block down with no
+ * engine series to take over"*, and that hand-written set is deleted —
+ * `flipState.engineOwnsDefId` asks THIS registry, so a carved-out key cannot be
+ * added to it at all without first being given the definition that cannot exist.
  *
  * THE COUNT, CORRECTED. The platform has **15 indicator settings keys and 14
  * series-expressible indicators**. Spec §2/§5's "the 15 natives" counted settings

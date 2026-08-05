@@ -55,7 +55,7 @@ import { registerManifestChart } from './chart/engine/paneLayout'
 // readers since Flip B deleted the guarded blocks.
 import { normalizeInstances, legacyInstanceId, migrateLegacyToInstances } from './chart/engine/instances'
 import { eligibleInstances } from './chart/engine/eligibility'
-import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
+import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/engine/flipState'
 // ⭐ FLIP C, APPLIED (B5 Task 12). `paneMode()` is `'panes'`. `computePaneLayout`
 // is now the ONE geometry authority — it answers both "which pane" and, through
 // `layout.bands`, the band question `chart/paneMargins.js` used to answer before
@@ -100,10 +100,10 @@ const EMPTY_CHIPS = Object.freeze([])
 // predicate. Both live in `engine/flipState.js` because `ChartToolbar` is
 // rendered BY this file and cannot import from it — see that module's header.
 // Re-exported here so the ledger + wiring tests keep their import path.
-// `ENGINE_FLIPPED_DEF_IDS` rides along for the same reason — the plan names
+// `ENGINE_OWNED` rides along for the same reason — the plan names
 // `StockChart.jsx` as its home, and `flipState.js` is where it can actually live
 // without `ChartToolbar` importing from the component that renders it.
-export { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS }
+export { ENGINE_OWNED }
 // ⛔ `indPoint` STOOD HERE, AND IT WENT WITH THE `indicatorData` MEMO (B5 Task
 // 8) — its only caller. It turned each NaN-padded compute output into an LWC
 // WHITESPACE item (`{time}` with no `value`), because LWC rejects `value: NaN`
@@ -2360,9 +2360,9 @@ export default function StockChart({
     // not the switch — so the menu would tick a box the chart disagreed with, and
     // "Hide RSI" would clear the mirror while the instance kept drawing. One
     // reader (`indEnabled`) and one writer (`setIndEnabled`) for every door.
-    const indEnabled = (key) => isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
+    const indEnabled = (key) => isIndicatorEnabled(cs, key, ENGINE_OWNED)
     const setIndEnabled = (key, on) => {
-      if (ENGINE_FLIPPED_DEF_IDS.has(key)) {
+      if (ENGINE_OWNED.has(key)) {
         const next = setIndicatorEnabled(cs, key, on, engineRegistry)
         if (next !== cs) handleUpdateChartSettings(next)
         return
@@ -2612,7 +2612,7 @@ export default function StockChart({
       // authority, so a tombstoned RSI whose legacy mirror still says `true`
       // would otherwise come back ON on the recipient's chart.
       indicators: Object.fromEntries(catalogRows().map((row) => [
-        row.id, { enabled: isIndicatorEnabled(cs, row.id, ENGINE_FLIPPED_DEF_IDS) },
+        row.id, { enabled: isIndicatorEnabled(cs, row.id, ENGINE_OWNED) },
       ])),
       // ⚠️ `engineEnabled: cs.engineEnabled === true` STOOD HERE (B5 Task 4).
       // It rode along "because a recipient on a flag-off blob must still be able
@@ -3559,7 +3559,7 @@ export default function StockChart({
   // reads the flag it has always read. Writing the raw flag is what made Alt+U
   // tick a box over a chart that disagreed (B3 Task 11).
   const toggleIndicatorById = useCallback((defId) => {
-    const on = isIndicatorEnabled(cs, defId, ENGINE_FLIPPED_DEF_IDS)
+    const on = isIndicatorEnabled(cs, defId, ENGINE_OWNED)
     const next = setIndicatorEnabled(cs, defId, !on, engineRegistry)
     if (next !== cs) handleUpdateChartSettings(next)
   }, [cs, handleUpdateChartSettings])
@@ -5764,18 +5764,18 @@ export default function StockChart({
     // there is no hand-written block left: gating it on anything would not make
     // the engine dark, it would DELETE the indicator.
     //
-    // ⚠️ `ENGINE_FLIPPED_DEF_IDS.size > 0` IS A CONSTANT TODAY and is deliberately
+    // ⚠️ `engineDrawsAnything()` IS A CONSTANT TODAY and is deliberately
     // still spelled as a read: it is the seam Task 13 turns into a registry lookup
     // once every native is flipped. The `sync` CALL is further down, immediately
     // before where the Bollinger block used to be — see the note there for why the
     // position is load-bearing.
-    const engineActive = ENGINE_FLIPPED_DEF_IDS.size > 0
+    const engineActive = engineDrawsAnything()
     // Normalised on the way in: a tombstone or a malformed record must never
     // reach the planner. Cheap enough to do per paint at v1 instance counts, and
     // it only ever runs with the engine ON.
     //
     // …and then filtered to the definitions whose legacy block actually stands
-    // down. See `ENGINE_MIGRATED_DEF_IDS`: an instance the engine DRAWS whose
+    // down. See `ENGINE_OWNED`: an instance the engine DRAWS whose
     // legacy block still draws too is a double-drawn indicator, and nothing about
     // that is visible until a user reports a "bold" line. The filter makes the
     // pairing structural instead of a thing B3 has to remember.
@@ -5851,19 +5851,19 @@ export default function StockChart({
     // mirror images and cannot both hold for one definition — an instance whose
     // legacy toggle is false would reserve a band (the projection) that this line
     // then made sure nothing drew into. So the `hidden` projection below now
-    // SKIPS `ENGINE_FLIPPED_DEF_IDS` and still applies to `macd` and `vwap`,
+    // SKIPS `ENGINE_OWNED` and still applies to `macd` and `vwap`,
     // which are Flip A and whose legacy toggle is still their switch. Deleting it
     // outright would have un-done Flip-A semantics for both of them in a task
     // whose gate is that only rsi and bb move.
     //
     // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
-    // needs its own answer here before it joins `ENGINE_MIGRATED_DEF_IDS`. VWAP is
+    // needs its own answer here before it joins `ENGINE_OWNED`. VWAP is
     // that definition, it joined in Task 8, and its answer is the `vwap` branch
     // below: the legacy memo reads `(vwapOverride || ind.vwap?.enabled)` (`:3962`),
     // so the OVERRIDE alone is an enable signal and the projection has to agree or
     // the Model Book popup would hand the engine a hidden instance and draw nothing.
     // …filtered to the definitions whose legacy block actually stands down (see
-    // `ENGINE_MIGRATED_DEF_IDS`), then narrowed by ELIGIBILITY: a session
+    // `ENGINE_OWNED`), then narrowed by ELIGIBILITY: a session
     // indicator does not exist above 60-minute bars, and the render context —
     // the Model Book's forced white, the bold-candle hairline — folds into the
     // instance's inputs here so nothing downstream has to know about it.
@@ -5889,7 +5889,7 @@ export default function StockChart({
           //
           // ⛔ BUT IT CHANGES BEHAVIOUR THE MOMENT IT IS UNGATED, which is why it
           // is not. The migrator projects `cs.indicators.rsi.enabled` into an
-          // instance even with nothing flipped, and `ENGINE_MIGRATED_DEF_IDS`
+          // instance even with nothing flipped, and `ENGINE_OWNED`
           // already held rsi/bb/macd/vwap — so an ungated version would have moved
           // all four onto the engine for every user, with no stored instance
           // anywhere. That is *correct* for Flip A (the engine draws the same
@@ -5934,29 +5934,29 @@ export default function StockChart({
           const liveStoredDefIds = new Set(
             normalizeInstances(stored, engineRegistry).kept.map(i => i.defId),
           )
-          const source = ENGINE_FLIPPED_DEF_IDS.size > 0
+          const source = engineDrawsAnything()
             ? migrateLegacyToInstances(cs, engineRegistry)   // instances are the authority…
               .filter((i) => {
                 if (storedIds.has(i && i.instanceId)) return true   // stored: always
-                if (!ENGINE_FLIPPED_DEF_IDS.has(i && i.defId)) return false  // …projected: FLIPPED only
+                if (!ENGINE_OWNED.has(i && i.defId)) return false  // …projected: FLIPPED only
                 return !liveStoredDefIds.has(i.defId)              // …and not already drawn
               })
             : cs.indicatorInstances                          // Flip A: only STORED instances draw
           const migrated = normalizeInstances(source, engineRegistry).kept
             // ⚠️ ONE GATE NOW, AND IT USED TO BE TWO (B5 Task 4). The second read
-            // `|| (engineOn && ENGINE_MIGRATED_DEF_IDS.has(i.defId))` — a
+            // `|| (engineOn && ENGINE_OWNED.has(i.defId))` — a
             // MIGRATED-but-UN-FLIPPED id is the engine's only while the flag is on.
             // With the flag deleted that disjunct is `false && …` for every
             // instance, and the category it served has been empty since Flip B and
             // may not be re-created (`enumerationSites.test.js` refuses it while
             // FLIPPED === MIGRATED). Deleting it is behaviour-identical TODAY and
             // stops a dead disjunct reading as live logic.
-            .filter(i => ENGINE_FLIPPED_DEF_IDS.has(i.defId))
+            .filter(i => ENGINE_OWNED.has(i.defId))
             // ⛔ …AND FLIP A'S `hidden` PROJECTION IS GONE (B3 Task 11). It read
             // "an instance of a MIGRATED-but-UN-FLIPPED definition whose legacy
             // toggle is false is projected to hidden, because the toggle is still
-            // that definition's switch". `ENGINE_FLIPPED_DEF_IDS` now EQUALS
-            // `ENGINE_MIGRATED_DEF_IDS`, so the filter above cannot emit an
+            // that definition's switch". `ENGINE_OWNED` now EQUALS
+            // `ENGINE_OWNED`, so the filter above cannot emit an
             // un-flipped instance and the branch was unreachable — an inert
             // `.map` whose absent subject nothing would have noticed. Deleted with
             // its `legacyEnabled` helper rather than left to read as live logic.
@@ -6486,7 +6486,7 @@ export default function StockChart({
     // above. Their hand-written blocks, their `useRef`s, their `indicatorData`
     // branches, their entries in the hide-all array and RSI's crosshair fallback
     // are all GONE — that deletion IS Flip B, and it is what stops each of them
-    // being enumerated in six places. `ENGINE_FLIPPED_DEF_IDS` names them; the
+    // being enumerated in six places. `ENGINE_OWNED` names them; the
     // enable signal reaches the geometry through the instance list itself, and
     // the engine is ACTIVE for them unconditionally because there is nothing else
     // left that could draw them. (It used to say "regardless of `engineEnabled`" —

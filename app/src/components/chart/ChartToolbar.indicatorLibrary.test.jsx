@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import ChartToolbar from './ChartToolbar'
 import { mergeChartSettings } from './chartDefaults'
 import { AuthContext } from '../../context/AuthContext'
-import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 
 // ─── THE THREE DOORS ONTO THE LIBRARY, AND THE ONE MOUNT SITE THAT GETS NONE ─
@@ -59,7 +59,7 @@ describe('ChartToolbar — the indicator library', () => {
     await user.click(screen.getByRole('option', { name: /Average True Range/ }))
     expect(onUpdateSettings).toHaveBeenCalledTimes(1)
     const next = onUpdateSettings.mock.calls[0][0]
-    expect(isIndicatorEnabled(next, 'atr', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
+    expect(isIndicatorEnabled(next, 'atr', ENGINE_OWNED)).toBe(true)
     expect(next.indicatorInstances.some((i) => i && i.defId === 'atr' && !i.deleted)).toBe(true)
     expect(next.preset).toBe('custom')
     // …add-and-stay-open survives the round trip through the real toolbar.

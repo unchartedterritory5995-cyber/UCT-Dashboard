@@ -12,7 +12,7 @@ import {
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { mergeChartSettings, mergeSettingsOverride, CHART_DEFAULTS, instanceTombstone } from './chartDefaults'
 import * as engineRegistry from './engine/nativeRegistry'
-import { ENGINE_MIGRATED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 
 // VWAP was the first indicator folded out of the old flat `indicators` map and into
 // the registry-driven Indicators tab, and at B3 Task 12 it became the first one
@@ -28,7 +28,7 @@ const VWAP_DEF = engineRegistry.getDefinition('vwap')
 describe('the rail — the hand-written registry lists nothing the engine owns', () => {
   it('listIndicators() is MA overlays and the volume pane, and nothing migrated', () => {
     const rows = listIndicators(mergeChartSettings(null))
-    const owned = rows.filter((r) => ENGINE_MIGRATED_DEF_IDS.has(r.id) || ENGINE_MIGRATED_DEF_IDS.has(r.path?.key))
+    const owned = rows.filter((r) => ENGINE_OWNED.has(r.id) || ENGINE_OWNED.has(r.path?.key))
     expect(owned.map((r) => r.id),
       'a settings-tab row and an engine definition are two sources of truth for one indicator').toEqual([])
     expect(rows.map((r) => r.group)).toEqual([
@@ -48,7 +48,7 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
     expect(ids, 'a definition lost its generated row, or a row appeared for a non-definition')
       .toEqual(engineRegistry.listDefinitions().map((d) => d.id))
     expect(ids, 'VWAP is still one of them — it was the FIRST, at B3 Task 12').toContain('vwap')
-    for (const id of ENGINE_MIGRATED_DEF_IDS) {
+    for (const id of ENGINE_OWNED) {
       expect(ids, `${id} is migrated and has no row`).toContain(id)
     }
   })

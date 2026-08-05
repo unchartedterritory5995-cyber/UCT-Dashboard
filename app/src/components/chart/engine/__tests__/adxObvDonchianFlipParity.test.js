@@ -3,7 +3,7 @@ import { createBinder } from '../binder'
 import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
 import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
-import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } from '../flipState'
+import { ENGINE_OWNED } from '../flipState'
 import { computeADX, computeOBV, computeDonchian } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
@@ -847,18 +847,24 @@ describe('the last three together', () => {
     // The equality Task 13 deletes both sets in favour of. Asserted as a SET
     // rather than a size so a definition swapped for another cannot hold the
     // count still, and both directions are covered by the sorted comparison.
-    expect(ENGINE_FLIPPED_DEF_IDS.size).toBe(engineRegistry.listDefinitions().length)
-    expect([...ENGINE_FLIPPED_DEF_IDS].sort())
+    expect(ENGINE_OWNED.size).toBe(engineRegistry.listDefinitions().length)
+    expect([...ENGINE_OWNED].sort())
       .toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
-    expect(ENGINE_FLIPPED_DEF_IDS.size, 'fourteen series-expressible natives').toBe(14)
-    // …and MIGRATED equals FLIPPED, which is what B5's "migrate and flip in one
-    // commit" rule means: with `engineEnabled` deleted (Task 4) a
-    // migrated-but-un-flipped definition is drawn by NOTHING.
-    expect([...ENGINE_MIGRATED_DEF_IDS].sort()).toEqual([...ENGINE_FLIPPED_DEF_IDS].sort())
+    expect(ENGINE_OWNED.size, 'fourteen series-expressible natives').toBe(14)
+    // ⭐⭐ B5 TASK 13 — "MIGRATED equals FLIPPED" IS NOT ASSERTABLE ANY MORE, AND
+    // THAT IS THE RETIREMENT RATHER THAN A GAP. A line stood here comparing
+    // `ENGINE_MIGRATED_DEF_IDS` with `ENGINE_FLIPPED_DEF_IDS`; both literals are
+    // DELETED, so re-pointing it at `ENGINE_OWNED` twice would be a tautology that
+    // passes for ever. The claim it made — "with `engineEnabled` deleted a
+    // migrated-but-un-flipped definition is drawn by NOTHING" — is carried by the
+    // two lines ABOVE, which are the whole of it now: engine-owned IS
+    // registry-known, in both directions, so the intermediate state has no
+    // expressible form. What still needs watching is that no hand-written render
+    // block comes back, and `flipB.test.jsx` asserts that behaviourally.
     // …and volumeProfile is in NEITHER, structurally: it is not series-expressible
     // (a horizontal histogram against the price axis, drawn on its own canvas), so
     // it has no definition to flip and is carved out by name.
-    expect(ENGINE_FLIPPED_DEF_IDS.has('volumeProfile')).toBe(false)
+    expect(ENGINE_OWNED.has('volumeProfile')).toBe(false)
     expect(engineRegistry.CARVED_OUT_INDICATOR_KEYS.has('volumeProfile')).toBe(true)
     expect(engineRegistry.getDefinition('volumeProfile')).toBeNull()
   })

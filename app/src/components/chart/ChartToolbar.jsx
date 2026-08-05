@@ -8,7 +8,7 @@ import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
-import { ENGINE_FLIPPED_DEF_IDS } from './engine/flipState'
+import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
@@ -137,8 +137,8 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLi
    * render. For every other id this is the expression that has always been in
    * the `checked` attribute, character for character.
    */
-  const isOn = useCallback((key) => (ENGINE_FLIPPED_DEF_IDS.has(key)
-    ? isIndicatorEnabled(cs, key, ENGINE_FLIPPED_DEF_IDS)
+  const isOn = useCallback((key) => (ENGINE_OWNED.has(key)
+    ? isIndicatorEnabled(cs, key, ENGINE_OWNED)
     : (cs.indicators?.[key]?.enabled ?? false)), [cs])
   const update = useCallback((path, value) => {
     const next = { ...cs }

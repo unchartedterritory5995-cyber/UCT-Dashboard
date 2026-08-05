@@ -336,11 +336,18 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
 the evaluator). That is the decision; the resulting histogram is **not restated
-here**. `enumerationSites.test.js` → *"every B4 region is retired — 2 to C, 4 kept,
-2 phase bookkeeping, and NO B5 key"* asserts it, and every B4 task decremented the `B4`
+here**. `enumerationSites.test.js` → *"every B4 region is retired — 2 to C, 4 kept, and NO
+B4, B5 or phase key"* asserts it, and every B4 task decremented the `B4`
 bucket, so a number copied into this paragraph would be a control that rots green
 — read it there.
 
+> ⭐ **RE-CITED 2026-08-05 (B5 Task 13).** Task 13 deleted the two flip sets —
+> `ENGINE_MIGRATED_DEF_IDS` and `ENGINE_FLIPPED_DEF_IDS`, the ledger's only
+> `phase`-fated rows — so the bucket is gone and the test is renamed again. The
+> same rail went red on the same line: **the THIRD time this citation has been
+> caught**, and the reason a record may point at a test title only if something
+> fails when the title moves.
+>
 > ⭐ **RE-CITED 2026-08-04 (B5 Task 9).** B5 Task 9 retired the ledger's three
 > settings-blob rows and the histogram moved `B5: 4` → `B5: 1`, which renamed the
 > test. The rail added by Task 1 — *"⭐ every test title the decision record cites
