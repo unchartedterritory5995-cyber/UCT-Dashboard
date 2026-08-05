@@ -305,22 +305,37 @@ export default function Calendar() {
       // showing, but left as a bare return it also froze that row FOREVER,
       // even once `days` went on to gain the enrichment it was missing —
       // nothing else ever re-checks it, so the History section stayed on the
-      // empty state for the rest of the modal's life. Recheck ONLY when the
-      // committed row still carries none of the three enrichment fields —
-      // never when it has SOME of them (e.g. `expected_move` intentionally
-      // absent on a past day per the enrichment endpoint's own TTL rules),
-      // so this can't fight a row that is correctly, permanently partial.
+      // empty state for the rest of the modal's life.
+      //
+      // The three enrichment fields are THREE INDEPENDENT PROVIDERS
+      // (beat_history: Finnhub, hist_stats: FMP/AV, expected_move: the
+      // options chain) that can each arrive — or permanently fail — on their
+      // own schedule (live-verified: CAT's beat_history sat behind a 10-min
+      // Finnhub negative-cache while hist_stats/expected_move had ALREADY
+      // landed — see api/services/earnings_estimates.py's `_INTEL_FAIL_TTL`).
+      // An earlier version of this guard stopped re-checking the moment ANY
+      // ONE field showed up, which froze the row with beat_history
+      // permanently null even after it later became available — exactly the
+      // field EarningsHistorySection's emptiness depends on. So: keep
+      // re-checking as long as ANY field is still missing, and only commit
+      // when the fresh lookup actually GAINS a field the row doesn't already
+      // have (never when it has none of what's missing either — that's a
+      // correctly, permanently partial row, e.g. `expected_move` on a past
+      // day, and must not be fought forever).
       const row = selected.row
-      const stillUnenriched = row.beat_history == null
-        && row.hist_stats == null && row.expected_move == null
-      if (!stillUnenriched) return
+      const stillMissing = row.beat_history == null
+        || row.hist_stats == null || row.expected_move == null
+      if (!stillMissing) return
       const hit = resolveFeedEntry(want, days)
-      const nowEnriched = hit && (hit.entry.beat_history != null
-        || hit.entry.hist_stats != null || hit.entry.expected_move != null)
+      const gained = hit && (
+        (row.beat_history == null && hit.entry.beat_history != null)
+        || (row.hist_stats == null && hit.entry.hist_stats != null)
+        || (row.expected_move == null && hit.entry.expected_move != null)
+      )
       // Not a fresh open — no openSeq bump (that would remount the
       // ErrorBoundary mid-view for no reason) and no resolveRef/ask-ladder
       // churn; this only ever upgrades an already-committed row in place.
-      if (nowEnriched) {
+      if (gained) {
         setSelected({ row: toModalRow(hit.entry), label: timingLabel(hit.timing),
                        reportDate: hit.ds, timing: hit.timing, entry: hit.entry })
       }

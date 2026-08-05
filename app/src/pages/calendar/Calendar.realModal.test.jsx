@@ -86,13 +86,27 @@ function useWeekEnrichmentMock() {
   return { data }
 }
 
+// Coordinator finding (P2 Task 12, round 2): a suite that ALWAYS hand-feeds
+// useWeekEnrichment (above) can prove the stuck-guard fix in isolation, but
+// cannot see the class of bug that actually shipped — the REAL hook's SWR
+// key/fetcher never getting a chance to resolve before the modal is already
+// open, because the real /api/calendar/enrichment-batch compute is slow
+// (60-100+s cold, see api/main.py's dashboard-warm fix + api/routers/
+// calendar.py's _build_enrichment_for_date). `_useRealEnrichment` opts ONE
+// test into the REAL useWeekEnrichment (real useSWR, real fetch) instead of
+// the stateful mock — every other test in this file is unaffected (flag
+// defaults false, reset every test).
+let _useRealEnrichment = false
+
 vi.mock('./useCalendarData', async (importOriginal) => {
   const real = await importOriginal()
   return {
     ...real,
     useCalendar: () => ({ data: WEEK, error: null, mutate }),
     useCalendarMySets: () => ({ data: undefined }),
-    useWeekEnrichment: () => useWeekEnrichmentMock(),
+    useWeekEnrichment: (...args) => (
+      _useRealEnrichment ? real.useWeekEnrichment(...args) : useWeekEnrichmentMock()
+    ),
     useWeekMetrics: () => ({ data: undefined }),
     useIpos: () => ({ data: undefined }),
     useDividends: () => ({ data: undefined }),
@@ -109,6 +123,7 @@ beforeEach(() => {
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({}) }))
   setInitialEnrichment(ENRICHMENT)   // already-resolved by default
   _enrichmentListeners = []
+  _useRealEnrichment = false
 })
 
 const renderAt = (url) => {
@@ -234,6 +249,131 @@ describe('the modal must not freeze on an un-enriched row (Task 12)', () => {
     act(() => { pushEnrichmentUpdate(ENRICHMENT) })
 
     // The modal must self-heal onto the now-enriched row, not stay frozen.
+    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    expect(screen.queryByText('No reported quarters yet')).toBeNull()
+  })
+})
+
+// ── Same defect, through the REAL useWeekEnrichment hook (Task 12, round 2) ──
+//
+// Round 1's coverage above hand-feeds enrichment through a stateful mock —
+// real (not SWR-backed), which a reviewer correctly flagged CANNOT see a bug
+// in useWeekEnrichment's own SWR key/fetcher, or in how long the real
+// /api/calendar/enrichment-batch request actually takes to resolve. Root
+// cause, found by direct backend measurement (curl against a live local
+// stack + api/routers/calendar.py::_build_enrichment_for_date's own
+// telemetry): the hook's key/fetcher are NOT broken — the request fires and
+// eventually completes — but a COLD compute of the current week's enrichment
+// (per-reporter Finnhub/FMP fan-out, inflated to 100-200+ symbols on a past
+// day by _backfill_past_days) measured 60-100+ SECONDS live. Nothing warmed
+// it ahead of a real user (api/main.py's dashboard-warm sequence warmed the
+// base calendar payload but not its enrichment overlay — the actual fix,
+// alongside the stuck-guard fix above). This test drives the REAL
+// useWeekEnrichment (real useSWR, real fetch) with a deliberately DEFERRED
+// enrichment-batch response — modeling that real multi-second gap rather
+// than assuming it's instant — and proves the already-open modal still
+// self-heals once the real fetch finally resolves.
+describe('the modal must not freeze on an un-enriched row — REAL useWeekEnrichment (Task 12 round 2)', () => {
+  it('a slow real enrichment-batch fetch still lands in the modal once it resolves', async () => {
+    _useRealEnrichment = true
+    let resolveEnrichmentFetch
+    const enrichmentPending = new Promise((resolve) => { resolveEnrichmentFetch = resolve })
+    global.fetch = vi.fn((url) => {
+      // Exact-path match (not `.includes`) — a `.includes` check would also
+      // match a wrong/typo'd endpoint sharing this substring, silently
+      // defeating the whole point of routing through the real fetcher.
+      if (String(url).startsWith('/api/calendar/enrichment-batch?')) {
+        // Never resolves until the test explicitly does so below — the real
+        // request is genuinely still in flight at click time, exactly like
+        // the live repro (nothing to do with a mocked "gate").
+        return enrichmentPending
+      }
+      // Generic pass-through for every other endpoint the real page/modal
+      // reaches for (day-metrics-batch, my-sets, prefs, expected-move, ...).
+      return Promise.resolve({ ok: true, json: async () => ({}) })
+    })
+
+    renderAt('/calendar?week=2026-08-03')
+
+    fireEvent.click(await screen.findByRole('button', { name: /\+1 more/ }))
+    fireEvent.click(await screen.findByText('NVDA'))
+
+    const dlg = await screen.findByRole('dialog')
+    expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // Characterizes the starting state: the real fetch hasn't resolved yet.
+    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+
+    // The real enrichment-batch request finally resolves — the EXACT shape
+    // GET /api/calendar/enrichment-batch?dates=... returns in production.
+    await act(async () => {
+      resolveEnrichmentFetch({ ok: true, json: async () => ENRICHMENT })
+      // Flush the fetch .then chain -> SWR's own state update -> the
+      // resolution effect's re-run, all of which are real (unmocked) async
+      // hops here, unlike the stateful-mock variant above.
+      await enrichmentPending
+    })
+
+    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    expect(screen.queryByText('No reported quarters yet')).toBeNull()
+  })
+})
+
+// ── Independent providers, independent arrival times (Task 12 round 3) ──────
+//
+// Found live on CAT, 2026-08-04, AFTER the round-1/round-2 fixes above were
+// already deployed and the History section STILL showed the empty state:
+// `beat_history` (Finnhub /stock/earnings), `hist_stats` (FMP/AV), and
+// `expected_move` (the options chain) are populated by THREE INDEPENDENT
+// provider calls inside api/routers/calendar.py::_build_enrichment_for_date's
+// `_one(sym)` — any one of them can arrive, or fail, on its own schedule.
+// Direct verification: CAT's beat_history sat behind Finnhub's own 10-minute
+// negative-cache (`_INTEL_FAIL_TTL` in earnings_estimates.py) while
+// hist_stats and expected_move had ALREADY landed and were visibly correct
+// in the Setup tab. The FIRST version of the stuck-guard fix (round 1 above)
+// treated the row as fully "enriched" — and stopped re-checking — the moment
+// ANY ONE of the three fields showed up, so beat_history stayed frozen at
+// null forever even once it later became available. This drives that exact
+// two-stage arrival (hist_stats/expected_move first, beat_history minutes
+// later) through the stateful mock and proves the section only leaves the
+// empty state once beat_history specifically — the one field
+// EarningsHistorySection's `buildQuarters` actually needs to build any
+// quarters at all — arrives.
+const PARTIAL_ENRICHMENT = {
+  '2026-08-06': {
+    NVDA: {
+      expected_move: { pct: 6.5, dollar: 12.4 },
+      beat_history: null,   // Finnhub still negative-cached
+      hist_stats: { avg_abs_move: 4.2, up_count: 2, total: 3, last_n: [null, 3.1, -2.4] },
+    },
+  },
+}
+
+describe('independent enrichment fields must not freeze each other out (Task 12 round 3)', () => {
+  it('beat_history arriving AFTER hist_stats/expected_move still lands in the modal', async () => {
+    setInitialEnrichment(undefined)   // nothing enriched yet at mount
+    renderAt('/calendar?week=2026-08-03')
+
+    fireEvent.click(await screen.findByRole('button', { name: /\+1 more/ }))
+    fireEvent.click(await screen.findByText('NVDA'))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+
+    // Stage 1: hist_stats + expected_move land; beat_history is still null,
+    // exactly like CAT's live Finnhub negative-cache window.
+    act(() => { pushEnrichmentUpdate(PARTIAL_ENRICHMENT) })
+    // Still the empty state — hist_stats alone builds no quarters
+    // (earningsHistoryModel.js's `buildQuarters` only emits past rows from
+    // `beatHistory`), so a premature "fully enriched" verdict here would be
+    // WRONG, not just early.
+    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+
+    // Stage 2: beat_history finally arrives (Finnhub's negative-cache TTL
+    // expired) — the ONLY field that changed since stage 1.
+    act(() => { pushEnrichmentUpdate(ENRICHMENT) })
+
     expect(await screen.findByTestId('history-table')).toBeTruthy()
     expect(screen.queryByText('No reported quarters yet')).toBeNull()
   })

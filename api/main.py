@@ -699,6 +699,28 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.calendar import get_calendar
             get_calendar()
 
+        def _enrichment():
+            # `_calendar()` above warms the base week payload, but its
+            # enrichment OVERLAY (beat_history/hist_stats/expected_move —
+            # what the earnings modal's Earnings History section reads via
+            # useWeekEnrichment) is a SEPARATE cold path:
+            # /api/calendar/enrichment-batch fans out per reporter to
+            # Finnhub/FMP, and since _backfill_past_days can put 100-200+
+            # symbols on a single past day, a cold compute for the current
+            # week's 5 days was measured taking 60-100+ SECONDS (see
+            # calendar.py::_build_enrichment_for_date). Without this warm,
+            # the first user to open the calendar after every deploy pays
+            # that cost synchronously inside the earnings modal's own
+            # fetch — long enough that the request is still in flight when
+            # anyone inspects it, and long enough that no real browser
+            # session waits it out (P2 Task 12: this, not a frontend bug,
+            # is why a freshly-reported symbol's Earnings History rendered
+            # "No reported quarters yet" against a just-restarted stack —
+            # useWeekEnrichment's fetch had genuinely not resolved yet).
+            from api.routers.calendar import get_enrichment_batch, _week_dates
+            dates = ",".join(d.isoformat() for d in _week_dates())
+            get_enrichment_batch(dates=dates)
+
         def _earnings_previews():
             # Warm the AI preview for the week's reporters (ranked by who users
             # actually track, then market cap) + the analysis for names that just
@@ -750,6 +772,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("news", _news)
             _warm("breadth", _breadth)
             _warm("calendar", _calendar)
+            _warm("enrichment", _enrichment)  # after calendar (it reads the week's day-list)
             _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
             _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
 
