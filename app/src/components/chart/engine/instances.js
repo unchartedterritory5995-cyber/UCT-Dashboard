@@ -65,7 +65,6 @@ import {
   getDefinition as getNativeDefinition,
   listDefinitions as listNativeDefinitions,
 } from './nativeRegistry'
-import { computePaneMargins } from '../paneMargins'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 // Re-exported so engine code has ONE import for everything instance-shaped. The
@@ -156,60 +155,68 @@ function cloneInstance(inst) {
 // order every existing user's panes are in today exists in exactly one place
 // after this, and it is the array below.
 //
-// ⛔ DERIVED, NOT TRANSCRIBED, AND FROM THE SHIPPED LAYOUT FUNCTION ITSELF.
-// `computePaneMargins` inserts its keys in stacking order (bottom of the chart
-// first), so its own output carries the order. Reading it back is the same trick
-// `engine/paneLayout.shippedBandOrder` uses and it is why there is no table here:
-// a transcribed one drifts from the function it copies, which is the defect this
-// phase keeps finding.
+// 🔴🔴 AND IT IS RECORDED, NOT APPLIED — MEASURED AT B5 TASK 12, WHICH IS WHEN IT
+// STOPPED BEING A PLAN AND BECAME A FACT. The paragraph below (and
+// `paneLayout.js`'s) said Flip C would apply this order in `orderedPaneKeys`.
+// **Flip C did not.** `orderedPaneKeys` walks the instance list; the fold seeds
+// that list in REGISTRY order (see the z-order refusal at `migrateLegacyToInstances`
+// below); nothing in between sorts by `stackRank`. So an existing user's PANE
+// order after the cutover is registry order — `rsi, macd, stoch, atr, mfi, cci,
+// williamsR, adx, obv` — and their BAND order today is the array below. On a
+// chart with `rsi + macd + stoch` those disagree: `rsi, macd, stoch` after
+// against `rsi, stoch, macd` today.
 //
-// ⛔ AND `paneMargins.js` IS CONSUMED, NEVER MODIFIED (a Global Constraint of
-// B4 and B5). `PANES` is a local inside `computePaneMargins` and is NOT
-// exported; exporting it to read it would be the modification the constraint
-// forbids, so this asks the function instead.
+// ⛔ IT IS IN THE MEASURED NUMBERS AND IT IS NOT IN THE RECORD'S PROSE. Flip C
+// was priced against a build with exactly this behaviour, so the owner's
+// 108,284 – 164,490 px include it; what the record described was the volume-pane
+// swap. It is written down in `docs/decisions/2026-08-04-flip-c-pane-geometry.md`
+// §7 as a third visible change and left for the owner, because applying the order
+// is a GEOMETRY change with a pixel gate attached and Task 12's mandate was to
+// ship what was measured. `settingsBlobMigration.test.js` pins the measurement.
 //
-// ⏭️ TASK 12: Flip C retires `paneMargins.js`. INLINE the array this produces at
-// that moment — do not re-derive it from anything else, because the shipped
-// stack order stops existing the day that file does and the seeded instance
-// order becomes its only record. `settingsBlobMigration.test.js` carries a
-// `existsSync('app/src/components/chart/paneMargins.js')` assertion, so Task 12
-// gets a RED TEST rather than a silent import of a deleted module.
+// ⛔ IT WAS DERIVED FROM `computePaneMargins`, AND AT TASK 12 IT IS INLINED —
+// which is what the ⏭️ note that stood here asked for, in the same words:
+// *"INLINE the array this produces at that moment — do not re-derive it from
+// anything else, because the shipped stack order stops existing the day that
+// file does and the seeded instance order becomes its only record."*
+//
+// `paneMargins.js` was "consumed, never modified" for five phases and Flip C
+// retires it. Its `PANES` list inserted keys bottom-of-the-chart first, so the
+// nine below are that list REVERSED — the order a user's panes are in today,
+// top to bottom — and they are followed by the five price overlays in registry
+// order.
+//
+// ⛔ RE-DERIVING THIS FROM THE REGISTRY WOULD BE WRONG, NOT MERELY DIFFERENT.
+// Registry order for the nine is `rsi, macd, stoch, atr, mfi, cci, williamsR,
+// adx, obv`; the shipped stack order is what is written below. They differ, and
+// the difference is every existing user's pane order.
 //
 // ⚠️ PANE IDS FIRST, then price overlays in REGISTRY order. Registry order IS
 // legacy z-order for the five price overlays (`instanceControls.registryRank`),
 // and LWC z-stacks by insertion order, so their relative order may not move.
-// Pane ids sit on their own price scales in disjoint bands, so theirs may.
-const EMPTY_EXCLUDE = new Set()
+// Pane ids sit on their own price scales / panes, so theirs may.
+//
+// A definition added after this froze is APPENDED rather than dropped — the
+// array below is the historical record, not the catalogue, and
+// `instances.test.js` asserts every registered id appears exactly once.
+const FROZEN_SHIPPED_STACK_ORDER = [
+  // the nine stacked oscillators, TOP-TO-BOTTOM
+  'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
+  // the five price overlays, in REGISTRY order
+  'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
+]
 
 function computeShippedStackOrder() {
-  const defs = listNativeDefinitions()
-  const paneIds = defs
-    .filter(d => d && d.placement && d.placement.target === 'pane')
-    .map(d => d.id)
-  let stacked = []
-  try {
-    const bands = computePaneMargins(
-      { indicators: Object.fromEntries(paneIds.map(id => [id, { enabled: true }])) },
-      false,
-      EMPTY_EXCLUDE,
-    )
-    stacked = Object.keys(bands || {})
-      .filter(k => k !== 'main' && k !== 'volume')
-      .reverse()                       // bottom-to-top ⇒ top-to-bottom = pane order
-      .filter(k => paneIds.includes(k))
-  } catch {
-    stacked = []
-  }
-  // A pane definition the layout function does not stack (a new one, added after
-  // `PANES` stopped growing) keeps a place rather than vanishing from the order.
-  const rest = defs.map(d => d && d.id).filter(id => isNonEmptyString(id) && !stacked.includes(id))
-  return Object.freeze([...stacked, ...rest])
+  const known = listNativeDefinitions().map(d => d && d.id).filter(isNonEmptyString)
+  const frozen = FROZEN_SHIPPED_STACK_ORDER.filter(id => known.includes(id))
+  const rest = known.filter(id => !frozen.includes(id))
+  return Object.freeze([...frozen, ...rest])
 }
 
 /** The order a v1 blob's indicators are seeded into `indicatorInstances`:
  *  the nine stacked panes TOP-TO-BOTTOM, then the five price overlays in
- *  registry order. Exported so a test can measure it against the layout function
- *  rather than against a copy of itself. */
+ *  registry order. Exported so a test can measure it — and so the ONE record of
+ *  the retired stack order has a name. */
 export const SHIPPED_STACK_ORDER = computeShippedStackOrder()
 
 /** Rank of a definition id in `SHIPPED_STACK_ORDER`; an unranked id sinks. */
@@ -351,8 +358,8 @@ export function migrateLegacyToInstances(cs, registry) {
     // pane's left axis instead of its own stacked band — `StockChart.jsx:5457`
     // (`indTarget`). Only pane-target definitions can be moved that way: the
     // toolbar offers the choice for the nine oscillators only
-    // (`ChartToolbar.jsx:370`), and `computePaneMargins` stacks exactly those
-    // nine. Honouring the list for a price overlay would invent a placement no
+    // (`ChartToolbar.jsx:370`), and the pane layout stacks exactly those nine.
+    // Honouring the list for a price overlay would invent a placement no
     // shipped code path can produce.
     const declaredTarget = def.placement?.target
     if (isNonEmptyString(declaredTarget)) {
@@ -619,8 +626,8 @@ export function normalizeInstances(list, registry) {
  *
  * ⛔ THE CROSSOVER PROBLEM THIS SOLVES. Under Flip A the engine renders into the
  * SAME band, on the SAME price scale, as the legacy block it replaces — and that
- * band's geometry comes from `computePaneMargins`, which reads
- * `cs.indicators[key].enabled`. So the legacy toggle has to stay ON for the
+ * band's geometry came from `computePaneMargins`, which read
+ * `cs.indicators[key].enabled`. So the legacy toggle had to stay ON for the
  * layout to be identical, and if the legacy toggle is on then the legacy block
  * draws too. Two RSI lines on one scale is not a parity result; it is a
  * different picture that happens to contain the right one.

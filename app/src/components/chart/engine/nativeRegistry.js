@@ -59,8 +59,8 @@
 //
 // Definition IDs are the LEGACY SETTINGS KEYS (`rsi`, `bb`, `williamsR`, …), not
 // prettier names. Three things key off them today: `indTarget(key)` builds the
-// price-scale id from the settings key, `computePaneMargins` stacks panes by it,
-// and Task 3's migrator maps `cs.indicators[key]` onto a definition. Keeping
+// price-scale id from the settings key, the pane layout stacks panes by it, and
+// Task 3's migrator maps `cs.indicators[key]` onto a definition. Keeping
 // defId == settings key makes all three an identity rather than a lookup table.
 
 import {

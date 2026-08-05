@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
 import { AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeStochastic, computeATR } from '../../indicators'
-import { computePaneMargins } from '../../paneMargins'
+import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR STOCHASTIC AND ATR (B5 Task 5) ─────────────────
@@ -141,12 +141,42 @@ const ATR_INSTANCE = {
   placement: { target: 'pane' }, hidden: false,
 }
 
-/** The `cs` each parity case pins. Its ONLY job is to feed `computePaneMargins`,
- *  which is what reserves the band the engine has to land in. */
+/** The `cs` each parity case pins. */
 const STOCH_CS = { indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' } } }
 const ATR_CS = { indicators: { atr: { enabled: true, period: 14, color: '#FFA726' } } }
-const STOCH_BAND = computePaneMargins(STOCH_CS, false, new Set()).stoch
-const ATR_BAND = computePaneMargins(ATR_CS, false, new Set()).atr
+
+/**
+ * The band map, from the ONE surviving authority.
+ *
+ * ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js` INTO `engine/paneLayout.js`.
+ * `computePaneLayout(...).bands` IS `computePaneMargins`' output — same keys,
+ * same values, same insertion order, off the same quantised stack — but it is
+ * keyed on the INSTANCE LIST rather than on a settings blob, because the
+ * instance list is the only authority for the stack now. It is also
+ * height-independent by construction, which is why no `chartHeight` is passed.
+ *
+ * ⚠️ `defIds` IS TOP-TO-BOTTOM, i.e. pane order — the same order the instance
+ * list carries. `computePaneLayout` reverses it internally to run the squeeze
+ * and both shaves bottom-first, exactly as the retired table's order did.
+ */
+const bandsFor = (defIds, hasVolumeBand = false, excludeKeys = new Set()) =>
+  computePaneLayout(
+    defIds.map((id) => ({ instanceId: `legacy:${id}`, defId: id })),
+    { hasVolumeBand, excludeKeys },
+  ).bands
+
+const STOCH_BAND = bandsFor(['stoch']).stoch
+const ATR_BAND = bandsFor(['atr']).atr
+
+// ⭐ B5 TASK 12 — THIS FILE DESCRIBES THE GEOMETRY THE FLIP REVERSES TO.
+// `PANE_MODE` is `'panes'` since Task 12, so an UNPINNED resolve would send both
+// oscillators into real lightweight-charts panes on a `'right'` scale with zero
+// margins. Every expectation in this file is a transcription of the BANDS
+// answer — the mode `paneLayout.js` keeps alive precisely so the flip has
+// something to reverse to — so the MODE is pinned rather than the expectations
+// rewritten.
+beforeEach(() => { __setPaneModeForTest('bands') })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const sync = (instance, cs, band, over) => {
   const F = createFakeChart()
@@ -234,9 +264,9 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
     for (const c of lines) expect(c.id).toBe(kSeries.__id)
   })
 
-  it('the band is the one computePaneMargins gives stoch, with the 0-100 range pinned', () => {
+  it('the band is the one computePaneLayout gives stoch, with the 0-100 range pinned', () => {
     const ctx = {
-      paneMargins: computePaneMargins(STOCH_CS, true, new Set()),
+      paneMargins: bandsFor(['stoch'], true),
       volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
     }
     expect(resolvePlacement({ defId: 'stoch' }, engineRegistry.getDefinition('stoch'), ctx)).toEqual({
@@ -337,9 +367,9 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
 describe('atr transcription — the AUTOSCALED band, which stoch is not', () => {
   it('reserves a band at all, and it is a DIFFERENT band from stoch\'s', () => {
     // ⭐ 0.87, NOT stoch's 0.85 — the first measured asymmetry of the pair. ATR's
-    // declared pane height is 0.13 where every 0-100 oscillator's is 0.15, so
-    // `computePaneMargins` gives it a SHORTER band and a case that assumed
-    // symmetry with `stoch` would have been asserting the wrong rectangle.
+    // declared pane height is 0.13 where every 0-100 oscillator's is 0.15, so the
+    // band map gives it a SHORTER band and a case that assumed symmetry with
+    // `stoch` would have been asserting the wrong rectangle.
     expect(ATR_BAND).toEqual({ top: 0.87, bottom: 0 })
     expect(STOCH_BAND).not.toEqual(ATR_BAND)
     expect(engineRegistry.getDefinition('stoch').placement.pane.height).toBe(0.15)

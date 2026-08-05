@@ -27,18 +27,19 @@
 //
 // ─── FLIP C: BOTH ANSWERS LIVE HERE NOW, AND ONE CONSTANT PICKS ─────────────
 //
-// B5 Task 10 built the real-pane answer and landed it DARK. `paneMode()` is
-// `'bands'`, so the transcription above is still what every user gets, byte for
-// byte, and the 46-case zero-changed-pixel gate says so. Under `'panes'` the
-// band becomes a real lightweight-charts pane (`paneLayout.computePaneLayout`
-// says which index and how tall) and the margins go to zero because the drawable
-// rectangle is the whole pane.
+// B5 Task 10 built the real-pane answer and landed it DARK; **Task 12 flipped the
+// constant**, so `paneMode()` is `'panes'` and the transcription above is the
+// mode the flip reverses TO rather than the one that ships. Under `'panes'` the
+// band is a real lightweight-charts pane (`paneLayout.computePaneLayout` says
+// which index and how tall), the margins go to zero because the drawable
+// rectangle is the whole pane, and the pane's own right axis carries the
+// oscillator's numbers (sub-choice 2.2).
 //
-// In `'bands'` mode the band geometry still comes from `computePaneMargins` —
-// which this module CONSUMES and must never extend. Adding an engine key to that
-// module's `PANES` list would reserve vertical space for something rendering
-// nothing, which in B2 (flag off, zero instances) is every user's chart shrinking
-// for no reason.
+// In `'bands'` mode the band geometry comes from `ctx.paneMargins`, which is now
+// `computePaneLayout(...).bands` — the retired `computePaneMargins`' output, from
+// the same quantised stack. `paneMargins.js` was "consumed, never modified" for
+// five phases and RETIRED at Task 12; this module never extended it and never
+// needs to, because a pane height is a property of a DEFINITION now.
 //
 // ─── TRAP #2: THE FULL SCALE OPTION SET, EVERY RESOLVE ──────────────────────
 //
@@ -278,12 +279,13 @@ function asSet(value) {
  * fail-closed posture the rest of the engine uses (an indicator nobody can place
  * renders nothing rather than landing somewhere plausible-looking).
  *
- * KNOWN FLIP-A LIMIT, stated rather than discovered: the band and the scale id
- * are keyed by DEFINITION id, because `computePaneMargins` is. Two instances of
- * the same definition therefore share one band and one scale — correct for two
- * RSIs (both are 0-100) and a real constraint for two ATRs (they autoscale
- * together). Per-instance bands need real panes; that is B5, and it is the same
- * boundary `instances.js` notes about stacking ORDER not being user data.
+ * KNOWN FLIP-A LIMIT, stated rather than discovered: in `'bands'` mode the band
+ * and the scale id are keyed by DEFINITION id, because the band map is. Two
+ * instances of the same definition therefore share one band and one scale —
+ * correct for two RSIs (both are 0-100) and a real constraint for two ATRs (they
+ * autoscale together). Per-instance bands need real panes; that is Flip C, and
+ * the layout keys its PANES by definition id today for the same reason, which is
+ * the same boundary `instances.js` notes about stacking ORDER not being user data.
  */
 export function resolvePlacement(instance, def, ctx) {
   if (!def || typeof def !== 'object') return null
@@ -357,11 +359,25 @@ export function resolvePlacement(instance, def, ctx) {
 
   // ── FLIP C: its own REAL PANE ───────────────────────────────────────────────
   //
-  // The band becomes a PANE. The scale keeps the definition's id — an OVERLAY
-  // scale, so no axis labels appear; whether it should get its own visible axis
-  // is `FLIP_C_PANE_GEOMETRY (b)`, the owner's call at Task 11 and not this
-  // branch's. The drawable rectangle is now the WHOLE pane, so the margins are
-  // zero where they used to be a slice of pane 0.
+  // The band becomes a PANE, and the pane's VISIBLE right scale carries the
+  // oscillator's own numbers.
+  //
+  // ⭐ `scaleId: 'right'` IS SUB-CHOICE 2.2, ANSWERED YES BY THE OWNER ON
+  // 2026-08-05 (`docs/decisions/2026-08-04-flip-c-pane-geometry.md` §5) — the one
+  // sub-choice that changes what a user READS rather than what they see. It cost
+  // **372 px on `rsi_only`** against the same cutover with an overlay scale named
+  // after the definition (builds `1667183abbe0` → `0aeab4391711`), and EVERY ONE
+  // of those pixels is inside `osc_strip`: the axis gutter already exists and is
+  // pinned to a stable minimum width, so the cost is ink, not layout, and
+  // `price_plot`, `mid_panes`, `time_axis` and `export_header` all read 0.
+  //
+  // ⛔ IT IS THE ID AND NOTHING ELSE. The scale options below are byte-identical
+  // to the overlay-scale answer, including the definition's fixed range — an RSI
+  // pane's ladder reads 0/50/100 because `placement.scale` says so, not because
+  // this branch spells it out a second time.
+  //
+  // The drawable rectangle is the WHOLE pane, so the margins are zero where they
+  // used to be a slice of pane 0.
   //
   // ⚠️ `scaleMargins: {top: 0, bottom: 0}` IS SPELLED OUT AND MUST STAY SPELLED
   // OUT. `applyOptions` MERGES and lightweight-charts' `merge()` SKIPS
@@ -384,7 +400,7 @@ export function resolvePlacement(instance, def, ctx) {
     if (!pane || !Number.isInteger(pane.index)) return null
     return {
       paneIndex: pane.index,
-      scaleId: key,
+      scaleId: 'right',
       scaleOptions: { borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, ...range },
       autoscale: 'default',
     }

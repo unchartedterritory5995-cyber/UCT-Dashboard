@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
 import { AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeRSI } from '../../indicators'
-import { computePaneMargins } from '../../paneMargins'
+import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR RSI, AS A UNIT TEST (Task 8) ───────────────────
@@ -135,11 +135,31 @@ const RSI_INSTANCE = {
   hidden: false,
 }
 
-/** The `cs` the parity case pins: RSI on, volume in its own pane. Its ONLY job
- *  is to feed `computePaneMargins`, which is what reserves RSI's band — and the
- *  reason the legacy toggle has to stay ON under Flip A. */
+/** The `cs` the parity case pins: RSI on, volume in its own pane. */
 const CS = { indicators: { rsi: { enabled: true, period: PERIOD, color: COLOR } } }
-const PANE_MARGINS = computePaneMargins(CS, false, new Set())
+
+/**
+ * RSI's band, from the ONE surviving authority.
+ *
+ * ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js` INTO `engine/paneLayout.js`.
+ * `computePaneLayout(...).bands` IS `computePaneMargins`' output — same keys,
+ * same values, same insertion order, off the same quantised stack — but it is
+ * keyed on the INSTANCE LIST rather than on a settings blob, because the
+ * instance list is the only authority for the stack now. It is also
+ * height-independent by construction, which is why no `chartHeight` is passed.
+ */
+const PANE_MARGINS = computePaneLayout([{ instanceId: 'legacy:rsi', defId: 'rsi' }], {
+  hasVolumeBand: false, excludeKeys: new Set(),
+}).bands
+
+// ⭐ B5 TASK 12 — THIS FILE DESCRIBES THE GEOMETRY THE FLIP REVERSES TO.
+// `PANE_MODE` is `'panes'` since Task 12, so an UNPINNED resolve would send RSI
+// to a real lightweight-charts pane on a `'right'` scale with zero margins.
+// Every expectation in this file is a transcription of the BANDS answer — the
+// mode `paneLayout.js` keeps alive precisely so the flip has something to
+// reverse to — so the MODE is pinned rather than the expectations rewritten.
+beforeEach(() => { __setPaneModeForTest('bands') })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const syncOnce = (fake, over) => {
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })

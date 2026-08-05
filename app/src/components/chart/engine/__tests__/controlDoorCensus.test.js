@@ -146,13 +146,17 @@ const RAW_WRITE_SHAPES = [
   ['C a computed `indicators[…] =` assignment', /indicators\s*\[[^\]]+\]\s*=/],
 ]
 
+// ✅ B5 TASK 12 REMOVED ONE, AND THE LIST'S OWN STALE-CHECK IS WHAT REMOVED IT.
+// `engine/paneMarginsProjection.js` was excused here as *"a READ-TIME projection:
+// it rewrites a THROWAWAY cs FROM the instance list so `computePaneMargins` sees
+// the engine's answer"*. Flip C deleted both modules — `computePaneLayout` reads
+// the instance list directly, so there is no second blob to project and no raw
+// write to excuse — and the stale-exception assertion below went RED by name the
+// moment the file stopped existing. That is the mechanism working: an exemption
+// for a write that no longer exists is what excuses the next one.
 const RAW_WRITE_EXCEPTIONS = [
   ['app/src/components/chart/chartDefaults.js',
     'it IS the blob — the fifteen keyed sections and the merge allow-list'],
-  ['app/src/components/chart/engine/paneMarginsProjection.js',
-    'a READ-TIME projection: it rewrites a THROWAWAY cs FROM the instance list so ' +
-    '`computePaneMargins` sees the engine\'s answer. It persists nothing and its ' +
-    'direction is instance → mirror, i.e. derived from the authority, never over it'],
   ['app/src/components/chart/IndicatorLibraryDialog.jsx',
     '`volumeProfile` ONLY — a carved-out canvas overlay with NO definition, for which ' +
     '`setIndicatorEnabled` returns its input by identity and the toggle would silently ' +

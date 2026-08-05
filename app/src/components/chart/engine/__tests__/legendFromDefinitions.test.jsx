@@ -190,7 +190,7 @@ const { default: StockChart } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
 const { mergeChartSettings } = await import('../../chartDefaults')
 const { ENGINE_FLIPPED_DEF_IDS } = await import('../flipState')
-const { computePaneMargins } = await import('../../paneMargins')
+const { computePaneLayout } = await import('../paneLayout')
 
 const BARS = bars200.bars
 const SHIPPED = shippedLegendChips()
@@ -445,33 +445,53 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
       .toEqual(CHIPS.map(([k]) => SHIPPED[k].label))
   })
 
-  // ⏭️ TASK 12 / FLIP C — A MEASURED MISMATCH, RECORDED RATHER THAN FIXED HERE.
+  // ✅ TASK 12 / FLIP C — THE RECORDED MISMATCH WENT STALE, EXACTLY AS THIS CASE
+  // SAID IT WOULD, SO IT IS INVERTED RATHER THAN DELETED.
   //
-  // The legend prints in BINDING order (registry order). The CHART stacks its
-  // bands in `PANES` order, and the two disagree: `stoch`'s band sits ABOVE
-  // `macd`'s while the legend lists MACD first. That is shipped behaviour, it
-  // predates the engine, and this task does not change it — but Flip C turns
-  // those bands into real panes, at which point "the legend reads top-to-bottom"
-  // becomes a claim somebody will make. It is false today, and here is the proof,
-  // so nobody has to rediscover it.
-  it('⏭️ …and that is NOT the band order the chart draws — measured, not fixed', async () => {
+  // It used to read: *"The legend prints in BINDING order (registry order). The
+  // CHART stacks its bands in `PANES` order, and the two disagree: `stoch`'s band
+  // sits ABOVE `macd`'s while the legend lists MACD first … Flip C turns those
+  // bands into real panes, at which point 'the legend reads top-to-bottom' becomes
+  // a claim somebody will make. It is false today"* — and it ended by instructing
+  // its own deletion if the two ever agreed.
+  //
+  // ⭐ THEY AGREE NOW, AND THE REASON IS THE WHOLE OF TASK 12. `paneMargins.PANES`
+  // — the nine-row table that fixed the stack order independently of anything the
+  // user had — is DELETED. `computePaneLayout` orders its panes (and its bands)
+  // from the INSTANCE LIST, and the legend prints in BINDING order, which walks
+  // the same list. One list, two readings: the legend reads top-to-bottom.
+  //
+  // ⛔ SO THE CLAIM IS INVERTED INSTEAD OF DROPPED, because it is exactly as
+  // fragile as it was interesting. Sorting panes by `instances.stackRank` — the
+  // obvious way to give every existing user back the pane order their BANDS had —
+  // breaks it, and would do so silently: the legend cannot see the panes and no
+  // pixel case hovers. The mismatch it replaces is named in the Flip C notes.
+  it('✅ …and that IS the pane order the chart draws — one list, two readings', async () => {
     const paneIds = registry.listDefinitions()
       .filter(d => d.placement.target === 'pane').map(d => d.id)
-    const bands = computePaneMargins(
-      { indicators: Object.fromEntries(paneIds.map(id => [id, { enabled: true }])) }, false, new Set())
+    // The instances a REAL chart holds for this fixture — the fold's output, not a
+    // hand-built list — because that list is the thing both orders now read.
+    const insts = ALL_NINE_ON().indicatorInstances
+    expect(insts.length, 'the fixture seeded no instances — the comparison is not one')
+      .toBeGreaterThan(3)
+    const bands = computePaneLayout(insts, { hasVolumeBand: false, excludeKeys: new Set() }).bands
+    // `bands` is keyed bottom-of-the-chart first and ends with `main`; reversing
+    // the oscillator keys gives the stack TOP-TO-BOTTOM, which is pane order.
     const topToBottom = Object.keys(bands).filter(k => k !== 'main' && k !== 'volume').reverse()
     const chipDefs = [...new Set(CHIPS.map(([k]) => k.split('::')[0]))]
     const legendPaneOrder = chipDefs.filter(id => paneIds.includes(id))
-    const chartBandOrder = topToBottom.filter(id => chipDefs.includes(id))
+    const chartPaneOrder = topToBottom.filter(id => chipDefs.includes(id))
     expect(new Set(legendPaneOrder), 'the two are over different sets — the comparison is not one')
-      .toEqual(new Set(chartBandOrder))
+      .toEqual(new Set(chartPaneOrder))
     expect(legendPaneOrder,
-      'the legend and the band stack AGREE now. That is an improvement, and it means this '
-      + 'recorded mismatch is stale — delete this case and say so in the Flip C notes.')
-      .not.toEqual(chartBandOrder)
-    // …and the exact disagreement, so a future reader does not have to re-derive it.
+      'the legend and the pane stack disagree again. If that is deliberate — a stackRank '
+      + 'sort giving existing users back their band order — say so in the Flip C notes and '
+      + 'record the new mismatch here; if it is not, the panes moved and nothing else can see it.')
+      .toEqual(chartPaneOrder)
+    // …and the exact order, so a future reader does not have to re-derive it. The
+    // band stack this replaced read `rsi · stoch · macd · atr`.
     expect(legendPaneOrder).toEqual(['rsi', 'macd', 'stoch', 'atr'])
-    expect(chartBandOrder).toEqual(['rsi', 'stoch', 'macd', 'atr'])
+    expect(chartPaneOrder).toEqual(['rsi', 'macd', 'stoch', 'atr'])
   })
 
   it.each(CHIPS)('%s formats from the definition and matches its shipped row', async (key) => {

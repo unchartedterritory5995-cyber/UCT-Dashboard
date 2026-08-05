@@ -109,6 +109,17 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   priceFormat: { type: 'price', precision: 2 },
 }
 
+// ⭐ B5 TASK 12 — AND WHY THIS FILE ALONE NEEDS NO `__setPaneModeForTest`.
+// Every sibling Flip-A suite pins `'bands'`, because `PANE_MODE` is `'panes'`
+// now and an oscillator resolved under the default lands in a REAL pane on a
+// `'right'` scale with zero margins. Both definitions here are PRICE OVERLAYS,
+// and `resolvePlacement`'s `target === 'price'` branch returns before
+// `paneMode()` is ever read — so these expectations are the SHIPPED answer in
+// both modes, and pinning would only narrow what this file covers while
+// claiming a mode-dependence it does not have. If a price overlay ever starts
+// resolving differently per mode, this file goes red under the shipped default,
+// which is the direction that should hurt.
+
 // ─── the fixtures ───────────────────────────────────────────────────────────
 
 const BARS = makeBars(260)

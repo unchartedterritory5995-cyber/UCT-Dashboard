@@ -336,8 +336,8 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
 the evaluator). That is the decision; the resulting histogram is **not restated
-here**. `enumerationSites.test.js` → *"every B4 region is retired — 1 to B5, 2 to
-C, 3 kept, 2 phase bookkeeping"* asserts it, and every B4 task decremented the `B4`
+here**. `enumerationSites.test.js` → *"every B4 region is retired — 2 to C, 4 kept,
+2 phase bookkeeping, and NO B5 key"* asserts it, and every B4 task decremented the `B4`
 bucket, so a number copied into this paragraph would be a control that rots green
 — read it there.
 
@@ -346,6 +346,14 @@ bucket, so a number copied into this paragraph would be a control that rots gree
 > test. The rail added by Task 1 — *"⭐ every test title the decision record cites
 > verbatim is a title that exists"* — **went red on this exact line**, which is
 > the second time it has caught this citation and the reason it exists.
+
+> ⭐ **RE-CITED AGAIN 2026-08-05 (B5 Task 12, Flip C).** The cutover deletes
+> `paneMargins.js`, so the LAST `B5`-fated row left the ledger and the histogram
+> lost the key entirely (`{B5: 1, C: 2, keep: 3, phase: 2}` → `{C: 2, keep: 4,
+> phase: 2}` — `keep` gained `instances.SHIPPED_STACK_ORDER`, the frozen record of
+> the retired stack order, which the discovery scan flagged the moment it was
+> inlined). That renamed the test for the THIRD time, and the rail went red on
+> this line again — which is now the only reason the citation above is current.
 
 > 🔴 **CORRECTED 2026-08-04 (B5 Task 1), and the correction is the point.** This
 > sentence cited that test as *"the retirement column adds up"* — the title it had

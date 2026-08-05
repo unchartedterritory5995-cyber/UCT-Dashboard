@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from './binder'
 import { resolvePlacement as realPlacement, MAIN_PRICE_SCALE_ID } from './placement'
 import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from './pool'
@@ -77,6 +77,17 @@ beforeEach(() => {
   fake = createFakeChart()
   binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
 })
+
+/**
+ * ⭐ B5 TASK 12 FLIPPED `PANE_MODE` TO `'panes'`, so a case whose subject is the
+ * BAND geometry has to name the mode it means rather than inherit the shipped
+ * one. `'bands'` is still live — `computePaneLayout` returns its map either way —
+ * and it is the geometry the flip reverses TO, priced at the same numbers, which
+ * is why these cases are pinned rather than retired.
+ */
+const pinBands = () => { __setPaneModeForTest('bands') }
+
+afterEach(() => { __setPaneModeForTest(null) })
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -440,6 +451,17 @@ describe('C-2 — a pooled PRICE OVERLAY does not keep the previous tenant\'s na
   // The REAL placement adapter, not the fake: the defect was in what placement
   // returned for a price target (`scaleId: null`) meeting how the pool read it
   // ("omit `priceScaleId`"). A fake that always returns a string cannot see it.
+  //
+  // ⭐ B5 TASK 12 PINNED THIS BLOCK TO `'bands'`, and the reason is in its own
+  // title: a NAMED scale is what a `'bands'` oscillator has. Under `'panes'` the
+  // previous tenant sits on its pane's `'right'` axis (sub-choice 2.2), which is
+  // the same string the candles carry — so the setup line below would read
+  // `'right'` before AND after and the case would pass while proving nothing.
+  // The `'panes'` face of the same hazard is a PANE the pooled series must leave,
+  // and that is the pane-move block above plus `flipCGeometry.test.jsx` on a real
+  // renderer. Pinning keeps this one measuring the transition it was written for.
+  beforeEach(pinBands)
+
   const realCtx = (instances) => ({
     ...ctxFor(instances),
     resolvePlacement: realPlacement,
@@ -788,6 +810,11 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
     return dst
   }
 
+  /** The layout the SHIPPED mode needs — one pane per pane-target instance. */
+  const layoutFor = (instances) => computePaneLayout(instances, {
+    chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX,
+  })
+
   const autoscaleCtx = (instances) => ({
     enabled: true,
     registry,
@@ -796,6 +823,12 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
     adjustTime: (t) => t,
     resolvePlacement: realPlacement,
     paneMargins: { rsi: { top: 0.85, bottom: 0 } },
+    // ⭐ B5 TASK 12: this block runs in the SHIPPED mode rather than being pinned
+    // back to `'bands'`, because which autoscale provider a target gets is the
+    // same answer in both. What is NOT the same is that a `'panes'` oscillator
+    // the layout gave no pane resolves to `null` and binds nothing — so without a
+    // layout every case below would quietly lose its subject.
+    paneLayout: layoutFor(instances),
     volOverlaySet: new Set(),
     volSeparatePane: false,
     VOL_PANE_INDEX: 1,
@@ -851,30 +884,57 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
   it('a price overlay is EXCLUDED and a pane oscillator is not — through the real placement', () => {
     // The seam's whole point, asserted at the renderer boundary rather than at
     // placement's: what reaches `addSeries` is what the chart actually gets.
+    //
+    // 🔴 B5 TASK 12: THIS WAS A MAP KEYED ON `priceScaleId` ALONE AND THAT STOPPED
+    // IDENTIFYING ANYTHING. Sub-choice 2.2 puts an oscillator on its own pane's
+    // `'right'` axis — the SAME STRING the candles' scale carries — so BB and RSI
+    // collided on one key and the last write silently won. LWC keys a price scale
+    // by (pane, id), and the partition below does too; it also says the quantities
+    // out loud, so a collision cannot come back as a green test.
+    //
+    // ⛔ AND IT IS PHRASED AS *the candles' axis vs anywhere else*, WHICH IS THE
+    // CLAIM AND IS TRUE IN BOTH MODES. `(0, 'right')` is where a price overlay
+    // lands whatever `paneMode()` says — that branch is above the mode switch —
+    // while the oscillator's own axis is `(0, 'rsi')` in bands and `(1, 'right')`
+    // in panes. Naming either literal would have pinned this case to one mode for
+    // no gain: `placement.test.js` owns which axis it is.
     binder.sync(autoscaleCtx([inst('bb'), inst('rsi')]))
-    const byProvider = new Map()
+    const onCandles = []
+    const elsewhere = []
     for (const c of fake.callsOf('addSeries')) {
-      const opts = c.args[1]
-      byProvider.set(opts.priceScaleId, opts.autoscaleInfoProvider)
+      const [, opts, paneIndex] = c.args
+      const target = `${paneIndex}|${opts.priceScaleId}` === `0|${MAIN_PRICE_SCALE_ID}` ? onCandles : elsewhere
+      target.push(opts.autoscaleInfoProvider)
     }
-    expect(byProvider.get(MAIN_PRICE_SCALE_ID), 'BB must not stretch the candles').toBe(AUTOSCALE_EXCLUDE)
-    expect(byProvider.get('rsi'), 'RSI owns its band and must size it').toBe(AUTOSCALE_DEFAULT)
+    // Non-vacuity, both halves: BB really did put three bands on the candles' axis
+    // and RSI's line really is not one of them.
+    expect(onCandles, 'BB drew nothing on the candles\' axis').toHaveLength(3)
+    expect(elsewhere, 'RSI landed on the candles\' axis too — vacuous').toHaveLength(1)
+
+    for (const p of onCandles) expect(p, 'BB must not stretch the candles').toBe(AUTOSCALE_EXCLUDE)
+    for (const p of elsewhere) expect(p, 'RSI owns its own axis and must size it').toBe(AUTOSCALE_DEFAULT)
   })
 })
 
 
-// ─── FLIP C lands DARK (B5 Task 10) ─────────────────────────────────────────
+// ─── FLIP C landed DARK at B5 Task 10 — and SHIPPED at Task 12 ──────────────
 //
-// The cutover ships behind `paneMode()`, which is `'bands'`. These two cases are
-// the binder's half of "landed dark": a `paneLayout` in the ctx must change
-// nothing at all, and the pane machinery must not be touched. The `'panes'` half
-// is driven against a REAL lightweight-charts chart in
+// The cutover shipped behind `paneMode()`, which is `'panes'` now. These two
+// cases are the binder's half of "landed dark", and they describe the mode the
+// flip REVERSES TO: with `'bands'` pinned, a `paneLayout` in the ctx must change
+// nothing at all and the pane machinery must not be touched. That is still a live
+// claim — reversal is one edit — and it is the control for the `'panes'` block
+// below, which is why it is pinned rather than retired. The `'panes'` half is
+// driven against a REAL lightweight-charts chart in
 // `__tests__/flipCGeometry.test.jsx` — a double cannot say whether the renderer
 // built the panes.
 
 describe('FLIP C — a paneLayout in the ctx is INERT under bands', () => {
+  // ⭐ B5 TASK 12 — the mode this block is ABOUT is no longer the default, so it
+  // says which one it means. See `pinBands`.
+  beforeEach(pinBands)
+
   const LAYOUT = computePaneLayout(
-    { indicators: { rsi: { enabled: true }, macd: { enabled: true } } },
     [inst('rsi'), inst('macd')],
     { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
   )
@@ -919,13 +979,12 @@ describe('FLIP C — a paneLayout in the ctx is INERT under bands', () => {
         resolvePlacement: realPlacement, paneMargins: {}, paneLayout: LAYOUT,
       })
       expect(asked2).toBeGreaterThan(0)
-    } finally { __setPaneModeForTest(null) }
+    } finally { pinBands() }   // ⭐ B5 TASK 12 — back to the mode this block pins.
   })
 })
 
 describe('FLIP C — the stretch factors are the pixel heights (PANE_MODE panes)', () => {
   const LAYOUT = computePaneLayout(
-    { indicators: { rsi: { enabled: true }, macd: { enabled: true } } },
     [inst('rsi'), inst('macd')],
     { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
   )

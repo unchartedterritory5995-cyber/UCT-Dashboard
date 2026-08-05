@@ -52,10 +52,11 @@
 // placement's pane branch to 'exclude', or break either provider singleton, and
 // the numbers below move by ~2,000 pixels.
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createChart, LineSeries, CandlestickSeries } from 'lightweight-charts'
 import { resolvePlacement } from '../placement'
 import { seriesOptionsForPlot, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from '../pool'
+import { __setPaneModeForTest } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
 
 // ─── jsdom needs a 2D context and a non-zero layout ──────────────────────────
@@ -63,6 +64,25 @@ import * as engineRegistry from '../nativeRegistry'
 // File-scoped: vitest gives every test file its own jsdom, so these patches
 // cannot reach another suite. Nothing here draws — the assertions are all on the
 // price scale's arithmetic, which needs a height, not a canvas.
+// ⭐ B5 TASK 12 — THIS FILE MEASURES THE GEOMETRY THE FLIP REVERSES TO.
+//
+// `PANE_MODE` is `'panes'` since Task 12. Every case below drives
+// `resolvePlacement` through `CTX`, which carries a `paneMargins` map and no
+// `paneLayout` — a BANDS context, by construction: `CTX.paneMargins.rsi` is the
+// `{top: 0.82, bottom: 0}` band whose height is the whole subject of the
+// `priceToCoordinate` numbers. Under the unpinned default that same call takes
+// the PANES branch, finds no layout to name a pane in, and correctly returns
+// `null` (fail-closed), which is what made these four cases throw rather than
+// disagree. So the MODE is pinned and the expectations are untouched — bands is
+// still a live, tested mode and these are its numbers.
+//
+// ⚠️ WHAT THIS FILE THEREFORE DOES NOT COVER: the PANES branch's own
+// `autoscale: 'default'` (`placement.js:405`). It is the same answer for the
+// same reason, and `placement.js` says so in place, but nothing here measures it
+// on a real scale. That is a coverage gap worth a follow-up, not a defect.
+beforeAll(() => { __setPaneModeForTest('bands') })
+afterAll(() => { __setPaneModeForTest(null) })
+
 beforeAll(() => {
   const ctx = new Proxy({}, {
     get: (_t, k) => {

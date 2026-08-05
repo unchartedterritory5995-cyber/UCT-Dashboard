@@ -35,7 +35,6 @@ import {
 import { createBinder, paneHeightAlerts, __resetPaneHeightAlerts } from '../binder'
 import { resolvePlacement } from '../placement'
 import * as engineRegistry from '../nativeRegistry'
-import { computePaneMargins } from '../../paneMargins'
 import { resolveChartRegionFromPanes } from '../../chartRegion'
 import {
   PANE_MODE, paneMode, __setPaneModeForTest,
@@ -162,7 +161,7 @@ async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, lay
   const instances = ids.map((id) => inst(id))
   const cs = csWith(ids)
   const paneLayout = paneMode() === 'panes'
-    ? (layoutOverride !== undefined ? layoutOverride : computePaneLayout(cs, instances, {
+    ? (layoutOverride !== undefined ? layoutOverride : computePaneLayout(instances, {
       chartHeight: paneStackHeightPx(h.raw),
       hasVolumeBand,
       separatorPx: SEPARATOR_PX,
@@ -181,7 +180,7 @@ async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, lay
     bars,
     adjustTime: (t) => t,
     plan,
-    paneMargins: computePaneMargins(cs, hasVolumeBand),
+    paneMargins: computePaneLayout(instances, { hasVolumeBand }).bands,
     paneLayout,
     volOverlaySet: new Set(),
     volSeparatePane: h.firstPaneIndex > 1,
@@ -237,21 +236,33 @@ afterEach(() => {
 // PANE_MODE bands — the DEFAULT path is byte-identical to today
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('PANE_MODE bands — the DEFAULT path is byte-identical to today', () => {
-  it('ships as the default, so the cutover is DARK until one constant moves', () => {
-    // The one line Task 12 edits. If this ever reads `'panes'` on master, the
-    // 46-case zero stopped being the phase's safety net and nobody said so.
-    expect(PANE_MODE).toBe('bands')
+// ⭐ B5 TASK 12 — THIS DESCRIBE STOPPED BEING THE DEFAULT AND BECAME THE MODE
+// THE FLIP REVERSES TO. Every case in it is a transcription of the geometry that
+// shipped before Flip C, so each PINS `'bands'` explicitly rather than relying on
+// a constant that has moved. They are kept, not deleted, for exactly the reason
+// the constant is kept: reversal is one edit, and an unreversible flip is not a
+// decision the owner was offered.
+describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
+  it('the cutover is APPLIED, and one constant is still the whole of it', () => {
+    // The one line Task 12 edited. `docs/decisions/2026-08-04-flip-c-pane-geometry.md`
+    // is ACCEPTED and this is the read that says the code agrees with the record.
+    expect(PANE_MODE).toBe('panes')
+    expect(paneMode()).toBe('panes')
+    // …and the seam still answers the OTHER mode, which is what makes the
+    // reversal one edit rather than a re-implementation.
+    __setPaneModeForTest('bands')
     expect(paneMode()).toBe('bands')
+    expect(PANE_MODE).toBe('panes')
   })
 
   it('resolvePlacement returns exactly what it returned before Flip C, for every pane oscillator', () => {
+    __setPaneModeForTest('bands')
     const ids = oscillatorIds()
     const cs = csWith(ids)
-    const bands = computePaneMargins(cs, false)
+    const bands = computePaneLayout(ids.map((id) => inst(id)), { hasVolumeBand: false }).bands
     // A layout that puts every oscillator in a pane of its own, HANDED IN on
     // purpose: in `'bands'` mode it must change nothing at all.
-    const paneLayout = computePaneLayout(cs, ids.map((id) => inst(id)), {
+    const paneLayout = computePaneLayout(ids.map((id) => inst(id)), {
       chartHeight: CHART_H, hasVolumeBand: false, separatorPx: SEPARATOR_PX,
     })
 
@@ -285,6 +296,7 @@ describe('PANE_MODE bands — the DEFAULT path is byte-identical to today', () =
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {
+    __setPaneModeForTest('bands')
     const h = openChart()
     await sync(h, ['rsi', 'macd', 'stoch'])
     expect(h.raw.panes()).toHaveLength(1)
@@ -316,8 +328,18 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     ])
     // Pane INDEX and price scale, read off the renderer rather than predicted.
     expect(m.panes.map((p) => p.index)).toEqual([0, 1, 2, 3])
+    // ⭐ SUB-CHOICE 2.2, APPLIED — every oscillator sits on ITS OWN PANE'S VISIBLE
+    // `right` scale, so the pane grows a numeric ladder a user reads values off.
+    // It used to be an overlay scale named after the definition (`'rsi'`,
+    // `'macd'`, `'stoch'`), which drew no axis at all. `'right'` means a DIFFERENT
+    // scale per pane — price scales are per-pane in lightweight-charts 5.2.0 —
+    // and the pane indices above are what says these four are four scales.
     expect(m.panes.map((p) => p.series.map((s) => s.scaleId)))
-      .toEqual([['right'], ['rsi'], ['macd', 'macd', 'macd'], ['stoch', 'stoch']])
+      .toEqual([['right'], ['right'], ['right', 'right', 'right'], ['right', 'right']])
+    // Not vacuous, and this is the half that would have caught the axis change
+    // shipping unpriced: the definition's own id is no longer ANY series' scale.
+    expect(m.panes.flatMap((p) => p.series.map((s) => s.scaleId)))
+      .not.toContain('rsi')
   })
 
   it('a DIFFERENT instance order gives a DIFFERENT pane order — the list is the authority', async () => {
@@ -366,8 +388,7 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     const h = openChart()
     const { paneLayout } = await sync(h, ['rsi', 'macd'])
 
-    const cs = csWith(['rsi', 'macd'])
-    const bands = computePaneMargins(cs, false).main
+    const bands = computePaneLayout([inst('rsi'), inst('macd')], { hasVolumeBand: false }).bands.main
     const pane0 = h.heights()[0]
     expect(pane0).toBe(paneLayout.pane0.heightPx)
 
@@ -533,14 +554,18 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     // would draw across the whole price area.
     __setPaneModeForTest('panes')
     const def = engineRegistry.getDefinition('rsi')
-    const empty = computePaneLayout({}, [], { chartHeight: CHART_H, hasVolumeBand: false })
+    const empty = computePaneLayout([], { chartHeight: CHART_H, hasVolumeBand: false })
     expect(resolvePlacement(inst('rsi'), def, { paneLayout: empty })).toBeNull()
     expect(resolvePlacement(inst('rsi'), def, {})).toBeNull()
     // …and the control: with its pane present it resolves.
-    const layout = computePaneLayout(csWith(['rsi']), [inst('rsi')], { chartHeight: CHART_H, hasVolumeBand: false })
+    const layout = computePaneLayout([inst('rsi')], { chartHeight: CHART_H, hasVolumeBand: false })
+    // ⭐ SUB-CHOICE 2.2, APPLIED: the pane's OWN VISIBLE `right` scale, not an
+    // overlay scale named after the definition. The fixed range is unchanged —
+    // it comes from `placement.scale` and the axis change did not touch it, which
+    // is what keeps an RSI ladder reading 0/50/100.
     expect(resolvePlacement(inst('rsi'), def, { paneLayout: layout })).toEqual({
       paneIndex: 1,
-      scaleId: 'rsi',
+      scaleId: 'right',
       scaleOptions: { borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, autoScale: false, minimum: 0, maximum: 100 },
       autoscale: 'default',
     })
@@ -660,7 +685,7 @@ describe('the shipped configuration — a separate volume pane', () => {
     const real = h.heights()
     // The layout's own reconstruction, with no oscillator: `above` IS the
     // bands-mode split.
-    const reconstructed = computePaneLayout({}, [], {
+    const reconstructed = computePaneLayout([], {
       chartHeight: paneStackHeightPx(h.raw),
       hasVolumeBand: false,
       separatorPx: SEPARATOR_PX,
@@ -706,11 +731,11 @@ describe('the shipped configuration — a separate volume pane', () => {
     await sync(h, ['rsi'])
     await frame()
     const bandsHeights = h.heights()
-    const bandsMain = computePaneMargins(cs, false).main
+    const bandsMain = computePaneLayout(instances, { hasVolumeBand: false }).bands.main
     const bandsRect = [bandsMain.top * bandsHeights[0], (1 - bandsMain.bottom) * bandsHeights[0]]
 
     __setPaneModeForTest('panes')
-    const layout = computePaneLayout(cs, instances, {
+    const layout = computePaneLayout(instances, {
       chartHeight: paneStackHeightPx(h.raw),
       hasVolumeBand: false,
       separatorPx: SEPARATOR_PX,
@@ -741,7 +766,7 @@ describe('the shipped configuration — a separate volume pane', () => {
     // also 311, so `available - assigned` and `round(available*w/total)` agree and
     // the mutation SURVIVES. Three equal weights over 100 do not divide evenly —
     // rounding every share gives 33+33+33 = 99 and loses a pixel off the stack.
-    const layout = computePaneLayout({}, [], {
+    const layout = computePaneLayout([], {
       chartHeight: 102,                  // 2 separators ⇒ 100 to distribute
       hasVolumeBand: false,
       separatorPx: SEPARATOR_PX,
@@ -756,7 +781,7 @@ describe('the shipped configuration — a separate volume pane', () => {
   it('a THREE-pane-above chart (Model Book s index pane) totals exactly as well', async () => {
     // `firstPaneIndex` reaches 3 in Model Book, whose index-comparison pane is
     // hoisted to pane 0, so the candles are pane 1 — `mainPaneIndex`.
-    const layout = computePaneLayout(csWith(['rsi', 'macd']), [inst('rsi'), inst('macd')], {
+    const layout = computePaneLayout([inst('rsi'), inst('macd')], {
       chartHeight: 532,
       hasVolumeBand: false,
       separatorPx: SEPARATOR_PX,
@@ -812,5 +837,122 @@ describe('the mode is read through ONE function, and nothing ships that flips it
       const src = fs.readFileSync(path.join(root, rel), 'utf8')
       expect(src, rel).toMatch(/paneMode\(\)\s*===\s*'panes'/)
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// the retirement
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('paneMargins.js and paneMarginsProjection.js are RETIRED, not renamed', () => {
+  // ⭐ B5 TASK 12. Flip C's other half: the band machinery is deleted, and the
+  // three facts `paneMargins.PANES` carried have to be somewhere ELSE rather than
+  // somewhere else's file with the same shape. This case is the "nothing reads
+  // it" half; `paneLayout.test.js` is the "the facts arrived" half (every
+  // `baseH` == the definition's declared pane height, the order ==
+  // `instances.SHIPPED_STACK_ORDER`, the volume row == `VOLUME_PANE_HEIGHT`).
+  const RETIRED = [
+    'components/chart/paneMargins.js',
+    'components/chart/paneMargins.test.js',
+    'components/chart/engine/paneMarginsProjection.js',
+    'components/chart/engine/paneMarginsProjection.test.js',
+  ]
+
+  it('the four files do not exist, and NOTHING in app/src names their exports', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const root = path.resolve(__dirname, '../../../..')      // app/src
+
+    for (const rel of RETIRED) {
+      expect(fs.existsSync(path.join(root, rel)), `${rel} still exists`).toBe(false)
+    }
+
+    // ⛔ COMMENT-STRIPPED. A comment may legitimately explain a retirement by
+    // naming what retired — five of them below do. CODE may not.
+    const strip = (src) => src
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+    const RETIRED_TOKENS = /computePaneMargins|csForPaneMarginsFromSettings|csForPaneMargins|paneMarginsProjection|chart\/paneMargins/
+
+    // ⛔ PRODUCTION FILES ONLY, AND THE REASON IS NOT CONVENIENCE. Four test
+    // files name `chart/paneMargins.js` in CODE — as the argument to the
+    // `existsSync` that asserts it is GONE. A rail that forbids naming the thing
+    // it must name in order to forbid it is a rail that deletes its own subject,
+    // so tests get the NARROWER check below (no static import can resolve) and
+    // production gets the broad one.
+    const hits = []
+    const testImporters = []
+    let filesWalked = 0
+    let testsWalked = 0
+    const positive = []
+    // A real ES import of either module, in any of the three spellings a file
+    // here could use. This is the check that actually matters for a test: a
+    // MENTION is prose, an IMPORT is a dependency on a deleted file.
+    const IMPORTS_RETIRED = /from\s+['"][^'"]*(?:chart\/)?paneMargins(?:Projection)?['"]/
+    const DEFINES_THE_PROBE = 'components/chart/engine/__tests__/flipCGeometry.test.jsx'
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name)
+        if (e.isDirectory()) { walk(full); continue }
+        if (!/\.jsx?$/.test(e.name)) continue
+        const rel = full.slice(root.length + 1).replace(/\\/g, '/')
+        const isTest = rel.includes('__tests__') || /\.test\.jsx?$/.test(rel)
+        const code = strip(fs.readFileSync(full, 'utf8'))
+        if (isTest) {
+          testsWalked += 1
+          // This file DEFINES the probe, so it carries the two import lines the
+          // probe is looking for as FIXTURES — the same exemption the sibling
+          // seam scan gives `paneLayout.js`. Exempted by name, not by pattern.
+          if (rel !== DEFINES_THE_PROBE && IMPORTS_RETIRED.test(code)) testImporters.push(rel)
+          continue
+        }
+        filesWalked += 1
+        if (RETIRED_TOKENS.test(code)) hits.push(rel)
+        if (/computePaneLayout/.test(code)) positive.push(rel)
+      }
+    }
+    walk(root)
+
+    expect(hits, 'a module still names the retired band machinery IN CODE').toEqual([])
+    expect(testImporters, 'a test still IMPORTS a deleted module').toEqual([])
+    // …and the import probe is not a regex that matches nothing.
+    expect(testsWalked).toBeGreaterThan(50)
+    expect(IMPORTS_RETIRED.test("import { computePaneMargins } from '../../paneMargins'")).toBe(true)
+    expect(IMPORTS_RETIRED.test("import { csForPaneMargins } from './paneMarginsProjection'")).toBe(true)
+    expect(IMPORTS_RETIRED.test("expect(existsSync('app/src/components/chart/paneMargins.js'))")).toBe(false)
+
+    // ⛔ NON-VACUITY, THE POSITIVE HALF — the same walk, the same stripper, a
+    // token that IS there. A `strip` that ate the file, a walk that visited
+    // nothing, or a regex that stopped matching would satisfy the `toEqual([])`
+    // above and prove nothing at all. `computePaneLayout` is the SUCCESSOR, so
+    // this also says the successor really is wired into the component.
+    expect(filesWalked).toBeGreaterThan(200)
+    expect(positive).toContain('components/StockChart.jsx')
+    expect(positive).toContain('components/chart/engine/paneLayout.js')
+
+    // …and the stripper really strips, on a fixture rather than on this tree's
+    // own prose (which would break the day a comment is reworded).
+    expect(RETIRED_TOKENS.test(strip('const a = 1 // computePaneMargins\n'))).toBe(false)
+    expect(RETIRED_TOKENS.test(strip('/* csForPaneMargins */ const b = 2'))).toBe(false)
+    expect(RETIRED_TOKENS.test(strip('const c = computePaneMargins(cs)'))).toBe(true)
+  })
+
+  it('the successor answers BOTH questions, which is why the deletion is a merge', () => {
+    // The band map and the pane decomposition come off ONE quantised stack. That
+    // is the whole argument for deleting rather than relocating: two copies of
+    // the same arithmetic is what `paneMarginsProjection.js` existed to keep
+    // honest, and there is nothing left to project.
+    const layout = computePaneLayout([inst('rsi'), inst('macd')], {
+      chartHeight: CHART_H, hasVolumeBand: true, separatorPx: SEPARATOR_PX,
+    })
+    expect(Object.keys(layout.bands)).toEqual(['macd', 'rsi', 'volume', 'main'])
+    expect(layout.panes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    // The two readings agree: the stack the bands reserve is the stack the panes
+    // fill, to the pixel, separators included.
+    // `bands.volume.bottom` is the volume band's distance from the BOTTOM of
+    // pane 0 as a fraction — i.e. exactly the oscillator stack's own share.
+    const oscPx = Math.round(layout.bands.volume.bottom * CHART_H)
+    expect(layout.panes.reduce((s, p) => s + p.heightPx, 0)
+      + layout.panes.length * SEPARATOR_PX).toBe(oscPx)
   })
 })

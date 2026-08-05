@@ -564,7 +564,7 @@ function validatePlacement(placement, errors) {
   // a pane that reserves no space (which is what "not a pane" means, and the
   // placement target already says that); `1` is a pane that takes the whole
   // chart, leaving the price area nothing — the `top + bottom > 1` throw
-  // `computePaneMargins`' shave exists to prevent, arriving from the other side.
+  // the band arithmetic's shave exists to prevent, arriving from the other side.
   // A string `'0.15'` is rejected like every other behavioural value: coerced, it
   // would multiply as a number in one place and concatenate in another.
   if (placement.pane !== undefined && placement.pane !== null) {

@@ -221,21 +221,24 @@ const LEDGER = [
   // is what replaced them.
 
   // ── layout, labels, the toolbar ──────────────────────────────────────────
-  // ⭐ B4 ADJUDICATION A2 (2026-08-03). B3's Task 13 recorded a dispute and
-  // deliberately left it: PANES is LABELLED B4, but by this file's own legend it
-  // is B5. UPHELD, for two independent reasons. It is a LAYOUT table — ten
+  // ⛔⭐ RETIRED AT B5 TASK 12 (Flip C, 2026-08-05). `paneMargins.PANES` — ten
   // {key, enabled, baseH} rows handing each enabled oscillator a stacked band —
-  // with nothing to do with the §6 dialog, the legend, the control doors or the
-  // voice bus, and it retires when bands stop being bands: Flip C, which is B5's
-  // (⚠️ NOT the fate letter `C` above — that is the Phase-C ALERT rebuild; the
-  // two Cs are different things and this line is where they meet). And B4 is
-  // FORBIDDEN from modifying paneMargins.js at all — "consumed, never modified"
-  // is a Global Constraint of that phase AND an assertion in this file
-  // (`adjudication A6` → *paneMargins.js is still CONSUMED, not owned*).
-  // A site a phase may not touch cannot carry that phase's fate. The engine
-  // still DEPENDS on it, through `engine/paneMarginsProjection.csForPaneMargins`.
-  { file: 'app/src/components/chart/paneMargins.js', region: 'PANES — the oscillator stacking list, 9 + volume',
-    anchor: 'const PANES = [', fate: 'B5' },
+  // stood here as the LAST `B5`-fated row, and B4's adjudication A2 upheld that
+  // fate on the grounds that "it retires when bands stop being bands". They did.
+  // The file is DELETED, and its three facts are three different things now: the
+  // nine `baseH` values are `placement.pane.height` on the definitions, the stack
+  // ORDER is `instances.SHIPPED_STACK_ORDER` (which the v1→v2 fold seeds into
+  // every user's instance list), and the volume row is
+  // `paneLayout.VOLUME_PANE_HEIGHT`, one constant. `paneMarginsProjection.js`,
+  // which existed only to keep that table's second input honest, retires with it
+  // — there is ONE copy of the band arithmetic now (`computePaneLayout`), so
+  // there is nothing left to project.
+  //
+  // ⛔ THE ROW IS GONE, NOT RE-FATED. A retired site LEAVES the ledger; a site
+  // whose fate letter changes is a site somebody still has to edit. The
+  // file-existence and no-importer rails live in
+  // `__tests__/flipCGeometry.test.jsx`; `paneLayout.test.js` holds the
+  // "the facts arrived" half.
   // ⭐ RETIRED BY B4 TASK 8. The fifteen hand-written indicator rows are one
   // "Manage indicators →" launcher (spec §6). Every control they carried is on
   // the generated dialog, which reaches inputs this surface never could —
@@ -302,6 +305,24 @@ const LEDGER = [
   // ── the engine ───────────────────────────────────────────────────────────
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
+  // ⛔⭐⭐ ADDED BY B5 TASK 12, AND ADDING IT IS THE HONEST HALF OF A RETIREMENT.
+  // Flip C deleted `paneMargins.PANES`, whose three facts went three ways — but
+  // one of them, the STACK ORDER, is a list of ids and a list of ids has to be
+  // written down somewhere. It used to be DERIVED (the migrator called
+  // `computePaneMargins` and read its key order back), so it was invisible to the
+  // discovery scan; inlining it made the scan flag `instances.js` IMMEDIATELY,
+  // which is the scan doing exactly its job. Recording the new site is what stops
+  // "8 → 7" being a number that hides a swap.
+  //
+  // ⚠️ SO THE LEDGER DID NOT SHRINK AT FLIP C. It went 8 → 7 → 8: one row retired
+  // and one row was created, and the second is `keep` because this list is a
+  // HISTORICAL RECORD rather than a catalogue. A sixteenth indicator does NOT get
+  // edited into it — `computeShippedStackOrder` appends any registered id the
+  // frozen array does not name — and the fourteen entries must never change,
+  // because they are the order every existing user's panes are in.
+  { file: 'app/src/components/chart/engine/instances.js',
+    region: 'FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays',
+    anchor: 'const FROZEN_SHIPPED_STACK_ORDER = [', fate: 'keep' },
   { file: 'app/src/components/chart/engine/flipState.js', region: 'ENGINE_MIGRATED_DEF_IDS',
     anchor: 'export const ENGINE_MIGRATED_DEF_IDS', fate: 'phase' },
   { file: 'app/src/components/chart/engine/flipState.js', region: 'ENGINE_FLIPPED_DEF_IDS',
@@ -617,7 +638,24 @@ const RETIRED_BY_B4_ALERTS = [
  *
  *  ⛔ AND `B5` DOES NOT EMPTY. One row survives — `paneMargins.PANES`, which
  *  Task 12 takes at Flip C. A phase whose bucket empties three tasks early is a
- *  phase whose remaining work is invisible here. */
+ *  phase whose remaining work is invisible here.
+ *
+ *  ⭐⭐ 8 → 7 → 8 at B5 TASK 12, AND `B5` FINALLY EMPTIES. Flip C deletes
+ *  `paneMargins.js`, so the last B5-fated row leaves the ledger and the histogram
+ *  below carries NO `B5` KEY AT ALL — `reduce` emits nothing for a bucket with no
+ *  members, exactly as B4's bucket emptied at Task 8. Writing `B5: 0` would never
+ *  match; the ABSENCE of the key is the assertion.
+ *
+ *  ⛔ AND THE TOTAL DID NOT FALL, WHICH IS THE PART A "8 → 7" WOULD HAVE HIDDEN.
+ *  `PANES` carried three facts and one of them — the STACK ORDER — is a list of
+ *  ids, so it had to be written down somewhere. It was DERIVED before (the
+ *  migrator called `computePaneMargins` and read its key order back), which is why
+ *  no ledger row named it; inlining it as `instances.FROZEN_SHIPPED_STACK_ORDER`
+ *  made the discovery scan flag `instances.js` on the very first run. It is a
+ *  `keep`: a historical record of the order every existing user's panes are in,
+ *  never a catalogue a new indicator is edited into. So the ledger reads
+ *  `{C: 2, keep: 4, phase: 2}` — one row out, one row in, and nothing this phase
+ *  still owes. */
 const SITE_COUNT = 8
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
@@ -662,7 +700,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('every B4 region is retired — 1 to B5, 2 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('every B4 region is retired — 2 to C, 4 kept, 2 phase bookkeeping, and NO B5 key', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -682,11 +720,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // comment that describes a gap somebody has since filled is the same rot this
     // file exists to catch, so it is corrected rather than left.
     //
-    // ⛔ AND THERE IS NO `B4: 0`. `reduce` emits no key for a fate with no
-    // members, so writing one would never match. **B4's bucket is EMPTY** —
-    // every region B4 inherited has been retired, and the ABSENCE of the key is
-    // what says so. A `B4` row reappearing here fails this line by name.
-    expect(counts).toEqual({ B5: 1, C: 2, keep: 3, phase: 2 })
+    // ⛔ AND THERE IS NO `B4: 0` — NOR, AFTER B5 TASK 12, A `B5: 0`. `reduce`
+    // emits no key for a fate with no members, so writing one would never match.
+    // **Both buckets are EMPTY**: every region B4 inherited has been retired, and
+    // Flip C took the last one B5 owed. The ABSENCE of each key is what says so;
+    // a `B4` or `B5` row reappearing here fails this line by name.
+    expect(counts).toEqual({ C: 2, keep: 4, phase: 2 })
   })
 
   // ⭐ B5 A8. THE ASSERTION ABOVE IS A HISTOGRAM AND B4'S REVIEW MEASURED ITS
@@ -735,9 +774,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ['api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map', 'C'],
       ['app/src/components/chart/engine/flipState.js::ENGINE_FLIPPED_DEF_IDS', 'phase'],
       ['app/src/components/chart/engine/flipState.js::ENGINE_MIGRATED_DEF_IDS', 'phase'],
+      ['app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays', 'keep'],
       ['app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE', 'keep'],
       ['app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once', 'keep'],
-      ['app/src/components/chart/paneMargins.js::PANES — the oscillator stacking list, 9 + volume', 'B5'],
       ['tools/chart_parity_cases.json::the parity case list', 'keep'],
     ])
   })
@@ -1191,7 +1230,19 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // keeps the scan green — and the note is corrected rather than deleted,
     // because a premise that quietly stops being true is the thing this file is
     // for.
-    const b5Walkable = [...new Set(LEDGER.filter(s => s.fate === 'B5').map(s => s.file))]
+    // ⛔⭐⭐ B5 TASK 12 — THE FLOOR IS RE-DERIVED FROM `keep`, BECAUSE `B5` HAS
+    // NO MEMBERS LEFT. This control was derived from the B5-FATED walkable files
+    // precisely so it could not rot on an edit: the set shrank 4 → 3 → 1 as the
+    // phase retired its sites. Flip C retires the last one, so the old derivation
+    // would have collapsed to an EMPTY set — and `[].filter(...)` is `[]`, which
+    // satisfies the assertion below while checking nothing at all. **A control
+    // that stops looking is a control that rots**, and it rots GREEN.
+    //
+    // So it is re-derived from the fate that by definition never empties: `keep`
+    // — the regions this ledger says are supposed to survive. They are the files
+    // the discovery scan MUST be able to see forever, which is a stronger anchor
+    // than a phase's own backlog was.
+    const keepWalkable = [...new Set(LEDGER.filter(s => s.fate === 'keep').map(s => s.file))]
       .filter(f => /^app\/src\/.*\.jsx?$/.test(f)).sort()
     // ⚠️ THE FLOOR MOVED 4 → 3 AT B5 TASK 8, AND THAT IS A RETIREMENT AND NOT A
     // WEAKENING. `StockChart.jsx` carried FOUR B5-fated rows and now carries
@@ -1212,12 +1263,23 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // rather than from the settings blob, because a blob-derived id list would
     // have collapsed to ONE id at this task and made the whole scan unable to
     // flag anything at all, silently.
-    expect(b5Walkable, 'no B5 walkable file on the ledger — the check below is vacuous')
-      .toEqual(['app/src/components/chart/paneMargins.js'])
-    expect(b5Walkable.filter(f => !found.includes(f)),
-      'the discovery scan cannot see a file the LEDGER fates to B5 — a site B4 cannot have ' +
-      'retired. The scan is broken (walk root, regexes, or the `.test.` skip), not the tree.',
+    // BY NAME and NON-ZERO, both. A count alone would go green the day the last
+    // `keep` row is renamed; the names are what make the collapse loud.
+    expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
+      .toEqual(['app/src/components/chart/engine/instances.js',
+        'app/src/components/chart/engine/nativeRegistry.js',
+        'app/src/components/chart/keyboardShortcuts.js'])
+    expect(keepWalkable.length).toBeGreaterThan(0)
+    expect(keepWalkable.filter(f => !found.includes(f)),
+      'the discovery scan cannot see a file the LEDGER fates to `keep` — a region that is ' +
+      'supposed to survive forever. The scan is broken (walk root, regexes, or the `.test.` ' +
+      'skip), not the tree.',
     ).toEqual([])
+    // ⛔ AND THE B5 BUCKET REALLY IS EMPTY, SAID HERE TOO. If a B5 row ever comes
+    // back, this line names it rather than letting the floor above quietly stop
+    // describing the phase it was written for.
+    expect(LEDGER.filter(s => s.fate === 'B5'), 'B5 retired at Task 12 — nothing may re-open it')
+      .toEqual([])
   })
 
   // ⭐ AND THE STRIPPER ITSELF, BOTH DIRECTIONS, ON THE SCAN'S OWN PREDICATE.
@@ -1723,13 +1785,38 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     }
   })
 
-  it('paneMargins.js is still CONSUMED, not owned — no engine key was added to it', () => {
-    const src = read('app/src/components/chart/paneMargins.js')
+  // ⭐⭐ B5 TASK 12 — ADJUDICATION A6 RE-POINTED, BECAUSE ITS FILE IS DELETED.
+  //
+  // It read `paneMargins.js` off disk and asserted no price overlay had gained a
+  // `key:` row there. That file is gone, so the assertion would have passed over
+  // NOTHING — the classic shape this ledger exists to catch. The CLAIM survives
+  // intact and is now made where the fact lives: a price overlay must declare no
+  // `placement.pane`, because a declared pane height is exactly what would
+  // reserve vertical space for something that draws inside the candles' pane.
+  //
+  // ⛔ AND IT IS FAILABLE, PROVED IN THE SAME CASE rather than asserted: a
+  // CONSTRUCTED price-overlay definition that DOES declare a pane height is run
+  // through the same predicate and must be caught. Task 3's `defSchema` twin
+  // checks the shape; this checks the POLICY, on the shipped catalogue.
+  it('a price overlay reserves no vertical space — adjudication A6, at its new address', () => {
+    const reserves = (def) => !!(def && def.placement && def.placement.pane
+      && typeof def.placement.pane.height === 'number')
+    let checked = 0
     for (const def of engineRegistry.listDefinitions()) {
       if (def.placement.target !== 'price') continue
-      expect(src.includes(`key: '${def.id}'`),
-        `${def.id} is a price overlay — a band for it would reserve space for nothing`).toBe(false)
+      checked++
+      expect(reserves(def),
+        `${def.id} is a price overlay — a pane height for it would reserve space for nothing`)
+        .toBe(false)
     }
+    // Non-vacuity: the five price overlays really were visited, by name.
+    expect(checked).toBe(5)
+    expect(engineRegistry.listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id))
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    // …and the predicate catches the thing it is for.
+    expect(reserves({ placement: { target: 'price', pane: { height: 0.15 } } })).toBe(true)
+    // …and the file it used to read really is gone, so nobody re-points it back.
+    expect(fs.existsSync(path.join(ROOT, 'app/src/components/chart/paneMargins.js'))).toBe(false)
   })
 })
 

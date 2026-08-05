@@ -29,9 +29,12 @@
 //     one of them on `cs.indicators[id].enabled`. This is the big one, and it is
 //     why a flipped id's mirror still has to move: a definition leaves the flip
 //     set the day its block comes back.
-//   · `computePaneMargins`, through `engine/paneMarginsProjection.csForPaneMargins`
-//     — the band layout is keyed off `cs.indicators[key].enabled`, which is
-//     exactly why that projection exists.
+//   · ⭐ NOT THE PANE LAYOUT, ANY MORE — B5 Task 12. This line read
+//     *"`computePaneMargins`, through `paneMarginsProjection.csForPaneMargins`
+//     — the band layout is keyed off `cs.indicators[key].enabled`"*. Flip C
+//     deleted both modules: `paneLayout.computePaneLayout` reads the INSTANCE
+//     LIST, so a mirror write reaches the geometry through the instance the
+//     writer already updated, and there is no projection to keep honest.
 //   · the settings surfaces — `ChartSettingsModal` / `ChartToolbar` rows resolve
 //     `{kind:'indicator', key}` to `settings.indicators[key]`.
 //   · the `?indicators=` render route (`pages/ChartRender.jsx`), which merges a

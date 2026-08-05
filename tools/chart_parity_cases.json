@@ -207,7 +207,7 @@
     {
       "name": "bb_only",
       "why": "LEGACY vs LEGACY. Both sides draw the three bands through the hand-written StockChart block, so this is the determinism case for a price overlay and the flag-OFF regression case for any commit that touches the BB block. The legacy-vs-ENGINE measurement is `engine_bb_vs_legacy`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -216,7 +216,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -225,7 +226,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -234,7 +236,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -243,7 +246,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -255,13 +259,14 @@
             "color": "rgba(156,39,176,0.85)"
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "rsi_only",
       "why": "Single-line separate pane — proves pane creation, height and the 30/70 guides survive the move.",
       "_regionsReason": "⭐ THE WORKED EXAMPLE FOR THE B5 DECLARED-DIFF GATE. ⚠️ SUPERSEDED 2026-08-05 (B5 Task 11) — the THREE rectangles this case used to carry (price_top 0..391, rsi_band 391..460, volume_and_axis 460..620) were TODAY'S BAND boundaries and they are kept here because how they were established is the standard every box in this file is held to: each was MEASURED on build `2618d94afe99` by perturbing ONE thing at a time and reading the changed-pixel bounding box — `candles.upColor` moved one hex digit → 1,894 px in y[164,391); `indicators.rsi.color` → 1,004 px in y[391,454); `volume.upColor` → 32,327 px in y[469,572) — and then re-run WITH the rectangles in place, reporting {price_top: 1894, rsi_band: 0} and {price_top: 0, rsi_band: 1004}: THE RECTANGLES DISCRIMINATED, IN BOTH DIRECTIONS, which is the only thing that makes a per-region 0 mean anything. They are replaced because the cutover MOVES those rows: under `PANE_MODE = 'panes'` the RSI band stops being a scaleMargins slice of pane 0 ABOVE the volume pane and becomes a real pane BELOW it, so the old rsi_band rectangle now straddles the volume pane on one side and nothing on the other. The replacement is derived by `tools/gen_parity_regions.py` from the PANE MANIFEST of both builds (see `_regionsFrom`), and its discrimination was re-proved the same way, on the panes build, where the split is the one that matters: `candles.upColor` one hex digit -> {price_plot: 1910, osc_strip: 0, rest: 0}; `indicators.rsi.color` one hex digit -> {price_plot: 0, osc_strip: 657, rest: 348}. THE RECTANGLES DISCRIMINATE IN BOTH DIRECTIONS. The 348 in `rest` is not noise and it is worth knowing: the export FOOTER carries the indicator's own legend ink, so a colour change lands below the pane stack as well as inside it -- `rest` is 0 for a GEOMETRY change and need not be for a colour one.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -281,7 +286,7 @@
             1200,
             392
           ],
-          "expect": 0
+          "expect": 2926
         },
         {
           "name": "mid_panes",
@@ -291,7 +296,7 @@
             1200,
             511
           ],
-          "expect": 0
+          "expect": 66245
         },
         {
           "name": "osc_strip",
@@ -301,7 +306,7 @@
             1200,
             572
           ],
-          "expect": 0
+          "expect": 50697
         },
         {
           "name": "time_axis",
@@ -314,8 +319,6 @@
           "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "settings": {
         "indicators": {
           "rsi": {
@@ -324,12 +327,13 @@
             "color": "#7b68ee"
           }
         }
-      }
+      },
+      "expect": 119868
     },
     {
       "name": "macd_only",
       "why": "Three outputs in one pane, one of them a sign-coloured histogram. The B1 note in indicators.js says StockChart masks the MACD line's head back to the signal's first bar — this case is what proves that mask is still there.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
       "regions": [
         {
           "name": "export_header",
@@ -338,7 +342,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -347,7 +352,8 @@
             40,
             1200,
             384
-          ]
+          ],
+          "expect": 4129
         },
         {
           "name": "mid_panes",
@@ -356,7 +362,8 @@
             384,
             1200,
             503
-          ]
+          ],
+          "expect": 71767
         },
         {
           "name": "osc_strip",
@@ -365,7 +372,8 @@
             503,
             1200,
             572
-          ]
+          ],
+          "expect": 55696
         },
         {
           "name": "time_axis",
@@ -374,7 +382,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -388,12 +397,13 @@
             "signalColor": "#FF9800"
           }
         }
-      }
+      },
+      "expect": 131592
     },
     {
       "name": "macd_headmask",
       "why": "MEASURES A DECISION, NOT A MIGRATION (B3/A5, decision id MACD_HEAD_MASK — APPLIED 2026-08-02, the mask was DROPPED). Run it between a build with `nativeRegistry.MACD_HEAD_MASK = false` (what ships today) and one with it true (the pre-2026-08-02 look) — the ONLY case in this file whose two sides differ by a source constant rather than by a checkout or a URL parameter. The number is what it costs to draw the mathematically-correct MACD line from bar slowPeriod-1 instead of holding its head back to the signal's first bar: 8 bars (25..32) at 12/26/9, which is what the Python lane and `tests/fixtures/indicators/macd_default.json` both publish and this chart now draws. A `fixedbars` fixture of 200 daily bars puts those 8 bars at the far left of the visible range, which is exactly where a user would notice. MEASURED 88 px (0.011828%), 20/20 runs, zero variance, both before the decision and again at the flip; one contiguous 44x4 px region at x in [136,179], y in [394,397]. Expected NON-ZERO — and post-flip a ZERO means something worse than theatre: BOTH lanes read this one constant, and `macd` is NOT migrated, so a 0 means a future edit stopped one of them reading it and the lane users see is out of step with the engine. Settings are byte-identical to `macd_only` on purpose — that case is the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the mask moved' from 'the renderer wobbled'. Decision record: `docs/decisions/2026-08-02-macd-head-mask.md`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
       "regions": [
         {
           "name": "export_header",
@@ -402,7 +412,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -411,7 +422,8 @@
             40,
             1200,
             384
-          ]
+          ],
+          "expect": 4129
         },
         {
           "name": "mid_panes",
@@ -420,7 +432,8 @@
             384,
             1200,
             503
-          ]
+          ],
+          "expect": 71767
         },
         {
           "name": "osc_strip",
@@ -429,7 +442,8 @@
             503,
             1200,
             572
-          ]
+          ],
+          "expect": 55696
         },
         {
           "name": "time_axis",
@@ -438,7 +452,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -452,12 +467,13 @@
             "signalColor": "#FF9800"
           }
         }
-      }
+      },
+      "expect": 131592
     },
     {
       "name": "bb_rsi_macd",
       "why": "All three at once: an overlay plus TWO extra panes. Catches pane-ordering and pane-height regressions that no single-indicator case can see.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
       "regions": [
         {
           "name": "export_header",
@@ -466,7 +482,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -475,7 +492,8 @@
             40,
             1200,
             322
-          ]
+          ],
+          "expect": 12933
         },
         {
           "name": "mid_panes",
@@ -484,7 +502,8 @@
             322,
             1200,
             441
-          ]
+          ],
+          "expect": 76667
         },
         {
           "name": "osc_strip",
@@ -493,7 +512,8 @@
             441,
             1200,
             572
-          ]
+          ],
+          "expect": 75292
         },
         {
           "name": "time_axis",
@@ -502,7 +522,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -527,12 +548,13 @@
             "signalColor": "#FF9800"
           }
         }
-      }
+      },
+      "expect": 164892
     },
     {
       "name": "engine_rsi_vs_legacy",
       "why": "THE DARK REHEARSAL. Side A draws RSI through the hand-written StockChart block; side B draws it through the ENGINE (`instancesB` → `?instances=`, which also arms `engineEnabled`), and StockChart's per-indicator ownership check stands the legacy block down so exactly ONE RSI line exists on each side. Same build, same fixture, one URL parameter apart — so a non-zero diff is the migration and nothing else. `indicators.rsi.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -541,7 +563,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -550,7 +573,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2926
         },
         {
           "name": "mid_panes",
@@ -559,7 +583,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66245
         },
         {
           "name": "osc_strip",
@@ -568,7 +593,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50697
         },
         {
           "name": "time_axis",
@@ -577,11 +603,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "settings": {
         "indicators": {
           "rsi": {
@@ -605,12 +630,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 119868
     },
     {
       "name": "engine_rsi_toggle_off",
       "why": "THE OFF STATE, IN PIXELS — and after B3 Task 10 \"off\" is a TOMBSTONE. `indicators.rsi.enabled` is FALSE on both sides and side B additionally hands the engine a DELETED `legacy:rsi`. Nothing may draw and no band may be reserved, on either side. ⚠️ IT SAID `instancesB: [a live instance]` UNTIL FLIP B, and that spelling was Flip A's: the legacy toggle was the switch, so an instance whose toggle was off projected to `hidden`. Flip B makes the INSTANCE the switch, so the same blob correctly DRAWS now — the case would have been permanently red against any pre-flip build, measuring a semantic change rather than gating a regression. **Measured before reframing, Task-9 build `0e20133b4c07` vs Flip-B build `d4ab4e970fb4`: 3,697 px (0.496909%), 5/5 runs, distribution {3697: 5} — zero variance** — that number IS the authority flip, in pixels, and it is recorded here rather than deleted. The case's job is unchanged: without it the projection is gated only in jsdom, and the specific regression it catches is the one that produced this branch's worst bug — a band that is not reserved (`computePaneMargins` reads the projected flag) while a line is still drawn, which `resolvePlacement` then falls back to {top:0.82,bottom:0} — ON TOP OF THE VOLUME BARS.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -619,7 +645,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -628,7 +655,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -637,7 +665,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -646,7 +675,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "_history": "Written in Task 2's fix round, measured at 24 px on 3 runs in 5, and DELETED on the reading that it was 'an A-vs-B work asymmetry / capture timing'. That diagnosis was WRONG, and deleting the case removed the evidence rather than the cause. Re-measured 2026-08-02 over 40 runs with the hardened harness (every capture proven pixel-stable before it was accepted, 2 shots on all 80): the 24 px is a BISTABLE RASTERISATION OF THE DASHED LAST-PRICE LINE, one row, ~12 dash boundaries, and it appears INDEPENDENTLY on both sides (legacy side 5/40, engine side 7/40) with no correlation to settle time. Sides A and B draw the same two images with the same frequencies, so it is not an asymmetry and not the migration — it is Chromium rasterising one dashed line two ways at this pane geometry. The other three engine cases were byte-identical across all 80 captures.",
@@ -666,12 +696,13 @@
           "instanceId": "legacy:rsi",
           "deleted": true
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_bb_vs_legacy",
       "why": "THE FIRST PRICE OVERLAY. Side A draws the three Bollinger lines through the hand-written StockChart block; side B draws them through the ENGINE. This is the case that measures the `autoscaleInfoProvider` seam: without it the bands drag the CANDLES' autoscale and the whole price pane re-scales, which is a whole-canvas diff (38,491 px, 343 rows x 1,160 columns), not a line-width one. It also measures the C-2 fix (`priceScaleId` named rather than omitted) on a create. IT DOES NOT MEASURE THE ENGINE CALL SITE'S POSITION, and it used to claim it did: the `classic_flat` preset sets `overlays: []` and `volume.separatePane: true`, so pane 0 holds only the candles and BB, nothing crosses anything, and moving the sync call produces 0 px. `engine_bb_over_overlays` is the case that earns that claim; the jsdom rail for it is `stockChartWiring.test.jsx`'s z-order pair.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -680,7 +711,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -689,7 +721,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -698,7 +731,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -707,7 +741,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -735,12 +770,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_bb_over_overlays",
       "why": "THE CASE THAT EARNS THE CALL-SITE CLAIM. `engine_bb_vs_legacy` runs on the `classic_flat` preset, whose `overlays: []` and `volume.separatePane: true` leave pane 0 holding only the candles and BB — nothing crosses anything, so moving the engine sync call site produces 0 px there and the claim was unearned. This case turns the four MA overlays ON and brings volume INTO pane 0, so pane 0 really does contain volume bars, five moving averages and three Bollinger lines, and INSERTION ORDER IS Z-ORDER (lightweight-charts appends and paints by ascending zorder). Side A draws BB through the legacy block, side B through the engine, and the engine's sync must land in the same place the legacy block did: after volume and the MA overlays, before the first legacy indicator. Move it and the bands paint UNDER the overlays instead of over them. The jsdom rail for the same claim is `stockChartWiring.test.jsx`'s z-order pair; this is the pixel half. Expected 0 px, like every Flip A case — MEASURED 0 on 5/5, build 54443afee3e3, one build two ways. AND IT IS NOT A VACUOUS 0: with the sync call site moved up above the volume and MA blocks (the R12 shape, engine on BOTH sides, builds 54443afee3e3 vs bea40b9aec38) this case reports 281 px on 3/3 across 86 rows and 206 columns, while `engine_bb_vs_legacy` reports 0 on the same mutation — which is exactly why this case exists.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -749,7 +785,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -758,7 +795,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -767,7 +805,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -776,7 +815,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -859,12 +899,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_bb_rsi_vs_legacy",
       "why": "THE PILOT PAIR TOGETHER. A price overlay and a banded oscillator in one render, which is the only case that can see the engine drawing its series contiguously where legacy interleaves them, and the only one where a pooled series can cross between the two placement paths within a single sync. ⭐ B5 TASK 5 REORDERED `instancesB` INTO REGISTRY ORDER, and the PANE MANIFEST is what found it. Side A gets its instances from the read-time migrator, which walks the REGISTRY (rsi, macd, bb, …); side B was handed this list, which began with `bb`. So the two sides created the same series in a DIFFERENT ORDER — and LWC z-stacks by insertion. It read 0 changed pixels throughout, because none of these series overlap; what it would have hidden is a real z-order difference on the day one of them did. Invisible until B5 Task 4 gave side A a manifest to publish, at which point the manifest cross-check reported `panes[0].series[1].key: 'legacy:rsi::rsi' -> 'legacy:bb::upper'` on both of these cases. The list now matches the order a real chart builds them in; the measured diff is unchanged at 0.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -873,7 +914,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -882,7 +924,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 8022
         },
         {
           "name": "mid_panes",
@@ -891,7 +934,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66332
         },
         {
           "name": "osc_strip",
@@ -900,7 +944,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50697
         },
         {
           "name": "time_axis",
@@ -909,7 +954,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -955,12 +1001,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 125051
     },
     {
       "name": "engine_macd_vs_legacy",
       "why": "THE MULTI-PLOT STRESS TEST. Side A draws MACD through the hand-written StockChart block; side B draws it through the ENGINE. Two lines AND a sign-coloured histogram in one AUTOSCALED band, bound from ONE instance across TWO pool keys, plus a largeDashed zero guide — none of which the RSI or Bollinger pilots exercise. It is the only case that renders `colorMode: 'sign'` (a flat-coloured histogram was B2 review Critical #3: `toPoints` emitted {time,value} only, so the whole band drew in one LWC default where legacy is green above zero and red below), the only one with a plot carrying its own `precision: 5`, and the only band whose scale is `{autoScale: true}` with no fixed range. IT DOES SEE INTRA-BAND Z-ORDER, and that was checked rather than assumed: moving the histogram plot ahead of the `signal` plot in `nativeRegistry` (so the engine inserts hist-before-signal while legacy inserts signal-before-hist) reports 75 px on 3/3, builds 45744409cc04 vs ba057579af9c, in ONE 14-row x 43-column patch at x in [463,820] y in [408,421] — the stretch where the orange signal line crosses the histogram bars and the top series wins the pixel. So MACD's three plots must stay in declaration order, and this case is the pixel half of that claim (`macdFlipAParity.test.js` asserts the ctor order line/line/histogram as the unit half). WHAT IT CANNOT SEE: the engine call site's position ACROSS definitions. MACD lives in its own reserved band on its own named price scale, disjoint from every other band by construction (`computePaneMargins`), so moving the sync call — or reordering MACD against the other legacy blocks — moves no pixel here. `engine_bb_over_overlays` is the case that earns that claim, and it earns it for the PRICE overlays, which are the ones that actually cross. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
       "regions": [
         {
           "name": "export_header",
@@ -969,7 +1016,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -978,7 +1026,8 @@
             40,
             1200,
             384
-          ]
+          ],
+          "expect": 4129
         },
         {
           "name": "mid_panes",
@@ -987,7 +1036,8 @@
             384,
             1200,
             503
-          ]
+          ],
+          "expect": 71767
         },
         {
           "name": "osc_strip",
@@ -996,7 +1046,8 @@
             503,
             1200,
             572
-          ]
+          ],
+          "expect": 55696
         },
         {
           "name": "time_axis",
@@ -1005,7 +1056,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -1037,12 +1089,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 131592
     },
     {
       "name": "engine_bb_rsi_macd_vs_legacy",
       "why": "ALL THREE PILOTS AT ONCE: a price overlay plus TWO extra bands. The only case that can see a pane-ordering or pane-height regression caused by the engine reserving bands through `computePaneMargins` while drawing all its series at one z-position — and the only one where a single sync binds five pool slots across two placement paths and two pool keys. Its settings mirror `bb_rsi_macd`, which is the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. Expected 0 px. ⭐ B5 TASK 5 REORDERED `instancesB` INTO REGISTRY ORDER, and the PANE MANIFEST is what found it. Side A gets its instances from the read-time migrator, which walks the REGISTRY (rsi, macd, bb, …); side B was handed this list, which began with `bb`. So the two sides created the same series in a DIFFERENT ORDER — and LWC z-stacks by insertion. It read 0 changed pixels throughout, because none of these series overlap; what it would have hidden is a real z-order difference on the day one of them did. Invisible until B5 Task 4 gave side A a manifest to publish, at which point the manifest cross-check reported `panes[0].series[1].key: 'legacy:rsi::rsi' -> 'legacy:bb::upper'` on both of these cases. The list now matches the order a real chart builds them in; the measured diff is unchanged at 0.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
       "regions": [
         {
           "name": "export_header",
@@ -1051,7 +1104,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1060,7 +1114,8 @@
             40,
             1200,
             322
-          ]
+          ],
+          "expect": 12933
         },
         {
           "name": "mid_panes",
@@ -1069,7 +1124,8 @@
             322,
             1200,
             441
-          ]
+          ],
+          "expect": 76667
         },
         {
           "name": "osc_strip",
@@ -1078,7 +1134,8 @@
             441,
             1200,
             572
-          ]
+          ],
+          "expect": 75292
         },
         {
           "name": "time_axis",
@@ -1087,7 +1144,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -1157,12 +1215,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 164892
     },
     {
       "name": "flipb_rsi_only",
       "why": "⭐ THE FLIP-B GATE FOR RSI, AND IT IS NOT AN ENGINE CASE — there is no `instancesB`. Both sides get the SAME legacy-shaped settings a real user has (`indicators.rsi.enabled`, no instance anywhere) plus `engineEnabled: true`. Side A (the Task-9 build) draws them through the hand-written StockChart block; side B (Flip B) draws them through the engine's READ-TIME MIGRATION, because that block has been deleted. That IS Flip B, and it is the only case shape that can measure it: an `instancesB` case would hand side B an instance and stop exercising the compatibility path every existing user depends on. `rsi_only` above is the flag-OFF twin and stays the legacy-vs-legacy determinism baseline for the same picture, so the two together separate 'the migration moved something' from 'the renderer wobbled'. ⚠️ `--perturb-b` ON THE SETTINGS COLOUR IS THE SELF-TEST HERE and it is NOT vacuous the way it would be on a Flip-A engine case: after Flip B a settings colour can only reach the series through an instance the migrator builds, so a 0 would mean the compatibility path is dead rather than that the perturbation was ignored. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -1171,7 +1230,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1180,7 +1240,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2926
         },
         {
           "name": "mid_panes",
@@ -1189,7 +1250,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66245
         },
         {
           "name": "osc_strip",
@@ -1198,7 +1260,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50697
         },
         {
           "name": "time_axis",
@@ -1207,11 +1270,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "settings": {
         "engineEnabled": true,
         "indicators": {
@@ -1221,12 +1283,13 @@
             "color": "#7b68ee"
           }
         }
-      }
+      },
+      "expect": 119868
     },
     {
       "name": "flipb_bb_only",
       "why": "The same measurement for the PRICE OVERLAY half of the pilot pair. BB shares the candles' scale, so this is the case that would see the `autoscaleInfoProvider` seam or an insertion-order change arriving with the read-time migration rather than with a stored instance — the whole price pane re-frames if the seam is lost (38,491 px, measured at Flip A). Legacy-shaped settings on both sides, engine on. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1235,7 +1298,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1244,7 +1308,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1253,7 +1318,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1262,7 +1328,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -1275,12 +1342,13 @@
             "color": "rgba(156,39,176,0.85)"
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "flipb_bb_rsi_macd",
       "why": "⚠️ ITS ORIGINAL CLAIM EXPIRED AT B3 TASK 11, AND THE NUMBER IS KEPT ANYWAY. It read \"both flipped pilots plus an UN-FLIPPED one\": `macd` was migrated and not flipped, so on side B it was still drawn by its legacy block, which made this the only case that could see the per-definition gate being wrong. Task 11 flipped `macd`, so all three now come through the migrator and that discriminating power is GONE — `flipb_all_four` below is its replacement and adds the price overlay. This case stays because it is still the daily three-band layout under `csForPaneMargins` and it is a measured baseline (`bb_rsi_macd` is its flag-off twin); it is no longer the per-definition gate, and a reader who thinks it is would be trusting a control that has nothing left to control. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
       "regions": [
         {
           "name": "export_header",
@@ -1289,7 +1357,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1298,7 +1367,8 @@
             40,
             1200,
             322
-          ]
+          ],
+          "expect": 12933
         },
         {
           "name": "mid_panes",
@@ -1307,7 +1377,8 @@
             322,
             1200,
             441
-          ]
+          ],
+          "expect": 76667
         },
         {
           "name": "osc_strip",
@@ -1316,7 +1387,8 @@
             441,
             1200,
             572
-          ]
+          ],
+          "expect": 75292
         },
         {
           "name": "time_axis",
@@ -1325,7 +1397,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -1351,12 +1424,13 @@
             "signalColor": "#FF9800"
           }
         }
-      }
+      },
+      "expect": 164892
     },
     {
       "name": "flipb_macd_only",
       "why": "⭐ THE FLIP-B GATE FOR MACD, AND IT CARRIES NO `instancesB` — the same shape as `flipb_rsi_only`, for the same reason. Both sides get the legacy-shaped settings a real user has (`indicators.macd.enabled`, no instance anywhere) plus `engineEnabled: true`. Side A (the Task-10 build) draws the line, the signal and the histogram through the hand-written StockChart block; side B (Flip B) draws all three through the engine's READ-TIME MIGRATION, because that block, its three refs and its `indicatorData` IIFE are deleted. An `instancesB` case would hand side B an instance and stop exercising the compatibility path every existing user depends on. ⚠️ MACD IS THE ONLY PILOT WHOSE MIGRATION MOVES THREE PLOTS AND TWO POOL KEYS AT ONCE, and the histogram's sign colouring moved with it: `MACD_HIST_UP`/`MACD_HIST_DOWN` were StockChart module constants and now exist only as `colorUp`/`colorDown` on the definition, so a mismatch there is a pane full of one-colour bars and this case is what prices it. `macd_only` above is the flag-OFF twin and stays the legacy-vs-legacy baseline for the same picture. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[344, 117, 69]",
       "regions": [
         {
           "name": "export_header",
@@ -1365,7 +1439,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1374,7 +1449,8 @@
             40,
             1200,
             384
-          ]
+          ],
+          "expect": 4129
         },
         {
           "name": "mid_panes",
@@ -1383,7 +1459,8 @@
             384,
             1200,
             503
-          ]
+          ],
+          "expect": 71767
         },
         {
           "name": "osc_strip",
@@ -1392,7 +1469,8 @@
             503,
             1200,
             572
-          ]
+          ],
+          "expect": 55696
         },
         {
           "name": "time_axis",
@@ -1401,7 +1479,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -1416,12 +1495,13 @@
             "signalColor": "#FF9800"
           }
         }
-      }
+      },
+      "expect": 131592
     },
     {
       "name": "flipb_vwap_only",
       "why": "⭐ THE FLIP-B GATE FOR VWAP, on the INTRADAY fixture — the daily one cannot render a session VWAP at all, so a `ramp200` version of this case would report 0 forever against two blank charts. No `instancesB`: legacy-shaped settings on both sides, side A through the hand-written block and side B through the read-time migration. ⚠️ VWAP IS THE SHARPEST OF THE FOUR because its render context does not survive the flip by itself: the intraday gate was `VWAP_TFS`, the colour is `color` × `opacity` composed by `_withVwapOpacity`, and the unset width is 0.5 on the bold look — all three were StockChart locals and all three are DELETED, with `engine/eligibility.js` carrying the transcription. A wrong transcription is a visible line in the wrong colour or the wrong weight, and this is the only case that sees it. `vwap_only` above is the legacy-vs-legacy baseline for the same picture. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1430,7 +1510,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1439,7 +1520,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1448,7 +1530,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1457,7 +1540,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1474,12 +1558,13 @@
             "lineWidth": 1
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "flipb_vwap_dimmed",
       "why": "⭐ THE COMPOSITION, NOT JUST THE LINE. `opacity` is the one VWAP input that reaches no plot field: the migrator copies it out of `indicators.vwap` into the projected instance and `eligibility.withOpacity` composes it with `color` into a single rgba() string. This case is `flipb_vwap_only` at 40% — legacy-shaped settings on both sides — so it measures the whole settings → instance → eligibility → series chain that Flip B put between a stored blob and a pixel. A 0 here with a NON-ZERO `--perturb-b` on `vwap.opacity` is the pair that says the chain is live: the perturb is the sharper self-test of the two on this branch, because a 0 from it would mean the composition never ran. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1488,7 +1573,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1497,7 +1583,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1506,7 +1593,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1515,7 +1603,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1532,12 +1621,13 @@
             "lineWidth": 1
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "flipb_all_four",
       "why": "⭐ EVERY PILOT AT ONCE, WHICH IS THE STATE THE BRANCH NOW SHIPS. `flipb_bb_rsi_macd` used to be the mixed case — two flipped ids plus MACD still on its legacy block — and that mixture no longer exists, so this replaces the claim it carried: all three PANE definitions plus a PRICE overlay in one render, drawn entirely by the engine from projected instances. It is the only case where `csForPaneMargins` rewrites three enabled flags in one pass, so a pane-ORDER or pane-HEIGHT regression (RSI's band above MACD's, both above volume) shows up here and in no single-indicator case. Intraday, because that is the only timeframe on which the fourth pilot draws at all. Expected 0 px.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
       "regions": [
         {
           "name": "export_header",
@@ -1546,7 +1636,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1555,7 +1646,8 @@
             40,
             1200,
             322
-          ]
+          ],
+          "expect": 15370
         },
         {
           "name": "mid_panes",
@@ -1564,7 +1656,8 @@
             322,
             1200,
             441
-          ]
+          ],
+          "expect": 96549
         },
         {
           "name": "osc_strip",
@@ -1573,7 +1666,8 @@
             441,
             1200,
             572
-          ]
+          ],
+          "expect": 47084
         },
         {
           "name": "time_axis",
@@ -1582,7 +1676,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1618,12 +1713,13 @@
             "lineWidth": 1
           }
         }
-      }
+      },
+      "expect": 159003
     },
     {
       "name": "intraday_bars_only",
       "why": "PROVES THE INTRADAY FIXTURE RENDERS AT ALL, and it is the only case that can. Every VWAP number B3 Task 8 produces is measured against `intraday5m`, and a fixture that came back blank would make each of those a permanent, silent 0 that no assertion in the harness can tell from a pass — the ?fixedbars= name is sanitised and then dynamically imported, so a typo degrades to an empty chart rather than an error. No indicator: candles and volume on 579 five-minute bars, which is the smallest thing that fails if the fixture is unreadable. It is ALSO the legacy-vs-legacy determinism baseline for the intraday picture, the way `bb_only` is for the daily one: an intraday chart draws pre/post-market session SHADING that the daily fixture never exercises, and a wobble there would otherwise arrive inside a VWAP number and be read as the migration. MEASURED 0 px on 5/5 runs (95% flake bound 45%), build `25b09976a062`, one build two ways — and the 0 is NOT two blank canvases: the same case with `candles.upColor` moved ONE hex digit reports 2,513 px (0.337769%) and exit 1, and against a build that has no `intraday5m.json` at all (`45744409cc04`, the tree before this fixture landed) it reports 672,702 px — 90.4% of the canvas — because a missing fixture renders the 'Failed to load chart' card. ⚠️ THAT LAST NUMBER IS THE WHOLE POINT: two sides BOTH missing the fixture would show the same error card and report 0 forever, which is why `tests/test_chart_parity_harness.py::test_every_case_names_a_bar_fixture_that_EXISTS` refuses a `fixedbars` that is not on disk. ⚠️ B3 TASK 12 ADDED `priceLine: false`, AND HERE IS THE MEASUREMENT THAT JUSTIFIES IT. One run in five of a 24-case cross-build sweep (A `f0c9af1d6b93` / index-D0FiqVmM.js -> B `23d4be835cbe` / index-DXoed79R.js) came back 24 changed px. It is the runbook's BISTABLE DASHED LAST-PRICE LINE, attributed by three measurements and no opinions: (1) SHAPE - exactly ONE row (y=166), 24 distinct columns spanning x=13..981, values alternating the candle UP colour (26,229,26) and the background (14,15,13) at a ~2% blend, which is the documented signature verbatim; (2) NO MECHANISM - this case renders NO indicator and NO engine instance on either side, and the only source difference between the two builds is `indicatorRegistry.js` + `ChartSettingsModal.jsx`, neither of which the /r/chart render path executes; (3) IT DOES NOT REPRODUCE - 9 of the 10 stored captures are byte-identical (two distinct renders, 9:1), the case re-ran 20/20 CLEAN cross-build and 20/20 CLEAN same-build. The runbook's caveat predicted exactly this: seven other live cases carry the same latent bistability, and this is the first one to express it. `?priceline=0` is emitted to BOTH sides, so it can never tell them apart; it removes an ELEMENT drawn by the candle series, not a difference. COST, STATED: this baseline no longer covers the last-price line.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1632,7 +1728,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1641,7 +1738,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1650,7 +1748,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1659,19 +1758,21 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
       "fixedbars": "intraday5m",
       "bars": 579,
       "priceLine": false,
-      "settings": {}
+      "settings": {},
+      "expect": 1200
     },
     {
       "name": "vwap_only",
       "why": "Session VWAP on FIVE-MINUTE bars — the daily fixture cannot render it at all (VWAP_TFS, `StockChart.jsx:559`). Legacy vs legacy: the determinism control for the engine cases below, and the case the `VWAP_SESSION_ANCHOR` decision was priced on. ⚠️ IT IS THE ONE CASE THAT SEES `computeVWAP`'s SESSION BUCKETING AT ALL. The accumulator used to restart on a UTC calendar day, which split an extended-hours ET session mid-flight and — because Monday's 19:00-20:00 ET bars had already opened the next UTC day — never reset at Tuesday's 04:00 ET open. Correcting it to ET-session anchoring was a `compute.rev` bump and an owner decision, ACCEPTED 2026-08-03 (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md` §9, spec §11): measured on THIS case at **2,590 changed px (0.348118%), 20/20 runs, zero variance**, builds `89f73b36ae29` -> `35ec82560ea5`. ⚠️ An earlier revision of this note said 6,687 — that number was written into the Flip-A commit before §4 measured anything and was never a measurement of this case. A future 0 from a `computeVWAP` change means one of the two lanes stopped reading it.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1680,7 +1781,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1689,7 +1791,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1698,7 +1801,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1707,7 +1811,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1723,12 +1828,13 @@
             "lineWidth": 1
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "engine_vwap_vs_legacy",
       "why": "THE LAST FLIP A, and the one with no clean schema expression. Colour is TWO inputs composed at render time, width has a render-context fallback, and the whole indicator is timeframe-gated — all three handled by `engine/eligibility.js` rather than by inventing schema for one native. Runs on `intraday5m`, which crosses UTC midnight twice and a DST boundary, so the UTC-day accumulator reset computeVWAP performs is IN the picture and Flip A has to reproduce it. ⚠️ WHAT THIS CASE CANNOT SEE: `ChartRender` passes no `vwapOverride`, no `boldCandles` and no `modelBookLook`, so the override recolour and both width fallbacks are unreachable here and are gated in `engine/eligibility.test.js` instead. It also cannot see the timeframe gate — a case that rendered VWAP on a daily chart would be 0 px because NEITHER side draws.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1737,7 +1843,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1746,7 +1853,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1755,7 +1863,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1764,7 +1873,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1797,12 +1907,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_vwap_dimmed_vs_legacy",
       "why": "The opacity composition specifically. `opacity` is not a substitutable plot field, so `$opacity` has nowhere to land and B2's fix wave finding #4 established that wiring `opacity` onto the plot does NOT close this carry — the plot-level field DIMS an authored colour, it does not compose a user's two inputs into one string. At 40% the line is visibly translucent, so a build that dropped the composition renders it at full strength and this case goes red where `engine_vwap_vs_legacy` (opacity 100, base colour returned untouched) would not.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1811,7 +1922,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1820,7 +1932,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1829,7 +1942,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1838,7 +1952,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1871,12 +1986,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_vwap_dashed_vs_legacy",
       "why": "THE CASE THAT FOUND A REAL FLIP-A DIVERGENCE, and it is here because it went RED first. `lineStyle` was not a substitutable plot field, so VWAP's plot could only carry an author's literal and the engine drew SOLID for every user who had ever chosen dashed or dotted — a changed picture that `engine_vwap_vs_legacy` (lineStyle solid on both sides) reports as 0 px forever. Measured on a build carrying the migration but NOT the fix (`9c7b7e62e647`): 2,966 changed px (0.398656%) on 5/5 runs, exit 1 — while `engine_vwap_vs_legacy` reported 0 on that SAME build, which is the whole reason this case had to exist. `SUBSTITUTABLE_PLOT_FIELDS` gained `lineStyle` and the plot declares `$lineStyle`; this case is now 0 on 20/20 and is what keeps it that way. Width is 2 so the dash pattern has ink to show.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -1885,7 +2001,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1894,7 +2011,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -1903,7 +2021,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -1912,7 +2031,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "tf": "5",
@@ -1945,12 +2065,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_stoch_vs_legacy",
       "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:stoch` out of `indicators.stoch.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy Stochastic block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement or draw order, which is the compatibility path EVERY existing user is on and the one no `<id>_only` case exercises. ⚠️ Its real force is under `--perturb-b-instances '{\"kPeriod\": 21}'`: a period appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and a %K period is the knob that moves both this definition's lines and neither of its guides.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -1959,7 +2080,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -1968,7 +2090,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2919
         },
         {
           "name": "mid_panes",
@@ -1977,7 +2100,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66939
         },
         {
           "name": "osc_strip",
@@ -1986,7 +2110,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50548
         },
         {
           "name": "time_axis",
@@ -1995,11 +2120,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "settings": {
         "indicators": {
           "stoch": {
@@ -2027,12 +2151,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 120406
     },
     {
       "name": "engine_atr_vs_legacy",
       "why": "The same projected-vs-stored route for ATR, and THE ONLY CASE THAT RENDERS AN `autoScale: true` OSCILLATOR BAND THROUGH THE ENGINE ON BOTH SIDES. `resolvePlacement` reads `placement.scale` to decide between `{autoScale:false, minimum, maximum}` and `{autoScale:true}`; ATR is the only migrated definition that takes the second branch, so this is where a scale-option set that silently inherited the previous tenant's frozen range shows up — the pooling hazard `placement.js`'s TRAP #2 exists for, whose symptom is an ATR of 2.7 drawn as a flat line on the floor of a band framed for a 0-100 oscillator. ⚠️ Perturb `{\"period\": 21}`, not a colour: the period is the only knob that proves the compute ran.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
       "regions": [
         {
           "name": "export_header",
@@ -2041,7 +2166,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2050,7 +2176,8 @@
             40,
             1200,
             400
-          ]
+          ],
+          "expect": 3023
         },
         {
           "name": "mid_panes",
@@ -2059,7 +2186,8 @@
             400,
             1200,
             519
-          ]
+          ],
+          "expect": 61754
         },
         {
           "name": "osc_strip",
@@ -2068,7 +2196,8 @@
             519,
             1200,
             572
-          ]
+          ],
+          "expect": 45579
         },
         {
           "name": "time_axis",
@@ -2077,11 +2206,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "settings": {
         "indicators": {
           "atr": {
@@ -2105,12 +2233,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 110356
     },
     {
       "name": "stoch_only",
       "why": "B5 Task 5's TWO-BUILD measurement for Stochastic: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. It is the only case that renders a MULTI-PLOT banded oscillator through the engine — %K and %D share one named `stoch` price scale and one reserved band, and the two 80/20 guides hang off %K's series (`planBindings` puts an instance's guides on its FIRST data-bearing plot, which is where the shipped block put them). A case with one plot cannot see a second line landing on the wrong scale, drawn in the wrong order, or carrying the other's dash pattern — `stoch.d` leaking `lineStyle: 2` onto a pooled neighbour is a MEASURED example in `pool.js`'s own header. `indicators.stoch.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -2119,7 +2248,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2128,7 +2258,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2919
         },
         {
           "name": "mid_panes",
@@ -2137,7 +2268,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66939
         },
         {
           "name": "osc_strip",
@@ -2146,7 +2278,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50548
         },
         {
           "name": "time_axis",
@@ -2155,7 +2288,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "settings": {
@@ -2168,12 +2302,13 @@
             "dColor": "#4ECDC4"
           }
         }
-      }
+      },
+      "expect": 120406
     },
     {
       "name": "atr_only",
       "why": "B5 Task 5's two-build measurement for ATR, and the regression class NO OTHER CASE IN THIS FILE CAN SEE: it is the first and only case that renders an `autoScale: true` oscillator band through the engine. Every banded pilot before it declares a FIXED range — RSI and Stochastic pass `{autoScale:false, minimum:0, maximum:100}` — so a `resolvePlacement` that emitted the fixed-range branch for every pane definition would be green on all of them and would pin ATR's price-unit values to 0-100, flattening the line onto the floor of its band. ATR's band is also SHORTER than every 0-100 oscillator's (`placement.pane.height` 0.13 vs 0.15, i.e. `{top: 0.87}` vs `{top: 0.85}`), so a placement that assumed symmetry with `stoch` would draw into the wrong rectangle. It draws no guides, which is what makes the `createPriceLine` count assertable at zero.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
       "regions": [
         {
           "name": "export_header",
@@ -2182,7 +2317,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2191,7 +2327,8 @@
             40,
             1200,
             400
-          ]
+          ],
+          "expect": 3023
         },
         {
           "name": "mid_panes",
@@ -2200,7 +2337,8 @@
             400,
             1200,
             519
-          ]
+          ],
+          "expect": 61754
         },
         {
           "name": "osc_strip",
@@ -2209,7 +2347,8 @@
             519,
             1200,
             572
-          ]
+          ],
+          "expect": 45579
         },
         {
           "name": "time_axis",
@@ -2218,11 +2357,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "settings": {
         "indicators": {
           "atr": {
@@ -2231,12 +2369,13 @@
             "color": "#FFA726"
           }
         }
-      }
+      },
+      "expect": 110356
     },
     {
       "name": "engine_sar_vs_legacy",
       "why": "LEGACY on A, ENGINE on B, one URL parameter apart — the measurement that isolates the migration from every unrelated commit between two builds. Side A carries the legacy toggle alone; side B is handed the same instance explicitly through `?instances=`. ⚠️ Its real force is under `--perturb-b-instances '{\"step\": 0.04}'`: a step appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and the acceleration factor is the knob that moves every dot in the series. ⚠️ THE BRIEF'S PERTURBATION FOR THE ICHIMOKU TWIN (`conversionPeriod`) IS NOT A DECLARED INPUT of that definition — `validateInstance` would DROP the instance and the diff would measure a deleted indicator rather than a recomputed one. Use `tenkanPeriod`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -2245,7 +2384,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2254,7 +2394,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -2263,7 +2404,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -2272,7 +2414,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -2306,12 +2449,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_ichimoku_vs_legacy",
       "why": "The same legacy-on-A / engine-on-B route for the Ichimoku Cloud, on ONE build. It is the only case where FIVE series come out of a single instance, so it is where a plan that bound four of five, or bound them in the wrong order, or gave the dash to the wrong one, shows up as pixels rather than as a unit-test expectation. ⚠️ Perturb `--perturb-b-instances '{\"tenkanPeriod\": 18}'`, NOT a colour and NOT the brief's `conversionPeriod`: that key is not a declared input, so `validateInstance` drops the whole instance and the diff measures a deleted indicator. `tenkanPeriod` moves the tenkan line AND spanA (which is the tenkan/kijun midpoint) and leaves kijun, spanB and chikou alone, which is the shape that proves the compute ran per plot.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -2320,7 +2464,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2329,7 +2474,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -2338,7 +2484,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -2347,7 +2494,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -2401,12 +2549,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "engine_price_overlay_zorder",
       "why": "THE ONLY CASE WHERE FOUR ENGINE PRICE OVERLAYS AND ONE LEGACY PRICE OVERLAY SHARE PANE 0'S RIGHT SCALE, and it is what sees an insertion-order inversion between `bb`/`vwap`/`sar`/`ichimoku` and `donchian`. The engine draws everything it owns CONTIGUOUSLY at one call site, which sits where BB's block used to be — before every remaining legacy block — so the four migrated overlays land in registry order and `donchian`'s hand-written block runs after them and stays on top. That is the shipped stacking, and migrating `donchian` (Task 8) AHEAD of these two would have inverted it: the engine's copy of it would be inserted UNDER `sar` and `ichimoku` instead of over them, and LWC z-stacks by insertion. `engine_bb_over_overlays` sees the call SITE (does the engine land after volume and the MA overlays); this sees the ORDER among the overlays themselves. Ten overlapping translucent lines on one scale: three Bollinger, one VWAP, one SAR dot row, five Ichimoku, three Donchian. ⚠️ tf 5 / intraday5m is not a preference — `vwap` is gated to intraday timeframes, so on the daily fixture it renders nothing on either side and one fifth of this case would be a permanent silent zero.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -2415,7 +2564,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2424,7 +2574,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -2433,7 +2584,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -2442,7 +2594,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -2521,12 +2674,13 @@
             "color": "rgba(96,165,250,0.5)"
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "sar_only",
       "why": "B5 Task 6's TWO-BUILD measurement for Parabolic SAR: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. It is the ONLY case in this file that renders a `markers` plot through the engine. `poolKey('markers') === 'line'` — a markers plot IS a LineSeries with `lineWidth: 0` and point markers on, which is exactly what the shipped block builds — so the pool can re-purpose SAR's series as any other line, and `pool.js`'s header records the MEASURED consequence: `sar` → `rsi` leaked `pointMarkersVisible: true`, i.e. an RSI line with a dot on every bar. It is also a PRICE OVERLAY on the candles' shared scale, so it is the third case (after `engine_bb_vs_legacy` and the VWAP pair) that renders `autoscaleInfoProvider: () => null` on the main price scale — the seam B3 Task 1 measured at 38,491 changed pixels when it was missing, and SAR's dots sit BELOW price in an uptrend and above it in a downtrend, which is exactly the shape that stretches a range. `indicators.sar.enabled` stays TRUE on both sides on purpose: it is what the read-time migrator projects the instance from on side B.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -2535,7 +2689,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2544,7 +2699,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -2553,7 +2709,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -2562,7 +2719,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -2580,12 +2738,13 @@
             "color": "#ffeb3b"
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "ichimoku_only",
       "why": "B5 Task 6's two-build measurement for the Ichimoku Cloud, and the ONLY case in this file that renders FIVE plots from ONE instance. Side A draws the five lines through the hand-written block, side B through the ENGINE. Four regression classes no smaller case can see: (1) the five must be created in DECLARATION order — LWC z-stacks by insertion, so spanA over spanB and spanB over spanA are different pictures wherever the cloud edges cross; (2) chikou is the ONLY one carrying `lineStyle: 2`, and a dash landing on the wrong line of five is a picture a one-plot case cannot produce; (3) all five are autoscale-EXCLUDED on the candles' shared scale, so one of them driving the main autoscale re-scales the whole price pane; (4) THREE PRESERVED QUIRKS ride through untouched — spanA and spanB are NOT forward-displaced (every other product draws the cloud 26 bars ahead) and chikou IS back-shifted 26 bars, so the last 26 slots of that column are the NaN pad. Transcribed, not corrected. ⚠️ The legacy memo called `computeIchimoku(filteredBars)` with NO arguments; the definition declares the same 9/26/52 the no-argument call defaults to, which is why this migration is 0 px AND why the three periods stop being greyed.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -2594,7 +2753,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2603,7 +2763,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -2612,7 +2773,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -2621,7 +2783,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -2657,12 +2820,13 @@
             "chikouColor": "rgba(255,235,59,0.7)"
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "mfi_only",
       "why": "B5 Task 7's TWO-BUILD measurement for the Money Flow Index: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. Structurally it is `atr_only` plus GUIDES, and the guides are the whole reason it exists: an omitted SERIES option means “keep what's there” while an omitted `createPriceLine` option means LWC's OWN DEFAULT, which for `lineStyle` is Dashed — the asymmetry that cost 379 changed pixels on RSI's 50-midline at B3. MFI's 80 and 20 lines are the same shape, on a `fixedPane(0, 100)` scale whose `min` is ZERO and therefore FALSY, so `resolvePlacement` reaching the pinned branch depends on `Number.isFinite` and not on truthiness. `indicators.mfi.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into. ⚠️ Perturb `{\"period\": 21}`, not a colour: a period appears in NO option object, and MFI's NaN head is period-dependent by construction.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -2671,7 +2835,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2680,7 +2845,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 3495
         },
         {
           "name": "mid_panes",
@@ -2689,7 +2855,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 65456
         },
         {
           "name": "osc_strip",
@@ -2698,7 +2865,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 49791
         },
         {
           "name": "time_axis",
@@ -2707,11 +2875,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -2726,12 +2893,13 @@
             "color": "#c084fc"
           }
         }
-      }
+      },
+      "expect": 118742
     },
     {
       "name": "cci_only",
       "why": "B5 Task 7's two-build measurement for the Commodity Channel Index, and THE ONLY CASE IN THIS FILE THAT RENDERS TWO GUIDE STYLES FROM ONE INSTANCE. `cci` declares ±100 as `dashed` (LWC LineStyle 2) and a separate zero line as `largeDashed` (3); a transcription that dropped either style would take LWC's own price-line default, which IS Dashed — so the ±100 pair would still look right and only the zero line would change, which is exactly the 379-px shape RSI's midline had. It is also the only UNBOUNDED one of the three (`autoPane`, so `{autoScale: true}` with no `minimum`/`maximum`), which makes it the second case in the branch's history — after `engine_atr_vs_legacy` — to render an autoscaled oscillator band through the engine, and the first to do it with guides sitting on that autoscaled axis. ⚠️ ONE ORDER DIFFERENCE, MEASURED AND EXPECTED TO BE INVISIBLE: the shipped block creates the three price lines as `100, 0, -100`; the engine walks plots in declaration order and each plot's levels in array order, so it creates them as `100, -100, 0`. Three horizontal lines at three distinct prices never overlap, so this case reading 0 is what proves insertion order does not reach the canvas here. ⚠️ Perturb `{\"period\": 40}`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -2740,7 +2908,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2749,7 +2918,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2920
         },
         {
           "name": "mid_panes",
@@ -2758,7 +2928,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66322
         },
         {
           "name": "osc_strip",
@@ -2767,7 +2938,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 49959
         },
         {
           "name": "time_axis",
@@ -2776,11 +2948,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -2795,12 +2966,13 @@
             "color": "#fbbf24"
           }
         }
-      }
+      },
+      "expect": 119201
     },
     {
       "name": "williams_r_only",
       "why": "B5 Task 7's two-build measurement for Williams %R, and THE ONLY CASE IN THIS FILE ON A NEGATIVE PRICE SCALE. `fixedPane(-100, 0)` means the band's `maximum` is ZERO and its `minimum` is -100, so BOTH the pinned-range branch in `resolvePlacement` and every guide level (-20, -80) are numbers a truthiness check treats as absent or as “no range”. The guides are also the only ones in the registry drawn BELOW zero, so a sign error puts them off the top of the band instead of inside it while the line itself — which never leaves [-100, 0] — goes on rendering, i.e. the failure is silent in every assertion that only looks at the series. ⚠️ AND THE PLOT KEY IS SNAKE_CASE (`williams_r`) WHILE THE SETTINGS KEY IS NOT (`williamsR`). A migration that harmonised the two would bind nothing — `computeFor` returns a column named `williams_r`, a plot key that no longer matches it produces no data and no series — and THIS CASE WOULD READ 0 CHANGED PIXELS BECAUSE NEITHER SIDE DRAWS. The unit suite (`mfiCciWilliamsFlipParity.test.js`) is the only gate on that; no pixel case can be. ⚠️ Perturb `{\"period\": 28}`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -2809,7 +2981,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2818,7 +2991,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2919
         },
         {
           "name": "mid_panes",
@@ -2827,7 +3001,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66124
         },
         {
           "name": "osc_strip",
@@ -2836,7 +3011,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50221
         },
         {
           "name": "time_axis",
@@ -2845,11 +3021,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -2864,12 +3039,13 @@
             "color": "#60a5fa"
           }
         }
-      }
+      },
+      "expect": 119264
     },
     {
       "name": "engine_mfi_vs_legacy",
       "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:mfi` out of `indicators.mfi.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy MFI block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `mfi_only` does not exercise. ⚠️ Its real force is under `--perturb-b-instances` with `{\"period\": 21}`: a period appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and MFI's period moves the line while leaving both guides exactly where they were.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -2878,7 +3054,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2887,7 +3064,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 3495
         },
         {
           "name": "mid_panes",
@@ -2896,7 +3074,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 65456
         },
         {
           "name": "osc_strip",
@@ -2905,7 +3084,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 49791
         },
         {
           "name": "time_axis",
@@ -2914,11 +3094,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -2948,12 +3127,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 118742
     },
     {
       "name": "engine_cci_vs_legacy",
       "why": "The same projected-vs-stored route for CCI, and the only one of the three where the band the engine renders into is AUTOSCALED. `resolvePlacement` reads `placement.scale` to choose between `{autoScale:false, minimum, maximum}` and `{autoScale:true}`; `cci` takes the second branch, so this is where a scale-option set that silently inherited a previous tenant's frozen range shows up — the pooling hazard `placement.js`'s TRAP #2 exists for. It is also the only case where the guides sit on an axis whose extent the LINE decides: change the period and the autoscale re-frames, so ±100 and 0 move on the canvas even though their PRICES did not. ⚠️ Perturb `{\"period\": 40}`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -2962,7 +3142,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -2971,7 +3152,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2920
         },
         {
           "name": "mid_panes",
@@ -2980,7 +3162,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66322
         },
         {
           "name": "osc_strip",
@@ -2989,7 +3172,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 49959
         },
         {
           "name": "time_axis",
@@ -2998,11 +3182,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -3032,12 +3215,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 119201
     },
     {
       "name": "engine_williams_r_vs_legacy",
       "why": "The same projected-vs-stored route for Williams %R, on the file's only NEGATIVE scale. The read-time migrator has to project an instance whose defId is `williamsR` while its one plot is keyed `williams_r`; a projection that used either spelling for both would produce an instance the binder drops, and a dropped instance is a VANISHED SERIES — which the pane manifest classifies as GEOMETRY, and no `expectProvenance` waves geometry through. ⚠️ Perturb `{\"period\": 28}`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -3046,7 +3230,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3055,7 +3240,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2919
         },
         {
           "name": "mid_panes",
@@ -3064,7 +3250,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 66124
         },
         {
           "name": "osc_strip",
@@ -3073,7 +3260,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50221
         },
         {
           "name": "time_axis",
@@ -3082,11 +3270,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -3116,12 +3303,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 119264
     },
     {
       "name": "engine_three_bands_stacked",
       "why": "mfi + cci + williamsR together are the only case with THREE ADJACENT OSCILLATOR BANDS WHOSE SCALES DIFFER (0..100 pinned, autoScale, -100..0 pinned). It is what sees a band mis-stacked by one slot or a scale range leaking between adjacent price scales — neither of which any single-indicator case can produce, because with one oscillator on there is only one band and only one named scale to inherit from. `computePaneMargins` stacks them bottom-to-top as cci {top .85}, williamsR {top .70, bottom .15}, mfi {top .55, bottom .30}, so a one-slot shift moves 15% of the chart height, and a leaked `{minimum:-100, maximum:0}` onto the `mfi` scale would frame an 0..100 oscillator upside down. Seven guides are drawn across the three, in three shapes and two styles. ⚠️ No `instancesB`: BOTH sides project from the mirror, which is the state a real user with three oscillators on is actually in.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[228, 117, 61, 61, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[228, 117, 61, 61, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -3130,7 +3318,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3139,7 +3328,8 @@
             40,
             1200,
             268
-          ]
+          ],
+          "expect": 3364
         },
         {
           "name": "mid_panes",
@@ -3148,7 +3338,8 @@
             268,
             1200,
             387
-          ]
+          ],
+          "expect": 74688
         },
         {
           "name": "osc_strip",
@@ -3157,7 +3348,8 @@
             387,
             1200,
             572
-          ]
+          ],
+          "expect": 85604
         },
         {
           "name": "time_axis",
@@ -3166,7 +3358,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -3201,12 +3394,13 @@
             "color": "#60a5fa"
           }
         }
-      }
+      },
+      "expect": 163656
     },
     {
       "name": "adx_only",
       "why": "B5 Task 8's TWO-BUILD measurement for ADX/DMI: side A draws it from the hand-written StockChart block, side B from the ENGINE, and the two builds are the commit before and after the migration. It is the only definition in this task with a GUIDE (one line at 25, dashed, on the ADX line itself and NOT on +DI), and the only three-line instance sharing ONE named scale — so it is what sees a guide attached to the wrong series or a per-plot scale write. ⚠️ Its `fixedPane(0, 100)` has a `min` of ZERO, which is FALSY: `resolvePlacement` reaches the pinned branch on `Number.isFinite`, and a truthiness guard would drop the `autoScale: false` that freezes a pooled scale — williamsR sprang the same trap from the `max` end at Task 7. `indicators.adx.enabled` stays TRUE on both sides on purpose: `computePaneMargins` reads it, and it is what reserves the identical band for the engine to render into. ⚠️ Perturb `{\"period\": 21}`, not a colour — a period appears in NO option object, and ADX's NaN head is period-dependent by construction (27 → 41 on the 260-bar fixture).",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -3215,7 +3409,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3224,7 +3419,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2945
         },
         {
           "name": "mid_panes",
@@ -3233,7 +3429,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 68422
         },
         {
           "name": "osc_strip",
@@ -3242,7 +3439,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50929
         },
         {
           "name": "time_axis",
@@ -3251,7 +3449,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -3278,12 +3477,13 @@
             "minusDIColor": "#ef4444"
           }
         }
-      }
+      },
+      "expect": 122296
     },
     {
       "name": "obv_only",
       "why": "B5 Task 8's TWO-BUILD measurement for On-Balance Volume, and THE ONE CASE THAT ACTUALLY EXERCISES THE AUTOSCALE SEAM ON A REAL SCALE. Every other oscillator's column sits in a small range; OBV's runs to 1e8, so an inverted `autoscaleInfoProvider` here is the most visible mistake available in this task — B3 Task 1 measured what `exclude` does to an autoscaled band (RSI's column collapsed to -0.5..0.5 and `priceToCoordinate(30)` went 371 → -1640.78). It is also the one definition with NO declared range at all (`autoPane`), so `{autoScale: true}` and nothing else must reach the scale. ⭐ AND ITS ZERO SEED IS PRESERVED: `computeOBV` starts bar 0 at 0 where every other native NaN-pads its head. TRANSCRIBED, NOT CORRECTED — correcting it is a measured, owner-facing decision of the shape the MACD head-mask (88 px) and the VWAP anchor (2,590 px) got. ⛔ ITS FAIL-PROOF IS A COLOUR, NOT A PERIOD, AND THAT EXEMPTION IS WRITTEN DOWN HERE RATHER THAN LEFT IMPLICIT: `obv` declares NO period input — `computeOBV(bars)` takes the bars alone — so there is nothing a period could move. Every other case on this branch perturbs a period precisely because a period appears in no option object; for this one that rule does not apply, and a period perturbation would be a silent no-op reading 0 px and looking exactly like a pass.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
       "regions": [
         {
           "name": "export_header",
@@ -3292,7 +3492,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3301,7 +3502,8 @@
             40,
             1200,
             400
-          ]
+          ],
+          "expect": 19405
         },
         {
           "name": "mid_panes",
@@ -3310,7 +3512,8 @@
             400,
             1200,
             519
-          ]
+          ],
+          "expect": 70192
         },
         {
           "name": "osc_strip",
@@ -3319,7 +3522,8 @@
             519,
             1200,
             572
-          ]
+          ],
+          "expect": 45787
         },
         {
           "name": "time_axis",
@@ -3328,7 +3532,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 1668
         }
       ],
       "expectProvenance": [
@@ -3344,12 +3549,15 @@
             "color": "#9ca3af"
           }
         }
-      }
+      },
+      "priceLine": false,
+      "_priceLineReason": "⭐ RE-EARNED ON THIS GEOMETRY BY B5 TASK 12, WHICH IS WHY THE OTHER TWELVE ARE GONE. Task 11 suppressed THIRTEEN cases for a 24-px dashed-last-price-line bistability it measured under `PANE_MODE = 'panes'`. Task 12 removed all thirteen flags and ran the APPLIED panes dist AGAINST ITSELF (`--same-build`, build 6d3ccce34548, 16 cases x 6 runs, 192 captures): TWELVE read a single 0 on every run and their suppressions were DROPPED as no longer earned — they were measured on a geometry that no longer exists. This one did not. `engine_obv_vs_legacy` read 0 on runs 1-5 and **16 px on run 6**, ALL SIXTEEN inside `price_plot` (the candle pane), which is where the dashed last-price line is drawn and nowhere near the OBV pane. A follow-up 10-run same-build pass on the OBV family read 0 on all 10 of both cases, so the rate is roughly 1 in 16 and the artefact is the documented one, not a geometry change. ⚠️ APPLIED TO `obv_only` TOO, and that is not a guess: at `--instances-side none` neither side receives `instancesB`, so these two cases render the IDENTICAL picture from the identical settings blob — one flaking and the other not is sampling, not behaviour. Task 11 also recorded `obv_only` flaking once in a discarded run. ⛔ NOT A TOLERANCE: the last-price line is drawn by the CANDLE series, no case measures it, it is identical on both sides by construction, and a suppressed case must still read a SINGLE value on every run of the gate.",
+      "expect": 137052
     },
     {
       "name": "donchian_only",
       "why": "B5 Task 8's TWO-BUILD measurement for Donchian Channels — THE LAST PRICE OVERLAY, which is why it lands last: LWC z-stacks by insertion and the engine draws its whole set contiguously where BB's block used to be, so migrating it ahead of `sar`/`ichimoku` would have put it UNDER two overlays it sits on top of today. It carries NO `priceScaleId` in the shipped block (LWC defaults it to the candles' scale) while `placement.js` resolves `price` to `MAIN_PRICE_SCALE_ID` EXPLICITLY — the same answer for a different reason, and the explicit form is what stops a pooled band stranding on somebody else's scale. `autoscaleInfoProvider` is load-bearing here in the way B3 Task 1 priced at 38,491 changed pixels: Donchian's upper IS the highest high of the window and its lower the lowest low, so the channel is always at or outside the candles' own extent. ⛔⭐ AND ITS MIDDLE LINE IS `LargeDashed` (LWC LineStyle 3) WHILE THE DEFINITION DECLARED NO `lineStyle` AT ALL, behind a comment calling LineStyle 3 \"unnameable\" — true before `largeDashed` joined `PLOT_LINE_STYLES`, false after; `pool.seriesOptionsForPlot` resolves an absent plot style to SOLID, so the engine would have drawn the mid-line solid. That is the one thing in this task no series count and no scale assertion could see. ⚠️ Perturb `{\"period\": 21}`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -3358,7 +3566,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3367,7 +3576,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -3376,7 +3586,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -3385,7 +3596,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -3410,12 +3622,13 @@
             "color": "rgba(96,165,250,0.5)"
           }
         }
-      }
+      },
+      "expect": 1200
     },
     {
       "name": "engine_adx_vs_legacy",
       "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:adx` out of `indicators.adx.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy ADX block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `adx_only` does not exercise. ⚠️ Its real force is under `--perturb-b-instances` with `{\"period\": 21}`: a period appears in NO option object, so a colour perturbation cannot tell a live compute from a replay, and ADX's period moves all THREE lines while leaving the guide at 25 exactly where it was.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
       "regions": [
         {
           "name": "export_header",
@@ -3424,7 +3637,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3433,7 +3647,8 @@
             40,
             1200,
             392
-          ]
+          ],
+          "expect": 2945
         },
         {
           "name": "mid_panes",
@@ -3442,7 +3657,8 @@
             392,
             1200,
             511
-          ]
+          ],
+          "expect": 68422
         },
         {
           "name": "osc_strip",
@@ -3451,7 +3667,8 @@
             511,
             1200,
             572
-          ]
+          ],
+          "expect": 50929
         },
         {
           "name": "time_axis",
@@ -3460,7 +3677,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -3504,12 +3722,13 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 122296
     },
     {
       "name": "engine_obv_vs_legacy",
       "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:obv` out of `indicators.obv.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy OBV block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `obv_only` does not exercise. ⛔ ITS PERTURBATION IS A COLOUR AND NOT A PERIOD, and that is an EXEMPTION rather than an oversight: `obv` declares no period input at all, so there is nothing a period perturbation could move and the run would report 0 px and read as a pass. `{\"color\": \"#00ff00\"}` is what this case can be falsified with, and it was.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[360, 117, 53]",
       "regions": [
         {
           "name": "export_header",
@@ -3518,7 +3737,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3527,7 +3747,8 @@
             40,
             1200,
             400
-          ]
+          ],
+          "expect": 19405
         },
         {
           "name": "mid_panes",
@@ -3536,7 +3757,8 @@
             400,
             1200,
             519
-          ]
+          ],
+          "expect": 70192
         },
         {
           "name": "osc_strip",
@@ -3545,7 +3767,8 @@
             519,
             1200,
             572
-          ]
+          ],
+          "expect": 45787
         },
         {
           "name": "time_axis",
@@ -3554,11 +3777,10 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 1668
         }
       ],
-      "priceLine": false,
-      "_priceLineReason": "MEASURED BISTABILITY UNDER `PANE_MODE = 'panes'`, AND THE SAME ARTEFACT `engine_rsi_toggle_off` ALREADY CARRIES THIS FLAG FOR. B5 Task 11 ran this case 8 times against the cutover build: side A (bands) hashed IDENTICAL on all 8, side B rasterised into exactly TWO states, and the whole difference between them is 24 px on ONE scanline spanning the plot width (y=244 at a 0.15-height oscillator pane, y=247 at 0.13) -- the dashed LAST-PRICE LINE at its ~12 dash boundaries, which is byte-for-byte the artefact ChartRender.jsx already documents. The cutover moves pane 0's height, which moves that line onto the unstable row, so 13 of 46 cases went bistable at once and could not be given a number. The line is drawn by the CANDLE series, so it belongs to no indicator migration and no case measures it. *** NOT A TOLERANCE: this case must still read a SINGLE value on every run, and 0 under 'bands'. *** Applied ONLY to the cases where the bistability was OBSERVED -- a suppression applied where it was not measured to be needed is an unearned allowance. Same-geometry cases that did NOT flake in 8 runs (adx_only, engine_adx_vs_legacy, obv_only, stoch_only, macd-family) are LATENTLY at risk and are deliberately left alone.",
       "expectProvenance": [
         [
           null,
@@ -3586,12 +3808,15 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "priceLine": false,
+      "_priceLineReason": "⭐ RE-EARNED ON THIS GEOMETRY BY B5 TASK 12, WHICH IS WHY THE OTHER TWELVE ARE GONE. Task 11 suppressed THIRTEEN cases for a 24-px dashed-last-price-line bistability it measured under `PANE_MODE = 'panes'`. Task 12 removed all thirteen flags and ran the APPLIED panes dist AGAINST ITSELF (`--same-build`, build 6d3ccce34548, 16 cases x 6 runs, 192 captures): TWELVE read a single 0 on every run and their suppressions were DROPPED as no longer earned — they were measured on a geometry that no longer exists. This one did not. `engine_obv_vs_legacy` read 0 on runs 1-5 and **16 px on run 6**, ALL SIXTEEN inside `price_plot` (the candle pane), which is where the dashed last-price line is drawn and nowhere near the OBV pane. A follow-up 10-run same-build pass on the OBV family read 0 on all 10 of both cases, so the rate is roughly 1 in 16 and the artefact is the documented one, not a geometry change. ⚠️ APPLIED TO `obv_only` TOO, and that is not a guess: at `--instances-side none` neither side receives `instancesB`, so these two cases render the IDENTICAL picture from the identical settings blob — one flaking and the other not is sampling, not behaviour. Task 11 also recorded `obv_only` flaking once in a discarded run. ⛔ NOT A TOLERANCE: the last-price line is drawn by the CANDLE series, no case measures it, it is identical on both sides by construction, and a suppressed case must still read a SINGLE value on every run of the gate.",
+      "expect": 137052
     },
     {
       "name": "engine_donchian_vs_legacy",
       "why": "ONE BUILD, TWO ROUTES INTO THE ENGINE. Side A carries the legacy toggle alone, so the read-time migrator PROJECTS `legacy:donchian` out of `indicators.donchian.enabled`; side B is handed that same instance explicitly through `?instances=`. Both draw through the engine — there is no legacy Donchian block left to draw the other half of an A/B — so a non-zero diff here means the projection and the stored instance disagree about inputs, placement, guides or draw order, which is the compatibility path EVERY existing user is on and the one `donchian_only` does not exercise. ⭐ It is also the ONLY engine-vs-projection case for a definition whose three plots land on the CANDLES' shared scale, so a projection that lost the `autoscale: 'exclude'` half would reframe the whole price pane rather than move one line. ⚠️ Perturb `{\"period\": 21}`.",
-      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 1667183abbe0: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
+      "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes 6d3ccce34548: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[414, 117]",
       "regions": [
         {
           "name": "export_header",
@@ -3600,7 +3825,8 @@
             0,
             1200,
             40
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "price_plot",
@@ -3609,7 +3835,8 @@
             40,
             1200,
             454
-          ]
+          ],
+          "expect": 0
         },
         {
           "name": "mid_panes",
@@ -3618,7 +3845,8 @@
             454,
             1200,
             572
-          ]
+          ],
+          "expect": 1200
         },
         {
           "name": "time_axis",
@@ -3627,7 +3855,8 @@
             572,
             1200,
             620
-          ]
+          ],
+          "expect": 0
         }
       ],
       "expectProvenance": [
@@ -3667,7 +3896,8 @@
           },
           "hidden": false
         }
-      ]
+      ],
+      "expect": 1200
     },
     {
       "name": "volume_profile_only",

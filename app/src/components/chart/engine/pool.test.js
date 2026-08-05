@@ -23,6 +23,7 @@ import {
   AUTOSCALE_PROVIDER_MODES,
 } from './pool'
 import { MAIN_PRICE_SCALE_ID, AUTOSCALE_MODES, resolvePlacement } from './placement'
+import { computePaneLayout } from './paneLayout'
 import { PLOT_STYLES } from './defSchema'
 import { ENGINE_MIGRATED_DEF_IDS } from './flipState'
 import * as registry from './nativeRegistry'
@@ -1044,7 +1045,22 @@ describe('the mode vocabulary has exactly one definition (fix round 1, M-1)', ()
   })
 
   it('placement only ever emits a mode the pool knows', () => {
-    const ctx = { paneMargins: {}, volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1 }
+    // ⭐ B5 TASK 12: THE CTX CARRIES A `paneLayout` NOW, and it is what keeps this
+    // sweep total. `PANE_MODE` is `'panes'`, where a pane oscillator the layout
+    // gave no pane resolves to `null` and contributes nothing — so the ctx as it
+    // stood lost all NINE of them and only the price overlays were left. The
+    // non-vacuity floor below is what said so (19, against a bar of 20); without
+    // that floor this would have gone on passing while asserting on five
+    // definitions out of fourteen.
+    const paneLayout = computePaneLayout(
+      registry.listDefinitions()
+        .filter((d) => d.placement.target === 'pane')
+        .map((d) => ({ instanceId: `i:${d.id}`, defId: d.id })),
+      { chartHeight: 600, hasVolumeBand: false },
+    )
+    const ctx = {
+      paneMargins: {}, paneLayout, volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
+    }
     let seen = 0
     for (const def of registry.listDefinitions()) {
       for (const overlaid of [false, true]) {

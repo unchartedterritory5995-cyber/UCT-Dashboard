@@ -55,6 +55,15 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   priceScaleId: 'right',
 }
 
+// ⭐ B5 TASK 12 — AND WHY THIS FILE NEEDS NO `__setPaneModeForTest`.
+// Every sibling Flip-A suite that binds an OSCILLATOR pins `'bands'`, because
+// `PANE_MODE` is `'panes'` now and an unpinned oscillator lands in a REAL pane
+// on a `'right'` scale with zero margins. VWAP is a PRICE OVERLAY, and
+// `resolvePlacement`'s `target === 'price'` branch returns before `paneMode()`
+// is ever read — so every expectation below is the SHIPPED answer in both modes.
+// Pinning would only narrow what this file covers while claiming a
+// mode-dependence it does not have.
+
 const INSTANCE = {
   instanceId: 'legacy:vwap', defId: 'vwap', defVersion: 1,
   inputs: { color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },

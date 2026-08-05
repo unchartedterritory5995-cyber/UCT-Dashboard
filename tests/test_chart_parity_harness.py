@@ -351,6 +351,15 @@ def test_main_EXITS_0_when_every_capture_is_identical(monkeypatch, tmp_path):
     # THE CONTROL FOR THE TEST ABOVE, in the file rather than in a shell history:
     # if `main()` returned 1 unconditionally, the ChartNotSettledError case would
     # pass for the wrong reason and prove nothing.
+    #
+    # ⭐⭐ B5 TASK 12 MOVED THIS OFF `macd_only`, AND THE MOVE IS THE CUTOVER.
+    # Flip C priced every live case with an EXACT `expect` — `macd_only` is
+    # 131,592 — so "two identical captures" is now a FAILING run on any of them,
+    # correctly: an equality gate that accepted 0 where it expects six figures
+    # would accept a build that drew nothing. The claim here is about `main()`
+    # (that it does not return 1 unconditionally), not about any case's number, so
+    # it is driven on the one case that declares nothing: the PLACEHOLDER, which
+    # `--include-placeholders` admits and which carries no `expect` and no regions.
     frame = png("#0e0f0d", size=(1200, 620))
 
     def settles(page, url, out_png, *_a, **_kw):
@@ -358,7 +367,8 @@ def test_main_EXITS_0_when_every_capture_is_identical(monkeypatch, tmp_path):
         Path(out_png).write_bytes(frame)
         return {"shots": 2, "settled": True, "ready_ms": 3500, "ready_reason": "stable"}
 
-    rc = _drive_main(monkeypatch, tmp_path, settles)
+    rc = _drive_main(monkeypatch, tmp_path, settles, cases=("volume_profile_only",),
+                     extra_argv=["--include-placeholders"])
     assert rc == 0
     report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
     assert report["failures"] == 0
@@ -1170,28 +1180,84 @@ def test_a_case_with_regions_all_where_it_said_they_would_be_PASSES():
     assert cp.collapse_case(entry)["pass"] is True
 
 
-def test_a_case_that_declares_NOTHING_still_collapses_on_its_tolerance():
-    """⭐ THE BACKWARDS-COMPATIBILITY RAIL. B5's whole design rests on zero
-    surviving twelve of thirteen tasks, which means every case that does NOT
-    declare an `expect` has to keep reading the number it reads today. Asserted
-    against the REAL case list, entry-for-entry, through the same construction
-    `main()` uses."""
+def test_the_undeclared_collapse_still_works_although_no_LIVE_case_uses_it():
+    """⭐⭐ B5 TASK 12 RETIRED THIS RAIL'S SUBJECT, AND THE INVERSION IS THE TASK.
+
+    It read *"a case that declares NOTHING still collapses on its tolerance"* and
+    asserted `checked >= 24` against the REAL case list — the backwards-
+    compatibility rail for "zero survives twelve of thirteen tasks". Flip C is the
+    thirteenth: every live case now declares an EXACT `expect`, so the real-file
+    half of that rail has no subject left and `checked` is 0.
+
+    ⛔ THE MECHANISM IS NOT DELETED WITH IT. `case_entry` still supports an
+    undeclared case (`--cases` on a brand-new case, a `--tolerance` run while
+    something is being measured), so the collapse is still exercised — on a
+    SYNTHETIC entry, which is the honest place for a claim with no live example.
+    What the real file is now asserted for is the opposite: that NOTHING is
+    undeclared."""
+    entry = {"name": "synthetic", "tolerance": 0, "expect": None,
+             "expect_regions": None, "expect_manifest_change": False,
+             "expect_provenance": None, "regions": None, "runs": []}
+    for values, want in (([0, 0, 0], True), ([0, 1, 0], False), ([9], False)):
+        runs = [{"run": i + 1, "changed": v, "size_mismatch": False}
+                for i, v in enumerate(values)]
+        got = cp.collapse_case(dict(entry, runs=runs))
+        assert got["pass"] is want, values
+        assert got["changed"] == max(values), "the headline is still the WORST run"
+    # …and a tolerance still admits what it says it admits.
+    got = cp.collapse_case(dict(entry, tolerance=5,
+                                runs=[{"run": 1, "changed": 5, "size_mismatch": False}]))
+    assert got["pass"] is True
+
+
+def test_EVERY_live_case_declares_an_exact_expect_after_Flip_C():
+    """⭐ THE SUCCESSOR RAIL, and it is strictly stronger than the one it replaces.
+
+    Flip C moves pixels on 27 of 46 cases, so the gate's verdict stopped being
+    "0" and became "the number the decision record priced". A budget would pass a
+    regression SMALLER than the allowance and hide the next change of the same
+    size; an equality cannot. Every live case therefore carries a case-level
+    `expect` AND an `expect` on every one of its regions — including the 19 that
+    read 0, because an omitted 0 and an unmeasured case look identical in a diff.
+    """
     doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
     defaults = doc["defaults"]
-    checked = 0
+    undeclared, unregioned, live = [], [], 0
     for raw in doc["cases"]:
+        if raw.get("status") == "placeholder":
+            continue
+        live += 1
         case = {**defaults, **raw}
         entry = cp.case_entry(case, tolerance=0, expect=None)
-        if entry["expect"] is not None or entry["expect_regions"]:
-            continue                       # a case that HAS declared one (B5 T11+)
-        checked += 1
-        for values, want in (([0, 0, 0], True), ([0, 1, 0], False), ([9], False)):
-            entry["runs"] = [{"run": i + 1, "changed": v, "size_mismatch": False}
-                             for i, v in enumerate(values)]
-            got = cp.collapse_case(dict(entry, runs=entry["runs"]))
-            assert got["pass"] is want, f"{case['name']} {values}"
-            assert got["changed"] == max(values), "the headline is still the WORST run"
-    assert checked >= 24, f"only {checked} undeclared cases — the rail lost its subject"
+        if entry["expect"] is None:
+            undeclared.append(case["name"])
+        regions = raw.get("regions") or []
+        if any("expect" not in r for r in regions) or not regions:
+            unregioned.append(case["name"])
+    assert undeclared == [], f"cases with no `expect`: {undeclared}"
+    assert unregioned == [], f"cases with an unpriced region: {unregioned}"
+    # ⛔ NON-VACUITY, TWICE. A loop that visited nothing satisfies both `== []`
+    # above, and a `case_entry` that returned a constant would too.
+    assert live == 46, f"the live case list is {live}, not 46 — this rail lost its subject"
+    probe = cp.case_entry({**defaults, "name": "probe"}, tolerance=0, expect=None)
+    assert probe["expect"] is None, "case_entry invents an expect — the check above is vacuous"
+
+
+def test_a_declared_case_refuses_a_number_that_is_merely_SMALLER():
+    """⛔ THE WHOLE POINT OF AN EQUALITY, on the real numbers Flip C wrote.
+
+    `rsi_only` is priced in the six figures. A budget would wave through a build
+    that suddenly changed almost nothing — which is exactly what a broken flip
+    looks like — so the gate has to refuse the LOW side too."""
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    case = next(c for c in doc["cases"] if c["name"] == "rsi_only")
+    entry = cp.case_entry({**doc["defaults"], **case}, tolerance=0, expect=None)
+    want = entry["expect"]
+    assert want and want > 1000, "rsi_only is not priced — the rest of this test is vacuous"
+    for value, ok in ((want, True), (want - 1, False), (want + 1, False), (0, False)):
+        runs = [{"run": 1, "changed": value, "size_mismatch": False,
+                 "regions": {**entry["expect_regions"], "rest": 0}}]
+        assert cp.collapse_case(dict(entry, runs=runs))["pass"] is ok, (value, ok)
 
 
 # ─── the pane manifest ───────────────────────────────────────────────────────
@@ -1644,7 +1710,12 @@ def test_main_EXITS_1_when_the_measured_diff_is_not_the_EXPECTED_number(monkeypa
 def test_main_EXITS_0_when_the_measured_diff_IS_the_expected_number(monkeypatch, tmp_path):
     """The control for the test above AND the proof that `--expect` reaches the
     entry at all: if it were dropped on the floor both would still exit 1 for
-    unrelated reasons."""
+    unrelated reasons.
+
+    ⭐ B5 TASK 12: driven on the PLACEHOLDER for the same reason as the identical-
+    capture control above — the CLI `--expect` overrides a case's own number, but
+    it does NOT override the per-REGION expectations the case file now carries, so
+    a real case would still (correctly) fail on its regions."""
     frame = png("#0e0f0d", size=(1200, 620))
 
     def settles(page, url, out_png, *_a, **_kw):
@@ -1652,7 +1723,8 @@ def test_main_EXITS_0_when_the_measured_diff_IS_the_expected_number(monkeypatch,
         Path(out_png).write_bytes(frame)
         return {"shots": 2, "settled": True, "ready_ms": 1, "ready_reason": "stable"}
 
-    assert _drive_main(monkeypatch, tmp_path, settles, extra_argv=["--expect", "0"]) == 0
+    assert _drive_main(monkeypatch, tmp_path, settles, cases=("volume_profile_only",),
+                       extra_argv=["--include-placeholders", "--expect", "0"]) == 0
 
 
 def test_main_carries_the_case_file_REGIONS_and_the_PAGE_MANIFEST_into_report_json(
@@ -1680,10 +1752,20 @@ def test_main_carries_the_case_file_REGIONS_and_the_PAGE_MANIFEST_into_report_js
         return {"shots": 2, "settled": True, "ready_ms": 1, "ready_reason": "stable",
                 "manifest": manifest}
 
+    # ⭐⭐ B5 TASK 12 — `rc` IS NOW 1, AND THAT IS THE STRONGER ASSERTION.
+    # `rsi_only` is priced at 119,868 px with five priced regions, so a run of two
+    # IDENTICAL frames reads 0 everywhere and the equality gate refuses it. This
+    # test's subject was never the exit code — it is whether `main()` HANDS the
+    # rectangles to `diff` and the manifest to the run — so the exit code is now
+    # asserted as the equality firing, by its message, and the wiring assertions
+    # below are unchanged and still the point.
     rc = _drive_main(monkeypatch, tmp_path, settles, cases=("rsi_only",))
-    assert rc == 0
-    run = json.loads((tmp_path / "out" / "report.json").read_text(
-        encoding="utf-8"))["results"][0]["runs"][0]
+    report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
+    assert rc == 1, "a 0-pixel run passed a case priced in six figures"
+    entry = report["results"][0]
+    assert any("expected EXACTLY" in m for m in entry["expectation_failures"]), (
+        entry["expectation_failures"])
+    run = entry["runs"][0]
     # ⚠️ THE NAMES ARE READ FROM THE CASE FILE, NOT LISTED HERE. They changed once
     # already (B5 Task 11 replaced `rsi_only`'s three band-era rectangles with the
     # two derived from the pane manifest) and a hard-coded list turns a rename into
@@ -1694,6 +1776,10 @@ def test_main_carries_the_case_file_REGIONS_and_the_PAGE_MANIFEST_into_report_js
     assert len(declared) >= 2, "rsi_only stopped declaring rectangles"
     assert run["regions"] == {**{n: 0 for n in declared}, "rest": 0}, (
         "the case file's rectangles never reached `diff` — the region gate is inert")
+    # …and the region gate declared every one of them, which is what Flip C added.
+    assert set(entry["expect_regions"]) == set(declared), (
+        "a declared rectangle carries no `expect` — the region half of the "
+        "equality gate is not armed")
     assert run["manifest_a"] == manifest and run["manifest_b"] == manifest, (
         "the page's manifest never reached the run — the geometry gate is inert")
     assert run["manifest_diff"] == []

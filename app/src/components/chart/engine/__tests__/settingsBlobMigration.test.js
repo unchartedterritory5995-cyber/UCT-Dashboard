@@ -22,7 +22,6 @@ import path from 'node:path'
 import { CHART_DEFAULTS, mergeChartSettings, mergeSettingsOverride } from '../../chartDefaults'
 import { migrateLegacyToInstances, SHIPPED_STACK_ORDER } from '../instances'
 import * as engineRegistry from '../nativeRegistry'
-import { computePaneMargins } from '../../paneMargins'
 
 /** The repo root — same walk `enumerationSites.test.js` uses, and it THROWS BY
  *  NAME rather than returning a path that does not exist, because the Task-12
@@ -78,9 +77,8 @@ describe('a blob written before the engine existed', () => {
   // for the same reason.
   //
   // ⭐ SO THE ORDER LIVES IN `SHIPPED_STACK_ORDER` — derived from
-  // `computePaneMargins`, measured by the case two down — and **Flip C applies
-  // it** in `paneLayout.orderedPaneKeys`, where it decides PANE order rather than
-  // insertion order. That is the point at which the two stop being one list.
+  // `computePaneMargins` when this was written, INLINED at Task 12 when that file
+  // was deleted, and pinned by name in the last case of this describe.
   it('seeds in REGISTRY order — the binder\'s insertion order, unchanged', () => {
     // ⛔ THE SET MUST DISCRIMINATE, AND THE OBVIOUS ONE DOES NOT. A mutation that
     // sorts by `SHIPPED_STACK_ORDER` SURVIVED this case while it used the brief's
@@ -117,21 +115,34 @@ describe('a blob written before the engine existed', () => {
       .toEqual(['macd', 'stoch'])
   })
 
-  it('⛔ the seed order is READ OUT of computePaneMargins, not transcribed', () => {
-    // The non-vacuity control for the literal above: `SHIPPED_STACK_ORDER`'s nine
-    // pane ids must equal the bands `computePaneMargins` hands back for a blob
-    // with all nine on, reversed (it stacks bottom-to-top; panes index
-    // top-to-bottom). A hand-typed table that drifts from the layout function is
-    // exactly the defect this phase keeps finding.
+  it('⛔ the nine are exactly the PANE definitions, and the five are the overlays in registry order', () => {
+    // 🟡 THE READ-BACK CONTROL RETIRED WITH ITS SUBJECT AT TASK 12, AND THIS IS
+    // WHAT SURVIVED IT.
+    //
+    // This case used to assert that `SHIPPED_STACK_ORDER`'s nine pane ids were
+    // READ OUT of `computePaneMargins` — the bands it handed back for a blob with
+    // all nine on, reversed — so a hand-typed table could not drift from the
+    // layout function. `paneMargins.js` is deleted and `instances.js` INLINES the
+    // array (that is the whole of Task 12), so there is no second copy left to
+    // measure against: `computePaneLayout` orders its bands from the INSTANCE
+    // LIST, and reading the order back out of it would only return whatever this
+    // test put in. A tautology is not a control, so that half is gone and named
+    // in the Flip C notes; the ORDER itself is pinned by name in the last case of
+    // this describe, which is now its only record.
+    //
+    // ⛔ WHAT IS STILL DERIVED, AND STILL FAILS: the PARTITION. The first nine
+    // must be exactly the pane-target definitions — a tenth oscillator appended
+    // to the tail instead of placed in the stack would stack nothing — and the
+    // last five must be the non-pane definitions in REGISTRY order, which is
+    // legacy z-order for the five of them (`instanceControls.registryRank`).
+    const registryOrder = engineRegistry.listDefinitions().map(d => d.id)
     const paneIds = engineRegistry.listDefinitions()
       .filter(d => d.placement.target === 'pane').map(d => d.id)
-    const bands = computePaneMargins(
-      { indicators: Object.fromEntries(paneIds.map(id => [id, { enabled: true }])) }, false, new Set())
-    const fromLayout = Object.keys(bands).filter(k => k !== 'main' && k !== 'volume').reverse()
-    expect(fromLayout, 'the layout function stacks nothing — this control is vacuous').toHaveLength(9)
-    expect(SHIPPED_STACK_ORDER.slice(0, 9)).toEqual(fromLayout)
-    // …and the tail is the price overlays, in registry order, which is legacy
-    // z-order for the five of them (`instanceControls.registryRank`).
+    expect(paneIds, 'the registry declares no stacked oscillator — this control is vacuous')
+      .toHaveLength(9)
+    expect([...SHIPPED_STACK_ORDER.slice(0, 9)].sort(),
+      'the nine head entries are not the nine pane definitions').toEqual([...paneIds].sort())
+    expect(SHIPPED_STACK_ORDER.slice(9)).toEqual(registryOrder.filter(id => !paneIds.includes(id)))
     expect(SHIPPED_STACK_ORDER.slice(9)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
   })
 
@@ -310,27 +321,49 @@ describe('a blob written before the engine existed', () => {
     }
   })
 
-  // ⏭️ TASK 12: `SHIPPED_STACK_ORDER` is derived from `computePaneMargins`, which
-  // Flip C retires along with `paneMargins.js`. When that file goes, INLINE the
-  // array this produces — do not re-derive it from something else, because at
-  // that moment the shipped stack order stops existing and the seeded instance
-  // order becomes the only record of it.
+  // ✅ TASK 12, DONE — AND THE ASSERTION IS INVERTED RATHER THAN DELETED.
   //
-  // ⚠️ A DATED COUPLING BETWEEN TWO TASKS, WRITTEN AS A TEST rather than as a
-  // comment, so Task 12 gets a red assertion instead of a silent import of a
-  // deleted module.
-  it('⏭️ paneMargins.js still exists — Task 12 must inline the order before deleting it', () => {
+  // Task 9 wrote this as a DATED COUPLING between two tasks: *"`SHIPPED_STACK_ORDER`
+  // is derived from `computePaneMargins`, which Flip C retires along with
+  // `paneMargins.js`. When that file goes, INLINE the array this produces — do not
+  // re-derive it from something else, because at that moment the shipped stack
+  // order stops existing and the seeded instance order becomes the only record of
+  // it."* It was written as a TEST so Task 12 would get a red assertion instead of
+  // a silent import of a deleted module, and that is exactly what it did.
+  //
+  // ⛔ SO IT NOW ASSERTS THE OTHER DIRECTION, AND BOTH HALVES MATTER. The file
+  // must be GONE (a re-added `paneMargins.js` is a second copy of the geometry —
+  // the thing Flip C retired), and the array must still read the nine-then-five
+  // order it was inlined FROM. This literal is the ONE record of the stack every
+  // existing user's chart had on the day the table died: nothing derives it any
+  // more, so nothing else can fail when it drifts.
+  it('✅ paneMargins.js is GONE, and the retired stack order survives it by name', () => {
+    // ⛔ THE CONTROL COMES FIRST, because an absent file and a MISSPELLED PATH are
+    // the same `false` — the exact shape that turns an inverted assertion into a
+    // permanently green one. This resolves the module `paneMargins.js` retired
+    // INTO, through the same ROOT and the same path form.
+    expect(fs.existsSync(path.join(ROOT, 'app/src/components/chart/engine/paneLayout.js')),
+      'the probe cannot resolve a file that DOES exist — ROOT or the path form rotted, and '
+      + 'the deletion assertion below would pass for a file that is still there').toBe(true)
     expect(fs.existsSync(path.join(ROOT, 'app/src/components/chart/paneMargins.js')),
-      'paneMargins.js is gone and `instances.js` still derives SHIPPED_STACK_ORDER from it. '
-      + 'Inline the array (it is in this test\'s expectations) and delete the import.').toBe(true)
+      'paneMargins.js is back. It was retired into `engine/paneLayout.js` at B5 Task 12 — '
+      + 'the band map is `computePaneLayout(...).bands` now, and a second copy of that '
+      + 'arithmetic is what the retirement was for.').toBe(false)
     expect(SHIPPED_STACK_ORDER).toEqual([
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
-    // ⛔ AND IT IS NOT APPLIED ANYWHERE YET — stated so Task 12 knows it has work
-    // to do rather than a guarantee already in place. The fold seeds in REGISTRY
-    // order (which is the binder's insertion order, i.e. z-order); Flip C is
-    // where this array becomes PANE order, in `paneLayout.orderedPaneKeys`.
+    // 🔴 AND IT IS STILL NOT APPLIED — MEASURED AT TASK 12, NOT PREDICTED. The
+    // note here read *"Flip C is where this array becomes PANE order, in
+    // `paneLayout.orderedPaneKeys`"*, and Flip C did not do that:
+    // `orderedPaneKeys` walks the INSTANCE LIST, the fold seeds that list in
+    // REGISTRY order (below, and for the z-order reason two cases up), and nothing
+    // between them sorts by `stackRank`. So pane order under `'panes'` is registry
+    // order, which is NOT the order this array records — reported, not fixed here,
+    // because changing it is a geometry decision with a pixel gate attached.
+    //
+    // The assertion itself is unchanged and still discriminates: the two orders
+    // disagree on this fixture (stack order is mfi · williamsR · cci).
     const blob = JSON.stringify({ indicators: Object.fromEntries(
       ['mfi', 'cci', 'williamsR'].map(k => [k, { enabled: true }])) })
     expect(mergeChartSettings(JSON.parse(blob)).indicatorInstances.map(i => i.defId),

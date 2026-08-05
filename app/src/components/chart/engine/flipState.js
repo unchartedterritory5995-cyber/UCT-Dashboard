@@ -128,9 +128,11 @@ export const ENGINE_MIGRATED_DEF_IDS = sealedSet([
  * crosshair fallback are DELETED, and what reads this set now decides real
  * behaviour rather than nothing:
  *
- *   · `csForPaneMargins` rewrites `indicators.<id>.enabled` from the INSTANCE
- *     list for these ids, so the bands follow the instances and `paneMargins.js`
- *     stays consumed rather than extended;
+ *   · ⭐ B5 TASK 12: the geometry reads the INSTANCE LIST directly now. This
+ *     said `csForPaneMargins` rewrote `indicators.<id>.enabled` from the
+ *     instance list so the bands would follow it; Flip C deleted both that
+ *     projection and `paneMargins.js`, and `paneLayout.computePaneLayout` takes
+ *     the instances as its only input;
  *   · StockChart's instance read runs `migrateLegacyToInstances` and accepts a
  *     PROJECTED instance for a flipped id only — a whole-set gate would move all
  *     four pilots on the first flip, which is exactly what flipping one at a time

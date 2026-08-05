@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
 import { AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeMFI, computeCCI, computeWilliamsR } from '../../indicators'
-import { computePaneMargins } from '../../paneMargins'
+import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR MFI, CCI AND WILLIAMS %R (B5 Task 7) ────────────
@@ -171,14 +171,46 @@ const WILLIAMS_INSTANCE = {
   placement: { target: 'pane' }, hidden: false,
 }
 
-/** The `cs` each parity case pins. Its ONLY job is to feed `computePaneMargins`,
- *  which is what reserves the band the engine has to render into. */
+/** The `cs` each parity case pins. */
 const MFI_CS = { indicators: { mfi: { enabled: true, period: 14, color: '#c084fc' } } }
 const CCI_CS = { indicators: { cci: { enabled: true, period: 20, color: '#fbbf24' } } }
 const WILLIAMS_CS = { indicators: { williamsR: { enabled: true, period: 14, color: '#60a5fa' } } }
-const MFI_BAND = computePaneMargins(MFI_CS, false, new Set()).mfi
-const CCI_BAND = computePaneMargins(CCI_CS, false, new Set()).cci
-const WILLIAMS_BAND = computePaneMargins(WILLIAMS_CS, false, new Set()).williamsR
+
+/**
+ * The band map, from the ONE surviving authority.
+ *
+ * ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js` INTO `engine/paneLayout.js`.
+ * `computePaneLayout(...).bands` IS `computePaneMargins`' output — same keys,
+ * same values, same insertion order, off the same quantised stack — but it is
+ * keyed on the INSTANCE LIST rather than on a settings blob, because the
+ * instance list is the only authority for the stack now. It is also
+ * height-independent by construction, which is why no `chartHeight` is passed.
+ *
+ * ⚠️ `defIds` IS TOP-TO-BOTTOM, i.e. pane order — the same order the instance
+ * list carries, and the REVERSE of the order the retired `PANES` table listed.
+ * `computePaneLayout` reverses it internally so the squeeze and both shaves run
+ * bottom-first exactly as they did. The three-band case below pins every edge,
+ * so a list in the wrong order is a RED test rather than a silent re-stack.
+ */
+const bandsFor = (defIds, hasVolumeBand = false, excludeKeys = new Set()) =>
+  computePaneLayout(
+    defIds.map((id) => ({ instanceId: `legacy:${id}`, defId: id })),
+    { hasVolumeBand, excludeKeys },
+  ).bands
+
+const MFI_BAND = bandsFor(['mfi']).mfi
+const CCI_BAND = bandsFor(['cci']).cci
+const WILLIAMS_BAND = bandsFor(['williamsR']).williamsR
+
+// ⭐ B5 TASK 12 — THIS FILE DESCRIBES THE GEOMETRY THE FLIP REVERSES TO.
+// `PANE_MODE` is `'panes'` since Task 12, so an UNPINNED resolve would send all
+// three oscillators into real lightweight-charts panes on a `'right'` scale with
+// zero margins. Every expectation in this file is a transcription of the BANDS
+// answer — the mode `paneLayout.js` keeps alive precisely so the flip has
+// something to reverse to — so the MODE is pinned rather than the expectations
+// rewritten.
+beforeEach(() => { __setPaneModeForTest('bands') })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const sync = (instance, cs, band, over) => {
   const F = createFakeChart()
@@ -242,9 +274,11 @@ describe('the three single-line oscillators, transcribed', () => {
 
   it('reserves a band for each, and all three are the SAME 0.15-height band', () => {
     // Non-vacuity for every scale assertion below, and the one place these three
-    // genuinely are symmetric: `paneMargins.PANES` gives cci, williamsR and mfi
-    // `baseH: 0.15`, so alone each one reserves the top-0.85 band. (`atr`'s 0.13
-    // is what made Task 5's pair asymmetric; here the asymmetry is elsewhere.)
+    // genuinely are symmetric: cci, williamsR and mfi each declare
+    // `placement.pane.height: 0.15` — the property B5 Task 12 moved the retired
+    // `PANES` table's `baseH` onto — so alone each one reserves the top-0.85
+    // band. (`atr`'s 0.13 is what made Task 5's pair asymmetric; here the
+    // asymmetry is elsewhere.)
     expect(MFI_BAND).toEqual({ top: 0.85, bottom: 0 })
     expect(CCI_BAND).toEqual({ top: 0.85, bottom: 0 })
     expect(WILLIAMS_BAND).toEqual({ top: 0.85, bottom: 0 })
@@ -256,7 +290,7 @@ describe('the three single-line oscillators, transcribed', () => {
   it('mfi: two guides at 80 and 20, on a 0-100 PINNED scale', () => {
     expect(guidesFor('mfi')).toEqual(LEGACY_MFI_GUIDES)
     const ctx = {
-      paneMargins: computePaneMargins(MFI_CS, true, new Set()),
+      paneMargins: bandsFor(['mfi'], true),
       volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
     }
     expect(resolvePlacement({ defId: 'mfi' }, engineRegistry.getDefinition('mfi'), ctx).scaleOptions)
@@ -289,7 +323,7 @@ describe('the three single-line oscillators, transcribed', () => {
 
   it('cci is autoScale TRUE — it is the only unbounded one of the three', () => {
     const ctx = {
-      paneMargins: computePaneMargins(CCI_CS, true, new Set()),
+      paneMargins: bandsFor(['cci'], true),
       volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
     }
     const placed = resolvePlacement({ defId: 'cci' }, engineRegistry.getDefinition('cci'), ctx)
@@ -307,7 +341,7 @@ describe('the three single-line oscillators, transcribed', () => {
     expect(engineRegistry.getDefinition('williamsR').plots.map(p => p.key))
       .toEqual(['williams_r', 'bands'])
     const ctx = {
-      paneMargins: computePaneMargins(WILLIAMS_CS, true, new Set()),
+      paneMargins: bandsFor(['williamsR'], true),
       volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
     }
     expect(resolvePlacement({ defId: 'williamsR' }, engineRegistry.getDefinition('williamsR'), ctx).scaleOptions)
@@ -672,8 +706,11 @@ describe('three adjacent bands, three different scales', () => {
         mfi: { enabled: true }, cci: { enabled: true }, williamsR: { enabled: true },
       },
     }
-    const bands = computePaneMargins(cs, false, new Set())
-    // `paneMargins.PANES` order is bottom-of-chart → top: cci, williamsR, mfi.
+    // ⚠️ TOP-TO-BOTTOM, which is the instance list's own order and the REVERSE of
+    // the order the retired `PANES` table listed. The three edges pinned below
+    // are what makes a wrong order a RED test rather than a silent re-stack.
+    const bands = bandsFor(['mfi', 'williamsR', 'cci'])
+    // The stack, bottom-of-chart → top: cci, williamsR, mfi.
     expect(bands.cci).toEqual({ top: 0.85, bottom: 0 })
     expect(bands.williamsR).toEqual({ top: 0.70, bottom: 0.15 })
     expect(bands.mfi).toEqual({ top: 0.55, bottom: 0.30 })
@@ -681,9 +718,9 @@ describe('three adjacent bands, three different scales', () => {
     // there is no gap and no overlap anywhere in the stack.
     // ⚠️ `toBeCloseTo`, not `toBe`: `1 - 0.85` is `0.15000000000000002` in IEEE
     // 754, and a strict compare here would be a test about float representation
-    // rather than about the layout. `computePaneMargins` builds every edge from
-    // INTEGER hundredths precisely so the stored numbers are exact; it is only
-    // the complement taken HERE that is inexact.
+    // rather than about the layout. The band map builds every edge from INTEGER
+    // hundredths precisely so the stored numbers are exact; it is only the
+    // complement taken HERE that is inexact.
     expect(1 - bands.cci.top).toBeCloseTo(bands.williamsR.bottom, 12)
     expect(1 - bands.williamsR.top).toBeCloseTo(bands.mfi.bottom, 12)
     expect(bands.main).toEqual({ top: 0.30, bottom: 0.45 })
@@ -697,7 +734,7 @@ describe('three adjacent bands, three different scales', () => {
         mfi: { enabled: true }, cci: { enabled: true }, williamsR: { enabled: true },
       },
     }
-    const paneMargins = computePaneMargins(cs, false, new Set())
+    const paneMargins = bandsFor(['mfi', 'williamsR', 'cci'])
     const result = binder.sync({
       enabled: true, cs, registry: engineRegistry,
       instances: [MFI_INSTANCE, CCI_INSTANCE, WILLIAMS_INSTANCE], bars: BARS,

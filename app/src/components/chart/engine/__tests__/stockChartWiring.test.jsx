@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
@@ -70,12 +70,14 @@ const H = vi.hoisted(() => ({
   binderApis: [],
   syncCalls: [],
   crosshairHandlers: [],
-  // Every `csForPaneMargins` call, with the object it RETURNED. Task 9's exit
-  // criterion is that the projection is the identity function while nothing is
-  // flipped, and identity is not observable from `paneMargins` — two different
-  // blobs can produce deep-equal margins. This is the only place the claim can
-  // actually be checked from the component level.
-  csForPaneMarginsCalls: [],
+  // ⭐ B5 TASK 12 RETIRED `csForPaneMarginsCalls`, WITH THE MODULE IT WATCHED.
+  // `engine/paneMarginsProjection.js` existed to keep a SECOND copy of the band
+  // arithmetic (`chart/paneMargins.js`, which read `cs.indicators[id].enabled`)
+  // honest once the instance list became the authority. There is one copy now —
+  // `computePaneLayout` reads the instances and returns the band map as
+  // `layout.bands` — so there is no projection to observe. What the recorder was
+  // ultimately protecting (the binder is handed bands that follow the INSTANCE
+  // LIST) is asserted directly off `syncCalls[].paneMargins` below.
   // How many times the READ-TIME MIGRATOR ran. Its gate is otherwise
   // unobservable: the per-definition filter behind it already discards every
   // projected instance while the flip set is empty, so removing the gate changes
@@ -104,7 +106,6 @@ const H = vi.hoisted(() => ({
     H.binderApis.length = 0
     H.syncCalls.length = 0
     H.crosshairHandlers.length = 0
-    H.csForPaneMarginsCalls.length = 0
     H.migrateCalls = 0
   },
 }))
@@ -123,26 +124,12 @@ vi.mock('../instances', async (importOriginal) => {
   }
 })
 
-// The REAL projection, wrapped so its ARGUMENT and its RETURN are both visible.
-// A stub returning `cs` would make the identity assertion below prove nothing
-// about the shipped function.
-vi.mock('../paneMarginsProjection', async (importOriginal) => {
-  const actual = await importOriginal()
-  return {
-    // ⚠️ SPREAD FIRST, THEN OVERRIDE. B5 Task 9 added a second export to this
-    // module (`csForPaneMarginsFromSettings` — the projection for the three
-    // `computePaneMargins` call sites that have no instance list in scope), and a
-    // mock that enumerates its exports fails the whole SUITE with "No X export is
-    // defined on the mock" the moment one is added. 181 cases went red on one
-    // missing name; the spread is what stops the next one doing it again.
-    ...actual,
-    csForPaneMargins: (cs, instances, flipped) => {
-      const out = actual.csForPaneMargins(cs, instances, flipped)
-      H.csForPaneMarginsCalls.push({ cs, instances, flipped, out })
-      return out
-    },
-  }
-})
+// ⛔ AND THERE IS NO `vi.mock('../paneMarginsProjection')` ANY MORE — B5 Task 12
+// DELETED THE MODULE. It wrapped the real projection so its ARGUMENT and its
+// RETURN were both visible, which was the only way to see that the blob handed to
+// `computePaneMargins` had been rewritten from the instance list. `paneMargins.js`
+// is retired into `computePaneLayout`, which reads the instances itself, so the
+// projection has no subject and neither has its recorder.
 
 vi.mock('lightweight-charts', () => {
   const makeSeries = (ctor) => {
@@ -389,6 +376,42 @@ const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
  * `BB_CONTROL` is that instance for the RSI cases.
  */
 const BB_CONTROL = { bb: { enabled: true, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' } }
+
+/**
+ * Pin a whole suite to `PANE_MODE === 'bands'` — THE GEOMETRY FLIP C REVERSES TO.
+ *
+ * ⭐ B5 TASK 12 FLIPPED THE CONSTANT, and that turned a large part of this file
+ * into a set of claims written in a vocabulary the shipped mode no longer speaks.
+ * A pane oscillator's band was a slice of pane 0 on a price scale NAMED AFTER THE
+ * DEFINITION, so `addSeriesCalls.filter(o => o.priceScaleId === 'rsi')` was how
+ * every suite below counted RSI's lines, `paneIndex === 0` was how it said "in the
+ * band", and `{top: 0.85, bottom: 0}` was the band itself. Under `'panes'` the
+ * oscillator owns a REAL pane and its numbers ride that pane's own right axis
+ * (`placement.js`, sub-choice 2.2) — so every one of those locators answers about
+ * a scale nothing is on any more.
+ *
+ * ⛔ AND THE FAILURE DIRECTION IS NOT UNIFORM, WHICH IS WHY THIS IS A PIN AND NOT
+ * A LOCATOR EDIT. `expect(rsiSeries()).toHaveLength(1)` goes RED, and is a real
+ * failure. `expect(rsiSeries()).toHaveLength(0)` — "a hidden instance draws
+ * nothing", "the band it vacated has no orphan" — goes GREEN OVER AN EMPTY READ,
+ * measuring nothing at all. Half the cases in a suite screaming while the other
+ * half silently stops meaning anything is the exact shape this branch keeps
+ * finding, and pinning the mode is what makes BOTH halves honest again: the claims
+ * are true, they are still gates, and they describe the mode one edit of
+ * `PANE_MODE` returns the app to.
+ *
+ * ⛔ THE SHIPPED MODE IS NOT LEFT UNCOVERED, and this pin is not where it would be
+ * covered anyway: `__tests__/flipCGeometry.test.jsx` drives a REAL chart through
+ * the cutover (a pane per oscillator in instance-list order, the pane heights to
+ * the pixel, the §A6 candle-rectangle identity, #2049 reuse across a pane move,
+ * the right-click resolver on real pane rectangles), and the two suites at the
+ * BOTTOM of this file drive the component under `'panes'` for the two answers that
+ * live nowhere else — the context menu and the chart's own options.
+ */
+const pinBandsMode = () => {
+  beforeEach(() => { __setPaneModeForTest('bands') })
+  afterEach(() => { __setPaneModeForTest(null) })
+}
 
 // ─── THE RIGHT-CLICK MENU, DRIVEN FOR REAL ──────────────────────────────────
 //
@@ -720,6 +743,9 @@ describe('StockChart × indicator engine — NOTHING TO DRAW is the whole safety
 })
 
 describe('StockChart × indicator engine — with something to draw', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   it('constructs exactly ONE binder and syncs it on every updateChart pass', () => {
     draw({ indicatorInstances: [RSI_INSTANCE] })
     // One binder for the life of the chart — not one per paint. A binder rebuilt
@@ -832,6 +858,9 @@ describe('StockChart × indicator engine — with something to draw', () => {
 // proof; two RSI lines would trivially fail it. This is the version that runs on
 // every commit.
 describe('legacy suppression — an engine instance stands its legacy block down', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
   const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
 
@@ -938,6 +967,9 @@ describe('legacy suppression — an engine instance stands its legacy block down
 // the sentence describing which two renderers it is separating has moved.
 
 describe('a migrated definition is drawn ONCE — never by the engine and legacy both', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const instanceOf = (defId) => ({ instanceId: `legacy:${defId}`, defId, inputs: {}, hidden: false })
 
   it('names at least one definition — otherwise every case below is vacuous', () => {
@@ -1019,6 +1051,9 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
 // ─── I-3: series creation ORDER, which LWC turns into z-order ───────────────
 
 describe('an engine series is inserted where its legacy twin would have been', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // Under Flip A everything shares pane 0 — candles, volume, the MA overlays,
   // every price overlay, every oscillator band — and lightweight-charts z-orders
   // by INSERTION ORDER. The call site used to sit before the volume block, so an
@@ -1157,6 +1192,9 @@ describe('an engine series is inserted where its legacy twin would have been', (
 })
 
 describe('hide-all-indicators reaches engine series through the binding map', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const engineSeriesOf = () => H.addSeriesCalls
     .filter(c => c.options && c.options.priceScaleId === 'rsi')
     .map(c => c.series)
@@ -1212,6 +1250,9 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
 // capture has no cursor, so no chip is drawn on either side and the diff is 0
 // whichever way the bridge behaves. This suite is that gate.
 describe('an engine-drawn indicator still appears in the crosshair legend', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
 
   /** Drive one crosshair move over the newest bar and return the rendered chips.
@@ -1508,6 +1549,9 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
 // outside it. These are the paths that name RSI.
 
 describe('Alt+Shift+I still reaches an engine-drawn RSI in the CROSSOVER state', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // The existing hide-all suite draws the engine with `cs.indicators.rsi` absent.
   // Flip A's real state is the crossover: the legacy toggle stays ON (it is what
   // `computePaneMargins` reads to reserve the band) while the engine owns the
@@ -1533,6 +1577,9 @@ describe('Alt+Shift+I still reaches an engine-drawn RSI in the CROSSOVER state',
 })
 
 describe('the settings round-trip — what a user changes after the flip', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
   const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
   const settings = (over) => ({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE], ...over })
@@ -1727,11 +1774,12 @@ describe('the settings round-trip — what a user changes after the flip', () =>
 // which overlaps volume's `{top:0.85, bottom:0}` — an RSI drawn ON TOP OF the
 // volume bars, one keystroke away from four different controls.
 //
-// Flip B moves the authority the other way: `csForPaneMargins` rewrites that
-// field from the INSTANCE list, so the band follows the instance and the
-// toggle-OFF-with-an-instance state stopped existing. Three cases below went red
-// on the flip — which is what the tripwire was for — and are rewritten to the new
-// rule rather than relaxed:
+// Flip B moved the authority the other way — a projection rewrote that field from
+// the INSTANCE list — and B5 Task 12 removed the indirection entirely:
+// `computePaneLayout` reads the instances and IS the band arithmetic, so the band
+// follows the instance and the toggle-OFF-with-an-instance state stopped existing.
+// Three cases below went red on the flip — which is what the tripwire was for —
+// and are rewritten to the new rule rather than relaxed:
 //
 //   · "the toggle OFF: no band is reserved" → an INSTANCE reserves the band and
 //     the engine draws into it, whatever the toggle says;
@@ -1742,9 +1790,14 @@ describe('the settings round-trip — what a user changes after the flip', () =>
 //     fail if either moves.
 //   · Ctrl+I → writes a TOMBSTONE and the mirror, not the mirror alone.
 //
-// `paneMargins.js` is still consumed and not modified: everything here reads the
-// band out of the ctx the binder was actually handed.
+// Nothing here re-derives the geometry: every case reads the band out of the ctx
+// the binder was actually handed. That is what let the suite outlive
+// `paneMargins.js` itself — the object simply became `computePaneLayout(...).bands`
+// and the key, the value and the assertion are unchanged.
 describe('the reserved band — the instance reserves it, and the engine lands in it', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const RSI_ON = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
   const rsiSeries = () => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi')
   const settings = (over) => ({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE], ...over })
@@ -1908,6 +1961,9 @@ const BB_INSTANCE = {
 const purple = () => H.addSeriesCalls.filter(c => c.options && c.options.color === BB_COLOUR)
 
 describe('BB Flip A — the legacy block stands down, z-order is preserved', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   it('draws three BB lines with the engine OFF (the shipped behaviour)', () => {
     draw(BB_ON)
     expect(purple()).toHaveLength(3)
@@ -2058,6 +2114,9 @@ describe('the five price overlays migrate in REGISTRY order, or z-order inverts'
 // two behind, which reads as a band that lost an edge.
 
 describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const settings = (over) => ({ ...BB_ON, indicatorInstances: [BB_INSTANCE], ...over })
 
   it('Alt+Shift+I hides and re-shows every one of the three, not just the first', () => {
@@ -2253,6 +2312,9 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
 })
 
 describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // BB declares `legend: { hide: true }` on all three plots because the SHIPPED
   // legend has no Bollinger chip (`StockChart.jsx:9677-9687` lists nine, none of
   // them BB). `readout.test.js` gates the pure function; this gates the rendered
@@ -2316,6 +2378,9 @@ describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () =>
 })
 
 describe('C-2 — RSI off and BB on in ONE settings write, from the component', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // ⛔ THE B2 FINAL REVIEW'S CRITICAL #2, REPRODUCED WHERE IT ACTUALLY HAPPENED.
   // The pool re-purposes RSI's freed LineSeries into BB's upper band. `placement`
   // used to return `scaleId: null` for a price overlay, meaning "the candles'
@@ -2403,6 +2468,9 @@ describe('C-2 — RSI off and BB on in ONE settings write, from the component', 
 })
 
 describe('a BB instance survives BOTH settings allow-lists', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // `mergeChartSettings` is an explicit allow-list — a key absent from its return
   // is silently DROPPED on every read — and `mergeSettingsOverride` is the second
   // one, applied by every grid cell and by the parity route. An instance that
@@ -2496,6 +2564,9 @@ const lastDataFor = (series) => {
 }
 
 describe('MACD Flip A — the legacy block stands down, all three plots move together', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   it('draws three series on the macd scale with the engine OFF (the shipped behaviour)', () => {
     draw(MACD_ON)
     expect(onMacdScale()).toHaveLength(3)
@@ -2593,6 +2664,9 @@ describe('MACD Flip A — the legacy block stands down, all three plots move tog
 })
 
 describe('MACD\'s histogram — the per-bar sign colours, against a LEGACY control', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // ⛔ B2 REVIEW CRITICAL #3. `toPoints` emitted `{time,value}` only and
   // `seriesOptionsForPlot` ignored `colorMode: 'sign'`, so an engine-drawn MACD
   // histogram came out in ONE flat LWC default across the whole band where legacy
@@ -2654,6 +2728,9 @@ describe('MACD\'s histogram — the per-bar sign colours, against a LEGACY contr
 })
 
 describe('what pixels cannot see, for MACD', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const settings = (over) => ({ ...MACD_ON, indicatorInstances: [MACD_INSTANCE], ...over })
 
   it('Alt+Shift+I hides and re-shows all THREE, lines and histogram alike', () => {
@@ -2866,6 +2943,9 @@ describe('what pixels cannot see, for MACD', () => {
 })
 
 describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // MACD is the only migrated definition with VISIBLE chips besides RSI, and the
   // only one with two of them plus a hidden plot. `readout.js` maps
   // `macd::macd → macd` and `macd::signal → macdSig`; the histogram declares
@@ -2994,6 +3074,9 @@ describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', (
 })
 
 describe('a MACD instance survives BOTH settings allow-lists', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   it('mergeChartSettings keeps the instance and the flag through a JSON round-trip', () => {
     // ⚠️ THE TITLE SAYS "the flag" AND IT USED TO ASSERT `merged.engineEnabled`
     // — B5 Task 4 deleted that key, so the allow-list DESTROYS it and the
@@ -3072,6 +3155,9 @@ const drawIntraday = (settingsOverride) => render(
 )
 
 describe('VWAP Flip A — the legacy block stands down on an intraday chart', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   it('draws one cyan line with the engine OFF (the shipped behaviour)', () => {
     drawIntraday(VWAP_ON)
     expect(vwapLines()).toHaveLength(1)
@@ -3136,6 +3222,9 @@ describe('VWAP Flip A — the legacy block stands down on an intraday chart', ()
 })
 
 describe('what pixels cannot see, for VWAP', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const settings = (over) => ({ ...VWAP_ON, indicatorInstances: [VWAP_INSTANCE], ...over })
 
   it('Alt+Shift+I hides and re-shows the engine-drawn line', () => {
@@ -3373,6 +3462,9 @@ describe('what pixels cannot see, for VWAP', () => {
 })
 
 describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // `plots[0].legend.hide` is the declaration; this is what it has to MEAN.
   // The LEGACY read is the control: the absence has to be legacy's, not a bug in
   // the engine's chip builder, or "no chip" would be indistinguishable from "the
@@ -3423,6 +3515,9 @@ describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
 })
 
 describe('vwapOverride — the enable signal that is not a toggle', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   // The Model Book intraday popup passes `vwapOverride={{color}}`, which FORCES
   // the indicator on regardless of `indicators.vwap.enabled` and forces its
   // colour. No other migrated definition has an enable signal outside its own
@@ -3520,6 +3615,9 @@ describe('vwapOverride — the enable signal that is not a toggle', () => {
 })
 
 describe('a VWAP instance survives BOTH settings allow-lists', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   it('mergeChartSettings keeps the instance and the flag through a JSON round-trip', () => {
     // ⚠️ THE TITLE SAYS "the flag" AND IT USED TO ASSERT `merged.engineEnabled`
     // — B5 Task 4 deleted that key, so the allow-list DESTROYS it and the
@@ -3587,48 +3685,44 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 //   · "a legacy toggle alone draws LEGACY"   → it draws the ENGINE's, via the migrator
 //   · "the migrator is never RUN"            → it runs, and is the compatibility path
 //   · "…for EVERY migrated definition"       → only for the UN-flipped ones
-//   · "csForPaneMargins returns `cs` by IDENTITY" → identity survives only where
-//     nothing flipped can appear, which after Flip B is no chart at all; the
-//     property that replaced it is that the projection changes ONE FIELD and
-//     leaves the rest of the blob alone, asserted by comparison against the input
+//   · "csForPaneMargins returns `cs` by IDENTITY" → the projection is DELETED; the
+//     property that replaced it is that the binder is handed the LAYOUT's own band
+//     map and the bands follow the instance list (see the case below, and the
+//     paragraph after this one)
 //   · "the toolbar still writes the LEGACY section" → it writes the instance AND
 //     the mirror
 //
 // Rewriting them rather than deleting them is the point: each one still names a
 // way the machinery could be wrong, in the direction it can now be wrong in.
-// ⛔⭐⭐ B5 TASK 9 — A GAP, STATED RATHER THAN PAPERED OVER.
 //
-// `computePaneMargins` has FOUR call sites in `StockChart.jsx`; three read the
-// raw `cs`, and the first (`_mainMargins`, seven callers) is the CANDLE series'
-// own `scaleMargins`. They were correct only because `cs.indicators[id].enabled`
-// was a write-through MIRROR of the instance list, and Task 9 DELETED that
-// mirror — so a merged v2 blob reserves NO bands and the candles fill the whole
-// pane. All nine were switched to the projected `csPanes`.
+// ⛔⭐⭐ B5 TASK 9 STATED A GAP HERE, AND B5 TASK 12 CLOSED IT BY DELETING BOTH
+// SIDES OF IT. The paragraph that stood here described `csPanes`: `computePaneMargins`
+// had nine call sites reading `cs.indicators[id].enabled` — a field Task 9 stopped
+// mirroring — so every one of them was handed a blob with the instance list
+// PROJECTED BACK ONTO IT, and nothing in this tree could kill `csPanes -> cs`. It
+// recorded two failed attempts to gate the wiring, and the second is the one worth
+// keeping:
 //
-// ⛔ NOTHING IN THIS TREE KILLS `csPanes -> cs`, AND BOTH ATTEMPTS ARE RECORDED
-// BECAUSE THE SECOND ONE PASSED WHILE FALSE:
+//   · THE PIXEL GATE COULD NOT SEE IT, STRUCTURALLY. A probe build with the
+//     projection removed at all nine sites reported **0 changed pixels** on
+//     `rsi_only`, `bb_rsi_macd`, `adx_only` and `engine_three_bands_stacked`,
+//     because every parity case injects its settings through `?indicators=`, which
+//     `ChartRender` applies with `mergeSettingsOverride` — NOT an allow-list — so
+//     the legacy sections survive on that route and do not on a real user's.
 //
-//   1. THE PIXEL GATE CANNOT SEE IT, STRUCTURALLY. A probe build with the
-//      projection removed at all nine sites reported **0 changed pixels** on
-//      `rsi_only`, `bb_rsi_macd`, `adx_only` and `engine_three_bands_stacked`.
-//      Every parity case injects its settings through `?indicators=`, which
-//      `ChartRender` applies with `mergeSettingsOverride` — NOT an allow-list —
-//      so the legacy sections survive on that route. A real user's blob arrives
-//      through `mergeChartSettings`, where they do not.
+//   · A COMPONENT PROBE WAS WRITTEN HERE AND DELETED. It recorded every
+//     `priceScale().applyOptions` and asserted the candle scale reserved RSI's
+//     band. It passed — and it ALSO passed with `_mainMargins` handed a literally
+//     EMPTY blob (`{indicators: {}}`), which proves the `{top:0.7,bottom:0.15}`
+//     write it was reading did not come from `_mainMargins` at all. A control that
+//     survives its own mutation is worse than no control.
 //
-//   2. A COMPONENT PROBE WAS WRITTEN HERE AND DELETED. It recorded every
-//      `priceScale().applyOptions` and asserted the candle scale reserved RSI's
-//      band. It passed — and it ALSO passed with `_mainMargins` handed a literally
-//      EMPTY blob (`{indicators: {}}`), which proves the `{top:0.7,bottom:0.15}`
-//      write it was reading does not come from `_mainMargins` at all. A control
-//      that survives its own mutation is worse than no control, so it is gone
-//      rather than left looking like a gate.
-//
-// What DOES stand behind the fix: `paneMarginsProjection.test.js` measures the
-// regression directly (*"the RAW merged blob reserves NO bands"*, then the
-// projection restoring them identically to the PRE-FOLD blob on all 512 subsets),
-// and mutation M14 on `csForPaneMarginsFromSettings` is lethal. What is NOT
-// covered is the WIRING — that `StockChart` passes `csPanes` and not `cs`.
+// ⭐ THE GAP IS GONE BECAUSE THE SECOND COPY IS. `computePaneLayout` reads the
+// INSTANCES and returns the band map as `layout.bands`; `_mainMargins` takes the
+// LAYOUT and no blob at all; `paneMargins.js` and `paneMarginsProjection.js` are
+// deleted. There is no projection to bypass and no wiring left to get wrong — the
+// only thing that can still be wrong is whether the binder is handed THAT object,
+// which is now an identity comparison one case below can make.
 
 describe('the Flip-B machinery, live (Task 10)', () => {
   it('ENGINE_FLIPPED_DEF_IDS is exactly the fourteen migrated ids, and EQUALS the migrated set', () => {
@@ -3652,10 +3746,19 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // ⭐ THE COMPATIBILITY CASE, AND THE ONE EVERY EXISTING USER IS IN. A blob
     // with `indicators.rsi.enabled` and no instance anywhere still renders: the
     // migrator projects it, the engine draws it, and there is exactly one line.
-    draw({ indicators: { rsi: { enabled: true } } })
-    expect(H.binderApis[0].bindings(), 'the migrator did not project the toggle').toHaveLength(1)
-    expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi'),
-      'two RSI lines — the deleted block came back').toHaveLength(1)
+    //
+    // ⭐ BANDS, PINNED (B5 Task 12) — and only this case in the suite, because only
+    // this one counts lines by the DEFINITION-NAMED price scale. See `pinBandsMode`
+    // for why that locator stopped answering under `'panes'`; the sibling cases
+    // read the binder's own holdings and the band map, both of which the layout
+    // produces in either mode.
+    __setPaneModeForTest('bands')
+    try {
+      draw({ indicators: { rsi: { enabled: true } } })
+      expect(H.binderApis[0].bindings(), 'the migrator did not project the toggle').toHaveLength(1)
+      expect(H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'rsi'),
+        'two RSI lines — the deleted block came back').toHaveLength(1)
+    } finally { __setPaneModeForTest(null) }
   })
 
   it('…and the read-time migrator RUNS — the gate is open, not just its effect', () => {
@@ -3700,42 +3803,55 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(14)
   })
 
-  it('csForPaneMargins changes ONE FIELD and carries the rest of the blob through', () => {
-    // ⛔ WHAT REPLACED THE IDENTITY ASSERTION. Task 9 could assert `out === cs`,
-    // because with nothing flipped the projection short-circuits. It cannot hold
-    // now — a flipped id means a rewritten `indicators` section — so the property
-    // that survives is the one that actually protects `paneMargins.js`: the blob
-    // handed to `computePaneMargins` is the SAME `cs` except for
-    // `indicators.<flipped>.enabled`. Anything else moving is the projection
-    // growing into a second settings model.
+  it('the binder is handed the LAYOUT\'S OWN band map, and the bands follow the INSTANCE LIST', () => {
+    // ⭐ RE-POINTED AT B5 TASK 12, BECAUSE ITS SUBJECT RETIRED. This case read
+    // "csForPaneMargins changes ONE FIELD and carries the rest of the blob
+    // through" — the projection that rewrote `cs.indicators[id].enabled` from the
+    // instance list so that `computePaneMargins`, which read that field, kept
+    // reserving the right bands after Task 9 deleted the mirror. Both the
+    // projection and `computePaneMargins` are gone: `computePaneLayout` reads the
+    // INSTANCES directly and returns the band map as `layout.bands`.
+    //
+    // ⛔ SO THE CLAIM THAT DIED IS "the projection rewrites exactly one field",
+    // and the one that survives it is what the projection existed to guarantee —
+    // the bands the binder resolves placement against follow the instance list,
+    // and they are the LAYOUT'S OWN map rather than a second computation that
+    // could disagree with the panes the same layout builds. That identity is the
+    // structural version of the whole retirement: two copies cannot drift if
+    // there is one object.
     draw({ indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] })
-    expect(H.csForPaneMarginsCalls.length,
-      'csForPaneMargins was never called — the projection is not wired in').toBeGreaterThan(0)
-    for (const call of H.csForPaneMarginsCalls) {
-      expect(call.flipped.size, 'the flip set reaching the projection is empty').toBeGreaterThan(0)
-      for (const key of Object.keys(call.cs)) {
-        if (key === 'indicators') continue
-        expect(call.out[key], `the projection rewrote ${key}`).toBe(call.cs[key])
-      }
-      for (const id of Object.keys(call.cs.indicators || {})) {
-        if (ENGINE_FLIPPED_DEF_IDS.has(id)) continue
-        expect(call.out.indicators[id], `the projection rewrote indicators.${id}`)
-          .toBe(call.cs.indicators[id])
-      }
-    }
-    // …and the band the binder was actually handed is the legacy answer.
-    expect(H.syncCalls.at(-1).paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
+    const ctx = H.syncCalls.at(-1)
+    expect(ctx, 'no sync happened — every assertion below would be vacuous').toBeTruthy()
+    expect(ctx.paneMargins, 'the binder was handed a band map the layout does not own — '
+      + 'a second copy of the geometry is exactly what Task 12 retired').toBe(ctx.paneLayout.bands)
+    // The band itself, pinned — presence alone would survive a re-quantised stack.
+    expect(ctx.paneMargins.rsi, 'the live instance reserved no band').toEqual({ top: 0.85, bottom: 0 })
+
+    // …and the SAME chart minus that instance reserves nothing for it. BB_CONTROL
+    // keeps a live binder (and therefore a real margins object) without reserving
+    // a band of its own — see the note on `bound()`.
+    cleanup(); H.reset()
+    draw({ indicators: { ...BB_CONTROL } })
+    const bare = H.syncCalls.at(-1)
+    expect(bare, 'the control chart never synced — the claim below would be vacuous').toBeTruthy()
+    expect(bare.paneMargins.volume, 'the margins object is empty — so is the claim below').toBeTruthy()
+    expect(bare.paneMargins.rsi,
+      'a band was reserved for an indicator no instance names').toBeUndefined()
   })
 
-  it('…and it is called on a flag-off chart too, where a flipped id still draws', () => {
-    // The projection sits on the paint path for every chart, not just engine
-    // ones — and after Flip B "not an engine one" no longer means "nothing
-    // flipped is drawn", which is the whole reason the engine ignores the flag
-    // for a flipped id.
+  it('…and a legacy toggle ALONE reserves it — through the migrator, on a chart with no instances', () => {
+    // ⭐ RE-POINTED AT TASK 12 TOO. It read "…and it is called on a flag-off chart
+    // too" — `it` being the projection, which sat on the paint path of EVERY
+    // chart. That reader is gone with the module. What is still true, and is the
+    // half that matters to an existing user, is that a blob holding nothing but
+    // the legacy toggle both DRAWS the engine's RSI and reserves its band: the
+    // read-time migrator projects the instance, and the layout reads the projected
+    // list, so the two halves cannot disagree.
     draw({ indicators: { rsi: { enabled: true } } })
-    expect(H.csForPaneMarginsCalls.length, 'not called on a flag-off chart').toBeGreaterThan(0)
-    expect(H.binderApis[0].bindings(), 'a flag-off chart drew no RSI at all').toHaveLength(1)
-    expect(H.syncCalls.at(-1).paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
+    expect(H.binderApis[0].bindings(), 'a legacy-toggle-only chart drew no RSI at all').toHaveLength(1)
+    expect(H.syncCalls.at(-1).paneMargins.rsi,
+      'the migrated instance reserved no band — the line would land on the volume bars')
+      .toEqual({ top: 0.85, bottom: 0 })
   })
 
   it('the keyboard writes the INSTANCE and the MIRROR, in one blob', () => {
@@ -3844,6 +3960,13 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
   })
 
   it('right-click Hide names the indicator the way every other menu does', () => {
+    // ⭐ B5 TASK 12 — `H.paneModel`, NOT A MODE PIN. This case is about the DOOR,
+    // not the geometry, so it runs in the SHIPPED mode: under `'panes'` an
+    // indicator region is a real lightweight-charts pane rectangle read off the
+    // renderer, and the double answers `panes()` with one 300 px pane unless a case
+    // opts into the model Task 10 built for exactly this. Without it `openContextMenu`
+    // scans the whole plot, resolves no indicator region and throws by name.
+    H.paneModel = { stackPx: PLOT.height - 40 }   // minus the double's time axis
     const view = renderChart({
       settings: mergeChartSettings({ indicators: { williamsR: { enabled: true } } }),
     })
@@ -3860,6 +3983,10 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // that a predicate no row consults cannot be caught lying about that row.
     for (const id of ['rsi', 'stoch']) {
       cleanup(); H.reset()
+      // ⭐ B5 TASK 12 — INSIDE the loop, because `H.reset()` clears it. Same reason
+      // as the case above: under the shipped `'panes'` mode an indicator region is
+      // a real pane rectangle, so the double needs a pane model to have one.
+      H.paneModel = { stackPx: PLOT.height - 40 }
       const cs = mergeChartSettings({ indicators: { [id]: { enabled: true } } })
       const view = renderChart({ settings: cs })
       const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: id }), 'region')
@@ -4295,6 +4422,9 @@ describe('B4 Task 12 — Alt+Shift+A and right-click both reach the ONE library'
 // toggle reaches, or what a settings write leaves behind. That is this file's
 // half, and these cases are its Task-5 rows.
 describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const STOCH_ON = { stoch: { enabled: true, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' } }
   const ATR_ON = { atr: { enabled: true, period: 14, color: '#FFA726' } }
   const STOCH_INSTANCE = {
@@ -4642,6 +4772,9 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
 // in their GUIDES and their SCALES, so the component-level cases below are
 // deliberately written to assert those two things and not the series count.
 describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the component', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const MFI_ON = { mfi: { enabled: true, period: 14, color: '#c084fc' } }
   const CCI_ON = { cci: { enabled: true, period: 20, color: '#fbbf24' } }
   const WR_ON = { williamsR: { enabled: true, period: 14, color: '#60a5fa' } }
@@ -5033,6 +5166,9 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
 })
 
 describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component', () => {
+  // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
+  pinBandsMode()
+
   const ADX_ON = { adx: { enabled: true, period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' } }
   const OBV_ON = { obv: { enabled: true, color: '#9ca3af' } }
   const DON_ON = { donchian: { enabled: true, period: 20, color: 'rgba(96,165,250,0.5)' } }
@@ -5581,47 +5717,64 @@ describe('the chart options StockChart builds under PANE_MODE panes', () => {
     return H.chartOptionsCalls[0]
   }
 
-  it('the candles keep the LAYOUT s rectangle, not the bands one', async () => {
+  it('the candles keep the LAYOUT\'S rectangle, not the bands one', async () => {
     const { computePaneLayout, paneStackHeightPx, SEPARATOR_PX } = await import('../paneLayout')
-    const { computePaneMargins } = await import('../../paneMargins')
-    const { csForPaneMarginsFromSettings } = await import('../paneMarginsProjection')
 
-    // BANDS first: the shipped answer, so the comparison below has a control.
-    const cs = SETTINGS()
-    renderChart({ settings: cs })
-    const bandsMargins = opts().rightPriceScale.scaleMargins
-    const csPanes = csForPaneMarginsFromSettings(cs, registry, ENGINE_FLIPPED_DEF_IDS)
-    expect(bandsMargins).toEqual(computePaneMargins(csPanes, false).main)
+    /**
+     * The last `scaleMargins` the CANDLES' OWN scale was actually written.
+     *
+     * ⛔ NOT `opts()`. The chart-options effect runs BEFORE the render path on the
+     * first paint, so `paneLayoutRef` is still null there and `createChart` is
+     * handed `NO_STACK_MAIN_MARGINS`. The render path re-asserts the rectangle on
+     * the candles' own scale in the SAME pass that builds the layout — measured,
+     * and the reason that write exists at all: a parity case photographs the FIRST
+     * frame and nothing else.
+     */
+    const candleMargins = () => {
+      const candleSeries = (H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries') || {}).series
+      expect(candleSeries, 'no candle series was created').toBeTruthy()
+      const writes = H.scaleApplyCalls.filter(
+        c => c.series === candleSeries && c.options && c.options.scaleMargins)
+      expect(writes.length, 'the candles were never re-asserted a scaleMargins').toBeGreaterThan(0)
+      return writes[writes.length - 1].options.scaleMargins
+    }
+
+    // ⭐ B5 TASK 12 — THE ORACLE IS ONE LAYOUT, READ TWICE. It used to be
+    // `computePaneMargins(csForPaneMarginsFromSettings(cs, …), false).main` for
+    // the bands half and `computePaneLayout(csPanes, instances, …)` for the panes
+    // half — two functions, two settings projections. Both retired: the layout
+    // carries the band map AND the pane decomposition, off the same quantised
+    // stack, and takes no `cs` at all.
+    const instances = migrateLegacyToInstances(SETTINGS(), registry, ENGINE_FLIPPED_DEF_IDS)
+    const layout = computePaneLayout(instances, {
+      chartHeight: 300, hasVolumeBand: false, separatorPx: SEPARATOR_PX, firstPaneIndex: 1,
+    })
+
+    // ⭐ BANDS FIRST, AND EXPLICITLY PINNED — Task 12 flipped the constant, so this
+    // is the mode the flip REVERSES to rather than the one that ships. It is the
+    // control the panes answer is measured against, and it still has to be right:
+    // reversal is one edit.
+    __setPaneModeForTest('bands')
+    let bandsMargins
+    try {
+      renderChart({ settings: SETTINGS() })
+      bandsMargins = candleMargins()
+      expect(bandsMargins, 'in bands mode pane 0 IS the plot area, so the candle rectangle is '
+        + "the band map's own `main`").toEqual(layout.bands.main)
+    } finally { __setPaneModeForTest(null) }
 
     cleanup(); H.reset()
     __setPaneModeForTest('panes')
     try {
       H.paneModel = { stackPx: 300 }
       renderChart({ settings: SETTINGS() })
-      // ⛔ NOT `opts()`. The chart-options effect runs BEFORE the render path on
-      // the first paint, so `paneLayoutRef` is still null there and `createChart`
-      // is handed the BANDS rectangle. The render path re-asserts it on the
-      // candles' own scale in the SAME pass that creates the panes — measured,
-      // and the reason that write exists at all: a parity case photographs the
-      // FIRST frame and nothing else.
-      const candleSeries = (H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries') || {}).series
-      expect(candleSeries, 'no candle series was created').toBeTruthy()
-      const candleScaleWrites = H.scaleApplyCalls.filter(
-        c => c.series === candleSeries && c.options && c.options.scaleMargins)
-      expect(candleScaleWrites.length, "the candles were never re-asserted a scaleMargins").toBeGreaterThan(0)
-      const panesMargins = candleScaleWrites[candleScaleWrites.length - 1].options.scaleMargins
+      const panesMargins = candleMargins()
       // ⛔ AND IT IS A DIFFERENT FRACTION, BY CONSTRUCTION: pane 0 is shorter by
       // the oscillator stack, so the SAME ABSOLUTE PIXELS are a different
-      // fraction of it. Reading `computePaneMargins` here would put the candles
+      // fraction of it. Reading `layout.bands.main` here would put the candles
       // back where a full-height pane 0 would have them.
       expect(panesMargins).not.toEqual(bandsMargins)
-      const instances = migrateLegacyToInstances(SETTINGS(), registry, ENGINE_FLIPPED_DEF_IDS)
-      const want = computePaneLayout(
-        csForPaneMarginsFromSettings(SETTINGS(), registry, ENGINE_FLIPPED_DEF_IDS),
-        instances,
-        { chartHeight: 300, hasVolumeBand: false, separatorPx: SEPARATOR_PX, firstPaneIndex: 1 },
-      ).pane0.mainMargins
-      expect(panesMargins).toEqual(want)
+      expect(panesMargins).toEqual(layout.pane0.mainMargins)
       expect(paneStackHeightPx({ panes: () => [{ getHeight: () => 300 }] })).toBe(300)
     } finally { __setPaneModeForTest(null); H.paneModel = null }
   })

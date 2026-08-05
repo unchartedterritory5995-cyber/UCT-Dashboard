@@ -1,7 +1,12 @@
 # Decision: Flip C — the oscillator bands become real LWC panes
 
 **Decision id:** `FLIP_C_PANE_GEOMETRY`
-**Status:** 🟡 **OPEN — RE-MEASURED 2026-08-05 AGAINST A BUILD THAT RENDERS, AWAITING THE OWNER.** `PANE_MODE` stays `'bands'`; nothing here is applied.
+**Status:** ✅ **ACCEPTED 2026-08-05 — SHIPPED BY B5 TASK 12.** The owner answered
+two of the three sub-choices (§5) and Task 12 applied exactly that: `PANE_MODE =
+'panes'`, the chart's own separator token (2.1), the per-pane price axis (2.2),
+and today's pane heights PRESERVED (2.3 rejected). Landed in its own commit, per
+the `MACD_HEAD_MASK` / `VWAP_SESSION_ANCHOR` precedent. §9 records what the
+APPLIED build actually measured against what §3 predicted.
 **Owner of the read:** `app/src/components/chart/engine/paneLayout.js` → `PANE_MODE` / `paneMode()`,
 and `computePaneMargins` in `app/src/components/chart/paneMargins.js` (consumed, not modified).
 **Adjudication row:** `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §11.
@@ -9,16 +14,18 @@ and `computePaneMargins` in `app/src/components/chart/paneMargins.js` (consumed,
 **Measured by:** B5 Task 11, 2026-08-05 — **and its numbers were withdrawn**: they were taken
 against a patched build, because the cutover did not render. **Re-measured by Task 11b**, same
 day, after the three defects were fixed at root (commit `bd388aa2`).
-**Applied by:** Task 12, in its own commit, after the owner answers.
+**Applied by:** B5 Task 12, 2026-08-05, in its own commit — build **6d3ccce34548**
+against the shipped **1c74866baccb**. See §9.
 **Pinned by:** `app/src/components/chart/engine/__tests__/flipCRecord.test.js` — it reads this file and
 fails if a live parity case is unpriced, if an unfilled placeholder survives (the test spells the
 token out; this line deliberately does not, so the rail cannot be satisfied by its own description),
-if fewer than two build identities are named, if any of §2's three rows is unpriced, or if this
-Status line stops saying OPEN.
+if fewer than two build identities are named, if any of §2's three rows is unpriced, if this Status
+line stops saying ACCEPTED, or if §5 still holds an unanswered sub-choice.
 
 > ⛔ **THREE SUB-CHOICES, THREE ANSWERS.** §2 is a table and not a paragraph because
 > an owner can accept any subset. A single "looks good" over the whole change is
-> exactly the shape this record exists to refuse.
+> exactly the shape this record exists to refuse. **The owner took 2.1 and 2.2 and
+> REFUSED 2.3** — which is the subset a single verdict could not have expressed.
 >
 > ✅ **THE CUTOVER NOW RENDERS ON ONE EDIT.** Task 11 measured that it did not —
 > `PANE_MODE = 'panes'` threw into StockChart's ErrorBoundary on all 46 cases —
@@ -198,6 +205,15 @@ not small in what it means — every oscillator pane gains a live numeric ladder
 user will read values off, and `manifest_geometry` records the `scaleId` moving
 from the definition's own overlay scale to `right` on every migrated series.
 
+🔴 **AND THE "EVERY PIXEL INSIDE `osc_strip`" CLAIM IS FALSE ON `obv` — MEASURED
+BY B5 TASK 12, AFTER THE ANSWER.** The six cases above do not include one, and
+OBV is the only shipped indicator whose values run to hundreds of millions.
+lightweight-charts aligns every pane to ONE shared axis column, so OBV's labels —
+the widest on the chart — widen it, the plot narrows, and the candles, the volume
+pane and the time axis all move. On `obv_only` the two sub-choices together cost
+**82,498 px** with `price_plot` **17,109** and `time_axis` **1,668**, against
+2,540 – 5,316 on every other case. §9 has the isolation and the remedy.
+
 **Recommendation: THE OWNER'S CALL, WITH THE NUMBER IN FRONT OF THEM.** TradingView
 shows it and spec §6's "pane grammar" implies it; against that, an RSI whose scale
 is pinned 0–100 gains little from a ladder that always reads the same three
@@ -297,7 +313,9 @@ costs a quarter of the picture.
 **19 of 46 cases read 0** — every case that creates no oscillator pane (`bb`,
 `vwap`, `sar`, `ichimoku`, `donchian`, the price-overlay z-order case, the
 intraday bars case, and `engine_rsi_toggle_off`, whose RSI is off). **The cutover
-is exactly, provably free on a chart with no oscillator.** The other 27 run
+is exactly, provably free on a chart with no oscillator.** ⚠️ **TRUE OF THE
+CUTOVER ALONE AND NOT OF WHAT SHIPPED** — the owner took the separator token, and
+those nineteen cases each read **1,200 px** in the applied build. See §9. The other 27 run
 **108,284 – 164,490 px**, i.e. 14.6 – 22.1 % of the export, and all 46 sum to
 **3,439,445 px**. ⭐ **Every one of the 46 read a SINGLE value on all 5 runs** —
 Task 11 had two cases it could not measure at all.
@@ -451,15 +469,22 @@ pane below it is the whole decision in one image.
 
 ## 5. The owner's answer
 
-*(EMPTY — §2's three rows go to the owner with §3's numbers and the screenshots in
-`docs/decisions/assets/2026-08-04-flip-c/`, and the answer is recorded here, PER
-SUB-CHOICE. "Looks great" is not an answer to three questions.)*
+**ANSWERED 2026-08-05.** §2's three rows went to the owner with §3's numbers and
+the screenshots in `docs/decisions/assets/2026-08-04-flip-c/`. Two answers came
+back, and they do not agree with each other about direction — which is exactly why
+this section is a table:
 
 | sub-choice | answer | date |
 |---|---|---|
-| 2.1 separator colour | *(pending)* | |
-| 2.2 per-pane price axis | *(pending)* | |
-| 2.3 pane heights | *(pending)* | |
+| 2.1 separator colour | ✅ **TAKE THE TOKEN.** The chart's own `separatorColors`, not LWC's `#2B2B43`. 2,400 px on `rsi_only` — one 1,200-px row per separator, and it restyles the price/volume divider too. | 2026-08-05 |
+| 2.2 per-pane price axis | ✅ **YES.** Every oscillator pane grows its own visible `right` scale with the indicator's numbers on it. 372 px on `rsi_only`, every pixel inside `osc_strip`. **The one sub-choice that changes what a user READS.** | 2026-08-05 |
+| 2.3 pane heights | ⛔ **REJECTED — PRESERVE TODAY'S.** LWC's equal-pane defaults would have added 195,658 px on `rsi_only` (26.3 % of the canvas) and changed every chart's proportions rather than just the oscillator ordering. | 2026-08-05 |
+
+**What the owner bought, in one line:** the cutover's own 108,284 – 164,490 px on
+the 27 cases that create an oscillator pane, **0 px on the other 19**, plus the
+separator token and the axis. A returning user's chart is recognisable — same
+candle rectangle, same relative band sizes — and the oscillators have moved BELOW
+the volume pane, which is §7's stated loss and the largest slice of every diff.
 
 ## 6. 🔴 What measuring it found: three defects, ONE cause — and the fix
 
@@ -555,6 +580,30 @@ on a split that does not divide evenly.
 * **every open chart is reordered** — the oscillators move below the volume pane.
   §3's `mid_panes` column is what that costs, and it is the largest single slice of
   the diff on most cases.
+* 🔴 **AND THE OSCILLATORS ARE REORDERED AMONG THEMSELVES — FOUND BY B5 TASK 12,
+  AFTER THE OWNER ANSWERED, AND IT IS THE ONE THING ON THIS PAGE THE OWNER WAS NOT
+  SHOWN.** Under `'bands'` the stack order is `paneMargins.PANES` — a constant.
+  Under `'panes'` it is the INSTANCE LIST's order, and the v1→v2 fold seeds that
+  list in **REGISTRY** order, not in the shipped stack order. Those two disagree:
+  today, top-to-bottom, `rsi · stoch · mfi · williamsR · cci · macd · adx · atr ·
+  obv`; after the cutover, `rsi · macd · stoch · atr · mfi · cci · williamsR · adx
+  · obv`. On a chart with RSI + MACD + Stochastics, MACD and Stochastics **swap**.
+  * **It is inside the measured numbers.** Build **1667183abbe0** carried exactly
+    this behaviour, so §3's 108,284 – 164,490 px already pay for it — nothing
+    re-measured, nothing under-declared. What is missing is this paragraph.
+  * **Why it was not fixed in the apply.** The obvious fix — seed the fold in
+    `SHIPPED_STACK_ORDER` — was tried at B5 Task 9 and **the pixel gate refused
+    it**: the instance list is also the binder's `addSeries` order and insertion
+    order is z-order, so `engine_three_bands_stacked` reported a manifest GEOMETRY
+    diff (`series[2].scaleId 'cci' → 'williamsR'`) at **0 changed pixels**, 5/5
+    runs. Sorting PANES by `stackRank` inside `computePaneLayout` is the other
+    half of that fix and it is a geometry change with its own gate — i.e. a
+    decision, priced separately, not something to slip into the commit that
+    applies a different one.
+  * **What is written down instead.** `instances.js` and `paneLayout.js` both
+    claimed the order WAS applied at Flip C; both docstrings are corrected, and
+    `settingsBlobMigration.test.js` pins the measured order so the claim cannot
+    drift back into prose. **This is an owner call and it is open.**
 * **the price pane is no longer pixel-identical** — but the residue is now
   sub-pixel rounding rather than a re-fit (§1), 2,791 px instead of 49,429.
 * **a height disagreement is now silent-ish** — a `console.warn` and a counter
@@ -581,6 +630,121 @@ Lightweight Charts natively supports, so every future pane feature is blocked
 behind this same flip. It is also **two behaviours pretending to be one** — the
 volume-band and separate-volume-pane paths already disagree about where an
 oscillator goes, and only one of them can be right.
+
+## 9. 🎯 WHAT THE APPLIED BUILD ACTUALLY MEASURED — B5 Task 12, 2026-08-05
+
+*A = `PANE_MODE = 'bands'` — what shipped — build **1c74866baccb**; B = the
+CUTOVER AS THE OWNER ANSWERED IT (panes + the separator token + the per-pane
+axis) — build **6d3ccce34548**; 2 run(s) per case; `served == disk` verified on
+both; **all 46 cases single-valued on every run**.*
+
+Every number below is now a per-case `expect` in `tools/chart_parity_cases.json`,
+and every REGION carries one too. The gate's verdict is an EQUALITY, not a budget:
+a regression smaller than the old allowance fails, and so does a build that
+suddenly draws nothing.
+
+| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| `bb_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `rsi_only` | 119,868 | 16.11129 | 0 | 2,926 | 66,245 | 50,697 | 0 | 0 | 2/2 |
+| `macd_only` | 131,592 | 17.687097 | 0 | 4,129 | 71,767 | 55,696 | 0 | 0 | 2/2 |
+| `macd_headmask` | 131,592 | 17.687097 | 0 | 4,129 | 71,767 | 55,696 | 0 | 0 | 2/2 |
+| `bb_rsi_macd` | 164,892 | 22.162903 | 0 | 12,933 | 76,667 | 75,292 | 0 | 0 | 2/2 |
+| `engine_rsi_vs_legacy` | 119,868 | 16.11129 | 0 | 2,926 | 66,245 | 50,697 | 0 | 0 | 2/2 |
+| `engine_rsi_toggle_off` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_bb_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_bb_over_overlays` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_bb_rsi_vs_legacy` | 125,051 | 16.80793 | 0 | 8,022 | 66,332 | 50,697 | 0 | 0 | 2/2 |
+| `engine_macd_vs_legacy` | 131,592 | 17.687097 | 0 | 4,129 | 71,767 | 55,696 | 0 | 0 | 2/2 |
+| `engine_bb_rsi_macd_vs_legacy` | 164,892 | 22.162903 | 0 | 12,933 | 76,667 | 75,292 | 0 | 0 | 2/2 |
+| `flipb_rsi_only` | 119,868 | 16.11129 | 0 | 2,926 | 66,245 | 50,697 | 0 | 0 | 2/2 |
+| `flipb_bb_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `flipb_bb_rsi_macd` | 164,892 | 22.162903 | 0 | 12,933 | 76,667 | 75,292 | 0 | 0 | 2/2 |
+| `flipb_macd_only` | 131,592 | 17.687097 | 0 | 4,129 | 71,767 | 55,696 | 0 | 0 | 2/2 |
+| `flipb_vwap_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `flipb_vwap_dimmed` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `flipb_all_four` | 159,003 | 21.371371 | 0 | 15,370 | 96,549 | 47,084 | 0 | 0 | 2/2 |
+| `intraday_bars_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `vwap_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_vwap_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_vwap_dimmed_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_vwap_dashed_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_stoch_vs_legacy` | 120,406 | 16.183602 | 0 | 2,919 | 66,939 | 50,548 | 0 | 0 | 2/2 |
+| `engine_atr_vs_legacy` | 110,356 | 14.832796 | 0 | 3,023 | 61,754 | 45,579 | 0 | 0 | 2/2 |
+| `stoch_only` | 120,406 | 16.183602 | 0 | 2,919 | 66,939 | 50,548 | 0 | 0 | 2/2 |
+| `atr_only` | 110,356 | 14.832796 | 0 | 3,023 | 61,754 | 45,579 | 0 | 0 | 2/2 |
+| `engine_sar_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_ichimoku_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_price_overlay_zorder` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `sar_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `ichimoku_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `mfi_only` | 118,742 | 15.959946 | 0 | 3,495 | 65,456 | 49,791 | 0 | 0 | 2/2 |
+| `cci_only` | 119,201 | 16.02164 | 0 | 2,920 | 66,322 | 49,959 | 0 | 0 | 2/2 |
+| `williams_r_only` | 119,264 | 16.030108 | 0 | 2,919 | 66,124 | 50,221 | 0 | 0 | 2/2 |
+| `engine_mfi_vs_legacy` | 118,742 | 15.959946 | 0 | 3,495 | 65,456 | 49,791 | 0 | 0 | 2/2 |
+| `engine_cci_vs_legacy` | 119,201 | 16.02164 | 0 | 2,920 | 66,322 | 49,959 | 0 | 0 | 2/2 |
+| `engine_williams_r_vs_legacy` | 119,264 | 16.030108 | 0 | 2,919 | 66,124 | 50,221 | 0 | 0 | 2/2 |
+| `engine_three_bands_stacked` | 163,656 | 21.996774 | 0 | 3,364 | 74,688 | 85,604 | 0 | 0 | 2/2 |
+| `adx_only` | 122,296 | 16.437634 | 0 | 2,945 | 68,422 | 50,929 | 0 | 0 | 2/2 |
+| `obv_only` | 137,052 | 18.420968 | 0 | 19,405 | 70,192 | 45,787 | 1,668 | 0 | 2/2 |
+| `donchian_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| `engine_adx_vs_legacy` | 122,296 | 16.437634 | 0 | 2,945 | 68,422 | 50,929 | 0 | 0 | 2/2 |
+| `engine_obv_vs_legacy` | 137,052 | 18.420968 | 0 | 19,405 | 70,192 | 45,787 | 1,668 | 0 | 2/2 |
+| `engine_donchian_vs_legacy` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 2/2 |
+| **46 cases, summed** | **3,545,792** | | | | | | | | |
+
+### 🔴 TWO THINGS ARE NOT WHAT §3 PREDICTED, AND BOTH ARE THE SUB-CHOICES
+
+§3 measured the CUTOVER ALONE. The owner then took two sub-choices, and §2.1/§2.2
+priced each of them against §3's build on six cases. **The applied build is all
+three together, and two of its numbers do not follow from adding them up.** Both
+were isolated by a THIRD build — the cutover with BOTH sub-choices reverted,
+build **f5f9219fcece** — measured against the applied build:
+
+| case | the two sub-choices, isolated | price_plot | mid_panes | osc_strip | time_axis |
+|---|---:|---:|---:|---:|---:|
+| `bb_only` | 1,200 | 0 | 1,200 | — | 0 |
+| `rsi_only` | 2,772 | 0 | 2,400 | 372 | 0 |
+| `macd_only` | 2,540 | 0 | 2,400 | 140 | 0 |
+| `bb_rsi_macd` | 4,112 | 0 | 2,400 | 1,712 | 0 |
+| `atr_only` | 2,629 | 0 | 2,400 | 229 | 0 |
+| `adx_only` | 2,592 | 0 | 2,400 | 192 | 0 |
+| `engine_three_bands_stacked` | 5,316 | 0 | 2,400 | 2,916 | 0 |
+| ⚠️ `obv_only` | **82,498** | **17,109** | **58,707** | 5,014 | **1,668** |
+
+**(1) ⛔ THE CUTOVER IS NO LONGER FREE ON A CHART WITH NO OSCILLATOR.** §3's
+headline was *"19 of 46 cases read 0 — the cutover is exactly, provably free on a
+chart with no oscillator."* **Those nineteen now read 1,200 px each.** Nothing
+about the panes changed: the SEPARATOR TOKEN restyles the divider between the
+price pane and the volume pane, and every chart has one of those. §2.1 said so in
+as many words — *"it restyles a separator that already exists… that is a pixel the
+cutover did not have to touch, and it is why this row is its own decision"* — and
+its own `bb_only` row is exactly 1,200. So the number was priced and accepted; the
+sentence that has to be withdrawn is §3's "provably free", not the decision.
+
+**(2) 🔴 §2.2's "EVERY PIXEL INSIDE `osc_strip`" IS FALSE ON `obv`, AND `obv` IS
+THE ONE INDICATOR THAT COULD FALSIFY IT.** §2.2 measured the per-pane axis on six
+cases — `bb`, `rsi`, `macd`, `bb_rsi_macd`, `atr`, `three_bands` — and every one
+of them put 100 % of the cost inside `osc_strip`. **None of the six was OBV.**
+On-balance volume is the only shipped indicator whose values run to hundreds of
+millions, and lightweight-charts 5.2.0 aligns EVERY pane to ONE shared price-axis
+column. Give the OBV pane a visible axis and its labels — the widest on the chart
+— widen that shared column, the plot area narrows, and the candles, the volume
+pane and the time axis all re-fit:
+
+* `obv_only` costs **137,052 px** against §3's prediction of 110,233;
+* **`time_axis` reads 1,668**, and §3's headline claim was that `time_axis` and
+  `export_header` read 0 on every one of the 46 cases. That is still true for 45.
+* the two sub-choices alone cost **82,498 px on `obv_only`** against 2,540 – 5,316
+  on every other case measured — a factor of 30.
+
+⚠️ **IT IS SHIPPED AS THE OWNER ANSWERED IT, AND IT IS FLAGGED HERE RATHER THAN
+DECIDED AGAIN.** The answer to 2.2 was YES; what the owner was shown was "372 px,
+every pixel inside `osc_strip`", which is true of the six cases it was measured on
+and not of OBV. The remedy is cheap and is NOT §2.2's "axis only on unfixed
+scales" (OBV autoscales, so it would still get one): it is a per-pane axis
+`minimumWidth`, or an abbreviated formatter on the OBV definition so its labels
+are no wider than the price's. Neither is in this change.
 
 ## 8. Reproducing this
 

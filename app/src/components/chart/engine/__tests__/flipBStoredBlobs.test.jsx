@@ -26,11 +26,21 @@
 //
 // ⚠️ EVERY CASE COMPARES THE POST-FLIP RENDER TO THE PRE-FLIP ONE BY
 // RECONSTRUCTION, NOT BY MEMORY. "The same chart" means: the same number of
-// series on the same scales, in the same bands. The band numbers come from
-// `computePaneMargins(<the stored blob>)` — the pre-flip layout function, called
-// on the pre-flip blob, unmodified — so a projection that quietly changed the
-// layout fails here even though both sides went through the engine.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+// series on the same scales, in the same bands.
+//
+// ⭐ B5 TASK 12 CHANGED WHAT THE BAND NUMBERS ARE RECONSTRUCTED WITH, AND SAYING
+// SO IS THE POINT. They came from `computePaneMargins(<the stored blob>)` — the
+// pre-flip layout function, called on the pre-flip blob, unmodified. Flip C
+// retired that function into `paneLayout.computePaneLayout`, whose band map is the
+// same arithmetic off the same quantised stack but keyed on the INSTANCE LIST
+// rather than on `cs.indicators[key].enabled`. So `shippedBands` below rebuilds
+// the instances from the raw stored blob (`migrateLegacyToInstances`, the same
+// projection the read path runs) and asks the layout for its bands. That is a
+// weaker oracle than an untouched pre-flip function — it is the same module the
+// chart uses — so the LITERALS in these cases (`{top: 0.85, bottom: 0}` for RSI,
+// MACD stacked below it) are what pin the values independently, and they are
+// transcriptions of the retired table.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
@@ -137,15 +147,30 @@ HTMLCanvasElement.prototype.getContext = function getContext() {
   return ctx
 }
 
+// ─── ⭐ B5 TASK 12 (FLIP C): THIS FILE IS PINNED TO `'bands'`, DELIBERATELY ───
+//
+// `onScale('rsi')` / `onScale('macd')` are how every case here counts an
+// oscillator's series, and a scale NAMED AFTER THE DEFINITION is a bands-mode
+// fact: Flip C puts each oscillator on its own pane's `'right'` axis, where that
+// handle stops discriminating (the candles and all five price overlays are on
+// `'right'` too). Pinning the mode keeps these assertions at full strength rather
+// than re-pointing them at a coarser probe — `'bands'` is a live, tested mode kept
+// for exactly this, and it is the geometry Flip C reverses TO. The SHIPPED
+// `'panes'` geometry is gated by `__tests__/flipCGeometry.test.jsx` and the
+// 46-case pixel gate; what this file measures is the stored-blob MIGRATION, which
+// happens before either mode sees an instance.
 beforeEach(() => {
   cleanup()
   H.reset()
+  __setPaneModeForTest('bands')
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const { default: StockChart, ENGINE_FLIPPED_DEF_IDS } = await import('../../../StockChart')
 const { mergeChartSettings, CHART_DEFAULTS } = await import('../../chartDefaults')
-const { computePaneMargins } = await import('../../paneMargins')
+const { computePaneLayout, __setPaneModeForTest } = await import('../paneLayout')
+const { migrateLegacyToInstances } = await import('../instances')
 const { uctDefaultChartSettings } = await import('../../../../pages/charts/ChartsWorkspace')
 const { setIndicatorEnabled } = await import('../instanceControls')
 const engineRegistry = await import('../nativeRegistry')
@@ -165,18 +190,27 @@ const bbLines = () => H.addSeriesCalls.filter(c => c.options && c.options.color 
 const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
 const bands = () => H.syncCalls.at(-1).paneMargins
 
-/** ⭐⭐ B5 TASK 9 — `computePaneMargins` IS CALLED ON THE STORED BLOB, WHICH IS
- *  WHAT THIS FILE ALWAYS CLAIMED IT DID. Every band comparison below passed
- *  `mergeChartSettings(<blob>)`, and after Task 9 a merged blob carries only
- *  `indicators: {volumeProfile}` — the fourteen legacy sections are folded into
- *  `indicatorInstances` and destroyed by the allow-list — so the "pre-flip layout
- *  function on the pre-flip input" was quietly becoming "the pre-flip function on
- *  a post-migration input", and every comparison would have been empty-vs-empty.
+/** The bands the layout reserves for the instances THIS STORED BLOB projects to.
  *
- *  ⛔ THE RAW PARSED BLOB IS THE PRE-FLIP INPUT. `computePaneMargins` reads only
- *  `cs.indicators[key].enabled`, so it needs no defaults; handing it the JSON the
- *  user actually has is strictly more faithful than handing it a merge. */
-const shippedBands = (json) => computePaneMargins(JSON.parse(json), true, new Set())
+ *  ⭐⭐ B5 TASK 9 — THE RAW PARSED BLOB IS THE PRE-FLIP INPUT, AND IT STILL IS.
+ *  Every band comparison below used to pass `mergeChartSettings(<blob>)`, and
+ *  after Task 9 a merged blob carries only `indicators: {volumeProfile}` — the
+ *  fourteen legacy sections are folded into `indicatorInstances` and destroyed by
+ *  the allow-list — so "the pre-flip layout function on the pre-flip input" was
+ *  quietly becoming "…on a post-migration input", and every comparison would have
+ *  been empty-vs-empty. The raw JSON the user actually has is the input.
+ *
+ *  ⭐ B5 TASK 12 — AND THE FUNCTION IT IS HANDED TO CHANGED. `computePaneMargins`
+ *  read `cs.indicators[key].enabled` and needed no defaults; `computePaneLayout`
+ *  reads INSTANCES, so the raw blob is projected the same way the read path
+ *  projects it (`migrateLegacyToInstances`, which is what `mergeChartSettings`'
+ *  v1→v2 fold calls) and the layout is asked for its band map. `hasVolumeBand:
+ *  true` is what `StockChart` computes for these blobs (volume visible, not in its
+ *  own pane), and it is the argument this helper always passed. */
+const shippedBands = (json) => computePaneLayout(
+  migrateLegacyToInstances(JSON.parse(json), engineRegistry),
+  { hasVolumeBand: true, excludeKeys: new Set() },
+).bands
 
 // ── 1. THE JULY BLOB ────────────────────────────────────────────────────────
 //
@@ -262,11 +296,13 @@ describe('⭐ a stored legacy blob produces the SAME chart after the flip', () =
     expect(bound(), 'the ENGINE is what drew them').toHaveLength(4)
   })
 
-  it('…in the bands the PRE-FLIP layout function reserves for that same blob', () => {
-    // The layout half, and the one a series count cannot see. `computePaneMargins`
-    // is called here on the STORED blob directly — the pre-flip input, the
-    // unmodified pre-flip function — so any drift introduced by `csForPaneMargins`
-    // shows up as an inequality rather than as a chart that looks a bit different.
+  it('…in the bands the layout reserves for that same STORED blob', () => {
+    // The layout half, and the one a series count cannot see. The oracle is built
+    // from the STORED blob directly — the pre-flip input, projected the way the
+    // read path projects it (see `shippedBands`) — so a drift between what the
+    // migration produces and what the chart is handed shows up as an inequality
+    // rather than as a chart that looks a bit different. The RSI literal below is
+    // the value pin: it is transcribed from the retired table, not derived.
     drawStored(JSON.stringify(JULY_BLOB))
     expect(bands(), 'the projection changed the layout for a legacy blob')
       .toEqual(shippedBands(JSON.stringify(JULY_BLOB)))
@@ -428,7 +464,7 @@ describe('⭐ the blob the FROZEN TEMPLATE writes — "UCT Default" and "New Lay
 //
 //   * MACD is THREE plots under one instance and it owns a stacked BAND, so
 //     "the same chart" has to mean three series in one band rather than one
-//     series in one. Its band is also the one `paneMargins` stacks BELOW RSI's,
+//     series in one. Its band is also the one the layout stacks BELOW RSI's,
 //     which is where a projection that mis-orders the stack would show up.
 //   * VWAP does not exist on the fixture every case above uses. A VWAP case on
 //     daily bars renders an empty chart and reports whatever you asked for, so
@@ -458,18 +494,24 @@ describe('⭐ a stored blob with MACD ON — three plots, one band, after the fl
     expect(macd.map(b => b.plotKey).sort()).toEqual(['histogram', 'macd', 'signal'])
   })
 
-  it('…in the band the PRE-FLIP layout function reserves, BELOW RSI\'s', () => {
-    // The stacking half. RSI and MACD are both on in this blob, `paneMargins`
-    // stacks them in `PANES` order, and a projection that rewrote the enabled
-    // flags in the wrong order would give MACD RSI's band and vice versa — two
-    // indicators in the wrong places, with the right number of series.
+  it('…in the band the layout reserves, BELOW RSI\'s', () => {
+    // The stacking half. RSI and MACD are both on in this blob, and an ordering
+    // mistake anywhere between the stored sections and the layout would give MACD
+    // RSI's band and vice versa — two indicators in the wrong places, with the
+    // right number of series.
+    //
+    // ⚠️ THE STACK ORDER HAS A DIFFERENT AUTHOR SINCE TASK 12, AND THE OUTCOME IS
+    // UNCHANGED HERE. `computePaneMargins` stacked in its own `PANES` table's
+    // order; `computePaneLayout` stacks in INSTANCE-LIST order, which the fold
+    // seeds in REGISTRY order. Both put MACD below RSI, so the relation below is
+    // the same one this case has always asserted — and it is the relation, not the
+    // table, that a user sees.
     drawStored(JSON.stringify(MACD_BLOB))
     expect(bands(), 'the projection changed the layout for a legacy blob')
       .toEqual(shippedBands(JSON.stringify(MACD_BLOB)))
     expect(bands().macd, 'MACD lost its band').toBeTruthy()
     // `scaleMargins.top` is the fraction of the pane ABOVE the band, so a LARGER
-    // top is a band further DOWN. RSI 0.68, MACD 0.83 — RSI first, MACD under it,
-    // which is `PANES` order.
+    // top is a band further DOWN. RSI first, MACD under it.
     expect(bands().macd.top, 'MACD is no longer stacked below RSI')
       .toBeGreaterThan(bands().rsi.top)
   })

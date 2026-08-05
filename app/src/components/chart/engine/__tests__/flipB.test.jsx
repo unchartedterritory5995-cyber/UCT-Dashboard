@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -17,8 +17,8 @@ import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 // subject is `macd`, with a non-vacuity rail that fails when Task 11 takes it.
 //
 // The lightweight-charts double is `macdHeadMaskRendered.test.jsx`'s, plus the
-// binder wrapper from `stockChartWiring.test.jsx` — `paneMargins` is handed to
-// the binder through its sync ctx, and that is where the projection's effect is
+// binder wrapper from `stockChartWiring.test.jsx` — the band map is handed to the
+// binder through its sync ctx, and that is where the layout's effect is
 // observable at the component level.
 //
 // ⚠️ WHY THE MOCKS ARE DUPLICATED RATHER THAN IMPORTED FROM A SHARED HARNESS.
@@ -165,17 +165,52 @@ function fakeCanvasContext() {
 }
 HTMLCanvasElement.prototype.getContext = function getContext() { return fakeCanvasContext() }
 
+// ─── ⭐ B5 TASK 12 (FLIP C): THIS FILE IS PINNED TO `'bands'`, DELIBERATELY ───
+//
+// Every case here is about the READ AUTHORITY — which instance draws, and whether
+// the legacy toggle or the instance list decides — and its HANDLE on a pane
+// oscillator is the price scale NAMED AFTER THE DEFINITION (`rsiSeries`,
+// `macdSeries` below), which is `applyIndScale`'s Flip-A transcription. Flip C
+// moves that scale to `'right'` on a real pane (sub-choice 2.2), where it no
+// longer discriminates anything: the candles and all five price overlays are on
+// `'right'` too, so `filter(priceScaleId === 'right')` would count four unrelated
+// series and `bindings()` alone would stop seeing a resurrected legacy block —
+// which is precisely what half these cases exist to catch.
+//
+// ⛔ SO THE MODE IS PINNED RATHER THAN THE ASSERTIONS WEAKENED. `'bands'` is a
+// live, tested mode — `paneLayout.js` keeps it for exactly this reason, and it is
+// the geometry Flip C reverses TO — and `paneMode()` is a function so that both
+// modes can be driven in one process. The band claims below are bands-mode claims
+// by construction; the SHIPPED `'panes'` geometry is gated by
+// `__tests__/flipCGeometry.test.jsx` and the 46-case pixel gate, not here.
+//
+// ⚠️ WHAT THAT COSTS, STATED: a Flip-C-only regression in the read authority (an
+// instance the `'panes'` branch of `resolvePlacement` drops, say) is invisible in
+// this file. `flipCGeometry.test.jsx` is where that lives.
 beforeEach(() => {
   cleanup()
   H.reset()
+  __setPaneModeForTest('bands')
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const { default: StockChart, ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } = await import('../../../StockChart')
 const { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } = await import('../instanceControls')
 const registry = await import('../nativeRegistry')
-const { computePaneMargins } = await import('../../paneMargins')
+const { computePaneLayout, __setPaneModeForTest } = await import('../paneLayout')
 const { chartStateToUrl, urlToChartState } = await import('../../chartScreenshot')
+
+/** The band map the layout reserves for a chart holding exactly `instances`.
+ *
+ *  ⭐ THIS REPLACES `computePaneMargins(cs, true, new Set())`, WHICH TASK 12
+ *  DELETED. Same arithmetic off the same quantised stack — `paneLayout.js`
+ *  absorbed it whole — but keyed on the INSTANCE LIST instead of on
+ *  `cs.indicators[key].enabled`, which is the retirement itself: there is no
+ *  second blob to project any more. `hasVolumeBand: true` is what `StockChart`
+ *  computes for these fixtures (volume visible, not in its own pane). */
+const bandsFor = (instances) =>
+  computePaneLayout(instances, { hasVolumeBand: true, excludeKeys: new Set() }).bands
 
 const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
@@ -331,8 +366,11 @@ describe('Flip B — the instance list is the read authority', () => {
       indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 21 }, hidden: false }],
     })
     expect(rsiSeries(), 'the toggle says off; the instance says on, and it wins').toHaveLength(1)
-    // …and the BAND was reserved for it, which is the paneMarginsProjection half.
-    expect(ctx().paneMargins.rsi, 'no band was reserved — the projection is not wired')
+    // …and the BAND was reserved for it, which is the LAYOUT half: the band map
+    // is keyed off the instance list too, so a stored instance with a false toggle
+    // has to reserve space as well as draw (`computePaneLayout`, B5 Task 12 — it
+    // was `paneMarginsProjection.js` rewriting a throwaway `cs` until then).
+    expect(ctx().paneMargins.rsi, 'no band was reserved — the layout is not wired')
       .toEqual({ top: 0.85, bottom: 0 })
   })
 
@@ -361,11 +399,17 @@ describe('Flip B — the instance list is the read authority', () => {
   })
 
   it('the band the engine lands in is EXACTLY the one the legacy layout reserved', () => {
-    // The whole permission for `csForPaneMargins` to exist: the same answer.
-    const cs = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
-    draw({ ...cs })
+    // ⭐ THE LITERAL IS THE ORACLE NOW, AND IT IS THE SAME NUMBER IT ALWAYS WAS.
+    // This case compared the binder's `paneMargins` against `computePaneMargins`
+    // called on the same blob — the pre-engine layout function, unmodified. Task
+    // 12 deleted that function, and its output is `computePaneLayout(...).bands`;
+    // the comparison below is therefore a WIRING claim (StockChart hands the
+    // binder the layout's band map for the chart's own instances, not `{}` and not
+    // the pane geometry), and `{top: 0.85, bottom: 0}` — RSI's shipped slice,
+    // transcribed from the retired table — is what pins the VALUE independently.
+    draw({ indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } })
     expect(ctx().paneMargins.rsi).toEqual({ top: 0.85, bottom: 0 })
-    expect(ctx().paneMargins).toEqual(computePaneMargins(cs, true, new Set()))
+    expect(ctx().paneMargins).toEqual(bandsFor([RSI_INSTANCE]))
   })
 
   it('the legacy render blocks are GONE — no ref, no second copy, ever', () => {
@@ -755,7 +799,7 @@ describe('Flip B — MACD', () => {
     })
     expect(ctx().paneMargins.macd, 'no band was reserved — the projection is not wired').toBeTruthy()
     expect(ctx().paneMargins.macd)
-      .toEqual(computePaneMargins({ indicators: { macd: { enabled: true } } }, true, new Set()).macd)
+      .toEqual(bandsFor([{ instanceId: 'legacy:macd', defId: 'macd', inputs: {}, hidden: false }]).macd)
   })
 
   it('a tombstone reserves NO band, and draws nothing', () => {
@@ -829,16 +873,19 @@ describe('Flip B — VWAP', () => {
   })
 
   it('reserves NO band — it is a price overlay', () => {
-    // ⭐ ASSERTED RATHER THAN ASSUMED. `csForPaneMargins` rewrites
-    // `indicators.vwap.enabled` from the instance list for every FLIPPED id, and
-    // `computePaneMargins`' PANES list does not contain vwap — so the answer is
-    // "no band" only as long as those two facts hold together. A band appearing
-    // for a price overlay would shrink the price pane under the candles.
+    // ⭐ ASSERTED RATHER THAN ASSUMED. The layout stacks a key only when its
+    // DEFINITION declares `placement.target: 'pane'` (`paneLayout.paneTargetIds`,
+    // derived from the registry — it was `computePaneMargins`' hand-written PANES
+    // list until Task 12), so "no band for a price overlay" holds only as long as
+    // vwap keeps declaring `'price'`. A band appearing for a price overlay would
+    // shrink the price pane under the candles.
     drawIntraday({ ...VWAP_ON })
     expect(vwapSeries(), 'nothing drawn — vacuous').toHaveLength(1)
     expect(ctx().paneMargins.vwap).toBeUndefined()
-    // …and the whole margin map is the one the legacy layout produced.
-    expect(ctx().paneMargins).toEqual(computePaneMargins(VWAP_ON, true, new Set()))
+    // …and the whole margin map is the one this chart's instances reserve: volume
+    // and the price area, with nothing stacked at all.
+    expect(ctx().paneMargins)
+      .toEqual(bandsFor([{ instanceId: 'legacy:vwap', defId: 'vwap', inputs: {}, hidden: false }]))
   })
 
   it('Alt+U writes an INSTANCE, and the mirror with it', () => {

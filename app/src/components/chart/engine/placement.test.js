@@ -1,17 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolvePlacement, resolvePreset, PRESET_SURFACES, MAIN_PRICE_SCALE_ID } from './placement'
 import * as registry from './nativeRegistry'
-import { computePaneMargins } from '../paneMargins'
 import { computePaneLayout, __setPaneModeForTest, SEPARATOR_PX } from './paneLayout'
 import { PRESETS, CHART_DEFAULTS } from '../chartDefaults'
 import { IND_TOKENS } from '../designTokens'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 //
-// REAL definitions and the REAL `computePaneMargins`, deliberately. This module's
-// entire job is to agree with `StockChart.jsx:5457-5480`; a hand-written stand-in
-// definition or a hand-typed margin can agree with the adapter while both
-// disagree with the chart, and the test would still be green.
+// REAL definitions and the REAL band map, deliberately. This module's entire job
+// is to agree with `StockChart.jsx:5457-5480`; a hand-written stand-in definition
+// or a hand-typed margin can agree with the adapter while both disagree with the
+// chart, and the test would still be green.
+//
+// ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js`. The band map is
+// `computePaneLayout(instances, opts).bands` now — the SAME keys and the SAME
+// values, off the same quantised stack, which is why every band assertion below
+// is unchanged. Two things moved with it: the enabled set comes from the INSTANCE
+// LIST rather than from `cs.indicators` (so `ctxFor` derives one), and
+// `computePaneLayout` no longer takes a leading `cs`.
 
 const def = (id) => registry.getDefinition(id)
 
@@ -19,25 +25,58 @@ const inst = (defId, extra = {}) => ({
   instanceId: `legacy:${defId}`, defId, inputs: {}, hidden: false, ...extra,
 })
 
+/**
+ * The instances a v1 blob seeds, in REGISTRY order.
+ *
+ * That is what `migrateLegacyToInstances` emits and therefore what StockChart
+ * hands `computePaneLayout` — and the order is load-bearing for the band map,
+ * because the stack is ordered by the list now and not by a table.
+ */
+const instancesFor = (cs) => registry.listDefinitions()
+  .filter((d) => cs && cs.indicators && cs.indicators[d.id] && cs.indicators[d.id].enabled === true)
+  .map((d) => inst(d.id))
+
+/** The band map, height-independent — what the retired `computePaneMargins`
+ *  returned, key for key. No `chartHeight`: `bands` is computed before the
+ *  layout's height guard precisely so a caller with no chart yet can ask. */
+const bandsFor = (cs, { hasVolumeBand = false, excludeKeys = new Set() } = {}) =>
+  computePaneLayout(instancesFor(cs), { hasVolumeBand, excludeKeys }).bands
+
 /** The ctx the Task-7 wiring hands over, built the way StockChart builds it. */
 const ctxFor = (cs, { volOverlay = [], volSeparate = false, hasVolumeBand = false } = {}) => {
   const volOverlaySet = new Set(volOverlay)
   const volSeparatePane = volSeparate || volOverlaySet.size > 0
   return {
     cs,
-    paneMargins: computePaneMargins(cs, hasVolumeBand && !volSeparatePane, volOverlaySet),
+    paneMargins: bandsFor(cs, {
+      hasVolumeBand: hasVolumeBand && !volSeparatePane,
+      excludeKeys: volOverlaySet,
+    }),
     volOverlaySet,
     volSeparatePane,
     VOL_PANE_INDEX: 1,
   }
 }
 
-/** A settings blob with a set of pane oscillators enabled — the thing that
- *  decides which bands `computePaneMargins` hands back. */
+/**
+ * ⭐ B5 TASK 12 FLIPPED `PANE_MODE` TO `'panes'`, so a case about the BAND
+ * geometry has to SAY so instead of inheriting the shipped mode.
+ *
+ * `'bands'` is not a dead mode: it is the geometry the flip reverses to, priced
+ * at the same numbers, and `computePaneLayout` still returns its map. What
+ * changed is which one you get by default — so every block below that asserts
+ * "pane 0, on a scale named after the definition" pins the mode it means.
+ */
+const pinBands = () => { __setPaneModeForTest('bands') }
+
+afterEach(() => { __setPaneModeForTest(null) })
+
+/** A settings blob with a set of pane oscillators enabled — what `instancesFor`
+ *  reads to decide which bands the layout hands back. */
 // ⭐ B5 TASK 9: built from the DEFINITIONS, not from `CHART_DEFAULTS.indicators`
 // — that table is one key now, so the old spelling produced a blob with no
-// oscillator sections at all and `computePaneMargins` handed back no bands. This
-// is the shape `csForPaneMargins` builds on the render path.
+// oscillator sections at all and no bands came back. This is the shape
+// `csForPaneMargins` builds on the render path.
 const csWith = (...enabled) => ({
   ...CHART_DEFAULTS,
   indicators: {
@@ -50,6 +89,10 @@ const csWith = (...enabled) => ({
 // ─── the pane-0 default (the shipped `indTarget` else-branch) ────────────────
 
 describe('resolvePlacement — pane 0, the indicator\'s own named scale', () => {
+  // ⭐ B5 TASK 12: the mode this whole block describes is the one the flip
+  // reverses TO. See `pinBands`.
+  beforeEach(pinBands)
+
   it('puts a pane oscillator in pane 0 on a scale named after its definition', () => {
     const cs = csWith('rsi')
     const p = resolvePlacement(inst('rsi'), def('rsi'), ctxFor(cs))
@@ -57,7 +100,7 @@ describe('resolvePlacement — pane 0, the indicator\'s own named scale', () => 
     expect(p.scaleId).toBe('rsi')
   })
 
-  it('takes its scaleMargins from computePaneMargins, keyed by definition id', () => {
+  it('takes its scaleMargins from the layout\'s band map, keyed by definition id', () => {
     const cs = csWith('rsi', 'macd', 'atr')
     const ctx = ctxFor(cs, { hasVolumeBand: true })
     for (const id of ['rsi', 'macd', 'atr']) {
@@ -71,9 +114,9 @@ describe('resolvePlacement — pane 0, the indicator\'s own named scale', () => 
   })
 
   it('falls back to the shipped {top:0.82,bottom:0} when the layout reserved no band', () => {
-    // `computePaneMargins` only emits a key for an ENABLED indicator. An instance
-    // whose legacy toggle is off has no band, and `applyIndScale`'s `|| {...}` is
-    // what keeps it on the chart instead of throwing.
+    // The band map only emits a key for an indicator the INSTANCE LIST stacks. An
+    // instance whose legacy toggle is off has no band, and `applyIndScale`'s
+    // `|| {...}` is what keeps it on the chart instead of throwing.
     const p = resolvePlacement(inst('rsi'), def('rsi'), ctxFor(csWith()))
     expect(p.scaleOptions.scaleMargins).toEqual({ top: 0.82, bottom: 0 })
   })
@@ -122,6 +165,10 @@ describe('resolvePlacement — overlaid into the volume pane', () => {
   it('does NOT overlay when the volume pane is not separate', () => {
     // The shipped guard is `volSeparatePane && volOverlaySet.has(key)`. A set that
     // is somehow non-empty without a separate pane must still land in pane 0.
+    // ⭐ B5 TASK 12: "pane 0" is the BANDS answer, so the mode is named. Under
+    // `'panes'` the same non-overlaid oscillator gets its own pane, which the
+    // Flip-C block below drives.
+    pinBands()
     const ctx = { ...ctxFor(csWith('rsi'), { volOverlay: ['rsi'] }), volSeparatePane: false }
     const p = resolvePlacement(inst('rsi'), def('rsi'), ctx)
     expect(p.paneIndex).toBe(0)
@@ -129,6 +176,7 @@ describe('resolvePlacement — overlaid into the volume pane', () => {
   })
 
   it('leaves an indicator that is not in the overlay set alone', () => {
+    pinBands()   // ⭐ B5 TASK 12 — same reason as above.
     const ctx = ctxFor(csWith('rsi', 'macd'), { volOverlay: ['macd'] })
     const p = resolvePlacement(inst('rsi'), def('rsi'), ctx)
     expect(p.paneIndex).toBe(0)
@@ -139,6 +187,13 @@ describe('resolvePlacement — overlaid into the volume pane', () => {
 // ─── TRAP #2: the COMPLETE option set, every single resolve ───────────────────
 
 describe('resolvePlacement — the full scale option set, every time (trap #2)', () => {
+  // ⭐ B5 TASK 12: pinned to `'bands'` because one case here resolves a
+  // definition the REGISTRY DOES NOT SHIP (`custom`) — the whole point of that
+  // case — and a definition the registry does not ship can never be given a pane
+  // by `computePaneLayout`. The `'panes'` twin of this claim is
+  // "keeps the FULL option set" in the Flip-C block below.
+  beforeEach(pinBands)
+
   // `StockChart` passes `{autoScale:false, minimum:0, maximum:100}` on the CREATE
   // branch only (`:5773`); the update branch calls `applyIndScale` with no extras.
   // Price scales are CHART-LEVEL and keyed by id, so a pooled series that
@@ -264,6 +319,9 @@ describe('resolvePlacement — refuses rather than guesses', () => {
   })
 
   it('survives a ctx with nothing in it', () => {
+    // ⭐ B5 TASK 12 — the BANDS answer to an empty ctx is the fallback band; the
+    // `'panes'` answer is `null` (fail closed), driven in the Flip-C block below.
+    pinBands()
     const p = resolvePlacement(inst('rsi'), def('rsi'), {})
     expect(p.paneIndex).toBe(0)
     expect(p.scaleId).toBe('rsi')
@@ -363,6 +421,15 @@ describe('PRESET_SURFACES', () => {
 describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
   const ctx = {
     paneMargins: { rsi: { top: 0.85, bottom: 0 } },
+    // ⭐ B5 TASK 12: a layout covering EVERY pane definition, so this block runs
+    // in the SHIPPED mode rather than being pinned back to `'bands'`. The claim
+    // here — which autoscale provider each target gets — is mode-independent, but
+    // under `'panes'` an oscillator the layout gave no pane resolves to `null`,
+    // and the def-by-def sweeps below would quietly stop having subjects.
+    paneLayout: computePaneLayout(
+      registry.listDefinitions().filter((d) => d.placement.target === 'pane').map((d) => inst(d.id)),
+      { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
+    ),
     volOverlaySet: new Set(),
     volSeparatePane: false,
     VOL_PANE_INDEX: 1,
@@ -408,32 +475,58 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
   })
 })
 
-// ─── the same four cases, under FLIP C (B5 Task 10) ──────────────────────────
+// ─── the same four cases, under FLIP C (B5 Task 10, SHIPPED at Task 12) ──────
 //
 // ⛔ A MODE WITH NO COVERAGE IS A MODE THAT SHIPS UNTESTED. Every case in the
 // `pane 0, the indicator's own named scale` block above describes what `'bands'`
-// does; each has its twin here. The `'panes'` branch is DARK on master —
-// `paneMode()` is `'bands'` — which is exactly why it needs driving.
+// does; each has its twin here. The `'panes'` branch WAS dark — `paneMode()` was
+// `'bands'` — which is why it needed driving; **B5 Task 12 flipped the constant**,
+// so this is now the shipped answer and the block above is the pinned one.
 //
 // The renderer-level twins (does lightweight-charts actually build these panes?)
 // live in `__tests__/flipCGeometry.test.jsx`, on a real chart. These are about
 // what this pure function ANSWERS.
 describe('resolvePlacement — its own REAL pane (PANE_MODE panes)', () => {
   const layoutFor = (ids) => computePaneLayout(
-    csWith(...ids), ids.map((id) => inst(id)),
+    ids.map((id) => inst(id)),
     { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
   )
 
+  // Explicit, even though it is the default since Task 12: a case that says which
+  // mode it means cannot be silently re-pointed by the next flip.
   beforeEach(() => { __setPaneModeForTest('panes') })
   afterEach(() => { __setPaneModeForTest(null) })
 
-  it('puts a pane oscillator in ITS OWN pane, on a scale named after its definition', () => {
+  it('puts a pane oscillator in ITS OWN pane — the LIST\'s order decides which', () => {
     const cs = csWith('rsi', 'macd')
     const layout = layoutFor(['rsi', 'macd'])
     const p = resolvePlacement(inst('macd'), def('macd'), { ...ctxFor(cs), paneLayout: layout })
     expect(p.paneIndex).toBe(2)          // rsi is 1, macd is 2 — the LIST's order
-    expect(p.scaleId).toBe('macd')
     expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout }).paneIndex).toBe(1)
+  })
+
+  it('…on THAT PANE\'S OWN VISIBLE RIGHT AXIS, never on a scale named after the definition', () => {
+    // 🔴 THIS CASE USED TO ASSERT `scaleId === 'macd'` AND THE OWNER RETIRED THAT
+    // CLAIM: sub-choice 2.2, answered YES on 2026-08-05
+    // (`docs/decisions/2026-08-04-flip-c-pane-geometry.md` §5) — a VISIBLE per-pane
+    // price axis, priced at **372 px on `rsi_only`**, every pixel of it inside
+    // `osc_strip`. An oscillator's numbers are read off the pane's own right
+    // ladder now; the definition's name is not a scale id anywhere in `'panes'`.
+    //
+    // ⚠️ SHARING THE STRING `'right'` WITH THE CANDLES IS NOT SHARING THE SCALE.
+    // LWC keys a price scale by (pane, id), so `'right'` in pane 2 is a different
+    // axis from `'right'` in pane 0 — which is exactly why the zero margins below
+    // do not reframe the candles.
+    const cs = csWith('rsi', 'macd', 'atr')
+    const layout = layoutFor(['rsi', 'macd', 'atr'])
+    for (const id of ['rsi', 'macd', 'atr']) {
+      const p = resolvePlacement(inst(id), def(id), { ...ctxFor(cs), paneLayout: layout })
+      expect(p.scaleId, id).toBe('right')
+      // Both directions, because "it is `'right'`" and "it is no longer the
+      // definition id" are two different regressions and only one of them is a
+      // typo away from passing.
+      expect(p.scaleId, `${id} must not be back on a scale named after itself`).not.toBe(id)
+    }
   })
 
   it('takes ZERO scaleMargins — the drawable rectangle is the whole pane now', () => {
@@ -492,7 +585,7 @@ describe('resolvePlacement — its own REAL pane (PANE_MODE panes)', () => {
     // `excludeKeys`, so an overlaid oscillator has no pane in the layout at all —
     // reaching the panes branch first would make it resolve to `null` and vanish.
     const cs = csWith('rsi')
-    const layout = computePaneLayout(cs, [inst('rsi')], {
+    const layout = computePaneLayout([inst('rsi')], {
       chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX, excludeKeys: ['rsi'],
     })
     const p = resolvePlacement(inst('rsi'), def('rsi'),

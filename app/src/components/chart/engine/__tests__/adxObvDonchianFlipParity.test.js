@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
 import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS } from '../flipState'
 import { computeADX, computeOBV, computeDonchian } from '../../indicators'
-import { computePaneMargins } from '../../paneMargins'
+import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR ADX, OBV AND DONCHIAN (B5 Task 8) ──────────────
@@ -188,13 +188,46 @@ const DONCHIAN_INSTANCE = {
   placement: { target: 'price' }, hidden: false,
 }
 
-/** The `cs` each parity case pins. Its ONLY job is to feed `computePaneMargins`,
- *  which is what reserves the band the engine has to render into. */
+/** The `cs` each parity case pins. */
 const ADX_CS = { indicators: { adx: { enabled: true, period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' } } }
 const OBV_CS = { indicators: { obv: { enabled: true, color: '#9ca3af' } } }
 const DONCHIAN_CS = { indicators: { donchian: { enabled: true, period: 20, color: LEGACY_DONCHIAN_COLOR } } }
-const ADX_BAND = computePaneMargins(ADX_CS, false, new Set()).adx
-const OBV_BAND = computePaneMargins(OBV_CS, false, new Set()).obv
+
+/**
+ * The band map, from the ONE surviving authority.
+ *
+ * ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js` INTO `engine/paneLayout.js`.
+ * `computePaneLayout(...).bands` IS `computePaneMargins`' output — same keys,
+ * same values, same insertion order, off the same quantised stack — but it is
+ * keyed on the INSTANCE LIST rather than on a settings blob, because the
+ * instance list is the only authority for the stack now. It is also
+ * height-independent by construction, which is why no `chartHeight` is passed.
+ *
+ * ⚠️ `defIds` IS TOP-TO-BOTTOM, i.e. pane order — the same order the instance
+ * list carries, and the REVERSE of the order the retired `PANES` table listed.
+ * A PRICE OVERLAY named here reserves nothing: `computePaneLayout` keeps only
+ * `placement.target === 'pane'` definitions, which is why `donchian` can be
+ * passed alongside adx and obv and still leave both bands where they are.
+ */
+const bandsFor = (defIds, hasVolumeBand = false, excludeKeys = new Set()) =>
+  computePaneLayout(
+    defIds.map((id) => ({ instanceId: `legacy:${id}`, defId: id })),
+    { hasVolumeBand, excludeKeys },
+  ).bands
+
+const ADX_BAND = bandsFor(['adx']).adx
+const OBV_BAND = bandsFor(['obv']).obv
+
+// ⭐ B5 TASK 12 — THIS FILE DESCRIBES THE GEOMETRY THE FLIP REVERSES TO.
+// `PANE_MODE` is `'panes'` since Task 12, so an UNPINNED resolve would send adx
+// and obv into real lightweight-charts panes on a `'right'` scale with zero
+// margins. Every expectation in this file is a transcription of the BANDS
+// answer — the mode `paneLayout.js` keeps alive precisely so the flip has
+// something to reverse to — so the MODE is pinned rather than the expectations
+// rewritten. (Donchian is a PRICE overlay and resolves the same either way;
+// pinning is what keeps the two halves of this file readable together.)
+beforeEach(() => { __setPaneModeForTest('bands') })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const sync = (instances, cs, paneMargins, over) => {
   const F = createFakeChart()
@@ -270,7 +303,7 @@ describe('adx — three lines, one scale, one guide', () => {
   it('one guide at 25, and the scale is pinned 0..100', () => {
     expect(guidesFor('adx')).toEqual(LEGACY_ADX_GUIDES)
     const ctx = {
-      paneMargins: computePaneMargins(ADX_CS, true, new Set()),
+      paneMargins: bandsFor(['adx'], true),
       volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
     }
     expect(resolvePlacement({ defId: 'adx' }, engineRegistry.getDefinition('adx'), ctx).scaleOptions)
@@ -487,7 +520,7 @@ describe('obv — the autoscale seam, on values that are actually large', () => 
     // -1640.78. obv's values are 1e8-scale, so an inverted provider here is the
     // most visible mistake available in this task.
     const ctx = {
-      paneMargins: computePaneMargins(OBV_CS, true, new Set()),
+      paneMargins: bandsFor(['obv'], true),
       volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
     }
     const p = resolvePlacement({ defId: 'obv' }, engineRegistry.getDefinition('obv'), ctx)
@@ -777,7 +810,9 @@ describe('the last three together', () => {
         adx: { enabled: true }, obv: { enabled: true }, donchian: { enabled: true },
       },
     }
-    const paneMargins = computePaneMargins(cs, false, new Set())
+    // TOP-TO-BOTTOM: adx sits ABOVE obv. `donchian` is named too and reserves
+    // nothing — a price overlay shares the candles' pane.
+    const paneMargins = bandsFor(['adx', 'obv', 'donchian'])
     const result = binder.sync({
       enabled: true, cs, registry: engineRegistry,
       instances: [ADX_INSTANCE, OBV_INSTANCE, DONCHIAN_INSTANCE], bars: BARS,
@@ -787,7 +822,7 @@ describe('the last three together', () => {
     expect(result.bound).toBe(7)
     expect(F.callsOf('addSeries').map(c => c.args[1].priceScaleId))
       .toEqual(['adx', 'adx', 'adx', 'obv', 'right', 'right', 'right'])
-    // ⭐ `paneMargins.PANES` order is bottom-of-chart → top: obv sits BELOW adx.
+    // ⭐ The stack, bottom-of-chart → top: obv sits BELOW adx.
     expect(paneMargins.obv).toEqual({ top: 0.87, bottom: 0 })
     expect(paneMargins.adx).toEqual({ top: 0.72, bottom: 0.13 })
     // TWO scale calls — one per PANE-definition SCALE (adx, obv). The price

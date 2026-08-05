@@ -76,11 +76,16 @@ describe('ChartRender ?instances=', () => {
     expect('engineEnabled' in cs).toBe(false)
   })
 
-  it('composes with ?indicators= — the legacy toggle stays ON, which is what reserves the band', async () => {
-    // Flip A renders the engine into the band `computePaneMargins` reserves from
-    // `cs.indicators.rsi.enabled`. If this route dropped the settings blob when
-    // instances were present, the engine would land in the fallback band and the
-    // whole chart would re-lay-out.
+  it('composes with ?indicators= — BOTH params survive, neither replaces the other', async () => {
+    // ⚠️ THE REASON CHANGED AT B5 TASK 12; THE CLAIM DID NOT. This used to read
+    // *"Flip A renders the engine into the band `computePaneMargins` reserves from
+    // `cs.indicators.rsi.enabled`"* — that function is deleted and the geometry
+    // reads the INSTANCE LIST now (`paneLayout.computePaneLayout`), so the legacy
+    // section no longer reserves anything. What it still carries is the SETTINGS
+    // the capture is framed by, and the v1→v2 fold's input for any indicator the
+    // `?instances=` param does not name. A route that dropped the blob when
+    // instances were present would take those with it — and side A of every parity
+    // case is `?indicators=` alone, so the two params have to compose.
     const settings = { indicators: { rsi: { enabled: true, period: 14, color: '#7b68ee' } } }
     const latest = await renderRoute(
       `&indicators=${b64url(settings)}&instances=${b64url([RSI_INSTANCE])}`,

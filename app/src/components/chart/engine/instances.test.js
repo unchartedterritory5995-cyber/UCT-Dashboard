@@ -531,11 +531,14 @@ describe('golden blobs', () => {
 
 // ─── engineOwnedDefIds — which legacy render block stands down ───────────────
 //
-// The crossover arbiter. Under Flip A the legacy TOGGLE has to stay on (it is
-// what `computePaneMargins` reads to reserve the band the engine renders into),
+// The crossover arbiter. Under Flip A the legacy TOGGLE had to stay on — it was
+// what `computePaneMargins` read to reserve the band the engine rendered into —
 // so without this the legacy block would draw a second copy of the same
-// indicator on the same scale. Every rule here is a way of getting an indicator
-// wrong: too eager and it vanishes, too shy and it doubles.
+// indicator on the same scale. (B5 Task 12 retired that function: the geometry
+// reads the INSTANCE LIST now, `paneLayout.computePaneLayout`. The arbiter's
+// rules are unchanged; only what re-derives the band moved.) Every rule here is
+// a way of getting an indicator wrong: too eager and it vanishes, too shy and it
+// doubles.
 
 const inst = (over = {}) => ({ instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: false, ...over })
 

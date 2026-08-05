@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
 import { AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeMACD } from '../../indicators'
-import { computePaneMargins } from '../../paneMargins'
+import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR MACD ───────────────────────────────────────────
@@ -136,12 +136,36 @@ const INSTANCE = {
   hidden: false,
 }
 
-/** The `cs` the parity case pins. Its ONLY job is to feed `computePaneMargins`,
- *  which is what reserves MACD's band — and the reason the legacy toggle has to
- *  stay ON under Flip A. */
+/** The `cs` the parity case pins. */
 const CS = { indicators: { macd: { enabled: true } } }
-const PANE_MARGINS = computePaneMargins(CS, false, new Set())
+
+/**
+ * MACD's band, from the ONE surviving authority.
+ *
+ * ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js` INTO `engine/paneLayout.js`.
+ * `computePaneLayout(...).bands` IS `computePaneMargins`' output — same keys,
+ * same values, same insertion order, off the same quantised stack — but it is
+ * keyed on the INSTANCE LIST rather than on a settings blob, because the
+ * instance list is the only authority for the stack now. It is also
+ * height-independent by construction, which is why no `chartHeight` is passed.
+ * `BAND` is still asserted equal to `{top: 0.83, bottom: 0}` below, so the
+ * retirement moving a number by a hundredth is a RED test, not a silent
+ * re-baseline.
+ */
+const PANE_MARGINS = computePaneLayout([{ instanceId: 'legacy:macd', defId: 'macd' }], {
+  hasVolumeBand: false, excludeKeys: new Set(),
+}).bands
 const BAND = PANE_MARGINS.macd
+
+// ⭐ B5 TASK 12 — THIS FILE DESCRIBES THE GEOMETRY THE FLIP REVERSES TO.
+// `PANE_MODE` is `'panes'` since Task 12, so an UNPINNED resolve would send all
+// three MACD plots into a real lightweight-charts pane on a `'right'` scale with
+// zero margins. Every expectation in this file is a transcription of the BANDS
+// answer — the mode `paneLayout.js` keeps alive precisely so the flip has
+// something to reverse to — so the MODE is pinned rather than the expectations
+// rewritten.
+beforeEach(() => { __setPaneModeForTest('bands') })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const ctxFor = (instances, over) => ({
   enabled: true,

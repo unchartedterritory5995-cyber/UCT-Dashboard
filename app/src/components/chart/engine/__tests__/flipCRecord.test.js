@@ -78,10 +78,32 @@ describe('the Flip-C decision record', () => {
       .toBeGreaterThanOrEqual(2)
   })
 
-  it('is still OPEN, and says so in its Status line', () => {
-    // ⛔ Task 11 measures and prices; it does not apply. A record that has
-    // resolved itself is a decision nobody took.
-    expect(read(RECORD)).toMatch(/\*\*Status:\*\*[^\n]*OPEN/)
+  // ⭐⭐ B5 TASK 12 INVERTED THIS ONE, AND THE INVERSION IS THE TASK.
+  //
+  // It read *"is still OPEN, and says so in its Status line"* — the right rail
+  // while Task 11 was measuring, because a record that resolves itself is a
+  // decision nobody took. Task 12 is the APPLY, so the same rail now demands the
+  // opposite — and it demands the OWNER'S ANSWER with it: a Status of ACCEPTED
+  // over a §5 that still says "pending" would be a decision nobody made.
+  it('is ACCEPTED, and every sub-choice in §5 carries an answer', () => {
+    const rec = read(RECORD)
+    expect(rec).toMatch(/\*\*Status:\*\*[^\n]*ACCEPTED/)
+    expect(rec, 'the record resolved itself while §5 was still open').not.toMatch(/\(pending\)/)
+    // Each of the three rows, BY NAME, carries a verdict and a date. A record
+    // that answered two of three would otherwise read as a full answer, and the
+    // owner answered exactly two of three — 2.3 was REFUSED, which is a decision
+    // and not an omission.
+    for (const [row, verdict] of [['2.1 separator colour', 'TAKE THE TOKEN'],
+      ['2.2 per-pane price axis', 'YES'],
+      ['2.3 pane heights', 'REJECTED']]) {
+      const line = rec.split('\n').find((l) => l.startsWith(`| ${row} `))
+      expect(line, `§5 has no row for ${row}`).toBeTruthy()
+      expect(line, `${row} carries no verdict`).toContain(verdict)
+      expect(line, `${row} carries no date`).toContain('2026-08-05')
+    }
+    // ⛔ NON-VACUITY. A `find` that matched nothing would leave every `toContain`
+    // above unreached; the row count is what says the table was really read.
+    expect(rec.split('\n').filter((l) => /^\| 2\.[123] /.test(l))).toHaveLength(3)
   })
 
   it('prices the three sub-choices SEPARATELY', () => {

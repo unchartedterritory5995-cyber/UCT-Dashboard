@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
 import { AUTOSCALE_EXCLUDE } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeBB } from '../../indicators'
+import { __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR BOLLINGER BANDS, AS A UNIT TEST ────────────────
@@ -67,6 +68,17 @@ const INSTANCE = {
   inputs: { period: PERIOD, stdDev: STDDEV, color: COLOR },
   placement: { target: 'price' }, hidden: false,
 }
+
+// ⭐ B5 TASK 12 — THIS FILE DESCRIBES THE GEOMETRY THE FLIP REVERSES TO.
+// `PANE_MODE` is `'panes'` since Task 12. BB itself is a PRICE overlay and
+// resolves identically in both modes (the `target === 'price'` branch returns
+// before `paneMode()` is ever consulted), but the C-2 repro at the bottom binds
+// a REAL RSI instance to build the tenant BB is re-purposed out of — and an
+// unpinned RSI resolves through the PANES branch, finds no `ctx.paneLayout`,
+// binds nothing, and leaves that case with no tenant at all. The bands mode is
+// still live and tested, so the MODE is pinned rather than the repro rewritten.
+beforeEach(() => { __setPaneModeForTest('bands') })
+afterEach(() => { __setPaneModeForTest(null) })
 
 const sync = () => {
   const F = createFakeChart()

@@ -1,18 +1,25 @@
 // app/src/components/chart/engine/paneLayout.js
 //
-// ─── THE GEOMETRY, AS A PURE FUNCTION ───────────────────────────────────────
+// ─── THE GEOMETRY, AS A PURE FUNCTION — AND NOW THE ONLY COPY OF IT ─────────
 //
-// `paneMargins.computePaneMargins` answers "what slice of pane 0 does each
-// oscillator get". This answers "which PANE does each oscillator get, and how
-// tall is it" — the same question after Flip C, when the bands become panes.
+// This answers BOTH questions the chart can ask about vertical space:
 //
-// It reproduces the band arithmetic EXACTLY (the same proportional squeeze, the
-// same integer-hundredths quantisation, the same deterministic tallest-first
-// shave), because that is what makes pane 0's rectangle land on the same pixels
-// and the `price_plot` parity region read 0. See the plan's §A6 for the identity
-// and §A7 for why heights are set as stretch factors.
+//   * `bands`  — "what slice of pane 0 does each oscillator get", the shape
+//     `computePaneMargins` used to return, key for key and value for value;
+//   * `panes`  — "which PANE does each oscillator get, and how tall is it",
+//     which is the same question after Flip C, when the bands become panes.
 //
-// ⛔ NO NINE-ROW TABLE LIVES HERE. `paneMargins.PANES` is three different facts
+// ⭐ B5 TASK 12 RETIRED `chart/paneMargins.js` INTO THIS FILE, and the reason
+// both answers live here is that they were always ONE piece of arithmetic
+// written down twice. The proportional squeeze, the integer-hundredths
+// quantisation and the deterministic tallest-first shave are computed ONCE, in
+// `stackHundredths`, and the two outputs are two readings of the same
+// `heightsC` array. That is what makes pane 0's rectangle land on the same
+// pixels and — while `PANE_MODE` was `'bands'` — made the `price_plot` parity
+// region read 0. See the plan's §A6 for the identity and §A7 for why heights
+// are set as stretch factors.
+//
+// ⛔ NO NINE-ROW TABLE LIVES HERE. `paneMargins.PANES` was three different facts
 // wearing one coat, and moving the coat would have been a rename, not a
 // retirement:
 //
@@ -21,12 +28,18 @@
 //     height is a per-indicator property, which is what lets a sixteenth
 //     indicator cost one definition and zero list edits (plan §A5).
 //   * its stack ORDER          → the INSTANCE LIST's order (plan §A5). Order is
-//     user data, not a constant, the day panes become draggable.
+//     user data, not a constant, the day panes become draggable. The order the
+//     shipped stack had on the day it retired is `instances.SHIPPED_STACK_ORDER`,
+//     which the v1→v2 fold seeds every existing user's list from.
 //   * its volume row           → `VOLUME_PANE_HEIGHT`, one constant, because
 //     volume is not an indicator instance and never will be one.
 //
 // `paneLayout.test.js` asserts the absence with a probe that matches the nine
-// IDS rather than the identifier `PANES`, so a rename cannot dodge it.
+// IDS rather than the identifier `PANES`, so a rename cannot dodge it — and it
+// holds a FROZEN transcription of the retired `computePaneMargins`, table and
+// all, as the oracle the 512-subset identity is measured against. A frozen copy
+// in a test cannot co-drift with the implementation; the live function it used
+// to read could.
 //
 // ─── WHAT MAKES THE GEOMETRY TOTAL ──────────────────────────────────────────
 //
@@ -61,7 +74,6 @@
 // reasoned about: `paneLayout.test.js`'s sweep is what says so, and the mutation
 // that restores per-band rounding is in this task's gauntlet for that reason.
 
-import { computePaneMargins } from '../paneMargins'
 import { isInstanceTombstone } from '../chartDefaults'
 import { getDefinition, listDefinitions } from './nativeRegistry'
 
@@ -84,19 +96,28 @@ export const SEPARATOR_PX = 1
  * been since the chart shipped. `'panes'` — every oscillator gets a REAL
  * lightweight-charts pane with a draggable divider.
  *
- * ⭐ THIS IS THE WHOLE CUTOVER, AND IT IS ONE WORD. B5 Task 10 builds the
- * real-pane path and lands it DARK: every module below reads `paneMode()`, every
- * `'panes'` branch is driven by tests, and the 46-case zero-changed-pixel gate is
- * run with this constant on `'bands'` — which is what makes Task 12's flip a
- * ONE-CONSTANT commit whose diff is entirely attributable, instead of a change
- * nobody can bisect.
+ * ⭐ FLIP C, APPLIED — 2026-08-05, `docs/decisions/2026-08-04-flip-c-pane-geometry.md`.
+ *
+ * THIS CONSTANT IS THE WHOLE CUTOVER, DELIBERATELY. It landed dark at B5 Task 10
+ * with the 46-case gate at 0 changed pixels, so THIS commit's diff is the only
+ * thing in the frame for every number in that record. Reversal is one edit and is
+ * priced at the same numbers — which is exactly why the constant is KEPT and not
+ * inlined away, following `MACD_HEAD_MASK`. `'bands'` is still a live, tested
+ * mode: `computePaneLayout` returns the band map as well as the pane
+ * decomposition, so the geometry the flip reverses TO did not retire with
+ * `paneMargins.js`.
+ *
+ * The owner's answer, in full (record §5): SHIP, PRESERVING TODAY'S PANE HEIGHTS
+ * (2.3 — LWC's equal split rejected at 195,658 px on `rsi_only`, 26.3 % of the
+ * canvas), TAKE THE SEPARATOR TOKEN (2.1 — 2,400 px), YES TO THE PER-PANE PRICE
+ * AXIS (2.2 — 372 px, every pixel inside `osc_strip`).
  *
  * ⛔ NOTHING READS THIS BINDING DIRECTLY EXCEPT `paneMode()` BELOW. A direct
  * `PANE_MODE === 'panes'` comparison in a consumer is a reader the test seam
- * cannot reach, i.e. a mode with no coverage — `paneLayout.test.js` scans
- * `app/src` and fails on one.
+ * cannot reach, i.e. a mode with no coverage — `__tests__/flipCGeometry.test.jsx`
+ * scans `app/src` and fails on one.
  */
-export const PANE_MODE = 'bands'
+export const PANE_MODE = 'panes'
 
 /**
  * The override the TESTS use, and the reason `paneMode()` is a function.
@@ -106,8 +127,8 @@ export const PANE_MODE = 'bands'
  * asserts the cutover actually builds panes. Module-level mocking would give one
  * mode per FILE and would replace the very module under test.
  *
- * ⛔ PRODUCTION NEVER CALLS `__setPaneModeForTest`. `paneLayout.test.js` proves
- * it by scanning `app/src` for the identifier outside `__tests__`.
+ * ⛔ PRODUCTION NEVER CALLS `__setPaneModeForTest`. `__tests__/flipCGeometry.test.jsx`
+ * proves it by scanning `app/src` for the identifier outside `__tests__`.
  */
 let _paneModeOverride = null
 
@@ -130,8 +151,8 @@ export function __setPaneModeForTest(mode) {
  * nine because that table was a stacking list; here the nine are data and this
  * is a constant, which is what the decomposition means.
  *
- * Transcribed from `paneMargins.js:48`. `paneLayout.test.js` asserts the two
- * agree by reading that file, so a drift on either side fails.
+ * Transcribed from the retired `paneMargins.js:48`. `paneLayout.test.js` asserts
+ * it against that file's frozen table, so a drift on either side fails.
  */
 export const VOLUME_PANE_HEIGHT = 0.15
 
@@ -143,13 +164,23 @@ export const VOLUME_PANE_HEIGHT = 0.15
  */
 export const DEFAULT_PANE_HEIGHT = 0.15
 
-/** Transcribed from `paneMargins.js:18`. ~30% headroom above the highest candle. */
+/** Transcribed from the retired `paneMargins.js:18`. ~30% headroom above the
+ *  highest candle. */
 const MAIN_TOP = 0.30
 
-/** Transcribed from `paneMargins.js:54`. The stack AIMS here; it is the LOOK. */
+/** The candle rectangle when the stack is empty, or before the first sync has
+ *  measured one. `computePaneMargins` answered this from a settings blob at any
+ *  moment; the layout answers it from a chart, so a caller with no chart yet gets
+ *  THIS and is corrected in the same commit (`StockChart.updateChart` re-asserts
+ *  the candles' margins the moment a layout exists — B5 Task 10's fix for the
+ *  options effect running first). */
+export const NO_STACK_MAIN_MARGINS = Object.freeze({ top: MAIN_TOP, bottom: 0 })
+
+/** Transcribed from the retired `paneMargins.js:54`. The stack AIMS here; it is
+ *  the LOOK. */
 const STACK_TARGET = 0.72
 
-/** Transcribed from `paneMargins.js:32`. The stack's ceiling in whole hundredths;
+/** Transcribed from the retired `paneMargins.js:32`. The stack's ceiling in whole hundredths;
  *  this is the SAFETY bound, and it is what makes `mainTopPx < mainBottomPx`
  *  provable rather than hopeful. */
 const MAX_STACK_C = 100 - Math.round(MAIN_TOP * 100) - 1   // 69 hundredths
@@ -160,10 +191,10 @@ const MAX_STACK_C = 100 - Math.round(MAIN_TOP * 100) - 1   // 69 hundredths
  *  `paneLayout.test.js` asserts no pane in the declared space ever gets there. */
 export const MIN_PANE_PX = 2
 
-/** The key `computePaneMargins` gives the volume band. Not a definition id. */
+/** The key the volume band carries in `bands`. Not a definition id. */
 const VOLUME_BAND_KEY = 'volume'
 
-/** The key `computePaneMargins` gives the price area. Not a definition id. */
+/** The key the price area carries in `bands`. Not a definition id. */
 const MAIN_BAND_KEY = 'main'
 
 // ─── which definitions own a pane ────────────────────────────────────────────
@@ -204,45 +235,27 @@ function paneHeightFor(defId) {
 // ─── stack order ─────────────────────────────────────────────────────────────
 
 /**
- * The SHIPPED band order, top-to-bottom, read back out of `computePaneMargins`.
- *
- * ⭐ THIS IS WHY THERE IS NO ORDER TABLE HERE EITHER. `computePaneMargins`
- * inserts its keys in stacking order (bottom of the chart first), so its own
- * output already carries the order, and reading it back means the fallback
- * cannot drift from the thing it is a fallback for. It is also the only reader
- * of `paneMargins.js` in this module, which is what makes Flip C's retirement of
- * that file a single-import deletion rather than a re-derivation.
- *
- * ⚠️ EXISTENCE, NOT VISIBILITY, and membership comes from `cs.indicators` — the
- * pre-migration authority. Once the instance list is seeded (plan Task 9) this
- * branch returns nothing at all, because `cs.indicators` no longer carries the
- * oscillators.
- */
-function shippedBandOrder(cs, excluded, hasVolumeBand) {
-  let bands
-  try {
-    bands = computePaneMargins(cs, hasVolumeBand, excluded)
-  } catch {
-    // It runs inside the paint. A malformed blob is a missing band, not a blank
-    // chart through StockChart's ErrorBoundary.
-    return []
-  }
-  const stack = Object.keys(bands || {})
-    .filter((k) => k !== MAIN_BAND_KEY && k !== VOLUME_BAND_KEY)
-  stack.reverse()          // bottom-to-top ⇒ top-to-bottom, which is pane order
-  return stack
-}
-
-/**
  * Pane keys, TOP-TO-BOTTOM — the order the panes are created in.
  *
- * The instance list is the authority on the order of every id it names. An id
- * that is enabled in `cs` but named by no instance keeps its shipped position,
- * appended below — the transitional state while some indicators are migrated and
- * some are not. Task 9 ends it by seeding the instance list from today's order,
- * after which the second half is empty by construction.
+ * ⭐ THE INSTANCE LIST IS THE ONLY AUTHORITY, AND B5 TASK 12 IS WHERE IT BECAME
+ * THE ONLY ONE. A second loop stood here, appending any id that was enabled in
+ * `cs.indicators` but named by no instance, in the order `computePaneMargins`
+ * stacked it — the transitional state while some indicators were migrated and
+ * some were not. Task 9 ended that state by folding `cs.indicators` into
+ * `indicatorInstances`, so the loop had nothing left to append; Task 12 deletes
+ * it along with the function it read the order out of. `cs` was that loop's only
+ * argument, which is why this function and `computePaneLayout` no longer take one.
+ *
+ * 🔴 ⚠️ THE LIST'S ORDER IS THE FOLD'S ORDER, AND THE FOLD SEEDS IN REGISTRY
+ * ORDER — NOT in `instances.SHIPPED_STACK_ORDER`. This paragraph used to say the
+ * list was "seeded from `SHIPPED_STACK_ORDER`"; B5 Task 12 MEASURED that it is
+ * not. The fold deliberately emits registry order because this list is ALSO the
+ * binder's insertion order and insertion order is Z-ORDER (a stack-ordered seed
+ * moved two `scaleId`s at 0 changed pixels and the gate refused it). So the panes
+ * come out in registry order, which is NOT the band order a user's chart has
+ * today. See `instances.js`'s note and the Flip-C record §7.
  */
-function orderedPaneKeys(cs, instances, excluded, hasVolumeBand) {
+function orderedPaneKeys(instances, excluded) {
   const paneIds = paneTargetIds()
   const keys = []
   const seen = new Set()
@@ -255,12 +268,6 @@ function orderedPaneKeys(cs, instances, excluded, hasVolumeBand) {
     const id = inst.defId
     if (typeof id !== 'string' || !paneIds.has(id)) continue
     if (excluded.has(id) || seen.has(id)) continue
-    seen.add(id)
-    keys.push(id)
-  }
-
-  for (const id of shippedBandOrder(cs, excluded, hasVolumeBand)) {
-    if (seen.has(id)) continue
     seen.add(id)
     keys.push(id)
   }
@@ -391,10 +398,45 @@ function normalisedAbovePct(raw, firstPaneIndex) {
   return out
 }
 
+/**
+ * The BAND map — `computePaneMargins`' entire output, from the same `heightsC`.
+ *
+ * ⭐ B5 TASK 12: THIS IS WHERE `paneMargins.js` WENT, and it is a MERGE rather
+ * than a move. The band fractions and the pane pixel heights were always two
+ * readings of one quantised stack; the retired module computed the stack a
+ * second time from a nine-row table and `cs.indicators[key].enabled`, which is
+ * why a projection module had to exist to keep that second copy honest once the
+ * instance list became the authority. There is one copy now, so there is nothing
+ * to project.
+ *
+ * ⛔ THE EXPRESSIONS ARE VERBATIM, NOT EQUIVALENT — `(100 - nextC) / 100` and
+ * `bottomC / 100`, off the integer hundredths, never off the rounded pixels.
+ * Deriving them from `px()` instead would move a band by a fraction of a pixel
+ * on some heights and nothing would say so. Insertion order is bottom-to-top
+ * then `main`, as it was, because that order was READ BACK as the stack order for
+ * two phases.
+ *
+ * Height-independent by construction, which is stronger than the function it
+ * replaces needed to be: a chart that cannot yet report a height still gets the
+ * right bands.
+ */
+function bandMap(bottomToTop, heightsC, oscCount, hasVolumeBand) {
+  const out = {}
+  let bottomC = 0
+  for (let i = 0; i < heightsC.length; i++) {
+    const key = i < oscCount ? bottomToTop[i] : VOLUME_BAND_KEY
+    const nextC = bottomC + heightsC[i]
+    out[key] = { top: (100 - nextC) / 100, bottom: bottomC / 100 }
+    bottomC = nextC
+  }
+  out[MAIN_BAND_KEY] = { top: MAIN_TOP, bottom: bottomC / 100 }
+  return out
+}
+
 /** The empty answer: no oscillator pane at all. The panes above the stack keep
  *  the heights bands mode gives them, so the total is exact even when there is
  *  nothing to shave a separator off — the no-oscillator half of D1. */
-function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex) {
+function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands) {
   const h = (Number.isFinite(chartHeight) && chartHeight > 0) ? chartHeight : 0
   const above = h > 0
     ? bandsAboveHeights(h, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
@@ -406,6 +448,7 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
     mainPaneIndex,
     panes: [],
     above,
+    bands,
     pane0: {
       heightPx: above[mainPaneIndex],
       stretchFactor: above[mainPaneIndex],
@@ -421,15 +464,19 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
  * PURE. No LWC import, no clock, no globals; the same arguments always produce
  * the same object.
  *
- * @param {object} cs merged chart settings (read only through `computePaneMargins`)
+ * ⛔ IT NO LONGER TAKES A `cs`. The settings blob reached exactly one line of this
+ * module — the fallback that ordered any id enabled in `cs.indicators` but named
+ * by no instance — and B5 Task 9 emptied that set by folding `cs.indicators`
+ * away. Keeping the parameter would have been a reader nobody can see is dead.
+ *
  * @param {object[]} instances the engine's indicator instances, in stack order
  * @param {object} opts
  * @param {number} opts.chartHeight the pane stack's total height in CSS pixels
  *        (the chart's height MINUS the time axis — that is the budget LWC
  *        distributes, `…development.js:11358-11359`)
  * @param {boolean} opts.hasVolumeBand volume shares pane 0 as a band. FALSE when
- *        volume has its own LWC pane — the same flag `StockChart.jsx:5941`
- *        passes as `computePaneMargins`' `hasVolume`
+ *        volume has its own LWC pane — the same flag the retired
+ *        `computePaneMargins` took as `hasVolume`
  * @param {Set<string>|string[]} opts.excludeKeys indicators overlaid into the
  *        volume pane, which reserve no space
  * @param {number} opts.separatorPx pixels LWC keeps between two panes
@@ -450,12 +497,13 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
  *        to pane 0 (`StockChart.jsx` `s.getPane().moveTo(0)`).
  * @returns {{chartHeight: number, separatorPx: number, firstPaneIndex: number,
  *            mainPaneIndex: number, above: number[],
+ *            bands: Object<string, {top: number, bottom: number}>,
  *            panes: {key: string, index: number, heightPx: number, stretchFactor: number}[],
  *            pane0: {heightPx: number,
  *                    mainMargins: {top: number, bottom: number},
  *                    volumeMargins: {top: number, bottom: number}|null}}}
  */
-export function computePaneLayout(cs, instances, opts) {
+export function computePaneLayout(instances, opts) {
   const o = opts || {}
   const chartHeight = o.chartHeight
   const hasVolumeBand = !!o.hasVolumeBand
@@ -467,13 +515,28 @@ export function computePaneLayout(cs, instances, opts) {
   const mainPaneIndex = (Number.isInteger(o.mainPaneIndex)
     && o.mainPaneIndex >= 0 && o.mainPaneIndex < firstPaneIndex) ? o.mainPaneIndex : 0
 
-  if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
-    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex)
-  }
+  const keys = orderedPaneKeys(instances, excluded)
 
-  const keys = orderedPaneKeys(cs, instances, excluded, hasVolumeBand)
+  // Bottom-to-top, because that is the order the squeeze and both shaves run in
+  // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
+  // directly under the price area, exactly as the retired `PANES` put it last.
+  const bottomToTop = [...keys].reverse()
+  const baseHeights = bottomToTop.map(paneHeightFor)
+  if (hasVolumeBand) baseHeights.push(VOLUME_PANE_HEIGHT)
+
+  const heightsC = stackHundredths(baseHeights)
+  const oscCount = bottomToTop.length
+
+  // ⭐ THE BAND MAP IS COMPUTED BEFORE ANY HEIGHT GUARD, because it does not need
+  // a height and its consumers (a right-click resolver, the candles' own
+  // margins) can be asked before the renderer can answer one.
+  const bands = bandMap(bottomToTop, heightsC, oscCount, hasVolumeBand)
+
+  if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
+    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
+  }
   if (!keys.length && !hasVolumeBand) {
-    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex)
+    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
   }
 
   // ⭐ THE SUBSTITUTION. Every fraction below is a fraction of THIS, not of the
@@ -481,15 +544,6 @@ export function computePaneLayout(cs, instances, opts) {
   const above = bandsAboveHeights(chartHeight, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
   const mainHeightPx = above[mainPaneIndex]
 
-  // Bottom-to-top, because that is the order the squeeze and both shaves run in
-  // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
-  // directly under the price area, exactly as `paneMargins.PANES` puts it last.
-  const bottomToTop = [...keys].reverse()
-  const baseHeights = bottomToTop.map(paneHeightFor)
-  if (hasVolumeBand) baseHeights.push(VOLUME_PANE_HEIGHT)
-
-  const heightsC = stackHundredths(baseHeights)
-  const oscCount = bottomToTop.length
   const oscTotalC = heightsC.slice(0, oscCount).reduce((s, h) => s + h, 0)
   const volumeC = hasVolumeBand ? heightsC[oscCount] : 0
 
@@ -535,6 +589,7 @@ export function computePaneLayout(cs, instances, opts) {
     firstPaneIndex,
     mainPaneIndex,
     above,
+    bands,
     // Top-to-bottom, so `index` is the LWC pane index a series is moved to.
     // `stretchFactor` IS the pixel height: stretch factors distribute the
     // AVAILABLE height (chart minus separators minus time axis), so a factor set

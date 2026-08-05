@@ -46,22 +46,23 @@ import { createSessionShadingPrimitive, computeSessionBands } from './chart/sess
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
-import { computePaneMargins } from './chart/paneMargins'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
-// dead — it is `engine/paneMarginsProjection.js`'s stated model and keeps its own
-// suite — but StockChart's call was its last production use, and the value that
-// call produced had had ZERO readers since Flip B deleted the guarded blocks.
+// dead — it keeps its own suite in `engine/instances.test.js` — but StockChart's
+// call was its last production use, and the value that call produced had had ZERO
+// readers since Flip B deleted the guarded blocks.
 import { normalizeInstances, legacyInstanceId, migrateLegacyToInstances } from './chart/engine/instances'
 import { eligibleInstances } from './chart/engine/eligibility'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
-import { csForPaneMargins, csForPaneMarginsFromSettings } from './chart/engine/paneMarginsProjection'
-// ⭐ FLIP C, LANDED DARK (B5 Task 10). `paneMode()` is `'bands'`, so every read
-// below takes the branch it has always taken and the 46-case zero-changed-pixel
-// gate says so; Task 12 flips the one constant in `engine/paneLayout.js`.
-import { paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX } from './chart/engine/paneLayout'
+// ⭐ FLIP C, APPLIED (B5 Task 12). `paneMode()` is `'panes'`. `computePaneLayout`
+// is now the ONE geometry authority — it answers both "which pane" and, through
+// `layout.bands`, the band question `chart/paneMargins.js` used to answer before
+// Flip C retired it.
+import {
+  paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
+} from './chart/engine/paneLayout'
 import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
 import { engineChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -774,26 +775,30 @@ function colorMulAlpha(color, mul) {
 // margin (the global default reserves 0.30 headroom; some surfaces want a
 // tighter fit, plus a small bottom gap above a separate volume pane).
 //
-// ⛔ `cs` HERE MUST BE THE PROJECTED BLOB (`csPanes`), NOT the merged settings.
-// B5 Task 9 folded `cs.indicators` into `indicatorInstances`, so the raw blob
-// answers "no oscillator is on" to `computePaneMargins` and these margins — the
-// CANDLE series' own — would fill the whole pane, painting over every band.
-// Named `cs` because it IS a settings blob; the caller decides which one.
+// ⭐ B5 TASK 12 — IT TAKES THE LAYOUT AND NOTHING ELSE. It used to take a
+// settings blob (the PROJECTED one, `csPanes`, because Task 9 had folded
+// `cs.indicators` away and the retired `computePaneMargins` read exactly that
+// key), a volume
+// flag, and the layout. `computePaneLayout` answers BOTH modes now, so there is
+// one argument and no chance of handing it the wrong blob.
 //
-// ⭐ FLIP C, THE FIFTH ARGUMENT. Under `paneMode() === 'panes'` there are no
-// bands left in pane 0 to reserve space for, but the candle rectangle must land
-// on the SAME ABSOLUTE PIXELS it does today — that identity is what lets the
-// parity gate's `price_plot` region read 0 through the cutover. Pane 0 is
-// SHORTER by the oscillator stack, so "0.30 of the chart" and "0.30 of pane 0"
-// are different rectangles, and `computePaneLayout` returns the candle
-// rectangle already re-expressed as fractions of pane 0's own height. That
-// object is the answer here; `computePaneMargins` is the answer in `'bands'`.
+// ⭐ FLIP C, AND WHY THE TWO MODES READ DIFFERENT FIELDS. Under
+// `paneMode() === 'panes'` there are no bands left in pane 0 to reserve space
+// for, but the candle rectangle must land on the SAME ABSOLUTE PIXELS it did
+// under bands — that identity is what keeps the parity gate's `price_plot`
+// region down to one grid line instead of a re-fit. Pane 0 is SHORTER by the
+// oscillator stack, so "0.30 of the chart" and "0.30 of pane 0" are different
+// rectangles, and the layout returns the candle rectangle already re-expressed
+// as fractions of pane 0's own height. In `'bands'` mode pane 0 IS the plot
+// area, so the answer is the band map's `main` — the numbers
+// `computePaneMargins` returned, off the same quantised stack.
 //
-// `layout` is `null` in `'bands'` mode — every caller passes
-// `paneLayoutRef.current`, which is only ever written under `'panes'` — so this
-// line is provably inert today and the 46-case zero says so.
-function _mainMargins(cs, hasVol, topOverride, bottomOverride, layout) {
-  const m = (layout && layout.pane0) ? layout.pane0.mainMargins : computePaneMargins(cs, hasVol).main
+// ⚠️ A `null` LAYOUT IS THE FIRST FRAME, NOT AN ERROR. The chart-options effect
+// builds `rightPriceScale.scaleMargins` BEFORE `updateChart` has measured one,
+// which is exactly why `updateChart` re-asserts the candles' margins itself (B5
+// Task 10). Until it does, the answer is the no-stack rectangle.
+function _mainMargins(layout, topOverride, bottomOverride) {
+  const m = _layoutMainMargins(layout)
   if (topOverride == null && bottomOverride == null) return m
   return {
     top: topOverride != null ? topOverride : m.top,
@@ -801,20 +806,25 @@ function _mainMargins(cs, hasVol, topOverride, bottomOverride, layout) {
   }
 }
 
+function _layoutMainMargins(layout) {
+  if (!layout) return NO_STACK_MAIN_MARGINS
+  return paneMode() === 'panes' ? layout.pane0.mainMargins : layout.bands.main
+}
+
 // Where the sub-pane stack STARTS, as a fraction of the whole plot area — the
 // price-scale toggle sits just above it.
 //
-// ⭐ FLIP C. In `'bands'` mode that is `main.bottom`, because pane 0 IS the plot
-// area. Under `'panes'` pane 0 is only the top of it, so the same edge has to be
-// converted back out of pane-0 fractions into whole-plot fractions before the CSS
-// `calc()` can use it — the chrome must sit on the candles' bottom edge, and that
-// edge is at the same absolute pixel in both modes by construction.
-function _subPaneTopFrac(cs, hasVol, layout) {
-  if (layout && layout.pane0 && layout.chartHeight > 0) {
-    const bottomPx = layout.pane0.heightPx * (1 - layout.pane0.mainMargins.bottom)
-    return 1 - (bottomPx / layout.chartHeight)
-  }
-  return computePaneMargins(cs, hasVol).main.bottom
+// ⭐ FLIP C. In `'bands'` mode that is `bands.main.bottom`, because pane 0 IS the
+// plot area. Under `'panes'` pane 0 is only the top of it, so the same edge has
+// to be converted back out of pane-0 fractions into whole-plot fractions before
+// the CSS `calc()` can use it — the chrome must sit on the candles' bottom edge,
+// and that edge is at the same absolute pixel in both modes by construction.
+function _subPaneTopFrac(layout) {
+  if (!layout) return 0
+  if (paneMode() !== 'panes') return layout.bands.main.bottom
+  if (!(layout.chartHeight > 0)) return 0
+  const bottomPx = layout.pane0.heightPx * (1 - layout.pane0.mainMargins.bottom)
+  return 1 - (bottomPx / layout.chartHeight)
 }
 
 // Smoothly animate the chart's visible logical range from wherever it is now to
@@ -1151,28 +1161,15 @@ export default function StockChart({
     [csBase, settingsOverride],
   )
 
-  // ⭐⭐ B5 TASK 9 — THE BLOB `computePaneMargins` HAS TO BE ASKED, NOT `cs`.
+  // ⛔⭐ B5 TASK 12 — `csPanes` STOOD HERE AND IS GONE, WITH ITS SUBJECT.
   //
-  // `computePaneMargins` reads `cs.indicators[key].enabled`, and after Task 9 a
-  // merged blob carries only `volumeProfile` there: the fourteen legacy sections
-  // are folded into `indicatorInstances` and DESTROYED by the allow-list. Handed
-  // the raw `cs` it therefore reserves NO bands — the candles' own scaleMargins
-  // fill the whole pane and every oscillator is painted over.
-  //
-  // ⚠️ THREE OF THE FOUR CALL SITES READ THE RAW `cs`. Only `updateChart`'s had
-  // the instance list in scope (it builds `csMargins` from `engineInstances`);
-  // `_mainMargins` (seven callers, all of them the CANDLE series' margins), the
-  // right-click region resolver and the price-scale toggle's CSS `bottom` did
-  // not, and they were correct only because the legacy section was a
-  // write-through mirror of the instances. This is that mirror, derived.
-  //
-  // ⛔ DERIVED PER RENDER, NOT READ OFF `engineInstancesRef`: two of the three
-  // sites run during the RENDER pass, and that ref is written by the effect that
-  // follows it — so it is one paint stale exactly when the layout changes.
-  const csPanes = useMemo(
-    () => csForPaneMarginsFromSettings(cs, engineRegistry, ENGINE_FLIPPED_DEF_IDS),
-    [cs],
-  )
+  // Task 9 folded `cs.indicators` into `indicatorInstances`, and `computePaneMargins`
+  // read `cs.indicators[key].enabled` — so every call site had to be handed a blob
+  // with the instance list projected BACK onto it, which is what `csPanes` was.
+  // `computePaneLayout` reads the INSTANCE LIST directly, so there is nothing to
+  // project and no second blob to keep honest: the four sites that used to take
+  // `csPanes` now take the LAYOUT, which is the same object the binder and the
+  // renderer are working from. `engine/paneMarginsProjection.js` retires with it.
 
   // Volume MA is editable from the Indicators tab; the `volumeMa` prop stays the
   // fallback for callers that don't use chart settings (Model Book, popups).
@@ -1764,8 +1761,8 @@ export default function StockChart({
   // needs the LIVE pane-stack height (the chart's height minus the time axis,
   // which only the renderer knows) and the instance list, and `updateChart` is
   // the one place both are in hand. ⚠️ That makes it one paint stale for the
-  // render-pass readers when the chart is RESIZED — the same trade B5 Task 9
-  // refused for `csPanes`, taken here because the alternative is re-deriving the
+  // render-pass readers when the chart is RESIZED — the trade B5 Task 9 refused
+  // for the now-retired `csPanes`, taken here because the alternative is re-deriving the
   // renderer's own time-axis height in the component body. The binder's height
   // check is what makes a stale layout loud instead of silent.
   const paneLayoutRef = useRef(null)
@@ -2271,7 +2268,7 @@ export default function StockChart({
         try {
           mainPriceScale()?.applyOptions({
             autoScale: true,
-            scaleMargins: _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current),
+            scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
           })
         } catch {}
         // HORIZONTAL: reframe to the timeframe default.
@@ -2295,7 +2292,7 @@ export default function StockChart({
         vertMarginsRef.current = null
         mainPriceScale()?.applyOptions({
           autoScale: true,
-          scaleMargins: _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current),
+          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
         })
       } catch {}
     }
@@ -5003,7 +5000,7 @@ export default function StockChart({
                 let top = Math.min(0.9, Math.max(0, yHi / paneH))
                 let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
                 if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
-                const base = _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current)
+                const base = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
                 // Only treat as a custom placement if it meaningfully differs from default.
                 if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
                   vertMarginsRef.current = null
@@ -5048,16 +5045,30 @@ export default function StockChart({
         fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
+        //
         // ⭐ FLIP C: SPEC §6 REQUIRES A DRAGGABLE DIVIDER, and under `'panes'`
-        // every oscillator has one. The block below already declared
-        // `enableResize` for the two surfaces that restyle the separator; in
-        // `'panes'` mode it is declared for ALL of them, so the answer is in the
-        // chart's own options rather than resting on the library default. (It is
-        // `!frozen` either way: a Setup Library exhibit is a static picture and
-        // its panes are not draggable — the one place spec §6 does not apply.)
-        ...((boldCandles || subtleSeparator)
+        // every oscillator has one. `enableResize` was already declared for the
+        // two surfaces that restyle the separator; in `'panes'` mode it is
+        // declared for ALL of them, so the answer is in the chart's own options
+        // rather than resting on the library default. (It is `!frozen` either
+        // way: a Setup Library exhibit is a static picture and its panes are not
+        // draggable — the one place spec §6 does not apply.)
+        //
+        // ⭐⭐ SUB-CHOICE 2.1, ANSWERED **TAKE THE TOKEN** BY THE OWNER ON
+        // 2026-08-05 (record §5). **2,400 px on `rsi_only`** — exactly one
+        // 1,200-px row per separator, and nothing else on the canvas moves
+        // (builds `1667183abbe0` → `d361f1585243`). `separatorColors` is already
+        // derived from the canvas AT THE SEPARATOR'S OWN HEIGHT and is what the
+        // Model Book and bold-candle surfaces use; leaving LWC's `#2B2B43` in
+        // place would put the app's one remaining hard-coded chrome colour
+        // between every pair of panes — invisible against a dark canvas and
+        // wrong against a light one, the exact defect `separatorColors` was
+        // written to fix. ⚠️ It restyles a divider that ALREADY EXISTS (the
+        // price/volume one), which is why it was priced as its own decision and
+        // not folded into the cutover's number.
+        ...((boldCandles || subtleSeparator || paneMode() === 'panes')
           ? { panes: { separatorColor: separatorColors.color, separatorHoverColor: separatorColors.hover, enableResize: !frozen } }
-          : paneMode() === 'panes' ? { panes: { enableResize: !frozen } } : {}),
+          : {}),
       },
       // Frozen (Setup Library examples): the chart is a static exhibit pinned to
       // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
@@ -5105,7 +5116,7 @@ export default function StockChart({
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current),
+        scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
@@ -5776,7 +5787,7 @@ export default function StockChart({
     // Ctrl+I (`keyboardShortcuts.js:99` → `:3495`), the right-click
     // **Indicators ▸** submenu (`:2214`) and right-click **Hide RSI** (`:2251`).
     // Without this line every one of them SILENTLY HALF-WORKED once the engine
-    // owned the drawing: the flag reached `computePaneMargins` and nothing else,
+    // owned the drawing: the flag reached the BAND LAYOUT and nothing else,
     // so turning RSI off removed its reserved BAND and left the line behind —
     // and `resolvePlacement` then fell through to `{top:0.82, bottom:0}`
     // (`placement.js:103`), which OVERLAPS volume's `{top:0.85, bottom:0}`. The
@@ -5833,8 +5844,9 @@ export default function StockChart({
     // removals per USER ACTION, not per indicator.
     //
     // ⭐ RESOLVED BY TASK 10, PER DEFINITION — not deleted wholesale. Flip B moves
-    // the authority the other way for a FLIPPED id: `csForPaneMargins` projects
-    // the INSTANCE list onto the blob `computePaneMargins` reads, and
+    // the authority the other way for a FLIPPED id: the geometry reads the
+    // INSTANCE LIST (through `computePaneLayout`; before Flip C it was
+    // `csForPaneMargins` projecting that list onto a settings blob), and
     // `instanceControls` routes every write at the instance. The two rules are
     // mirror images and cannot both hold for one definition — an instance whose
     // legacy toggle is false would reserve a band (the projection) that this line
@@ -6004,8 +6016,9 @@ export default function StockChart({
     //
     // **What it was.** Flip A put the engine's series in the SAME band on the SAME
     // scale as the legacy block, and that band existed only while
-    // `cs.indicators[key].enabled` was true (`computePaneMargins` reads exactly
-    // that). So the legacy toggle had to stay ON for the layout to be identical —
+    // `cs.indicators[key].enabled` was true (the retired `computePaneMargins`
+    // read exactly that). So the legacy toggle had to stay ON for the layout to
+    // be identical —
     // which meant the legacy block would draw a SECOND copy on top.
     // `engineOwnedDefIds` was the arbiter: an instance of definition `X` meant the
     // engine drew X, and X's legacy block guarded on `!engineOwned.has('X')`.
@@ -6019,9 +6032,8 @@ export default function StockChart({
     // invisible to it by construction. Five comment paragraphs in this file went on
     // calling it "the arbiter" for two phases.
     //
-    // ⚠️ `engineOwnedDefIds` ITSELF IS NOT DEAD — it is
-    // `engine/paneMarginsProjection.js`'s stated model and keeps its own suite.
-    // Only StockChart's call was.
+    // ⚠️ `engineOwnedDefIds` ITSELF IS NOT DEAD — it keeps its own suite in
+    // `engine/instances.test.js`. Only StockChart's call was.
 
     // ── Volume-pane indicator overlay ──
     // Chosen oscillators render INSIDE the volume pane on its left axis (volume
@@ -6033,29 +6045,20 @@ export default function StockChart({
 
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
-    // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
+    // draggable divider; overlay mode shares pane 0 via the layout's bands.
     const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
-    // The bands follow the INSTANCES for every FLIPPED id — see
-    // `engine/paneMarginsProjection.js` and the plan's adjudication A2.
-    // `paneMargins.js` is consumed, not owned: it keeps its signature, its PANES
-    // list and its crash fix, and this projects the instance list into the shape
-    // it already reads. ⛔ With nothing flipped it returns `cs` ITSELF — identity,
-    // not a copy — so today `computePaneMargins` is handed the object it always
-    // was and this line changes nothing. `stockChartWiring.test.jsx` asserts that
-    // identity through the binder's own ctx rather than trusting the comment.
-    const csMargins = csForPaneMargins(cs, engineInstances, ENGINE_FLIPPED_DEF_IDS)
     const hasVolumeBand = showVolume && volData.length > 0 && !volSeparatePane
-    const paneMargins = computePaneMargins(csMargins, hasVolumeBand, volOverlaySet)
     const VOL_PANE_INDEX = 1
 
-    // ── FLIP C: THE SAME STACK, AS REAL PANES ────────────────────────────────
+    // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
     //
-    // ⛔ `null` UNDER `'bands'`, WHICH IS EVERY CHART TODAY. Not "computed and
-    // ignored": `computePaneLayout` calls `computePaneMargins` a second time, and
-    // paying for a value nothing reads on every data poll — roughly once a second
-    // in extended hours — is exactly the kind of cost the binder's two memos exist
-    // to avoid. The `'panes'` branch is driven by
-    // `engine/__tests__/flipCGeometry.test.jsx` against a REAL renderer instead.
+    // ⛔ COMPUTED IN BOTH MODES, WHICH IT WAS NOT BEFORE TASK 12. It used to be
+    // `null` under `'bands'` because it duplicated a `computePaneMargins` call
+    // nothing read. That second copy is what retired: the layout IS the band
+    // arithmetic now (`layout.bands`), so computing it once per sync is strictly
+    // cheaper than the two calls it replaces, and every consumer — the candles'
+    // margins, the volume band, the right-click resolver, the binder — reads ONE
+    // object instead of two that could disagree.
     //
     // The height comes from the RENDERER (`paneStackHeightPx`), not from the
     // container: the budget LWC distributes is the chart's height minus the time
@@ -6090,36 +6093,45 @@ export default function StockChart({
         ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
         : [_idxPct, 100 - _idxPct])
       : (volSeparatePane ? [100 - _volPct, _volPct] : [100])
-    const paneLayout = paneMode() === 'panes'
-      ? computePaneLayout(csMargins, engineInstances, {
-        chartHeight: paneStackHeightPx(chart),
-        hasVolumeBand,
-        excludeKeys: volOverlaySet,
-        separatorPx: SEPARATOR_PX,
-        firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
-        abovePct: _abovePct,
-        mainPaneIndex: _hasIdxPane ? 1 : 0,
-      })
-      : null
+    const paneLayout = computePaneLayout(engineInstances, {
+      chartHeight: paneStackHeightPx(chart),
+      hasVolumeBand,
+      excludeKeys: volOverlaySet,
+      separatorPx: SEPARATOR_PX,
+      firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
+      abovePct: _abovePct,
+      mainPaneIndex: _hasIdxPane ? 1 : 0,
+    })
     paneLayoutRef.current = paneLayout
+    // The BAND map — what `computePaneMargins(csMargins, hasVolumeBand,
+    // volOverlaySet)` returned, key for key, off the same quantised stack. Read
+    // by the volume band below, by `placement.js`'s `'bands'` branch through the
+    // binder ctx, and by the right-click region resolver.
+    const paneMargins = paneLayout.bands
 
     // ⛔ AND THE CANDLES' OWN MARGINS HAVE TO BE RE-ASSERTED HERE, NOT LEFT TO
     // THE OPTIONS EFFECT. MEASURED at B5 Task 10: `rightPriceScale.scaleMargins`
     // is built in the chart-options effect, which runs BEFORE this one on the
     // first paint — so `paneLayoutRef` is still `null` there and the FIRST
-    // painted frame would carry the BANDS rectangle. Every parity case is a fresh
+    // painted frame carries the wrong rectangle. Every parity case is a fresh
     // page load, so the first frame is the only one photographed: Task 12 would
     // have measured the price pane in the wrong place and the §A6 identity would
     // have looked broken when only the ordering was.
     //
+    // ⚠️ WHAT THAT FIRST FRAME CARRIES CHANGED AT TASK 12, and the sentence above
+    // used to name it: it was the BANDS rectangle, because `_mainMargins` fell
+    // back to `computePaneMargins`. It is now `NO_STACK_MAIN_MARGINS` — the
+    // no-stack answer — because the helper takes a layout and there isn't one
+    // yet. Same defect, same fix, different wrong rectangle.
+    //
     // A user who has DRAGGED the price axis outranks the layout, exactly as
     // `vertMarginsRef` outranks `_mainMargins` in the options effect.
-    if (paneLayout && !vertMarginsRef.current) {
+    if (!vertMarginsRef.current) {
       try {
         mainPriceScale()?.applyOptions({
           scaleMargins: _mainMargins(
-            csPanes, hasVolumeBand, priceScaleTopMargin,
-            volInSeparatePane ? priceScaleBottomMargin : null, paneLayout,
+            paneLayout, priceScaleTopMargin,
+            volInSeparatePane ? priceScaleBottomMargin : null,
           ),
         })
       } catch { /* one bad scale must not take the paint down */ }
@@ -6224,7 +6236,7 @@ export default function StockChart({
         // indicator instance and gets no pane of its own), but pane 0 is shorter,
         // so its fractions are the layout's — the same re-expression the candles'
         // own margins get above.
-        const volMargins = (paneLayout && paneLayout.pane0.volumeMargins)
+        const volMargins = (paneMode() === 'panes' ? paneLayout.pane0.volumeMargins : null)
           || paneMargins.volume || { top: 0.82, bottom: 0 }
         volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
@@ -6475,7 +6487,7 @@ export default function StockChart({
     // branches, their entries in the hide-all array and RSI's crosshair fallback
     // are all GONE — that deletion IS Flip B, and it is what stops each of them
     // being enumerated in six places. `ENGINE_FLIPPED_DEF_IDS` names them; the
-    // enable signal reaches `computePaneMargins` through `csForPaneMargins`, and
+    // enable signal reaches the geometry through the instance list itself, and
     // the engine is ACTIVE for them unconditionally because there is nothing else
     // left that could draw them. (It used to say "regardless of `engineEnabled`" —
     // B5 Task 4 deleted that flag, so there is no longer anything to be regardless
@@ -7412,7 +7424,7 @@ export default function StockChart({
       focusPriceRangeRef.current = null
       const _ov = fitPriceToCandles ? null : overlayData
       const _tv = keepBarsAfterExit ? Math.min(endIdx + padRight, filteredBars.length - 1) : endIdx
-      const _mmI = _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current)
+      const _mmI = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
       const _mt = Math.max(0, Math.min(0.45, _mmI?.top ?? 0))
       const _mb = Math.max(0, Math.min(0.45, _mmI?.bottom ?? 0))
       const _raw = _windowPriceRange(filteredBars, fromIdx, _tv, _ov)
@@ -7466,7 +7478,7 @@ export default function StockChart({
       // against the top/bottom of the pane (the tallest candle clipping off the top
       // in the Result view). Bake the same top/bottom headroom the default autoscale
       // would apply into the pinned range so the glide lands with proper margins.
-      const _mm = _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current)
+      const _mm = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
       const _padVert = (r) => {
         if (!r) return r
         const mt = Math.max(0, Math.min(0.45, _mm?.top ?? 0))
@@ -9112,15 +9124,16 @@ export default function StockChart({
       e?.preventDefault?.()
 
       // ── Resolve which region of the chart was clicked ──────────────────
-      // Axis widths + pane heights come straight from the chart; band layout
-      // mirrors the render path's computePaneMargins so the menu matches what
-      // the user sees.
+      // Axis widths + pane heights come straight from the chart; the band map is
+      // the RENDER PATH'S OWN (`paneLayoutRef`), not a second computation, so
+      // the menu cannot be confidently right about a chart that is not on screen.
       const separateVolume = showVolume && (!!cs.volume.separatePane || (Array.isArray(cs.volumeOverlayIndicators) && cs.volumeOverlayIndicators.length > 0))
       let axisWidth = 0, timeAxisHeight = 0, pane0Height = rect.height
       try { axisWidth = (mainPriceScale()?.width?.()) ?? chart.priceScale('right').width() } catch {}
       try { timeAxisHeight = chart.timeScale().height() } catch {}
       try { pane0Height = (candleSeriesRef.current?.getPane?.()?.getHeight?.()) ?? chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
-      const paneMargins = computePaneMargins(csPanes, showVolume && !separateVolume, cs.volumeOverlayIndicators)
+      const _layout = paneLayoutRef.current
+      const paneMargins = (_layout && _layout.bands) || {}
       // ⭐ FLIP C: UNDER `'panes'` THE ANSWER COMES OFF THE RENDERER, NOT OFF A
       // SECOND COPY OF THE GEOMETRY. The bands resolver re-derives the layout from
       // `cs`, so it can be confidently right about a chart that is not on screen;
@@ -9128,7 +9141,6 @@ export default function StockChart({
       // them is what makes the menu match what the user actually clicked. The
       // layout supplies each pane's KEY (the renderer does not know what an
       // indicator is) and the renderer supplies each pane's HEIGHT.
-      const _layout = paneLayoutRef.current
       let region
       if (paneMode() === 'panes' && _layout) {
         let livePanes = []
@@ -9222,7 +9234,7 @@ export default function StockChart({
               try {
                 mainPriceScale()?.applyOptions({
                   autoScale: true,
-                  scaleMargins: _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null, paneLayoutRef.current),
+                  scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
                 })
               } catch { /* noop */ }
               // HORIZONTAL: reframe to the timeframe default.
@@ -9988,7 +10000,7 @@ export default function StockChart({
       {!showFatalError && chartReady && (
         <div
           className={styles.scaleToggle}
-          style={{ bottom: boldCandles ? '3px' : `calc(26px + (100% - 26px) * ${_subPaneTopFrac(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, paneLayoutRef.current)})` }}
+          style={{ bottom: boldCandles ? '3px' : `calc(26px + (100% - 26px) * ${_subPaneTopFrac(paneLayoutRef.current)})` }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button
