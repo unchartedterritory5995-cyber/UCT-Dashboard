@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
+import ChartMetaRow from '../../../components/chart/pane/ChartMetaRow'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import ChartMarketClock from './ChartMarketClock'
@@ -82,10 +83,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
 
   // UCT rating (composite 1–99) — colored by tier.
   const uctRating = Number.isFinite(fund?.composite) ? fund.composite : null
-  // UCT rating default = the price-candle up-green (CHART_DEFAULTS.candles.upColor),
-  // so it matches the candles out of the box and opening its picker starts on that
-  // exact color. Overridable per user via header.colors.uctRating.
-  const UCT_RATING_DEFAULT = '#1ae51a'
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return
@@ -278,7 +275,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
     patchHeader({ customTimeframes: customTfs.filter(c => c !== code), timeframes: fav.filter(c => c !== code) })
   }, [customTfs, hdr.timeframes, patchHeader])
-  const showAnyMeta = hdr.showMarketCap || hdr.showNextEarnings || hdr.showUctRating
   // Per-item header color overrides (Chart Settings → Header → Show). Absent = the
   // item keeps its built-in color (see chartDefaults header.colors).
   const hdrColors = hdr.colors || {}
@@ -571,28 +567,14 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             themeVars={menuVars}
           />
         )}
-        {showAnyMeta && (
-          <div className={styles.chartMeta}>
-            {hdr.showMarketCap && (
-              <span className={styles.chartMetaItem}>
-                <span className={styles.chartMetaLabel}>Market Cap</span>
-                <span className={styles.chartMetaVal} style={{ color: hdrColors.marketCap || '#c9a84c' }}>{mktCap || '—'}</span>
-              </span>
-            )}
-            {hdr.showNextEarnings && (
-              <span className={styles.chartMetaItem}>
-                <span className={styles.chartMetaLabel}>Next Earnings</span>
-                <span className={styles.chartMetaVal} style={{ color: hdrColors.nextEarnings || '#6ba3be' }}>{nextEarnStr || '—'}</span>
-              </span>
-            )}
-            {hdr.showUctRating && (
-              <span className={styles.chartMetaItem}>
-                <span className={styles.chartMetaLabel}>UCT Rating</span>
-                <span className={styles.chartMetaVal} style={{ color: hdrColors.uctRating || UCT_RATING_DEFAULT }}>{uctRating != null ? uctRating : '—'}</span>
-              </span>
-            )}
-          </div>
-        )}
+        <ChartMetaRow
+          marketCap={mktCap}
+          nextEarnings={nextEarnStr}
+          uctRating={uctRating}
+          show={{ marketCap: hdr.showMarketCap, nextEarnings: hdr.showNextEarnings, uctRating: hdr.showUctRating }}
+          colors={hdrColors}
+          styles={styles}
+        />
         <div className={styles.tfBarRight}>
           {!themeIdx.isIndex && (
             <LeverageInverseControl sym={sym} onSelect={handleSymbolChange} themeVars={menuVars} />
