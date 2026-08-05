@@ -69,7 +69,7 @@ describe('preset integrity', () => {
     }
   })
 
-  it('excludes NAAIM, whose upstream survey stopped publishing 2026-04-29', () => {
+  it('excludes NAAIM, whose live index went paywalled 2026-08-01', () => {
     for (const preset of CHART_PRESETS) {
       expect(preset.metrics).not.toContain('naaim')
     }
