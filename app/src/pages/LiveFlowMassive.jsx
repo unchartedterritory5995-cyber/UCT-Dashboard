@@ -4023,10 +4023,13 @@ export default function LiveFlowMassive() {
     });
   }
 
-  // Per-tier counts (for filter chip badges). Built from ALL alerts that
-  // pass the ticker/contract filter — independent of which tiers are toggled
-  // on — so the badges always show "if you turned this on, here's how many
-  // alerts you'd see".
+  // Per-tier counts (for filter chip badges). Independent of which TIERS are
+  // toggled on — so a badge shows "if you turned this on, here's how many you'd
+  // see" — but it MUST honor the same ORTHOGONAL filters the display applies
+  // (Stocks/ETFs partition, Not-Clean hidden, Algo hide) and the ticker/contract
+  // filter. Otherwise a badge over-counts vs the rows: e.g. on the ETFs partition
+  // "Alpha Gold 14" but only the 2 ETF alpha golds render, the 12 stock ones
+  // "disappear" (2026-08-04).
   const tierCounts = {};
   for (const t of TIER_ORDER) tierCounts[t] = 0;
   for (const a of alerts) {
@@ -4037,6 +4040,14 @@ export default function LiveFlowMassive() {
       if (!contractFilter.has(k)) continue;
     }
     const t = _tierOf(a);
+    // Mirror visibleAlerts' orthogonal filters (everything EXCEPT the tier toggle).
+    if (hideAlgo && t === "algo") continue;
+    if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase().includes("not clean"))) continue;
+    if (stockEtfFilter !== "all") {
+      const isEtf = a.source ? a.source === "indexes" : KNOWN_ETFS_INDEXES.has(a.ticker);
+      if (stockEtfFilter === "stocks" && isEtf) continue;
+      if (stockEtfFilter === "etfs" && !isEtf) continue;
+    }
     if (tierCounts[t] !== undefined) tierCounts[t]++;
   }
 
