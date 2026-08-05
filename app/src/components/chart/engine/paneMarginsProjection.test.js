@@ -11,9 +11,11 @@
 // margins are deep-equal to the legacy read. A projection that is right on the
 // four blobs a brief happened to list is not a proof of anything.
 import { describe, it, expect } from 'vitest'
-import { csForPaneMargins } from './paneMarginsProjection'
+import { csForPaneMargins, csForPaneMarginsFromSettings } from './paneMarginsProjection'
 import { computePaneMargins } from '../paneMargins'
 import { migrateLegacyToInstances } from './instances'
+import { mergeChartSettings } from '../chartDefaults'
+import { ENGINE_FLIPPED_DEF_IDS } from './flipState'
 import * as engineRegistry from './nativeRegistry'
 
 const CS = {
@@ -250,5 +252,112 @@ describe('csForPaneMargins — instances drive the bands without touching paneMa
   it('a non-object `cs` is handed straight back', () => {
     expect(csForPaneMargins(null, [], new Set(['rsi']))).toBe(null)
     expect(csForPaneMargins(undefined, [], new Set(['rsi']))).toBe(undefined)
+  })
+})
+
+// ─── B5 TASK 9 ─────────────────────────────────────────────────────────────
+//
+// ⛔⭐ THE HAZARD THIS EXISTS FOR, MEASURED IN THE FIRST CASE BELOW.
+// `computePaneMargins` has FOUR call sites in `StockChart.jsx` and only ONE of
+// them had the instance list in scope. The other three read the raw `cs` —
+// `_mainMargins` (which feeds the CANDLE series' own `scaleMargins` at seven
+// callers), the right-click region resolver, and the price-scale toggle's CSS
+// `bottom`. They were correct only because `cs.indicators[id].enabled` was a
+// write-through MIRROR of the instance list, and Task 9 DELETED that mirror.
+//
+// Handed a merged v2 blob, `computePaneMargins` now reserves NO bands at all:
+// the candles' scaleMargins fill the whole pane and every oscillator is painted
+// over. No series count sees it, and no test that mocks lightweight-charts sees
+// it — it is the `autoScale:false` class of defect. This is the seam.
+describe('csForPaneMarginsFromSettings — the bands survive the v1→v2 fold', () => {
+  const V1 = (...on) => JSON.stringify({
+    indicators: Object.fromEntries(PANE_KEYS.map(k => [k, { enabled: on.includes(k) }])),
+  })
+
+  it('⛔ the RAW merged blob reserves NO bands — the regression, measured first', () => {
+    const cs = mergeChartSettings(JSON.parse(V1('rsi', 'macd', 'atr')))
+    expect(Object.keys(cs.indicators), 'the mirror survived the fold — this case is vacuous')
+      .toEqual(['volumeProfile'])
+    const naive = computePaneMargins(cs, true, new Set())
+    expect(naive.rsi, 'a raw `cs` still reserves a band — there is nothing to fix here')
+      .toBeUndefined()
+    expect(naive.main.bottom, 'the price pane did NOT take the whole height').toBe(0.15)
+  })
+
+  it('⭐ …and the projection puts them back, identically to the PRE-FOLD blob', () => {
+    for (const on of [[], ['rsi'], ['rsi', 'macd'], ['obv', 'atr', 'adx', 'macd'],
+      PANE_KEYS.slice()]) {
+      const json = V1(...on)
+      const cs = mergeChartSettings(JSON.parse(json))
+      const projected = csForPaneMarginsFromSettings(cs, engineRegistry, ENGINE_FLIPPED_DEF_IDS)
+      for (const hasVolume of [true, false]) {
+        expect(computePaneMargins(projected, hasVolume, new Set()), `${on.join()} vol=${hasVolume}`)
+          .toEqual(computePaneMargins(JSON.parse(json), hasVolume, new Set()))
+      }
+    }
+  })
+
+  it('⭐ and it agrees with the RENDER path’s own projection, on all 512 subsets', () => {
+    // The render path builds `csMargins` from `engineInstances`; these three
+    // sites build it from the blob. They must be the same answer for BANDS or
+    // the candles and the oscillators disagree about where the stack starts.
+    let differed = 0
+    for (let mask = 0; mask < 512; mask++) {
+      const on = PANE_KEYS.filter((_, i) => mask & (1 << i))
+      const cs = mergeChartSettings(JSON.parse(V1(...on)))
+      const fromBlob = csForPaneMarginsFromSettings(cs, engineRegistry, ENGINE_FLIPPED_DEF_IDS)
+      const fromInstances = csForPaneMargins(cs, cs.indicatorInstances, ENGINE_FLIPPED_DEF_IDS)
+      for (const hasVolume of [true, false]) {
+        const a = computePaneMargins(fromBlob, hasVolume, new Set())
+        const b = computePaneMargins(fromInstances, hasVolume, new Set())
+        if (JSON.stringify(a) !== JSON.stringify(b)) differed++
+      }
+    }
+    expect(differed, 'the blob-derived projection and the instance-derived one disagree').toBe(0)
+    // …and the 512 subsets really are different stacks, or the zero above is a
+    // loop comparing one empty answer to another 1,024 times.
+    const distinct = new Set()
+    for (let mask = 0; mask < 512; mask++) {
+      const on = PANE_KEYS.filter((_, i) => mask & (1 << i))
+      const cs = mergeChartSettings(JSON.parse(V1(...on)))
+      distinct.add(JSON.stringify(computePaneMargins(
+        csForPaneMarginsFromSettings(cs, engineRegistry, ENGINE_FLIPPED_DEF_IDS), true, new Set())))
+    }
+    expect(distinct.size, 'the 512 subsets collapsed to one layout').toBe(512)
+  })
+
+  it('⛔ an OVERRIDE-injected legacy section still reaches the bands', () => {
+    // `mergeSettingsOverride` is NOT an allow-list — a grid cell's per-cell
+    // override and the `?indicators=` render route can put a legacy section back
+    // on an already-merged blob. The projection derives per read for exactly
+    // this reason; taking the stored instance list alone would miss it.
+    const cs = mergeChartSettings(JSON.parse('{}'))
+    const withOverride = { ...cs, indicators: { ...cs.indicators, rsi: { enabled: true } } }
+    const projected = csForPaneMarginsFromSettings(withOverride, engineRegistry, ENGINE_FLIPPED_DEF_IDS)
+    expect(computePaneMargins(projected, true, new Set()).rsi,
+      'an override-injected indicator reserves no band, so the engine draws it over volume')
+      .toEqual({ top: 0.85, bottom: 0 })
+  })
+
+  it('never throws, and short-circuits on an empty flip set', () => {
+    expect(csForPaneMarginsFromSettings(CS, engineRegistry, new Set())).toBe(CS)
+    expect(csForPaneMarginsFromSettings(null, engineRegistry, ENGINE_FLIPPED_DEF_IDS)).toBe(null)
+    // ⛔ THE DERIVATION IS WHAT THIS FUNCTION ADDS, so the derivation is what it
+    // guards: it runs inside the paint, and a registry that throws is a missing
+    // band rather than a blank chart through StockChart's ErrorBoundary.
+    //
+    // ⚠️ STATED, NOT ASSUMED: a booby-trapped getter on `cs` ITSELF still throws,
+    // because `csForPaneMargins` spreads the blob and that module is CONSUMED,
+    // not owned — its contract is unchanged and this wrapper does not widen it.
+    const throwingRegistry = { getDefinition() { throw new Error('boom') },
+      listDefinitions() { throw new Error('boom') } }
+    expect(() => csForPaneMarginsFromSettings(CS, throwingRegistry, ENGINE_FLIPPED_DEF_IDS))
+      .not.toThrow()
+    expect(csForPaneMarginsFromSettings(CS, throwingRegistry, ENGINE_FLIPPED_DEF_IDS)
+      .indicators.rsi.enabled, 'a registry that throws silently reserved a band').toBe(false)
+    // …and the SAME call with the real registry does reserve one, so the `false`
+    // above is the guard rather than a projection that never reserves anything.
+    expect(csForPaneMarginsFromSettings(CS, engineRegistry, ENGINE_FLIPPED_DEF_IDS)
+      .indicators.rsi.enabled).toBe(true)
   })
 })

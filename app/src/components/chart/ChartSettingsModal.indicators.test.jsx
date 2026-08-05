@@ -113,7 +113,14 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
       indicators: { vwap: { enabled: true } },
       indicatorInstances: [instanceTombstone('legacy:vwap')],
     })
-    expect(cs.indicators.vwap.enabled, 'the fixture does not set up the divergence').toBe(true)
+    // ⭐ B5 TASK 9: the divergence the fixture sets up is between the SEEDED
+    // instance and the tombstone, because the mirror no longer survives the
+    // merge. `base()` folds `indicators.vwap.enabled` — and the tombstone
+    // reserves the id, so the fold must NOT seed one, which is the divergence.
+    expect(cs.indicators.vwap, 'the mirror survived the fold').toBeUndefined()
+    expect(cs.indicatorInstances, 'the fixture does not set up the divergence')
+      .toContainEqual(instanceTombstone('legacy:vwap'))
+    expect(cs.indicatorInstances.filter(i => i.defId === 'vwap')).toEqual([])
     render(<ChartSettingsModal open settings={cs} onChange={vi.fn()} />)
     openIndicators()
     const toggle = screen.getByRole('switch', { name: /Session VWAP/ })

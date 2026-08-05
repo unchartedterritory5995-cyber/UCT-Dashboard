@@ -239,9 +239,13 @@ test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and 
   expect(m, 'the frozen chart-settings literal moved — this rail no longer reads it').toBeTruthy()
   const frozen = JSON.parse(m[1])
 
-  // The enumeration itself: fifteen hand-listed indicator sections, a third copy
-  // of ledger sites #1 and #2. This is what makes it site #22.
-  expect(Object.keys(frozen.indicators)).toHaveLength(15)
+  // ⭐⭐ B5 TASK 9 RETIRED LEDGER ROW 14 (site #22). The literal used to hand-list
+  // FIFTEEN indicator sections — a third copy of ledger sites #1 and #2 — and it
+  // now carries the ONE key `mergeChartSettings` still emits. The claim is
+  // INVERTED rather than deleted, because "the capture stopped enumerating" and
+  // "the assertion was removed" are the same green suite otherwise.
+  expect(Object.keys(frozen.indicators),
+    'the frozen capture is enumerating indicators again').toEqual(['volumeProfile'])
 
   // …and no engine key is in it, which is the whole defect. (It named TWO until
   // B5 Task 4; `engineEnabled` is asserted absent from BOTH sides now, and that
@@ -251,12 +255,17 @@ test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and 
   expect(Object.prototype.hasOwnProperty.call(frozen, 'engineEnabled')).toBe(false)
   expect(Object.prototype.hasOwnProperty.call(frozen, 'indicatorInstances')).toBe(false)
 
-  // The wrapper ADDS exactly ONE engine key and changes nothing else — the frozen
-  // capture stays byte-faithful about everything it was a capture of.
+  // The wrapper ADDS exactly TWO engine keys and changes nothing else — the
+  // frozen capture stays byte-faithful about everything it was a capture of.
+  // ⭐ B5 TASK 9 added the second: `settingsVersion`. The capture predates
+  // versioning, so without the stamp every click of **UCT Default** would write a
+  // v1-shaped blob the read-time fold re-runs on — record §6's R2 loop.
   const wrapped = JSON.parse(uctDefaultChartSettings())
   expect(Object.prototype.hasOwnProperty.call(wrapped, 'engineEnabled'),
     'the wrapper stamped a key that no longer exists').toBe(false)
+  expect(wrapped.settingsVersion, 'the template writes a pre-v2 blob').toBe(2)
   delete wrapped.indicatorInstances
+  delete wrapped.settingsVersion
   expect(wrapped).toEqual(frozen)
 
   // Nothing may write the raw literal to `chart_settings` — the fix is the

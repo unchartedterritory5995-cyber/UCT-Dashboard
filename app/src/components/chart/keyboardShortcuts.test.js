@@ -3,6 +3,7 @@ import { INDICATOR_CHORDS, matchShortcut, SHORTCUTS, TF_ORDER, resolveTfCycle } 
 import { labelFor } from './indicatorCatalog';
 import { CHART_DEFAULTS } from './chartDefaults';
 import * as engineRegistry from './engine/nativeRegistry';
+import { listDefinitions } from './engine/nativeRegistry';
 
 
 function evt(key, opts = {}) {
@@ -186,7 +187,11 @@ describe('the four indicator chords are declared once', () => {
     expect(INDICATOR_CHORDS.filter(c => !known.has(c.defId)).map(c => c.defId)).toEqual([]);
     // A chord for a carved-out key would route at `setIndicatorEnabled`, which
     // refuses a definition-less id BY IDENTITY — the keystroke would do nothing.
-    expect(INDICATOR_CHORDS.filter(c => !(c.defId in CHART_DEFAULTS.indicators))).toEqual([]);
+    // ⭐ B5 TASK 9: a chord names a DEFINITION, not a settings section — the blob
+    // stopped enumerating indicators, so `in CHART_DEFAULTS.indicators` answered
+    // false for all four and this case reported every live chord as dangling.
+    const _defIds = new Set(listDefinitions().map(d => d.id));
+    expect(INDICATOR_CHORDS.filter(c => !_defIds.has(c.defId))).toEqual([]);
   });
 
   it('the help sheet rows are GENERATED from it, description included', () => {
@@ -200,7 +205,8 @@ describe('the four indicator chords are declared once', () => {
     // spread would show the user a second, stale line for the same chord — which
     // is the exact shape ("declared twice, one of them dead") this table ends.
     const indicatorRows = SHORTCUTS
-      .filter(s => s.command.startsWith('toggle:') && s.command.slice(7) in CHART_DEFAULTS.indicators);
+      .filter(s => s.command.startsWith('toggle:')
+        && new Set(listDefinitions().map(d => d.id)).has(s.command.slice(7)));
     expect(indicatorRows.map(s => s.command))
       .toEqual(INDICATOR_CHORDS.map(c => 'toggle:' + c.defId));
     // The two non-indicator Ctrl rows are NOT chords — `ma` toggles four overlay

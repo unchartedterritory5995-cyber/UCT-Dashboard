@@ -131,17 +131,24 @@ describe('⭐ and a chart LISTENS — the half that had never existed', () => {
   it('a voice addIndicator turns the indicator ON in the settings every chart reads', async () => {
     const H = mountBus()
     await waitFor(() => expect(H.result.current.loading).toBe(false))
-    expect(settingsOf(H).indicators.atr.enabled, 'precondition').toBe(false)
+    expect(isIndicatorEnabled(settingsOf(H), 'atr', ENGINE_FLIPPED_DEF_IDS), 'precondition')
+      .toBe(false)
 
     await act(async () => { addIndicator('ATR') })
 
     await waitFor(() => expect(H.posts).toHaveLength(1))
     const cs = settingsOf(H)
-    expect(cs.indicators.atr.enabled).toBe(true)
+    // ⭐ B5 TASK 9: the mirror is DESTROYED by the allow-list on every read, so
+    // the INSTANCE is the whole answer. Read through the ONE reader, which is
+    // what every control door already uses.
     expect(isIndicatorEnabled(cs, 'atr', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
-    // …and it was PERSISTED, not just parked in the cache.
+    expect(cs.indicatorInstances.some(i => i && i.defId === 'atr' && !i.deleted)).toBe(true)
+    // …and it was PERSISTED, not just parked in the cache. The persisted STRING
+    // is re-read through the real merge, which is where the fold runs.
     expect(H.posts[0].key).toBe('chart_settings')
-    expect(parsePref(H.posts[0].value, null).indicators.atr.enabled).toBe(true)
+    const reread = mergeChartSettings(H.posts[0].value)
+    expect(isIndicatorEnabled(reread, 'atr', ENGINE_FLIPPED_DEF_IDS),
+      'the write did not survive a read-merge round trip').toBe(true)
   })
 
   it('a FLIPPED definition moves the instance AND the mirror, because it goes through the one writer', async () => {
@@ -153,8 +160,13 @@ describe('⭐ and a chart LISTENS — the half that had never existed', () => {
     await waitFor(() => expect(H.posts).toHaveLength(1))
     const cs = settingsOf(H)
     expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS), 'the instance').toBe(true)
-    expect(cs.indicators.rsi.enabled, 'the mirror').toBe(true)
     expect(cs.indicatorInstances.some(i => i && i.defId === 'rsi' && !i.deleted)).toBe(true)
+    // ⭐ B5 TASK 9: the title said "AND the mirror" and the mirror is gone. The
+    // writer still sets it in the returned object — harmless, and it is what a
+    // grid cell's override lane still reads — but it does not survive a read, so
+    // that is what is asserted: the INSTANCE is what a reload gets.
+    expect(isIndicatorEnabled(mergeChartSettings(H.posts[0].value), 'rsi', ENGINE_FLIPPED_DEF_IDS),
+      'the write did not survive a read-merge round trip').toBe(true)
   })
 
   it('williamsR reaches the chart by NAME — a case-sensitive lookup would refuse exactly this one', async () => {
@@ -162,7 +174,7 @@ describe('⭐ and a chart LISTENS — the half that had never existed', () => {
     await waitFor(() => expect(H.result.current.loading).toBe(false))
     await act(async () => { addIndicator('williamsR') })
     await waitFor(() => expect(H.posts).toHaveLength(1))
-    expect(settingsOf(H).indicators.williamsR.enabled).toBe(true)
+    expect(isIndicatorEnabled(settingsOf(H), 'williamsR', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
   })
 
   it('volumeProfile reaches the chart too — it has no definition, so it takes the OTHER lane', async () => {

@@ -78,8 +78,13 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     // definition's declared inputs whether the blob has room for them or not.
     const byKey = Object.fromEntries(rowById('ichimoku').fields.map((f) => [f.key, f]))
     for (const k of ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod']) {
-      expect(k in CHART_DEFAULTS.indicators.ichimoku,
-        `${k} is in the blob now — this case's premise would be a different one`).toBe(false)
+      // ⭐ B5 TASK 9: the blob has no ichimoku SECTION at all now, which is the
+      // same premise reached from further along — a key cannot be in a section
+      // that does not exist. Asserted on the section rather than on the key so
+      // the sentence stays true rather than becoming a `TypeError`.
+      expect(CHART_DEFAULTS.indicators.ichimoku,
+        `${k}: the blob carries an ichimoku section again — this case's premise `
+        + 'would be a different one').toBeUndefined()
       expect(byKey[k].disabled, `${k} is still greyed — the flip did not reach unwiredKeys`)
         .toBeUndefined()
     }
@@ -128,6 +133,42 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
   // call site" would be an EQUIVALENT MUTANT. A definition that is flipped AND
   // declares a key the blob has no room for is the only witness, and there is no
   // such definition in the tree, so one is constructed.
+  // ⭐⭐ B5 TASK 9 — A REGRESSION THIS TASK CAUSED AND NOTHING NAMED.
+  //
+  // Every case in this file turns its indicator ON first, so nothing here was
+  // reading a row for a definition with NO instance — and that is the row every
+  // user sees on a fresh chart. `drawnValues` returned `settings.indicators[id]`
+  // in that branch, which Task 9 made `undefined` for all fourteen: an unchecked
+  // RSI's Period box went BLANK, on the settings tab, the library dialog and the
+  // modal at once, with 4,485 green tests.
+  it('⭐ a row for an indicator with NO instance shows the DEFINITION defaults, not blanks', () => {
+    const cs = base()
+    expect(cs.indicatorInstances, 'the fixture has an instance — this case is the OTHER branch')
+      .toEqual([])
+    expect(Object.keys(cs.indicators), 'the blob still carries indicator sections')
+      .toEqual(['volumeProfile'])
+    const blank = []
+    for (const def of engineRegistry.listDefinitions()) {
+      const row = rowById(def.id)
+      for (const i of def.inputs) {
+        if (i.default === undefined) continue
+        if (row.values[i.key] !== i.default) blank.push(`${def.id}.${i.key}: ${JSON.stringify(row.values[i.key])}`)
+      }
+    }
+    expect(blank,
+      'a generated control has no value to show for an indicator that is off. The box renders '
+      + 'empty and the number the chart WOULD draw with is nowhere on screen.').toEqual([])
+    // …and it is not vacuous: the definitions really declare defaults.
+    expect(engineRegistry.listDefinitions().flatMap(d => d.inputs).filter(i => i.default !== undefined).length)
+      .toBeGreaterThan(20)
+    // …and a LIVE instance still wins over the default, which is the branch that
+    // already worked and must keep working.
+    const withInst = { ...cs, indicatorInstances: [
+      { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 7 }, hidden: false }] }
+    const rows = listEngineIndicators(withInst, engineRegistry)
+    expect(rows.find(r => r.id === 'rsi').values.period).toBe(7)
+  })
+
   it('⭐ the flip set really reaches unwiredKeys — proven on a probe, both ways', () => {
     const flippedId = [...ENGINE_FLIPPED_DEF_IDS][0]
     const probeDef = {
@@ -137,8 +178,11 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
         { key: 'notInTheBlob', type: 'int', label: 'Not in the blob', default: 1, min: 1, max: 9, step: 1 },
       ],
     }
-    expect('notInTheBlob' in CHART_DEFAULTS.indicators[flippedId],
-      'the probe key exists in the blob — the probe proves nothing').toBe(false)
+    // ⭐ B5 TASK 9: no definition has a blob section any more, so the probe key
+    // is absent for the strongest possible reason.
+    expect(CHART_DEFAULTS.indicators[flippedId],
+      'the blob carries a section for a definition again — the probe proves nothing')
+      .toBeUndefined()
     const flipped = listEngineIndicators(base(), { listDefinitions: () => [probeDef] })[0]
     expect(flipped.fields.find((f) => f.key === 'notInTheBlob').disabled,
       'a FLIPPED definition was greyed — the short-circuit is not reaching unwiredKeys').toBeUndefined()

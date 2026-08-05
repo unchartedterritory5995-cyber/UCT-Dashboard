@@ -10,7 +10,7 @@ import {
   readEnabled,
 } from './indicatorRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
-import { mergeChartSettings, CHART_DEFAULTS, instanceTombstone } from './chartDefaults'
+import { mergeChartSettings, mergeSettingsOverride, CHART_DEFAULTS, instanceTombstone } from './chartDefaults'
 import * as engineRegistry from './engine/nativeRegistry'
 import { ENGINE_MIGRATED_DEF_IDS } from './engine/flipState'
 
@@ -130,11 +130,18 @@ describe('the row is a CONTROL DOOR — one reader, one writer', () => {
   it('⭐ reads OFF over a TOMBSTONE the legacy mirror still calls on', () => {
     // The mirror alone would tick this box over a chart with no line — which is
     // exactly what the raw `patchFor` writer used to produce.
-    const tombstoned = {
-      ...legacyOn,
-      indicatorInstances: [instanceTombstone('legacy:vwap')],
-    }
-    expect(tombstoned.indicators.vwap.enabled).toBe(true)
+    const tombstoned = mergeSettingsOverride(
+      { ...legacyOn, indicatorInstances: [instanceTombstone('legacy:vwap')] },
+      { indicators: { vwap: { enabled: true } } },
+    )
+    // ⭐ B5 TASK 9: the divergence is set up through the OVERRIDE lane, which is
+    // the one that still injects a legacy section — `mergeChartSettings`' fold
+    // destroys the mirror, `mergeSettingsOverride` does not. That lane is a grid
+    // cell's `settingsOverride` and the `?indicators=` render route, and it is
+    // why `isIndicatorEnabled`'s legacy-mirror rule still has a live subject.
+    // The claim is unchanged: the row reads the INSTANCE, not the mirror.
+    expect(tombstoned.indicators.vwap.enabled, 'the fixture does not set up the divergence')
+      .toBe(true)
     expect(readEnabled(vwapRow(tombstoned)),
       'the row read the mirror instead of the instance').toBe(false)
   })
@@ -203,14 +210,31 @@ describe('chartDefaults — VWAP style keys backfill', () => {
   // mergeChartSettings spreads the defaults FIRST, so a stored blob (or saved
   // template / layout preset) written before these keys existed picks them up
   // without a migration. This is the compatibility rail for that.
-  it('adds opacity/lineStyle/lineWidth to a legacy vwap blob, keeping its color', () => {
+  it('a legacy vwap blob keeps its colour and takes the style keys from the DEFINITION', () => {
+    // ⭐⭐ B5 TASK 9 MOVED THE BACKFILL. It used to be `mergeChartSettings`
+    // spreading `CHART_DEFAULTS.indicators.vwap` under the stored section; that
+    // section is DELETED, so a blob written before these keys existed picks them
+    // up from the DEFINITION at compute time instead — the fold carries only
+    // what the blob actually declared, and an absent input means "the definition
+    // default", which is the rule `migrateLegacyToInstances` documents.
+    //
+    // ⛔ THE COMPATIBILITY CLAIM IS UNCHANGED AND IS WHAT IS ASSERTED: the same
+    // old blob still draws the same old look.
     const legacy = JSON.stringify({ indicators: { vwap: { enabled: true, color: '#ff0000' } } })
-    expect(mergeChartSettings(legacy).indicators.vwap).toEqual({
-      enabled: true, color: '#ff0000', opacity: 100, lineStyle: 'solid', lineWidth: 1,
-    })
+    const cs = mergeChartSettings(legacy)
+    expect(cs.indicators.vwap, 'the legacy section survived the fold').toBeUndefined()
+    const inst = cs.indicatorInstances.find((i) => i.defId === 'vwap')
+    expect(inst.inputs, 'the fold invented a value the blob never had')
+      .toEqual({ color: '#ff0000' })
+    // …and the three style keys the blob never had come from the definition.
+    const byKey = Object.fromEntries(
+      engineRegistry.getDefinition('vwap').inputs.map((i) => [i.key, i.default]))
+    expect(byKey).toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
   })
 
   it('defaults to fully opaque, solid, 1px — i.e. exactly the old hardcoded look', () => {
-    expect(CHART_DEFAULTS.indicators.vwap).toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
+    const byKey = Object.fromEntries(
+      engineRegistry.getDefinition('vwap').inputs.map((i) => [i.key, i.default]))
+    expect(byKey).toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
   })
 })

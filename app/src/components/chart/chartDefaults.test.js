@@ -152,8 +152,22 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
 
   it('defaults them when absent — engine state starts empty, not undefined', () => {
     const merged = mergeChartSettings(null)
-    expect(merged.settingsVersion).toBe(1)
+    // ⭐ B5 TASK 9: version 2. The blob stops enumerating indicators, and the
+    // READ is what heals — so what comes out is the current version whatever
+    // went in, and a fresh blob starts there.
+    expect(merged.settingsVersion).toBe(2)
     expect(merged.indicatorInstances).toEqual([])
+  })
+
+  it('⭐ …and the version is what comes OUT, not what went in — the read heals', () => {
+    // The R2 hazard, asserted directly: a preset (or an older tab) writing
+    // `settingsVersion: 1` must not make the fold re-run on every load and
+    // re-seed instances the user has since deleted. Whatever the blob claims,
+    // the answer is the current version.
+    for (const stored of [undefined, 0, 1, 2, 99, 'two', null]) {
+      const merged = mergeChartSettings(JSON.stringify({ settingsVersion: stored }))
+      expect(merged.settingsVersion, `stored settingsVersion: ${JSON.stringify(stored)}`).toBe(2)
+    }
   })
 
   it('a non-array indicatorInstances is coerced, never trusted', () => {
@@ -184,7 +198,7 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
     expect('engineEnabled' in merged).toBe(false)
     // …and the surrounding blob is otherwise intact, so this is the allow-list
     // dropping ONE key and not the merge failing.
-    expect(merged.settingsVersion).toBe(1)
+    expect(merged.settingsVersion).toBe(2)
     expect(merged.indicatorInstances).toEqual([])
   })
 

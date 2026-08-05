@@ -5,7 +5,7 @@ import { AUTOSCALE_EXCLUDE } from '../pool'
 import { seriesOptionsForPlot, poolKey } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeParabolicSAR, computeIchimoku } from '../../indicators'
-import { CHART_DEFAULTS } from '../../chartDefaults'
+
 import { createFakeChart, makeBars } from './fakeChart'
 
 // ─── THE FLIP-A CONTRACT FOR SAR AND ICHIMOKU (B5 Task 6) ───────────────────
@@ -46,9 +46,10 @@ import { createFakeChart, makeBars } from './fakeChart'
 // `StockChart.jsx:6431-6500` at `cb8b8136`, verbatim. Do not "tidy" these —
 // their whole value is that they are a copy of the shipped call.
 
-/** `chart.addSeries(LineSeries, <this>)` — `:6435-6445`. `sarColor` is
- *  `cs.indicators?.sar?.color || '#ffeb3b'`, which for a merged blob is
- *  `CHART_DEFAULTS.indicators.sar.color`. */
+/** `chart.addSeries(LineSeries, <this>)` — `:6435-6445`. `sarColor` was
+ *  `cs.indicators?.sar?.color || '#ffeb3b'`, which for a merged blob was
+ *  `CHART_DEFAULTS.indicators.sar.color` — the July value, and the definition's
+ *  declared default since B5 Task 9 deleted that section. */
 const LEGACY_SAR = {
   priceScaleId: 'right',
   color: '#ffeb3b',
@@ -71,16 +72,23 @@ const LEGACY_ICHI_SHARED = {
 
 /** The five `createIfNeeded` calls, `:6476-6480`, in shipped creation order.
  *  ⚠️ The `|| 'rgba(76,175,80,0.5)'` fallbacks in that block are DEAD for a
- *  merged blob — `mergeChartSettings` always supplies `cs.indicators.ichimoku`,
- *  so the values that actually reach the renderer are `CHART_DEFAULTS`'. Asserted
- *  against `CHART_DEFAULTS` below rather than against the fallback literals. */
+ *  merged blob — `mergeChartSettings` always supplied `cs.indicators.ichimoku`,
+ *  so the values that actually reached the renderer were the blob's.
+ *
+ *  ⭐⭐ B5 TASK 9 DELETED THAT SECTION, and these five colours are exactly what
+ *  `nativeRegistry.test.js`' JULY table exists to keep honest: the values a July
+ *  blob merged for an input it never declared now come from the DEFINITION. So
+ *  they are read off the definition here — one source, and the two are asserted
+ *  equal to their July values in that file. */
+const ICHI_DEFAULT = Object.fromEntries(
+  engineRegistry.getDefinition('ichimoku').inputs.map(i => [i.key, i.default]))
 const LEGACY_ICHI = [
-  { key: 'tenkan', color: CHART_DEFAULTS.indicators.ichimoku.tenkanColor, lineWidth: 1, lineStyle: 0 },
-  { key: 'kijun', color: CHART_DEFAULTS.indicators.ichimoku.kijunColor, lineWidth: 1, lineStyle: 0 },
-  { key: 'spanA', color: CHART_DEFAULTS.indicators.ichimoku.spanAColor, lineWidth: 1, lineStyle: 0 },
-  { key: 'spanB', color: CHART_DEFAULTS.indicators.ichimoku.spanBColor, lineWidth: 1, lineStyle: 0 },
+  { key: 'tenkan', color: ICHI_DEFAULT.tenkanColor, lineWidth: 1, lineStyle: 0 },
+  { key: 'kijun', color: ICHI_DEFAULT.kijunColor, lineWidth: 1, lineStyle: 0 },
+  { key: 'spanA', color: ICHI_DEFAULT.spanAColor, lineWidth: 1, lineStyle: 0 },
+  { key: 'spanB', color: ICHI_DEFAULT.spanBColor, lineWidth: 1, lineStyle: 0 },
   // ⭐ THE ONLY PER-PLOT DIFFERENCE IN THE WHOLE BLOCK: chikou's `lineStyle: 2`.
-  { key: 'chikou', color: CHART_DEFAULTS.indicators.ichimoku.chikouColor, lineWidth: 1, lineStyle: 2 },
+  { key: 'chikou', color: ICHI_DEFAULT.chikouColor, lineWidth: 1, lineStyle: 2 },
 ]
 
 /**
@@ -114,11 +122,11 @@ const SAR_INSTANCE = {
 const ICHI_INSTANCE = {
   instanceId: 'legacy:ichimoku', defId: 'ichimoku', defVersion: 1,
   inputs: {
-    tenkanColor: CHART_DEFAULTS.indicators.ichimoku.tenkanColor,
-    kijunColor: CHART_DEFAULTS.indicators.ichimoku.kijunColor,
-    spanAColor: CHART_DEFAULTS.indicators.ichimoku.spanAColor,
-    spanBColor: CHART_DEFAULTS.indicators.ichimoku.spanBColor,
-    chikouColor: CHART_DEFAULTS.indicators.ichimoku.chikouColor,
+    tenkanColor: ICHI_DEFAULT.tenkanColor,
+    kijunColor: ICHI_DEFAULT.kijunColor,
+    spanAColor: ICHI_DEFAULT.spanAColor,
+    spanBColor: ICHI_DEFAULT.spanBColor,
+    chikouColor: ICHI_DEFAULT.chikouColor,
   },
   placement: { target: 'price' }, hidden: false,
 }

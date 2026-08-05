@@ -33,11 +33,17 @@ const ctxFor = (cs, { volOverlay = [], volSeparate = false, hasVolumeBand = fals
 
 /** A settings blob with a set of pane oscillators enabled — the thing that
  *  decides which bands `computePaneMargins` hands back. */
+// ⭐ B5 TASK 9: built from the DEFINITIONS, not from `CHART_DEFAULTS.indicators`
+// — that table is one key now, so the old spelling produced a blob with no
+// oscillator sections at all and `computePaneMargins` handed back no bands. This
+// is the shape `csForPaneMargins` builds on the render path.
 const csWith = (...enabled) => ({
   ...CHART_DEFAULTS,
-  indicators: Object.fromEntries(
-    Object.entries(CHART_DEFAULTS.indicators).map(([k, v]) => [k, { ...v, enabled: enabled.includes(k) }]),
-  ),
+  indicators: {
+    ...Object.fromEntries(registry.listDefinitions().map(d => [d.id, { enabled: enabled.includes(d.id) }])),
+    ...Object.fromEntries(
+      Object.entries(CHART_DEFAULTS.indicators).map(([k, v]) => [k, { ...v, enabled: enabled.includes(k) }])),
+  },
 })
 
 // ─── the pane-0 default (the shipped `indTarget` else-branch) ────────────────

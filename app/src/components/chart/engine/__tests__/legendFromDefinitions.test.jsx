@@ -190,11 +190,13 @@ const { default: StockChart } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
 const { mergeChartSettings } = await import('../../chartDefaults')
 const { ENGINE_FLIPPED_DEF_IDS } = await import('../flipState')
+const { computePaneMargins } = await import('../../paneMargins')
 
 const BARS = bars200.bars
 const SHIPPED = shippedLegendChips()
 /** `['<defId>::<plotKey>', {label, decimals, color}]`, in the shipped order. */
 const CHIPS = Object.entries(SHIPPED)
+
 
 /** Every settings section whose chip ships, ON. Both lanes at once. */
 const ALL_NINE_ON = () => mergeChartSettings({
@@ -426,15 +428,50 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // each", AND IT SURVIVED THE TWO LANES COLLAPSING INTO ONE WITHOUT AN EDIT:
     // the read-time migrator walks the REGISTRY, so instance order IS registry
     // order, and `planBindings` walks each definition's plots in declaration
-    // order. That is the same sequence the two lanes happened to produce — which
-    // is why Task 6 could DELETE `LEGACY_CHIP_ORDER` (whose whole job was to stop
-    // a `Map`'s first-set ordering putting a late-enabled indicator at the END)
-    // rather than replace it with something.
+    // order.
+    //
+    // ⛔⭐ B5 TASK 9 NEARLY MOVED IT, AND THE MEASUREMENT IS WORTH KEEPING. The
+    // fold was written to seed the instance list in SHIPPED STACK ORDER (so Flip
+    // C's panes match the chart today), and because chips render in BINDING order
+    // that would have swapped `%K`/`%D` ahead of `MACD`/`SIG` here. The pixel gate
+    // refused the change for an unrelated and stronger reason — the instance list
+    // is ALSO the binder's `addSeries` order, i.e. z-order, and
+    // `engine_three_bands_stacked` reported a manifest GEOMETRY diff at 0 changed
+    // pixels — so the seed stayed registry order and this case is unmoved.
     const view = draw(ALL_NINE_ON())
     const values = Object.fromEntries(CHIPS.map(([k], i) => [k, 20 + i]))
     await settledLegend(view, crosshairWith(values))
     expect(chipTexts(view).map(t => t.split(' ')[0]))
       .toEqual(CHIPS.map(([k]) => SHIPPED[k].label))
+  })
+
+  // ⏭️ TASK 12 / FLIP C — A MEASURED MISMATCH, RECORDED RATHER THAN FIXED HERE.
+  //
+  // The legend prints in BINDING order (registry order). The CHART stacks its
+  // bands in `PANES` order, and the two disagree: `stoch`'s band sits ABOVE
+  // `macd`'s while the legend lists MACD first. That is shipped behaviour, it
+  // predates the engine, and this task does not change it — but Flip C turns
+  // those bands into real panes, at which point "the legend reads top-to-bottom"
+  // becomes a claim somebody will make. It is false today, and here is the proof,
+  // so nobody has to rediscover it.
+  it('⏭️ …and that is NOT the band order the chart draws — measured, not fixed', async () => {
+    const paneIds = registry.listDefinitions()
+      .filter(d => d.placement.target === 'pane').map(d => d.id)
+    const bands = computePaneMargins(
+      { indicators: Object.fromEntries(paneIds.map(id => [id, { enabled: true }])) }, false, new Set())
+    const topToBottom = Object.keys(bands).filter(k => k !== 'main' && k !== 'volume').reverse()
+    const chipDefs = [...new Set(CHIPS.map(([k]) => k.split('::')[0]))]
+    const legendPaneOrder = chipDefs.filter(id => paneIds.includes(id))
+    const chartBandOrder = topToBottom.filter(id => chipDefs.includes(id))
+    expect(new Set(legendPaneOrder), 'the two are over different sets — the comparison is not one')
+      .toEqual(new Set(chartBandOrder))
+    expect(legendPaneOrder,
+      'the legend and the band stack AGREE now. That is an improvement, and it means this '
+      + 'recorded mismatch is stale — delete this case and say so in the Flip C notes.')
+      .not.toEqual(chartBandOrder)
+    // …and the exact disagreement, so a future reader does not have to re-derive it.
+    expect(legendPaneOrder).toEqual(['rsi', 'macd', 'stoch', 'atr'])
+    expect(chartBandOrder).toEqual(['rsi', 'stoch', 'macd', 'atr'])
   })
 
   it.each(CHIPS)('%s formats from the definition and matches its shipped row', async (key) => {
@@ -527,17 +564,26 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
   })
 
   it('a hidden instance emits no chip, and re-showing brings the same one back', async () => {
+    // ⭐ B5 TASK 9: `ALL_NINE_ON()` is a MERGED blob, so the fold has already
+    // seeded an instance per enabled definition. Replacing the whole list with
+    // one rsi entry (which is what this case used to do) now deletes the other
+    // eight and the control below has nothing to draw — the probe throws by name
+    // on "0 created series", which is how it was caught. Patch the seeded one.
     const base = ALL_NINE_ON()
     const hidden = {
       ...base,
-      indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: true }],
+      indicatorInstances: base.indicatorInstances.map(
+        i => (i.defId === 'rsi' ? { ...i, hidden: true } : i)),
     }
+    expect(hidden.indicatorInstances.some(i => i.defId === 'rsi' && i.hidden),
+      'the fixture does not hide anything').toBe(true)
     const v1 = draw(hidden)
     await settledLegend(v1, crosshairWith({ 'macd::macd': 5 }))
     expect(chipTexts(v1).some(t => t.startsWith('RSI')), 'a HIDDEN instance still printed a chip').toBe(false)
     // …and the control: the same blob with `hidden: false` prints it.
     v1.unmount(); cleanup(); H.reset()
-    const shown = { ...hidden, indicatorInstances: [{ ...hidden.indicatorInstances[0], hidden: false }] }
+    const shown = { ...hidden, indicatorInstances: hidden.indicatorInstances.map(
+      i => (i.defId === 'rsi' ? { ...i, hidden: false } : i)) }
     const v2 = draw(shown)
     await settledLegend(v2, crosshairWith({ 'rsi::rsi': 54.321 }))
     expect(chipTexts(v2), 're-showing did not bring the chip back').toContain('RSI(14) 54.3')

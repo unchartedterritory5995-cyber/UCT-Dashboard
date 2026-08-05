@@ -165,6 +165,19 @@ const bbLines = () => H.addSeriesCalls.filter(c => c.options && c.options.color 
 const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
 const bands = () => H.syncCalls.at(-1).paneMargins
 
+/** ⭐⭐ B5 TASK 9 — `computePaneMargins` IS CALLED ON THE STORED BLOB, WHICH IS
+ *  WHAT THIS FILE ALWAYS CLAIMED IT DID. Every band comparison below passed
+ *  `mergeChartSettings(<blob>)`, and after Task 9 a merged blob carries only
+ *  `indicators: {volumeProfile}` — the fourteen legacy sections are folded into
+ *  `indicatorInstances` and destroyed by the allow-list — so the "pre-flip layout
+ *  function on the pre-flip input" was quietly becoming "the pre-flip function on
+ *  a post-migration input", and every comparison would have been empty-vs-empty.
+ *
+ *  ⛔ THE RAW PARSED BLOB IS THE PRE-FLIP INPUT. `computePaneMargins` reads only
+ *  `cs.indicators[key].enabled`, so it needs no defaults; handing it the JSON the
+ *  user actually has is strictly more faithful than handing it a merge. */
+const shippedBands = (json) => computePaneMargins(JSON.parse(json), true, new Set())
+
 // ── 1. THE JULY BLOB ────────────────────────────────────────────────────────
 //
 // Trimmed from the same capture `ChartsWorkspace.jsx` freezes, with RSI and BB
@@ -199,8 +212,17 @@ describe('the blob shapes themselves — without these the cases below prove not
     // — the whole reason a flipped id could not be gated on that flag — and B5
     // Task 4 deleted the key, so the answer is now that there is no key.
     expect('engineEnabled' in mergeChartSettings(JSON.stringify(JULY_BLOB))).toBe(false)
-    // The instance list, which is NOT deleted, still arrives normalised and empty.
-    expect(mergeChartSettings(JSON.stringify(JULY_BLOB)).indicatorInstances).toEqual([])
+    // ⭐⭐ B5 TASK 9: the instance list no longer arrives EMPTY — it arrives
+    // SEEDED, because the v1→v2 fold runs inside this merge. That is the whole
+    // of the change this file's 25 cases have to survive, so it is asserted here
+    // rather than left as the reason a dozen expectations moved: the two
+    // indicators this blob had ON become two instances, in shipped stack order,
+    // carrying their stored inputs, and the mirror is DESTROYED.
+    const merged = mergeChartSettings(JSON.stringify(JULY_BLOB))
+    expect(merged.settingsVersion).toBe(2)
+    expect(merged.indicatorInstances.map(i => i.defId)).toEqual(['rsi', 'bb'])
+    expect(merged.indicatorInstances[0].inputs).toEqual({ period: 14, color: '#7b68ee' })
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
   })
 
   it('…and there is nothing left for a default flip to heal — the trap, retired', () => {
@@ -245,10 +267,9 @@ describe('⭐ a stored legacy blob produces the SAME chart after the flip', () =
     // is called here on the STORED blob directly — the pre-flip input, the
     // unmodified pre-flip function — so any drift introduced by `csForPaneMargins`
     // shows up as an inequality rather than as a chart that looks a bit different.
-    const cs = mergeChartSettings(JSON.stringify(JULY_BLOB))
     drawStored(JSON.stringify(JULY_BLOB))
     expect(bands(), 'the projection changed the layout for a legacy blob')
-      .toEqual(computePaneMargins(cs, true, new Set()))
+      .toEqual(shippedBands(JSON.stringify(JULY_BLOB)))
     expect(bands().rsi, 'RSI lost its band').toEqual({ top: 0.85, bottom: 0 })
   })
 
@@ -289,8 +310,7 @@ describe('⭐ a SHORT/LEGACY overlays array — positional merge and padding', (
     drawStored(JSON.stringify(SHORT))
     expect(onScale('rsi')).toHaveLength(1)
     expect(bbLines()).toHaveLength(3)
-    const cs = mergeChartSettings(JSON.stringify(SHORT))
-    expect(bands()).toEqual(computePaneMargins(cs, true, new Set()))
+    expect(bands()).toEqual(shippedBands(JSON.stringify(SHORT)))
   })
 })
 
@@ -318,7 +338,15 @@ describe('⭐ a blob with TOMBSTONES — "off" survives the flip', () => {
     // next paint, which is far harder to notice.
     const once = mergeChartSettings(JSON.stringify(DELETED))
     const twice = mergeChartSettings(JSON.stringify(once))
-    expect(twice.indicatorInstances).toEqual([{ instanceId: 'legacy:rsi', deleted: true }])
+    // ⭐ B5 TASK 9: the round trip now also carries the BB instance the fold
+    // seeded, so the claim is stated as the two facts it always was — the
+    // tombstone survives, and RSI is not live — rather than as a whole-list
+    // equality that a second, correct instance breaks.
+    expect(twice.indicatorInstances).toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
+    expect(twice.indicatorInstances.filter(i => i.defId === 'rsi'),
+      'a deleted RSI came back through the allow-list').toEqual([])
+    expect(twice.indicatorInstances.some(i => i.defId === 'bb'),
+      'the round trip lost the indicator that was NOT deleted').toBe(true)
   })
 })
 
@@ -360,8 +388,16 @@ describe('⭐ the blob the FROZEN TEMPLATE writes — "UCT Default" and "New Lay
   it('is a valid stored blob that renders, with its indicators off as captured', () => {
     const json = uctDefaultChartSettings()
     const parsed = JSON.parse(json)
-    expect(parsed.indicators.rsi.enabled, 'the capture changed').toBe(false)
-    expect(parsed.indicators.bb.enabled).toBe(false)
+    // ⭐⭐ B5 TASK 9 RETIRED LEDGER ROW 14: the frozen capture no longer
+    // hand-lists fifteen indicator sections. It carries the ONE key
+    // `mergeChartSettings` still emits, and all fourteen it dropped said
+    // `enabled: false` — measured before the deletion — so the blob it writes is
+    // behaviour-identical and the template still turns nothing on.
+    expect(Object.keys(parsed.indicators), 'the capture is enumerating indicators again')
+      .toEqual(['volumeProfile'])
+    expect(parsed.indicators.rsi, 'the capture changed').toBeUndefined()
+    expect(parsed.settingsVersion, 'the template writes a pre-v2 blob').toBe(2)
+    expect(parsed.indicatorInstances).toEqual([])
     drawStored(json)
     expect(onScale('rsi'), 'the template turned RSI on by itself').toHaveLength(0)
     expect(bbLines()).toHaveLength(0)
@@ -376,6 +412,7 @@ describe('⭐ the blob the FROZEN TEMPLATE writes — "UCT Default" and "New Lay
     // still false" — B5 Task 4 deleted the flag, so there is no stamp and no flag,
     // and the reason this passes is the same one it always was.)
     const cs = mergeChartSettings(uctDefaultChartSettings())
+    expect(cs.indicatorInstances, 'the template arrives with an indicator on').toEqual([])
     const next = setIndicatorEnabled(cs, 'rsi', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
     expect(onScale('rsi'), 'the checkbox is ticked and there is no line on the chart').toHaveLength(1)
@@ -426,10 +463,9 @@ describe('⭐ a stored blob with MACD ON — three plots, one band, after the fl
     // stacks them in `PANES` order, and a projection that rewrote the enabled
     // flags in the wrong order would give MACD RSI's band and vice versa — two
     // indicators in the wrong places, with the right number of series.
-    const cs = mergeChartSettings(JSON.stringify(MACD_BLOB))
     drawStored(JSON.stringify(MACD_BLOB))
     expect(bands(), 'the projection changed the layout for a legacy blob')
-      .toEqual(computePaneMargins(cs, true, new Set()))
+      .toEqual(shippedBands(JSON.stringify(MACD_BLOB)))
     expect(bands().macd, 'MACD lost its band').toBeTruthy()
     // `scaleMargins.top` is the fraction of the pane ABOVE the band, so a LARGER
     // top is a band further DOWN. RSI 0.68, MACD 0.83 — RSI first, MACD under it,
@@ -469,7 +505,7 @@ describe('⭐ a stored blob with MACD ON — three plots, one band, after the fl
 
   it('…and a user who TICKS MACD on the frozen template gets three lines', () => {
     const cs = mergeChartSettings(uctDefaultChartSettings())
-    expect(cs.indicators.macd.enabled, 'the capture changed').toBe(false)
+    expect(cs.indicatorInstances, 'the capture changed').toEqual([])
     const next = setIndicatorEnabled(cs, 'macd', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
     expect(onScale('macd'), 'the checkbox is ticked and the band is empty').toHaveLength(3)
@@ -499,11 +535,10 @@ describe('⭐ a stored blob with VWAP ON — the INTRADAY shape', () => {
   })
 
   it('reserves NO band on either timeframe, and does not disturb RSI\'s', () => {
-    const cs = mergeChartSettings(JSON.stringify(VWAP_BLOB))
     drawStoredIntraday(JSON.stringify(VWAP_BLOB))
     expect(bands().vwap, 'a price overlay reserved a stacked band').toBeUndefined()
     expect(bands(), 'turning VWAP on moved another indicator\'s band')
-      .toEqual(computePaneMargins(cs, true, new Set()))
+      .toEqual(shippedBands(JSON.stringify(VWAP_BLOB)))
   })
 
   it('a stored OPACITY still reaches the line — settings → instance → eligibility', () => {
@@ -529,12 +564,14 @@ describe('⭐ a stored blob with VWAP ON — the INTRADAY shape', () => {
     drawStoredIntraday(JSON.stringify(DELETED))
     expect(cyan(), 'I turned VWAP off and it came back on refresh').toHaveLength(0)
     const twice = mergeChartSettings(JSON.stringify(mergeChartSettings(JSON.stringify(DELETED))))
-    expect(twice.indicatorInstances).toEqual([{ instanceId: 'legacy:vwap', deleted: true }])
+    expect(twice.indicatorInstances).toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
+    expect(twice.indicatorInstances.filter(i => i.defId === 'vwap'),
+      'a deleted VWAP came back through the allow-list').toEqual([])
   })
 
   it('…and a user who TICKS VWAP on the frozen template gets a line', () => {
     const cs = mergeChartSettings(uctDefaultChartSettings())
-    expect(cs.indicators.vwap.enabled, 'the capture changed').toBe(false)
+    expect(cs.indicatorInstances, 'the capture changed').toEqual([])
     const next = setIndicatorEnabled(cs, 'vwap', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="5" barsOverride={INTRADAY} settingsOverride={next} />)
     expect(cyan(), 'the checkbox is ticked and there is no line on the chart').toHaveLength(1)

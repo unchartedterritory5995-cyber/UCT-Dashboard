@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from './instanceControls'
 import { normalizeInstances, migrateLegacyToInstances, legacyInstanceId } from './instances'
 import * as engineRegistry from './nativeRegistry'
+import { mergeChartSettings } from '../chartDefaults'
 
 const R = engineRegistry
 const base = () => ({ indicators: { rsi: { enabled: false, period: 14, color: '#7b68ee' } }, indicatorInstances: [] })
@@ -154,6 +155,35 @@ describe('setIndicatorEnabled — the instance AND the mirror, always both', () 
     for (const id of overlays) cs = setIndicatorEnabled(cs, id, true, R)
     expect(live(cs).map(i => i.defId))
       .toEqual([...overlays].sort((a, b) => order.indexOf(a) - order.indexOf(b)))
+  })
+
+  // ⭐⭐ B5 TASK 9 — AND THE TWO CASES ABOVE STOPPED BEING THE WHOLE STORY, so
+  // this is ADDED rather than either of them being edited. The writer's order is
+  // `SHIPPED_STACK_ORDER` now, which AGREES with the registry on the five price
+  // overlays (that is why nothing above moved) and DISAGREES on the nine panes.
+  //
+  // ⛔ THE REASON THERE MAY ONLY BE ONE ORDER: the v1→v2 fold seeds a migrated
+  // blob in shipped stack order so Flip C's pane list is the chart the user
+  // already has. If this writer re-sorted to registry order, the FIRST toggle
+  // after the migration would silently reorder their panes — and, today, their
+  // legend chips, which render in binding order. Two producers, one order.
+  it('⭐ and the WRITE agrees with the FOLD, which is the invariant that matters', () => {
+    // ⛔ B5 TASK 9 TRIED TO MAKE BOTH `SHIPPED_STACK_ORDER` AND THE PIXEL GATE
+    // REFUSED IT: this list is also the binder's insertion order, insertion order
+    // is z-order, and `engine_three_bands_stacked` reported a manifest GEOMETRY
+    // diff at **0 changed pixels**, 5/5 runs. What has to hold is that the two
+    // producers AGREE — a read and a write that order the same set differently
+    // would reorder a user's panes on their first toggle after the migration.
+    let cs = { indicators: {}, indicatorInstances: [] }
+    for (const id of ['macd', 'obv', 'stoch', 'bb', 'rsi']) cs = setIndicatorEnabled(cs, id, true, R)
+    const folded = mergeChartSettings(JSON.stringify({ indicators: Object.fromEntries(
+      ['macd', 'obv', 'stoch', 'bb', 'rsi'].map(k => [k, { enabled: true }])) }))
+    expect(folded.indicatorInstances.map(i => i.defId),
+      'the fold and the writer order the same set differently')
+      .toEqual(live(cs).map(i => i.defId))
+    // …and it is not vacuous: five ids in a definite order that is NOT the order
+    // they were written in.
+    expect(live(cs).map(i => i.defId)).toEqual(['rsi', 'macd', 'bb', 'stoch', 'obv'])
   })
 })
 

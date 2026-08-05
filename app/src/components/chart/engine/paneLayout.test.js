@@ -13,6 +13,8 @@ import path from 'node:path'
 import { stripComments } from './__tests__/sourceScan'
 import { computePaneMargins } from '../paneMargins'
 import { mergeChartSettings } from '../chartDefaults'
+import { csForPaneMargins } from './paneMarginsProjection'
+import { ENGINE_FLIPPED_DEF_IDS } from './flipState'
 import { validateDefinition } from './defSchema'
 import { getDefinition, listDefinitions } from './nativeRegistry'
 import {
@@ -55,9 +57,22 @@ const OPTS = (over) => ({
   chartHeight: H, hasVolumeBand: true, excludeKeys: EMPTY, separatorPx: SEPARATOR_PX, ...over,
 })
 
-const blobFor = (mask) => mergeChartSettings({
-  indicators: Object.fromEntries(OSC.map((k, i) => [k, { enabled: !!(mask & (1 << i)) }])),
-})
+// ⭐⭐ B5 TASK 9 — THE BLOB THIS HANDS OVER IS THE ONE THE RENDER PATH HANDS
+// OVER, and it has to be built rather than merged now. `mergeChartSettings`
+// folds `cs.indicators` into `indicatorInstances` and emits `{volumeProfile}`,
+// so a merged blob answers "no oscillator is on" to `computePaneMargins` and all
+// 512 subsets collapse to ONE empty stack. The suite's own non-vacuity controls
+// caught exactly that ("the 512 subsets really are 512 different stacks": 1 vs
+// 512; "no subset reached the shave ceiling"), which is what they are for.
+//
+// `csForPaneMargins` is what `StockChart.updateChart` builds and passes, so this
+// is the shipped input, not a reconstruction of the pre-migration one.
+const blobFor = (mask) => {
+  const merged = mergeChartSettings({
+    indicators: Object.fromEntries(OSC.map((k, i) => [k, { enabled: !!(mask & (1 << i)) }])),
+  })
+  return csForPaneMargins(merged, merged.indicatorInstances, ENGINE_FLIPPED_DEF_IDS)
+}
 
 /** Every one of the 512 subsets, merged once. Building them inside the sweep
  *  would make the sweep measure `mergeChartSettings` instead of the geometry. */

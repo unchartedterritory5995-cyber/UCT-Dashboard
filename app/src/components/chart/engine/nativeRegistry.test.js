@@ -104,15 +104,88 @@ describe('native registry — membership', () => {
   })
 })
 
+/** ⭐⭐ THE FOURTEEN SECTIONS `CHART_DEFAULTS.indicators` CARRIED UNTIL B5 TASK 9,
+ *  verbatim, at `456ea0cb`. Every value a July blob merged for an input it did
+ *  not itself declare came from here, so this is what "the migration is a no-op
+ *  for an unset input" is measured against. Nothing else in the tree has these
+ *  numbers any more.
+ *
+ *  ⛔ THIS IS A RECORD, NOT A SOURCE OF TRUTH. If a definition's default is
+ *  deliberately changed, the change belongs in `nativeRegistry` and this row is
+ *  updated with a note saying which users it moves — never the other way round,
+ *  and never silently. */
+const JULY_LEGACY_DEFAULTS = {
+  rsi:  { enabled: false, period: 14, color: '#7b68ee' },
+  macd: {
+    enabled: false, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
+    macdColor: '#2196F3', signalColor: '#FF9800',
+  },
+  bb:   { enabled: false, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' },
+  vwap: { enabled: false, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
+  stoch: { enabled: false, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' },
+  atr:   { enabled: false, period: 14, color: '#FFA726' },
+  sar:   { enabled: false, step: 0.02, maxStep: 0.2, color: '#ffeb3b' },
+  ichimoku: {
+    enabled: false,
+    tenkanColor: '#26C6DA',
+    kijunColor: '#EF5350',
+    spanAColor: 'rgba(76,175,80,0.2)',
+    spanBColor: 'rgba(239,83,80,0.2)',
+    chikouColor: 'rgba(255,235,59,0.7)',
+  },
+  mfi:       { enabled: false, period: 14, color: '#c084fc' },
+  cci:       { enabled: false, period: 20, color: '#fbbf24' },
+  williamsR: { enabled: false, period: 14, color: '#60a5fa' },
+  adx:       { enabled: false, period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' },
+  obv:       { enabled: false, color: '#9ca3af' },
+  donchian:  { enabled: false, period: 20, color: 'rgba(96,165,250,0.5)' },
+}
+
+describe('the July defaults table', () => {
+  it('covers every definition and nothing else — a missing row is a silent no-op', () => {
+    // Without this, a definition added (or renamed) after Task 9 would simply
+    // have no row and the per-definition case above would `toBeDefined()`-fail
+    // by name — which is the point — while a DELETED definition would leave a
+    // dead row nobody notices. Both directions.
+    expect(Object.keys(JULY_LEGACY_DEFAULTS).sort())
+      .toEqual(listDefinitions().map(d => d.id).sort())
+    // …and the rows really carry values, so the loop above is not iterating
+    // fourteen `{enabled}`-only objects and asserting nothing.
+    const inputKeys = Object.values(JULY_LEGACY_DEFAULTS)
+      .flatMap(v => Object.keys(v).filter(k => k !== 'enabled'))
+    expect(inputKeys.length, 'the July table has no inputs left to compare')
+      .toBeGreaterThan(30)
+  })
+})
+
 describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
   it('is a valid definition', () => {
     const r = validateDefinition(def)
     expect(r.ok, JSON.stringify(r.errors)).toBe(true)
   })
 
-  it('mirrors CHART_DEFAULTS.indicators — migration must be a no-op', () => {
-    const legacy = CHART_DEFAULTS.indicators[id]
-    expect(legacy, `no CHART_DEFAULTS.indicators.${id}`).toBeDefined()
+  it('mirrors the JULY defaults — the migration of an UNSET input must be a no-op', () => {
+    // ⭐⭐ B5 TASK 9 MOVED THIS CONTROL DOWN A LEVEL, and the level it moved to is
+    // a frozen table, which is unusual enough to say why.
+    //
+    // It read `CHART_DEFAULTS.indicators[id]` — the fifteen-section legacy
+    // table — and Task 9 DELETED fourteen of those sections. So the control had
+    // no subject: the comparison would have been definition-against-`undefined`.
+    //
+    // ⛔ BUT THE CLAIM IT MAKES IS STILL LIVE, AND IT IS ABOUT REAL USER DATA.
+    // The fold carries only the keys a stored blob ACTUALLY DECLARES; an input
+    // the blob never mentioned is absent from the instance and the DEFINITION
+    // default supplies it at compute time. Before the fold, `mergeChartSettings`
+    // supplied it from the table below. So a definition default that differs
+    // from its July value silently changes what an existing user's chart draws —
+    // no test, no pixel gate case, no support ticket anyone can answer.
+    //
+    // ⚠️ SO THE DELETED TABLE IS TRANSCRIBED HERE, VERBATIM, ONCE. This is the
+    // only copy left and it is deliberately in a TEST: the discovery scan skips
+    // `.test.` files precisely because a fixture is allowed to enumerate, and a
+    // fifteen-section list in shipped source is the thing this phase retired.
+    const legacy = JULY_LEGACY_DEFAULTS[id]
+    expect(legacy, `no JULY_LEGACY_DEFAULTS.${id} — a definition with no July row`).toBeDefined()
     const byKey = new Map(def.inputs.map(i => [i.key, i]))
     for (const [k, v] of Object.entries(legacy)) {
       if (k === 'enabled') continue   // enablement is an instance fact, not an input
@@ -339,7 +412,14 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
     // silently stop agreeing about how many there are.
     expect([...CARVED_OUT_INDICATOR_KEYS]).toEqual(['volumeProfile'])
     expect(listDefinitions()).toHaveLength(14)
-    expect(Object.keys(CHART_DEFAULTS.indicators)).toHaveLength(15)
+    // ⭐ B5 TASK 9: the arithmetic used to be 14 + 1 = 15, where 15 was the
+    // settings blob's own section count. The blob enumerates ONLY the carve-out
+    // now — the other fourteen are folded into `indicatorInstances` — so the
+    // equation becomes 14 definitions + 1 carved-out section, and the blob's
+    // section list IS the carve-out list. That is a stronger statement than the
+    // old one: a sixteenth undefined key cannot hide in a fifteen-key blob any
+    // more, because there is no fifteen-key blob.
+    expect(Object.keys(CHART_DEFAULTS.indicators)).toEqual([...CARVED_OUT_INDICATOR_KEYS])
   })
 
   it('the migrator SKIPS a carved-out key rather than emitting an instance nothing can render', () => {

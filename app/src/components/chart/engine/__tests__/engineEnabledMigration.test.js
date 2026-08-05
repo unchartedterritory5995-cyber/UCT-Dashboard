@@ -134,7 +134,13 @@ describe('engineEnabled is DELETED — the flag that decides nothing stops exist
     // …and the thing that used to be true is now impossible, not merely false.
     expect(Object.keys(CHART_DEFAULTS)).not.toContain('engineEnabled')
     // The RSI the user had on is still on, and still drawn by the engine.
-    expect(cs.indicators.rsi.enabled).toBe(true)
+    // ⭐ B5 TASK 9: it is an INSTANCE now, not a mirror section — the fold runs
+    // inside this same `mergeChartSettings` call and the allow-list destroys
+    // `indicators.rsi` on the way out. Both halves asserted, because "the mirror
+    // is gone" and "the indicator is gone" must never look alike.
+    expect(cs.indicators.rsi, 'the legacy mirror survived the fold').toBeUndefined()
+    expect(cs.indicatorInstances.map(i => i.defId)).toEqual(['rsi'])
+    expect(cs.indicatorInstances[0].inputs).toEqual({ period: 14 })
     expect(isIndicatorEnabled(cs, 'rsi', ENGINE_FLIPPED_DEF_IDS)).toBe(true)
   })
 
@@ -301,42 +307,61 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
   })
 
   it('every indicator is still on, with the same period / colour / opacity / line style', () => {
+    // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL AND IT IS THE SAME SENTENCE. It read
+    // the values back out of `cs.indicators.<id>` — the mirror — and the mirror is
+    // DESTROYED by the allow-list now. Where a stored value has to arrive is the
+    // INSTANCE the fold seeded, and that is where it is read from, key by key,
+    // off the same stored fixture.
     const cs = mergeChartSettings(JSON.parse(JULY_BLOB))
     const stored = JSON.parse(JULY_BLOB).indicators
+    const byDef = Object.fromEntries(cs.indicatorInstances.map(i => [i.defId, i]))
     const moved = []
     for (const [id, section] of Object.entries(stored)) {
+      if (id === 'volumeProfile') continue          // no definition: it stays a section
+      const inst = byDef[id]
+      if (!inst) { moved.push(`${id}: the indicator that was ON has no instance`); continue }
       for (const [k, v] of Object.entries(section)) {
-        if (cs.indicators[id][k] !== v) moved.push(`${id}.${k}: ${JSON.stringify(cs.indicators[id][k])} ≠ ${JSON.stringify(v)}`)
+        // `enabled` is not an input — the instance's EXISTENCE is what it means.
+        if (k === 'enabled') continue
+        if (inst.inputs[k] !== v) moved.push(`${id}.${k}: ${JSON.stringify(inst.inputs[k])} ≠ ${JSON.stringify(v)}`)
       }
     }
     expect(moved,
       'a stored July value did not survive the merge. The user did nothing and their chart ' +
-      'changed — which is the one outcome the deletion is not allowed to have.',
+      'changed — which is the one outcome this migration is not allowed to have.',
     ).toEqual([])
     // Named explicitly, because "the loop found nothing" and "the loop ran zero
     // times" read the same in a green suite.
     expect(Object.keys(stored)).toHaveLength(15)
-    expect(cs.indicators.vwap.opacity).toBe(40)
-    expect(cs.indicators.vwap.lineStyle).toBe('dashed')
-    expect(cs.indicators.rsi.period).toBe(9)
+    expect(byDef.vwap.inputs.opacity).toBe(40)
+    expect(byDef.vwap.inputs.lineStyle).toBe('dashed')
+    expect(byDef.rsi.inputs.period).toBe(9)
     // B5 Task 6's two, named the same way: a float input and a colour the
     // merge could plausibly have dropped or defaulted.
-    expect(cs.indicators.sar.step).toBe(0.03)
-    expect(cs.indicators.ichimoku.chikouColor).toBe('#995555')
+    expect(byDef.sar.inputs.step).toBe(0.03)
+    expect(byDef.ichimoku.inputs.chikouColor).toBe('#995555')
     // B5 Task 7's three — a non-default period on each, because a period is the
     // one input the merge has a second copy of (the definition's declared
     // default) and therefore the one it could silently win.
-    expect(cs.indicators.mfi.period).toBe(21)
-    expect(cs.indicators.cci.period).toBe(34)
-    expect(cs.indicators.williamsR.period).toBe(28)
+    expect(byDef.mfi.inputs.period).toBe(21)
+    expect(byDef.cci.inputs.period).toBe(34)
+    expect(byDef.williamsR.inputs.period).toBe(28)
     // B5 Task 8's three. `adx` carries THREE colours off one section (the merge's
     // widest per-key allow-list row); `obv` has no period at all, so its colour is
     // the only thing that can survive or not; `donchian` is a non-default period
     // on a PRICE OVERLAY, which no earlier addition to this fixture tested.
-    expect(cs.indicators.adx.period).toBe(21)
-    expect(cs.indicators.adx.minusDIColor).toBe('#bb3333')
-    expect(cs.indicators.obv.color).toBe('#bb4444')
-    expect(cs.indicators.donchian.period).toBe(55)
+    expect(byDef.adx.inputs.period).toBe(21)
+    expect(byDef.adx.inputs.minusDIColor).toBe('#bb3333')
+    expect(byDef.obv.inputs.color).toBe('#bb4444')
+    expect(byDef.donchian.inputs.period).toBe(55)
+    // ⭐ AND THE ORDER IS REGISTRY ORDER — the binder's insertion order, which is
+    // z-order. B5 Task 9 measured seeding the SHIPPED STACK ORDER here and the
+    // pixel gate refused it (`engine_three_bands_stacked`: manifest GEOMETRY diff
+    // at 0 changed pixels). The stack order is recorded in
+    // `instances.SHIPPED_STACK_ORDER` and applied at Flip C instead. Fourteen
+    // definitions, all on.
+    expect(cs.indicatorInstances.map(i => i.defId))
+      .toEqual(engineRegistry.listDefinitions().map(d => d.id))
   })
 
   it('no key is resurrected — the merged blob names the flag nowhere', () => {
@@ -344,8 +369,17 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     expect('engineEnabled' in cs).toBe(false)
     expect(JSON.stringify(cs)).not.toContain('engineEnabled')
     // `indicatorInstances` DOES arrive — it is a live key the allow-list still
-    // emits, and it arrives EMPTY, which is what the read-time migrator needs.
-    expect(cs.indicatorInstances).toEqual([])
+    // emits. ⭐ B5 TASK 9: it no longer arrives EMPTY, it arrives SEEDED, because
+    // the read-time migrator is now inside this merge. That is the whole change,
+    // and "nothing was resurrected" is the claim that has to survive it: no key
+    // this blob never carried appears, and the fourteen it did carry appear once
+    // each.
+    expect(cs.indicatorInstances).toHaveLength(14)
+    expect(new Set(cs.indicatorInstances.map(i => i.defId)).size, 'a definition seeded twice')
+      .toBe(14)
+    expect(cs.indicatorInstances.every(i => i.instanceId.startsWith('legacy:'))).toBe(true)
+    // …and no instance was invented for the one indicator with no definition.
+    expect(cs.indicatorInstances.some(i => i.defId === 'volumeProfile')).toBe(false)
   })
 
   it('every FLIPPED indicator the blob had on is engine-drawn, from the mirror alone', () => {
@@ -357,17 +391,26 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     expect(on.length).toBeGreaterThan(0)
   })
 
-  it('…and the MIRROR still carries every stored value, flipped or not', () => {
-    // 🔴 THIS TITLE READ *"the un-migrated ten are untouched, drawn by their
-    // legacy blocks"* AND STAYED GREEN WHILE FALSE: `stoch` and `atr` were
-    // migrated at B5 Task 5, so two of its three subjects were engine-drawn while
-    // the sentence said they were not. The assertions themselves were always
-    // about the MIRROR — `cs.indicators.<id>` — which is exactly the thing that
-    // must survive a flip untouched, so the claim is restated rather than moved.
+  it('…and the MIRROR IS GONE — every section but the carve-out is destroyed', () => {
+    // 🔴 THIS TITLE HAS NOW EXPIRED TWICE, WHICH IS WORTH LEAVING ON THE RECORD.
+    // It first read *"the un-migrated ten are untouched, drawn by their legacy
+    // blocks"* and STAYED GREEN WHILE FALSE — `stoch` and `atr` were migrated at
+    // B5 Task 5. It was restated as *"the MIRROR still carries every stored
+    // value"*, which was true until B5 Task 9 DELETED the mirror.
+    //
+    // ⛔ SO IT IS INVERTED RATHER THAN DELETED: what used to have to survive is
+    // now what must be GONE, and `volumeProfile` — the one section with no
+    // definition, which can never be flipped — is the control that this is a
+    // destruction and not an empty merge.
     const cs = mergeChartSettings(JSON.parse(JULY_BLOB))
-    expect(cs.indicators.stoch.enabled).toBe(true)
-    expect(cs.indicators.stoch.kPeriod).toBe(21)
-    expect(cs.indicators.atr.enabled).toBe(true)
+    expect(Object.keys(cs.indicators)).toEqual(['volumeProfile'])
+    expect(cs.indicators.stoch).toBeUndefined()
+    expect(cs.indicators.atr).toBeUndefined()
+    // …and what those sections said now lives on the instances, so the values are
+    // MOVED rather than lost.
+    const byDef = Object.fromEntries(cs.indicatorInstances.map(i => [i.defId, i]))
+    expect(byDef.stoch.inputs.kPeriod).toBe(21)
+    expect(byDef.atr, 'atr was destroyed rather than moved').toBeTruthy()
     // `volumeProfile` is the genuinely un-migrated one — a canvas overlay with no
     // definition at all, which is why it can never be flipped.
     expect(cs.indicators.volumeProfile.enabled).toBe(true)
@@ -453,8 +496,30 @@ describe('the seventh writer — every bulk chart_settings writer follows the de
     const cs = mergeChartSettings(PRESETS.oled.settings)
     expect('engineEnabled' in cs).toBe(false)
     expect(cs.indicatorInstances).toEqual([])
-    expect(cs.indicators.rsi.enabled).toBe(false)
-    expect(cs.indicators.vwap.enabled).toBe(false)
+    // ⭐ B5 TASK 9 — ASSERTED AS IT SHIPS, so that changing it later is a
+    // DELIBERATE red rather than a surprise. Applying any preset clears
+    // `indicatorInstances`, i.e. "click OLED Black" is still spelled "and remove
+    // my indicators". That behaviour is UNCHANGED in substance — before this task
+    // the preset ALSO turned every `cs.indicators.*.enabled` off, which was the
+    // same removal expressed twice — but it is now expressed in ONE place, and
+    // there is no mirror left to turn off.
+    expect(Object.keys(cs.indicators)).toEqual(['volumeProfile'])
+    expect(cs.indicators.rsi, 'a preset still carries a legacy section').toBeUndefined()
+    expect(cs.indicators.vwap).toBeUndefined()
+    // …and the empty list is a CLEARING, not an inert path: the user this
+    // replaces had fourteen instances a moment ago.
+    const before = mergeChartSettings(JSON.parse(JULY_BLOB))
+    expect(before.indicatorInstances.length,
+      'the control blob has no instances, so "the preset cleared them" is vacuous')
+      .toBe(14)
+    // ⭐ AND A PRESET WRITES A v2 BLOB, which is the second half of the same
+    // fact: `PRESETS.*.settings` spreads `CHART_DEFAULTS`, so it carries
+    // `settingsVersion: 2` and the fold does NOT re-run on it. A preset that
+    // wrote version 1 forever is record §6's R2 hazard — the migrator re-running
+    // on every load and re-seeding instances the user has since deleted.
+    expect(PRESETS.oled.settings.settingsVersion,
+      'a preset writes a pre-v2 blob — R2 re-migration loop').toBe(2)
+    expect(cs.settingsVersion).toBe(2)
   })
 })
 

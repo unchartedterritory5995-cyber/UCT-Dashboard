@@ -223,10 +223,17 @@ describe('the catalog covers every settings section, and nothing else', () => {
     const defIds = engineRegistry.listDefinitions().map(d => d.id)
     expect(rows.filter(r => !r.carvedOut).map(r => r.id)).toEqual(defIds)
     expect(rows.filter(r => r.carvedOut).map(r => r.id)).toEqual([...engineRegistry.CARVED_OUT_INDICATOR_KEYS])
-    // …and together they are exactly the settings blob's sections. A sixteenth
-    // section with neither a definition nor a carve-out row would silently lose
-    // its control on every surface this catalog now feeds.
-    expect([...rows.map(r => r.id)].sort()).toEqual(Object.keys(CHART_DEFAULTS.indicators).sort())
+    // …and together they are exactly the definitions plus the carve-outs. ⭐ B5
+    // TASK 9: this used to compare against `Object.keys(CHART_DEFAULTS.indicators)`
+    // — the fifteen-section blob — which is ONE key now, so that comparison had
+    // stopped being able to see a missing row. The blob's remaining section is
+    // asserted to be exactly the carve-out set instead, which is the claim that
+    // survived: a section with no definition and no carve-out row loses its
+    // control on every surface this catalog feeds.
+    expect([...rows.map(r => r.id)].sort())
+      .toEqual([...defIds, ...engineRegistry.CARVED_OUT_INDICATOR_KEYS].sort())
+    expect(Object.keys(CHART_DEFAULTS.indicators).sort())
+      .toEqual([...engineRegistry.CARVED_OUT_INDICATOR_KEYS].sort())
   })
 
   it('splits by placement target, not by a hand-written list', () => {
@@ -461,13 +468,19 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
     // ⛔ THE CONTROL, AND WITHOUT IT THIS CASE IS UNFALSIFIABLE: a `unwiredKeys`
     // that returned an empty Set unconditionally would satisfy the line above
     // forever. With an EMPTY flip set — bypassing the short-circuit — the
-    // predicate still finds exactly ichimoku's three, because
-    // `CHART_DEFAULTS.indicators.ichimoku` still has no key for them.
-    expect([...unwiredKeys(def, new Set())])
-      .toEqual(['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod'])
-    // …and its five colours ARE in the blob, so they were never greyed either.
-    expect(def.inputs.map(i => i.key).filter(k => !unwiredKeys(def, new Set()).has(k)))
-      .toEqual(['tenkanColor', 'kijunColor', 'spanAColor', 'spanBColor', 'chikouColor'])
+    // predicate still answers non-empty.
+    //
+    // ⭐⭐ B5 TASK 9 CHANGED WHAT THAT ANSWER IS, AND STRENGTHENED IT. The
+    // predicate asks "which declared inputs has the legacy blob no key for", and
+    // the legacy blob HAS NO SECTIONS AT ALL any more — `CHART_DEFAULTS.indicators`
+    // is `{volumeProfile}`. So for an UN-FLIPPED definition the honest answer is
+    // "all of them", which is exactly right after the cutover: a definition that
+    // is not flipped has no hand-written block reading a section that no longer
+    // exists, so every one of its controls would write where nothing reads.
+    expect([...unwiredKeys(def, new Set())]).toEqual(def.inputs.map(i => i.key))
+    expect([...unwiredKeys(def, new Set())].length,
+      'the predicate answers empty for an un-flipped definition — then the line above '
+      + 'proves nothing').toBeGreaterThan(0)
     expect(NOT_IN_BLOB).toMatch(/not wired/i)
   })
 
@@ -475,9 +488,12 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
     const def = engineRegistry.getDefinition('vwap')
     expect(def.inputs.map(i => i.key)).toEqual(['color', 'opacity', 'lineStyle', 'lineWidth'])
     expect([...unwiredKeys(def, ENGINE_FLIPPED_DEF_IDS)]).toEqual([])
-    // ⭐ AND FOR THE STRONG REASON, not the short-circuit: run it with an EMPTY
-    // flip set and all four are still live, because the blob carries every one.
-    expect([...unwiredKeys(def, new Set())]).toEqual([])
+    // ⭐ AND FOR THE STRONG REASON, not the short-circuit — which is now the ONLY
+    // reason available, and that is itself the claim. B5 Task 9 deleted every
+    // legacy section, so an un-flipped definition's controls are ALL unwired; the
+    // short-circuit is what keeps a FLIPPED one's live, and it is load-bearing
+    // rather than an optimisation.
+    expect([...unwiredKeys(def, new Set())]).toEqual(def.inputs.map(i => i.key))
   })
 
   it('the flipped short-circuit is load-bearing, proven on one probe both ways', () => {
@@ -505,12 +521,20 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
     expect(greyed).toEqual({})
     // ⛔ AND THE SAME WALK WITH AN EMPTY FLIP SET IS THE CONTROL, because an
     // `unwiredKeys` welded to `new Set()` would satisfy the line above for every
-    // definition forever. The BLOB has not changed: ichimoku is still the only
-    // definition whose declared inputs outrun `CHART_DEFAULTS`, and a SECOND one
-    // appearing here would still be controls that write where nothing reads —
-    // this is where it would show up.
-    expect(greyedIfNothingFlipped)
-      .toEqual({ ichimoku: ['tenkanPeriod', 'kijunPeriod', 'senkouBPeriod'] })
+    // definition forever.
+    //
+    // ⭐⭐ B5 TASK 9 INVERTED THE CONTROL'S ANSWER, AND THE NEW ANSWER IS THE
+    // WHOLE POINT OF THE TASK. It used to be `{ichimoku: [three periods]}` —
+    // ichimoku was the ONE definition whose declared inputs outran its settings
+    // section. There are no settings sections left: `CHART_DEFAULTS.indicators`
+    // is `{volumeProfile}`, so an UN-FLIPPED definition has a key for nothing and
+    // every one of its controls would write where nothing reads. Total, per
+    // definition, derived rather than typed.
+    expect(greyedIfNothingFlipped).toEqual(Object.fromEntries(
+      engineRegistry.listDefinitions().map(d => [d.id, d.inputs.map(i => i.key)])))
+    // …and that map is not empty, so `greyed` being `{}` above is the
+    // short-circuit doing its job rather than the predicate having stopped.
+    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(14)
   })
 })
 

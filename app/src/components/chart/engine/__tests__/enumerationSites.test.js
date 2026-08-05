@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS } from '../flipState'
 import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
+import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
 import { stripComments } from './sourceScan'
 
@@ -119,7 +120,19 @@ const computeNamesAt = (sha) => {
  *  re-types the regexes proves that the re-typed regexes work, which is not the
  *  claim — and this branch has already shipped one control that measured a
  *  hand-copy against a hand-copy. */
-const INDICATOR_IDS = Object.keys(CHART_DEFAULTS.indicators)
+/** ⭐⭐ B5 TASK 9 — DERIVED FROM THE REGISTRY, NOT FROM THE BLOB, AND THIS IS THE
+ *  CONTROL THAT ROTTED HARDEST. It read `Object.keys(CHART_DEFAULTS.indicators)`,
+ *  which Task 9 shrank to ONE key — so `namesIndicators` could return at most 1,
+ *  the four-or-more floor became unreachable, and THE WHOLE DISCOVERY SCAN would
+ *  have gone permanently, silently green. A scan that finds nothing is a broken
+ *  scan, not a clean tree, and this is the line that decides which it is.
+ *
+ *  The definitions plus the carved-out sections are the same fifteen ids the blob
+ *  used to carry, and they are now where an indicator's identity actually lives. */
+const INDICATOR_IDS = [
+  ...engineRegistry.listDefinitions().map(d => d.id),
+  ...Object.keys(CHART_DEFAULTS.indicators),
+]
 const namesIndicators = (src) => INDICATOR_IDS.filter(id => (
   new RegExp(`['"]${id}['"]`).test(src) ||
   new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`).test(src) ||
@@ -144,10 +157,18 @@ const namesIndicators = (src) => INDICATOR_IDS.filter(id => (
 
 const LEDGER = [
   // ── the settings blob ────────────────────────────────────────────────────
-  { file: 'app/src/components/chart/chartDefaults.js', region: 'CHART_DEFAULTS.indicators — 15 keyed sections',
-    anchor: 'rsi:  { enabled: false, period: 14', fate: 'B5' },
-  { file: 'app/src/components/chart/chartDefaults.js', region: "mergeChartSettings' per-key allow-list — 15 lines",
-    anchor: 'rsi:  { ...CHART_DEFAULTS.indicators.rsi,', fate: 'B5' },
+  // ⭐⭐ RETIRED BY B5 TASK 9, BOTH OF THEM, TOGETHER — `CHART_DEFAULTS.indicators`'
+  // fifteen keyed sections and `mergeChartSettings`' fifteen-line per-key
+  // allow-list. They were ONE mechanism: the table declared the sections and the
+  // allow-list is what let them survive a read, and neither meant anything
+  // without the other. Both are down to `volumeProfile`, the one key with no
+  // definition and no flip.
+  //
+  // ⛔ PROVEN GONE BEHAVIOURALLY, NOT BY ANCHOR TEXT, in `RETIRED_BY_B5_TASK9`
+  // below — because a hard allow-list is a thing that DESTROYS, and destruction
+  // is what a source-text guard cannot see: it cannot tell a deleted line from a
+  // renamed one, and B4 measured a demand-zero guard staying green against a
+  // reintroduction with only the spaces around `=` removed.
 
   // ── StockChart's render lane ─────────────────────────────────────────────
   // ⭐⭐ RETIRED BY B5 TASK 8, ALL FOUR OF THEM, TOGETHER — the series `useRef`
@@ -294,8 +315,15 @@ const LEDGER = [
   // from `catalogRows()` now and the missing subscriber exists. Proven gone in
   // `RETIRED_BY_B4_VOICEBUS`. Recorded here, by Wave A, for the same reason the
   // alert-catalog rows are: this file has exactly ONE writer this phase.
-  { file: 'app/src/pages/charts/ChartsWorkspace.jsx', region: 'UCT_DEFAULT_CHART_SETTINGS_JSON — a frozen capture of all 15 sections',
-    anchor: 'const UCT_DEFAULT_CHART_SETTINGS_JSON', fate: 'B5' },
+  // ⭐⭐ RETIRED BY B5 TASK 9. `UCT_DEFAULT_CHART_SETTINGS_JSON` was a frozen
+  // capture of all fifteen indicator sections — a third copy of rows 1 and 2, in
+  // a PAGE component, and the site no chart-module walk had opened. All fourteen
+  // legacy sections are deleted from the literal; `volumeProfile` survives
+  // because it is the one key `mergeChartSettings` still emits. Measured
+  // behaviour-neutral before the deletion: every one of the fourteen said
+  // `"enabled":false`, so the fold produced zero instances from them either way.
+  // Proven gone in `RETIRED_BY_B5_TASK9`, and in `ChartsWorkspace.test.jsx`,
+  // which reads the shipped literal.
   { file: 'tools/chart_parity_cases.json', region: 'the parity case list',
     anchor: '"cases"', fate: 'keep' },
 ]
@@ -463,6 +491,28 @@ const RETIRED_BY_B5_TASK8 = [
     'the hide-all ref array', /const\s+set\s*=\s*\(ref\)\s*=>/g],
 ]
 
+/** ⭐⭐ WHAT B5 TASK 9 RETIRED — the three regions that were the settings blob's
+ *  indicator enumeration, held to zero as SHAPES.
+ *
+ *  ⛔ AND THE SHAPES ARE THE WEAKER HALF, WHICH IS WHY THE CASE THAT RUNS THEM
+ *  CARRIES BEHAVIOURAL GUARDS BESIDE THEM. A hard allow-list is a thing that
+ *  DESTROYS: "the line is gone" is a claim about text, and "the key is destroyed
+ *  on every read" is the claim that matters. A renamed constant, a reformatted
+ *  literal, or a fifteen-line list rebuilt from a loop all satisfy a demand-zero
+ *  pattern — B4 measured exactly that, against a reintroduction with only the
+ *  spaces around `=` removed. So: patterns, then the behaviour. */
+const RETIRED_BY_B5_TASK9 = [
+  ['app/src/components/chart/chartDefaults.js',
+    'CHART_DEFAULTS.indicators — the fifteen keyed sections',
+    /rsi\s*:\s*\{\s*enabled\s*:\s*false\s*,\s*period\s*:\s*14/g],
+  ['app/src/components/chart/chartDefaults.js',
+    "mergeChartSettings' per-key allow-list — the fifteen lines",
+    /rsi\s*:\s*\{\s*\.\.\.CHART_DEFAULTS\.indicators\.rsi/g],
+  ['app/src/pages/charts/ChartsWorkspace.jsx',
+    "the frozen capture's fifteen indicator sections",
+    /"rsi"\s*:\s*\{\s*"enabled"/g],
+]
+
 const RETIRED_BY_B4_TASK10 = [
   ['app/src/components/chart/engine/readout.js',
     'LEGACY_SLOTS — the legend slot bridge', /export\s+const\s+LEGACY_SLOTS\s*=/g],
@@ -555,8 +605,20 @@ const RETIRED_BY_B4_ALERTS = [
  *  `chartDefaults`' two 15-key regions and `ChartsWorkspace`'s frozen capture,
  *  which Task 10 takes, plus `paneMargins.PANES`, which Task 12 does. A phase
  *  whose bucket empties one task early is a phase whose remaining work is
- *  invisible here, so the histogram below still carries a `B5` key. */
-const SITE_COUNT = 11
+ *  invisible here, so the histogram below still carried a `B5` key.
+ *
+ *  ⭐⭐ 11 → 8 at B5 TASK 9, and it is THREE ROWS IN ONE COMMIT because they were
+ *  one mechanism wearing three faces: `CHART_DEFAULTS.indicators`' fifteen keyed
+ *  sections, `mergeChartSettings`' fifteen-line allow-list that let them survive
+ *  a read, and `ChartsWorkspace`'s frozen capture that wrote them verbatim. The
+ *  settings blob stops enumerating indicators, so all three empty together.
+ *  Nothing is ADDED: the fourteen sections become `indicatorInstances` entries,
+ *  which is a LIST of what a chart has rather than a TABLE of what exists.
+ *
+ *  ⛔ AND `B5` DOES NOT EMPTY. One row survives — `paneMargins.PANES`, which
+ *  Task 12 takes at Flip C. A phase whose bucket empties three tasks early is a
+ *  phase whose remaining work is invisible here. */
+const SITE_COUNT = 8
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -600,7 +662,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('every B4 region is retired — 4 to B5, 2 to C, 3 kept, 2 phase bookkeeping', () => {
+  it('every B4 region is retired — 1 to B5, 2 to C, 3 kept, 2 phase bookkeeping', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -624,7 +686,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // members, so writing one would never match. **B4's bucket is EMPTY** —
     // every region B4 inherited has been retired, and the ABSENCE of the key is
     // what says so. A `B4` row reappearing here fails this line by name.
-    expect(counts).toEqual({ B5: 4, C: 2, keep: 3, phase: 2 })
+    expect(counts).toEqual({ B5: 1, C: 2, keep: 3, phase: 2 })
   })
 
   // ⭐ B5 A8. THE ASSERTION ABOVE IS A HISTOGRAM AND B4'S REVIEW MEASURED ITS
@@ -671,14 +733,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       ['api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog\'s ONE authority', 'C'],
       ['api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map', 'C'],
-      ['app/src/components/chart/chartDefaults.js::CHART_DEFAULTS.indicators — 15 keyed sections', 'B5'],
-      ['app/src/components/chart/chartDefaults.js::mergeChartSettings\' per-key allow-list — 15 lines', 'B5'],
       ['app/src/components/chart/engine/flipState.js::ENGINE_FLIPPED_DEF_IDS', 'phase'],
       ['app/src/components/chart/engine/flipState.js::ENGINE_MIGRATED_DEF_IDS', 'phase'],
       ['app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE', 'keep'],
       ['app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once', 'keep'],
       ['app/src/components/chart/paneMargins.js::PANES — the oscillator stacking list, 9 + volume', 'B5'],
-      ['app/src/pages/charts/ChartsWorkspace.jsx::UCT_DEFAULT_CHART_SETTINGS_JSON — a frozen capture of all 15 sections', 'B5'],
       ['tools/chart_parity_cases.json::the parity case list', 'keep'],
     ])
   })
@@ -862,6 +921,50 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       expect([...PROBE.matchAll(re)].length, `${what}'s retirement pattern matches nothing at all`)
         .toBeGreaterThan(0)
     }
+  })
+
+  // ⭐⭐ B5 TASK 9 — THE THREE REGIONS THAT WERE THE BLOB'S OWN ENUMERATION.
+  it('⛔ the three regions RETIRED_BY_B5_TASK9 took are GONE, and the allow-list DESTROYS', () => {
+    const lingering = RETIRED_BY_B5_TASK9
+      .filter(([file, , re]) => [...stripComments(read(file)).matchAll(re)].length !== 0)
+      .map(([file, what]) => `${file} :: ${what}`)
+    expect(lingering,
+      'the settings blob is enumerating indicators again. Fourteen of the fifteen sections are '
+      + 'DEFINITIONS now and what a chart has one of is an INSTANCE; a section here is a second '
+      + 'source of truth for an indicator that already has one, and the allow-list beside it is '
+      + 'what would make it survive a read.',
+    ).toEqual([])
+
+    // ⛔ THE PATTERNS STILL MATCH SOMETHING — three zeroes are the EXPECTED
+    // answer, which makes a broken regex indistinguishable from a retired region.
+    // Spaced DIFFERENTLY from the source they replaced, which is the
+    // reintroduction B4 measured slipping past a literal-string guard.
+    const PROBE_B5T9 = 'rsi:{enabled:false,period:14,color:x} '
+      + 'rsi : { ...CHART_DEFAULTS.indicators.rsi, y } {"rsi":{"enabled":false}}'
+    for (const [, what, re] of RETIRED_BY_B5_TASK9) {
+      expect([...PROBE_B5T9.matchAll(re)].length, `${what}: retirement pattern matches nothing`)
+        .toBeGreaterThan(0)
+    }
+
+    // ⭐ AND THE BEHAVIOURAL HALF, WHICH IS THE ONE A PATTERN CANNOT MAKE.
+    // One key, not fifteen — so there is no fifteen-section list to edit.
+    expect(Object.keys(CHART_DEFAULTS.indicators)).toEqual(['volumeProfile'])
+    // …and the allow-list has one indicator line, proven by what it DESTROYS: a
+    // v2 blob carrying `indicators.rsi` loses it. That is the behaviour, and it
+    // is what a renamed or reformatted line cannot satisfy.
+    const cs = mergeChartSettings(JSON.parse('{"settingsVersion":2,"indicators":{"rsi":{"enabled":true}}}'))
+    expect(cs.indicators.rsi).toBeUndefined()
+    expect(Object.keys(cs.indicators)).toEqual(['volumeProfile'])
+    // …and the destruction is TOTAL, not just of the one key named above.
+    const all = Object.fromEntries(engineRegistry.listDefinitions().map(d => [d.id, { enabled: true }]))
+    const wide = mergeChartSettings(JSON.parse(JSON.stringify({ settingsVersion: 2, indicators: all })))
+    expect(Object.keys(wide.indicators)).toEqual(['volumeProfile'])
+    expect(Object.keys(all), 'the fixture named nothing — the destruction above is vacuous')
+      .toHaveLength(14)
+    // …and the frozen capture writes the same one key, through the wrapper.
+    const frozen = JSON.parse(uctDefaultChartSettings())
+    expect(Object.keys(frozen.indicators)).toEqual(['volumeProfile'])
+    expect(frozen.settingsVersion, 'the template writes a pre-v2 blob').toBe(2)
   })
 
   // ⭐⭐ B5 TASK 8 — THE FOUR REGIONS THAT WERE ONE MECHANISM, PROVEN GONE.
@@ -1097,12 +1200,20 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // The three that remain — `chartDefaults.js` (twice), `paneMargins.js`,
     // `ChartsWorkspace.jsx` — are Tasks 10 and 12's, so this floor moves exactly
     // twice more and both times by a deletion nobody can do quietly.
+    // ⛔ ⭐⭐ THE FLOOR MOVED 3 → 1 AT B5 TASK 9, AND THAT IS THE RETIREMENT.
+    // `chartDefaults.js` carried TWO B5-fated rows and `ChartsWorkspace.jsx` one;
+    // all three retired together, so both files drop off the ledger entirely and
+    // out of this deduped set. `paneMargins.js` is the last one, and it is Task
+    // 12's — so this floor moves exactly once more, by a deletion nobody can do
+    // quietly.
+    //
+    // ⛔ A ONE-ELEMENT FLOOR IS WEAKER THAN A THREE-ELEMENT ONE, WHICH IS WHY THE
+    // `INDICATOR_IDS` DERIVATION MATTERS MORE NOW: it comes from the REGISTRY
+    // rather than from the settings blob, because a blob-derived id list would
+    // have collapsed to ONE id at this task and made the whole scan unable to
+    // flag anything at all, silently.
     expect(b5Walkable, 'no B5 walkable file on the ledger — the check below is vacuous')
-      .toEqual([
-        'app/src/components/chart/chartDefaults.js',
-        'app/src/components/chart/paneMargins.js',
-        'app/src/pages/charts/ChartsWorkspace.jsx',
-      ])
+      .toEqual(['app/src/components/chart/paneMargins.js'])
     expect(b5Walkable.filter(f => !found.includes(f)),
       'the discovery scan cannot see a file the LEDGER fates to B5 — a site B4 cannot have ' +
       'retired. The scan is broken (walk root, regexes, or the `.test.` skip), not the tree.',
@@ -1376,6 +1487,20 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   //      category for real while every static rail read the source and saw
   //      nothing. `flipState.js` now seals the mutators; this probe is what
   //      fails if that seal is deleted.
+  //
+  // ⭐⭐ B5 TASK 9 RE-READS THE PREMISE, WHICH IS WHAT THE BRIEF ASKED FOR AND IS
+  // NOT WHAT THE TITLE SUGGESTS. The record is RESOLVED (Task 4 moved it — the
+  // biconditional above made that mandatory in the commit that deleted the flag,
+  // not optional at Task 9), so *"while the settings migration is open"* is no
+  // longer a live condition, and the two set-difference clauses are BOTH SATISFIED
+  // BY TWO EMPTY SETS. That is the hole: a phase that emptied `ENGINE_MIGRATED_DEF_IDS`
+  // and `ENGINE_FLIPPED_DEF_IDS` together would pass every clause here while every
+  // indicator on every chart stopped being drawn by anything.
+  //
+  // ⛔ SO THE RAIL GAINS COMPLETENESS RATHER THAN LOSING ANYTHING: the two sets
+  // must be EQUAL *and* must cover the whole registry. It is not deleted — a rail
+  // dropped at the moment its premise changes is how this branch loses a
+  // guarantee — and every existing clause still fails in its own direction.
   it('creates no migrated-but-un-flipped definition while the settings migration is open', () => {
     const record = read('docs/decisions/2026-08-03-engine-enabled-settings-migration.md')
     // The HEADER occurrence, not "somewhere in the file". `engineEnabledMigration.test.js`
@@ -1434,6 +1559,18 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       recordAgreesWithTheCode: (status === 'OPEN') === flagLives,
       migratedNotFlipped: [...ENGINE_MIGRATED_DEF_IDS].filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
       flippedNotMigrated: [...ENGINE_FLIPPED_DEF_IDS].filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+      // ⭐ B5 TASK 9: COMPLETENESS. The two clauses above are set DIFFERENCES and
+      // two empty sets satisfy both. After the cutover the settings blob no longer
+      // carries an indicator's enable flag, so a definition outside the flip set
+      // has no legacy section to fall back on and no block to draw it — it renders
+      // for nobody, silently, and the equality above would still be green.
+      unmigratedDefinitions: engineRegistry.listDefinitions()
+        .map(d => d.id).filter(id => !ENGINE_MIGRATED_DEF_IDS.has(id)),
+      unflippedDefinitions: engineRegistry.listDefinitions()
+        .map(d => d.id).filter(id => !ENGINE_FLIPPED_DEF_IDS.has(id)),
+      // …and the sets are not empty, which is what stops the three `[]`s above
+      // being satisfied by a registry that lists nothing either.
+      flipSetSize: ENGINE_FLIPPED_DEF_IDS.size,
       mutableSets: [
         takesAWrite('ENGINE_MIGRATED_DEF_IDS', ENGINE_MIGRATED_DEF_IDS),
         takesAWrite('ENGINE_FLIPPED_DEF_IDS', ENGINE_FLIPPED_DEF_IDS),
@@ -1455,7 +1592,10 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     'header at OPEN would have been red, and flipping the header back now — with no flag to ' +
     'read — is red from the other side. Re-adding the flag is red too, and that is the ' +
     'direction the old `stillOpen: true` could not see at all. Do NOT weaken any of these to a ' +
-    'subset check.',
+    'subset check. unmigratedDefinitions/unflippedDefinitions/flipSetSize: B5 Task 9 added ' +
+    'COMPLETENESS, because with the settings blob no longer carrying an enable flag a ' +
+    'definition outside the flip set is drawn by NOTHING — and two EMPTY sets satisfy every ' +
+    'set-difference clause above while every chart goes blank.',
     ).toEqual({
       statusLines: 1,
       status: 'RESOLVED',
@@ -1463,6 +1603,9 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       recordAgreesWithTheCode: true,
       migratedNotFlipped: [],
       flippedNotMigrated: [],
+      unmigratedDefinitions: [],
+      unflippedDefinitions: [],
+      flipSetSize: 14,
       mutableSets: [],
     })
   })
@@ -1610,9 +1753,39 @@ describe('the surviving enumeration is the registry, and it has to stay complete
     expect(NO_DEFINITION.filter(k => defined.has(k)), 'a named exemption gained a definition').toEqual([])
   })
 
-  it('every definition has a settings section — nothing can be migrated from a blob it has no key in', () => {
-    const keys = Object.keys(CHART_DEFAULTS.indicators)
-    expect(engineRegistry.listDefinitions().map(d => d.id).filter(id => !keys.includes(id))).toEqual([])
+  // ⭐⭐ B5 TASK 9 INVERTED THIS ONE, AND THE INVERSION IS THE TASK.
+  //
+  // It read *"every definition has a settings section — nothing can be migrated
+  // from a blob it has no key in"*, and it was the right rail while the BLOB was
+  // the authority: a definition with no section could never be reached by the
+  // migrator. The blob is not the authority any more. `CHART_DEFAULTS.indicators`
+  // is `{volumeProfile}`, and what the fold reads is the STORED section of a v1
+  // blob — which every existing user has and no default table is needed for.
+  //
+  // ⛔ SO THE CLAIM MOVES DOWN A LEVEL RATHER THAN BEING DELETED: what has to be
+  // true is that a definition is still REACHABLE from a v1 blob that names it.
+  // That is what the old rail was protecting, it is what an existing user's data
+  // depends on, and it is asserted end to end — from a JSON STRING, through the
+  // real merge — for every definition there is.
+  it('every definition is REACHABLE from a v1 blob that names it', () => {
+    const defs = engineRegistry.listDefinitions()
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(14)
+    const unreachable = []
+    for (const def of defs) {
+      const blob = JSON.stringify({ indicators: { [def.id]: { enabled: true } } })
+      const cs = mergeChartSettings(JSON.parse(blob))
+      if (!cs.indicatorInstances.some(i => i.defId === def.id)) unreachable.push(def.id)
+    }
+    expect(unreachable,
+      'a definition cannot be reached from a stored v1 blob that turns it on. Every user who '
+      + 'has it enabled loses it silently on the next read, and there is no default table left '
+      + 'to fall back to.').toEqual([])
+    // ⛔ AND THE OTHER DIRECTION, which is what stops this passing on a fold that
+    // seeds an instance for anything at all: a key naming no definition seeds
+    // nothing, and the blob's one surviving section is the carve-out.
+    const junk = mergeChartSettings(JSON.parse('{"indicators":{"notADefinition":{"enabled":true}}}'))
+    expect(junk.indicatorInstances).toEqual([])
+    expect(Object.keys(CHART_DEFAULTS.indicators)).toEqual(NO_DEFINITION)
   })
 })
 

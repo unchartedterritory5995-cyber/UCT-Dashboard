@@ -167,11 +167,19 @@ describe('migrateLegacyToInstances', () => {
   })
 
   it('every instance it emits passes validation', () => {
-    const cs = { ...CHART_DEFAULTS, indicators: Object.fromEntries(
-      Object.entries(CHART_DEFAULTS.indicators).map(([k, v]) => [k, { ...v, enabled: true }]),
-    ) }
+    // ⭐ B5 TASK 9: this used to build "everything on" from
+    // `CHART_DEFAULTS.indicators`, which is ONE key now — the blob no longer
+    // enumerates indicators, so the fixture is built from the DEFINITIONS, plus
+    // the carved-out section that has none. Building it from the shrunken table
+    // would have made this case migrate nothing and pass with `toHaveLength(0)`
+    // if the count were derived the same way; it is not, which is what caught it.
+    const cs = { ...CHART_DEFAULTS, indicators: {
+      ...Object.fromEntries(listDefinitions().map(d => [d.id, { enabled: true }])),
+      ...Object.fromEntries(
+        Object.entries(CHART_DEFAULTS.indicators).map(([k, v]) => [k, { ...v, enabled: true }])),
+    } }
     const out = migrateLegacyToInstances(cs)
-    // 14 definitions; volumeProfile is the 15th legacy key and has none.
+    // 14 definitions; volumeProfile is the extra legacy key and has none.
     expect(out).toHaveLength(listDefinitions().length)
     const { kept, dropped } = normalizeInstances(out)
     expect(dropped).toEqual([])

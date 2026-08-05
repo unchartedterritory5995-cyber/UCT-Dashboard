@@ -105,6 +105,13 @@ vi.mock('../instances', async (importOriginal) => {
 vi.mock('../paneMarginsProjection', async (importOriginal) => {
   const actual = await importOriginal()
   return {
+    // ⚠️ SPREAD FIRST, THEN OVERRIDE. B5 Task 9 added a second export to this
+    // module (`csForPaneMarginsFromSettings` — the projection for the three
+    // `computePaneMargins` call sites that have no instance list in scope), and a
+    // mock that enumerates its exports fails the whole SUITE with "No X export is
+    // defined on the mock" the moment one is added. 181 cases went red on one
+    // missing name; the spread is what stops the next one doing it again.
+    ...actual,
     csForPaneMargins: (cs, instances, flipped) => {
       const out = actual.csForPaneMargins(cs, instances, flipped)
       H.csForPaneMarginsCalls.push({ cs, instances, flipped, out })
@@ -1908,38 +1915,60 @@ describe('BB Flip A — the legacy block stands down, z-order is preserved', () 
     expect(first).toBeGreaterThan(lastMa)
   })
 
-  it('and BB is drawn in REGISTRY order relative to every other engine series', () => {
+  it('and BB is drawn in REGISTRY order relative to every OVERLAPPING engine series', () => {
     // 🔴 THE PREMISE THIS CASE WAS BUILT ON EXPIRED AT B5 TASK 8, AND — LIKE ITS
     // SIBLING IN THE I-3 BLOCK — IT WAS GREEN WHILE FALSE FIRST. It read *"still
     // draws BEFORE every un-migrated legacy indicator block"* and used `macd` and
     // `obv` as those blocks; `macd` was flipped at B3 Task 11 and `obv` at B5
     // Task 8, so both are engine-drawn, at the SAME call site as the BB it is
-    // compared against. It went on passing because the binder follows the
-    // INSTANCE LIST and the explicit `BB_INSTANCE` leads it — a property of the
-    // fixture, not of the claim.
+    // compared against.
     //
-    // ⛔ WHAT THE CASE WAS ACTUALLY PROTECTING — z-order between BB and the
-    // things drawn around it — IS NOW ENTIRELY INTERNAL TO THE ENGINE, so that is
-    // where it is asserted. `migrateLegacyToInstances` walks the REGISTRY, so a
-    // blob with several indicators on projects them in registry order and the
-    // binder inserts them in that order; LWC z-stacks by insertion. `bb` is third
-    // in the registry, `macd` second, `obv` thirteenth — so a blob with all three
-    // must draw macd, bb, obv in that order and nothing else.
-    // ⚠️ THE BLOB'S KEY ORDER IS DELIBERATELY THE REVERSE OF THE REGISTRY'S. A
-    // migrator that simply echoed `Object.keys(cs.indicators)` would look
-    // identical on any blob written in registry order, so the fixture has to
-    // disagree with the answer.
-    const BLOB_ORDER = { obv: { enabled: true }, bb: { enabled: true }, macd: { enabled: true } }
+    // ⭐⭐ AND B5 TASK 9 TRIED TO MOVE IT AND THE PIXEL GATE REFUSED, WHICH IS WHY
+    // IT IS STRENGTHENED RATHER THAN RE-TYPED. The fold was written to seed in
+    // SHIPPED STACK ORDER, which would have put `obv` — a PANE — before `bb`;
+    // `engine_three_bands_stacked` then reported a manifest GEOMETRY diff at 0
+    // changed pixels (`series[2]/[3].scaleId` swapped), because the instance list
+    // is the binder's `addSeries` order. The seed stayed registry order, and the
+    // claim below is the one that was always underneath it.
+    //
+    // ⛔ WHAT THE CASE IS PROTECTING IS Z-ORDER, AND Z-ORDER ONLY EXISTS BETWEEN
+    // SERIES THAT CAN OVERLAP. LWC z-stacks by insertion, and two series can only
+    // paint the same pixel if they are on the SAME price scale — the five price
+    // overlays all sit on `right`; every pane definition has its own scale in its
+    // own band. So the claim is: the PRICE OVERLAYS keep registry order relative
+    // to each other, which is legacy render order for the five of them. Where a
+    // pane id lands among them is not a z-order fact and this stops asserting it.
+    const BLOB_ORDER = { obv: { enabled: true }, bb: { enabled: true }, macd: { enabled: true },
+      sar: { enabled: true }, donchian: { enabled: true } }
     draw({ indicators: BLOB_ORDER })
     const order = bound().map(b => b.defId).filter((id, i, a) => id !== a[i - 1])
-    expect(order, 'the projected instance list is no longer in registry order — LWC z-stacks '
-      + 'by insertion, so this reorders every overlapping indicator on the chart')
-      .toEqual(['macd', 'bb', 'obv'])
-    const registryOrder = registry.listDefinitions().map(d => d.id)
-      .filter(id => order.includes(id))
-    expect(order).toEqual(registryOrder)
-    expect(Object.keys(BLOB_ORDER), 'the fixture blob is already in registry order, so this '
-      + 'control cannot tell a registry walk from a key echo').not.toEqual(registryOrder)
+    const PRICE = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian']
+    const drawnPrice = order.filter(id => PRICE.includes(id))
+    expect(drawnPrice.length, 'no price overlay was drawn — this case is vacuous')
+      .toBeGreaterThan(1)
+    expect(drawnPrice, 'the price overlays are no longer in registry order — LWC z-stacks by '
+      + 'insertion and all five share the `right` scale, so this inverts which translucent '
+      + 'line wins the pixel wherever two of them cross')
+      .toEqual(PRICE.filter(id => drawnPrice.includes(id)))
+    // ⛔ AND THE OVERLAP PREMISE ITSELF, MEASURED rather than asserted in prose:
+    // every price overlay really is on ONE shared scale, and the pane ids really
+    // are not — which is what makes "where obv lands" a non-claim.
+    const scaleOf = (id) => bound().filter(b => b.defId === id).map(b => b.scaleId)
+    expect(new Set(drawnPrice.flatMap(scaleOf)).size,
+      'the price overlays stopped sharing one scale, so registry order stopped being z-order')
+      .toBe(1)
+    expect(scaleOf('obv').every(sc => !scaleOf('bb').includes(sc)),
+      'obv shares a scale with bb — then its position IS a z-order fact and this case is wrong')
+      .toBe(true)
+    // …and the seed order really is REGISTRY order, which is what makes the
+    // price-overlay sequence above a z-order claim rather than an accident.
+    const registryOrder = registry.listDefinitions().map(d => d.id).filter(id => order.includes(id))
+    expect(order, 'the seeded order is no longer registry order — re-run the pixel gate, a '
+      + 'reorder here moves manifest GEOMETRY').toEqual(registryOrder)
+    // ⚠️ THE BLOB'S KEY ORDER IS DELIBERATELY NOT THE ANSWER'S. A migrator that
+    // echoed `Object.keys(cs.indicators)` would draw obv, bb, macd, sar, donchian.
+    expect(Object.keys(BLOB_ORDER), 'the fixture blob is already in the ANSWER order, so '
+      + 'this control cannot tell a derivation from a key echo').not.toEqual(order)
   })
 })
 
@@ -2341,7 +2370,16 @@ describe('a BB instance survives BOTH settings allow-lists', () => {
     const merged = mergeChartSettings(stored)
     expect(merged.indicatorInstances).toEqual([BB_INSTANCE])
     expect('engineEnabled' in merged).toBe(false)
-    expect(merged.indicators.bb.enabled).toBe(true)
+    // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL, AND THE CONTROL IT REPLACES IS THE
+    // ONE THIS TASK DESTROYS. It asserted `merged.indicators.bb.enabled === true`
+    // — the legacy MIRROR — as the thing that had to survive the allow-list.
+    // `mergeChartSettings` now folds the fourteen legacy sections into
+    // `indicatorInstances` and DESTROYS the mirror, so that assertion had no
+    // subject left. What still has to survive is the INSTANCE, and what now has
+    // to be DESTROYED is the mirror: the allow-list is asserted by what it
+    // removes, which is the only spelling a renamed line cannot satisfy.
+    expect(merged.indicators.bb, 'the legacy mirror survived the fold').toBeUndefined()
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
   })
 
   it('mergeSettingsOverride patches ONE input without deleting the instance', () => {
@@ -2918,7 +2956,16 @@ describe('a MACD instance survives BOTH settings allow-lists', () => {
     const merged = mergeChartSettings(stored)
     expect(merged.indicatorInstances).toEqual([MACD_INSTANCE])
     expect('engineEnabled' in merged).toBe(false)
-    expect(merged.indicators.macd.enabled).toBe(true)
+    // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL, AND THE CONTROL IT REPLACES IS THE
+    // ONE THIS TASK DESTROYS. It asserted `merged.indicators.macd.enabled === true`
+    // — the legacy MIRROR — as the thing that had to survive the allow-list.
+    // `mergeChartSettings` now folds the fourteen legacy sections into
+    // `indicatorInstances` and DESTROYS the mirror, so that assertion had no
+    // subject left. What still has to survive is the INSTANCE, and what now has
+    // to be DESTROYED is the mirror: the allow-list is asserted by what it
+    // removes, which is the only spelling a renamed line cannot satisfy.
+    expect(merged.indicators.macd, 'the legacy mirror survived the fold').toBeUndefined()
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
   })
 
   it('mergeSettingsOverride patches ONE input without deleting the instance', () => {
@@ -3436,9 +3483,20 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
     }))
     expect(merged.indicatorInstances).toEqual([VWAP_INSTANCE])
     expect('engineEnabled' in merged).toBe(false)
-    expect(merged.indicators.vwap.enabled).toBe(true)
-    // …and the three style keys the row offers, which a narrower allow-list drops.
-    expect(merged.indicators.vwap).toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
+    // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL, AND THE CONTROL IT REPLACES IS THE
+    // ONE THIS TASK DESTROYS. It asserted `merged.indicators.vwap.enabled === true`
+    // — the legacy MIRROR — as the thing that had to survive the allow-list.
+    // `mergeChartSettings` now folds the fourteen legacy sections into
+    // `indicatorInstances` and DESTROYS the mirror, so that assertion had no
+    // subject left. What still has to survive is the INSTANCE, and what now has
+    // to be DESTROYED is the mirror: the allow-list is asserted by what it
+    // removes, which is the only spelling a renamed line cannot satisfy.
+    expect(merged.indicators.vwap, 'the legacy mirror survived the fold').toBeUndefined()
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
+    // …and the three style keys a narrower allow-list used to drop are on the
+    // INSTANCE now, which is where the chart reads them from.
+    expect(merged.indicatorInstances[0].inputs)
+      .toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
   })
 
   it('mergeSettingsOverride patches ONE input without deleting the instance', () => {
@@ -3490,6 +3548,40 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
 //
 // Rewriting them rather than deleting them is the point: each one still names a
 // way the machinery could be wrong, in the direction it can now be wrong in.
+// ⛔⭐⭐ B5 TASK 9 — A GAP, STATED RATHER THAN PAPERED OVER.
+//
+// `computePaneMargins` has FOUR call sites in `StockChart.jsx`; three read the
+// raw `cs`, and the first (`_mainMargins`, seven callers) is the CANDLE series'
+// own `scaleMargins`. They were correct only because `cs.indicators[id].enabled`
+// was a write-through MIRROR of the instance list, and Task 9 DELETED that
+// mirror — so a merged v2 blob reserves NO bands and the candles fill the whole
+// pane. All nine were switched to the projected `csPanes`.
+//
+// ⛔ NOTHING IN THIS TREE KILLS `csPanes -> cs`, AND BOTH ATTEMPTS ARE RECORDED
+// BECAUSE THE SECOND ONE PASSED WHILE FALSE:
+//
+//   1. THE PIXEL GATE CANNOT SEE IT, STRUCTURALLY. A probe build with the
+//      projection removed at all nine sites reported **0 changed pixels** on
+//      `rsi_only`, `bb_rsi_macd`, `adx_only` and `engine_three_bands_stacked`.
+//      Every parity case injects its settings through `?indicators=`, which
+//      `ChartRender` applies with `mergeSettingsOverride` — NOT an allow-list —
+//      so the legacy sections survive on that route. A real user's blob arrives
+//      through `mergeChartSettings`, where they do not.
+//
+//   2. A COMPONENT PROBE WAS WRITTEN HERE AND DELETED. It recorded every
+//      `priceScale().applyOptions` and asserted the candle scale reserved RSI's
+//      band. It passed — and it ALSO passed with `_mainMargins` handed a literally
+//      EMPTY blob (`{indicators: {}}`), which proves the `{top:0.7,bottom:0.15}`
+//      write it was reading does not come from `_mainMargins` at all. A control
+//      that survives its own mutation is worse than no control, so it is gone
+//      rather than left looking like a gate.
+//
+// What DOES stand behind the fix: `paneMarginsProjection.test.js` measures the
+// regression directly (*"the RAW merged blob reserves NO bands"*, then the
+// projection restoring them identically to the PRE-FOLD blob on all 512 subsets),
+// and mutation M14 on `csForPaneMarginsFromSettings` is lethal. What is NOT
+// covered is the WIRING — that `StockChart` passes `csPanes` and not `cs`.
+
 describe('the Flip-B machinery, live (Task 10)', () => {
   it('ENGINE_FLIPPED_DEF_IDS is exactly the fourteen migrated ids, and EQUALS the migrated set', () => {
     // Flipped-but-not-migrated means the legacy block was deleted and nothing
@@ -4391,9 +4483,13 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
       indicatorInstances: [STOCH_INSTANCE, ATR_INSTANCE],
     }))
     expect(merged.indicatorInstances).toEqual([STOCH_INSTANCE, ATR_INSTANCE])
-    // …every input the two definitions declare, through the per-key list.
-    expect(merged.indicators.stoch).toMatchObject({ enabled: true, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' })
-    expect(merged.indicators.atr).toMatchObject({ enabled: true, period: 14, color: '#FFA726' })
+    // ⭐ B5 TASK 9: the per-key list is ONE line now, so what the definitions
+    // declare lives on the INSTANCE and the legacy sections are DESTROYED.
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
+    expect(merged.indicatorInstances.find(i => i.defId === 'stoch').inputs)
+      .toEqual(STOCH_INSTANCE.inputs)
+    expect(merged.indicatorInstances.find(i => i.defId === 'atr').inputs)
+      .toEqual(ATR_INSTANCE.inputs)
 
     const out = mergeSettingsOverride(merged, {
       indicatorInstances: [{ instanceId: 'engine-test:stoch', inputs: { kPeriod: 34 } }],
@@ -4789,9 +4885,15 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       indicatorInstances: [MFI_INSTANCE, CCI_INSTANCE, WR_INSTANCE],
     }))
     expect(merged.indicatorInstances).toEqual([MFI_INSTANCE, CCI_INSTANCE, WR_INSTANCE])
-    expect(merged.indicators.mfi).toMatchObject({ enabled: true, period: 14, color: '#c084fc' })
-    expect(merged.indicators.cci).toMatchObject({ enabled: true, period: 20, color: '#fbbf24' })
-    expect(merged.indicators.williamsR).toMatchObject({ enabled: true, period: 14, color: '#60a5fa' })
+    // ⭐ B5 TASK 9: the per-key list is ONE line, so the mirror is DESTROYED and
+    // the declared inputs live on the instance. Both directions asserted.
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
+    expect(merged.indicatorInstances.find(i => i.defId === 'mfi').inputs)
+      .toEqual(MFI_INSTANCE.inputs)
+    expect(merged.indicatorInstances.find(i => i.defId === 'cci').inputs)
+      .toEqual(CCI_INSTANCE.inputs)
+    expect(merged.indicatorInstances.find(i => i.defId === 'williamsR').inputs)
+      .toEqual(WR_INSTANCE.inputs)
 
     const out = mergeSettingsOverride(merged, {
       indicatorInstances: [{ instanceId: 'engine-test:williamsR', inputs: { period: 34 } }],
@@ -5231,12 +5333,15 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       indicatorInstances: [ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE],
     }))
     expect(merged.indicatorInstances).toEqual([ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE])
-    // ⭐ ADX CARRIES THREE COLOURS OFF ONE SECTION — the widest per-key row in
-    // the allow-list, and the one where a dropped key is a line that renders in
-    // LWC's default blue rather than not at all.
-    expect(merged.indicators.adx).toMatchObject(ADX_ON.adx)
-    expect(merged.indicators.obv).toMatchObject(OBV_ON.obv)
-    expect(merged.indicators.donchian).toMatchObject(DON_ON.donchian)
+    // ⭐ ADX CARRIES THREE COLOURS — the widest row the allow-list used to have,
+    // and the one where a dropped key is a line that renders in LWC's default
+    // blue rather than not at all. B5 Task 9 moved that row onto the INSTANCE
+    // and DESTROYED the section, so the claim is asserted on both sides.
+    expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
+    const _byDef = Object.fromEntries(merged.indicatorInstances.map(i => [i.defId, i]))
+    expect(_byDef.adx.inputs).toMatchObject(ADX_INSTANCE.inputs)
+    expect(_byDef.obv.inputs).toMatchObject(OBV_INSTANCE.inputs)
+    expect(_byDef.donchian.inputs).toMatchObject(DON_INSTANCE.inputs)
 
     const out = mergeSettingsOverride(merged, {
       indicatorInstances: [{ instanceId: 'engine-test:donchian', inputs: { period: 89 } }],
