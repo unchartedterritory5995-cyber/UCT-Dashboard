@@ -594,10 +594,12 @@
 .sessionBtn + .sessionBtn { border-left: 1px solid var(--border, #1f2937); }
 .sessionBtn:hover:not(:disabled) { color: var(--text, #e5e7eb); }
 .sessionBtn:disabled { opacity: 0.4; cursor: default; }
+/* Selected: strong (near-black on a light canvas) text on the gold highlight,
+   matching the widget tab chips; unselected stays the muted --widget-text above. */
 .sessionBtnActive,
 .sessionBtnActive:hover {
-  color: var(--widget-accent, var(--accent, #c9a84c));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.12));
+  color: var(--widget-text-strong, var(--text-bright, #e5e7eb));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next

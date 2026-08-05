@@ -3,8 +3,10 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--news-bg, var(--widget-canvas, #0e0f0d));
-  color: var(--news-text, var(--text, #e0dac8));
+  /* Default canvas/text follow the app theme (--bg/--text: OLED-black, light, dim)
+     until the user picks an explicit per-widget canvas. */
+  background: var(--news-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--news-text, var(--text-bright, #e0dac8));
   font-family: var(--font-sans);
 }
 
@@ -92,7 +94,7 @@
   display: inline-flex;
   color: var(--news-accent, var(--ut-gold, #c9a84c));
 }
-.icon.up { color: var(--news-up, var(--ut-green-bright, #1ae51a)); }
+.icon.up { color: var(--news-up, #1ae51a); }
 .icon.down { color: var(--news-down, #ff5b5b); }
 .icon.neutral { color: var(--news-accent, var(--ut-gold, #c9a84c)); }
 
@@ -157,7 +159,9 @@ a.title:hover { text-decoration: underline; }
 .desc {
   font-size: 11px;
   line-height: 1.4;
-  color: var(--news-chrome, var(--text-muted, #9b9482));
+  /* Readable body text (was the dim muted chrome — hard to see on a dark canvas). */
+  color: var(--news-text, var(--text-bright, #e0dac8));
+  opacity: 0.9;
   margin-top: 2px;
 }
 .meta {
@@ -170,7 +174,7 @@ a.title:hover { text-decoration: underline; }
 }
 .date { color: var(--news-chrome, var(--text-muted, #8b8674)); }
 .move { font-weight: 700; }
-.move.up { color: var(--news-up, var(--ut-green-bright, #1ae51a)); }
+.move.up { color: var(--news-up, #1ae51a); }
 .move.down { color: var(--news-down, #ff5b5b); }
 .move.neutral { color: var(--news-chrome, var(--text-muted, #8b8674)); }
 .source {

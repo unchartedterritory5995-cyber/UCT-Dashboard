@@ -63,22 +63,17 @@
   text-align: center;
 }
 
-/* Active seat. STOCK takes the standard gold active treatment (mirrors
-   .sessionBtnActive); the leveraged seats carry a subtle directional tint. */
+/* Active seat — STOCK / leveraged-long / leveraged-short all take the SAME gold
+   highlight + strong (near-black on a light canvas) text as the widget tab chips
+   and the session toggle, following the widget canvas. */
 .segStockActive,
-.segStockActive:hover:not(:disabled) {
-  color: var(--widget-accent, var(--accent, #c9a84c));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.12));
-}
+.segStockActive:hover:not(:disabled),
 .segLongActive,
-.segLongActive:hover:not(:disabled) {
-  color: var(--li-up);
-  background: var(--li-up-bg);
-}
+.segLongActive:hover:not(:disabled),
 .segShortActive,
 .segShortActive:hover:not(:disabled) {
-  color: var(--li-down);
-  background: var(--li-down-bg);
+  color: var(--widget-text-strong, var(--text-bright, #e5e7eb));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
 }
 
 .caretBtn {

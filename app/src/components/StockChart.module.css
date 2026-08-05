@@ -492,16 +492,19 @@
 
 /* Price-scale mode toggle (A/L) — anchored to the right price axis, resting
    just above the volume pane. `bottom` is set inline from the pane geometry. */
+/* Matches the 3M/6M/YTD range bar: same canvas-following panel + button tokens,
+   so it changes with the chosen chart canvas instead of the old fixed slate. */
 .scaleToggle {
   position: absolute;
-  right: 2px;
+  right: 6px;
   z-index: 45;
   display: flex;
   gap: 1px;
-  padding: 1px;
-  border-radius: 4px;
-  background: rgba(20, 24, 32, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px 3px;
+  border-radius: 6px;
+  background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.72));
+  border: 1px solid var(--chart-panel-border-low, rgba(255, 255, 255, 0.06));
+  backdrop-filter: blur(2px);
   opacity: 0.5;
   transition: opacity 0.15s ease;
   pointer-events: auto;
@@ -515,25 +518,38 @@
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--color-text-muted, #8b95a5);
-  font-size: 9px;
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  opacity: 0.82;
+  font-family: var(--font-sans);
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
   line-height: 1;
-  padding: 2px 5px;
-  border-radius: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease, opacity 0.12s ease;
 }
 
 .scaleToggleBtn:hover {
-  color: #e2e8f0;
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  opacity: 1;
+  background: var(--chart-panel-hover-low, rgba(255, 255, 255, 0.07));
 }
 
-.scaleToggleActive {
-  background: rgba(201, 168, 76, 0.22);
-  color: #c9a84c;
+/* Selected scale — gold highlight, theme-aware (darker gold on the light theme). */
+.scaleToggleActive,
+.scaleToggleActive:hover {
+  opacity: 1;
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.2));
+  color: var(--accent, #c9a84c);
 }
+
+:global([data-charts-theme='sunrise']) .scaleToggle {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(20, 45, 75, 0.16);
+}
+:global([data-charts-theme='sunrise']) .scaleToggleBtn { color: #47525f; }
 
 @media (max-width: 900px) and (orientation: landscape) {
   .container {

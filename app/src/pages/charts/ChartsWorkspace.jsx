@@ -11,8 +11,6 @@ import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchli
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
-import { NEWS_WIDGET_DEFAULTS, mergeNewsWidgetSettings } from './widgets/newsWidgetSettings'
-import { PROFILE_WIDGET_DEFAULTS, mergeProfileWidgetSettings } from './widgets/profileWidgetSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
@@ -396,10 +394,9 @@ export default function ChartsWorkspace() {
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
     const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
-    const nw = mergeNewsWidgetSettings(parsePref(prefs.news_widget_settings, null))
-    const news = nw.bgMode === 'gradient' ? (nw.bgGradient?.top || nw.bg) : nw.bg
-    const pw = mergeProfileWidgetSettings(parsePref(prefs.profile_widget_settings, null))
-    const profile = pw.bgMode === 'gradient' ? (pw.bgGradient?.top || pw.bg) : pw.bg
+    // News & Profile are NOT here: their appearance is fully per-widget (opts.settings,
+    // resolved via widgetCanvasById); an uncustomized one has no type-level canvas so it
+    // falls through to the app-theme --bg (OLED-black / light), which is the whole point.
     // Theme Tracker / Fundamentals / Breadth publish ONLY when the user actually
     // customized their canvas (their settings model is emit-when-off-default): the
     // drag bar + panel then follow the chosen canvas, while an untouched widget
@@ -407,8 +404,6 @@ export default function ChartsWorkspace() {
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
     const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
-    const nwCustom = nw.bgMode === 'gradient' || String(nw.bg).toLowerCase() !== NEWS_WIDGET_DEFAULTS.bg
-    const pwCustom = pw.bgMode === 'gradient' || String(pw.bg).toLowerCase() !== PROFILE_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
@@ -428,11 +423,9 @@ export default function ChartsWorkspace() {
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
-      ...(nwCustom ? { news: entry(news) } : {}),
-      ...(pwCustom ? { profile: entry(profile) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.news_widget_settings, prefs.profile_widget_settings])
+  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,

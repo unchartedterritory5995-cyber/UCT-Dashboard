@@ -13,7 +13,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useStockBrief from '../../../hooks/useStockBrief'
 import useMobileSWR from '../../../hooks/useMobileSWR'
@@ -21,7 +20,7 @@ import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
-  PROFILE_WIDGET_SETTINGS_KEY, PROFILE_WIDGET_DEFAULTS,
+  PROFILE_WIDGET_DEFAULTS,
   mergeProfileWidgetSettings, profileWidgetStyleVars,
 } from './profileWidgetSettings'
 import styles from './ProfileWidget.module.css'
@@ -98,11 +97,12 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
 
   // ── Appearance settings (⚙) — PER-WIDGET (this widget's own opts.settings) so one
   // Profile widget's look never touches another, or the same widget in another layout.
-  // Falls back to the legacy GLOBAL pref (the prior shared look) until first edited.
-  const { prefs } = usePreferences()
+  // A widget with NO explicit look uses the DEFAULTS, whose canvas + text follow the
+  // app theme (OLED-black / light) via CSS var fallbacks — so a freshly-added widget/
+  // tab opens matching the site theme, not a stale shared color.
   const settings = useMemo(
-    () => mergeProfileWidgetSettings(opts?.settings ?? parsePref(prefs?.[PROFILE_WIDGET_SETTINGS_KEY], null)),
-    [opts?.settings, prefs],
+    () => mergeProfileWidgetSettings(opts?.settings ?? null),
+    [opts?.settings],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)

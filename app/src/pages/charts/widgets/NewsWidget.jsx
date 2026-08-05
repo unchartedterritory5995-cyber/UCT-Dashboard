@@ -11,7 +11,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
@@ -20,7 +19,7 @@ import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
-  NEWS_WIDGET_SETTINGS_KEY, NEWS_WIDGET_DEFAULTS,
+  NEWS_WIDGET_DEFAULTS,
   mergeNewsWidgetSettings, newsWidgetStyleVars,
 } from './newsWidgetSettings'
 import styles from './NewsWidget.module.css'
@@ -93,7 +92,6 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const { name: company } = useTickerMeta(sym)
 
   // ── Appearance settings (⚙) — mirrors the other widget settings ──
-  const { prefs } = usePreferences()
 
   // ── "Place on chart" — one-time action, NOT a toggle ──
   // Drops the catalyst onto the linked chart as TWO ordinary, separately editable
@@ -141,11 +139,12 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   }, [sym])
   // Appearance is PER-WIDGET (stored in this widget's own opts.settings) so changing
   // one News widget never touches another — or the same widget in a different layout.
-  // A widget that has never been customized falls back to the legacy GLOBAL pref
-  // (the user's prior shared look) so nothing visibly changes until they edit it.
+  // A widget with NO explicit look uses the DEFAULTS, whose canvas + text follow the
+  // app theme (OLED-black / light) via the CSS var fallbacks — so a freshly-added
+  // widget/tab opens matching the site theme, not a stale shared color.
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(opts?.settings ?? parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
-    [opts?.settings, prefs],
+    () => mergeNewsWidgetSettings(opts?.settings ?? null),
+    [opts?.settings],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
