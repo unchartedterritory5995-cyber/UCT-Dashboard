@@ -25,11 +25,20 @@
 //                                 scaleMargins: paneMargins[key] || {top:0.82, bottom:0},
 //                                 ...bandExtra }
 //
-// Real panes are B5's job. Until then a "pane" is a band inside pane 0, and the
-// band geometry comes from `computePaneMargins` — which this module CONSUMES and
-// must never extend. Adding an engine key to that module's `PANES` list would
-// reserve vertical space for something rendering nothing, which in B2 (flag off,
-// zero instances) is every user's chart shrinking for no reason.
+// ─── FLIP C: BOTH ANSWERS LIVE HERE NOW, AND ONE CONSTANT PICKS ─────────────
+//
+// B5 Task 10 built the real-pane answer and landed it DARK. `paneMode()` is
+// `'bands'`, so the transcription above is still what every user gets, byte for
+// byte, and the 46-case zero-changed-pixel gate says so. Under `'panes'` the
+// band becomes a real lightweight-charts pane (`paneLayout.computePaneLayout`
+// says which index and how tall) and the margins go to zero because the drawable
+// rectangle is the whole pane.
+//
+// In `'bands'` mode the band geometry still comes from `computePaneMargins` —
+// which this module CONSUMES and must never extend. Adding an engine key to that
+// module's `PANES` list would reserve vertical space for something rendering
+// nothing, which in B2 (flag off, zero instances) is every user's chart shrinking
+// for no reason.
 //
 // ─── TRAP #2: THE FULL SCALE OPTION SET, EVERY RESOLVE ──────────────────────
 //
@@ -74,6 +83,7 @@
 // nearest, because each palette's contrast was measured against its own surface.
 
 import { IND_TOKENS } from '../designTokens'
+import { paneMode } from './paneLayout'
 
 /**
  * Each preset's canvas colour. Taken from `designTokens.IND_TOKENS[p].surface`,
@@ -253,7 +263,12 @@ function asSet(value) {
  *
  * @param {object} instance a normalised instance (`instances.js`)
  * @param {object} def      its definition (`nativeRegistry`)
- * @param {object} ctx      `{ paneMargins, volOverlaySet, volSeparatePane, VOL_PANE_INDEX }`
+ * @param {object} ctx      `{ paneMargins, paneLayout, volOverlaySet, volSeparatePane,
+ *                          VOL_PANE_INDEX }` — `paneLayout` is read ONLY when
+ *                          `paneMode()` is `'panes'`, and in `'bands'` mode the
+ *                          returned object is deep-equal to the one this function
+ *                          returned before Flip C existed, asserted for every
+ *                          pane oscillator in `__tests__/flipCGeometry.test.jsx`.
  * @returns {{paneIndex: number, scaleId: string|null, scaleOptions: object|null,
  *            autoscale: 'exclude'|'default'}|null}
  *
@@ -335,12 +350,48 @@ export function resolvePlacement(instance, def, ctx) {
     }
   }
 
-  // ── Its own stacked band in pane 0, on a scale named after the definition ──
-  const band = (c.paneMargins && c.paneMargins[key]) || FALLBACK_BAND
   const scale = def.placement && def.placement.scale
   const range = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max))
     ? { autoScale: false, minimum: scale.min, maximum: scale.max }
     : { autoScale: true }
+
+  // ── FLIP C: its own REAL PANE ───────────────────────────────────────────────
+  //
+  // The band becomes a PANE. The scale keeps the definition's id — an OVERLAY
+  // scale, so no axis labels appear; whether it should get its own visible axis
+  // is `FLIP_C_PANE_GEOMETRY (b)`, the owner's call at Task 11 and not this
+  // branch's. The drawable rectangle is now the WHOLE pane, so the margins are
+  // zero where they used to be a slice of pane 0.
+  //
+  // ⚠️ `scaleMargins: {top: 0, bottom: 0}` IS SPELLED OUT AND MUST STAY SPELLED
+  // OUT. `applyOptions` MERGES and lightweight-charts' `merge()` SKIPS
+  // `undefined`, so omitting the key does not reset the margins — it leaves the
+  // previous band standing on a re-purposed scale, i.e. a pooled series drawing
+  // into a 15%-tall slice of a pane it now owns outright, with nothing to say so.
+  //
+  // ⛔ `autoscale: 'default'`, in BOTH modes and for the same reason: `'exclude'`
+  // collapses the band to the library's empty default of -0.5..0.5 and moves a
+  // price of 30 from y=371 to y=-1640.78 (MEASURED, B3 Task 1 fix round —
+  // `__tests__/autoscaleOnARealScale.test.js` holds the numbers).
+  //
+  // A definition the layout did NOT give a pane binds NOTHING, which is the same
+  // fail-closed posture the rest of this module takes: an oscillator that is on
+  // but has no pane would otherwise land in pane 0 on a zero-margin scale and
+  // paint straight over the candles.
+  if (paneMode() === 'panes') {
+    const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
+    const pane = panes ? panes.find((p) => p && p.key === key) : null
+    if (!pane || !Number.isInteger(pane.index)) return null
+    return {
+      paneIndex: pane.index,
+      scaleId: key,
+      scaleOptions: { borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, ...range },
+      autoscale: 'default',
+    }
+  }
+
+  // ── Its own stacked band in pane 0, on a scale named after the definition ──
+  const band = (c.paneMargins && c.paneMargins[key]) || FALLBACK_BAND
 
   return {
     paneIndex: 0,

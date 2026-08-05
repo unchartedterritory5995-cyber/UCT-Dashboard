@@ -55,6 +55,7 @@ import {
   bindingKey,
   lineStyleValue,
 } from './pool'
+import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -227,6 +228,31 @@ export function createBinder({ chart, LWC }) {
   /** bindingKey → `{column, bars, adjustTime, up, down, points}`. */
   let pointMemo = new Map()
 
+  // ─── FLIP C: THE HEIGHT CHECK IS ONE FRAME BEHIND, ON PURPOSE ──────────────
+  //
+  // 🔴 THE PLAN WROTE THIS CHECK INLINE, RIGHT AFTER `setStretchFactor`, AND IT
+  // CANNOT WORK THERE. lightweight-charts computes pane heights in
+  // `_private__adjustSizeImpl`, reached from `_private__syncGuiWithModel`, which
+  // the invalidate handler defers to `requestAnimationFrame`. MEASURED on the
+  // installed 5.2.0 bundle: `getHeight()` reads `[400, 0]` synchronously after a
+  // second pane's `addSeries`, and reads the PREVIOUS heights synchronously after
+  // `setStretchFactor` — so an inline assertion would throw on the FIRST sync of
+  // EVERY chart. (Same rAF blindness that nearly pinned `SEPARATOR_PX` at 0 in
+  // B5 Task 3, arriving from the other direction.)
+  //
+  // So the layout we asked for is remembered and verified at the TOP of the next
+  // sync, gated on a frame having actually been through. That is still loud — an
+  // `updateChart` pass runs about once a second in extended hours — and it is
+  // deterministic, which an rAF callback that throws into nobody's stack is not.
+  //
+  // Verifying the PREVIOUS layout at the next sync is correct even when the
+  // instance list changed in between: the frame in between laid the chart out at
+  // the OLD layout, and the new one has not been applied yet when this runs.
+  /** The layout the last sync applied, awaiting a frame. */
+  let pendingLayout = null
+  /** Set by a rAF once the renderer has had a chance to lay `pendingLayout` out. */
+  let pendingLaidOut = false
+
   /** Remove every series we hold. Zero calls when we hold nothing, which is what
    *  makes `teardown()` safe to call unconditionally from an unmount path. */
   function releaseAll() {
@@ -234,9 +260,56 @@ export function createBinder({ chart, LWC }) {
     held = []
     computeMemo = new Map()
     pointMemo = new Map()
+    pendingLayout = null
+    pendingLaidOut = false
+  }
+
+  /**
+   * Give every pane the height the layout asked for, and arm the check.
+   *
+   * Plan §A7: the factors ARE the pixel heights, because LWC distributes the
+   * available height in proportion to them — measured, not assumed, in
+   * `__tests__/paneSeparatorPin.test.js`.
+   */
+  function applyPaneStretch(layout) {
+    const panes = attempt(() => chart.panes())
+    if (!panes.ok || !Array.isArray(panes.value) || !panes.value.length) return
+    const list = panes.value
+    const current = list.map((p) => {
+      const v = attempt(() => p.getStretchFactor())
+      return v.ok && Number.isFinite(v.value) ? v.value : 0
+    })
+    const want = paneStretchPlan(layout, current)
+    for (let i = 0; i < list.length; i++) {
+      if (want[i] === current[i]) continue
+      attempt(() => list[i].setStretchFactor(want[i]))
+    }
+    pendingLayout = layout
+    pendingLaidOut = false
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => { pendingLaidOut = true })
+    } else {
+      // No frame loop to wait for (a non-browser host). The check is a renderer
+      // claim; without a renderer there is nothing to check.
+      pendingLayout = null
+    }
+  }
+
+  /** ⛔ THROWS BY NAME. A silent one-pixel drift is not something anyone
+   *  attributes for a week — see `pendingLayout`'s note for why it is deferred. */
+  function verifyPendingLayout() {
+    if (!pendingLayout || !pendingLaidOut) return
+    const layout = pendingLayout
+    pendingLayout = null
+    pendingLaidOut = false
+    const message = paneHeightMismatch(chart, layout)
+    if (message) throw new Error(message)
   }
 
   function sync(ctx) {
+    // The renderer has had a frame with the last layout: did it keep it?
+    if (paneMode() === 'panes') verifyPendingLayout()
+
     // ── The switch. ABSENT MEANS OFF: dark is the default, never something a
     //    caller has to remember to ask for. ──
     //
@@ -446,15 +519,25 @@ export function createBinder({ chart, LWC }) {
         // MECHANISM is unchanged and so is the blind spot; only the count moved,
         // and it has stopped moving.
         //
-        // ⏳ WHAT REPLACES THE BLIND SPOT, AND WHEN. The rails are blind because
-        // they read `addSeries` CALL ORDER, which a relocation does not touch.
-        // Task 10's PANE MANIFEST is the successor: it records, per pane, each
-        // series' index and `priceScaleId` and is diffed as JSON alongside the
-        // pixels, so a series that changed pane or z-position without changing a
-        // pixel — and a pixel that changed without the manifest moving — are both
-        // failures BY DEFINITION rather than things nobody can see. Until then
-        // the expiry rail in `stockChartWiring.test.jsx` keeps its name and says
-        // which fixture it speaks for.
+        // ⭐⭐⭐ AND THE SUCCESSOR HAS ARRIVED (B5 Task 10). This paragraph used
+        // to end *"⏳ WHAT REPLACES THE BLIND SPOT, AND WHEN … Task 10's PANE
+        // MANIFEST is the successor"*. It exists: `paneLayout.paneManifest`
+        // records, per pane, each series' pane index, `priceScaleId` and
+        // INSERTION ORDER, and `tools/chart_parity.py` diffs it as JSON beside
+        // the pixels under an UNCONDITIONAL rule no `expectProvenance` can wave
+        // through. So a series that changed pane or z-position without changing a
+        // pixel is a failure by definition — measured twice already, at B5 Task 8
+        // (`donchian`'s three `scaleId`s at 0 px) and Task 9 (`cci -> williamsR`
+        // at 0 px).
+        //
+        // ⚠️ WHAT IS STILL BLIND, PRECISELY: a MID-SESSION transition. Every
+        // parity case is a fresh page load, so the manifest photographs the
+        // settled chart and never the pass that relocated a series into it. The
+        // expiry rail in `stockChartWiring.test.jsx` keeps its name for exactly
+        // that, and `__tests__/flipCGeometry.test.jsx` drives the transition on a
+        // REAL renderer — bands → panes on a live chart, asserting the SAME
+        // series object ends up in the new pane with `toBe` and an empty
+        // `removeSeries` list.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
         attempt(() => series.applyOptions(options))
       }
@@ -569,6 +652,15 @@ export function createBinder({ chart, LWC }) {
     for (const key of pointMemo.keys()) if (!boundKeys.has(key)) pointMemo.delete(key)
 
     held = next
+
+    // ── PASS THREE (FLIP C ONLY): the panes get their heights ──
+    //
+    // AFTER the data, because an empty pane is a pane LWC has already sized and a
+    // pane whose last series was removed is gone by now (measured: `removeSeries`
+    // drops the pane synchronously), so this is the first point in the sync where
+    // `chart.panes()` describes the stack the layout is talking about.
+    if (paneMode() === 'panes' && ctx.paneLayout) applyPaneStretch(ctx.paneLayout)
+
     return { ok: true, bound: next.length, released: release.length }
   }
 

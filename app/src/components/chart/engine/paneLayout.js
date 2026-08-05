@@ -77,6 +77,50 @@ import { getDefinition, listDefinitions } from './nativeRegistry'
  */
 export const SEPARATOR_PX = 1
 
+// ─── FLIP C: THE ONE CONSTANT ────────────────────────────────────────────────
+
+/**
+ * `'bands'` — every oscillator is a stacked band inside pane 0, exactly as it has
+ * been since the chart shipped. `'panes'` — every oscillator gets a REAL
+ * lightweight-charts pane with a draggable divider.
+ *
+ * ⭐ THIS IS THE WHOLE CUTOVER, AND IT IS ONE WORD. B5 Task 10 builds the
+ * real-pane path and lands it DARK: every module below reads `paneMode()`, every
+ * `'panes'` branch is driven by tests, and the 46-case zero-changed-pixel gate is
+ * run with this constant on `'bands'` — which is what makes Task 12's flip a
+ * ONE-CONSTANT commit whose diff is entirely attributable, instead of a change
+ * nobody can bisect.
+ *
+ * ⛔ NOTHING READS THIS BINDING DIRECTLY EXCEPT `paneMode()` BELOW. A direct
+ * `PANE_MODE === 'panes'` comparison in a consumer is a reader the test seam
+ * cannot reach, i.e. a mode with no coverage — `paneLayout.test.js` scans
+ * `app/src` and fails on one.
+ */
+export const PANE_MODE = 'bands'
+
+/**
+ * The override the TESTS use, and the reason `paneMode()` is a function.
+ *
+ * Driving the real-pane path needs both modes alive in one process: the `bands`
+ * half asserts the default path is byte-identical to today, and the `panes` half
+ * asserts the cutover actually builds panes. Module-level mocking would give one
+ * mode per FILE and would replace the very module under test.
+ *
+ * ⛔ PRODUCTION NEVER CALLS `__setPaneModeForTest`. `paneLayout.test.js` proves
+ * it by scanning `app/src` for the identifier outside `__tests__`.
+ */
+let _paneModeOverride = null
+
+/** The active pane mode. THE ONLY READER of `PANE_MODE`. */
+export function paneMode() {
+  return _paneModeOverride || PANE_MODE
+}
+
+/** TEST ONLY — see `_paneModeOverride`. Pass `null` to restore the constant. */
+export function __setPaneModeForTest(mode) {
+  _paneModeOverride = (mode === 'panes' || mode === 'bands') ? mode : null
+}
+
 /**
  * The volume band's height, as a fraction of the chart.
  *
@@ -263,14 +307,16 @@ function stackHundredths(baseHeights) {
 
 /** The empty answer: one pane, whole chart, today's headroom. Returned for a
  *  chart with no usable height, so a caller never has to guard the call. */
-function pane0Only(chartHeight, separatorPx) {
+function pane0Only(chartHeight, separatorPx, firstPaneIndex) {
   const h = (Number.isFinite(chartHeight) && chartHeight > 0) ? chartHeight : 0
   return {
     chartHeight: h,
     separatorPx,
+    firstPaneIndex,
     panes: [],
     pane0: {
       heightPx: h,
+      stretchFactor: h,
       mainMargins: { top: MAIN_TOP, bottom: 0 },
       volumeMargins: null,
     },
@@ -295,7 +341,15 @@ function pane0Only(chartHeight, separatorPx) {
  * @param {Set<string>|string[]} opts.excludeKeys indicators overlaid into the
  *        volume pane, which reserve no space
  * @param {number} opts.separatorPx pixels LWC keeps between two panes
- * @returns {{chartHeight: number, separatorPx: number,
+ * @param {number} [opts.firstPaneIndex=1] the LWC pane index the oscillator stack
+ *        STARTS at. 1 when the candles' pane is the only thing above it — the
+ *        case the identity is proved for. A chart that also has a SEPARATE volume
+ *        pane (`volInSeparatePane`, or any volume-overlay indicator) or a Model
+ *        Book index pane has those between pane 0 and the stack, so the caller
+ *        says how many. ⚠️ ADDED BY FLIP C AND DEFAULTED, because Task 3 proved
+ *        totality over the one-pane-above case and a defaulted parameter cannot
+ *        invalidate that proof — it renames indices, it does not move a pixel.
+ * @returns {{chartHeight: number, separatorPx: number, firstPaneIndex: number,
  *            panes: {key: string, index: number, heightPx: number, stretchFactor: number}[],
  *            pane0: {heightPx: number,
  *                    mainMargins: {top: number, bottom: number},
@@ -307,11 +361,13 @@ export function computePaneLayout(cs, instances, opts) {
   const hasVolumeBand = !!o.hasVolumeBand
   const separatorPx = Number.isFinite(o.separatorPx) ? o.separatorPx : SEPARATOR_PX
   const excluded = o.excludeKeys instanceof Set ? o.excludeKeys : new Set(o.excludeKeys || [])
+  const firstPaneIndex = (Number.isInteger(o.firstPaneIndex) && o.firstPaneIndex >= 1)
+    ? o.firstPaneIndex : 1
 
-  if (!Number.isFinite(chartHeight) || chartHeight <= 0) return pane0Only(chartHeight, separatorPx)
+  if (!Number.isFinite(chartHeight) || chartHeight <= 0) return pane0Only(chartHeight, separatorPx, firstPaneIndex)
 
   const keys = orderedPaneKeys(cs, instances, excluded, hasVolumeBand)
-  if (!keys.length && !hasVolumeBand) return pane0Only(chartHeight, separatorPx)
+  if (!keys.length && !hasVolumeBand) return pane0Only(chartHeight, separatorPx, firstPaneIndex)
 
   // Bottom-to-top, because that is the order the squeeze and both shaves run in
   // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
@@ -355,6 +411,7 @@ export function computePaneLayout(cs, instances, opts) {
   return {
     chartHeight,
     separatorPx,
+    firstPaneIndex,
     // Top-to-bottom, so `index` is the LWC pane index a series is moved to.
     // `stretchFactor` IS the pixel height: stretch factors distribute the
     // AVAILABLE height (chart minus separators minus time axis), so a factor set
@@ -362,10 +419,17 @@ export function computePaneLayout(cs, instances, opts) {
     // `__tests__/paneSeparatorPin.test.js`.
     panes: keys.map((key, i) => {
       const heightPx = paneHeights[oscCount - 1 - i]
-      return { key, index: i + 1, heightPx, stretchFactor: heightPx }
+      return { key, index: firstPaneIndex + i, heightPx, stretchFactor: heightPx }
     }),
     pane0: {
       heightPx: pane0HeightPx,
+      // ⚠️ THE PRICE-PANE BUDGET, NOT NECESSARILY PANE 0's HEIGHT. When
+      // `firstPaneIndex > 1` there are panes (volume, the Model Book index pane)
+      // between the candles and the oscillator stack, and this is what they and
+      // pane 0 SHARE — `paneStretchPlan` splits it in their existing proportions.
+      // With `firstPaneIndex === 1` the two are the same number, which is the
+      // case Task 3's identity is proved for.
+      stretchFactor: pane0HeightPx,
       // Re-expressed as fractions of PANE 0's height rather than the chart's, so
       // the candle rectangle lands on the same absolute pixels it does today.
       // That identity is what lets the `price_plot` parity region read 0.
@@ -380,7 +444,156 @@ export function computePaneLayout(cs, instances, opts) {
   }
 }
 
+/**
+ * The stretch factor every pane on the chart should be given, in pane order.
+ *
+ * PURE, and separate from the renderer call that applies it, because this is
+ * arithmetic and `binder.js` is the only file allowed to touch the renderer.
+ *
+ * ⭐ PLAN §A7: LWC distributes `available = chartHeight - Σ separators` in
+ * proportion to the stretch factors, so factors SET TO THE TARGET PIXEL HEIGHTS
+ * land on them exactly — measured against the installed bundle in
+ * `__tests__/paneSeparatorPin.test.js`.
+ *
+ * Three kinds of pane, and only one of them is the layout's:
+ *
+ *   * the oscillator stack (`firstPaneIndex …`) gets its declared pixel height;
+ *   * the panes ABOVE it — pane 0 and any volume / index pane — share
+ *     `pane0.stretchFactor` **in the proportions they already hold**, so the
+ *     volume pane keeps the percentage the user (or `cs.volume.paneHeightPct`)
+ *     gave it and the candles keep the rest. A caller that never made a volume
+ *     pane has one pane here and it takes the whole budget.
+ *   * anything BELOW the stack is not ours and keeps what it has. There is
+ *     nothing there today; leaving it alone is what stops a future pane being
+ *     silently crushed to zero.
+ *
+ * @param {object} layout `computePaneLayout`'s output
+ * @param {number[]} currentStretch every pane's CURRENT stretch factor, in order
+ * @returns {number[]} one target per entry of `currentStretch`
+ */
+export function paneStretchPlan(layout, currentStretch) {
+  const cur = Array.isArray(currentStretch) ? currentStretch : []
+  if (!layout || !Array.isArray(layout.panes)) return cur.slice()
+  const first = Number.isInteger(layout.firstPaneIndex) ? layout.firstPaneIndex : 1
+  const out = cur.slice()
+
+  // ── the stack ──
+  for (let i = 0; i < layout.panes.length; i++) {
+    const idx = first + i
+    if (idx < out.length) out[idx] = layout.panes[i].stretchFactor
+  }
+
+  // ── the price-pane budget, split in the proportions already on the chart ──
+  const above = Math.min(first, out.length)
+  if (above > 0) {
+    const budget = layout.pane0.stretchFactor
+    const weights = []
+    for (let i = 0; i < above; i++) {
+      const w = Number.isFinite(cur[i]) && cur[i] > 0 ? cur[i] : 0
+      weights.push(w)
+    }
+    const total = weights.reduce((s, w) => s + w, 0)
+    if (above === 1 || total <= 0) {
+      // One pane above the stack, or nothing to go on: the candles take it all
+      // and the rest take nothing they can be crushed by (LWC clamps at 2px).
+      out[0] = budget
+      for (let i = 1; i < above; i++) out[i] = cur[i]
+    } else {
+      // Bottom-up, so the REMAINDER lands on pane 0 and the sum is exact.
+      let assigned = 0
+      for (let i = above - 1; i >= 1; i--) {
+        const px = Math.round((budget * weights[i]) / total)
+        out[i] = px
+        assigned += px
+      }
+      out[0] = budget - assigned
+    }
+  }
+  return out
+}
+
 // ─── reading the renderer back ───────────────────────────────────────────────
+
+/** Every pane's height, in order. `null` when the chart cannot answer. */
+function paneHeights(chart) {
+  let panes
+  try { panes = chart && typeof chart.panes === 'function' ? chart.panes() : null } catch { panes = null }
+  if (!Array.isArray(panes)) return null
+  return panes.map((p) => {
+    const h = typeof p?.getHeight === 'function' ? p.getHeight() : null
+    return Number.isFinite(h) ? h : 0
+  })
+}
+
+/**
+ * The PANE STACK's height — the budget `computePaneLayout` distributes.
+ *
+ * The chart's height MINUS the time axis, read back from the renderer rather
+ * than re-derived from the container, because the time axis' height is the
+ * renderer's own business. Identical to the number `paneManifest` reports as
+ * `chartHeight`, on purpose: the layout and the manifest must be talking about
+ * the same budget or a comparison between them means nothing.
+ *
+ * `0` when the chart cannot answer — `computePaneLayout` treats that as "no
+ * usable height" and returns the one-pane answer, so a caller never has to guard.
+ */
+export function paneStackHeightPx(chart) {
+  const heights = paneHeights(chart)
+  if (!heights || !heights.length) return 0
+  return heights.reduce((s, h) => s + h, 0) + Math.max(0, heights.length - 1) * SEPARATOR_PX
+}
+
+/**
+ * Did the renderer actually give the panes the heights the layout asked for?
+ *
+ * Returns the failure MESSAGE, or `null` when everything landed. A message and
+ * not a boolean because the number is the whole point: "pane 1 is 87px, expected
+ * 88px" is attributable and "the panes are wrong" is a week of bisecting.
+ *
+ * ⚠️⚠️ THIS CANNOT BE READ IN THE SAME TICK THE STRETCH FACTORS WERE WRITTEN.
+ * LWC computes pane heights in `_private__adjustSizeImpl`, which runs from
+ * `_private__syncGuiWithModel`, which the invalidate handler defers to
+ * `requestAnimationFrame`. MEASURED on the installed bundle: a two-pane chart
+ * reads `[400, 0]` synchronously after `addSeries`, and reads the PREVIOUS
+ * heights synchronously after `setStretchFactor` — so the check the plan wrote
+ * inline in `binder.js` would have thrown on every single sync, for every chart,
+ * forever. It is the same rAF blindness that nearly pinned `SEPARATOR_PX` at 0
+ * (B5 Task 3). `binder.js` therefore verifies the PREVIOUS pass's layout at the
+ * top of the NEXT sync, once a frame has been through.
+ *
+ * @param {object} chart an `IChartApi`
+ * @param {object} layout `computePaneLayout`'s output
+ * @returns {string|null}
+ */
+export function paneHeightMismatch(chart, layout) {
+  if (!layout || !Array.isArray(layout.panes)) return null
+  const heights = paneHeights(chart)
+  if (!heights) return null
+  const first = Number.isInteger(layout.firstPaneIndex) ? layout.firstPaneIndex : 1
+
+  const wantPanes = first + layout.panes.length
+  if (heights.length < wantPanes) {
+    return `paneLayout: the chart has ${heights.length} panes, expected at least ${wantPanes}`
+  }
+  for (let i = 0; i < layout.panes.length; i++) {
+    const idx = first + i
+    const want = layout.panes[i].stretchFactor
+    if (heights[idx] !== want) {
+      return `paneLayout: pane ${idx} is ${heights[idx]}px, expected ${want}px`
+    }
+  }
+  // The price-pane budget is what pane 0 and anything between it and the stack
+  // SHARE, so it is checked as a sum — a volume pane the user dragged is not a
+  // redistribution, and asserting pane 0 alone would call it one.
+  let above = 0
+  for (let i = 0; i < Math.min(first, heights.length); i++) above += heights[i]
+  const wantAbove = layout.pane0.stretchFactor
+  if (above !== wantAbove) {
+    const who = first === 1 ? 'pane 0' : `panes 0-${first - 1} total`
+    return `paneLayout: ${who} is ${above}px, expected ${wantAbove}px`
+  }
+  return null
+}
 
 /**
  * The chart the page should publish a manifest for, and how to name its series.
