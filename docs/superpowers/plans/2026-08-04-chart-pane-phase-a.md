@@ -501,7 +501,7 @@ Replace the entire `<div className={styles.chartHeaderTop}> … </div>` block wi
   boundsRef={focusableRef}
   themeVars={menuVars}
   onSymbolChange={handleSymbolChange}
-  showChange={hdr.showChange}
+  showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}
   dayGain={themeIdx.isIndex ? idxGain : null}
   dayGainColors={{
     up: hdrColors.dayChangeUp || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
@@ -515,7 +515,7 @@ Replace the entire `<div className={styles.chartHeaderTop}> … </div>` block wi
 />
 ```
 
-⚠️ **Behavior note to preserve exactly:** in the original, a theme index with `idxGain === null` renders nothing, and a normal ticker always renders `<ChartDayGain>`. Passing `dayGain={themeIdx.isIndex ? idxGain : null}` reproduces this only because `ChartIdentityRow` falls back to `<ChartDayGain>` when `dayGain` is null — which is wrong for an index with no gain yet. Guard it: pass `showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}`.
+⚠️ **Behavior note — the `showChange` expression above is deliberate, do not simplify it to `hdr.showChange`.** In the original, a theme index whose `idxGain` is still `null` renders *nothing* there, while a normal ticker always renders `<ChartDayGain>`. Because `ChartIdentityRow` falls back to `<ChartDayGain sym>` whenever `dayGain` is null, a bare `hdr.showChange` would make an index with no computed gain render a live day-gain fetch for a synthetic `$IDX:` pseudo-ticker. The `&& !(themeIdx.isIndex && !idxGain)` guard is what preserves the original behavior.
 
 - [ ] **Step 4: Run the rail**
 
