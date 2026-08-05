@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import modelbook_service as svc
+from api.services import significant_catalysts
 
 router = APIRouter(prefix="/api/modelbook", tags=["modelbook"])
 
@@ -606,7 +607,10 @@ def _desc_messages(symbol, company, year, gain_pct):
     endpoint can exercise the EXACT same prompt."""
     gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
     system = ("You write concise, factual stock study notes for a trader's model book. "
-              "Output JSON only — no preamble, no markdown fences.")
+              "Output JSON only — no preamble, no markdown fences. Always return the JSON "
+              "for the ticker as it trades today, even if the company was recently spun off, "
+              "renamed, or relisted — never refuse and never add caveats about its listing "
+              "history or the year.")
     prompt = (
         f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
         f"The stock rose {gain_txt} that year.\n\n"
@@ -670,22 +674,27 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         # Retry transient failures: when stocks are added, catalysts + recap +
         # description generation can fire together and transiently overload the
         # API. A single failure would otherwise stamp desc_at and blank the note.
-        text = None
-        for attempt in range(3):
+        # Retry transient API failures AND non-JSON replies: some tickers (recently
+        # relisted / renamed / delisted, or a still-in-progress year) make the model
+        # answer with a prose caveat instead of the JSON — e.g. SNDK: "SanDisk was
+        # acquired by Western Digital in 2016…" — which parses to nothing. Re-ask a
+        # few times; at temperature 0.7 a later attempt returns the JSON.
+        obj = None
+        for attempt in range(4):
+            text = None
             try:
                 msg = client.messages.create(
                     model=_DESC_MODEL, max_tokens=700, temperature=0.7,
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
-                if text:
-                    break
             except Exception:
                 text = None
+            if text:
+                obj = _parse_desc_json(text)
+                if obj is not None:
+                    break
             _time_mod.sleep(1.5 * (attempt + 1))
-        if not text:
-            return None
-        obj = _parse_desc_json(text)
         if obj is None:
             return None
         cd = (obj.get("company_desc") or "").strip()
@@ -903,137 +912,46 @@ def _fetch_year_bars(symbol: str, year: int, stock_id=None) -> list:
 
 
 def _big_up_days(bars: list, top_n: int = 12) -> list:
-    """The largest single-day UP moves of the year (% GAIN vs prior close), so the
-    LLM attributes BULLISH catalysts to days the stock actually jumped. Down days
-    are excluded — catalysts are positive, stock-specific events only."""
-    out = []
-    prev_c = None
-    for b in bars:
-        c, o, t = b.get("c"), b.get("o"), b.get("t")
-        if c is None or not t:
-            if c is not None:
-                prev_c = c
-            continue
-        if prev_c:
-            pct = (c - prev_c) / prev_c * 100
-        elif o:
-            pct = (c - o) / o * 100
-        else:
-            pct = 0.0
-        if pct > 0:
-            out.append({"date": str(t)[:10], "pct": round(pct, 1)})
-        prev_c = c
-    out.sort(key=lambda d: d["pct"], reverse=True)
-    return out[:top_n]
+    """The largest single-day UP moves of the year — delegates to the shared
+    generator (bullish-only). Kept as a thin wrapper for callers/tests."""
+    return significant_catalysts.rank_big_move_days(bars, top_n, "up")
 
 
 def _snap_trading_day(d: str, trading_days: list, day_set: set, year: int):
-    """Snap an LLM-returned date to the nearest real trading day (≤5 days away),
-    so the chart marker + gold candle always land on an actual bar. Drops dates
-    outside the year or too far from any session."""
-    from datetime import date
-    if not _ISO_DATE.match(d or "") or not d.startswith(str(year)):
-        return None
-    if d in day_set:
-        return d
-    try:
-        td = date.fromisoformat(d)
-    except ValueError:
-        return None
-    best, best_diff = None, None
-    for cand in trading_days:
-        try:
-            diff = abs((date.fromisoformat(cand) - td).days)
-        except ValueError:
-            continue
-        if best_diff is None or diff < best_diff:
-            best, best_diff = cand, diff
-    return best if (best is not None and best_diff is not None and best_diff <= 5) else None
+    """Snap an LLM-returned date to the nearest real trading day within the year —
+    delegates to the shared generator."""
+    return significant_catalysts.snap_trading_day(d, trading_days, day_set, year=year)
 
 
 def _generate_catalysts(symbol, company, year, gain_pct, stock_id=None):
-    """Claude → list of the year's top 3-5 catalysts, each anchored to a real
-    big-move trading day. Returns None on failure (no rows written)."""
+    """Claude → list of the year's top 3-5 BULLISH catalysts, each anchored to a
+    real big-move trading day. Returns None on failure (no rows written).
+
+    Delegates the generation to the shared `significant_catalysts.generate`
+    (direction='up' = the original bullish-only behavior), then maps the generic
+    result to this table's storage shape (catalyst_date + source)."""
     if not _CATALYST_ENABLED:
         return None
-    import json as _json
     try:
         bars = _fetch_year_bars(symbol, year, stock_id)
-        if not bars:
-            return None
-        trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
-        day_set = set(trading_days)
-        movers = _big_up_days(bars, top_n=12)
-        if not movers:
-            return None
-        from api.services.engine import _get_anthropic_client
-        client = _get_anthropic_client()
-        if client is None:
-            return None
-        gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
-        movers_txt = "\n".join(
-            f"- {m['date']} -> +{m['pct']}%" for m in movers
+        items = significant_catalysts.generate(
+            symbol, company, bars, str(year),
+            direction="up", gain_pct=gain_pct, model=_CATALYST_MODEL,
+            max_items=5, enabled=_CATALYST_ENABLED,
         )
-        system = ("You identify the real, STOCK-SPECIFIC bullish catalysts that ignited a "
-                  "stock's biggest up-moves, for a trader's model book. Be factual and "
-                  "specific to the given year. Output JSON only — no preamble, no fences.")
-        prompt = (
-            f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
-            f"Full-year move: {gain_txt}.\n\n"
-            f"The stock's largest single-day GAINS that year (date -> that day's % up move):\n"
-            f"{movers_txt}\n\n"
-            f"Identify the 3-5 most impactful BULLISH, COMPANY-SPECIFIC catalysts that "
-            f"ignited a sharp UP move in {symbol} during {year}.\n"
-            'Return JSON exactly: {"catalysts": [{"date": "YYYY-MM-DD", "title": "...", '
-            '"description": "...", "move_pct": 0.0}, ...]}, ordered most impactful first.\n'
-            "- date: the trading day the catalyst hit. STRONGLY PREFER a date from the "
-            "list above (those are the real up-move days).\n"
-            "- title: a 2-5 word headline of the company-specific event (e.g. \"Q3 earnings "
-            "beat\", \"AI supply deal\", \"Major customer win\", \"Product launch\", "
-            "\"FDA approval\", \"Analyst upgrade\", \"Guidance raise\", \"Index inclusion\").\n"
-            "- description: ONE factual sentence on the catalyst and why it drove the stock up.\n"
-            "- move_pct: the approximate single-day % GAIN that day (positive number).\n\n"
-            "STRICT RULES:\n"
-            "- ONLY positive, bullish catalysts that pushed the stock UP. NEVER include "
-            "negative, bearish, disappointing, or sell-off events.\n"
-            "- ONLY stock-specific company events (earnings, products, partnerships, "
-            "contracts/customer wins, approvals, analyst upgrades, M&A, guidance raises, "
-            "index inclusion). Do NOT include market-wide or macro catalysts (Fed/interest "
-            "rates, broad market or sector rallies, index-wide themes, 'risk-on' sentiment).\n"
-            "- Factual and specific to that year. If unsure of the exact news for "
-            "a given day, attribute it to the most likely company-specific driver given the "
-            "year's dominant theme. No price targets, no buy/sell advice."
-        )
-        msg = client.messages.create(
-            model=_CATALYST_MODEL, max_tokens=900, temperature=0.5,
-            system=system, messages=[{"role": "user", "content": prompt}],
-        )
-        text = "".join(getattr(b, "text", "") for b in msg.content).strip()
-        s, e = text.find("{"), text.rfind("}")
-        if s == -1 or e == -1:
+        if not items:
             return None
-        raw = (_json.loads(text[s:e + 1]).get("catalysts")) or []
-        out = []
-        for i, it in enumerate(raw[:5]):
-            title = (it.get("title") or "").strip()
-            if not title:
-                continue
-            d = _snap_trading_day((it.get("date") or "").strip(), trading_days, day_set, year)
-            if not d:
-                continue
-            try:
-                mp = round(float(it.get("move_pct")), 1) if it.get("move_pct") is not None else None
-            except (TypeError, ValueError):
-                mp = None
-            out.append({
-                "catalyst_date": d,
-                "title": title[:80],
-                "description": ((it.get("description") or "").strip()[:400]) or None,
-                "move_pct": mp,
-                "sort_order": i,
+        return [
+            {
+                "catalyst_date": it["date"],
+                "title": it["title"],
+                "description": it.get("description"),
+                "move_pct": it.get("move_pct"),
+                "sort_order": it.get("sort_order", i),
                 "source": "ai",
-            })
-        return out or None
+            }
+            for i, it in enumerate(items)
+        ]
     except Exception:
         return None
 

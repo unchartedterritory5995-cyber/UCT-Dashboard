@@ -10,6 +10,7 @@ Formats into tiered embeds with colored sidebars:
 """
 
 import os
+import re
 import json
 import logging
 import httpx
@@ -258,6 +259,38 @@ def _conviction_grade(score: float) -> str:
 
 
 # ── Layout helpers ─────────────────────────────────────────────────────────
+
+_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _format_card_date(date_range: str) -> str:
+    """Human 'Aug 4, 2026' for the card header. A single day ('8/4', '8/4/2026',
+    or ISO '2026-08-04') is expanded to the abbreviated-month form; a multi-day
+    range label (with a separator) is returned unchanged so a weekly push keeps its
+    range. Empty → today (ET).
+    """
+    s = (date_range or "").strip()
+    now = datetime.now(ET)
+    if not s:
+        return f"{_MONTH_ABBR[now.month - 1]} {now.day}, {now.year}"
+    # ISO single day: YYYY-MM-DD
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", s)
+    if m:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mo <= 12:
+            return f"{_MONTH_ABBR[mo - 1]} {d}, {y}"
+    # M/D or M/D/YY or M/D/YYYY single day (no year → assume current ET year)
+    m = re.match(r"^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$", s)
+    if m:
+        mo, d = int(m.group(1)), int(m.group(2))
+        y = int(m.group(3)) if m.group(3) else now.year
+        if y < 100:
+            y += 2000
+        if 1 <= mo <= 12:
+            return f"{_MONTH_ABBR[mo - 1]} {d}, {y}"
+    return s  # a range or unrecognized label → leave as the user's text
+
 
 def _date_range_is_multiday(date_range: str) -> bool:
     """Show per-row dates only for a genuine WEEKLY push.
@@ -584,3 +617,41 @@ def register_discord_routes(app_or_router):
         except Exception as e:
             logger.error("[Discord] Image push error: %s", e)
             return {"ok": False, "error": str(e)}
+
+    @app_or_router.post("/api/discord/watchlist-card")
+    def render_watchlist_cards(payload: dict = Body(...)):
+        """Render the curated watchlist as a branded PNG in the Top Flow design
+        system, base64-encoded for preview. The frontend posts the previewed image
+        via /api/discord/push-image. The MOBILE (narrow, one-line-per-contract)
+        layout is THE card we post — it reads clean on desktop and phone alike; the
+        wide desktop table renders only when include_desktop is set. No flow.db
+        needed (data is in the payload), so this runs on web. Sync def → FastAPI
+        threadpool, so the Pillow render never blocks the event loop.
+
+        Body: {bull:[{sym,cp,strike,exp,prem,vol,oi,voi,grade,er,heavy}], bear:[...],
+               dateRange, label, include_desktop?}
+        """
+        import base64
+        from api.watchlist_card import render_watchlist_card
+        bull = payload.get("bull") or []
+        bear = payload.get("bear") or []
+        if not bull and not bear:
+            return {"ok": False, "error": "No items to render"}
+        date_range = (payload.get("dateRange") or "").strip()
+        date_text = _format_card_date(date_range)
+        include_desktop = bool(payload.get("include_desktop"))
+        try:
+            mobile = render_watchlist_card(bull, bear, date_text, mobile=True)
+            desktop = (render_watchlist_card(bull, bear, date_text, mobile=False)
+                       if include_desktop else None)
+        except Exception as e:
+            logger.error("[watchlist-card] render failed: %s", e)
+            return {"ok": False, "error": str(e)}
+        out = {
+            "ok": True,
+            "date_text": date_text,
+            "mobile": base64.b64encode(mobile).decode("ascii"),
+        }
+        if desktop is not None:
+            out["desktop"] = base64.b64encode(desktop).decode("ascii")
+        return out

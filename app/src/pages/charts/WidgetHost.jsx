@@ -5,6 +5,8 @@ import ScannerWidget from './widgets/ScannerWidget'
 import FundamentalsWidget from './widgets/FundamentalsWidget'
 import BreadthWidget from './widgets/BreadthWidget'
 import AiSearchWidget from './widgets/AiSearchWidget'
+import NewsWidget from './widgets/NewsWidget'
+import ProfileWidget from './widgets/ProfileWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import styles from './ChartsWorkspace.module.css'
@@ -17,6 +19,8 @@ const TYPE_LABEL = {
   fundamentals: 'Fundamentals',
   breadth: 'Breadth',
   aisearch: 'AI Search',
+  news: 'News',
+  profile: 'Profile',
 }
 
 function WidgetBody({ widget, onOptsChange }) {
@@ -32,6 +36,8 @@ function WidgetBody({ widget, onOptsChange }) {
     case 'fundamentals': return <FundamentalsWidget color={color} opts={widget.opts} onOptsChange={onOptsChange} />
     case 'breadth':   return <BreadthWidget opts={widget.opts} onOptsChange={onOptsChange} />
     case 'aisearch':  return <AiSearchWidget color={color} />
+    case 'news':      return <NewsWidget color={color} opts={widget.opts} onOptsChange={onOptsChange} />
+    case 'profile':   return <ProfileWidget color={color} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }
 }

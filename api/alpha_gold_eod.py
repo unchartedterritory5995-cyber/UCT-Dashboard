@@ -144,7 +144,7 @@ def _counts(alerts: list[dict]) -> dict:
     bp = sum((a.get("alertPremium") or 0) for a in bull) / 1e6
     rp = sum((a.get("alertPremium") or 0) for a in bear) / 1e6
     return {"n": len(alerts), "nb": len(bull), "nr": len(bear),
-            "total": bp + rp, "net": bp - rp}
+            "total": bp + rp, "net": bp - rp, "bull_prem": bp, "bear_prem": rp}
 
 
 def _rollup(alerts: list[dict]) -> list[dict]:
@@ -170,14 +170,15 @@ def _rollup(alerts: list[dict]) -> list[dict]:
 _COLS = [
     ("time", "TIME", 36, "l"), ("ticker", "TICKER", 114, "l"), ("exp", "EXP", 226, "l"),
     ("strike", "STRIKE", 404, "r"), ("cp", "C/P", 412, "l"), ("dte", "DTE", 500, "r"),
-    ("spot", "SPOT", 620, "r"), ("money", "%ITM/OTM", 762, "r"), ("prem", "PREMIUM", 902, "r"),
+    ("spot", "SPOT", 620, "r"), ("prem", "PREMIUM", 740, "r"), ("money", "%ITM/OTM", 890, "r"),
     ("voi", "V/OI", 976, "r"), ("dir", "DIR", 996, "l"),
 ]
-_W, _ROWH, _TOP, _SECH = 1150, 34, 150, 32
+_W, _ROWH, _TOP, _SECH = 1150, 34, 170, 32
 _SS = 2  # supersample then downscale for crisp text
 
 
-def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
+def render_card(alerts: list[dict], date_text: str, top_n: int = 30,
+                net_stats: dict | None = None) -> bytes:
     from PIL import Image, ImageDraw, ImageFont
 
     def font(name, pt):
@@ -232,18 +233,33 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
     tx += txt(tx, 24, "· Top Flow", f_title, _GOLD_DIM) + 12
     txt(tx, 32, "— " + date_text, f_date, _DIM)
 
-    # grand summary (no premium)
-    def chunk(x, t, fill):
-        return x + txt(x, 76, t, f_sum, fill) + 8
-
-    sx = 36
-    sx = chunk(sx, f"{grand['n']} prints", _TXT)
-    sx = chunk(sx, "·", _DIM)
-    sx = chunk(sx, f"${grand['total']:.1f}M premium", _GOLD)
-    sx = chunk(sx, "·", _DIM)
-    sx = chunk(sx, f"▲ {grand['nb']} Bull", _BULL)
-    sx = chunk(sx, "/", _DIM)
-    chunk(sx, f"▼ {grand['nr']} Bear", _BEAR)
+    # net bull-vs-bear bar — the OVERALL day's directional flow (net_stats, in $,
+    # the same premium-weighted read the LiveFlow dashboard shows), NOT just the
+    # Alpha Gold prints on this card. Falls back to the card's own subset only if
+    # the overall read is unavailable.
+    if net_stats:
+        _bp = (net_stats.get("bull_prem") or 0) / 1e6
+        _rp = (net_stats.get("bear_prem") or 0) / 1e6
+    else:
+        _bp, _rp = grand["bull_prem"], grand["bear_prem"]
+    _totp = _bp + _rp
+    _bpct = (_bp / _totp) if _totp > 0 else 0.5
+    _net = _bp - _rp
+    _nsign = "+" if _net >= 0 else ""
+    _ncol = _BULL if _net >= 0 else _BEAR
+    txt(36, 76, f"▲ ${_bp:.1f}M Bull", f_sum, _BULL)
+    _nt = f"NET {_nsign}${abs(_net):.1f}M"
+    txt(_W / 2 - d.textlength(_nt, font=f_sum) / _SS / 2, 76, _nt, f_sum, _ncol)
+    txt(_W - 36, 76, f"${_rp:.1f}M Bear ▼", f_sum, _BEAR, "r")
+    _bx0, _bx1, _by, _bh = 36, _W - 36, 102, 14
+    _gw = (_bx1 - _bx0) * _bpct
+    _rad = s(4)
+    if _gw > 5:
+        d.rounded_rectangle([s(_bx0), s(_by), s(_bx0 + _gw), s(_by + _bh)], radius=_rad,
+                            fill=_BULL, corners=(True, False, False, True))
+    if (_bx1 - _bx0) - _gw > 5:
+        d.rounded_rectangle([s(_bx0 + _gw), s(_by), s(_bx1), s(_by + _bh)], radius=_rad,
+                            fill=_BEAR, corners=(False, True, True, False))
 
     # column headers
     for key, hdr, x, al in _COLS:
@@ -252,12 +268,8 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30) -> bytes:
 
     y = _TOP + 4
     for label, group, rows in sections:
-        gc = _counts(group)
         d.rectangle([0, s(y - 4), s(_W), s(y - 4) + s(_SECH - 6)], fill=_BAND)
-        lx = txt(40, y, label, f_sec, _GOLD)
-        txt(40 + lx + 12, y + 2,
-            f"·  {gc['n']} prints  ·  ${gc['total']:.1f}M  ·  ▲ {gc['nb']}  /  ▼ {gc['nr']}",
-            f_hdr, _DIM)
+        txt(40, y, label, f_sec, _GOLD)
         y += _SECH
         for i, a in enumerate(rows):
             if i % 2 == 1:
@@ -373,7 +385,16 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         alerts = get_alpha_gold_today(day)
         date_text = _date_text(day)
         top_n = int(os.getenv("ALPHA_GOLD_EOD_TOP_N", "30"))
-        png = render_card(alerts, date_text, top_n)
+        # NET bar reflects the OVERALL day's directional flow (the LiveFlow "Market
+        # Read"), not just the Alpha Gold prints on this card.
+        net_stats = None
+        try:
+            ds = lmr._build_day_stats(day)
+            net_stats = {"bull_prem": ds.get("bull_premium") or 0,
+                         "bear_prem": ds.get("bear_premium") or 0}
+        except Exception as e:
+            log.warning("[alpha-gold-eod] overall day-stats unavailable: %s", e)
+        png = render_card(alerts, date_text, top_n, net_stats=net_stats)
         res: dict = {"ok": True, "date": day, "count": len(alerts)}
 
         if not post:

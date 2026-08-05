@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
+import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
 import {
   P,
@@ -449,6 +450,8 @@ function expToISO(expStr) {
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";  // gates the Discord push controls
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
@@ -1366,6 +1369,106 @@ export default function OptionsFlowDashboard() {
     }
   };
 
+  // Preview-first path: render the watchlist as branded Discord cards SERVER-SIDE
+  // (api/watchlist_card.py — the Top Flow design system) and show BOTH the desktop
+  // and mobile card in the modal before anything posts. The modal's push posts the
+  // exact previewed images. Replaces the old html2canvas capture of the editing DOM
+  // — the server render is crisp, brand-consistent, and carries no app chrome. The
+  // "Top N" dropdown caps how many picks per side (by conviction).
+  const previewWatchlistImages = async () => {
+    setWlPreviewBusy(true);
+    try {
+      const limitN = discordCount >= 99 ? Infinity : discordCount;
+      const isHeavy = (it) => {
+        const conv = FD?.CONV?.find(c => c.sym === it.sym && c.cp === it.cp
+          && String(c.K) === String(it.strike) && c.exp === it.exp);
+        return (conv?.patterns || []).some(p => p.type === "HEAVY");
+      };
+      const cardItem = (it) => ({
+        sym: it.sym, cp: it.cp, strike: it.strike, exp: it.exp, prem: it.prem,
+        vol: it.volume, oi: it.oi, voi: it.volOI, grade: it.grade,
+        er: !!it.er, heavy: isHeavy(it),
+      });
+      const topN = (arr) => [...arr]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))   // top conviction picks
+        .slice(0, limitN)
+        .map(cardItem);
+      const bull = topN(wlBull), bear = topN(wlBear);
+      if (!bull.length && !bear.length) {
+        setStatus("⚠️ No watchlist items to render");
+        setTimeout(() => setStatus(""), 3000);
+        return;
+      }
+      const dateRange = FD ? FD.dateRange || "" : "";
+      const resp = await fetch("/api/discord/watchlist-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bull, bear, dateRange, label: discordLabel }),
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        setStatus(`❌ Render failed: ${data.error || ("HTTP " + resp.status)}`);
+        setTimeout(() => setStatus(""), 4000);
+        return;
+      }
+      const b64ToBlob = (b64) => {
+        const bin = atob(b64), arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return new Blob([arr], { type: "image/png" });
+      };
+      // Single clean card (the mobile layout) is what posts — reads well on
+      // desktop and phone alike, so we send just the one image per push.
+      const imgs = [];
+      if (data.mobile) {
+        const blob = b64ToBlob(data.mobile);
+        imgs.push({ side: "Card", url: URL.createObjectURL(blob), blob,
+          filename: `UCT_Watchlist_${wlDate}.png`, label: discordLabel });
+      }
+      setWlPreview({ imgs, dateRange, pushing: false });
+    } catch (e) {
+      setStatus(`❌ Preview error: ${e.message}`);
+    } finally {
+      setWlPreviewBusy(false);
+    }
+  };
+
+  const closeWlPreview = () => {
+    setWlPreview(prev => {
+      if (prev) prev.imgs.forEach(i => { try { URL.revokeObjectURL(i.url); } catch { /* noop */ } });
+      return null;
+    });
+  };
+
+  const pushPreviewToDiscord = async () => {
+    if (!wlPreview || wlPreview.pushing) return;
+    setWlPreview(prev => prev ? { ...prev, pushing: true } : prev);
+    const results = [];
+    for (const img of wlPreview.imgs) {
+      const fd = new FormData();
+      fd.append("file", img.blob, img.filename);
+      fd.append("label", img.label);
+      fd.append("date_range", wlPreview.dateRange || "");
+      try {
+        const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
+        const data = await resp.json();
+        results.push({ side: img.side, ok: data.ok, kb: data.size_kb, error: data.error });
+      } catch (e) {
+        results.push({ side: img.side, ok: false, error: e.message });
+      }
+      await new Promise(r => setTimeout(r, 600));  // Discord rate-limit spacing
+    }
+    const ok = results.filter(r => r.ok);
+    const fail = results.filter(r => !r.ok);
+    if (ok.length && !fail.length) {
+      const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
+      setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
+    } else {
+      setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
+    }
+    setTimeout(() => setStatus(""), 4000);
+    closeWlPreview();
+  };
+
   const screenshotPushDiscord = async () => {
     setDiscordImgPushing(true);
     try {
@@ -2094,6 +2197,12 @@ export default function OptionsFlowDashboard() {
   // ─── Discord Push ───────────────────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
   const [discordImgPushing, setDiscordImgPushing] = useState(false);
+  // Preview-before-push: {imgs:[{side,url,blob,filename,label}], dateRange, pushing} | null
+  const [wlPreview, setWlPreview] = useState(null);
+  const [wlPreviewBusy, setWlPreviewBusy] = useState(false);
+  // Top-N cap applied to the Bull/Bear columns DURING image capture only (null =
+  // show all). Mirrors the Discord "Top N" dropdown so the image matches the text push.
+  const [wlCaptureLimit, setWlCaptureLimit] = useState(null);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
   const [discordCount, setDiscordCount] = useState(10);
 
@@ -8361,8 +8470,8 @@ export default function OptionsFlowDashboard() {
                     {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
                   </div>
                   <div style={{ display:"flex", gap:8, marginTop:3, fontSize:9 }}>
-                    {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
                     {item.volume>0 && <span style={{ color:P.dm }}>Vol: <span style={{ color:P.wh, fontWeight:700 }}>{item.volume.toLocaleString()}</span></span>}
+                    {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
                     {item.volOI>0 && <span style={{ color:item.volOI>=3?P.bu:item.volOI>=1?P.ye:P.dm, fontWeight:700 }}>{item.volOI.toFixed(1)}x</span>}
                     {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span></span>}
                   </div>
@@ -8477,35 +8586,69 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
-                  <button onClick={wlSave}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
-                    💾 Save Watchlist
-                  </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     🗑 Clear All
                   </button>
-                  <div style={{ display:"flex", alignItems:"center", gap:2 }}>
-                    <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
-                      style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
-                      {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
-                    </select>
-                    <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
-                      style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
-                      {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
-                      <option value={99}>All</option>
-                    </select>
-                    <button onClick={()=>wlPushDiscord("watchlist")} disabled={discordPushing}
-                      style={{ padding:"5px 10px", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
-                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "…" : "📤 Watchlist"}
-                    </button>
-                    <button onClick={()=>wlPushDiscord("unusual")} disabled={discordPushing}
-                      style={{ padding:"5px 10px", borderRadius:"0 5px 5px 0", border:"none", background:discordPushing?"#c9a84c66":"#c9a84c", color:P.bg,
-                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "…" : "⚡ Unusual"}
-                    </button>
-                  </div>
+                  {/* Discord push — admin-only. Preview Images is the single push
+                      path (renders the branded card, previews, then posts). The old
+                      text-push Watchlist/Unusual buttons were retired. */}
+                  {isAdmin && (
+                    <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+                      <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
+                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
+                        {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
+                      </select>
+                      <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
+                        style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
+                        {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
+                        <option value={99}>All</option>
+                      </select>
+                      <button onClick={previewWatchlistImages} disabled={wlPreviewBusy}
+                        title="Render the Bull + Bear watchlist as a branded image and preview it before pushing to Discord"
+                        style={{ padding:"5px 12px", borderRadius:"0 5px 5px 0", border:"none", background:wlPreviewBusy?"#5865F266":"#5865F2",
+                          color:"#fff", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                        {wlPreviewBusy ? "📸 Rendering…" : "📸 Preview Images"}
+                      </button>
+                    </div>
+                  )}
+                  {wlPreview && (
+                    <div onClick={closeWlPreview}
+                      style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+                      <div onClick={e=>e.stopPropagation()}
+                        style={{ background:P.bg, border:"1px solid "+P.bl, borderRadius:10, padding:16, maxWidth:"95vw", maxHeight:"92vh", overflow:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.6)" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, marginBottom:12, flexWrap:"wrap" }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:P.wh, fontFamily:"inherit" }}>
+                            📸 Discord Preview — {discordLabel} <span style={{ color:P.dm, fontWeight:600 }}>· exactly what will post</span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <button onClick={pushPreviewToDiscord} disabled={wlPreview.pushing}
+                              style={{ padding:"6px 16px", borderRadius:5, border:"none", background:wlPreview.pushing?"#5865F266":"#5865F2", color:"#fff", fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                              {wlPreview.pushing ? "Pushing…" : "📤 Push to Discord"}
+                            </button>
+                            <button onClick={closeWlPreview} disabled={wlPreview.pushing}
+                              style={{ padding:"6px 14px", borderRadius:5, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", gap:12, alignItems:"flex-start", flexWrap:"wrap", justifyContent:"center" }}>
+                          {wlPreview.imgs.map(img => (
+                            <div key={img.side} style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"center" }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:P.ac, fontFamily:"inherit" }}>{img.label}</div>
+                              <img src={img.url} alt={img.side+" watchlist preview"}
+                                style={{ maxWidth:"44vw", maxHeight:"74vh", borderRadius:6, border:"1px solid "+P.bl, display:"block" }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {wlPreviewBusy && !wlPreview && (
+                    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", color:P.wh, fontSize:13, fontWeight:700, fontFamily:"inherit" }}>
+                      📸 Rendering preview…
+                    </div>
+                  )}
                   <button onClick={wlFetchOI} disabled={wlOILoading}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
@@ -8571,6 +8714,9 @@ export default function OptionsFlowDashboard() {
               const filtBear = wlBear.filter(dteOk);
               const sortedBullIdx = filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0));
               const sortedBearIdx = filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0));
+              // During image capture, cap the rendered rows to the Discord "Top N" dropdown.
+              const capBullIdx = wlCaptureLimit ? sortedBullIdx.slice(0, wlCaptureLimit) : sortedBullIdx;
+              const capBearIdx = wlCaptureLimit ? sortedBearIdx.slice(0, wlCaptureLimit) : sortedBearIdx;
               const splitHalf = (sorted) => {
                 const mid = Math.ceil(sorted.length / 2); return [sorted.slice(0, mid), sorted.slice(mid)];
               };
@@ -8589,10 +8735,10 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
+                    <span style={{ fontSize:9, color:P.dm }}>{capBullIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {filtBull.length>0 ? sortedBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
+                    {filtBull.length>0 ? capBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -8610,10 +8756,10 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
+                    <span style={{ fontSize:9, color:P.dm }}>{capBearIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {filtBear.length>0 ? sortedBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
+                    {filtBear.length>0 ? capBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>

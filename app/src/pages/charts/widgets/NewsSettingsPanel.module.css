@@ -1,0 +1,138 @@
+.panel {
+  position: fixed;   /* portaled to body; left/top set inline from the gear anchor */
+  z-index: 4000;
+  width: 268px;
+  max-height: min(70vh, 460px);
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, var(--bg-elevated, #161914));
+  border: 1px solid var(--menu-border, var(--border, #2a3340));
+  border-radius: 8px;
+  box-shadow: 0 12px 34px var(--menu-shadow, rgba(0, 0, 0, 0.55));
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--menu-divider, var(--border, #2a3340));
+  background: linear-gradient(180deg, var(--menu-accent-bg, rgba(201, 168, 76, 0.08)), transparent);
+}
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--menu-accent, var(--ut-gold, #c9a84c));
+  text-transform: uppercase;
+}
+.headRight { display: inline-flex; align-items: center; gap: 6px; }
+.resetBtn {
+  background: transparent;
+  border: 1px solid var(--menu-border, var(--border, #2a3340));
+  color: var(--menu-text-dim, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.resetBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+
+.close {
+  background: none;
+  border: none;
+  color: var(--menu-text-dim, var(--text-muted, #8b8674));
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.close:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); background: var(--menu-hover, rgba(255, 255, 255, 0.06)); }
+
+.body {
+  overflow-y: auto;
+  padding: 6px 11px 10px;
+}
+
+.sectionLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--menu-text-dim, var(--text-muted, #8b8674));
+  margin: 12px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px dashed var(--menu-divider, rgba(255, 255, 255, 0.07));
+}
+.sectionLabel:first-child { margin-top: 2px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+}
+.rowLabel {
+  display: flex;
+  flex-direction: column;
+  font-size: 11.5px;
+  color: var(--menu-text, var(--text, #d6d0bf));
+}
+.hint {
+  font-size: 9px;
+  color: var(--menu-text-dim, var(--text-muted, #8b8674));
+  margin-top: 1px;
+}
+.rowControl { display: flex; align-items: center; gap: 6px; }
+
+/* Segmented control (bg mode) */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--menu-border, var(--border, #2a3340));
+  border-radius: 5px;
+  overflow: hidden;
+}
+.segBtn {
+  background: transparent;
+  border: none;
+  color: var(--menu-text-dim, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.segBtn + .segBtn { border-left: 1px solid var(--menu-divider, var(--border, #2a3340)); }
+.segBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); }
+.segBtnOn {
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
+  color: var(--menu-accent, var(--ut-gold, #c9a84c));
+  font-weight: 600;
+}
+
+.gradPair { display: inline-flex; align-items: center; gap: 6px; }
+.gradArrow { color: var(--menu-text-dim, var(--text-muted, #8b8674)); font-size: 11px; }
+
+/* Color swatch — opens the shared ColorPanel (same as Chart Settings). */
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1.5px solid var(--menu-border, rgba(255, 255, 255, 0.16));
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: border-color 0.12s, transform 0.1s;
+}
+.swatch:hover { border-color: var(--menu-border, rgba(255, 255, 255, 0.4)); transform: scale(1.08); }
+.swatchActive { border-color: var(--menu-accent, var(--ut-gold, #c9a84c)); box-shadow: 0 0 0 2px var(--menu-accent-bg, rgba(201, 168, 76, 0.25)); }
