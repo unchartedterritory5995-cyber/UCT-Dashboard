@@ -248,7 +248,30 @@ def get_earnings_intel(ticker: str) -> dict | None:
         "consensus": consensus,
         "price_target": price_target,
     }
-    cache.set(cache_key, result, ttl=_CACHE_TTL)
+    # ⛔ NEVER CACHE A FAILED FETCH AS A VALUE — for 6 hours, at least.
+    #
+    # The negative cache above is correctly conservative: it only fires when
+    # ALL THREE legs failed. But a PARTIAL failure used to land here and be
+    # stored for the full `_CACHE_TTL` (6h) as though it were complete, so one
+    # transient miss on the Finnhub /stock/earnings leg (while recommendation
+    # and price-target both answered) pinned `beat_history: []` on that symbol
+    # for six hours. Downstream that is not a blank stat — it is the earnings
+    # modal's whole Earnings History section rendering "No reported quarters
+    # yet" for a company that has plainly reported.
+    #
+    # Observed live 2026-08-04: /api/calendar/enrichment-batch returned CAT
+    # with 4 quarters, then the SAME call returned 0 minutes later, while a
+    # direct Finnhub /stock/earnings?symbol=CAT was HTTP 200 with 4 rows — the
+    # provider was healthy the whole time and the cache was serving an empty
+    # list it should never have stored. (Same class as the market-cap poison
+    # already documented in this repo: a failure must not be cached as a value.)
+    #
+    # A partial result is still worth SERVING — dropping it would throw away
+    # good consensus/price-target data — so it is returned, but it is cached
+    # only for the short failure TTL so the missing leg self-heals in minutes
+    # instead of hours.
+    partial = (not beat_history) or consensus is None or price_target is None
+    cache.set(cache_key, result, ttl=_INTEL_FAIL_TTL if partial else _CACHE_TTL)
     return result
 
 
