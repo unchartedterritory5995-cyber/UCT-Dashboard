@@ -81,7 +81,12 @@ def run_vitest(path, tfilter=None):
             "failing": [n.strip() for n in names], "out": out}
 
 
-_GATE = {"a": None, "b": None}
+# ⭐ B5 TASK 13: the DIST paths are parameters too. They were hardcoded to
+# `.parity-dist-a`/`.parity-dist-b`, and Task 13's shipped candidate build is
+# `.parity-dist-b2` -- a `--dist-b` that names the wrong tree makes
+# `verify_served_matches_disk` refuse, which is a REFUSAL rather than a false
+# green, but it is still a gauntlet that cannot run.
+_GATE = {"a": None, "b": None, "dist_a": ".parity-dist-a", "dist_b": ".parity-dist-b"}
 
 
 def run_gate(_path=None, cases=None):
@@ -90,7 +95,7 @@ def run_gate(_path=None, cases=None):
         raise SystemExit("the pixel mutations need --base-a and --base-b")
     cmd = [sys.executable, "tools/chart_parity.py",
            "--base-a", _GATE["a"], "--base-b", _GATE["b"],
-           "--dist-a", ".parity-dist-a", "--dist-b", ".parity-dist-b",
+           "--dist-a", _GATE["dist_a"], "--dist-b", _GATE["dist_b"],
            "--instances-side", "none", "--repeat", "1",
            "--out", "tools/chart_parity_out_mut",
            "--cases", *(cases or ["rsi_only"])]
@@ -279,8 +284,11 @@ def main() -> int:
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--base-a")
     ap.add_argument("--base-b")
+    ap.add_argument("--dist-a", default=".parity-dist-a")
+    ap.add_argument("--dist-b", default=".parity-dist-b")
     args = ap.parse_args()
     _GATE["a"], _GATE["b"] = args.base_a, args.base_b
+    _GATE["dist_a"], _GATE["dist_b"] = args.dist_a, args.dist_b
 
     names = args.only or [n for n, m in MUTATIONS.items() if m["runner"] != "gate"]
 

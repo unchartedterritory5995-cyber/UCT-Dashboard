@@ -1589,6 +1589,16 @@ def test_case_entry_CARRIES_expectProvenance_out_of_the_case_file():
                          expect=None)["expect_provenance"] is None
 
 
+#: \u2b50 B5 TASK 13. The five cases whose `expectProvenance` carries a non-null
+#: `from` \u2014 the Flip-C pane-0 shift, NOT a migration. Named rather than pattern-
+#: matched so a sixth is a red test and an argument, which is what the rail below
+#: asks of every declaration that is not a migration.
+PANE0_SHIFT_CASES = [
+    "bb_rsi_macd", "engine_bb_rsi_vs_legacy", "engine_bb_rsi_macd_vs_legacy",
+    "flipb_bb_rsi_macd", "flipb_all_four",
+]
+
+
 def test_every_expectProvenance_in_the_REAL_case_file_validates():
     """Run through the SAME construction `main()` uses, so a declaration the
     validator would refuse cannot sit in the file until a Chromium run finds it.
@@ -1613,9 +1623,36 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
             declared[raw["name"]] = entry["expect_provenance"]
             for pair in entry["expect_provenance"]:
                 assert len(pair) == 2 and pair[0] != pair[1]
-                assert pair[0] is None, (
-                    f"{raw['name']} declares {pair!r}: a migration's `from` is the "
-                    "LEGACY lane, which has no binding and therefore no key")
+                if pair[0] is not None:
+                    # \u2b50\u2b50 B5 TASK 13 \u2014 THE SECOND CLASS, ARGUED FOR HERE AS THE
+                    # DOCSTRING DEMANDS RATHER THAN QUIETLY JOINING THE LIST.
+                    #
+                    # Flip C moves every oscillator OUT of pane 0, and the manifest
+                    # compares a pane's series POSITIONALLY. So on a chart with an
+                    # oscillator and a price overlay, the slot that held
+                    # `legacy:rsi::rsi` on the bands side holds `legacy:bb::upper`
+                    # on the panes side. That is NOT a series changing hands: the
+                    # SET of binding keys in the manifest is identical on both
+                    # sides, every one of them still built by the definition whose
+                    # name it carries, and no key appears that was not there before.
+                    # It is a shift of INDEX inside one pane, which is the whole of
+                    # what the cutover does.
+                    #
+                    # \u26d4 SO THE ALLOWANCE IS NARROW AND STILL REFUSES: both sides
+                    # must be engine binding keys (`legacy:<defId>::<plot>`), and
+                    # the case must be one of the five named below. A pair with a
+                    # `null` on the FROM side is still the migration class and is
+                    # still asserted to be one; a key appearing from nowhere is
+                    # still a series created by an undeclared module.
+                    assert raw["name"] in PANE0_SHIFT_CASES, (
+                        f"{raw['name']} declares {pair!r}: a non-null `from` is the "
+                        "Flip-C pane-0 shift, and only the five cases named in "
+                        "PANE0_SHIFT_CASES have one. Argue for a sixth here.")
+                    assert pair[0].startswith("legacy:") and "::" in pair[0], pair
+                else:
+                    assert pair[0] is None, (
+                        f"{raw['name']} declares {pair!r}: a migration's `from` is the "
+                        "LEGACY lane, which has no binding and therefore no key")
                 assert pair[1].startswith("legacy:"), pair
     assert sorted(declared) == sorted([
         "engine_ichimoku_vs_legacy", "engine_price_overlay_zorder",
@@ -1632,6 +1669,13 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
         # `<id>_only` placeholders and their three projected-vs-stored twins.
         "adx_only", "obv_only", "donchian_only",
         "engine_adx_vs_legacy", "engine_obv_vs_legacy", "engine_donchian_vs_legacy",
+        # \u2b50\u2b50 B5 TASK 13 RAISED IT ONE LAST TIME, AND NOT FOR A MIGRATION.
+        # These five are the Flip-C PANE-0 SHIFT class (see the loop above): every
+        # case that draws an oscillator AND a price overlay reports the overlay's
+        # keys sliding up pane 0 as the oscillator leaves it. The docstring said no
+        # future migration could raise this floor and that is still true \u2014 nothing
+        # migrated here; the CUTOVER did it.
+        *PANE0_SHIFT_CASES,
     ]), f"the set of provenance-declaring cases moved: {sorted(declared)}"
     # ⭐ AND THE COUNTS ARE THE MIGRATION'S OWN SHAPE, not a total. `sar` is ONE
     # plot; `ichimoku` is FIVE; the z-order case turns both on and therefore
@@ -1673,6 +1717,16 @@ def test_every_expectProvenance_in_the_REAL_case_file_validates():
         "obv_only": 1,
         "sar_only": 1,
         "williams_r_only": 1,
+        # \u2b50 B5 TASK 13 \u2014 the pane-0 shift's own shape, and it is NOT a constant:
+        # it is one pair per series the overlay lane still has in pane 0 after the
+        # oscillators leave. `bb` is three plots, so a bb+oscillator chart shifts
+        # three; `flipb_all_four` adds `vwap`, so it shifts four. A case that
+        # declared the wrong number would be licensing a shift it did not measure.
+        "bb_rsi_macd": 3,
+        "engine_bb_rsi_macd_vs_legacy": 3,
+        "engine_bb_rsi_vs_legacy": 3,
+        "flipb_all_four": 4,
+        "flipb_bb_rsi_macd": 3,
     }, {k: len(v) for k, v in sorted(declared.items())}
 
 
