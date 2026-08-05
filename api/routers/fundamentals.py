@@ -26,7 +26,7 @@ router = APIRouter()
 
 _FH_METRIC_TTL = 3600  # 1 hour
 _TIMEOUT = 10
-_SNAP_KIND = "fund_snapshot_v2"       # /api/fundamentals/{ticker} payloads (v2: +float/short/profile)
+_SNAP_KIND = "fund_snapshot_v3"       # /api/fundamentals/{ticker} payloads (v3: +inception/inst-own)
 _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snapshot
 
 
@@ -160,6 +160,8 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         "website": base.get("website"),
         "ceo": base.get("ceo"),
         "hq": base.get("hq"),
+        "inception": base.get("inception"),                 # ISO first-trade date → Age
+        "inst_own_pct": base.get("held_pct_institutions"),  # pct e.g. 75.4
     }
 
     cache.set(f"api_fund::{sym}", result, _FH_METRIC_TTL)

@@ -70,6 +70,19 @@ def _next_earnings_iso(info: dict) -> str | None:
         return None
 
 
+def _inception_iso(info: dict) -> str | None:
+    """First-trade date (ISO YYYY-MM-DD) from yfinance .info — the stock's
+    inception under its current listing (SNDK → 2025 relisting, MSFT → 1986)."""
+    ft = info.get("firstTradeDateMilliseconds") or info.get("firstTradeDateEpochUtc")
+    if not ft:
+        return None
+    try:
+        ts = ft / 1000.0 if ft > 2e10 else float(ft)   # ms vs seconds
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def _ceo_name(info: dict) -> str | None:
     """CEO name from yfinance companyOfficers (title contains CEO/Chief Executive)."""
     for o in (info.get("companyOfficers") or []):
@@ -192,6 +205,8 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "website": info.get("website"),
         "ceo": _ceo_name(info),
         "hq": _hq_str(info),
+        # Inception (first-trade date) — powers the "Age" metric
+        "inception": _inception_iso(info),
     }
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result

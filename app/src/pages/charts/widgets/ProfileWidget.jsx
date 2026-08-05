@@ -73,14 +73,19 @@ function fmtShares(v) {
 function fmtEarnDate(iso) {
   if (!iso) return '—'
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
-  return (m && d && y) ? `${m}/${d}/${y}` : String(iso)
+  return (m && d && y) ? `${m}/${d}/${String(y).slice(-2)}` : String(iso)
 }
-// Compact price: drop the cents on higher-priced names so a 52W range fits.
-function fmtPrice(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n)) return '—'
-  const digits = Math.abs(n) >= 100 ? 0 : 2
-  return `$${n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
+// Time trading since inception (first-trade date): years / months / weeks / days.
+function fmtAge(iso) {
+  if (!iso) return '—'
+  const start = Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z')
+  if (Number.isNaN(start)) return '—'
+  const days = (Date.now() - start) / 86400000
+  if (days < 0) return '—'
+  if (days >= 365.25) return `${(days / 365.25).toFixed(1)} years`
+  if (days >= 30.44) return `${(days / 30.44).toFixed(1)} months`
+  if (days >= 7) return `${(days / 7).toFixed(1)} weeks`
+  return `${Math.max(1, Math.round(days))} days`
 }
 function websiteDomain(url) {
   return String(url || '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
@@ -132,10 +137,8 @@ export default function ProfileWidget({ color }) {
     { label: 'Next Earnings', value: fmtEarnDate(fund?.next_earnings) },
     { label: 'Float', value: fmtShares(fund?.float_shares) },
     { label: 'Short Interest', value: fund?.short_pct_float != null ? `${Number(fund.short_pct_float).toFixed(1)}%` : '—' },
-    { label: 'P/E (Fwd)', value: fund?.forward_pe != null ? Number(fund.forward_pe).toFixed(1) : '—' },
-    { label: 'Beta', value: fund?.beta != null ? Number(fund.beta).toFixed(2) : '—' },
-    { label: '52W Range', value: (fund?.week52_low != null && fund?.week52_high != null) ? `${fmtPrice(fund.week52_low)} – ${fmtPrice(fund.week52_high)}` : '—' },
-    { label: 'Div Yield', value: (fund?.div_yield != null && Number(fund.div_yield) > 0) ? `${Number(fund.div_yield).toFixed(2)}%` : '—' },
+    { label: 'Inst. Own', value: fund?.inst_own_pct != null ? `${Number(fund.inst_own_pct).toFixed(1)}%` : '—' },
+    { label: 'Age', value: fmtAge(fund?.inception) },
   ]), [fund])
   // Company profile rows (only shown when present).
   const infoItems = useMemo(() => {
