@@ -409,3 +409,30 @@ across all ten surfaces; the entry chunk is **115.92 kB gz, unchanged**.
 - `ThemeTrackerPage`, `CustomScan` and `Watchlists` have **no test coverage of the chart mount
   at all** — mutating `sym` to a bogus value left their suites green, because their tests
   render in `embedded` mode which hides the chart panel. Worth closing before merge.
+
+---
+
+## Flow tapes — right-click to chart (2026-08-05)
+
+The flow tapes had **no chart affordance at all**: no ticker in `OptionsFlow`, `LiveFlow` or
+`LiveFlowMassive` opened a chart, and left-click on a Live Flow ticker was already taken (it
+filters the tape — `LiveFlow.jsx:617`).
+
+**Right-click / long-press a ticker now opens the full chart.** Left-click behaviour is
+untouched.
+
+⚠️ **`TickerActions` is NOT the mechanism, despite being the app's usual right-click menu** —
+its items are Flag / Tag / Watchlist / Alert only, so it cannot open a chart. The mechanism is
+`TickerPopup` in **controlled mode** (`open` + `onClose`, renders no trigger,
+`TickerPopup.jsx:28-35`), which now renders `ChartPane`. Exactly one popup is mounted per page,
+never per row.
+
+Wired: `LiveFlow` AlertRow ticker cell · `LiveFlowMassive` AlertRow (By-Print) + ContractRow
+(By-Contract) · `OptionsFlow` Leaderboard rows (Bull + Bear) and Top Flow master list.
+`OptionsFlow`'s diff was held to **15 insertions / 2 deletions** because Ravi co-edits it.
+
+Sizes held: OptionsFlow chunk 93.19 kB gz (+0.11, noise), entry 115.92 kB gz (flat).
+
+**Known gap:** iOS Safari does not reliably fire `contextmenu` on touch-hold, so right-click-to-
+chart is desktop + Android only. No long-press helper existed in these files and hand-rolling a
+timer was out of scope. Closing it means reusing `useLongPress` from `components/mobile/`.
