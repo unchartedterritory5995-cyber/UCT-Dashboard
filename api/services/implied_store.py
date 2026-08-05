@@ -4,11 +4,31 @@ Why nightly & pre-report: 'implied at the time' history for the paired-bars
 hero. A morning-after capture stores IV-crushed values and poisons the pair —
 capture runs post-close (options quotes settle ~4:15 ET) for tonight's AMC +
 reporters through today+WINDOW (env IMPLIED_CAPTURE_WINDOW_DAYS, default 1),
-with bmo-today excluded (it already reported this morning; a post-report
-capture would store IV-crushed values).
+with bmo-today (or session-unknown-today) excluded (it may already have
+reported this morning; a post-report capture would store IV-crushed values).
 First-write-wins per (sym, report_date): with the narrowed window the first
 write IS the T-1/T-0-pre-report write — the earliest snapshot is the honest
 pre-report implied; later recaptures never overwrite it.
+
+── Reporter-list provider (2026-08-05 incident) ─────────────────────────────
+`upcoming_reporters` used to source the reporter list from Finnhub's
+`/calendar/earnings` ALONE. Finnhub free-tier is 60 calls/min and shared with
+every other Finnhub caller in the process — a busy night can 429 the whole
+account, and a 429'd reporter list means the capture has NOTHING to work
+with (production, 2026-08-05: `{'captured': 0, 'skipped': 0, 'failed': 0,
+'collisions': 4}` — the run fired correctly, Finnhub just had nothing left
+to give it). `upcoming_reporters` is now **FMP primary, Finnhub fallback**
+(`_fmp_reporters` / `_finnhub_reporters`) — FMP is a paid Premium plan on
+this account and `stable/earnings-calendar` is a proven-working endpoint
+(see api/routers/calendar.py's `_fmp_range_week`). FMP's calendar carries
+NEITHER a bmo/amc session NOR a quarter/year fiscal identity, so
+`run_nightly_capture` (a) treats an unknown session on a today-dated row as
+unsafe to capture (same direction as the existing bmo-today skip — a missing
+snapshot is honest, an IV-crushed one silently corrupts the record) and (b)
+opportunistically backfills session + fiscal identity for TODAY's rows via a
+narrow, single-day Finnhub lookup (`_finnhub_today_enrichment`) that has a
+real chance of landing even on a night the wide 14-day Finnhub call is itself
+rate-limited.
 """
 from __future__ import annotations
 
@@ -16,6 +36,7 @@ import datetime as dt
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 from contextlib import closing
@@ -279,26 +300,143 @@ def get_grade_history(sym: str, surface: str, limit: int = 30) -> list[dict]:
     return out
 
 
-def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[dict]:
-    """Symbols reporting within `days`, via Finnhub's calendar range. Each row
-    carries Finnhub's `hour` field ("bmo"/"amc"/"dmh"/"") so callers can apply
-    session-aware capture logic (see run_nightly_capture), plus Finnhub's own
-    `fiscal_year`/`fiscal_quarter` (from /calendar/earnings' `year`/`quarter`)
-    — the fiscal identity `record_implied` files the snapshot under, so a
-    later history row keyed on the SAME provider quarter/year (but a different
-    date — the period end, not this announcement date) can still pair with it.
-    Empty list on ANY failure — the nightly job then no-ops (holiday-safe)."""
-    today = (now or dt.datetime.now()).date()
-    # Cache key includes the date — `days` alone collided across calendar days,
-    # serving yesterday's reporter list (and yesterday's report_dates) all day.
-    key = f"impstore::reporters::{days}::{today.isoformat()}"
-    cached = _REPORTERS_CACHE.get(key)
-    if cached is not None:
-        return list(cached)
-    # Routed through the shared api.services.finnhub_client.fh_get
-    # (2026-08-05) so this call shares the process-wide token bucket / 429
-    # cooldown with every other Finnhub caller instead of spending the same
-    # account budget uncoordinated (was a raw httpx.get here).
+_US_SYM_RE = re.compile(r"^[A-Z]{1,5}(-[A-Z])?$")
+
+
+def _is_us_symbol(canon_sym: str) -> bool:
+    """True for a plain US-listed-style symbol (post-`_canon`: upper + dot-
+    to-hyphen). Filters FMP's stable/earnings-calendar international/OTC
+    noise before it ever reaches `implied_move.get_expected_move`, which
+    needs a Massive-listed US options chain anyway — keeping them would only
+    inflate `failed` with guaranteed misses. Mirrors api/routers/calendar.py's
+    `_is_us_symbol` but additionally allows a trailing SINGLE-letter
+    class-share suffix (BRK-B, BF-A) so a real dual-class US ticker is never
+    silently dropped.
+
+    The suffix is capped at exactly one letter, not two — live-verified
+    2026-08-05: FMP's `symbol` field appends a two-letter EXCHANGE suffix to
+    non-US tickers (`SHOP.TO` Toronto, `TITR.MI` Milan, `INDIANHUME.NS`
+    India, `IP.BK` Bangkok), which `_canon`'s dot→hyphen rule turns into
+    `SHOP-TO` / `TITR-MI` / `IP-BK` — format-identical to a genuine US
+    class-share ticker under a naive `{1,2}` suffix cap, and several of
+    these were observed slipping through and inflating `failed` with
+    guaranteed Massive-chain misses. Real US dual/multi-class tickers
+    (BRK-A/B, BF-A/B, HEI-A, LEN-B, MOG-A, GEF-B, CWEN-A, LGF-A/B, JW-A/B)
+    are, without exception, exactly ONE trailing letter — this still keeps
+    every one of them while rejecting the two-letter exchange-code pattern.
+    A residual few one-letter foreign suffixes (e.g. `-V` TSX Venture, `-L`
+    London) can still slip through; accepted as a smaller, honestly-documented
+    remainder rather than zero-suffix support (which would drop real US
+    class shares instead)."""
+    return bool(_US_SYM_RE.match(canon_sym or ""))
+
+
+_FMP_CHUNK_TIMEOUT_SECS = 10
+_FMP_CHUNK_MAX_WORKERS = 6
+
+
+def _fmp_reporters_for_day(day: dt.date, key: str) -> list[dict] | None:
+    """One FMP `stable/earnings-calendar` call scoped to a SINGLE calendar
+    day — see `_fmp_reporters` for why a call must never span more than one
+    day. Returns `None` on failure; the caller treats that as "this day
+    contributed nothing" (not a whole-provider failure — one bad day-chunk
+    must never blank out the rest)."""
+    import requests
+    try:
+        resp = requests.get(
+            "https://financialmodelingprep.com/stable/earnings-calendar",
+            params={"from": day.isoformat(), "to": day.isoformat(), "apikey": key},
+            timeout=_FMP_CHUNK_TIMEOUT_SECS,
+        )
+        if not resp.ok:
+            _log.warning("upcoming_reporters: FMP HTTP %d for %s", resp.status_code, day.isoformat())
+            return None
+        data = resp.json()
+    except Exception as e:  # noqa: BLE001 — one day-chunk's failure must never kill the batch
+        _log.warning("upcoming_reporters: FMP fetch failed for %s: %s", day.isoformat(), e)
+        return None
+    if not isinstance(data, list):
+        return None
+    out = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        sym = _canon(row.get("symbol"))
+        rd = row.get("date")
+        if not sym or not rd or not _is_us_symbol(sym):
+            continue
+        out.append({"sym": sym, "report_date": rd, "hour": "",
+                     "fiscal_year": None, "fiscal_quarter": None,
+                     "eps_estimate": _float_or_none(row.get("epsEstimated"))})
+    return out
+
+
+def _fmp_reporters(days: int, today: dt.date) -> list[dict] | None:
+    """FMP `stable/earnings-calendar` rows for [today, today+days] — the
+    PRIMARY reporter-list source (see module docstring). Returns `None` on
+    TOTAL failure (no key, or EVERY per-day chunk below failed) so the
+    caller falls back to Finnhub — never an empty list standing in for "FMP
+    is down" (that would silently suppress the fallback on exactly the kind
+    of night this function exists to protect against). A PARTIAL failure
+    (some days succeeded, some didn't) returns whatever succeeded — partial
+    real data beats nothing.
+
+    ── One-call-per-day, not one call for the whole range (2026-08-05) ──────
+    Live-probe-verified: a single `stable/earnings-calendar` request spanning
+    MULTIPLE days silently truncates at a ~4000-row response cap — and the
+    truncation is NOT date-fair. Direct measurement on this account: a
+    single day's global volume runs ~1,400-2,200 rows (well under the cap),
+    but requesting `[today, today+1]` in ONE call returned exactly 4000 rows
+    with **zero** of them dated `today` — every row was `today+1`, meaning
+    the earlier day was dropped ENTIRELY, not merely thinned. A 14-day-wide
+    call was worse: 2,192 rows total, concentrated on days 7-14 out, with
+    **days 0-1 (today/tomorrow) completely absent** — exactly the two days
+    `run_nightly_capture`'s window actually reads. A resilience fix that
+    returns "a reporter list" while silently dropping the ONE slice the
+    caller needs is not actually fixed. Chunking one call per calendar day
+    keeps every single call safely under the cap (each day's own volume
+    never approached it) regardless of which days are busy.
+    """
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return None
+    day_list = [today + dt.timedelta(days=i) for i in range(days + 1)]
+    results: list[list[dict] | None] = [None] * len(day_list)
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(_FMP_CHUNK_MAX_WORKERS, len(day_list))) as pool:
+        future_to_idx = {pool.submit(_fmp_reporters_for_day, d, key): i
+                          for i, d in enumerate(day_list)}
+        for fut in concurrent.futures.as_completed(future_to_idx):
+            i = future_to_idx[fut]
+            try:
+                results[i] = fut.result()
+            except Exception as e:  # noqa: BLE001 — a worker-thread failure isolates to its own day
+                _log.warning("upcoming_reporters: FMP day-chunk worker failed: %s", e)
+                results[i] = None
+    if all(r is None for r in results):
+        return None  # every single day-chunk failed -> total provider failure -> Finnhub fallback
+    out: list[dict] = []
+    for r in results:
+        if r:
+            out.extend(r)
+    return out
+
+
+def _finnhub_reporters(days: int, today: dt.date) -> list[dict]:
+    """Finnhub `/calendar/earnings` rows for [today, today+days] — the
+    FALLBACK reporter-list source, used only when `_fmp_reporters` returns
+    `None`. Each row carries Finnhub's `hour` field ("bmo"/"amc"/"dmh"/"") so
+    callers can apply session-aware capture logic (see run_nightly_capture),
+    plus Finnhub's own `fiscal_year`/`fiscal_quarter` (from
+    /calendar/earnings' `year`/`quarter`) — the fiscal identity
+    `record_implied` files the snapshot under, so a later history row keyed
+    on the SAME provider quarter/year (but a different date — the period
+    end, not this announcement date) can still pair with it. Routed through
+    the shared api.services.finnhub_client.fh_get (2026-08-05) so this call
+    shares the process-wide token bucket / 429 cooldown with every other
+    Finnhub caller. Returns `[]` on ANY failure — the same honest-empty
+    contract this path has always had."""
     from api.services.finnhub_client import fh_get
     data = fh_get(
         "/calendar/earnings",
@@ -306,17 +444,37 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
         timeout=10,
     )
     rows = (data or {}).get("earningsCalendar") or [] if isinstance(data, dict) else []
-    out = [{"sym": _canon(row.get("symbol")), "report_date": row.get("date"),
-            "hour": row.get("hour") or "",
-            "fiscal_year": _int_or_none(row.get("year")),
-            "fiscal_quarter": _int_or_none(row.get("quarter")),
-            # Carried ONLY as `_dedupe_reporters`' tie-break input (review
-            # round 1, CRITICAL) — a real epsEstimate marks the genuine row
-            # when Finnhub lists the same (sym, date) twice under two
-            # different fiscal quarters (observed live: GLOO 2026-08-17).
-            "eps_estimate": _float_or_none(row.get("epsEstimate"))}
-           for row in rows if row.get("symbol") and row.get("date")]
+    return [{"sym": _canon(row.get("symbol")), "report_date": row.get("date"),
+             "hour": row.get("hour") or "",
+             "fiscal_year": _int_or_none(row.get("year")),
+             "fiscal_quarter": _int_or_none(row.get("quarter")),
+             # Carried ONLY as `_dedupe_reporters`' tie-break input (review
+             # round 1, CRITICAL) — a real epsEstimate marks the genuine row
+             # when Finnhub lists the same (sym, date) twice under two
+             # different fiscal quarters (observed live: GLOO 2026-08-17).
+             "eps_estimate": _float_or_none(row.get("epsEstimate"))}
+            for row in rows if row.get("symbol") and row.get("date")]
+
+
+def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[dict]:
+    """Symbols reporting within `days` — FMP primary, Finnhub fallback (see
+    module docstring). Empty list on ANY failure of BOTH providers — the
+    nightly job then no-ops (holiday-safe)."""
+    today = (now or dt.datetime.now()).date()
+    # Cache key includes the date — `days` alone collided across calendar days,
+    # serving yesterday's reporter list (and yesterday's report_dates) all day.
+    key = f"impstore::reporters::{days}::{today.isoformat()}"
+    cached = _REPORTERS_CACHE.get(key)
+    if cached is not None:
+        return list(cached)
+
+    out = _fmp_reporters(days, today)
+    source = "fmp"
+    if out is None:
+        out = _finnhub_reporters(days, today)
+        source = "finnhub"
     if out:
+        _log.info("[implied-store] upcoming_reporters: %d row(s) from %s", len(out), source)
         _REPORTERS_CACHE.set(key, list(out), _REPORTERS_TTL)
     return out
 
@@ -427,13 +585,79 @@ def _dedupe_reporters(reporters: list[dict]) -> tuple[list[dict], list[dict]]:
     return list(best.values()), collisions
 
 
+def _finnhub_today_enrichment(day_iso: str) -> dict[str, dict]:
+    """Best-effort Finnhub `/calendar/earnings` lookup scoped to ONE calendar
+    day — used ONLY to backfill the bmo/amc `hour` (and fiscal_year/quarter,
+    since the same payload carries them) for TODAY's rows when the PRIMARY
+    reporter-list source (FMP) left them unknown (see `_fmp_reporters`).
+
+    A single-day ask is far cheaper than the full 14-day reporter list — it
+    has a real chance of landing even on a night the wide Finnhub calendar
+    call is itself rate-limited, which is exactly the night this matters
+    most. Routed through the shared finnhub_client budget/cooldown like every
+    other Finnhub caller.
+
+    Returns `{}` on ANY failure (missing key, 429, timeout, bad shape, or
+    genuinely no rows) — callers MUST treat a missing symbol as "still
+    unknown", never assume absence means non-bmo (see the same-day skip in
+    `run_nightly_capture`)."""
+    from api.services.finnhub_client import fh_get
+    data = fh_get("/calendar/earnings", {"from": day_iso, "to": day_iso}, timeout=8)
+    rows = (data or {}).get("earningsCalendar") or [] if isinstance(data, dict) else []
+    out: dict[str, dict] = {}
+    for row in rows:
+        sym = _canon(row.get("symbol"))
+        if not sym:
+            continue
+        out[sym] = {
+            "hour": (row.get("hour") or "").strip(),
+            "fiscal_year": _int_or_none(row.get("year")),
+            "fiscal_quarter": _int_or_none(row.get("quarter")),
+        }
+    return out
+
+
+def _merge_today_enrichment(in_window: list[dict], today_iso: str, hints: dict[str, dict]) -> list[dict]:
+    """Pure merge: fills `hour`/`fiscal_year`/`fiscal_quarter` on today-dated
+    rows whose PRIMARY source left them unknown, from `hints` (see
+    `_finnhub_today_enrichment`) — NEVER overwrites a value the primary
+    source already supplied, and never mutates the input dicts in place
+    (`in_window` entries may be objects shared with the `_REPORTERS_CACHE`
+    TTL cache via `upcoming_reporters` — mutating them would corrupt what
+    every other caller inside the same 6h TTL window sees)."""
+    if not hints:
+        return in_window
+    out = []
+    for r in in_window:
+        hint = hints.get(r.get("sym")) if r.get("report_date") == today_iso else None
+        if not hint:
+            out.append(r)
+            continue
+        merged = dict(r)
+        if not (merged.get("hour") or "").strip():
+            merged["hour"] = hint.get("hour") or ""
+        if merged.get("fiscal_year") is None:
+            merged["fiscal_year"] = hint.get("fiscal_year")
+        if merged.get("fiscal_quarter") is None:
+            merged["fiscal_quarter"] = hint.get("fiscal_quarter")
+        out.append(merged)
+    return out
+
+
 def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     """Post-close T-1 capture: only reporters whose report_date falls within
     [today, today+WINDOW] (env IMPLIED_CAPTURE_WINDOW_DAYS, default 1) are even
     considered — rows outside the window are silently filtered (not counted).
-    Within that window, a report_date == today with hour == "bmo" is skipped
-    (counted): it already reported this morning, and a post-report capture
-    would store IV-crushed values instead of the honest pre-report implied.
+    Within that window, a report_date == today whose session ISN'T confirmed
+    "amc" is skipped (counted) — either it's "bmo" (already reported this
+    morning) or the session is simply unknown (the PRIMARY reporter-list
+    source, FMP, carries no session field at all — see `_fmp_reporters`).
+    Either way, a post-report capture would store IV-crushed values instead
+    of the honest pre-report implied, and a missing snapshot is the honest
+    outcome when the session can't be confirmed. Before that decision,
+    TODAY's rows get one opportunistic single-day Finnhub backfill attempt
+    (`_finnhub_today_enrichment` / `_merge_today_enrichment`) so the skip
+    only bites when BOTH providers are silent on the session.
     Never stores a failure; existing (sym, report_date) rows are kept
     (first-write-wins — with the narrow window the first write IS the
     T-1/T-0-pre-report write).
@@ -445,6 +669,7 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     Exception isolation: one bad symbol never truncates the batch."""
     now = now or dt.datetime.now(_ET)
     today = now.date()
+    today_iso = today.isoformat()
     window_days = int(os.environ.get("IMPLIED_CAPTURE_WINDOW_DAYS", "1"))
     window_end = today + dt.timedelta(days=window_days)
 
@@ -459,6 +684,16 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
             continue  # malformed date — silently filtered, never counted
         if today <= rd <= window_end:
             in_window.append(rep)
+
+    # Opportunistic same-day session/fiscal backfill — see
+    # _finnhub_today_enrichment. Only attempted when at least one in-window
+    # row is dated today AND its session is still unknown, so a healthy
+    # night (Finnhub-primary, or FMP rows already resolved) never spends the
+    # extra call.
+    if any(r.get("report_date") == today_iso and not (r.get("hour") or "").strip()
+           for r in in_window):
+        in_window = _merge_today_enrichment(
+            in_window, today_iso, _finnhub_today_enrichment(today_iso))
 
     # Review round 2, IMPORTANT #2 — the WARNING is scoped tighter than the
     # summary total: only a collision that (a) actually lands in TONIGHT'S
@@ -481,13 +716,17 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
 
     summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": len(collisions)}
     captured_at = now.isoformat(timespec="seconds")
-    today_iso = today.isoformat()
     for rep in in_window:
         sym = rep.get("sym")
         report_date = rep.get("report_date")
         hour = (rep.get("hour") or "").lower()
         try:
-            if report_date == today_iso and hour == "bmo":
+            # Conservative degrade: only a CONFIRMED "amc" proceeds for a
+            # today-dated row. "bmo" (already reported) and "" (session
+            # unknown from either provider, even after the backfill above)
+            # both skip — an absent snapshot is honest; capturing on an
+            # unconfirmed session risks silently storing an IV-crushed value.
+            if report_date == today_iso and hour != "amc":
                 summary["skipped"] += 1
                 continue
             if _has_snapshot(sym, report_date):
