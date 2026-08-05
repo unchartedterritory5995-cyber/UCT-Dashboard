@@ -59,6 +59,16 @@ const DWM = ['D', 'W', 'M']
  *                          overlay}
  *   onActivate             fired on pointer-enter / focus-capture of the pane
  *                          root (the workspace uses it to arbitrate hotkeys)
+ *   showTfBar              default true; false OMITS the timeframe bar (and the
+ *                          meta row / settings gear / tfBarRight-tfBarEnd slots
+ *                          riding inside it) entirely — a surface that locks the
+ *                          timeframe (Journal Daily/Weekly-only, a small popup)
+ *                          renders none of that row rather than a row of dead
+ *                          buttons
+ *   tfCodes                default null; when an array is supplied it REPLACES
+ *                          the user's favorited timeframes as the only codes
+ *                          the bar offers (no auto-add of the current `tf`) —
+ *                          the host is choosing the timeframe set, not the user
  *
  * ref → { openSettings(), focus(), changeSymbol(sym) }
  */
@@ -74,11 +84,18 @@ function ChartPane({
   stockChartProps = null,
   slots = null,
   onActivate = undefined,
+  showTfBar = true,
+  tfCodes = null,
 }, ref) {
   const compact = density === 'compact'
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
-  const { data: fund } = useFundamentalSnapshot(sym)
+  // Fundamentals feed ONLY ChartMetaRow, which `compact` density drops entirely
+  // (and which never renders at all when `showTfBar` is false, since the meta
+  // row lives inside the TF bar). Gate the fetch — and its 5-min poll loop — on
+  // whether that row can even render, so a compact/no-tf-bar pane across ~20
+  // surfaces never opens a request it can't show.
+  const { data: fund } = useFundamentalSnapshot(sym, !compact && showTfBar)
   const mktCap = fund?.metrics?.market_cap || null
   const nextEarnStr = (() => {
     const iso = fund?.next_earnings
@@ -174,7 +191,11 @@ function ChartPane({
   // Favorites row: any code (native or custom) rendered via tfLabel; the active TF
   // is always shown even if it isn't favorited (so a just-picked custom interval
   // stays visible). Falls back to the native set when the user has no favorites.
+  // A host that passes `tfCodes` (Journal locking Daily/Weekly, etc.) REPLACES the
+  // user's favorites outright — exactly those codes, no auto-add of the active tf,
+  // no fallback to TF_ORDER. The host is choosing the set, not the user.
   const visibleTfs = (() => {
+    if (Array.isArray(tfCodes)) return tfCodes.map(c => [c, tfLabel(c)])
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
     const codes = fav.length ? [...fav] : [...TF_ORDER]
     if (tf && !codes.includes(tf)) codes.push(tf)
@@ -283,13 +304,18 @@ function ChartPane({
     // ticker character first (uppercase included). See shortcutClaimsKey.
     if (shortcutClaimsKey(e)) return
     if (e.ctrlKey || e.altKey || e.metaKey) return
+    // A locked pane (no onSymbolChange) has nowhere to send a ticker character —
+    // there is no search box to open. Let the key through UNTOUCHED (no
+    // preventDefault/stopPropagation) instead of swallowing it, so the host page's
+    // own letter hotkeys still fire.
+    if (!onSymbolChange) return
     if (!TICKER_KEY_RE.test(e.key)) return
     e.preventDefault()
     // Swallow the key so it never reaches the drawing-tool (window) or timeframe
     // (document) hotkey handlers — typing a ticker must never trigger a tool or TF.
     e.stopPropagation()
     searchRef.current?.openWith(e.key)
-  }, [sym, isFlagged, toggleFlag])
+  }, [sym, isFlagged, toggleFlag, onSymbolChange])
 
   useImperativeHandle(ref, () => ({
     openSettings,
@@ -326,45 +352,47 @@ function ChartPane({
         rightSlot={slots?.headerRight}
         styles={styles}
       />
-      <ChartTfBar
-        tf={tf}
-        visibleTfs={visibleTfs}
-        onTf={handleTf}
-        menu={{
-          favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
-          customCodes: customTfs,
-          onToggleFav: toggleTfFav,
-          onAddCustom: addCustomTf,
-          onRemoveCustom: removeCustomTf,
-          themeVars: menuVars,
-        }}
-        styles={styles}
-      >
-        {!compact && (
-          <ChartMetaRow
-            marketCap={mktCap}
-            nextEarnings={nextEarnStr}
-            uctRating={uctRating}
-            show={{ marketCap: hdr.showMarketCap, nextEarnings: hdr.showNextEarnings, uctRating: hdr.showUctRating }}
-            colors={hdrColors}
-            styles={styles}
-          />
-        )}
-        <div className={styles.tfBarRight}>
-          {slots?.tfBarRight}
-          {/* Chart settings gear — part of the shell at every density. */}
-          <button
-            type="button"
-            className={styles.chartSettingsBtn}
-            onClick={openSettings}
-            title="Chart settings"
-            aria-label="Chart settings"
-          >
-            <UIcon name="gear" size={15} />
-          </button>
-          {slots?.tfBarEnd}
-        </div>
-      </ChartTfBar>
+      {showTfBar && (
+        <ChartTfBar
+          tf={tf}
+          visibleTfs={visibleTfs}
+          onTf={handleTf}
+          menu={{
+            favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
+            customCodes: customTfs,
+            onToggleFav: toggleTfFav,
+            onAddCustom: addCustomTf,
+            onRemoveCustom: removeCustomTf,
+            themeVars: menuVars,
+          }}
+          styles={styles}
+        >
+          {!compact && (
+            <ChartMetaRow
+              marketCap={mktCap}
+              nextEarnings={nextEarnStr}
+              uctRating={uctRating}
+              show={{ marketCap: hdr.showMarketCap, nextEarnings: hdr.showNextEarnings, uctRating: hdr.showUctRating }}
+              colors={hdrColors}
+              styles={styles}
+            />
+          )}
+          <div className={styles.tfBarRight}>
+            {slots?.tfBarRight}
+            {/* Chart settings gear — part of the shell at every density. */}
+            <button
+              type="button"
+              className={styles.chartSettingsBtn}
+              onClick={openSettings}
+              title="Chart settings"
+              aria-label="Chart settings"
+            >
+              <UIcon name="gear" size={15} />
+            </button>
+            {slots?.tfBarEnd}
+          </div>
+        </ChartTfBar>
+      )}
       <div
         ref={focusableRef}
         className={styles.chartFill}
