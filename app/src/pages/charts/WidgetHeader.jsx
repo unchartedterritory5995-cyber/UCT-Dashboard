@@ -28,6 +28,34 @@ export default function WidgetHeader({
   const [confirmCloseId, setConfirmCloseId] = useState(null)
   const confirmTimer = useRef(null)
   useEffect(() => () => clearTimeout(confirmTimer.current), [])
+  // Only render the tab strip once there's ≥1 EXTRA tab, so a plain single-widget
+  // slot looks exactly as before (just the new "+" add-tab affordance appears).
+  const showTabs = Array.isArray(tabs) && tabs.length > 1
+
+  // Horizontal scroll state for the tab strip: when more tabs are open than fit,
+  // chevrons appear on each side so every tab (incl. its close ×) stays reachable.
+  const stripRef = useRef(null)
+  const [scroll, setScroll] = useState({ over: false, atStart: true, atEnd: true })
+  useLayoutEffect(() => {
+    const el = stripRef.current
+    if (!showTabs || !el) { setScroll({ over: false, atStart: true, atEnd: true }); return }
+    const win = el.ownerDocument?.defaultView || window
+    const update = () => {
+      const over = el.scrollWidth > el.clientWidth + 1
+      setScroll({
+        over,
+        atStart: el.scrollLeft <= 1,
+        atEnd: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1,
+      })
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    win.addEventListener('resize', update)
+    let ro
+    try { ro = new win.ResizeObserver(update); ro.observe(el) } catch { /* no RO */ }
+    return () => { el.removeEventListener('scroll', update); win.removeEventListener('resize', update); if (ro) ro.disconnect() }
+  }, [showTabs, tabs, activeIndex])
+  const scrollBy = (dir) => stripRef.current?.scrollBy({ left: dir * Math.max(80, stripRef.current.clientWidth * 0.6), behavior: 'smooth' })
 
   // The add-tab menu is portaled to the button's OWN document (so it works inside a
   // popped-out window too) and positioned `fixed`, because the widget itself is
@@ -41,7 +69,9 @@ export default function WidgetHeader({
       const r = btn.getBoundingClientRect()
       const W = 156
       const left = Math.max(6, Math.min(r.right - W, win.innerWidth - W - 6))
-      setAddPos({ top: Math.round(r.bottom + 4), left: Math.round(left) })
+      // Capture the portal target here (the button's own document) so the render
+      // path never has to read a ref — works in popped-out windows too.
+      setAddPos({ top: Math.round(r.bottom + 4), left: Math.round(left), target: doc.body })
     }
     place()
     win.addEventListener('resize', place)
@@ -63,9 +93,6 @@ export default function WidgetHeader({
     doc.addEventListener('keydown', onKey)
     return () => { doc.removeEventListener('mousedown', onDown, true); doc.removeEventListener('keydown', onKey) }
   }, [addOpen])
-  // Only render the tab strip once there's ≥1 EXTRA tab, so a plain single-widget
-  // slot looks exactly as before (just the new "+" add-tab affordance appears).
-  const showTabs = Array.isArray(tabs) && tabs.length > 1
 
   // Two-stage close so a stray click can't nuke a tab.
   const handleCloseClick = (tabId) => {
@@ -88,36 +115,60 @@ export default function WidgetHeader({
           : `Color group ${color} — click to cycle (grey = not linked)`}
       />
       {showTabs ? (
-        <div className={styles.wtabStrip} role="tablist" aria-label="Widget tabs">
-          {tabs.map((tab, i) => {
-            const active = i === activeIndex
-            return (
-              <div
-                key={tab.id}
-                role="tab"
-                aria-selected={active}
-                className={`${styles.wtabChip}${active ? ' ' + styles.wtabChipActive : ''}`}
-                onClick={() => { setConfirmCloseId(null); onSelectTab?.(i) }}
-                title={`${tab.label} tab`}
-              >
-                <span className={styles.wtabLabel}>{tab.label}</span>
-                {!tab.isMain && (
-                  <span
-                    className={`${styles.wtabClose}${confirmCloseId === tab.id ? ' ' + styles.wtabCloseConfirm : ''}`}
-                    role="button"
-                    aria-label={confirmCloseId === tab.id ? `Confirm close ${tab.label} tab` : `Close ${tab.label} tab`}
-                    title={confirmCloseId === tab.id ? 'Click again to close tab' : 'Close tab'}
-                    onClick={(e) => { e.stopPropagation(); handleCloseClick(tab.id) }}
-                  >{confirmCloseId === tab.id ? '✓' : '×'}</span>
-                )}
-              </div>
-            )
-          })}
+        <div className={styles.wtabRegion}>
+          {scroll.over && (
+            <button
+              type="button"
+              className={styles.wtabScroll}
+              onClick={() => scrollBy(-1)}
+              disabled={scroll.atStart}
+              aria-label="Scroll tabs left"
+              title="Scroll tabs left"
+            >‹</button>
+          )}
+          <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs">
+            {tabs.map((tab, i) => {
+              const active = i === activeIndex
+              return (
+                <div
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={active}
+                  className={`${styles.wtabChip}${active ? ' ' + styles.wtabChipActive : ''}`}
+                  onClick={() => { setConfirmCloseId(null); onSelectTab?.(i) }}
+                  title={`${tab.label} tab`}
+                >
+                  <span className={styles.wtabLabel}>{tab.label}</span>
+                  {!tab.isMain && (
+                    <span
+                      className={`${styles.wtabClose}${confirmCloseId === tab.id ? ' ' + styles.wtabCloseConfirm : ''}`}
+                      role="button"
+                      aria-label={confirmCloseId === tab.id ? `Confirm close ${tab.label} tab` : `Close ${tab.label} tab`}
+                      title={confirmCloseId === tab.id ? 'Click again to close tab' : 'Close tab'}
+                      onClick={(e) => { e.stopPropagation(); handleCloseClick(tab.id) }}
+                    >{confirmCloseId === tab.id ? '✓' : '×'}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {scroll.over && (
+            <button
+              type="button"
+              className={styles.wtabScroll}
+              onClick={() => scrollBy(1)}
+              disabled={scroll.atEnd}
+              aria-label="Scroll tabs right"
+              title="Scroll tabs right"
+            >›</button>
+          )}
         </div>
       ) : (
-        <span className={styles.widgetLabel}>{label}</span>
+        <>
+          <span className={styles.widgetLabel}>{label}</span>
+          <span className={styles.headerSpacer} />
+        </>
       )}
-      <span className={styles.headerSpacer} />
       {onAddTab && (
         <button
           ref={addBtnRef}
@@ -128,7 +179,7 @@ export default function WidgetHeader({
           title="Add a tab — hold multiple widgets in this one slot"
         >+</button>
       )}
-      {onAddTab && addOpen && addPos && addBtnRef.current && createPortal(
+      {onAddTab && addOpen && addPos && createPortal(
         <div
           data-wtab-add-menu
           className={styles.wtabAddMenu}
@@ -143,7 +194,7 @@ export default function WidgetHeader({
             >{WIDGET_TAB_MENU_LABEL[t] || t}</button>
           ))}
         </div>,
-        addBtnRef.current.ownerDocument.body,
+        addPos.target,
       )}
       {onPopOut && (
         <button

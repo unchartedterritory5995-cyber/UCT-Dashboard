@@ -290,23 +290,53 @@
    the pop-out/close controls. The tab chips appear only once a slot has ≥1 extra
    tab, so single-widget slots look unchanged; the "+" add-tab button is always
    present so any widget can grow tabs. */
+/* The scrollable region: [‹] [strip of tab chips] [›]. Takes the header's free
+   width so the +/pop-out/close controls stay pinned to the right. */
+.wtabRegion {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
 .wtabStrip {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
 }
 .wtabStrip::-webkit-scrollbar { height: 0; }
+/* Left/right scroll chevrons — appear only when the tabs overflow the strip. */
+.wtabScroll {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #8b8674));
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 3px;
+}
+.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #c9a84c); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
+.wtabScroll:disabled { opacity: 0.28; cursor: default; }
 .wtabChip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 1px 7px;
+  gap: 3px;
+  padding: 1px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 9.5px;
+  letter-spacing: 0.2px;
   line-height: 1.5;
   white-space: nowrap;
   color: var(--widget-text, var(--text-muted, #8b8674));
@@ -329,10 +359,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1;
   opacity: 0.55;
 }
