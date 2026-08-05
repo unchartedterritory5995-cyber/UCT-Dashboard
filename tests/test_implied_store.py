@@ -526,3 +526,157 @@ def test_schema_migration_adds_fiscal_columns_to_a_pre_existing_db(tmp_path, mon
                                   fiscal_year=2026, fiscal_quarter=2)
     new_rows = implied_store.get_implied_history("NEW")
     assert new_rows[0]["fiscal_year"] == 2026
+
+
+# ── Startup catch-up (2026-08-05 incident) ──────────────────────────────────
+# A Railway redeploy landing at/after the 16:35 ET trigger causes a freshly
+# re-created APScheduler MemoryJobStore to schedule the job's next run for
+# tomorrow, silently losing the whole night — see implied_store.py's
+# "startup catch-up" section + api/main.py's IMPLIED_STORE_ENABLED startup
+# block. These tests: (1) confirm the APScheduler root cause directly against
+# the installed library (not from memory), (2) prove misfire_grace_time
+# cannot help across a restart, (3) exercise the new decision/query helpers,
+# and (4) reproduce the exact incident end-to-end.
+
+def test_cron_trigger_on_fresh_jobstore_skips_todays_run_once_the_trigger_time_has_passed():
+    """Confirms the root cause against the INSTALLED apscheduler (3.11.2),
+    per the task's instruction to verify rather than assume: with no
+    persisted jobstore state (a fresh process, e.g. right after a redeploy),
+    `CronTrigger.get_next_fire_time(previous_fire_time=None, now)` — exactly
+    what `BaseScheduler.add_job` calls when a job is (re)added on boot
+    (schedulers/base.py) — returns the trigger's NEXT occurrence strictly
+    after `now`. Once `now` is past today's 16:35 ET fire time, that next
+    occurrence is TOMORROW: the newly re-created scheduler has no memory that
+    today's slot was ever due, so it just waits for tomorrow. This is the
+    exact 2026-08-05 defect (process restarted at 16:36 ET; the log showed
+    "Added job" with no "Running job" ever following it that night)."""
+    from zoneinfo import ZoneInfo
+    from apscheduler.triggers.cron import CronTrigger
+    et = ZoneInfo("America/New_York")
+    trigger = CronTrigger(hour=16, minute=35, day_of_week="mon-fri", timezone=et)
+    just_after = dt.datetime(2026, 8, 5, 16, 36, tzinfo=et)  # Wed, 1 min after the trigger
+    next_fire = trigger.get_next_fire_time(None, just_after)
+    assert next_fire.date() > just_after.date(), (
+        "a fresh (unpersisted) scheduler re-added after the trigger time must compute "
+        "the NEXT run as a LATER day, silently skipping tonight -- reproduces the "
+        "2026-08-05 incident directly against the real trigger"
+    )
+
+
+def test_misfire_grace_time_cannot_rescue_a_restart_because_next_run_time_is_never_past_due():
+    """Confirms the design guidance's claim that misfire_grace_time alone is
+    NOT sufficient, directly: misfire handling (apscheduler/executors/base.py
+    `run_job`) only ever fires for a run_time that is already IN
+    `job._get_run_times(now)` -- i.e. a next_run_time that is already <= now.
+    But `add_job` on a fresh jobstore sets next_run_time via
+    `trigger.get_next_fire_time(None, now)`, which (per the previous test) is
+    NEVER in the past. So a restarted process's job has no overdue run_time
+    for misfire_grace_time to grace in the first place -- there is nothing to
+    widen the window on. This is a structural argument, not a probabilistic
+    one: no value of misfire_grace_time changes this outcome."""
+    from zoneinfo import ZoneInfo
+    from apscheduler.triggers.cron import CronTrigger
+    et = ZoneInfo("America/New_York")
+    trigger = CronTrigger(hour=16, minute=35, day_of_week="mon-fri", timezone=et)
+    just_after = dt.datetime(2026, 8, 5, 16, 36, tzinfo=et)
+    fresh_next_run_time = trigger.get_next_fire_time(None, just_after)
+    # A job newly added post-restart never has a next_run_time <= "now" --
+    # the exact precondition misfire handling requires to ever engage.
+    assert fresh_next_run_time > just_after
+
+
+def test_capture_due_by_weekday_and_time_boundaries(store):
+    et = store._ET
+    # Before the trigger time on a weekday -> not due yet (the normal cron
+    # slot for TODAY is still ahead of it).
+    assert store.capture_due_by(dt.datetime(2026, 8, 5, 16, 34, tzinfo=et)) is False
+    # Exactly at the trigger minute -> due.
+    assert store.capture_due_by(dt.datetime(2026, 8, 5, 16, 35, tzinfo=et)) is True
+    # Well after, same weekday -> due.
+    assert store.capture_due_by(dt.datetime(2026, 8, 5, 23, 0, tzinfo=et)) is True
+    # Saturday, even late -> never due (requirement 6: no weekend firing).
+    assert store.capture_due_by(dt.datetime(2026, 8, 8, 20, 0, tzinfo=et)) is False
+    # Sunday -> never due.
+    assert store.capture_due_by(dt.datetime(2026, 8, 9, 20, 0, tzinfo=et)) is False
+
+
+def test_latest_capture_date_empty_table_returns_none(store):
+    assert store.latest_capture_date() is None
+
+
+def test_latest_capture_date_reflects_the_most_recent_captured_at(store):
+    store.record_implied("AAA", "2026-08-04", _payload(), "2026-08-03T16:35:00-04:00")
+    store.record_implied("BBB", "2026-08-06", _payload(), "2026-08-05T16:35:00-04:00")
+    assert store.latest_capture_date() == "2026-08-05"
+
+
+def test_latest_grade_date_scoped_to_surface(store):
+    assert store.latest_grade_date("setup") is None
+    store.record_grade("AAA", "2026-08-04", "setup", "B+", {})
+    store.record_grade("AAA", "2026-08-05", "other-surface", "A", {})
+    assert store.latest_grade_date("setup") == "2026-08-04"
+    assert store.latest_grade_date("other-surface") == "2026-08-05"
+
+
+def test_restart_after_trigger_time_no_longer_loses_the_night(store):
+    """The end-to-end regression: reproduces the exact incident state (an
+    empty store -- nothing captured tonight -- and `now` one minute past the
+    16:35 ET trigger on a weekday, exactly like the 2026-08-05 log) and
+    proves the new catch-up primitives correctly (a) detect the gap and
+    (b) close it. Before this task's fix, `capture_due_by` does not exist on
+    `implied_store` at all, so this test fails with an AttributeError; after
+    the fix, running exactly what api/main.py's startup catch-up now runs
+    recovers the snapshot that would otherwise have been permanently lost
+    (implied_store.py's module docstring: unreconstructable once the report
+    happens)."""
+    now = dt.datetime(2026, 8, 5, 16, 36, tzinfo=store._ET)  # Wed, 1 min after the missed trigger
+    reporters = [{"sym": "NVDA", "report_date": "2026-08-06", "hour": "amc",
+                  "fiscal_year": 2027, "fiscal_quarter": 2}]
+
+    # Exactly the pair api/main.py's IMPLIED_STORE_ENABLED startup block checks.
+    assert store.capture_due_by(now) is True
+    assert store.latest_capture_date() != now.date().isoformat(), \
+        "nothing captured yet tonight -- this IS the 'lost the night' state"
+
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload(6.8)):
+        # Exactly what _implied_capture_catchup_background (api/main.py) runs.
+        summary = store.run_nightly_capture(now=now)
+
+    assert summary["captured"] == 1
+    assert store.get_implied_history("NVDA"), \
+        "the pre-report snapshot that would have been permanently lost is now captured"
+    assert store.latest_capture_date() == now.date().isoformat()
+
+
+def test_catchup_capture_is_idempotent_against_a_second_run_same_night(store):
+    """Requirement 2: the catch-up racing (or simply preceding/following) the
+    regular scheduled run must never double-write or clobber a good
+    snapshot. record_implied's (sym, report_date) first-write-wins already
+    guarantees this at the storage layer; this proves it holds across two
+    FULL run_nightly_capture passes for the same night, not just two raw
+    record_implied calls."""
+    now = dt.datetime(2026, 8, 5, 16, 36, tzinfo=store._ET)
+    reporters = [{"sym": "NVDA", "report_date": "2026-08-06", "hour": "amc"}]
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload(6.8)):
+        first = store.run_nightly_capture(now=now)
+        second = store.run_nightly_capture(now=now)  # e.g. catch-up then the scheduled job also fires
+    assert first["captured"] == 1
+    assert second["captured"] == 0 and second["skipped"] == 1, \
+        "the second pass must skip an already-captured (sym, report_date), never re-write it"
+    rows = store.get_implied_history("NVDA")
+    assert len(rows) == 1 and rows[0]["pct"] == pytest.approx(6.8)
+
+
+def test_capture_due_by_true_on_a_holiday_is_a_harmless_noop_via_empty_reporters(store):
+    """Requirement 6: capture_due_by cannot distinguish a holiday from a
+    normal trading weekday (no holiday calendar exists in this codebase,
+    matching cot_service's own posture) -- proves the SAME safety net
+    already covers it: an empty reporter list makes run_nightly_capture a
+    true no-op, never a fabricated/zero record."""
+    now = dt.datetime(2026, 8, 5, 20, 0, tzinfo=store._ET)
+    assert store.capture_due_by(now) is True
+    with patch.object(store, "upcoming_reporters", return_value=[]):
+        summary = store.run_nightly_capture(now=now)
+    assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0}

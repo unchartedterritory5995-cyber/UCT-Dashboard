@@ -185,6 +185,74 @@ def get_earliest_report_date(sym: str) -> str | None:
     return row["md"] if row and row["md"] is not None else None
 
 
+# ── startup catch-up (2026-08-05 incident) ─────────────────────────────────
+# A Railway redeploy landing at/after the nightly trigger time causes a
+# freshly re-created APScheduler MemoryJobStore to compute the job's NEXT run
+# as the trigger's next occurrence strictly AFTER boot time — i.e. tomorrow,
+# with no memory that today's slot was ever due (confirmed against the
+# installed apscheduler: `BaseScheduler.add_job` calls
+# `trigger.get_next_fire_time(previous_fire_time=None, now)`, and with no
+# prior fire time a CronTrigger returns the next occurrence strictly after
+# `now` — see tests/test_implied_store.py's
+# `test_cron_trigger_on_fresh_jobstore_skips_todays_run_once_the_trigger_time_has_passed`).
+# `misfire_grace_time` cannot help here — it only matters once a job's
+# next_run_time is ALREADY set (in a live process) and the scheduler's own
+# check loop runs late; it does nothing for a next_run_time that was
+# recomputed as tomorrow because the process wasn't even running yet.
+#
+# `capture_due_by` is the pure (no DB) half of the startup decision;
+# `latest_capture_date` is the DB half — together they tell "already captured
+# tonight" from "nothing captured tonight" (api/main.py's IMPLIED_STORE_ENABLED
+# startup block). `setup_grade.grade_snapshot_due_by` + `latest_grade_date`
+# below are the same pair for the 16:40 ET §12 accountability snapshot.
+CAPTURE_HOUR_ET = 16
+CAPTURE_MINUTE_ET = 35
+
+
+def capture_due_by(now_et: dt.datetime) -> bool:
+    """True iff the nightly capture's weekday trigger window has opened as of
+    `now_et` (Mon–Fri, at/after 16:35 ET) — i.e. a capture is EXPECTED to
+    already have run today. Pure. Weekday-only by design (requirement 6 of
+    the incident fix): a weekend resolves False here; a holiday this
+    predicate can't distinguish still resolves True, but `run_nightly_capture`
+    itself naturally no-ops on an empty reporter list, so firing on a holiday
+    is harmless."""
+    if now_et.weekday() >= 5:  # Sat=5, Sun=6
+        return False
+    return (now_et.hour, now_et.minute) >= (CAPTURE_HOUR_ET, CAPTURE_MINUTE_ET)
+
+
+def latest_capture_date() -> str | None:
+    """MAX ET-calendar date (YYYY-MM-DD) across implied_snapshots.captured_at
+    — the DB-side half of the startup catch-up decision (paired with
+    `capture_due_by`). `captured_at` is stamped
+    `now.isoformat(timespec="seconds")` at write time (an ISO-8601 string
+    with a ±HH:MM offset), so its first 10 characters ARE the calendar date
+    regardless of offset. None on an empty table — a caller comparing this
+    against today's ISO date must treat None as "not today" (it will never
+    equal a real date string), not skip the comparison."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        row = c.execute(
+            "SELECT MAX(substr(captured_at, 1, 10)) AS d FROM implied_snapshots"
+        ).fetchone()
+    return row["d"] if row and row["d"] is not None else None
+
+
+def latest_grade_date(surface: str) -> str | None:
+    """MAX(date) in grade_snapshots for `surface` — the §12 accountability
+    record's counterpart to `latest_capture_date`, paired with
+    `setup_grade.grade_snapshot_due_by` for the same startup catch-up. None
+    if no row exists yet for this surface."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        row = c.execute(
+            "SELECT MAX(date) AS d FROM grade_snapshots WHERE surface = ?",
+            (surface,),
+        ).fetchone()
+    return row["d"] if row and row["d"] is not None else None
+
+
 def record_grade(sym: str, date: str, surface: str, grade: str, inputs: dict) -> None:
     _ensure_init()
     with closing(_connect()) as c, c:
