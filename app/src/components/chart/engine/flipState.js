@@ -83,13 +83,12 @@ const EMPTY_INPUTS = sealedMap([])
  * engine-drawn iff the registry knows it**, and the day somebody adds a
  * hand-written block back, the zero-`compute*`-imports rail is what fails.
  *
- * ⚠️ A `.has()` FACADE, NOT A `Set`. Every consumer asked `X.has(defId)`, and the
- * point of this change is that the answer now comes from the REGISTRY on each
- * call. Freezing a derived Set would re-create the copy — a snapshot taken at
- * import, which a late `registerDefinition` would silently contradict. It also
- * enumerates NOTHING on purpose: a caller that wants the ids has to ask
- * `listDefinitions()`, which is the authority, and a caller that wanted `.size`
- * wanted `engineDrawsAnything()`.
+ * ⚠️ A FACADE, NOT A `Set`. Every consumer asked `X.has(defId)`, some asked
+ * `.size` and some iterated, and the point of this change is that all three
+ * answers now come from the REGISTRY at the moment they are asked. Freezing a
+ * derived Set would re-create the copy — a snapshot taken at import, which a late
+ * `registerDefinition` would silently contradict, and which reads identically
+ * from every call site.
  *
  * ⭐ AND `volumeProfile` IS EXCLUDED STRUCTURALLY RATHER THAN BY OMISSION. It was
  * absent from both literals because nobody typed it; it is absent from this
