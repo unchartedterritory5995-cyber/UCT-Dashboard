@@ -7,12 +7,15 @@
 // (optionally seeded from a saved look Template). Picking a list persists a `watchKey`
 // into the widget's opts so the widget then scopes to that single list. Styled to the
 // UCT OLED-black chart theme.
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../../../hooks/useFlagged'
-import { useAuth } from '../../../context/AuthContext'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import UIcon from '../../../components/ui/UIcon'
 import { useWatchlistTemplates } from '../../watchlist/watchlistTemplates'
+import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars } from '../../watchlist/watchlistSettings'
+import { menuThemeVars } from '../../../utils/dividerColor'
 import styles from './WatchlistPicker.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : []))
@@ -24,9 +27,28 @@ const TABS = [
   { key: 'mine', label: 'My Lists', icon: 'library' },
 ]
 
-export default function WatchlistPicker({ onPick }) {
-  const { user } = useAuth()
+export default function WatchlistPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {
   const { flagged, flaggedName } = useFlagged()
+
+  // Match the widget's own watchlist appearance (canvas / colors), and expose the
+  // SAME ⚙ settings panel used inside a picked list, so the landing page is styled
+  // and configurable exactly like the list view that follows it.
+  const { prefs } = usePreferences()
+  const wlSettings = useMemo(
+    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
+    [settingsOverride, prefs],
+  )
+  const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
+  const menuVars = useMemo(() => {
+    const canvas = wlSettings.bgMode === 'gradient' ? (wlSettings.bgGradient?.top || wlSettings.bg) : wlSettings.bg
+    return menuThemeVars(canvas) || {}
+  }, [wlSettings])
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsBtnRef = useRef(null)
+  const rootRef = useRef(null)
+  const patchSettings = useCallback((patch) => onSettingsPersist?.({ ...wlSettings, ...patch }), [wlSettings, onSettingsPersist])
+  const resetSettings = useCallback(() => onSettingsPersist?.({ ...WATCHLIST_DEFAULTS }), [onSettingsPersist])
+
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher)
   const { data: communityLists } = useSWR('/api/watchlists/public', fetcher)
   const { data: prebuiltLists } = useSWR('/api/watchlists/prebuilt', fetcher)
@@ -46,7 +68,7 @@ export default function WatchlistPicker({ onPick }) {
   const query = q.trim().toLowerCase()
   const match = name => !query || String(name || '').toLowerCase().includes(query)
 
-  const flaggedLabel = flaggedName || `Flagged (${user?.display_name || 'You'})`
+  const flaggedLabel = flaggedName || 'Flagged'
   const showFlagged = match(flaggedLabel)
   const mine = (Array.isArray(myLists) ? myLists : []).filter(wl => match(wl.name))
   const community = (Array.isArray(communityLists) ? communityLists : []).filter(wl => match(wl.name))
@@ -107,9 +129,32 @@ export default function WatchlistPicker({ onPick }) {
   )
 
   return (
-    <div className={styles.picker}>
+    <div className={styles.picker} ref={rootRef} style={wlStyle}>
+      {settingsOpen && onSettingsPersist && (
+        <WatchlistSettingsPanel
+          settings={wlSettings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          gearEl={settingsBtnRef.current}
+          hostEl={rootRef.current}
+          themeVars={menuVars}
+        />
+      )}
       <div className={styles.header}>
-        <div className={styles.title}>Add a Watchlist</div>
+        <div className={styles.titleRow}>
+          <div className={styles.title}>Add a Watchlist</div>
+          {onSettingsPersist && (
+            <button
+              ref={settingsBtnRef}
+              type="button"
+              className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
+              onClick={() => setSettingsOpen(o => !o)}
+              title="Watchlist settings"
+              aria-label="Watchlist settings"
+            ><UIcon name="gear" size={13} /></button>
+          )}
+        </div>
 
         {/* Segmented tab control */}
         <div className={styles.tabs} role="tablist">

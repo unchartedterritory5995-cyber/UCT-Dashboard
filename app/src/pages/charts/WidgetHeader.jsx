@@ -19,7 +19,9 @@ export default function WidgetHeader({
   activeIndex = 0,      // 0 = base tab, 1..N = extra tabs
   onSelectTab,          // (index) => void
   onCloseTab,           // (tabId) => void
+  onRenameTab,          // (tabId, name) => void — double-click a tab to rename it
   onAddTab,             // (type) => void — add a new tab of this widget type
+  tabsOnly = false,     // merged mode: render ONLY the tab strip (no header chrome)
 }) {
   const isNone = color === 'N'
   const [addOpen, setAddOpen] = useState(false)
@@ -28,6 +30,18 @@ export default function WidgetHeader({
   const [confirmCloseId, setConfirmCloseId] = useState(null)
   const confirmTimer = useRef(null)
   useEffect(() => () => clearTimeout(confirmTimer.current), [])
+  // Inline rename (double-click a tab).
+  const [editingId, setEditingId] = useState(null)
+  const [draft, setDraft] = useState('')
+  const renameInputRef = useRef(null)
+  useEffect(() => {
+    if (editingId && renameInputRef.current) { renameInputRef.current.focus(); renameInputRef.current.select() }
+  }, [editingId])
+  const startRename = (tab) => { setConfirmCloseId(null); setEditingId(tab.id); setDraft(tab.label) }
+  const commitRename = () => {
+    if (editingId != null) onRenameTab?.(editingId, draft)
+    setEditingId(null); setDraft('')
+  }
   // Only render the tab strip once there's ≥1 EXTRA tab, so a plain single-widget
   // slot looks exactly as before (just the new "+" add-tab affordance appears).
   const showTabs = Array.isArray(tabs) && tabs.length > 1
@@ -102,19 +116,10 @@ export default function WidgetHeader({
     confirmTimer.current = setTimeout(() => setConfirmCloseId(null), 3000)
   }
 
-  return (
-    <div className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}`} style={style}>
-      <span className={`${styles.dragGrip} charts-widget-drag-handle`} aria-hidden="true">⋮⋮</span>
-      <button
-        type="button"
-        className={`${styles.colorDot} ${styles[`colorDot${color}`]}`}
-        onClick={() => onColorChange(nextColor(color))}
-        aria-label={isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
-        title={isNone
-          ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
-          : `Color group ${color} — click to cycle (grey = not linked)`}
-      />
-      {showTabs ? (
+  // The scrollable tab strip (chips + overflow chevrons). Shared by the full
+  // header and merged mode's tabs-only bar, so switching/renaming/closing tabs
+  // works in both — merged mode just drops the surrounding header chrome.
+  const tabRegion = showTabs ? (
         <div className={styles.wtabRegion}>
           {scroll.over && (
             <button
@@ -129,17 +134,36 @@ export default function WidgetHeader({
           <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs">
             {tabs.map((tab, i) => {
               const active = i === activeIndex
+              const editing = editingId === tab.id
               return (
                 <div
                   key={tab.id}
                   role="tab"
                   aria-selected={active}
                   className={`${styles.wtabChip}${active ? ' ' + styles.wtabChipActive : ''}`}
-                  onClick={() => { setConfirmCloseId(null); onSelectTab?.(i) }}
-                  title={`${tab.label} tab`}
+                  onClick={() => { if (!editing) { setConfirmCloseId(null); onSelectTab?.(i) } }}
+                  onDoubleClick={() => onRenameTab && startRename(tab)}
+                  title={onRenameTab ? `${tab.label} tab — double-click to rename` : `${tab.label} tab`}
                 >
-                  <span className={styles.wtabLabel}>{tab.label}</span>
-                  {!tab.isMain && (
+                  {editing ? (
+                    <input
+                      ref={renameInputRef}
+                      className={styles.wtabRename}
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+                        else if (e.key === 'Escape') { e.preventDefault(); setEditingId(null); setDraft('') }
+                      }}
+                      onBlur={commitRename}
+                      maxLength={24}
+                      placeholder="Name"
+                    />
+                  ) : (
+                    <span className={styles.wtabLabel}>{tab.label}</span>
+                  )}
+                  {!tab.isMain && active && !editing && (
                     <span
                       className={`${styles.wtabClose}${confirmCloseId === tab.id ? ' ' + styles.wtabCloseConfirm : ''}`}
                       role="button"
@@ -163,23 +187,19 @@ export default function WidgetHeader({
             >›</button>
           )}
         </div>
-      ) : (
-        <>
-          <span className={styles.widgetLabel}>{label}</span>
-          <span className={styles.headerSpacer} />
-        </>
-      )}
-      {onAddTab && (
-        <button
-          ref={addBtnRef}
-          type="button"
-          className={styles.wtabAdd}
-          onClick={() => setAddOpen(o => !o)}
-          aria-label="Add a tab to this widget"
-          title="Add a tab — hold multiple widgets in this one slot"
-        >+</button>
-      )}
-      {onAddTab && addOpen && addPos && createPortal(
+  ) : null
+
+  const addControl = onAddTab ? (
+    <>
+      <button
+        ref={addBtnRef}
+        type="button"
+        className={styles.wtabAdd}
+        onClick={() => setAddOpen(o => !o)}
+        aria-label="Add a tab to this widget"
+        title="Add a tab — hold multiple widgets in this one slot"
+      >+</button>
+      {addOpen && addPos && createPortal(
         <div
           data-wtab-add-menu
           className={styles.wtabAddMenu}
@@ -196,6 +216,36 @@ export default function WidgetHeader({
         </div>,
         addPos.target,
       )}
+    </>
+  ) : null
+
+  // Merged mode: no header chrome (drag grip / color dot / close), just the tab
+  // strip floating at the top-left so multi-tab slots stay switchable without
+  // breaking the seamless merged look. Nothing renders for a single-tab slot.
+  if (tabsOnly) {
+    if (!tabRegion) return null
+    return <div className={styles.wtabMergedBar}>{tabRegion}</div>
+  }
+
+  return (
+    <div className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}`} style={style}>
+      <span className={`${styles.dragGrip} charts-widget-drag-handle`} aria-hidden="true">⋮⋮</span>
+      <button
+        type="button"
+        className={`${styles.colorDot} ${styles[`colorDot${color}`]}`}
+        onClick={() => onColorChange(nextColor(color))}
+        aria-label={isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
+        title={isNone
+          ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
+          : `Color group ${color} — click to cycle (grey = not linked)`}
+      />
+      {tabRegion || (
+        <>
+          <span className={styles.widgetLabel}>{label}</span>
+          <span className={styles.headerSpacer} />
+        </>
+      )}
+      {addControl}
       {onPopOut && (
         <button
           type="button"

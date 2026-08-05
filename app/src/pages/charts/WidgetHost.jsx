@@ -11,7 +11,7 @@ import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import {
   resolveActiveTab, widgetTabList,
-  addWidgetTab, closeWidgetTab, setActiveWidgetTab,
+  addWidgetTab, closeWidgetTab, setActiveWidgetTab, renameWidgetTab,
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
 import styles from './ChartsWorkspace.module.css'
@@ -43,7 +43,7 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
     case 'breadth':   return <BreadthWidget opts={opts} onOptsChange={onOptsChange} />
     case 'aisearch':  return <AiSearchWidget color={key} />
     case 'news':      return <NewsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'profile':   return <ProfileWidget color={key} />
+    case 'profile':   return <ProfileWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
   }
 }
@@ -65,6 +65,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   const handleAddTab = onReplaceWidget ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
+  const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined
 
   // Publish THIS widget's own canvas color to its own subtree, so its chrome (panel,
   // border, header bar, and its interior top rows) matches the surface it wraps.
@@ -134,7 +135,24 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       activeIndex={active.index}
       onSelectTab={handleSelectTab}
       onCloseTab={handleCloseTab}
+      onRenameTab={handleRenameTab}
       onAddTab={handleAddTab}
+    />
+  )
+  // Merged mode keeps NO header chrome, but a multi-tab slot still needs its tab
+  // strip or the tabs become unreachable. This renders ONLY the strip (returns null
+  // for a single-tab slot, so the seamless look is untouched there).
+  const mergedTabs = (
+    <WidgetHeader
+      tabsOnly
+      tabs={tabList}
+      activeIndex={active.index}
+      color={active.color}
+      onColorChange={handleActiveColorChange}
+      onRemove={onRemove}
+      onSelectTab={handleSelectTab}
+      onCloseTab={handleCloseTab}
+      onRenameTab={handleRenameTab}
     />
   )
   const body = (
@@ -148,16 +166,17 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       />
     </div>
   )
-  // Merged view: no border, no header bar — the widgets blend into one seamless board.
-  // Otherwise, when another widget sits directly above this one, drop the drag/close bar
-  // to the BOTTOM so the two widgets blend together at the seam (no header in the middle).
+  // Merged view: no border, no header bar — the widgets blend into one seamless board
+  // (except a multi-tab slot's minimal tab strip). Otherwise, when another widget sits
+  // directly above this one, drop the drag/close bar to the BOTTOM so the two widgets
+  // blend together at the seam (no header in the middle).
   return (
     <div
       className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}`}
       style={chromeStyle}
     >
       {merged
-        ? body
+        ? <>{mergedTabs}{body}</>
         : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
     </div>
   )

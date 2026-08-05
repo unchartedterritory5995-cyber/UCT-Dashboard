@@ -92,26 +92,28 @@ function websiteDomain(url) {
 }
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
-export default function ProfileWidget({ color }) {
+export default function ProfileWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const sym = groupSyms?.[color] || null
 
-  // ── Appearance settings (⚙) — mirrors the News widget ──
-  const { prefs, setPref } = usePreferences()
+  // ── Appearance settings (⚙) — PER-WIDGET (this widget's own opts.settings) so one
+  // Profile widget's look never touches another, or the same widget in another layout.
+  // Falls back to the legacy GLOBAL pref (the prior shared look) until first edited.
+  const { prefs } = usePreferences()
   const settings = useMemo(
-    () => mergeProfileWidgetSettings(parsePref(prefs?.[PROFILE_WIDGET_SETTINGS_KEY], null)),
-    [prefs],
+    () => mergeProfileWidgetSettings(opts?.settings ?? parsePref(prefs?.[PROFILE_WIDGET_SETTINGS_KEY], null)),
+    [opts?.settings, prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback(
-    (patch) => setPref(PROFILE_WIDGET_SETTINGS_KEY, JSON.stringify({ ...settings, ...patch })),
-    [settings, setPref],
+    (patch) => onOptsChange?.({ ...(opts || {}), settings: { ...settings, ...patch } }),
+    [opts, settings, onOptsChange],
   )
   const resetSettings = useCallback(
-    () => setPref(PROFILE_WIDGET_SETTINGS_KEY, JSON.stringify(PROFILE_WIDGET_DEFAULTS)),
-    [setPref],
+    () => onOptsChange?.({ ...(opts || {}), settings: { ...PROFILE_WIDGET_DEFAULTS } }),
+    [opts, onOptsChange],
   )
   const rootStyle = useMemo(() => profileWidgetStyleVars(settings), [settings])
   const menuVars = useMemo(() => {

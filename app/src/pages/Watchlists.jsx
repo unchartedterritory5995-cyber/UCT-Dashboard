@@ -1540,7 +1540,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               className={styles.wlName}
               onContextMenu={e => handleContextMenu(e, 'flagged', true, [...flagged])}
               {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: 'flagged', isOwner: true, symbols: [...flagged] }))}
-            >{flaggedName || `Flagged (${user?.display_name || 'You'})`}</span>
+            >{flaggedName || 'Flagged'}</span>
           )}
           <span className={styles.wlCount}>{flagged.length}</span>
           {isShared && <span className={styles.pubBadge}>PUB</span>}
@@ -2036,7 +2036,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {ctxMenu.isOwner && (
               <button className={styles.ctxItem} onClick={() => {
                 if (ctxMenu.id === 'flagged') {
-                  setRenameValue(flaggedName || `Flagged (${user?.display_name || 'You'})`)
+                  setRenameValue(flaggedName || 'Flagged')
                 } else {
                   const wl = myLists?.find(w => w.id === ctxMenu.id)
                   setRenameValue(wl?.name || '')

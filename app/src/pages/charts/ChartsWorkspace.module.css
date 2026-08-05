@@ -290,6 +290,21 @@
    the pop-out/close controls. The tab chips appear only once a slot has ≥1 extra
    tab, so single-widget slots look unchanged; the "+" add-tab button is always
    present so any widget can grow tabs. */
+/* Merged mode has no header, but a multi-tab slot still needs its tabs. This is a
+   minimal strip-only bar at the top of the merged widget (renders nothing for a
+   single-tab slot, so the seamless look is preserved there). */
+.wtabMergedBar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 4px;
+  background: var(--widget-canvas, transparent);
+  border-bottom: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.06));
+  text-transform: none;
+  letter-spacing: 0;
+}
 /* The scrollable region: [‹] [strip of tab chips] [›]. Takes the header's free
    width so the +/pop-out/close controls stay pinned to the right. */
 .wtabRegion {
@@ -335,7 +350,10 @@
   gap: 3px;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 9.5px;
+  font-size: 10px;
+  /* Natural case (the header itself is uppercased) so a watchlist name like
+     "AI Leaders" reads normally instead of shouting. */
+  text-transform: none;
   letter-spacing: 0.2px;
   line-height: 1.5;
   white-space: nowrap;
@@ -343,6 +361,20 @@
   cursor: pointer;
   border: 1px solid transparent;
   flex: 0 0 auto;
+}
+.wtabRename {
+  width: 78px;
+  min-width: 40px;
+  font: inherit;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  color: var(--widget-text-strong, var(--text, #e5e7eb));
+  background: var(--widget-canvas, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--ut-gold, #c9a84c);
+  border-radius: 3px;
+  padding: 0 3px;
+  outline: none;
 }
 .wtabChip:hover {
   color: var(--widget-text-strong, var(--text, #e5e7eb));

@@ -43,14 +43,42 @@ export function sanitizeWidgetTabs(widget) {
   return { tabs, active }
 }
 
+// The label a tab shows: a user's custom name wins; otherwise an auto label that,
+// for a watchlist tab, is the SELECTED list's name (so it reads "Flagged" / "AI
+// Leaders" instead of a generic "Watchlist"). Falls back to the widget-type label.
+export function tabLabel(type, opts, customName) {
+  if (customName && String(customName).trim()) return String(customName).trim()
+  if (type === 'watchlist') {
+    if (opts?.watchKey === 'flagged') return 'Flagged'   // the flagged shadow list
+    const n = opts?.watchName && String(opts.watchName).trim()
+    if (n) return n
+  }
+  return WIDGET_TAB_LABEL[type] || type
+}
+
 // The UI tab list: the base tab first, then every extra tab.
 // Each entry = { id, isMain, type, label }.
 export function widgetTabList(widget) {
   const w = widget && typeof widget === 'object' ? widget : {}
   const { tabs } = sanitizeWidgetTabs(widget)
-  const main = { id: '__main__', isMain: true, type: w.type, label: WIDGET_TAB_LABEL[w.type] || w.type }
-  const extras = tabs.map(t => ({ id: t.id, isMain: false, type: t.type, label: WIDGET_TAB_LABEL[t.type] || t.type }))
+  const main = { id: '__main__', isMain: true, type: w.type, label: tabLabel(w.type, w.opts, w.mainTabName) }
+  const extras = tabs.map(t => ({ id: t.id, isMain: false, type: t.type, label: tabLabel(t.type, t.opts, t.name) }))
   return [main, ...extras]
+}
+
+// Rename a tab. tabId '__main__' names the base tab (stored on widget.mainTabName);
+// an empty/blank name clears back to the auto label. Names are capped at 24 chars.
+export function renameWidgetTab(widget, tabId, name) {
+  const w = widget && typeof widget === 'object' ? widget : {}
+  const clean = name && String(name).trim() ? String(name).trim().slice(0, 24) : null
+  if (tabId === '__main__') {
+    const next = { ...w }
+    if (clean) next.mainTabName = clean
+    else delete next.mainTabName
+    return next
+  }
+  const { tabs } = sanitizeWidgetTabs(widget)
+  return { ...w, wtabs: tabs.map(t => (t.id === tabId ? { ...t, name: clean } : t)) }
 }
 
 // The type/color/opts of the currently-active tab — what the slot actually renders.

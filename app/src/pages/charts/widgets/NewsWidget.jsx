@@ -93,7 +93,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const { name: company } = useTickerMeta(sym)
 
   // ── Appearance settings (⚙) — mirrors the other widget settings ──
-  const { prefs, setPref } = usePreferences()
+  const { prefs } = usePreferences()
 
   // ── "Place on chart" — one-time action, NOT a toggle ──
   // Drops the catalyst onto the linked chart as TWO ordinary, separately editable
@@ -139,20 +139,24 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     if (placedTimerRef.current) clearTimeout(placedTimerRef.current)
     placedTimerRef.current = setTimeout(() => setPlacedKey(null), 1400)
   }, [sym])
+  // Appearance is PER-WIDGET (stored in this widget's own opts.settings) so changing
+  // one News widget never touches another — or the same widget in a different layout.
+  // A widget that has never been customized falls back to the legacy GLOBAL pref
+  // (the user's prior shared look) so nothing visibly changes until they edit it.
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
-    [prefs],
+    () => mergeNewsWidgetSettings(opts?.settings ?? parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
+    [opts?.settings, prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback(
-    (patch) => setPref(NEWS_WIDGET_SETTINGS_KEY, JSON.stringify({ ...settings, ...patch })),
-    [settings, setPref],
+    (patch) => onOptsChange?.({ ...(opts || {}), settings: { ...settings, ...patch } }),
+    [opts, settings, onOptsChange],
   )
   const resetSettings = useCallback(
-    () => setPref(NEWS_WIDGET_SETTINGS_KEY, JSON.stringify(NEWS_WIDGET_DEFAULTS)),
-    [setPref],
+    () => onOptsChange?.({ ...(opts || {}), settings: { ...NEWS_WIDGET_DEFAULTS } }),
+    [opts, onOptsChange],
   )
   const rootStyle = useMemo(() => newsWidgetStyleVars(settings), [settings])
   const menuVars = useMemo(() => {
