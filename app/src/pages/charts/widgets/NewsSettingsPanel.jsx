@@ -27,7 +27,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [] }) {
+export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [], showPerf = true }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
@@ -151,9 +151,13 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
           <Row label="Text color" hint="titles & tickers">{swatch('textColor', 'Text')}</Row>
 
           {/* Performance / % Change */}
-          <div className={styles.sectionLabel}>{perfLabel}</div>
-          <Row label="Up">{swatch('upColor', 'Up %')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down %')}</Row>
+          {showPerf && (
+            <>
+              <div className={styles.sectionLabel}>{perfLabel}</div>
+              <Row label="Up">{swatch('upColor', 'Up %')}</Row>
+              <Row label="Down">{swatch('downColor', 'Down %')}</Row>
+            </>
+          )}
 
           {/* Optional extra sections — color swatches (default) or a segmented
              * pick control (row.type === 'segmented', e.g. Header shows Ticker/

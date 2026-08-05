@@ -4,6 +4,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // add fetch calls the assertions don't expect. Rendered as a real, findable
 // element (not null) so tests can assert its presence/absence per entry.
 vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <button>Share to Floor</button> }))
+// The ⚙ appearance settings read prefs; stub the hook so it doesn't add a
+// /api/auth/preferences fetch that would shift the fetch-call assertions below.
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (v, d) => d }))
 import AiSearchWidget from './AiSearchWidget'
 
 // Plain JSON mock — has no .body stream, so run() falls back to the
