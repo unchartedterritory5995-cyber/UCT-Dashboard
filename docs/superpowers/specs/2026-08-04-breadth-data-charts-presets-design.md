@@ -106,13 +106,24 @@ no divergence bookkeeping.
 part of it that actually gets used is "reopen how I left it", which persistence gives
 for one prefs key.
 
-## Data finding (out of scope, needs a separate fix)
+## Data finding — since FIXED (2026-08-05)
 
-**`naaim` is dead.** It varied Jan–Mar 2026 (60.24 → 92.58), then returned exactly
-`75.00` for every trading day from 2026-04-01 onward — 88 consecutive rows, one distinct
-value. That's a stuck fallback in `breadth_collector.py`, not a charting bug. It is
-excluded from the Sentiment preset (it would plot as a dead flat line) but left in the
-picker. A test asserts no preset references it.
+**`naaim` was dead.** It returned exactly `75.00` on 93 consecutive trading days
+(2026-03-23 → 2026-08-04). Root cause was a seeded placeholder
+(`{"exposure": 75.0, "date": ""}`) that a cache read trusted without checking its date
+— which also suppressed the live sources beneath it.
+
+Fixed in `breadth_collector.py` + `morning_wire_engine.py` (uct-intelligence `3c9200d`,
+morning-wire `4daf1ef`), and the column was rebuilt from NAAIM's own published weekly
+series: 97 rows restored to real values, 52 correctly nulled. Reconstruction validated
+at 56/56 against rows written while the scrape still worked.
+
+It stays out of the Sentiment preset for a different reason now: **NAAIM's own survey has
+not published since 2026-04-29**, so the series legitimately ends there. Still selectable
+in the picker. A test asserts no preset references it.
+
+A permanent detector for this defect class ships as
+`uct-intelligence/scripts/breadth_freeze_audit.py`.
 
 ## Known nits (pre-existing, not introduced here)
 

@@ -180,8 +180,11 @@ export function unitOf(key) {
 // the FIRST metric takes the left axis (see resolveAxes). Each preset is
 // therefore ordered intended-left-first.
 //
-// NAAIM is deliberately absent — the collector has emitted a constant 75.00
-// since 2026-04-01, so it would plot as a dead flat line.
+// NAAIM is deliberately absent. The collector bug that pinned it to 75.00 is
+// fixed and its history rebuilt (2026-08-05), but NAAIM's own feed has not
+// published since 2026-04-29 — so the series legitimately ends there and is
+// null after. Still selectable in the picker; just not preset material until
+// the survey resumes.
 
 export const CHART_PRESETS = [
   {
