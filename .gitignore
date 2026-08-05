@@ -25,6 +25,13 @@ tools/ui_sweep_out/
 
 # Chart parity gate captures + diffs (local only; regenerate with tools/chart_parity.py)
 tools/chart_parity_out/
+# ...and every SUFFIXED output dir. B5 Task 11 ran six pairs at once
+# (--out tools/chart_parity_out_main, _sep, _axis, _hgt, _bandsdet,
+# _panesdet); only the bare name was ignored, so a 3,000-PNG scratch dir
+# showed up as untracked next to the commit it must never be part of.
+tools/chart_parity_out_*/
+# The built dists a parity run serves (`cp -r app/dist .parity-dist-a`).
+.parity-dist-*/
 tools/_local_backend.log
 
 # SnapTrade smoke-test state (contains a userSecret)

@@ -50,10 +50,17 @@ cp = pytest.importorskip(
 
 # ─── a page that hands out a scripted sequence of frames ─────────────────────
 
-def png(color, *, dot=None):
+def png(color, *, dot=None, size=(40, 20)):
     """A 40x20 PNG. `dot` paints ONE pixel a different colour — the shape of the
     real artefact this gate exists for (a single scanline of a dashed line)."""
-    img = Image.new("RGB", (40, 20), color)
+    # WARNING: `size` EXISTS BECAUSE THE CASE FILE GREW RECTANGLES. B5 Task 11
+    # put a `regions` block on every live case, sized for the real 1200x620
+    # export, and `validate_regions` refuses a box that falls off the canvas --
+    # deliberately, because Pillow pads an over-the-edge crop with BLACK, which
+    # counts as UNCHANGED and would make the region under-report forever. So a
+    # test driving `main()` over a REAL case has to hand it a real-sized frame;
+    # the 40x20 default stays for the unit tests that hand `diff` their own boxes.
+    img = Image.new("RGB", size, color)
     if dot is not None:
         img.putpixel(dot[0], dot[1])
     buf = BytesIO()
@@ -344,7 +351,7 @@ def test_main_EXITS_0_when_every_capture_is_identical(monkeypatch, tmp_path):
     # THE CONTROL FOR THE TEST ABOVE, in the file rather than in a shell history:
     # if `main()` returned 1 unconditionally, the ChartNotSettledError case would
     # pass for the wrong reason and prove nothing.
-    frame = png("#0e0f0d")
+    frame = png("#0e0f0d", size=(1200, 620))
 
     def settles(page, url, out_png, *_a, **_kw):
         Path(out_png).parent.mkdir(parents=True, exist_ok=True)
@@ -473,10 +480,19 @@ def test_a_priceLine_false_case_emits_priceline_0_ON_BOTH_SIDES():
 def test_a_case_that_does_NOT_declare_it_gets_no_priceline_param():
     # The control: if `case_url` emitted `priceline=0` unconditionally the test
     # above would pass while the param had stopped meaning anything.
-    case = dict(_case_named("rsi_only"))
+    #
+    # WARNING: THE SUBJECT IS CHOSEN, NOT NAMED. This used to hard-code
+    # `rsi_only`, and B5 Task 11 measured that case bistable under the cutover
+    # and gave it the flag -- at which point the control went red for a reason
+    # that had nothing to do with `case_url`. So it picks a case that still
+    # declines the flag, and asserts there IS one.
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    without = [c for c in doc["cases"] if c.get("priceLine") is None]
+    assert without, ("every case now declares `priceLine` -- this control has no "
+                     "subject left and would pass vacuously")
+    case = dict(without[0])
     case["_settings"] = {}
     case.setdefault("fixedbars", "ramp200")
-    assert case.get("priceLine") is None
     assert "priceline" not in cp.case_url("http://a", case, "", side="a")
 
 
@@ -935,7 +951,7 @@ def test_main_REFUSES_a_base_that_cannot_be_verified(monkeypatch, tmp_path, bad_
         return {"verified": True, "root": "/fake", "pid": 0,
                 "index_sha256": "x", "files_checked": 2}
 
-    frame = png("#0e0f0d")
+    frame = png("#0e0f0d", size=(1200, 620))
 
     def settles(page, url, out_png, *_a, **_kw):
         Path(out_png).parent.mkdir(parents=True, exist_ok=True)
@@ -1610,7 +1626,7 @@ def test_expect_and_a_tolerance_BUDGET_cannot_both_be_declared(monkeypatch, tmp_
 
 
 def test_main_EXITS_1_when_the_measured_diff_is_not_the_EXPECTED_number(monkeypatch, tmp_path):
-    frame = png("#0e0f0d")
+    frame = png("#0e0f0d", size=(1200, 620))
 
     def settles(page, url, out_png, *_a, **_kw):
         Path(out_png).parent.mkdir(parents=True, exist_ok=True)
@@ -1629,7 +1645,7 @@ def test_main_EXITS_0_when_the_measured_diff_IS_the_expected_number(monkeypatch,
     """The control for the test above AND the proof that `--expect` reaches the
     entry at all: if it were dropped on the floor both would still exit 1 for
     unrelated reasons."""
-    frame = png("#0e0f0d")
+    frame = png("#0e0f0d", size=(1200, 620))
 
     def settles(page, url, out_png, *_a, **_kw):
         Path(out_png).parent.mkdir(parents=True, exist_ok=True)
@@ -1668,8 +1684,15 @@ def test_main_carries_the_case_file_REGIONS_and_the_PAGE_MANIFEST_into_report_js
     assert rc == 0
     run = json.loads((tmp_path / "out" / "report.json").read_text(
         encoding="utf-8"))["results"][0]["runs"][0]
-    assert run["regions"] == {"price_top": 0, "rsi_band": 0,
-                              "volume_and_axis": 0, "rest": 0}, (
+    # ⚠️ THE NAMES ARE READ FROM THE CASE FILE, NOT LISTED HERE. They changed once
+    # already (B5 Task 11 replaced `rsi_only`'s three band-era rectangles with the
+    # two derived from the pane manifest) and a hard-coded list turns a rename into
+    # a red in the WIRING test, which says nothing about the wiring. What is
+    # load-bearing is that every declared rectangle arrived and that `rest` came
+    # with them — so that is what is asserted, plus a non-vacuity floor.
+    declared = [r["name"] for r in _real_case("rsi_only")["regions"]]
+    assert len(declared) >= 2, "rsi_only stopped declaring rectangles"
+    assert run["regions"] == {**{n: 0 for n in declared}, "rest": 0}, (
         "the case file's rectangles never reached `diff` — the region gate is inert")
     assert run["manifest_a"] == manifest and run["manifest_b"] == manifest, (
         "the page's manifest never reached the run — the geometry gate is inert")
@@ -1688,3 +1711,65 @@ def test_a_case_file_region_reaches_the_ENTRY_and_the_report(monkeypatch, tmp_pa
     assert entry["expect_regions"] == {"price_plot": 0}, (
         "only a region that DECLARES an expectation becomes one — a region "
         "without `expect` is measured and reported, not gated")
+
+
+# ─── the case file's own region blocks (B5 Task 11) ──────────────────────────
+
+def _real_case(name):
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    for case in doc["cases"]:
+        if case["name"] == name:
+            return case
+    raise AssertionError(f"case {name} is gone from chart_parity_cases.json")
+
+
+def test_every_region_block_in_the_case_file_survives_validate_regions():
+    """⭐ THE RAIL THE REAL FILE NEVER HAD. Every unit above validates a region
+    list somebody wrote INSIDE the test; none of them looks at the ~46 blocks the
+    gate actually runs. B5 Task 11 put a block on every live case, so a bad one is
+    now something a person can commit — a rectangle named `rest`, a zero-height
+    box, a duplicate name, a box off the canvas — and each of those reads exactly
+    like a region that is holding the line."""
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    defaults = doc["defaults"]
+    checked = 0
+    for case in doc["cases"]:
+        regions = case.get("regions")
+        if not regions:
+            continue
+        cp.validate_regions(regions)          # SystemExit on rest / zero-area / dupes
+        w = case.get("w", defaults["w"])
+        h = case.get("h", defaults["h"])
+        for r in regions:
+            x0, y0, x1, y1 = r["box"]
+            assert 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h, (
+                f"{case['name']}/{r['name']} box {r['box']} is not inside {w}x{h} — "
+                "`diff` pads an out-of-canvas crop with BLACK, which counts as "
+                "UNCHANGED, so the region would under-report forever")
+        checked += 1
+    assert checked >= 46, (
+        f"only {checked} case(s) carry a region block — Task 11 put one on all 46, "
+        "and a rail with no subject is not a rail")
+
+
+def test_every_region_block_records_the_TWO_BUILDS_it_was_derived_from():
+    """⛔ A HAND-DRAWN BOX IS A HAND-COPY. `tools/gen_parity_regions.py` derives
+    every rectangle from the pane manifest of two builds and stamps
+    `_regionsFrom` with both identities and both sides' pane heights. Without the
+    stamp a box is indistinguishable from one somebody read off a screenshot,
+    which is the defect this branch has shipped twice."""
+    import re
+    doc = json.loads((ROOT / "tools" / "chart_parity_cases.json").read_text(encoding="utf-8"))
+    checked = 0
+    for case in doc["cases"]:
+        if not case.get("regions"):
+            continue
+        stamp = case.get("_regionsFrom")
+        assert stamp, f"{case['name']} declares rectangles with no derivation stamp"
+        ids = set(re.findall(r"\b[0-9a-f]{12}\b", stamp))
+        assert len(ids) >= 2, (
+            f"{case['name']}'s stamp names {sorted(ids)} — a rectangle derived from "
+            "one build is a rectangle nobody can reproduce")
+        assert "paneHeights" in stamp, f"{case['name']}'s stamp carries no pane heights"
+        checked += 1
+    assert checked >= 46, f"only {checked} stamped block(s) — the rail lost its subject"
