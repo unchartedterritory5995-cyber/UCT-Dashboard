@@ -245,6 +245,13 @@ def get_earnings_intel(ticker: str) -> dict | None:
                          None when Finnhub omits them, never a phantom 0.
         consensus     – {buy, hold, sell, strongBuy, strongSell, period}
         price_target  – {targetHigh, targetLow, targetMean, targetMedian, lastUpdated}
+                         Finnhub primary; falls back to FMP's
+                         stable/price-target-consensus when Finnhub's
+                         /stock/price-target 403s plan-forbidden (not
+                         transient — simply unavailable on this account's
+                         tier). FMP has no analog for targetMean/lastUpdated,
+                         so those stay None on the fallback path rather than
+                         being fabricated from a different-named FMP field.
     """
     ticker = ticker.upper()
     cache_key = f"earnings_intel_{ticker}"
@@ -302,6 +309,18 @@ def get_earnings_intel(ticker: str) -> dict | None:
             "targetMedian": pt_raw.get("targetMedian"),
             "lastUpdated": pt_raw.get("lastUpdated", ""),
         }
+    if price_target is None:
+        # Finnhub stays primary above — this only fires when it yielded
+        # nothing. /stock/price-target 403s plan-forbidden on this account
+        # (cached via _FH_FORBIDDEN_TTL, see _fh_get) — not a transient
+        # failure, that endpoint is simply not on the current tier. FMP's
+        # stable/price-target-consensus IS live on this plan (analyst_grades.py
+        # already calls it for a different surface) and covers the same range
+        # data. A DIFFERENT provider budget: never touches _fh_take_token or
+        # _fh_cooldown_until, and carries its own bounded timeout (never an
+        # unbounded external call on the shared request-path threadpool — the
+        # documented 524-outage class here).
+        price_target = _fmp_price_target_fallback(ticker)
 
     # If all three failed, negative-cache briefly. Uncached failures made every
     # 5-min enrichment recompute retry the whole day's reporters × 3 calls —
@@ -354,6 +373,19 @@ def _int_or_none(v):
         return None
 
 
+def _float_or_none(v):
+    """float(v) preserving None. Mirrors _int_or_none — a bare `float(v or 0)`
+    would turn an absent FMP price-target field into a phantom 0.0, and a
+    genuine 0.0 target must not collapse to None either. Used by the FMP
+    price-target fallback below."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _surprise_pct(actual, estimate):
     """% surprise of actual vs estimate = (actual - estimate) / |estimate| * 100.
     None when either side is missing or the estimate is zero."""
@@ -380,6 +412,45 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
     except Exception as exc:
         _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
         return None
+
+
+def _fmp_price_target_fallback(ticker: str) -> dict | None:
+    """FMP `stable/price-target-consensus` fallback for get_earnings_intel's
+    price_target leg, used ONLY when Finnhub yielded nothing (see call site).
+
+    Maps ONLY the fields FMP actually supplies, under the SAME output shape as
+    the Finnhub leg (targetHigh/targetLow/targetMean/targetMedian/lastUpdated)
+    so downstream consumers (research Overview tab, voice market tools) need
+    no change. targetHigh/targetLow/targetMedian have direct FMP analogs.
+    FMP has NO analog for targetMean — its `targetConsensus` field is a
+    separately-computed statistic, not documented as a plain mean — so
+    targetMean stays None rather than being fabricated under the wrong name.
+    `lastUpdated` is likewise absent from this endpoint and stays None too.
+
+    `_fmp_get` already bounds the call (4s timeout, own try/except, never
+    raises) and is a different provider entirely — it never touches the
+    Finnhub token bucket (`_fh_take_token`) or cooldown (`_fh_cooldown_until`)
+    above, so a busy Finnhub minute can't starve this fallback and vice versa.
+
+    Returns None (never an all-None dict) when FMP has nothing usable, so the
+    caller's `partial` calculation still treats the leg as genuinely missing.
+    """
+    data = _fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4)
+    row = data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
+    if not row:
+        return None
+    high = _float_or_none(row.get("targetHigh"))
+    low = _float_or_none(row.get("targetLow"))
+    median = _float_or_none(row.get("targetMedian"))
+    if high is None and low is None and median is None:
+        return None
+    return {
+        "targetHigh": high,
+        "targetLow": low,
+        "targetMean": None,
+        "targetMedian": median,
+        "lastUpdated": None,
+    }
 
 
 def _fiscal_q_from_report(date_str: str):
