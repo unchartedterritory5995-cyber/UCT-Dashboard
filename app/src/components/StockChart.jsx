@@ -5580,6 +5580,23 @@ export default function StockChart({
         volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
       _applyData(volumeSeriesRef.current, volData)
+      // Re-top the developing VOLUME bar to the live bucket, mirroring the candle
+      // re-top above. On a settings change updateChart re-runs and this setData reverts
+      // the volume series to volData; when a bucket has rolled LIVE but SWR hasn't
+      // refetched yet, volData's last bar is the PREVIOUS (full, often HVC-gold) bucket,
+      // so it renders as the current bar — the reported "volume bar shoots up then
+      // reverts" spike. Only fires during that roll-gap (live bar strictly newer than
+      // volData's last). Push tracks liveBarRef.volume; the Finnhub/REST path has no live
+      // volume, so it paints ~0 until the next fetch fills it (Writer A's new-bar default).
+      {
+        const _lb = liveBarRef.current
+        const _vLast = volData.length ? volData[volData.length - 1] : null
+        if (_lb?.time != null && _vLast && _lb.time > _vLast.time) {
+          const _vUpN = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vVal = Number.isFinite(_lb.volume) ? _lb.volume : 0
+          try { volumeSeriesRef.current.update({ time: _lb.time, value: _vVal, color: _vUpN }) } catch { /* time regressed / disposed */ }
+        }
+      }
 
       // Subtle smooth volume MA line on the same pane/scale as the bars.
       if (volMaPeriodEff && volMaData.length) {
