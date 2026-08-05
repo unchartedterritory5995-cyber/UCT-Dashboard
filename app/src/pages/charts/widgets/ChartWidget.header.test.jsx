@@ -36,13 +36,23 @@ vi.mock('../../../hooks/useFundamentalSnapshot', () => ({
   }),
 }))
 vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {}, loading: false }) }))
-vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
+// Configurable mock — a mutable `vi.fn()` so individual tests can override the
+// return value (e.g. to exercise the theme-index branches) without disturbing
+// every other test's default `isIndex: false` shape. Reset in beforeEach.
+vi.mock('../../../hooks/useThemeIndexBars', () => ({
+  default: vi.fn(() => ({ isIndex: false, bars: null, name: null, sector: null, loading: false })),
+}))
 vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => ({ name: 'SPDR S&P 500 ETF Trust' }) }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
 // Deterministic session so the extended-hours button label is stable.
 vi.mock('../../../utils/extSession', () => ({ getExtSessionCached: () => ({ session: 'post' }) }))
 
 import ChartWidget from './ChartWidget'
+import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
+
+beforeEach(() => {
+  useThemeIndexBars.mockReturnValue({ isIndex: false, bars: null, name: null, sector: null, loading: false })
+})
 
 function Wrap({ opts = {}, onOptsChange = () => {} }) {
   const [groupSyms, setGroupSyms] = useState({ A: 'SPY', B: null, C: null, D: null })
@@ -90,6 +100,32 @@ test('identity row shows the company name, the day gain and the market clock', (
 test('titleMode "both" renders TICKER (Company)', () => {
   render(<Wrap opts={{ settings: { header: { titleMode: 'both' } } }} />)
   expect(screen.getByTestId('sym-label').textContent).toBe('SPY (SPDR S&P 500 ETF Trust)')
+})
+
+// ── Identity row — theme-index day-change branch ───────────────────────────
+// Every other test in this file mocks useThemeIndexBars to isIndex:false, so
+// the `showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}` guard on
+// ChartWidget's ChartIdentityRow call site has zero coverage without these two.
+// This first case is the one that must die if the guard is dropped to a bare
+// `hdr.showChange` — see the reviewer's mutation in the report.
+test('a theme index without a computed gain renders no day-change at all', () => {
+  useThemeIndexBars.mockReturnValue({ isIndex: true, bars: null, name: 'AI Infrastructure', loading: false })
+  render(<Wrap />)
+  expect(screen.queryByTestId('day-gain')).toBeNull()
+})
+
+test('a theme index with a computed gain renders the inline formatted span, not ChartDayGain', () => {
+  useThemeIndexBars.mockReturnValue({
+    isIndex: true,
+    // idxGain is derived from the last two bars' close (see ChartWidget's
+    // idxGain useMemo): abs = 105-100 = 5, pct = 5/100*100 = 5.00%.
+    bars: [{ c: 100 }, { c: 105 }],
+    name: 'AI Infrastructure',
+    loading: false,
+  })
+  render(<Wrap />)
+  expect(screen.getByText('+5.00 (+5.00%)')).toBeTruthy()
+  expect(screen.queryByTestId('day-gain')).toBeNull()
 })
 
 // ── Session toggle ─────────────────────────────────────────────────────────
