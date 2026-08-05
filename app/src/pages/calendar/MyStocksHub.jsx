@@ -12,7 +12,7 @@
 // Per-tab unseen count badge shown on the tab button.
 // Mobile: stacked layout (no horizontal scroll needed).
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import useSWR from 'swr'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import {
@@ -28,11 +28,32 @@ import useSeen from '../../hooks/useSeen'
 import { SentimentGaugeDisplay } from '../../components/calendar/SentimentGauge'
 import useSentiment from '../../hooks/useSentiment'
 import CallRecapSection from '../../components/calendar/CallRecapSection'
-import EarningsModal from '../../components/tiles/EarningsModal'
+import EarningsResearchModal from '../../components/research/EarningsResearchModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import { toModalRow, timingLabel } from './earningsModalRow'
+import useEarningsModalRoute from './useEarningsModalRoute'
+import useSettledSym from '../../hooks/useSettledSym'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
+
+// ET-anchored "today" — mirrors Calendar.jsx's own helper (kept local so this
+// mount stays self-contained per the P2 T11 rollback contract: a shared
+// import here would also pull Calendar.jsx's whole subtree — CalendarHeader,
+// FeedView, WeekView, MonthView, DayDetailDrawer — into this lazy chunk).
+function todayIso() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+    .format(new Date())
+}
+
+// § pushedRef staleness (promoted from Task 4 review) — mirrors
+// Calendar.jsx's `shouldUnwindHistory` (duplicated rather than imported, same
+// reason as todayIso above). See Calendar.jsx for the full rationale: a
+// native Back can null route.sym without ever calling our close(), leaving
+// useEarningsModalRoute's internal pushedRef stale — every dismiss path
+// reconciles against the live URL before asking the router to unwind history.
+function shouldUnwindHistory(route) {
+  return !!(route?.routed && route?.sym)
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -73,30 +94,11 @@ function useSeenForTab(tabId) {
 
 // ── Sub-tab: Earnings ─────────────────────────────────────────────────────────
 
-function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
-  const { data: calData } = useCalendar()
-
-  const entries = useMemo(() => {
-    if (!calData || !mineSyms.size) return []
-    const out = []
-    for (const [, day] of Object.entries(calData.days || {})) {
-      // Tag each entry with its session timing — EarningsCard requires `timing`
-      // (renders timing.toUpperCase()). All hub entries are "mine" → mine:true.
-      for (const e of (day.bmo || [])) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'bmo', mine: true })
-      }
-      for (const e of (day.amc || [])) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'amc', mine: true })
-      }
-      // Session-unconfirmed reporters live in tbd now (never coerced into
-      // amc) — the hub must not silently lose names it showed before.
-      for (const e of (day.tbd || [])) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'tbd', mine: true })
-      }
-    }
-    return out
-  }, [calData, mineSyms])
-
+// `entries` is computed once at the MyStocksHub top level (single source of
+// truth shared with arrow-stepping) and passed down — this tab used to run
+// its own useCalendar()+filter pass, which would have drifted from the
+// parent's stepping list.
+function EarningsTab({ entries, onSelect, seen, markSeen }) {
   const bmoEntries = useMemo(() => entries.filter(e => e._timing === 'bmo'), [entries])
   const amcEntries = useMemo(() => entries.filter(e => e._timing === 'amc'), [entries])
   const tbdEntries = useMemo(() => entries.filter(e => e._timing === 'tbd'), [entries])
@@ -329,14 +331,14 @@ export default function MyStocksHub() {
   const { prefs, setPref } = usePreferences()
   const { data: mySets } = useCalendarMySets()
   const [activeTab, setActiveTab] = useState('earnings')
-  const [selected, setSelected] = useState(null)   // { row, label } for EarningsModal
+  const [selected, setSelected] = useState(null)   // { row, label, reportDate, timing }
 
-  // Open the earnings detail modal for a clicked card. `_timing` rides on the
-  // hub entry (set in EarningsTab) so we don't need a separate timing arg.
-  const openEntry = useCallback(
-    entry => setSelected({ row: toModalRow(entry), label: timingLabel(entry?._timing) }),
-    [],
-  )
+  // ── Earnings research modal: URL-routed at this mount (P2 T11 / §4.4) ─────
+  // Same hook as Calendar.jsx, resolved against this hub's OWN list — there
+  // is no week to jump to here, so the ladder is just hit-in-list vs the
+  // minimal row (never a fetch, never a loop-guard needed).
+  const { pathname } = useLocation()
+  const route = useEarningsModalRoute({ enabled: true, pathname })
 
   const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
@@ -345,6 +347,78 @@ export default function MyStocksHub() {
     () => buildMySymsSet(mySets, mySources),
     [mySets, mySources],
   )
+
+  // Single source of truth for the Earnings tab's list — also what
+  // arrow-stepping steps across, so the two can never drift.
+  const { data: calData, mutate: refreshEarnings } = useCalendar()
+  const earningsEntries = useMemo(() => {
+    if (!calData || !mineSyms.size) return []
+    const out = []
+    for (const [, day] of Object.entries(calData.days || {})) {
+      for (const e of (day.bmo || [])) {
+        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'bmo', mine: true })
+      }
+      for (const e of (day.amc || [])) {
+        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'amc', mine: true })
+      }
+      // Session-unconfirmed reporters live in tbd now (never coerced into
+      // amc) — the hub must not silently lose names it showed before.
+      for (const e of (day.tbd || [])) {
+        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'tbd', mine: true })
+      }
+    }
+    return out
+  }, [calData, mineSyms])
+
+  // Open the earnings detail modal for a clicked card. `_timing` rides on the
+  // hub entry (set above) so we don't need a separate timing arg. Routes
+  // through the URL when routed (§4.4) — the modal state itself is set by
+  // the resolution effect below, so there is ONE code path that opens it.
+  const openEntry = useCallback(entry => {
+    if (route.routed) { route.open(entry.sym); return }
+    setSelected({ row: toModalRow(entry), label: timingLabel(entry?._timing),
+                  reportDate: entry?.date ?? null, timing: entry?._timing ?? null })
+  }, [route])
+
+  // ── Deep-link resolution against the hub's OWN list (no week to jump to).
+  // Guarded on route.routed so the non-routed fallback above (unreachable in
+  // production — this hub only ever mounts at /calendar/mystocks, which IS a
+  // routed path — but exercised by tests that render this component off that
+  // path) is never clobbered by an effect that only makes sense once routed.
+  useEffect(() => {
+    if (!route.routed) return
+    const want = route.sym
+    if (!want) { setSelected(null); return }
+    if (selected?.row?.sym === want) return
+    const found = earningsEntries.find(e => (e.sym || '').toUpperCase() === want)
+    if (found) {
+      setSelected({ row: toModalRow(found), label: timingLabel(found._timing),
+                    reportDate: found.date ?? null, timing: found._timing })
+      return
+    }
+    // Unresolvable in this hub's own list → the minimal row, never a blank
+    // modal. There is no week to jump to here, so this is the terminal step.
+    setSelected((prev) => (prev?.row?.sym === want ? prev
+      : { row: { sym: want }, label: timingLabel(null), reportDate: null, timing: null }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.routed, route.sym, earningsEntries])
+
+  // ── Stepping across the Earnings-tab list ──────────────────────────────────
+  const stepIdx = earningsEntries.findIndex(e => (e.sym || '').toUpperCase() === selected?.row?.sym)
+  const stepTo = useCallback((delta) => {
+    const next = earningsEntries[stepIdx + delta]
+    if (next) route.step(next.sym)
+  }, [earningsEntries, stepIdx, route])
+
+  const { stepping } = useSettledSym(selected?.row?.sym ?? null)
+  const isTodayReporter = selected?.reportDate === todayIso()
+
+  // Every dismiss path (Escape / backdrop / × — all three fire through this
+  // one onClose) reconciles against the live URL via shouldUnwindHistory.
+  const dismissModal = useCallback(() => {
+    if (shouldUnwindHistory(route)) route.close()
+    else setSelected(null)
+  }, [route])
 
   // Read/unseen state — one hook per tab type (rules of hooks: called unconditionally)
   const earnSeen  = useSeen('earnings')
@@ -400,7 +474,7 @@ export default function MyStocksHub() {
       <div className={styles.hubPanel} role="tabpanel">
         {activeTab === 'earnings' && (
           <EarningsTab
-            mineSyms={mineSyms}
+            entries={earningsEntries}
             onSelect={openEntry}
             seen={seenMap.earnings.seen}
             markSeen={seenMap.earnings.markSeen}
@@ -435,17 +509,27 @@ export default function MyStocksHub() {
       {/* Earnings detail modal — opened by clicking a card in the Earnings tab */}
       {selected && (
         <ErrorBoundary
-          key={selected.row.sym}
           fallback={
             <div style={{ color: 'var(--text-muted)', fontSize: '11px', padding: '12px' }}>
               Unable to load — click a ticker to retry.
             </div>
           }
         >
-          <EarningsModal
+          {/* NO `key` (§4.4) — see Calendar.jsx: the shell is reused across
+              arrow-stepping and resets its own state on a symbol change. */}
+          <EarningsResearchModal
             row={selected.row}
             label={selected.label}
-            onClose={() => setSelected(null)}
+            reportDate={selected.reportDate}
+            timing={selected.timing}
+            section={route.section}
+            onSectionChange={route.setSection}
+            onClose={dismissModal}
+            onStepPrev={stepIdx > 0 ? () => stepTo(-1) : null}
+            onStepNext={stepIdx >= 0 && stepIdx < earningsEntries.length - 1 ? () => stepTo(1) : null}
+            stepping={stepping}
+            onPollActuals={refreshEarnings}
+            isTodayReporter={isTodayReporter}
           />
         </ErrorBoundary>
       )}

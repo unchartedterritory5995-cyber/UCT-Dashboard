@@ -4,9 +4,11 @@
 // Week paging (?week=YYYY-MM-DD&d=YYYY-MM-DD), ticker search jump, and
 // land-on-today: calendar flagship Deploy 1b.
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import ErrorBoundary from '../components/ErrorBoundary'
-import EarningsModal from '../components/tiles/EarningsModal'
+import EarningsResearchModal from '../components/research/EarningsResearchModal'
+import useEarningsModalRoute, { resolveFeedEntry } from './calendar/useEarningsModalRoute'
+import useSettledSym from '../hooks/useSettledSym'
 import { toModalRow, timingLabel } from './calendar/earningsModalRow'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import {
@@ -70,6 +72,23 @@ function todayIso() {
     .format(new Date())
 }
 
+// § pushedRef staleness (promoted from Task 4 review). A native browser Back
+// can null `route.sym` without ever calling our close() —
+// useEarningsModalRoute's internal `pushedRef` has no way to observe
+// browser-driven history traversal, so it can go stale relative to the
+// CURRENT top-of-history entry. Blindly delegating every dismiss to
+// route.close() risks its navigate(-1) unwinding onto a history entry that
+// has nothing to do with this modal. This is the reconciliation: only ask
+// the router to unwind history when the live URL still shows a symbol open
+// right now; otherwise there is nothing of ours left in the URL to close.
+// Exported as a pure function of `route` so the decision itself is
+// unit-testable without needing to reproduce the underlying browser-timing
+// race (React's passive-effect flush collapses that race to a single atomic
+// step under any `act()`-based test harness, jsdom included).
+export function shouldUnwindHistory(route) {
+  return !!(route?.routed && route?.sym)
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const ALL_SOURCES = ['watchlist', 'flagged', 'positions', 'uct20']
@@ -103,6 +122,11 @@ export default function Calendar() {
   const [selected, setSelected] = useState(null)   // { row, label }
   const [openDay, setOpenDay] = useState(null)      // { ds, day } for DayDetailDrawer
   const [pulse, setPulse] = useState(null)           // { sym, ds } — search jump target
+
+  // ── Earnings research modal: URL-routed at this mount (P2 T11 / §4.4) ─────
+  const { pathname } = useLocation()
+  const route = useEarningsModalRoute({ enabled: true, pathname })
+  const resolveRef = useRef(null)   // guards the next-report fetch — one ask per symbol
 
   // Month cursor — component state (not persisted; resets to current month on page mount)
   const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
@@ -253,6 +277,67 @@ export default function Calendar() {
     }
     return out
   }, [data, weekDates, mySets, mySources, enrichmentByDate, metricsByDate])
+
+  // ── Deep-link resolution ladder (§4.4). Never a blank modal, never a loop. ──
+  useEffect(() => {
+    const want = route.sym
+    if (!want) { setSelected(null); return }
+    if (selected?.row?.sym === want) return
+
+    const hit = resolveFeedEntry(want, days)
+    if (hit) {
+      resolveRef.current = null
+      setSelected({ row: toModalRow(hit.entry), label: timingLabel(hit.timing),
+                    reportDate: hit.ds, timing: hit.timing, entry: hit.entry })
+      return
+    }
+    // Ask ONCE per symbol; a failed lookup must never re-fire.
+    if (resolveRef.current === want) {
+      setSelected((prev) => (prev?.row?.sym === want ? prev
+        : { row: { sym: want }, label: timingLabel(null), reportDate: null, timing: null }))
+      return
+    }
+    resolveRef.current = want
+    fetch(`/api/calendar/next-report?sym=${encodeURIComponent(want)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const monday = d?.date ? mondayOf(d.date) : null
+        if (monday) route.jumpToWeek(monday)
+        else {
+          setSelected({ row: { sym: want }, label: timingLabel(null),
+                        reportDate: null, timing: null })
+        }
+      })
+      .catch(() => {
+        setSelected({ row: { sym: want }, label: timingLabel(null),
+                      reportDate: null, timing: null })
+      })
+  }, [route.sym, days])       // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Stepping across the open day's reporters ──────────────────────────────
+  const daySyms = useMemo(() => {
+    const ds = selected?.reportDate
+    const day = ds ? days?.[ds] : null
+    if (!day) return []
+    return ['bmo', 'amc', 'tbd'].flatMap((t) => (day[t] || []).map((e) => e.sym))
+  }, [days, selected?.reportDate])
+
+  const stepIdx = daySyms.indexOf(selected?.row?.sym)
+  const stepTo = useCallback((delta) => {
+    const next = daySyms[stepIdx + delta]
+    if (next) route.step(next)
+  }, [daySyms, stepIdx, route])
+
+  const { stepping } = useSettledSym(selected?.row?.sym ?? null)
+  const isTodayReporter = selected?.reportDate === todayIso()
+
+  // Every dismiss path (Escape / backdrop / the × button — all three fire
+  // through this one onClose) goes through shouldUnwindHistory (see above)
+  // rather than blindly calling route.close().
+  const dismissModal = useCallback(() => {
+    if (shouldUnwindHistory(route)) route.close()
+    else setSelected(null)
+  }, [route])
 
   // Quick-bar summary: how much of the loaded week is visible under the
   // current filters (raw vs filtered), plus the user's own count. Cheap loop
@@ -487,10 +572,15 @@ export default function Calendar() {
     }
   }, [data, dParam, weekDates, isCurrentWeek, view, mySets, scrollToDay])
 
-  // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
+  // ── onSelect: routes through the URL when routed (§4.4) — the modal state
+  //    itself is set by the deep-link resolution effect above, so there is
+  //    ONE code path that opens it. Falls back to local state off the two
+  //    routed surfaces (dead in production here — Calendar.jsx only ever
+  //    mounts at /calendar — kept so a future non-routed reuse still works).
   const onSelect = (entry, timing) => {
-    const label = timingLabel(timing)
-    setSelected({ row: toModalRow(entry), label, reportDate: entry._ds, timing })
+    if (route.routed) { route.open(entry.sym); return }
+    setSelected({ row: toModalRow(entry), label: timingLabel(timing),
+                  reportDate: entry._ds, timing })
   }
 
   const weekLabel = data?.week_start && data?.week_end
@@ -630,14 +720,24 @@ export default function Calendar() {
               Unable to load — click a ticker to retry.
             </div>
           }
-          key={selected.row.sym}
         >
-          <EarningsModal
+          {/* NO `key` (§4.4): the modal shell is REUSED across arrow-stepping.
+              A key here remounts it on every symbol change, which throws away
+              the shell, the section scroll map and the settle debounce. The
+              modal already resets its own state on a symbol change. */}
+          <EarningsResearchModal
             row={selected.row}
             label={selected.label}
             reportDate={selected.reportDate}
             timing={selected.timing}
-            onClose={() => setSelected(null)}
+            section={route.section}
+            onSectionChange={route.setSection}
+            onClose={dismissModal}
+            onStepPrev={stepIdx > 0 ? () => stepTo(-1) : null}
+            onStepNext={stepIdx >= 0 && stepIdx < daySyms.length - 1 ? () => stepTo(1) : null}
+            stepping={stepping}
+            onPollActuals={mutate}
+            isTodayReporter={isTodayReporter}
           />
         </ErrorBoundary>
       )}

@@ -104,8 +104,8 @@ vi.mock('../../components/calendar/CallRecapSection', () => ({
   default: ({ recap }) => <div data-testid="call-recap">{recap?.headline}</div>,
 }))
 
-// Mock EarningsModal — assert it opens on card click with the right sym + label
-vi.mock('../../components/tiles/EarningsModal', () => ({
+// Mock EarningsResearchModal — assert it opens on card click with the right sym + label
+vi.mock('../../components/research/EarningsResearchModal', () => ({
   default: ({ row, label, onClose }) => (
     <div data-testid="earnings-modal" data-sym={row?.sym} data-label={label}>
       <button onClick={onClose}>close</button>

@@ -3,7 +3,7 @@ import { useState, useRef, useMemo } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
-import EarningsModal from './EarningsModal'
+import EarningsResearchModal from '../research/EarningsResearchModal'
 import ErrorBoundary from '../ErrorBoundary'
 import ErrorState from '../ErrorState'
 import { SkeletonTable } from '../Skeleton'
@@ -143,11 +143,17 @@ export default function CatalystFlow({ data: propData }) {
       </TileCard>
 
       {selected && (
-        <ErrorBoundary fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', padding: '12px' }}>Unable to load — click a ticker to retry.</div>} key={selected.row.sym}>
-          <EarningsModal
+        <ErrorBoundary fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', padding: '12px' }}>Unable to load — click a ticker to retry.</div>}>
+          {/* Plain local state on purpose (§4.4): the Dashboard mounts TWO live
+              CatalystFlow instances (desktop + mobile trees) and its rows come
+              from today's wire list, so URL-driven opening here would both
+              double-render and be unresolvable. No `key` — see Calendar.jsx. */}
+          <EarningsResearchModal
             row={selected.row}
             label={selected.label}
             onClose={() => setSelected(null)}
+            section={null}
+            onSectionChange={() => {}}
           />
         </ErrorBoundary>
       )}
