@@ -88,6 +88,14 @@
     width: var(--tap-min);
     height: var(--tap-min);
     transform: translate(-50%, -50%);
+    /* The expansion reaches ~14px beyond the 16px icon on every side, so it
+       can slip UNDER a sibling that paints later in DOM order — measured on
+       phone, the Break-even range tip's expanded area was obstructed while
+       its siblings' were not (a tap 18px out landed on the neighbour, not the
+       tip). Without a stacking bump the hit area exists in CSS and does
+       nothing under a thumb. `--z-dropdown` is reserved for the popover
+       itself; 1 is enough to clear ordinary in-flow siblings. */
+    z-index: 1;
   }
 }
 
