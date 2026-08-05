@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
-import StockChart from "../components/StockChart";
+import ChartPane from "../components/chart/pane/ChartPane";
 import DarkPool from "./DarkPool";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
@@ -2597,18 +2597,28 @@ export default function OptionsFlowDashboard() {
               </button>
             </div>
             <div style={{ flex:1, minHeight:0 }}>
-              <StockChart
+              {/* The user's OWN chart: stored={null} + no onStore = the global
+                  chart_settings blob, so this popup renders whatever they set up
+                  on /charts. density="compact" because this column is only 320px
+                  tall (see the height:320 parent above) — the full shell would
+                  spend most of it on chrome. The symbol is the contract's, so
+                  onSymbolChange is omitted and the identity row is a static label. */}
+              <ChartPane
                 sym={sym}
                 tf={contractChartTf}
-                height="100%"
-                liveUpdates={true}
-                showDrawingTools={true}
                 onTfChange={setContractChartTf}
-                darkPoolBars={selectedDetailDarkPoolBars}
-                hideReplay
-                hidePatterns
-                hideCompare
-                hideCountdown
+                stored={null}
+                density="compact"
+                stockChartProps={{
+                  height: "100%",
+                  liveUpdates: true,
+                  showDrawingTools: true,
+                  darkPoolBars: selectedDetailDarkPoolBars,
+                  hideReplay: true,
+                  hidePatterns: true,
+                  hideCompare: true,
+                  hideCountdown: true,
+                }}
               />
             </div>
           </div>
@@ -3645,18 +3655,24 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }}>
-                      <StockChart
+                      {/* 500px tall, so the full shell fits. gexPriceLines carries
+                          the gamma walls and MUST reach StockChart — it goes through
+                          stockChartProps, which is spread last. */}
+                      <ChartPane
                         sym={gexData.ticker}
                         tf={gexChartTf}
-                        height={500}
-                        liveUpdates={true}
-                        showDrawingTools={true}
-                        priceLines={gexPriceLines}
                         onTfChange={setGexChartTf}
-                        hideReplay
-                        hidePatterns
-                        hideCompare
-                        hideCountdown
+                        stored={null}
+                        stockChartProps={{
+                          height: 500,
+                          liveUpdates: true,
+                          showDrawingTools: true,
+                          priceLines: gexPriceLines,
+                          hideReplay: true,
+                          hidePatterns: true,
+                          hideCompare: true,
+                          hideCountdown: true,
+                        }}
                       />
                     </div>
                   </div>
@@ -5725,19 +5741,25 @@ export default function OptionsFlowDashboard() {
                       </button>
                     </div>
                     <div style={{ flex:1, minHeight:0 }}>
-                      <StockChart
+                      {/* The big chart modal — min(720px, 92vh) tall, so the full
+                          shell has room. darkPoolBars carries the print overlay and
+                          MUST survive: it rides stockChartProps, spread last. */}
+                      <ChartPane
                         sym={sym}
                         tf={chartInterval}
-                        height="100%"
-                        liveUpdates={true}
-                        showDrawingTools={true}
-                        showVolume={true}
                         onTfChange={setChartInterval}
-                        darkPoolBars={chartModalDarkPoolBars}
-                        hideReplay
-                        hidePatterns
-                        hideCompare
-                        hideCountdown
+                        stored={null}
+                        stockChartProps={{
+                          height: "100%",
+                          liveUpdates: true,
+                          showDrawingTools: true,
+                          showVolume: true,
+                          darkPoolBars: chartModalDarkPoolBars,
+                          hideReplay: true,
+                          hidePatterns: true,
+                          hideCompare: true,
+                          hideCountdown: true,
+                        }}
                       />
                     </div>
                   </div>
