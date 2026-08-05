@@ -22,6 +22,8 @@ export default function useStockBrief(sym, { generating = false } = {}) {
   return {
     status: data?.status || (isLoading ? 'loading' : 'ready'),
     company: data?.company || null,
+    sector: data?.sector || null,
+    industry: data?.industry || null,
     stats: data?.stats || null,
     earnings: data?.earnings || [],
     profile: data?.profile || null,

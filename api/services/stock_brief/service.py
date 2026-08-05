@@ -165,13 +165,17 @@ def _earnings(sym: str) -> list:
     return rows
 
 
-def _company_name(sym: str) -> str | None:
-    """Display company name for the header (same source as the chart watermark)."""
+def _meta(sym: str) -> dict:
+    """Name + sector + industry for the header and Key Stats (same source as the
+    chart watermark) — available immediately, independent of the AI profile."""
     try:
         from api.services import ticker_meta
-        return (ticker_meta.get_ticker_meta(sym) or {}).get("name") or None
+        m = ticker_meta.get_ticker_meta(sym) or {}
+        return {"name": m.get("name") or None,
+                "sector": m.get("sector") or None,
+                "industry": m.get("industry") or None}
     except Exception:
-        return None
+        return {"name": None, "sector": None, "industry": None}
 
 
 # ── Profile (company description + YTD thematic narrative) ────────────────────
@@ -259,9 +263,14 @@ def brief(sym: str) -> dict:
             status = "generating"
 
     prof = store.get_profile(sym, period) or {}
+    meta = _meta(sym)
     return {
         "symbol": sym,
-        "company": _company_name(sym),
+        "company": meta["name"],
+        # Sector/industry from live ticker-meta (immediate); the AI profile's own
+        # sector/industry override when present (historical-aware for renamed names).
+        "sector": prof.get("sector") or meta["sector"],
+        "industry": prof.get("industry") or meta["industry"],
         "status": status,
         "stats": _compute_stats(sym),
         "earnings": _earnings(sym),

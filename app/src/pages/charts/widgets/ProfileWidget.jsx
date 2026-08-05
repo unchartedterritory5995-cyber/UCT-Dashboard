@@ -16,6 +16,7 @@ import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useStockBrief from '../../../hooks/useStockBrief'
+import useMobileSWR from '../../../hooks/useMobileSWR'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
@@ -61,6 +62,20 @@ function pctCell(v) {
 function fmtQuarter(r) {
   return `Q${r?.quarter ?? '?'} ${r?.year ?? ''}`.trim()
 }
+function fmtPrice(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+function fmtShares(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
+  return String(Math.round(n))
+}
+const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
 export default function ProfileWidget({ color }) {
   const { groupSyms } = useWorkspace()
@@ -91,8 +106,30 @@ export default function ProfileWidget({ color }) {
 
   // ── Data — poll fast while the AI profile generates, then settle ──
   const [fastPoll, setFastPoll] = useState(false)
-  const { status, company, stats, earnings, profile } = useStockBrief(sym, { generating: fastPoll })
+  const { status, company, sector, industry, stats, earnings, profile } = useStockBrief(sym, { generating: fastPoll })
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
+
+  // Slow-moving fundamentals for the Key Stats grid (own cached, never-blocking
+  // endpoint) — refreshed every 10 min, no need to ride the 30s brief cadence.
+  const { data: fund } = useMobileSWR(
+    sym ? `/api/fundamentals/${encodeURIComponent(sym)}` : null,
+    jsonFetcher,
+    { refreshInterval: 600000, dedupingInterval: 60000, revalidateOnFocus: false },
+  )
+  const keyItems = useMemo(() => {
+    const out = []
+    if (fund?.market_cap) out.push({ label: 'Market Cap', value: fund.market_cap })
+    if (fund?.forward_pe != null) out.push({ label: 'P/E (Fwd)', value: Number(fund.forward_pe).toFixed(1) })
+    if (fund?.week52_low != null && fund?.week52_high != null) {
+      out.push({ label: '52W Range', value: `${fmtPrice(fund.week52_low)} – ${fmtPrice(fund.week52_high)}` })
+    }
+    if (fund?.beta != null) out.push({ label: 'Beta', value: Number(fund.beta).toFixed(2) })
+    if (fund?.div_yield != null && Number(fund.div_yield) > 0) {
+      out.push({ label: 'Div Yield', value: `${Number(fund.div_yield).toFixed(2)}%` })
+    }
+    if (fund?.avg_vol != null) out.push({ label: 'Avg Volume', value: fmtShares(fund.avg_vol) })
+    return out
+  }, [fund])
 
   const hasStats = !!stats && (stats.ytd_gain_pct != null || stats.avg_dollar_vol != null)
   const year = new Date().getFullYear()
@@ -212,6 +249,29 @@ export default function ProfileWidget({ color }) {
               <span className={styles.spinner} /> Writing company profile…
             </div>
           ) : null}
+
+          {/* ── Key stats (sector/industry + fundamentals) ── */}
+          {(sector || industry || keyItems.length > 0) && (
+            <div className={styles.keyWrap}>
+              <div className={styles.sectionLabel}>Key Stats</div>
+              {(sector || industry) && (
+                <div className={styles.keyMeta}>
+                  {sector && <span className={styles.keyChip}>{sector}</span>}
+                  {industry && <span className={styles.keyChip}>{industry}</span>}
+                </div>
+              )}
+              {keyItems.length > 0 && (
+                <div className={styles.keyGrid}>
+                  {keyItems.map(it => (
+                    <div key={it.label} className={styles.keyItem}>
+                      <span className={styles.keyLabel}>{it.label}</span>
+                      <span className={styles.keyVal}>{it.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

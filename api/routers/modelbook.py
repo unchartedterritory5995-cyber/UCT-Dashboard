@@ -607,7 +607,10 @@ def _desc_messages(symbol, company, year, gain_pct):
     endpoint can exercise the EXACT same prompt."""
     gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
     system = ("You write concise, factual stock study notes for a trader's model book. "
-              "Output JSON only — no preamble, no markdown fences.")
+              "Output JSON only — no preamble, no markdown fences. Always return the JSON "
+              "for the ticker as it trades today, even if the company was recently spun off, "
+              "renamed, or relisted — never refuse and never add caveats about its listing "
+              "history or the year.")
     prompt = (
         f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
         f"The stock rose {gain_txt} that year.\n\n"
@@ -671,22 +674,27 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         # Retry transient failures: when stocks are added, catalysts + recap +
         # description generation can fire together and transiently overload the
         # API. A single failure would otherwise stamp desc_at and blank the note.
-        text = None
-        for attempt in range(3):
+        # Retry transient API failures AND non-JSON replies: some tickers (recently
+        # relisted / renamed / delisted, or a still-in-progress year) make the model
+        # answer with a prose caveat instead of the JSON — e.g. SNDK: "SanDisk was
+        # acquired by Western Digital in 2016…" — which parses to nothing. Re-ask a
+        # few times; at temperature 0.7 a later attempt returns the JSON.
+        obj = None
+        for attempt in range(4):
+            text = None
             try:
                 msg = client.messages.create(
                     model=_DESC_MODEL, max_tokens=700, temperature=0.7,
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
-                if text:
-                    break
             except Exception:
                 text = None
+            if text:
+                obj = _parse_desc_json(text)
+                if obj is not None:
+                    break
             _time_mod.sleep(1.5 * (attempt + 1))
-        if not text:
-            return None
-        obj = _parse_desc_json(text)
         if obj is None:
             return None
         cd = (obj.get("company_desc") or "").strip()
