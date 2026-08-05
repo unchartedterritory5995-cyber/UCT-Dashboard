@@ -28,7 +28,8 @@
 // malformed record is skipped, not raised. A throw here is a blank chart through
 // StockChart's ErrorBoundary, which is a worse answer than a missing band.
 
-import { isInstanceTombstone } from '../chartDefaults'
+import { isInstanceTombstone } from '../instanceShape'
+import { migrateLegacyToInstances, normalizeInstances } from './instances'
 
 /**
  * `cs`, with `indicators[<id>].enabled` rewritten from the instance list for
@@ -66,4 +67,50 @@ export function csForPaneMargins(cs, instances, flippedIds) {
     indicators[id] = { ...(indicators[id] || {}), enabled: live.has(id) }
   }
   return { ...cs, indicators }
+}
+
+/**
+ * The same projection for a caller that has a `cs` and NO instance list.
+ *
+ * ⭐⭐ B5 TASK 9 MADE THIS NECESSARY, AND THE HAZARD IS WORTH SPELLING OUT.
+ * `computePaneMargins` has FOUR call sites in `StockChart.jsx` and only ONE of
+ * them was inside `updateChart`, where the render path's `engineInstances` local
+ * exists. The other three read the RAW `cs` — `_mainMargins` (which feeds the
+ * candle series' own `scaleMargins` at seven sites), the right-click region
+ * resolver, and the price-scale toggle's CSS `bottom`. They worked because
+ * `cs.indicators[id].enabled` was a write-through MIRROR of the instance list.
+ *
+ * ⛔ THE MIRROR IS GONE. `mergeChartSettings` folds the fourteen legacy sections
+ * into `indicatorInstances` and emits `indicators: {volumeProfile}` — so a raw
+ * `cs` handed to `computePaneMargins` now reserves NO bands at all, the candles'
+ * `scaleMargins` fill the whole pane, and every oscillator is drawn over by the
+ * price series. That is a layout regression no series count and no test that
+ * mocks lightweight-charts can see; it is the `autoScale:false` class of defect.
+ *
+ * PURE AND REACTIVE, which is why it derives the instances rather than reading
+ * `engineInstancesRef`: two of the three sites are in the RENDER pass, where a
+ * ref written by the following effect is one paint stale.
+ *
+ * ⚠️ EQUIVALENT TO THE RENDER PATH *FOR BANDS*, and the difference is stated
+ * rather than assumed: `updateChart` additionally runs `eligibleInstances` and
+ * manufactures a `vwapOverride` instance. Both concern `vwap` ALONE, which is a
+ * PRICE overlay — `computePaneMargins` stacks no band for it, so no band can
+ * differ. `paneMarginsProjection.test.js` asserts the two agree on every subset.
+ *
+ * @param {object} cs merged chart settings
+ * @param {object|Function} registry
+ * @param {Set<string>} flippedIds
+ */
+export function csForPaneMarginsFromSettings(cs, registry, flippedIds) {
+  if (!flippedIds || flippedIds.size === 0) return cs
+  if (!cs || typeof cs !== 'object') return cs
+  let kept = []
+  try {
+    kept = normalizeInstances(migrateLegacyToInstances(cs, registry), registry).kept
+  } catch {
+    // It runs inside the paint. A malformed blob is a missing band, not a blank
+    // chart through StockChart's ErrorBoundary.
+    kept = []
+  }
+  return csForPaneMargins(cs, kept, flippedIds)
 }

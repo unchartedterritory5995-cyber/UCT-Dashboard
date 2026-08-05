@@ -1,6 +1,6 @@
 import useSWR from 'swr'
 import { useCallback } from 'react'
-import { mergeSettingsOverride } from '../components/chart/chartDefaults'
+import { mergeSettingsOverride } from '../components/chart/instanceShape'
 
 const fetcher = url => fetch(url).then(r => r.ok ? r.json() : {})
 

@@ -43,7 +43,11 @@
 //
 // ─── AND WHY `volumeProfile` IS NOT MIGRATED EITHER ──────────────────────────
 //
-// `CHART_DEFAULTS.indicators` has 15 keys; the registry has 14 definitions.
+// ⭐ B5 TASK 9: `CHART_DEFAULTS.indicators` is now ONE key and it is this one.
+// It used to have 15 against the registry's 14 definitions, and the odd one out
+// was always `volumeProfile`; the fold retired the other fourteen and left the
+// exemption standing alone, which is what makes it a retirement of the
+// enumeration rather than a rename of it.
 // `volumeProfile` is a canvas overlay with no compute function and no plot style
 // that can express it (see the nativeRegistry docstring). It is SKIPPED, not
 // emitted-and-dropped: an instance naming a definition that doesn't exist would
@@ -61,13 +65,16 @@ import {
   getDefinition as getNativeDefinition,
   listDefinitions as listNativeDefinitions,
 } from './nativeRegistry'
-import { instanceTombstone, isInstanceTombstone } from '../chartDefaults'
+import { computePaneMargins } from '../paneMargins'
+import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 // Re-exported so engine code has ONE import for everything instance-shaped. The
-// definitions live in `chartDefaults` because that is where `mergeSettingsOverride`
-// lives — the merge is the only thing that can CREATE a tombstone, and putting the
-// shape anywhere else would make that module import the whole engine (and with it
-// `indicators.js`) for a two-line predicate.
+// definitions live in `chart/instanceShape.js` — beside `mergeSettingsOverride`,
+// which is the only thing that can CREATE a tombstone. ⭐ B5 Task 9 moved them
+// there OUT of `chartDefaults`, which now imports this module for the v1→v2
+// fold: leaving them where they were made the two files mutually dependent, and
+// `usePreferences` (eager, every page) would have dragged the whole registry and
+// every `compute*` into the entry chunk through that one import.
 export { instanceTombstone, isInstanceTombstone }
 
 /** Every migrated instance's id starts with this. It is a namespace, not
@@ -140,16 +147,93 @@ function cloneInstance(inst) {
   return out
 }
 
+// ─── the order the fold seeds, ONCE ──────────────────────────────────────────
+//
+// ⭐⭐ B5 TASK 9. The migrator used to emit in REGISTRY order, which was fine
+// while an instance list decided nothing a user could see. It decides pane order
+// at Flip C (`engine/paneLayout.orderedPaneKeys` walks the instance list), and
+// the settings blob stops carrying `cs.indicators` in this same commit — so the
+// order every existing user's panes are in today exists in exactly one place
+// after this, and it is the array below.
+//
+// ⛔ DERIVED, NOT TRANSCRIBED, AND FROM THE SHIPPED LAYOUT FUNCTION ITSELF.
+// `computePaneMargins` inserts its keys in stacking order (bottom of the chart
+// first), so its own output carries the order. Reading it back is the same trick
+// `engine/paneLayout.shippedBandOrder` uses and it is why there is no table here:
+// a transcribed one drifts from the function it copies, which is the defect this
+// phase keeps finding.
+//
+// ⛔ AND `paneMargins.js` IS CONSUMED, NEVER MODIFIED (a Global Constraint of
+// B4 and B5). `PANES` is a local inside `computePaneMargins` and is NOT
+// exported; exporting it to read it would be the modification the constraint
+// forbids, so this asks the function instead.
+//
+// ⏭️ TASK 12: Flip C retires `paneMargins.js`. INLINE the array this produces at
+// that moment — do not re-derive it from anything else, because the shipped
+// stack order stops existing the day that file does and the seeded instance
+// order becomes its only record. `settingsBlobMigration.test.js` carries a
+// `existsSync('app/src/components/chart/paneMargins.js')` assertion, so Task 12
+// gets a RED TEST rather than a silent import of a deleted module.
+//
+// ⚠️ PANE IDS FIRST, then price overlays in REGISTRY order. Registry order IS
+// legacy z-order for the five price overlays (`instanceControls.registryRank`),
+// and LWC z-stacks by insertion order, so their relative order may not move.
+// Pane ids sit on their own price scales in disjoint bands, so theirs may.
+const EMPTY_EXCLUDE = new Set()
+
+function computeShippedStackOrder() {
+  const defs = listNativeDefinitions()
+  const paneIds = defs
+    .filter(d => d && d.placement && d.placement.target === 'pane')
+    .map(d => d.id)
+  let stacked = []
+  try {
+    const bands = computePaneMargins(
+      { indicators: Object.fromEntries(paneIds.map(id => [id, { enabled: true }])) },
+      false,
+      EMPTY_EXCLUDE,
+    )
+    stacked = Object.keys(bands || {})
+      .filter(k => k !== 'main' && k !== 'volume')
+      .reverse()                       // bottom-to-top ⇒ top-to-bottom = pane order
+      .filter(k => paneIds.includes(k))
+  } catch {
+    stacked = []
+  }
+  // A pane definition the layout function does not stack (a new one, added after
+  // `PANES` stopped growing) keeps a place rather than vanishing from the order.
+  const rest = defs.map(d => d && d.id).filter(id => isNonEmptyString(id) && !stacked.includes(id))
+  return Object.freeze([...stacked, ...rest])
+}
+
+/** The order a v1 blob's indicators are seeded into `indicatorInstances`:
+ *  the nine stacked panes TOP-TO-BOTTOM, then the five price overlays in
+ *  registry order. Exported so a test can measure it against the layout function
+ *  rather than against a copy of itself. */
+export const SHIPPED_STACK_ORDER = computeShippedStackOrder()
+
+/** Rank of a definition id in `SHIPPED_STACK_ORDER`; an unranked id sinks. */
+export function stackRank(defId) {
+  const i = SHIPPED_STACK_ORDER.indexOf(defId)
+  return i === -1 ? 1e9 : i
+}
+
 // ─── the migrator ────────────────────────────────────────────────────────────
 
 /**
- * Project the 15 legacy indicator toggles onto engine instances.
+ * Project the legacy indicator toggles onto engine instances.
  *
  * PURE: reads `cs`, returns a new array, mutates nothing (the blob's own objects
  * are never handed back by reference).
  *
  * WHAT IT READS
- *   `cs.indicators`               the 15 keyed sections — `enabled` plus params
+ *   `cs.indicators`               the legacy keyed sections — `enabled` plus
+ *                                 params. ⭐ After B5 Task 9 a MERGED blob has
+ *                                 only `volumeProfile` here, so the live callers
+ *                                 are `mergeChartSettings`' own fold (which
+ *                                 hands it the RAW stored section) and the
+ *                                 `mergeSettingsOverride` lane, which is not an
+ *                                 allow-list and can still inject one
  *   `cs.indicatorInstances`       instances that already exist (passed through)
  *   `cs.volumeOverlayIndicators`  the "render this oscillator inside the volume
  *                                 pane" list, which is a PLACEMENT fact
@@ -184,7 +268,9 @@ function cloneInstance(inst) {
  *
  * ORDER is registry order, not `Object.keys` order, so two blobs with the same
  * indicators produce byte-identical output regardless of how they were
- * serialised.
+ * serialised. ⛔ B5 Task 9 MEASURED an attempt to make it the shipped stack
+ * order and reverted it — see the note at `defIds` below: this list is also the
+ * binder's insertion order, and insertion order is z-order.
  *
  * @param {object} cs        a chart_settings blob, raw or merged
  * @param {object|Function} [registry]
@@ -211,6 +297,25 @@ export function migrateLegacyToInstances(cs, registry) {
     Array.isArray(cs?.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : [],
   )
 
+  // ⛔⭐ REGISTRY ORDER, AND B5 TASK 9 TRIED TO CHANGE IT AND MEASURED WHY IT
+  // MAY NOT. The seed order is what Flip C will read for PANE order, so the
+  // obvious move was to emit `SHIPPED_STACK_ORDER` here — and the pixel gate
+  // refused it: `engine_three_bands_stacked` reported a MANIFEST GEOMETRY diff at
+  // **0 changed pixels**, 5/5 runs,
+  //
+  //     panes[0].series[2].scaleId: 'cci' -> 'williamsR'
+  //     panes[0].series[3].scaleId: 'williamsR' -> 'cci'
+  //
+  // because this list is also the order the binder calls `addSeries` in, and
+  // INSERTION ORDER IS Z-ORDER. Task 8 rejected a plot-reorder probe for exactly
+  // this reason. Three oscillators in disjoint bands cannot overlap, so the
+  // number is 0 — but "0 px with a geometry change" is the one shape this gate
+  // treats as a lie by definition, and no declaration waves geometry through.
+  //
+  // ⭐ SO THE ORDER IS RECORDED RATHER THAN APPLIED. `SHIPPED_STACK_ORDER` above
+  // is the derived, tested record of today's stack; Flip C applies it in
+  // `paneLayout.orderedPaneKeys`, where it decides PANE order and not insertion
+  // order, which is the place the two concerns stop being the same list.
   const registryOrder = reg.list().map(d => d && d.id).filter(isNonEmptyString)
   const defIds = registryOrder.length
     ? registryOrder.filter(id => hasOwn(legacy, id))

@@ -57,7 +57,7 @@ import { registerManifestChart } from './chart/engine/paneLayout'
 import { normalizeInstances, legacyInstanceId, migrateLegacyToInstances } from './chart/engine/instances'
 import { eligibleInstances } from './chart/engine/eligibility'
 import { ENGINE_MIGRATED_DEF_IDS, ENGINE_FLIPPED_DEF_IDS, engineDrawnDefIds } from './chart/engine/flipState'
-import { csForPaneMargins } from './chart/engine/paneMarginsProjection'
+import { csForPaneMargins, csForPaneMarginsFromSettings } from './chart/engine/paneMarginsProjection'
 import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
 import { engineChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -769,6 +769,12 @@ function colorMulAlpha(color, mul) {
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
 // tighter fit, plus a small bottom gap above a separate volume pane).
+//
+// ⛔ `cs` HERE MUST BE THE PROJECTED BLOB (`csPanes`), NOT the merged settings.
+// B5 Task 9 folded `cs.indicators` into `indicatorInstances`, so the raw blob
+// answers "no oscillator is on" to `computePaneMargins` and these margins — the
+// CANDLE series' own — would fill the whole pane, painting over every band.
+// Named `cs` because it IS a settings blob; the caller decides which one.
 function _mainMargins(cs, hasVol, topOverride, bottomOverride) {
   const m = computePaneMargins(cs, hasVol).main
   if (topOverride == null && bottomOverride == null) return m
@@ -1110,6 +1116,29 @@ export default function StockChart({
   const cs = useMemo(
     () => (settingsOverride ? mergeSettingsOverride(csBase, settingsOverride) : csBase),
     [csBase, settingsOverride],
+  )
+
+  // ⭐⭐ B5 TASK 9 — THE BLOB `computePaneMargins` HAS TO BE ASKED, NOT `cs`.
+  //
+  // `computePaneMargins` reads `cs.indicators[key].enabled`, and after Task 9 a
+  // merged blob carries only `volumeProfile` there: the fourteen legacy sections
+  // are folded into `indicatorInstances` and DESTROYED by the allow-list. Handed
+  // the raw `cs` it therefore reserves NO bands — the candles' own scaleMargins
+  // fill the whole pane and every oscillator is painted over.
+  //
+  // ⚠️ THREE OF THE FOUR CALL SITES READ THE RAW `cs`. Only `updateChart`'s had
+  // the instance list in scope (it builds `csMargins` from `engineInstances`);
+  // `_mainMargins` (seven callers, all of them the CANDLE series' margins), the
+  // right-click region resolver and the price-scale toggle's CSS `bottom` did
+  // not, and they were correct only because the legacy section was a
+  // write-through mirror of the instances. This is that mirror, derived.
+  //
+  // ⛔ DERIVED PER RENDER, NOT READ OFF `engineInstancesRef`: two of the three
+  // sites run during the RENDER pass, and that ref is written by the effect that
+  // follows it — so it is one paint stale exactly when the layout changes.
+  const csPanes = useMemo(
+    () => csForPaneMarginsFromSettings(cs, engineRegistry, ENGINE_FLIPPED_DEF_IDS),
+    [cs],
   )
 
   // Volume MA is editable from the Indicators tab; the `volumeMa` prop stays the
@@ -2198,7 +2227,7 @@ export default function StockChart({
         try {
           mainPriceScale()?.applyOptions({
             autoScale: true,
-            scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+            scaleMargins: _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
           })
         } catch {}
         // HORIZONTAL: reframe to the timeframe default.
@@ -2222,7 +2251,7 @@ export default function StockChart({
         vertMarginsRef.current = null
         mainPriceScale()?.applyOptions({
           autoScale: true,
-          scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+          scaleMargins: _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
         })
       } catch {}
     }
@@ -4930,7 +4959,7 @@ export default function StockChart({
                 let top = Math.min(0.9, Math.max(0, yHi / paneH))
                 let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
                 if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
-                const base = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+                const base = _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
                 // Only treat as a custom placement if it meaningfully differs from default.
                 if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
                   vertMarginsRef.current = null
@@ -5023,7 +5052,7 @@ export default function StockChart({
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+        scaleMargins: vertMarginsRef.current || _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
@@ -7238,7 +7267,7 @@ export default function StockChart({
       focusPriceRangeRef.current = null
       const _ov = fitPriceToCandles ? null : overlayData
       const _tv = keepBarsAfterExit ? Math.min(endIdx + padRight, filteredBars.length - 1) : endIdx
-      const _mmI = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+      const _mmI = _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
       const _mt = Math.max(0, Math.min(0.45, _mmI?.top ?? 0))
       const _mb = Math.max(0, Math.min(0.45, _mmI?.bottom ?? 0))
       const _raw = _windowPriceRange(filteredBars, fromIdx, _tv, _ov)
@@ -7292,7 +7321,7 @@ export default function StockChart({
       // against the top/bottom of the pane (the tallest candle clipping off the top
       // in the Result view). Bake the same top/bottom headroom the default autoscale
       // would apply into the pinned range so the glide lands with proper margins.
-      const _mm = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+      const _mm = _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
       const _padVert = (r) => {
         if (!r) return r
         const mt = Math.max(0, Math.min(0.45, _mm?.top ?? 0))
@@ -8946,7 +8975,7 @@ export default function StockChart({
       try { axisWidth = (mainPriceScale()?.width?.()) ?? chart.priceScale('right').width() } catch {}
       try { timeAxisHeight = chart.timeScale().height() } catch {}
       try { pane0Height = (candleSeriesRef.current?.getPane?.()?.getHeight?.()) ?? chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
-      const paneMargins = computePaneMargins(cs, showVolume && !separateVolume, cs.volumeOverlayIndicators)
+      const paneMargins = computePaneMargins(csPanes, showVolume && !separateVolume, cs.volumeOverlayIndicators)
       let region = resolveChartRegion({
         x: px, y: py, width: rect.width, height: rect.height,
         axisWidth, timeAxisHeight, paneMargins, separateVolume, pane0Height,
@@ -9022,7 +9051,7 @@ export default function StockChart({
               try {
                 mainPriceScale()?.applyOptions({
                   autoScale: true,
-                  scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+                  scaleMargins: _mainMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
                 })
               } catch { /* noop */ }
               // HORIZONTAL: reframe to the timeframe default.
@@ -9788,7 +9817,7 @@ export default function StockChart({
       {!showFatalError && chartReady && (
         <div
           className={styles.scaleToggle}
-          style={{ bottom: boldCandles ? '3px' : `calc(26px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane).main.bottom})` }}
+          style={{ bottom: boldCandles ? '3px' : `calc(26px + (100% - 26px) * ${computePaneMargins(csPanes, showVolume && volData.length > 0 && !volInSeparatePane).main.bottom})` }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button

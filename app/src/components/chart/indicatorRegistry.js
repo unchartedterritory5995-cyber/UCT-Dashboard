@@ -204,19 +204,44 @@ function liveInstanceFor(defId, settings) {
 /**
  * The values the row DISPLAYS: what the chart is actually drawing with.
  *
- * With no stored instance that is the legacy section, exactly as before — the
- * migrator projects it. With one, the instance's inputs win, falling back to the
+ * With a stored instance the instance's inputs win, falling back to the
  * definition's declared defaults for a key the instance omits ("unset means
  * current default", the same rule the migrator and the binder use). Showing the
  * mirror while the instance draws something else is the "two numbers for one
  * line" defect `flipState.engineDrawnInputs` exists to prevent on the toolbar.
+ *
+ * ⭐⭐ B5 TASK 9 — WITH NO INSTANCE THE ROW SHOWS THE DEFINITION'S DEFAULTS, AND
+ * IT USED TO SHOW THE LEGACY SECTION. That section is DELETED (the settings blob
+ * stops enumerating indicators), so `settings.indicators[def.id]` is `undefined`
+ * for every definition and this returned `{}` — an unchecked RSI whose Period box
+ * had gone BLANK, on every surface that renders a generated row. No test named
+ * it, because every test that touched these rows turned the indicator on first.
+ *
+ * The declared default IS what the chart would draw the moment the box is
+ * ticked, which is the property this function is named for.
+ *
+ * ⚠️ THE SECTION IS STILL READ, and it is not vestigial: `mergeSettingsOverride`
+ * is NOT an allow-list, so a grid cell's per-cell override and the `?indicators=`
+ * render route can still put one on the blob — and `setIndicatorInput` writes it
+ * for an indicator that is switched OFF (typing a period beside an unchecked box
+ * must not add the indicator to the chart). It sits BELOW the instance and ABOVE
+ * the declared default, which is the precedence every other reader uses.
  */
 function drawnValues(def, settings) {
   const section = (settings && settings.indicators && settings.indicators[def.id]) || {}
   const live = liveInstanceFor(def.id, settings)
-  if (!live) return section
-  const inputs = (live.inputs && typeof live.inputs === 'object') ? live.inputs : {}
-  const out = { ...section }
+  const inputs = (live && live.inputs && typeof live.inputs === 'object') ? live.inputs : null
+  const out = {}
+  for (const declared of (Array.isArray(def.inputs) ? def.inputs : [])) {
+    if (!declared || typeof declared.key !== 'string') continue
+    if (declared.default !== undefined) out[declared.key] = declared.default
+  }
+  // The section overrides the declared defaults …
+  Object.assign(out, section)
+  if (!inputs) return out
+  // … and a LIVE instance overrides both, falling back to the DECLARED default
+  // rather than to the section: absent-from-inputs means "the definition
+  // default", and that is what the chart draws.
   for (const declared of (Array.isArray(def.inputs) ? def.inputs : [])) {
     if (!declared || typeof declared.key !== 'string') continue
     const k = declared.key

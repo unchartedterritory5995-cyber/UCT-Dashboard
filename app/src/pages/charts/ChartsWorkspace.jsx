@@ -95,13 +95,23 @@ const UCT_DEFAULT_LAYOUT = {
 // so applying it fully defines the chart look (header shows ticker + company via
 // titleMode 'both'). Parsed fresh so the frozen source is never mutated in place.
 //
-// ⚠️ ENUMERATION SITE #22 (Phase B ledger). This literal hand-lists all FIFTEEN
-// indicator sections — a third copy of ledger sites #1 and #2, in a page
-// component. Never write it to `chart_settings` directly: go through
-// `uctDefaultChartSettings()` below, which is what keeps the ENGINE keys out of
-// the frozen capture. See the comment there for why that is a ship-blocker and
-// not a tidy-up.
-const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"rsi":{"enabled":false,"period":14,"color":"#7b68ee"},"macd":{"enabled":false,"fastPeriod":12,"slowPeriod":26,"signalPeriod":9,"macdColor":"#2196F3","signalColor":"#FF9800"},"bb":{"enabled":false,"period":20,"stdDev":2,"color":"rgba(156,39,176,0.85)"},"vwap":{"enabled":false,"color":"#26C6DA"},"stoch":{"enabled":false,"kPeriod":14,"dPeriod":3,"kColor":"#FF6B6B","dColor":"#4ECDC4"},"atr":{"enabled":false,"period":14,"color":"#FFA726"},"sar":{"enabled":false,"step":0.02,"maxStep":0.2,"color":"#ffeb3b"},"ichimoku":{"enabled":false,"tenkanColor":"#26C6DA","kijunColor":"#EF5350","spanAColor":"rgba(76,175,80,0.2)","spanBColor":"rgba(239,83,80,0.2)","chikouColor":"rgba(255,235,59,0.7)"},"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"},"mfi":{"enabled":false,"period":14,"color":"#c084fc"},"cci":{"enabled":false,"period":20,"color":"#fbbf24"},"williamsR":{"enabled":false,"period":14,"color":"#60a5fa"},"adx":{"enabled":false,"period":14,"adxColor":"#e5e7eb","plusDIColor":"#22c55e","minusDIColor":"#ef4444"},"obv":{"enabled":false,"color":"#9ca3af"},"donchian":{"enabled":false,"period":20,"color":"rgba(96,165,250,0.5)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+// ⭐⭐ B5 TASK 9 RETIRED ENUMERATION SITE #22 (ledger row 14). This literal used
+// to hand-list all FIFTEEN indicator sections — a third copy of ledger sites #1
+// and #2, in a page component, and the one no chart-module walk had opened. All
+// fourteen legacy sections are DELETED from it; `volumeProfile` alone survives,
+// because it is the one key `mergeChartSettings` still emits.
+//
+// ⛔ THE DELETION IS BEHAVIOUR-NEUTRAL AND THAT WAS MEASURED, NOT ASSUMED: every
+// one of the fourteen said `"enabled":false` in this capture, so the v1→v2 fold
+// produced zero instances from them before the deletion and produces zero after.
+// What changes is that the blob this writes stops being a fifteen-section list
+// somebody has to remember to edit.
+//
+// Never write this to `chart_settings` directly: go through
+// `uctDefaultChartSettings()` below, which stamps the engine keys the capture
+// predates. See the comment there for why that is a ship-blocker and not a
+// tidy-up.
+const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
 
 // ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
 //
@@ -133,11 +143,22 @@ const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upCo
 // the key gone would have produced a byte-identical string and passed every test
 // that reads the OUTPUT. Only a source scan can see the difference, which is why
 // `engineEnabledMigration.test.js` runs one.
+//
+// ⭐⭐ B5 TASK 9 — `settingsVersion` IS STAMPED FOR THE SAME REASON, and it is the
+// reason the fourteen sections could be deleted from the capture rather than
+// merely ignored. The capture is v1 shaped (it predates versioning), so without
+// a stamp every click of **UCT Default** would write a blob the read-time fold
+// re-runs on — harmless while the capture's indicators are all off, and a
+// resurrection machine the moment anybody edits the literal. Stamping the
+// CURRENT version says "this blob is already in the new shape", which is true:
+// it carries `indicators: {volumeProfile}` and an empty instance list, which is
+// exactly what `mergeChartSettings` emits.
 export function uctDefaultChartSettings() {
   const parsed = JSON.parse(UCT_DEFAULT_CHART_SETTINGS_JSON)
   parsed.indicatorInstances = Array.isArray(CHART_DEFAULTS.indicatorInstances)
     ? [...CHART_DEFAULTS.indicatorInstances]
     : []
+  parsed.settingsVersion = CHART_DEFAULTS.settingsVersion
   return JSON.stringify(parsed)
 }
 

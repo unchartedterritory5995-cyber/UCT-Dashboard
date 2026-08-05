@@ -64,7 +64,7 @@
 
 import { validateInputValue } from './defSchema'
 import { legacyInstanceId } from './instances'
-import { instanceTombstone, isInstanceTombstone } from '../chartDefaults'
+import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
   if (typeof registry === 'function') return (id) => registry(id)
@@ -76,7 +76,14 @@ function resolveRegistry(registry) {
  *  the five price overlays (`bb`, `vwap`, `sar`, `ichimoku`, `donchian`), and the
  *  engine draws all its series at one z-position — so a control that APPENDED
  *  would put a newly-enabled Bollinger band above a Donchian channel it should
- *  sit below. An id the registry does not rank sinks to the end. */
+ *  sit below. An id the registry does not rank sinks to the end.
+ *
+ *  ⛔ B5 TASK 9 MEASURED A CHANGE HERE AND REVERTED IT. Making this
+ *  `SHIPPED_STACK_ORDER` (so a write agreed with the fold's seed) also changes
+ *  the binder's INSERTION order, which is z-order: the pixel gate reported a
+ *  manifest geometry diff on `engine_three_bands_stacked` at 0 changed pixels,
+ *  5/5 runs. The stack order is RECORDED in `instances.SHIPPED_STACK_ORDER` and
+ *  applied at Flip C, where it decides PANE order instead. */
 function registryRank(registry) {
   const defs = (registry && typeof registry.listDefinitions === 'function') ? registry.listDefinitions() : []
   return new Map((Array.isArray(defs) ? defs : []).map((d, i) => [d && d.id, i]))
