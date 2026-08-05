@@ -113,7 +113,9 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     drawingsStore.addDrawing(sym, {
       type: 'text',
       text: chartText(e),
-      fontSize: 13,
+      // fontSize is intentionally omitted — like color/width, the chart overlay
+      // stamps its current drawing default (what the user last "Saved as default")
+      // at placement, so a placed catalyst matches the saved text size.
       points: [],
       calloutRole: 'label',
       calloutId: cid,

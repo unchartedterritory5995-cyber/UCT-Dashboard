@@ -1389,9 +1389,13 @@ export default function ChartDrawingOverlay({
       for (const d of drawings) {
         if (d.type !== 'text' || d.calloutRole !== 'label' || !d.calloutAutoPlace || d.calloutAnchorTime == null) continue
         if (d.points && d.points.length) continue
+        // Size the placed callout from the chart's current drawing default (the
+        // overlay's `fontSize` prop = cs.drawingDefaults.fontSize) unless this
+        // drawing already carries its own size.
+        const calloutFs = d.fontSize || fontSize
         const res = placeCalloutPoint({
           ctx, bars, toPixel, nearestIndex, drawings,
-          anchorTime: d.calloutAnchorTime, text: d.text, fontSize: d.fontSize || 13,
+          anchorTime: d.calloutAnchorTime, text: d.text, fontSize: calloutFs,
           plotRight, h, vRange,
         })
         if (!res) continue
@@ -1403,7 +1407,7 @@ export default function ChartDrawingOverlay({
         const bClose = b.c ?? b.close ?? bOpen
         const anchorPrice = (bClose >= bOpen) ? (b.h ?? b.high ?? b.c) : (b.l ?? b.low ?? b.c)
         const { rect, anchorPx } = res
-        const fs = d.fontSize || 13
+        const fs = calloutFs
         const labelPt = asPoint(toChart(rect.x, rect.y))
         if (!labelPt) continue
         // Attach the leader to the HEADLINE (first line) — near its right end when the
@@ -1427,7 +1431,7 @@ export default function ChartDrawingOverlay({
         // Stamp THIS chart's current drawing default (color + width) so a placed
         // catalyst matches whatever the user last "Saved as default" for drawings —
         // then each is a normal, independently-recolorable drawing.
-        updateDrawing(d.id, { points: [labelPt], color, calloutAutoPlace: false }, { record: false })
+        updateDrawing(d.id, { points: [labelPt], color, fontSize: fs, calloutAutoPlace: false }, { record: false })
         const line = drawings.find(x => x.calloutRole === 'line' && x.calloutId === d.calloutId)
         if (line) updateDrawing(line.id, { points: [{ time: b.t, price: anchorPrice }, endPt], color, lineWidth, calloutAutoPlace: false }, { record: false })
       }
@@ -1607,7 +1611,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
