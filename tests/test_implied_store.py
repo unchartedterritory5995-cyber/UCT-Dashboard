@@ -680,3 +680,396 @@ def test_capture_due_by_true_on_a_holiday_is_a_harmless_noop_via_empty_reporters
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=now)
     assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0}
+
+
+# ── Reporter-list resilience (2026-08-05 incident #2) ───────────────────────
+# Verified in production: run_nightly_capture fired correctly but Finnhub's
+# /calendar/earnings (upcoming_reporters' ONLY source at the time) returned
+# HTTP 429 minutes later -> {'captured': 0, 'skipped': 0, 'failed': 0,
+# 'collisions': 4}. upcoming_reporters is now FMP primary / Finnhub fallback.
+
+def test_fmp_reporters_normalizes_rows_and_filters_international_symbols(store, monkeypatch):
+    """FMP's stable/earnings-calendar (probe-verified live 2026-08-05) mixes
+    heavy international/OTC noise into a single day's volume and carries
+    NEITHER a session NOR a fiscal identity -- both must come back as an
+    honest absence, never fabricated. days=0 -> exactly one day-chunk, one
+    HTTP call, so this test is deterministic (see the chunking tests below
+    for the multi-day case)."""
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+
+    class _Resp:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return [
+                {"symbol": "NVDA", "date": "2026-08-06", "epsActual": None,
+                 "epsEstimated": 0.85, "revenueActual": None,
+                 "revenueEstimated": 5_000_000_000, "lastUpdated": "2026-08-05"},
+                {"symbol": "002532.SZ", "date": "2026-08-06", "epsActual": None,
+                 "epsEstimated": 0.4, "revenueActual": None,
+                 "revenueEstimated": 100_000_000, "lastUpdated": "2026-08-05"},
+                {"symbol": "BRK.B", "date": "2026-08-06", "epsActual": None,
+                 "epsEstimated": None, "revenueActual": None,
+                 "revenueEstimated": None, "lastUpdated": "2026-08-05"},
+                {"date": "2026-08-06"},  # missing symbol -> dropped, never crashes
+            ]
+
+    with patch("requests.get", return_value=_Resp()) as mocked_get:
+        rows = store._fmp_reporters(0, dt.date(2026, 8, 6))
+
+    mocked_get.assert_called_once()
+    assert mocked_get.call_args.kwargs["params"]["from"] == "2026-08-06"
+    assert mocked_get.call_args.kwargs["params"]["to"] == "2026-08-06"
+
+    by_sym = {r["sym"]: r for r in rows}
+    assert set(by_sym) == {"NVDA", "BRK-B"}, \
+        "numeric-prefixed/exchange-suffixed international symbols must be filtered out"
+    assert by_sym["NVDA"]["report_date"] == "2026-08-06"
+    assert by_sym["NVDA"]["hour"] == "", "FMP carries no session field -- must be an honest absence"
+    assert by_sym["NVDA"]["fiscal_year"] is None
+    assert by_sym["NVDA"]["fiscal_quarter"] is None
+    assert by_sym["NVDA"]["eps_estimate"] == pytest.approx(0.85)
+
+
+def test_fmp_reporters_returns_none_without_api_key(store, monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    assert store._fmp_reporters(14, dt.date(2026, 8, 5)) is None
+
+
+def test_fmp_reporters_returns_none_on_http_error(store, monkeypatch):
+    """None (not []) when EVERY day-chunk fails -- an empty list would
+    suppress the Finnhub fallback exactly on the kind of night this whole
+    task exists to fix."""
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+
+    class _Resp:
+        ok = False
+        status_code = 500
+
+    with patch("requests.get", return_value=_Resp()):
+        assert store._fmp_reporters(14, dt.date(2026, 8, 5)) is None
+
+
+def test_fmp_reporters_returns_none_on_network_error(store, monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+    with patch("requests.get", side_effect=RuntimeError("connection reset")):
+        assert store._fmp_reporters(14, dt.date(2026, 8, 5)) is None
+
+
+# ── Per-day chunking (2026-08-05 truncation finding) ────────────────────────
+# Live-probe-verified: a SINGLE stable/earnings-calendar call spanning
+# multiple days silently truncates at a ~4000-row response cap, and NOT
+# fairly across dates -- a 2-day [today, today+1] call returned exactly 4000
+# rows with ZERO dated `today`; a 14-day call returned 2,192 rows with BOTH
+# of the two nearest days (the only ones run_nightly_capture's window
+# reads) completely absent. Single-day volume alone (1,400-2,200 rows,
+# live-measured) stays safely under the cap. _fmp_reporters now issues one
+# call PER calendar day and merges the results.
+
+def test_fmp_reporters_chunks_one_call_per_day_so_no_day_is_dropped(store, monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+    today = dt.date(2026, 8, 5)
+    sym_by_day = {"2026-08-05": "AAA", "2026-08-06": "BBB", "2026-08-07": "CCC"}
+
+    def _fake_get(url, params=None, timeout=None, **kw):
+        day = params["from"]
+        assert params["from"] == params["to"], "each chunk call must ask for exactly ONE day"
+
+        class _Resp:
+            ok = True
+            status_code = 200
+
+            def json(self_inner):
+                return [{"symbol": sym_by_day[day], "date": day, "epsActual": None,
+                         "epsEstimated": 1.0, "revenueActual": None,
+                         "revenueEstimated": None, "lastUpdated": day}]
+        return _Resp()
+
+    with patch("requests.get", side_effect=_fake_get) as mocked_get:
+        rows = store._fmp_reporters(2, today)  # today, +1, +2 -> 3 day-chunks
+
+    assert mocked_get.call_count == 3, "one HTTP call per calendar day, not one wide call"
+    dates = sorted(r["report_date"] for r in rows)
+    assert dates == ["2026-08-05", "2026-08-06", "2026-08-07"], \
+        "every day-chunk must be represented -- none dropped by a wide single call"
+
+
+def test_fmp_reporters_returns_partial_results_when_one_day_chunk_fails(store, monkeypatch):
+    """A failing day-chunk must not blank out the whole result -- partial
+    real data beats nothing, and only a TOTAL failure (every chunk down)
+    triggers the None -> Finnhub-fallback path."""
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+    today = dt.date(2026, 8, 5)
+
+    def _fake_get(url, params=None, timeout=None, **kw):
+        if params["from"] == "2026-08-06":
+            raise RuntimeError("transient network error")
+
+        class _Resp:
+            ok = True
+            status_code = 200
+
+            def json(self_inner):
+                return [{"symbol": "AAA", "date": params["from"], "epsActual": None,
+                         "epsEstimated": 1.0, "revenueActual": None,
+                         "revenueEstimated": None, "lastUpdated": params["from"]}]
+        return _Resp()
+
+    with patch("requests.get", side_effect=_fake_get):
+        rows = store._fmp_reporters(1, today)  # today, +1 -> 2 day-chunks, one fails
+
+    assert [r["report_date"] for r in rows] == ["2026-08-05"]
+
+
+def test_is_us_symbol_filters_international_keeps_class_shares(store):
+    assert store._is_us_symbol("NVDA") is True
+    assert store._is_us_symbol("BRK-B") is True
+    assert store._is_us_symbol("BF-A") is True
+    assert store._is_us_symbol("002532-SZ") is False
+    assert store._is_us_symbol("600738-SS") is False
+    assert store._is_us_symbol("") is False
+    assert store._is_us_symbol(None) is False
+
+
+def test_is_us_symbol_rejects_two_letter_exchange_suffixes(store):
+    """Live-verified 2026-08-05: FMP appends a two-letter EXCHANGE code to
+    non-US tickers (SHOP.TO Toronto, TITR.MI Milan, INDIANHUME.NS India,
+    IP.BK Bangkok) which _canon's dot->hyphen rule makes format-identical to
+    a genuine one-letter US class share under a naive {1,2} suffix cap --
+    several of these were observed live slipping through and inflating
+    `failed` with guaranteed Massive-chain misses. Real US class shares are,
+    without exception, exactly ONE trailing letter."""
+    assert store._is_us_symbol("SHOP-TO") is False
+    assert store._is_us_symbol("TITR-MI") is False
+    assert store._is_us_symbol("IP-BK") is False
+    assert store._is_us_symbol("BTOU-SI") is False
+
+
+def test_upcoming_reporters_prefers_fmp_and_never_calls_finnhub_when_fmp_succeeds(store, monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+    fmp_rows = [{"sym": "NVDA", "report_date": "2026-08-06", "hour": "",
+                 "fiscal_year": None, "fiscal_quarter": None, "eps_estimate": 0.85}]
+    with patch.object(store, "_fmp_reporters", return_value=fmp_rows), \
+         patch.object(store, "_finnhub_reporters") as fh:
+        reporters = store.upcoming_reporters(days=14, now=dt.datetime(2026, 8, 5))
+    fh.assert_not_called()
+    assert reporters == fmp_rows
+
+
+def test_upcoming_reporters_falls_back_to_finnhub_when_fmp_is_unavailable(store, monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-fh-key")
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"earningsCalendar": [
+                {"symbol": "AAPL", "date": "2026-08-06", "hour": "amc", "quarter": 3, "year": 2026},
+            ]}
+
+    with patch("requests.get", return_value=_Resp()):
+        reporters = store.upcoming_reporters(days=14, now=dt.datetime(2026, 8, 5))
+    assert reporters and reporters[0]["sym"] == "AAPL"
+    assert reporters[0]["fiscal_year"] == 2026, "the Finnhub fallback still carries the fiscal key"
+
+
+def test_upcoming_reporters_uses_fmp_when_finnhub_returns_nothing_reproduces_2026_08_05_incident(store, monkeypatch):
+    """Direct reproduction, at the upcoming_reporters layer, of the verified
+    production failure: Finnhub's calendar call yields nothing (429/shed --
+    modeled as fh_get returning None, exactly what every Finnhub failure mode
+    collapses to for a caller) while FMP -- a paid Premium plan, not
+    rate-limited -- has the data. FAILS against the pre-fix Finnhub-only
+    upcoming_reporters (which never touches FMP at all, so this would return
+    []); PASSES once FMP is the primary source."""
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+
+    class _FmpResp:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return [{"symbol": "NVDA", "date": "2026-08-06", "epsActual": None,
+                      "epsEstimated": 0.85, "revenueActual": None,
+                      "revenueEstimated": 5_000_000_000, "lastUpdated": "2026-08-05"}]
+
+    with patch("requests.get", return_value=_FmpResp()), \
+         patch("api.services.finnhub_client.fh_get", return_value=None):
+        reporters = store.upcoming_reporters(days=14, now=dt.datetime(2026, 8, 5))
+
+    assert reporters, "FMP must still supply a reporter list when Finnhub returns nothing"
+    assert reporters[0]["sym"] == "NVDA"
+
+
+def test_run_nightly_capture_recovers_from_finnhub_unavailability_via_fmp(store, monkeypatch):
+    """End-to-end reproduction of the verified 2026-08-05 production
+    incident, one layer up from the test above: run_nightly_capture itself
+    must recover a non-zero `captured` when Finnhub's calendar call yields
+    nothing and FMP has the data. FAILS against the pre-fix code (summary ==
+    {'captured': 0, 'skipped': 0, 'failed': 0, 'collisions': 0}, matching the
+    verified incident log exactly); PASSES after."""
+    monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
+    # today = 2026-08-05; tomorrow (08-06) is in-window regardless of session,
+    # so this isolates the RESILIENCE fix from the separate session-backfill
+    # behavior exercised by the tests below.
+    now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
+
+    class _FmpResp:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return [{"symbol": "NVDA", "date": "2026-08-06", "epsActual": None,
+                      "epsEstimated": 0.85, "revenueActual": None,
+                      "revenueEstimated": 5_000_000_000, "lastUpdated": "2026-08-05"}]
+
+    with patch("requests.get", return_value=_FmpResp()), \
+         patch("api.services.finnhub_client.fh_get", return_value=None), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+        summary = store.run_nightly_capture(now=now)
+
+    assert summary["captured"] == 1, (
+        "FMP must supply the reporter list -- and the capture must succeed -- "
+        "even though Finnhub returned nothing, exactly like the verified "
+        "2026-08-05 production incident"
+    )
+    assert store.get_implied_history("NVDA")
+
+
+# ── Same-day session backfill (FMP carries no bmo/amc field at all) ────────
+
+def test_finnhub_today_enrichment_normalizes_rows(store, monkeypatch):
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-fh-key")
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"earningsCalendar": [
+                {"symbol": "todayx", "date": "2026-08-05", "hour": "amc", "quarter": 3, "year": 2026},
+            ]}
+
+    with patch("requests.get", return_value=_Resp()):
+        hints = store._finnhub_today_enrichment("2026-08-05")
+    assert hints == {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
+
+
+def test_finnhub_today_enrichment_empty_on_failure(store):
+    with patch("api.services.finnhub_client.fh_get", return_value=None):
+        assert store._finnhub_today_enrichment("2026-08-05") == {}
+
+
+def test_merge_today_enrichment_fills_blank_hour_and_fiscal_key(store):
+    in_window = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
+    out = store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    assert out[0]["hour"] == "amc"
+    assert out[0]["fiscal_year"] == 2026
+    assert out[0]["fiscal_quarter"] == 3
+
+
+def test_merge_today_enrichment_never_overwrites_a_known_hour(store):
+    in_window = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "bmo",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
+    out = store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    assert out[0]["hour"] == "bmo", "the primary source's known session must win, never be overridden"
+
+
+def test_merge_today_enrichment_ignores_rows_not_dated_today(store):
+    in_window = [{"sym": "TOMORROW", "report_date": "2026-08-06", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    hints = {"TOMORROW": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
+    out = store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    assert out[0]["hour"] == ""
+
+
+def test_merge_today_enrichment_never_mutates_input_dicts(store):
+    """in_window entries can be objects shared with the _REPORTERS_CACHE TTL
+    cache (via upcoming_reporters) -- mutating them in place would corrupt
+    what a later call inside the same 6h TTL window sees."""
+    original = {"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
+                "fiscal_year": None, "fiscal_quarter": None}
+    in_window = [original]
+    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
+    store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    assert original["hour"] == "", "the ORIGINAL dict must be untouched"
+    assert original["fiscal_year"] is None
+
+
+def test_merge_today_enrichment_noop_when_hints_empty(store):
+    in_window = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": ""}]
+    out = store._merge_today_enrichment(in_window, "2026-08-05", {})
+    assert out is in_window
+
+
+def test_run_nightly_capture_skips_today_row_when_session_unknown_and_backfill_fails(store):
+    """FMP-primary rows carry hour="" (no session field at all). If the
+    opportunistic same-day Finnhub backfill ALSO fails, a today-dated row
+    must SKIP rather than guess -- capturing on an unconfirmed session risks
+    silently storing an IV-crushed value forever."""
+    now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
+    reporters = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store, "_finnhub_today_enrichment", return_value={}), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+        summary = store.run_nightly_capture(now=now)
+    assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0}
+    assert not store.get_implied_history("TODAYX")
+
+
+def test_run_nightly_capture_backfills_session_from_finnhub_and_captures(store):
+    now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
+    reporters = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store, "_finnhub_today_enrichment", return_value=hints) as enrich, \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+        summary = store.run_nightly_capture(now=now)
+    enrich.assert_called_once_with("2026-08-05")
+    assert summary["captured"] == 1
+    rows = store.get_implied_history("TODAYX")
+    assert rows and rows[0]["fiscal_year"] == 2026 and rows[0]["fiscal_quarter"] == 3
+
+
+def test_run_nightly_capture_backfill_revealing_bmo_still_skips(store):
+    now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
+    reporters = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    hints = {"TODAYX": {"hour": "bmo", "fiscal_year": 2026, "fiscal_quarter": 3}}
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store, "_finnhub_today_enrichment", return_value=hints), \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+        summary = store.run_nightly_capture(now=now)
+    assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0}
+    assert not store.get_implied_history("TODAYX")
+
+
+def test_run_nightly_capture_skips_the_backfill_call_when_no_row_needs_it(store):
+    """A healthy night (session already known for every today-dated row, or
+    no reporter is dated today at all) must never spend the extra Finnhub
+    call -- also proves a report_date != today with an unknown hour still
+    captures normally (only TODAY's rows are session-gated)."""
+    now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
+    reporters = [{"sym": "AMCTODAY", "report_date": "2026-08-05", "hour": "amc",
+                  "fiscal_year": None, "fiscal_quarter": None},
+                 {"sym": "TOMORROW", "report_date": "2026-08-06", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    with patch.object(store, "upcoming_reporters", return_value=reporters), \
+         patch.object(store, "_finnhub_today_enrichment") as enrich, \
+         patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
+        summary = store.run_nightly_capture(now=now)
+    enrich.assert_not_called()
+    assert summary["captured"] == 2
+    assert store.get_implied_history("AMCTODAY")
+    assert store.get_implied_history("TOMORROW")
