@@ -134,9 +134,28 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
             return None
 
     # avg_vol: prefer Finnhub 10-week avg daily volume, fall back to yfinance averageVolume
+    #
+    # ⚠️ UNIT: Finnhub's volume metrics come back in MILLIONS of shares, NOT shares
+    # — empirically verified 2026-08-04 against /stock/metric: AMD 29.65728,
+    # AAPL 60.83381, F 64.44564, which are those names' real ~30M/~61M/~64M daily
+    # volumes. This endpoint's contract (see the module docstring and the comment
+    # on the `avg_vol` key below) is SHARES, and both consumers assume shares:
+    # `SetupSection.compactVol` and the older `FundamentalsStrip.fmtVol`. Passing
+    # the raw Finnhub number through therefore rendered "0K" for every ticker in
+    # the research modal (29.65728/1000 rounds to 0) and a bare "29.65728" in the
+    # fundamentals strip. Normalize HERE, at the boundary, so the documented
+    # contract is true for every consumer instead of each one carrying a
+    # provider quirk. Found by Task 12 GATE a in a live browser; no fixture-based
+    # test could see it, because the defect is in the unit contract, not the
+    # formatter. (`52WeekAverageDailyVolume` returns None for every symbol probed,
+    # so it is unverifiable in practice, but it is the same provider metric
+    # family and gets the same treatment rather than a silently different unit.)
+    _FH_VOL_MILLIONS = 1e6
     avg_vol_fh = _safe_float(fh.get("10DayAverageTradingVolume") or fh.get("averageDailyVolume10Day"))
     if avg_vol_fh is None:
         avg_vol_fh = _safe_float(fh.get("52WeekAverageDailyVolume"))
+    if avg_vol_fh is not None:
+        avg_vol_fh *= _FH_VOL_MILLIONS
 
     # 52-week range: prefer Finnhub annual highs
     w52_high_fh = _safe_float(fh.get("52WeekHigh"))

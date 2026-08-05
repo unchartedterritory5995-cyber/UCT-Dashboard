@@ -29,7 +29,13 @@ _SAMPLE_FUND = {
 }
 
 _SAMPLE_FH = {
-    "10DayAverageTradingVolume": 55_000_000.0,
+    # ⚠️ Finnhub returns volume metrics in MILLIONS of shares. This fixture used
+    # to say 55_000_000.0 — i.e. it encoded the same wrong provider contract the
+    # router did, which is exactly why "0K avg volume" shipped: the test agreed
+    # with the bug. Verified live 2026-08-04 against /stock/metric: AMD 29.65728,
+    # AAPL 60.83381, F 64.44564 — those names' real ~30M/~61M/~64M daily volumes.
+    # 55.0 here means 55 million shares.
+    "10DayAverageTradingVolume": 55.0,
     "52WeekHigh": 199.62,
     "52WeekLow": 124.17,
 }
@@ -62,6 +68,9 @@ class TestFundamentalsEndpoint:
         assert data["beta"] == 1.24
         assert data["week52_high"] == 199.62
         assert data["week52_low"] == 124.17
+        # The endpoint's documented contract is SHARES, so Finnhub's 55.0
+        # (millions) must surface as 55,000,000. Without the normalization the
+        # research modal's compactVol renders "0K" for every ticker.
         assert data["avg_vol"] == 55_000_000.0
         assert data["div_yield"] == 0.5
 
