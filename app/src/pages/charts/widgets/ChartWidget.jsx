@@ -199,6 +199,17 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const activeStoredSettings = isMainTab ? (opts?.settings || null) : (activeExtra?.settings || null)
   // Identity-stable full-blob override handed to StockChart (null = inherit global).
   const settingsOverride = useMemo(() => activeStoredSettings || null, [activeStoredSettings])
+  // Identity-stable write sink for the active surface. MUST be useCallback, not
+  // an inline arrow at the useChartSurfaceSettings call site: the hook's `write`
+  // (dep `onStore`) and `patchHeader` (dep `write`) are handed to StockChart as
+  // onSettingsPersist, which several of StockChart's useEffects/useMemo key off
+  // — an inline literal would be a new identity every render (including on
+  // every live-price tick and 60s clock re-render), tearing down and
+  // re-attaching StockChart's keydown/pointer listeners for no reason.
+  const persistActiveSettings = useCallback((next) => {
+    if (isMainTab) onOptsChange?.({ ...(opts || {}), settings: next })
+    else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { settings: next }))
+  }, [isMainTab, activeExtra, opts, onOptsChange])
   // Per-surface settings resolution + the single write sink for the ACTIVE
   // surface. Passing `onStore` is what keeps this widget/tab's writes OUT of
   // the global chart_settings pref — that isolation is the whole point (the
@@ -207,10 +218,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // `activeStoredSettings` is still null (see useChartSurfaceSettings).
   const { cs: chartCs, menuVars, write: writeActiveSettings, patchHeader } = useChartSurfaceSettings({
     stored: activeStoredSettings,
-    onStore: (next) => {
-      if (isMainTab) onOptsChange?.({ ...(opts || {}), settings: next })
-      else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { settings: next }))
-    },
+    onStore: persistActiveSettings,
     chartsTheme,
   })
   const extHoursOn = chartCs.extendedHoursShading ?? true

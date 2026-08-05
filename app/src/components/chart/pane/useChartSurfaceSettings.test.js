@@ -52,3 +52,31 @@ test('patchHeader merges into header and marks the preset custom', () => {
     header: expect.objectContaining({ showUctRating: false, showMarketCap: true }),
   }))
 })
+
+// Fix round 1: ChartWidget.jsx originally passed `onStore` as an inline arrow
+// literal at the useChartSurfaceSettings call site — a new function identity
+// every render. That fed into `write`'s dep list (and `patchHeader`'s, via
+// `write`), making both new every render, which propagates into StockChart's
+// onSettingsPersist prop and tears down/re-attaches its keydown + pointer
+// listeners on every ChartWidget render (including live-price ticks and the
+// 60s clock re-render). The fix hoists that inline arrow into a stable
+// useCallback in ChartWidget.jsx. This test pins the CONTRACT the fix relies
+// on: given referentially-stable inputs (stored + onStore unchanged across a
+// re-render), the hook itself must hand back the SAME write/patchHeader
+// function identity — it must never introduce its own instability on top of
+// a caller that already did the right thing.
+test('given stable stored/onStore, write and patchHeader keep identity across a re-render', () => {
+  const onStore = vi.fn()
+  const stored = { background: '#333' }
+  const { result, rerender } = renderHook(
+    (props) => useChartSurfaceSettings(props),
+    { initialProps: { stored, onStore } },
+  )
+  const firstWrite = result.current.write
+  const firstPatchHeader = result.current.patchHeader
+  // Re-render with the SAME stored/onStore references (mirrors a ChartWidget
+  // re-render where props haven't actually changed — e.g. a live-price tick).
+  rerender({ stored, onStore })
+  expect(result.current.write).toBe(firstWrite)
+  expect(result.current.patchHeader).toBe(firstPatchHeader)
+})
