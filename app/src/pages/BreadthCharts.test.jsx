@@ -189,6 +189,42 @@ describe('reference lines', () => {
     expect(seriesNamed(captured, '__ma_extremes__')).toBeUndefined()
   })
 
+  it('widens the axis so the 90 line is actually in frame', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('Participation')
+    await waitFor(() => expect(seriesNamed(captured, '__ma_extremes__')).toBeTruthy())
+
+    // Participation data tops out near 70, so ECharts sized the axis to ~80 and
+    // the topmost reference line never rendered.
+    const axis = captured.yAxis[0]
+    expect(typeof axis.max).toBe('function')
+    expect(axis.max({ min: 21.8, max: 71.6 })).toBeGreaterThanOrEqual(90)
+    expect(axis.min({ min: 21.8, max: 71.6 })).toBeLessThanOrEqual(5)
+  })
+
+  it('still lets a genuine outlier expand the axis past the band', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('Participation')
+    await waitFor(() => expect(captured.yAxis[0].max).toBeInstanceOf(Function))
+
+    // uct_exposure reaches 102 and aaii_spread goes negative — the widening
+    // must be a floor, not a clamp.
+    expect(captured.yAxis[0].max({ min: -22, max: 102 })).toBe(102)
+    expect(captured.yAxis[0].min({ min: -22, max: 102 })).toBe(-22)
+  })
+
+  it('leaves the axis alone when no reference lines are shown', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('New Highs vs Lows')
+
+    await waitFor(() => expect(captured.series).toHaveLength(2))
+    expect(captured.yAxis[0].max).toBeUndefined()
+    expect(captured.yAxis[0].min).toBeUndefined()
+  })
+
   it('draws them on whichever axis the percentage family landed on', async () => {
     render(<BreadthCharts />)
     await chart()
