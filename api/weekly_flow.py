@@ -659,7 +659,14 @@ def _webhook() -> str:
 # sync endpoint keeps computing after the proxy gives up, so the second click
 # hits this cache. Also avoids re-scanning on Preview-then-Push of the same card.
 _CARD_CACHE: dict = {}
-_CARD_TTL = 120
+# TTL for a built card. The cold scan can exceed the web→worker proxy's 120s read
+# timeout (→ a 502); the sync endpoint keeps computing after the proxy gives up and
+# caches here, so a RETRY returns instantly. 120s made that window too tight — if the
+# scan finished near/after 120s the entry could expire before the user re-clicked.
+# 10min (env-tunable) makes the retry reliable and covers Preview-then-Push of the
+# same card. This board (60-day still-open) moves slowly, so a few min of staleness
+# is invisible. (2026-08-04)
+_CARD_TTL = int(os.getenv("FLOW_CARD_TTL", "600"))
 
 
 def _card_floor(cap: str) -> float:
