@@ -1,5 +1,5 @@
 // app/src/components/tiles/CatalystFlow.jsx
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useCallback } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
@@ -95,7 +95,25 @@ export default function CatalystFlow({ data: propData }) {
 
   const data = propData !== undefined ? propData : fetched
   const [selected, setSelected] = useState(null)
+  // T11 review round 1, I5: SectionRail always renders all four tabs and
+  // handles its own keyboard nav regardless of whether onSectionChange does
+  // anything — passing `section={null}`/`onSectionChange={() => {}}` (the
+  // brief's literal snippet) shipped dead controls: clicking History/Brief/
+  // Call did nothing, forever. Plain local state instead — the brief only
+  // ruled out the ROUTE hook here (double-render / unresolvable across two
+  // live Dashboard instances), not local state.
+  const [section, setSection] = useState('setup')
+  // C3 (T11 review round 1): keys the ErrorBoundary below so a crash has a
+  // way out — see Calendar.jsx's openSeq for the full rationale. Bumped on
+  // every fresh row click, untouched otherwise (CatalystFlow has no stepping).
+  const [openSeq, setOpenSeq] = useState(0)
   const scrollBodyRef = useRef(null)
+
+  const openEntry = useCallback((row, label) => {
+    setOpenSeq((s) => s + 1)
+    setSection('setup')
+    setSelected({ row, label })
+  }, [])
 
   // Live prices for all earnings tickers
   const earningsTickers = useMemo(() => {
@@ -118,21 +136,21 @@ export default function CatalystFlow({ data: propData }) {
           <EarningsTable
             rows={data.bmo}
             label="BEFORE MARKET OPEN"
-            onSelect={(row, label) => setSelected({ row, label })}
+            onSelect={openEntry}
             liveGaps={liveGaps}
             livePrices={livePrices}
           />
           <EarningsTable
             rows={data.amc_tonight}
             label="AFTER CLOSE · TONIGHT"
-            onSelect={(row, label) => setSelected({ row, label })}
+            onSelect={openEntry}
             liveGaps={liveGaps}
             livePrices={livePrices}
           />
           <EarningsTable
             rows={data.amc}
             label="AFTER CLOSE · YESTERDAY"
-            onSelect={(row, label) => setSelected({ row, label })}
+            onSelect={openEntry}
             liveGaps={liveGaps}
             livePrices={livePrices}
           />
@@ -143,17 +161,23 @@ export default function CatalystFlow({ data: propData }) {
       </TileCard>
 
       {selected && (
-        <ErrorBoundary fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', padding: '12px' }}>Unable to load — click a ticker to retry.</div>}>
+        <ErrorBoundary
+          key={openSeq}
+          fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', padding: '12px' }}>Unable to load — click a ticker to retry.</div>}
+        >
           {/* Plain local state on purpose (§4.4): the Dashboard mounts TWO live
               CatalystFlow instances (desktop + mobile trees) and its rows come
               from today's wire list, so URL-driven opening here would both
-              double-render and be unresolvable. No `key` — see Calendar.jsx. */}
+              double-render and be unresolvable. `key={openSeq}` — see
+              Calendar.jsx's C3 note: un-keying alone removed the only way out
+              of a crashed boundary, and here there is no route to fall back on
+              via a browser Back, so a crash was TERMINAL until page reload. */}
           <EarningsResearchModal
             row={selected.row}
             label={selected.label}
             onClose={() => setSelected(null)}
-            section={null}
-            onSectionChange={() => {}}
+            section={section}
+            onSectionChange={setSection}
           />
         </ErrorBoundary>
       )}

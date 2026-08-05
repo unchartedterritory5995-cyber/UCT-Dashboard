@@ -57,3 +57,34 @@ export function timingLabel(timing) {
   if (timing === 'amc' || timing === 'AFTER MARKET CLOSE') return 'AFTER MARKET CLOSE'
   return 'TIME TBD'
 }
+
+// ET-anchored "today" — the backend anchors its week the same way, so a
+// late-evening West-coast user lands on the day the payload flags is_today.
+// T11 review round 1 (minor): moved here from being duplicated verbatim in
+// both Calendar.jsx and MyStocksHub.jsx — this module is ALREADY imported by
+// both (unlike Calendar.jsx itself, which pulls in CalendarHeader/FeedView/
+// WeekView/MonthView/DayDetailDrawer — see the rejected earlier attempt to
+// import shouldUnwindHistory FROM Calendar.jsx below), so sharing it here
+// costs nothing extra in either mount's bundle.
+export function todayIso() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+    .format(new Date())
+}
+
+// § pushedRef staleness (promoted from Task 4 review). A native browser Back
+// can null `route.sym` without ever calling our close() —
+// useEarningsModalRoute's internal ownership tracking (see that file's
+// OWNERSHIP TRACKING note) already reconciles the history-unwind decision
+// against actual traversal, but there is a SEPARATE, narrower race this
+// guards: route.sym can read null for one render before the local `selected`
+// state's syncing effect has caught up (effects run after commit), during
+// which a stale-but-still-mounted modal's onClose could still fire. Never
+// ask the router to unwind history when the live URL doesn't show a symbol
+// open right now — there is nothing of ours left in the URL to close.
+// Exported as a pure function of `route` so the decision itself is
+// unit-testable without needing to reproduce the underlying browser-timing
+// race (React's passive-effect flush collapses that race to a single atomic
+// step under any `act()`-based test harness, jsdom included).
+export function shouldUnwindHistory(route) {
+  return !!(route?.routed && route?.sym)
+}

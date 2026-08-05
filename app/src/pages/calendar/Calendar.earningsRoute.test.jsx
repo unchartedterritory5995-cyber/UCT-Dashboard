@@ -23,21 +23,29 @@ import {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = resolve(__filename, '..')
 
+// GATE C3 (T11 review round 1): throws when `row.sym === 'CRASH'` — lets a
+// dedicated test prove the ErrorBoundary can actually be escaped by opening
+// a DIFFERENT symbol (openSeq bump), not just observe that it's un-keyed.
 vi.mock('../../components/research/EarningsResearchModal', () => ({
-  default: ({ row, section, onClose, onStepNext, onSectionChange }) => (
-    <div data-testid="erm" data-sym={row?.sym} data-section={section ?? ''}>
-      <button onClick={onClose}>close</button>
-      <button onClick={onStepNext} disabled={!onStepNext}>next</button>
-      <button onClick={() => onSectionChange('brief')}>to-brief</button>
-    </div>
-  ),
+  default: ({ row, section, onClose, onStepNext, onSectionChange }) => {
+    if (row?.sym === 'CRASH') throw new Error('synthetic crash for GATE C3')
+    return (
+      <div data-testid="erm" data-sym={row?.sym} data-section={section ?? ''}>
+        <button onClick={onClose}>close</button>
+        <button onClick={onStepNext} disabled={!onStepNext}>next</button>
+        <button onClick={() => onSectionChange('brief')}>to-brief</button>
+      </div>
+    )
+  },
 }))
 
 // One loaded week: Wed 2026-08-05 BMO AAPL, Thu 2026-08-06 AMC NVDA then AMD.
 const WEEK = {
   week_start: '2026-08-03', week_end: '2026-08-09',
   days: {
-    '2026-08-05': { label: 'Wed Aug 5', bmo: [{ sym: 'AAPL', eps_est: 1.2 }], amc: [], tbd: [] },
+    '2026-08-05': { label: 'Wed Aug 5',
+                    bmo: [{ sym: 'AAPL', eps_est: 1.2 }, { sym: 'CRASH', eps_est: 1 }],
+                    amc: [], tbd: [] },
     '2026-08-06': { label: 'Thu Aug 6', bmo: [],
                     amc: [{ sym: 'NVDA', eps_est: 0.94 }, { sym: 'AMD', eps_est: 0.71 }],
                     tbd: [] },
@@ -179,6 +187,30 @@ describe('Calendar × earnings modal route', () => {
     expect(boundary).toContain('EarningsResearchModal')
     expect(boundary).not.toMatch(/key=\{selected/)
   })
+
+  // C3 (T11 review round 1, CRITICAL): un-keying alone removed the ONLY way
+  // the ErrorBoundary ever recovered (it has no reset of its own — see
+  // components/ErrorBoundary.jsx). Structural absence of a sym-key proves
+  // stepping is preserved but says nothing about whether a crash is ever
+  // escapable. This drives an ACTUAL crash through the real WeekView click
+  // path (the same path openSeq is bumped from) and proves a fresh open —
+  // not a step — remounts the boundary and clears the fallback.
+  it('GATE C3: a crashed boundary recovers when the user opens a DIFFERENT symbol', async () => {
+    renderAt('/calendar?week=2026-08-03')
+    expect(screen.queryByTestId('erm')).toBeNull()
+
+    fireEvent.click(await screen.findByText('CRASH'))
+    expect(await screen.findByText(/Unable to load/)).toBeTruthy()
+    expect(screen.queryByTestId('erm')).toBeNull()
+
+    // A fresh open of a DIFFERENT symbol — the real recovery affordance the
+    // fallback's own copy promises ("click a ticker to retry").
+    fireEvent.click(screen.getByText('AAPL'))
+
+    const modal = await screen.findByTestId('erm')
+    expect(modal.getAttribute('data-sym')).toBe('AAPL')
+    expect(screen.queryByText(/Unable to load/)).toBeNull()
+  })
 })
 
 // ── GATE: the other two mounts are un-keyed too (structural, same rationale) ──
@@ -199,15 +231,36 @@ describe('un-keyed ErrorBoundary at every mount', () => {
   })
 })
 
-// ── pushedRef staleness (promoted from Task 4 review) ──────────────────────
+// ── pushedRef staleness (promoted from Task 4 review; C2 — T11 review round 1) ──
 //
 // A native browser Back can null route.sym without ever calling our close()
 // — useEarningsModalRoute's internal pushedRef has no way to observe
 // browser-driven history traversal, so it can go stale relative to the
-// CURRENT top-of-history entry. Calendar.jsx's dismiss handler
-// (shouldUnwindHistory, exported below the page component) reconciles
-// against the live URL instead of blindly delegating every dismiss to
-// route.close().
+// CURRENT top-of-history entry.
+//
+// This was fixed at TWO layers after a review round found the first layer
+// alone insufficient:
+//   1. Calendar.jsx's dismiss handler (shouldUnwindHistory, exported below
+//      the page component) never calls route.close() at all when the URL no
+//      longer shows a symbol open — closing a race between route.sym
+//      updating and the local `selected` state's syncing effect not yet
+//      having run (see shouldUnwindHistory's own doc comment in Calendar.jsx).
+//   2. useEarningsModalRoute.js's OWN close() no longer trusts a plain
+//      "did we ever push" boolean — C2 found a reachable sequence where that
+//      boolean is stale-true while route.sym IS genuinely open (so guard #1
+//      doesn't help): open a SHARED LINK (no push — it's the session's first
+//      entry) -> click a different ticker (push, ownership) -> native Back
+//      (reopens the shared-link symbol; ownership was never revoked) -> close
+//      -> navigate(-1) landed the user OFF THE SHARED-LINK ENTRY ENTIRELY.
+//      Fixed by re-deriving ownership on every location change instead of a
+//      write-once/clear-once flag — see the OWNERSHIP TRACKING comment atop
+//      useEarningsModalRoute.js. The dedicated regression for the exact
+//      shared-link sequence lives in that hook's own test file
+//      (useEarningsModalRoute.test.jsx, "close() after a native Back reopens
+//      a shared-link entry WITHOUT navigating away") since it needs no
+//      Calendar-specific scaffolding; this file keeps the double-open
+//      variant, which now demonstrates that fix #2 alone (bypassing
+//      shouldUnwindHistory entirely) is ALSO sufficient — defense in depth.
 //
 // This block drives the REAL useEarningsModalRoute hook (the same functions
 // Calendar.jsx calls: open/close/step) under a REAL browser-backed history
@@ -290,45 +343,48 @@ describe('pushedRef staleness — end to end', () => {
     expect(new URLSearchParams(window.location.search).get('week')).toBe('2026-08-03')
   })
 
-  // The literal 4-step sequence above happens to come out correct with OR
-  // without the shouldUnwindHistory guard, because open()'s fresh push
-  // re-synchronizes pushedRef with the truth on every reopen. The guard
-  // earns its keep in a sequence where the modal is opened TWICE without an
-  // intervening close (e.g. clicking straight from one ticker's card to
-  // another's) and THEN backed out twice — pushedRef is left stuck `true`
-  // pointing at an entry that is no longer the top of history.
-  it('a stale pushedRef dismissed WITHOUT the guard strands the user off /calendar entirely', async () => {
+  // A double-open (two tickers clicked in a row, no intervening close) then
+  // two Backs, landing on the pre-open Calendar entry (sym null — guard #1
+  // would already refuse to call close() here). Fixed at the hook layer
+  // (C2), a RAW close() — bypassing shouldUnwindHistory entirely — is now
+  // ALSO safe: ownership is re-derived from actual traversal, not a
+  // write-once boolean, so it correctly reads "not ours" here regardless of
+  // how many opens preceded the Backs.
+  it('a double-open then two Backs, dismissed RAW (no shouldUnwindHistory), no longer strands the user', async () => {
     renderProbeWithDecoyHistory('/calendar?week=2026-08-03')
-    act(() => hookApi.open('NVDA'))   // push #1, pushedRef=true
-    act(() => hookApi.open('AMD'))    // push #2 without closing, pushedRef=true
+    act(() => hookApi.open('NVDA'))   // push #1
+    act(() => hookApi.open('AMD'))    // push #2 without closing
     act(() => { window.history.back() })
-    await flushHistoryTraversal()      // back onto push #1 (NVDA) — pushedRef still accurate
+    await flushHistoryTraversal()      // back onto push #1 (NVDA)
     act(() => { window.history.back() })
-    await flushHistoryTraversal()      // back onto the pre-open Calendar entry — pushedRef now STALE
+    await flushHistoryTraversal()      // back onto the pre-open Calendar entry
     expect(hookApi.sym).toBeNull()
 
-    // The bug, reproduced: calling close() RAW (no reconciliation) still
-    // trusts the stale pushedRef and navigates(-1) again.
-    act(() => { hookApi.close() })
+    act(() => { hookApi.close() })     // RAW — no shouldUnwindHistory gate at all
     await flushHistoryTraversal()
-    expect(window.location.pathname).toBe('/some-other-page')   // stranded off /calendar entirely
+    expect(window.location.pathname).toBe('/calendar')   // NOT stranded on the decoy page
+    expect(screen.queryByTestId('decoy')).toBeNull()
   })
 
-  it('the SAME stale-pushedRef sequence, dismissed THROUGH shouldUnwindHistory, stays on /calendar', async () => {
-    renderProbeWithDecoyHistory('/calendar?week=2026-08-03')
-    act(() => hookApi.open('NVDA'))
-    act(() => hookApi.open('AMD'))
-    act(() => { window.history.back() })
-    await flushHistoryTraversal()
-    act(() => { window.history.back() })
-    await flushHistoryTraversal()
-    expect(hookApi.sym).toBeNull()
+  // The exact C2 repro: a shared link (no push, so no "we own this" signal
+  // exists yet at all) reopened via native Back after an intervening push —
+  // route.sym IS truthy here (guard #1 would let close() through), so this
+  // one can ONLY be caught by the hook-level fix.
+  it('a shared link reopened by native Back is dismissed without navigating off it', async () => {
+    renderProbeWithDecoyHistory('/calendar?week=2026-08-03&earnings=NVDA')
+    expect(hookApi.sym).toBe('NVDA')   // the deep link itself — no open() call, no push
 
-    // The fix: reconcile against the live URL first — there is nothing of
-    // ours open, so there is nothing to unwind.
+    act(() => hookApi.open('AMD'))     // click a different ticker — push, ownership granted
+    expect(hookApi.sym).toBe('AMD')
+
+    act(() => { window.history.back() })
+    await flushHistoryTraversal()       // back onto the shared-link entry (NVDA) — ownership lost
+    expect(hookApi.sym).toBe('NVDA')
+
     act(() => { if (shouldUnwindHistory(hookApi)) hookApi.close() })
     await flushHistoryTraversal()
-    expect(window.location.pathname).toBe('/calendar')
-    expect(new URLSearchParams(window.location.search).get('week')).toBe('2026-08-03')
+    expect(window.location.pathname).toBe('/calendar')   // NOT thrown off the app
+    expect(screen.queryByTestId('decoy')).toBeNull()
+    expect(new URLSearchParams(window.location.search).get('earnings')).toBeNull()
   })
 })

@@ -11,7 +11,7 @@
 // Read/unseen: useSeen(itemType) — unseen items get a dot; opening marks seen.
 // Per-tab unseen count badge shown on the tab button.
 // Mobile: stacked layout (no horizontal scroll needed).
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import useSWR from 'swr'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
@@ -30,30 +30,18 @@ import useSentiment from '../../hooks/useSentiment'
 import CallRecapSection from '../../components/calendar/CallRecapSection'
 import EarningsResearchModal from '../../components/research/EarningsResearchModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
-import { toModalRow, timingLabel } from './earningsModalRow'
-import useEarningsModalRoute from './useEarningsModalRoute'
+import { toModalRow, timingLabel, todayIso, shouldUnwindHistory } from './earningsModalRow'
+import useEarningsModalRoute, { normalizeSym } from './useEarningsModalRoute'
 import useSettledSym from '../../hooks/useSettledSym'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
-// ET-anchored "today" — mirrors Calendar.jsx's own helper (kept local so this
-// mount stays self-contained per the P2 T11 rollback contract: a shared
-// import here would also pull Calendar.jsx's whole subtree — CalendarHeader,
-// FeedView, WeekView, MonthView, DayDetailDrawer — into this lazy chunk).
-function todayIso() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
-    .format(new Date())
-}
-
-// § pushedRef staleness (promoted from Task 4 review) — mirrors
-// Calendar.jsx's `shouldUnwindHistory` (duplicated rather than imported, same
-// reason as todayIso above). See Calendar.jsx for the full rationale: a
-// native Back can null route.sym without ever calling our close(), leaving
-// useEarningsModalRoute's internal pushedRef stale — every dismiss path
-// reconciles against the live URL before asking the router to unwind history.
-function shouldUnwindHistory(route) {
-  return !!(route?.routed && route?.sym)
-}
+// `todayIso`/`shouldUnwindHistory` come from ./earningsModalRow.js (T11
+// review round 1, minor) — no longer duplicated here. That module is ALREADY
+// imported by this file for toModalRow/timingLabel, so sharing it costs
+// nothing extra in this mount's lazy chunk (unlike importing from
+// Calendar.jsx itself, which would drag in CalendarHeader/FeedView/WeekView/
+// MonthView/DayDetailDrawer).
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -130,7 +118,11 @@ function HubTimingSection({ label, icon, hdClass, entries, seen, markSeen, onSel
       </div>
       <div className={styles.hubCardGrid}>
         {entries.map(e => {
-          const key = `${e.sym}:${e.date}`
+          // T11 review round 1, I4: `.date` never existed on a per-reporter
+          // entry (pre-existing bug, same root cause as reportDate above) —
+          // every seen-key silently collapsed to `${sym}:undefined`. `_ds`
+          // is the real per-entry report date now that it's stamped above.
+          const key = `${e.sym}:${e._ds}`
           const unseen = !seen.has(key)
           return (
             <div
@@ -339,6 +331,14 @@ export default function MyStocksHub() {
   // minimal row (never a fetch, never a loop-guard needed).
   const { pathname } = useLocation()
   const route = useEarningsModalRoute({ enabled: true, pathname })
+  // C3 (T11 review round 1): see Calendar.jsx's openMarkerRef doc comment for
+  // the full rationale, incl. the race caught in testing there (bumping
+  // openSeq synchronously in openEntry alone remounts the boundary a render
+  // BEFORE `selected` catches up via the effect below, so a fresh mount can
+  // still receive one frame of stale data). openEntry records the INTENT;
+  // the resolution effect bumps openSeq in the same call as the fresh data.
+  const [openSeq, setOpenSeq] = useState(0)
+  const openMarkerRef = useRef(null)
 
   const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
@@ -349,25 +349,37 @@ export default function MyStocksHub() {
   )
 
   // Single source of truth for the Earnings tab's list — also what
-  // arrow-stepping steps across, so the two can never drift.
+  // arrow-stepping steps across, so the two can never drift. T11 review
+  // round 1, I6: built SESSION-MAJOR (every bmo across all days, then every
+  // amc, then every tbd) to match how EarningsTab actually RENDERS it — it
+  // derives bmoEntries/amcEntries/tbdEntries from this same array via
+  // `.filter()`, which preserves relative order, so a day-major source array
+  // (all of one day's bmo+amc+tbd before the next day's) produced a stepping
+  // order that silently diverged from the on-screen order the instant a day
+  // had more than one session's worth of reporters — pressing → from the
+  // last visible BMO card could jump to an AMC name from the SAME day
+  // instead of the next visible (BMO) card.
   const { data: calData, mutate: refreshEarnings } = useCalendar()
   const earningsEntries = useMemo(() => {
     if (!calData || !mineSyms.size) return []
-    const out = []
-    for (const [, day] of Object.entries(calData.days || {})) {
-      for (const e of (day.bmo || [])) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'bmo', mine: true })
+    // T11 review round 1, I4: the API never puts a `.date` field on a
+    // per-reporter entry (only the day-level key carries it) — reading
+    // `entry.date` always read `undefined`. Stamp `_ds` from the day key we
+    // are iterating (mirrors Calendar.jsx's own `_ds: ds` tagging), so
+    // `reportDate` below is real instead of permanently null.
+    const days = Object.entries(calData.days || {})
+    const bySession = (timing) => {
+      const out = []
+      for (const [ds, day] of days) {
+        for (const e of (day[timing] || [])) {
+          if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: timing, mine: true, _ds: e._ds || ds })
+        }
       }
-      for (const e of (day.amc || [])) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'amc', mine: true })
-      }
-      // Session-unconfirmed reporters live in tbd now (never coerced into
-      // amc) — the hub must not silently lose names it showed before.
-      for (const e of (day.tbd || [])) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'tbd', mine: true })
-      }
+      return out
     }
-    return out
+    // Session-unconfirmed reporters live in tbd now (never coerced into
+    // amc) — the hub must not silently lose names it showed before.
+    return [...bySession('bmo'), ...bySession('amc'), ...bySession('tbd')]
   }, [calData, mineSyms])
 
   // Open the earnings detail modal for a clicked card. `_timing` rides on the
@@ -375,9 +387,16 @@ export default function MyStocksHub() {
   // through the URL when routed (§4.4) — the modal state itself is set by
   // the resolution effect below, so there is ONE code path that opens it.
   const openEntry = useCallback(entry => {
-    if (route.routed) { route.open(entry.sym); return }
+    if (route.routed) {
+      // C3: record intent — the resolution effect below is what actually
+      // bumps openSeq, paired with the fresh data (see openMarkerRef above).
+      openMarkerRef.current = normalizeSym(entry.sym)
+      route.open(entry.sym)
+      return
+    }
+    setOpenSeq((s) => s + 1)
     setSelected({ row: toModalRow(entry), label: timingLabel(entry?._timing),
-                  reportDate: entry?.date ?? null, timing: entry?._timing ?? null })
+                  reportDate: entry?._ds ?? null, timing: entry?._timing ?? null })
   }, [route])
 
   // ── Deep-link resolution against the hub's OWN list (no week to jump to).
@@ -390,14 +409,23 @@ export default function MyStocksHub() {
     const want = route.sym
     if (!want) { setSelected(null); return }
     if (selected?.row?.sym === want) return
+
+    // C3: bump openSeq in the SAME call as the setSelected it's paired with
+    // — see Calendar.jsx's openMarkerRef doc comment for the race this
+    // avoids. Never fires on a step (route.step never touches openMarkerRef).
+    const isFreshOpen = openMarkerRef.current === want
+    if (isFreshOpen) openMarkerRef.current = null
+
     const found = earningsEntries.find(e => (e.sym || '').toUpperCase() === want)
     if (found) {
+      if (isFreshOpen) setOpenSeq((s) => s + 1)
       setSelected({ row: toModalRow(found), label: timingLabel(found._timing),
-                    reportDate: found.date ?? null, timing: found._timing })
+                    reportDate: found._ds ?? null, timing: found._timing })
       return
     }
     // Unresolvable in this hub's own list → the minimal row, never a blank
     // modal. There is no week to jump to here, so this is the terminal step.
+    if (isFreshOpen) setOpenSeq((s) => s + 1)
     setSelected((prev) => (prev?.row?.sym === want ? prev
       : { row: { sym: want }, label: timingLabel(null), reportDate: null, timing: null }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -509,14 +537,16 @@ export default function MyStocksHub() {
       {/* Earnings detail modal — opened by clicking a card in the Earnings tab */}
       {selected && (
         <ErrorBoundary
+          key={openSeq}
           fallback={
             <div style={{ color: 'var(--text-muted)', fontSize: '11px', padding: '12px' }}>
               Unable to load — click a ticker to retry.
             </div>
           }
         >
-          {/* NO `key` (§4.4) — see Calendar.jsx: the shell is reused across
-              arrow-stepping and resets its own state on a symbol change. */}
+          {/* Key is `openSeq`, not the symbol (§4.4 / T11 review C3) — see
+              Calendar.jsx: stable across arrow-stepping, but still gives the
+              boundary a way out of a tripped fallback on the next open. */}
           <EarningsResearchModal
             row={selected.row}
             label={selected.label}

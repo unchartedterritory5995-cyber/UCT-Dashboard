@@ -14,12 +14,30 @@
 //   step()        REPLACE — stepping a 40-name day must not bury the exit
 //   setSection()  REPLACE — same reason
 //   jumpToWeek()  REPLACE — part of resolving a deep link, not a user step
-//   close()       pops OUR pushed entry when we pushed one; otherwise strips
-//                 the params with replace (the deep-link-entry case, where
-//                 there is no entry of ours to pop and navigate(-1) would
-//                 leave the app entirely).
-import { useCallback, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+//   close()       pops OUR pushed entry when we STILL occupy it; otherwise
+//                 strips the params with replace (the deep-link-entry case,
+//                 or the case below, where navigate(-1) would leave the app
+//                 entirely or land on an unrelated entry).
+//
+// OWNERSHIP TRACKING (T11 review round 1, C2 — a plain boolean `pushedRef`
+// cannot observe browser-driven traversal): a single `pushedRef.current=true`
+// set once inside open() and cleared once inside close() is stale the moment
+// ANY navigation happens that isn't ours — most concretely: open a shared
+// link (no push — this is the FIRST entry) -> click a different ticker
+// (push, "true") -> native Back (reopens the shared-link symbol; "true" is
+// now a LIE, that entry was never pushed by us) -> click x -> close() still
+// reads "true" and navigate(-1)s the user off the entry they arrived on,
+// possibly off the app entirely. Fixed by tracking whether we still OWN the
+// top-of-history entry, re-derived on every location change: `write()` flags
+// the NEXT location-key change as "ours" (open/step/setSection/jumpToWeek all
+// go through it); the effect below consumes that flag if present, and if a
+// location-key change arrives WITHOUT the flag set, it can only be a
+// browser-driven pop — ownership is lost. open() is the only place ownership
+// is GRANTED (a push); step()/setSection()/jumpToWeek() (replace) preserve
+// whatever ownership state already held, matching REPLACE's real semantics
+// (same stack slot, not a new one).
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 export const EARNINGS_PARAM = 'earnings'
 export const SECTION_PARAM = 'esection'
@@ -74,21 +92,43 @@ export function resolveFeedEntry(sym, days) {
 export default function useEarningsModalRoute({ enabled = true, pathname = '' } = {}) {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
-  // Tracks whether THIS hook instance pushed the entry currently on the stack.
-  const pushedRef = useRef(false)
+  const location = useLocation()
+
+  // Do we currently occupy a history entry WE pushed (open), with no
+  // browser-driven traversal since? Re-derived on every location change —
+  // see the OWNERSHIP TRACKING note above the imports.
+  const weOwnRef = useRef(false)
+  // Set right before any write() call; consumed by the location-key effect
+  // so it can tell "this change is ours" from "this change is a pop".
+  const initiatedRef = useRef(false)
 
   const routed = !!enabled && isRoutedPath(pathname)
   const sym = routed ? normalizeSym(params.get(EARNINGS_PARAM)) : null
   const section = routed ? (params.get(SECTION_PARAM) || null) : null
 
   const write = useCallback((patch, replace) => {
+    initiatedRef.current = true
     setParams((prev) => mergeParams(prev, patch), { replace })
   }, [setParams])
+
+  // Fires on EVERY location change, from ANY source. A change we initiated
+  // (open/step/setSection/jumpToWeek, all routed through write()) consumes
+  // the flag and leaves ownership untouched — replace-family calls don't
+  // grant ownership, they preserve it, matching REPLACE's same-slot
+  // semantics. A change that arrives with the flag NOT set can only be a
+  // browser-driven pop (Back/Forward), which always costs ownership.
+  useEffect(() => {
+    if (initiatedRef.current) {
+      initiatedRef.current = false
+      return
+    }
+    weOwnRef.current = false
+  }, [location.key])
 
   const open = useCallback((next) => {
     const v = normalizeSym(next)
     if (!routed || !v) return
-    pushedRef.current = true
+    weOwnRef.current = true
     // Clear any section carried over from the previous symbol — a section id
     // is only meaningful for the symbol it was chosen on.
     write({ [EARNINGS_PARAM]: v, [SECTION_PARAM]: null }, false)
@@ -112,13 +152,25 @@ export default function useEarningsModalRoute({ enabled = true, pathname = '' } 
 
   const close = useCallback(() => {
     if (!routed) return
-    if (pushedRef.current) {
-      pushedRef.current = false
+    if (weOwnRef.current) {
+      weOwnRef.current = false
       navigate(-1)
       return
     }
     write({ [EARNINGS_PARAM]: null, [SECTION_PARAM]: null }, true)
   }, [routed, navigate, write])
 
-  return { routed, sym, section, open, step, setSection, jumpToWeek, close }
+  // Minor (T11 review round 1): a fresh object literal every render gave
+  // every consumer a new `route` identity even when nothing meaningful
+  // changed — Calendar.jsx's `dismissModal` depends on `[route]`, so this
+  // alone made `onClose` a new function every Calendar render, which made
+  // the modal's Escape/arrow keydown effect unsubscribe and resubscribe on
+  // every Calendar render (SSE ticks, live-price polls, ...) instead of only
+  // when `routed`/`sym`/`section` actually changed. open/step/setSection/
+  // jumpToWeek/close are already individually stable `useCallback`s, so this
+  // memo is stable whenever the URL state itself hasn't changed.
+  return useMemo(
+    () => ({ routed, sym, section, open, step, setSection, jumpToWeek, close }),
+    [routed, sym, section, open, step, setSection, jumpToWeek, close],
+  )
 }

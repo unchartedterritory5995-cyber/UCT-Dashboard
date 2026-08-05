@@ -7,9 +7,9 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import ErrorBoundary from '../components/ErrorBoundary'
 import EarningsResearchModal from '../components/research/EarningsResearchModal'
-import useEarningsModalRoute, { resolveFeedEntry } from './calendar/useEarningsModalRoute'
+import useEarningsModalRoute, { resolveFeedEntry, normalizeSym } from './calendar/useEarningsModalRoute'
 import useSettledSym from '../hooks/useSettledSym'
-import { toModalRow, timingLabel } from './calendar/earningsModalRow'
+import { toModalRow, timingLabel, todayIso, shouldUnwindHistory } from './calendar/earningsModalRow'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import {
   useCalendar,
@@ -65,29 +65,14 @@ export function mondayOf(iso) {
   return localIso(d)
 }
 
-// ET-anchored "today" — the backend anchors its week the same way, so a
-// late-evening West-coast user lands on the day the payload flags is_today.
-function todayIso() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
-    .format(new Date())
-}
-
-// § pushedRef staleness (promoted from Task 4 review). A native browser Back
-// can null `route.sym` without ever calling our close() —
-// useEarningsModalRoute's internal `pushedRef` has no way to observe
-// browser-driven history traversal, so it can go stale relative to the
-// CURRENT top-of-history entry. Blindly delegating every dismiss to
-// route.close() risks its navigate(-1) unwinding onto a history entry that
-// has nothing to do with this modal. This is the reconciliation: only ask
-// the router to unwind history when the live URL still shows a symbol open
-// right now; otherwise there is nothing of ours left in the URL to close.
-// Exported as a pure function of `route` so the decision itself is
-// unit-testable without needing to reproduce the underlying browser-timing
-// race (React's passive-effect flush collapses that race to a single atomic
-// step under any `act()`-based test harness, jsdom included).
-export function shouldUnwindHistory(route) {
-  return !!(route?.routed && route?.sym)
-}
+// `todayIso`/`shouldUnwindHistory` moved to ./calendar/earningsModalRow.js
+// (T11 review round 1, minor) — that module is already imported by BOTH
+// Calendar.jsx and MyStocksHub.jsx, so sharing it costs nothing extra in
+// either mount's bundle, unlike importing from Calendar.jsx itself (which
+// would drag CalendarHeader/FeedView/WeekView/MonthView/DayDetailDrawer into
+// MyStocksHub's lazy chunk). Re-exported here so existing imports of
+// `shouldUnwindHistory` from this module keep working.
+export { shouldUnwindHistory }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -127,6 +112,30 @@ export default function Calendar() {
   const { pathname } = useLocation()
   const route = useEarningsModalRoute({ enabled: true, pathname })
   const resolveRef = useRef(null)   // guards the next-report fetch — one ask per symbol
+  // T11 review round 1, C3: the ErrorBoundary around the modal has no reset —
+  // once tripped it renders the fallback until unmounted. Un-keying it (so
+  // arrow-stepping reuses the shell) removed the ONLY way out of a crashed
+  // boundary, since `key` was the sole thing that ever remounted it. Keying
+  // on this counter instead — bumped on a genuine fresh open, untouched by
+  // stepping (route.step) — restores recovery (click a different ticker)
+  // without reintroducing a remount on every step.
+  //
+  // CAUGHT IN TESTING: bumping openSeq synchronously inside onSelect (the
+  // click handler) is NOT enough on its own. onSelect's routed branch only
+  // calls route.open(sym) — the URL updates in the same render as openSeq,
+  // but `selected` (the DATA actually passed to the modal) is set later, by
+  // the resolution effect below, which runs AFTER commit. That leaves one
+  // render where the boundary has ALREADY remounted (new key) but is still
+  // being fed the OLD, stale `selected.row` — if that stale data is what was
+  // crashing, the fresh boundary crashes again on its very first paint,
+  // before the correct data ever arrives, and then just sits tripped (no key
+  // change follows, since openSeq already bumped). `openMarkerRef` fixes
+  // this: onSelect records the symbol it's opening; the resolution effect
+  // only bumps openSeq at the exact moment it ALSO commits that symbol's
+  // real data — so the key change and the fresh data land in the same
+  // render, never one render apart.
+  const [openSeq, setOpenSeq] = useState(0)
+  const openMarkerRef = useRef(null)
 
   // Month cursor — component state (not persisted; resets to current month on page mount)
   const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
@@ -281,18 +290,35 @@ export default function Calendar() {
   // ── Deep-link resolution ladder (§4.4). Never a blank modal, never a loop. ──
   useEffect(() => {
     const want = route.sym
-    if (!want) { setSelected(null); return }
+    // Minor (T11 review round 1): reset on close too, not just on a hit — a
+    // transient next-report failure must not downgrade that symbol to the
+    // minimal row for the rest of the page session; the next time it's
+    // opened deserves a fresh ask.
+    if (!want) { setSelected(null); resolveRef.current = null; return }
     if (selected?.row?.sym === want) return
+
+    // C3: bump openSeq in the SAME call as the setSelected it's paired with
+    // — see the doc comment on openMarkerRef above. `commit` centralizes
+    // that pairing so every setSelected in this ladder does it identically;
+    // only fires when THIS effect run is resolving the symbol onSelect just
+    // asked to open (never on a step, which never touches openMarkerRef).
+    const isFreshOpen = openMarkerRef.current === want
+    if (isFreshOpen) openMarkerRef.current = null
+    const commit = (row) => {
+      if (isFreshOpen) setOpenSeq((s) => s + 1)
+      setSelected(row)
+    }
 
     const hit = resolveFeedEntry(want, days)
     if (hit) {
       resolveRef.current = null
-      setSelected({ row: toModalRow(hit.entry), label: timingLabel(hit.timing),
-                    reportDate: hit.ds, timing: hit.timing, entry: hit.entry })
+      commit({ row: toModalRow(hit.entry), label: timingLabel(hit.timing),
+               reportDate: hit.ds, timing: hit.timing, entry: hit.entry })
       return
     }
     // Ask ONCE per symbol; a failed lookup must never re-fire.
     if (resolveRef.current === want) {
+      if (isFreshOpen) setOpenSeq((s) => s + 1)
       setSelected((prev) => (prev?.row?.sym === want ? prev
         : { row: { sym: want }, label: timingLabel(null), reportDate: null, timing: null }))
       return
@@ -304,13 +330,13 @@ export default function Calendar() {
         const monday = d?.date ? mondayOf(d.date) : null
         if (monday) route.jumpToWeek(monday)
         else {
-          setSelected({ row: { sym: want }, label: timingLabel(null),
-                        reportDate: null, timing: null })
+          commit({ row: { sym: want }, label: timingLabel(null),
+                   reportDate: null, timing: null })
         }
       })
       .catch(() => {
-        setSelected({ row: { sym: want }, label: timingLabel(null),
-                      reportDate: null, timing: null })
+        commit({ row: { sym: want }, label: timingLabel(null),
+                 reportDate: null, timing: null })
       })
   }, [route.sym, days])       // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -578,7 +604,19 @@ export default function Calendar() {
   //    routed surfaces (dead in production here — Calendar.jsx only ever
   //    mounts at /calendar — kept so a future non-routed reuse still works).
   const onSelect = (entry, timing) => {
-    if (route.routed) { route.open(entry.sym); return }
+    if (route.routed) {
+      // C3: record the INTENT here; the resolution effect bumps openSeq
+      // itself, in the same call as the fresh data — see openMarkerRef's
+      // doc comment (bumping it right here would remount the boundary with
+      // this render's STALE `selected`, since `selected` doesn't update
+      // until that effect runs).
+      // Normalized the same way `route.sym` is (normalizeSym uppercases) —
+      // a case mismatch here would silently defeat the isFreshOpen check.
+      openMarkerRef.current = normalizeSym(entry.sym)
+      route.open(entry.sym)
+      return
+    }
+    setOpenSeq((s) => s + 1)
     setSelected({ row: toModalRow(entry), label: timingLabel(timing),
                   reportDate: entry._ds, timing })
   }
@@ -707,7 +745,16 @@ export default function Calendar() {
       {openDay && (
         <DayDetailDrawer
           ds={openDay.ds}
-          day={openDay.day || days[openDay.ds]}
+          // GATE a (Task 12): prefer the ENRICHED week data. `openDay.day`
+          // comes from MonthView, which is fed by /api/calendar/month — a
+          // payload `mergeEnrichment` never touches, so its entries carry no
+          // beat_history/hist_stats. With `openDay.day` winning, clicking a
+          // ticker in the day drawer handed the modal an un-enriched entry and
+          // the Earnings History section rendered its EmptyState even for names
+          // that had just reported. `days` is week-scoped, so a date outside the
+          // loaded week still falls back to the month payload and degrades
+          // honestly (EmptyState) rather than showing a wrong chart.
+          day={days[openDay.ds] || openDay.day}
           onClose={() => setOpenDay(null)}
           onSelect={onSelect}
         />
@@ -715,16 +762,20 @@ export default function Calendar() {
 
       {selected && (
         <ErrorBoundary
+          key={openSeq}
           fallback={
             <div style={{ color: 'var(--text-muted)', fontSize: '11px', padding: '12px' }}>
               Unable to load — click a ticker to retry.
             </div>
           }
         >
-          {/* NO `key` (§4.4): the modal shell is REUSED across arrow-stepping.
-              A key here remounts it on every symbol change, which throws away
-              the shell, the section scroll map and the settle debounce. The
-              modal already resets its own state on a symbol change. */}
+          {/* Key is `openSeq`, NOT `selected.row.sym` (§4.4 / T11 review C3):
+              a sym-key remounts the shell on every arrow-step, throwing away
+              the section scroll map and the settle debounce. `openSeq` only
+              changes on a genuine fresh open (onSelect) — stable across
+              stepping, but still gives the ErrorBoundary a fresh mount (and
+              therefore a way OUT of a tripped fallback) the next time the
+              user opens anything, since the boundary itself has no reset. */}
           <EarningsResearchModal
             row={selected.row}
             label={selected.label}

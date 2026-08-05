@@ -207,4 +207,44 @@ describe('useEarningsModalRoute', () => {
     act(() => api.open('<script>'))
     expect(screen.getByTestId('search').textContent).toBe('')
   })
+
+  // T11 review round 1, C2 (CRITICAL) — reproduced with the reviewer's own
+  // scenario: a shared link (no push — this is the FIRST entry, no ownership)
+  // -> open a different ticker (push, ownership granted) -> native Back
+  // (reopens the SHARED-LINK symbol; the old pushedRef design read "true" here
+  // because it never observed the traversal) -> close(). The old
+  // implementation navigate(-1)'d off the shared-link entry entirely. A decoy
+  // entry is seeded BEFORE the shared-link entry so an over-eager navigate(-1)
+  // is observable rather than silently absorbed by "nowhere left to go".
+  it('close() after a native Back reopens a shared-link entry WITHOUT navigating away', async () => {
+    window.history.pushState(null, '', '/some-other-page')
+    window.history.pushState(null, '', '/calendar?week=2026-08-03&earnings=NVDA')
+    const history = createBrowserHistory({ window, v5Compat: true })
+    render(
+      <HistoryRouter history={history}>
+        <Routes>
+          <Route path="/calendar" element={<Probe />} />
+          <Route path="/some-other-page" element={<div data-testid="decoy" />} />
+        </Routes>
+      </HistoryRouter>,
+    )
+    expect(screen.getByTestId('sym').textContent).toBe('NVDA')
+
+    act(() => api.open('AMD'))   // push — ownership granted
+    expect(screen.getByTestId('sym').textContent).toBe('AMD')
+
+    act(() => { window.history.back() })
+    await flushHistoryTraversal()   // lands back on the shared-link entry (NVDA) — ownership lost
+    expect(screen.getByTestId('sym').textContent).toBe('NVDA')
+
+    act(() => api.close())
+    await flushHistoryTraversal()
+    // Correct: strips the params in place. The bug's failure mode was landing
+    // on the decoy page — assert we did NOT.
+    expect(window.location.pathname).toBe('/calendar')
+    expect(screen.queryByTestId('decoy')).toBeNull()
+    const s = new URLSearchParams(screen.getByTestId('search').textContent)
+    expect(s.has(EARNINGS_PARAM)).toBe(false)
+    expect(s.get('week')).toBe('2026-08-03')
+  })
 })
