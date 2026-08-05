@@ -1761,6 +1761,11 @@ export default function StockChart({
   //   • Writer C — realtimeCandle registry     (~L5785):  if (barsPushActiveRef.current) return
   //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
   const barsPushActiveRef = useRef(false)
+  // When true, the on-screen bars are a PROVISIONAL stale-intraday cache paint
+  // (instant sym-switch, forced full refetch in flight). All four live-bar writers
+  // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
+  // tail before authoritative bars swap in. Set in the `bars` selector each render.
+  const provisionalStaleRef = useRef(false)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
   // Session preview owns the D/W/M developing bar during pre/post market on the
   // workspace (synthetic pre-market candle / frozen-at-4pm regular candle) — a
@@ -2811,6 +2816,16 @@ export default function StockChart({
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
+  // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
+  // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
+  // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
+  // showing a 2-3s spinner while the forced full refetch lands, when Daily paints its
+  // cache instantly. So we DO paint them, but only as the LAST-RESORT layer (real
+  // net/mem/agg bars always win above it) AND we FREEZE the live-bar writers while
+  // this layer is the one on screen (provisionalStaleRef below), so no phantom
+  // developing candle can grow on the stale tail before authoritative bars swap in.
+  const _idbProvisional = (idbStaleIntraday && idbBars?.length
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
   // A2/A1: synchronous in-memory hit for THIS exact sym+tf. Used only as the
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
@@ -2848,7 +2863,11 @@ export default function StockChart({
                     ? data.bars
                     : (_memBars?.length
                         ? _memBars
-                        : (_aggBars?.length ? _aggBars : null))))))
+                        : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
+  // True only while the on-screen bars ARE the provisional stale-intraday layer
+  // (no net/mem/agg data resolved yet for this key). The live-bar writers consult
+  // this to freeze until the forced full refetch replaces the data.
+  provisionalStaleRef.current = !!_idbProvisional && bars === _idbProvisional && !_netMatches
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -4218,6 +4237,9 @@ export default function StockChart({
     // a stale value there would repaint an old developing bar over the fresh push bar = the
     // 30s seam the plan review flagged).
     if (barsPushActiveRef.current) return
+    // Freeze while a provisional stale-intraday cache is on screen — no live tick
+    // may grow a phantom candle on the old tail before the full refetch swaps in.
+    if (provisionalStaleRef.current) return
     // NOTE: the D/W/M "defer the candle write to Writer E" early-return USED to sit
     // here — above the latestLiveRef update below. That stranded latestLiveRef at the
     // mount-time price on D/W/M (Writer A returned before ever updating it once Writer
@@ -4421,6 +4443,8 @@ export default function StockChart({
     // bar (jitter on thin tickers). delivering is tracked independently by the pool, so this is a
     // clean one-bar handoff — Finnhub covers the transition bar, then B takes over.
     if (!barsPushActiveRef.current) return
+    // Freeze while the provisional stale-intraday cache is on screen (see Writer A).
+    if (provisionalStaleRef.current) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
     // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
@@ -5328,9 +5352,14 @@ export default function StockChart({
       }
     }
 
+    // Writer D freeze: while a provisional stale-intraday cache is on screen, apply NO
+    // live developing bar over the old tail — null the Finnhub re-top and skip the push
+    // branch below. The forced full refetch swaps in fresh bars, then writers resume.
+    if (provisionalStaleRef.current) _retopLive = null
+
     // Re-apply the live developing bar immediately after setData() to prevent snap-back —
     // setData() overwrites with API data (stale by seconds/minutes).
-    if (barsPushActiveRef.current) {
+    if (barsPushActiveRef.current && !provisionalStaleRef.current) {
       // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
       // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
       // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
@@ -8993,6 +9022,8 @@ export default function StockChart({
       // Finnhub-fed registry is suppressed when the Massive push feed is the authoritative
       // developing-bar writer (onRealtimeBar owns it).
       if (barsPushActiveRef.current) return
+      // Freeze while the provisional stale-intraday cache is on screen (see Writer A).
+      if (provisionalStaleRef.current) return
       const candle = realtimeCandle.getCandle(sym, '1')
       if (!candle) return
       const price = candle.c
