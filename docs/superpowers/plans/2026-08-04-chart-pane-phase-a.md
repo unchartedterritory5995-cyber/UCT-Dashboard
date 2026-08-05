@@ -184,7 +184,7 @@ test('the gear opens the chart settings modal', () => {
 - [ ] **Step 2: Run the new file and make it pass against the CURRENT widget**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/widgets/ChartWidget.header.test.jsx`
-Expected: `Tests 11 passed`.
+Expected: `Tests 10 passed`.
 
 These characterize existing behavior, so they must pass immediately. If one fails, the assertion is wrong about today's code — fix the *test* to match reality (read the source), do not change `ChartWidget.jsx` in this task.
 
@@ -208,7 +208,7 @@ For each mutation below: apply it to `ChartWidget.jsx`, run the file, confirm it
 - [ ] **Step 4: Confirm the pre-existing rail is untouched**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/widgets/`
-Expected: `Test Files 4 passed`, `Tests 26 passed` (15 existing + 11 new).
+Expected: **0 failures**, and the three pre-existing ChartWidget suites pass unedited. Do NOT assert an absolute total — `src/pages/charts/widgets/` gains test files from another session (95 tests across 15 files as of 2026-08-05, and climbing). The invariant is `Tests N passed` with no `failed`.
 
 - [ ] **Step 5: Commit**
 
@@ -316,11 +316,11 @@ Then delete the now-unused `showAnyMeta` const and the `UCT_RATING_DEFAULT` cons
 - [ ] **Step 4: Run the rail**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/widgets/`
-Expected: `Tests 26 passed`, with **no test file edited**.
+Expected: **0 failures** across `src/pages/charts/widgets/`, with **no test file edited**.
 
 - [ ] **Step 5: Prove the extraction is still covered**
 
-Mutate `ChartMetaRow.jsx`: change `if (!show.marketCap && !show.nextEarnings && !show.uctRating) return null` to `return null`. Re-run — the meta row tests must FAIL. Restore, re-run, confirm `Tests 26 passed`.
+Mutate `ChartMetaRow.jsx`: change `if (!show.marketCap && !show.nextEarnings && !show.uctRating) return null` to `return null`. Re-run — the meta row tests must FAIL. Restore, re-run, confirm 0 failures.
 
 - [ ] **Step 6: Commit**
 
@@ -328,7 +328,7 @@ Mutate `ChartMetaRow.jsx`: change `if (!show.marketCap && !show.nextEarnings && 
 git add app/src/components/chart/pane/ChartMetaRow.jsx app/src/pages/charts/widgets/ChartWidget.jsx
 git commit -m "refactor(charts): extract ChartMetaRow from ChartWidget
 
-Pure move. Rail green at 26/26 with no test edited; mutation confirmed lethal."
+Pure move. Rail green (0 failures) with no test edited; mutation confirmed lethal."
 ```
 
 ---
@@ -520,11 +520,11 @@ Replace the entire `<div className={styles.chartHeaderTop}> … </div>` block wi
 - [ ] **Step 4: Run the rail**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/widgets/`
-Expected: `Tests 26 passed`, no test file edited.
+Expected: **0 failures** across `src/pages/charts/widgets/`, no test file edited.
 
 - [ ] **Step 5: Prove coverage survived**
 
-Mutate `ChartIdentityRow.jsx`: change `{showClock && <ChartMarketClock />}` to `{false && <ChartMarketClock />}`. Re-run — the market-clock test must FAIL. Restore and confirm 26/26.
+Mutate `ChartIdentityRow.jsx`: change `{showClock && <ChartMarketClock />}` to `{false && <ChartMarketClock />}`. Re-run — the market-clock test must FAIL. Restore and confirm 0 failures.
 
 - [ ] **Step 6: Commit**
 
@@ -533,7 +533,7 @@ git add app/src/components/chart/pane/ChartIdentityRow.jsx app/src/pages/charts/
 git commit -m "refactor(charts): extract ChartIdentityRow from ChartWidget
 
 Identity + day change + session toggle + clock. Adds a static-label path for
-surfaces that lock the symbol. Rail green at 26/26; mutation lethal."
+surfaces that lock the symbol. Rail green (0 failures); mutation lethal."
 ```
 
 ---
@@ -648,11 +648,11 @@ Then delete the now-unused `tfMenuOpen` / `tfMenuAnchor` state from `ChartWidget
 - [ ] **Step 4: Run the rail**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/widgets/`
-Expected: `Tests 26 passed`, no test file edited.
+Expected: **0 failures** across `src/pages/charts/widgets/`, no test file edited.
 
 - [ ] **Step 5: Prove coverage survived**
 
-Mutate `ChartTfBar.jsx`: change `visibleTfs.map` to `visibleTfs.slice(0, 2).map`. Re-run — the TF-bar render test must FAIL. Restore and confirm 26/26.
+Mutate `ChartTfBar.jsx`: change `visibleTfs.map` to `visibleTfs.slice(0, 2).map`. Re-run — the TF-bar render test must FAIL. Restore and confirm 0 failures.
 
 - [ ] **Step 6: Commit**
 
@@ -661,7 +661,7 @@ git add app/src/components/chart/pane/ChartTfBar.jsx app/src/pages/charts/widget
 git commit -m "refactor(charts): extract ChartTfBar from ChartWidget
 
 Timeframe buttons + chevron menu, menu state now local to the component.
-Rail green at 26/26; mutation lethal."
+Rail green (0 failures); mutation lethal."
 ```
 
 ---
@@ -827,7 +827,7 @@ const { cs: chartCs, menuVars, write: writeActiveSettings, patchHeader } = useCh
 - [ ] **Step 7: Run the full rail**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/widgets/ src/components/chart/pane/`
-Expected: `Tests 31 passed` (26 + 5), no test file edited.
+Expected: **0 failures** across both paths, no test file edited.
 
 - [ ] **Step 8: Prove the isolation guard is lethal**
 
@@ -842,7 +842,7 @@ git add app/src/components/chart/pane/useChartSurfaceSettings.js app/src/compone
 git commit -m "refactor(charts): extract useChartSurfaceSettings
 
 stored=null reads+writes the global chart_settings (a popup IS your chart);
-a surface passing onStore keeps full isolation. Rail green at 31/31."
+a surface passing onStore keeps full isolation. Rail green (0 failures)."
 ```
 
 ---
@@ -912,7 +912,7 @@ Expected: `Tests 3 passed`.
 - [ ] **Step 7: Run everything**
 
 Run: `cd app && npx vitest run --pool=threads src/pages/charts/ src/components/chart/`
-Expected: all green, `Tests 34 passed` in the touched files, **no pre-existing test edited**.
+Expected: **0 failures** in the touched paths, **no pre-existing test edited**.
 
 - [ ] **Step 8: Full-suite + bundle check**
 
