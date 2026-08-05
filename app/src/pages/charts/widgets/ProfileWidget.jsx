@@ -62,11 +62,6 @@ function pctCell(v) {
 function fmtQuarter(r) {
   return `Q${r?.quarter ?? '?'} ${r?.year ?? ''}`.trim()
 }
-function fmtPrice(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n)) return '—'
-  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 function fmtShares(v) {
   const n = Number(v)
   if (!Number.isFinite(n) || n <= 0) return '—'
@@ -74,6 +69,15 @@ function fmtShares(v) {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
   return String(Math.round(n))
+}
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function fmtEarnDate(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
+  return (m >= 1 && m <= 12) ? `${MON[m - 1]} ${d}, ${y}` : String(iso)
+}
+function websiteDomain(url) {
+  return String(url || '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
 }
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
@@ -106,7 +110,7 @@ export default function ProfileWidget({ color }) {
 
   // ── Data — poll fast while the AI profile generates, then settle ──
   const [fastPoll, setFastPoll] = useState(false)
-  const { status, company, sector, industry, stats, earnings, profile } = useStockBrief(sym, { generating: fastPoll })
+  const { status, company, stats, earnings, profile } = useStockBrief(sym, { generating: fastPoll })
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
 
   // Slow-moving fundamentals for the Key Stats grid (own cached, never-blocking
@@ -116,18 +120,29 @@ export default function ProfileWidget({ color }) {
     jsonFetcher,
     { refreshInterval: 600000, dedupingInterval: 60000, revalidateOnFocus: false },
   )
-  const keyItems = useMemo(() => {
+  // The four key metrics (always shown; '—' when unavailable).
+  const keyItems = useMemo(() => ([
+    { label: 'Market Cap', value: fund?.market_cap || '—' },
+    { label: 'Next Earnings', value: fmtEarnDate(fund?.next_earnings) },
+    { label: 'Float', value: fmtShares(fund?.float_shares) },
+    { label: 'Short Interest', value: fund?.short_pct_float != null ? `${Number(fund.short_pct_float).toFixed(1)}%` : '—' },
+  ]), [fund])
+  // Company profile rows (only shown when present).
+  const infoItems = useMemo(() => {
     const out = []
-    if (fund?.market_cap) out.push({ label: 'Market Cap', value: fund.market_cap })
-    if (fund?.forward_pe != null) out.push({ label: 'P/E (Fwd)', value: Number(fund.forward_pe).toFixed(1) })
-    if (fund?.week52_low != null && fund?.week52_high != null) {
-      out.push({ label: '52W Range', value: `${fmtPrice(fund.week52_low)} – ${fmtPrice(fund.week52_high)}` })
+    if (fund?.website) {
+      out.push({
+        label: 'Website',
+        value: (
+          <a className={styles.link} href={fund.website} target="_blank" rel="noreferrer">
+            {websiteDomain(fund.website)}
+          </a>
+        ),
+      })
     }
-    if (fund?.beta != null) out.push({ label: 'Beta', value: Number(fund.beta).toFixed(2) })
-    if (fund?.div_yield != null && Number(fund.div_yield) > 0) {
-      out.push({ label: 'Div Yield', value: `${Number(fund.div_yield).toFixed(2)}%` })
-    }
-    if (fund?.avg_vol != null) out.push({ label: 'Avg Volume', value: fmtShares(fund.avg_vol) })
+    if (fund?.hq) out.push({ label: 'Headquarters', value: fund.hq })
+    if (fund?.ceo) out.push({ label: 'CEO', value: fund.ceo })
+    if (fund?.employees != null) out.push({ label: 'Employees', value: Number(fund.employees).toLocaleString() })
     return out
   }, [fund])
 
@@ -250,28 +265,28 @@ export default function ProfileWidget({ color }) {
             </div>
           ) : null}
 
-          {/* ── Key stats (sector/industry + fundamentals) ── */}
-          {(sector || industry || keyItems.length > 0) && (
-            <div className={styles.keyWrap}>
-              <div className={styles.sectionLabel}>Key Stats</div>
-              {(sector || industry) && (
-                <div className={styles.keyMeta}>
-                  {sector && <span className={styles.keyChip}>{sector}</span>}
-                  {industry && <span className={styles.keyChip}>{industry}</span>}
+          {/* ── More Info: 4 key metrics + company profile ── */}
+          <div className={styles.keyWrap}>
+            <div className={styles.sectionLabel}>More Info</div>
+            <div className={styles.keyGrid}>
+              {keyItems.map(it => (
+                <div key={it.label} className={styles.keyItem}>
+                  <span className={styles.keyLabel}>{it.label}</span>
+                  <span className={styles.keyVal}>{it.value}</span>
                 </div>
-              )}
-              {keyItems.length > 0 && (
-                <div className={styles.keyGrid}>
-                  {keyItems.map(it => (
-                    <div key={it.label} className={styles.keyItem}>
-                      <span className={styles.keyLabel}>{it.label}</span>
-                      <span className={styles.keyVal}>{it.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
-          )}
+            {infoItems.length > 0 && (
+              <div className={styles.infoList}>
+                {infoItems.map(it => (
+                  <div key={it.label} className={styles.infoRow}>
+                    <span className={styles.keyLabel}>{it.label}</span>
+                    <span className={styles.keyVal}>{it.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

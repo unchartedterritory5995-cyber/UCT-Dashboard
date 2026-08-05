@@ -70,6 +70,30 @@ def _next_earnings_iso(info: dict) -> str | None:
         return None
 
 
+def _ceo_name(info: dict) -> str | None:
+    """CEO name from yfinance companyOfficers (title contains CEO/Chief Executive)."""
+    for o in (info.get("companyOfficers") or []):
+        title = o.get("title") or ""
+        if "CEO" in title or "Chief Executive" in title:
+            name = " ".join((o.get("name") or "").split())
+            if name:
+                return name
+    return None
+
+
+def _hq_str(info: dict) -> str | None:
+    """Headquarters as 'City, ST' (US) or 'City, Country'."""
+    city = (info.get("city") or "").strip()
+    state = (info.get("state") or "").strip()
+    country = (info.get("country") or "").strip()
+    s = ", ".join(p for p in (city, state) if p)
+    if not s:
+        return country or None
+    if not state and country and country != "United States":
+        s = f"{s}, {country}"
+    return s
+
+
 def get_fundamentals(ticker: str) -> dict[str, Any]:
     """Compact fundamentals summary for a ticker."""
     sym = (ticker or "").upper().strip()
@@ -159,6 +183,15 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "analyst_count": info.get("numberOfAnalystOpinions"),
         # Next earnings (free from .info) — surfaced in the snapshot header
         "next_earnings": _next_earnings_iso(info),
+        # Share structure + short interest (free from .info)
+        "float_shares": info.get("floatShares"),
+        "shares_outstanding": info.get("sharesOutstanding"),
+        "short_pct_float": _round_pct(info.get("shortPercentOfFloat")),
+        # Company profile (free from .info)
+        "employees": info.get("fullTimeEmployees"),
+        "website": info.get("website"),
+        "ceo": _ceo_name(info),
+        "hq": _hq_str(info),
     }
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result

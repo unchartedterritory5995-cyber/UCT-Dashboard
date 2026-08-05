@@ -26,7 +26,7 @@ router = APIRouter()
 
 _FH_METRIC_TTL = 3600  # 1 hour
 _TIMEOUT = 10
-_SNAP_KIND = "fund_snapshot"          # /api/fundamentals/{ticker} payloads
+_SNAP_KIND = "fund_snapshot_v2"       # /api/fundamentals/{ticker} payloads (v2: +float/short/profile)
 _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snapshot
 
 
@@ -152,6 +152,14 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         "week52_low": w52_low_fh or base.get("fifty_two_week_low"),
         "avg_vol": avg_vol_fh,                          # 10-day avg daily vol (shares)
         "div_yield": base.get("dividend_yield_pct"),    # pct e.g. 1.5
+        # Stock Profile widget "More Info": key metrics + company profile
+        "next_earnings": base.get("next_earnings"),     # ISO 'YYYY-MM-DD'
+        "float_shares": base.get("float_shares"),       # shares (raw)
+        "short_pct_float": base.get("short_pct_float"), # pct e.g. 1.2
+        "employees": base.get("employees"),
+        "website": base.get("website"),
+        "ceo": base.get("ceo"),
+        "hq": base.get("hq"),
     }
 
     cache.set(f"api_fund::{sym}", result, _FH_METRIC_TTL)

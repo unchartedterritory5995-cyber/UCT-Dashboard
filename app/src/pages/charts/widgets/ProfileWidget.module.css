@@ -126,9 +126,11 @@
 .down { color: var(--prof-down, #ff5b5b); }
 .neutral { color: var(--prof-text, var(--text-bright, #e0dac8)); }
 /* Earnings-surprise cells — separately configurable (default: blue up / red down,
-   matching the chart's earnings-marker popup). */
-.surpUp { color: var(--prof-surp-up, #6a7bff); }
-.surpDown { color: var(--prof-surp-down, #ff5b5b); }
+   matching the chart's earnings-marker popup). Scoped to `.earnTable td` so they
+   out-specify the base `.earnTable td { color }` rule (otherwise the cell color
+   never changed). */
+.earnTable td.surpUp { color: var(--prof-surp-up, #6a7bff); }
+.earnTable td.surpDown { color: var(--prof-surp-down, #ff5b5b); }
 
 /* ── Company description + thematic narrative ── */
 .prose {
@@ -153,21 +155,6 @@
 .keyWrap {
   padding: 12px 12px 16px;
   border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
-}
-.keyMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.keyChip {
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  color: var(--prof-chrome-strong, var(--prof-text, #e0dac8));
-  background: var(--prof-row-hover, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.08));
 }
 .keyGrid {
   display: grid;
@@ -198,10 +185,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Single-column when the widget is narrow so the 52W range doesn't clip */
+/* Single-column when the widget is narrow so values don't clip */
 @container (max-width: 300px) {
   .keyGrid { grid-template-columns: 1fr; }
 }
+
+/* Company profile (website / HQ / CEO / employees) — full-width rows below the
+   four key metrics. */
+.infoList {
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.infoRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.link {
+  color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
 
 /* States */
 .empty {
