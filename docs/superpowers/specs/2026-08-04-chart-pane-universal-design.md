@@ -322,14 +322,38 @@ No visual or behavioral difference from pre-refactor `/charts` was observed.
 
 ---
 
-## Phase B outcome — 10 surfaces adopted (2026-08-05)
+## Phase B outcome — 7 live surfaces adopted (2026-08-05)
 
 Branch `feat/chart-pane-adopt-tickerpopup` (stacked on Phase A, pushed, **not merged**).
 
-**Now rendering ChartPane:** `TickerPopup` · `mobile/TickerHubSheet` · `Breadth` ·
-`CustomScan` · `DarkPool` · `ThemeTrackerPage` · `Watchlists` ·
-`journal-2-0/.../PositionDetailPage` · `journal-2-0/.../TradeDetailPage` ·
-`research/tabs/OverviewTab` — plus `ChartWidget` itself.
+**Live surfaces now rendering ChartPane (7)** — each verified to have a real route or mount:
+
+| Surface | Reachable via |
+|---|---|
+| `TickerPopup` | used by 12+ components |
+| `mobile/TickerHubSheet` | mounted in `Layout.jsx:87` |
+| `Breadth` | route `/breadth` |
+| `DarkPool` | route `/dark-pool` |
+| `journal-2-0/.../PositionDetailPage` | route `/journal-2-0/position/:sym` |
+| `journal-2-0/.../TradeDetailPage` | route `/journal-2-0/trade/:id` |
+| `research/tabs/OverviewTab` | route `/research/:sym` via `ResearchPage` |
+
+…plus `ChartWidget` itself on `/charts`.
+
+### ⚠️ Three more were converted but are NOT user-reachable — do not count them
+
+Converted and tested, but no user can currently see them. They cost nothing and break nothing;
+they are recorded here so the number "10" never gets quoted as user-visible surfaces.
+
+- **`CustomScan.jsx` is imported by nothing.** Its only import is its own CSS module — an
+  orphaned page component. Its adoption, and the chart-mount test written for it, are dead.
+  Deleting the file is a separate decision, deliberately not taken here.
+- **`Watchlists.jsx` and `ThemeTrackerPage.jsx` gate the chart panel behind `!embedded`**, but
+  their only render sites (`WatchlistWidget`, `ThemesWidget`) always pass `embedded`, and
+  `/watchlists` + `/theme-tracker` are `LegacyRedirect`s. The panel never renders in prod.
+
+The coverage added for these three is kept rather than deleted: if either page regains a
+standalone route, the tests are already in place.
 
 **Not adopted, deliberately** (adopting would be a regression): `ChartRender` (headless PNG
 export), `grid/GridChartCell` (locked `backgroundWarm={false}`), `admin/PatternReview`,
