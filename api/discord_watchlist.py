@@ -10,6 +10,7 @@ Formats into tiered embeds with colored sidebars:
 """
 
 import os
+import re
 import json
 import logging
 import httpx
@@ -258,6 +259,38 @@ def _conviction_grade(score: float) -> str:
 
 
 # ── Layout helpers ─────────────────────────────────────────────────────────
+
+_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _format_card_date(date_range: str) -> str:
+    """Human 'Aug 4, 2026' for the card header. A single day ('8/4', '8/4/2026',
+    or ISO '2026-08-04') is expanded to the abbreviated-month form; a multi-day
+    range label (with a separator) is returned unchanged so a weekly push keeps its
+    range. Empty → today (ET).
+    """
+    s = (date_range or "").strip()
+    now = datetime.now(ET)
+    if not s:
+        return f"{_MONTH_ABBR[now.month - 1]} {now.day}, {now.year}"
+    # ISO single day: YYYY-MM-DD
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", s)
+    if m:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mo <= 12:
+            return f"{_MONTH_ABBR[mo - 1]} {d}, {y}"
+    # M/D or M/D/YY or M/D/YYYY single day (no year → assume current ET year)
+    m = re.match(r"^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$", s)
+    if m:
+        mo, d = int(m.group(1)), int(m.group(2))
+        y = int(m.group(3)) if m.group(3) else now.year
+        if y < 100:
+            y += 2000
+        if 1 <= mo <= 12:
+            return f"{_MONTH_ABBR[mo - 1]} {d}, {y}"
+    return s  # a range or unrecognized label → leave as the user's text
+
 
 def _date_range_is_multiday(date_range: str) -> bool:
     """Show per-row dates only for a genuine WEEKLY push.
@@ -605,7 +638,7 @@ def register_discord_routes(app_or_router):
         if not bull and not bear:
             return {"ok": False, "error": "No items to render"}
         date_range = (payload.get("dateRange") or "").strip()
-        date_text = date_range if date_range else datetime.now(ET).strftime("%B %d, %Y")
+        date_text = _format_card_date(date_range)
         include_desktop = bool(payload.get("include_desktop"))
         try:
             mobile = render_watchlist_card(bull, bear, date_text, mobile=True)

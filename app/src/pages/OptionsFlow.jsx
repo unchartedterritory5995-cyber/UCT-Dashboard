@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
+import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
 import {
   P,
@@ -449,6 +450,8 @@ function expToISO(expStr) {
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";  // gates the Discord push controls
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
@@ -8583,41 +8586,32 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
-                  <button onClick={wlSave}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
-                    💾 Save Watchlist
-                  </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     🗑 Clear All
                   </button>
-                  <div style={{ display:"flex", alignItems:"center", gap:2 }}>
-                    <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
-                      style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
-                      {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
-                    </select>
-                    <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
-                      style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
-                      {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
-                      <option value={99}>All</option>
-                    </select>
-                    <button onClick={()=>wlPushDiscord("watchlist")} disabled={discordPushing}
-                      style={{ padding:"5px 10px", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
-                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "…" : "📤 Watchlist"}
-                    </button>
-                    <button onClick={()=>wlPushDiscord("unusual")} disabled={discordPushing}
-                      style={{ padding:"5px 10px", borderRadius:"0 5px 5px 0", border:"none", background:discordPushing?"#c9a84c66":"#c9a84c", color:P.bg,
-                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "…" : "⚡ Unusual"}
-                    </button>
-                  </div>
-                  <button onClick={previewWatchlistImages} disabled={wlPreviewBusy}
-                    title="Render the Bull + Bear watchlists as two images and preview them before pushing to Discord"
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlPreviewBusy?P.bd:"#5865F2"), background:"transparent",
-                      color:wlPreviewBusy?P.dm:"#5865F2", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                    {wlPreviewBusy ? "📸 Rendering…" : "📸 Preview Images"}
-                  </button>
+                  {/* Discord push — admin-only. Preview Images is the single push
+                      path (renders the branded card, previews, then posts). The old
+                      text-push Watchlist/Unusual buttons were retired. */}
+                  {isAdmin && (
+                    <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+                      <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
+                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
+                        {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
+                      </select>
+                      <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
+                        style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
+                        {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
+                        <option value={99}>All</option>
+                      </select>
+                      <button onClick={previewWatchlistImages} disabled={wlPreviewBusy}
+                        title="Render the Bull + Bear watchlist as a branded image and preview it before pushing to Discord"
+                        style={{ padding:"5px 12px", borderRadius:"0 5px 5px 0", border:"none", background:wlPreviewBusy?"#5865F266":"#5865F2",
+                          color:"#fff", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                        {wlPreviewBusy ? "📸 Rendering…" : "📸 Preview Images"}
+                      </button>
+                    </div>
+                  )}
                   {wlPreview && (
                     <div onClick={closeWlPreview}
                       style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
@@ -8641,7 +8635,7 @@ export default function OptionsFlowDashboard() {
                         <div style={{ display:"flex", gap:12, alignItems:"flex-start", flexWrap:"wrap", justifyContent:"center" }}>
                           {wlPreview.imgs.map(img => (
                             <div key={img.side} style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"center" }}>
-                              <div style={{ fontSize:11, fontWeight:700, color:img.side==="Bull"?"#57F287":"#ED4245", fontFamily:"inherit" }}>{img.side} · {img.label}</div>
+                              <div style={{ fontSize:11, fontWeight:700, color:P.ac, fontFamily:"inherit" }}>{img.label}</div>
                               <img src={img.url} alt={img.side+" watchlist preview"}
                                 style={{ maxWidth:"44vw", maxHeight:"74vh", borderRadius:6, border:"1px solid "+P.bl, display:"block" }} />
                             </div>
