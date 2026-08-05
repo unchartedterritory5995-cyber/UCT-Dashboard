@@ -1061,6 +1061,7 @@ def compute_live(force: bool = False) -> dict:
         "partial_session": list(PARTIAL_SESSION),
         "not_live": list(NOT_LIVE),
     }
+
     with _live_lock:
         _live_cache["payload"] = payload
         _live_cache["at"] = now

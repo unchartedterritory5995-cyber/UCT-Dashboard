@@ -5,6 +5,7 @@ import MARelationship from './MARelationship'
 import { SkeletonTileContent } from '../Skeleton'
 import UIcon from '../ui/UIcon'
 import { useLiveBreadth } from '../../hooks/useLiveBreadth'
+import DayPath from '../breadth/DayPath'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -105,6 +106,7 @@ export default function MarketBreadth({ data: propData }) {
           <span className={styles.livePulse} aria-hidden="true" />
           <span className={styles.liveLabel}>ABOVE 50-DAY NOW</span>
           <strong className={styles.liveValue}>{live.row.pct_above_50sma.toFixed(1)}%</strong>
+          <DayPath points={live.path?.pct_above_50sma} label="% above 50-day" />
           <span className={styles.liveStamp}>{live.clock} ET</span>
         </div>
       )}

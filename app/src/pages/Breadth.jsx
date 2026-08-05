@@ -13,6 +13,7 @@ import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
+import LiveSessionStrip from './breadth/LiveSessionStrip'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import {
@@ -1103,6 +1104,11 @@ export default function Breadth() {
           }
         </div>
       )}
+
+      {/* Every row below describes a finished day. None of them can say what
+          today is doing, because today isn't a row yet — this is that answer,
+          and it disappears the moment the 4:15 collector makes it one. */}
+      {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap}>

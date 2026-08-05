@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **Branch:** `feat/breadth-live`
-**Status:** P1 + P2 built on the branch; not deployed
+**Status:** P1 + P2 + P3 built on the branch; not deployed
 
 ## Problem
 
@@ -250,7 +250,44 @@ a consumer seeing only the first would believe the sample was 27× what it was.
 Past 5% coverage drift the read is flagged `degraded` and no surface renders it:
 at that point it is not a fresher view of the metric, it is a different metric.
 
-## Later
+## The session's shape (P3)
 
-**P3:** intraday store + day-path sparkline.
+A reading of 65% above the 50-day means one thing if it opened at 71 and another
+if it opened at 58. The daily row can never carry that — by the time it exists
+the session is over — so `api/services/breadth_intraday.py` samples the live
+read through the day and every surface draws the path beside the number.
+
+**A separate database, deliberately.** `breadth_snapshots` holds the permanent
+daily series and the collector is its only writer. Provisional samples must not
+be able to reach it even by accident: that is the NAAIM failure, where a
+placeholder indistinguishable from a reading sat in permanent history for 93
+sessions. A different file with a different schema makes the mistake
+unavailable rather than unlikely.
+
+**Four gates on keeping a sample**, each because keeping the wrong one poisons
+the path rather than merely wasting a row:
+
+| gate | why |
+|---|---|
+| `session_live` | a holiday or pre-open snapshot is not a session |
+| `anchored` | the basis is cached per day, so requiring it means every sample in a path shares one — the line cannot step mid-session |
+| not `degraded` | the read measured a different population |
+| not `superseded` | the collector has written; the day has a real answer |
+
+**Recorded in the router, not in `compute_live`** — `breadth_score` and the
+rolling ratios only exist once the row has been derived, so recording the raw
+metrics would leave the headline number with no path at all. Sitting outside
+the compute cache is fine: `record()` enforces its own 55s minimum, so a cache
+hit costs one cheap guard and a `force=1` refresh cannot become a write loop.
+
+**Surfaces.** `DayPath` is a ~90-byte polyline, not a chart library — it renders
+inside a table cell and beside a tile value. It draws nothing until there are
+two samples: one point is a reading, not a session, and a flat line across the
+panel would imply a session that hasn't happened. Downsampling always keeps the
+first and last points, because a sparkline whose last point isn't the current
+reading disagrees with the number it exists to corroborate.
+
+The Monitor gains a **session strip** above the table: every row below describes
+a finished day, and none of them can say what today is doing. It disappears the
+moment the collector makes today a row.
 

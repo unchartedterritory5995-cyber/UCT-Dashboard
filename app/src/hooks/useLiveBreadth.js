@@ -53,6 +53,7 @@ export function useLiveBreadth({ enabled = true } = {}) {
     if (!data?.ok || data.superseded || data.degraded || !data.row) {
       return {
         row: null, asOf: null, clock: null, degraded: !!data?.degraded,
+        path: {}, openValues: {},
         meta: data ?? null, error,
       }
     }
@@ -61,6 +62,10 @@ export function useLiveBreadth({ enabled = true } = {}) {
       asOf: data.as_of,
       clock: formatLiveClock(data.as_of),
       measured: data.measured ?? null,
+      // `{metric: [[epochSeconds, value], ...]}` for today, oldest first —
+      // the session's shape, which the daily row can never carry.
+      path: data.path ?? {},
+      openValues: data.open ?? {},
       marketOpen: !!data.market_open,
       // Per-metric confidence, measured by replaying real sessions against the
       // stored rows. A cell that reconciles to a point should not look like one

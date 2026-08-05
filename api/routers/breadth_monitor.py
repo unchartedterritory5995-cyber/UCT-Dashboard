@@ -85,6 +85,30 @@ def get_breadth_live(force: bool = False):
     # same derivation every stored row gets.
     payload["row"] = svc.derive_live_row({**carried, **payload["metrics"],
                                           "date": payload["session_date"]}, recent)
+
+    # Record the session's shape HERE rather than inside compute_live, because
+    # `breadth_score` and the rolling ratios only exist once the row has been
+    # derived — recording the raw metrics would leave the headline number with
+    # no path at all. Sitting outside the compute cache is fine: `record()`
+    # enforces its own minimum interval, so a cache hit costs one cheap guard.
+    #
+    # Only a live, anchored, non-degraded, not-yet-superseded sample is kept. A
+    # degraded reading measured a different population; one taken after the
+    # collector has written describes a day that already has an authoritative
+    # answer; and requiring `anchored` means every sample in a path shares one
+    # basis, so the line cannot step when coverage drifts mid-session.
+    try:
+        from api.services import breadth_intraday
+        if (payload.get("session_live") and payload.get("anchored")
+                and not payload.get("degraded") and not payload["superseded"]):
+            breadth_intraday.record(payload["session_date"], payload["row"])
+        payload["path"] = breadth_intraday.session_path(payload["session_date"])
+        payload["open"] = breadth_intraday.session_open(payload["session_date"])
+    except Exception as e:
+        # A store that cannot write must still let the live read through.
+        print(f"[breadth_monitor] intraday store unavailable: {e}")
+        payload["path"], payload["open"] = {}, {}
+
     return payload
 
 
