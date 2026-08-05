@@ -66,7 +66,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // News/Profile follow the app theme when uncustomized: on the light theme the
   // workspace otherwise keeps this .widget dark (border + chrome). This flag lets the
   // CSS re-flip the light tokens (incl. the border) for the whole widget.
-  const themeFollow = ['news', 'profile', 'watchlist'].includes(active.type) && !active.opts?.settings
+  const themeFollow = ['news', 'profile', 'watchlist', 'fundamentals', 'themes', 'breadth'].includes(active.type) && !active.opts?.settings
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined

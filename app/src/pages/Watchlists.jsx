@@ -356,13 +356,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // widget's canvas/colors never touches another. Absent (the standalone page)
   // → the shared global `watchlist_settings` pref, exactly as before. A widget
   // that hasn't diverged yet inherits the global blob as its seed.
-  // An uncustomized watchlist (no per-widget override, no global pref) uses the
-  // DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text), so the ⚙
-  // swatches and the surface both follow the site theme.
-  const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? watchlistDefaultsForTheme(prefs?.theme)),
-    [settingsOverride, prefs],
-  )
+  // An uncustomized watchlist uses the DEFAULTS FOR THE CURRENT APP THEME (light →
+  // white canvas + dark text), so the ⚙ swatches and the surface both follow the
+  // site theme. In WIDGET context (onSettingsPersist set) the legacy GLOBAL pref is
+  // ignored — exactly like News/Profile — so a stale saved dark blob can't force the
+  // widget dark on the light theme; the standalone page still reads the global.
+  const wlSettings = useMemo(() => {
+    const themeDefault = watchlistDefaultsForTheme(prefs?.theme)
+    const base = settingsOverride
+      ?? (onSettingsPersist ? themeDefault : (parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? themeDefault))
+    return mergeWatchlistSettings(base)
+  }, [settingsOverride, onSettingsPersist, prefs])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const patchSettings = useCallback((patch) => {
