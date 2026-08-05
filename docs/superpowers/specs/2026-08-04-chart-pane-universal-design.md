@@ -94,8 +94,8 @@ color groups, `crosshairBus`, `activeChartRef` hotkey arbitration, chart tabs, `
   onSymbolChange         // (sym) => void — omit to lock the symbol (contextual popups)
   onTfChange             // (tf) => void
   density="full"         // "full" | "compact"
-  settingsOverride={null}// null = the user's global chart_settings ("your chart")
-  onSettingsPersist      // omit = writes the global blob
+  stored={null}          // null = the user's global chart_settings ("your chart")
+  onStore                // omit = writes the global blob; pass it for full isolation
   stockChartProps={{}}   // per-surface passthrough (priceLines, darkPoolBars, markers…)
   slots={{ headerRight, tfBarRight }}   // host-specific chrome (ShareToFloor, tabs, …)
 />
@@ -119,7 +119,7 @@ bug and must not regress.
 
 Popups are the opposite case. The ask is that a popup shows *your* chart. So:
 
-- **Popups pass `settingsOverride={null}`** → they read the global `chart_settings` blob, which
+- **Popups pass `stored={null}` and no `onStore`** → they read the global `chart_settings` blob, which
   is exactly the user's default chart.
 - **Edits made from a popup write the global blob** — one chart identity, edited anywhere.
 - **Workspace widgets keep per-surface isolation**, unchanged.
@@ -137,6 +137,11 @@ almost no candles. The adoption commit for each popup includes enlarging its mod
 near-fullscreen, matching how `/charts` treats the chart.
 
 ### Explicitly NOT adopting ChartPane
+
+⚠️ **Prop names are `stored` / `onStore`** (as implemented and tested in Phase A), NOT the
+`settingsOverride` / `onSettingsPersist` this document originally used — those are StockChart's
+own prop names and reusing them here was an authoring error caught during Task 6. Phase B
+adoption commits must use `stored` / `onStore`.
 
 Three `StockChart` mount sites must stay bare, and saying so is load-bearing — adopting the
 shell in any of them is a regression, not an improvement:
