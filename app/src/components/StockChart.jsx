@@ -6077,6 +6077,28 @@ export default function StockChart({
       })
       : null
     paneLayoutRef.current = paneLayout
+
+    // ⛔ AND THE CANDLES' OWN MARGINS HAVE TO BE RE-ASSERTED HERE, NOT LEFT TO
+    // THE OPTIONS EFFECT. MEASURED at B5 Task 10: `rightPriceScale.scaleMargins`
+    // is built in the chart-options effect, which runs BEFORE this one on the
+    // first paint — so `paneLayoutRef` is still `null` there and the FIRST
+    // painted frame would carry the BANDS rectangle. Every parity case is a fresh
+    // page load, so the first frame is the only one photographed: Task 12 would
+    // have measured the price pane in the wrong place and the §A6 identity would
+    // have looked broken when only the ordering was.
+    //
+    // A user who has DRAGGED the price axis outranks the layout, exactly as
+    // `vertMarginsRef` outranks `_mainMargins` in the options effect.
+    if (paneLayout && !vertMarginsRef.current) {
+      try {
+        mainPriceScale()?.applyOptions({
+          scaleMargins: _mainMargins(
+            csPanes, hasVolumeBand, priceScaleTopMargin,
+            volInSeparatePane ? priceScaleBottomMargin : null, paneLayout,
+          ),
+        })
+      } catch { /* one bad scale must not take the paint down */ }
+    }
     // ⛔⭐ `indTarget` / `ensureIndTarget` / `applyIndScale` STOOD HERE AND WENT
     // WITH THE LAST THREE RENDER BLOCKS (B5 Task 8) — they had no other callers.
     // Together they were the legacy lane's placement: which pane and which named

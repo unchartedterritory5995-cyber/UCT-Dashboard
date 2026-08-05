@@ -57,6 +57,15 @@ const H = vi.hoisted(() => ({
   // wrote, using lightweight-charts' own rule (proportional over
   // `stackPx - separators`).
   paneModel: null,
+  // The OPTIONS `createChart` was handed. Recorded because two of Flip C's
+  // component-level answers live nowhere else: the candles' own `scaleMargins`
+  // (which must come from the LAYOUT under `'panes'`, or the price pane moves)
+  // and `layout.panes.enableResize` (spec 6's draggable divider).
+  chartOptionsCalls: [],
+  // Every `series.priceScale().applyOptions`. The CANDLES' margins are
+  // re-asserted on the render path under `'panes'` (the options effect runs
+  // before the layout exists), and this is the only place that write is visible.
+  scaleApplyCalls: [],
   binderCreated: [],
   binderApis: [],
   syncCalls: [],
@@ -89,6 +98,8 @@ const H = vi.hoisted(() => ({
     H.setDataCalls.length = 0
     H.moveToPaneCalls.length = 0
     H.paneModel = null
+    H.chartOptionsCalls.length = 0
+    H.scaleApplyCalls.length = 0
     H.binderCreated.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
@@ -143,7 +154,7 @@ vi.mock('lightweight-charts', () => {
         H.applyOptionsCalls.push({ series: s, options: o })
         if (o && 'visible' in o) H.visibilityCalls.push({ series: s, visible: o.visible })
       },
-      priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
+      priceScale: () => ({ applyOptions: (o) => { H.scaleApplyCalls.push({ series: s, options: o }) }, width: () => 0 }),
       createPriceLine: (o) => { H.priceLineCalls.push({ series: s, options: o }); return {} },
       removePriceLine: () => {}, setMarkers: () => {},
       attachPrimitive: () => {}, detachPrimitive: () => {},
@@ -230,7 +241,7 @@ vi.mock('lightweight-charts', () => {
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
-    createChart: (el) => { H.chartContainers.push(el); return chart },
+    createChart: (el, options) => { H.chartContainers.push(el); H.chartOptionsCalls.push(options); return chart },
     ColorType: { Solid: 'solid', VerticalGradient: 'gradient' },
     CrosshairMode: { Normal: 0, Magnet: 1 },
     LineStyle: { Solid: 0, Dotted: 1, Dashed: 2, LargeDashed: 3 },
@@ -5552,5 +5563,84 @@ describe('the context-menu harness under PANE_MODE panes', () => {
       __setPaneModeForTest(null)
       H.paneModel = null
     }
+  })
+})
+
+
+// ─── B5 TASK 10 · what the CHART is told, under both modes ───────────────────
+describe('the chart options StockChart builds under PANE_MODE panes', () => {
+  // ⛔ VOLUME OFF, DELIBERATELY. The volume BAND is the one thing that lives in
+  // pane 0 in both modes, so leaving it on would make the two rectangles differ
+  // for a second reason and the comparison would stop being about the panes.
+  const SETTINGS = () => mergeChartSettings({
+    volume: { visible: false },
+    indicators: { rsi: { enabled: true }, macd: { enabled: true } },
+  })
+  const opts = () => {
+    expect(H.chartOptionsCalls.length, 'createChart was never called').toBeGreaterThan(0)
+    return H.chartOptionsCalls[0]
+  }
+
+  it('the candles keep the LAYOUT s rectangle, not the bands one', async () => {
+    const { computePaneLayout, paneStackHeightPx, SEPARATOR_PX } = await import('../paneLayout')
+    const { computePaneMargins } = await import('../../paneMargins')
+    const { csForPaneMarginsFromSettings } = await import('../paneMarginsProjection')
+
+    // BANDS first: the shipped answer, so the comparison below has a control.
+    const cs = SETTINGS()
+    renderChart({ settings: cs })
+    const bandsMargins = opts().rightPriceScale.scaleMargins
+    const csPanes = csForPaneMarginsFromSettings(cs, registry, ENGINE_FLIPPED_DEF_IDS)
+    expect(bandsMargins).toEqual(computePaneMargins(csPanes, false).main)
+
+    cleanup(); H.reset()
+    __setPaneModeForTest('panes')
+    try {
+      H.paneModel = { stackPx: 300 }
+      renderChart({ settings: SETTINGS() })
+      // ⛔ NOT `opts()`. The chart-options effect runs BEFORE the render path on
+      // the first paint, so `paneLayoutRef` is still null there and `createChart`
+      // is handed the BANDS rectangle. The render path re-asserts it on the
+      // candles' own scale in the SAME pass that creates the panes — measured,
+      // and the reason that write exists at all: a parity case photographs the
+      // FIRST frame and nothing else.
+      const candleSeries = (H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries') || {}).series
+      expect(candleSeries, 'no candle series was created').toBeTruthy()
+      const candleScaleWrites = H.scaleApplyCalls.filter(
+        c => c.series === candleSeries && c.options && c.options.scaleMargins)
+      expect(candleScaleWrites.length, "the candles were never re-asserted a scaleMargins").toBeGreaterThan(0)
+      const panesMargins = candleScaleWrites[candleScaleWrites.length - 1].options.scaleMargins
+      // ⛔ AND IT IS A DIFFERENT FRACTION, BY CONSTRUCTION: pane 0 is shorter by
+      // the oscillator stack, so the SAME ABSOLUTE PIXELS are a different
+      // fraction of it. Reading `computePaneMargins` here would put the candles
+      // back where a full-height pane 0 would have them.
+      expect(panesMargins).not.toEqual(bandsMargins)
+      const instances = migrateLegacyToInstances(SETTINGS(), registry, ENGINE_FLIPPED_DEF_IDS)
+      const want = computePaneLayout(
+        csForPaneMarginsFromSettings(SETTINGS(), registry, ENGINE_FLIPPED_DEF_IDS),
+        instances,
+        { chartHeight: 300, hasVolumeBand: false, separatorPx: SEPARATOR_PX, firstPaneIndex: 1 },
+      ).pane0.mainMargins
+      expect(panesMargins).toEqual(want)
+      expect(paneStackHeightPx({ panes: () => [{ getHeight: () => 300 }] })).toBe(300)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+
+  it('declares the divider draggable — spec 6, and not merely the library default', () => {
+    __setPaneModeForTest('panes')
+    try {
+      H.paneModel = { stackPx: 300 }
+      renderChart({ settings: SETTINGS() })
+      expect(opts().layout.panes.enableResize).toBe(true)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+
+  it('…and a FROZEN exhibit is still a static picture', () => {
+    __setPaneModeForTest('panes')
+    try {
+      H.paneModel = { stackPx: 300 }
+      renderChart({ settings: SETTINGS(), frozen: true })
+      expect(opts().layout.panes.enableResize).toBe(false)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
   })
 })

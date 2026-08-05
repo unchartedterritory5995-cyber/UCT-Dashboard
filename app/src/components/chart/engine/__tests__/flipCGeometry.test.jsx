@@ -504,6 +504,18 @@ describe('paneStretchPlan', () => {
     expect(plan[0] + plan[1]).toBe(300)          // the budget is EXACT, remainder to pane 0
   })
 
+  it('the split is EXACT, and a fixture where the two arithmetics agree cannot say so', () => {
+    // 🔴 THE FIXTURE ABOVE COULD NOT TELL THE REMAINDER FROM A ROUND, and B5 Task
+    // 10's gauntlet measured that: 78/22 of 300 divides evenly, so
+    // `budget - assigned` and `round(budget * w0 / total)` give the same 234 and
+    // the mutation SURVIVED. Three equal weights over 100 do not divide evenly:
+    // rounding every share gives 33+33+33 = 99 and loses a pixel off the stack,
+    // which is a one-pixel drift nobody attributes for a week.
+    const plan = paneStretchPlan(layout([60], 100, 3), [1, 1, 1, 1])
+    expect(plan).toEqual([34, 33, 33, 60])
+    expect(plan[0] + plan[1] + plan[2]).toBe(100)
+  })
+
   it('a pane BELOW the stack is left alone — a future pane must not be crushed to zero', () => {
     expect(paneStretchPlan(layout([60], 300), [100, 1, 42])).toEqual([300, 60, 42])
   })
