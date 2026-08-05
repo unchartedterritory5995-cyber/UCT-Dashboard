@@ -1,9 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { menuThemeVars } from '../../../utils/dividerColor'
 import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import ShareToFloor from '../../../components/community/ShareToFloor'
+import UIcon from '../../../components/ui/UIcon'
+import NewsSettingsPanel from './NewsSettingsPanel'
+import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme } from './basicWidgetSettings'
 import styles from './AiSearchWidget.module.css'
+
+const AIS_SETTINGS_KEY = 'aisearch_settings'
 
 // Saved answers persist per-browser so a member can reopen a good answer later.
 const SAVED_KEY = 'uct.aisearch.saved'
@@ -235,6 +242,27 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
 
 export default function AiSearchWidget({ initialQuery = null, color = null, onTicker = null }) {
   const { aiSearchBus, setGroupSym } = useWorkspace()
+
+  // ── Basic appearance settings (⚙): canvas + text. Uncustomized → the DEFAULTS
+  // FOR THE CURRENT APP THEME (light → white canvas + dark text). ──
+  const { prefs, setPref } = usePreferences()
+  const aisSettings = useMemo(
+    () => mergeBasicWidgetSettings(parsePref(prefs?.[AIS_SETTINGS_KEY], null) ?? basicDefaultsForTheme(prefs?.theme)),
+    [prefs],
+  )
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const gearRef = useRef(null)
+  const rootRef = useRef(null)
+  const rootStyle = useMemo(() => {
+    const v = basicWidgetStyleVars(aisSettings)
+    return v['--basic-canvas'] ? { ...v, background: v['--basic-canvas'] } : v
+  }, [aisSettings])
+  const patchSettings = useCallback((patch) => setPref(AIS_SETTINGS_KEY, JSON.stringify({ ...aisSettings, ...patch })), [aisSettings, setPref])
+  const resetSettings = useCallback(() => setPref(AIS_SETTINGS_KEY, JSON.stringify(basicDefaultsForTheme(prefs?.theme))), [setPref, prefs])
+  const menuVars = useMemo(() => {
+    const canvas = aisSettings.bgMode === 'gradient' ? (aisSettings.bgGradient?.top || aisSettings.bg) : aisSettings.bg
+    return menuThemeVars(canvas) || {}
+  }, [aisSettings])
 
   // Clicking a ticker/company name in an answer loads it on the chart linked to
   // THIS widget's color group (or a caller-supplied handler, e.g. the temp popup).
@@ -512,7 +540,28 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const empty = thread.length === 0 && !loading && !error && !limitMsg
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} ref={rootRef} style={rootStyle}>
+      {settingsOpen && (
+        <NewsSettingsPanel
+          title="AI Search Settings"
+          showPerf={false}
+          settings={aisSettings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          gearEl={gearRef.current}
+          hostEl={rootRef.current}
+          themeVars={menuVars}
+        />
+      )}
+      <button
+        ref={gearRef}
+        type="button"
+        className={styles.gearBtn}
+        onClick={() => setSettingsOpen(o => !o)}
+        title="AI Search settings"
+        aria-label="AI Search settings"
+      ><UIcon name="gear" size={13} /></button>
       <div className={styles.body} ref={bodyRef}>
         {empty && (
           <div className={styles.empty}>

@@ -49,6 +49,23 @@ export const THEME_TRACKER_BASE_FONT_PX = 11
 export const THEME_TRACKER_FONT_SIZES = [9, 10, 11, 12, 13, 14, 15, 16]
 
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
+// Seed values for an uncustomized tracker on the LIGHT app theme (white canvas +
+// dark text) so the ⚙ swatches AND the surface follow the site theme until edited.
+export const THEME_TRACKER_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  symColor: '#1f2328',
+  upColor: '#0a5c22',
+  downColor: '#7d1620',
+  tintUp: '#0a5c2226',
+  tintDown: '#7d162026',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function themeTrackerDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...THEME_TRACKER_DEFAULTS, ...THEME_TRACKER_LIGHT_OVERRIDES }
+    : THEME_TRACKER_DEFAULTS
+}
+
 export function mergeThemeTrackerSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}
   return {

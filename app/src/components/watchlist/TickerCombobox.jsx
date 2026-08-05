@@ -14,6 +14,7 @@ import styles from './TickerCombobox.module.css'
 const TickerCombobox = forwardRef(function TickerCombobox({
   onPick,
   onEscape,
+  onDismiss,             // fired when focus leaves the input entirely (click-away)
   placeholder = 'Add symbol…',
   autoFocus = false,
   existingSyms = null,   // Set<string> — symbols already in the target list
@@ -105,8 +106,16 @@ const TickerCombobox = forwardRef(function TickerCombobox({
         onFocus={() => setOpen(true)}
         onChange={e => { setQuery(e.target.value.toUpperCase()); setOpen(true) }}
         onKeyDown={handleKeyDown}
-        // Delay the close so a mousedown on a row still lands.
-        onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 120) }}
+        // Delay the close so a mousedown on a row still lands. Picking a suggestion
+        // re-focuses the input (mousedown preventDefault keeps focus), so a genuine
+        // click-away is "input no longer focused after the delay" → dismiss the whole
+        // add row, not just the popup.
+        onBlur={() => {
+          blurTimer.current = setTimeout(() => {
+            setOpen(false)
+            if (document.activeElement !== inputRef.current) onDismiss?.()
+          }, 120)
+        }}
       />
 
       {open && (

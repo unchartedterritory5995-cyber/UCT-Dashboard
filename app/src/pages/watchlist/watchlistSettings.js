@@ -67,6 +67,26 @@ export const WATCHLIST_FONT_SIZES = [9, 10, 11, 12, 13, 14, 15, 16]
 // Do NOT list #0e0f0d here — it IS the current default.
 const LEGACY_DEFAULT_BG = new Set(['#22251e', '#1a1c17'])
 
+// Seed values for an UNCUSTOMIZED watchlist on the LIGHT app theme: white canvas +
+// near-black text, dark green/red, so the ⚙ swatches AND the surface follow the site
+// theme until the user picks colors.
+export const WATCHLIST_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  symColor: '#1f2328',
+  priceColor: '#1f2328',
+  volColor: '#57606a',
+  upColor: '#0a5c22',
+  downColor: '#7d1620',
+  tintUp: '#0a5c2226',
+  tintDown: '#7d162026',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function watchlistDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...WATCHLIST_DEFAULTS, ...WATCHLIST_LIGHT_OVERRIDES }
+    : WATCHLIST_DEFAULTS
+}
+
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
 export function mergeWatchlistSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}

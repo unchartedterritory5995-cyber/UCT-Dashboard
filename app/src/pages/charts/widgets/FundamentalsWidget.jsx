@@ -9,7 +9,7 @@ import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
-import { FUNDAMENTALS_SETTINGS_KEY, FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsStyleVars } from './fundamentalsSettings'
+import { FUNDAMENTALS_SETTINGS_KEY, mergeFundamentalsSettings, fundamentalsStyleVars, fundamentalsDefaultsForTheme } from './fundamentalsSettings'
 import styles from './FundamentalsWidget.module.css'
 
 function fmtSales(v) {
@@ -128,8 +128,10 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
 
   // ── Fundamentals appearance settings (⚙ panel) — mirrors the watchlist's ──
   const { prefs, setPref } = usePreferences()
+  // Uncustomized (no saved pref) → the DEFAULTS FOR THE CURRENT APP THEME (light →
+  // white canvas + dark text), so the ⚙ swatches and the surface follow the theme.
   const fwSettings = useMemo(
-    () => mergeFundamentalsSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null)),
+    () => mergeFundamentalsSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null) ?? fundamentalsDefaultsForTheme(prefs?.theme)),
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -139,8 +141,8 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
     setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify({ ...fwSettings, ...patch }))
   }, [fwSettings, setPref])
   const resetSettings = useCallback(() => {
-    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(FUNDAMENTALS_DEFAULTS))
-  }, [setPref])
+    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(fundamentalsDefaultsForTheme(prefs?.theme)))
+  }, [setPref, prefs])
   const fwStyle = useMemo(() => fundamentalsStyleVars(fwSettings), [fwSettings])
   // Canvas-matched palette for the settings panel itself (same mechanism as the
   // chart/watchlist popup menus).

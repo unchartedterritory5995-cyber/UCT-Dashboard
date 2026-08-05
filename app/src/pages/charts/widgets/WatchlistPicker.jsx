@@ -10,11 +10,11 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../../../hooks/useFlagged'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePreferences from '../../../hooks/usePreferences'
 import UIcon from '../../../components/ui/UIcon'
 import { useWatchlistTemplates } from '../../watchlist/watchlistTemplates'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
-import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars } from '../../watchlist/watchlistSettings'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import styles from './WatchlistPicker.module.css'
 
@@ -34,8 +34,10 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   // SAME ⚙ settings panel used inside a picked list, so the landing page is styled
   // and configurable exactly like the list view that follows it.
   const { prefs } = usePreferences()
+  // Always widget context — ignore the legacy global pref so the picker follows the
+  // app theme (white on light) unless this widget has its own saved override.
   const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
+    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(prefs?.theme)),
     [settingsOverride, prefs],
   )
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
