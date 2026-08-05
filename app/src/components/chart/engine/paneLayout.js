@@ -246,14 +246,21 @@ function paneHeightFor(defId) {
  * it along with the function it read the order out of. `cs` was that loop's only
  * argument, which is why this function and `computePaneLayout` no longer take one.
  *
- * 🔴 ⚠️ THE LIST'S ORDER IS THE FOLD'S ORDER, AND THE FOLD SEEDS IN REGISTRY
- * ORDER — NOT in `instances.SHIPPED_STACK_ORDER`. This paragraph used to say the
- * list was "seeded from `SHIPPED_STACK_ORDER`"; B5 Task 12 MEASURED that it is
- * not. The fold deliberately emits registry order because this list is ALSO the
- * binder's insertion order and insertion order is Z-ORDER (a stack-ordered seed
- * moved two `scaleId`s at 0 changed pixels and the gate refused it). So the panes
- * come out in registry order, which is NOT the band order a user's chart has
- * today. See `instances.js`'s note and the Flip-C record §7.
+ * ✅ THE LIST'S ORDER IS THE FOLD'S ORDER, AND THE FOLD SEEDS IN
+ * `instances.SHIPPED_STACK_ORDER` — so an existing user's panes come out in the
+ * order their BANDS are in today. ⚠️ THIS PARAGRAPH HAS BEEN WRONG IN BOTH
+ * DIRECTIONS: it claimed the seed was stack-ordered while Task 12 measured it was
+ * registry-ordered, and it then claimed registry order permanently. B5 Task 13
+ * changed the FOLD (not this function) and re-measured. Do not re-word it from
+ * either note — read `instances.migrateLegacyToInstances` and, if in doubt, run
+ * the case `settingsBlobMigration.test.js` calls *"a stored July blob's panes come
+ * out in the SHIPPED stack order"*, which drives a real blob through both.
+ *
+ * ⛔ AND THE SORT IS NOT HERE ON PURPOSE. Ordering the panes inside this function
+ * would give the layout back the shipped order and leave every OTHER reader of
+ * the instance list — the legend, which prints in binding order — in whatever
+ * order the list is in. `legendFromDefinitions.test.jsx` pins the two together;
+ * one list, two readings.
  */
 function orderedPaneKeys(instances, excluded) {
   const paneIds = paneTargetIds()

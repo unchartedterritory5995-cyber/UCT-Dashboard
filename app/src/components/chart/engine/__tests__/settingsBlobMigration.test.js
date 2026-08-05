@@ -21,6 +21,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { CHART_DEFAULTS, mergeChartSettings, mergeSettingsOverride } from '../../chartDefaults'
 import { migrateLegacyToInstances, SHIPPED_STACK_ORDER } from '../instances'
+import { computePaneLayout } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
 
 /** The repo root — same walk `enumerationSites.test.js` uses, and it THROWS BY
@@ -58,33 +59,34 @@ describe('a blob written before the engine existed', () => {
     expect(cs.indicatorInstances.some(i => i.defId === 'macd')).toBe(false)
   })
 
-  // ⛔⭐⭐ THE SHIPPED STACK ORDER IS RECORDED, NOT APPLIED — AND THE PIXEL GATE IS
-  // WHY. This case was written as *"the instance ORDER is the shipped stack
-  // order, so nobody's panes reorder"* (⭐ Plan A5: `PANES` stacks bottom-to-top
-  // obv,atr,adx,macd,cci,williamsR,mfi,stoch,rsi, so pane order is that list
-  // reversed), with the fold emitting `SHIPPED_STACK_ORDER`. It is the right
-  // ORDER and the wrong PLACE, and the gate said so:
+  // ⛔⭐⭐ THE SHIPPED STACK ORDER IS APPLIED — B5 TASK 13, AND THE PIXEL GATE IS
+  // STILL WHY IT TOOK THREE TASKS. This case was written at Task 9 as *"the
+  // instance ORDER is the shipped stack order, so nobody's panes reorder"* (⭐
+  // Plan A5: `PANES` stacks bottom-to-top obv,atr,adx,macd,cci,williamsR,mfi,
+  // stoch,rsi, so pane order is that list reversed). The gate refused it:
   //
   //   `engine_three_bands_stacked` — 5/5 runs, **0 changed pixels**, 🔴 FAIL
   //     panes[0].series[2].scaleId: 'cci' -> 'williamsR'
   //     panes[0].series[3].scaleId: 'williamsR' -> 'cci'
   //
   // The instance list is ALSO the order the binder calls `addSeries` in, and
-  // INSERTION ORDER IS Z-ORDER. Three oscillators in disjoint bands cannot
-  // overlap, so the pixel number is 0 — and "0 px with a manifest GEOMETRY
-  // change" is the one shape this gate treats as a lie by construction; no
-  // declaration waves geometry through. B5 Task 8 rejected a plot-reorder probe
-  // for the same reason.
+  // INSERTION ORDER IS Z-ORDER; **`panes[0]`** is the tell — under `'bands'` all
+  // nine oscillators live in pane 0 with the five price overlays. "0 px with a
+  // manifest GEOMETRY change" is the one shape this gate treats as a lie by
+  // construction, so Task 9 reverted and RECORDED the order instead.
   //
-  // ⭐ SO THE ORDER LIVES IN `SHIPPED_STACK_ORDER` — derived from
-  // `computePaneMargins` when this was written, INLINED at Task 12 when that file
-  // was deleted, and pinned by name in the last case of this describe.
-  it('seeds in REGISTRY order — the binder\'s insertion order, unchanged', () => {
-    // ⛔ THE SET MUST DISCRIMINATE, AND THE OBVIOUS ONE DOES NOT. A mutation that
-    // sorts by `SHIPPED_STACK_ORDER` SURVIVED this case while it used the brief's
-    // `['obv','rsi','stoch','atr']` — registry order and stack order agree on
-    // those four (rsi, stoch, atr, obv either way), so the case could not see the
-    // change it exists to refuse. `macd` and `stoch` are where the two disagree.
+  // ⭐ FLIP C REMOVED THE REASON, AND TASK 13 RE-MEASURED RATHER THAN REASONED.
+  // Under `'panes'` each of the nine owns a pane, so no two of them are z-stacked
+  // against each other; the five overlays still share pane 0 and are the TAIL of
+  // `SHIPPED_STACK_ORDER` in registry order, so their relative insertion order is
+  // untouched (`engine_price_overlay_zorder` is the case that would catch a move).
+  // `engine_three_bands_stacked` now reports a real PIXEL number, not a 0-px
+  // geometry diff — the two orders put a different oscillator in a different pane.
+  it('seeds in SHIPPED STACK order — so a migrated user\'s panes do not reorder', () => {
+    // ⛔ THE SET MUST DISCRIMINATE, AND THE OBVIOUS ONE DOES NOT. Task 9's brief
+    // used `['obv','rsi','stoch','atr']`, where registry order and stack order
+    // AGREE (rsi, stoch, atr, obv either way), so the case could not see the very
+    // change it exists to pin. `macd` and `cci` are where the two disagree.
     const registryOrder = engineRegistry.listDefinitions().map(d => d.id)
     const ids = ['obv', 'rsi', 'stoch', 'atr', 'macd', 'cci']
     const many = JSON.stringify({ indicators: Object.fromEntries(
@@ -93,26 +95,73 @@ describe('a blob written before the engine existed', () => {
     const byStack = [...ids].sort((a, b) => SHIPPED_STACK_ORDER.indexOf(a) - SHIPPED_STACK_ORDER.indexOf(b))
     expect(byRegistry, 'the fixture set cannot tell the two orders apart — pick another')
       .not.toEqual(byStack)
-    expect(mergeChartSettings(JSON.parse(many)).indicatorInstances.map(i => i.defId))
-      .toEqual(byRegistry)
+    expect(mergeChartSettings(JSON.parse(many)).indicatorInstances.map(i => i.defId),
+      'the fold reverted to REGISTRY order — every migrated user\'s panes just reordered')
+      .toEqual(byStack)
   })
 
-  it('⛔ …and SHIPPED_STACK_ORDER is a DIFFERENT order, which is why it is a record', () => {
-    // If the two agreed, the revert above would have been unnecessary and Task
-    // 12's hand-off a no-op. They do not agree, and `macd` is where they disagree
-    // most: sixth in the registry, sixth-from-the-TOP in the stack.
+  it('⛔ …and SHIPPED_STACK_ORDER is a DIFFERENT order, which is why applying it MOVED pixels', () => {
+    // If the two agreed, Task 13 would have been a no-op. They do not agree, and
+    // `macd` is where they disagree most: second in the registry, sixth in the
+    // stack.
     const registryOrder = engineRegistry.listDefinitions().map(d => d.id)
     expect(SHIPPED_STACK_ORDER,
-      'the record collapsed onto registry order — then Flip C has nothing to apply')
+      'the record collapsed onto registry order — then Flip C had nothing to apply')
       .not.toEqual(registryOrder)
     expect(SHIPPED_STACK_ORDER.indexOf('stoch')).toBeLessThan(SHIPPED_STACK_ORDER.indexOf('macd'))
     expect(registryOrder.indexOf('macd')).toBeLessThan(registryOrder.indexOf('stoch'))
-    // …and the fold really does emit the OTHER one, stated here rather than left
-    // for a reader to infer.
+    // …and the fold really does emit the stack one, stated here rather than left
+    // for a reader to infer. Registry order would be `['macd', 'stoch']`.
     const blob = JSON.stringify({ indicators: Object.fromEntries(
       ['macd', 'stoch'].map(k => [k, { enabled: true }])) })
     expect(mergeChartSettings(JSON.parse(blob)).indicatorInstances.map(i => i.defId))
-      .toEqual(['macd', 'stoch'])
+      .toEqual(['stoch', 'macd'])
+  })
+
+  // ⭐⭐ THE OWNER'S ANSWER, END TO END: STORED BLOB → FOLD → PANE GEOMETRY.
+  //
+  // Every other case in this describe stops at the instance list. This one keeps
+  // going into `computePaneLayout`, because the list is not what a user sees —
+  // the PANES are, and the whole of the owner's *"preserve today's"* is that a
+  // July blob's oscillators come out of the cutover stacked the way they are
+  // stacked today. A case that asserted only the list would go on passing if a
+  // future edit re-sorted between the two.
+  it('⭐ a stored July blob\'s panes come out in the SHIPPED stack order', () => {
+    // ⛔ THE FIXTURE DISCRIMINATES OR THE CASE IS DECORATION. `rsi + macd + stoch`
+    // is the example in the Flip C record §7: registry order stacks
+    // `rsi · macd · stoch`, the shipped stack is `rsi · stoch · macd`, and MACD
+    // and Stochastics are the two that swap for an existing user.
+    const registryOrder = engineRegistry.listDefinitions().map(d => d.id)
+    const ids = ['rsi', 'macd', 'stoch']
+    const byRegistry = [...ids].sort((a, b) => registryOrder.indexOf(a) - registryOrder.indexOf(b))
+    const byStack = [...ids].sort((a, b) => SHIPPED_STACK_ORDER.indexOf(a) - SHIPPED_STACK_ORDER.indexOf(b))
+    expect(byRegistry, 'the fixture cannot tell the two orders apart — pick another')
+      .not.toEqual(byStack)
+    expect(byStack).toEqual(['rsi', 'stoch', 'macd'])
+
+    // A JSON *STRING*, per this file's rule: an object literal skips the step
+    // being migrated. No `settingsVersion`, no `indicatorInstances` — a July blob.
+    const JULY_THREE = '{"chartType":"candles","indicators":'
+      + '{"rsi":{"enabled":true,"period":14},"macd":{"enabled":true},'
+      + '"stoch":{"enabled":true,"kPeriod":14}},"overlays":[]}'
+    const cs = mergeChartSettings(JSON.parse(JULY_THREE))
+
+    const layout = computePaneLayout(cs.indicatorInstances, {
+      chartHeight: 532, hasVolumeBand: false, excludeKeys: new Set(),
+      separatorPx: 1, firstPaneIndex: 2, abovePct: [78, 22],
+    })
+    expect(layout.panes.map(p => p.key),
+      'the stored blob\'s panes came out in REGISTRY order — MACD and Stochastics '
+      + 'swapped for every existing user, which is exactly what the owner\'s '
+      + '"preserve today\'s pane heights" answer refused')
+      .toEqual(byStack)
+    // Non-vacuity: three panes really were built, and they are BELOW the volume
+    // pane the `firstPaneIndex: 2` says is there.
+    expect(layout.panes.map(p => p.index)).toEqual([2, 3, 4])
+    // …and the BAND map — what a reverted `'bands'` would draw — agrees, so the
+    // reversal named in `PANE_MODE`'s docstring lands on today's order too.
+    expect(Object.keys(layout.bands).filter(k => k !== 'main' && k !== 'volume').reverse())
+      .toEqual(byStack)
   })
 
   it('⛔ the nine are exactly the PANE definitions, and the five are the overlays in registry order', () => {
@@ -260,11 +309,12 @@ describe('a blob written before the engine existed', () => {
       .toMatchObject({ color: '#26C6DA', opacity: 40, lineStyle: 'dashed', lineWidth: 2 })
     // The one that was OFF is absent, not hidden and not tombstoned.
     expect(byDef.adx).toBeUndefined()
-    // …and the order is REGISTRY order, which is the binder's insertion order and
-    // therefore z-order. See the two cases at the top of this file for the
-    // measurement that decided it.
+    // …and the order is SHIPPED STACK order — the order this user's bands are
+    // stacked in today, which is the whole of B5 Task 13. Registry order would
+    // read `['rsi', 'macd', 'bb', 'vwap', 'stoch', 'atr']`; see the three cases at
+    // the top of this file for the measurement that decided it.
     expect(cs.indicatorInstances.map(i => i.defId))
-      .toEqual(['rsi', 'macd', 'bb', 'vwap', 'stoch', 'atr'])
+      .toEqual(['rsi', 'stoch', 'macd', 'atr', 'bb', 'vwap'])
     // ⛔ AND `enabled` IS NOT AN INPUT. It is what the instance's EXISTENCE means;
     // carried into `inputs` it would fail `validateInstance` and the whole
     // instance would be DROPPED — the indicator vanishes rather than moves.
@@ -353,23 +403,21 @@ describe('a blob written before the engine existed', () => {
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
-    // 🔴 AND IT IS STILL NOT APPLIED — MEASURED AT TASK 12, NOT PREDICTED. The
-    // note here read *"Flip C is where this array becomes PANE order, in
-    // `paneLayout.orderedPaneKeys`"*, and Flip C did not do that:
-    // `orderedPaneKeys` walks the INSTANCE LIST, the fold seeds that list in
-    // REGISTRY order (below, and for the z-order reason two cases up), and nothing
-    // between them sorts by `stackRank`. So pane order under `'panes'` is registry
-    // order, which is NOT the order this array records — reported, not fixed here,
-    // because changing it is a geometry decision with a pixel gate attached.
+    // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
+    // `orderedPaneKeys` (which walks the instance list) produce it without a sort
+    // of its own. Task 12 measured that Flip C shipped without it and left the
+    // decision open; the owner's answer was *"preserve today's"*.
     //
-    // The assertion itself is unchanged and still discriminates: the two orders
-    // disagree on this fixture (stack order is mfi · williamsR · cci).
+    // The assertion still discriminates on this fixture — registry order is
+    // mfi · cci · williamsR, the stack is mfi · williamsR · cci — and it is the
+    // set `engine_three_bands_stacked` renders, so the pixel gate measures the
+    // same swap this line does.
     const blob = JSON.stringify({ indicators: Object.fromEntries(
       ['mfi', 'cci', 'williamsR'].map(k => [k, { enabled: true }])) })
     expect(mergeChartSettings(JSON.parse(blob)).indicatorInstances.map(i => i.defId),
-      'the fold applies the stack order now — re-run the pixel gate, it moves GEOMETRY '
-      + '(engine_three_bands_stacked, 0 px, series[2]/series[3] scaleId swap)')
-      .toEqual(['mfi', 'cci', 'williamsR'])
+      'the fold dropped back to registry order — re-run the pixel gate, it moves '
+      + 'engine_three_bands_stacked')
+      .toEqual(['mfi', 'williamsR', 'cci'])
   })
 })
 

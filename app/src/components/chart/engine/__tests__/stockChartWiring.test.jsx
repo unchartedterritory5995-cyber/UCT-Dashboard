@@ -298,7 +298,7 @@ const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartD
 // have to go through it for a flipped id, because that field stopped being the
 // switch — writing it by hand is now a test of a mirror, not of a control.
 const { setIndicatorEnabled, isIndicatorEnabled } = await import('../instanceControls')
-const { migrateLegacyToInstances } = await import('../instances')
+const { migrateLegacyToInstances, SHIPPED_STACK_ORDER } = await import('../instances')
 // THE ONE LIST. Imported, never re-derived — a second copy of `catalogRows()`
 // inside this file would be the sixteenth hand-written list wearing the name of
 // the thing that ends them.
@@ -2064,11 +2064,24 @@ describe('BB Flip A — the legacy block stands down, z-order is preserved', () 
     expect(scaleOf('obv').every(sc => !scaleOf('bb').includes(sc)),
       'obv shares a scale with bb — then its position IS a z-order fact and this case is wrong')
       .toBe(true)
-    // …and the seed order really is REGISTRY order, which is what makes the
+    // …and the seed order really is SHIPPED STACK order, which is what makes the
     // price-overlay sequence above a z-order claim rather than an accident.
+    //
+    // ⭐ B5 TASK 13 MOVED THIS LINE AND NOT THE ONE ABOVE IT, AND THAT IS THE
+    // WHOLE POINT OF THE CASE. The seed is `SHIPPED_STACK_ORDER` now — Task 9's
+    // change, applied once Flip C gave every pane definition a pane of its own —
+    // so `obv` and `macd` move ahead of `bb` here. The PRICE OVERLAYS do not move
+    // relative to each other, because they are the tail of that array in registry
+    // order, and they are the only series left sharing a scale. This case is the
+    // unit-level twin of `engine_price_overlay_zorder` in the pixel gate.
+    const stackOrder = [...SHIPPED_STACK_ORDER].filter(id => order.includes(id))
+    expect(order, 'the seeded order is no longer the shipped stack order — re-run the pixel '
+      + 'gate, a reorder here moves manifest GEOMETRY').toEqual(stackOrder)
+    // ⛔ AND THE TWO ORDERS REALLY DO DISAGREE ON THIS FIXTURE, or the line above
+    // would pass for a fold that had silently reverted.
     const registryOrder = registry.listDefinitions().map(d => d.id).filter(id => order.includes(id))
-    expect(order, 'the seeded order is no longer registry order — re-run the pixel gate, a '
-      + 'reorder here moves manifest GEOMETRY').toEqual(registryOrder)
+    expect(stackOrder, 'this fixture cannot tell the stack order from registry order — '
+      + 'pick another').not.toEqual(registryOrder)
     // ⚠️ THE BLOB'S KEY ORDER IS DELIBERATELY NOT THE ANSWER'S. A migrator that
     // echoed `Object.keys(cs.indicators)` would draw obv, bb, macd, sar, donchian.
     expect(Object.keys(BLOB_ORDER), 'the fixture blob is already in the ANSWER order, so '

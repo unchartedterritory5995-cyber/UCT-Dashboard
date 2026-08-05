@@ -5,6 +5,7 @@ import { stripComments } from './sourceScan'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
 import { ENGINE_FLIPPED_DEF_IDS, ENGINE_MIGRATED_DEF_IDS, engineDrawnInputs } from '../flipState'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from '../instanceControls'
+import { SHIPPED_STACK_ORDER } from '../instances'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
 
@@ -354,14 +355,19 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     expect(byDef.adx.inputs.minusDIColor).toBe('#bb3333')
     expect(byDef.obv.inputs.color).toBe('#bb4444')
     expect(byDef.donchian.inputs.period).toBe(55)
-    // ⭐ AND THE ORDER IS REGISTRY ORDER — the binder's insertion order, which is
-    // z-order. B5 Task 9 measured seeding the SHIPPED STACK ORDER here and the
-    // pixel gate refused it (`engine_three_bands_stacked`: manifest GEOMETRY diff
-    // at 0 changed pixels). The stack order is recorded in
-    // `instances.SHIPPED_STACK_ORDER` and applied at Flip C instead. Fourteen
-    // definitions, all on.
-    expect(cs.indicatorInstances.map(i => i.defId))
-      .toEqual(engineRegistry.listDefinitions().map(d => d.id))
+    // ⭐ AND THE ORDER IS SHIPPED STACK ORDER — B5 Task 9 measured seeding it here
+    // and the pixel gate refused it (`engine_three_bands_stacked`: manifest
+    // GEOMETRY diff at 0 changed pixels, because under `'bands'` all nine
+    // oscillators sit in pane 0 and insertion order is z-order); B5 Task 13
+    // applied it once Flip C gave each of the nine a pane of its own. Fourteen
+    // definitions, all on. Asserted against the exported record, not a literal.
+    expect(cs.indicatorInstances.map(i => i.defId)).toEqual([...SHIPPED_STACK_ORDER])
+    // Non-vacuity twice over: the record covers every registered definition, and
+    // it is NOT registry order (which is what this line used to assert).
+    expect([...SHIPPED_STACK_ORDER].sort())
+      .toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
+    expect([...SHIPPED_STACK_ORDER])
+      .not.toEqual(engineRegistry.listDefinitions().map(d => d.id))
   })
 
   it('no key is resurrected — the merged blob names the flag nowhere', () => {

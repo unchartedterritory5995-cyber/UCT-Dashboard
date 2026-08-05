@@ -66,7 +66,7 @@
 // re-add, which `mergeSettingsOverride` already understands.
 
 import { validateInputValue } from './defSchema'
-import { legacyInstanceId } from './instances'
+import { legacyInstanceId, stackRank } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
@@ -75,21 +75,29 @@ function resolveRegistry(registry) {
   return () => null
 }
 
-/** Registry order, as a rank per definition id. It IS legacy render order for
- *  the five price overlays (`bb`, `vwap`, `sar`, `ichimoku`, `donchian`), and the
- *  engine draws all its series at one z-position — so a control that APPENDED
- *  would put a newly-enabled Bollinger band above a Donchian channel it should
- *  sit below. An id the registry does not rank sinks to the end.
+/** SHIPPED STACK order, as a rank per definition id — the same order the v1→v2
+ *  fold seeds (`instances.migrateLegacyToInstances`). It preserves legacy render
+ *  order for the five price overlays (`bb`, `vwap`, `sar`, `ichimoku`,
+ *  `donchian`), because `SHIPPED_STACK_ORDER`'s tail IS registry order for those
+ *  five and the engine draws all its series at one z-position — so a control that
+ *  APPENDED would put a newly-enabled Bollinger band above a Donchian channel it
+ *  should sit below. An id the registry does not list is not ranked at all.
  *
- *  ⛔ B5 TASK 9 MEASURED A CHANGE HERE AND REVERTED IT. Making this
- *  `SHIPPED_STACK_ORDER` (so a write agreed with the fold's seed) also changes
- *  the binder's INSERTION order, which is z-order: the pixel gate reported a
- *  manifest geometry diff on `engine_three_bands_stacked` at 0 changed pixels,
- *  5/5 runs. The stack order is RECORDED in `instances.SHIPPED_STACK_ORDER` and
- *  applied at Flip C, where it decides PANE order instead. */
-function registryRank(registry) {
+ *  ⛔ THERE MAY ONLY BE ONE ORDER, AND THAT IS WHY THIS MOVED. A read and a write
+ *  that order the same set differently reorder a user's panes on the FIRST toggle
+ *  after the migration. B5 Task 9 measured this exact change and the pixel gate
+ *  refused it (`engine_three_bands_stacked`, a manifest geometry diff at 0 changed
+ *  pixels, 5/5) — under `'bands'`, where all nine oscillators share pane 0.
+ *  B5 Task 13 applies it once Flip C gave each of the nine its own pane; the
+ *  ranking of the five overlays, which is the only z-order left in pane 0, is
+ *  unchanged by it. `instanceControls.test.js` pins the two producers together. */
+function stackOrderRank(registry) {
   const defs = (registry && typeof registry.listDefinitions === 'function') ? registry.listDefinitions() : []
-  return new Map((Array.isArray(defs) ? defs : []).map((d, i) => [d && d.id, i]))
+  const ids = (Array.isArray(defs) ? defs : []).map(d => d && d.id)
+  // Stable: registry order is the base, `stackRank` re-sorts it, and an id the
+  // frozen array does not name keeps its registry position among the unranked.
+  const ordered = [...ids].sort((a, b) => stackRank(a) - stackRank(b))
+  return new Map(ordered.map((id, i) => [id, i]))
 }
 
 /** The declared inputs a definition has, keyed. */
@@ -161,12 +169,12 @@ function inputsFromLegacy(def, section) {
 }
 
 /**
- * `cs` with a new instance list — sorted into REGISTRY order (see
- * `registryRank`) and marked `preset: 'custom'`, which is what every other
+ * `cs` with a new instance list — sorted into SHIPPED STACK order (see
+ * `stackOrderRank`) and marked `preset: 'custom'`, which is what every other
  * settings write in `ChartToolbar` does.
  */
 function withInstances(cs, instances, registry) {
-  const order = registryRank(registry)
+  const order = stackOrderRank(registry)
   const sorted = [...instances].sort((a, b) =>
     (order.get(a && a.defId) ?? 1e9) - (order.get(b && b.defId) ?? 1e9))
   return { ...cs, indicatorInstances: sorted, preset: 'custom' }

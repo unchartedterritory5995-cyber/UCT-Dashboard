@@ -443,13 +443,19 @@ describe('migrateLegacyToInstances — tombstones', () => {
 const GOLDEN = {
   'owner-uct-default': [],
 
+  // ⭐ B5 TASK 13 — SHIPPED STACK ORDER, so this preset's panes come out stacked
+  // the way its bands are today. Registry order read `rsi, macd, stoch, mfi`.
   'preset-oled-momentum': [
     { instanceId: 'legacy:rsi', defId: 'rsi', target: 'pane', inputs: { period: 7, color: '#7b68ee' } },
-    { instanceId: 'legacy:macd', defId: 'macd', target: 'pane', inputs: { fastPeriod: 8, slowPeriod: 21, signalPeriod: 5, macdColor: '#2196F3', signalColor: '#FF9800' } },
     { instanceId: 'legacy:stoch', defId: 'stoch', target: 'pane', inputs: { kPeriod: 21, dPeriod: 5, kColor: '#FF6B6B', dColor: '#4ECDC4' } },
     { instanceId: 'legacy:mfi', defId: 'mfi', target: 'volume', inputs: { period: 14, color: '#c084fc' } },
+    { instanceId: 'legacy:macd', defId: 'macd', target: 'pane', inputs: { fastPeriod: 8, slowPeriod: 21, signalPeriod: 5, macdColor: '#2196F3', signalColor: '#FF9800' } },
   ],
 
+  // ⭐ AND THIS ONE DID NOT MOVE AT TASK 13, WHICH IS THE Z-ORDER PROOF IN A
+  // GOLDEN: `SHIPPED_STACK_ORDER`'s tail is the five price overlays in REGISTRY
+  // order, and those five are the only definitions still sharing pane 0 under
+  // `'panes'`. Insertion order is z-order; this list is what says it is unmoved.
   'preset-tradingview-price-overlays': [
     { instanceId: 'legacy:bb', defId: 'bb', target: 'price', inputs: { period: 50, stdDev: 2.5, color: 'rgba(156,39,176,0.85)' } },
     { instanceId: 'legacy:vwap', defId: 'vwap', target: 'price', inputs: { color: '#ffffff', opacity: 60, lineStyle: 'dashed', lineWidth: 2 } },
@@ -461,11 +467,12 @@ const GOLDEN = {
     { instanceId: 'legacy:donchian', defId: 'donchian', target: 'price', inputs: { period: 55, color: 'rgba(96,165,250,0.5)' } },
   ],
 
+  // ⭐ B5 TASK 13 — registry order read `atr, cci, williamsR, adx, obv`.
   'preset-light-pane-stack': [
-    { instanceId: 'legacy:atr', defId: 'atr', target: 'volume', inputs: { period: 21, color: '#FFA726' } },
-    { instanceId: 'legacy:cci', defId: 'cci', target: 'pane', inputs: { period: 14, color: '#fbbf24' } },
     { instanceId: 'legacy:williamsR', defId: 'williamsR', target: 'pane', inputs: { period: 28, color: '#60a5fa' } },
+    { instanceId: 'legacy:cci', defId: 'cci', target: 'pane', inputs: { period: 14, color: '#fbbf24' } },
     { instanceId: 'legacy:adx', defId: 'adx', target: 'pane', inputs: { period: 21, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' } },
+    { instanceId: 'legacy:atr', defId: 'atr', target: 'volume', inputs: { period: 21, color: '#FFA726' } },
     { instanceId: 'legacy:obv', defId: 'obv', target: 'volume', inputs: { color: '#9ca3af' } },
   ],
 

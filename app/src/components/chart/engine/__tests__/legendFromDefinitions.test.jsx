@@ -191,11 +191,19 @@ const registry = await import('../nativeRegistry')
 const { mergeChartSettings } = await import('../../chartDefaults')
 const { ENGINE_FLIPPED_DEF_IDS } = await import('../flipState')
 const { computePaneLayout } = await import('../paneLayout')
+const { stackRank } = await import('../instances')
 
 const BARS = bars200.bars
 const SHIPPED = shippedLegendChips()
 /** `['<defId>::<plotKey>', {label, decimals, color}]`, in the shipped order. */
 const CHIPS = Object.entries(SHIPPED)
+
+/** The same chips in the order the legend prints them after B5 Task 13 — the
+ *  fold's SHIPPED STACK order. DERIVED with a STABLE sort, so a definition's own
+ *  plots keep declaration order (`macd::macd` before `macd::signal`) and a chip
+ *  whose definition the frozen array does not rank keeps its shipped position. */
+const CHIPS_IN_STACK_ORDER = [...CHIPS].sort(
+  (a, b) => stackRank(a[0].split('::')[0]) - stackRank(b[0].split('::')[0]))
 
 
 /** Every settings section whose chip ships, ON. Both lanes at once. */
@@ -418,31 +426,51 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     const values = Object.fromEntries(CHIPS.map(([k], i) => [k, 10 + i * 1.111111]))
     const text = await settledLegend(view, crosshairWith(values))
     expect(text.length, 'the legend read is empty').toBeGreaterThan(10)
-    expect(chipTexts(view), 'the legend is no longer printing the nine chips it shipped with')
-      .toEqual(CHIPS.map(([k]) => expected(k, values[k])))
+    // ⚠️ B5 TASK 13 MOVED THE ORDER AND NOTHING ELSE — see the case below. The
+    // chips, their labels, their decimals and their text are still the shipped
+    // ones character for character, which is what this case is named for, so the
+    // SET is asserted here against the shipped fixture and the ORDER is asserted
+    // (derived, not typed) against the stack.
+    expect([...chipTexts(view)].sort(),
+      'the legend is no longer printing the nine chips it shipped with')
+      .toEqual(CHIPS.map(([k]) => expected(k, values[k])).sort())
+    expect(chipTexts(view))
+      .toEqual(CHIPS_IN_STACK_ORDER.map(([k]) => expected(k, values[k])))
   })
 
-  it('chips appear in BINDING order, which is the shipped order', async () => {
-    // The shipped order is rsi · macd · SIG · %K · %D · ATR · SAR · TK · KJ.
+  it('chips appear in BINDING order — which B5 Task 13 made the STACK order', async () => {
+    // The shipped order was rsi · MACD · SIG · %K · %D · ATR · SAR · TK · KJ. It
+    // is now rsi · %K · %D · MACD · SIG · ATR · SAR · TK · KJ.
+    //
     // ⭐ IT USED TO READ "engine lane first, then legacy, registry order within
     // each", AND IT SURVIVED THE TWO LANES COLLAPSING INTO ONE WITHOUT AN EDIT:
-    // the read-time migrator walks the REGISTRY, so instance order IS registry
+    // the read-time migrator walked the REGISTRY, so instance order was registry
     // order, and `planBindings` walks each definition's plots in declaration
     // order.
     //
-    // ⛔⭐ B5 TASK 9 NEARLY MOVED IT, AND THE MEASUREMENT IS WORTH KEEPING. The
-    // fold was written to seed the instance list in SHIPPED STACK ORDER (so Flip
-    // C's panes match the chart today), and because chips render in BINDING order
-    // that would have swapped `%K`/`%D` ahead of `MACD`/`SIG` here. The pixel gate
-    // refused the change for an unrelated and stronger reason — the instance list
-    // is ALSO the binder's `addSeries` order, i.e. z-order, and
-    // `engine_three_bands_stacked` reported a manifest GEOMETRY diff at 0 changed
-    // pixels — so the seed stayed registry order and this case is unmoved.
+    // ⛔⭐ B5 TASK 9 NEARLY MOVED IT AND B5 TASK 13 DID — DELIBERATELY, AND THIS IS
+    // THE PRICE OF THE OWNER'S "PRESERVE TODAY'S". The fold now seeds the instance
+    // list in SHIPPED STACK ORDER so an existing user's PANES come out stacked the
+    // way their bands are stacked today; chips render in BINDING order, which
+    // walks the same list, so `%K`/`%D` move ahead of `MACD`/`SIG` here.
+    //
+    // ⚠️ TODAY'S SHIPPED LEGEND AND TODAY'S SHIPPED BAND STACK DISAGREE — that is
+    // the fact that makes this a trade and not a free win: the legend lists MACD
+    // before %K while the band stack puts stoch ABOVE macd. Both cannot be
+    // preserved by one list. The panes win because they are the surface the owner
+    // answered about and the one a user looks at; the legend's SET and TEXT are
+    // untouched, and after this it agrees with the stack it sits above, which is
+    // the reading a user of real panes will make. Recorded in the Flip C record §7.
     const view = draw(ALL_NINE_ON())
     const values = Object.fromEntries(CHIPS.map(([k], i) => [k, 20 + i]))
     await settledLegend(view, crosshairWith(values))
     expect(chipTexts(view).map(t => t.split(' ')[0]))
-      .toEqual(CHIPS.map(([k]) => SHIPPED[k].label))
+      .toEqual(CHIPS_IN_STACK_ORDER.map(([k]) => SHIPPED[k].label))
+    // …and it really is a MOVE: the shipped fixture orders them differently. If
+    // this ever stops being true the trade above evaporated and the note is stale.
+    expect(CHIPS_IN_STACK_ORDER.map(([k]) => SHIPPED[k].label),
+      'the stack order and the shipped legend order collapsed onto each other')
+      .not.toEqual(CHIPS.map(([k]) => SHIPPED[k].label))
   })
 
   // ✅ TASK 12 / FLIP C — THE RECORDED MISMATCH WENT STALE, EXACTLY AS THIS CASE
@@ -462,36 +490,61 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
   // the same list. One list, two readings: the legend reads top-to-bottom.
   //
   // ⛔ SO THE CLAIM IS INVERTED INSTEAD OF DROPPED, because it is exactly as
-  // fragile as it was interesting. Sorting panes by `instances.stackRank` — the
-  // obvious way to give every existing user back the pane order their BANDS had —
-  // breaks it, and would do so silently: the legend cannot see the panes and no
-  // pixel case hovers. The mismatch it replaces is named in the Flip C notes.
+  // fragile as it was interesting. Sorting panes by `instances.stackRank` INSIDE
+  // `computePaneLayout` — the other way to give existing users back the pane order
+  // their BANDS had — breaks it, and would do so silently: the legend cannot see
+  // the panes and no pixel case hovers.
+  //
+  // ⭐ B5 TASK 13 TOOK THE OTHER ROUTE FOR EXACTLY THAT REASON — it sorted the
+  // LIST (in the fold), not the layout, so both readings moved together and this
+  // case still holds. It is now read off the RENDERED legend rather than off the
+  // shipped fixture, because the fixture is what the legend printed in July and
+  // the claim is about what it prints today.
   it('✅ …and that IS the pane order the chart draws — one list, two readings', async () => {
     const paneIds = registry.listDefinitions()
       .filter(d => d.placement.target === 'pane').map(d => d.id)
     // The instances a REAL chart holds for this fixture — the fold's output, not a
     // hand-built list — because that list is the thing both orders now read.
-    const insts = ALL_NINE_ON().indicatorInstances
+    const settings = ALL_NINE_ON()
+    const insts = settings.indicatorInstances
     expect(insts.length, 'the fixture seeded no instances — the comparison is not one')
       .toBeGreaterThan(3)
     const bands = computePaneLayout(insts, { hasVolumeBand: false, excludeKeys: new Set() }).bands
     // `bands` is keyed bottom-of-the-chart first and ends with `main`; reversing
     // the oscillator keys gives the stack TOP-TO-BOTTOM, which is pane order.
     const topToBottom = Object.keys(bands).filter(k => k !== 'main' && k !== 'volume').reverse()
+
+    // ⛔ THE LEGEND ORDER IS READ BACK OUT OF THE DOM, not derived from the same
+    // list a second time — a comparison between two readings of one array is not
+    // a comparison. `planBindings` and `computePaneLayout` are different walks.
+    const view = draw(settings)
+    await settledLegend(view, crosshairWith(
+      Object.fromEntries(CHIPS.map(([k], i) => [k, 20 + i]))))
+    const labelToDef = new Map(CHIPS.map(([k]) => [SHIPPED[k].label, k.split('::')[0]]))
+    const renderedDefs = [...new Set(chipTexts(view)
+      .map(t => labelToDef.get(t.split(' ')[0])).filter(Boolean))]
+    view.unmount()
+
     const chipDefs = [...new Set(CHIPS.map(([k]) => k.split('::')[0]))]
-    const legendPaneOrder = chipDefs.filter(id => paneIds.includes(id))
+    const legendPaneOrder = renderedDefs.filter(id => paneIds.includes(id))
     const chartPaneOrder = topToBottom.filter(id => chipDefs.includes(id))
     expect(new Set(legendPaneOrder), 'the two are over different sets — the comparison is not one')
       .toEqual(new Set(chartPaneOrder))
     expect(legendPaneOrder,
       'the legend and the pane stack disagree again. If that is deliberate — a stackRank '
-      + 'sort giving existing users back their band order — say so in the Flip C notes and '
+      + 'sort inside the LAYOUT rather than in the fold — say so in the Flip C notes and '
       + 'record the new mismatch here; if it is not, the panes moved and nothing else can see it.')
       .toEqual(chartPaneOrder)
-    // …and the exact order, so a future reader does not have to re-derive it. The
-    // band stack this replaced read `rsi · stoch · macd · atr`.
-    expect(legendPaneOrder).toEqual(['rsi', 'macd', 'stoch', 'atr'])
-    expect(chartPaneOrder).toEqual(['rsi', 'macd', 'stoch', 'atr'])
+    // …and the exact order, so a future reader does not have to re-derive it. This
+    // IS the band stack the chart draws today: `rsi · stoch · macd · atr`.
+    expect(legendPaneOrder).toEqual(['rsi', 'stoch', 'macd', 'atr'])
+    expect(chartPaneOrder).toEqual(['rsi', 'stoch', 'macd', 'atr'])
+    // ⛔ AND IT IS NOT THE ORDER THE SHIPPED LEGEND PRINTED — the priced cost of
+    // giving the panes back their order, named where a reader will meet it.
+    expect(chipDefs.filter(id => paneIds.includes(id)),
+      'the shipped legend order now equals the stack order — the trade recorded in '
+      + 'the case above evaporated, and that note is stale')
+      .toEqual(['rsi', 'macd', 'stoch', 'atr'])
   })
 
   it.each(CHIPS)('%s formats from the definition and matches its shipped row', async (key) => {

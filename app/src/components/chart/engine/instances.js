@@ -155,24 +155,31 @@ function cloneInstance(inst) {
 // order every existing user's panes are in today exists in exactly one place
 // after this, and it is the array below.
 //
-// 🔴🔴 AND IT IS RECORDED, NOT APPLIED — MEASURED AT B5 TASK 12, WHICH IS WHEN IT
-// STOPPED BEING A PLAN AND BECAME A FACT. The paragraph below (and
-// `paneLayout.js`'s) said Flip C would apply this order in `orderedPaneKeys`.
-// **Flip C did not.** `orderedPaneKeys` walks the instance list; the fold seeds
-// that list in REGISTRY order (see the z-order refusal at `migrateLegacyToInstances`
-// below); nothing in between sorts by `stackRank`. So an existing user's PANE
-// order after the cutover is registry order — `rsi, macd, stoch, atr, mfi, cci,
-// williamsR, adx, obv` — and their BAND order today is the array below. On a
-// chart with `rsi + macd + stoch` those disagree: `rsi, macd, stoch` after
-// against `rsi, stoch, macd` today.
+// ✅ AND B5 TASK 13 APPLIES IT — IN THE SEED, WHICH IS THE ONE PLACE THAT KEEPS
+// EVERY READER OF THE LIST AGREEING. Task 12 measured that Flip C shipped WITHOUT
+// it: `orderedPaneKeys` walks the instance list, the fold seeded that list in
+// REGISTRY order, and nothing in between sorted by `stackRank`, so an existing
+// user's pane order came out `rsi, macd, stoch, atr, mfi, cci, williamsR, adx,
+// obv` while their bands read the array below. On a chart with `rsi + macd +
+// stoch` those disagree — `rsi, macd, stoch` after against `rsi, stoch, macd`
+// today — and the owner's answer was "ship the cutover, PRESERVING TODAY'S". So
+// `migrateLegacyToInstances` below emits this order, and `instanceControls`'
+// writer agrees with it (one order, two producers).
 //
-// ⛔ IT IS IN THE MEASURED NUMBERS AND IT IS NOT IN THE RECORD'S PROSE. Flip C
-// was priced against a build with exactly this behaviour, so the owner's
-// 108,284 – 164,490 px include it; what the record described was the volume-pane
-// swap. It is written down in `docs/decisions/2026-08-04-flip-c-pane-geometry.md`
-// §7 as a third visible change and left for the owner, because applying the order
-// is a GEOMETRY change with a pixel gate attached and Task 12's mandate was to
-// ship what was measured. `settingsBlobMigration.test.js` pins the measurement.
+// ⛔ WHY THE SEED AND NOT A SORT INSIDE `computePaneLayout`. The layout is not the
+// only reader of the list: the legend prints in BINDING order, which walks the
+// same list, and `legendFromDefinitions.test.jsx` pins the two together. Sorting
+// panes by `stackRank` inside the layout would give the panes back their order and
+// leave the legend in registry order — a disagreement no pixel case can see,
+// because no parity case hovers. Seeding the list itself moves every reader at
+// once.
+//
+// ⛔ AND TASK 9's Z-ORDER REFUSAL IS ANSWERED RATHER THAN IGNORED — see the note
+// at `migrateLegacyToInstances`. It was measured under `'bands'`, where all nine
+// oscillators share pane 0 with the five price overlays and insertion order is
+// z-order. Under `'panes'` the nine each own a pane, and the five overlays are
+// the TAIL of this array in registry order, so their relative insertion order —
+// the only z-order that survives — is byte-identical.
 //
 // ⛔ IT WAS DERIVED FROM `computePaneMargins`, AND AT TASK 12 IT IS INLINED —
 // which is what the ⏭️ note that stood here asked for, in the same words:
@@ -273,11 +280,12 @@ export function stackRank(defId) {
  *       `CHART_DEFAULTS`) — so "unset means current default" is preserved
  *       rather than frozen.
  *
- * ORDER is registry order, not `Object.keys` order, so two blobs with the same
- * indicators produce byte-identical output regardless of how they were
- * serialised. ⛔ B5 Task 9 MEASURED an attempt to make it the shipped stack
- * order and reverted it — see the note at `defIds` below: this list is also the
- * binder's insertion order, and insertion order is z-order.
+ * ORDER is `SHIPPED_STACK_ORDER`, not `Object.keys` order, so two blobs with the
+ * same indicators produce byte-identical output regardless of how they were
+ * serialised — and so a migrated user's panes come out in the order their BANDS
+ * are in today. ⛔ B5 Task 9 tried this and the pixel gate refused it under
+ * `'bands'`; B5 Task 13 applies it because Flip C removed the reason. See the
+ * note at `defIds` below for why the z-order it moved cannot move any more.
  *
  * @param {object} cs        a chart_settings blob, raw or merged
  * @param {object|Function} [registry]
@@ -304,28 +312,37 @@ export function migrateLegacyToInstances(cs, registry) {
     Array.isArray(cs?.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : [],
   )
 
-  // ⛔⭐ REGISTRY ORDER, AND B5 TASK 9 TRIED TO CHANGE IT AND MEASURED WHY IT
-  // MAY NOT. The seed order is what Flip C will read for PANE order, so the
-  // obvious move was to emit `SHIPPED_STACK_ORDER` here — and the pixel gate
-  // refused it: `engine_three_bands_stacked` reported a MANIFEST GEOMETRY diff at
+  // ⛔⭐ SHIPPED STACK ORDER — AND B5 TASK 9 MEASURED A REASON IT COULD NOT BE,
+  // WHICH FLIP C RETIRED. The seed order is what the pane layout reads for PANE
+  // order, so Task 9 emitted `SHIPPED_STACK_ORDER` here and the pixel gate refused
+  // it: `engine_three_bands_stacked` reported a MANIFEST GEOMETRY diff at
   // **0 changed pixels**, 5/5 runs,
   //
   //     panes[0].series[2].scaleId: 'cci' -> 'williamsR'
   //     panes[0].series[3].scaleId: 'williamsR' -> 'cci'
   //
   // because this list is also the order the binder calls `addSeries` in, and
-  // INSERTION ORDER IS Z-ORDER. Task 8 rejected a plot-reorder probe for exactly
-  // this reason. Three oscillators in disjoint bands cannot overlap, so the
-  // number is 0 — but "0 px with a geometry change" is the one shape this gate
-  // treats as a lie by definition, and no declaration waves geometry through.
+  // INSERTION ORDER IS Z-ORDER. Both those series were in **pane 0** — under
+  // `'bands'` every oscillator is, alongside the five price overlays — and "0 px
+  // with a geometry change" is the one shape this gate treats as a lie by
+  // construction.
   //
-  // ⭐ SO THE ORDER IS RECORDED RATHER THAN APPLIED. `SHIPPED_STACK_ORDER` above
-  // is the derived, tested record of today's stack; Flip C applies it in
-  // `paneLayout.orderedPaneKeys`, where it decides PANE order and not insertion
-  // order, which is the place the two concerns stop being the same list.
+  // ⭐ UNDER `'panes'` THAT DIFF CANNOT ARISE, AND IT IS STRUCTURE RATHER THAN
+  // LUCK. The nine pane-target definitions each own a pane, so no two of them are
+  // ever z-stacked against each other; the only series still sharing pane 0 are
+  // the candles, the volume band and the five PRICE OVERLAYS — and the overlays
+  // are the TAIL of `SHIPPED_STACK_ORDER`, in registry order, so their relative
+  // insertion order is unchanged by this sort. B5 Task 13 re-ran the gate to prove
+  // it rather than assert it: `engine_price_overlay_zorder` (all five, no pane) is
+  // the case that would have caught a z-order move.
+  //
+  // ⚠️ STABLE SORT, DELIBERATELY. `stackRank` sinks an id it does not rank to
+  // 1e9, and `Array.prototype.sort` has been stable since ES2019 — so a definition
+  // registered after the array froze keeps REGISTRY order among its peers instead
+  // of landing wherever the comparator's tie-break felt like.
   const registryOrder = reg.list().map(d => d && d.id).filter(isNonEmptyString)
   const defIds = registryOrder.length
-    ? registryOrder.filter(id => hasOwn(legacy, id))
+    ? registryOrder.filter(id => hasOwn(legacy, id)).sort((a, b) => stackRank(a) - stackRank(b))
     : Object.keys(legacy)
 
   for (const defId of defIds) {

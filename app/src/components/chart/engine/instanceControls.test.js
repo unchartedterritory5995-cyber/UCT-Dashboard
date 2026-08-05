@@ -182,8 +182,9 @@ describe('setIndicatorEnabled — the instance AND the mirror, always both', () 
       'the fold and the writer order the same set differently')
       .toEqual(live(cs).map(i => i.defId))
     // …and it is not vacuous: five ids in a definite order that is NOT the order
-    // they were written in.
-    expect(live(cs).map(i => i.defId)).toEqual(['rsi', 'macd', 'bb', 'stoch', 'obv'])
+    // they were written in. ⭐ B5 TASK 13 moved BOTH producers to SHIPPED STACK
+    // order; registry order read `['rsi', 'macd', 'bb', 'stoch', 'obv']`.
+    expect(live(cs).map(i => i.defId)).toEqual(['rsi', 'stoch', 'macd', 'obv', 'bb'])
   })
 })
 
