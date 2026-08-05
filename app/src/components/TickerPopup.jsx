@@ -12,12 +12,16 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import styles from './TickerPopup.module.css'
 
-const StockChart = lazy(() => import('./StockChart'))
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('./chart/pane/ChartPane'))
 const FundamentalSnapshot = lazy(() => import('./FundamentalSnapshot'))
 const AnalystPanel = lazy(() => import('./fundamentals/AnalystPanel'))
 const OwnershipPanel = lazy(() => import('./fundamentals/OwnershipPanel'))
 
-const TABS = ['1min', '5min', '15min', '30min', '1hr', 'Daily', 'Weekly', 'Monthly']
+// `tab` is still this component's state (the voice page hint reads it, and it
+// seeds ChartPane's timeframe), but the visible button row is ChartPane's now.
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
@@ -88,7 +92,15 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
           if (isTouch) { openTicker(sym); return }
           setModalOpen(true); setTab('Daily'); setView('chart'); prefetchAllTimeframes(sym)
         }}
-        onMouseEnter={() => prefetchBar(sym, 'D')}
+        onMouseEnter={() => {
+          prefetchBar(sym, 'D')
+          // Warm the ChartPane CHUNK too, not just the bars. The pane pulls the
+          // symbol search, day gain, market clock and settings modal with it, so
+          // on a cold first open the module fetch — not the data — is what holds
+          // the "Loading chart…" fallback up. Hovering a ticker is the earliest
+          // reliable signal that a popup is coming.
+          import('./chart/pane/ChartPane')
+        }}
         {...tickerActions.longPressProps(sym)}
         role="button"
         aria-label={`View chart for ${sym}`}
@@ -181,33 +193,32 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   Ownership
                 </button>
               </div>
-              {view === 'chart' && (
-                <div className={styles.modalTabs}>
-                  {TABS.map(t => (
-                    <button
-                      key={t}
-                      className={`${styles.modalTab} ${tab === t ? styles.modalTabActive : ''}`}
-                      onClick={() => setTab(t)}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {/* The timeframe row used to live here. ChartPane owns it now — it
+                  renders the same bar /charts does, honouring the user's own
+                  favourites, so a second row here would duplicate it. */}
             </div>
 
             <div className={styles.chartArea}>
               {view === 'chart' ? (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
-                  <StockChart
+                  {/* `stored={null}` with no `onStore` = THE user's own chart:
+                      ChartPane reads and writes the global chart_settings blob, so
+                      this popup renders whatever they configured on /charts.
+                      `onSymbolChange` is deliberately omitted — a TickerPopup shows
+                      the ticker its caller opened, so the identity row is a static
+                      label rather than a search box. */}
+                  <ChartPane
                     sym={sym}
                     tf={TAB_TO_TF[tab]}
-                    height="min(650px, 70vh)"
-                    markers={markers}
-                    priceLines={priceLines}
-                    onTfChange={tf => setTab(TF_TO_TAB[tf] || tab)}
-                    compareSymbol={compareSymbol || null}
-                    onCompareChange={setCompareSymbol}
+                    onTfChange={next => setTab(TF_TO_TAB[next] || tab)}
+                    stored={null}
+                    stockChartProps={{
+                      height: 'min(650px, 70vh)',
+                      markers,
+                      priceLines,
+                      compareSymbol: compareSymbol || null,
+                      onCompareChange: setCompareSymbol,
+                    }}
                   />
                 </Suspense>
               ) : view === 'analyst' ? (
