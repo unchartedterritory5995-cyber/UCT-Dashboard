@@ -433,6 +433,21 @@ Wired: `LiveFlow` AlertRow ticker cell · `LiveFlowMassive` AlertRow (By-Print) 
 
 Sizes held: OptionsFlow chunk 93.19 kB gz (+0.11, noise), entry 115.92 kB gz (flat).
 
-**Known gap:** iOS Safari does not reliably fire `contextmenu` on touch-hold, so right-click-to-
-chart is desktop + Android only. No long-press helper existed in these files and hand-rolling a
-timer was out of scope. Closing it means reusing `useLongPress` from `components/mobile/`.
+**iOS gap: CLOSED (`87380a33`).** All five cells now spread the shared
+`components/mobile/useLongPress` helper instead of a raw `onContextMenu` — one binding gives
+touch long-press (450ms, 10px move tolerance so it never fires mid-scroll, haptic) *and* desktop
+right-click. Pointer events work on iOS Safari, which `contextmenu` does not.
+
+⚠️ **The trap, if this is ever touched again:** `useLongPress` fires the handler from inside a
+`setTimeout`, and React has nulled `e.currentTarget` by then. So the ticker **must be closed
+over** — reading it from the event (`e.currentTarget?.dataset?.sym`) works on right-click,
+which is synchronous, and returns `undefined` on touch-hold. That failure is invisible on a
+desktop and breaks exactly the device this change exists for. Pinned by test: replacing the
+closure with an event read fails the tests (`2 failed | 1 passed`), verified independently.
+
+`OptionsFlow`'s two cells sit inside `.map()` callbacks where a hook would violate the rules of
+hooks, so they route through one small local `ChartHoldCell` component. Sizes still flat:
+OptionsFlow 93.26 kB gz, entry 115.95 kB gz.
+
+**Not verifiable from jsdom:** real iOS gesture arbitration, haptics, and whether the OS text-
+selection callout competes with the hold. Needs a real-device pass.
