@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import ChartMetaRow from '../../../components/chart/pane/ChartMetaRow'
 import ChartIdentityRow from '../../../components/chart/pane/ChartIdentityRow'
+import ChartTfBar from '../../../components/chart/pane/ChartTfBar'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
 import useMarketOpen from '../../../hooks/useMarketOpen'
@@ -18,7 +19,6 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import { VOLUME_PANE_SURFACE_FIXED } from '../../../components/chart/indicatorRegistry'
-import TimeframeMenu from './TimeframeMenu'
 import LeverageInverseControl from './LeverageInverseControl'
 import { tfLabel, tfSortKey } from '../../../components/chart/timeframes'
 import styles from '../ChartsWorkspace.module.css'
@@ -255,8 +255,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     codes.sort((a, b) => tfSortKey(a) - tfSortKey(b))
     return codes.map(c => [c, tfLabel(c)])
   })()
-  const [tfMenuOpen, setTfMenuOpen] = useState(false)
-  const [tfMenuAnchor, setTfMenuAnchor] = useState(null)
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
   const patchHeader = useCallback((patch) => {
     writeActiveSettings({ ...chartCs, header: { ...chartCs.header, ...patch }, preset: 'custom' })
@@ -491,36 +489,20 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         showClock
         styles={styles}
       />
-      <div className={styles.tfBar}>
-        {visibleTfs.map(([code, label]) => (
-          <button
-            key={code}
-            type="button"
-            className={`${styles.tfBtn} ${tf === code ? styles.tfBtnActive : ''}`}
-            onClick={() => setTf(code)}
-          >{label}</button>
-        ))}
-        <button
-          type="button"
-          className={styles.tfBtn}
-          title="More timeframes"
-          aria-label="More timeframes"
-          onClick={(e) => { setTfMenuAnchor(e.currentTarget.getBoundingClientRect()); setTfMenuOpen(v => !v) }}
-        >⌄</button>
-        {tfMenuOpen && (
-          <TimeframeMenu
-            tf={tf}
-            onSelect={(code) => { setTf(code); setTfMenuOpen(false) }}
-            favorites={Array.isArray(hdr.timeframes) ? hdr.timeframes : []}
-            onToggleFav={toggleTfFav}
-            customCodes={customTfs}
-            onAddCustom={addCustomTf}
-            onRemoveCustom={removeCustomTf}
-            anchor={tfMenuAnchor}
-            onClose={() => setTfMenuOpen(false)}
-            themeVars={menuVars}
-          />
-        )}
+      <ChartTfBar
+        tf={tf}
+        visibleTfs={visibleTfs}
+        onTf={setTf}
+        menu={{
+          favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
+          customCodes: customTfs,
+          onToggleFav: toggleTfFav,
+          onAddCustom: addCustomTf,
+          onRemoveCustom: removeCustomTf,
+          themeVars: menuVars,
+        }}
+        styles={styles}
+      >
         <ChartMetaRow
           marketCap={mktCap}
           nextEarnings={nextEarnStr}
@@ -558,7 +540,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           </button>
           <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
         </div>
-      </div>
+      </ChartTfBar>
       <div
         ref={focusableRef}
         className={styles.chartFill}
