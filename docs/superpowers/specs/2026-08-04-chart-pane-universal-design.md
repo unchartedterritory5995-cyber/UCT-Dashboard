@@ -322,7 +322,7 @@ No visual or behavioral difference from pre-refactor `/charts` was observed.
 
 ---
 
-## Phase B outcome — 7 live surfaces adopted (2026-08-05)
+## Phase B outcome — 10 live surfaces adopted (2026-08-05)
 
 Branch `feat/chart-pane-adopt-tickerpopup` (stacked on Phase A, pushed, **not merged**).
 
@@ -337,8 +337,27 @@ Branch `feat/chart-pane-adopt-tickerpopup` (stacked on Phase A, pushed, **not me
 | `journal-2-0/.../PositionDetailPage` | route `/journal-2-0/position/:sym` |
 | `journal-2-0/.../TradeDetailPage` | route `/journal-2-0/trade/:id` |
 | `research/tabs/OverviewTab` | route `/research/:sym` via `ResearchPage` |
+| `OptionsFlow` — contract detail popup | route `/options-flow` |
+| `OptionsFlow` — GEX / gamma-walls panel | route `/options-flow` |
+| `OptionsFlow` — chart modal | route `/options-flow` |
 
 …plus `ChartWidget` itself on `/charts`.
+
+**Options Flow notes (owner-acked 2026-08-05).** `OptionsFlow.jsx` is partner-owned (Ravi
+co-edits it on master), so the diff was kept surgical — 51 insertions / 29 deletions — and
+`ChartPane` is imported **statically** rather than lazily. That is deliberate: a smaller diff
+matters more in that file than the import style, and the build confirms rollup still emits
+ChartPane as its own shared chunk (15.66 kB gz) because eight modules import it. OptionsFlow's
+chunk grew 0.21 kB gz; the entry chunk was flat. **Coordinate the merge with Ravi** even though
+the change itself is authorized.
+
+Only the contract popup takes `density="compact"` — its column is 320px tall. The GEX panel
+(500px) and the chart modal (`min(720px, 92vh)`) take the full shell.
+
+**Live Flow has nothing to convert.** `LiveFlow.jsx` (2,343 lines) and `LiveFlowMassive.jsx`
+(4,556 lines) contain **zero** case-insensitive matches for "chart" — they render no chart of
+any kind. `OptionsFlow_admin.jsx` is imported by nothing (same dead-file class as `CustomScan`)
+and was left alone.
 
 ### ⚠️ Three more were converted but are NOT user-reachable — do not count them
 
