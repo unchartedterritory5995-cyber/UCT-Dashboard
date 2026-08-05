@@ -305,18 +305,110 @@ function stackHundredths(baseHeights) {
   return heightsC
 }
 
-/** The empty answer: one pane, whole chart, today's headroom. Returned for a
- *  chart with no usable height, so a caller never has to guard the call. */
-function pane0Only(chartHeight, separatorPx, firstPaneIndex) {
+// ─── THE FRAME OF REFERENCE ──────────────────────────────────────────────────
+//
+// 🔴 B5 TASK 11 MEASURED THREE DEFECTS AND THEY ARE ONE DEFECT: this module used
+// `chartHeight` — the WHOLE pane stack — where the band arithmetic it reproduces
+// means the CANDLE PANE's own height. The two are the same number exactly when
+// `firstPaneIndex === 1`, which is the case Task 3's totality proof covers and
+// **not a configuration this app renders**: `ChartWidget`, `GridChartCell`,
+// `IntradayDayPopover`, `BottomsView` and `ChartRender` all pass
+// `volumeSeparatePane` unconditionally, so there is always a volume pane between
+// pane 0 and the stack. The conflation surfaced three ways:
+//
+//   D1  the separator budget removed `oscCount` separators from a height that
+//       already contained the `firstPaneIndex - 1` separators of the panes ABOVE
+//       the stack, so the layout over-allocated by exactly `firstPaneIndex - 1`
+//       px and `paneHeightMismatch` threw into StockChart's ErrorBoundary —
+//       a DETERMINISTIC BLANK CHART, on every one of the 46 parity cases, and
+//       also on a chart with no oscillator at all.
+//   D2  (see `paneHeightMismatch` below — the assertion, not the geometry).
+//   D3  `pane0.mainMargins` were fractions of the price-pane BUDGET and were
+//       applied to the candles' OWN scale, so the candle rectangle was re-fitted
+//       and the `price_plot` parity region could not read 0. Dividing by the
+//       candle pane's own height WITHOUT also fixing the numerators produces a
+//       NEGATIVE bottom margin (452/353), which lightweight-charts refuses —
+//       i.e. the naive half of the fix is a second blank chart.
+//
+// So the fix is one substitution, made once, here: every band fraction is a
+// fraction of `mainHeightPx` — what the candle pane measures in BANDS mode —
+// and the panes above the stack keep the heights they have. At
+// `firstPaneIndex === 1` `mainHeightPx === chartHeight` and every line below is
+// the arithmetic that shipped, so **Task 3's 1,966,080-layout proof is untouched
+// rather than re-argued**. D1 does not need its own correction: the pre-existing
+// separators are excluded from the budget before it is split, so the stack still
+// pays for exactly the `oscCount` separators it adds.
+
+/**
+ * What each pane ABOVE the oscillator stack measures in BANDS mode.
+ *
+ * ⭐ THIS IS THE REFERENCE THE WHOLE MODULE IS MISSING. In `'bands'` the
+ * oscillators occupy no pane at all, so the chart's panes are exactly these and
+ * lightweight-charts distributes `chartHeight - (n - 1) * separatorPx` among them
+ * in proportion to their stretch factors. Reconstructing it from the PERCENTAGES
+ * (which come from settings — `cs.volume.paneHeightPct`, `indexPaneHeightPct` —
+ * and not from the renderer) is what makes the layout a FIXED POINT: reading the
+ * live factors back would re-derive a different reference on every sync, because
+ * this module rewrites those factors as pixel counts.
+ *
+ * The remainder lands on the CANDLE pane so the sum is exact: rounding every
+ * share independently loses a pixel off the stack (three equal weights over 100
+ * give 33+33+33), and a one-pixel drift is a week of bisecting.
+ *
+ * ⚠️ MEASURED, NOT ASSUMED: `__tests__/flipCGeometry.test.jsx` builds a REAL
+ * two-pane chart at 78/22 and asserts the renderer's own heights equal what this
+ * returns.
+ */
+function bandsAboveHeights(chartHeight, firstPaneIndex, separatorPx, abovePct, mainPaneIndex) {
+  const n = firstPaneIndex
+  const available = chartHeight - Math.max(0, n - 1) * separatorPx
+  const out = new Array(n).fill(0)
+  if (n <= 1) { out[0] = available; return out }
+  const total = abovePct.reduce((s, w) => s + w, 0)
+  if (!(total > 0)) { out[mainPaneIndex] = available; return out }
+  let assigned = 0
+  for (let i = 0; i < n; i++) {
+    if (i === mainPaneIndex) continue
+    const px = Math.round((available * abovePct[i]) / total)
+    out[i] = px
+    assigned += px
+  }
+  out[mainPaneIndex] = available - assigned
+  return out
+}
+
+/** The above-stack percentages, defaulted so a caller that says nothing gets the
+ *  one-pane-above chart the identity was proved for. A malformed entry is 0,
+ *  never NaN: `Number(null) === 0` has bitten this branch eight times. */
+function normalisedAbovePct(raw, firstPaneIndex) {
+  const src = Array.isArray(raw) ? raw : []
+  const out = new Array(firstPaneIndex)
+  for (let i = 0; i < firstPaneIndex; i++) {
+    const v = src[i]
+    out[i] = (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : 0
+  }
+  if (!out.some((v) => v > 0)) out.fill(1)
+  return out
+}
+
+/** The empty answer: no oscillator pane at all. The panes above the stack keep
+ *  the heights bands mode gives them, so the total is exact even when there is
+ *  nothing to shave a separator off — the no-oscillator half of D1. */
+function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex) {
   const h = (Number.isFinite(chartHeight) && chartHeight > 0) ? chartHeight : 0
+  const above = h > 0
+    ? bandsAboveHeights(h, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
+    : new Array(firstPaneIndex).fill(0)
   return {
     chartHeight: h,
     separatorPx,
     firstPaneIndex,
+    mainPaneIndex,
     panes: [],
+    above,
     pane0: {
-      heightPx: h,
-      stretchFactor: h,
+      heightPx: above[mainPaneIndex],
+      stretchFactor: above[mainPaneIndex],
       mainMargins: { top: MAIN_TOP, bottom: 0 },
       volumeMargins: null,
     },
@@ -349,7 +441,15 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex) {
  *        says how many. ⚠️ ADDED BY FLIP C AND DEFAULTED, because Task 3 proved
  *        totality over the one-pane-above case and a defaulted parameter cannot
  *        invalidate that proof — it renames indices, it does not move a pixel.
+ * @param {number[]} [opts.abovePct=[100]] the BANDS-MODE stretch percentages of
+ *        the panes above the stack, in pane order — `[100 - volPct, volPct]` on
+ *        the shipped chart. Settings-derived, never read back off the renderer,
+ *        so the layout is a fixed point. See `bandsAboveHeights`.
+ * @param {number} [opts.mainPaneIndex=0] which of those panes holds the CANDLES.
+ *        0 everywhere except Model Book, whose index-comparison pane is hoisted
+ *        to pane 0 (`StockChart.jsx` `s.getPane().moveTo(0)`).
  * @returns {{chartHeight: number, separatorPx: number, firstPaneIndex: number,
+ *            mainPaneIndex: number, above: number[],
  *            panes: {key: string, index: number, heightPx: number, stretchFactor: number}[],
  *            pane0: {heightPx: number,
  *                    mainMargins: {top: number, bottom: number},
@@ -363,11 +463,23 @@ export function computePaneLayout(cs, instances, opts) {
   const excluded = o.excludeKeys instanceof Set ? o.excludeKeys : new Set(o.excludeKeys || [])
   const firstPaneIndex = (Number.isInteger(o.firstPaneIndex) && o.firstPaneIndex >= 1)
     ? o.firstPaneIndex : 1
+  const abovePct = normalisedAbovePct(o.abovePct, firstPaneIndex)
+  const mainPaneIndex = (Number.isInteger(o.mainPaneIndex)
+    && o.mainPaneIndex >= 0 && o.mainPaneIndex < firstPaneIndex) ? o.mainPaneIndex : 0
 
-  if (!Number.isFinite(chartHeight) || chartHeight <= 0) return pane0Only(chartHeight, separatorPx, firstPaneIndex)
+  if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
+    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex)
+  }
 
   const keys = orderedPaneKeys(cs, instances, excluded, hasVolumeBand)
-  if (!keys.length && !hasVolumeBand) return pane0Only(chartHeight, separatorPx, firstPaneIndex)
+  if (!keys.length && !hasVolumeBand) {
+    return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex)
+  }
+
+  // ⭐ THE SUBSTITUTION. Every fraction below is a fraction of THIS, not of the
+  // chart — see "THE FRAME OF REFERENCE" above. Identical at firstPaneIndex 1.
+  const above = bandsAboveHeights(chartHeight, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
+  const mainHeightPx = above[mainPaneIndex]
 
   // Bottom-to-top, because that is the order the squeeze and both shaves run in
   // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
@@ -381,9 +493,9 @@ export function computePaneLayout(cs, instances, opts) {
   const oscTotalC = heightsC.slice(0, oscCount).reduce((s, h) => s + h, 0)
   const volumeC = hasVolumeBand ? heightsC[oscCount] : 0
 
-  // EVERY boundary is one rounded cumulative fraction measured from the BOTTOM.
-  // See the header: this is what makes the geometry total.
-  const px = (c) => Math.round((c * chartHeight) / 100)
+  // EVERY boundary is one rounded cumulative fraction measured from the BOTTOM
+  // OF THE CANDLE PANE. See the header: this is what makes the geometry total.
+  const px = (c) => Math.round((c * mainHeightPx) / 100)
 
   const rawPx = []
   let cumC = 0
@@ -399,19 +511,30 @@ export function computePaneLayout(cs, instances, opts) {
   // pixels; the same compression inside an 88 px strip costs a few thousand.
   // Same tallest-first, lowest-index-wins shave as the hundredths trim above, so
   // the result is deterministic and the total is exact.
+  //
+  // ⭐ `oscCount`, NOT `oscCount + firstPaneIndex - 1`: the separators of the
+  // panes ABOVE the stack were already taken out of `bandsAboveHeights`' budget,
+  // so the stack pays for exactly the separators it ADDS. That is D1, fixed by
+  // the frame rather than by a second correction term.
   const paneHeights = rawPx.slice()
   for (let budget = oscCount * separatorPx; budget > 0; budget--) {
     paneHeights[tallestIndex(paneHeights)] -= 1
   }
 
-  const pane0HeightPx = chartHeight - px(oscTotalC)
-  const mainTopPx = Math.round(MAIN_TOP * chartHeight)
-  const mainBottomPx = chartHeight - px(oscTotalC + volumeC)
+  // The candle pane's OWN height — what its price scale's margins are fractions
+  // of. `above` still carries the other panes' heights unchanged, which is why
+  // the volume pane no longer shrinks through the cutover.
+  const pane0HeightPx = mainHeightPx - px(oscTotalC)
+  const mainTopPx = Math.round(MAIN_TOP * mainHeightPx)
+  const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
+  above[mainPaneIndex] = pane0HeightPx
 
   return {
     chartHeight,
     separatorPx,
     firstPaneIndex,
+    mainPaneIndex,
+    above,
     // Top-to-bottom, so `index` is the LWC pane index a series is moved to.
     // `stretchFactor` IS the pixel height: stretch factors distribute the
     // AVAILABLE height (chart minus separators minus time axis), so a factor set
@@ -423,12 +546,11 @@ export function computePaneLayout(cs, instances, opts) {
     }),
     pane0: {
       heightPx: pane0HeightPx,
-      // ⚠️ THE PRICE-PANE BUDGET, NOT NECESSARILY PANE 0's HEIGHT. When
-      // `firstPaneIndex > 1` there are panes (volume, the Model Book index pane)
-      // between the candles and the oscillator stack, and this is what they and
-      // pane 0 SHARE — `paneStretchPlan` splits it in their existing proportions.
-      // With `firstPaneIndex === 1` the two are the same number, which is the
-      // case Task 3's identity is proved for.
+      // ✅ THE CANDLE PANE's OWN HEIGHT — and it used to be the price-pane BUDGET
+      // (pane 0 PLUS the volume pane PLUS any index pane), which is D3: the
+      // margins below are applied to the candles' own scale, whose height is this
+      // and not that. The other panes above the stack are in `above`, unchanged;
+      // ONE number now means ONE thing.
       stretchFactor: pane0HeightPx,
       // Re-expressed as fractions of PANE 0's height rather than the chart's, so
       // the candle rectangle lands on the same absolute pixels it does today.
@@ -458,11 +580,13 @@ export function computePaneLayout(cs, instances, opts) {
  * Three kinds of pane, and only one of them is the layout's:
  *
  *   * the oscillator stack (`firstPaneIndex …`) gets its declared pixel height;
- *   * the panes ABOVE it — pane 0 and any volume / index pane — share
- *     `pane0.stretchFactor` **in the proportions they already hold**, so the
- *     volume pane keeps the percentage the user (or `cs.volume.paneHeightPct`)
- *     gave it and the candles keep the rest. A caller that never made a volume
- *     pane has one pane here and it takes the whole budget.
+ *   * the panes ABOVE it — the candles and any volume / index pane — get
+ *     `layout.above`, which the layout already worked out. ⭐ IT USED TO SPLIT A
+ *     BUDGET BY THE FACTORS ALREADY ON THE CHART, and that could not survive its
+ *     own output: this function writes PIXEL COUNTS, so the next sync would read
+ *     `[353, 99]` back as if it were the 78/22 the settings actually say and
+ *     re-derive a different reference every pass. The heights are now computed
+ *     once, from settings, in `bandsAboveHeights` — one authority, a fixed point.
  *   * anything BELOW the stack is not ours and keeps what it has. There is
  *     nothing there today; leaving it alone is what stops a future pane being
  *     silently crushed to zero.
@@ -483,31 +607,10 @@ export function paneStretchPlan(layout, currentStretch) {
     if (idx < out.length) out[idx] = layout.panes[i].stretchFactor
   }
 
-  // ── the price-pane budget, split in the proportions already on the chart ──
-  const above = Math.min(first, out.length)
-  if (above > 0) {
-    const budget = layout.pane0.stretchFactor
-    const weights = []
-    for (let i = 0; i < above; i++) {
-      const w = Number.isFinite(cur[i]) && cur[i] > 0 ? cur[i] : 0
-      weights.push(w)
-    }
-    const total = weights.reduce((s, w) => s + w, 0)
-    if (above === 1 || total <= 0) {
-      // One pane above the stack, or nothing to go on: the candles take it all
-      // and the rest take nothing they can be crushed by (LWC clamps at 2px).
-      out[0] = budget
-      for (let i = 1; i < above; i++) out[i] = cur[i]
-    } else {
-      // Bottom-up, so the REMAINDER lands on pane 0 and the sum is exact.
-      let assigned = 0
-      for (let i = above - 1; i >= 1; i--) {
-        const px = Math.round((budget * weights[i]) / total)
-        out[i] = px
-        assigned += px
-      }
-      out[0] = budget - assigned
-    }
+  // ── the panes above it, at the heights the layout computed ──
+  const above = Array.isArray(layout.above) ? layout.above : []
+  for (let i = 0; i < Math.min(first, out.length); i++) {
+    if (Number.isFinite(above[i])) out[i] = above[i]
   }
   return out
 }
@@ -561,6 +664,24 @@ export function paneStackHeightPx(chart) {
  * (B5 Task 3). `binder.js` therefore verifies the PREVIOUS pass's layout at the
  * top of the NEXT sync, once a frame has been through.
  *
+ * 🔴 D2 — AND DEFERRING IT BY ONE FRAME WAS STILL NOT ENOUGH, MEASURED: B5 Task
+ * 11 saw `paneLayout: pane 2 is 77px, expected 78px` reach StockChart's
+ * ErrorBoundary on 3 of 14 then 1 of 8 COLD LOADS, and the same build with the
+ * throw removed produced 15 identical manifests out of 15. **The geometry was
+ * never unstable; the assertion was.** One deferred frame is not a settle: the
+ * price-axis width ratchet re-measures, the time axis re-optimises, and LWC
+ * re-lays-out — which it is free to do — between the write and the read, and the
+ * old code paid for that disagreement with the WHOLE CHART.
+ *
+ * ⛔ SO THIS IS A REPORT, NOT AN ASSERTION, AND `binder.js` DOES NOT THROW ON IT.
+ * A one-pixel drift is worth a loud console warning and a counter a test can
+ * read; it is not worth a blank chart, and a blank chart is what an exception on
+ * the paint path buys. `binder.js` CONVERGES first — re-applies the layout once
+ * and re-arms — because a transient disagreement is exactly the thing a re-apply
+ * fixes, and only a drift that survives its own correction is reported. The
+ * number is still attributable, which was the whole point of returning a message
+ * instead of a boolean.
+ *
  * @param {object} chart an `IChartApi`
  * @param {object} layout `computePaneLayout`'s output
  * @returns {string|null}
@@ -582,15 +703,18 @@ export function paneHeightMismatch(chart, layout) {
       return `paneLayout: pane ${idx} is ${heights[idx]}px, expected ${want}px`
     }
   }
-  // The price-pane budget is what pane 0 and anything between it and the stack
-  // SHARE, so it is checked as a sum — a volume pane the user dragged is not a
-  // redistribution, and asserting pane 0 alone would call it one.
-  let above = 0
-  for (let i = 0; i < Math.min(first, heights.length); i++) above += heights[i]
-  const wantAbove = layout.pane0.stretchFactor
-  if (above !== wantAbove) {
-    const who = first === 1 ? 'pane 0' : `panes 0-${first - 1} total`
-    return `paneLayout: ${who} is ${above}px, expected ${wantAbove}px`
+  // Each pane above the stack has its OWN target now (`layout.above`), so each is
+  // checked by name. It used to be checked as a SUM against the price-pane
+  // budget, which is what made D1's one-pixel over-allocation read as
+  // `panes 0-1 total is 451px, expected 452px` — a true statement that named no
+  // pane and no cause.
+  const above = Array.isArray(layout.above) ? layout.above : []
+  for (let i = 0; i < Math.min(first, heights.length); i++) {
+    const want = above[i]
+    if (!Number.isFinite(want)) continue
+    if (heights[i] !== want) {
+      return `paneLayout: pane ${i} is ${heights[i]}px, expected ${want}px`
+    }
   }
   return null
 }

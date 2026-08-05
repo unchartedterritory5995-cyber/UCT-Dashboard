@@ -193,6 +193,40 @@ function inputsSignature(inputs) {
   return out
 }
 
+// ─── D2: WHERE A SURVIVING HEIGHT DRIFT GOES ─────────────────────────────────
+//
+// ⛔ NOT AN EXCEPTION. `binder.sync` runs inside StockChart's render effect, so a
+// throw here reaches the ErrorBoundary and the user gets a BLANK CHART — which
+// B5 Task 11 measured happening on ~20 % of cold loads for a ONE-PIXEL
+// disagreement that a re-apply fixes. The drift still has to be attributable, so
+// it lands here: a `console.warn` the first time each distinct message appears,
+// and a counter a test can assert on. Module-level and not per-binder because the
+// point is "did this ever happen", which outlives any one chart.
+
+/** message → times seen. Read by `paneHeightAlerts()`; reset by tests. */
+const _paneHeightAlerts = new Map()
+
+function recordPaneHeightAlert(message) {
+  const seen = _paneHeightAlerts.get(message) || 0
+  _paneHeightAlerts.set(message, seen + 1)
+  // Once per distinct message: an `updateChart` pass runs about once a second in
+  // extended hours, and a warning that repeats 3,600 times an hour is noise
+  // nobody reads.
+  if (seen === 0 && typeof console !== 'undefined' && typeof console.warn === 'function') {
+    console.warn(`${message} (re-applied once and it did not take; the chart is drawn anyway)`)
+  }
+}
+
+/** Every height drift that survived a re-apply, as `{message: count}`. */
+export function paneHeightAlerts() {
+  return Object.fromEntries(_paneHeightAlerts)
+}
+
+/** TEST ONLY — a fresh slate between cases. */
+export function __resetPaneHeightAlerts() {
+  _paneHeightAlerts.clear()
+}
+
 /**
  * @param {{chart: object, LWC: object}} deps
  * @returns {{sync: (ctx: object) => object, teardown: () => void}}
@@ -248,10 +282,38 @@ export function createBinder({ chart, LWC }) {
   // Verifying the PREVIOUS layout at the next sync is correct even when the
   // instance list changed in between: the frame in between laid the chart out at
   // the OLD layout, and the new one has not been applied yet when this runs.
+  // 🔴 D2 — AND ONE FRAME IS STILL NOT A SETTLE. B5 Task 11 MEASURED the
+  // deferred check throwing `paneLayout: pane 2 is 77px, expected 78px` into
+  // StockChart's ErrorBoundary on 3 of 14 and then 1 of 8 COLD LOADS, with the
+  // same build minus the throw producing 15 identical manifests out of 15 — so
+  // the geometry was right every time and the ASSERTION was the defect. LWC is
+  // free to re-lay-out between the write and the read (the price-axis width
+  // ratchet re-measures, the time axis re-optimises), and an exact pixel identity
+  // is not an invariant across that.
+  //
+  // ⛔ SO IT CONVERGES INSTEAD OF THROWING, AND THE ORDER MATTERS:
+  //   1. re-apply the layout ONCE and re-arm — a transient disagreement is
+  //      exactly what a re-apply fixes, and a chart that self-corrects is better
+  //      than one that reports;
+  //   2. only a mismatch that survives its own correction is REPORTED — a
+  //      `console.warn`, once per distinct message, plus a counter tests read.
+  // A blank chart is a worse failure than a one-pixel drift; that is the whole
+  // ruling, and it is the third rAF-blindness incident on this branch.
   /** The layout the last sync applied, awaiting a frame. */
   let pendingLayout = null
   /** Set by a rAF once the renderer has had a chance to lay `pendingLayout` out. */
   let pendingLaidOut = false
+  /**
+   * Consecutive syncs whose height check disagreed. Reset by a CLEAN check, not
+   * by applying a layout.
+   *
+   * ⛔ RESETTING IT ON APPLY MAKES THE REPORT UNREACHABLE, and that is not a
+   * hypothetical: the first draft did, `applyPaneStretch` runs every sync, and a
+   * layout the renderer can NEVER honour was silently converged forever. "Do not
+   * throw" must not become "do not notice" — `flipCGeometry.test.jsx`'s
+   * surviving-drift case is the rail, and it went red saying so.
+   */
+  let mismatchRun = 0
 
   /** Remove every series we hold. Zero calls when we hold nothing, which is what
    *  makes `teardown()` safe to call unconditionally from an unmount path. */
@@ -262,6 +324,7 @@ export function createBinder({ chart, LWC }) {
     pointMemo = new Map()
     pendingLayout = null
     pendingLaidOut = false
+    mismatchRun = 0
   }
 
   /**
@@ -295,15 +358,43 @@ export function createBinder({ chart, LWC }) {
     }
   }
 
-  /** ⛔ THROWS BY NAME. A silent one-pixel drift is not something anyone
-   *  attributes for a week — see `pendingLayout`'s note for why it is deferred. */
+  /**
+   * ⛔ REPORTS BY NAME. IT DOES NOT THROW — see the D2 note on `pendingLayout`.
+   *
+   * A disagreement gets ONE re-apply (`pendingRetries`), which is what actually
+   * fixes the measured transient. Only a drift that survives its own correction
+   * is recorded, and it is recorded loudly enough to attribute and cheaply enough
+   * that a chart still draws.
+   */
   function verifyPendingLayout() {
     if (!pendingLayout || !pendingLaidOut) return
     const layout = pendingLayout
+    const message = paneHeightMismatch(chart, layout)
+    if (!message) {
+      pendingLayout = null
+      pendingLaidOut = false
+      mismatchRun = 0
+      return
+    }
+    mismatchRun += 1
+    if (mismatchRun === 1) {
+      // ── converge ──
+      // ⚠️ AND THE FIRST SYNC OF EVERY CHART LANDS HERE, BY CONSTRUCTION.
+      // `paneStackHeightPx` is itself rAF-stale: on a two-pane chart it reads the
+      // panes BEFORE the renderer has sized them, so the very first layout is
+      // computed against a chart height that is a pixel or two out. MEASURED in
+      // `flipCGeometry.test.jsx` — a real 400 px chart reports 401 on the first
+      // read. That is a FOURTH face of the same rAF blindness, it is unavoidable
+      // without blocking a frame inside the paint, and it is precisely what the
+      // old `throw` turned into a blank chart on cold load.
+      applyPaneStretch(layout)
+      return
+    }
+    // ── it survived its own correction ──
     pendingLayout = null
     pendingLaidOut = false
-    const message = paneHeightMismatch(chart, layout)
-    if (message) throw new Error(message)
+    mismatchRun = 0
+    recordPaneHeightAlert(message)
   }
 
   function sync(ctx) {

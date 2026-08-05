@@ -6067,13 +6067,38 @@ export default function StockChart({
     // volume pane and the Model Book's index pane sit between it and pane 0. Both
     // are read from what exists RIGHT NOW; if that is ever wrong the binder's
     // height check says so by name rather than drifting a pixel.
+    //
+    // ⭐ AND `abovePct` SAYS WHAT THOSE PANES MEASURE IN BANDS MODE — the ONE
+    // input `computePaneLayout` was missing, and the reason B5 Task 11 measured
+    // three separate defects (see paneLayout.js "THE FRAME OF REFERENCE"). These
+    // are the SAME two clamped percentages the volume block below applies with
+    // `setStretchFactor`, hoisted so there is one authority rather than two
+    // expressions that can drift; `stockChartWiring.test.jsx` asserts the layout
+    // is handed exactly what the renderer is told.
+    //
+    // ⛔ SETTINGS, NOT THE RENDERER. Reading the live stretch factors back would
+    // work on the first sync and never again: this layout WRITES pixel counts
+    // into those factors, so pass two would read `[353, 99]` as if it were the
+    // 78/22 the settings say and re-derive a different reference every pass.
+    const _volPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+    const _idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
+    // The index pane is hoisted to pane 0 (`s.getPane().moveTo(0)` below), so it
+    // comes FIRST in pane order and the candles are pane 1 when it exists.
+    const _hasIdxPane = !!indexPaneSeriesRef.current
+    const _abovePct = _hasIdxPane
+      ? (volSeparatePane
+        ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
+        : [_idxPct, 100 - _idxPct])
+      : (volSeparatePane ? [100 - _volPct, _volPct] : [100])
     const paneLayout = paneMode() === 'panes'
       ? computePaneLayout(csMargins, engineInstances, {
         chartHeight: paneStackHeightPx(chart),
         hasVolumeBand,
         excludeKeys: volOverlaySet,
         separatorPx: SEPARATOR_PX,
-        firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (indexPaneSeriesRef.current ? 1 : 0),
+        firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
+        abovePct: _abovePct,
+        mainPaneIndex: _hasIdxPane ? 1 : 0,
       })
       : null
     paneLayoutRef.current = paneLayout
@@ -6171,7 +6196,12 @@ export default function StockChart({
           // Stretch factors are relative. Address panes by their series' own
           // pane object (getPane) rather than raw index, so an index-comparison
           // pane on top (Model Book) doesn't get mis-sized when this re-runs.
-          const pct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume.paneHeightPct ?? 22))
+          // ⛔ THE SAME `_volPct` / `_idxPct` THE LAYOUT WAS HANDED, not a second
+          // copy of the clamps: `computePaneLayout`'s whole bands-mode reference
+          // is "what these two `setStretchFactor` calls produce", so a drift
+          // between the two expressions is a layout computed against a chart that
+          // does not exist. One authority, declared above the layout call.
+          const pct = _volPct
           const mainPane = candleSeriesRef.current?.getPane?.()
           const volPane = volumeSeriesRef.current?.getPane?.()
           // Only (re)apply when the TARGET height changed — otherwise a periodic
@@ -6179,7 +6209,7 @@ export default function StockChart({
           if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
             lastAppliedVolPctRef.current = pct
             if (indexPaneSeriesRef.current) {
-              const idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
+              const idxPct = _idxPct
               try { indexPaneSeriesRef.current.getPane().setStretchFactor(idxPct) } catch {}
               volPane.setStretchFactor(pct)
               mainPane.setStretchFactor(Math.max(20, 100 - pct - idxPct))

@@ -32,7 +32,7 @@ import {
   LineStyle, LineType,
 } from 'lightweight-charts'
 
-import { createBinder } from '../binder'
+import { createBinder, paneHeightAlerts, __resetPaneHeightAlerts } from '../binder'
 import { resolvePlacement } from '../placement'
 import * as engineRegistry from '../nativeRegistry'
 import { computePaneMargins } from '../../paneMargins'
@@ -102,7 +102,7 @@ const openCharts = []
  * asserted by its RESULT — the same series object, in a different pane — which is
  * a stronger claim than counting a `moveToPane` call anyway.
  */
-function openChart({ height = CHART_H } = {}) {
+function openChart({ height = CHART_H, volumePane = false, volPct = 22 } = {}) {
   const el = document.createElement('div')
   document.body.appendChild(el)
   // `timeScale.visible: false` takes the time-axis strip out of the height
@@ -115,6 +115,20 @@ function openChart({ height = CHART_H } = {}) {
   // grow. Every real chart has candles there. Created on `raw`, so it is not in
   // `rec.addSeries` and the "nothing new was created" counts stay honest.
   const candles = raw.addSeries(LineSeries, {}, 0)
+  // ⭐ THE SHIPPED CONFIGURATION. `volumeSeparatePane` is passed UNCONDITIONALLY
+  // by every surface that draws a chart — ChartWidget, GridChartCell,
+  // IntradayDayPopover, BottomsView and ChartRender (the parity route itself) —
+  // so `firstPaneIndex` is 2 on every chart a user looks at and 1 on none of
+  // them. B5 Task 10's real-LWC tests were all at 1, which is the whole reason
+  // three defects reached a measurement task: a real renderer driven in a
+  // configuration nobody ships is not coverage.
+  const volume = volumePane ? raw.addSeries(HistogramSeries, {}, 1) : null
+  if (volumePane) {
+    // The same two calls StockChart's volume block makes, with the same clamped
+    // percentages — which is what `abovePct` reconstructs.
+    raw.panes()[0].setStretchFactor(100 - volPct)
+    raw.panes()[1].setStretchFactor(volPct)
+  }
   const rec = { addSeries: [], removeSeries: [] }
   const chart = {
     addSeries: (...a) => { rec.addSeries.push(a); return raw.addSeries(...a) },
@@ -124,7 +138,9 @@ function openChart({ height = CHART_H } = {}) {
   }
   const binder = createBinder({ chart, LWC })
   const h = {
-    el, raw, chart, rec, binder, candles,
+    el, raw, chart, rec, binder, candles, volume, volPct,
+    firstPaneIndex: volumePane ? 2 : 1,
+    abovePct: volumePane ? [100 - volPct, volPct] : [100],
     heights: () => raw.panes().map((p) => p.getHeight()),
     manifest: () => paneManifest(raw, binder.bindings()),
     seriesFor: (key) => (binder.bindings().find((b) => b.key === key) || {}).series,
@@ -150,6 +166,11 @@ async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, lay
       chartHeight: paneStackHeightPx(h.raw),
       hasVolumeBand,
       separatorPx: SEPARATOR_PX,
+      // ⛔ THE TWO ARGUMENTS TASK 10's HARNESS NEVER PASSED, transcribed from
+      // `StockChart.jsx`'s own call site. Defaulted to the one-pane chart, so
+      // every case written before this reads exactly as it did.
+      firstPaneIndex: h.firstPaneIndex,
+      abovePct: h.abovePct,
     }))
     : null
   const result = h.binder.sync({
@@ -163,7 +184,7 @@ async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, lay
     paneMargins: computePaneMargins(cs, hasVolumeBand),
     paneLayout,
     volOverlaySet: new Set(),
-    volSeparatePane: false,
+    volSeparatePane: h.firstPaneIndex > 1,
     VOL_PANE_INDEX: 1,
     resolvePlacement,
   })
@@ -320,8 +341,14 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     expect(bottomPx).toBe(CHART_H - Math.round(bands.bottom * CHART_H))
   })
 
-  it('the binder THROWS BY NAME if the renderer redistributed them', async () => {
+  it('a redistribution CONVERGES instead of blanking the chart — D2', async () => {
+    // 🔴 THIS USED TO ASSERT A THROW, AND THE THROW WAS THE DEFECT. B5 Task 11
+    // measured `paneLayout: pane 2 is 77px, expected 78px` reaching StockChart's
+    // ErrorBoundary on 3 of 14 then 1 of 8 COLD LOADS while the same build minus
+    // the throw produced 15 identical manifests out of 15 — the geometry was
+    // right every time. So: re-apply once, and never take the chart down.
     __setPaneModeForTest('panes')
+    __resetPaneHeightAlerts()
     const h = openChart()
     const { paneLayout } = await sync(h, ['rsi'])
     expect(h.heights()).toEqual([paneLayout.pane0.heightPx, paneLayout.panes[0].heightPx])
@@ -354,7 +381,40 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     })
     await frame()
 
-    await expect(sync(h, ['rsi'])).rejects.toThrow(/paneLayout: pane 1 is \d+px, expected \d+px/)
+    // ⛔ IT RESOLVES. A one-pixel disagreement is not worth a blank chart.
+    await expect(sync(h, ['rsi'])).resolves.toBeTruthy()
+    await frame()
+    // …and the re-apply took: the renderer is back on the layout's heights, and
+    // nothing was reported, because a transient that self-corrects is not a bug.
+    const after = await sync(h, ['rsi'])
+    expect(h.heights()).toEqual([after.paneLayout.pane0.heightPx, after.paneLayout.panes[0].heightPx])
+    expect(paneHeightAlerts()).toEqual({})
+    // The chart is still a chart — the failure mode this replaced was a blank one.
+    expect(h.raw.panes()).toHaveLength(2)
+  })
+
+  it('a drift that SURVIVES its own re-apply is reported by name, not swallowed', async () => {
+    // ⛔ THE CONTROL FOR THE CONVERGENCE ABOVE. "Do not throw" must not become
+    // "do not notice": a layout whose factors do not sum to the available height
+    // can never be honoured (stretch factors are RELATIVE — LWC rescales them),
+    // so it survives any number of re-applies and has to surface.
+    __setPaneModeForTest('panes')
+    __resetPaneHeightAlerts()
+    const h = openChart()
+    const { paneLayout } = await sync(h, ['rsi'])
+    const impossible = {
+      ...paneLayout,
+      above: [200],
+      panes: [{ ...paneLayout.panes[0], heightPx: 100, stretchFactor: 100 }],
+      pane0: { ...paneLayout.pane0, heightPx: 200, stretchFactor: 200 },
+    }
+    await sync(h, ['rsi'], { layoutOverride: impossible })   // arms the check
+    await sync(h, ['rsi'], { layoutOverride: impossible })   // check → re-apply
+    await sync(h, ['rsi'], { layoutOverride: impossible })   // check → report
+    const alerts = Object.keys(paneHeightAlerts())
+    expect(alerts, 'a surviving drift must be recorded').toHaveLength(1)
+    expect(alerts[0]).toMatch(/^paneLayout: pane \d+ is \d+px, expected \d+px$/)
+    expect(h.raw.panes()).toHaveLength(2)                    // still drawn
   })
 
   it('and the height check does NOT fire when the renderer honoured the layout', async () => {
@@ -486,42 +546,194 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('paneStretchPlan', () => {
-  const layout = (panes, budget, firstPaneIndex = 1) => ({
+  const layout = (panes, above, firstPaneIndex = above.length) => ({
     firstPaneIndex,
+    above,
     panes: panes.map((heightPx, i) => ({ key: `k${i}`, index: firstPaneIndex + i, heightPx, stretchFactor: heightPx })),
-    pane0: { heightPx: budget, stretchFactor: budget },
+    pane0: { heightPx: above[0], stretchFactor: above[0] },
   })
 
-  it('the factors ARE the pixel heights, and pane 0 takes the rest', () => {
-    expect(paneStretchPlan(layout([60, 40], 299), [100, 1, 1])).toEqual([299, 60, 40])
+  it('the factors ARE the pixel heights, and every pane gets the layout s own', () => {
+    expect(paneStretchPlan(layout([60, 40], [299]), [100, 1, 1])).toEqual([299, 60, 40])
   })
 
-  it('panes BETWEEN pane 0 and the stack keep their proportions of the price budget', () => {
-    // A separate volume pane at 22% and the candles at 78% — today's split —
-    // keeps that split inside whatever the oscillators left over.
-    const plan = paneStretchPlan(layout([60], 300, 2), [78, 22, 1])
+  it('panes BETWEEN pane 0 and the stack take the heights the LAYOUT computed', () => {
+    // 🔴 IT USED TO SPLIT A BUDGET BY THE FACTORS ALREADY ON THE CHART, and that
+    // could not survive its own output: this function WRITES pixel counts, so the
+    // next sync read `[353, 99]` back as if it were the 78/22 the settings say
+    // and re-derived a different reference every pass. The heights are computed
+    // ONCE, from settings, in `computePaneLayout`.
+    const plan = paneStretchPlan(layout([60], [234, 66], 2), [78, 22, 1])
     expect(plan).toEqual([234, 66, 60])
-    expect(plan[0] + plan[1]).toBe(300)          // the budget is EXACT, remainder to pane 0
   })
 
-  it('the split is EXACT, and a fixture where the two arithmetics agree cannot say so', () => {
-    // 🔴 THE FIXTURE ABOVE COULD NOT TELL THE REMAINDER FROM A ROUND, and B5 Task
-    // 10's gauntlet measured that: 78/22 of 300 divides evenly, so
-    // `budget - assigned` and `round(budget * w0 / total)` give the same 234 and
-    // the mutation SURVIVED. Three equal weights over 100 do not divide evenly:
-    // rounding every share gives 33+33+33 = 99 and loses a pixel off the stack,
-    // which is a one-pixel drift nobody attributes for a week.
-    const plan = paneStretchPlan(layout([60], 100, 3), [1, 1, 1, 1])
-    expect(plan).toEqual([34, 33, 33, 60])
-    expect(plan[0] + plan[1] + plan[2]).toBe(100)
+  it('it is a FIXED POINT — feeding its own output back changes nothing', () => {
+    // ⛔ THE PROPERTY THE OLD PROPORTIONAL SPLIT DID NOT HAVE, and the reason the
+    // volume pane could not keep its height through the cutover.
+    const l = layout([60], [234, 66], 2)
+    const once = paneStretchPlan(l, [78, 22, 1])
+    expect(paneStretchPlan(l, once)).toEqual(once)
+    expect(paneStretchPlan(l, paneStretchPlan(l, once))).toEqual(once)
   })
 
   it('a pane BELOW the stack is left alone — a future pane must not be crushed to zero', () => {
-    expect(paneStretchPlan(layout([60], 300), [100, 1, 42])).toEqual([300, 60, 42])
+    expect(paneStretchPlan(layout([60], [300]), [100, 1, 42])).toEqual([300, 60, 42])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔴 THE SHIPPED CONFIGURATION — firstPaneIndex > 1, on a REAL renderer
+//
+// B5 Task 10 said "the panes path is genuinely exercised". It was — at
+// `firstPaneIndex === 1`, which is a chart this app never draws, and the first
+// thing a browser did with `'panes'` was throw. Everything below builds a chart
+// with a SEPARATE VOLUME PANE, which is what every surface passes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('the shipped configuration — a separate volume pane', () => {
+  it('the layout TOTALS EXACTLY, which is the whole of D1', async () => {
+    // `paneLayout: panes 0-1 total is 451px, expected 452px` — the throw that
+    // blanked all 46 parity cases — is this assertion, one pixel out.
+    __setPaneModeForTest('panes')
+    __resetPaneHeightAlerts()
+    const h = openChart({ volumePane: true })
+    expect(h.firstPaneIndex).toBe(2)
+    // ⚠️ TWICE, AND THE SECOND ONE IS NOT CEREMONY. `paneStackHeightPx` is itself
+    // rAF-stale, so the FIRST layout of any chart is computed against a height
+    // that is a pixel out — a real 400 px chart reads 401 before the renderer has
+    // sized its panes. The binder converges on the next sync; the old code threw.
+    await sync(h, ['rsi'])
+    const { paneLayout } = await sync(h, ['rsi'])
+
+    const heights = h.heights()
+    expect(heights).toHaveLength(3)                        // candles, volume, rsi
+    const total = heights.reduce((s, x) => s + x, 0) + (heights.length - 1) * SEPARATOR_PX
+    expect(total).toBe(paneStackHeightPx(h.raw))
+    // Every pane is the number the layout named, read off the renderer.
+    expect(heights).toEqual([...paneLayout.above, ...paneLayout.panes.map((p) => p.heightPx)])
+    expect(paneHeightAlerts()).toEqual({})
   })
 
-  it('a chart with no history to go on gives pane 0 the whole budget', () => {
-    expect(paneStretchPlan(layout([60], 300, 2), [0, 0, 1])).toEqual([300, 0, 60])
+  it('a chart with NO OSCILLATOR AT ALL totals exactly too — the other half of D1', async () => {
+    // `pane0Only` had the same off-by-one with no oscillator to shave it off, so
+    // a price-overlay-only chart threw as well. `bb` is a price overlay.
+    __setPaneModeForTest('panes')
+    __resetPaneHeightAlerts()
+    const h = openChart({ volumePane: true })
+    await sync(h, ['bb'])
+    const { paneLayout } = await sync(h, ['bb'])
+    expect(paneLayout.panes).toEqual([])
+    const heights = h.heights()
+    expect(heights).toHaveLength(2)
+    expect(heights.reduce((s, x) => s + x, 0) + SEPARATOR_PX).toBe(paneStackHeightPx(h.raw))
+    expect(heights).toEqual(paneLayout.above)
+    expect(paneHeightAlerts()).toEqual({})
+  })
+
+  it('the bands-mode reference is MEASURED against the renderer, not assumed', async () => {
+    // ⛔ `bandsAboveHeights` reconstructs what lightweight-charts gives a 78/22
+    // two-pane chart. If that reconstruction is wrong the whole frame of
+    // reference is wrong and nothing downstream can be trusted, so it is pinned
+    // against the real thing rather than reasoned about.
+    __setPaneModeForTest('bands')
+    const h = openChart({ volumePane: true })
+    await sync(h, [])
+    await frame()
+    const real = h.heights()
+    // The layout's own reconstruction, with no oscillator: `above` IS the
+    // bands-mode split.
+    const reconstructed = computePaneLayout({}, [], {
+      chartHeight: paneStackHeightPx(h.raw),
+      hasVolumeBand: false,
+      separatorPx: SEPARATOR_PX,
+      firstPaneIndex: 2,
+      abovePct: [78, 22],
+    }).above
+    expect(reconstructed).toEqual(real)
+    expect(real[1]).toBeGreaterThan(0)                     // not vacuously [H, 0]
+  })
+
+  it('the VOLUME PANE KEEPS ITS HEIGHT through the cutover', async () => {
+    // ⚠️ IT DID NOT BEFORE: the record's own loss list said "the volume pane
+    // shrinks 117 → 99 px", because the oscillator stack was carved out of the
+    // WHOLE CHART and the remainder re-split proportionally. Carved out of the
+    // candle pane — which is where the band actually lived — the volume pane is
+    // untouched.
+    __setPaneModeForTest('bands')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['rsi'])
+    await frame()
+    const bands = h.heights()
+    expect(bands).toHaveLength(2)
+
+    __setPaneModeForTest('panes')
+    await sync(h, ['rsi'])
+    await frame()
+    const panes = h.heights()
+    expect(panes).toHaveLength(3)
+    expect(panes[1], 'the volume pane').toBe(bands[1])
+  })
+
+  it('the CANDLE RECTANGLE lands on the same absolute pixels — the §A6 identity, at last', async () => {
+    // 🔴 D3. `pane0.mainMargins` were fractions of the price-pane BUDGET (pane 0
+    // PLUS the volume pane) and were applied to the candles' OWN scale, so the
+    // candle rectangle was re-fitted on every chart this app draws and
+    // `price_plot` could not read 0. Both edges, to the pixel, in both modes.
+    const H = 400
+    const cs = csWith(['rsi'])
+    const instances = [inst('rsi')]
+
+    __setPaneModeForTest('bands')
+    const h = openChart({ height: H, volumePane: true })
+    await sync(h, ['rsi'])
+    await frame()
+    const bandsHeights = h.heights()
+    const bandsMain = computePaneMargins(cs, false).main
+    const bandsRect = [bandsMain.top * bandsHeights[0], (1 - bandsMain.bottom) * bandsHeights[0]]
+
+    __setPaneModeForTest('panes')
+    const layout = computePaneLayout(cs, instances, {
+      chartHeight: paneStackHeightPx(h.raw),
+      hasVolumeBand: false,
+      separatorPx: SEPARATOR_PX,
+      firstPaneIndex: 2,
+      abovePct: [78, 22],
+    })
+    const own = layout.pane0.heightPx
+    const panesRect = [
+      layout.pane0.mainMargins.top * own,
+      (1 - layout.pane0.mainMargins.bottom) * own,
+    ]
+    // Sub-pixel: the pane's own height is an integer and the band edge is not, so
+    // the bottom edge can differ by the rounding and by nothing else.
+    expect(Math.abs(panesRect[0] - bandsRect[0])).toBeLessThan(1)
+    expect(Math.abs(panesRect[1] - bandsRect[1])).toBeLessThan(1)
+    // ⛔ NON-VACUITY — and this is the number that used to be wrong. The OLD
+    // divisor was the price-pane budget; using it here puts the bottom edge past
+    // the pane and lightweight-charts refuses a negative margin outright.
+    const budget = own + bandsHeights[1]
+    expect(budget).toBeGreaterThan(own)
+    expect(1 - (budget / own)).toBeLessThan(0)
+    expect(bandsRect[1] - bandsRect[0]).toBeGreaterThan(50)
+  })
+
+  it('a THREE-pane-above chart (Model Book s index pane) totals exactly as well', async () => {
+    // `firstPaneIndex` reaches 3 in Model Book, whose index-comparison pane is
+    // hoisted to pane 0, so the candles are pane 1 — `mainPaneIndex`.
+    const layout = computePaneLayout(csWith(['rsi', 'macd']), [inst('rsi'), inst('macd')], {
+      chartHeight: 532,
+      hasVolumeBand: false,
+      separatorPx: SEPARATOR_PX,
+      firstPaneIndex: 3,
+      abovePct: [18, 60, 22],
+      mainPaneIndex: 1,
+    })
+    const all = [...layout.above, ...layout.panes.map((p) => p.heightPx)]
+    expect(all).toHaveLength(5)
+    expect(all.reduce((s, x) => s + x, 0) + 4 * SEPARATOR_PX).toBe(532)
+    expect(layout.pane0.heightPx).toBe(layout.above[1])
+    expect(layout.pane0.mainMargins.top + layout.pane0.mainMargins.bottom).toBeLessThanOrEqual(1)
+    expect(layout.pane0.mainMargins.bottom).toBeGreaterThanOrEqual(0)
   })
 })
 
