@@ -59,3 +59,28 @@ describe('DayPath', () => {
     expect(screen.getByText('+4.0')).toBeInTheDocument()
   })
 })
+
+describe('DayPath polarity', () => {
+  it('colours a bearish metric by what the move MEANS, not its direction', () => {
+    // More names down 4% is not good news. Painting a rise green says the
+    // opposite of what happened — spotted in the browser, not in a test.
+    const { container: bull } = render(<DayPath points={pts([40, 60])} />)
+    const { container: bear } = render(
+      <DayPath points={pts([40, 60])} polarity="bear" />)
+    const stroke = c => c.querySelector('path').getAttribute('stroke')
+    expect(stroke(bull)).toBe('var(--gain)')
+    expect(stroke(bear)).toBe('var(--loss)')
+  })
+
+  it('still signs the delta by the raw move', () => {
+    // The number says what happened; the colour says whether that is good.
+    render(<DayPath points={pts([40, 60])} polarity="bear" />)
+    expect(screen.getByText('+20.0')).toBeInTheDocument()
+  })
+
+  it('leaves a flat session neutral under either polarity', () => {
+    const { container } = render(<DayPath points={pts([50, 50])} polarity="bear" />)
+    expect(container.querySelector('path').getAttribute('stroke'))
+      .toBe('var(--text-muted)')
+  })
+})

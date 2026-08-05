@@ -20,6 +20,10 @@ export default function DayPath({
   showDelta = true,
   decimals = 1,
   label = '',
+  // 'bull' — a rise is an improvement (the default). 'bear' — a rise is
+  // deterioration, so the colour has to invert: more names down 4% is not good
+  // news, and painting it green says the opposite of what happened.
+  polarity = 'bull',
 }) {
   const shape = useMemo(() => {
     // `null` must be dropped BEFORE the Number() coercion — `Number(null)` is
@@ -55,8 +59,9 @@ export default function DayPath({
   if (!shape) return null
 
   const delta = shape.now - shape.open
-  const dir = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
   const sign = delta > 0 ? '+' : ''
+  const better = polarity === 'bear' ? -delta : delta
+  const dir = better > 0 ? 'up' : better < 0 ? 'down' : 'flat'
   const stroke = dir === 'up' ? 'var(--gain)'
     : dir === 'down' ? 'var(--loss)' : 'var(--text-muted)'
 

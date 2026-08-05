@@ -19,7 +19,9 @@ const ITEMS = [
   { key: 'pct_above_50sma', label: '% > 50-DAY', decimals: 1, suffix: '%' },
   { key: 'adv_decline',     label: 'ADV − DEC',  decimals: 0 },
   { key: 'up_4pct_today',   label: 'UP 4%',      decimals: 0 },
-  { key: 'down_4pct_today', label: 'DOWN 4%',    decimals: 0 },
+  // A RISE here is deterioration — more names down 4% is not good news, and the
+  // path would otherwise paint it green for going up.
+  { key: 'down_4pct_today', label: 'DOWN 4%',    decimals: 0, polarity: 'bear' },
 ]
 
 export default function LiveSessionStrip({ live }) {
@@ -50,6 +52,7 @@ export default function LiveSessionStrip({ live }) {
               points={live.path?.[item.key]}
               label={item.label}
               decimals={item.decimals}
+              polarity={item.polarity}
               width={70}
               height={20}
             />

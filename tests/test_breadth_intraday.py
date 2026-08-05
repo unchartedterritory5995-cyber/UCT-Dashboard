@@ -129,3 +129,16 @@ def test_the_store_is_a_separate_file_from_the_daily_series(store, tmp_path):
             "SELECT name FROM sqlite_master WHERE type='table'")}
     assert "breadth_snapshots" not in tables
     assert "breadth_intraday" in tables
+
+
+def test_the_daily_store_can_be_pointed_at_a_scratch_copy(tmp_path, monkeypatch):
+    """Without this there is no way to stand up a local stack for a visual pass:
+    on the dev box `/data` resolves to a directory shared with live services."""
+    from api.services import breadth_monitor
+    monkeypatch.setenv("BREADTH_MONITOR_DB", str(tmp_path / "scratch.db"))
+    assert breadth_monitor._db_path() == str(tmp_path / "scratch.db")
+    breadth_monitor.init_db()
+    assert breadth_monitor.store_snapshot("2026-08-05", {"pct_above_50sma": 65.3})
+    assert breadth_monitor.get_history(1)[0]["pct_above_50sma"] == 65.3
+    monkeypatch.delenv("BREADTH_MONITOR_DB")
+    assert breadth_monitor._db_path() != str(tmp_path / "scratch.db")

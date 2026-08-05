@@ -172,9 +172,19 @@ export default function BreadthCharts() {
           label: {
             formatter: `LIVE ${live.clock ?? ''}`.trim(),
             position: 'insideEndTop',
+            // ECharts rotates a markLine label to follow its line, which on a
+            // VERTICAL line means 90° — the stamp rendered sideways and clipped
+            // against the right edge. Unrotate it and grow it leftward into the
+            // plot so it stays readable and inside.
+            rotate: 0,
+            align: 'right',
+            distance: [4, 2],
             color: '#c9a84c',
             fontSize: 10,
             fontWeight: 600,
+            backgroundColor: 'rgba(8,11,16,0.78)',
+            padding: [2, 5],
+            borderRadius: 3,
           },
           lineStyle: { color: '#c9a84c', type: 'dashed', width: 1, opacity: 0.65 },
           data: [{ xAxis: rows[liveIndex].date }],

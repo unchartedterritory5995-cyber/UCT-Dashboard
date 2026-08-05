@@ -22,6 +22,14 @@ from typing import Optional
 # ── DB path ───────────────────────────────────────────────────────────────────
 
 def _db_path() -> str:
+    # Override exists so a local stack can point at a scratch copy instead of
+    # the real volume — the same escape hatch TWEET_DB_PATH and
+    # BREADTH_INTRADAY_DB provide. On this dev box `/data` resolves to C:\data,
+    # which is shared with running services, so without it there is no way to
+    # seed a throwaway history for a browser pass.
+    override = os.environ.get("BREADTH_MONITOR_DB")
+    if override:
+        return override
     if os.path.exists("/data"):
         return "/data/breadth_monitor.db"
     # Local dev: project root / data /

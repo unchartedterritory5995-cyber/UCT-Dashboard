@@ -1555,17 +1555,19 @@ tbody tr { cursor: pointer; }
    prefers-reduced-motion. The 4:15 PM collector replaces it with the
    authoritative row, at which point the backend stops serving it at all. */
 
+/* NO background on the data cells. `.liveRow td` outranks the `.bgG3`/`.bgR1`
+   tier classes (0,1,1 vs 0,1,0), so a wash here silently flattens the heat map
+   — which is the entire language of this table. Caught in the browser: the live
+   row rendered every cell neutral while the row below it was fully coloured.
+   Liveness is carried by the date cell and a hairline instead. */
 .liveRow td {
-  background: rgba(201, 168, 76, 0.055);
+  border-top: 1px solid rgba(201, 168, 76, 0.30);
   border-bottom-color: rgba(201, 168, 76, 0.22);
 }
 .liveRow .dateCell {
   background: rgba(201, 168, 76, 0.09);
   box-shadow: inset 2px 0 0 var(--ut-gold, #c9a84c);
   color: var(--ut-gold, #c9a84c);
-}
-.table tbody tr.liveRow:hover td {
-  background: rgba(201, 168, 76, 0.1);
 }
 .table tbody tr.liveRow:hover .dateCell {
   background: rgba(201, 168, 76, 0.14);
