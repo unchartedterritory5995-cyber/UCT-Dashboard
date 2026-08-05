@@ -261,3 +261,48 @@ thing to get reported as surprising, so it belongs in the release note.
    currently ~460×300 for the chart, which cannot carry the full shell.
 3. **Chart tabs in popups** — workspace-only, or should a popup get tabs too? Default: no.
 4. **ShareToFloor in popups** — include, or `/charts` only? Default: `/charts` only.
+
+---
+
+## Phase A outcome + what Phase B must handle first (added 2026-08-05)
+
+Phase A is complete on `feat/chart-pane-universal`: `ChartPane` exists under
+`app/src/components/chart/pane/`, `ChartWidget` is a 352-line workspace adapter (was 691),
+`/charts` is unchanged, and the entry chunk did not grow (ChartPane rides the lazy
+`ChartsWorkspace` chunk). Final whole-branch review: SHIP, no `/charts` regression.
+
+**Verified contract — Phase B can rely on these:**
+- `stored={null}` with no `onStore` reads *and writes* the user's global `chart_settings`.
+  Passing `onStore` gives full isolation and never touches the global pref.
+- Omitting `onSymbolChange` renders a static, non-interactive identity label.
+- `priceLines` / `markers` / `darkPoolBars` pass through `stockChartProps`, which is spread
+  last so a surface can override any StockChart prop.
+- `showTfBar={false}` removes the timeframe bar entirely; `tfCodes={['D','W']}` restricts it.
+- `density="compact"` drops exactly the meta row, session toggle and clock — and now also
+  skips the fundamentals fetch, so a compact popup issues no snapshot request or poll.
+
+**Carry into Phase B — known, recorded, not yet fixed:**
+1. **`tfCodes` does not restrict the ⌄ overflow menu.** `ChartTfBar`'s chevron always opens
+   `TimeframeMenu` with the full list, so a host that locks the row to `['D','W']` still lets
+   the user pick 5-minute from the overflow. Dead today (zero callers). **Fix this in the
+   commit that first wires `tfCodes`** — Journal's "Daily/Weekly only" is the likely first
+   caller and would silently under-deliver.
+2. **Every adopter chunk pulls all ~1,100 lines of `ChartsWorkspace.module.css`**, because the
+   pane components take `styles` as a prop from that module. Acceptable while adopters are
+   lazy routes; measure the moment an eagerly-routed surface adopts. Moving the CSS into
+   `components/chart/pane/` is Phase C.
+3. **`.chartWidget { height: 100% }`** — an adopter needs a definite-height parent or the pane
+   collapses. Relevant to popups that size themselves to content.
+4. **`ChartWidget.jsx:139`** calls `useChartSurfaceSettings` a second time (only for
+   `menuVars`) and still passes `onStore`, creating a live-but-unused write sink. Harmless;
+   drop the argument when convenient.
+5. **`onOptsChange` is a fresh arrow per `ChartsWorkspace` render**
+   (`ChartsWorkspace.jsx:973,1233`), so board-level events (drag/resize/add/remove, a linked
+   group ticker change) still re-churn StockChart's listeners for every chart widget.
+   Pre-existing and unrelated to this branch; Phase A narrowed the churn so ambient price
+   ticks and the 60s clock no longer trigger it.
+
+**Still owed:** the live browser `/charts` pass and screenshot diff (plan Task 6, Step 9) were
+never run. The final review closed its one named risk — the right-click menu re-parent — on
+direct CSS evidence (all three nodes are `position:fixed`; the containing block is
+`.widgetBody`'s `container-type` before and after). Run the visual pass opportunistically.
