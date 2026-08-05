@@ -3,10 +3,13 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--prof-bg, var(--widget-canvas, #0e0f0d));
-  color: var(--prof-text, var(--text, #e0dac8));
+  /* Default canvas/text follow the app theme (--bg/--text: OLED-black, light, dim)
+     until the user picks an explicit per-widget canvas. */
+  background: var(--prof-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--prof-text, var(--text-bright, #e0dac8));
   font-family: var(--font-sans);
 }
+
 
 /* Header bar: symbol + gear */
 .bar {
@@ -14,7 +17,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  background: var(--prof-header-bg, transparent);
+  background: transparent;
   border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
 }
@@ -29,12 +32,13 @@
   font-size: 12.5px;
   letter-spacing: 0.4px;
   flex: 0 0 auto;
-  color: var(--prof-chrome-strong, var(--prof-text, var(--text-bright, #e0dac8)));
+  /* "Header color" setting colors the ticker + company name. */
+  color: var(--prof-header-text, var(--prof-chrome-strong, var(--prof-text, var(--text-bright, #e0dac8))));
 }
 .company {
   font-size: 11.5px;
   font-weight: 500;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-header-text, var(--prof-chrome, var(--text-muted, #8b8674)));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -125,8 +129,12 @@
 .thNum, .tdNum { text-align: right; padding-left: 8px; }
 .tdLeft { color: var(--prof-chrome, var(--text-muted, #9b9482)); }
 
-/* Up / down / neutral coloring for the performance stat values */
-.up { color: var(--prof-up, var(--ut-green-bright, #1ae51a)); }
+/* Up / down / neutral coloring for the performance stat values.
+   Fallback MUST equal PROFILE_WIDGET_DEFAULTS.upColor (#1ae51a): the style var is
+   emitted only when the picked color differs from the default, so a fallback of a
+   DIFFERENT green (--ut-green-bright #3cb868) made a picked-default value not match
+   the settings swatch. */
+.up { color: var(--prof-up, #1ae51a); }
 .down { color: var(--prof-down, #ff5b5b); }
 .neutral { color: var(--prof-text, var(--text-bright, #e0dac8)); }
 /* Earnings-surprise cells — separately configurable (default: blue up / red down,
@@ -151,7 +159,9 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--prof-chrome, var(--text-muted, #9b9482));
+  /* Readable body text (was the dim muted chrome — hard to see on a dark canvas). */
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+  opacity: 0.9;
 }
 
 /* ── Key stats ── */

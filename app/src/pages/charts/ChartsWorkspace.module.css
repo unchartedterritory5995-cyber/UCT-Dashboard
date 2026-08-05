@@ -123,6 +123,26 @@
   min-height: 0;
   overflow: auto;
 }
+/* Thin, canvas-neutral overlay scrollbar for every widget body — a transparent
+   track (no dark "border" strip on a light canvas) + a subtle semi-transparent
+   grey thumb that reads on any canvas. Still fully mouse-wheel scrollable. */
+.widgetBody, .widgetBody * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 140, 140, 0.4) transparent;
+}
+.widgetBody ::-webkit-scrollbar, .widgetBody::-webkit-scrollbar { width: 8px; height: 8px; }
+.widgetBody ::-webkit-scrollbar-track, .widgetBody::-webkit-scrollbar-track { background: transparent; }
+.widgetBody ::-webkit-scrollbar-thumb, .widgetBody::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.38);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.widgetBody ::-webkit-scrollbar-thumb:hover, .widgetBody::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 140, 0.6);
+  background-clip: padding-box;
+}
+.widgetBody ::-webkit-scrollbar-corner, .widgetBody::-webkit-scrollbar-corner { background: transparent; }
 
 .unknownWidget {
   padding: 20px;
@@ -290,6 +310,21 @@
    the pop-out/close controls. The tab chips appear only once a slot has ≥1 extra
    tab, so single-widget slots look unchanged; the "+" add-tab button is always
    present so any widget can grow tabs. */
+/* Merged mode has no header, but a multi-tab slot still needs its tabs. This is a
+   minimal strip-only bar at the top of the merged widget (renders nothing for a
+   single-tab slot, so the seamless look is preserved there). */
+.wtabMergedBar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 4px;
+  background: var(--widget-canvas, transparent);
+  border-bottom: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.06));
+  text-transform: none;
+  letter-spacing: 0;
+}
 /* The scrollable region: [‹] [strip of tab chips] [›]. Takes the header's free
    width so the +/pop-out/close controls stay pinned to the right. */
 .wtabRegion {
@@ -335,7 +370,10 @@
   gap: 3px;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 9.5px;
+  font-size: 10px;
+  /* Natural case (the header itself is uppercased) so a watchlist name like
+     "AI Leaders" reads normally instead of shouting. */
+  text-transform: none;
   letter-spacing: 0.2px;
   line-height: 1.5;
   white-space: nowrap;
@@ -343,6 +381,20 @@
   cursor: pointer;
   border: 1px solid transparent;
   flex: 0 0 auto;
+}
+.wtabRename {
+  width: 78px;
+  min-width: 40px;
+  font: inherit;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  color: var(--widget-text-strong, var(--text, #e5e7eb));
+  background: var(--widget-canvas, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--ut-gold, #c9a84c);
+  border-radius: 3px;
+  padding: 0 3px;
+  outline: none;
 }
 .wtabChip:hover {
   color: var(--widget-text-strong, var(--text, #e5e7eb));
@@ -562,10 +614,12 @@
 .sessionBtn + .sessionBtn { border-left: 1px solid var(--border, #1f2937); }
 .sessionBtn:hover:not(:disabled) { color: var(--text, #e5e7eb); }
 .sessionBtn:disabled { opacity: 0.4; cursor: default; }
+/* Selected: strong (near-black on a light canvas) text on the gold highlight,
+   matching the widget tab chips; unselected stays the muted --widget-text above. */
 .sessionBtnActive,
 .sessionBtnActive:hover {
-  color: var(--widget-accent, var(--accent, #c9a84c));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.12));
+  color: var(--widget-text-strong, var(--text-bright, #e5e7eb));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next
@@ -774,6 +828,30 @@
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
   --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* News / Profile widgets OPT OUT of the dark re-assertion above and follow the
+   LIGHT site theme when uncustomized (WidgetHost adds .widgetThemeFollow). The extra
+   class out-specifies the rule above, so the border + chrome + text all read on white.
+   A customized widget drops the flag and keeps its chosen look. */
+:global([data-theme='light']) [data-charts-theme='default'] .widgetThemeFollow {
+  --bg: #ffffff;
+  --bg-surface: #f4f5f6;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --border: #e3e5e7;
+  --border-accent: #cbced1;
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --text-bright: #0b0e11;
+  --text-heading: #161a1e;
+  --ut-gold: #7a5c16;
+  --ut-gold-dim: #7a5c161a;
+  --ut-gold-glow: #7a5c1633;
+  --ut-green-bright: #0a5c22;
+  --ut-red-bright: #7d1620;
+  --gain: #0a5c22;
+  --loss: #7d1620;
 }
 
 /* ── TSDR — Sunrise light theme (workspace-wide) ─────────────────────────────

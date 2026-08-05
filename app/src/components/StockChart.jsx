@@ -9357,7 +9357,9 @@ export default function StockChart({
       {!showFatalError && chartReady && (
         <div
           className={styles.scaleToggle}
-          style={{ bottom: boldCandles ? '3px' : `calc(26px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane).main.bottom})` }}
+          /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
+             it just clear of the SE corner resize handle). */
+          style={{ bottom: '3px' }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  sanitizeWidgetTabs, widgetTabList, resolveActiveTab,
-  addWidgetTab, closeWidgetTab, setActiveWidgetTab,
+  sanitizeWidgetTabs, widgetTabList, resolveActiveTab, tabLabel,
+  addWidgetTab, closeWidgetTab, setActiveWidgetTab, renameWidgetTab,
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
 
@@ -55,6 +55,41 @@ describe('widgetTabs — add / select / close', () => {
     expect(w.wtabs).toHaveLength(1)
     expect(w.wtabs[0].type).toBe('chart')
     expect(w.activeWtab).toBe(0)                    // fell back to a valid neighbor
+  })
+})
+
+describe('widgetTabs — labels', () => {
+  it('watchlist tab shows the selected list name, or "Flagged" for the flagged list', () => {
+    expect(tabLabel('watchlist', { watchName: 'AI Leaders' })).toBe('AI Leaders')
+    expect(tabLabel('watchlist', { watchKey: 'flagged', watchName: 'Flagged (Blake Bracco)' })).toBe('Flagged')
+    expect(tabLabel('watchlist', {})).toBe('Watchlist')
+    expect(tabLabel('news', {})).toBe('News')
+  })
+
+  it('a custom (renamed) name always wins over the auto label', () => {
+    expect(tabLabel('watchlist', { watchName: 'AI Leaders' }, 'My Tab')).toBe('My Tab')
+  })
+
+  it('widgetTabList reflects the watchlist auto-name for the base tab', () => {
+    const w = { id: 'w1', type: 'watchlist', color: 'A', opts: { watchKey: 'user:5', watchName: 'Momentum' } }
+    expect(widgetTabList(w)[0].label).toBe('Momentum')
+  })
+})
+
+describe('widgetTabs — rename', () => {
+  it('renames the base tab via mainTabName and clears on blank', () => {
+    const named = renameWidgetTab(base, '__main__', 'Dossier')
+    expect(named.mainTabName).toBe('Dossier')
+    expect(widgetTabList(named)[0].label).toBe('Dossier')
+    expect(renameWidgetTab(named, '__main__', '  ')).not.toHaveProperty('mainTabName')
+  })
+
+  it('renames an extra tab and the label follows', () => {
+    const w = addWidgetTab(base, { type: 'news' })
+    const id = w.wtabs[0].id
+    const renamed = renameWidgetTab(w, id, 'Headlines')
+    expect(renamed.wtabs[0].name).toBe('Headlines')
+    expect(widgetTabList(renamed)[1].label).toBe('Headlines')
   })
 })
 
