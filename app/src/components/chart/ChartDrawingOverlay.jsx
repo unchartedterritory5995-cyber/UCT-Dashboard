@@ -765,6 +765,47 @@ function offsetPoints(points) {
   }))
 }
 
+// 'YYYY-MM-DD' in America/New_York for a unix-seconds bar time. Formatter built
+// once (Intl construction is the expensive part).
+const _etDateFmt = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+  : null
+function etDateStr(tSeconds) {
+  if (!_etDateFmt) return null
+  try { return _etDateFmt.format(new Date(tSeconds * 1000)) } catch { return null }
+}
+
+// Resolve a catalyst's anchor to a bar index. A catalyst carries only a DATE
+// ('YYYY-MM-DD'). On a DAILY/WEEKLY chart that maps straight to a bar via
+// nearestIndex. On an INTRADAY chart the bars are numeric epochs, so the date
+// would fail nearestIndex's type check (returning null → the callout never
+// places). Instead we snap to the candle where the news actually broke: the FIRST
+// high-volume candle of that ET session (fallback: the day's max-volume candle).
+// Binary-searched to a mid-day seed so it's cheap even when the day isn't loaded.
+export function resolveCatalystAnchor(anchorTime, bars, nearestIndex) {
+  if (!bars?.length) return null
+  const intraday = typeof bars[0].t === 'number'
+  const isDate = typeof anchorTime === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(anchorTime)
+  if (!intraday || !isDate) return nearestIndex(anchorTime)
+  const day = anchorTime.slice(0, 10)
+  const approx = Math.floor(Date.parse(`${day}T16:30:00Z`) / 1000)   // ~12:30 ET seed
+  if (!Number.isFinite(approx)) return nearestIndex(anchorTime)
+  let lo = 0, hi = bars.length - 1, seed = 0
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (bars[m].t <= approx) { seed = m; lo = m + 1 } else hi = m - 1 }
+  const idxs = []
+  for (let i = seed; i >= 0; i--) { if (etDateStr(bars[i].t) === day) idxs.unshift(i); else break }
+  for (let i = seed + 1; i < bars.length; i++) { if (etDateStr(bars[i].t) === day) idxs.push(i); else break }
+  if (!idxs.length) return null   // day not loaded → defer (don't fall back to a wrong bar)
+  const volOf = (i) => Number(bars[i].v ?? bars[i].volume ?? 0)
+  let maxV = 0
+  for (const i of idxs) maxV = Math.max(maxV, volOf(i))
+  // First candle whose volume is a major fraction of the session peak = where the
+  // catalyst hit; fall back to the outright highest-volume candle.
+  let target = maxV > 0 ? idxs.find(i => volOf(i) >= maxV * 0.5) : null
+  if (target == null) { target = idxs[0]; for (const i of idxs) if (volOf(i) > volOf(target)) target = i }
+  return target
+}
+
 // ─── Catalyst callout auto-placement (News widget) ───────────────────────────
 // A News-widget catalyst is TWO linked drawings — a `text` label + a `trendline`
 // leader — each independently editable. Both arrive with points:[] + a shared
@@ -1393,14 +1434,19 @@ export default function ChartDrawingOverlay({
         // overlay's `fontSize` prop = cs.drawingDefaults.fontSize) unless this
         // drawing already carries its own size.
         const calloutFs = d.fontSize || fontSize
+        // Resolve the anchor to a real candle FIRST — on an intraday chart a
+        // catalyst's date snaps to the session's big-volume candle (where the news
+        // broke); daily/weekly stay on the daily bar. Everything downstream anchors
+        // to that candle's EXACT time so placeCalloutPoint + the leader line agree.
+        const ai = resolveCatalystAnchor(d.calloutAnchorTime, bars, nearestIndex)
+        const b = ai != null ? bars[ai] : null
+        if (!b) continue
         const res = placeCalloutPoint({
           ctx, bars, toPixel, nearestIndex, drawings,
-          anchorTime: d.calloutAnchorTime, text: d.text, fontSize: calloutFs,
+          anchorTime: b.t, text: d.text, fontSize: calloutFs,
           plotRight, h, vRange,
         })
         if (!res) continue
-        const ai = nearestIndex(d.calloutAnchorTime); const b = ai != null ? bars[ai] : null
-        if (!b) continue
         // Leader STARTS at the day's HIGH on a positive (up) day, the LOW on a
         // negative (down) day — matches placeCalloutPoint's anchor.
         const bOpen = b.o ?? b.open ?? b.c
