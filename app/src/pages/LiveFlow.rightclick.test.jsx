@@ -8,7 +8,7 @@
 // global.fetch is stubbed to special-case the live poll endpoint
 // (/api/live/alerts/recent) with two distinct tickers so the left-click
 // filter assertion has a second row that must disappear.
-import { renderWithProviders, screen, fireEvent, waitFor } from '../test-utils'
+import { renderWithProviders, screen, fireEvent, waitFor, act } from '../test-utils'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 
 vi.mock('../utils/prefetchBars', () => ({
@@ -49,7 +49,10 @@ beforeEach(() => {
   localStorage.clear()
   mockFetch()
 })
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 // The ticker `<td>` carries `title="Filter to {ticker}"` — unlike a plain
 // text query, this stays unambiguous even after a click adds a same-text
@@ -67,6 +70,22 @@ test('right-click on a ticker cell opens the chart popup', async () => {
   // idiom as Watchlists.chartmount.test.jsx.
   expect(await screen.findByTestId('chart-modal', {}, { timeout: 8000 })).toBeInTheDocument()
   // The popup opened for the RIGHT-CLICKED symbol, not a hardcoded one.
+  expect(await screen.findByTestId('stock-chart-AAPL-D', {}, { timeout: 8000 })).toBeInTheDocument()
+})
+
+// iOS Safari doesn't reliably fire `contextmenu` on touch-hold — the chart
+// open must also work via the useLongPress touch path (pointerdown held past
+// the 450ms threshold), independent of the contextmenu event tested above.
+test('touch long-press on a ticker cell opens the chart popup', async () => {
+  renderWithProviders(<LiveFlow />)
+  const tickerCell = await screen.findByTitle('Filter to AAPL')
+
+  vi.useFakeTimers()
+  fireEvent.pointerDown(tickerCell, { pointerType: 'touch', clientX: 10, clientY: 10 })
+  act(() => { vi.advanceTimersByTime(460) })
+  vi.useRealTimers()
+
+  expect(await screen.findByTestId('chart-modal', {}, { timeout: 8000 })).toBeInTheDocument()
   expect(await screen.findByTestId('stock-chart-AAPL-D', {}, { timeout: 8000 })).toBeInTheDocument()
 })
 

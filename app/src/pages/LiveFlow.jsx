@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import UIcon from "../components/ui/UIcon";
 import ShareToFloor from "../components/community/ShareToFloor";
 import TickerPopup from "../components/TickerPopup";
+import useLongPress from "../components/mobile/useLongPress";
 
 /**
  * LiveFlow — subscriber-facing
@@ -586,6 +587,17 @@ function AlertRow({
   const primaryTextColor = tierColor || P.wh;
   const accentTextColor = tierColor || P.ac;
 
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `alert.ticker` — do NOT read the ticker from the event, since
+  // the long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    if (onOpenChart) onOpenChart(alert.ticker);
+  });
+
   return (
     <tr style={{
       borderBottom: "1px solid " + P.bd + "30",
@@ -618,7 +630,7 @@ function AlertRow({
           filter behavior is untouched. */}
       <td
         onClick={onFilterTicker ? () => onFilterTicker(alert.ticker) : undefined}
-        onContextMenu={onOpenChart ? (e) => { e.preventDefault(); onOpenChart(alert.ticker); } : undefined}
+        {...chartLongPress}
         title={onFilterTicker ? `Filter to ${alert.ticker}` : undefined}
         style={{
           padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13,

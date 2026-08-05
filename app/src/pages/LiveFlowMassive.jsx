@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import TickerPopup from "../components/TickerPopup";
+import useLongPress from "../components/mobile/useLongPress";
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -1095,6 +1096,17 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const isAlpha = tier === "alpha";
   const isSize = tier === "size";
 
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `alert.ticker` — do NOT read the ticker from the event, since
+  // the long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    if (onOpenChart) onOpenChart(alert.ticker);
+  });
+
   // Direction palette — brighter than P.bu / P.be so non-alpha rows still
   // have visual weight. Non-directional tiers (algo) keep neutral coloring.
   const DIR_BULL = "#6BAA85";   // brighter green than P.bu
@@ -1162,7 +1174,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
           onClick={() => onClickTicker(alert.ticker)}
-          onContextMenu={onOpenChart ? (e) => { e.preventDefault(); onOpenChart(alert.ticker); } : undefined}
+          {...chartLongPress}
           title={`Filter to ${alert.ticker}`}
         >
           {alert.ticker}
@@ -2824,6 +2836,17 @@ function ContractColumnHeaders({ isAdmin, sortCol, sortDir, onSort }) {
 
 function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState, oiCheck, expired }) {
   const [open, setOpen] = useState(false);
+
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `c.ticker` — do NOT read the ticker from the event, since the
+  // long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    onOpenChart && onOpenChart(c.ticker);
+  });
   const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
   const isBull = c.direction === "Bull";
   const isBear = c.direction === "Bear";
@@ -2906,7 +2929,7 @@ function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState
         </span>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
           <span onClick={(e) => { e.stopPropagation(); onClickTicker && onClickTicker(c.ticker); }}
-                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onOpenChart && onOpenChart(c.ticker); }}
+                {...chartLongPress}
                 style={{ color: rowColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
             {c.ticker}
           </span>

@@ -3,6 +3,7 @@ import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tool
 import ChartPane from "../components/chart/pane/ChartPane";
 import TickerPopup from "../components/TickerPopup";
 import DarkPool from "./DarkPool";
+import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
 import {
@@ -199,6 +200,27 @@ function Tag({ c, children }) {
       color:c, backgroundColor:c+"15", border:"1px solid "+c+"30",
       cursor: tip ? "help" : "default"
     }}>{children}</span>
+  );
+}
+
+// Ticker cell for a table row that must open the chart on right-click
+// (desktop) OR long-press (touch, incl. iOS Safari — which does not
+// reliably fire `contextmenu` on touch-hold). The two call sites below live
+// inside `.map()` callbacks, not components, so a hook can't be called
+// there directly — this tiny wrapper is the component that owns the hook.
+// Closes over `sym` via its own props — do NOT read the ticker from the
+// event; the long-press branch fires from a setTimeout after React
+// dispatch has finished, when `e.currentTarget` is already null.
+function ChartHoldCell({ sym, onOpen, children, ...rest }) {
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    onOpen(sym);
+  });
+  return (
+    <td {...rest} {...chartLongPress}>
+      {children}
+    </td>
   );
 }
 
@@ -6040,13 +6062,13 @@ export default function OptionsFlowDashboard() {
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
                 onClick={()=>{ setCExp(isExp ? null : tk.sym); }}>
-                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}
-                  onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); setChartSym(tk.sym); }}>
+                <ChartHoldCell sym={tk.sym} onOpen={setChartSym}
+                  style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
                   {tk.sym}
-                  
+
                   {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
                   {tk.isNew && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:P.ac+"22", color:P.ac }}>NEW</span>}
-                </td>
+                </ChartHoldCell>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu }}>{fmt(tk.bull)}</td>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.be }}>{fmt(tk.bear)}</td>
                 <td style={{ padding:"6px 5px", width:60 }}>
@@ -6645,8 +6667,8 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=r._rank<=3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:r._rank<=3?P.ac:P.dm, fontSize:12 }}>{r._rank}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}
-                          onContextMenu={e=>{ e.preventDefault(); e.stopPropagation(); setChartSym(r.sym); }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
+                        <ChartHoldCell sym={r.sym} onOpen={setChartSym}
+                          style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</ChartHoldCell>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>

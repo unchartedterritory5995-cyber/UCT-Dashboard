@@ -12,7 +12,7 @@
 // current-quotes/flow-dates) gets a benign empty-JSON response — each of
 // those call sites already soft-fails on a missing field (verified by
 // reading them), so this doesn't need per-endpoint shaping.
-import { renderWithProviders, screen, fireEvent, waitFor } from '../test-utils'
+import { renderWithProviders, screen, fireEvent, waitFor, act } from '../test-utils'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 
 vi.mock('../utils/prefetchBars', () => ({
@@ -72,7 +72,10 @@ beforeEach(() => {
   localStorage.clear()
   mockFetch()
 })
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 // The ticker `<span>` carries `title="Filter to {ticker}"` — unambiguous
 // even once a same-text active-filter pill could otherwise collide.
@@ -89,6 +92,22 @@ test('right-click on a ticker cell opens the chart popup', async () => {
   // idiom as Watchlists.chartmount.test.jsx.
   expect(await screen.findByTestId('chart-modal', {}, { timeout: 8000 })).toBeInTheDocument()
   // The popup opened for the RIGHT-CLICKED symbol, not a hardcoded one.
+  expect(await screen.findByTestId('stock-chart-AAPL-D', {}, { timeout: 8000 })).toBeInTheDocument()
+})
+
+// iOS Safari doesn't reliably fire `contextmenu` on touch-hold — the chart
+// open must also work via the useLongPress touch path (pointerdown held past
+// the 450ms threshold), independent of the contextmenu event tested above.
+test('touch long-press on a ticker cell opens the chart popup', async () => {
+  renderWithProviders(<LiveFlowMassive />)
+  const tickerCell = await screen.findByTitle('Filter to AAPL')
+
+  vi.useFakeTimers()
+  fireEvent.pointerDown(tickerCell, { pointerType: 'touch', clientX: 10, clientY: 10 })
+  act(() => { vi.advanceTimersByTime(460) })
+  vi.useRealTimers()
+
+  expect(await screen.findByTestId('chart-modal', {}, { timeout: 8000 })).toBeInTheDocument()
   expect(await screen.findByTestId('stock-chart-AAPL-D', {}, { timeout: 8000 })).toBeInTheDocument()
 })
 
