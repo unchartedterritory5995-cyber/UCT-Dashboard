@@ -1465,6 +1465,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   autoFocus
                   onPick={sym => addSymbolTo(wl.id, sym)}
                   onEscape={() => setAddingToList(null)}
+                  onDismiss={() => setAddingToList(null)}
                   existingSyms={new Set(items.map(i => String(i.sym).toUpperCase()))}
                   targetLabel={wl.name}
                   placeholder={`Add to ${wl.name}…`}
@@ -1583,6 +1584,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   autoFocus
                   onPick={sym => addSymbolTo('flagged', sym)}
                   onEscape={() => setAddingToList(null)}
+                  onDismiss={() => setAddingToList(null)}
                   existingSyms={new Set(flagged.map(s => String(s).toUpperCase()))}
                   targetLabel="Flagged"
                   placeholder="Add to Flagged…"
