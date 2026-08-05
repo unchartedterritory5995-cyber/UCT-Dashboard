@@ -302,7 +302,20 @@ Phase A is complete on `feat/chart-pane-universal`: `ChartPane` exists under
    Pre-existing and unrelated to this branch; Phase A narrowed the churn so ambient price
    ticks and the 60s clock no longer trigger it.
 
-**Still owed:** the live browser `/charts` pass and screenshot diff (plan Task 6, Step 9) were
-never run. The final review closed its one named risk — the right-click menu re-parent — on
-direct CSS evidence (all three nodes are `position:fixed`; the containing block is
-`.widgetBody`'s `container-type` before and after). Run the visual pass opportunistically.
+**Live `/charts` pass: RUN AND PASSED (2026-08-05).** Built the worktree, served it from a
+local backend, and confirmed the served bundle hash (`index-4d92wQH9.js`) matched the dist just
+built — so the check was against this branch, not a stale build. Verified in the browser as an
+admin user:
+
+- Identity row: company name, session toggle (REGULAR HOURS / INCLUDE POST-MARKET), live ET clock
+- Meta row: MARKET CAP / NEXT EARNINGS / **UCT RATING 59**
+- TF bar: all eight intervals + ⌄; switching 1D → 1W reframed the chart, recomputed the MAs and
+  updated the volume stats
+- Crosshair legend (OHLC + SMA 5 / EMA 9 / EMA 20 / SMA 50 / SMA 200), watermark, range buttons,
+  volume pane, price-axis tag, A/L/% toggle
+- **The right-click menu — the one named risk — renders at the click point, unclipped and
+  correctly stacked above the chart.** The re-parent from inside `.chartWidget` to a sibling of
+  the pane root is confirmed safe in the running app, not only by CSS reasoning.
+- Chart Settings modal opens from the menu with all five tabs.
+
+No visual or behavioral difference from pre-refactor `/charts` was observed.
