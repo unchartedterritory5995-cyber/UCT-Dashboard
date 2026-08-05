@@ -5,10 +5,9 @@
  * History. Every section is null-safe: a missing feed hides the section.
  * Short Interest is intentionally omitted (no data source).
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, lazy, Suspense } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useSWR from 'swr'
-import StockChart from '../../../../components/StockChart'
 import CompanyLogo from '../../../../components/CompanyLogo'
 import useFundamentalSnapshot from '../../../../hooks/useFundamentalSnapshot'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
@@ -28,16 +27,18 @@ import EarningsSection from './EarningsSection'
 import HistorySection from './HistorySection'
 import styles from './PositionDetailPage.module.css'
 
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('../../../../components/chart/pane/ChartPane'))
+
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
-const TF_TABS = [
-  { code: '5', label: '5m' },
-  { code: '30', label: '30m' },
-  { code: '60', label: '1h' },
-  { code: 'D', label: 'D' },
-  { code: 'W', label: 'W' },
-]
+// Journal is NOT Daily/Weekly-only (that CLAUDE.md note is stale) — these are
+// the five codes the page has always supported, now handed to ChartPane's
+// canonical timeframe bar instead of a bespoke local row.
+const TF_CODES = ['5', '30', '60', 'D', 'W']
 
 /**
  * Combine multiple open J2 rows on the same symbol+side into one RH-style
@@ -180,22 +181,23 @@ export default function PositionDetailPage() {
       </header>
 
       <div className={styles.chartCard}>
-        <div className={styles.tfBar} role="tablist" aria-label="Chart timeframe">
-          {TF_TABS.map((t) => (
-            <button
-              key={t.code}
-              type="button"
-              role="tab"
-              aria-selected={tf === t.code}
-              className={tf === t.code ? styles.tfBtnActive : styles.tfBtn}
-              onClick={() => setTf(t.code)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
         <div className={styles.chartWrap}>
-          <StockChart sym={sym} tf={tf} height="100%" showDrawingTools={false} />
+          {/* ChartPane is the SAME chart /charts renders — identity row, session
+              toggle, clock, canonical timeframe bar, settings gear. `tfCodes`
+              locks the bar to this page's five codes (matches the retired
+              TF_TABS row); `onSymbolChange` is omitted so the identity row is a
+              static label, not a search box — this page IS the symbol.
+              `stored={null}` with no `onStore` = the user's own chart everywhere. */}
+          <Suspense fallback={<div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted, #8a8a8a)' }}>Loading chart…</div>}>
+            <ChartPane
+              sym={sym}
+              tf={tf}
+              onTfChange={setTf}
+              stored={null}
+              tfCodes={TF_CODES}
+              stockChartProps={{ height: '100%', showDrawingTools: false }}
+            />
+          </Suspense>
         </div>
       </div>
 

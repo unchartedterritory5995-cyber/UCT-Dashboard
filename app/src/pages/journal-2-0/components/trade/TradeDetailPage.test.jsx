@@ -35,6 +35,10 @@ vi.mock('../../../../components/chart/chartScreenshot', () => ({
 
 const FAKE_BLOB = new Blob(['png'], { type: 'image/png' })
 
+// The page now mounts ChartPane (the same chart /charts renders) instead of a
+// bare StockChart. ChartPane is lazy + imports the very same StockChart module,
+// so stubbing it here still covers the pane's inner chart — the sym/tf the
+// pane forwards through stockChartProps land on this stub unchanged.
 vi.mock('../../../../components/StockChart', () => ({
   default: ({ sym, tf }) => <div data-testid="chart">{sym}:{tf}</div>,
 }))
@@ -45,7 +49,13 @@ vi.mock('../../hooks/useTradeReview', () => ({
     feedback: vi.fn(), forget: vi.fn(), reset: vi.fn(), error: null,
   }),
 }))
-vi.mock('../../../../context/AuthContext', () => ({ useIsPaid: () => false }))
+// ChartPane also calls useFlagged() (Shift+F flag toast), which reads useAuth()
+// — extend the existing useIsPaid stub with a logged-out useAuth so that call
+// doesn't throw "useAuth must be used within AuthProvider".
+vi.mock('../../../../context/AuthContext', () => ({
+  useIsPaid: () => false,
+  useAuth: () => ({ user: null }),
+}))
 vi.mock('../../hooks/useJ2SelectedAccount', () => ({
   default: () => ({ accountId: 'a1', account: null, accounts: [] }),
 }))
@@ -132,7 +142,7 @@ function renderPage(id = 't1') {
 }
 
 describe('TradeDetailPage', () => {
-  it('renders the outcome header from the fixture trade', () => {
+  it('renders the outcome header from the fixture trade', async () => {
     renderPage()
     expect(screen.getByRole('heading', { name: 'NVDA' })).toBeInTheDocument()
     expect(screen.getByText('LONG')).toBeInTheDocument()
@@ -140,7 +150,10 @@ describe('TradeDetailPage', () => {
     expect(screen.getByText('+$588.00')).toBeInTheDocument()   // pnlDollarNet, not gross
     expect(screen.getByText('+12.00%')).toBeInTheDocument()    // fraction convention
     expect(screen.getByText('3 days')).toBeInTheDocument()
-    expect(screen.getByTestId('chart')).toHaveTextContent('NVDA:D')
+    // ChartPane is a lazy chunk, heavier than bare StockChart was — under
+    // full-suite parallel load the Suspense fallback can still be up when the
+    // default 1000ms findBy timeout fires, so give it real headroom.
+    expect(await screen.findByTestId('chart', {}, { timeout: 8000 })).toHaveTextContent('NVDA:D')
   })
 
   it('shows the no-stop R label + an Add-stop affordance', () => {

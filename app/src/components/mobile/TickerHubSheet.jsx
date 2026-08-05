@@ -10,14 +10,17 @@ import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
 import styles from './TickerHubSheet.module.css'
 
-const StockChart = lazy(() => import('../StockChart'))
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
 const FundamentalSnapshot = lazy(() => import('../FundamentalSnapshot'))
 
-const TFS = [
-  { key: 'D', label: '1D' },
-  { key: 'W', label: '1W' },
-  { key: 'M', label: '1M' },
-]
+// The sheet's chart is only 240px tall — `density="compact"` on ChartPane
+// drops the meta row, session toggle, and clock so the canonical timeframe
+// bar + chart still fit. These are the same three codes the retired local
+// TFS row offered.
+const TF_CODES = ['D', 'W', 'M']
 
 // Outer gate: only mount the body (and its data hooks) when a ticker is open,
 // so live-price polling / flag state don't run app-wide while the hub is closed.
@@ -72,28 +75,29 @@ function TickerHubBody({ sym, onClose }) {
           </div>
         )}
 
-        {/* Mini-chart with TF chips */}
-        <div className={styles.tfRow}>
-          {TFS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              className={`${styles.tfChip} ${tf === t.key ? styles.tfOn : ''}`}
-              onClick={() => setTf(t.key)}
-            >{t.label}</button>
-          ))}
-        </div>
+        {/* Mini-chart — ChartPane is the SAME chart /charts renders. `density`
+            compact drops the meta row, session toggle and clock so the pane
+            fits in 240px; `tfCodes` locks the bar to the retired TFS row's
+            three codes; `onSymbolChange` is omitted so the identity row is a
+            static label — the sheet's ticker isn't user-retargetable here.
+            `stored={null}` with no `onStore` = the user's own chart everywhere. */}
         <div className={styles.chartWrap}>
           <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
-            <StockChart
+            <ChartPane
               sym={sym}
               tf={tf}
-              height="240px"
-              showDrawingTools={false}
-              hideReplay
-              hidePatterns
-              hideCompare
-              hideCountdown
+              onTfChange={setTf}
+              stored={null}
+              tfCodes={TF_CODES}
+              density="compact"
+              stockChartProps={{
+                height: '240px',
+                showDrawingTools: false,
+                hideReplay: true,
+                hidePatterns: true,
+                hideCompare: true,
+                hideCountdown: true,
+              }}
             />
           </Suspense>
         </div>
