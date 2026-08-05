@@ -63,10 +63,18 @@ export function fixedText(v, digits) {
   return n == null ? '—' : n.toFixed(digits)
 }
 
-/** Dividend yield from a fraction: `0.0002` -> `0.02%`; `null` -> `—`. */
+/** Dividend yield — the endpoint already returns a PERCENT number, not a
+ *  fraction: `2.81` -> `2.81%`; `null` -> `—`. Verified live against
+ *  `/api/fundamentals/{sym}` (MCD -> 2.81, CAT -> 0.8) and against
+ *  `api/services/fundamentals.py`'s own comment on `dividend_yield_pct`
+ *  ("yfinance changed `dividendYield` semantics: it is now ALREADY a
+ *  percent ... so no ×100. The old ×100 path displayed '37%' product-wide.")
+ *  — the exact bug this function reintroduced. `FundamentalsStrip.jsx`'s
+ *  `fmtPct` (same endpoint) already gets this right; this brings
+ *  `SetupSection` in line with it rather than the other way around. */
 export function divYieldText(v) {
   const n = num(v)
-  return n == null ? '—' : `${(n * 100).toFixed(2)}%`
+  return n == null ? '—' : `${n.toFixed(2)}%`
 }
 
 /** "Priced ±X.X% " prefix for the break-even horizon line. Empty string (not

@@ -7,8 +7,13 @@ import SetupSection, {
 import { countGoldHighlights } from '../../research-kit/testing/restraint'
 
 const FUNDAMENTALS = {
+  // div_yield is a PERCENT already (verified live: /api/fundamentals/MCD ->
+  // 2.81, /api/fundamentals/CAT -> 0.8) — a prior version of this fixture
+  // used 0.0002 (a FRACTION), which matched divYieldText's now-fixed ×100
+  // bug and is exactly why no test caught it: the fixture encoded the same
+  // wrong provider contract as the code under test.
   market_cap: 3.1e12, forward_pe: 38.4, beta: 1.72,
-  week52_high: 210, week52_low: 86.6, avg_vol: 245_000_000, div_yield: 0.0002,
+  week52_high: 210, week52_low: 86.6, avg_vol: 245_000_000, div_yield: 2.81,
 }
 // A controllable mock (not a fixed factory return) — mirrors
 // EarningsResearchModal.test.jsx's mockUseExpectedMove idiom — so the
@@ -155,6 +160,18 @@ describe('divYieldText — phantom zero', () => {
   it('renders an em dash for a missing yield', () => { expect(divYieldText(null)).toBe('—') })
 })
 
+// Unit-contract regression: /api/fundamentals/{sym} returns div_yield as a
+// PERCENT already (live: MCD 2.81, CAT 0.8), not a fraction. A stray ×100
+// here rendered "281.00%"/"80.00%" for real tickers, live-verified in
+// browser. Neither phantom-zero test above pins the CONVENTION (0*100 === 0
+// either way), which is exactly how the earlier ×100 bug shipped invisibly.
+describe('divYieldText — unit contract (not a fraction)', () => {
+  it('a realistic yield renders as-is, never multiplied by 100', () => {
+    expect(divYieldText(2.81)).toBe('2.81%')
+    expect(divYieldText(0.8)).toBe('0.80%')
+  })
+})
+
 describe('moveText — phantom zero', () => {
   it('renders "Priced ±0.0% " for a genuine zero expected move', () => {
     expect(moveText(0)).toBe('Priced ±0.0% ')
@@ -241,6 +258,15 @@ describe('SetupSection — key stats, phantom zero at the component level', () =
     renderSetup()
     const dashes = screen.getByTestId('setup-stats').textContent.match(/—/g) || []
     expect(dashes).toHaveLength(5)   // Mkt cap, Fwd P/E, Beta, Avg vol, Div yield
+  })
+
+  // Live-browser-verified regression: the default FUNDAMENTALS fixture
+  // carries div_yield: 2.81 (the real MCD shape). Before the fix this
+  // rendered "281.00%" in a real running instance of this modal.
+  it('renders the div yield as the real percent, never ×100', () => {
+    renderSetup()
+    expect(screen.getByTestId('setup-stats').textContent).toContain('2.81%')
+    expect(screen.getByTestId('setup-stats').textContent).not.toContain('281.00%')
   })
 
   // review round 1, item 2 — `fundamentals` is `undefined` on EVERY user's
