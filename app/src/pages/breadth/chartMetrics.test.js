@@ -69,7 +69,7 @@ describe('preset integrity', () => {
     }
   })
 
-  it('excludes NAAIM, which the collector has pinned to a constant since 2026-04-01', () => {
+  it('excludes NAAIM, whose upstream survey stopped publishing 2026-04-29', () => {
     for (const preset of CHART_PRESETS) {
       expect(preset.metrics).not.toContain('naaim')
     }
