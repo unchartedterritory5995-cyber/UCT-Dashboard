@@ -1413,14 +1413,13 @@ export default function OptionsFlowDashboard() {
         for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
         return new Blob([arr], { type: "image/png" });
       };
+      // Single clean card (the mobile layout) is what posts — reads well on
+      // desktop and phone alike, so we send just the one image per push.
       const imgs = [];
-      for (const [side, b64, filename, label] of [
-        ["Desktop", data.desktop, `UCT_Watchlist_${wlDate}.png`, discordLabel],
-        ["Mobile", data.mobile, `UCT_Watchlist_mobile_${wlDate}.png`, `${discordLabel} — Mobile`],
-      ]) {
-        if (!b64) continue;
-        const blob = b64ToBlob(b64);
-        imgs.push({ side, url: URL.createObjectURL(blob), blob, filename, label });
+      if (data.mobile) {
+        const blob = b64ToBlob(data.mobile);
+        imgs.push({ side: "Card", url: URL.createObjectURL(blob), blob,
+          filename: `UCT_Watchlist_${wlDate}.png`, label: discordLabel });
       }
       setWlPreview({ imgs, dateRange, pushing: false });
     } catch (e) {

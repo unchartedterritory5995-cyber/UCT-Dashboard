@@ -47,6 +47,21 @@ def _fmt_voi(r) -> str:
     return f"{r:.0f}x" if r >= 10 else f"{r:.1f}x"
 
 
+def _fmt_k(n) -> str:
+    """Compact volume / OI for the narrow mobile row: 23,706 → 23.7K, 6 → 6."""
+    if n is None:
+        return "—"
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        return "—"
+    if n >= 1_000_000:
+        return f"{n / 1e6:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1e3:.1f}K"
+    return f"{n:,}"
+
+
 def _strike(v) -> str:
     try:
         return f"${float(v):g}"
@@ -232,7 +247,12 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
             cx += 6
             cx += txt(cx, y + 8, it.get("exp") or "", f_det, _DIM) + 6
             cx += txt(cx, y + 8, _strike(it.get("strike")), f_det, _TXT) + 5
-            txt(cx, y + 8, cp, f_detb, _BULL if cp == "C" else _BEAR)
+            cx += txt(cx, y + 8, cp, f_detb, _BULL if cp == "C" else _BEAR) + 12
+            v = _num(it, "vol"); o = _num(it, "oi")
+            if v is not None:
+                cx += txt(cx, y + 8, f"V {_fmt_k(v)}", f_det, _DIM) + 10
+            if o is not None:
+                cx += txt(cx, y + 8, f"OI {_fmt_k(o)}", f_det, _DIM) + 10
             pw = tw(_fmt_prem(it.get("prem")), f_prem)
             txt(_M_R, y + 6, _fmt_prem(it.get("prem")), f_prem, _GOLD, "r")
             txt(_M_R - pw - 14, y + 8, it.get("grade") or "", f_detb, _GOLD, "r")
