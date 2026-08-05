@@ -333,23 +333,14 @@ def get_rating_changes(ticker: str) -> list[dict[str, Any]]:
     if hit is not None:
         return hit
 
-    import requests as _req
+    # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
+    # call shares the process-wide token bucket / 429 cooldown with every
+    # other Finnhub caller instead of spending the same account budget
+    # uncoordinated.
+    from api.services.finnhub_client import fh_get
 
-    fh_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not fh_key:
-        _cache().set(ck, [], _RATINGS_TTL)
-        return []
-
-    try:
-        r = _req.get(
-            "https://finnhub.io/api/v1/stock/recommendation",
-            params={"symbol": sym, "token": fh_key},
-            timeout=10,
-        )
-        r.raise_for_status()
-        data = r.json() or []
-    except Exception as e:
-        _log.debug("Finnhub /stock/recommendation failed for %s: %s", sym, e)
+    data = fh_get("/stock/recommendation", {"symbol": sym}, timeout=10)
+    if not isinstance(data, list):
         _cache().set(ck, [], _RATINGS_TTL)
         return []
 

@@ -744,15 +744,19 @@ def get_earnings() -> dict:
             }
             if pending_syms:
                 try:
-                    import requests as _req2
-                    fh_r = _req2.get(
-                        "https://finnhub.io/api/v1/calendar/earnings",
-                        params={"from": yesterday, "to": today, "token": fh_key},
-                        timeout=15,
+                    # Routed through the shared finnhub_client.fh_get
+                    # (2026-08-05) so this market-wide range call shares the
+                    # process-wide token bucket / 429 cooldown with every
+                    # other Finnhub caller — a raw requests.get here spent the
+                    # SAME account budget with no coordination (see
+                    # finnhub_client.py's module docstring).
+                    from api.services.finnhub_client import fh_get as _fh_budgeted_cal
+                    fh_data = _fh_budgeted_cal(
+                        "/calendar/earnings", {"from": yesterday, "to": today}, timeout=15,
                     )
                     fh_map = {
                         e["symbol"]: e
-                        for e in fh_r.json().get("earningsCalendar", [])
+                        for e in (fh_data or {}).get("earningsCalendar", [])
                         if e.get("symbol") in pending_syms
                         and e.get("epsActual") is not None
                     }
@@ -785,14 +789,13 @@ def get_earnings() -> dict:
     if fh_key:
         ew_syms = {e["symbol"] for e in amc_tonight_raw}
         try:
-            import requests as _req3
-            fh_r2 = _req3.get(
-                "https://finnhub.io/api/v1/calendar/earnings",
-                params={"from": today, "to": today, "token": fh_key},
-                timeout=15,
+            # Same shared-budget routing as the range call above.
+            from api.services.finnhub_client import fh_get as _fh_budgeted_cal2
+            fh_data2 = _fh_budgeted_cal2(
+                "/calendar/earnings", {"from": today, "to": today}, timeout=15,
             )
             fh_today_amc = [
-                e for e in fh_r2.json().get("earningsCalendar", [])
+                e for e in (fh_data2 or {}).get("earningsCalendar", [])
                 if e.get("hour", "").lower() == "amc"
             ]
             fh_by_sym = {e["symbol"]: e for e in fh_today_amc}

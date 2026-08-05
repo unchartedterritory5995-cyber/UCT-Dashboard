@@ -31,15 +31,16 @@ def test_memory_cache_hit_skips_fetch():
 
 
 def test_finnhub_fallback_when_yfinance_fails():
+    # Finnhub calls now route through the shared finnhub_client.fh_get
+    # (2026-08-05) — patch the name ticker_meta._from_finnhub actually calls,
+    # rather than the old raw requests.get/_fh_key seam.
     ticker_meta._mem.clear()
     with patch.object(ticker_meta, "_disk_get", return_value=None), \
          patch.object(ticker_meta, "_disk_put"), \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker", side_effect=Exception("yf down")), \
-         patch.object(ticker_meta, "_fh_key", return_value="k"), \
-         patch("api.services.ticker_meta.requests.get") as RG:
-        RG.return_value.raise_for_status = lambda: None
-        RG.return_value.json = lambda: {"name": "Rocket Lab USA", "finnhubIndustry": "Aerospace"}
+         patch.object(ticker_meta, "fh_get",
+                      return_value={"name": "Rocket Lab USA", "finnhubIndustry": "Aerospace"}):
         out = ticker_meta.get_ticker_meta("RKLB")
     assert out == {"name": "Rocket Lab USA", "sector": None, "industry": "Aerospace", "theme": None}
 
@@ -50,7 +51,7 @@ def test_total_failure_returns_nulls_and_not_cached():
          patch.object(ticker_meta, "_disk_put") as DP, \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker", side_effect=Exception("x")), \
-         patch.object(ticker_meta, "_fh_key", return_value=""):
+         patch.object(ticker_meta, "fh_get", return_value=None):
         out = ticker_meta.get_ticker_meta("ZZZZ")
     assert out == {"name": None, "sector": None, "industry": None, "theme": None}
     DP.assert_not_called()
@@ -77,11 +78,9 @@ def test_yfinance_empty_info_falls_back_to_finnhub():
          patch.object(ticker_meta, "_disk_put"), \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker") as YF, \
-         patch.object(ticker_meta, "_fh_key", return_value="k"), \
-         patch("api.services.ticker_meta.requests.get") as RG:
+         patch.object(ticker_meta, "fh_get",
+                      return_value={"name": "SPDR S&P 500 ETF", "finnhubIndustry": "ETF"}):
         YF.return_value.info = {}
-        RG.return_value.raise_for_status = lambda: None
-        RG.return_value.json = lambda: {"name": "SPDR S&P 500 ETF", "finnhubIndustry": "ETF"}
         out = ticker_meta.get_ticker_meta("SPY")
     assert out == {"name": "SPDR S&P 500 ETF", "sector": None, "industry": "ETF", "theme": None}
 
@@ -98,12 +97,10 @@ def test_partial_yfinance_missing_name_backfills_name_from_finnhub():
          patch.object(ticker_meta, "_disk_put") as DP, \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker") as YF, \
-         patch.object(ticker_meta, "_fh_key", return_value="k"), \
-         patch("api.services.ticker_meta.requests.get") as RG:
+         patch.object(ticker_meta, "fh_get",
+                      return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):
         # yfinance: sector/industry but NO name (the flaky partial payload)
         YF.return_value.info = {"sector": "Technology", "industry": "Semiconductors"}
-        RG.return_value.raise_for_status = lambda: None
-        RG.return_value.json = lambda: {"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}
         out = ticker_meta.get_ticker_meta("MU")
     assert out == {"name": "Micron Technology Inc", "sector": "Technology", "industry": "Semiconductors", "theme": None}
     # Cached WITH the name now (not the poisoned name=None), GICS industry preserved.

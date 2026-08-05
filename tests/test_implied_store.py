@@ -188,8 +188,15 @@ def test_record_implied_first_write_wins_covers_the_fiscal_key_too(store):
 def test_upcoming_reporters_carries_fiscal_year_and_quarter(store, monkeypatch):
     """upcoming_reporters is the source of the fiscal key that flows into
     record_implied via run_nightly_capture — Finnhub's own quarter/year on
-    /calendar/earnings, distinguished from a missing value."""
+    /calendar/earnings, distinguished from a missing value.
+
+    upcoming_reporters now routes through the shared finnhub_client.fh_get
+    (2026-08-05, requests-based) instead of a raw httpx.get — patch the real
+    HTTP call site (requests.get) rather than the now-removed store.httpx.
+    """
     class _Resp:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -200,7 +207,7 @@ def test_upcoming_reporters_carries_fiscal_year_and_quarter(store, monkeypatch):
             ]}
 
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
-    with patch.object(store.httpx, "get", return_value=_Resp()):
+    with patch("requests.get", return_value=_Resp()):
         reporters = store.upcoming_reporters(days=14, now=dt.datetime(2026, 7, 20))
     by_sym = {r["sym"]: r for r in reporters}
     assert by_sym["TST"]["fiscal_year"] == 2026

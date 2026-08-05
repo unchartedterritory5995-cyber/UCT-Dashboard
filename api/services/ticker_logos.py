@@ -84,13 +84,15 @@ def _is_ssrf_safe_url(url: str) -> bool:
 
 
 def _finnhub_logo_bytes(sym: str):
-    key = os.environ.get("FINNHUB_API_KEY", "")
-    if not key:
-        return None
+    # The profile2 lookup is routed through the shared finnhub_client.fh_get
+    # (2026-08-05) so it shares the process-wide token bucket / 429 cooldown
+    # with every other Finnhub caller. The SECOND request below (fetching the
+    # actual logo image bytes from whatever CDN URL Finnhub returned) is NOT
+    # a Finnhub API call — it stays a plain `requests.get` against that CDN.
+    from api.services.finnhub_client import fh_get
     try:
-        j = requests.get("https://finnhub.io/api/v1/stock/profile2",
-                         params={"symbol": sym, "token": key}, timeout=_TIMEOUT).json() or {}
-        url = j.get("logo") or ""
+        j = fh_get("/stock/profile2", {"symbol": sym}, timeout=_TIMEOUT) or {}
+        url = j.get("logo") or "" if isinstance(j, dict) else ""
         if url and _is_ssrf_safe_url(url):
             r = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
             if r.ok and r.content:

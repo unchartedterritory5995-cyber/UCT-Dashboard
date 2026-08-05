@@ -8,11 +8,9 @@ All fields are null-safe; never raises on missing data.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 from typing import Any
 
-import requests
 from fastapi import APIRouter, Depends, Query
 
 from api.services.fundamentals import get_fundamentals, _fmt_billions
@@ -31,28 +29,23 @@ _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snap
 
 
 def _fh_metric_get(ticker: str) -> dict[str, Any]:
-    """Fetch Finnhub /stock/metric?metric=all for avg volume + extras."""
-    fh_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not fh_key:
-        return {}
+    """Fetch Finnhub /stock/metric?metric=all for avg volume + extras.
+
+    Routed through the shared api.services.finnhub_client.fh_get (2026-08-05)
+    — every Finnhub caller in the codebase shares ONE process-wide token
+    bucket / 429 cooldown (see finnhub_client.py's module docstring).
+    """
     ck = f"fh_metric::{ticker.upper()}"
     hit = cache.get(ck)
     if hit is not None:
         return hit
-    try:
-        r = requests.get(
-            "https://finnhub.io/api/v1/stock/metric",
-            params={"symbol": ticker.upper(), "metric": "all", "token": fh_key},
-            timeout=_TIMEOUT,
-        )
-        r.raise_for_status()
-        data = r.json()
-        result = data.get("metric") or {}
-        cache.set(ck, result, _FH_METRIC_TTL)
-        return result
-    except Exception as e:
-        _log.debug("Finnhub /stock/metric failed for %s: %s", ticker, e)
+    from api.services.finnhub_client import fh_get
+    data = fh_get("/stock/metric", {"symbol": ticker.upper(), "metric": "all"}, timeout=_TIMEOUT)
+    if not isinstance(data, dict):
         return {}
+    result = data.get("metric") or {}
+    cache.set(ck, result, _FH_METRIC_TTL)
+    return result
 
 
 @router.get("/api/fundamentals/earnings-table")

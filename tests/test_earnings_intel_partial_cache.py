@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from api.services import earnings_estimates as ee
+from api.services import finnhub_client as fhc
 from api.services.cache import cache
 
 SYM = "PARTIALQ"
@@ -53,14 +54,14 @@ class _Resp:
 @pytest.fixture(autouse=True)
 def _reset_state(monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
-    ee._fh_cooldown_until = 0.0
-    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_cooldown_until = 0.0
+    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
+    fhc._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
     yield
-    ee._fh_cooldown_until = 0.0
-    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_cooldown_until = 0.0
+    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
+    fhc._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
 
 
