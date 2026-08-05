@@ -357,6 +357,10 @@ function ChartPane({
           tf={tf}
           visibleTfs={visibleTfs}
           onTf={handleTf}
+          /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
+             with it — otherwise the host restricts the row and the user reaches
+             right past it into the full TF_MENU. */
+          showMenu={!Array.isArray(tfCodes)}
           menu={{
             favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
             customCodes: customTfs,

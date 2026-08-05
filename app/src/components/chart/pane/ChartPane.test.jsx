@@ -126,3 +126,19 @@ test('with no onSymbolChange, a letter keydown on the chart surface is not inter
   const notPrevented = fireEvent.keyDown(chartFill, { key: 'n', code: 'KeyN' })
   expect(notPrevented).toBe(true)
 })
+
+test('tfCodes locks the timeframe set: no overflow chevron to escape through', async () => {
+  render(<ChartPane sym="NVDA" tf="D" tfCodes={['D', 'W']} onTfChange={() => {}} />)
+  expect(await screen.findByRole('button', { name: '1D' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '1W' })).toBeInTheDocument()
+  // The lock is only real if there is no second way in. Without the chevron the
+  // full TF_MENU is unreachable, so a host offering Daily/Weekly cannot have a
+  // user land on 5m.
+  expect(screen.queryByRole('button', { name: 'More timeframes' })).toBeNull()
+  expect(screen.queryByRole('button', { name: '5m' })).toBeNull()
+})
+
+test('without tfCodes the overflow chevron is still there', async () => {
+  render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} />)
+  expect(await screen.findByRole('button', { name: 'More timeframes' })).toBeInTheDocument()
+})
