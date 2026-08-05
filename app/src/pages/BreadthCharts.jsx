@@ -24,6 +24,15 @@ const PALETTE = [
   '#e879f9', '#fbbf24',
 ]
 
+// ECharts sizes a value axis from its SERIES alone. Participation tops out near
+// 70, so the axis ended around 80 and the 90 reference line silently never drew.
+// Widen only the axis the band sits on, and only far enough to contain it —
+// genuine outliers (uct_exposure 102, aaii_spread −22) still expand it normally.
+const EXTREMES_BAND = {
+  min: v => Math.min(0, v.min),
+  max: v => Math.max(100, v.max),
+}
+
 // MA Breadth reference lines — red overbought (70/80/90), green oversold (20/15/10/5)
 const MA_EXTREME_LINES = [
   { yAxis: 90, color: '#b91c1c', opacity: 0.90 },
@@ -136,12 +145,14 @@ export default function BreadthCharts() {
     // them on whichever axis the pct family landed on — and not at all when no
     // percentage metric is plotted.
     const hasPct = selected.some(k => unitOf(k) === UNIT.PCT)
-    if (notableExtremes['MA Breadth'] && hasPct) {
+    const showExtremes = Boolean(notableExtremes['MA Breadth']) && hasPct
+    const extremesAxis = showExtremes ? axisForUnit(selected, UNIT.PCT, axisByKey) : null
+    if (showExtremes) {
       series.push({
         name: '__ma_extremes__',
         type: 'line',
         data: [],
-        yAxisIndex: axisForUnit(selected, UNIT.PCT, axisByKey),
+        yAxisIndex: extremesAxis,
         silent: true,
         markLine: {
           silent: true,
@@ -216,6 +227,7 @@ export default function BreadthCharts() {
           type: 'value',
           name: leftUnit ? UNIT_LABEL[leftUnit] : '',
           nameTextStyle: axisNameStyle,
+          ...(extremesAxis === 0 ? EXTREMES_BAND : {}),
           axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
           axisLabel: { color: '#706b5e', fontSize: 11 },
@@ -226,6 +238,7 @@ export default function BreadthCharts() {
           show: hasRight,
           name: rightUnits.map(u => UNIT_LABEL[u]).join(' / '),
           nameTextStyle: axisNameStyle,
+          ...(extremesAxis === 1 ? EXTREMES_BAND : {}),
           axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
           axisLabel: { color: '#706b5e', fontSize: 11 },
