@@ -17,6 +17,7 @@ import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useStockBrief from '../../../hooks/useStockBrief'
 import UIcon from '../../../components/ui/UIcon'
+import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
   PROFILE_WIDGET_SETTINGS_KEY, PROFILE_WIDGET_DEFAULTS,
@@ -90,7 +91,7 @@ export default function ProfileWidget({ color }) {
 
   // ── Data — poll fast while the AI profile generates, then settle ──
   const [fastPoll, setFastPoll] = useState(false)
-  const { status, stats, earnings, profile } = useStockBrief(sym, { generating: fastPoll })
+  const { status, company, stats, earnings, profile } = useStockBrief(sym, { generating: fastPoll })
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
 
   const hasStats = !!stats && (stats.ytd_gain_pct != null || stats.avg_dollar_vol != null)
@@ -100,12 +101,19 @@ export default function ProfileWidget({ color }) {
   const rangeLabel = rangeUp ? 'Low → High' : 'High → Low'
 
   const dirClass = (d) => (d > 0 ? styles.up : d < 0 ? styles.down : styles.neutral)
+  // Earnings surprise cells use their OWN (separately configurable) colors.
+  const surpClass = (d) => (d > 0 ? styles.surpUp : d < 0 ? styles.surpDown : styles.neutral)
 
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
           title="Stock Profile Settings"
+          perfLabel="Performance"
+          extraSections={[{
+            label: 'Earnings Surprise',
+            rows: [{ key: 'surpUpColor', label: 'Positive' }, { key: 'surpDownColor', label: 'Negative' }],
+          }]}
           settings={settings}
           onChange={patchSettings}
           onReset={resetSettings}
@@ -116,9 +124,13 @@ export default function ProfileWidget({ color }) {
         />
       )}
 
-      {/* Header: symbol chip + gear */}
+      {/* Header: logo + ticker + company name + gear */}
       <div className={styles.bar}>
-        <span className={styles.sym}>{sym || '—'}</span>
+        <span className={styles.symWrap}>
+          {sym && <CompanyLogo sym={sym} size={18} name={company} tile />}
+          <span className={styles.sym}>{sym || '—'}</span>
+          {sym && company && <span className={styles.company}>({company})</span>}
+        </span>
         <button
           ref={settingsBtnRef}
           type="button"
@@ -165,9 +177,9 @@ export default function ProfileWidget({ color }) {
                   <tr>
                     <th className={styles.thLeft}>Quarter</th>
                     <th className={styles.thNum}>EPS</th>
-                    <th className={styles.thNum}>% Chg</th>
+                    <th className={styles.thNum}>Surprise</th>
                     <th className={styles.thNum}>Revenue</th>
-                    <th className={styles.thNum}>% Chg</th>
+                    <th className={styles.thNum}>Surprise</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -178,9 +190,9 @@ export default function ProfileWidget({ color }) {
                       <tr key={`${r.year}-${r.quarter}-${i}`}>
                         <td className={styles.tdLeft}>{fmtQuarter(r)}</td>
                         <td className={styles.tdNum}>{fmtEps(r.eps_actual)}</td>
-                        <td className={`${styles.tdNum} ${dirClass(eps.dir)}`}>{eps.text}</td>
+                        <td className={`${styles.tdNum} ${surpClass(eps.dir)}`}>{eps.text}</td>
                         <td className={styles.tdNum}>{fmtRevenue(r.revenue_actual)}</td>
-                        <td className={`${styles.tdNum} ${dirClass(rev.dir)}`}>{rev.text}</td>
+                        <td className={`${styles.tdNum} ${surpClass(rev.dir)}`}>{rev.text}</td>
                       </tr>
                     )
                   })}

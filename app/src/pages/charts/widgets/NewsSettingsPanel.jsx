@@ -26,7 +26,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings' }) {
+export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [] }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
@@ -148,10 +148,20 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
           <div className={styles.sectionLabel}>Text</div>
           <Row label="Text color" hint="titles & tickers">{swatch('textColor', 'Text')}</Row>
 
-          {/* % Change */}
-          <div className={styles.sectionLabel}>% Change</div>
+          {/* Performance / % Change */}
+          <div className={styles.sectionLabel}>{perfLabel}</div>
           <Row label="Up">{swatch('upColor', 'Up %')}</Row>
           <Row label="Down">{swatch('downColor', 'Down %')}</Row>
+
+          {/* Optional extra color sections (e.g. earnings Surprise up/down) */}
+          {extraSections.map(sec => (
+            <div key={sec.label}>
+              <div className={styles.sectionLabel}>{sec.label}</div>
+              {sec.rows.map(r => (
+                <Row key={r.key} label={r.label} hint={r.hint}>{swatch(r.key, r.label)}</Row>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 

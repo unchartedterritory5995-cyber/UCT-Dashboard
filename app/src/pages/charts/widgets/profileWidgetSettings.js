@@ -11,8 +11,10 @@ export const PROFILE_WIDGET_DEFAULTS = {
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // headings / body text color
-  upColor: '#1ae51a',                               // gains / positive surprise
-  downColor: '#ff5b5b',                             // losses / negative surprise
+  upColor: '#1ae51a',                               // positive performance (YTD gain / range)
+  downColor: '#ff5b5b',                             // negative performance
+  surpUpColor: '#6a7bff',                           // positive earnings surprise %
+  surpDownColor: '#ff5b5b',                         // negative earnings surprise %
 }
 
 /** Deep-merge saved settings over defaults (tolerates partial/older blobs). */
@@ -40,6 +42,8 @@ export function profileWidgetStyleVars(s) {
   if (s.textColor && s.textColor !== D.textColor) vars['--prof-text'] = s.textColor
   if (s.upColor && s.upColor !== D.upColor) vars['--prof-up'] = s.upColor
   if (s.downColor && s.downColor !== D.downColor) vars['--prof-down'] = s.downColor
+  if (s.surpUpColor && s.surpUpColor !== D.surpUpColor) vars['--prof-surp-up'] = s.surpUpColor
+  if (s.surpDownColor && s.surpDownColor !== D.surpDownColor) vars['--prof-surp-down'] = s.surpDownColor
 
   if (isCustomCanvas(s)) {
     const solid = s.bgMode === 'gradient' ? (s.bgGradient?.top || s.bg) : s.bg

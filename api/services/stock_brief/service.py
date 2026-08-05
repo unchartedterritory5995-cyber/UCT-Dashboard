@@ -36,7 +36,7 @@ _logger = logging.getLogger(__name__)
 _MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
 _STATS_TTL = int(os.environ.get("STOCK_BRIEF_STATS_TTL", "120") or 120)      # ~2 min → develops through the day
 _EARN_TTL = int(os.environ.get("STOCK_BRIEF_EARN_TTL", "900") or 900)        # 15 min
-_RETRY_AFTER = int(os.environ.get("STOCK_BRIEF_RETRY_AFTER", "86400") or 86400)          # retry a FAILED gen after 1 day
+_RETRY_AFTER = int(os.environ.get("STOCK_BRIEF_RETRY_AFTER", "3600") or 3600)            # retry a FAILED gen after ~1h (self-heals once the API is funded again)
 # Re-research the company description + thematic narrative ~monthly so the story
 # stays current with the year's drivers (a lot changes in a year), WITHOUT paying
 # per view. This is the ONLY recurring LLM cost — one call per stock per month.
@@ -122,6 +122,10 @@ def _compute_stats(sym: str) -> dict:
 # ── Earnings (rolling last 4 reported) ───────────────────────────────────────
 
 def _earnings(sym: str) -> list:
+    """The last 4 REPORTED quarters, from the SAME source as the chart's earnings
+    markers (earnings_estimates.get_chart_markers) so the table matches the on-chart
+    marker popups exactly — including MU-style off-cycle fiscal quarters. Each row
+    carries the EPS/revenue actuals + the surprise-vs-estimate %."""
     ck = f"brief_earn_{sym}"
     cached = cache.get(ck)
     if cached is not None:
@@ -129,30 +133,45 @@ def _earnings(sym: str) -> list:
 
     rows = []
     try:
+        from datetime import date as _date
         from api.services import earnings_estimates
-        yr = _year()
-        # Pull this year (fresh, so a just-reported quarter surfaces) + the prior
-        # two so the trailing 4 REPORTED quarters are always reachable early in a
-        # new year. get_year_earnings returns Q1→Q4 with "—" placeholders for
-        # quarters not yet reported; we keep only rows that actually have a report.
-        for y in (yr, yr - 1, yr - 2):
-            for r in (earnings_estimates.get_year_earnings(sym, y, fresh=(y == yr)) or []):
-                if r.get("date") and r.get("eps_actual") is not None:
-                    rows.append(r)
+        markers = earnings_estimates.get_chart_markers(sym) or {}
+        reported = [e for e in (markers.get("earnings") or [])
+                    if e.get("eps_actual") is not None and e.get("date")]
+        reported.sort(key=lambda e: e.get("date") or "")
+        for e in reported[-4:]:
+            q, y = e.get("fiscal_quarter"), e.get("fiscal_year")
+            if q is None or y is None:
+                # Fall back to a calendar quarter when the fiscal join is missing.
+                try:
+                    dd = _date.fromisoformat(str(e.get("date"))[:10])
+                    y = y or dd.year
+                    q = q or ((dd.month - 1) // 3 + 1)
+                except Exception:
+                    pass
+            rows.append({
+                "date": e.get("date"),
+                "quarter": q,
+                "year": y,
+                "eps_actual": e.get("eps_actual"),
+                "eps_surprise_pct": e.get("eps_surprise_pct"),
+                "revenue_actual": e.get("revenue_actual"),
+                "revenue_surprise_pct": e.get("revenue_surprise_pct"),
+            })
     except Exception as exc:
         _logger.warning("stock_brief earnings failed for %s: %s", sym, exc)
 
-    # Dedup by (year, quarter), order by report date, keep the last 4.
-    seen, uniq = set(), []
-    for r in sorted(rows, key=lambda x: x.get("date") or ""):
-        key = (r.get("year"), r.get("quarter"))
-        if key in seen:
-            continue
-        seen.add(key)
-        uniq.append(r)
-    last4 = uniq[-4:]
-    cache.set(ck, last4, ttl=_EARN_TTL)
-    return last4
+    cache.set(ck, rows, ttl=_EARN_TTL)
+    return rows
+
+
+def _company_name(sym: str) -> str | None:
+    """Display company name for the header (same source as the chart watermark)."""
+    try:
+        from api.services import ticker_meta
+        return (ticker_meta.get_ticker_meta(sym) or {}).get("name") or None
+    except Exception:
+        return None
 
 
 # ── Profile (company description + YTD thematic narrative) ────────────────────
@@ -187,8 +206,14 @@ def _generate_and_store(sym: str) -> None:
         res = modelbook._generate_descriptions(sym, None, year, gain)
         if res and (res.get("company_desc") or res.get("run_story")):
             store.save_profile(sym, period, res)
+            _logger.info("stock_brief profile generated for %s", sym)
         else:
+            # Empty/None → the Model Book generator returned nothing (commonly the
+            # shared Anthropic client failing, e.g. an out-of-credits 400). Mark the
+            # attempt so we retry after the cooldown once the API is funded again.
             store.mark_attempt(sym, period)
+            _logger.warning("stock_brief profile generation returned nothing for %s "
+                            "(Anthropic call failed or empty — will retry after cooldown)", sym)
     except Exception as exc:
         _logger.warning("stock_brief profile generation failed for %s: %s", sym, exc)
         try:
@@ -236,6 +261,7 @@ def brief(sym: str) -> dict:
     prof = store.get_profile(sym, period) or {}
     return {
         "symbol": sym,
+        "company": _company_name(sym),
         "status": status,
         "stats": _compute_stats(sym),
         "earnings": _earnings(sym),
