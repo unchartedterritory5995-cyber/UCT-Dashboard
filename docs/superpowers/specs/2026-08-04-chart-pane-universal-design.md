@@ -233,7 +233,22 @@ The extraction claims to be **behavior-preserving**. The gate has to be able to 
    Entry-chunk gzip delta is reported per commit — a static import from an eager module is
    eager by definition, and `manualChunks` cannot fix it; the import edge has to move.
 
-## Open questions for the owner
+## Owner decisions — RESOLVED 2026-08-04
+
+1. **Global settings write-through: YES.** A settings edit made from any surface that passes
+   `settingsOverride={null}` writes the global `chart_settings` blob. One chart identity,
+   editable from anywhere it appears. Workspace widgets/tabs keep their per-surface isolation
+   unchanged — that isolation fixed a real bug and is not in scope to touch.
+2. **Popup sizing: enlarge.** Adoption commits enlarge the Options Flow contract modal (and
+   peers) toward near-fullscreen so the shell has room.
+3. **Chart tabs in popups: NO.** Workspace-only.
+4. **ShareToFloor in popups: NO.** `/charts` only.
+
+⚠️ Decision 1 has a user-visible consequence worth stating plainly: a user who restyles the
+chart inside the Options Flow popup will find the Dashboard, TickerPopup and every new chart
+widget restyled to match. That is the intent, not a bug — but it is the single most likely
+thing to get reported as surprising, so it belongs in the release note.
+## Original open questions (superseded by the decisions above)
 
 1. **Global settings write-through** (see above) — popup edits change your chart everywhere.
    Confirm, or restrict popup settings to read-only.
