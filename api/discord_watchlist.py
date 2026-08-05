@@ -584,3 +584,35 @@ def register_discord_routes(app_or_router):
         except Exception as e:
             logger.error("[Discord] Image push error: %s", e)
             return {"ok": False, "error": str(e)}
+
+    @app_or_router.post("/api/discord/watchlist-card")
+    def render_watchlist_cards(payload: dict = Body(...)):
+        """Render the curated watchlist as branded PNGs (desktop + mobile) in the
+        Top Flow design system, and return them base64-encoded for preview. The
+        frontend posts the previewed images via /api/discord/push-image. No flow.db
+        needed (data is in the payload), so this runs on web. Sync def → FastAPI
+        threadpool, so the Pillow render never blocks the event loop.
+
+        Body: {bull:[{sym,cp,strike,exp,prem,vol,oi,voi,grade,er,heavy}], bear:[...],
+               dateRange, label}
+        """
+        import base64
+        from api.watchlist_card import render_watchlist_card
+        bull = payload.get("bull") or []
+        bear = payload.get("bear") or []
+        if not bull and not bear:
+            return {"ok": False, "error": "No items to render"}
+        date_range = (payload.get("dateRange") or "").strip()
+        date_text = date_range if date_range else datetime.now(ET).strftime("%B %d, %Y")
+        try:
+            desktop = render_watchlist_card(bull, bear, date_text, mobile=False)
+            mobile = render_watchlist_card(bull, bear, date_text, mobile=True)
+        except Exception as e:
+            logger.error("[watchlist-card] render failed: %s", e)
+            return {"ok": False, "error": str(e)}
+        return {
+            "ok": True,
+            "date_text": date_text,
+            "desktop": base64.b64encode(desktop).decode("ascii"),
+            "mobile": base64.b64encode(mobile).decode("ascii"),
+        }

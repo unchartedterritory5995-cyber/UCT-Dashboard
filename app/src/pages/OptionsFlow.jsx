@@ -1366,49 +1366,66 @@ export default function OptionsFlowDashboard() {
     }
   };
 
-  // Preview-first path: capture Bull + Bear as PNGs and show them in a modal so
-  // the render can be eyeballed BEFORE anything hits Discord. The modal's push
-  // reuses these exact captured blobs (no re-render), so what you preview is
-  // byte-for-byte what gets posted.
+  // Preview-first path: render the watchlist as branded Discord cards SERVER-SIDE
+  // (api/watchlist_card.py — the Top Flow design system) and show BOTH the desktop
+  // and mobile card in the modal before anything posts. The modal's push posts the
+  // exact previewed images. Replaces the old html2canvas capture of the editing DOM
+  // — the server render is crisp, brand-consistent, and carries no app chrome. The
+  // "Top N" dropdown caps how many picks per side (by conviction).
   const previewWatchlistImages = async () => {
     setWlPreviewBusy(true);
-    // Cap the captured rows to the Discord "Top N" dropdown (99 = All → no cap).
-    const limitN = discordCount >= 99 ? null : discordCount;
     try {
-      let h2c = window.html2canvas;
-      if (!h2c) {
-        const s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        document.head.appendChild(s);
-        await new Promise(r => { s.onload = r; s.onerror = () => r(); });
-        h2c = window.html2canvas;
-      }
-      if (!h2c) { setStatus("❌ Could not load screenshot library"); return; }
-      // Apply the Top-N cap, then let React re-render + the browser paint before
-      // html2canvas reads the DOM. The "Rendering…" overlay (wlPreviewBusy) masks
-      // the brief reflow; wlCaptureLimit is reset in finally so the live view restores.
-      setWlCaptureLimit(limitN);
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const dateRange = FD ? FD.dateRange || "" : "";
-      const imgs = [];
-      const cap = async (el, side, filename, label) => {
-        if (!el) return;
-        const canvas = await h2c(el, { backgroundColor: P.bg, scale: 2, useCORS: true });
-        const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
-        if (blob) imgs.push({ side, url: URL.createObjectURL(blob), blob, filename, label });
+      const limitN = discordCount >= 99 ? Infinity : discordCount;
+      const isHeavy = (it) => {
+        const conv = FD?.CONV?.find(c => c.sym === it.sym && c.cp === it.cp
+          && String(c.K) === String(it.strike) && c.exp === it.exp);
+        return (conv?.patterns || []).some(p => p.type === "HEAVY");
       };
-      await cap(wlBullRef.current, "Bull", `UCT_Bull_Watchlist_${wlDate}.png`, `${discordLabel} — BULL`);
-      await cap(wlBearRef.current, "Bear", `UCT_Bear_Watchlist_${wlDate}.png`, `${discordLabel} — BEAR`);
-      if (!imgs.length) {
-        setStatus("⚠️ No watchlist sections to capture (set the view to “Both”)");
-        setTimeout(() => setStatus(""), 3500);
-      } else {
-        setWlPreview({ imgs, dateRange, pushing: false });
+      const cardItem = (it) => ({
+        sym: it.sym, cp: it.cp, strike: it.strike, exp: it.exp, prem: it.prem,
+        vol: it.volume, oi: it.oi, voi: it.volOI, grade: it.grade,
+        er: !!it.er, heavy: isHeavy(it),
+      });
+      const topN = (arr) => [...arr]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))   // top conviction picks
+        .slice(0, limitN)
+        .map(cardItem);
+      const bull = topN(wlBull), bear = topN(wlBear);
+      if (!bull.length && !bear.length) {
+        setStatus("⚠️ No watchlist items to render");
+        setTimeout(() => setStatus(""), 3000);
+        return;
       }
+      const dateRange = FD ? FD.dateRange || "" : "";
+      const resp = await fetch("/api/discord/watchlist-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bull, bear, dateRange, label: discordLabel }),
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        setStatus(`❌ Render failed: ${data.error || ("HTTP " + resp.status)}`);
+        setTimeout(() => setStatus(""), 4000);
+        return;
+      }
+      const b64ToBlob = (b64) => {
+        const bin = atob(b64), arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return new Blob([arr], { type: "image/png" });
+      };
+      const imgs = [];
+      for (const [side, b64, filename, label] of [
+        ["Desktop", data.desktop, `UCT_Watchlist_${wlDate}.png`, discordLabel],
+        ["Mobile", data.mobile, `UCT_Watchlist_mobile_${wlDate}.png`, `${discordLabel} — Mobile`],
+      ]) {
+        if (!b64) continue;
+        const blob = b64ToBlob(b64);
+        imgs.push({ side, url: URL.createObjectURL(blob), blob, filename, label });
+      }
+      setWlPreview({ imgs, dateRange, pushing: false });
     } catch (e) {
       setStatus(`❌ Preview error: ${e.message}`);
     } finally {
-      setWlCaptureLimit(null);
       setWlPreviewBusy(false);
     }
   };
