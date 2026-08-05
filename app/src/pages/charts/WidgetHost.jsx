@@ -63,6 +63,10 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   const handleActiveColorChange = (c) => (onReplaceWidget ? replace(patchActiveTabColor(widget, c)) : onColorChange?.(c))
   const handleActiveOptsChange = (opts) => (onReplaceWidget ? replace(patchActiveTabOpts(widget, opts)) : onOptsChange?.(opts))
   const handleAddTab = onReplaceWidget ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
+  // News/Profile follow the app theme when uncustomized: on the light theme the
+  // workspace otherwise keeps this .widget dark (border + chrome). This flag lets the
+  // CSS re-flip the light tokens (incl. the border) for the whole widget.
+  const themeFollow = (active.type === 'news' || active.type === 'profile') && !active.opts?.settings
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined
@@ -172,7 +176,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // blend together at the seam (no header in the middle).
   return (
     <div
-      className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}`}
+      className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${themeFollow ? ' ' + styles.widgetThemeFollow : ''}`}
       style={chromeStyle}
     >
       {merged

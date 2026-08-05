@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePreferences from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
@@ -20,8 +20,7 @@ import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
-  NEWS_WIDGET_SETTINGS_KEY, NEWS_WIDGET_DEFAULTS,
-  mergeNewsWidgetSettings, newsWidgetStyleVars,
+  mergeNewsWidgetSettings, newsWidgetStyleVars, newsDefaultsForTheme,
 } from './newsWidgetSettings'
 import styles from './NewsWidget.module.css'
 
@@ -93,7 +92,6 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const { name: company } = useTickerMeta(sym)
 
   // ── Appearance settings (⚙) — mirrors the other widget settings ──
-  const { prefs } = usePreferences()
 
   // ── "Place on chart" — one-time action, NOT a toggle ──
   // Drops the catalyst onto the linked chart as TWO ordinary, separately editable
@@ -139,13 +137,14 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     if (placedTimerRef.current) clearTimeout(placedTimerRef.current)
     placedTimerRef.current = setTimeout(() => setPlacedKey(null), 1400)
   }, [sym])
-  // Appearance is PER-WIDGET (stored in this widget's own opts.settings) so changing
-  // one News widget never touches another — or the same widget in a different layout.
-  // A widget that has never been customized falls back to the legacy GLOBAL pref
-  // (the user's prior shared look) so nothing visibly changes until they edit it.
+  // Appearance is PER-WIDGET (opts.settings) so changing one News widget never touches
+  // another — or the same widget in a different layout. A widget with NO explicit look
+  // uses the DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text), so
+  // both the ⚙ swatches AND the rendered widget follow the site theme until edited.
+  const { prefs } = usePreferences()
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(opts?.settings ?? parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
-    [opts?.settings, prefs],
+    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(prefs.theme)),
+    [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
@@ -155,7 +154,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     [opts, settings, onOptsChange],
   )
   const resetSettings = useCallback(
-    () => onOptsChange?.({ ...(opts || {}), settings: { ...NEWS_WIDGET_DEFAULTS } }),
+    () => onOptsChange?.({ ...(opts || {}), settings: null }),
     [opts, onOptsChange],
   )
   const rootStyle = useMemo(() => newsWidgetStyleVars(settings), [settings])
@@ -216,7 +215,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
           extraSections={[{
             label: 'Header',
             rows: [
-              { key: 'headerBg', label: 'Header color' },
+              { key: 'headerColor', label: 'Header color', hint: 'ticker & name' },
               { key: 'headerShow', label: 'Show', type: 'segmented', options: [
                 { key: 'both', label: 'Both' },
                 { key: 'ticker', label: 'Ticker' },

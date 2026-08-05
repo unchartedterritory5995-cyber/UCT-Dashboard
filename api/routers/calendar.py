@@ -420,28 +420,24 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
         return
 
     try:
-        import time as _t
-
-        import requests
-        r = requests.get(
-            "https://finnhub.io/api/v1/calendar/earnings",
-            params={"from": past_dates[0], "to": today_str, "token": fh_key},
-            timeout=10,
-        )
-        if r.status_code == 429:
-            # This ONE range call fills every actual on the board — worth a
-            # single short retry when it lands mid rate-limit burst.
-            _t.sleep(2)
-            r = requests.get(
-                "https://finnhub.io/api/v1/calendar/earnings",
-                params={"from": past_dates[0], "to": today_str, "token": fh_key},
-                timeout=10,
-            )
-        if not r.ok:
+        # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
+        # call shares the process-wide token bucket / 429 cooldown with every
+        # other Finnhub caller in the codebase — a raw requests.get here spent
+        # the SAME account budget with no coordination. This also drops the
+        # old manual "sleep(2) then retry once" on a 429: `_patch_today_actuals`
+        # runs on the request path (GET /api/calendar), so a blocking sleep
+        # here held an anyio threadpool worker for 2s at exactly the moment —
+        # mid rate-limit burst — when threads are scarcest. fh_get degrades
+        # instead: None immediately, no wait; the next 10-min rebuild picks it
+        # up (the sticky-actuals ledger below means a miss here never regresses
+        # an actual that already printed).
+        from api.services.finnhub_client import fh_get
+        data = fh_get("/calendar/earnings", {"from": past_dates[0], "to": today_str}, timeout=10)
+        if not isinstance(data, dict):
             return
         fh_map = {
             e["symbol"]: e
-            for e in r.json().get("earningsCalendar", [])
+            for e in data.get("earningsCalendar", [])
             if e.get("symbol") in pending_by_sym and e.get("epsActual") is not None
         }
         patched = 0
@@ -560,27 +556,15 @@ def _load_cap_universe() -> set[str]:
 def _fh_get_month(from_date: str, to_date: str) -> dict | None:
     """Fetch Finnhub /calendar/earnings for a full date range.
 
-    Mirrors the _fh_get pattern from earnings_estimates.py.
-    Returns the raw JSON dict or None on failure.
+    Routed through the shared api.services.finnhub_client.fh_get — every
+    Finnhub caller in the codebase shares ONE process-wide token bucket / 429
+    cooldown (2026-08-05; see finnhub_client.py's module docstring). Returns
+    the raw JSON dict, or None on failure/budget-shed (fh_get logs the reason
+    itself — 429/403/missing key/etc. — so no duplicate logging here).
     """
-    fh_key = os.environ.get("FINNHUB_API_KEY")
-    if not fh_key:
-        _logger.warning("Calendar month: FINNHUB_API_KEY not set")
-        return None
-    try:
-        import requests
-        r = requests.get(
-            "https://finnhub.io/api/v1/calendar/earnings",
-            params={"from": from_date, "to": to_date, "token": fh_key},
-            timeout=15,
-        )
-        if not r.ok:
-            _logger.warning("Calendar month: Finnhub HTTP %d", r.status_code)
-            return None
-        return r.json()
-    except Exception as exc:
-        _logger.warning("Calendar month: Finnhub fetch failed: %s", exc)
-        return None
+    from api.services.finnhub_client import fh_get
+    data = fh_get("/calendar/earnings", {"from": from_date, "to": to_date}, timeout=15)
+    return data if isinstance(data, dict) else None
 
 
 # ── Past-day backfill (current week only) ─────────────────────────────────────

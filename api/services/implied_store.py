@@ -21,8 +21,6 @@ import threading
 from contextlib import closing
 from zoneinfo import ZoneInfo
 
-import httpx
-
 from api.services import implied_move
 from api.services.cache import TTLCache
 
@@ -229,22 +227,17 @@ def upcoming_reporters(days: int = 14, now: dt.datetime | None = None) -> list[d
     cached = _REPORTERS_CACHE.get(key)
     if cached is not None:
         return list(cached)
-    api_key = os.environ.get("FINNHUB_API_KEY", "").strip()
-    if not api_key:
-        return []
-    try:
-        r = httpx.get(
-            "https://finnhub.io/api/v1/calendar/earnings",
-            params={"from": today.isoformat(),
-                    "to": (today + dt.timedelta(days=days)).isoformat(),
-                    "token": api_key},
-            timeout=10,
-        )
-        r.raise_for_status()
-        rows = (r.json() or {}).get("earningsCalendar") or []
-    except Exception as e:  # noqa: BLE001 — any failure → empty, never cached
-        _log.warning("upcoming_reporters fetch failed: %s", e)
-        return []
+    # Routed through the shared api.services.finnhub_client.fh_get
+    # (2026-08-05) so this call shares the process-wide token bucket / 429
+    # cooldown with every other Finnhub caller instead of spending the same
+    # account budget uncoordinated (was a raw httpx.get here).
+    from api.services.finnhub_client import fh_get
+    data = fh_get(
+        "/calendar/earnings",
+        {"from": today.isoformat(), "to": (today + dt.timedelta(days=days)).isoformat()},
+        timeout=10,
+    )
+    rows = (data or {}).get("earningsCalendar") or [] if isinstance(data, dict) else []
     out = [{"sym": _canon(row.get("symbol")), "report_date": row.get("date"),
             "hour": row.get("hour") or "",
             "fiscal_year": _int_or_none(row.get("year")),

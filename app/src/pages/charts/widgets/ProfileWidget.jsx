@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePreferences from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useStockBrief from '../../../hooks/useStockBrief'
 import useMobileSWR from '../../../hooks/useMobileSWR'
@@ -21,8 +21,7 @@ import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
-  PROFILE_WIDGET_SETTINGS_KEY, PROFILE_WIDGET_DEFAULTS,
-  mergeProfileWidgetSettings, profileWidgetStyleVars,
+  mergeProfileWidgetSettings, profileWidgetStyleVars, profileDefaultsForTheme,
 } from './profileWidgetSettings'
 import styles from './ProfileWidget.module.css'
 
@@ -98,11 +97,13 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
 
   // ── Appearance settings (⚙) — PER-WIDGET (this widget's own opts.settings) so one
   // Profile widget's look never touches another, or the same widget in another layout.
-  // Falls back to the legacy GLOBAL pref (the prior shared look) until first edited.
+  // A widget with NO explicit look uses the DEFAULTS FOR THE CURRENT APP THEME (light
+  // → white canvas + dark text), so both the ⚙ swatches AND the rendered widget follow
+  // the site theme until the user picks colors. Reset clears back to that.
   const { prefs } = usePreferences()
   const settings = useMemo(
-    () => mergeProfileWidgetSettings(opts?.settings ?? parsePref(prefs?.[PROFILE_WIDGET_SETTINGS_KEY], null)),
-    [opts?.settings, prefs],
+    () => mergeProfileWidgetSettings(opts?.settings ?? profileDefaultsForTheme(prefs.theme)),
+    [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
@@ -112,7 +113,7 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
     [opts, settings, onOptsChange],
   )
   const resetSettings = useCallback(
-    () => onOptsChange?.({ ...(opts || {}), settings: { ...PROFILE_WIDGET_DEFAULTS } }),
+    () => onOptsChange?.({ ...(opts || {}), settings: null }),
     [opts, onOptsChange],
   )
   const rootStyle = useMemo(() => profileWidgetStyleVars(settings), [settings])
@@ -197,7 +198,7 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
           extraSections={[{
             label: 'Header',
             rows: [
-              { key: 'headerBg', label: 'Header color' },
+              { key: 'headerColor', label: 'Header color', hint: 'ticker & name' },
               { key: 'headerShow', label: 'Show', type: 'segmented', options: [
                 { key: 'both', label: 'Both' },
                 { key: 'ticker', label: 'Ticker' },

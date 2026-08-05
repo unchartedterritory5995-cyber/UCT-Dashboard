@@ -30,6 +30,7 @@ from unittest.mock import patch
 import pytest
 
 from api.services import earnings_estimates as ee
+from api.services import finnhub_client as fhc
 from api.services.cache import cache
 
 SYM = "PTFALL"
@@ -68,14 +69,14 @@ class _Resp:
 def _reset_state(monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
     monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
-    ee._fh_cooldown_until = 0.0
-    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_cooldown_until = 0.0
+    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
+    fhc._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
     yield
-    ee._fh_cooldown_until = 0.0
-    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_cooldown_until = 0.0
+    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
+    fhc._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
 
 
@@ -259,7 +260,7 @@ def test_fmp_fallback_succeeds_despite_an_active_finnhub_cooldown(monkeypatch):
     — every _fh_get call sheds instantly, so beat_history/consensus/the
     Finnhub price-target leg all come back empty. If the FMP call were
     gated by the SAME cooldown it would also come back empty; it must not be."""
-    ee._fh_cooldown_until = ee._time.monotonic() + 100.0  # far in the future
+    fhc._fh_cooldown_until = ee._time.monotonic() + 100.0  # far in the future
     calls = []
 
     def fh_should_not_fire(url, params=None, timeout=None):
@@ -282,8 +283,8 @@ def test_fmp_fallback_succeeds_despite_an_exhausted_finnhub_token_bucket(monkeyp
     """Same idea with the PROACTIVE token bucket instead of the reactive
     cooldown: drain it to zero so every _fh_get call is shed by
     _fh_take_token, and confirm the FMP fallback is unaffected."""
-    ee._fh_bucket_tokens = 0.0
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_bucket_tokens = 0.0
+    fhc._fh_bucket_updated = ee._time.monotonic()
     calls = []
 
     def fh_should_not_fire(url, params=None, timeout=None):
@@ -307,9 +308,9 @@ def test_fmp_call_never_consumes_a_finnhub_bucket_token(monkeypatch):
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
     monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
 
-    before = ee._fh_bucket_tokens
+    before = fhc._fh_bucket_tokens
     ee.get_earnings_intel(SYM)
-    after = ee._fh_bucket_tokens
+    after = fhc._fh_bucket_tokens
 
     assert abs((before - after) - 3.0) < 0.05
 

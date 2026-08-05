@@ -47,6 +47,28 @@ _last_seen: dict[str, int] = {}
 
 _STREAM_FIELDS = {"price", "change_pct", "change", "timestamp", "updated_at"}
 
+# ── WS reconnect backoff / circuit-breaker (2026-08-05) ─────────────────────
+# See _run_websocket's docstring for the full incident writeup. Cap the
+# reconnect gap low in the NORMAL case: this is the live-quote feed, so a
+# long backoff is a long visible quote freeze. 15s max (was 60s, then 15s —
+# unchanged from before this fix for a run-of-the-mill blip).
+_WS_BASE_BACKOFF_S = 1
+_WS_MAX_BACKOFF_S = 15
+# A connection must stay open this long before a subsequent drop is treated
+# as "recovered, start over" rather than "continuation of the same failure
+# storm" — see _ws_reconnect_transition's docstring for the bug this fixes
+# (backoff resetting on a connect-then-immediate-kick pattern).
+_WS_MIN_STABLE_CONNECT_S = 10
+# Ceiling on consecutive non-stable failures before the loop concludes the
+# account is being rejected persistently (not just blipping) and goes quiet
+# for a real recovery window instead of retrying every _WS_MAX_BACKOFF_S
+# forever.
+_WS_MAX_CONSECUTIVE_FAILURES = 8
+_WS_CIRCUIT_BREAKER_S = 120
+# How often to re-check the shared Finnhub budget while a reconnect attempt
+# is being withheld (fh_ws_reconnect_allowed() returned False).
+_WS_BUDGET_POLL_S = 5
+
 
 def get_realtime_prices(tickers=None):
     """Get latest prices from the stream.
@@ -222,10 +244,72 @@ def _load_full_universe():
         return set()
 
 
+def _ws_reconnect_transition(consecutive_failures: int, backoff_s: float, was_stable: bool) -> dict:
+    """Pure state transition for the WS reconnect loop's backoff + circuit-
+    breaker bookkeeping (factored out for unit testing — no asyncio/websockets
+    involved).
+
+    `was_stable` = the connection that just dropped stayed open for at least
+    `_WS_MIN_STABLE_CONNECT_S` before dying — treated as genuinely recovered,
+    not a continuation of the same failure storm. This is the fix for a real
+    production bug: the OLD loop reset its backoff to 1s the instant a
+    connection was ACCEPTED (entered `async with`), even if Finnhub kicked it
+    again immediately after — so a connect-then-immediate-kick pattern reset
+    backoff on every cycle and the loop never actually backed off. Observed
+    live: "reconnecting in 8s" ... "15s" ... "2s" — non-monotonic, because a
+    momentary accept-then-kick kept resetting the counter.
+
+    Returns {"consecutive_failures", "sleep_s", "next_backoff_s",
+    "circuit_break"}:
+      • `sleep_s` — how long THIS cycle should sleep before retrying.
+      • `next_backoff_s` — the backoff to carry into the NEXT cycle.
+      • `circuit_break` — True once `_WS_MAX_CONSECUTIVE_FAILURES` consecutive
+        non-stable failures have piled up: the account is being rejected
+        persistently, not just blipping, so the loop goes quiet for
+        `_WS_CIRCUIT_BREAKER_S` instead of retrying every `_WS_MAX_BACKOFF_S`.
+        The caller also reports this into the SHARED cooldown
+        (finnhub_client.fh_note_429) so REST backs off in step too.
+    """
+    if was_stable:
+        return {"consecutive_failures": 0, "sleep_s": _WS_BASE_BACKOFF_S,
+                "next_backoff_s": _WS_BASE_BACKOFF_S, "circuit_break": False}
+    consecutive_failures += 1
+    if consecutive_failures >= _WS_MAX_CONSECUTIVE_FAILURES:
+        return {"consecutive_failures": 0, "sleep_s": _WS_CIRCUIT_BREAKER_S,
+                "next_backoff_s": _WS_BASE_BACKOFF_S, "circuit_break": True}
+    return {"consecutive_failures": consecutive_failures, "sleep_s": backoff_s,
+            "next_backoff_s": min(backoff_s * 2, _WS_MAX_BACKOFF_S), "circuit_break": False}
+
+
 async def _run_websocket():
-    """Main WebSocket loop — connect, subscribe, process Finnhub trade messages."""
+    """Main WebSocket loop — connect, subscribe, process Finnhub trade messages.
+
+    ── Shared-budget coordination (2026-08-05) ─────────────────────────────
+    This loop shares Finnhub's per-ACCOUNT rate limit with every REST caller
+    in the codebase (see api/services/finnhub_client.py's module docstring —
+    the production incident this fixes: a WS reconnect storm burning the
+    account's request budget continuously, starving the REST calls the
+    earnings modal depends on). Two mechanisms enforce that REST — the
+    user-facing path — always wins:
+      1. `finnhub_client.fh_ws_reconnect_allowed()` is consulted before EVERY
+         (re)connect attempt. It requires MORE token-bucket headroom than a
+         bare REST call before allowing a connect — so under contention the
+         bucket runs dry for WS well before it runs dry for REST — and it
+         defers entirely while a REST-or-WS-triggered 429 cooldown is active.
+         A denied check does NOT attempt the handshake at all: an attempt we
+         already know competes for scarce budget is worse than no attempt.
+      2. A WS-side 429 (`"429" in str(exception)` — the exact shape Finnhub
+         sends on a rejected handshake, e.g. "server rejected WebSocket
+         connection: HTTP 429") reports into the SAME shared cooldown via
+         `fh_note_429`, so REST backs off in step instead of continuing to
+         spend budget the account has just signaled it doesn't have.
+    `_ws_reconnect_transition` (above) is the OTHER half of the fix: proper
+    exponential backoff with a real ceiling AND a circuit breaker on
+    consecutive failures, plus the corrected stability check described there.
+    """
     global _ws_connection, _running
     import websockets
+    from api.services import finnhub_client as _fhc
 
     if not _FINNHUB_KEY:
         _logger.warning("[stream] FINNHUB_API_KEY not set — WebSocket disabled")
@@ -235,14 +319,25 @@ async def _run_websocket():
     # active subscriptions (dead-but-open feed: TCP alive, not pushing). A healthy
     # Finnhub connection always emits trades or its own app-level pings well within it.
     _RECV_TIMEOUT_S = 45
-    backoff = 1
+    backoff = _WS_BASE_BACKOFF_S
+    consecutive_failures = 0
+    connect_started: float | None = None
     while True:
+        # Yield to the shared account budget — see module/function docstring.
+        # A background reconnect must never compete with a user-facing REST
+        # request for Finnhub's per-minute budget. Non-blocking: on denial we
+        # just wait and re-check rather than attempting a handshake we
+        # already know is unwelcome right now.
+        if not _fhc.fh_ws_reconnect_allowed():
+            await asyncio.sleep(_WS_BUDGET_POLL_S)
+            continue
+
         try:
             _logger.info("[stream] Connecting to Finnhub WebSocket...")
             async with websockets.connect(_WS_URL, ping_interval=30, ping_timeout=10) as ws:
                 _ws_connection = ws
                 _running = True
-                backoff = 1
+                connect_started = time.monotonic()
                 _logger.info("[stream] Finnhub WebSocket connected")
 
                 # Re-subscribe only already-requested tickers (lazy subscription model).
@@ -271,6 +366,17 @@ async def _run_websocket():
                                 "[stream] No Finnhub messages for %ds with %d active subs — feed silent, forcing reconnect",
                                 _RECV_TIMEOUT_S, n_sub,
                             )
+                            # This path exits the `async with` block WITHOUT an
+                            # exception, so the `except` handler below (and its
+                            # was_stable/backoff bookkeeping) never runs — the
+                            # loop just retries from the top immediately. But
+                            # `connect_started` must still be cleared here: left
+                            # stale, a LATER genuine connect failure would compute
+                            # was_stable against THIS session's (possibly
+                            # long-ago) start time instead of "we don't know,
+                            # treat it as a fresh failure" — silently forgiving a
+                            # real failure streak's backoff.
+                            connect_started = None
                             break  # exit inner loop → context manager closes ws → outer reconnect
                         continue   # nothing subscribed: silence is expected, keep waiting
                     try:
@@ -287,13 +393,31 @@ async def _run_websocket():
                         _logger.warning("[stream] Message processing error: %s", e)
 
         except Exception as e:
-            _logger.warning("[stream] WebSocket disconnected: %s — reconnecting in %ds", e, backoff)
             _running = False
             _ws_connection = None
-            await asyncio.sleep(backoff)
-            # Cap the reconnect gap low: this is the live-quote feed, so a long backoff
-            # is a long visible quote freeze. 15s max (was 60s).
-            backoff = min(backoff * 2, 15)
+            was_stable = (
+                connect_started is not None
+                and (time.monotonic() - connect_started) >= _WS_MIN_STABLE_CONNECT_S
+            )
+            connect_started = None
+
+            # A WS-side 429 reports into the SHARED cooldown so REST backs off
+            # too — see _run_websocket's docstring, point 2.
+            if "429" in str(e):
+                _fhc.fh_note_429("ws")
+
+            t = _ws_reconnect_transition(consecutive_failures, backoff, was_stable)
+            consecutive_failures, backoff = t["consecutive_failures"], t["next_backoff_s"]
+            if t["circuit_break"]:
+                _logger.warning(
+                    "[stream] %d consecutive WS reconnect failures — circuit breaker: "
+                    "quiet for %ds (last error: %s)",
+                    _WS_MAX_CONSECUTIVE_FAILURES, t["sleep_s"], e,
+                )
+                _fhc.fh_note_429("ws-circuit-breaker")
+            else:
+                _logger.warning("[stream] WebSocket disconnected: %s — reconnecting in %ds", e, t["sleep_s"])
+            await asyncio.sleep(t["sleep_s"])
 
 
 def _process_finnhub_trade(trade):

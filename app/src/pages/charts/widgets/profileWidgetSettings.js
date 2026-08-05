@@ -15,8 +15,25 @@ export const PROFILE_WIDGET_DEFAULTS = {
   downColor: '#ff5b5b',                             // negative performance
   surpUpColor: '#6a7bff',                           // positive earnings surprise %
   surpDownColor: '#ff5b5b',                         // negative earnings surprise %
-  headerBg: '#0e0f0d',                              // header bar fill (default = canvas → inherits/transparent)
+  headerColor: '#e0dac8',                           // ticker + company NAME text color (default = text-bright)
   headerShow: 'both',                               // 'both' | 'ticker' | 'company'
+}
+
+// Seed values for an UNCUSTOMIZED widget on the LIGHT app theme: white canvas +
+// near-black text/accents, so the settings swatches AND the rendered widget both
+// follow the site theme until the user picks explicit colors.
+export const PROFILE_WIDGET_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  textColor: '#1f2328',
+  headerColor: '#1f2328',
+  upColor: '#0a5c22',
+  downColor: '#7d1620',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function profileDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...PROFILE_WIDGET_DEFAULTS, ...PROFILE_WIDGET_LIGHT_OVERRIDES }
+    : PROFILE_WIDGET_DEFAULTS
 }
 
 /** Deep-merge saved settings over defaults (tolerates partial/older blobs). */
@@ -42,7 +59,7 @@ export function profileWidgetStyleVars(s) {
   const vars = {}
 
   if (s.textColor && s.textColor !== D.textColor) vars['--prof-text'] = s.textColor
-  if (s.headerBg && s.headerBg !== D.headerBg) vars['--prof-header-bg'] = s.headerBg
+  if (s.headerColor && s.headerColor !== D.headerColor) vars['--prof-header-text'] = s.headerColor
   if (s.upColor && s.upColor !== D.upColor) vars['--prof-up'] = s.upColor
   if (s.downColor && s.downColor !== D.downColor) vars['--prof-down'] = s.downColor
   if (s.surpUpColor && s.surpUpColor !== D.surpUpColor) vars['--prof-surp-up'] = s.surpUpColor

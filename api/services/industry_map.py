@@ -174,20 +174,17 @@ def _fetch_fallback(ticker: str) -> tuple[Optional[str], Optional[str], Optional
             return sec, ind, "yfinance"
     except Exception as e:
         logger.info("[industry_map] yfinance fallback %s failed: %s", ticker, e)
-    # Finnhub
+    # Finnhub — routed through the shared api.services.finnhub_client.fh_get
+    # (2026-08-05) so this call shares the process-wide token bucket / 429
+    # cooldown with every other Finnhub caller instead of spending the same
+    # account budget uncoordinated (was a raw httpx.get here).
     try:
-        key = os.environ.get("FINNHUB_API_KEY", "")
-        if key:
-            r = httpx.get(
-                "https://finnhub.io/api/v1/stock/profile2",
-                params={"symbol": ticker, "token": key},
-                timeout=10.0,
-            )
-            if r.status_code == 200:
-                j = r.json() or {}
-                ind = (j.get("finnhubIndustry") or "").strip() or None
-                if ind:
-                    return None, ind, "finnhub"
+        from api.services.finnhub_client import fh_get
+        j = fh_get("/stock/profile2", {"symbol": ticker}, timeout=10.0)
+        if isinstance(j, dict):
+            ind = (j.get("finnhubIndustry") or "").strip() or None
+            if ind:
+                return None, ind, "finnhub"
     except Exception as e:
         logger.info("[industry_map] finnhub fallback %s failed: %s", ticker, e)
     return None, None, None

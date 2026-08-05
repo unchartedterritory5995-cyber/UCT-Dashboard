@@ -595,7 +595,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         )}
         <div className={styles.tfBarRight}>
           {!themeIdx.isIndex && (
-            <LeverageInverseControl sym={sym} onSelect={handleSymbolChange} themeVars={menuVars} />
+            <LeverageInverseControl
+              sym={sym}
+              onSelect={handleSymbolChange}
+              themeVars={menuVars}
+              candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
+            />
           )}
           {/* Add-tab entry point — only when the strip isn't showing yet (0 extra
               tabs). Once a tab exists, the strip's own + button takes over. */}

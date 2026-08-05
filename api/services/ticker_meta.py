@@ -8,19 +8,13 @@ import logging
 import os
 import time
 
-import requests
-
 from api.services.cache import TTLCache
+from api.services.finnhub_client import fh_get
 
 _logger = logging.getLogger(__name__)
 _mem = TTLCache()
 _TTL = 86400  # 24h
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "ticker_meta_cache")
-_FINNHUB_BASE = "https://finnhub.io/api/v1"
-
-
-def _fh_key() -> str:
-    return os.environ.get("FINNHUB_API_KEY", "")
 
 
 def _disk_path(ticker: str) -> str:
@@ -61,16 +55,13 @@ def _from_yfinance(ticker: str):
 
 
 def _from_finnhub(ticker: str):
-    key = _fh_key()
-    if not key:
+    # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
+    # call shares the process-wide token bucket / 429 cooldown with every
+    # other Finnhub caller instead of spending the same account budget
+    # uncoordinated.
+    j = fh_get("/stock/profile2", {"symbol": ticker}, timeout=15)
+    if not isinstance(j, dict):
         return {"name": None, "sector": None, "industry": None}
-    resp = requests.get(
-        f"{_FINNHUB_BASE}/stock/profile2",
-        params={"symbol": ticker, "token": key},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    j = resp.json() or {}
     return {
         "name": (j.get("name") or None),
         "sector": None,  # Finnhub profile2 has no GICS sector
@@ -173,7 +164,7 @@ def heal_nameless_names() -> None:
 
     if os.path.exists(_HEAL_FLAG):
         return
-    if not _fh_key():
+    if not os.environ.get("FINNHUB_API_KEY", ""):
         return
 
     def _run():
