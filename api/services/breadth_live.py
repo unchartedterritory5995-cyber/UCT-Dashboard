@@ -55,6 +55,7 @@ STORAGE
 from __future__ import annotations
 
 import math
+import os
 import threading
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -975,6 +976,8 @@ def warm() -> dict:
     background thread after boot means no user ever pays it, and the herd guard
     above means a burst of first requests waits rather than each rebuilding.
     """
+    if not enabled():
+        return {"ok": False, "reason": "breadth live disabled"}
     levels = reference_levels()
     if not levels:
         return {"ok": False, "reason": "reference levels unavailable"}
@@ -988,8 +991,22 @@ def warm() -> dict:
     }
 
 
+def enabled() -> bool:
+    """Kill switch, default ON.
+
+    This is a new live data path in front of ~200 users, and its natural guards
+    (`degraded`, `superseded`) only cover the failure modes we anticipated.
+    Setting `BREADTH_LIVE_ENABLED=0` withholds every live value across all four
+    surfaces without a code change — the same escape hatch STREAM_BARS_ENABLED
+    and CATALYST_ENGINE_ENABLED give their features.
+    """
+    return os.environ.get("BREADTH_LIVE_ENABLED", "1") != "0"
+
+
 def compute_live(force: bool = False) -> dict:
     """Breadth right now: one snapshot compared against cached levels."""
+    if not enabled():
+        return {"ok": False, "reason": "breadth live disabled (BREADTH_LIVE_ENABLED=0)"}
     import time as _time
     now = _time.time()
     with _live_lock:

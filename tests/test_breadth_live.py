@@ -718,3 +718,28 @@ def test_the_payload_reports_what_was_MEASURED_not_just_what_printed():
     # And the percentage really is computed over the measured 20, matching the
     # collector's own validity rule.
     assert live["pct_above_200sma"] == pct_above_sma(cdf, 200)
+
+
+# ── Kill switch ──────────────────────────────────────────────────────────────
+
+def test_the_live_path_is_on_by_default(monkeypatch):
+    monkeypatch.delenv("BREADTH_LIVE_ENABLED", raising=False)
+    assert bl.enabled() is True
+
+
+def test_setting_the_flag_to_zero_withholds_every_live_value(monkeypatch):
+    """A new live data path in front of ~200 users needs an off switch that
+    doesn't require a code change — the same escape hatch every other major
+    feature here has."""
+    monkeypatch.setenv("BREADTH_LIVE_ENABLED", "0")
+    assert bl.enabled() is False
+    out = bl.compute_live(force=True)
+    assert out["ok"] is False and "disabled" in out["reason"]
+    assert bl.warm()["ok"] is False
+
+
+def test_any_other_value_leaves_it_on(monkeypatch):
+    """Only an explicit "0" disables — a typo must not silently kill the feature."""
+    for v in ("1", "true", "yes", ""):
+        monkeypatch.setenv("BREADTH_LIVE_ENABLED", v)
+        assert bl.enabled() is (v != "0"), v
