@@ -168,6 +168,7 @@ Each numbered item is one commit, rebased on `origin/master` immediately before 
 
 | # | Step | Touches ChartWidget.jsx? |
 |---|---|---|
+| 0 | **Characterization tests** for every region to be lifted, each proven to fail on a deliberate break | tests only |
 | 1 | `useChartSurfaceSettings` — lift settings resolution + `menuVars` | yes, small |
 | 2 | `ChartIdentityRow` | yes, small |
 | 3 | `ChartMetaRow` | yes, small |
@@ -201,10 +202,23 @@ no conflict risk with Bracco at all.
 
 The extraction claims to be **behavior-preserving**. The gate has to be able to fail on that.
 
-1. **The existing suites are the regression rail, unchanged.** `ChartWidget.test.jsx`,
-   `ChartWidget.session.test.jsx`, `ChartWidget.volumepane.test.jsx` assert on rendered DOM.
-   They must pass across steps 1–6 **without being edited**. Editing an assertion to match new
-   output is the failure mode to refuse — if output changed, the extraction wasn't mechanical.
+0. **⚠️ The existing rail is too thin — step 0 is building one.** Measured baseline on
+   `feat/chart-pane-universal`: `ChartWidget.test.jsx` (9) + `ChartWidget.session.test.jsx` (5)
+   + `ChartWidget.volumepane.test.jsx` (1) = **15 tests for 786 lines of shell**, all green.
+   Nothing in them asserts that the meta row renders its three fields, that the session toggle
+   flips between Regular/Extended, that the ⌄ timeframe menu opens, that favorites/custom TFs
+   round-trip, or that the market clock mounts. **Every region this spec extracts could be
+   extracted wrongly and the suite would stay green.**
+
+   So step 0, before any extraction: add characterization tests against the *current*
+   ChartWidget covering each region to be lifted. Each must be shown to FAIL when its region is
+   deliberately broken (verdict from the vitest summary line, with an unmutated control green in
+   the same run — not from a piped `$?`, which reports the last command in the pipe, not vitest).
+   Only then do the extraction steps have something that can catch them.
+
+1. **The suites are then the regression rail, unchanged.** Once step 0 lands, they must pass
+   across steps 1–6 **without being edited**. Editing an assertion to match new output is the
+   failure mode to refuse — if output changed, the extraction wasn't mechanical.
 2. **Mutation control.** For each extracted component, one deliberate mutation (drop the meta
    row; swap a TF label) must turn the suite red, with an unmutated control green in the same
    run, verdict read from **exit code** — not grep. A suite that cannot fail is not a gate.
