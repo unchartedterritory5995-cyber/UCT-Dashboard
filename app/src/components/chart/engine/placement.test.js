@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolvePlacement, resolvePreset, PRESET_SURFACES, MAIN_PRICE_SCALE_ID } from './placement'
 import * as registry from './nativeRegistry'
 import { computePaneMargins } from '../paneMargins'
+import { computePaneLayout, __setPaneModeForTest, SEPARATOR_PX } from './paneLayout'
 import { PRESETS, CHART_DEFAULTS } from '../chartDefaults'
 import { IND_TOKENS } from '../designTokens'
 
@@ -404,5 +405,100 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
     const b = resolvePlacement({ instanceId: 'i:bb', defId: 'bb' }, d, ctx)
     expect(typeof a.autoscale).toBe('string')
     expect(a).toEqual(b)   // deep equality would be impossible with a fresh closure
+  })
+})
+
+// ─── the same four cases, under FLIP C (B5 Task 10) ──────────────────────────
+//
+// ⛔ A MODE WITH NO COVERAGE IS A MODE THAT SHIPS UNTESTED. Every case in the
+// `pane 0, the indicator's own named scale` block above describes what `'bands'`
+// does; each has its twin here. The `'panes'` branch is DARK on master —
+// `paneMode()` is `'bands'` — which is exactly why it needs driving.
+//
+// The renderer-level twins (does lightweight-charts actually build these panes?)
+// live in `__tests__/flipCGeometry.test.jsx`, on a real chart. These are about
+// what this pure function ANSWERS.
+describe('resolvePlacement — its own REAL pane (PANE_MODE panes)', () => {
+  const layoutFor = (ids) => computePaneLayout(
+    csWith(...ids), ids.map((id) => inst(id)),
+    { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
+  )
+
+  beforeEach(() => { __setPaneModeForTest('panes') })
+  afterEach(() => { __setPaneModeForTest(null) })
+
+  it('puts a pane oscillator in ITS OWN pane, on a scale named after its definition', () => {
+    const cs = csWith('rsi', 'macd')
+    const layout = layoutFor(['rsi', 'macd'])
+    const p = resolvePlacement(inst('macd'), def('macd'), { ...ctxFor(cs), paneLayout: layout })
+    expect(p.paneIndex).toBe(2)          // rsi is 1, macd is 2 — the LIST's order
+    expect(p.scaleId).toBe('macd')
+    expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout }).paneIndex).toBe(1)
+  })
+
+  it('takes ZERO scaleMargins — the drawable rectangle is the whole pane now', () => {
+    // ⚠️ SPELLED OUT, NEVER OMITTED. `applyOptions` MERGES and `merge()` skips
+    // `undefined`, so leaving the key out would leave the previous BAND standing
+    // on a re-purposed scale — a pooled series drawing into a 15% slice of a pane
+    // it owns outright.
+    const cs = csWith('rsi')
+    const p = resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layoutFor(['rsi']) })
+    expect(p.scaleOptions.scaleMargins).toEqual({ top: 0, bottom: 0 })
+    expect(Object.keys(p.scaleOptions)).toContain('scaleMargins')
+  })
+
+  it('binds NOTHING when the layout reserved no pane — the twin of the 0.82 fallback', () => {
+    // In `'bands'` the missing-band answer is a fallback band, because everything
+    // shares pane 0 and a band is the worst that can happen. In `'panes'` the
+    // equivalent would be a zero-margin scale in PANE 0, i.e. an oscillator drawn
+    // across the whole price area. Fail closed instead.
+    const cs = csWith('rsi')
+    expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layoutFor(['macd']) })).toBeNull()
+    expect(resolvePlacement(inst('rsi'), def('rsi'), ctxFor(cs))).toBeNull()
+  })
+
+  it('always sets borderVisible:false, like every shipped indicator scale', () => {
+    const cs = csWith('rsi', 'atr', 'obv')
+    const layout = layoutFor(['rsi', 'atr', 'obv'])
+    for (const id of ['rsi', 'atr', 'obv']) {
+      const p = resolvePlacement(inst(id), def(id), { ...ctxFor(cs), paneLayout: layout })
+      expect(p.scaleOptions.borderVisible, id).toBe(false)
+    }
+  })
+
+  it('keeps the FULL option set — a fixed range is still the definition s (trap #2)', () => {
+    const cs = csWith('rsi', 'atr')
+    const layout = layoutFor(['rsi', 'atr'])
+    expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout }).scaleOptions)
+      .toEqual({ borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, autoScale: false, minimum: 0, maximum: 100 })
+    expect(resolvePlacement(inst('atr'), def('atr'), { ...ctxFor(cs), paneLayout: layout }).scaleOptions)
+      .toEqual({ borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, autoScale: true })
+  })
+
+  it('autoscale is still default — exclude collapses the band in BOTH modes', () => {
+    const cs = csWith('rsi')
+    expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layoutFor(['rsi']) }).autoscale)
+      .toBe('default')
+  })
+
+  it('a price overlay is UNAFFECTED — it has no pane to be given', () => {
+    const cs = csWith('rsi')
+    expect(resolvePlacement(inst('bb'), def('bb'), { ...ctxFor(cs), paneLayout: layoutFor(['rsi']) }))
+      .toEqual({ paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' })
+  })
+
+  it('the VOLUME-OVERLAY branch still wins, so an overlaid oscillator gets no pane', () => {
+    // The order of the two branches is load-bearing: `computePaneLayout` is handed
+    // `excludeKeys`, so an overlaid oscillator has no pane in the layout at all —
+    // reaching the panes branch first would make it resolve to `null` and vanish.
+    const cs = csWith('rsi')
+    const layout = computePaneLayout(cs, [inst('rsi')], {
+      chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX, excludeKeys: ['rsi'],
+    })
+    const p = resolvePlacement(inst('rsi'), def('rsi'),
+      { ...ctxFor(cs, { volOverlay: ['rsi'] }), paneLayout: layout })
+    expect(p.paneIndex).toBe(1)
+    expect(p.scaleId).toBe('left')
+    expect(p.scaleOptions.autoScale).toBe(true)
   })
 })

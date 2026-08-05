@@ -45,6 +45,18 @@ const H = vi.hoisted(() => ({
   // component level, where the LEGACY control that proves the colours right lives.
   setDataCalls: [],
   moveToPaneCalls: [],
+  // ⭐ B5 TASK 10 — AN OPT-IN PANE MODEL, OFF BY DEFAULT.
+  //
+  // `chart.panes()` answered with ONE 300px pane, which is right for every case
+  // in this file: under `paneMode() === 'bands'` there IS one pane. Flip C needs
+  // a double that can hold several, and turning that on globally would restate
+  // the geometry of 400+ cases that never asked for it. So it is a null slot a
+  // case OPTS INTO — `H.paneModel = { stackPx: 300 }` — and `panes()` then
+  // derives the stack from the pane indices `addSeries` / `moveToPane` were
+  // actually given and sizes it by the stretch factors the binder actually
+  // wrote, using lightweight-charts' own rule (proportional over
+  // `stackPx - separators`).
+  paneModel: null,
   binderCreated: [],
   binderApis: [],
   syncCalls: [],
@@ -76,6 +88,7 @@ const H = vi.hoisted(() => ({
     H.priceLineCalls.length = 0
     H.setDataCalls.length = 0
     H.moveToPaneCalls.length = 0
+    H.paneModel = null
     H.binderCreated.length = 0
     H.binderApis.length = 0
     H.syncCalls.length = 0
@@ -190,7 +203,30 @@ vi.mock('lightweight-charts', () => {
       const i = H.crosshairHandlers.indexOf(fn); if (i >= 0) H.crosshairHandlers.splice(i, 1)
     },
     subscribeClick: () => {}, unsubscribeClick: () => {},
-    panes: () => [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div') }],
+    panes: () => {
+      const m = H.paneModel
+      if (!m) return [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div') }]
+      const seen = [...H.addSeriesCalls.map(x => x.paneIndex || 0), ...H.moveToPaneCalls.map(x => x.paneIndex || 0)]
+      const n = Math.max(1, ...seen.map(x => x + 1))
+      if (!Array.isArray(m.stretch)) m.stretch = []
+      for (let i = 0; i < n; i++) if (!Number.isFinite(m.stretch[i])) m.stretch[i] = 1
+      m.stretch.length = n
+      const sep = 1
+      const available = m.stackPx - (n - 1) * sep
+      const total = m.stretch.reduce((x, y) => x + y, 0) || 1
+      const heights = m.stretch.map(v => Math.round((available * v) / total))
+      // The remainder lands on pane 0, so the stack sums EXACTLY — the same
+      // property `computePaneLayout` guarantees and the binder's check reads.
+      heights[0] += available - heights.reduce((x, y) => x + y, 0)
+      return heights.map((h, i) => ({
+        paneIndex: () => i,
+        getHeight: () => h,
+        getStretchFactor: () => m.stretch[i],
+        setStretchFactor: (v) => { m.stretch[i] = v },
+        getSeries: () => [],
+        getHTMLElement: () => document.createElement('div'),
+      }))
+    },
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
@@ -273,6 +309,7 @@ const { catalogRows, labelFor, oscillatorIds } = await import('../../indicatorCa
 // below iterate the SHIPPED table rather than a fifth hand-written copy of it —
 // a chord added to the table and not to a test would otherwise be untested.
 const { INDICATOR_CHORDS } = await import('../../keyboardShortcuts')
+const { __setPaneModeForTest } = await import('../paneLayout')
 // The compute the crosshair's per-plot split rests on — see the equivalence proof
 // next to the two-chip legend case.
 const { computeMACD } = await import('../../indicators')
@@ -5464,6 +5501,56 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     // makes their relative order matter at all.
     for (const b of bound()) {
       expect(b.scaleId, b.defId + ' left the candles\' scale').toBe('right')
+    }
+  })
+})
+
+
+// ─── B5 TASK 10 · the right-click menu SURVIVES Flip C ───────────────────────
+//
+// The control audit's instruction was *"verify, do not assume"*. The harness
+// above scans y and reads the region off the component's OWN payload rather than
+// re-deriving the geometry, which is the property that should let it survive the
+// cutover — but "should" is what this phase does not accept.
+//
+// So the double gains an OPT-IN pane model (`H.paneModel`) that builds its stack
+// from the pane indices `addSeries` / `moveToPane` were actually given and sizes
+// it by the stretch factors the binder actually wrote, and the same helper is run
+// against it under `paneMode() === 'panes'`. Nothing in the helper changes.
+describe('the context-menu harness under PANE_MODE panes', () => {
+  it('still resolves an indicator region — from REAL pane rectangles this time', () => {
+    __setPaneModeForTest('panes')
+    try {
+      H.paneModel = { stackPx: PLOT.height - 40 }   // minus the double's time axis
+      const view = renderChart({
+        settings: mergeChartSettings({ indicators: { rsi: { enabled: true } } }),
+      })
+      // The chart really did grow a second pane — otherwise the region below
+      // could only have come from a band, and the case would prove nothing.
+      expect(H.addSeriesCalls.some(c => (c.paneIndex || 0) > 0)
+        || H.moveToPaneCalls.some(c => c.paneIndex > 0), 'no series ever reached a pane above 0').toBe(true)
+
+      const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: 'rsi' }), 'region')
+      expect(sec.title).toBe(labelFor('rsi'))
+      expect(sec.items[0].label).toBe(`Hide ${labelFor('rsi')}`)
+    } finally {
+      __setPaneModeForTest(null)
+      H.paneModel = null
+    }
+  })
+
+  it('and the price area is still the price area', () => {
+    __setPaneModeForTest('panes')
+    try {
+      H.paneModel = { stackPx: PLOT.height - 40 }
+      const view = renderChart({
+        settings: mergeChartSettings({ indicators: { rsi: { enabled: true } } }),
+      })
+      const sec = sectionOf(openContextMenu(view, { region: 'price' }), 'region')
+      expect(sec).toBeTruthy()
+    } finally {
+      __setPaneModeForTest(null)
+      H.paneModel = null
     }
   })
 })

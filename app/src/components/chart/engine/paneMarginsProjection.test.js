@@ -83,6 +83,17 @@ describe('csForPaneMargins — instances drive the bands without touching paneMa
       .toEqual(computePaneMargins(CS, true, new Set(['rsi'])))
   })
 
+  // ⭐ B5 TASK 10 — WHAT THIS PROOF IS ABOUT, NOW THAT THERE ARE TWO MODES. It is
+  // a `'bands'`-mode obligation, in full: `computePaneMargins` is what STACKS the
+  // bands, and this projection is what feeds it the instance list. Under
+  // `paneMode() === 'panes'` the bands are gone and the same obligation is
+  // discharged by `paneLayout.test.js`'s own 512-subset identity — the one that
+  // sweeps 1,024 configurations × every integer chart height and reproduces each
+  // definition's `baseH` by READING `paneMargins.js`. Neither replaces the other:
+  // this one says the projection cannot lie about which oscillators are ON, and
+  // that one says the pane arithmetic reproduces the band arithmetic exactly.
+  // ⛔ It does NOT rot at Flip C, because `'bands'` is still a live mode until
+  // Task 12 flips the constant and `paneMargins.js` retires with it.
   it('…for ALL 512 subsets of the nine stacked panes, on both volume settings', () => {
     // The exhaustive form of the same claim. `computePaneMargins` is not linear
     // in its inputs — it proportionally squeezes, rounds each band to whole

@@ -3,6 +3,7 @@ import { createBinder } from './binder'
 import { resolvePlacement as realPlacement, MAIN_PRICE_SCALE_ID } from './placement'
 import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from './pool'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
+import { __setPaneModeForTest, computePaneLayout, SEPARATOR_PX } from './paneLayout'
 import * as registry from './nativeRegistry'
 
 // ─── The contract under test ─────────────────────────────────────────────────
@@ -858,5 +859,116 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
     }
     expect(byProvider.get(MAIN_PRICE_SCALE_ID), 'BB must not stretch the candles').toBe(AUTOSCALE_EXCLUDE)
     expect(byProvider.get('rsi'), 'RSI owns its band and must size it').toBe(AUTOSCALE_DEFAULT)
+  })
+})
+
+
+// ─── FLIP C lands DARK (B5 Task 10) ─────────────────────────────────────────
+//
+// The cutover ships behind `paneMode()`, which is `'bands'`. These two cases are
+// the binder's half of "landed dark": a `paneLayout` in the ctx must change
+// nothing at all, and the pane machinery must not be touched. The `'panes'` half
+// is driven against a REAL lightweight-charts chart in
+// `__tests__/flipCGeometry.test.jsx` — a double cannot say whether the renderer
+// built the panes.
+
+describe('FLIP C — a paneLayout in the ctx is INERT under bands', () => {
+  const LAYOUT = computePaneLayout(
+    { indicators: { rsi: { enabled: true }, macd: { enabled: true } } },
+    [inst('rsi'), inst('macd')],
+    { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
+  )
+
+  it('the layout really does put them in panes 1 and 2 — so the case is not vacuous', () => {
+    expect(LAYOUT.panes.map((p) => [p.key, p.index])).toEqual([['rsi', 1], ['macd', 2]])
+  })
+
+  const callsWith = (extra) => {
+    const f = createFakeChart()
+    createBinder({ chart: f.chart, LWC: f.LWC }).sync({
+      ...ctxFor([inst('rsi'), inst('macd')]),
+      resolvePlacement: realPlacement, paneMargins: {}, ...extra,
+    })
+    return f.calls.map((c) => `${c.method}|${JSON.stringify(c.args)}`)
+  }
+
+  it('makes exactly the same calls, in the same order, with and without it', () => {
+    const without = callsWith({})
+    const withLayout = callsWith({ paneLayout: LAYOUT })
+    expect(withLayout).toEqual(without)
+    expect(without.length).toBeGreaterThan(3)   // non-vacuity: it really bound things
+  })
+
+  it('never asks the chart for its panes, so the dark contract survives Flip C', () => {
+    let asked = 0
+    fake.chart.panes = () => { asked++; return [] }
+    binder.sync({
+      ...ctxFor([inst('rsi')]),
+      resolvePlacement: realPlacement, paneMargins: {}, paneLayout: LAYOUT,
+    })
+    expect(asked).toBe(0)
+    // …and the control: under `'panes'` it DOES ask, so the zero above is a
+    // statement about the mode and not about a call that never existed.
+    __setPaneModeForTest('panes')
+    try {
+      const fake2 = createFakeChart()
+      let asked2 = 0
+      fake2.chart.panes = () => { asked2++; return [] }
+      createBinder({ chart: fake2.chart, LWC: fake2.LWC }).sync({
+        ...ctxFor([inst('rsi')]),
+        resolvePlacement: realPlacement, paneMargins: {}, paneLayout: LAYOUT,
+      })
+      expect(asked2).toBeGreaterThan(0)
+    } finally { __setPaneModeForTest(null) }
+  })
+})
+
+describe('FLIP C — the stretch factors are the pixel heights (PANE_MODE panes)', () => {
+  const LAYOUT = computePaneLayout(
+    { indicators: { rsi: { enabled: true }, macd: { enabled: true } } },
+    [inst('rsi'), inst('macd')],
+    { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
+  )
+
+  it('writes one setStretchFactor per pane, with the layout s own numbers', () => {
+    __setPaneModeForTest('panes')
+    try {
+      const written = []
+      const pane = (i) => ({
+        getHeight: () => 0,
+        getStretchFactor: () => 1,
+        setStretchFactor: (v) => written.push([i, v]),
+      })
+      fake.chart.panes = () => [pane(0), pane(1), pane(2)]
+      binder.sync({
+        ...ctxFor([inst('rsi'), inst('macd')]),
+        resolvePlacement: realPlacement, paneMargins: {}, paneLayout: LAYOUT,
+      })
+      expect(written).toEqual([
+        [0, LAYOUT.pane0.stretchFactor],
+        [1, LAYOUT.panes[0].stretchFactor],
+        [2, LAYOUT.panes[1].stretchFactor],
+      ])
+      // The whole stack still adds up to the chart, separators included.
+      expect(written.reduce((s, [, v]) => s + v, 0) + 2 * SEPARATOR_PX).toBe(600)
+    } finally { __setPaneModeForTest(null) }
+  })
+
+  it('writes NOTHING when every pane already holds the factor it wants', () => {
+    __setPaneModeForTest('panes')
+    try {
+      const want = [LAYOUT.pane0.stretchFactor, LAYOUT.panes[0].stretchFactor, LAYOUT.panes[1].stretchFactor]
+      const written = []
+      fake.chart.panes = () => want.map((v, i) => ({
+        getHeight: () => v,
+        getStretchFactor: () => v,
+        setStretchFactor: (x) => written.push([i, x]),
+      }))
+      binder.sync({
+        ...ctxFor([inst('rsi'), inst('macd')]),
+        resolvePlacement: realPlacement, paneMargins: {}, paneLayout: LAYOUT,
+      })
+      expect(written).toEqual([])
+    } finally { __setPaneModeForTest(null) }
   })
 })

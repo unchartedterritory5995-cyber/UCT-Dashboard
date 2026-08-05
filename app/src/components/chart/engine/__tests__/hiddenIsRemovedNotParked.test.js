@@ -22,6 +22,15 @@
 // the height back. Flip A's entire contract is pixel-identity with legacy, so
 // parking would fail `engine_rsi_toggle_off` on the parity gate.
 //
+// ⭐⭐ AND IT GOT MORE LOAD-BEARING AT FLIP C (B5 Task 10), NOT LESS. Under
+// `paneMode() === 'panes'` an oscillator's band IS a pane, so "park it" would
+// leave a whole EMPTY PANE in the stack with a divider above it — visible
+// furniture for an indicator the user just switched off, and one the layout does
+// not reserve height for. The other half was measured on the same bundle in
+// `flipCGeometry.test.jsx`: `removeSeries` drops the pane SYNCHRONOUSLY, which is
+// what makes "an oscillator turned OFF removes its pane" free rather than
+// something the binder has to call `chart.removePane` for.
+//
 // That fact is asserted here against the REAL lightweight-charts bundle, in the
 // same style as `autoscaleOnARealScale.test.js`, because it is the load-bearing
 // half of a decision written into a comment. If a future LWC releases the pane
