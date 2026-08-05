@@ -11,6 +11,7 @@ import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { mergeWatchlistSettings } from '../watchlist/watchlistSettings'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { sanitizeChartTabs } from './chartTabs'
+import { resolveActiveTab } from './widgetTabs'
 
 // The chrome-variable bundle derived from a single canvas color.
 export function canvasEntry(canvas) {
@@ -61,8 +62,13 @@ function watchlistOwnCanvas(widget) {
 // watchlist gridline override so the widget chrome matches the list surface.
 export function widgetOwnChrome(widget, chartsTheme) {
   if (!widget || !widget.type) return null
-  if (widget.type === 'chart') {
-    const own = chartActiveCanvas(widget, chartsTheme)
+  // Follow the ACTIVE tab: a slot showing a chart tab paints the chart's canvas,
+  // one showing a watchlist tab paints the watchlist's. Build a surrogate widget
+  // carrying the active tab's type + opts so the per-type logic below is unchanged.
+  const active = resolveActiveTab(widget)
+  const surrogate = { type: active.type, opts: active.opts }
+  if (surrogate.type === 'chart') {
+    const own = chartActiveCanvas(surrogate, chartsTheme)
     if (!own) return null
     const entry = canvasEntry(own.canvas)
     // A header docked at the widget's BOTTOM (when another widget sits above it)
@@ -70,8 +76,8 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (widget.type === 'watchlist') {
-    const own = watchlistOwnCanvas(widget)
+  if (surrogate.type === 'watchlist') {
+    const own = watchlistOwnCanvas(surrogate)
     if (!own) return null
     const entry = canvasEntry(own.canvas)
     if (own.gridColor) { entry.divider = own.gridColor; entry.dividerStrong = own.gridColor }

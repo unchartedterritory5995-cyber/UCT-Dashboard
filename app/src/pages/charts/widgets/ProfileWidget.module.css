@@ -14,6 +14,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
+  background: var(--prof-header-bg, transparent);
   border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
 }
@@ -89,7 +90,10 @@
 }
 
 /* ── Earnings table ── */
-.earnWrap { padding: 11px 12px 6px; }
+.earnWrap {
+  padding: 12px 12px 6px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
 .sectionLabel {
   font-size: 9.5px;
   font-weight: 700;
@@ -135,7 +139,6 @@
 /* ── Company description + thematic narrative ── */
 .prose {
   padding: 12px 12px 14px;
-  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
 }
 .desc {
   margin: 0 0 10px;
