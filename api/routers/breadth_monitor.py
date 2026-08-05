@@ -50,6 +50,46 @@ def get_breadth_analogues():
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/breadth-monitor/live")
+def get_breadth_live(force: bool = False):
+    """Breadth as of right now — provisional, never stored.
+
+    Returns the live-computable metrics plus `carried`: the fields the daily
+    row holds that cannot be derived intraday (sentiment surveys, the EOD
+    put/call print, UCT exposure), taken verbatim from the newest stored row
+    and stamped with that row's date. Keeping them in a separate bag is the
+    point — a carried-forward number must never read as a live one.
+    """
+    from api.services import breadth_live as live
+
+    try:
+        payload = live.compute_live(force=force)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if not payload.get("ok"):
+        raise HTTPException(status_code=503, detail=payload.get("reason", "unavailable"))
+
+    latest = svc.get_latest() or {}
+    payload["carried"] = {k: latest[k] for k in live.NOT_LIVE if latest.get(k) is not None}
+    payload["carried_from"] = latest.get("date")
+    return payload
+
+
+@router.get("/api/breadth-monitor/live/reconcile")
+def reconcile_breadth_live(date: str, request: Request):
+    """Replay the live path for a past session and diff it against the stored row.
+
+    This is the gate: no live value goes on screen until it passes.
+    """
+    _check_auth(request)
+    from api.services import breadth_live as live
+
+    try:
+        return live.reconcile(date)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/api/breadth-monitor/latest")
 def get_breadth_latest():
     row = svc.get_latest()

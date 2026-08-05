@@ -697,6 +697,14 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.breadth_monitor import get_breadth_history
             get_breadth_history(days=90)
 
+        def _breadth_live():
+            # Intraday breadth compares one market snapshot against reference
+            # levels derived from ~1M daily bars. That derivation is seconds of
+            # blocking SQLite + numpy; warming it here keeps it off a request
+            # (and off one of the pod's bounded threadpool workers).
+            from api.services.breadth_live import warm
+            log.info("[dashboard-warm] breadth-live %s", warm())
+
         def _calendar():
             from api.routers.calendar import get_calendar
             get_calendar()
@@ -773,6 +781,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
+            _warm("breadth-live", _breadth_live)
             _warm("calendar", _calendar)
             _warm("enrichment", _enrichment)  # after calendar (it reads the week's day-list)
             _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
