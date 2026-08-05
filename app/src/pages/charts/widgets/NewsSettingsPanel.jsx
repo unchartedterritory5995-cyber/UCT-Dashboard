@@ -26,7 +26,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
+export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings' }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
@@ -114,7 +114,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> News Settings</span>
+          <span className={styles.title}><UIcon name="gear" size={13} /> {title}</span>
           <div className={styles.headRight}>
             <button className={styles.resetBtn} onClick={onReset} title="Restore news widget settings to defaults">↺ Reset</button>
             <button className={styles.close} onClick={onClose} title="Close">✕</button>
