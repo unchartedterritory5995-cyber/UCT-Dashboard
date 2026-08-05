@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
@@ -6,7 +6,6 @@ import BreadthCharts from './BreadthCharts'
 import TickerPopup from '../components/TickerPopup'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
-import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
@@ -33,6 +32,12 @@ import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
 import GroupControls from './breadth/grouping/GroupControls'
 import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 import UIcon from '../components/ui/UIcon'
+
+// The SAME chart the /charts workspace renders — identity row, session
+// toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
+// settings gear and drawing tools. Lazy, so none of it lands in the eager
+// entry chunk.
+const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -617,21 +622,33 @@ function DrillModal({ drill, latestDate, onClose }) {
                   onClick={() => { const willFlag = !isFlagged(selected.t); toggleFlag(selected.t); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selected.t) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
-                <div className={styles.drillChartTabs}>
-                  {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
-                    <button
-                      key={p}
-                      className={`${styles.drillChartTab} ${chartPeriod === p ? styles.drillChartTabActive : ''}`}
-                      onClick={() => setChartPeriod(p)}
-                    >{label}</button>
-                  ))}
-                </div>
+                {/* The period tab row used to live here. Retired: ChartPane
+                    (below) renders the canonical timeframe bar now.
+                    `chartPeriod`/`setChartPeriod` stay — the prefetch effect
+                    above still reads chartPeriod, and ChartPane's onTfChange
+                    keeps it in sync with whatever the user picks. */}
                 <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
               </div>
               <div className={styles.drillChartFrame}>
-                <StockChart sym={selected.t} tf={chartPeriod}
-                  highlightBarTime={chartPeriod === 'D' ? highlightDay : null}
-                  highlightColor="#ffffff" />
+                {/* The SAME chart the /charts workspace renders — identity
+                    row, session toggle, market clock, timeframe bar,
+                    market-cap/earnings/UCT-rating meta, settings gear and
+                    drawing tools. `onSymbolChange` is deliberately omitted:
+                    the symbol comes from the drill-list row the user
+                    selected, so the identity row is a static label, not a
+                    search box. */}
+                <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted, #777)', fontSize: 12 }}>Loading chart…</div>}>
+                  <ChartPane
+                    sym={selected.t}
+                    tf={chartPeriod}
+                    onTfChange={setChartPeriod}
+                    stored={null}
+                    stockChartProps={{
+                      highlightBarTime: chartPeriod === 'D' ? highlightDay : null,
+                      highlightColor: '#ffffff',
+                    }}
+                  />
+                </Suspense>
               </div>
             </div>
           )}
