@@ -189,3 +189,52 @@ describe('day drawer: live data over a frozen click-time snapshot', () => {
     expect(await screen.findByLabelText(/Beat \d+ of last 3 quarters/)).toBeTruthy()
   })
 })
+
+// ── The modal-freeze race (Task 12) ──────────────────────────────────────────
+//
+// The day-drawer fix above only reaches the DRAWER's own cards (see the
+// scoping note on it). The MODAL's row is rebuilt by the separate deep-link
+// resolution effect (`resolveFeedEntry(want, days)` in Calendar.jsx), gated
+// by `if (selected?.row?.sym === want) return` — meant to stop redundant
+// re-resolution once a symbol is already showing. But `days` legitimately
+// changes AGAIN later, when the enrichment-batch fetch resolves (it always
+// starts strictly after the base /api/calendar payload renders, so a click
+// fast enough beats it there), and that guard blocked the re-run even though
+// the freshly-arrived `days` now carries exactly the enrichment the
+// already-committed row was missing — the modal froze on the un-enriched row
+// for the rest of its life. This is the real production defect controller
+// verification caught live on CAT, 2026-08-04: Month view -> day drawer ->
+// click a ticker -> modal opens before enrichment has landed -> Earnings
+// History is permanently stuck on the empty state, even once the
+// enrichment-batch response comes back. (Reproduced here through the day
+// drawer opened via WeekView's "+1 more", same as the test above — the
+// resolution effect this exercises is identical regardless of which view
+// opened the drawer, since Calendar.jsx's onSelect() always discards the
+// clicked entry and re-resolves against live `days`.)
+describe('the modal must not freeze on an un-enriched row (Task 12)', () => {
+  it('opening a ticker before enrichment lands still shows real quarters once it does', async () => {
+    setInitialEnrichment(undefined)   // nothing enriched yet at mount — the race window
+    renderAt('/calendar?week=2026-08-03')
+
+    // Real user path: day drawer -> click a ticker -> modal opens, BEFORE
+    // enrichment has resolved.
+    fireEvent.click(await screen.findByRole('button', { name: /\+1 more/ }))
+    fireEvent.click(await screen.findByText('NVDA'))
+
+    const dlg = await screen.findByRole('dialog')
+    expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
+
+    // Jump to the History section while still un-enriched — the exact click
+    // sequence the controller ran live.
+    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // Characterizes the starting (pre-enrichment) state: nothing to show yet.
+    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+
+    // Enrichment resolves on the already-mounted, already-open modal.
+    act(() => { pushEnrichmentUpdate(ENRICHMENT) })
+
+    // The modal must self-heal onto the now-enriched row, not stay frozen.
+    expect(await screen.findByTestId('history-table')).toBeTruthy()
+    expect(screen.queryByText('No reported quarters yet')).toBeNull()
+  })
+})

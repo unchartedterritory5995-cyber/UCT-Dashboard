@@ -295,7 +295,37 @@ export default function Calendar() {
     // minimal row for the rest of the page session; the next time it's
     // opened deserves a fresh ask.
     if (!want) { setSelected(null); resolveRef.current = null; return }
-    if (selected?.row?.sym === want) return
+    if (selected?.row?.sym === want) {
+      // GATE a / Task 12 (found live on CAT, 2026-08-04): `days` can change
+      // AGAIN after this symbol already resolved — the enrichment-batch
+      // fetch always starts strictly after the base /api/calendar payload
+      // renders, so a fast click (Month view -> day drawer -> ticker) can hit
+      // the branch below and commit a row BEFORE enrichment lands. This guard
+      // exists to stop redundant re-resolution once a symbol is already
+      // showing, but left as a bare return it also froze that row FOREVER,
+      // even once `days` went on to gain the enrichment it was missing —
+      // nothing else ever re-checks it, so the History section stayed on the
+      // empty state for the rest of the modal's life. Recheck ONLY when the
+      // committed row still carries none of the three enrichment fields —
+      // never when it has SOME of them (e.g. `expected_move` intentionally
+      // absent on a past day per the enrichment endpoint's own TTL rules),
+      // so this can't fight a row that is correctly, permanently partial.
+      const row = selected.row
+      const stillUnenriched = row.beat_history == null
+        && row.hist_stats == null && row.expected_move == null
+      if (!stillUnenriched) return
+      const hit = resolveFeedEntry(want, days)
+      const nowEnriched = hit && (hit.entry.beat_history != null
+        || hit.entry.hist_stats != null || hit.entry.expected_move != null)
+      // Not a fresh open — no openSeq bump (that would remount the
+      // ErrorBoundary mid-view for no reason) and no resolveRef/ask-ladder
+      // churn; this only ever upgrades an already-committed row in place.
+      if (nowEnriched) {
+        setSelected({ row: toModalRow(hit.entry), label: timingLabel(hit.timing),
+                       reportDate: hit.ds, timing: hit.timing, entry: hit.entry })
+      }
+      return
+    }
 
     // C3: bump openSeq in the SAME call as the setSelected it's paired with
     // — see the doc comment on openMarkerRef above. `commit` centralizes
