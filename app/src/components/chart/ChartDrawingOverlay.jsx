@@ -806,14 +806,12 @@ export function resolveCatalystAnchor(anchorTime, bars, nearestIndex) {
   for (const i of idxs) { sumV += volOf(i); sumR += rngOf(i); n++ }
   const avgV = n ? sumV / n : 0
   const avgR = n ? sumR / n : 0
-  // Where the news broke = the FIRST candle that expands on BOTH range AND volume
-  // (≥2× the session average of each) — the classic catalyst breakout/breakdown bar
-  // (owner ask: "first large range expansion AND volume expansion candle"), NOT just
-  // the first big-volume bar (which fired on the 9:30 open long before the news move).
+  // Where the news broke = the day's single biggest RANGE × VOLUME expansion — the
+  // classic catalyst breakout/breakdown bar. Using the MAX (not the first candle to
+  // cross a threshold) means an unrelated early-session spike (the 9:30 open) never
+  // wins over the real news candle (owner: "first large range + volume expansion
+  // candle... where the news broke" = the dominant move, e.g. the 12pm drop).
   if (avgV > 0 && avgR > 0) {
-    const hit = idxs.find(i => volOf(i) >= 2 * avgV && rngOf(i) >= 2 * avgR)
-    if (hit != null) return hit
-    // Fallback: the single candle with the greatest combined range × volume expansion.
     let best = idxs[0], bestScore = -1
     for (const i of idxs) {
       const s = (volOf(i) / avgV) * (rngOf(i) / avgR)
@@ -914,48 +912,48 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
 
   // Build a SMOOTH ~45° leader (owner ask): put the headline attach point on a 45°
   // ray from the candle open, then derive the box from it. `right` = the box sits
-  // left of the candle so the leader meets the headline's RIGHT edge (and vice-versa).
-  // Take the nearest such placement that clears candles + other labels.
+  // Place the headline near the anchor candle. DETERMINISTIC candidate set (not a
+  // scored search): try a small set of fixed offsets around the candle, prefer the
+  // first that sits FULLY on-screen and clears the candles/other labels, else the
+  // first fully on-screen one, else a hard-clamped on-screen box. This can NEVER
+  // degenerate into the off-screen "line streaks off the left with no headline" bug
+  // the old scored search produced (it happily picked a blocked, edge-clamped spot).
   const fs = fontSize
-  const SQRT2 = Math.SQRT2
-  const DIRS = [
-    { sx: -1, sy: -1, right: true },   // up-left (preferred)
-    { sx: 1, sy: -1, right: false },   // up-right
-    { sx: -1, sy: 1, right: true },    // down-left
-    { sx: 1, sy: 1, right: false },    // down-right
-  ]
-  const DISTS = [46, 62, 82, 106, 134, 168, 206]   // leader length along the 45° ray
-  const BLOCKED = 1e6
-  // A candle near the RIGHT edge is a current/live candle — there's no clean room
-  // to its right (the price axis lives there), so force the headline into the open
-  // space to the LEFT (dr.right = box sits left of the candle).
-  const nearRight = anchorX > pRight - (boxW + 60)
-  let best = null, bestCost = Infinity
-  for (const dist of DISTS) {
-    for (const dr of DIRS) {
-      const step = dist / SQRT2
-      const attachX0 = anchorX + dr.sx * step
-      const headY0 = anchorY + dr.sy * step
-      let x = dr.right ? attachX0 - firstLineW : attachX0   // box x from the attach side
-      let y = headY0 - fs * 0.9                             // headline near the box top
-      x = Math.max(plotLeft, Math.min(pRight - boxW, x))
-      y = Math.max(4, Math.min(priceBottom - boxH, y))
-      // Attach point recomputed from the (possibly clamped) box so scoring is honest.
-      const ax = dr.right ? x + firstLineW : x
-      const hy = y + fs * 0.9
-      let cost = Math.hypot(ax - anchorX, hy - anchorY)     // leader length (≈ dist)
-      cost += (dr.sy < 0 ? -10 : 0) + (dr.sx < 0 ? -6 : 0)  // prefer up + left on ties
-      if (nearRight && !dr.right) cost += BLOCKED            // current candle → never place right
-      if (hitsCandles(x, y, boxW, boxH)) cost += BLOCKED
-      if (lineHitsCandles(anchorX, anchorY, ax, hy)) cost += BLOCKED
-      if (overlapsObstacle(x, y, boxW, boxH)) cost += BLOCKED
-      if (cost < bestCost) { bestCost = cost; best = { x, y } }
+  const G = 44                                   // leader length / gap from the candle
+  const roomRight = anchorX < pRight - (boxW + G + 8)
+  // Offsets are (attachDX, headDY, right?) where right? = box sits LEFT of the attach
+  // point (leader meets its right edge). Prefer up-right blank space, then up-left,
+  // then the down variants. When there's no room right, only the left variants apply.
+  const CANDS = roomRight
+    ? [{ dx: G, dy: -G, right: false }, { dx: -G, dy: -G, right: true }, { dx: G, dy: G, right: false }, { dx: -G, dy: G, right: true }]
+    : [{ dx: -G, dy: -G, right: true }, { dx: -G, dy: G, right: true }]
+  const boxFor = (c) => {
+    const x = c.right ? (anchorX + c.dx - firstLineW) : (anchorX + c.dx)
+    const y = anchorY + c.dy - fs * 0.9
+    return { x, y, ax: c.right ? x + firstLineW : x, hy: y + fs * 0.9 }
+  }
+  const onScreen = (b) => b.x >= plotLeft && b.x <= pRight - boxW && b.y >= 6 && b.y <= priceBottom - boxH
+  let best = null, firstOnScreen = null
+  for (const c of CANDS) {
+    const b = boxFor(c)
+    if (!onScreen(b)) continue
+    if (!firstOnScreen) firstOnScreen = b
+    if (!hitsCandles(b.x, b.y, boxW, boxH) && !lineHitsCandles(anchorX, anchorY, b.ax, b.hy) && !overlapsObstacle(b.x, b.y, boxW, boxH)) {
+      best = b; break
     }
   }
-  if (!best) best = { x: Math.max(plotLeft, anchorX - firstLineW - 60), y: Math.max(4, anchorY - 60 - fs) }
+  if (!best) best = firstOnScreen
+  if (!best) {
+    // Anchor jammed in a corner (every candidate off-screen) → clamp a box on-screen,
+    // preferring up-right; drop below the anchor if there's no vertical room above.
+    let x = Math.max(plotLeft, Math.min(pRight - boxW, anchorX + (roomRight ? G : -G - boxW)))
+    let y = Math.max(6, Math.min(priceBottom - boxH, anchorY - G - boxH))
+    if (y <= 7 && anchorY + G + boxH < priceBottom) y = anchorY + G
+    best = { x, y }
+  }
   return {
     rect: { x: best.x, y: best.y, w: boxW, h: boxH },
-    anchorPx: { x: anchorX, y: anchorY },   // leader anchors at the day's high (up) / low (down)
+    anchorPx: { x: anchorX, y: anchorY },   // leader anchors at the candle's high
     firstLineW,
   }
 }

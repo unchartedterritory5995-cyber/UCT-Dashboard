@@ -28,17 +28,26 @@ describe('resolveCatalystAnchor', () => {
     expect(resolveCatalystAnchor('2026-08-05', bars, nearest)).toBe(1)
   })
 
-  it('intraday: snaps to the FIRST candle expanding on BOTH range and volume', () => {
-    // Index 10 = a big-VOLUME-only open surge (small range) — must be SKIPPED.
-    // Index 30 = big volume AND big range = where the news broke → expected.
+  it('intraday: snaps to a big-VOLUME-only spike over the news candle? no — needs range too', () => {
+    // Index 10 = a big-VOLUME-only open surge (small range). Index 30 = big volume AND
+    // big range = the news candle. The range factor makes 30 the biggest product.
     const bars = intradayDay('2026-08-05', {
       bigVolAt: [10, 30], bigVol: 1500, bigRangeAt: [30], bigRange: 20,
     })
     expect(resolveCatalystAnchor('2026-08-05', bars, () => null)).toBe(30)
   })
 
-  it('intraday: falls back to the greatest combined range×volume expansion', () => {
-    // Nothing crosses 2× both, but index 42 is elevated on both → highest product.
+  it('intraday: picks the BIGGEST range×volume candle, not an earlier smaller spike', () => {
+    // Index 10 = an early moderate range+volume move; index 40 = the dominant news
+    // candle (bigger on both). Max picks 40 even though 10 also "expands".
+    const bars = intradayDay('2026-08-05', {
+      bigVolAt: [10, 40], bigVol: [800, 2000], bigRangeAt: [10, 40], bigRange: [8, 25],
+    })
+    expect(resolveCatalystAnchor('2026-08-05', bars, () => null)).toBe(40)
+  })
+
+  it('intraday: uses the greatest combined range×volume expansion', () => {
+    // Only index 42 is elevated on both → highest product.
     const bars = intradayDay('2026-08-05', {
       bigVolAt: [42], bigVol: 150, bigRangeAt: [42], bigRange: 3,
     })

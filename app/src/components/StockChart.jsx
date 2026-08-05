@@ -1489,8 +1489,11 @@ export default function StockChart({
   const containerRef = useRef(null)
   const wmCtrlRef = useRef(null)        // watermark primitive controller
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
-  const sessionShadeRef = useRef(null)      // extended-hours shading primitive
+  const sessionShadeRef = useRef(null)      // extended-hours shading primitive (price pane)
   const sessionShadeAttachedRef = useRef(false)
+  const sessionShadeVolRef = useRef(null)   // second instance for the separate VOLUME pane
+  const sessionShadeVolAttachedRef = useRef(false)
+  const lastShadeBandsVolRef = useRef(null)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const swingPointsRef = useRef([])       // latest swing pivots — redrawn into the PNG screenshot
@@ -5661,6 +5664,31 @@ export default function StockChart({
       if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
     }
 
+    // ── Extended-hours shading in the VOLUME pane ──
+    // The price-pane shading primitive (attached to pane 0 above) fills only its own
+    // pane, so with volume in a SEPARATE pane the pre/post bands stopped at the volume
+    // divider. Attach a SECOND shading instance to the volume pane so the bands extend
+    // straight down through it too (owner ask). Only while that pane exists.
+    {
+      const _volPane = (volSeparatePane && showVolume && volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
+      if (_volPane) {
+        if (!sessionShadeVolRef.current) sessionShadeVolRef.current = createSessionShadingPrimitive({})
+        if (!sessionShadeVolAttachedRef.current) {
+          try { _volPane.attachPrimitive(sessionShadeVolRef.current.primitive); sessionShadeVolAttachedRef.current = true } catch { /* older pane API */ }
+        }
+        if (sessionShadeVolAttachedRef.current && lastShadeBandsVolRef.current !== sessionShadeBands) {
+          lastShadeBandsVolRef.current = sessionShadeBands
+          sessionShadeVolRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
+        }
+      } else if (sessionShadeVolRef.current && sessionShadeVolAttachedRef.current) {
+        // Volume pane gone (overlay mode / hidden) — the primitive detached with the
+        // pane; drop the flag so it re-attaches if the pane returns, and clear its bands.
+        sessionShadeVolAttachedRef.current = false
+        lastShadeBandsVolRef.current = null
+        try { sessionShadeVolRef.current.setOptions({ enabled: false, bands: EMPTY_BANDS }) } catch {}
+      }
+    }
+
     // ── Overlay lines — reuse series where possible ──
     // Remove excess overlay series
     while (overlaySeriesRefs.current.length > overlayData.length) {
@@ -9014,6 +9042,8 @@ export default function StockChart({
         prevChartTypeRef.current = null
         wmAttachedRef.current = false
         sessionShadeAttachedRef.current = false
+        sessionShadeVolAttachedRef.current = false
+        lastShadeBandsVolRef.current = null
         zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
         lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
         lastCfgSigRef.current = null
