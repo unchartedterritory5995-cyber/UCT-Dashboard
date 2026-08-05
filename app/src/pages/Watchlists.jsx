@@ -51,7 +51,7 @@ import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
-import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -356,8 +356,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // widget's canvas/colors never touches another. Absent (the standalone page)
   // → the shared global `watchlist_settings` pref, exactly as before. A widget
   // that hasn't diverged yet inherits the global blob as its seed.
+  // An uncustomized watchlist (no per-widget override, no global pref) uses the
+  // DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text), so the ⚙
+  // swatches and the surface both follow the site theme.
   const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
+    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? watchlistDefaultsForTheme(prefs?.theme)),
     [settingsOverride, prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -368,9 +371,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(next))
   }, [wlSettings, setPref, onSettingsPersist])
   const resetSettings = useCallback(() => {
-    if (onSettingsPersist) onSettingsPersist({ ...WATCHLIST_DEFAULTS })
-    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
-  }, [setPref, onSettingsPersist])
+    // Clear back to the theme-following default (null override for a widget; the
+    // theme default blob for the standalone page).
+    if (onSettingsPersist) onSettingsPersist(null)
+    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(prefs?.theme)))
+  }, [setPref, onSettingsPersist, prefs])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
   // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
   // canvas, dark on a dark one) — same mechanism as the chart popup menus.

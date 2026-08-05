@@ -7,7 +7,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
-import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchlistSettings'
+import { WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
@@ -386,7 +386,7 @@ export default function ChartsWorkspace() {
     const chart = chartsTheme === 'sunrise'
       ? '#eaf1fa'
       : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
-    const wl = mergeWatchlistSettings(parsePref(prefs.watchlist_settings, null))
+    const wl = mergeWatchlistSettings(parsePref(prefs.watchlist_settings, null) ?? watchlistDefaultsForTheme(prefs.theme))
     const watchlist = wl.bgMode === 'gradient' ? (wl.bgGradient?.top || wl.bg) : wl.bg
     const tt = mergeThemeTrackerSettings(parsePref(prefs.theme_tracker_settings, null))
     const themes = tt.bgMode === 'gradient' ? (tt.bgGradient?.top || tt.bg) : tt.bg
@@ -425,7 +425,7 @@ export default function ChartsWorkspace() {
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
+  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,

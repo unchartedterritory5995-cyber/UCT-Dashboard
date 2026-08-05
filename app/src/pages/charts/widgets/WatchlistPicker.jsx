@@ -14,7 +14,7 @@ import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import UIcon from '../../../components/ui/UIcon'
 import { useWatchlistTemplates } from '../../watchlist/watchlistTemplates'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
-import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars } from '../../watchlist/watchlistSettings'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import styles from './WatchlistPicker.module.css'
 
@@ -35,7 +35,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   // and configurable exactly like the list view that follows it.
   const { prefs } = usePreferences()
   const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
+    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? watchlistDefaultsForTheme(prefs?.theme)),
     [settingsOverride, prefs],
   )
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
