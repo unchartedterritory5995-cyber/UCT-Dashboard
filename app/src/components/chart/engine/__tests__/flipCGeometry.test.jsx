@@ -40,7 +40,7 @@ import { resolveChartRegionFromPanes } from '../../chartRegion'
 import {
   PANE_MODE, paneMode, __setPaneModeForTest,
   computePaneLayout, paneManifest, paneStackHeightPx, paneStretchPlan,
-  SEPARATOR_PX,
+  paneHeightMismatch, SEPARATOR_PX,
 } from '../paneLayout'
 import { makeBars } from './fakeChart'
 
@@ -190,6 +190,42 @@ async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, lay
   })
   await frame()
   return { paneLayout, result }
+}
+
+/**
+ * Sync until the renderer AGREES with the layout, then return the last one.
+ *
+ * ⚠️ ONE SYNC IS NOT A SETTLE, and that is D2's fourth face: `paneStackHeightPx`
+ * is itself rAF-stale, so the FIRST layout of any chart is computed against a
+ * height that is a pixel out and the binder's own converge fixes it on the next
+ * pass. A test that arms a DELIBERATE mismatch has to start from a clean slate or
+ * it is measuring the accidental one.
+ */
+async function settle(h, ids, opts) {
+  let last = null
+  for (let i = 0; i < 4; i++) {
+    last = await sync(h, ids, opts)
+    if (!paneHeightMismatch(h.raw, last.paneLayout)) return last
+  }
+  throw new Error('the chart never settled on its own layout')
+}
+
+/**
+ * A layout the renderer CANNOT honour, whatever it is handed twice.
+ *
+ * ⛔ IT CORRUPTS `above`, NOT `pane0`. The first version of this fixture moved
+ * `pane0.stretchFactor`, which `paneHeightMismatch` stopped reading when each
+ * above-stack pane got its own target — so the check agreed, both D2 tests were
+ * vacuous, and the gauntlet's "restore the throw" mutation SURVIVED. Stretch
+ * factors are RELATIVE, so a set that does not sum to the available height is
+ * rescaled by LWC and can never be met.
+ */
+function wrongLayout(layout) {
+  return {
+    ...layout,
+    above: layout.above.map((v) => Math.max(2, Math.round(v / 2))),
+    panes: layout.panes.map((p) => ({ ...p, heightPx: 100, stretchFactor: 100 })),
+  }
 }
 
 afterEach(() => {
@@ -347,47 +383,33 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     // ErrorBoundary on 3 of 14 then 1 of 8 COLD LOADS while the same build minus
     // the throw produced 15 identical manifests out of 15 — the geometry was
     // right every time. So: re-apply once, and never take the chart down.
+    //
+    // ⚠️ ITS FIRST FIXTURE WAS VACUOUS AND THE GAUNTLET SAID SO. It corrupted
+    // `pane0.stretchFactor`, which `paneHeightMismatch` stopped reading when the
+    // above-stack panes each got their own target — so the check AGREED, nothing
+    // was ever verified, and restoring the throw left this test GREEN (M11
+    // SURVIVED). The fixture below corrupts `above`, which is what the check
+    // actually reads, and the mismatch is asserted directly before the claim.
     __setPaneModeForTest('panes')
     __resetPaneHeightAlerts()
     const h = openChart()
-    const { paneLayout } = await sync(h, ['rsi'])
+    const { paneLayout } = await settle(h, ['rsi'])
     expect(h.heights()).toEqual([paneLayout.pane0.heightPx, paneLayout.panes[0].heightPx])
 
-    // A layout the renderer will NOT honour: hand-drag the divider behind the
-    // binder's back and then ask for the same heights again. `setStretchFactor`
-    // is what the binder writes, so the only way to fake a redistribution is to
-    // ask for one thing and let the chart hold another — which is exactly what a
-    // renderer that stopped honouring stretch factors would look like.
-    const wrong = {
-      ...paneLayout,
-      panes: [{ ...paneLayout.panes[0], heightPx: 7, stretchFactor: 7 }],
-      pane0: { ...paneLayout.pane0, heightPx: CHART_H - 8, stretchFactor: CHART_H - 8 },
-    }
-    // Pass one sync that ARMS the check with `wrong` while the renderer is
-    // actually told nothing new…
-    h.binder.sync({
-      enabled: true,
-      instances: [inst('rsi')],
-      registry: engineRegistry,
-      bars,
-      adjustTime: (t) => t,
-      plan: { noop: true },
-      paneMargins: computePaneMargins(csWith(['rsi']), false),
-      // ⛔ the layout the binder will VERIFY, with the stretch write neutered by
-      // handing it factors the renderer already holds.
-      paneLayout: { ...wrong, panes: [{ ...wrong.panes[0], stretchFactor: paneLayout.panes[0].stretchFactor }] },
-      volOverlaySet: new Set(), volSeparatePane: false, VOL_PANE_INDEX: 1,
-      resolvePlacement,
-    })
-    await frame()
+    // A layout the renderer will NOT honour. Stretch factors are RELATIVE: a set
+    // that does not sum to the available height is rescaled, so the chart holds
+    // something other than what was asked for — which is exactly what a renderer
+    // that stopped honouring them would look like.
+    const wrong = wrongLayout(paneLayout)
+    await sync(h, ['rsi'], { layoutOverride: wrong })      // ARMS the check
+    // ⛔ NON-VACUITY: the renderer really does disagree with `wrong`. Without this
+    // line the two claims below are about a check that never fired.
+    expect(paneHeightMismatch(h.raw, wrong)).toMatch(/^paneLayout: pane \d+ is \d+px/)
 
     // ⛔ IT RESOLVES. A one-pixel disagreement is not worth a blank chart.
-    await expect(sync(h, ['rsi'])).resolves.toBeTruthy()
-    await frame()
-    // …and the re-apply took: the renderer is back on the layout's heights, and
-    // nothing was reported, because a transient that self-corrects is not a bug.
-    const after = await sync(h, ['rsi'])
-    expect(h.heights()).toEqual([after.paneLayout.pane0.heightPx, after.paneLayout.panes[0].heightPx])
+    await expect(sync(h, ['rsi'], { layoutOverride: wrong })).resolves.toBeTruthy()
+    // …and the FIRST disagreement converges silently: a transient that
+    // self-corrects is not something to report.
     expect(paneHeightAlerts()).toEqual({})
     // The chart is still a chart — the failure mode this replaced was a blank one.
     expect(h.raw.panes()).toHaveLength(2)
@@ -401,14 +423,10 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     __setPaneModeForTest('panes')
     __resetPaneHeightAlerts()
     const h = openChart()
-    const { paneLayout } = await sync(h, ['rsi'])
-    const impossible = {
-      ...paneLayout,
-      above: [200],
-      panes: [{ ...paneLayout.panes[0], heightPx: 100, stretchFactor: 100 }],
-      pane0: { ...paneLayout.pane0, heightPx: 200, stretchFactor: 200 },
-    }
+    const { paneLayout } = await settle(h, ['rsi'])
+    const impossible = wrongLayout(paneLayout)
     await sync(h, ['rsi'], { layoutOverride: impossible })   // arms the check
+    expect(paneHeightMismatch(h.raw, impossible)).toBeTruthy()
     await sync(h, ['rsi'], { layoutOverride: impossible })   // check → re-apply
     await sync(h, ['rsi'], { layoutOverride: impossible })   // check → report
     const alerts = Object.keys(paneHeightAlerts())
@@ -715,6 +733,24 @@ describe('the shipped configuration — a separate volume pane', () => {
     expect(budget).toBeGreaterThan(own)
     expect(1 - (budget / own)).toBeLessThan(0)
     expect(bandsRect[1] - bandsRect[0]).toBeGreaterThan(50)
+  })
+
+  it('the remainder lands on the CANDLE pane — a fixture where the two arithmetics agree cannot say so', () => {
+    // 🔴 78/22 CANNOT TELL THEM APART, and B5 Task 10's gauntlet measured exactly
+    // that on the sibling arithmetic: 78 % of 399 rounds to 311 and 399 − 88 is
+    // also 311, so `available - assigned` and `round(available*w/total)` agree and
+    // the mutation SURVIVES. Three equal weights over 100 do not divide evenly —
+    // rounding every share gives 33+33+33 = 99 and loses a pixel off the stack.
+    const layout = computePaneLayout({}, [], {
+      chartHeight: 102,                  // 2 separators ⇒ 100 to distribute
+      hasVolumeBand: false,
+      separatorPx: SEPARATOR_PX,
+      firstPaneIndex: 3,
+      abovePct: [1, 1, 1],
+      mainPaneIndex: 1,
+    })
+    expect(layout.above).toEqual([33, 34, 33])
+    expect(layout.above.reduce((s, x) => s + x, 0) + 2 * SEPARATOR_PX).toBe(102)
   })
 
   it('a THREE-pane-above chart (Model Book s index pane) totals exactly as well', async () => {

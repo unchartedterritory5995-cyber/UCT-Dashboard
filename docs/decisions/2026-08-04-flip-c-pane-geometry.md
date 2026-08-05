@@ -1,12 +1,15 @@
 # Decision: Flip C — the oscillator bands become real LWC panes
 
 **Decision id:** `FLIP_C_PANE_GEOMETRY`
-**Status:** 🟡 **OPEN — MEASURED 2026-08-05, AWAITING THE OWNER.** `PANE_MODE` stays `'bands'`; nothing here is applied.
+**Status:** 🟡 **OPEN — RE-MEASURED 2026-08-05 AGAINST A BUILD THAT RENDERS, AWAITING THE OWNER.** `PANE_MODE` stays `'bands'`; nothing here is applied.
 **Owner of the read:** `app/src/components/chart/engine/paneLayout.js` → `PANE_MODE` / `paneMode()`,
 and `computePaneMargins` in `app/src/components/chart/paneMargins.js` (consumed, not modified).
 **Adjudication row:** `docs/superpowers/specs/2026-07-31-indicator-platform-design.md` §11.
 **Raised by:** Phase B5's plan, as the ONE task of thirteen that may move a pixel.
-**Measured by:** B5 Task 11, 2026-08-05. **Applied by:** Task 12, in its own commit, after the owner answers.
+**Measured by:** B5 Task 11, 2026-08-05 — **and its numbers were withdrawn**: they were taken
+against a patched build, because the cutover did not render. **Re-measured by Task 11b**, same
+day, after the three defects were fixed at root (commit `bd388aa2`).
+**Applied by:** Task 12, in its own commit, after the owner answers.
 **Pinned by:** `app/src/components/chart/engine/__tests__/flipCRecord.test.js` — it reads this file and
 fails if a live parity case is unpriced, if an unfilled placeholder survives (the test spells the
 token out; this line deliberately does not, so the rail cannot be satisfied by its own description),
@@ -17,10 +20,11 @@ Status line stops saying OPEN.
 > an owner can accept any subset. A single "looks good" over the whole change is
 > exactly the shape this record exists to refuse.
 >
-> 🔴 **READ §6 FIRST.** Measuring the cutover found that it **does not render at
-> all** in its Task-10 form. Every number below was measured against a build
-> carrying the minimal correction in §6, and that correction is Task 12's to land
-> — it is not in the tree and this task applied nothing.
+> ✅ **THE CUTOVER NOW RENDERS ON ONE EDIT.** Task 11 measured that it did not —
+> `PANE_MODE = 'panes'` threw into StockChart's ErrorBoundary on all 46 cases —
+> and priced it against a build carrying three patches. §6 records the three
+> defects, the ONE cause behind them, and the fix. **Every number below is
+> measured against the shipped tree with `PANE_MODE` flipped and nothing else.**
 
 ---
 
@@ -41,16 +45,11 @@ settings deletions, and the entire real-pane implementation — land under
 `PANE_MODE = 'bands'` and are therefore measurable at the OLD zero. Flip C is one
 constant flipping to `'panes'`.
 
-### What it actually moves, measured rather than predicted
-
-The plan expected three things to move (a separator row, a price axis, the pane
-heights) and expected pane 0 to hold still. **Two of those four expectations are
-wrong on the chart this app actually ships**, and the reason is one number:
+### The number that decides the shape of it
 
 > `firstPaneIndex` — the LWC pane index the oscillator stack starts at. It is
 > `1 + (separate volume pane ? 1 : 0) + (Model Book index pane ? 1 : 0)`.
-> **It is 2, not 1, on every chart a user looks at** — and the §A6 identity that
-> makes the price pane hold still was proved for 1.
+> **It is 2, not 1, on every chart a user looks at.**
 
 ⚠️ **`CHART_DEFAULTS.volume.separatePane` is `false`, and that is not the answer.**
 `volInSeparatePane = volumeSeparatePane || cs.volume?.separatePane`, and the
@@ -59,64 +58,77 @@ draws a chart: `charts/widgets/ChartWidget.jsx`, `charts/grid/GridChartCell.jsx`
 `IntradayDayPopover.jsx`, `modelbook/BottomsView.jsx` — and `pages/ChartRender.jsx`,
 which is the parity route itself. So **`firstPaneIndex === 1` is not a
 configuration this app renders**, and it is not one the parity gate can reach: the
-harness cannot turn the prop off through `?indicators=`, so no parity case has ever
-exercised the case the identity was proved for. (Confirmed by measurement:
-overriding `volume.separatePane` to `false` on both sides changes nothing — the
-pane counts stay 2 and 3 and the diff stays at the same 144,285 px.)
+harness cannot turn the prop off through `?indicators=`. **That is where all three
+of §6's defects lived**, and it is why Task 10's real-renderer tests — every one of
+them at `firstPaneIndex === 1` — were green while the first thing a browser did
+with `'panes'` was throw.
 
-With `firstPaneIndex = 2` the cutover **reorders the chart**. Today an oscillator
-band lives at the bottom of pane 0, i.e. **above** the volume pane; after the flip
-it is a pane **below** volume. Nothing in the plan says so, and the pane manifest
-says it in one line — `rsi_only`, the two builds side by side:
+### What actually moves, measured rather than predicted
+
+`rsi_only`, the two builds side by side, read off the pane manifest:
 
 | | pane 0 | pane 1 | pane 2 |
 |---|---|---|---|
 | **bands (today)** | 414 px — candles **+ the RSI band** | 117 px — volume | — |
-| **panes (the cutover)** | 353 px — candles | 99 px — volume | 78 px — **RSI** |
+| **panes (the cutover)** | 352 px — candles | 117 px — volume | 61 px — **RSI** |
 
-So three things move that the plan did not name: the oscillator and the volume
-pane **swap places**, the volume pane **shrinks** (117 → 99 px, because
-`paneStretchPlan` re-splits a smaller budget in the same 78/22 proportion), and
-the candles are re-fitted into a shorter pane 0.
+Three things to read off that row:
 
-⚠️ **This is arguably the cutover doing the RIGHT thing.** In band mode with
-volume as a *band* (`separatePane: false`), `computePaneMargins` already puts
+* **the oscillator and the volume pane SWAP PLACES.** Today an oscillator band
+  lives at the bottom of pane 0, i.e. **above** the volume pane; after the flip it
+  is a pane **below** volume. Nothing in the plan says so, and it is the single
+  biggest visible change.
+* **the volume pane keeps its height** (117 → 117) and **the candle rectangle
+  keeps its pixels** — 352 is exactly where the candles' bottom edge already is,
+  and the RSI pane's 61 px is the RSI band's 62 px minus the separator the
+  cutover adds. The bands become panes; the pixels do not move to make room. ⚠️
+  Neither of those was true before §6's fix: the volume pane shrank 117 → 99 and
+  the candles were re-fitted.
+* it follows that the price range does not change, so **the price axis' labels do
+  not change width and the plot area's left edge does not move.**
+
+⚠️ **The reordering is arguably the cutover doing the RIGHT thing.** In band mode
+with volume as a *band* (`separatePane: false`), `computePaneMargins` already puts
 volume directly under the price area with the oscillators below it. The shipped
 separate-pane path is the odd one out, and Flip C makes the two agree. But it is a
 visible reordering of every chart a user has open, and it is not what "the bands
 become panes" sounds like.
 
-### ⛔ The price pane does NOT read absolute 0
+### ⛔ The price pane still does not read absolute 0 — and the floor is ONE GRID LINE
 
-Pane 0 — candles, MAs, all five price overlays, volume, the right axis — was
-designed to be untouched, by arithmetic rather than allowance: pane 0's margins
-re-expressed as fractions of pane 0's own height, and the separator budget taken
-from the OSCILLATORS. **The region gate says it does not hold.** `price_plot` is
-non-zero on every case that grows a pane, and the mechanism is in §6 (D3): the
-re-expression divides by the price-pane **budget** (pane 0 *plus* the volume pane
-*plus* any index pane) and is then applied to pane 0's own scale, whose height is
-only pane 0's share of that budget. The two are the same number **only when
-`firstPaneIndex === 1`**.
+Pane 0 was designed to be untouched by arithmetic rather than by allowance. **It
+is very nearly untouched and it is not exactly untouched.** On the
+single-oscillator cases `price_plot` reads **2,919 – 3,495 px** — under 0.5 % of
+the export and under 0.8 % of the candle pane's own 1200 × 352 rectangle — and
+§3's `price_plot` column is what it costs on each case.
 
-### And it moves the TIME AXIS, which nobody predicted either
+**What the residue IS, measured on `rsi_only`'s diff mask rather than reasoned
+about.** Of its 2,926 changed pixels:
 
-The first measurement put **35,471 changed pixels into `rest`** on `rsi_only`
-alone — every one of them in `y[532,572)` across the full width, i.e. the time
-axis. `rest` is every changed pixel outside every declared rectangle, computed by
-mask subtraction and never declarable, and its expectation is 0: **a pixel nobody
-named is exactly what it exists to catch.** So it was found, and it is named.
+* **2,248 are two rows** — y 98 and y 99, 1,124 columns each, the full plot width.
+  Side A holds `rgb(22,23,19)` there and side B holds the canvas background
+  `rgb(14,15,13)`: it is **a horizontal GRID LINE that side B does not draw**.
+  Lightweight-charts picks its price-tick spacing from the pane's height, and a
+  352-px pane fits one tick fewer than a 414-px one.
+* **678 are spread over the other 70 rows**, at a median of **3 px per row** —
+  re-antialiased candle and overlay edges.
 
-The chain is: the cutover re-fits the candles into a shorter pane 0 → the visible
-price range changes → the price axis' tick labels change width → the plot area's
-left edge moves → **every time-axis label moves with it**. That is also why the
-whole-canvas numbers in §3 are large: the diff's bounding box on `rsi_only` is
-`(0, 66) → (1200, 572)`, i.e. essentially the entire chart, because a horizontal
-shift of the plot area moves every bar.
+So the candles do not move: the price range, the axis labels, the plot's left edge
+and the entire time axis are **byte-identical** (`time_axis` reads 0 on every one
+of the 46 cases, and so does `export_header`).
 
-Each case therefore declares **three** rectangles which TILE the export —
-`price_plot`, `osc_strip`, `time_axis` — and `rest` reads **0 on every case**,
-with nowhere left to hide a pixel. That is the shape `rsi_only` already shipped
-with before Task 11 touched it.
+**The real floor is one grid line per tick the shorter pane can no longer fit —
+about 1,124 px each.** `price_plot` cannot reach absolute 0 while the candle
+pane's height changes at all, and it must change, because the oscillator pane has
+to come from somewhere. The plan's "reads absolute 0 by arithmetic" is not
+achievable and never was; what IS achievable, and is now achieved, is that the
+candles themselves are untouched.
+
+⚠️ **Task 11's `price_plot` numbers (49,429 px on `rsi_only`) are not comparable
+to these**, and not only because of the D3 fix: its rectangle ran from the top of
+the canvas to the top of the oscillator stack, so it also contained the volume
+pane, and it was offset 40 px by an export header it did not know about. See §3's
+"How the rectangles were derived".
 
 ## 2. The three sub-choices, priced separately
 
@@ -133,22 +145,21 @@ section is a table and not a paragraph.
 ### 2.1 — the separator colour · **2,400 px on `rsi_only`, and it is exactly two rows of 1,200**
 
 <!-- BEGIN:sub-2.1 -->
-*A = the cutover with LWC's default separator — build **1438fd9d001f**; B = the chart's own separator token — build **f923bc3b160c**; 8 run(s) per case; served == disk verified on both.*
+*A = the cutover with LWC's default separator — build **1667183abbe0**; B = the chart's own separator token — build **d361f1585243**; 5 run(s) per case; served == disk verified on both.*
 
-| case | changed px | % | price_plot | osc_strip | time_axis | rest | distribution |
-|---|---:|---:|---:|---:|---:|---:|---|
-| `bb_only` | 1,200 | 0.16129 | 1,200 | — | 0 | 0 | 8/8 |
-| `rsi_only` | 2,400 | 0.322581 | 1,200 | 1,200 | 0 | 0 | 8/8 |
-| `macd_only` | 2,400 | 0.322581 | 1,200 | 1,200 | 0 | 0 | 8/8 |
-| `bb_rsi_macd` | 3,600 | 0.483871 | 1,200 | 2,400 | 0 | 0 | 8/8 |
-| `atr_only` | 2,400 | 0.322581 | 1,200 | 1,200 | 0 | 0 | 8/8 |
-| `engine_three_bands_stacked` | 4,800 | 0.645161 | 1,200 | 3,600 | 0 | 0 | 8/8 |
+| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| `bb_only` | 1,200 | 0.16129 | 0 | 0 | 1,200 | — | 0 | 0 | 5/5 |
+| `rsi_only` | 2,400 | 0.322581 | 0 | 0 | 2,400 | 0 | 0 | 0 | 5/5 |
+| `macd_only` | 2,400 | 0.322581 | 0 | 0 | 2,400 | 0 | 0 | 0 | 5/5 |
+| `bb_rsi_macd` | 3,600 | 0.483871 | 0 | 0 | 2,400 | 1,200 | 0 | 0 | 5/5 |
+| `atr_only` | 2,400 | 0.322581 | 0 | 0 | 2,400 | 0 | 0 | 0 | 5/5 |
+| `engine_three_bands_stacked` | 4,800 | 0.645161 | 0 | 0 | 2,400 | 2,400 | 0 | 0 | 5/5 |
 <!-- END:sub-2.1 -->
 
 **What the number is.** One 1,200-px row per separator, and nothing else on the
-canvas moves: `price_plot` and `osc_strip` each take exactly 1,200 on a three-pane
-case because one separator falls in each. `rest` is 0. The cost scales with pane
-count and nothing else, and it is perfectly reversible.
+canvas moves. The cost scales with pane count and nothing else, and it is
+perfectly reversible.
 
 ⚠️ **It restyles a separator that already exists.** The price/volume divider is on
 LWC's default colour today; the token change moves it too. That is a pixel the
@@ -165,26 +176,27 @@ against a dark canvas and wrong against a light one — the exact defect
 ### 2.2 — the per-pane price axis · **372 px on `rsi_only`, and it is the one that changes what a user READS**
 
 <!-- BEGIN:sub-2.2 -->
-*A = the cutover's overlay scale (no axis labels) — build **1438fd9d001f**; B = a visible per-pane right axis — build **3e1f3e3b903b**; 8 run(s) per case; served == disk verified on both.*
+*A = the cutover's overlay scale (no axis labels) — build **1667183abbe0**; B = a visible per-pane right axis — build **0aeab4391711**; 5 run(s) per case; served == disk verified on both.*
 
-| case | changed px | % | price_plot | osc_strip | time_axis | rest | distribution |
-|---|---:|---:|---:|---:|---:|---:|---|
-| `bb_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 |
-| `rsi_only` | 372 | 0.05 | 0 | 191 | 181 | 0 | 8/8 |
-| `macd_only` | 280 | 0.037634 | 0 | 136 | 144 | 0 | 8/8 |
-| `bb_rsi_macd` | 759 | 0.102016 | 0 | 613 | 146 | 0 | 8/8 |
-| `atr_only` | 229 | 0.03078 | 0 | 113 | 116 | 0 | 8/8 |
-| `engine_three_bands_stacked` | 1,465 | 0.196909 | 0 | 1,264 | 201 | 0 | 8/8 |
+| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| `bb_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 |
+| `rsi_only` | 372 | 0.05 | 0 | 0 | 0 | 372 | 0 | 0 | 5/5 |
+| `macd_only` | 140 | 0.018817 | 0 | 0 | 0 | 140 | 0 | 0 | 5/5 |
+| `bb_rsi_macd` | 512 | 0.068817 | 0 | 0 | 0 | 512 | 0 | 0 | 5/5 |
+| `atr_only` | 229 | 0.03078 | 0 | 0 | 0 | 229 | 0 | 0 | 5/5 |
+| `engine_three_bands_stacked` | 516 | 0.069355 | 0 | 0 | 0 | 516 | 0 | 0 | 5/5 |
 <!-- END:sub-2.2 -->
 
 **What the number is.** Small, and the size is misleading in both directions. It
 is small because the axis GUTTER already exists — the price axis is there, pinned
 to a stable minimum width, and the oscillator's numbers are drawn into the column
-that is already reserved. So the cost is ink, not layout: no candle moves,
-`price_plot` reads **0** on every case. It is not small in what it means — every
-oscillator pane gains a live numeric ladder a user will read values off, and
-`manifest_geometry` records the `scaleId` moving from the definition's own overlay
-scale to `right` on every migrated series.
+that is already reserved. So the cost is ink, not layout: **every one of its
+pixels is inside `osc_strip`, and `price_plot`, `mid_panes`, `time_axis` and
+`export_header` all read 0** on all six cases. No candle moves. It is
+not small in what it means — every oscillator pane gains a live numeric ladder a
+user will read values off, and `manifest_geometry` records the `scaleId` moving
+from the definition's own overlay scale to `right` on every migrated series.
 
 **Recommendation: THE OWNER'S CALL, WITH THE NUMBER IN FRONT OF THEM.** TradingView
 shows it and spec §6's "pane grammar" implies it; against that, an RSI whose scale
@@ -194,27 +206,27 @@ exists and is cheap to add later: **axis only on panes whose scale is not fixed*
 It is not priced here because it is not implemented; if the owner wants it, it is a
 one-line change to `placement.js`'s `'panes'` branch and its own measurement.
 
-### 2.3 — the pane heights · **191,584 px on `rsi_only` — 25.8 % of the canvas**
+### 2.3 — the pane heights · **195,658 px on `rsi_only` — 26.3 % of the canvas**
 
 <!-- BEGIN:sub-2.3 -->
-*A = today's band heights, preserved — build **1438fd9d001f**; B = LWC's own stretch defaults (equal panes) — build **d27ba52c432a**; 8 run(s) per case; served == disk verified on both.*
+*A = today's band heights, preserved — build **1667183abbe0**; B = LWC's own stretch defaults (equal panes) — build **3dcdffd52fd3**; 5 run(s) per case; served == disk verified on both.*
 
-| case | changed px | % | price_plot | osc_strip | time_axis | rest | distribution |
-|---|---:|---:|---:|---:|---:|---:|---|
-| `bb_only` | 131,766 | 17.710484 | 130,515 | — | 1,251 | 0 | 8/8 |
-| `rsi_only` | 191,584 | 25.750538 | 147,216 | 40,444 | 3,924 | 0 | 8/8 |
-| `macd_only` | 195,078 | 26.220161 | 145,467 | 45,698 | 3,913 | 0 | 8/8 |
-| `bb_rsi_macd` | 184,849 | 24.845296 | 120,689 | 60,230 | 3,930 | 0 | 8/8 |
-| `atr_only` | 192,719 | 25.903091 | 149,777 | 38,956 | 3,986 | 0 | 8/8 |
-| `engine_three_bands_stacked` | 156,900 | 21.08871 | 86,822 | 66,315 | 3,763 | 0 | 8/8 |
+| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| `bb_only` | 131,766 | 17.710484 | 0 | 86,989 | 44,777 | — | 0 | 0 | 5/5 |
+| `rsi_only` | 195,658 | 26.298118 | 0 | 115,163 | 74,597 | 5,898 | 0 | 0 | 5/5 |
+| `macd_only` | 202,570 | 27.227151 | 0 | 110,652 | 81,999 | 9,919 | 0 | 0 | 5/5 |
+| `bb_rsi_macd` | 200,789 | 26.987769 | 0 | 101,905 | 73,869 | 25,015 | 0 | 0 | 5/5 |
+| `atr_only` | 196,908 | 26.466129 | 0 | 118,784 | 71,909 | 6,215 | 0 | 0 | 5/5 |
+| `engine_three_bands_stacked` | 177,027 | 23.793952 | 0 | 75,127 | 74,022 | 27,878 | 0 | 0 | 5/5 |
 <!-- END:sub-2.3 -->
 
 **What the number is.** LWC's default stretch factor is `1`
 (`lightweight-charts.standalone.development.js:5225`), so a chart that never calls
-`setStretchFactor` has **equal panes**: on `rsi_only` the candles fall from 353 px
-to about a third of the stack and the RSI grows from 78 px to the same. A quarter
-of the canvas changes, `price_plot` takes the overwhelming majority of it
-(147,216 of 191,584), and the pane manifest moves on six lines.
+`setStretchFactor` has **equal panes**: on `rsi_only` the candles fall from 352 px
+to about a third of the stack and the RSI grows from 61 px to the same. A large
+fraction of the canvas changes and `price_plot` takes the overwhelming majority of
+it.
 
 **Recommendation: PRESERVE THE HEIGHTS.** This is the only one of the three where
 the alternative is plainly worse: a returning user's layout stops being
@@ -222,64 +234,62 @@ recognisable, a single RSI takes a third of the chart, and the `baseH` values
 encode a deliberate look (`macd` 0.17 > `rsi` 0.15 > `atr`/`obv` 0.13) that equal
 panes throws away. The heights are already preserved by `computePaneLayout` and
 the code to do it already exists; adopting LWC's defaults would be a deletion that
-costs 25 % of the picture.
+costs a quarter of the picture.
 
 ## 3. The measurement
 
 <!-- BEGIN:cutover-table -->
-*A = `PANE_MODE = 'bands'` (HEAD) — build **cc1f66936413**; B = the cutover — build **1438fd9d001f**; 8 run(s) per case; served == disk verified on both.*
+*A = `PANE_MODE = 'bands'` — what ships — build **1c74866baccb**; B = the cutover, ONE edit — build **1667183abbe0**; 5 run(s) per case; served == disk verified on both.*
 
-| case | changed px | % | price_plot | osc_strip | time_axis | rest | distribution | manifest geometry |
-|---|---:|---:|---:|---:|---:|---:|---|---:|
-| `bb_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `rsi_only` | 141,243 | 18.984274 | 49,429 | 56,343 | 35,471 | 0 | 8/8 | 6 line(s) |
-| `macd_only` | 150,283 | 20.199328 | 50,369 | 64,499 | 35,415 | 0 | 8/8 | 8 line(s) |
-| `macd_headmask` | 150,283 | 20.199328 | 50,369 | 64,499 | 35,415 | 0 | 8/8 | 8 line(s) |
-| `bb_rsi_macd` | 159,921 | 21.494758 | 40,140 | 84,354 | 35,427 | 0 | 8/8 | 13 line(s) |
-| `engine_rsi_vs_legacy` | 141,243 | 18.984274 | 49,429 | 56,343 | 35,471 | 0 | 8/8 | 6 line(s) |
-| `engine_rsi_toggle_off` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 0 line(s) |
-| `engine_bb_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_bb_over_overlays` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_bb_rsi_vs_legacy` | 151,169 | 20.318414 | 58,519 | 57,179 | 35,471 | 0 | 8/8 | 7 line(s) |
-| `engine_macd_vs_legacy` | 150,283 | 20.199328 | 50,369 | 64,499 | 35,415 | 0 | 8/8 | 8 line(s) |
-| `engine_bb_rsi_macd_vs_legacy` | 159,921 | 21.494758 | 40,140 | 84,354 | 35,427 | 0 | 8/8 | 13 line(s) |
-| `flipb_rsi_only` | 141,243 | 18.984274 | 49,429 | 56,343 | 35,471 | 0 | 8/8 | 6 line(s) |
-| `flipb_bb_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `flipb_bb_rsi_macd` | 159,921 | 21.494758 | 40,140 | 84,354 | 35,427 | 0 | 8/8 | 13 line(s) |
-| `flipb_macd_only` | 150,283 | 20.199328 | 50,369 | 64,499 | 35,415 | 0 | 8/8 | 8 line(s) |
-| `flipb_vwap_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `flipb_vwap_dimmed` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `flipb_all_four` | 158,810 | 21.34543 | 48,848 | 91,753 | 18,209 | 0 | 8/8 | 15 line(s) |
-| `intraday_bars_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 0 line(s) |
-| `vwap_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_vwap_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_vwap_dimmed_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_vwap_dashed_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_stoch_vs_legacy` | 140,912 | 18.939785 | 50,251 | 55,602 | 35,059 | 0 | 8/8 | 7 line(s) |
-| `engine_atr_vs_legacy` | 130,131 | 17.490726 | 48,047 | 46,616 | 35,468 | 0 | 8/8 | 6 line(s) |
-| `stoch_only` | 143,945 | 19.347446 | 52,448 | 56,438 | 35,059 | 0 | 8/8 | 7 line(s) |
-| `atr_only` | 130,131 | 17.490726 | 48,047 | 46,616 | 35,468 | 0 | 8/8 | 6 line(s) |
-| `engine_sar_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_ichimoku_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_price_overlay_zorder` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `sar_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `ichimoku_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `mfi_only` | 140,673 | 18.907661 | 49,249 | 55,909 | 35,515 | 0 | 8/8 | 6 line(s) |
-| `cci_only` | 141,428 | 19.00914 | 49,498 | 56,162 | 35,768 | 0 | 8/8 | 6 line(s) |
-| `williams_r_only` | 140,684 | 18.90914 | 49,420 | 55,892 | 35,372 | 0 | 8/8 | 6 line(s) |
-| `engine_mfi_vs_legacy` | 140,673 | 18.907661 | 49,249 | 55,909 | 35,515 | 0 | 8/8 | 6 line(s) |
-| `engine_cci_vs_legacy` | 141,428 | 19.00914 | 49,498 | 56,162 | 35,768 | 0 | 8/8 | 6 line(s) |
-| `engine_williams_r_vs_legacy` | 140,684 | 18.90914 | 49,420 | 55,892 | 35,372 | 0 | 8/8 | 6 line(s) |
-| `engine_three_bands_stacked` | 156,085 | 20.979167 | 27,786 | 92,927 | 35,372 | 0 | 8/8 | 10 line(s) |
-| `adx_only` | 146,590 | 19.702957 | 53,492×2 · 53,506×6 | 56,990 | 36,094 | 0 | 146576×2 · 146590×6 | 8 line(s) |
-| `obv_only` | 132,874 | 17.859409 | 50,233 | 47,186 | 35,455 | 0 | 8/8 | 6 line(s) |
-| `donchian_only` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| `engine_adx_vs_legacy` | 146,590 | 19.702957 | 53,492×1 · 53,506×7 | 56,990 | 36,094 | 0 | 146576×1 · 146590×7 | 8 line(s) |
-| `engine_obv_vs_legacy` | 129,787 | 17.444489 | 48,031 | 46,301 | 35,455 | 0 | 8/8 | 6 line(s) |
-| `engine_donchian_vs_legacy` | 0 | 0.0 | 0 | — | 0 | 0 | 8/8 | 2 line(s) |
-| **46 cases, summed** | **3,624,038** | | | | | | | |
-
-⚠️ **NOT A SINGLE VALUE, and therefore NOT MEASURED:** `adx_only`, `engine_adx_vs_legacy`
+| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution | manifest geometry |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| `bb_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `rsi_only` | 117,577 | 15.80336 | 0 | 2,926 | 64,307 | 50,344 | 0 | 0 | 5/5 | 5 line(s) |
+| `macd_only` | 131,455 | 17.668683 | 0 | 4,129 | 71,767 | 55,559 | 0 | 0 | 5/5 | 7 line(s) |
+| `macd_headmask` | 131,455 | 17.668683 | 0 | 4,129 | 71,767 | 55,559 | 0 | 0 | 5/5 | 7 line(s) |
+| `bb_rsi_macd` | 164,490 | 22.108871 | 0 | 12,933 | 76,667 | 74,890 | 0 | 0 | 5/5 | 12 line(s) |
+| `engine_rsi_vs_legacy` | 117,577 | 15.80336 | 0 | 2,926 | 64,307 | 50,344 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_rsi_toggle_off` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 0 line(s) |
+| `engine_bb_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_bb_over_overlays` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_bb_rsi_vs_legacy` | 124,698 | 16.760484 | 0 | 8,022 | 66,332 | 50,344 | 0 | 0 | 5/5 | 6 line(s) |
+| `engine_macd_vs_legacy` | 131,455 | 17.668683 | 0 | 4,129 | 71,767 | 55,559 | 0 | 0 | 5/5 | 7 line(s) |
+| `engine_bb_rsi_macd_vs_legacy` | 164,490 | 22.108871 | 0 | 12,933 | 76,667 | 74,890 | 0 | 0 | 5/5 | 12 line(s) |
+| `flipb_rsi_only` | 117,577 | 15.80336 | 0 | 2,926 | 64,307 | 50,344 | 0 | 0 | 5/5 | 5 line(s) |
+| `flipb_bb_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `flipb_bb_rsi_macd` | 164,490 | 22.108871 | 0 | 12,933 | 76,667 | 74,890 | 0 | 0 | 5/5 | 12 line(s) |
+| `flipb_macd_only` | 131,455 | 17.668683 | 0 | 4,129 | 71,767 | 55,559 | 0 | 0 | 5/5 | 7 line(s) |
+| `flipb_vwap_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `flipb_vwap_dimmed` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `flipb_all_four` | 159,426 | 21.428226 | 0 | 15,370 | 96,549 | 47,507 | 0 | 0 | 5/5 | 14 line(s) |
+| `intraday_bars_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 0 line(s) |
+| `vwap_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_vwap_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_vwap_dimmed_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_vwap_dashed_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_stoch_vs_legacy` | 118,339 | 15.90578 | 0 | 2,919 | 65,000 | 50,420 | 0 | 0 | 5/5 | 6 line(s) |
+| `engine_atr_vs_legacy` | 108,284 | 14.554301 | 0 | 3,023 | 59,911 | 45,350 | 0 | 0 | 5/5 | 5 line(s) |
+| `stoch_only` | 120,278 | 16.166398 | 0 | 2,919 | 66,939 | 50,420 | 0 | 0 | 5/5 | 6 line(s) |
+| `atr_only` | 108,284 | 14.554301 | 0 | 3,023 | 59,911 | 45,350 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_sar_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_ichimoku_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_price_overlay_zorder` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `sar_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `ichimoku_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `mfi_only` | 116,659 | 15.679973 | 0 | 3,495 | 63,522 | 49,642 | 0 | 0 | 5/5 | 5 line(s) |
+| `cci_only` | 117,160 | 15.747312 | 0 | 2,920 | 64,391 | 49,849 | 0 | 0 | 5/5 | 5 line(s) |
+| `williams_r_only` | 117,180 | 15.75 | 0 | 2,919 | 64,184 | 50,077 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_mfi_vs_legacy` | 116,659 | 15.679973 | 0 | 3,495 | 63,522 | 49,642 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_cci_vs_legacy` | 117,160 | 15.747312 | 0 | 2,920 | 64,391 | 49,849 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_williams_r_vs_legacy` | 117,180 | 15.75 | 0 | 2,919 | 64,184 | 50,077 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_three_bands_stacked` | 163,300 | 21.948925 | 0 | 3,364 | 74,688 | 85,248 | 0 | 0 | 5/5 | 9 line(s) |
+| `adx_only` | 122,104 | 16.411828 | 0 | 2,945 | 68,422 | 50,737 | 0 | 0 | 5/5 | 7 line(s) |
+| `obv_only` | 110,233 | 14.816263 | 0 | 3,023 | 61,858 | 45,352 | 0 | 0 | 5/5 | 5 line(s) |
+| `donchian_only` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| `engine_adx_vs_legacy` | 122,104 | 16.411828 | 0 | 2,945 | 68,422 | 50,737 | 0 | 0 | 5/5 | 7 line(s) |
+| `engine_obv_vs_legacy` | 108,376 | 14.566667 | 0 | 3,023 | 60,001 | 45,352 | 0 | 0 | 5/5 | 5 line(s) |
+| `engine_donchian_vs_legacy` | 0 | 0.0 | 0 | 0 | 0 | — | 0 | 0 | 5/5 | 2 line(s) |
+| **46 cases, summed** | **3,439,445** | | | | | | | | | |
 <!-- END:cutover-table -->
 
 ### 🔑 What the table says in one line
@@ -287,19 +297,26 @@ costs 25 % of the picture.
 **19 of 46 cases read 0** — every case that creates no oscillator pane (`bb`,
 `vwap`, `sar`, `ichimoku`, `donchian`, the price-overlay z-order case, the
 intraday bars case, and `engine_rsi_toggle_off`, whose RSI is off). **The cutover
-is exactly, provably free on a chart with no oscillator.** The other 25 measured
-cases run **129,787 – 159,921 px**, i.e. 17.4 – 21.5 % of the export, and the
-44 single-valued cases sum to **3,624,038 px**.
+is exactly, provably free on a chart with no oscillator.** The other 27 run
+**108,284 – 164,490 px**, i.e. 14.6 – 22.1 % of the export, and all 46 sum to
+**3,439,445 px**. ⭐ **Every one of the 46 read a SINGLE value on all 5 runs** —
+Task 11 had two cases it could not measure at all.
+
+Where those pixels are, on a single-oscillator case (`rsi_only`, 117,577):
+
+| region | px | what it is |
+|---|---:|---|
+| `mid_panes` | 64,307 | **the volume pane, RELOCATED.** The oscillator becomes a pane BELOW it, so a 117-px pane moves 62 px up the canvas. This is the reordering, and it is the largest slice on every case |
+| `osc_strip` | 50,344 | the oscillator stack the cutover creates — a band redrawn as a pane, with its own separator and scale |
+| `price_plot` | 2,926 | one grid line the shorter pane no longer fits, plus 678 px of re-antialiasing (§1) |
+| `export_header` · `time_axis` · `rest` | 0 · 0 · 0 | **the candles do not move, so nothing downstream of them does** |
 
 ⚠️ **AND IT MOVES THE MANIFEST EVEN WHERE IT MOVES NO PIXELS.** Every zero-pixel
 case still reports **2 lines of manifest geometry**, because pane 0's
-`stretchFactor` changes from `78` — a PERCENTAGE, which is what
-`StockChart`'s volume-pane block writes — to `414`, a PIXEL COUNT, which is what
+`stretchFactor` changes from `78` — a PERCENTAGE, which is what `StockChart`'s
+volume-pane block writes — to `414`, a PIXEL COUNT, which is what
 `paneStretchPlan` writes. The picture is identical; the units the layout is
-expressed in are not. That is not cosmetic: it is precisely why the height
-contract is brittle (§6 D2), and it is why the harness's own
-"manifest moved, pixels did not" rule fires on 19 cases that are otherwise
-perfect. Task 12 has to decide whether those 19 declare
+expressed in are not. Task 12 has to decide whether those 19 declare
 `expectManifestChange` or whether the units are reconciled.
 
 ### How the rectangles were derived
@@ -307,117 +324,118 @@ perfect. Task 12 has to decide whether those 19 declare
 ⛔ **Not by eye.** `tools/gen_parity_regions.py` regenerates every box in
 `tools/chart_parity_cases.json` from the **pane manifest of both builds** —
 `window.__paneManifest`, which `paneLayout.paneManifest` builds by reading the
-renderer back — and each case records its derivation inline in `_regionsFrom`
-(both build ids, the pane-stack height, the separator height, both sides' per-pane
-pixel heights). The boundary is `Σ heights of the panes that existed BEFORE the
-cutover + their separators`; the panes the cutover adds are appended after them,
-so "the panes side B has that side A does not" *is* the oscillator stack.
+renderer back — plus **the row the pane stack starts on inside `#chart-export`,
+read off the page**. Each case records its derivation inline in `_regionsFrom`
+(both build ids, the stack's top offset, the pane-stack height, the separator
+height, both sides' per-pane pixel heights).
 
-* `price_plot` — everything above the stack: candles, MA and price overlays, the
-  volume pane, the price axis. **The rectangle the design claims reads 0.**
+* `export_header` — the band above the chart. 🔴 **40 px, and Task 11's boxes did
+  not know it was there**: every rectangle it derived was 40 px too high, so its
+  `time_axis` box began 40 px INSIDE the volume pane. The 35,471 px it reported as
+  "the time axis, because the price-axis labels moved" were the bottom of the
+  **volume pane** moving. The offset is now measured per case, not assumed.
+* `price_plot` — **the CANDLE pane**: candles, MA and price overlays, the price
+  axis. **The rectangle the design claims reads 0**, and now the only one that is
+  asking that question. Task 11's `price_plot` ran from the top of the canvas to
+  the top of the stack, so it also contained the volume pane — one number
+  answering two questions, and the volume pane MOVES by construction.
+* `mid_panes` — the panes between the candles and the stack: the separate volume
+  pane, and Model Book's index pane. **This is where the reordering is priced.**
 * `osc_strip` — the oscillator stack the cutover creates. Absent on a case whose
   two sides have the same pane count; a zero-area box is refused by
   `validate_regions`, because it reads exactly like one holding the line.
-* `time_axis` — everything below the pane stack: the time axis and the export
-  footer. **Added because the measurement demanded it** (§1) — not planned.
-* `rest` — **not declared, computed by mask subtraction**. The three rectangles
+* `rest` — **not declared, computed by mask subtraction**. The five rectangles
   tile the export, so it reads 0 on every case and has nowhere to hide a pixel.
 
 **The rectangles discriminate, in both directions**, re-proved on the panes build
 where the split is the one that matters: `candles.upColor` moved one hex digit →
-`{price_plot: 1,910, osc_strip: 0, rest: 0}`; `indicators.rsi.color` moved one hex
-digit → `{price_plot: 0, osc_strip: 657, rest: 348}`. A per-region 0 means nothing
-without that. *(The 348 is the export FOOTER's own legend ink — a colour change
-lands below the pane stack as well as inside it. `rest` is 0 for a geometry change
-and need not be for a colour one.)*
+the change lands in `price_plot` and nowhere else; `indicators.rsi.color` moved one
+hex digit → it lands in `osc_strip` (plus the export footer's own legend ink,
+which is a colour change and not a geometry one). A per-region 0 means nothing
+without that.
 
-### ⚠️ The 24-pixel artefact, and why 13 cases carry `?priceline=0`
+### ⚠️ The 24-pixel artefact — and what the fix did to it
 
-The first full 8-run pass produced **13 of 46 cases with a two-valued
-distribution** — the same number six times and a number 14 lower twice, say. A
-case that is not a single value is not measured, so it was diagnosed rather than
-averaged, and the diagnosis is unambiguous and identical on all 13:
+Task 11 measured **15 of 46 cases going bistable** under `'panes'`: side A hashed
+identical on every run, side B rasterised into exactly two states, and the whole
+difference was **24 changed pixels on ONE scanline** spanning the plot width. That
+is byte-for-byte the artefact `pages/ChartRender.jsx` already documents and already
+suppresses on `engine_rsi_toggle_off`: **the dashed last-price line**, which
+Chromium rasterises two ways at ~12 dash boundaries at one specific geometry. The
+cutover did not create it — it moved pane 0's height, which moved that line onto
+the unstable row.
 
-* **side A hashed IDENTICAL on all 8 runs** in every one of the 13. The
-  instability is entirely on the cutover side.
-* side B rasterised into exactly **two** states, and the whole difference between
-  them is **24 changed pixels on ONE scanline**, spanning the plot width
-  (`x ∈ [13, 982]`) — `y = 244` on a `0.15`-height oscillator pane, `y = 247` on a
-  `0.13`-height one (`atr`, `obv`).
+Task 11 suppressed 13 of them with `?priceline=0` and **named `stoch_only` and
+`engine_adx_vs_legacy` as unresolved**. Both are resolved:
 
-That is byte-for-byte the artefact `pages/ChartRender.jsx` already documents and
-already suppresses on `engine_rsi_toggle_off`: **the dashed last-price line**,
-which Chromium rasterises two ways at ~12 dash boundaries at one specific
-geometry. The line is drawn by the CANDLE series, so it belongs to no indicator
-migration and no case measures it. **The cutover did not create the artefact — it
-moved pane 0's height, which moved that line onto the unstable row**, and 13
-cases went bistable at once.
+* **`stoch_only` and `engine_adx_vs_legacy` are single-valued on every run of this
+  measurement, unsuppressed.** So is `adx_only`, which Task 11 reported as NOT
+  MEASURED for the same reason. The fix changed pane 0's height (353 → 352 on the
+  single-oscillator geometry), which moved the last-price line back off the
+  unstable row. **Three cases resolved by the geometry, not by an allowance.**
+* ⚠️ **`obv_only` flaked ONCE, in a discarded run, and did not flake in this one.**
+  A first pass of this measurement at 6 runs/case read `110,257 ×1 · 110,233 ×5` —
+  a 24-px difference with the same signature, on a case Task 11 never saw flake.
+  The measurement below re-ran it 5 more times at `110,233` on every one. It is
+  reported at that value and it is **latently at risk**, exactly as Task 11 said
+  the whole single-oscillator-pane geometry class is.
+* the 15 inherited suppressions are still in the case file and are still applied.
+  ⚠️ **They are no longer known to be earned** — they were measured on a geometry
+  that no longer exists. §4 assigns re-earning them to Task 12: run the panes dist
+  against itself with every `priceLine` flag removed and keep only the cases that
+  actually flake.
 
-The remedy is the one already in the repo: `"priceLine": false` ⇒ `?priceline=0`,
-applied to **exactly the 13 cases where the bistability was OBSERVED**, each with
-its own `_priceLineReason` recording the measurement. ⛔ **It is not a tolerance:
-those cases must still read a SINGLE value on every run, and 0 under `'bands'`.**
-Cases with the same pane geometry that did not flake in those 8 runs are
-**latently at risk and were deliberately left alone** — a suppression applied
-where it was not measured to be needed is an unearned allowance.
-
-🔴 **And the latency is not theoretical: the `--same-build` determinism run on the
-cutover dist then surfaced two more** — `stoch_only` and `engine_adx_vs_legacy`,
-each at **exactly 24 px**, same signature, on a run where *nothing* differs
-between the two captures but the render itself. They are **named here and NOT
-suppressed**, because their A-vs-B numbers in §3 were measured without the
-suppression and adding it would change them. **Task 12 must extend the list to at
-least these two**, and should assume the whole single-oscillator-pane geometry
-class is affected rather than chase the observed members one run at a time. Fifteen
-cases have now been observed bistable under `'panes'`; **zero have ever been
-observed bistable under `'bands'`.**
+⛔ **A suppression is not a tolerance**: a suppressed case must still read a SINGLE
+value on every run, and 0 under `'bands'`.
 
 ### The builds
 
-| | what it is | build id | `index-*.js` | renders? |
-|---|---|---|---|---|
-| **A** | HEAD (`5ef4f4c6`), `PANE_MODE = 'bands'` — **what ships** | **`cc1f66936413`** | `index-HoxzvFJo.js` | yes |
-| **B0** | A + `PANE_MODE = 'panes'`, **nothing else** | **`4c01f5ad3350`** | `index-CDBTL4ix.js` | 🔴 **no — see §6 D1** |
-| **B1** | B0 + the D1 correction | **`8ecc6f2e3fd1`** | `index-CXcGSRV3.js` | ⚠️ **~20 % of cold loads blank — §6 D2** |
-| **B** | B1 + the height assertion downgraded — **the build every number above was measured against** | **`1438fd9d001f`** | *(see `.parity-dist-bn`)* | yes |
-| **C** | B + the chart's own separator token (2.1) | **`c82a5f8e232d`** | `index-BpSOVBJN.js` | yes |
-| **D** | B + `scaleId: 'right'` (2.2) | **`3e1f3e3b903b`** | `index-BsAGn0mk.js` | yes |
-| **E** | B + LWC's default stretch factors (2.3) | **`d27ba52c432a`** | `index-BhK30cwc.js` | yes |
+| | what it is | build id | renders? |
+|---|---|---|---|
+| **A0** | `a2c82310` (Task 11's HEAD), `PANE_MODE = 'bands'` | **`cc1f66936413`** | yes |
+| **A** | `bd388aa2` (the fix), `PANE_MODE = 'bands'` — **what ships** | **`1c74866baccb`** | yes · **0 changed pixels vs A0 on all 46 cases** |
+| **B** | A + `PANE_MODE = 'panes'`, **nothing else** | **`1667183abbe0`** | ✅ **yes** — it did not at Task 11 (§6) |
+| **C** | B + the chart's own separator token (2.1) | **`d361f1585243`** | yes |
+| **D** | B + `scaleId: 'right'` (2.2) | **`0aeab4391711`** | yes |
+| **E** | B + LWC's default stretch factors (2.3) | **`3dcdffd52fd3`** | yes |
 
 Every variant is one named edit list in `tools/flipc_variant_patch.py`, applied to
 a scratch tree, built, and reverted with a line-ending-normalised sha256 check.
-**Nothing in that file is committed into `app/src`.**
+**Nothing in that file is committed into `app/src`.** ⚠️ Task 11's file carried
+three extra patches (`FIX_STACK`, `FIX_PANE0_ONLY`, `NO_HEIGHT_THROW`) purely to
+get a frame to photograph; all three are **deleted**, because the defects they
+worked around are fixed in the tree.
 
 ### Trust in the numbers
 
 <!-- BEGIN:trust -->
 | run | cases | runs/case | every capture `shots=2/2` | every capture `stable` | cases at a single value | 95% flake bound |
 |---|---:|---:|---|---|---:|---:|
-| the cutover | 46 | 8 | yes | yes | 44/46 | 31.2% |
-| sub-choice 2.1 | 6 | 8 | yes | yes | 6/6 | 31.2% |
-| sub-choice 2.2 | 6 | 8 | yes | yes | 6/6 | 31.2% |
-| sub-choice 2.3 | 6 | 8 | yes | yes | 6/6 | 31.2% |
-| determinism: the BANDS dist vs itself | 46 | 3 | yes | yes | 46/46 | 63.2% |
-| determinism: the PANES dist vs itself | 46 | 3 | yes | yes | 44/46 | 63.2% |
+| the cutover | 46 | 5 | yes | yes | 46/46 | 45.1% |
+| sub-choice 2.1 | 6 | 5 | yes | yes | 6/6 | 45.1% |
+| sub-choice 2.2 | 6 | 5 | yes | yes | 6/6 | 45.1% |
+| sub-choice 2.3 | 6 | 5 | yes | yes | 6/6 | 45.1% |
+| the bands gate: HEAD's dist vs the fix's dist | 46 | 3 | yes | yes | 46/46 | 63.2% |
 <!-- END:trust -->
 
 ## 4. What goes red when it is applied
 
 | test / gate | why it moves |
 |---|---|
-| **162 tests across 13 files** (4,376 still pass) | measured at Task 10 by flipping the constant tree-wide. **Most are the DOUBLES, not the product** — the suites' chart stubs answer `panes()` with one fixed-height pane, so the binder's height check throws BY NAME exactly as designed. The remedy is the opt-in `H.paneModel` pattern `stockChartWiring.test.jsx` already uses |
+| **162 tests across 13 files** (measured at Task 10 by flipping the constant tree-wide) | **Most are the DOUBLES, not the product** — the suites' chart stubs answer `panes()` with one fixed-height pane. ⚠️ The binder no longer THROWS on a height disagreement (§6 D2), so this count is now an over-estimate and Task 12 must re-measure it rather than quote it |
 | the parity gate's per-case **exact** expectations | `expect` replaces `<=`, so every case that moves must have its new number written down — and a regression SMALLER than the old allowance fails too. §3's table is that list |
-| `rsi_only`'s three region `expect: 0`s | the only case whose regions are GATED today. Task 11 replaced its three band-era rectangles with the two derived ones and kept the 0; Task 12 replaces the 0s with §3's numbers |
+| `rsi_only`'s five region `expect: 0`s | the only case whose regions are GATED today. Task 12 replaces the 0s with §3's numbers |
 | the **pane manifest** JSON diff | pane count and per-series pane index change by definition. ⭐ A change that moves pixels but not the manifest, or the manifest but not the pixels, is a regression BY DEFINITION: one of the two is lying |
-| the **region gate**'s `price_plot` row | it does **not** read 0 — §6 D3. Task 12 either lands the D3 fix or writes `price_plot`'s measured number down and signs it off |
+| the **region gate**'s `price_plot` row | it does **not** read 0 — §1. Task 12 either accepts the sub-pixel floor and writes the number down, or the identity is signed off as "within a pixel" |
+| the 15 inherited `priceLine: false` suppressions | measured on a geometry that no longer exists. Task 12 must re-earn them case by case, and drop the ones that no longer flake |
 | `paneMargins`-derived suites | `PANE_MODE` selects a different projection |
-| `test_a_case_that_declares_NOTHING_still_collapses_on_its_tolerance` | asserts ≥ 24 cases declare nothing at all. It is the backwards-compatibility rail for "zero survives twelve of thirteen tasks", and Task 12's per-case `expect`s are what finally retire it. **Task 11 deliberately did not** — that is why only `rsi_only` carries a region `expect` |
+| `test_a_case_that_declares_NOTHING_still_collapses_on_its_tolerance` | asserts ≥ 24 cases declare nothing at all. It is the backwards-compatibility rail for "zero survives twelve of thirteen tasks", and Task 12's per-case `expect`s are what finally retire it |
 
 ### The screenshots
 
-`docs/decisions/assets/2026-08-04-flip-c/` — twelve stacked A-above-B PNGs,
-captured through `chart_parity.capture` (the same settle the measured frames got)
-by `tools/flipc_screenshots.py`, each labelled with its side and its build id:
+`docs/decisions/assets/2026-08-04-flip-c/` — stacked A-above-B PNGs, captured
+through `chart_parity.capture` (the same settle the measured frames got) by
+`tools/flipc_screenshots.py`, each labelled with its side and its build id:
 
 | file prefix | shows |
 |---|---|
@@ -433,9 +451,9 @@ pane below it is the whole decision in one image.
 
 ## 5. The owner's answer
 
-*(EMPTY — Task 11 brings §2's three rows to the owner with §3's numbers and the
-screenshots in `docs/decisions/assets/2026-08-04-flip-c/`, and records the answer
-here, PER SUB-CHOICE. "Looks great" is not an answer to three questions.)*
+*(EMPTY — §2's three rows go to the owner with §3's numbers and the screenshots in
+`docs/decisions/assets/2026-08-04-flip-c/`, and the answer is recorded here, PER
+SUB-CHOICE. "Looks great" is not an answer to three questions.)*
 
 | sub-choice | answer | date |
 |---|---|---|
@@ -443,81 +461,77 @@ here, PER SUB-CHOICE. "Looks great" is not an answer to three questions.)*
 | 2.2 per-pane price axis | *(pending)* | |
 | 2.3 pane heights | *(pending)* | |
 
-## 6. 🔴 What measuring it found: the cutover does not render
+## 6. 🔴 What measuring it found: three defects, ONE cause — and the fix
 
-Three defects, in the order they surface. **None is fixed in the tree. All three
-are Task 12's to land, in its own commit, before any of §3's numbers can be a
-gate rather than a price.**
+Task 11 measured that `PANE_MODE = 'panes'` **did not render at all** and named
+three defects. They have one cause, and it is a frame of reference:
 
-### D1 — the separator budget ignores the panes above the stack · **deterministic blank chart**
+> `computePaneLayout` used `chartHeight` — the WHOLE pane stack — everywhere the
+> band arithmetic it reproduces means **the CANDLE PANE's own height**. The two
+> are the same number exactly when `firstPaneIndex === 1`, which is the case Task
+> 3's totality proof covers and, per §1, **not a configuration this app renders**.
 
-`PANE_MODE = 'panes'` on its own throws
+| | defect | how it showed | status |
+|---|---|---|---|
+| **D1** | the separator budget removed `oscCount` separators from a height that **already contained** the `firstPaneIndex − 1` separators of the panes above the stack, so the layout over-allocated by exactly `firstPaneIndex − 1` px | `paneLayout: panes 0-1 total is 451px, expected 452px` into StockChart's ErrorBoundary — a **deterministic blank chart** on all 46 cases, and on a chart with no oscillator at all | ✅ **fixed by the frame.** The pre-existing separators are taken out of the budget *before* it is split, so the stack pays for exactly the separators it ADDS. No correction term |
+| **D2** | `paneHeightMismatch` **threw**, and one deferred frame is not a settle | `paneLayout: pane 2 is 77px, expected 78px` on **3 of 14** then **1 of 8** COLD loads; the same build with the throw removed gave **15/15 identical manifests**. The geometry was right every time | ✅ **fixed as a ruling, not a number** — see below |
+| **D3** | `pane0.mainMargins` were fractions of the price-pane **BUDGET** and were applied to the candles' **own** scale | the candle rectangle was re-fitted on every chart the app draws; `price_plot` 49,429 px on `rsi_only` | ✅ **fixed by the same frame.** `pane0.heightPx` now means the candle pane's own height and nothing else; the other panes above the stack are in `layout.above`. `price_plot` 49,429 → **2,791** |
 
-```
-paneLayout: panes 0-1 total is 451px, expected 452px
-```
+⚠️ **Fixing D3's divisor ALONE would have been a second blank chart.** The bands
+rectangle's bottom edge is 452 px and the candle pane is 353 px tall, so
+`1 − 452/353` is a **negative** bottom margin, which lightweight-charts refuses
+outright. The numerators had to move into the same frame as the divisor, which is
+why this is one substitution and not two patches.
 
-into StockChart's ErrorBoundary. `__chartReady` never becomes true and the parity
-harness times out at 60 s on **every one of the 46 cases**.
+### D2 — the ruling, and why
 
-`computePaneLayout` treats `chartHeight` — the pane stack *including* its
-separators, which is what `paneStackHeightPx` returns — as the pane-height budget,
-and then removes only `oscCount × separatorPx` from it. Available height is
-`chartHeight − (firstPaneIndex − 1 + oscCount) × separatorPx`, so the layout
-over-allocates by exactly **`firstPaneIndex − 1`** pixels. That is 0 when the stack
-starts at pane 1 — the case Task 3's 1,966,080-layout totality proof covers — and
-1 on every chart with a separate volume pane — which, per §1, is every chart this
-app draws. `pane0Only` (a chart with **no** oscillator at all) has the same
-arithmetic with no oscillator to shave it off, so a price-overlay-only chart
-throws too. **There is no configuration in which Flip C, as it stands, renders.**
+**The assertion should not exist as an assertion.** It asserts an exact pixel
+identity across a re-layout the renderer is free to make, on the paint path, and
+pays for a disagreement with the whole chart. Three reasons it is now a report:
 
-The minimal correction, verbatim, is `tools/flipc_variant_patch.py`'s `FIX_STACK`
-and `FIX_PANE0_ONLY`: charge the pre-existing separators to the oscillator stack's
-own shave, and to the price-pane budget when there is no stack. Both are no-ops at
-`firstPaneIndex === 1`, so **Task 3's proof is untouched**.
+1. **A blank chart is a worse failure than a one-pixel drift.** That is the whole
+   trade, and Task 11's measurement settles which side of it we were on.
+2. **The first sync of EVERY chart disagrees, by construction.** `paneStackHeightPx`
+   is itself rAF-stale: a real 400 px chart reads **401** before the renderer has
+   sized its panes, so the very first layout is computed against a height that is a
+   pixel out. MEASURED in `flipCGeometry.test.jsx`. That is a **fourth** face of
+   the same rAF blindness (after Task 3's separator pin, Task 10's options-effect
+   ordering and D2 itself), and it is unavoidable without blocking a frame inside
+   the paint.
+3. **A transient is exactly what a re-apply fixes.** So the binder **converges**:
+   on a disagreement it re-applies the layout once and re-arms. Only a drift that
+   survives its own correction is reported — a `console.warn`, once per distinct
+   message, plus a counter (`paneHeightAlerts()`) a test can assert on.
 
-### D2 — the height assertion throws on a transient · **~20 % of cold loads blank, non-deterministically**
+⛔ **"Do not throw" must not become "do not notice"**, and the first draft of the
+fix made exactly that mistake: it reset the consecutive-mismatch counter every time
+a layout was applied, which happens every sync, so a layout the renderer can NEVER
+honour was converged forever in silence. `flipCGeometry.test.jsx`'s
+surviving-drift case is the rail, and it went red saying so.
 
-With D1 corrected, build B1 still reaches the ErrorBoundary with
+### What the fix is NOT
 
-```
-paneLayout: pane 2 is 77px, expected 78px
-```
+* it is **not** a change to `paneMargins.js`, which stays consumed and untouched;
+* it is **not** a change to the band arithmetic — the proportional squeeze, the
+  integer-hundredths quantisation and the tallest-first shave are byte-identical.
+  Only what they are fractions OF moved;
+* at `firstPaneIndex === 1` every line is the arithmetic that shipped, so **Task
+  3's 1,966,080-layout totality proof is untouched rather than re-argued**, and
+  `paneLayout.test.js`'s whole sweep passed unmodified.
 
-on **3 of 14** cold loads, then **1 of 8** on a re-measure. No page error, no
-pattern — `__chartReady` simply never fires and the capture times out.
+### The coverage that was missing
 
-**It is the assertion, not the geometry.** Same build with the throw removed:
-**15 of 15 cold loads produced the identical manifest, `[chartHeight 532; panes
-353, 99, 78]`, and 0 unready.** `paneHeightMismatch` verifies the PREVIOUS pass's
-layout at the top of the next sync — which is correct about rAF staleness, and
-still lands mid-flight when something else re-lays the chart out between the two
-(the price-axis width ratchet re-measures, the time axis re-optimises, and
-`totalPaneHeight` moves by a pixel). LWC is free to make that re-layout; the code
-treats an exact pixel identity as an invariant across it, and pays for a
-disagreement with the whole chart.
-
-⚠️ **This is the third rAF-blindness incident on this branch**, after Task 3's
-separator pin and Task 10's options-effect ordering. The fix is a design question
-Task 12 owns, not a number: converge (re-apply and re-check) rather than throw, or
-report through `chart_health_alerts` instead of the ErrorBoundary. **A blank chart
-is a worse failure than a one-pixel drift.**
-
-### D3 — the §A6 pane-0 identity holds only at `firstPaneIndex === 1` · **`price_plot` ≠ 0**
-
-`computePaneLayout` returns `pane0.mainMargins` as fractions of `pane0.heightPx`,
-and `pane0.heightPx` is the **price-pane BUDGET** — everything above the
-oscillator stack, i.e. pane 0 *plus* the volume pane *plus* any index pane. Those
-margins are then applied to the candles' own price scale, which lives in pane 0
-alone. With `firstPaneIndex === 1` the two are the same number and the identity is
-exact. With the shipped preset they differ by the volume pane's whole height, so
-the candle rectangle is re-fitted and `price_plot` is non-zero by construction.
-
-This one is **not corrected in any measured build**, deliberately: correcting it
-would change what the cutover looks like, and that is a decision, not a fix. The
-`price_plot` column in §3 is therefore the honest price of the cutover *as
-designed*, and Task 12's choice is to land a D3 fix and re-measure, or to write
-`price_plot`'s number down and have it signed off.
+Task 10 reported "the panes path is genuinely exercised". It was — on a real
+lightweight-charts 5.2.0 chart, reading the renderer back — **at
+`firstPaneIndex === 1`, which is a chart this app never draws.** A real renderer
+driven in a configuration nobody ships is not coverage, and that is why three
+defects reached a measurement task. `flipCGeometry.test.jsx` now builds its chart
+**with a separate volume pane** and asserts, against the renderer: the layout
+totals exactly (D1), a chart with no oscillator totals exactly (D1's other half),
+the bands-mode reference equals what LWC actually gives a 78/22 chart, the volume
+pane keeps its height, the candle rectangle keeps its absolute pixels (D3), a
+three-pane-above chart totals exactly, and the remainder lands on the candle pane
+on a split that does not divide evenly.
 
 ## 7. What a user gains, and what a user loses
 
@@ -538,16 +552,24 @@ designed*, and Task 12's choice is to land a D3 fix and re-measure, or to write
 
 **Losses, stated plainly:**
 
-* **every open chart is reordered** — the oscillators move below the volume pane
-  and the volume pane shrinks. §3's `price_plot` column is what that costs.
-* **the price pane is no longer pixel-identical** (D3), so "nothing about the
-  candles changed" stops being true until D3 is fixed.
-* **the height contract is brittle** (D2): the cutover asserts an exact pixel
-  identity against a renderer that is free to re-lay-out, and pays for a
-  disagreement with a blank chart.
+* **every open chart is reordered** — the oscillators move below the volume pane.
+  §3's `mid_panes` column is what that costs, and it is the largest single slice of
+  the diff on most cases.
+* **the price pane is no longer pixel-identical** — but the residue is now
+  sub-pixel rounding rather than a re-fit (§1), 2,791 px instead of 49,429.
+* **a height disagreement is now silent-ish** — a `console.warn` and a counter
+  instead of a throw. That is the right trade against a blank chart, and it does
+  mean a real drift can ship unnoticed if nobody reads the counter. Task 12 should
+  decide whether it also belongs on `chart_health_alerts`.
 * **`paneMargins.js`'s nine-row `PANES` table is retired**, and with it the one
   place a reader could see the whole stack at once. That is the last B5 row in the
   enumeration ledger and it is assigned to Task 12.
+* **a volume-divider drag is snapped back.** The above-stack heights come from
+  settings (`cs.volume.paneHeightPct`) rather than from the factors on the chart,
+  because reading those back cannot survive its own output — this function writes
+  pixel counts into them. Today's bands mode preserves such a drag; under `'panes'`
+  it would be re-applied on the next sync. ⚠️ Draggable dividers being the point of
+  Flip C, "remember the drag" is real follow-up work and it is not in this change.
 
 **What keeping the bands costs — the standing price of doing nothing.** The bands
 are **fake panes**: stacked `scaleMargins` inside pane 0. A user gets no draggable
@@ -563,19 +585,23 @@ oscillator goes, and only one of them can be right.
 ## 8. Reproducing this
 
 ```bash
-python tools/flipc_variant_patch.py --apply panes_fixed_nocheck
-cd app && npm run build && cp -r dist ../.parity-dist-bn && cd ..
-python tools/flipc_variant_patch.py --revert          # sha256-verified against HEAD
+# A — what ships (PANE_MODE = 'bands'), built from the committed tree
+cd app && npm run build && cd .. && cp -r app/dist .parity-dist-mb
 
-python tools/spa_server.py .parity-dist-a  5941       # A: PANE_MODE = 'bands'
-python tools/spa_server.py .parity-dist-bn 5947       # B: the cutover
+# B — the cutover, ONE edit
+python tools/flipc_variant_patch.py --apply panes
+cd app && npm run build && cd .. && cp -r app/dist .parity-dist-p
+python tools/flipc_variant_patch.py --revert          # git checkout + sha256
 
-python tools/gen_parity_regions.py --bands http://127.0.0.1:5941 \
-                                   --panes http://127.0.0.1:5947 --write
-python tools/chart_parity.py --base-a http://127.0.0.1:5941 --base-b http://127.0.0.1:5947 \
-    --dist-a .parity-dist-a --dist-b .parity-dist-bn \
-    --instances-side none --repeat 20 --out tools/chart_parity_out_main
-python tools/flipc_record_tables.py --cutover tools/chart_parity_out_main/report.json \
+python tools/spa_server.py .parity-dist-mb 5952
+python tools/spa_server.py .parity-dist-p  5953
+
+python tools/gen_parity_regions.py --bands http://127.0.0.1:5952 \
+                                   --panes http://127.0.0.1:5953 --write
+python tools/chart_parity.py --base-a http://127.0.0.1:5952 --base-b http://127.0.0.1:5953 \
+    --dist-a .parity-dist-mb --dist-b .parity-dist-p \
+    --instances-side none --repeat 5 --out tools/chart_parity_out_cut
+python tools/flipc_record_tables.py --cutover tools/chart_parity_out_cut/report.json \
     --sub 2.1=... --sub 2.2=... --sub 2.3=... --write
 ```
 

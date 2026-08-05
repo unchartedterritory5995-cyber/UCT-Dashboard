@@ -62,8 +62,8 @@ def region_hist(entry, name):
 
 
 def cutover_table(report):
-    rows = ["| case | changed px | % | price_plot | osc_strip | time_axis | rest | distribution | manifest geometry |",
-            "|---|---:|---:|---:|---:|---:|---:|---|---:|"]
+    rows = ["| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution | manifest geometry |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|"]
     total_single = 0
     varied = []
     for e in report["results"]:
@@ -75,11 +75,12 @@ def cutover_table(report):
         changed = "—" if e.get("changed") is None else f"{e['changed']:,}"
         pct = "—" if e.get("pct") is None else f"{e['pct']}"
         rows.append(
-            f"| `{e['name']}` | {changed} | {pct} | {region_hist(e, 'price_plot')} | "
+            f"| `{e['name']}` | {changed} | {pct} | {region_hist(e, 'export_header')} | {region_hist(e, 'price_plot')} | "
+            f"{region_hist(e, 'mid_panes')} | "
             f"{region_hist(e, 'osc_strip')} | {region_hist(e, 'time_axis')} | "
             f"{region_hist(e, 'rest')} | {dist} | "
             f"{len(e.get('manifest_geometry_diff') or [])} line(s) |")
-    rows.append(f"| **46 cases, summed** | **{total_single:,}** | | | | | | | |")
+    rows.append(f"| **46 cases, summed** | **{total_single:,}** | | | | | | | | | |")
     if varied:
         rows.append("")
         rows.append("⚠️ **NOT A SINGLE VALUE, and therefore NOT MEASURED:** "
@@ -88,13 +89,14 @@ def cutover_table(report):
 
 
 def sub_table(label, report):
-    rows = [f"| case | changed px | % | price_plot | osc_strip | time_axis | rest | distribution |",
-            "|---|---:|---:|---:|---:|---:|---:|---|"]
+    rows = [f"| case | changed px | % | header | price_plot | mid_panes | osc_strip | time_axis | rest | distribution |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
     for e in report["results"]:
         dist, _ = distribution(e)
         changed = "—" if e.get("changed") is None else f"{e['changed']:,}"
         pct = "—" if e.get("pct") is None else f"{e['pct']}"
-        rows.append(f"| `{e['name']}` | {changed} | {pct} | {region_hist(e, 'price_plot')} | "
+        rows.append(f"| `{e['name']}` | {changed} | {pct} | {region_hist(e, 'export_header')} | {region_hist(e, 'price_plot')} | "
+                    f"{region_hist(e, 'mid_panes')} | "
                     f"{region_hist(e, 'osc_strip')} | {region_hist(e, 'time_axis')} | "
                     f"{region_hist(e, 'rest')} | {dist} |")
     return rows
@@ -159,7 +161,7 @@ def main() -> int:
     text = RECORD.read_text(encoding="utf-8")
 
     rep = json.loads(Path(args.cutover).read_text(encoding="utf-8"))
-    body = [identity_line(rep, "`PANE_MODE = 'bands'` (HEAD)", "the cutover"), ""]
+    body = [identity_line(rep, "`PANE_MODE = 'bands'` — what ships", "the cutover, ONE edit"), ""]
     body += cutover_table(rep)
     text = splice(text, "cutover-table", body)
 

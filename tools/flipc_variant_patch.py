@@ -16,29 +16,29 @@ variant is applied to a scratch tree, built, and reverted; `--revert` refuses to
 return unless every touched file is byte-identical to HEAD.
 
 ──────────────────────────────────────────────────────────────────────────────
-⚠️  `panes` ALONE DOES NOT RENDER. THAT IS A MEASURED FACT, NOT AN OPINION.
+✅  `panes` NOW RENDERS ON ITS OWN. IT DID NOT WHEN TASK 11 MEASURED IT.
 ──────────────────────────────────────────────────────────────────────────────
 
-`PANE_MODE = 'panes'` on its own throws
+Task 11's numbers were all measured against a PATCHED build: `PANE_MODE = 'panes'`
+alone threw
 
     paneLayout: panes 0-1 total is 451px, expected 452px
 
-into StockChart's ErrorBoundary on EVERY chart whose oscillator stack does not
-start at pane index 1 — which is every chart with a separate volume pane, i.e.
-the shipped default and every one of the 46 parity cases. `__chartReady` never
-becomes true and the harness times out at 60 s.
+into StockChart's ErrorBoundary on every one of the 46 cases, so the variants
+below carried a `FIX_STACK` + `FIX_PANE0_ONLY` correction and a downgraded height
+assertion just to get a frame to photograph. **Those three patches are gone**,
+because the defects are fixed AT ROOT in the tree (commit `bd388aa2`): one
+substitution in `computePaneLayout` — every band fraction is a fraction of the
+CANDLE PANE's height rather than the whole stack's — plus a binder that converges
+on a height disagreement instead of throwing.
 
-The cause is arithmetic and it is off by exactly `firstPaneIndex - 1`:
-`computePaneLayout` treats `chartHeight` (the pane stack INCLUDING its
-separators) as the pane-height budget and then removes only `oscCount`
-separators from it. That is exact when the stack starts at pane 1 — the case
-Task 3's totality proof covers — and over-allocates by one pixel per PRE-EXISTING
-separator otherwise. `pane0Only` (a chart with no oscillator at all) has the same
-bug with no oscillator to shave, so a price-overlay-only chart throws too.
+So `panes` is now ONE edit, which is what the cutover was always supposed to be,
+and every number in the decision record is measured against a build that could
+ship. **Landing the flip is still Task 12's job** — this file measures.
 
-`panes_fixed` carries the minimal correction, and it is the build every number in
-the decision record was measured against. **Landing it is Task 12's job, not
-Task 11's** — Task 11 measures and prices; it does not apply.
+⚠️ THE OLD ANCHORS ARE DELETED, NOT COMMENTED OUT. A stale patch whose anchor no
+longer exists exits 1 by design (`apply` refuses anything matching != 1 time), so
+a variant list nobody updated cannot silently measure the wrong build.
 """
 from __future__ import annotations
 
@@ -59,19 +59,11 @@ FLIP = (PANE_LAYOUT,
         "export const PANE_MODE = 'bands'",
         "export const PANE_MODE = 'panes'")
 
-# (1) the separator budget must cover the separators of the panes that ALREADY
-#     exist above the stack, not only the ones the stack adds.
-FIX_STACK = (PANE_LAYOUT,
-             "for (let budget = oscCount * separatorPx; budget > 0; budget--) {",
-             "for (let budget = (oscCount + Math.max(0, firstPaneIndex - 1)) * separatorPx; "
-             "budget > 0; budget--) {")
-
-# (2) the same off-by-one on the no-oscillator path, where there is nothing to
-#     shave it off and it has to come out of the price-pane budget.
-FIX_PANE0_ONLY = (PANE_LAYOUT,
-                  "    pane0: {\n      heightPx: h,\n      stretchFactor: h,",
-                  "    pane0: {\n      heightPx: h,\n"
-                  "      stretchFactor: h - Math.max(0, firstPaneIndex - 1) * separatorPx,")
+# ⛔ `FIX_STACK` AND `FIX_PANE0_ONLY` STOOD HERE AND ARE GONE. They were Task 11's
+#    minimal correction for D1, applied to a scratch tree so there would be a
+#    frame to photograph. D1 is fixed at root in `computePaneLayout` (the frame of
+#    reference), so there is nothing left to correct — and `NO_HEIGHT_THROW` went
+#    with them, because the binder no longer throws on a height disagreement.
 
 # (a) the separator gets the chart's OWN token instead of the library's default
 #     `#2B2B43`. `separatorColors` is already derived from the canvas at the
@@ -93,6 +85,11 @@ RIGHT_AXIS = (PLACEMENT,
 #     :5225), so a chart that never calls `setStretchFactor` has EQUAL panes.
 #     The height check goes with it: the factors are no longer pixel heights, so
 #     comparing them to heights would throw by construction.
+#     ⚠️ IT NO LONGER NEEDS THE HEIGHT ASSERTION REMOVED WITH IT. Under LWC's
+#     defaults the factors stop being pixel heights, so the check disagrees by
+#     construction — which used to mean a throw and a blank chart, and now means
+#     a `console.warn` and a chart. That the sub-choice can be priced with the
+#     shipped assertion in place is itself a result of the D2 ruling.
 EQUAL_PANES = (
     PANE_LAYOUT,
     "export function paneStretchPlan(layout, currentStretch) {",
@@ -102,38 +99,12 @@ EQUAL_PANES = (
     "  if (layout && Array.isArray(layout.panes)) {\n"
     "    return (Array.isArray(currentStretch) ? currentStretch : []).map(() => 1)\n"
     "  }")
-# The height ASSERTION, removed. Two different variants need it gone and for two
-# different reasons:
-#
-#   * (c) sets the factors to LWC's default 1, so they stop being pixel heights
-#     and comparing them to heights would throw by construction;
-#   * `panes_fixed_nocheck` isolates a MEASURED intermittent: with the check in,
-#     `paneLayout: pane 2 is 77px, expected 78px` reaches the ErrorBoundary on
-#     ~20 % of cold loads (3 of 14, then 1 of 8) and `__chartReady` never fires.
-#     The variant answers whether the GEOMETRY is unstable or only the assertion
-#     is: same build, check removed, read the manifest back N times.
-NO_HEIGHT_THROW = (
-    PANE_LAYOUT,
-    "export function paneHeightMismatch(chart, layout) {\n"
-    "  if (!layout || !Array.isArray(layout.panes)) return null",
-    "export function paneHeightMismatch(chart, layout) {\n"
-    "  // MEASUREMENT VARIANT: the height assertion does not throw. Priced, never\n"
-    "  // shipped. The manifest still reports the heights the renderer produced,\n"
-    "  // so a real drift is still visible -- as pixels and as a manifest diff.\n"
-    "  return null\n"
-    "  // eslint-disable-next-line no-unreachable\n"
-    "  if (!layout || !Array.isArray(layout.panes)) return null")
 
 VARIANTS = {
     "panes": [FLIP],
-    "panes_fixed": [FLIP, FIX_STACK, FIX_PANE0_ONLY],
-    "panes_fixed_nocheck": [FLIP, FIX_STACK, FIX_PANE0_ONLY, NO_HEIGHT_THROW],
-    "panes_fixed_sep_token": [FLIP, FIX_STACK, FIX_PANE0_ONLY, NO_HEIGHT_THROW,
-                              SEPARATOR_TOKEN],
-    "panes_fixed_right_axis": [FLIP, FIX_STACK, FIX_PANE0_ONLY, NO_HEIGHT_THROW,
-                               RIGHT_AXIS],
-    "panes_fixed_equal_panes": [FLIP, FIX_STACK, FIX_PANE0_ONLY, NO_HEIGHT_THROW,
-                                EQUAL_PANES],
+    "panes_sep_token": [FLIP, SEPARATOR_TOKEN],
+    "panes_right_axis": [FLIP, RIGHT_AXIS],
+    "panes_equal_panes": [FLIP, EQUAL_PANES],
 }
 
 

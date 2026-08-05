@@ -149,6 +149,76 @@ def _box_off_canvas(text: str) -> str:
     raise SystemExit("M7: atr_only is gone")
 
 
+# ── the FIX's own mutations (Task 11b) ───────────────────────────────────────
+# M1-M7 judge the RECORD and the CASE FILE. They say nothing about the three
+# defects this task fixed, and a fix with no mutation coverage is a fix nobody
+# has tested the tests of. Each of these RESTORES one defect exactly as B5 Task
+# 11 measured it, and names the rail that must go red.
+
+def _restore_D1_over_allocation(text: str) -> str:
+    """D1 exactly as measured: the panes above the stack are given a budget that
+    still contains THEIR OWN separators, so the layout over-allocates by
+    `firstPaneIndex - 1` px and `paneHeightMismatch` throws.
+
+    ⚠️ NOT "make `px` divide by chartHeight again" — that was the first draft of
+    this mutation and it SURVIVED, because `pane0HeightPx = mainHeightPx -
+    px(oscTotalC)` keeps the sum exact whatever `px` divides by. It changes every
+    pane's SIZE and no total. A mutation aimed at the wrong invariant is a green
+    that means nothing; D3's mutation (M9) is the one that catches the base."""
+    anchor = "  const available = chartHeight - Math.max(0, n - 1) * separatorPx"
+    if anchor not in text:
+        raise SystemExit("M8: bandsAboveHeights' budget line moved")
+    return text.replace(anchor, "  const available = chartHeight")
+
+
+def _restore_D3_budget_divisor(text: str) -> str:
+    """D3 alone: the candle pane's margins divided by the price-pane BUDGET."""
+    anchor = "  above[mainPaneIndex] = pane0HeightPx"
+    if anchor not in text:
+        raise SystemExit("M9: the pane-0 height assignment moved")
+    return text.replace(anchor, "  above[mainPaneIndex] = pane0HeightPx\n"
+                                "  // MUTATION: divide by the budget, as it did before the fix.\n"
+                                "  const _budget = above.reduce((s, v) => s + v, 0)")\
+               .replace("        top: mainTopPx / pane0HeightPx,",
+                        "        top: mainTopPx / _budget,")
+
+
+def _lose_the_remainder(text: str) -> str:
+    """`bandsAboveHeights` rounds EVERY share instead of giving the remainder to
+    the candle pane — three equal weights over 100 then lose a pixel off the
+    stack, which is the one-pixel drift nobody attributes for a week."""
+    anchor = "  out[mainPaneIndex] = available - assigned"
+    if anchor not in text:
+        raise SystemExit("M10: the remainder line moved")
+    return text.replace(anchor,
+                        "  out[mainPaneIndex] = Math.round((available * abovePct[mainPaneIndex]) / total)")
+
+
+def _throw_again(text: str) -> str:
+    """D2 restored: a height disagreement takes the whole chart down."""
+    anchor = "    mismatchRun += 1\n    if (mismatchRun === 1) {"
+    if anchor not in text:
+        raise SystemExit("M11: the converge branch moved")
+    return text.replace(anchor, "    mismatchRun += 1\n    throw new Error(message)\n"
+                                "    // eslint-disable-next-line no-unreachable\n"
+                                "    if (mismatchRun === 1) {")
+
+
+def _reset_the_run_on_apply(text: str) -> str:
+    """The bug the first draft of the D2 fix actually had: resetting the
+    consecutive-mismatch counter every time a layout is applied makes the REPORT
+    unreachable, so "do not throw" quietly becomes "do not notice"."""
+    anchor = "    pendingLayout = layout\n    pendingLaidOut = false\n"
+    if anchor not in text:
+        raise SystemExit("M12: applyPaneStretch's arming block moved")
+    return text.replace(anchor, "    pendingLayout = layout\n    pendingLaidOut = false\n"
+                                "    mismatchRun = 0\n", 1)
+
+
+PANE_LAYOUT_SRC = "app/src/components/chart/engine/paneLayout.js"
+BINDER_SRC = "app/src/components/chart/engine/binder.js"
+GEOMETRY_TEST = "src/components/chart/engine/__tests__/flipCGeometry.test.jsx"
+
 MUTATIONS = {
     "M1": dict(file=RECORD, mutate=_drop_a_case_row, runner="vitest",
                target=RECORD_TEST, filter="names a number for every live parity case",
@@ -178,6 +248,35 @@ MUTATIONS = {
                target=HARNESS_TEST, filter="region",
                must_reach="test_every_region_block_in_the_case_file_survives_validate_regions",
                why="a box past the canvas edge, which Pillow pads with BLACK = 'unchanged'"),
+    # ⚠️ EVERY FILTER BELOW NAMES A CASE IN THE `shipped configuration` DESCRIBE,
+    # i.e. one that builds a chart with a SEPARATE VOLUME PANE. A filter that
+    # selected a `firstPaneIndex === 1` case would be green under all five of
+    # these mutations — which is EXACTLY how the defects survived Task 10, so it
+    # is the trap this gauntlet is aimed at.
+    "M8": dict(file=PANE_LAYOUT_SRC, mutate=_restore_D1_over_allocation, runner="vitest",
+               target=GEOMETRY_TEST, filter="TOTALS EXACTLY",
+               must_reach="the layout TOTALS EXACTLY, which is the whole of D1",
+               why="D1 restored: the above-stack budget still contains its own separators"),
+    "M9": dict(file=PANE_LAYOUT_SRC, mutate=_restore_D3_budget_divisor, runner="vitest",
+               target=GEOMETRY_TEST, filter="same absolute pixels",
+               must_reach="the CANDLE RECTANGLE lands on the same absolute pixels",
+               why="D3 restored: the candle margins divide by the price-pane BUDGET"),
+    # ⚠️ NOT the 78/22 fixture. B5 Task 10 measured that a split which divides
+    # evenly cannot tell `available - assigned` from `round(available*w/total)` --
+    # 78/22 of 399 gives 311 either way and the mutation SURVIVES. Three equal
+    # weights over 100 give 33+33+33 = 99 and lose a pixel off the stack.
+    "M10": dict(file=PANE_LAYOUT_SRC, mutate=_lose_the_remainder, runner="vitest",
+                target=GEOMETRY_TEST, filter="a fixture where the two arithmetics agree",
+                must_reach="the remainder lands on the CANDLE pane",
+                why="bandsAboveHeights rounds every share and loses the remainder"),
+    "M11": dict(file=BINDER_SRC, mutate=_throw_again, runner="vitest",
+                target=GEOMETRY_TEST, filter="CONVERGES instead of blanking",
+                must_reach="a redistribution CONVERGES instead of blanking the chart",
+                why="D2 restored: a height disagreement throws into the ErrorBoundary"),
+    "M12": dict(file=BINDER_SRC, mutate=_reset_the_run_on_apply, runner="vitest",
+                target=GEOMETRY_TEST, filter="SURVIVES its own re-apply",
+                must_reach="a drift that SURVIVES its own re-apply is reported by name",
+                why="the mismatch run resets on every apply, so the report is unreachable"),
 }
 
 
@@ -211,7 +310,13 @@ def main() -> int:
         path = ROOT / m["file"]
         original = path.read_bytes()
         try:
-            path.write_text(m["mutate"](original.decode("utf-8")),
+            # ⚠️ `core.autocrlf` IS TRUE IN THIS CHECKOUT, so a source file in the
+            # worktree is CRLF and an anchor written with `\n` matches ZERO times.
+            # B5 Task 10 hit that twice and Task 11b hit it again on M11 — the
+            # mutator REFUSED (which is the design) rather than reporting a
+            # phantom survivor, but a refusal is still a mutation nobody ran.
+            # Every mutator sees LF; the restore is byte-for-byte the original.
+            path.write_text(m["mutate"](original.decode("utf-8").replace("\r\n", "\n")),
                             encoding="utf-8", newline="\n")
             got = run(m["target"], m["filter"])
         finally:
