@@ -29,13 +29,16 @@ import time
 from datetime import datetime, timezone
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.stock_brief import store
 
 _logger = logging.getLogger(__name__)
 
 _MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
 _STATS_TTL = int(os.environ.get("STOCK_BRIEF_STATS_TTL", "120") or 120)      # ~2 min → develops through the day
+_STATS_FAIL_TTL = 30          # a bars-fetch failure/empty year self-heals in 30s, not 2 min
 _EARN_TTL = int(os.environ.get("STOCK_BRIEF_EARN_TTL", "900") or 900)        # 15 min
+_EARN_FAIL_TTL = 60           # get_chart_markers raising self-heals in 1 min, not 15
 _RETRY_AFTER = int(os.environ.get("STOCK_BRIEF_RETRY_AFTER", "3600") or 3600)            # retry a FAILED gen after ~1h (self-heals once the API is funded again)
 # Re-research the company description + thematic narrative ~monthly so the story
 # stays current with the year's drivers (a lot changes in a year), WITHOUT paying
@@ -89,6 +92,7 @@ def _compute_stats(sym: str) -> dict:
         return cached
 
     stats = {"ytd_gain_pct": None, "range_pct": None, "range_dir": None, "avg_dollar_vol": None}
+    yb = []
     try:
         yb = _year_bars(sym, _year())
         if yb:
@@ -114,8 +118,14 @@ def _compute_stats(sym: str) -> dict:
                 stats["avg_dollar_vol"] = round(sum(dvols) / len(dvols))
     except Exception as exc:
         _logger.warning("stock_brief stats failed for %s: %s", sym, exc)
+        yb = []
 
-    cache.set(ck, stats, ttl=_STATS_TTL)
+    # A bars fetch failure (or a genuinely empty year — same `except`) left
+    # the all-None default cached at the same TTL as a real result. `yb`
+    # being non-empty is the completeness signal: this year's bars either
+    # came back or they didn't, independent of whether the derived stat
+    # fields end up non-None.
+    set_by_completeness(ck, stats, complete=bool(yb), ttl_ok=_STATS_TTL, ttl_partial=_STATS_FAIL_TTL)
     return stats
 
 
@@ -132,10 +142,12 @@ def _earnings(sym: str) -> list:
         return cached
 
     rows = []
+    fetch_ok = False
     try:
         from datetime import date as _date
         from api.services import earnings_estimates
         markers = earnings_estimates.get_chart_markers(sym) or {}
+        fetch_ok = True
         reported = [e for e in (markers.get("earnings") or [])
                     if e.get("eps_actual") is not None and e.get("date")]
         reported.sort(key=lambda e: e.get("date") or "")
@@ -160,8 +172,14 @@ def _earnings(sym: str) -> list:
             })
     except Exception as exc:
         _logger.warning("stock_brief earnings failed for %s: %s", sym, exc)
+        fetch_ok = False
 
-    cache.set(ck, rows, ttl=_EARN_TTL)
+    # `fetch_ok` tracks whether get_chart_markers ANSWERED at all -- not
+    # whether `rows` ended up non-empty. A young stock with <4 reported
+    # quarters legitimately returns a short/empty `rows` on a successful
+    # call; only a raised exception (the call itself failing) is the
+    # provider-failure case that deserves the short retry TTL.
+    set_by_completeness(ck, rows, complete=fetch_ok, ttl_ok=_EARN_TTL, ttl_partial=_EARN_FAIL_TTL)
     return rows
 
 

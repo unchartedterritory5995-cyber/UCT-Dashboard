@@ -1,4 +1,6 @@
 """Tests for api/services/dividends_calendar.py + GET /api/calendar/dividends endpoint."""
+import concurrent.futures
+import time
 from datetime import date
 from unittest import mock
 
@@ -205,6 +207,126 @@ class TestGetEventsService:
 
         assert len(result) == 1
         assert result[0]["amount"] is None
+
+
+# ── Deadline-shed completeness (data-dependability C10) ────────────────────────
+#
+# The 25s deadline shed in get_events is correct (bounds the request path
+# against a hung yfinance call) -- caching the SHED result at the 12h success
+# TTL is not: the missing symbols' events become indistinguishable from
+# "pays no dividend, no splits." A deterministic FakeExecutor stands in for
+# ThreadPoolExecutor so the test proves the `completed < len(futures)`
+# predicate without a real 25s wait or a timing-race.
+
+class _FakeFuture:
+    def __init__(self, value=None, raise_timeout=False):
+        self._value = value
+        self._raise_timeout = raise_timeout
+
+    def result(self, timeout=None):
+        if self._raise_timeout:
+            raise concurrent.futures.TimeoutError()
+        return self._value
+
+
+class _FakeExecutor:
+    """Replaces ThreadPoolExecutor: runs `fn` synchronously (deterministic,
+    no real concurrency) and returns a future that times out for any symbol
+    named in `slow_syms`."""
+    def __init__(self, slow_syms, *a, **kw):
+        self._slow_syms = set(slow_syms)
+
+    def submit(self, fn, sym):
+        if sym in self._slow_syms:
+            return _FakeFuture(raise_timeout=True)
+        return _FakeFuture(value=fn(sym))
+
+    def shutdown(self, wait=False, cancel_futures=False):
+        pass
+
+
+class TestDeadlineShedCompleteness:
+    def setup_method(self):
+        from api.services.dividends_calendar import _syms_cache_key
+        # Clear any real cache entries these keys might collide with.
+        from api.services.cache import cache as _cache
+        _cache.invalidate(_syms_cache_key(["AAPL"]))
+        _cache.invalidate(_syms_cache_key(["AAPL", "MSFT"]))
+
+    def _run_with_shed(self, syms, slow_syms):
+        import pandas as pd
+        from api.services import dividends_calendar as dc
+
+        future_ex = date(2099, 12, 31)
+
+        def _mk_ticker(sym):
+            return _make_mock_ticker(
+                calendar={"Ex-Dividend Date": future_ex},
+                dividends=pd.Series([1.0], dtype=float),
+            )
+
+        with mock.patch("yfinance.Ticker", side_effect=lambda s: _mk_ticker(s)), \
+             mock.patch("concurrent.futures.ThreadPoolExecutor",
+                       lambda *a, **kw: _FakeExecutor(slow_syms)):
+            return dc.get_events(syms)
+
+    def test_shed_symbol_gets_short_ttl_and_result_still_served(self):
+        """One symbol times out (shed by the 25s deadline). The OTHER
+        symbol's real result is still served (a partial is worth serving),
+        but the cache write must use the short partial TTL, not the 12h one."""
+        from api.services.dividends_calendar import (
+            _syms_cache_key, _CACHE_TTL, _CACHE_TTL_PARTIAL,
+        )
+        from api.services.cache import cache as _cache
+
+        result = self._run_with_shed(["AAPL", "MSFT"], slow_syms={"MSFT"})
+
+        # The completed symbol's dividend is still in the served result.
+        assert any(e["sym"] == "AAPL" for e in result)
+        # The shed symbol's absence must not look like "verified no dividend."
+        assert not any(e["sym"] == "MSFT" for e in result)
+
+        key = _syms_cache_key(["AAPL", "MSFT"])
+        _, expires_at = _cache._store[key]
+        ttl_remaining = expires_at - time.time()
+        assert ttl_remaining <= _CACHE_TTL_PARTIAL + 5
+        assert ttl_remaining < _CACHE_TTL  # never the full 12h
+
+    def test_all_completed_gets_full_ttl(self):
+        """Control: nothing shed -> the normal 12h success TTL applies, even
+        though the completeness predicate changed."""
+        from api.services.dividends_calendar import _syms_cache_key, _CACHE_TTL
+        from api.services.cache import cache as _cache
+
+        result = self._run_with_shed(["AAPL"], slow_syms=set())
+
+        assert any(e["sym"] == "AAPL" for e in result)
+        key = _syms_cache_key(["AAPL"])
+        _, expires_at = _cache._store[key]
+        ttl_remaining = expires_at - time.time()
+        assert ttl_remaining > _CACHE_TTL - 5  # ~12h, not the short partial one
+
+    def test_all_completed_but_genuinely_empty_still_gets_full_ttl(self):
+        """A fully-completed batch that legitimately has no dividends/splits
+        is NOT a failure -- it must still get the long TTL (this is the
+        honest-emptiness-vs-failure distinction, not a truthiness check)."""
+        from api.services.dividends_calendar import _syms_cache_key, _CACHE_TTL
+        from api.services.cache import cache as _cache
+        import pandas as pd
+        from api.services import dividends_calendar as dc
+
+        empty_ticker = _make_mock_ticker(calendar={})  # no Ex-Dividend Date, no splits
+
+        with mock.patch("yfinance.Ticker", return_value=empty_ticker), \
+             mock.patch("concurrent.futures.ThreadPoolExecutor",
+                       lambda *a, **kw: _FakeExecutor(set())):
+            result = dc.get_events(["NFLX"])
+
+        assert result == []
+        key = _syms_cache_key(["NFLX"])
+        _, expires_at = _cache._store[key]
+        ttl_remaining = expires_at - time.time()
+        assert ttl_remaining > _CACHE_TTL - 5
 
 
 # ── Endpoint tests ─────────────────────────────────────────────────────────────

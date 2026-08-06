@@ -17,10 +17,12 @@ import logging
 from datetime import date, timezone, datetime
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 
 _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 43_200  # 12 hours
+_CACHE_TTL_PARTIAL = 300  # a symbol shed by the 25s deadline self-heals in 5 min, not 12h
 
 
 def _syms_cache_key(syms: list[str]) -> str:
@@ -173,9 +175,11 @@ def get_events(syms: list[str]) -> list[dict]:
     ex = ThreadPoolExecutor(max_workers=8, thread_name_prefix="div-cal")
     futures = [ex.submit(_one, s) for s in clean_syms]
     deadline = _time.monotonic() + 25.0
+    completed = 0
     for fut in futures:
         try:
             results.extend(fut.result(timeout=max(0.0, deadline - _time.monotonic())))
+            completed += 1
         except Exception:
             pass
     ex.shutdown(wait=False, cancel_futures=True)
@@ -183,5 +187,17 @@ def get_events(syms: list[str]) -> list[dict]:
     # Sort by date ascending
     results.sort(key=lambda e: e.get("date") or "")
 
-    cache.set(cache_key, results, ttl=_CACHE_TTL)
+    # The 25s deadline shed above is correct (bounds the request path against
+    # a hung yfinance call) -- but caching the SHED result at the 12h success
+    # TTL is not: the missing symbols' events are indistinguishable from
+    # "pays no dividend, no splits." `completed < len(futures)` is the exact
+    # per-leg signal (every symbol either finished or timed out), not a
+    # truthiness check on `results` (a fully-completed but genuinely
+    # dividend-free batch must still get the full TTL).
+    set_by_completeness(
+        cache_key, results,
+        complete=completed == len(futures),
+        ttl_ok=_CACHE_TTL,
+        ttl_partial=_CACHE_TTL_PARTIAL,
+    )
     return results

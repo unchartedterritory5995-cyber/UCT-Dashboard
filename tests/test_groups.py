@@ -314,6 +314,48 @@ def test_ai_peers_refuses_when_seed_meta_name_is_null(monkeypatch):
     assert called["raw"] == 0            # never grounds on a null-name seed
 
 
+def test_ai_peers_refusal_uses_short_ttl_not_the_6h_success_one(monkeypatch):
+    """data-dependability C15: a missing name is indistinguishable at this
+    level from a double-provider (yfinance+Finnhub) blip in ticker_meta --
+    the refusal must self-heal in minutes, not sit at the 6h success TTL."""
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta",
+                        lambda s: {"name": None, "sector": None, "industry": None, "theme": None})
+    monkeypatch.setattr(groups.cache, "get", lambda k: None)
+    captured = {}
+
+    def _spy_set(key, value, ttl):
+        captured["key"], captured["value"], captured["ttl"] = key, value, ttl
+
+    monkeypatch.setattr(groups.cache, "set", _spy_set)
+
+    assert groups._ai_peers("GHOST2", 5) == []
+
+    assert captured["ttl"] == groups._AI_PEERS_REFUSAL_TTL
+    assert captured["ttl"] < groups._AI_PEERS_TTL
+
+
+def test_ai_peers_success_still_uses_the_full_6h_ttl(monkeypatch):
+    """Control: a real, resolved peer set must keep the normal 6h TTL."""
+    from api.services import ticker_meta
+    monkeypatch.setattr(
+        ticker_meta, "get_ticker_meta",
+        lambda s: {"name": "Sandisk", "sector": "Technology", "industry": "Semiconductors", "theme": None},
+    )
+    monkeypatch.setattr(groups, "_ai_peer_raw", lambda *a: [])
+    monkeypatch.setattr(groups.cache, "get", lambda k: None)
+    captured = {}
+
+    def _spy_set(key, value, ttl):
+        captured["ttl"] = ttl
+
+    monkeypatch.setattr(groups.cache, "set", _spy_set)
+
+    groups._ai_peers("SNDK2", 5)
+
+    assert captured["ttl"] == groups._AI_PEERS_TTL
+
+
 def test_resolve_peers_uses_ai_on_taxonomy_miss(monkeypatch):
     monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)   # not in taxonomy
     monkeypatch.setattr(groups, "_industry_peers", lambda seed, n: None)   # no industry cohort

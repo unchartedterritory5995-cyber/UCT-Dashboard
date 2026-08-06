@@ -361,12 +361,14 @@ def _is_leveraged_etf(ticker: str) -> bool:
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
+    verified = False
     try:
         import yfinance as yf
         info = _bounded_yf(lambda: yf.Ticker(ticker).info, None)
         if not info:
             result = False
         else:
+            verified = True
             name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
             keywords = ["2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
                         "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
@@ -374,7 +376,11 @@ def _is_leveraged_etf(ticker: str) -> bool:
             result = any(kw in name for kw in keywords)
     except Exception:
         result = False
-    cache.set(cache_key, result, ttl=86400)  # 24 hours
+    # A yfinance failure/empty `.info` could not actually determine leveraged-
+    # ness -- caching that unverified `False` for 24h means TQQQ/SQQQ/SOXL etc.
+    # render as ordinary stocks in Top Movers for a day on a transient blip.
+    # Only a real answer earns the long TTL; an unverifiable one retries soon.
+    cache.set(cache_key, result, ttl=86400 if verified else 300)
     return result
 
 
