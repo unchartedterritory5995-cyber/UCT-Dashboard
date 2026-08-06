@@ -275,6 +275,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               { key: 'posColor', label: 'Upside surprise', hint: 'beat' },
               { key: 'negColor', label: 'Downside surprise', hint: 'miss' },
             ] },
+            { label: 'High impact', rows: [{ key: 'highBoxColor', label: 'Time box', hint: '3★ events' }] },
             { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
               { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
             ] }] },
@@ -344,17 +345,19 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               ? <div className={styles.econEmpty}>No events at this impact level.</div>
               : econItems.map((e, i) => (
                 <div key={`${e.time}-${e.event}-${i}`} className={styles.econRow}>
-                  <span className={styles.econTime}>{e.time || '—'}</span>
+                  <span className={styles.econTime}>
+                    {e.lvl >= 3 ? <span className={styles.timeBox}>{e.time || '—'}</span> : (e.time || '—')}
+                  </span>
                   <div className={styles.econMain}>
                     <div className={styles.econName}>{e.event}{e.fed && <span className={styles.fedTag}>FED</span>}</div>
-                    {!e.fed && (e.estimate != null || e.prior != null || e.actual != null) && (
+                    {!e.fed && (e.estimate != null || e.prior != null) && (
                       <div className={styles.econStats}>
-                        {e.actual != null && <span>act <b>{e.actual}</b></span>}
                         {e.estimate != null && <span>est {e.estimate}</span>}
                         {e.prior != null && <span>prior {e.prior}</span>}
                       </div>
                     )}
                   </div>
+                  {!e.fed && e.actual != null && <span className={styles.econActual} title="Actual">{e.actual}</span>}
                 </div>
               ))}
           </div>

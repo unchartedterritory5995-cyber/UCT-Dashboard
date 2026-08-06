@@ -1842,6 +1842,30 @@ def _is_key_event(title: str) -> bool:
     return any(k in t for k in _KEY_TERMS)
 
 
+# The events a trader treats as HIGH impact (the widget's 3-star tier). ForexFactory's
+# own "High" folder is narrower (and, e.g., marks Fed speeches Low), so we promote this
+# curated set to 'high' regardless of FF's label. Matches a TradingEconomics-style
+# high-impact list. FF titles differ from other sources (e.g. "Non-Farm Employment
+# Change", "UoM Consumer Sentiment") so terms are chosen to catch FF's wording.
+_HIGH_IMPACT_TERMS = (
+    "employment change", "payrolls", "unemployment rate",   # jobs report (NFP), not productivity
+    "cpi", "core inflation", "inflation rate", "consumer price",
+    "ppi", "producer price", "pce", "retail sales", "gdp",
+    "fomc statement", "fomc meeting", "fomc economic projections",   # the decision/minutes, not speeches
+    "federal funds rate", "interest rate decision", "rate decision",
+    "ism manufacturing pmi", "ism services pmi", "ism non-manufacturing pmi",   # headline PMI, not sub-prices
+    "consumer sentiment", "durable goods",
+    "building permits", "housing starts", "existing home sales", "new home sales",
+)
+
+
+def _is_high_impact(title: str) -> bool:
+    t = (title or "").lower()
+    if "speak" in t or "speech" in t:   # Fed/official speeches are never the high tier
+        return False
+    return any(k in t for k in _HIGH_IMPACT_TERMS)
+
+
 def _is_fed_speaker(title: str) -> bool:
     t = (title or "").lower().strip()
     # STRUCTURAL first. FMP ships "Fed <Name> Speech" / "Fed <Name> Speaks" for
@@ -1955,7 +1979,14 @@ def _fetch_ff_events(week_start: str, week_end: str, include_low: bool = False) 
             forecast = ev.get("forecast") or None
             previous = ev.get("previous") or None
 
-            imp = (impact or "Low").lower()   # 'low' | 'medium' | 'high'
+            # Impact tier for the widget's star filter: promote curated high-impact
+            # events to 'high' regardless of FF's label; else use FF's Medium/Low.
+            if _is_high_impact(title) or impact == "High":
+                imp = "high"
+            elif impact == "Medium":
+                imp = "medium"
+            else:
+                imp = "low"
             if is_fed:
                 result[ds]["fed"].append({
                     "time":  time_str,
