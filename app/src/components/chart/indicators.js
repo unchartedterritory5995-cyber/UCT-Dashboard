@@ -46,6 +46,11 @@
  *    it.
  * 2. **Parabolic SAR** — returns a third field, `isUptrend`, alongside
  *    `time`/`value`; the consumer strips it before handing data to LWC.
+ *    ⭐ AS OF PHASE C IT IS ALSO READ: `computeParabolicSAREvents` DERIVES SAR's
+ *    two `{0,1,NaN}` event columns from this same pass (`trendFlipped` is
+ *    literally this flag changing). The quirk is unchanged — the flag still
+ *    rides along and the chart consumer still strips it — it simply stopped
+ *    being a behaviour with no reader.
  * 3. **OBV** — already full-length and seeded with `{ value: 0 }` at bar 0
  *    rather than a NaN pad, so its line starts at zero on the first bar.
  */
@@ -551,6 +556,333 @@ export function computeParabolicSAR(bars, step = 0.02, maxStep = 0.2) {
     // `isUptrend` rides along as a third field — preserved, see the docstring.
     result[i].value = sar
     result[i].isUptrend = isUptrend
+  }
+  return result
+}
+
+// ─── SAR's two EVENT columns ─────────────────────────────────────────────────
+//
+// ⭐ THE VALUE HAS ALWAYS BEEN THERE; ONLY THE NAME IS NEW. `computeParabolicSAR`
+// already rides an `isUptrend` boolean on every point, and the Python lane
+// already carries it as a numeric ±1 `trend` column pinned by
+// `tests/fixtures/indicators/sar_default.json`. These two columns are DERIVED
+// from that output — never a second SAR loop, which is the twin this programme
+// exists to retire.
+//
+// WHY SAR NEEDS EVENTS AT ALL. `sar` is deliberately not alertable by a fixed
+// threshold: the value JUMPS TO THE OTHER SIDE OF PRICE at every flip, so the
+// same number means "trailing below an uptrend" on one bar and "above a
+// downtrend" on the next. A level is meaningless; the two things a trader
+// actually watches for are events, and these are them.
+//
+//   priceCrossedSar — the CLOSE moved to the other side of the stop this bar
+//   trendFlipped    — the SAR itself jumped sides this bar
+//
+// THEY ARE NOT THE SAME COLUMN, and the difference is a real bar shape rather
+// than a rounding artefact. In an uptrend that does not reverse, `close >= sar`
+// always holds (SAR is clamped at or below the two prior lows, and the reversal
+// test is `low < sar`); by symmetry a downtrend keeps `close <= sar`. So a side
+// change without a trend change is impossible EXCEPT around a reversal bar — and
+// there it is reachable: on reversal the new SAR is the prior leg's extreme
+// point, which an OUTSIDE bar can close beyond. That bar flips the trend without
+// flipping the side, and the next bar flips the side without flipping the trend.
+//
+// ⚠️ THE DOMAIN IS `{0, 1, NaN}` AND `NaN` IS NOT "NO EVENT". It is the warmup
+// pad, exactly as it is in every plot column: bar 0 has no SAR at all (the trend
+// seed consumes it), so there is nothing to have crossed. `0` means "computed,
+// did not happen". Bar 1 is `0` in both columns for the same reason read the
+// other way round: it is computable, and no prior side or trend exists for it to
+// have moved away from, so nothing happened. Collapsing NaN into 0 would make a
+// 200-bar indicator's warmup read as 199 non-events.
+//
+// ⚠️ `close > sar` IS STRICT, in both lanes, and an exact tie therefore reads as
+// "not above". Ties are measure-zero on real tape; what matters is that
+// `api/services/indicator_compute.compute_sar_events` makes the identical choice,
+// because the two are asserted against one fixture at rel-tol 1e-9.
+
+/** Was the close above the stop on this bar? `null` where either is unusable. */
+function sarSideAbove(close, sar) {
+  if (!Number.isFinite(close) || !Number.isFinite(sar)) return null
+  return close > sar
+}
+
+/**
+ * SAR's two event columns, as `[{time, value}]` series in the `{0, 1, NaN}`
+ * domain.
+ *
+ * ⚠️ DERIVED FROM `computeParabolicSAR`, NOT RE-IMPLEMENTED. It recomputes the
+ * SAR pass rather than taking the points as an argument, so there is exactly one
+ * public shape and one place the maths lives; the cost is one extra O(n) walk
+ * that the binder memoises per (instance, bars, inputs) anyway.
+ *
+ * @returns {{priceCrossedSar: Array, trendFlipped: Array}}
+ */
+export function computeParabolicSAREvents(bars, step = 0.02, maxStep = 0.2) {
+  const empty = { priceCrossedSar: [], trendFlipped: [] }
+  if (!bars || bars.length < 2) return empty
+  const points = computeParabolicSAR(bars, step, maxStep)
+  if (!points.length) return empty
+
+  const priceCrossedSar = blank(bars)
+  const trendFlipped = blank(bars)
+
+  for (let i = 1; i < bars.length; i++) {
+    const trend = points[i] ? points[i].isUptrend : undefined
+    const prevTrend = points[i - 1] ? points[i - 1].isUptrend : undefined
+    const side = sarSideAbove(bars[i].c, points[i] ? points[i].value : NA)
+    const prevSide = sarSideAbove(bars[i - 1].c, points[i - 1] ? points[i - 1].value : NA)
+
+    // Bar 1 has a trend and a side but no PRIOR of either — the seed bar is the
+    // pad. "Nothing happened" is the honest answer, not a gap.
+    if (typeof trend === 'boolean') {
+      trendFlipped[i].value = (typeof prevTrend === 'boolean' && prevTrend !== trend) ? 1 : 0
+    }
+    if (side !== null) {
+      priceCrossedSar[i].value = (prevSide !== null && prevSide !== side) ? 1 : 0
+    }
+  }
+  return { priceCrossedSar, trendFlipped }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE C TASK 14 — Anchored VWAP · ATR bands · the RS line
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * The anchors `computeAVWAP` accepts. Exported and frozen so the DEFINITION's
+ * `enum` options and this function read ONE list — a second copy is how an
+ * option a user can pick becomes an anchor the maths does not know.
+ *
+ * ⭐ AN `enum`, NOT A `time` (decision A3). Spec §3.1 reserves `time` and
+ * `defSchema` fails closed on it, and click-to-anchor already ships as the
+ * DRAWING TOOL in `ChartDrawingOverlay.jsx` — which is anchored by a click and
+ * needs no definition. These seven are the anchors a *definition* can name.
+ */
+export const AVWAP_ANCHORS = Object.freeze([
+  'session', 'week', 'month', 'quarter', 'year', 'swingHigh', 'swingLow',
+])
+
+/**
+ * 🔴 THE UNIT GUARD, AND IT IS NOT A MAGNITUDE HEURISTIC ABOUT THE ANCHOR.
+ *
+ * `1990-01-01T00:00:00Z`. A bar older than this is not a bar this application
+ * has ever served (`bars_fetch` caps daily/weekly lookback at 30 years), so a
+ * `t` below it is a **unit error** — a value that is not unix seconds at all —
+ * and never "a very old bar".
+ *
+ * It exists because the defect is LIVE and MEASURED elsewhere in this repo:
+ * `_fetch_bars_for_alert` hands `compute_vwap` the store's `YYYYMMDD` integer
+ * (`20250101`) where real unix seconds are expected, so the anchor resolves to
+ * **1970-08-23**, two years of daily bars span 11,130 seconds, and 56 bars of
+ * "daily VWAP" produce exactly ONE reset — at index 0. Nothing raises, so
+ * nothing surfaces it: the line is plausible and wrong.
+ *
+ * ⚠️ READ THE DISTINCTION THE PHASE MAKES. The ANCHOR is encoded by calendar
+ * semantics resolved per instant from the IANA database — never by how big the
+ * number is. This constant does not decide *which* anchor a bar falls in; it
+ * decides whether the bar carries an INSTANT at all, and refuses the whole
+ * column when it does not. "Encode by timeframe, never by magnitude" is a rule
+ * about the anchor; validating the unit is the thing that makes it possible to
+ * obey, because a date-shaped integer silently answers every calendar question
+ * with 1970.
+ *
+ * ⛔ AND THE REFUSAL IS AN ALL-NaN COLUMN, NOT A PLAUSIBLE ANSWER. A "one bucket
+ * for the whole series" fallback is exactly what the live defect produces, so it
+ * could not be told apart from it. `hasAnyFinite` reads false, the pane is
+ * dropped, and the indicator visibly does not draw.
+ */
+export const AVWAP_MIN_INSTANT = 631152000
+
+/** Named ET calendar parts, including the weekday the `week` anchor needs.
+ *  `formatToParts` rather than a locale whose pattern happens to be ISO: the key
+ *  is built from the NAMED parts, so it cannot drift with the host's CLDR data. */
+const ET_ANCHOR_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
+})
+
+const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+
+/** `{y, m, d, wd}` in `America/New_York` for a unix-seconds instant. */
+function etParts(t) {
+  const parts = ET_ANCHOR_PARTS.formatToParts(new Date(t * 1000))
+  let y = 0, m = 0, d = 0, wd = 0
+  for (const p of parts) {
+    if (p.type === 'year') y = Number(p.value)
+    else if (p.type === 'month') m = Number(p.value)
+    else if (p.type === 'day') d = Number(p.value)
+    else if (p.type === 'weekday') wd = WEEKDAY_INDEX[p.value] ?? 0
+  }
+  return { y, m, d, wd }
+}
+
+/**
+ * The anchor bucket a bar falls in, as a string key.
+ *
+ * ⚠️ THE ZONE IS RESOLVED PER INSTANT, NOT FROM ONE OFFSET CAPTURED AT IMPORT.
+ * A module-load `_ET_OFFSET` is correct for half the year and silently an hour
+ * wrong for the other half depending on when the page loaded — the same class of
+ * defect `VWAP_SESSION_ANCHOR` retired, and the reason `StockChart.jsx:517`'s
+ * constant must never become this function's source.
+ *
+ * The `week` key is the ET civil date of the preceding MONDAY, computed with
+ * plain civil arithmetic (`Date.UTC` on the already-resolved y/m/d), so it
+ * cannot re-enter a timezone and pick up an offset a second time.
+ */
+function etAnchorKey(t, anchor) {
+  const { y, m, d, wd } = etParts(t)
+  if (anchor === 'session') return `${y}-${m}-${d}`
+  if (anchor === 'month') return `${y}-${m}`
+  if (anchor === 'quarter') return `${y}-Q${Math.floor((m - 1) / 3) + 1}`
+  if (anchor === 'year') return `${y}`
+  // week — back up to Monday. `wd` is 0=Sun..6=Sat, so Sunday is six days in.
+  const back = (wd + 6) % 7
+  const monday = new Date(Date.UTC(y, m - 1, d) - back * 86400000)
+  return `W${monday.getUTCFullYear()}-${monday.getUTCMonth() + 1}-${monday.getUTCDate()}`
+}
+
+/**
+ * Anchored VWAP — the session VWAP's accumulator, restarted at a NAMED anchor.
+ *
+ * `session` is the same boundary `computeVWAP` uses (the ET calendar day), so on
+ * a one-session series the two are the same number, bar for bar. The other six
+ * anchors are what makes it a different indicator: `week`/`month`/`quarter`/
+ * `year` restart on the ET calendar boundary, and `swingHigh`/`swingLow` restart
+ * at every bar that makes a NEW RUNNING EXTREME — causal, no lookahead, so the
+ * value at bar `i` never changes when bar `i+1` arrives.
+ *
+ * ⚠️ ONLY THE CALENDAR ANCHORS TOUCH TIME AT ALL. The two swing anchors are pure
+ * price, so they are unaffected by the unit guard — which is correct, and worth
+ * stating: a guard that fired on them would refuse a column it has no reason to
+ * doubt.
+ *
+ * @param {Array}  bars   `[{t,o,h,l,c,v}]`, `t` in UNIX SECONDS
+ * @param {string} anchor one of `AVWAP_ANCHORS`
+ * @returns {Array} `[{time, value}]`, NaN-padded, aligned to `bars`
+ */
+export function computeAVWAP(bars, anchor = 'session') {
+  if (!bars?.length) return []
+  // Fail CLOSED on an anchor the maths does not know. `defSchema` already
+  // refuses an out-of-vocabulary enum value at registration, so this is the
+  // second door: `params_json` on a stored alert row is user-supplied.
+  if (!AVWAP_ANCHORS.includes(anchor)) return blank(bars)
+
+  const byPrice = anchor === 'swingHigh' || anchor === 'swingLow'
+  if (!byPrice) {
+    for (let i = 0; i < bars.length; i++) {
+      const t = bars[i].t
+      if (!Number.isFinite(t) || t < AVWAP_MIN_INSTANT) return blank(bars)
+    }
+  }
+
+  const result = blank(bars)
+  let cumPV = 0, cumVol = 0, anchorKey = null
+  // One-entry memo on the UTC HOUR, exact rather than approximate for the same
+  // reason `computeVWAP`'s is: every `America/New_York` offset is a whole number
+  // of hours and every transition lands on a whole UTC hour, so no anchor
+  // coarser than an hour can change inside one. Local, so it cannot grow across
+  // calls.
+  let memoHour = null, memoKey = null
+  let extreme = null, swingAt = 0
+  for (let i = 0; i < bars.length; i++) {
+    const bar = bars[i]
+    let key
+    if (byPrice) {
+      if (anchor === 'swingHigh') {
+        if (extreme === null || bar.h > extreme) { extreme = bar.h; swingAt = i }
+      } else if (extreme === null || bar.l < extreme) { extreme = bar.l; swingAt = i }
+      key = swingAt
+    } else {
+      const hour = Math.floor(bar.t / 3600)
+      if (hour === memoHour) {
+        key = memoKey
+      } else {
+        key = etAnchorKey(bar.t, anchor)
+        memoHour = hour; memoKey = key
+      }
+    }
+    if (key !== anchorKey) { cumPV = 0; cumVol = 0; anchorKey = key }
+    const tp = (bar.h + bar.l + bar.c) / 3
+    const v = Number(bar.v) || 0
+    cumPV += tp * v
+    cumVol += v
+    if (cumVol > 0) result[i].value = cumPV / cumVol
+  }
+  return result
+}
+
+/**
+ * ATR bands — the close, plus and minus `multiplier` × ATR(`period`).
+ *
+ * ⭐ IT COSTS NO NEW MATHS AND THAT IS DELIBERATE. Every number here is
+ * `computeATR`'s, which `tests/fixtures/indicators/atr_14.json` has pinned in
+ * BOTH lanes at rel-tol 1e-9 since B5 — so the fixture `atr_bands_14_2.json`
+ * points at `atr_14.json` with `barsFrom` and both lanes re-derive the three
+ * columns from that already-pinned `atr` column. The oracle is older than either
+ * implementation, exactly as it is for SAR's two event columns, and a reseed of
+ * `atr_14` turns this case red.
+ *
+ * ⚠️ THE MIDDLE IS THE CLOSE, AND IT SHARES THE EDGES' PAD. A middle that
+ * existed where the edges did not would be a band with nothing to draw between —
+ * the unrenderable shape `defSchema.validateBandEdges` exists to refuse one
+ * level up — so all three columns start at `bars[period]`, where ATR does.
+ *
+ * ⚠️ `multiplier` IS AN INPUT READ BY THE COMPUTE, NOT A `$ref` IN A PLOT.
+ * `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
+ * `lineStyle` only (`SUBSTITUTABLE_PLOT_FIELDS`); a band's WIDTH IN PRICE is
+ * none of those. Writing it as a plot literal would render one multiplier for
+ * every user while the settings form offered a control that changed nothing.
+ */
+export function computeATRBands(bars, period = 14, multiplier = 2) {
+  const empty = { upper: [], middle: [], lower: [] }
+  if (!bars || bars.length < period + 1) return empty
+  const atr = computeATR(bars, period)
+  if (!atr.length) return empty
+  const upper = blank(bars), middle = blank(bars), lower = blank(bars)
+  for (let i = 0; i < bars.length; i++) {
+    const a = atr[i] ? atr[i].value : NA
+    if (!Number.isFinite(a)) continue
+    const c = bars[i].c
+    middle[i].value = c
+    upper[i].value = c + multiplier * a
+    lower[i].value = c - multiplier * a
+  }
+  return { upper, middle, lower }
+}
+
+/**
+ * The relative-strength line — this symbol's close over the BENCHMARK's close.
+ *
+ * ⛔ IT TAKES A SECOND SYMBOL, WHICH IS WHY ITS DEFINITION IS `compute.kind:
+ * 'server'` AND NOT A NATIVE. The compute contract (spec §4) is
+ * `compute({bars, inputs, prevState, barstate})` — ONE `bars` — so a native
+ * adapter could only ever hand this function the chart's own series, and
+ * `close / close` is **1.0 on every bar**. That is the silent failure this
+ * function's shape refuses: a single-symbol RS line is a flat line at one, and
+ * it looks exactly like an indicator that is working.
+ *
+ * ⚠️ JOINED BY BAR TIME, NEVER BY INDEX. A benchmark series missing one bar —
+ * a halt, a late print, a different session filter — would shift every
+ * subsequent ratio by one bar under an index join, and the line would be
+ * plausible and wrong for the whole history rather than absent for one bar.
+ * A bar with no benchmark print is the NaN pad, which is the honest answer.
+ *
+ * @param {Array} bars           the chart's bars
+ * @param {Array} benchmarkBars  the benchmark's bars, same shape
+ * @returns {Array} `[{time, value}]`, NaN-padded, aligned to `bars`
+ */
+export function computeRSLine(bars, benchmarkBars) {
+  if (!bars?.length) return []
+  const result = blank(bars)
+  if (!benchmarkBars?.length) return result
+  const closeAt = new Map()
+  for (const b of benchmarkBars) {
+    if (b && Number.isFinite(b.c)) closeAt.set(b.t, b.c)
+  }
+  for (let i = 0; i < bars.length; i++) {
+    const bc = closeAt.get(bars[i].t)
+    if (!Number.isFinite(bc) || bc === 0) continue
+    result[i].value = bars[i].c / bc
   }
   return result
 }

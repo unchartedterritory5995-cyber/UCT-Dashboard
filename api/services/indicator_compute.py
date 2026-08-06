@@ -44,7 +44,7 @@ These match the structure used throughout ``api/services/bars_fetch.py``.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import sqrt
 from typing import Dict, List, Optional, Tuple
 
@@ -831,6 +831,78 @@ def compute_sar(
     return _round_series(sar, 4), trend
 
 
+def compute_sar_events(
+    bars: List[dict],
+    step: float = 0.02,
+    max_step: float = 0.2,
+) -> Tuple[List[MaybeNum], List[MaybeNum]]:
+    """``(price_crossed_sar, trend_flipped)`` as ``{0.0, 1.0, None}`` columns.
+
+    ⚠️ DERIVED FROM ``compute_sar_raw``, NOT RE-IMPLEMENTED. The ``trend`` column
+    is already ±1 and already pinned by ``tests/fixtures/indicators/sar_default``
+    in BOTH lanes, so not one fixture byte is reseeded to add these and neither
+    lane can re-baseline under the other. A second SAR loop here would be the
+    twin this whole programme retires.
+
+    WHY SAR HAS EVENTS AT ALL. ``sar`` is deliberately not alertable by a fixed
+    threshold — the value JUMPS TO THE OTHER SIDE OF PRICE at every flip, so the
+    same number means "trailing below an uptrend" on one bar and "above a
+    downtrend" on the next (``indicator_alert_evaluator._SAR_IS_NOT_OFFERED``).
+    These two are what a trader actually watches for instead:
+
+    * ``price_crossed_sar`` — the CLOSE moved to the other side of the stop.
+    * ``trend_flipped``     — the SAR itself jumped sides.
+
+    THEY ARE NOT THE SAME COLUMN. In an uptrend that does not reverse
+    ``close >= sar`` always holds (SAR is clamped at or below the two prior lows
+    and the reversal test is ``low < sar``); a downtrend keeps ``close <= sar`` by
+    symmetry. So a side change without a trend change is only reachable around a
+    reversal bar — and there it IS reachable: on reversal the new SAR is the prior
+    leg's extreme point, which an OUTSIDE bar can close beyond. That bar flips the
+    trend without flipping the side; the next flips the side without the trend.
+
+    ⚠️ THE DOMAIN IS ``{0.0, 1.0, None}`` AND ``None`` IS NOT "NO EVENT". It is
+    the warmup pad: bar 0 has no SAR at all (the trend seed consumes it), so there
+    is nothing to have crossed. ``0.0`` is "computed, did not happen" — including
+    bar 1, which is computable and has no prior side or trend to have moved away
+    from.
+
+    ⚠️ ``close > sar`` IS STRICT, and the JS lane
+    (``indicators.computeParabolicSAREvents``) makes the identical choice — the
+    two are asserted against one fixture at rel-tol 1e-9, so a tie-break that
+    disagreed would show up as a changed number rather than as a shrug.
+
+    ⛔ THERE IS DELIBERATELY NO ``_raw`` / delivery PAIR. Every other indicator has
+    one because the delivery layer ROUNDS for the two live consumers that compare
+    against user thresholds. This column's whole domain is ``{0, 1, None}``:
+    there are no decimals to round, so a ``compute_sar_events_raw`` would be a
+    second name for one function and an invitation to make them differ.
+    """
+    sar, trend = compute_sar_raw(bars, step, max_step)
+    n = len(bars)
+    crossed: List[MaybeNum] = [None] * n
+    flipped: List[MaybeNum] = [None] * n
+    if n < 2:
+        return crossed, flipped
+
+    def _above(i: int) -> Optional[bool]:
+        s = sar[i]
+        if s is None:
+            return None
+        return bars[i]["c"] > s
+
+    for i in range(1, n):
+        t, prev_t = trend[i], trend[i - 1]
+        side, prev_side = _above(i), _above(i - 1)
+        # Bar 1 has a trend and a side but no PRIOR of either — the seed bar is
+        # the pad. "Nothing happened" is the honest answer, not a gap.
+        if t is not None:
+            flipped[i] = 1.0 if (prev_t is not None and prev_t != t) else 0.0
+        if side is not None:
+            crossed[i] = 1.0 if (prev_side is not None and prev_side != side) else 0.0
+    return crossed, flipped
+
+
 # ─── VWAP ────────────────────────────────────────────────────────────────────
 
 _ET_ZONE = None
@@ -934,6 +1006,253 @@ def compute_vwap(bars: List[dict]) -> List[MaybeNum]:
     return _round_series(compute_vwap_raw(bars), 4)
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# PHASE C TASK 14 — Anchored VWAP · ATR bands · the RS line
+# ═════════════════════════════════════════════════════════════════════════════
+
+#: The anchors ``compute_avwap_raw`` accepts, in the order the definition's
+#: ``enum`` declares them. ONE list, read by the maths and asserted against the
+#: JS lane's ``AVWAP_ANCHORS`` — a second copy is how an option a user can pick
+#: becomes an anchor the maths does not know.
+#:
+#: ⭐ AN ``enum``, NOT A ``time`` (decision A3). Spec §3.1 reserves ``time`` and
+#: ``defSchema`` fails closed on it; click-to-anchor already ships as the DRAWING
+#: TOOL, which is anchored by a click and needs no definition.
+AVWAP_ANCHORS: Tuple[str, ...] = (
+    "session", "week", "month", "quarter", "year", "swingHigh", "swingLow",
+)
+
+#: 🔴 THE UNIT GUARD — ``1990-01-01T00:00:00Z``.
+#:
+#: A bar older than this is not a bar this application has ever served
+#: (``bars_fetch`` caps daily/weekly lookback at 30 years), so a ``t`` below it
+#: is a **unit error** — a value that is not unix seconds at all — and never "a
+#: very old bar".
+#:
+#: It exists because the defect is LIVE in this repo and MEASURED: the daily call
+#: site ``_fetch_bars_for_alert`` hands ``compute_vwap`` the store's ``YYYYMMDD``
+#: integer (``20250101``) where real unix seconds are expected, so the anchor
+#: resolves to **1970-08-23**, two years of daily bars span 11,130 seconds, and
+#: 56 bars of "daily VWAP" produce exactly ONE reset — at index 0. Nothing
+#: raises, so nothing surfaces it: the line is plausible and wrong.
+#:
+#: ⚠️ THE ANCHOR IS STILL ENCODED BY CALENDAR SEMANTICS, NEVER BY MAGNITUDE.
+#: This constant does not decide *which* anchor a bar falls in; it decides
+#: whether the bar carries an INSTANT at all, and refuses the whole column when
+#: it does not. Validating the unit is what makes "encode by timeframe, never by
+#: magnitude" obeyable — a date-shaped integer answers every calendar question
+#: with 1970 and never argues.
+#:
+#: ⛔ THE REFUSAL IS AN ALL-``None`` COLUMN, NOT A PLAUSIBLE ANSWER. A "one
+#: bucket for the whole series" fallback is exactly what the live defect
+#: produces, so it could not be told apart from it.
+AVWAP_MIN_INSTANT = 631152000
+
+
+def _et_anchor_key(t: float, anchor: str, zone) -> str:
+    """The anchor bucket ``t`` falls in, as a string key.
+
+    ⚠️ THE ZONE IS RESOLVED PER INSTANT from the IANA database, never from one
+    offset captured at import — a fixed offset is correct for half the year and
+    silently an hour wrong for the other half.
+
+    The ``week`` key is the ET civil date of the preceding MONDAY, computed with
+    plain civil arithmetic on the already-resolved date so it cannot re-enter a
+    timezone and pick up an offset twice.
+    """
+    dt = datetime.fromtimestamp(t, zone)
+    if anchor == "session":
+        return f"{dt.year}-{dt.month}-{dt.day}"
+    if anchor == "month":
+        return f"{dt.year}-{dt.month}"
+    if anchor == "quarter":
+        return f"{dt.year}-Q{(dt.month - 1) // 3 + 1}"
+    if anchor == "year":
+        return f"{dt.year}"
+    monday = dt.date() - timedelta(days=dt.weekday())
+    return f"W{monday.year}-{monday.month}-{monday.day}"
+
+
+def compute_avwap_raw(bars: List[dict], anchor: str = "session") -> List[MaybeNum]:
+    """Anchored VWAP, unrounded. Mirrors ``computeAVWAP`` in indicators.js.
+
+    The session VWAP's accumulator, restarted at a NAMED anchor.
+    ``session`` is the same boundary ``compute_vwap_raw`` uses (the ET calendar
+    day), so on a one-session series the two are the same number bar for bar.
+    ``week``/``month``/``quarter``/``year`` restart on the ET calendar boundary;
+    ``swingHigh``/``swingLow`` restart at every bar that makes a NEW RUNNING
+    EXTREME — causal, no lookahead, so bar ``i``'s value never changes when bar
+    ``i+1`` arrives.
+
+    ⚠️ ONLY THE CALENDAR ANCHORS TOUCH TIME AT ALL, so the two swing anchors are
+    unaffected by ``AVWAP_MIN_INSTANT`` — a guard that fired on them would refuse
+    a column it has no reason to doubt.
+    """
+    n = len(bars)
+    if n == 0:
+        return []
+    # Fail CLOSED on an anchor the maths does not know. `defSchema` refuses an
+    # out-of-vocabulary enum at registration; this is the second door, because
+    # `params_json` on a stored alert row is user-supplied and unvalidated.
+    if anchor not in AVWAP_ANCHORS:
+        return [None] * n
+
+    by_price = anchor in ("swingHigh", "swingLow")
+    if not by_price:
+        for bar in bars:
+            t = bar.get("t")
+            if isinstance(t, bool) or not isinstance(t, (int, float)) or t < AVWAP_MIN_INSTANT:
+                return [None] * n
+
+    out: List[MaybeNum] = [None] * n
+    cum_pv = 0.0
+    cum_vol = 0.0
+    anchor_key = None
+    memo_hour = None
+    memo_key = None
+    extreme = None
+    swing_at = 0
+    zone = None if by_price else _et_zone()
+    for i, bar in enumerate(bars):
+        if by_price:
+            if anchor == "swingHigh":
+                if extreme is None or bar["h"] > extreme:
+                    extreme = bar["h"]
+                    swing_at = i
+            elif extreme is None or bar["l"] < extreme:
+                extreme = bar["l"]
+                swing_at = i
+            key = swing_at
+        else:
+            hour = int(bar["t"] // 3600)
+            if hour == memo_hour:
+                key = memo_key
+            else:
+                key = _et_anchor_key(bar["t"], anchor, zone)
+                memo_hour = hour
+                memo_key = key
+        if key != anchor_key:
+            cum_pv = 0.0
+            cum_vol = 0.0
+            anchor_key = key
+        tp = (bar["h"] + bar["l"] + bar["c"]) / 3
+        v = float(bar.get("v") or 0)
+        cum_pv += tp * v
+        cum_vol += v
+        if cum_vol > 0:
+            out[i] = cum_pv / cum_vol
+    return out
+
+
+def compute_avwap(bars: List[dict], anchor: str = "session") -> List[MaybeNum]:
+    """DELIVERY wrapper (4dp — price-scale, like ``compute_vwap``)."""
+    return _round_series(compute_avwap_raw(bars, anchor), 4)
+
+
+def compute_atr_bands_raw(
+    bars: List[dict],
+    period: int = 14,
+    multiplier: float = 2.0,
+) -> Tuple[List[MaybeNum], List[MaybeNum], List[MaybeNum]]:
+    """``(upper, middle, lower)`` = close ± ``multiplier`` × ATR(``period``).
+
+    ⭐ IT COSTS NO NEW MATHS AND THAT IS DELIBERATE. Every number is
+    ``compute_atr_raw``'s, which ``tests/fixtures/indicators/atr_14.json`` has
+    pinned in BOTH lanes at rel-tol 1e-9 since B5 — so ``atr_bands_14_2.json``
+    points at ``atr_14.json`` with ``barsFrom`` and both lanes re-derive these
+    three columns from that already-pinned ``atr``. The oracle is older than
+    either implementation, exactly as it is for SAR's two event columns, and a
+    reseed of ``atr_14`` turns this case red.
+
+    ⚠️ THE MIDDLE IS THE CLOSE AND IT SHARES THE EDGES' PAD. A middle that
+    existed where the edges did not would be a band with nothing to draw between.
+
+    ⚠️ ``multiplier`` IS AN INPUT READ BY THE COMPUTE, not a ``$ref`` in a plot:
+    ``$<inputKey>`` substitution is legal in ``color``/``width``/``levels``/
+    ``lineStyle`` only, and a band's WIDTH IN PRICE is none of those.
+    """
+    n = len(bars)
+    upper: List[MaybeNum] = [None] * n
+    middle: List[MaybeNum] = [None] * n
+    lower: List[MaybeNum] = [None] * n
+    atr = compute_atr_raw(bars, period)
+    for i, a in enumerate(atr):
+        if a is None:
+            continue
+        c = bars[i]["c"]
+        middle[i] = c
+        upper[i] = c + multiplier * a
+        lower[i] = c - multiplier * a
+    return upper, middle, lower
+
+
+def compute_atr_bands(
+    bars: List[dict],
+    period: int = 14,
+    multiplier: float = 2.0,
+) -> Tuple[List[MaybeNum], List[MaybeNum], List[MaybeNum]]:
+    """DELIVERY wrapper (4dp — price-scale, like ``compute_bb``)."""
+    upper, middle, lower = compute_atr_bands_raw(bars, period, multiplier)
+    return (_round_series(upper, 4), _round_series(middle, 4), _round_series(lower, 4))
+
+
+def compute_rs_line_raw(
+    bars: List[dict],
+    benchmark_bars: List[dict],
+) -> List[MaybeNum]:
+    """The relative-strength line — this symbol's close over the BENCHMARK's.
+
+    ⛔ IT TAKES A SECOND SYMBOL, WHICH IS WHY ITS DEFINITION IS
+    ``compute.kind: 'server'`` AND NOT A NATIVE, AND WHY THERE IS NO ``rs_line``
+    ENTRY IN ``_CASE_COLUMNS``. The compute contract (spec §4) is
+    ``compute({bars, inputs, prevState, barstate})`` — ONE ``bars`` — and
+    ``compute_case(kind, bars, params)`` is the same shape one level down. A
+    native adapter could only ever hand this function the chart's own series, and
+    ``close / close`` is **1.0 on every bar**: a single-symbol RS line is a flat
+    line at one, and it looks exactly like an indicator that is working.
+
+    Extending either signature to smuggle a second series through would make the
+    dispatch lie about its own shape, so ``rs_line_spy.json`` is read by a
+    dedicated test in each lane instead — the same reason ``vwap`` is deliberately
+    absent from the dispatch, applied to a different constraint.
+
+    ⚠️ JOINED BY BAR TIME, NEVER BY INDEX. A benchmark series missing one bar
+    would shift every subsequent ratio under an index join, and the line would be
+    plausible and wrong for the whole history rather than absent for one bar.
+    """
+    n = len(bars)
+    out: List[MaybeNum] = [None] * n
+    if n == 0 or not benchmark_bars:
+        return out
+    close_at: Dict[object, float] = {}
+    for b in benchmark_bars:
+        c = b.get("c")
+        if isinstance(c, (int, float)) and not isinstance(c, bool):
+            close_at[b.get("t")] = float(c)
+    for i, bar in enumerate(bars):
+        bc = close_at.get(bar.get("t"))
+        if bc is None or bc == 0:
+            continue
+        out[i] = bar["c"] / bc
+    return out
+
+
+def compute_rs_line(
+    bars: List[dict],
+    benchmark_bars: List[dict],
+) -> List[MaybeNum]:
+    """DELIVERY wrapper (6dp).
+
+    ⚠️ SIX, NOT FOUR. Every other price-scale wrapper rounds to 4 because it
+    delivers a PRICE; this delivers a RATIO that sits near 1 for a benchmark-like
+    name and near 0.02 for a cheap one, so 4dp would quantise a real RS move into
+    nothing. The wrappers are the boundary user thresholds are compared at
+    (decision A4), which is exactly why the precision has to suit the scale of
+    the number rather than the habit of the module.
+    """
+    return _round_series(compute_rs_line_raw(bars, benchmark_bars), 6)
+
+
 # ─── golden-fixture dispatch ─────────────────────────────────────────────────
 # Pure dispatch, no math of its own. Both test lanes read the SAME fixture JSON
 # in tests/fixtures/indicators/; this maps a fixture's `kind` onto the precise
@@ -954,6 +1273,30 @@ _CASE_COLUMNS: Dict[str, Tuple[str, ...]] = {
     "donchian": ("upper", "middle", "lower"),
     "ichimoku": ("tenkan", "kijun", "spanA", "spanB", "chikou"),
     "sar": ("sar", "trend"),
+    # ── Phase C: SAR's two EVENT columns ──
+    # A SEPARATE kind, not two more columns on `sar`. Adding them there would
+    # have changed `sar_default`'s column set, and `test_python_lane_matches_the_
+    # golden_columns` asserts `set(got) == set(case["expected"])` — so the fixture
+    # whose `trend` column makes these two derivable in the first place would have
+    # had to be reseeded to add them. It was not: `sar_events_default` points at
+    # `sar_default`'s bars with `barsFrom` and both lanes read both files.
+    "sar_events": ("priceCrossedSar", "trendFlipped"),
+    # ── Phase C Task 14 ──
+    # `avwap` and `atr_bands` dispatch normally: both take ONE `bars` and their
+    # own params, which is exactly the shape this table describes.
+    "avwap": ("avwap",),
+    "atr_bands": ("upper", "middle", "lower"),
+    # ⛔ `rs_line` is NOT here, and the reason is structural rather than
+    # historical. `compute_case(kind, bars, params)` carries ONE series, and the
+    # RS line needs TWO — its own and the benchmark's. That is the same
+    # constraint decision A3 used to make the definition `compute.kind: 'server'`
+    # (spec §4's `compute({bars, inputs, …})` cannot reach a second symbol), so
+    # honouring it here keeps ONE story: a lane with one `bars` does not answer
+    # for an indicator with two. Smuggling the benchmark through `params` would
+    # make this table's contract a lie at exactly one row.
+    # `rs_line_spy.json` is read by a DEDICATED test in each lane instead —
+    # `test_rs_line_matches_the_golden_column` / the vitest case of the same
+    # name — so the fixture is still a cross-language agreement at 1e-9.
     # `vwap` is NOT here and must not be: the two pre-existing vwap fixtures
     # carry `"expected": null` because Python had no VWAP when they were written,
     # and `test_vwap_session_fixtures_carry_a_real_trap` asserts exactly that.
@@ -1040,5 +1383,20 @@ def compute_case(
             bars, float(p.get("step", 0.02)), float(p.get("max_step", 0.2)),
         )
         return {"sar": sar, "trend": trend}
+    if kind == "sar_events":
+        crossed, flipped = compute_sar_events(
+            bars, float(p.get("step", 0.02)), float(p.get("max_step", 0.2)),
+        )
+        return {"priceCrossedSar": crossed, "trendFlipped": flipped}
+
+    # ── Phase C Task 14 ──
+    if kind == "avwap":
+        return {"avwap": compute_avwap_raw(bars, str(p.get("anchor", "session")))}
+    if kind == "atr_bands":
+        upper, middle, lower = compute_atr_bands_raw(
+            bars, int(p.get("period", 14)), float(p.get("multiplier", 2.0)),
+        )
+        return {"upper": upper, "middle": middle, "lower": lower}
+
     # kind == "vwap_series" — deliberately not "vwap"; see _CASE_COLUMNS.
     return {"vwap": compute_vwap_raw(bars)}

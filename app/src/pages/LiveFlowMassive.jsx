@@ -2411,6 +2411,13 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <span>Incremental scan (perf - fixes blank sides)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
+                 title="Auto-push scans only symbols with new prints since the last cycle (not the whole day), so Discord alerts fire in ~60s even at the cold open. Dedup guarantees no double/missed push. Flip off to revert to the full-day scan instantly.">
+            <input type="checkbox"
+              checked={thresholds.autopush_incremental ?? false}
+              onChange={e => setPath(["autopush_incremental"], e.target.checked)} />
+            <span>Incremental auto-push (perf - fixes open-time alert lag)</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
                  title="Clean directional flow only: drop bid-side sells contaminated by earlier ask-buying on the same contract (likely profit-take / mixed, not clean conviction) from the directional tiers — they surface as neutral 'Not Clean'. Clean writes and ask-side buys are kept.">
             <input type="checkbox"
               checked={thresholds.close_detector_enabled ?? false}

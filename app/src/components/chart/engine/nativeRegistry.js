@@ -25,10 +25,20 @@
 // bar. NaN is the gap value (not null, not 0) so `Number.isFinite` is the single
 // "is there a value here" test, exactly as `indicators.js` established in B1.
 //
-// One column per DATA-BEARING plot. `hlines` plots — the 70/50/30 guides and
-// friends — are static levels, not series: they declare `levels` and return no
-// column. `columnKeys(def)` is the authority on which plots bear data, and
-// nothing else in the engine should re-derive that rule.
+// One column per DATA-BEARING plot AND ONE PER DECLARED EVENT. `hlines` plots —
+// the 70/50/30 guides and friends — are static levels, not series: they declare
+// `levels` and return no column. `columnKeys(def)` is the authority on which
+// keys bear data, and nothing else in the engine should re-derive that rule.
+//
+// ⭐ THIS PARAGRAPH USED TO SAY "one column per DATA-BEARING PLOT" and stop
+// there, which was true for the whole of B1-B5 and is now half the rule.
+// `events[]` was in the schema from B1 and read by nothing: `columnKeys` looked
+// at `def.plots` only, so an event could be declared, computed nothing, and
+// register cleanly. Phase C Task 4 widened `columnKeys` to the union and added a
+// REGISTRATION-TIME gate (`validateEventColumns`) that runs the compute over a
+// probe series and refuses a definition whose event names no column or whose
+// event column holds anything but 0, 1 or NaN. `sar` is the first definition to
+// declare any.
 //
 // hasAnyFinite() REPLACES `.length` AS THE PANE-EXISTENCE TEST
 // ------------------------------------------------------------
@@ -66,6 +76,7 @@
 import {
   validateDefinition,
   validateSourceReferents,
+  isEventColumnValue,
   SCHEMA_VERSION,
 } from './defSchema'
 import {
@@ -83,7 +94,12 @@ import {
   computeOBV,
   computeDonchian,
   computeParabolicSAR,
+  computeParabolicSAREvents,
+  computeAVWAP,
+  computeATRBands,
+  AVWAP_ANCHORS,
 } from '../indicators'
+import { serverColumnsFor } from './serverCompute'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -142,6 +158,19 @@ const nativeDef = (id, fn, meta, placement, inputs, plots) => ({
 const fixedPane = (min, max, height) => ({ target: 'pane', scale: { min, max }, pane: { height } })
 const autoPane = (height) => ({ target: 'pane', pane: { height } })
 const onPrice = { target: 'price' }
+
+/** The `enum` labels for `indicators.AVWAP_ANCHORS` (Phase C Task 14).
+ *
+ *  ⛔ A LOOKUP KEYED BY THE FROZEN LIST, NOT A SECOND LIST. `avwap`'s options are
+ *  `AVWAP_ANCHORS.map(a => [a, AVWAP_ANCHOR_LABELS[a]])`, so the VALUES can only
+ *  ever be the anchors the compute accepts. A hand-typed options array is how a
+ *  value a user can PICK becomes an anchor the maths REFUSES — a control that
+ *  silently draws nothing — and an anchor added without a label here surfaces as
+ *  an `undefined` label at registration rather than as a missing dropdown row. */
+const AVWAP_ANCHOR_LABELS = {
+  session: 'Session', week: 'Week', month: 'Month', quarter: 'Quarter',
+  year: 'Year', swingHigh: 'Swing high', swingLow: 'Swing low',
+}
 
 const colorInput = (key, label, dflt) => ({ key, type: 'color', label, default: dflt })
 const periodInput = (key, label, dflt, min, max) => ({
@@ -370,7 +399,15 @@ const RAW_DEFS = [
     ]),
 
   // ── Parabolic SAR ────────────────────────────────────────────────────────
-  nativeDef('sar', 'sar',
+  //
+  // ⭐ THE FIRST DEFINITION IN THE PLATFORM TO DECLARE `events`, and the reason
+  // the array stopped being inert. `sar` is deliberately NOT alertable by a fixed
+  // threshold — the value jumps to the other side of price at every flip, so the
+  // same number means "trailing below an uptrend" one bar and "above a downtrend"
+  // the next (`indicator_alert_evaluator._SAR_IS_NOT_OFFERED` writes that out and
+  // a test asserts the prose survives). Phase C's answer is to address it BY
+  // EVENT instead, and these two are the addresses.
+  ({ ...nativeDef('sar', 'sar',
     { name: 'Parabolic SAR', shortName: 'SAR', category: 'Trend',
       description: 'A trailing dot that flips side when the trend does.',
       tags: ['overlay', 'trend', 'stops'] },
@@ -391,6 +428,16 @@ const RAW_DEFS = [
       { key: 'sar', label: 'SAR', style: 'markers', color: '$color', width: 3, role: 'primary',
         legend: { decimals: 4 } },
     ]),
+    // ⚠️ AN EVENT IS A COLUMN, NOT A SERIES. These two draw nothing — they gain no
+    // pool key, no pane and no legend chip — which is why they are `events[]` and
+    // not plots with a style. `NATIVE_COMPUTE.sar` returns a `{0,1,NaN}` column
+    // for each, `registerDefinitions` refuses this definition if it does not, and
+    // the shared fixture `tests/fixtures/indicators/sar_events_default.json` pins
+    // both against the Python lane at rel-tol 1e-9.
+    events: [
+      { key: 'priceCrossedSar', label: 'Price crossed SAR' },
+      { key: 'trendFlipped', label: 'SAR trend flipped' },
+    ] }),
 
   // ── Ichimoku Cloud ───────────────────────────────────────────────────────
   nativeDef('ichimoku', 'ichimoku',
@@ -541,6 +588,113 @@ const RAW_DEFS = [
       { key: 'middle', label: 'Mid', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'largeDashed', role: 'primary' },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'solid', role: 'secondary' },
     ]),
+
+  // ══ PHASE C TASK 14 — the first definitions that are NOT a migration ═══════
+  //
+  // Every definition above this line is a legacy `StockChart.jsx` render block
+  // wearing the schema. These two are new indicators, authored as definitions
+  // from the start, and that is the whole claim spec §A5 makes: a sixteenth
+  // indicator costs ONE definition and zero edits to any list.
+  //
+  // ⚠️ THEY ARE APPENDED, AND THE ORDER IS Z-ORDER. `instances.js`'s stack order
+  // and the binder's draw order both read this array's order, so inserting
+  // ANYWHERE ELSE would re-stack the five shipped price overlays behind or in
+  // front of one another and move pixels on charts that never enabled these.
+
+  // ── Anchored VWAP ────────────────────────────────────────────────────────
+  nativeDef('avwap', 'avwap',
+    {
+      name: 'Anchored VWAP', shortName: 'AVWAP', category: 'Volume',
+      description: 'Volume-weighted average price measured from a chosen anchor, not from the session open.',
+      tags: ['overlay', 'volume', 'anchored'],
+      // ⚠️ INTRADAY ONLY, AND FOR A HARDER REASON THAN VWAP'S. Session VWAP is
+      // gated because a session indicator is meaningless on a daily bar. AVWAP
+      // is gated because ABOVE 60m THIS REPO'S BARS DO NOT CARRY AN INSTANT: the
+      // daily series `t` is a 'YYYY-MM-DD' string on this lane (asserted by
+      // `test_the_parity_fixture_is_intraday_bars_the_chart_can_actually_draw`)
+      // and a `YYYYMMDD` integer on the alert lane's — and reading that integer
+      // as unix seconds is the LIVE defect at `_fetch_bars_for_alert`, which
+      // anchors the daily VWAP in **1970-08-23** and produces exactly one reset.
+      // `computeAVWAP` refuses such a series outright (an all-NaN column, never a
+      // plausible one-bucket answer); this declaration is what stops a user ever
+      // reaching that refusal, and `engine/eligibility.js` enforces it.
+      timeframes: ['1', '5', '15', '30', '60'],
+    },
+    onPrice,
+    [
+      // ⭐ AN `enum`, NOT A `time` — decision A3, and the reserved input types
+      // stay reserved. `defSchema` fails closed on `time`, and click-to-anchor
+      // already ships as the DRAWING TOOL in `ChartDrawingOverlay.jsx`, which is
+      // anchored by a click and needs no definition (nor a settings-form control
+      // the spec has never described).
+      //
+      // ⛔ THE OPTIONS ARE BUILT FROM `indicators.AVWAP_ANCHORS`, NOT RETYPED.
+      // The compute fails closed on an anchor outside that list, so a hand-typed
+      // option here is how a value a user can PICK becomes an anchor the maths
+      // REFUSES — a control that silently draws nothing.
+      {
+        key: 'anchor', type: 'enum', label: 'Anchor', default: 'session',
+        options: AVWAP_ANCHORS.map(a => [a, AVWAP_ANCHOR_LABELS[a]]),
+      },
+      colorInput('color', 'Color', '#F5A623'),
+      {
+        key: 'lineStyle', type: 'enum', label: 'Line style', default: 'solid',
+        options: [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']],
+      },
+      { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+    ],
+    [
+      // ⚠️ `legend.hide`, LIKE ITS SESSION SIBLING, AND THE REASON IS A RAIL
+      // RATHER THAN A TASTE. `readout.test.js` and `enumerationSites.test.js`
+      // pin the chip set to *the NINE the shipped legend rendered* — a frozen
+      // historical record whose job is that a user's chip cannot silently
+      // disappear. A tenth chip here would force that list to be widened, and a
+      // list widened for a new indicator stops being a record of what shipped:
+      // the next migration that DROPS a chip would land in a table that has
+      // already learnt to grow. AVWAP is read off the price scale it sits on,
+      // exactly as session VWAP is, and its anchor is named in the settings row
+      // and the library. A chip for it is a separate, declarable decision — one
+      // `legend` edit and one line in that table, taken deliberately.
+      {
+        key: 'avwap', label: 'AVWAP', style: 'line',
+        color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
+        role: 'primary', legend: { hide: true },
+      },
+    ]),
+
+  // ── ATR bands ────────────────────────────────────────────────────────────
+  nativeDef('atrBands', 'atrBands',
+    { name: 'ATR Bands', shortName: 'ATR Bands', category: 'Volatility',
+      // ⚠️ THE WORDING IS LOAD-BEARING AND THIS IS THE SECOND DRAFT. It read
+      // "…a multiple of Average True Range", and the library dialog builds an
+      // option's ACCESSIBLE NAME from name + description — so that phrase made
+      // `getByRole('option', {name: /Average True Range/})` match TWO rows and
+      // four existing tests failed on ambiguity rather than on anything real.
+      // A description is user-facing copy AND a selector; keep the other
+      // indicator's full name out of it.
+      description: 'The close with a volatility envelope — a multiple of ATR either side of it.',
+      tags: ['overlay', 'volatility', 'bands'], legendParams: ['period', 'multiplier'] },
+    onPrice,
+    [
+      periodInput('period', 'Period', 14, 2, 200),
+      // ⭐ `multiplier` IS AN INPUT THE COMPUTE READS, AND IT HAD TO BE.
+      // `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
+      // `lineStyle` — `SUBSTITUTABLE_PLOT_FIELDS`, locked by spec §3.1 — and a
+      // band's WIDTH IN PRICE is none of those. Written as a plot literal it
+      // would render one multiplier for every user while the settings form
+      // offered a control that changed nothing, and `atr_bands_14_2.json`
+      // (multiplier 2) would stay green the whole time.
+      { key: 'multiplier', type: 'float', label: 'Multiplier', default: 2, min: 0.1, max: 10, step: 0.1 },
+      colorInput('color', 'Color', 'rgba(245,166,35,0.75)'),
+    ],
+    [
+      { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+      // The middle IS the band's centre column — the close — and `edges` names
+      // the two that bound it. Same shape as BB and Donchian; see defSchema's
+      // `validateBandEdges` for why the edges stay first-class plots.
+      { key: 'middle', label: 'Close', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { hide: true } },
+      { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+    ]),
 ]
 
 // ─── the compute adapter ─────────────────────────────────────────────────────
@@ -577,7 +731,17 @@ const NATIVE_COMPUTE = {
   // `isUptrend` rides on every SAR point (a preserved quirk — indicators.js
   // docstring §2). Reading only `.value` here is what keeps it out of the
   // columns; a generic "copy the object" adapter would have carried it through.
-  sar: (bars, p) => ({ sar: computeParabolicSAR(bars, p.step, p.maxStep) }),
+  //
+  // ⭐ AND SINCE PHASE C IT RETURNS THREE COLUMNS, NOT ONE. `priceCrossedSar` and
+  // `trendFlipped` are `sar`'s two declared events, and events are columns — the
+  // schema now refuses to register a definition whose events name no column, so
+  // these two are not optional. They are DERIVED from the same SAR pass (see
+  // `computeParabolicSAREvents`), never a second loop, and `isUptrend` still does
+  // not reach a column: `trendFlipped` is the flag's CHANGE, which is a number.
+  sar: (bars, p) => ({
+    sar: computeParabolicSAR(bars, p.step, p.maxStep),
+    ...computeParabolicSAREvents(bars, p.step, p.maxStep),
+  }),
 
   ichimoku: (bars, p) => {
     const raw = computeIchimoku(bars, p.tenkanPeriod, p.kijunPeriod, p.senkouBPeriod)
@@ -604,6 +768,23 @@ const NATIVE_COMPUTE = {
     const raw = computeDonchian(bars, p.period)
     return { upper: raw.upper, middle: raw.middle, lower: raw.lower }
   },
+
+  // ── Phase C Task 14 ──
+  avwap: (bars, p) => ({ avwap: computeAVWAP(bars, p.anchor) }),
+
+  atrBands: (bars, p) => {
+    const raw = computeATRBands(bars, p.period, p.multiplier)
+    return { upper: raw.upper, middle: raw.middle, lower: raw.lower }
+  },
+
+  // ⛔ THERE IS NO `rsLine` ENTRY, AND ITS ABSENCE IS THE POINT. This adapter's
+  // signature is `(bars, inputs)` — ONE series — so a native RS line could only
+  // divide the chart's closes by themselves, which is 1.0 on every bar: a flat
+  // line that looks exactly like an indicator that is working. `RS_LINE_DEF`
+  // below is `compute.kind: 'server'` for that reason (decision A3), and
+  // `computeFor` throwing here is what a mutation adding the row would have to
+  // silence. See `test_a_single_symbol_rs_line_is_ONE_POINT_ZERO…` in
+  // `tests/test_indicator_golden.py` for the number.
 }
 
 /**
@@ -728,8 +909,21 @@ function resolveInputs(def, inputs) {
 // ─── public surface ──────────────────────────────────────────────────────────
 
 /**
- * The plot keys a definition returns a COLUMN for: every plot except static
- * `hlines` guides, which draw declared levels and compute nothing.
+ * The column keys a definition's compute must return: every plot except static
+ * `hlines` guides, PLUS every declared event.
+ *
+ * ⭐ EVENTS JOIN PLOTS HERE, AND THAT ONE-LINE WIDENING IS WHAT MAKES `events[]`
+ * REAL. Until Phase C this function read `def.plots` only, so an event could be
+ * declared and was inert: nothing computed a column for it, nothing checked that
+ * one came back, and `defSchema.validateEvent` guarded only the key's SHAPE.
+ * `validateEvent` has always guaranteed events and plots share ONE namespace (a
+ * collision is a registration error), so the union cannot alias.
+ *
+ * ⚠️ THIS IS NO LONGER "the data-bearing PLOTS", and a caller that wants those
+ * must say so. `pool.js::dataPlots` is the one that does — it filters
+ * `def.plots` itself because a plan needs the whole plot object (style, colour,
+ * width), and an event has no plot object at all. Feeding an event key to
+ * `poolKey` would ask the renderer for a series to draw a signal in.
  *
  * The engine's one place for this rule. `computeFor` deliberately does NOT build
  * its output from this list — it builds from what the native actually returned —
@@ -737,9 +931,14 @@ function resolveInputs(def, inputs) {
  * silently empty column.
  */
 export function columnKeys(def) {
-  return (def?.plots || [])
-    .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
-    .map(p => p.key)
+  return [
+    ...(def?.plots || [])
+      .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
+      .map(p => p.key),
+    ...(def?.events || [])
+      .filter(e => e && typeof e.key === 'string')
+      .map(e => e.key),
+  ]
 }
 
 /**
@@ -760,18 +959,35 @@ export function hasAnyFinite(col) {
 }
 
 /**
- * Compute one native into the columnar contract.
+ * Compute one definition into the columnar contract.
  *
  * @param {object} def   a registry definition (its `compute.fn` selects the native)
  * @param {Array}  bars  `[{t,o,h,l,c,v}]` — columns are index-aligned to these
  * @param {object} inputs partial input map; anything missing uses the declared default
+ * @param {object} [ctx] `{sym, tf}` — REQUIRED for the server lane, ignored by natives
  * @returns {{[plotKey]: Float64Array}} one input-length NaN-padded column per data plot
  *
  * THROWS on an unknown `compute.fn`. Loud on purpose, mirroring
  * `indicator_compute.compute_case`: a definition naming a native this adapter
  * does not know must fail where it is wrong, not return `{}` and render blank.
+ *
+ * ⭐ THE SERVER LANE (Phase C Task 13). `compute.kind: 'server'` does NOT resolve
+ * a native — its columns are FETCHED. It is dispatched on the KIND, before the
+ * `compute.fn` lookup, because a server definition naming `fn: 'rsLine'` has no
+ * entry in `NATIVE_COMPUTE` and never will: the throw below is right for a
+ * native that lost its function and wrong for a definition that never had one.
+ *
+ * ⛔ AND IT RETURNS `{}` RATHER THAN THROWING WHILE THE FETCH IS IN FLIGHT.
+ * `rsLine` was kept OUT of `listDefinitions()` by Task 14 for exactly one reason
+ * — *"registering it would publish an indicator the binder throws on"* — so the
+ * lane is only allowed to close that hand-back if it cannot throw. An empty
+ * column set is the same thing `hasData` already reads for a warmup pad: the
+ * binding draws nothing this paint and draws on the next.
  */
-export function computeFor(def, bars, inputs) {
+export function computeFor(def, bars, inputs, ctx) {
+  if (def?.compute?.kind === 'server') {
+    return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
+  }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
     throw new Error(
@@ -791,15 +1007,113 @@ export function computeFor(def, bars, inputs) {
 }
 
 /**
+ * The canned series every event-declaring definition is computed over at
+ * registration.
+ *
+ * 200 bars because the longest warmup among the natives is Ichimoku's 52 and the
+ * check has to see COMPUTED bars, not just pad — a probe short enough to leave a
+ * column entirely NaN would pass the domain check while measuring nothing.
+ *
+ * Deterministic and DELIBERATELY OSCILLATING: `t` steps a real 5-minute bar,
+ * and the price walks a sum of two out-of-phase sines so it reverses hard enough
+ * to make SAR flip repeatedly. A monotonic ramp would leave `trendFlipped` all
+ * zeros, which is still a legal column — but then a definition whose events were
+ * silently constant would look exactly like one whose events work.
+ */
+const EVENT_PROBE_BARS = (() => {
+  const bars = []
+  for (let i = 0; i < 200; i++) {
+    const mid = 100 + 6 * Math.sin(i / 5.5) + 2.5 * Math.sin(i / 1.7)
+    bars.push({
+      t: 1780272000 + i * 300,
+      o: mid - 0.15, h: mid + 0.7, l: mid - 0.7, c: mid,
+      v: 100000 + (i * 7919) % 50000,
+    })
+  }
+  return bars
+})()
+
+/**
+ * Every declared event returns a column, and every value in it is 0, 1 or NaN.
+ *
+ * ⭐ THIS IS THE HALF `defSchema` CANNOT DO. `validateDefinition` is a pure
+ * function of one definition and never runs a compute lane, so "the key names a
+ * returned column" and "that column is {0,1,NaN}" have to be asked HERE, where a
+ * compute exists. A schema that only checks the DECLARATION is a schema that
+ * lets a bad column ship: before this, a definition could name three events,
+ * return nothing for any of them, and register cleanly.
+ *
+ * ⚠️ IT RUNS ONLY FOR DEFINITIONS THAT DECLARE EVENTS, on purpose. Thirteen of
+ * the fourteen natives declare none, so there is nothing to check and no probe
+ * compute to pay for; the day one grows an event it starts paying, which is the
+ * right shape. (The PLOT columns are covered by `nativeRegistry.test.js`'s
+ * column-set assertion, which is a test rather than a registration gate because
+ * a plot that returns nothing renders nothing — visible — while an event that
+ * returns nothing is a signal nobody can see is missing.)
+ *
+ * ⚠️ A compute that THROWS is an error, not a skip. `computeFor` throws on an
+ * unknown `compute.fn`, and a definition whose events cannot be computed at all
+ * is exactly the definition this gate exists to refuse.
+ *
+ * @returns {string[]} errors, empty when every event column is honest.
+ */
+function validateEventColumns(def) {
+  const events = Array.isArray(def?.events) ? def.events : []
+  if (!events.length) return []
+
+  let columns
+  try {
+    columns = computeFor(def, EVENT_PROBE_BARS, {})
+  } catch (err) {
+    return [
+      `events: compute could not be run to check the event columns `
+      + `(${err && err.message ? err.message : String(err)}) — a definition that declares `
+      + `events must be computable, or the events are a promise nothing keeps`,
+    ]
+  }
+
+  const errors = []
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i]
+    if (!ev || typeof ev.key !== 'string') continue   // already reported by defSchema
+    const path = `events[${i}]`
+    const col = columns[ev.key]
+    if (col === undefined || col === null || typeof col.length !== 'number') {
+      errors.push(
+        `${path}.key: ${JSON.stringify(ev.key)} returned no column — an event IS a column `
+        + `(spec §3.1), so a key its compute never produces is a signal that can never fire. `
+        + `Columns returned: ${Object.keys(columns).join(', ') || 'none'}`,
+      )
+      continue
+    }
+    for (let j = 0; j < col.length; j++) {
+      if (isEventColumnValue(col[j])) continue
+      errors.push(
+        `${path}.key: column ${JSON.stringify(ev.key)}[${j}] must be 0, 1 or NaN — got ${col[j]}. `
+        + `An event column is a {0, 1, NaN} domain: 1 is "it happened", 0 is "computed, did not `
+        + `happen", NaN is the warmup pad. Any other value would be read as a signal by the `
+        + `alert grammar, the screener and the AST lane alike.`,
+      )
+      break   // one bad column, one error — a mis-scaled column would report 200
+    }
+  }
+  return errors
+}
+
+/**
  * Validate and index a batch of definitions.
  *
- * Two passes, because they answer two different questions:
+ * THREE passes, because they answer three different questions:
  *   1. `validateDefinition` — is each definition well-formed ON ITS OWN?
  *   2. `validateSourceReferents` — do its `source` inputs point at columns that
  *      EXIST? That needs the whole batch, which is why it could not live in
  *      defSchema's per-definition validator (B2 Task 2 carry-in b). A `source`
  *      resolving to nothing would silently compute over the wrong series, so it
  *      is rejected at registration exactly like an unresolvable `$ref`.
+ *   3. `validateEventColumns` — does every declared event actually COME BACK,
+ *      valued `{0, 1, NaN}`? That needs a compute, which is why it could not
+ *      live there either (Phase C Task 4). **A definition that lies about its
+ *      events must not register.**
  *
  * Never throws: a bad definition is DATA about a problem. Callers decide whether
  * a rejection is fatal — for the natives below it is, because they are authored
@@ -833,6 +1147,11 @@ export function registerDefinitions(rawDefs) {
       errors.push(...srcErrors.map(e => `${def.id}: ${e}`))
       continue
     }
+    const eventErrors = validateEventColumns(def)
+    if (eventErrors.length) {
+      errors.push(...eventErrors.map(e => `${def.id}: ${e}`))
+      continue
+    }
     defs.push(def)
   }
 
@@ -847,8 +1166,82 @@ if (_registered.errors.length) {
   throw new Error(`nativeRegistry: invalid native definitions:\n  ${_registered.errors.join('\n  ')}`)
 }
 
-/** The 14 native definitions, frozen. `volumeProfile` is NOT among them. */
+/** The 16 NATIVE definitions, frozen. `volumeProfile` is NOT among them, and
+ *  neither is `rsLine` — see `SERVER_DEFS` below, which is a different LANE
+ *  rather than a different list. `listDefinitions()` is the union of the two. */
 export const NATIVE_DEFS = Object.freeze(_registered.defs)
+
+/**
+ * The RS line — the first `compute.kind: 'server'` definition, and DELIBERATELY
+ * NOT IN `NATIVE_DEFS`.
+ *
+ * ⭐ WHY IT IS SERVER-LANE (decision A3). Spec §4's compute contract is
+ * `compute({bars, inputs, prevState, barstate})` — ONE `bars`. The RS line needs
+ * two series, its own and the benchmark's, and a second symbol is not reachable
+ * from that signature. Extending it is a schema change, not a C feature, so the
+ * indicator moves lanes instead: its columns are FETCHED, not computed here.
+ * Its benchmark is an `enum` of a fixed list for the same reason its cousin's
+ * anchor is — `symbol` is a RESERVED input type and `defSchema` fails closed.
+ *
+ * ✅ AND IT IS NOW REGISTERED — TASK 14'S HAND-BACK, CLOSED BY TASK 13.
+ * Task 14 wrote here: *"Putting this in `RAW_DEFS` today would publish an
+ * indicator a user can enable and the binder cannot draw: `computeFor` resolves
+ * `NATIVE_COMPUTE[compute.fn]` and THROWS on a miss, by design."* That was the
+ * whole objection and it is answered, not waived: `computeFor` now dispatches on
+ * `compute.kind` BEFORE the `NATIVE_COMPUTE` lookup, and the server branch
+ * returns `{}` while the fetch is in flight instead of throwing. So
+ * `listDefinitions()` is the UNION of the two lanes — **16 → 17** — and the
+ * definition is reachable, drawable and addressable like any other.
+ *
+ * ⚠️ `meta.tier` IS `premium`, AND THAT IS A CORRECTION, NOT A DECORATION. Task
+ * 14 authored it `free`, before the lane that serves it existed. The lane is
+ * `/api/signature/columns`, which declares `Depends(require_paid)` on its own
+ * handler like every other route in that module — so a `free` claim here would
+ * be a definition promising data its lane refuses to hand over, which is exactly
+ * the silently-dead indicator this phase exists to retire. The tier is a badge
+ * in `IndicatorLibraryDialog` and gates nothing by itself; the gate is the
+ * handler, and this is the declaration matching it.
+ */
+const RS_LINE_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsLine',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsLine', rev: 1 },
+  meta: {
+    name: 'Relative Strength Line', shortName: 'RS', category: 'Momentum',
+    description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
+    tags: ['comparative', 'momentum'], tier: 'premium', repaint: 'non-repainting',
+    legendParams: ['benchmark'],
+  },
+  placement: { target: 'pane', pane: { height: 0.15 } },
+  inputs: [
+    // ⭐ AN `enum` OF A FIXED LIST, NOT A `symbol` (decision A3). `symbol` is in
+    // `RESERVED_INPUT_TYPES` and `defSchema` refuses it with a distinct message;
+    // three benchmarks cover the question this indicator answers and need no new
+    // input type, no symbol picker and no second data-entitlement question.
+    {
+      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY',
+      options: [['SPY', 'S&P 500 (SPY)'], ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)']],
+    },
+    colorInput('color', 'Color', '#4ECDC4'),
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+  ],
+  plots: [
+    { key: 'rsLine', label: 'RS', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+  ],
+}
+
+const _serverRegistered = registerDefinitions([RS_LINE_RAW])
+if (_serverRegistered.errors.length) {
+  throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
+}
+
+/** Server-lane definitions — authored, VALIDATED and, since Task 13's
+ *  `serverCompute` lane landed, IN `listDefinitions()`. Kept as its own export
+ *  because the lane is the thing that differs: a caller asking "which of these
+ *  do I have to fetch?" reads this, not a `compute.kind` scan it would have to
+ *  keep in step by hand. */
+export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 
 /**
  * The `CHART_DEFAULTS.indicators` keys that deliberately have NO definition.
@@ -885,14 +1278,26 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
  */
 export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']))
 
-const _byId = new Map(NATIVE_DEFS.map(d => [d.id, d]))
+/** ⭐ ONE INDEX ACROSS BOTH LANES. `getDefinition` is what `instances.js` and the
+ *  binder resolve through, so a server definition missing from here would be an
+ *  instance the chart drops on the floor — visible as nothing at all. */
+const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS].map(d => [d.id, d]))
 
 /** @returns {object|null} the definition, or null when nothing is registered under `defId`. */
 export function getDefinition(defId) {
   return _byId.get(defId) || null
 }
 
-/** @returns {object[]} every registered native definition. */
+/**
+ * @returns {object[]} every registered definition — BOTH LANES.
+ *
+ * ⭐ 16 NATIVE + 1 SERVER = 17 (Phase C Task 13). This used to be
+ * `[...NATIVE_DEFS]`, and the union is the one line Task 14 handed back. A
+ * caller that wants only the natives asks `NATIVE_DEFS`; a caller enumerating
+ * "what indicators exist" must see both, because a definition invisible to this
+ * list is invisible to the catalog, the settings migration and the alert
+ * addressing alike.
+ */
 export function listDefinitions() {
-  return [...NATIVE_DEFS]
+  return [...NATIVE_DEFS, ...SERVER_DEFS]
 }

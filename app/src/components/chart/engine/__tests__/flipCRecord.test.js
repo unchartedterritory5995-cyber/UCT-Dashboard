@@ -123,6 +123,12 @@ describe('the Flip-C decision record', () => {
     expect(live).toHaveLength(46)
     // And the placeholder really is excluded — otherwise "live" means "all" and
     // the filter above is decoration.
-    expect(JSON.parse(read(CASES)).cases).toHaveLength(47)
+    // ⭐ 47 -> 50 AT PHASE C TASK 14, AND THE 46 DID NOT MOVE. The three new
+    // entries (`avwap_session_only`, `atr_bands_only`, `rs_line_spy_only`) are
+    // PLACEHOLDERS: they carry settings and a `why` and no `expect`, because an
+    // `expect` this branch has not measured on two builds is a number pretending
+    // to be a gate. The live count above is what Flip C priced, and it is exactly
+    // what must not change when a definition is added.
+    expect(JSON.parse(read(CASES)).cases).toHaveLength(50)
   })
 })

@@ -34,6 +34,7 @@ THE FOUR RULES THIS MODULE EXISTS TO ENFORCE
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -46,7 +47,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.cache import cache
 from api.services.serve_stale import ServeStale
-from api.services.signature import ledger, rules
+from api.services.signature import ledger, registry_defs, rules
 from api.services.signature.darkpool_levels import fetch_dp_levels
 from api.services.signature.flow_breakout import _bar_date_iso, fcb_signals, flow_by_date
 from api.services.signature.gex_walls import fetch_gex_walls
@@ -90,6 +91,31 @@ _GXW_NEG_CACHE: dict[str, tuple[dict, float]] = {}
 _GXW_NEG_LOCK = threading.Lock()
 _GXW_NEG_TTL_S = 60.0
 _GXW_NEG_MAX_KEYS = 256
+
+# ── FCB negative cache ──────────────────────────────────────────────────────
+# The same shape, for the same reason, against a DIFFERENT outage.
+#
+# Measured on the pod 2026-08-06 10:04 ET: `/api/signature/flow-breakout` for
+# SPY/QQQ/NVDA returned `{"error": "flow unavailable"}` after 15-17s, and PASS 2
+# COST THE SAME. That is the tell — `_fcb_good()` is `"signals" in p`, so the
+# error envelope is refused by the stale slot AND never written to the TTL
+# cache, which leaves `fresh()` missing and the slot empty. ServeStale then has
+# nothing to serve, so EVERY sequential request rebuilds: 15s of an anyio worker
+# each, on the ONE shared uvicorn loop, all session (the 2026-07-01 524 class).
+#
+# The 15s is `_read_flow_source`'s `timeout=15.0` on the stocks->indexes
+# FALLBACK leg: SPY is filed under `indexes`, and during RTH the flow-worker is
+# saturated by the live OPRA tape, so a full-history streamed read of `indexes`
+# cannot finish inside the request path's budget. Raising that timeout is not a
+# fix — it moves the cost onto the request path during the busiest minutes.
+#
+# 60s of memory turns "every request pays 15s" into "one request per symbol per
+# minute pays it", while keeping the outage self-healing. Like GEX's, it is
+# strictly a COLD-PATH shield — see _fcb_negative_hit for the ordering rule.
+_FCB_NEG_CACHE: dict[str, tuple[dict, float]] = {}
+_FCB_NEG_LOCK = threading.Lock()
+_FCB_NEG_TTL_S = 60.0
+_FCB_NEG_MAX_KEYS = 256
 
 # The strict side domain the FCB compute uses (flow_breakout._is_call/_is_put).
 # Deliberately NOT the loose startswith("C") used elsewhere in the repo — see
@@ -317,6 +343,100 @@ def _fcb_good(p) -> bool:
     return bool(p and "signals" in p)
 
 
+def _fcb_negative_hit(sym: str) -> dict | None:
+    """The remembered flow-outage envelope — but ONLY when nothing better exists.
+
+    Identical ordering rule to `_gxw_negative_hit`, and for the identical
+    reason: `ServeStale.serve` checks `fresh()` BEFORE the stale slot, so a
+    negative entry returned unconditionally would OUTRANK a perfectly good
+    signals payload seconds old — and it would keep doing so, because every
+    request it answered skipped the stale path entirely. A user whose chart
+    already carries a fine FCB overlay would watch the arrows vanish the moment
+    the flow-worker got busy.
+
+    So: peek the stale slot first and stand down if it can still serve. This
+    cache is for the COLD herd — the callers who have nothing — and nobody else.
+    """
+    hit = _FCB_NEG_CACHE.get(sym)
+    if not hit:
+        return None
+    payload, at = hit
+    if time.time() - at > _FCB_NEG_TTL_S:
+        with _FCB_NEG_LOCK:
+            _FCB_NEG_CACHE.pop(sym, None)
+        return None
+    value, age = _FCB_STALE.peek(sym)
+    if value is not None and age is not None and age <= _FCB_STALE.max_age:
+        return None                                # a servable payload outranks us
+    return payload
+
+
+def _fcb_remember_error(sym: str, payload: dict) -> None:
+    # Locked: the prune below ITERATES the dict, so a concurrent writer would
+    # raise "dictionary changed size during iteration" — on the cold path,
+    # which is a 500 (rule 1).
+    with _FCB_NEG_LOCK:
+        _FCB_NEG_CACHE[sym] = (payload, time.time())
+        if len(_FCB_NEG_CACHE) > _FCB_NEG_MAX_KEYS:  # bounded: the key is user input
+            oldest_first = sorted(_FCB_NEG_CACHE, key=lambda k: _FCB_NEG_CACHE[k][1])
+            for key in oldest_first[:-_FCB_NEG_MAX_KEYS]:
+                _FCB_NEG_CACHE.pop(key, None)
+
+
+def _fcb_ledger_signals(sym: str, bars) -> list[dict]:
+    """The nightly sweep's ALREADY-COMPUTED signals for this symbol — READ ONLY.
+
+    FCB is a daily, closed-bar signal, and the request path passes
+    `include_last=False`, so the newest bar it can ever fire on is the last
+    CLOSED session. The 20:05 ET sweep evaluated that same session last night
+    and wrote the result here. **During RTH the two cover the same window** —
+    no new closed bar has appeared since — so for a swept symbol this is not a
+    downgrade of the live compute, it is the same answer without the 15s read.
+
+    Bounded to the window `bars` covers, because the ledger is append-only and
+    holds every signal ever recorded; returning all of them would paint arrows
+    on a chart window that does not contain them.
+
+    Both sides of the window comparison go through `_bar_date_iso`, the ONE
+    decoder the flow join already uses, rather than comparing raw ints: the
+    ledger normalizes bar_time to a YYYYMMDD key and the bars store hands back
+    the same encoding today, but this module's entire history is encodings
+    drifting apart silently. ISO dates sort chronologically, so it is a plain
+    string compare.
+
+    Never raises: a fallback that can fail is not a fallback (rule 1).
+    """
+    if not bars:
+        return []
+    cutoff_iso = _bar_date_iso(bars[0]["t"])
+    want = rules.VERSIONS["fcb"]
+    out = []
+    try:
+        for row in ledger.get_signals(sym, limit=500):
+            if (row.get("indicator") != "fcb" or row.get("tf") != "1D"
+                    or row.get("version") != want):
+                continue
+            iso = _bar_date_iso(row.get("bar_time"))
+            if not iso or (cutoff_iso and iso < cutoff_iso):
+                continue
+            meta = {}
+            if row.get("meta_json"):
+                try:
+                    meta = json.loads(row["meta_json"]) or {}
+                except (TypeError, ValueError):
+                    meta = {}
+            out.append({"barTime": row["bar_time"], "direction": row["direction"],
+                        "close": row["price"], "version": row["version"],
+                        "callPrem": meta.get("callPrem"), "putPrem": meta.get("putPrem")})
+    except Exception:                              # noqa: BLE001 — see rule 1
+        logger.exception("signature: fcb ledger fallback read failed for %s", sym)
+        return []
+    # Ascending — lightweight-charts requires markers in ascending time order,
+    # and `get_signals` deliberately returns NEWEST-first.
+    out.sort(key=lambda s: _bar_date_iso(s["barTime"]))
+    return out
+
+
 def _fcb_build(sym: str) -> dict:
     try:
         # Bars FIRST: the flow window is derived from them. Reading flow with no
@@ -326,36 +446,67 @@ def _fcb_build(sym: str) -> dict:
         cutoff_iso = _bar_date_iso(bars[0]["t"]) if bars else ""
         by_date = _fetch_flow_by_date(sym, cutoff_iso)
         if by_date is None:
-            # No "signals" key at all: good() is `"signals" in p`, so this
-            # envelope is refused by the slot and retried next request.
-            return {"sym": sym, "version": rules.VERSIONS["fcb"],
-                    "error": "flow unavailable", "asOf": time.time()}
-        _log_flow_join(sym, by_date)
-        signals = fcb_signals(bars, by_date, include_last=False)  # NEVER the forming session
+            # The live read failed. Before calling it a failure, ask the ledger
+            # what the nightly sweep already computed for this window.
+            recorded = _fcb_ledger_signals(sym, bars)
+            if recorded:
+                logger.warning("signature: fcb flow read failed for %s — serving %d "
+                               "signal(s) from the nightly ledger instead", sym, len(recorded))
+                payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                           "signals": recorded, "source": "ledger", "asOf": time.time()}
+            else:
+                # Nothing recorded for this symbol — an UNSWEPT symbol and a
+                # genuinely signal-free one are indistinguishable from here, so
+                # this stays a failure. No "signals" key at all: good() is
+                # `"signals" in p`, so the envelope is refused by the stale slot
+                # and never becomes "no signal" for the next 30 minutes
+                # (lesson_market_cap_cache_poison).
+                payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                           "error": "flow unavailable", "asOf": time.time()}
+        else:
+            _log_flow_join(sym, by_date)
+            signals = fcb_signals(bars, by_date, include_last=False)  # NEVER the forming session
+            for s in signals:
+                # Per SIGNAL, not per build: record_signal raises (ValueError on
+                # any unusable field, sqlite3.IntegrityError on a non-UNIQUE
+                # constraint failure), and one refused row must not cost the
+                # user the others — nor the response. Re-recording is idempotent
+                # by UNIQUE key.
+                try:
+                    ledger.record_signal("fcb", s["version"], sym, "1D", s["direction"],
+                                         s["barTime"], s["close"],
+                                         meta={"callPrem": s["callPrem"],
+                                               "putPrem": s["putPrem"]})
+                except Exception:                  # noqa: BLE001
+                    logger.exception(
+                        "signature: ledger refused fcb %s bar=%r — signal still served",
+                        sym, s.get("barTime"))
+            payload = {"sym": sym, "version": rules.VERSIONS["fcb"], "signals": signals,
+                       "asOf": time.time()}
     except Exception as exc:                       # noqa: BLE001 — see rule 1
         logger.exception("signature: flow-breakout build failed for %s", sym)
-        return {"sym": sym, "version": rules.VERSIONS["fcb"],
-                "error": f"flow breakout unavailable: {exc}", "asOf": time.time()}
-
-    for s in signals:
-        # Per SIGNAL, not per build: record_signal raises (ValueError on any
-        # unusable field, sqlite3.IntegrityError on a non-UNIQUE constraint
-        # failure), and one refused row must not cost the user the others —
-        # nor the response. Re-recording is idempotent by UNIQUE key.
-        try:
-            ledger.record_signal("fcb", s["version"], sym, "1D", s["direction"],
-                                 s["barTime"], s["close"],
-                                 meta={"callPrem": s["callPrem"], "putPrem": s["putPrem"]})
-        except Exception:                          # noqa: BLE001
-            logger.exception("signature: ledger refused fcb %s bar=%r — signal still served",
-                             sym, s.get("barTime"))
-    payload = {"sym": sym, "version": rules.VERSIONS["fcb"], "signals": signals,
-               "asOf": time.time()}
+        payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                   "error": f"flow breakout unavailable: {exc}", "asOf": time.time()}
+    # Bookkeeping gets a guard of its own: it runs on the same cold path as the
+    # build, so a raise HERE is a 500 just the same (rule 1) — and the prune
+    # inside _fcb_remember_error is exactly the kind of raise that means.
     try:
-        cache.set(_ck("fcb", sym), payload, ttl=_FCB_TTL_S)
+        if _fcb_good(payload):
+            cache.set(_ck("fcb", sym), payload, ttl=_FCB_TTL_S)
+            # Recovery is immediate, not TTL-bound: a good payload pops the
+            # negative entry rather than waiting out its 60s.
+            with _FCB_NEG_LOCK:
+                _FCB_NEG_CACHE.pop(sym, None)
+        else:
+            _fcb_remember_error(sym, payload)
     except Exception:                              # noqa: BLE001 — see rule 1
-        logger.exception("signature: fcb cache write failed for %s", sym)
+        logger.exception("signature: fcb bookkeeping failed for %s", sym)
     return payload
+
+
+def _fcb_fresh(sym: str) -> dict | None:
+    hit = cache.get(_ck("fcb", sym))
+    return hit if hit is not None else _fcb_negative_hit(sym)
 
 
 # ── GEX Walls ───────────────────────────────────────────────────────────────
@@ -439,31 +590,200 @@ def _gxw_fresh(sym: str) -> dict | None:
     return hit if hit is not None else _gxw_negative_hit(sym)
 
 
-# ── routes (all sync `def` — see rule 3) ────────────────────────────────────
+# ── the ONE serve path per indicator ────────────────────────────────────────
+#
+# Factored out so the legacy per-indicator route and the generic `/columns` lane
+# hand back the SAME payload from the SAME ServeStale slot and the SAME TTL
+# cache. Two entry points computing the same overlay two ways is how a
+# genericization ships a silent behaviour change: identical data is what makes
+# moving the client onto the lane a routing change rather than a data change.
 
-@router.get("/darkpool-levels")
-def darkpool_levels(sym: str = Query(...), _user: dict = Depends(require_paid)):
-    s = _sym_or_422(sym)
+def _serve_dpl(s: str) -> dict:
     return _DPL_STALE.serve(s, fresh=lambda: cache.get(_ck("dpl", s)),
                             build=lambda: _dpl_build(s), good=_dpl_good)
 
 
-@router.get("/flow-breakout")
-def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
-    s = _sym_or_422(sym)
-    return _FCB_STALE.serve(s, fresh=lambda: cache.get(_ck("fcb", s)),
+def _serve_fcb(s: str) -> dict:
+    # The negative cache rides the `fresh` slot for the same reason GEX's does:
+    # a waiter that queued behind the single-flight build re-checks fresh()
+    # inside the lock, so the herd collapses onto the ONE read that just timed
+    # out instead of each paying its own 15s.
+    return _FCB_STALE.serve(s, fresh=lambda: _fcb_fresh(s),
                             build=lambda: _fcb_build(s), good=_fcb_good)
 
 
-@router.get("/gex-walls")
-def gex_walls(sym: str = Query(...), _user: dict = Depends(require_paid)):
-    s = _sym_or_422(sym)
+def _serve_gxw(s: str) -> dict:
     # The negative cache rides the `fresh` slot deliberately: a waiter that
     # queued behind the single-flight build re-checks fresh() inside the lock,
     # so the herd collapses onto the ONE call that just failed instead of each
     # paying its own ~20s timeout.
     return _GXW_STALE.serve(s, fresh=lambda: _gxw_fresh(s),
                             build=lambda: _gxw_build(s), good=_gxw_good)
+
+
+# ── the generic server lane: tenants ────────────────────────────────────────
+#
+# ⭐ EVERY TENANT IS A ROW, AND THE LANE HAS NO BRANCH. `registry_defs.serve`
+# resolves the definition, validates the inputs, calls the provider and enforces
+# the wire contract without naming one of them. A fourth tenant is a row in
+# `registry_defs.SERVER_DEFS` plus one `register_provider` call below.
+#
+# ⚠️ THE PROVIDERS LIVE HERE, IN THE MODULE THAT OWNS THE PAID GATE, not in
+# `registry_defs`. A registry definition must never become a way to reach the
+# data without the handler — so the data path is only reachable from a module
+# whose every route declares `Depends(require_paid)` individually.
+
+def _fetch_bars_for_tf(sym: str, tf: str, count: int = 400) -> list[dict]:
+    """Bars at an arbitrary timeframe, for the lane.
+
+    ⛔ `_fetch_bars` IS NOT TOUCHED AND IS NOT RENAMED. `sweep.py` imports it
+    (`from api.routers.signature import _fetch_bars`) and the sweep is the only
+    ledger writer that runs unattended: moving or renaming it breaks the nightly
+    job SILENTLY. `test_the_sweep_still_imports_the_two_router_symbols_it_needs`
+    asserts that import, and this function is deliberately additive.
+    """
+    from api.services import bars_sqlite
+    rows = bars_sqlite.get_bars(sym.upper(), registry_defs.store_tf(tf), int(count))
+    out = []
+    for r in rows:
+        try:
+            out.append({"t": int(r[0]), "o": float(r[1]), "h": float(r[2]),
+                        "l": float(r[3]), "c": float(r[4]), "v": int(r[5] or 0)})
+        except (TypeError, ValueError, IndexError):
+            continue
+    return out
+
+
+def _dpl_provider(sym: str, tf: str, inputs: dict) -> dict:
+    payload = _serve_dpl(sym)
+    # No per-bar column, declared as such in `registry_defs`. `times: []` says
+    # "this envelope is not positional" rather than leaving the client to guess.
+    return {"columns": {}, "times": [], **payload}
+
+
+def _gxw_provider(sym: str, tf: str, inputs: dict) -> dict:
+    payload = _serve_gxw(sym)
+    return {"columns": {}, "times": [], **payload}
+
+
+def _fcb_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """The breakout as EVENT COLUMNS, joined to bars by DATE — plus the markers.
+
+    The signals list is kept in the envelope verbatim so the shipped overlay is
+    unchanged; the columns are the same information in the shape the alert
+    grammar addresses (a {0, 1, NaN} column per direction, Task 4).
+    """
+    payload = _serve_fcb(sym)
+    bars = _fetch_bars(sym)
+    keys = [_bar_date_iso(b["t"]) for b in bars]
+    hits = []
+    for s in (payload.get("signals") or []):
+        iso = _bar_date_iso(s.get("barTime"))
+        direction = s.get("direction")
+        if iso and direction in ("bull", "bear"):
+            hits.append((iso, direction))
+    cols = registry_defs.event_columns(keys, hits, ("bull", "bear"))
+    return {"columns": cols, "times": [int(b["t"]) for b in bars], **payload}
+
+
+def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """⭐ THE FOURTH TENANT, AND THE PROOF THE LANE IS GENERIC.
+
+    It is not a Signature indicator, shares no code with one, and needed no line
+    inside `registry_defs.serve` to be served. It is here because Task 14's
+    decision A3 put it on this lane: spec §4's compute contract carries ONE
+    `bars` and an RS line needs two, so the second symbol is fetched where a
+    second symbol is reachable.
+    """
+    from api.services.indicator_compute import compute_rs_line
+    bars = _fetch_bars_for_tf(sym, tf)
+    benchmark = inputs.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    bench_bars = _fetch_bars_for_tf(benchmark, tf)
+    return {
+        "columns": {"rsLine": compute_rs_line(bars, bench_bars)},
+        "times": [int(b["t"]) for b in bars],
+        "asOf": time.time(),
+    }
+
+
+registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)
+registry_defs.register_provider("uct-gex-walls", _gxw_provider)
+registry_defs.register_provider("uct-flow-breakout", _fcb_provider)
+registry_defs.register_provider("rsLine", _rs_line_provider)
+
+
+# ── routes (all sync `def` — see rule 3) ────────────────────────────────────
+
+@router.get("/darkpool-levels")
+def darkpool_levels(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    s = _sym_or_422(sym)
+    return _serve_dpl(s)
+
+
+@router.get("/flow-breakout")
+def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    s = _sym_or_422(sym)
+    return _serve_fcb(s)
+
+
+@router.get("/gex-walls")
+def gex_walls(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    s = _sym_or_422(sym)
+    return _serve_gxw(s)
+
+
+@router.get("/definitions")
+def server_definitions(_user: dict = Depends(require_paid)):
+    """The server-lane definitions, as data.
+
+    Published so the chart addresses an indicator by its DEFINITION ID rather
+    than by a path it hardcodes — the whole point of the genericization. It
+    carries no market data, but it is gated like everything else here: the
+    definitions describe a premium surface, and a route in this module without
+    its own `Depends(require_paid)` is the shape `test_a_free_user_is_refused_on_
+    every_route` exists to catch.
+    """
+    return {"schemaVersion": registry_defs.SCHEMA_VERSION,
+            "definitions": registry_defs.list_definitions()}
+
+
+@router.get("/columns")
+def server_columns(
+    defId: str = Query(..., description="a server-lane definition id"),
+    sym: str = Query(...),
+    tf: str = Query("D"),
+    inputs: str = Query("", description="JSON object of instance inputs"),
+    _user: dict = Depends(require_paid),
+):
+    """THE GENERIC COLUMN LANE — `compute.kind: 'server'`, resolved.
+
+    Wire format: `columns` is a mapping of key to a JSON ARRAY of numbers and
+    `null`, positionally aligned to `times`. `null` ⇄ NaN is mapped at the client
+    boundary. **Compute never emits point objects** — `registry_defs.wire_columns`
+    refuses `[{time, value}]` by name.
+    """
+    s = _sym_or_422(sym)
+    try:
+        parsed = json.loads(inputs) if inputs else {}
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    if parsed is not None and not isinstance(parsed, dict):
+        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    try:
+        return registry_defs.serve(defId, s, str(tf or "D"), parsed)
+    except registry_defs.DefinitionNotOffered as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except registry_defs.InputRejected as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except (registry_defs.DefinitionHasNoProvider,
+            registry_defs.ColumnContractViolation):
+        # Rule 1: a build must not 500 a user's chart. Both of these are OUR
+        # defect, not the user's, so they are logged with a traceback and the
+        # response is an envelope the client draws nothing from — never a 500,
+        # and never a payload that could be remembered as good.
+        logger.exception("signature: server lane failed for %s/%s", defId, s)
+        return {"defId": defId, "sym": s, "tf": tf, "columns": {}, "times": [],
+                "error": "server lane unavailable", "asOf": time.time()}
 
 
 # ── Dark-Pool Reclaim Confluence (dpc-v1) ───────────────────────────────────

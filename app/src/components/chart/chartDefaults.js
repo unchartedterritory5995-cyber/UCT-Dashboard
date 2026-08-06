@@ -8,7 +8,7 @@
 // but safe by accident, and a `const` added to either side at the wrong moment
 // is a TDZ crash inside the merge every chart is on. Both helpers moved to
 // `./instanceShape`, which imports nothing; this file re-exports them.
-import { migrateLegacyToInstances, normalizeInstances } from './engine/instances'
+import { migrateLegacyToInstances, normalizeInstances, instanceScope } from './engine/instances'
 import * as engineRegistry from './engine/nativeRegistry'
 
 export const CHART_DEFAULTS = {
@@ -510,8 +510,23 @@ export function mergeChartSettings(userSettings) {
     const storedIds = new Set(
       stored.map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
     )
+    //
+    // ⭐⭐ PHASE C TASK 12 — `.filter(GLOBAL)` AND IT IS LOAD-BEARING, NOT TIDY.
+    // "Already drawn" has to mean *drawn on every chart*, because that is the
+    // question the legacy toggle asks: `cs.indicators.rsi.enabled` is a GLOBAL
+    // fact with no chart id in it. A `scope`d instance draws on ONE chart, so
+    // counting it here would suppress the global seed on its account and delete
+    // the indicator from every OTHER chart — permanently, because the fold
+    // stamps `settingsVersion: 2` on the way out and never runs again.
+    //
+    // ⛔ THE ALLOW-LIST IS HARD AT BOTH LEVELS AND THIS IS THE SECOND ONE.
+    // `scope` belongs to the INSTANCE, inside `indicatorInstances` (which passes
+    // through as an array), and never to the blob: a top-level `scope` would be
+    // one chart id for a settings object that every chart reads.
     const liveStoredDefIds = new Set(
-      normalizeInstances(stored, engineRegistry).kept.map(i => i.defId),
+      normalizeInstances(stored, engineRegistry).kept
+        .filter(i => instanceScope(i) === undefined)
+        .map(i => i.defId),
     )
     const seeded = migrateLegacyToInstances(
       { indicatorInstances: stored,

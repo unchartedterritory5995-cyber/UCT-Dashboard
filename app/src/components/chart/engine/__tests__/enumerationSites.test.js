@@ -7,7 +7,7 @@ import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
-import { stripComments } from './sourceScan'
+import { stripComments, stripPyComments } from './sourceScan'
 
 // ─── THE ENUMERATION LEDGER ─────────────────────────────────────────────────
 //
@@ -288,19 +288,130 @@ const LEDGER = [
   // being a TWIN: `IndicatorAlertPopover`'s INDICATORS + CONDITIONS are served
   // from the module that owns the evaluation, so the dropdown cannot offer an
   // alert that cannot fire, and this becomes the ONE naming authority.
-  { file: 'api/services/indicator_alert_evaluator.py', region: "INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority",
-    anchor: 'INDICATOR_FUNCS: dict[str,', fate: 'C' },
+  // ⭐⭐⭐ PHASE C TASK 10 — `INDICATOR_FUNCS` RETIRED, AND THE ROW DID NOT LEAVE.
+  //
+  // The 28-row hand-written dict of value closures is GONE: it is DERIVED from
+  // `alert_series.SERIES_FUNCS` now (a value is the last non-None element of a
+  // column, which is the definition rather than a coincidence), and the
+  // retirement is proven BY IDENTITY in `RETIRED_BY_C_TASK10` — the old anchor,
+  // `INDICATOR_FUNCS: dict[str,`, re-run under the same regex that used to
+  // demand exactly one and now demands ZERO.
+  //
+  // ⚠️ BUT THE FILE STILL HAND-LISTS ADDRESSES, AND THAT WAS MEASURED, NOT
+  // ASSUMED. Task 10's brief predicted the Python discovery scan would either
+  // stop finding this file (row gone, `SITE_COUNT` 8 → 7) or keep finding it.
+  // It KEEPS finding it, on `ALERT_CONDITIONS` / `ALERT_LABELS` /
+  // `ALERT_BASE_LABELS`, which quote `"rsi"`, `"macd"`, `"bb"`, `"vwap"`,
+  // `"stoch"`, `"mfi"`, `"cci"`, `"atr"`, `"adx"`, `"obv"`, `"donchian"` and
+  // `"sar"` as code. So the row is RE-POINTED at the enumeration that actually
+  // survives instead of being deleted — a deleted row here plus a file the scan
+  // still names is exactly the "unledgered site" failure two tests down.
+  //
+  // ⛔ FATE `keep`, AND IT IS AN ARGUMENT RATHER THAN A DEMOTION. WHICH
+  // CONDITIONS an address offers is a product decision nothing can derive: does
+  // `macd` offer `cross_zero`? does `bb` offer `touch_upper` instead of a
+  // threshold? does `obv` get a zero line? Those answers are not in any chart
+  // definition and never will be — the registry describes how a plot is DRAWN.
+  // Same shape as `_INDICATOR_ALIASES` two rows down, which was already `keep`
+  // for the same reason.
+  { file: 'api/services/indicator_alert_evaluator.py', region: 'ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives',
+    anchor: 'ALERT_CONDITIONS: dict[str, list[dict]] = {', fate: 'keep' },
+  // ⭐⭐ PHASE C TASK 5 — THE PYTHON SCAN CAUGHT THIS ROW BEFORE A HUMAN DID, AND
+  // IT CAUGHT IT ON THE COMMIT THAT CREATED IT. `alert_series.SERIES_FUNCS` is
+  // the closed-bar lane's `address → FULL aligned column` table: the same 30
+  // addresses as `INDICATOR_FUNCS` + `EVENT_FUNCS`, differing only in returning
+  // the whole column instead of `_last_non_none(...)` of it. That contract change
+  // is what makes `prev` the PREVIOUS BAR rather than the previous 60-second
+  // poll, i.e. it is the mechanism Phase C exists for — but it is unarguably a
+  // SECOND hand-listing of the same enumeration, so it belongs here.
+  //
+  // Fate `C`, THE SAME AS ITS TWIN, because the two retire together or not at
+  // all: both are hand-written Python closures that cannot be derived from a JS
+  // definition (B4 adjudication A4, verbatim), and the day the Python alert lane
+  // reads the engine registry instead, it stops hand-listing addresses in BOTH
+  // places in one edit.
+  //
+  // ⚠️ AND THAT FATE IS NOW A PREDICTION AT RISK, SAID OUT LOUD RATHER THAN LEFT
+  // TO ROT. `C` means "Phase C retires it". Phase C's evaluator rebuild is THIS
+  // TASK, and it did not retire `INDICATOR_FUNCS` — it added a twin beside it,
+  // deliberately (the eight legacy closures and the delivery wrappers are pinned
+  // by 5,040 recorded rows, and re-deriving them is a change to what an armed
+  // alert computes, which is exactly what this task is forbidden to do). So both
+  // `C` rows now describe a retirement no remaining Phase C task has claimed. A
+  // fate nobody owns is the shape this ledger exists to catch; it is recorded
+  // here and handed forward rather than quietly re-fated to `keep`, which would
+  // ALSO disarm the Python scan's non-vacuity floor two rows down.
+  // ⭐⭐ PHASE C TASK 10 CLAIMED THIS FATE, AND THE ANSWER IS `keep`. The row
+  // above predicted *"the two retire together or not at all"*. Half of that was
+  // right and half was wrong, and the half that was wrong is the interesting
+  // one: they did not retire together — one retired INTO the other. A column
+  // determines its last value; a last value determines nothing about a column,
+  // so there was never a choice about which twin could survive.
+  //
+  // ⛔ AND WHAT SURVIVED IS NOT DERIVABLE, WHICH IS WHAT MAKES `keep` HONEST
+  // RATHER THAN CONVENIENT. Each row names a PYTHON compute function, a COLUMN
+  // INDEX into its tuple output, an input SHAPE (`on_closes`) and a set of
+  // DEFAULTS. A chart definition carries none of those: it names a JS `compute.fn`
+  // and describes how a plot is drawn. And two of the addresses have no
+  // definition to derive from AT ALL — `price_vs_ma` is a spread this lane
+  // synthesises (there is no such chart indicator) and `close` is the bar's own
+  // price. B4 adjudication A4 said "a dict of Python closures cannot be derived
+  // from a JS definition"; that sentence is still true, and it is the reason
+  // this row stops being a promise and becomes a fact.
+  //
+  // ⚠️ THE `C` BUCKET WENT 3 → 1 HERE, AND THE ONE THAT IS LEFT IS HANDED ON,
+  // not quietly re-fated — see `_INDICATOR_ALIASES` below.
+  { file: 'api/services/alert_series.py',
+    region: 'SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table',
+    anchor: 'SERIES_FUNCS: dict[str,', fate: 'keep' },
   // ⭐ THE SIXTH SITE THE JS DISCOVERY SCAN STRUCTURALLY CANNOT SEE, found by the
   // wave that fixed the voice bus and added here by this file's one writer. The
-  // scan below walks `app/src/**/*.jsx?` only, so a Python enumeration is
-  // invisible to it however many ids it names — which is exactly the shape that
-  // turned 7 into 32. Fate `C`: it is a PHRASE map ("bollinger bands" →
-  // `bb`, "parabolic sar" → `sar`), i.e. speech-recognition synonyms, and
-  // nothing in a definition declares what a user might say out loud. If it ever
-  // becomes derivable it is from `meta.name`/`meta.shortName` plus a synonym
-  // list that still has to live somewhere.
+  // JS scan walks `app/src/**/*.jsx?` only, so a Python enumeration was invisible
+  // to it however many ids it names — which is exactly the shape that turned 7
+  // into 32. ⭐⭐ PHASE C TASK 1 CLOSED THAT: the Python scan below sees this file,
+  // and this row is now DISCOVERABLE rather than hand-maintained.
+  //
+  // Fate `C`: it is a PHRASE map, i.e. speech-recognition synonyms, and nothing
+  // in a definition declares what a user might say out loud. If it ever becomes
+  // derivable it is from `meta.name`/`meta.shortName` plus a synonym list that
+  // still has to live somewhere.
+  //
+  // 🔴 THIS COMMENT USED TO SAY THE MAP CONTAINS `"parabolic sar" → sar`. IT
+  // DOES NOT, AND NEVER DID. Measured 2026-08-06: ELEVEN phrases resolving to
+  // SEVEN targets — `vwap`, `avwap`, `ma50`, `ma200`, `bb`, `macd`, `rsi`. Two of
+  // those seven (`avwap`, `ma50`/`ma200`) are not registry ids at all, and `sar`
+  // — the one the comment invented — is the single id the evaluator DELIBERATELY
+  // refuses to offer (`_SAR_IS_NOT_OFFERED`), so the invented example pointed at
+  // the one place in this codebase where naming `sar` is a decision somebody
+  // wrote a paragraph about. A ledger whose whole job is stopping a comment from
+  // outliving its subject cannot carry a fabricated example of its own.
+  // ⚠️ THE LAST `C` ROW, AND PHASE C TASK 10 DELIBERATELY DID NOT CLAIM IT.
+  // Task 10 was the last task that COULD, and the honest reading is that this
+  // row is very probably mis-fated: the sizing case at the bottom of this file
+  // already measures it as *"a `keep`-shaped list of synonyms nothing can
+  // derive"* — eleven spoken PHRASES ("bollinger bands", "moving average")
+  // mapping to seven ids, which no registry contains and no derivation can
+  // produce. But Task 10 touched no voice file, wrote no test against this map,
+  // and re-fating a row on the strength of a comment is the two-character edit
+  // this ledger's own header warns about. So it is HANDED FORWARD with the
+  // recommendation written down, which is what the `C` column is for.
   { file: 'api/services/voice_client_action_tools.py', region: '_INDICATOR_ALIASES — the voice add_chart_indicator phrase map',
     anchor: '_INDICATOR_ALIASES = {', fate: 'C' },
+  // ⭐⭐ PHASE C TASK 1 — THE ROW THE PYTHON SCAN FOUND ON ITS FIRST RUN.
+  // `_CASE_COLUMNS` maps a golden-fixture KIND to its COLUMN NAMES, and the two
+  // vocabularies are not the same one: `williams_r` here is `williamsR` in the
+  // registry, and `vwap_series` exists precisely so `compute_case` cannot answer
+  // for the two vwap fixtures whose `expected` is null. A (kind, columns) pair is
+  // irreducible, exactly like `INDICATOR_CHORDS`' (key, indicator) pair — so this
+  // is `keep`, not a twin to retire.
+  //
+  // ⛔ AND IT IS THE PYTHON SCAN'S ONLY HONEST FLOOR. The two `C` rows above both
+  // retire in Phase C; this one does not. A non-vacuity floor derived from them
+  // collapses to `[]` the day they go, and `[].filter(...)` is `[]` — which
+  // satisfies the unledgered-site assertion while checking nothing at all.
+  { file: 'api/services/indicator_compute.py',
+    region: '_CASE_COLUMNS — the golden-fixture kind→columns dispatch',
+    anchor: '_CASE_COLUMNS: Dict[str, Tuple[str, ...]] = {', fate: 'keep' },
 
   // ── the engine ───────────────────────────────────────────────────────────
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
@@ -552,6 +663,43 @@ const RETIRED_BY_B5_TASK9 = [
     /"rsi"\s*:\s*\{\s*"enabled"/g],
 ]
 
+/** ⭐⭐⭐ WHAT PHASE C TASK 10 RETIRED — and it is the FIRST retirement of a
+ *  PYTHON site this ledger has recorded.
+ *
+ *  `indicator_alert_evaluator.INDICATOR_FUNCS` was 28 rows of
+ *  `_plot_of("compute_adx", 1, period=14)`, sitting beside 28 rows of
+ *  `alert_series._column("compute_adx", 1, period=14)` that named the same
+ *  compute, the same column index, the same input shape and the same defaults,
+ *  and differed only by a `_last_non_none` at the end. B4 adjudication A4 fated
+ *  it `C`; Phase C Task 5 built the twin instead of retiring it, deliberately,
+ *  and recorded the debt on the row. This is the payment.
+ *
+ *  ⛔ THE ANCHOR IS RE-RUN, NOT DROPPED, AND THAT IS THE WHOLE METHOD. The
+ *  ledger row's anchor demanded EXACTLY ONE match for years; the retirement is
+ *  only real if the same pattern now matches ZERO. A control that stops looking
+ *  is a control that rots, so the pattern outlives the row it policed.
+ *
+ *  ⚠️ WHAT IS DELIBERATELY *NOT* CLAIMED HERE: that the NAME is gone.
+ *  `tools/alert_replay.py` generates the frozen 691,195-fire grid by iterating
+ *  `ev.INDICATOR_FUNCS`, `alert_shadow_log` bounds a diff declaration with it,
+ *  and `alert_soak_matrix` arms from the catalog behind it. All three read a
+ *  MAPPING and none reads a literal. What retired is the second place a person
+ *  had to edit, which is what an enumeration SITE is. The Python-side rail
+ *  (`test_the_hand_written_dispatch_literal_is_GONE_by_identity`) asserts both
+ *  halves — the literal absent AND the mapping present — because either one
+ *  alone describes a different change. */
+const RETIRED_BY_C_TASK10 = [
+  ['api/services/indicator_alert_evaluator.py',
+    'INDICATOR_FUNCS — the hand-written 28-closure dispatch literal',
+    /INDICATOR_FUNCS:\s*dict\[str,/g],
+  ['api/services/indicator_alert_evaluator.py',
+    '_plot_of — the second column builder, now `alert_series._column` alone',
+    /def\s+_plot_of\s*\(/g],
+  ['api/services/indicator_alert_evaluator.py',
+    'the eight hand-written per-indicator value functions',
+    /def\s+_value_(?:rsi|macd|stoch|williams_r|cci|mfi|price_vs_ma|bb)\s*\(/g],
+]
+
 const RETIRED_BY_B4_TASK10 = [
   ['app/src/components/chart/engine/readout.js',
     'LEGACY_SLOTS — the legend slot bridge', /export\s+const\s+LEGACY_SLOTS\s*=/g],
@@ -688,8 +836,56 @@ const RETIRED_BY_B4_ALERTS = [
  *  Task 12 measured that it did not (inlining the stack order created
  *  `FROZEN_SHIPPED_STACK_ORDER`, a `keep`), and that correction never reached
  *  the next brief. Reported rather than reconciled by deleting a row nobody
- *  argued for. */
-const SITE_COUNT = 6
+ *  argued for.
+ *
+ *  ⭐⭐ 6 → 7 AT PHASE C TASK 1, AND IT IS AN ADDITION WITH NO RETIREMENT — the
+ *  ONLY move of that shape this ledger has recorded twice (the other was
+ *  `_INDICATOR_ALIASES` at B4). `{C: 2, keep: 5}`.
+ *
+ *  ⛔ AND THE ROW WAS NOT WALKED UP TO BY A HUMAN: it was FOUND, by teaching the
+ *  discovery scan to read Python. Two of the six rows this task inherited are
+ *  Python and the JS scan — which walks `app/src/**` and reads only `.js`/`.jsx`
+ *  — structurally could not see either, so both had been hand-maintained since
+ *  B4. That is the precise shape that turned seven sites into thirty-two: an
+ *  enumeration nobody's scan can reach. The Python half's FIRST run, over 787
+ *  `.py` files under `api/`, found THREE files at four-or-more ids and one of
+ *  them was unledgered — `indicator_compute.py`'s `_CASE_COLUMNS`.
+ *
+ *  ⚠️ THE PREDICTION AND THE MEASUREMENT AGREED, WHICH IS NOT WHY THE NUMBER IS
+ *  7. The plan predicted `SITE_COUNT` 6→7 and `{C: 2, keep: 5}`; the scan was run
+ *  first and the assertion written from what it FOUND. Had it named a fourth
+ *  file, the fourth file would be on this list and this number would be 8.
+ *
+ *  ⭐⭐ 7 → 8 AT PHASE C TASK 5, AND AGAIN IT IS AN ADDITION WITH NO RETIREMENT.
+ *  `{C: 3, keep: 5}`. The new row is `alert_series.SERIES_FUNCS` — the closed-bar
+ *  lane's address→column table — and it did not arrive by somebody remembering
+ *  to write it down: the Python discovery scan Task 1 built flagged the file on
+ *  the FIRST full-suite run after it was created, naming it in the failure
+ *  message, which is precisely the job the scan was added to do. The rule the
+ *  ledger keeps proving: an enumeration nobody's scan can reach is how seven
+ *  sites became thirty-two.
+ *
+ *  ⚠️ AND THE `C` BUCKET IS NOW THREE ROWS THAT NO REMAINING PHASE C TASK HAS
+ *  CLAIMED — see the comment on the new row. The number went up, the fates did
+ *  not move, and the prediction underneath them is older than it looks.
+ *
+ *  ⭐⭐⭐ 8 → 8 AT PHASE C TASK 10, AND FOR ONCE THE INTERESTING NUMBER IS NOT THE
+ *  TOTAL. `{C: 3, keep: 5}` → `{C: 1, keep: 7}`: the first RETIREMENT of a Python
+ *  site this ledger has recorded (`INDICATOR_FUNCS`, proven gone in
+ *  `RETIRED_BY_C_TASK10`) and, beside it, a fate CLAIMED AND ANSWERED
+ *  (`SERIES_FUNCS` is `keep` — it is the table the other one retired into, and
+ *  it is not derivable from anything).
+ *
+ *  ⛔ THE TOTAL DID NOT FALL AND THAT WAS MEASURED, NOT ASSUMED. Task 10's brief
+ *  predicted `SITE_COUNT` 8 → 7 on the theory that the Python discovery scan
+ *  would stop finding `indicator_alert_evaluator.py` once its dict was gone. It
+ *  does NOT stop finding it: `ALERT_CONDITIONS` / `ALERT_LABELS` /
+ *  `ALERT_BASE_LABELS` still quote a dozen ids as code. So the row was
+ *  RE-POINTED at the enumeration that survives rather than deleted — deleting it
+ *  while the scan still names the file is the "unledgered site" failure this
+ *  ledger exists to produce. The prediction was a hypothesis; the scan was the
+ *  measurement. */
+const SITE_COUNT = 8
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -733,7 +929,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // into", not "no line of code names an indicator anywhere" — and the one that
   // still does has to be ON this ledger, because the discovery scan below can see
   // it whether or not anybody wrote it down.
-  it('every B4 region is retired — 2 to C, 4 kept, and NO B4, B5 or phase key', () => {
+  it('every B4 region is retired — 2 to C, 5 kept, and NO B4, B5 or phase key', () => {
     const counts = LEDGER.reduce((acc, s) => ({ ...acc, [s.fate]: (acc[s.fate] || 0) + 1 }), {})
     // ⚠️ `toEqual` on the WHOLE object, never five `toBe`s: a fate typo ('b5')
     // makes a SIXTH bucket, and five per-key assertions would all still pass
@@ -768,7 +964,37 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // empty buckets now say three different things by their ABSENCE: no `B4`
     // (B4 retired everything it inherited), no `B5` (Flip C took the last one),
     // no `phase` (the flip sets are deleted, not re-fated).
-    expect(counts).toEqual({ C: 2, keep: 4 })
+    //
+    // ⭐⭐ `keep` 4 → 5 AT PHASE C TASK 1, AND THE `C` BUCKET DID NOT MOVE. The
+    // added row is `indicator_compute.py`'s `_CASE_COLUMNS`, found by the Python
+    // discovery scan's first run. Its fate is LOAD-BEARING, not cosmetic: both
+    // `C` rows retire in this phase, so the Python scan's non-vacuity floor —
+    // which is derived from `keep` for exactly the reason the JS floor was
+    // re-derived at B5 Task 12 — would collapse to `[]` and rot GREEN if this
+    // row were fated `C` instead. Re-fating it is a two-character edit that
+    // silently disarms a scan, which is why the test below asserts it BY NAME.
+    //
+    // ⭐⭐ `C` 2 → 3 AT PHASE C TASK 5, AND `keep` DID NOT MOVE — WHICH IS THE
+    // HALF THAT MATTERS. The added row is `alert_series.py`'s `SERIES_FUNCS`,
+    // the closed-bar lane's twin of `INDICATOR_FUNCS`, fated `C` with it. The
+    // floor above is derived from `keep`, so a third `C` row cannot disarm the
+    // Python scan — but it does mean the `C` bucket now holds THREE retirements
+    // this phase has not scheduled. Named on the row itself.
+    //
+    // ⭐⭐⭐ `{C: 3, keep: 5}` → `{C: 1, keep: 7}` AT PHASE C TASK 10, AND THIS IS
+    // THE FIRST TIME THIS PHASE THE `C` BUCKET HAS FALLEN. Two rows moved and
+    // they moved for two DIFFERENT reasons, which is why they are not one edit:
+    // `INDICATOR_FUNCS` was RETIRED (the literal is gone, proven by identity in
+    // `RETIRED_BY_C_TASK10`) and its file re-pointed at the enumeration that
+    // survives; `SERIES_FUNCS` was RE-FATED after the claim on it was tested and
+    // found false — it is the table the other one retired INTO, and it is not
+    // derivable from anything. The third `C` row is deliberately still `C`.
+    //
+    // ⛔ AND THE PYTHON FLOOR GOT STRONGER, NOT WEAKER, WHICH IS THE THING TO
+    // CHECK ON ANY EDIT THAT MOVES A ROW OUT OF `C`. That floor is derived from
+    // `keep`; it had exactly ONE Python subject and now has THREE, so the scan
+    // it protects is measured against more, not less.
+    expect(counts).toEqual({ C: 1, keep: 7 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -783,6 +1009,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // gets SMALLER and therefore easier to fall into, not harder: with `B5` and
   // `phase` gone, `{C: 2, keep: 3}` has exactly ten fate-preserving permutations
   // and every one of them is green above.
+  //
+  // ⚠️ THAT COUNT IS DATED, AND PHASE C TASK 1 MOVED IT — recorded rather than
+  // rewritten, because the sentence is B5's argument and the argument is still
+  // right. The ledger is `{C: 2, keep: 5}` over SEVEN rows now, so there are
+  // C(7,2) = 21 ways to choose which two rows carry `C` and TWENTY of them are
+  // wrong — twice the space B5 measured. Adding a row made the blind spot
+  // BIGGER, which is the direction nobody expects and the reason this mapping
+  // is regenerated on every ledger edit rather than reviewed by eye.
   //
   // ⛔ BESIDE IT, NOT INSTEAD OF IT, AND THE REASON IS NOT SYMMETRY. The
   // histogram catches a fate TYPO — `'b5'` makes a SIXTH bucket, which `toEqual`
@@ -818,13 +1052,43 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'If a fate really moved, regenerate this literal from LEDGER rather than editing a row by ' +
       'hand, and move the histogram in the same commit.',
     ).toEqual([
-      ['api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog\'s ONE authority', 'C'],
-      ['api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map', 'C'],
-      ['app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays', 'keep'],
-      ['app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE', 'keep'],
-      ['app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once', 'keep'],
-      ['tools/chart_parity_cases.json::the parity case list', 'keep'],
+      ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table", "keep"],
+      ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives", "keep"],
+      ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch", "keep"],
+      ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map", "C"],
+      ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays", "keep"],
+      ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE", "keep"],
+      ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once", "keep"],
+      ["tools/chart_parity_cases.json::the parity case list", "keep"],
     ])
+  })
+
+  it('⭐⭐ the Python dispatch literal PHASE C TASK 10 retired is GONE, by identity', () => {
+    const back = RETIRED_BY_C_TASK10
+      .filter(([file, , re]) => [...read(file).matchAll(re)].length !== 0)
+      .map(([file, what]) => `${file} :: ${what}`)
+    expect(back,
+      'the hand-written alert dispatch table is back. It is DERIVED from '
+      + '`alert_series.SERIES_FUNCS` — a value is the last non-None element of a column — '
+      + 'and a second table of the same 28 closures is the twin Phase C spent its budget '
+      + 'retiring.',
+    ).toEqual([])
+    // ⛔ AND THE PATTERNS CAN STILL SEE WHAT THEY FORBID. Task 1 measured this
+    // exact trap for real: a negative fixture that the raw scan structurally
+    // could not match reported a mutation as a SURVIVOR. A demand-zero pattern
+    // that has quietly stopped matching reports every file as clean.
+    const planted = [
+      'INDICATOR_FUNCS: dict[str, Callable] = {',
+      'def _plot_of(compute_name):',
+      'def _value_rsi(bars, params):',
+    ].join('\n')
+    expect(RETIRED_BY_C_TASK10.map(([, , re]) => [...planted.matchAll(re)].length))
+      .toEqual([1, 1, 1])
+    // ⭐ AND THE SUCCESSOR IS REALLY THERE, or "the literal is gone" is
+    // satisfied by an alert lane that lost its address table altogether.
+    const EV = read('api/services/indicator_alert_evaluator.py')
+    expect(EV).toContain('INDICATOR_FUNCS')
+    expect(EV).toContain('alert_series.SERIES_FUNCS')
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -955,9 +1219,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       d => d.plots.filter(p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
         .map(p => `${d.id}::${p.key}`)).sort()
     expect(declared, 'a chip-bearing plot lost its `legend` declaration — a user\'s chip ' +
-      'disappears the moment one of these nine loses it, on EITHER lane').toEqual([
+      'disappears the moment one of these ten loses it, on EITHER lane').toEqual([
       'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
-      'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+      // TEN AT PHASE C TASK 13. `rsLine` takes its own PANE, and a pane whose
+      // crosshair prints nothing is a value you cannot read. Kept an EQUALITY, so a
+      // DROP among the others still fails.
+      'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
     ])
     // ⭐ AND THE SPLIT BETWEEN THE TWO LANES, WHICH IS WHAT B5 MOVES. This loop
     // used to read *"for `stoch`, `atr`, `sar`, `ichimoku`: NOT migrated — B4
@@ -972,7 +1239,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // and the empty list is now itself a claim: it is what licensed deleting the
     // registrar, and re-populating it without also re-adding a producer is a chip
     // drawn by nobody.
-    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku']
+    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -1045,7 +1312,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const wide = mergeChartSettings(JSON.parse(JSON.stringify({ settingsVersion: 2, indicators: all })))
     expect(Object.keys(wide.indicators)).toEqual(['volumeProfile'])
     expect(Object.keys(all), 'the fixture named nothing — the destruction above is vacuous')
-      .toHaveLength(14)
+      .toHaveLength(17)
     // …and the frozen capture writes the same one key, through the wrapper.
     const frozen = JSON.parse(uctDefaultChartSettings())
     expect(Object.keys(frozen.indicators)).toEqual(['volumeProfile'])
@@ -1135,8 +1402,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // every chart while leaving this file's `[]` above perfectly green.
   it('⛔ …and every definition still resolves a compute — the exports are NOT dead', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(14)
-    for (const def of defs) {
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
+    // THE SERVER LANE IS SKIPPED HERE AND ONLY HERE. This case is about the
+    // `compute*` EXPORTS not being dead; a `compute.kind: 'server'` definition has
+    // no export to be dead, its columns are FETCHED, and `computeFor` correctly
+    // returns {} with no ctx. Derived from the kind and then CHECKED, so a native
+    // re-declared `server` to dodge this rail is itself a failure.
+    const serverLane = defs.filter(d => d.compute.kind === 'server').map(d => d.id)
+    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine'])
+    for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
       const cols = engineRegistry.computeFor(def, PROBE_BARS, {})
@@ -1242,6 +1516,27 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       const src = stripComments(fs.readFileSync(p, 'utf8'))
       if (namesIndicators(src).length >= 4) found.push(path.relative(ROOT, p).split(path.sep).join('/'))
     }
+    // ⭐⭐ PHASE C TASK 1 — THE NON-MEASUREMENT, ASSERTED. Task 1 ADDS a Python
+    // scan; it must not change what THIS one sees. The two assertions below are
+    // a subset check in each direction (`found ⊆ ledger`, `keep ⊆ found`) and
+    // together they still permit the set to GROW by a file that happens to be
+    // ledgered — so the whole set is pinned here, once, and this literal is the
+    // record that nothing moved on 2026-08-06.
+    //
+    // ⚠️ IT IS A DECISION, NOT A DIFF, exactly like `SITE_COUNT`. A new shipped
+    // module that hand-lists four ids fails BOTH this and the unledgered filter;
+    // ledgering it silences the filter and leaves this one red, which is the
+    // point — the ledger has one writer per phase and this is how the writer
+    // finds out.
+    expect([...found].sort(),
+      'the JS discovery scan sees a different set of files than it saw at the start of ' +
+      'Phase C. If a module was added to or removed from the four-id set deliberately, ' +
+      'move this literal and say which; if not, the scan itself changed.',
+    ).toEqual([
+      'app/src/components/chart/engine/instances.js',
+      'app/src/components/chart/engine/nativeRegistry.js',
+      'app/src/components/chart/keyboardShortcuts.js',
+    ])
 
     const known = new Set(LEDGER.map(s => s.file))
     expect(found.filter(f => !known.has(f)),
@@ -1328,6 +1623,215 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       .toEqual([])
   })
 
+  // ⭐⭐ THE PYTHON HALF OF THE DISCOVERY SCAN — PHASE C TASK 1.
+  //
+  // The scan above walks `app/src/**` and reads `.js`/`.jsx`. TWO of this
+  // ledger's rows are PYTHON and it can see NEITHER, so both have been
+  // maintained BY HAND since B4 — and a hand-maintained enumeration invisible to
+  // the scan is precisely the shape that turned seven sites into thirty-two. The
+  // JS half's own header says so ("a Python enumeration is invisible to it
+  // however many ids it names"); it had simply never been closed.
+  //
+  // ⛔ IT FOUND AN UNLEDGERED SITE ON ITS FIRST RUN: `indicator_compute.py`'s
+  // `_CASE_COLUMNS`. That is not a bonus — it is the measurement. A scan whose
+  // first run finds nothing has not been demonstrated to work.
+  //
+  // ⛔ THE FOUND SET, PRINTED AND RECORDED (2026-08-06, three files):
+  //     api/services/indicator_alert_evaluator.py     ledgered, fate C
+  //     api/services/indicator_compute.py             ← the find, now fate keep
+  //     api/services/voice_client_action_tools.py     ledgered, fate C
+  //   Every other `.py` under `api/` names three or fewer ids after stripping.
+  //
+  // ⛔ AND IT READS `stripPyComments`, FOR THE REASON THE JS HALF READS
+  // `stripComments`: `indicator_alert_evaluator.py` writes long prose about plot
+  // addresses in `#` blocks and docstrings, and prose that NAMES a thing makes a
+  // scan see an enumeration that is not there. STRINGS survive — a Python
+  // enumeration IS a dict of string keys, so stripping them would lose all three
+  // files and the scan would be worthless in the other direction.
+  it('names every shipped Python module that hand-lists four or more indicators', () => {
+    const API_DIR = path.join(ROOT, 'api')
+
+    const walk = (dir, out = []) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === '__pycache__') continue
+        const p = path.join(dir, entry.name)
+        if (entry.isDirectory()) { walk(p, out); continue }
+        if (!/\.py$/.test(entry.name)) continue
+        out.push(p)
+      }
+      return out
+    }
+
+    const found = []
+    for (const p of walk(API_DIR)) {
+      const src = stripPyComments(fs.readFileSync(p, 'utf8'))
+      if (namesIndicators(src).length >= 4) {
+        found.push(path.relative(ROOT, p).split(path.sep).join('/'))
+      }
+    }
+    found.sort()
+
+    const known = new Set(LEDGER.map(s => s.file))
+    expect(found.filter(f => !known.has(f)),
+      'a PYTHON module hand-lists four or more indicators and is not on the ledger. ' +
+      'Either it is a new enumeration site (add it, and raise SITE_COUNT), or it reads ' +
+      'the registry and the scan is over-matching (say which, in the ledger).',
+    ).toEqual([])
+
+    // …and the scan must not go quietly empty. ⛔ THE FLOOR IS DERIVED FROM
+    // `keep`, NEVER FROM THE `C` ROWS: BOTH Python `C` rows retire in this
+    // phase, so a floor built on them collapses to an empty set, and
+    // `[].filter(...)` is `[]` — which SATISFIES the assertion above while
+    // checking nothing at all. A control that stops looking is a control that
+    // rots, and it rots GREEN. This is the same lesson the JS floor above
+    // learned at B5 Task 12, applied BEFORE the collapse instead of after it.
+    //
+    // BY NAME and NON-EMPTY, both: a count alone goes green the day the last
+    // `keep` Python row is renamed.
+    //
+    // ONE SUBJECT -> THREE AT PHASE C TASK 10, AND THE FLOOR GOT STRONGER, WHICH
+    // IS THE THING TO CHECK ON ANY EDIT THAT MOVES A ROW OUT OF `C`. Retiring
+    // `INDICATOR_FUNCS` did NOT take its file off this scan (`ALERT_CONDITIONS`
+    // still quotes a dozen ids as code), and `alert_series.SERIES_FUNCS` was
+    // re-fated `keep` because it is the table the other one retired INTO. So the
+    // two files this task worked on became FLOOR rather than ceiling: a scan
+    // that stopped seeing either of them now fails BY NAME.
+    const keepPython = [...new Set(LEDGER.filter(s => s.fate === 'keep').map(s => s.file))]
+      .filter(f => /^api\/.*\.py$/.test(f)).sort()
+    expect(keepPython,
+      'the Python scan has no surviving subject to be measured against',
+    ).toEqual([
+      'api/services/alert_series.py',
+      'api/services/indicator_alert_evaluator.py',
+      'api/services/indicator_compute.py',
+    ])
+    for (const f of keepPython) {
+      expect(found, `the Python scan stopped seeing ${f}`).toContain(f)
+    }
+
+    // ⛔ AND THE SCAN REALLY DID READ THE WHOLE TREE, not an empty directory: a
+    // walk root that stopped resolving would make `found` empty and every line
+    // above vacuous except the `toContain`, which is why the file COUNT is
+    // asserted too. The tree holds hundreds of `.py` files under `api/`.
+    expect(walk(API_DIR).length,
+      'the Python walk found almost no files — the walk root is wrong, not the tree')
+      .toBeGreaterThan(100)
+  })
+
+  // ⭐⭐ THE TWO PYTHON `C` ROWS, SIZED — BECAUSE BOTH HAD PROSE THAT OUTLIVED
+  // THEIR SUBJECT, AND THIS LEDGER'S WHOLE JOB IS STOPPING EXACTLY THAT.
+  //
+  // 🔴 CORRECTION 1 — "25 addresses in 14 groups". The B5 SDD ledger
+  // (`progress.md` §ADDRESSING) and its `alerts-gap-report.md` both say 25.
+  // MEASURED 2026-08-06: `len(INDICATOR_FUNCS) == 28`, 14 groups — 8 legacy + 6
+  // same-base + 14 new-base. The Phase C plan would have shipped an assertion
+  // failing on its first run FOR THE WRONG REASON had it carried 25 forward.
+  //
+  // ⚠️ AND THE THIRD SITE THE PHASE-C PLAN NAMED FOR THIS CORRECTION DOES NOT
+  // EXIST: it says "the evaluator's own B5 comment block" also says 25. It does
+  // not — `indicator_alert_evaluator.py` carries NO address count in prose at
+  // all (its only `25` is ADX's conventional guide level, `_DEFAULT_THRESHOLDS`).
+  // Recorded here rather than silently dropped, because "a correction that was
+  // applied to a site that never had the defect" is indistinguishable from "a
+  // correction that was skipped" once the note is gone.
+  //
+  // 🔴 CORRECTION 2 — the alias map's contents; see the tombstone on that
+  // ledger row. This case is what makes the corrected sentence FAILABLE.
+  //
+  // ⛔ BOTH READ THE PYTHON SOURCE THROUGH `stripPyComments`, so neither can be
+  // satisfied by a comment that happens to name the right things.
+  it('⭐ the two Python address tables are the size the ledger says — 28 addresses, and NO `sar` alias', () => {
+    // ── THE ADDRESS TABLE: its own keys, not a prose count ──
+    //
+    // ⭐⭐ MOVED DOWN A LEVEL AT PHASE C TASK 10, WHICH IS WHY IT STILL EXISTS.
+    // It used to slice `INDICATOR_FUNCS`' hand-written literal out of the
+    // evaluator. That literal is RETIRED (it derives from
+    // `alert_series.SERIES_FUNCS` now), so this case lost its subject and the
+    // tempting move was to delete it. Instead it reads the table that
+    // SURVIVED and measures the same claim: 28 levels in 14 groups. What it
+    // GAINS is the two partitions the derivation introduced, so the 28 can no
+    // longer be preserved by quietly moving an address into one of them.
+    const SERIES = stripPyComments(read('api/services/alert_series.py'))
+    const open = SERIES.indexOf('SERIES_FUNCS: dict[str,')
+    expect(open, 'the column table moved, so this whole case is measuring nothing')
+      .toBeGreaterThan(-1)
+    const brace = SERIES.indexOf('{', open)
+    const close = brace + SERIES.slice(brace).search(/\r?\n\}/)
+    const body = SERIES.slice(brace, close)
+    expect(body.length, 'the dict body came back empty: the delimiter search failed')
+      .toBeGreaterThan(200)
+    const all = [...body.matchAll(/"([a-z_][\w.]*)"\s*:/g)].map(m => m[1])
+    expect(all.length, 'the column table is not 31 = 28 levels + 2 events + 1 price')
+      .toBe(31)
+
+    // The three partitions, read from the evaluator AS CODE. The two small ones
+    // are closed exclusion tuples; everything else is a LEVEL, which is the same
+    // rule the module itself applies, so a new address lands in the level count
+    // BY DEFAULT and moves the 28 below. That is the failure that is wanted.
+    const EV = stripPyComments(read('api/services/indicator_alert_evaluator.py'))
+    const tupleOf = (name) => {
+      const m = EV.match(new RegExp(name + ': tuple\\[str, \\.\\.\\.\\] = \\(([^)]*)\\)'))
+      expect(m, name + ' is not declared as a closed tuple any more').toBeTruthy()
+      return [...m[1].matchAll(/"([^"]+)"/g)].map(x => x[1])
+    }
+    const events = tupleOf('EVENT_ADDRESSES')
+    const prices = tupleOf('PRICE_ADDRESSES')
+    expect(events).toEqual(['sar.priceCrossedSar', 'sar.trendFlipped'])
+    expect(prices).toEqual(['close'])
+    const addresses = all.filter(a => !events.includes(a) && !prices.includes(a))
+
+    expect(addresses.length,
+      'the evaluator address count moved. It is 28, in 14 groups — NOT the 25 the B5 SDD '
+      + 'ledger and its alerts-gap report both carried. If a Phase C task genuinely added or '
+      + 'removed an address, move this number and say which address, in the same commit.')
+      .toBe(28)
+    expect(new Set(addresses).size, 'a duplicate key — the dict silently holds fewer than it lists')
+      .toBe(28)
+    expect(new Set(addresses.map(a => a.split('.')[0])).size,
+      'the catalog GROUP count moved — `alert_catalog` groups on the part before the dot')
+      .toBe(14)
+    // …and non-vacuous: the extractor is selecting real addresses, one from each
+    // of the three B5 waves, not matching some other quoted-key shape.
+    expect(addresses).toContain('rsi')          // pre-B5
+    expect(addresses).toContain('macd.signal')  // B5, same base
+    expect(addresses).toContain('ichimoku.chikou')  // B5, new base
+    // ⛔ …AND `sar` IS ABSENT ON PURPOSE. `_SAR_IS_NOT_OFFERED` is a paragraph
+    // about why; `test_sar_is_deliberately_not_offered_and_says_why` is its
+    // Python-side rail. This is the count's half of the same claim: 28 with
+    // `sar` in it would be a different 28.
+    expect(addresses).not.toContain('sar')
+
+    // ── _INDICATOR_ALIASES: eleven phrases, seven targets, and no `sar` ──
+    const VC = stripPyComments(read('api/services/voice_client_action_tools.py'))
+    const aOpen = VC.indexOf('_INDICATOR_ALIASES = {')
+    const aClose = aOpen + VC.slice(aOpen).search(/\r?\n\}/)
+    const aBody = VC.slice(aOpen, aClose)
+    const alias = [...aBody.matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g)].map(m => [m[1], m[2]])
+
+    expect(alias.length,
+      'the voice phrase map changed size. That is allowed — it is a `keep`-shaped list of '
+      + 'synonyms nothing can derive — but it is a DECISION: update the tombstone beside the '
+      + 'ledger row in the same commit, or the comment starts outliving its subject again.')
+      .toBe(11)
+    expect([...new Set(alias.map(p => p[1]))].sort(),
+      'the alias map resolves to a different set of targets than the ledger row records')
+      .toEqual(['avwap', 'bb', 'ma200', 'ma50', 'macd', 'rsi', 'vwap'])
+    // 🔴 THE SENTENCE THE LEDGER USED TO CARRY, AS AN ASSERTION. The comment
+    // claimed `"parabolic sar" → sar`. Neither side of that pair is in the map,
+    // and `sar` is the one id the evaluator refuses by name — so the invented
+    // example pointed at the single place where naming `sar` is a written
+    // decision. This fails the day somebody adds it, which is the right day for
+    // the ledger's prose to move.
+    expect(alias.map(p => p[0]), 'the alias map now has a `parabolic sar` phrase — the '
+      + 'ledger row tombstone says it does not; correct the tombstone, do not delete it')
+      .not.toContain('parabolic sar')
+    expect(alias.map(p => p[1]), 'the voice map resolves a phrase to `sar` while the '
+      + 'evaluator refuses `sar` by name (`_SAR_IS_NOT_OFFERED`) — say which one moved')
+      .not.toContain('sar')
+    // …and the extractor really parsed pairs rather than emptying.
+    expect(Object.fromEntries(alias)['bollinger bands']).toBe('bb')
+  })
+
   // ⭐ AND THE STRIPPER ITSELF, BOTH DIRECTIONS, ON THE SCAN'S OWN PREDICATE.
   //
   // The floor above proves the scan still finds four B5 files; it cannot prove
@@ -1385,6 +1889,77 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(calls(stripComments(COMMENTED), 'useChartIndicatorBus'),
       'a commented-out call still reads as a live one').toBe(false)
   })
+
+  // ⭐⭐ AND THE SAME, FOR PYTHON — `stripPyComments`, on the scan's own
+  // predicate. PHASE C TASK 1.
+  //
+  // ⛔ WRITTEN BECAUSE THE MUTATION FIXTURE FOR IT FAILED FIRST, AND THAT IS THE
+  // WHOLE VALUE OF THIS CASE. The gauntlet's M2b was "prepend a four-id `#`
+  // comment to a Python module and watch the identity stripper make the scan
+  // flag it". It SURVIVED — not because the stripper is unnecessary, but because
+  // the fixture was `# … rsi macd bb vwap …`, and `namesIndicators` matches a
+  // QUOTED id, an `id:` key or an `id?.` read, never a bare word. So the fixture
+  // named ZERO ids raw and proved nothing in either direction. That is the exact
+  // shape of "a mutation that survived for the wrong reason", caught only because
+  // the harness demanded the fixture trip the RAW scan first — which is why each
+  // negative below carries its own raw-side control.
+  it('⭐ the PYTHON scan reads CODE, not prose — and still reads code', () => {
+    // A `#` comment and a docstring, both in the shape that actually counts.
+    const PY_PROSE = [
+      '# the eight legacy addresses: rsi: 14, macd: 26, bb: 20, vwap: session',
+      'def f():',
+      '    """stoch: 14, atr: 14, cci: 20, mfi: 14 — the shape this used to be."""',
+      '    return None',
+    ].join('\n')
+    const PY_CODE = '_M = {"rsi": 1, "macd": 2, "bb": 3, "vwap": 4, "stoch": 5}'
+
+    // ⛔ THE NEGATIVE HALF'S OWN CONTROL — the fixture must genuinely trip the
+    // RAW scan, or "zero after stripping" is a fixture that was never a problem.
+    // This is the assertion the M2b mutation fixture did not have.
+    expect(namesIndicators(PY_PROSE).length,
+      'the Python prose fixture names fewer than four ids RAW — it could never have flagged '
+      + 'a file, so the zero below proves nothing').toBeGreaterThanOrEqual(4)
+    expect(namesIndicators(stripPyComments(PY_PROSE)),
+      'a `#` comment or a docstring still reads as an enumeration').toEqual([])
+
+    // ⭐ THE POSITIVE HALF: real code still counts, and counts the SAME.
+    expect(namesIndicators(stripPyComments(PY_CODE)),
+      'the stripper ate real code — a scan that finds nothing is a broken scan, not a clean tree')
+      .toEqual(namesIndicators(PY_CODE))
+    expect(namesIndicators(stripPyComments(PY_CODE)).length).toBeGreaterThanOrEqual(5)
+    // …and the two together, in one file, the way they actually appear.
+    expect(namesIndicators(stripPyComments(`${PY_PROSE}\n${PY_CODE}\n`)))
+      .toEqual(namesIndicators(PY_CODE))
+
+    // ⛔ STRINGS SURVIVE, AND FOR PYTHON THIS IS THE WHOLE GAME: every one of the
+    // three real sites is a dict whose KEYS ARE STRINGS. A stripper that dropped
+    // string contents would find zero files and report a clean tree.
+    expect(namesIndicators(stripPyComments(PY_CODE)).length).toBeGreaterThanOrEqual(5)
+
+    // ⛔ A `#` INSIDE A STRING IS NOT A COMMENT. Without the string state the
+    // rest of that line — including its four ids — vanishes, which is the Python
+    // twin of the regex-literal trap on the JS side.
+    const HASH_IN_STRING = '_U = "# rsi: 1, macd: 2, bb: 3, vwap: 4"'
+    expect(namesIndicators(stripPyComments(HASH_IN_STRING)).length,
+      'a `#` inside a string opened a phantom comment and ate the rest of the line')
+      .toBeGreaterThanOrEqual(4)
+
+    // ⛔ AND A QUOTE INSIDE A `#` COMMENT DOES NOT OPEN A STRING. Getting this
+    // backwards leaves the stripper in string mode for the rest of the file and
+    // every later comment survives — a false-positive machine that only shows up
+    // on files nobody looks at.
+    const QUOTE_IN_COMMENT = ['# don\'t read this: rsi: 1, macd: 2, bb: 3, vwap: 4',
+      '_V = {"stoch": 1, "atr": 2, "cci": 3, "mfi": 4}'].join('\n')
+    expect(namesIndicators(stripPyComments(QUOTE_IN_COMMENT)).sort(),
+      'an apostrophe in a `#` comment put the stripper into string mode')
+      .toEqual(['atr', 'cci', 'mfi', 'stoch'])
+
+    // ⛔ NEWLINES SURVIVE A DOCSTRING, so line numbers do. `\r` too — this
+    // worktree stores several files CRLF and collapsing one fuses two lines.
+    const DOC = 'a = 1\r\n"""\r\nprose\r\n"""\r\nb = 2\r\n'
+    expect((stripPyComments(DOC).match(/\r\n/g) || []).length,
+      'the docstring stripper ate CRLF line structure').toBe(5)
+  })
 })
 
 describe('what B3 retired — a FLIPPED definition has no hand-written lane left', () => {
@@ -1431,7 +2006,21 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     adx: ['adxSeriesRef', 'adxPlusDIRef', 'adxMinusDIRef'],
     obv: ['obvSeriesRef'],
     donchian: ['donchianUpperRef', 'donchianMiddleRef', 'donchianLowerRef'],
+    // ⭐⭐ PHASE C TASK 14 — THE FIRST ROWS THAT ARE DELIBERATELY EMPTY, AND THE
+    // EMPTINESS IS A DECLARATION RATHER THAN AN OMISSION. `avwap` and `atrBands`
+    // were never a hand-written `StockChart.jsx` block, so there are no refs to
+    // record and no `indicatorData` branch to name. The coverage check below was
+    // changed from "has a TRUTHY row" to "has a row AT ALL" precisely so this
+    // still has to be written down: a definition added without a row is a silent
+    // no-op, and a definition added with an EMPTY row is a claim — measured by
+    // `neverHadABlock` beneath it, which is STRICTER than the per-ref check the
+    // fourteen get (it forbids the id appearing in that file in ANY form).
+    avwap: [],
+    atrBands: [],
+    rsLine: [],
   }
+  /** The definitions that never had a hand-written block to retire. */
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -1439,13 +2028,15 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     ichimoku: 'computeIchimoku', mfi: 'computeMFI', cci: 'computeCCI',
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
+    // …and `null` where there never was one. See NEVER_MIGRATED above.
+    avwap: null, atrBands: null, rsLine: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
     // The gate on the finding above. `REFS[id] || []` and `if (fn && …)` both
     // pass by DEFAULT for an id nobody listed, so without this the two cases
     // below shrink in coverage every time the flip set grows and stay green.
-    const missing = [...ENGINE_OWNED].filter(id => !REFS[id] || !COMPUTES[id])
+    const missing = [...ENGINE_OWNED].filter(id => !(id in REFS) || !(id in COMPUTES))
     expect(missing,
       'a flipped definition has no row in REFS/COMPUTES, so the two cases below assert '
       + 'NOTHING about it. Add the refs its deleted block owned and the compute its '
@@ -1460,6 +2051,21 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // set that has stopped growing.
     expect(Object.keys(REFS).sort()).toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
     expect(Object.keys(COMPUTES).sort()).toEqual(Object.keys(REFS).sort())
+    // ⛔ AND AN EMPTY ROW IS ONLY LEGAL FOR A DEFINITION THAT NEVER HAD A BLOCK,
+    // where it buys a STRONGER claim than the per-ref one: the id may not appear
+    // in `StockChart.jsx` in any form at all. A migrated definition with an
+    // emptied row would fail here, which is what stops the escape hatch becoming
+    // a way to opt out of the two cases below.
+    const emptyRows = Object.keys(REFS).filter(id => !REFS[id].length || !COMPUTES[id])
+    expect(emptyRows.sort()).toEqual([...NEVER_MIGRATED].sort())
+    const chart = stripComments(read('app/src/components/StockChart.jsx'))
+    for (const id of NEVER_MIGRATED) {
+      expect(chart.toLowerCase().includes(id.toLowerCase()),
+        `${id} never had a hand-written block, so StockChart.jsx must not name it at all`)
+        .toBe(false)
+    }
+    // …and the probe can see a name that IS there, or the loop above is vacuous.
+    expect(chart.toLowerCase().includes('vwap')).toBe(true)
   })
 
   it('declares no series ref and creates no series for a flipped id', () => {
@@ -1713,7 +2319,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 14,
+      flipSetSize: 17,
       mutableSets: [],
     })
   })
@@ -1855,10 +2461,12 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
         `${def.id} is a price overlay — a pane height for it would reserve space for nothing`)
         .toBe(false)
     }
-    // Non-vacuity: the five price overlays really were visited, by name.
-    expect(checked).toBe(5)
+    // Non-vacuity: every price overlay really was visited, by name. SEVEN since
+    // Phase C Task 14 — `avwap` and `atrBands` draw inside the candles' pane too,
+    // so A6 covers them and this count is what says so.
+    expect(checked).toBe(7)
     expect(engineRegistry.listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
     // …and the predicate catches the thing it is for.
     expect(reserves({ placement: { target: 'price', pane: { height: 0.15 } } })).toBe(true)
     // …and the file it used to read really is gone, so nobody re-points it back.
@@ -1902,7 +2510,7 @@ describe('the surviving enumeration is the registry, and it has to stay complete
   // real merge — for every definition there is.
   it('every definition is REACHABLE from a v1 blob that names it', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(14)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
     const unreachable = []
     for (const def of defs) {
       const blob = JSON.stringify({ indicators: { [def.id]: { enabled: true } } })

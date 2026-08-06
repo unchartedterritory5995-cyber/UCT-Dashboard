@@ -15,6 +15,7 @@ import {
   NATIVE_DEFS,
   CARVED_OUT_INDICATOR_KEYS,
   MACD_HEAD_MASK,
+  SERVER_DEFS,
   getDefinition,
   listDefinitions,
   computeFor,
@@ -76,6 +77,9 @@ const TOO_SHORT = {
   adx: 27,        // needs 2 * period = 28
   obv: 0,         // computes from bar 0 (seeded 0), like VWAP
   donchian: 19,   // needs period = 20
+  // ── Phase C Task 14 ──
+  avwap: 0,       // computes from bar 0, like VWAP — the anchor is the only gate
+  atrBands: 14,   // needs period + 1 = 15, exactly like the ATR underneath it
 }
 
 const BARS = makeBars(300)
@@ -83,11 +87,44 @@ const BARS = makeBars(300)
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists exactly the 14 natives that have a compute function', () => {
-    expect(listDefinitions().map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi',
-      'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+  it('lists 16 natives and 1 server definition — SEVENTEEN, across two lanes', () => {
+    expect(NATIVE_DEFS.map(d => d.id).sort()).toEqual([
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
+      'macd', 'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
     ])
+    expect(listDefinitions().map(d => d.id).sort()).toEqual([
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
+      'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+    ])
+  })
+
+  it('DOES include rsLine now — the server lane landed, and the hand-back is closed', () => {
+    // ⭐ PHASE C TASK 13 INVERTED THIS CASE, AND THE OLD TEXT IS WORTH KEEPING
+    // IN VIEW. It read: *"`rsLine` … is simply not on THIS lane … Task 13's
+    // `serverCompute` lane is what moves it into `listDefinitions()`; until then
+    // a user cannot enable an indicator the binder would throw on."* The lane
+    // landed, and the objection is answered rather than waived — `computeFor`
+    // dispatches on `compute.kind` before the `NATIVE_COMPUTE` lookup, so the
+    // throw the old assertion pinned is now unreachable FOR THIS DEFINITION and
+    // still reachable for a native that lost its function (the case below).
+    expect(listDefinitions().some(d => d.id === 'rsLine')).toBe(true)
+    expect(getDefinition('rsLine').id).toBe('rsLine')
+    // …and it is still its own LANE, not folded into the natives.
+    expect(SERVER_DEFS.map(d => d.id)).toEqual(['rsLine'])
+    expect(SERVER_DEFS[0].compute.kind).toBe('server')
+    expect(validateDefinition(SERVER_DEFS[0]).ok).toBe(true)
+    expect(NATIVE_DEFS.some(d => d.id === 'rsLine')).toBe(false)
+    // ⛔ AND THE SERVER BRANCH RETURNS `{}` RATHER THAN THROWING — the exact
+    // property that made registering it safe. With no `ctx.sym` there is nothing
+    // to fetch, and an empty column set is what `hasData` reads as "draw nothing
+    // this paint", the same answer a native's warmup pad gives.
+    expect(computeFor(SERVER_DEFS[0], BARS, {})).toEqual({})
+    expect(computeFor(SERVER_DEFS[0], BARS, {}, { sym: '', tf: 'D' })).toEqual({})
+    // ⛔ …while the throw is INTACT for a native naming a compute that is gone.
+    // Deleting the server branch must not be the same thing as deleting the
+    // guard: this is the positive control for the case above.
+    expect(() => computeFor({ ...SERVER_DEFS[0], compute: { kind: 'native', fn: 'rsLine' } }, BARS, {}))
+      .toThrow(/no native compute registered/)
   })
 
   it('does NOT include volumeProfile — it is a canvas overlay, not a definition', () => {
@@ -100,7 +137,10 @@ describe('native registry — membership', () => {
   it('getDefinition returns null for an unknown id and the def for a known one', () => {
     expect(getDefinition('nope')).toBe(null)
     expect(getDefinition('rsi').id).toBe('rsi')
-    expect(NATIVE_DEFS.length).toBe(listDefinitions().length)
+    // 16 natives + 1 server definition. The two lanes are DIFFERENT sizes now,
+    // which is the whole reason `listDefinitions()` had to become a union.
+    expect(NATIVE_DEFS.length + SERVER_DEFS.length).toBe(listDefinitions().length)
+    expect(NATIVE_DEFS.length).toBe(16)
   })
 })
 
@@ -141,14 +181,43 @@ const JULY_LEGACY_DEFAULTS = {
   donchian:  { enabled: false, period: 20, color: 'rgba(96,165,250,0.5)' },
 }
 
+/**
+ * ⭐ THE DEFINITIONS THAT ARE NOT A MIGRATION OF ANYTHING (Phase C Task 14).
+ *
+ * Every one of the fourteen above is a legacy `StockChart.jsx` render block
+ * wearing the schema, so "the July default and the definition default agree" is
+ * a claim about REAL USER DATA: a stored blob that never mentioned an input got
+ * that input's value from the July table, and gets it from the definition now.
+ *
+ * `avwap` and `atrBands` are new indicators. There is no July section, no stored
+ * blob that ever carried them, and therefore no user whose chart a default here
+ * could move. A hand-written row for them would not be a record of anything — it
+ * would be a copy of the definition, asserted against the definition.
+ *
+ * ⛔ SO THE EXCLUSION IS AN EXPLICIT LIST, NOT A `?? {}` IN THE LOOP. A skip that
+ * fires whenever a row is missing would silently absolve the NEXT migration that
+ * forgot one, which is exactly what the coverage test below exists to catch.
+ */
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine']
+
 describe('the July defaults table', () => {
-  it('covers every definition and nothing else — a missing row is a silent no-op', () => {
+  it('covers every MIGRATED definition and nothing else — a missing row is a silent no-op', () => {
     // Without this, a definition added (or renamed) after Task 9 would simply
     // have no row and the per-definition case above would `toBeDefined()`-fail
     // by name — which is the point — while a DELETED definition would leave a
     // dead row nobody notices. Both directions.
     expect(Object.keys(JULY_LEGACY_DEFAULTS).sort())
-      .toEqual(listDefinitions().map(d => d.id).sort())
+      .toEqual(listDefinitions().map(d => d.id).filter(id => !NOT_A_MIGRATION.includes(id)).sort())
+    // …and the exclusion list names definitions that EXIST, so a renamed or
+    // deleted definition cannot hide inside it and take its July row with it.
+    for (const id of NOT_A_MIGRATION) {
+      expect(getDefinition(id), `NOT_A_MIGRATION names ${id}, which is not a definition`).toBeTruthy()
+      expect(JULY_LEGACY_DEFAULTS[id], `${id} has a July row AND claims not to be a migration`)
+        .toBeUndefined()
+      // The real claim: there is no legacy section for it either. If one ever
+      // appears, it IS a migration and belongs in the table.
+      expect(CHART_DEFAULTS.indicators[id], `CHART_DEFAULTS carries a ${id} section`).toBeUndefined()
+    }
     // …and the rows really carry values, so the loop above is not iterating
     // fourteen `{enabled}`-only objects and asserting nothing.
     const inputKeys = Object.values(JULY_LEGACY_DEFAULTS)
@@ -185,6 +254,13 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
     // `.test.` files precisely because a fixture is allowed to enumerate, and a
     // fifteen-section list in shipped source is the thing this phase retired.
     const legacy = JULY_LEGACY_DEFAULTS[id]
+    if (NOT_A_MIGRATION.includes(id)) {
+      // A NEW indicator, not a migrated block — see NOT_A_MIGRATION. There is no
+      // July value to be a no-op against, and inventing one would assert the
+      // definition against a copy of itself.
+      expect(legacy, `${id} is in NOT_A_MIGRATION but has a July row`).toBeUndefined()
+      return
+    }
     expect(legacy, `no JULY_LEGACY_DEFAULTS.${id} — a definition with no July row`).toBeDefined()
     const byKey = new Map(def.inputs.map(i => [i.key, i]))
     for (const [k, v] of Object.entries(legacy)) {
@@ -276,7 +352,17 @@ describe('Parabolic SAR', () => {
   it('does not leak isUptrend into any column', () => {
     const def = getDefinition('sar')
     const cols = computeFor(def, BARS, {})
-    expect(Object.keys(cols)).toEqual(['sar'])
+    // ⭐ THREE COLUMNS SINCE PHASE C, NOT ONE — and this line USED TO READ
+    // `toEqual(['sar'])`. `priceCrossedSar` and `trendFlipped` are `sar`'s two
+    // declared EVENTS, and events are columns (spec §3.1); `registerDefinitions`
+    // refuses the definition if they do not come back. The claim this case
+    // actually makes is unchanged and is the one below: `isUptrend` still never
+    // reaches a column. `trendFlipped` is that flag's CHANGE, which is a number
+    // in a `{0, 1, NaN}` domain — not the boolean riding on the point.
+    // Their VALUES are pinned in both lanes by
+    // `tests/fixtures/indicators/sar_events_*.json`; the wiring is asserted in
+    // `__tests__/eventColumns.test.js`.
+    expect(Object.keys(cols)).toEqual(['sar', 'priceCrossedSar', 'trendFlipped'])
     expect(JSON.stringify(Object.keys(cols))).not.toMatch(/isUptrend/)
     const raw = computeParabolicSAR(BARS, 0.02, 0.2)
     expect(raw.some(p => 'isUptrend' in p)).toBe(true)   // it IS there upstream
@@ -404,14 +490,23 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
     }
   })
 
-  it('is exactly volumeProfile, and 14 + 1 = 15', () => {
+  it('is exactly volumeProfile, and 16 + 1 = 17', () => {
     // The count is asserted THREE ways on purpose. The equation above already
     // fails on a 16th key that nobody defined; these fail on a 16th key that
     // somebody DID define, which is the case where a new indicator lands in the
     // engine and the enumeration sites, the parity gates and this arithmetic
     // silently stop agreeing about how many there are.
     expect([...CARVED_OUT_INDICATOR_KEYS]).toEqual(['volumeProfile'])
-    expect(listDefinitions()).toHaveLength(14)
+    // ⭐ FOURTEEN BECAME SIXTEEN AT PHASE C TASK 14, and the equation is the
+    // reason the change is visible at all: `avwap` and `atrBands` are the first
+    // definitions that were never a settings section, so the LEFT side of
+    // "settings keys − definitions == carve-out" grew on the definitions side
+    // only. The carve-out did not move, the blob did not move, and this number
+    // is the one thing that had to.
+    // ⭐ AND SIXTEEN BECAME SEVENTEEN AT PHASE C TASK 13, on the OTHER lane:
+    // `rsLine` is `compute.kind: 'server'`, so it grew the definitions side
+    // again without touching the settings blob or the carve-out.
+    expect(listDefinitions()).toHaveLength(17)
     // ⭐ B5 TASK 9: the arithmetic used to be 14 + 1 = 15, where 15 was the
     // settings blob's own section count. The blob enumerates ONLY the carve-out
     // now — the other fourteen are folded into `indicatorInstances` — so the

@@ -42,16 +42,26 @@
 import { catalogRows } from '../components/chart/indicatorCatalog'
 import { subscribeAll } from './chartBus'
 
-/** Overlay slots and the anchored-VWAP DRAWING TOOL. Neither is a definition,
- *  and neither is an oversight — an MA overlay's identity is POSITIONAL (slot 0
- *  IS "the 9 EMA" to every blob ever written, and the definition registry has no
- *  concept of a slot), and AVWAP is a drawing, placed by clicking an anchor bar.
- *  They are NAMED here rather than silently tolerated, so a ninth has to be
- *  argued for instead of joining a quiet exemption — and `resolveIndicatorAdd`
- *  reports them as a DIFFERENT refusal class from a word that is not an
- *  indicator at all. */
+/** Overlay slots. Not definitions, and not an oversight — an MA overlay's
+ *  identity is POSITIONAL (slot 0 IS "the 9 EMA" to every blob ever written, and
+ *  the definition registry has no concept of a slot). They are NAMED here rather
+ *  than silently tolerated, so a new one has to be argued for instead of joining
+ *  a quiet exemption — and `resolveIndicatorAdd` reports them as a DIFFERENT
+ *  refusal class from a word that is not an indicator at all.
+ *
+ *  ⭐ `avwap` LEFT THIS LIST AT PHASE C TASK 14, AND ITS DEPARTURE IS THE POINT.
+ *  It was here because AVWAP existed only as a DRAWING — placed by clicking an
+ *  anchor bar in `ChartDrawingOverlay.jsx` — so "add AVWAP" was a legitimate
+ *  thing to SAY that this surface could not draw. There is a definition now, so
+ *  the same words are HONOURED and put an anchored VWAP on the chart at its
+ *  declared anchor. The drawing tool is unchanged and still reached by the
+ *  toolbar: a click-anchored line and a named-anchor definition are two
+ *  different tools that happen to compute the same thing, which is exactly what
+ *  decision A3 says about `time` staying reserved. This is the ONLY behaviour
+ *  outside the chart that Task 14 changes, and it changes it for the better:
+ *  a refusal became a draw. */
 const NON_DEFINITION_ALIASES = Object.freeze([
-  'avwap', 'ma9', 'ma20', 'ma50', 'ma200', 'ema9', 'ema20', 'ema50',
+  'ma9', 'ma20', 'ma50', 'ma200', 'ema9', 'ema20', 'ema50',
 ])
 
 /** Lower-cased id → catalog row. THE ONE `catalogRows()` CALL SITE in this

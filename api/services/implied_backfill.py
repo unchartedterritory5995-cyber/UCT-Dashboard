@@ -429,7 +429,24 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
                 _log.warning("implied backfill sweep: %s %s failed: %s", sym, rd, exc)
 
     mins = (time.time() - started) / 60
-    return (f"implied backfill sweep: wrote {wrote}, already had {skipped}, "
-            f"no straddle {no_move}, unresolved {unresolved} "
-            f"over {len(syms)} symbols in {mins:.0f}m"
-            + (" (hit the time ceiling; continues tomorrow)" if stopped_early else ""))
+    summary = (f"implied backfill sweep: wrote {wrote}, already had {skipped}, "
+               f"no straddle {no_move}, unresolved {unresolved} "
+               f"over {len(syms)} symbols in {mins:.0f}m"
+               + (" (hit the time ceiling; continues tomorrow)" if stopped_early else ""))
+
+    # LOG it, do not merely return it. APScheduler discards a job's return
+    # value, so for three nights this sweep could report anything at all and
+    # nobody could read it -- it wrote 0 rows on 08-03, 08-04 and 08-05 in
+    # total silence, and silence looked exactly like success.
+    #
+    # WARNING rather than INFO when a full pass wrote nothing: a sweep that
+    # resolved no symbol at all is the shared-Finnhub-budget starvation this
+    # has already hit once, not a quiet night. The counts distinguish them --
+    # `unresolved` near the symbol count means the provider leg is refusing,
+    # `skipped` near it means the store genuinely is complete.
+    if wrote == 0 and not stopped_early and skipped < len(syms):
+        _log.warning("%s -- NOTHING WRITTEN and the store is not complete; "
+                     "suspect the shared Finnhub budget first", summary)
+    else:
+        _log.info("%s", summary)
+    return summary

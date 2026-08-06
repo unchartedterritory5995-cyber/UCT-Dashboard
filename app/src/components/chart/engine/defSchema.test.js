@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
-  SUBSTITUTABLE_PLOT_FIELDS,
+  SUBSTITUTABLE_PLOT_FIELDS, EVENT_COLUMN_DOMAIN, isEventColumnValue,
 } from './defSchema'
 
 const rsiDef = () => ({
@@ -423,6 +423,41 @@ describe('plots that would render nothing', () => {
   it('rejects a definition that declares neither plots nor events', () => {
     const d = rsiDef(); d.plots = []; d.events = []
     expect(errs(d).join(' ')).toMatch(/at least one plot or one event/)
+  })
+})
+
+describe('events are columns — the half this validator can check, and the half it cannot', () => {
+  it('EVENT_COLUMN_DOMAIN is exactly {0, 1, NaN} and is frozen', () => {
+    expect(Object.isFrozen(EVENT_COLUMN_DOMAIN)).toBe(true)
+    expect(EVENT_COLUMN_DOMAIN.length).toBe(3)
+    expect([EVENT_COLUMN_DOMAIN[0], EVENT_COLUMN_DOMAIN[1]]).toEqual([0, 1])
+    expect(Number.isNaN(EVENT_COLUMN_DOMAIN[2])).toBe(true)
+  })
+
+  it('isEventColumnValue is a DOMAIN, not a null test and not "any number"', () => {
+    expect([0, 1, NaN].every(isEventColumnValue)).toBe(true)
+    // 0.5 is not a "maybe": every consumer of an event column reads this one
+    // shape, so a float wearing an event's name would be read as a signal.
+    for (const bad of [0.5, 2, -1, Infinity, null, undefined, '1', true]) {
+      expect(isEventColumnValue(bad), String(bad)).toBe(false)
+    }
+  })
+
+  it('⛔ validateDefinition still does NOT check that a column comes back — on purpose', () => {
+    // This is a claim about a BOUNDARY, and it is easy to read as a gap. This
+    // validator is a pure function of ONE definition that never runs a compute
+    // lane — it has to accept a `server`- or `ast`-kind definition this client
+    // cannot execute at all — so "does that key name a returned column, valued
+    // {0,1,NaN}?" is unanswerable here. It is answered at REGISTRATION, by
+    // `nativeRegistry.registerDefinitions`, which runs the compute over a probe
+    // series; `engine/__tests__/eventColumns.test.js` asserts BOTH refusals.
+    //
+    // Asserting the acceptance here is what stops someone "fixing" the gap in
+    // the wrong file and quietly making every non-native definition unregistrable.
+    const d = rsiDef()
+    d.events = [{ key: 'neverComputed', label: 'names nothing at all' }]
+    const r = validateDefinition(d)
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
   })
 })
 

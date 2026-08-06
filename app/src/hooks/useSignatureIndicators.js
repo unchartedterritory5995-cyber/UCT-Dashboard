@@ -10,7 +10,7 @@
 // at all. Unpaid, no symbol, or the toggle off ⇒ null key ⇒ zero traffic. That
 // null key — not a caught error — is what guarantees an unpaid chart never
 // storms the paid-gated endpoints with 402s.
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import useSWR from 'swr'
 import {
   dpToPriceLines,
@@ -18,6 +18,32 @@ import {
   gexToPriceLines,
   flowToMarkers,
 } from '../components/chart/signatureData'
+import {
+  primeServerColumns,
+  serverColumnsUrl,
+} from '../components/chart/engine/serverCompute'
+
+/**
+ * The DEFINITION ID each toggle addresses — the genericization, at the call site.
+ *
+ * ⭐ THE THREE HARDCODED PATHS ARE GONE. `/api/signature/darkpool-levels`,
+ * `/api/signature/gex-walls` and `/api/signature/flow-breakout` are still mounted
+ * (they are the shipped surface and `sweep.py` is not the only thing that would
+ * notice), but this hook no longer names one: it asks the ONE server lane for a
+ * DEFINITION, exactly the way the RS line does. A fourth Signature indicator is a
+ * row in `registry_defs.SERVER_DEFS` plus a row here — not a fourth path, a
+ * fourth SWR key, a fourth build function and a fourth cache.
+ *
+ * Kept in step with the backend by `test_the_three_signature_definition_ids_are_
+ * the_ones_the_hook_addresses`, which reads THIS FILE and diffs the ids against
+ * `registry_defs.SIGNATURE_DEF_IDS` — a rename on either side is a red test, not
+ * an overlay that silently stops appearing.
+ */
+export const SIGNATURE_DEF_ID = {
+  dpl: 'uct-darkpool-levels',
+  gxw: 'uct-gex-walls',
+  fcb: 'uct-flow-breakout',
+}
 
 /**
  * The chart_settings keys that drive these fetches — the contract with
@@ -47,11 +73,17 @@ const INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
 export function signatureUrls(sym, cfg, isPaid, tf) {
   const s = typeof sym === 'string' ? sym.trim() : ''
   if (!isPaid || !s) return { dpl: null, gxw: null, fcb: null }
-  const q = encodeURIComponent(s)
   const on = (k) => !!(cfg && cfg[k])
+  // ⛔ THE TIMEFRAME THE THREE SIGNATURE DEFINITIONS ARE SERVED AT IS DAILY, AND
+  // IT IS PINNED HERE RATHER THAN PASSED THROUGH. All three are computed on, and
+  // recorded against, DAILY bars — passing the chart's `tf` would make a 5-minute
+  // chart a different cache key for identical data, quadrupling the request count
+  // for one answer. `tf` still decides WHETHER the flow-breakout is asked for at
+  // all (below), which is the thing it genuinely changes.
+  const url = (key) => serverColumnsUrl(SIGNATURE_DEF_ID[key], s, 'D', null)
   return {
-    dpl: on(SIGNATURE_TOGGLE.dpl) ? `/api/signature/darkpool-levels?sym=${q}` : null,
-    gxw: on(SIGNATURE_TOGGLE.gxw) ? `/api/signature/gex-walls?sym=${q}` : null,
+    dpl: on(SIGNATURE_TOGGLE.dpl) ? url('dpl') : null,
+    gxw: on(SIGNATURE_TOGGLE.gxw) ? url('gxw') : null,
     // FCB signals are detected on, and recorded against, DAILY bars — their
     // `barTime` is a calendar key that becomes an ISO date string. Lightweight
     // Charts does NOT drop a marker whose time is absent from the series: it
@@ -60,7 +92,7 @@ export function signatureUrls(sym, cfg, isPaid, tf) {
     // confident arrow on an arbitrary bar, so the request is suppressed there —
     // the same reason chartEventMarkers/newsMarkers are daily-gated.
     fcb: on(SIGNATURE_TOGGLE.fcb) && !INTRADAY_TFS.has(String(tf))
-      ? `/api/signature/flow-breakout?sym=${q}`
+      ? url('fcb')
       : null,
   }
 }
@@ -104,6 +136,23 @@ export function useSignatureIndicators(sym, cfg, isPaid, tf) {
   const dpZones = useMemo(() => dpToZones(dp), [dp])
   const gexLines = useMemo(() => gexToPriceLines(gex), [gex])
   const flowMarkers = useMemo(() => flowToMarkers(fcb), [fcb])
+
+  // ⭐ ONE FETCH, TWO CONSUMERS. Every envelope this hook already has carries the
+  // definition's COLUMNS as well as its levels/signals, so priming the engine's
+  // server-lane cache here costs nothing and means `computeFor` can answer for a
+  // Signature definition without a second request. A lane that could only ever be
+  // filled by its own fetch would double all three of these.
+  //
+  // Effect, not render: `primeServerColumns` writes to a module cache, and a
+  // module write during render is the class of side effect that makes a
+  // StrictMode double-render observable.
+  const trimmed = typeof sym === 'string' ? sym.trim() : ''
+  useEffect(() => {
+    if (!trimmed) return
+    if (dp) primeServerColumns(SIGNATURE_DEF_ID.dpl, trimmed, 'D', null, dp)
+    if (gex) primeServerColumns(SIGNATURE_DEF_ID.gxw, trimmed, 'D', null, gex)
+    if (fcb) primeServerColumns(SIGNATURE_DEF_ID.fcb, trimmed, 'D', null, fcb)
+  }, [trimmed, dp, gex, fcb])
 
   return { dpLines, dpZones, gexLines, flowMarkers }
 }

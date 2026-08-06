@@ -203,6 +203,54 @@ price. The fixture carries it as a numeric `trend` column (`+1` / `−1`) becaus
 the fixture compare is numeric, and a flag no fixture reads is a behaviour with
 no oracle at all.
 
+## SAR's two EVENT columns — `sar_events_default` + `sar_events_outside_bar` (Phase C)
+
+Spec §3.1: **events are columns**, valued `{0, 1, null}`. `sar` is the first
+indicator in the platform to declare any, and the reason is the one thing it
+cannot do: it cannot be addressed by a fixed threshold, because its value jumps
+to the other side of price at every flip. So it is addressed by event instead —
+`priceCrossedSar` (the close moved to the other side of the stop) and
+`trendFlipped` (the SAR itself jumped sides).
+
+**⭐ THEY COST NO RESEED, AND THAT IS WHY THEY ARE SAFE.** `sar_default` has
+carried an `expected.trend` column — pinned by both lanes at rel-tol 1e-9 —
+since B5. `trendFlipped` is `trend[i] != trend[i-1]`; `priceCrossedSar` is
+`(close > sar)` changing over the `sar` column beside it. So:
+
+* `sar_events_default` carries **`barsFrom: tests/fixtures/indicators/sar_default.json`** —
+  the second case in the directory to own no bars, and the first whose referent
+  is another fixture. Both lanes recompute both columns from `sar_default`'s
+  **already-pinned** `sar` and `trend` and require the fixture to equal them, so
+  the oracle is older than either implementation and a reseed of `sar_default`
+  turns this case red.
+* **`null` is the warmup pad, not "no event".** Bar 0 has no SAR at all (the
+  trend seed consumes it). Bar 1 is `0` in both columns: computable, with no
+  prior side or trend to have moved away from. `0` is "computed, did not happen".
+* The `relTol` compare cannot make the domain claim (`0.9999999999` would pass),
+  so `{0, 1, null}` and "the column is not constant" are separate assertions in
+  both lanes.
+
+**⚠️ Why there are TWO cases.** Measured: on `sar_default`'s 140 real bars the
+two columns are **element-for-element equal**. A side change without a trend
+change is only reachable around an *outside reversal bar* — on reversal the new
+SAR is the prior leg's extreme point, which a bar making a new high can close
+beyond — and that series has none. So `sar_events_default` alone could not tell
+`priceCrossedSar` from `trendFlipped`: a lane returning the same column twice, or
+the two the wrong way round, would be invisible.
+
+`sar_events_outside_bar` is seven **hand-built** bars that contain exactly that
+shape, and every number in it is derivable on paper (`test_hand_computed_sar_
+events_on_the_outside_bar`): bar 5 flips the trend without flipping the side
+(`trendFlipped=1, priceCrossedSar=0`) and bar 6 flips the side without flipping
+the trend (`0, 1`).
+
+**Neither case came from `_generate.py`.** That script ran once and is not being
+re-run — see "Regeneration is banned" above. These two were written by a one-off
+script that asserted the domain, the pad, the non-constancy, the hand derivation
+from `sar_default`'s pinned columns and the two cases' relationship to each other
+*before* writing anything; the guarantee that matters afterwards is that both
+lanes reproduce every number from an oracle that is not the code under test.
+
 ---
 
 ## The case that owns no bars — `intraday5m_sessions`
@@ -253,3 +301,122 @@ chosen, and they remain the reason it must not be regenerated:
   post-market volume, and opens **$14.45** away from the session-correct VWAP,
   staying more than $0.50 wrong for 120 of its 193 bars. Neither hourly case is
   long enough to contain that.
+
+
+---
+
+## Phase C Task 14 — AVWAP · ATR bands · the RS line
+
+Three cases, and **none of them owns a number that was not derivable from an
+oracle already in this directory before the code under test existed.** That is
+the same rule the SAR event columns were held to, applied to a task whose three
+indicators are new rather than migrated.
+
+### `avwap_session` — the anchor, and the UNIT it is measured in
+
+`kind: "avwap"`, `params: {anchor: "session"}`, and **`barsFrom`
+`vwap_extended_hours_utc_midnight.json`** — the third case in this directory to
+own no bars, and the second whose referent is another fixture.
+
+The referent already carries `session.etSessionVwap`: the ET-anchored VWAP,
+written before this repo's Python lane had a VWAP at all and **never reseeded**.
+AVWAP's `session` anchor is required to equal it **exactly**, in both lanes. So
+the case is a derivation from something older, not a snapshot — and because
+those same 17 bars are one ET session that the *retired* UTC-day bucketing splits
+in two at the 20:00 ET bar, a lane that anchored on the UTC day could not satisfy
+the column at 1e-9.
+
+> ⚠️ **MEASURED LIMIT, DECLARED RATHER THAN WISHED AWAY.** On these bars
+> `swingLow` is element-for-element EQUAL to `session` — they make their low on
+> bar 0 and never re-make it, so the low anchor never moves off the session open.
+> `swingHigh` differs, which is what makes "the `anchor` parameter is read" a
+> measurement here. Both lanes assert the equality *and* the difference.
+
+**The unit guard is separate from the anchor, and the distinction is the whole
+point.** The anchor is resolved per instant from the IANA database — never from
+how big the number is, and never from a module-load `_ET_OFFSET` that is an hour
+wrong for half the year. What `AVWAP_MIN_INSTANT` (1990-01-01) decides is whether
+a bar carries an *instant at all*:
+
+* `_fetch_bars_for_alert` passes the store's `YYYYMMDD` integer where unix
+  seconds are expected. `20250101` read as unix seconds is **1970-08-23**, two
+  years of daily bars span 11,130 seconds, and 56 bars of "daily VWAP" produce
+  exactly ONE reset — at index 0. Nothing raises. The line is plausible and wrong.
+* **The refusal is an all-`null` column, never a one-bucket answer.** A
+  one-bucket fallback and the 1970 defect are the *same output*, so a control
+  could not tell them apart. Both lanes assert the all-null refusal against a
+  positive control on the same calendar days in real unix seconds.
+* The two **swing** anchors are pure price and are deliberately untouched by the
+  guard — a guard that fired on them would refuse a column it has no reason to
+  doubt.
+
+### `atr_bands_14_2` — derived from a column both lanes already pinned
+
+`kind: "atr_bands"`, `params: {period: 14, multiplier: 2}`, **`barsFrom`
+`atr_14.json`**. Every number is `close ± 2 × <that fixture's committed `atr`>`,
+which both lanes have asserted at rel-tol 1e-9 since B5 — so it cost no reseed
+and a reseed of `atr_14` turns this case red.
+
+All three columns share **one** head pad (index 14, where ATR starts): a middle
+that existed where its edges did not would be a band with nothing to draw
+between, which is the unrenderable shape `defSchema.validateBandEdges` refuses one
+level up.
+
+> ⚠️ **THE FIXTURE ALONE CANNOT SAY `multiplier` IS READ.** It is written at 2, so
+> a compute that hardcoded 2.0 would keep it perfectly green while every user who
+> moved the control got the same band. Both lanes therefore recompute at 1, 2.5
+> and 3 and assert the edges move and the middle does not.
+
+### `rs_line_spy` — the case with TWO series, and the field that carries the second
+
+`kind: "rs_line"`. It owns `bars` **and a new sibling key, `benchmarkBars`** —
+the only extension this task makes to the file shape:
+
+```jsonc
+"bars":          [ … the symbol … ],
+"benchmarkBars": [ … the benchmark … ],
+"expected": { "rsLine": [ … close / benchmarkClose … ] }
+```
+
+**⛔ THERE IS NO `rs_line` ROW IN `_CASE_COLUMNS`, AND THE ABSENCE IS
+STRUCTURAL.** `compute_case(kind, bars, params)` carries ONE series, and spec §4's
+`compute({bars, inputs, prevState, barstate})` carries one too — which is exactly
+why decision A3 makes the definition `compute.kind: 'server'`. A row here would
+have to smuggle the benchmark through `params`, and the dispatch would be lying
+about its own shape at one row. So the case is read by a **dedicated test in each
+lane** instead, at the same rel-tol: `test_rs_line_matches_the_golden_column_and_
+JOINS_BY_TIME` in pytest, `rs_line_spy` in vitest. (Same shape as `vwap`'s
+deliberate absence, for a different reason.)
+
+Two claims only a two-series indicator can make, and both are in the fixture:
+
+* **The join is BY TIME.** Bar 6's `t` is *absent* from `benchmarkBars` — a halt.
+  So bar 6 is the ONE null and bars 7-11 are unmoved. Under an index join every
+  ratio from bar 6 on would shift by one and the line would be plausible and
+  wrong for the whole history rather than absent for one bar. That is also why
+  this case's `expected` column has a hole in the MIDDLE, which no other case in
+  this directory does: it is outside the "nulls first, then values" alignment
+  rule, and it is asserted explicitly in both lanes rather than waived.
+* **A single-symbol RS line is `1.0` on every bar.** `close / close`. That is the
+  silent failure a native implementation would ship — a flat line that looks
+  exactly like an indicator that is working — so both lanes name the number:
+  `computeRSLine(bars, bars)` is all ones, and the fixture's own column is not.
+
+> ⚠️ **Its delivery wrapper rounds at SIX decimals, not four.** Every other
+> price-scale wrapper delivers a PRICE; this delivers a ratio near 0.10, where a
+> 1e-4 quantum is ~1e-3 of the value against ~1e-6 for a price near 100. The
+> wrappers are the boundary user thresholds are compared at (decision A4), so the
+> precision has to suit the scale of the number rather than the habit of the
+> module. Measured in `test_the_rs_line_wrapper_rounds_at_SIX_because_it_
+> delivers_a_RATIO`.
+
+### Regeneration is still banned
+
+None of these three came from `_generate.py`. They were written by a one-off
+script that asserted, **before writing a byte**: the AVWAP column equals the
+referent's `etSessionVwap`; the UTC split is still measurable on those bars;
+`anchor` changes the column; the ATR band columns equal `close ± mult × atr_14`'s
+pinned column; the pads line up; a different multiplier moves the edges and not
+the middle; the RS ratios equal a directly-computed list; the hole is exactly one
+and not at the head; and `close/close` is all ones. The script is not committed —
+same treatment as the SAR event cases, and for the same reason.

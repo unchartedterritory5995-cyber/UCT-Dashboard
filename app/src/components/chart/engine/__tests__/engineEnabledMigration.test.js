@@ -361,7 +361,20 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     // oscillators sit in pane 0 and insertion order is z-order); B5 Task 13
     // applied it once Flip C gave each of the nine a pane of its own. Fourteen
     // definitions, all on. Asserted against the exported record, not a literal.
-    expect(cs.indicatorInstances.map(i => i.defId)).toEqual([...SHIPPED_STACK_ORDER])
+    //
+    // ⭐ FILTERED TO THE SECTIONS THE BLOB ACTUALLY CARRIED, SINCE PHASE C TASK 14.
+    // `SHIPPED_STACK_ORDER` grew `avwap` and `atrBands` — definitions authored
+    // AFTER this blob was written, which no July user has a section for — and the
+    // migrator seeds only what the blob names. Comparing against the whole record
+    // would demand the migration INVENT two instances nobody stored, which is the
+    // "nothing is resurrected" claim inverted. The ORDER claim is untouched: it is
+    // still shipped stack order, not registry order.
+    const juliaIds = JSON.parse(JULY_BLOB).indicators
+    expect(cs.indicatorInstances.map(i => i.defId))
+      .toEqual([...SHIPPED_STACK_ORDER].filter(id => id in juliaIds))
+    // …and the filter really removed something, or it is a no-op wearing a reason.
+    expect([...SHIPPED_STACK_ORDER].filter(id => !(id in juliaIds)).sort())
+      .toEqual(['atrBands', 'avwap', 'rsLine'])
     // Non-vacuity twice over: the record covers every registered definition, and
     // it is NOT registry order (which is what this line used to assert).
     expect([...SHIPPED_STACK_ORDER].sort())
@@ -392,9 +405,26 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     const cs = mergeChartSettings(JSON.parse(JULY_BLOB))
     const on = [...ENGINE_OWNED]
       .filter(id => isIndicatorEnabled(cs, id, ENGINE_OWNED)).sort()
+    // ⭐ THE SUBJECT IS WHAT THE BLOB CARRIED, not the whole registry, since Phase
+    // C Task 14. A definition authored after this blob was written has no section
+    // in it and must therefore read OFF — reporting it on would mean the migration
+    // switched on an indicator the user never enabled, which is the opposite
+    // failure and a worse one.
+    const juliaIds = Object.keys(JSON.parse(JULY_BLOB).indicators)
+    const carried = [...ENGINE_OWNED].filter(id => juliaIds.includes(id)).sort()
     expect(on, 'a flipped indicator the July user had ON is no longer reported on')
-      .toEqual([...ENGINE_OWNED].sort())
+      .toEqual(carried)
     expect(on.length).toBeGreaterThan(0)
+    // …and the definitions the blob never named really are OFF, by name.
+    const notCarried = [...ENGINE_OWNED].filter(id => !juliaIds.includes(id)).sort()
+    // ⭐ THREE SINCE PHASE C TASK 13. All three are definitions that were never a
+    // settings section, so no July blob could name them and none may be switched
+    // on by migrating one.
+    expect(notCarried).toEqual(['atrBands', 'avwap', 'rsLine'])
+    for (const id of notCarried) {
+      expect(isIndicatorEnabled(cs, id, ENGINE_OWNED),
+        `${id} was switched ON by a migration of a blob that never mentioned it`).toBe(false)
+    }
   })
 
   it('…and the MIRROR IS GONE — every section but the carve-out is destroyed', () => {

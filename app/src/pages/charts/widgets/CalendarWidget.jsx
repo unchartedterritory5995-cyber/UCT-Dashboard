@@ -8,7 +8,7 @@
  * the other widget settings; an uncustomized widget follows the app theme
  * (light → white canvas + dark text, OLED → black canvas + light text).
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
@@ -74,10 +74,22 @@ function surpriseCell(act, est, fmtVal) {
 }
 const mcapDesc = (a, b) => (Number.isFinite(b.mc_b) ? b.mc_b : -1) - (Number.isFinite(a.mc_b) ? a.mc_b : -1)
 const TOP_EARNINGS = 10   // largest 10 by market cap; the rest behind "Show all"
+// Sort key for the EPS / REV columns = the % surprise, and ONLY for stocks that have
+// actually reported with a usable estimate base. Anything without a real surprise
+// (not reported yet, or no estimate to compare against) returns null → sinks to the
+// bottom, so an unreported name never floats up next to real surprises.
+function surpKey(act, est) {
+  if (act != null && est != null && est !== 0) return (act - est) / Math.abs(est)
+  return null
+}
+const epsSurpKey = c => surpKey(c.eps_act, c.eps_est)
+const revSurpKey = c => surpKey(c.rev_act, c.rev_est)
 
-// A single earnings row: logo + ticker + (company name) + two right-aligned columns.
+// A single earnings row: logo + ticker + (company name) + the EPS · REV columns.
 // Reported → EPS% / Rev% surprise (colored up/down); pending → est EPS / est Rev (neutral).
-function EarnRow({ c, onPick }) {
+// memo'd + a data-earn-sym hook so keyboard arrow-nav can walk the rendered rows and
+// only the selection-changed rows re-render.
+const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
   const { name } = useTickerMeta(c.sym)
   const eps = c.eps_act != null
     ? surpriseCell(c.eps_act, c.eps_est, fmtNum)
@@ -87,33 +99,69 @@ function EarnRow({ c, onPick }) {
     : (c.rev_est != null ? { text: fmtRev(c.rev_est), up: null, est: true } : null)
   const cls = (cell) => (!cell || cell.est || cell.up == null ? '' : (cell.up ? styles.pos : styles.neg))
   return (
-    <div className={styles.earnRow} onClick={() => onPick(c.sym)} title={`Show ${c.sym} on the linked chart`}>
+    <div
+      className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
+      data-earn-sym={c.sym}
+      onClick={() => onSelect(c.sym)}
+      title={`Show ${c.sym} on the linked chart`}
+    >
       <CompanyLogo sym={c.sym} size={16} name={name} round />
       <span className={styles.earnSym}>{c.sym}</span>
       {name && <span className={styles.earnCompany}>({name})</span>}
-      <span className={`${styles.epsCol} ${cls(eps)}`}>{eps?.text ?? '—'}</span>
-      <span className={`${styles.revCol} ${cls(rev)}`}>{rev?.text ?? '—'}</span>
+      <span className={styles.valCols}>
+        <span className={`${styles.epsCol} ${cls(eps)}`}>{eps?.text ?? '—'}</span>
+        <span className={`${styles.revCol} ${cls(rev)}`}>{rev?.text ?? '—'}</span>
+      </span>
     </div>
   )
-}
+})
 
-// An earnings section: the top 10 by market cap, then a "Show all N" expander.
-function EarningsSection({ title, iconName, cls, items, onPick }) {
+// An earnings section: top 10 by market cap (default), a "Show all N" expander, and
+// clickable EPS/REV headers to sort by surprise (click again reverses); the title
+// re-sorts by market cap. Column labels get "(est)" when the section is all estimates.
+function EarningsSection({ title, iconName, cls, items, onSelect, selectedSym }) {
   const [showAll, setShowAll] = useState(false)
-  const sorted = useMemo(() => [...items].sort(mcapDesc), [items])
+  const [sort, setSort] = useState({ by: 'mcap', dir: 'desc' })
+  const est = useMemo(() => !items.some(c => c.eps_act != null || c.rev_act != null), [items])
+  const sorted = useMemo(() => {
+    const arr = [...items]
+    if (sort.by === 'mcap') return arr.sort(mcapDesc)
+    const keyFn = sort.by === 'eps' ? epsSurpKey : revSurpKey
+    return arr.sort((a, b) => {
+      const ka = keyFn(a), kb = keyFn(b)
+      if (ka == null && kb == null) return 0
+      if (ka == null) return 1
+      if (kb == null) return -1
+      return sort.dir === 'desc' ? kb - ka : ka - kb
+    })
+  }, [items, sort])
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
+  const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
+  const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
+  const estTag = est ? <span className={styles.estTag}> (est)</span> : null
   return (
     <div className={styles.section}>
       <div className={`${styles.sectionHead} ${cls}`}>
-        <span className={styles.headIcon}><UIcon name={iconName} size={13} /></span>
-        {title}<span className={styles.count}>{items.length}</span>
+        <button type="button" className={styles.headTitle} onClick={() => setSort({ by: 'mcap', dir: 'desc' })} title="Sort by market cap">
+          <span className={styles.headIcon}><UIcon name={iconName} size={13} /></span>
+          {title}<span className={styles.titleCount}>({items.length})</span>
+        </button>
+        <span className={styles.valCols}>
+          <button
+            type="button"
+            className={`${styles.epsCol} ${styles.colBtn}${sort.by === 'eps' ? ' ' + styles.colActive : ''}`}
+            onClick={() => clickCol('eps')}
+            title="Sort by EPS surprise"
+          >EPS{estTag}{caret('eps')}</button>
+          <button
+            type="button"
+            className={`${styles.revCol} ${styles.colBtn}${sort.by === 'rev' ? ' ' + styles.colActive : ''}`}
+            onClick={() => clickCol('rev')}
+            title="Sort by revenue surprise"
+          >REV{estTag}{caret('rev')}</button>
+        </span>
       </div>
-      <div className={styles.earnColHead}>
-        <span className={styles.colHeadSpacer} />
-        <span className={styles.epsCol}>EPS</span>
-        <span className={styles.revCol}>REV</span>
-      </div>
-      {shown.map(c => <EarnRow key={c.sym} c={c} onPick={onPick} />)}
+      {shown.map(c => <EarnRow key={c.sym} c={c} onSelect={onSelect} selected={c.sym === selectedSym} />)}
       {sorted.length > TOP_EARNINGS && (
         <button type="button" className={`${styles.showAll}${showAll ? ' ' + styles.open : ''}`} onClick={() => setShowAll(s => !s)}>
           {showAll ? 'Show less' : `Show all ${sorted.length}`}
@@ -127,6 +175,33 @@ function EarningsSection({ title, iconName, cls, items, onPick }) {
 export default function CalendarWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
   const goToSym = useCallback((sym) => { if (sym && setGroupSym) setGroupSym(color, sym.toUpperCase()) }, [setGroupSym, color])
+
+  // ── Selection + keyboard nav across the rendered earnings rows ──
+  const [selectedSym, setSelectedSym] = useState(null)
+  const listRef = useRef(null)
+  const selectSym = useCallback((sym, scroll) => {
+    if (!sym) return
+    setSelectedSym(sym)
+    goToSym(sym)
+    if (scroll) requestAnimationFrame(() => {
+      const el = listRef.current?.querySelector(`[data-earn-sym="${sym}"]`)
+      el?.scrollIntoView({ block: 'nearest' })
+    })
+  }, [goToSym])
+  // Click → select + publish to the chart, and focus the list so arrows work next.
+  const onRowSelect = useCallback((sym) => { selectSym(sym, false); listRef.current?.focus?.() }, [selectSym])
+  // ↑/↓ walk the rows in RENDERED order (across both sections, respecting sort/show-all).
+  const onListKeyDown = useCallback((e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    const rows = Array.from(listRef.current?.querySelectorAll('[data-earn-sym]') || [])
+    if (!rows.length) return
+    e.preventDefault(); e.stopPropagation()
+    const syms = rows.map(r => r.getAttribute('data-earn-sym'))
+    let idx = syms.indexOf(selectedSym)
+    if (idx < 0) idx = e.key === 'ArrowDown' ? -1 : syms.length
+    const next = Math.max(0, Math.min(syms.length - 1, idx + (e.key === 'ArrowDown' ? 1 : -1)))
+    selectSym(syms[next], true)
+  }, [selectedSym, selectSym])
 
   // ── Appearance settings (⚙) ──
   const { prefs } = usePreferences()
@@ -224,8 +299,8 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         ><UIcon name="gear" size={13} /></button>
       </div>
 
-      {/* Body */}
-      <div className={styles.list}>
+      {/* Body — tabIndex + onKeyDown make it arrow-navigable once a row is clicked. */}
+      <div className={styles.list} ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
         {isLoading && !day && (
           <div className={styles.loading}><span className={styles.spinner} />Loading calendar…</div>
         )}
@@ -241,7 +316,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
           <div className={styles.section}>
             <div className={styles.sectionHead}>
               <span className={styles.headIcon}><UIcon name="globe" size={13} /></span>
-              Economic Events<span className={styles.count}>{econItems.length}</span>
+              Economic Events<span className={styles.titleCount}>({econItems.length})</span>
             </div>
             {econItems.map((e, i) => (
               <div key={`${e.time}-${e.event}-${i}`} className={`${styles.econRow}${e.key ? ' ' + styles.key : ''}`}>
@@ -262,11 +337,11 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         )}
 
         {bmo.length > 0 && (
-          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} onPick={goToSym} />
+          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {amc.length > 0 && (
-          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} onPick={goToSym} />
+          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {tbd.length > 0 && (
@@ -275,7 +350,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               Time TBD<span className={styles.count} style={{ marginLeft: 6 }}>{tbd.length}</span>
               <span className={styles.chev}><UIcon name="chevronRight" size={12} /></span>
             </button>
-            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} onPick={goToSym} />)}
+            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
           </div>
         )}
       </div>

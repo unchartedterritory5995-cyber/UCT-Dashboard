@@ -202,6 +202,34 @@ export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted', 'lar
  */
 export const COLOR_MODES = Object.freeze(['fixed', 'sign'])
 
+/**
+ * The ONLY three values an event column may hold (spec §3.1: "Events are
+ * columns. `events[].key` MUST match a returned column valued {0, 1, NaN}").
+ *
+ * ⚠️ `NaN` IS IN THE DOMAIN AND IT IS NOT "NO EVENT". It is the warmup pad —
+ * bars before the event is computable at all, exactly as every plot column is
+ * NaN-padded to `bars.length`. `0` means "computed, did not happen". Collapsing
+ * them would make a 200-bar indicator's first 199 bars read as 199 non-events.
+ *
+ * ⛔ WHY THIS IS A DOMAIN AND NOT A NULL TEST. `0.5` is not a "maybe". Every
+ * consumer of an event column — the alert grammar, the screener, the D-phase AST
+ * — reads exactly this one shape, so a float column wearing an event's name
+ * would be read as a signal by all of them. A check that accepted "any finite
+ * number" would pass 0.5; a check that accepted "NaN only" would pass an
+ * all-NaN column that fires nothing. Neither is the claim.
+ *
+ * ⚠️ THIS ARRAY CANNOT BE USED WITH `.includes()`. `[0, 1, NaN].includes(NaN)`
+ * is `true` (SameValueZero) but `indexOf` is not, and the surrounding
+ * `checkVocabulary` uses `includes` on strings. Use `isEventColumnValue`, which
+ * says what it means and cannot be got subtly wrong at a call site.
+ */
+export const EVENT_COLUMN_DOMAIN = Object.freeze([0, 1, NaN])
+
+/** Is `v` a legal event-column value? The gate `EVENT_COLUMN_DOMAIN` describes. */
+export function isEventColumnValue(v) {
+  return v === 0 || v === 1 || Number.isNaN(v)
+}
+
 /** Entitlement tier. LOCKED in B2 Task 2 (carry-in c): it was validated only as
  *  "a string", so `tier: 'pro'` or a typo'd `'Free'` registered happily and then
  *  read as "not free" — or worse, as free — at whatever gate consumes it. A tier
@@ -1124,6 +1152,23 @@ function validateBandEdges(plots, errors) {
   })
 }
 
+/**
+ * The DECLARATION half of an event: its key's shape, its uniqueness, and that it
+ * does not collide with a plot.
+ *
+ * ⛔ THE OTHER HALF IS NOT HERE, AND CANNOT BE. Spec §3.1 says an event's key
+ * MUST match a returned column valued `{0, 1, NaN}` — which is a claim about
+ * what COMPUTE returns, and `validateDefinition` is a pure function of one
+ * definition that never runs a compute lane (it has to validate a `server`- or
+ * `ast`-kind definition this client cannot execute at all). So the column half
+ * is enforced at REGISTRATION, in `nativeRegistry.registerDefinitions`, which
+ * runs the definition's compute over a canned probe series and checks every
+ * event column's domain. See `EVENT_COLUMN_DOMAIN` above.
+ *
+ * ⚠️ Until Phase C Task 4 NOTHING checked it. `columnKeys` read `def.plots` only,
+ * so an event was declarable and inert — a definition could name three events,
+ * return no column for any of them, and register cleanly.
+ */
 function validateEvent(event, index, seenKeys, plotKeys, errors) {
   const path = `events[${index}]`
   if (!isPlainObject(event)) {
