@@ -47,7 +47,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.cache import cache
 from api.services.serve_stale import ServeStale
-from api.services.signature import ledger, rules
+from api.services.signature import ledger, registry_defs, rules
 from api.services.signature.darkpool_levels import fetch_dp_levels
 from api.services.signature.flow_breakout import _bar_date_iso, fcb_signals, flow_by_date
 from api.services.signature.gex_walls import fetch_gex_walls
@@ -590,18 +590,20 @@ def _gxw_fresh(sym: str) -> dict | None:
     return hit if hit is not None else _gxw_negative_hit(sym)
 
 
-# ── routes (all sync `def` — see rule 3) ────────────────────────────────────
+# ── the ONE serve path per indicator ────────────────────────────────────────
+#
+# Factored out so the legacy per-indicator route and the generic `/columns` lane
+# hand back the SAME payload from the SAME ServeStale slot and the SAME TTL
+# cache. Two entry points computing the same overlay two ways is how a
+# genericization ships a silent behaviour change: identical data is what makes
+# moving the client onto the lane a routing change rather than a data change.
 
-@router.get("/darkpool-levels")
-def darkpool_levels(sym: str = Query(...), _user: dict = Depends(require_paid)):
-    s = _sym_or_422(sym)
+def _serve_dpl(s: str) -> dict:
     return _DPL_STALE.serve(s, fresh=lambda: cache.get(_ck("dpl", s)),
                             build=lambda: _dpl_build(s), good=_dpl_good)
 
 
-@router.get("/flow-breakout")
-def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
-    s = _sym_or_422(sym)
+def _serve_fcb(s: str) -> dict:
     # The negative cache rides the `fresh` slot for the same reason GEX's does:
     # a waiter that queued behind the single-flight build re-checks fresh()
     # inside the lock, so the herd collapses onto the ONE read that just timed
@@ -610,15 +612,178 @@ def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
                             build=lambda: _fcb_build(s), good=_fcb_good)
 
 
-@router.get("/gex-walls")
-def gex_walls(sym: str = Query(...), _user: dict = Depends(require_paid)):
-    s = _sym_or_422(sym)
+def _serve_gxw(s: str) -> dict:
     # The negative cache rides the `fresh` slot deliberately: a waiter that
     # queued behind the single-flight build re-checks fresh() inside the lock,
     # so the herd collapses onto the ONE call that just failed instead of each
     # paying its own ~20s timeout.
     return _GXW_STALE.serve(s, fresh=lambda: _gxw_fresh(s),
                             build=lambda: _gxw_build(s), good=_gxw_good)
+
+
+# ── the generic server lane: tenants ────────────────────────────────────────
+#
+# ⭐ EVERY TENANT IS A ROW, AND THE LANE HAS NO BRANCH. `registry_defs.serve`
+# resolves the definition, validates the inputs, calls the provider and enforces
+# the wire contract without naming one of them. A fourth tenant is a row in
+# `registry_defs.SERVER_DEFS` plus one `register_provider` call below.
+#
+# ⚠️ THE PROVIDERS LIVE HERE, IN THE MODULE THAT OWNS THE PAID GATE, not in
+# `registry_defs`. A registry definition must never become a way to reach the
+# data without the handler — so the data path is only reachable from a module
+# whose every route declares `Depends(require_paid)` individually.
+
+def _fetch_bars_for_tf(sym: str, tf: str, count: int = 400) -> list[dict]:
+    """Bars at an arbitrary timeframe, for the lane.
+
+    ⛔ `_fetch_bars` IS NOT TOUCHED AND IS NOT RENAMED. `sweep.py` imports it
+    (`from api.routers.signature import _fetch_bars`) and the sweep is the only
+    ledger writer that runs unattended: moving or renaming it breaks the nightly
+    job SILENTLY. `test_the_sweep_still_imports_the_two_router_symbols_it_needs`
+    asserts that import, and this function is deliberately additive.
+    """
+    from api.services import bars_sqlite
+    rows = bars_sqlite.get_bars(sym.upper(), registry_defs.store_tf(tf), int(count))
+    out = []
+    for r in rows:
+        try:
+            out.append({"t": int(r[0]), "o": float(r[1]), "h": float(r[2]),
+                        "l": float(r[3]), "c": float(r[4]), "v": int(r[5] or 0)})
+        except (TypeError, ValueError, IndexError):
+            continue
+    return out
+
+
+def _dpl_provider(sym: str, tf: str, inputs: dict) -> dict:
+    payload = _serve_dpl(sym)
+    # No per-bar column, declared as such in `registry_defs`. `times: []` says
+    # "this envelope is not positional" rather than leaving the client to guess.
+    return {"columns": {}, "times": [], **payload}
+
+
+def _gxw_provider(sym: str, tf: str, inputs: dict) -> dict:
+    payload = _serve_gxw(sym)
+    return {"columns": {}, "times": [], **payload}
+
+
+def _fcb_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """The breakout as EVENT COLUMNS, joined to bars by DATE — plus the markers.
+
+    The signals list is kept in the envelope verbatim so the shipped overlay is
+    unchanged; the columns are the same information in the shape the alert
+    grammar addresses (a {0, 1, NaN} column per direction, Task 4).
+    """
+    payload = _serve_fcb(sym)
+    bars = _fetch_bars(sym)
+    keys = [_bar_date_iso(b["t"]) for b in bars]
+    hits = []
+    for s in (payload.get("signals") or []):
+        iso = _bar_date_iso(s.get("barTime"))
+        direction = s.get("direction")
+        if iso and direction in ("bull", "bear"):
+            hits.append((iso, direction))
+    cols = registry_defs.event_columns(keys, hits, ("bull", "bear"))
+    return {"columns": cols, "times": [int(b["t"]) for b in bars], **payload}
+
+
+def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """⭐ THE FOURTH TENANT, AND THE PROOF THE LANE IS GENERIC.
+
+    It is not a Signature indicator, shares no code with one, and needed no line
+    inside `registry_defs.serve` to be served. It is here because Task 14's
+    decision A3 put it on this lane: spec §4's compute contract carries ONE
+    `bars` and an RS line needs two, so the second symbol is fetched where a
+    second symbol is reachable.
+    """
+    from api.services.indicator_compute import compute_rs_line
+    bars = _fetch_bars_for_tf(sym, tf)
+    benchmark = inputs.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    bench_bars = _fetch_bars_for_tf(benchmark, tf)
+    return {
+        "columns": {"rsLine": compute_rs_line(bars, bench_bars)},
+        "times": [int(b["t"]) for b in bars],
+        "asOf": time.time(),
+    }
+
+
+registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)
+registry_defs.register_provider("uct-gex-walls", _gxw_provider)
+registry_defs.register_provider("uct-flow-breakout", _fcb_provider)
+registry_defs.register_provider("rsLine", _rs_line_provider)
+
+
+# ── routes (all sync `def` — see rule 3) ────────────────────────────────────
+
+@router.get("/darkpool-levels")
+def darkpool_levels(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    s = _sym_or_422(sym)
+    return _serve_dpl(s)
+
+
+@router.get("/flow-breakout")
+def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    s = _sym_or_422(sym)
+    return _serve_fcb(s)
+
+
+@router.get("/gex-walls")
+def gex_walls(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    s = _sym_or_422(sym)
+    return _serve_gxw(s)
+
+
+@router.get("/definitions")
+def server_definitions(_user: dict = Depends(require_paid)):
+    """The server-lane definitions, as data.
+
+    Published so the chart addresses an indicator by its DEFINITION ID rather
+    than by a path it hardcodes — the whole point of the genericization. It
+    carries no market data, but it is gated like everything else here: the
+    definitions describe a premium surface, and a route in this module without
+    its own `Depends(require_paid)` is the shape `test_a_free_user_is_refused_on_
+    every_route` exists to catch.
+    """
+    return {"schemaVersion": registry_defs.SCHEMA_VERSION,
+            "definitions": registry_defs.list_definitions()}
+
+
+@router.get("/columns")
+def server_columns(
+    defId: str = Query(..., description="a server-lane definition id"),
+    sym: str = Query(...),
+    tf: str = Query("D"),
+    inputs: str = Query("", description="JSON object of instance inputs"),
+    _user: dict = Depends(require_paid),
+):
+    """THE GENERIC COLUMN LANE — `compute.kind: 'server'`, resolved.
+
+    Wire format: `columns` is a mapping of key to a JSON ARRAY of numbers and
+    `null`, positionally aligned to `times`. `null` ⇄ NaN is mapped at the client
+    boundary. **Compute never emits point objects** — `registry_defs.wire_columns`
+    refuses `[{time, value}]` by name.
+    """
+    s = _sym_or_422(sym)
+    try:
+        parsed = json.loads(inputs) if inputs else {}
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    if parsed is not None and not isinstance(parsed, dict):
+        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    try:
+        return registry_defs.serve(defId, s, str(tf or "D"), parsed)
+    except registry_defs.DefinitionNotOffered as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except registry_defs.InputRejected as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except (registry_defs.DefinitionHasNoProvider,
+            registry_defs.ColumnContractViolation):
+        # Rule 1: a build must not 500 a user's chart. Both of these are OUR
+        # defect, not the user's, so they are logged with a traceback and the
+        # response is an envelope the client draws nothing from — never a 500,
+        # and never a payload that could be remembered as good.
+        logger.exception("signature: server lane failed for %s/%s", defId, s)
+        return {"defId": defId, "sym": s, "tf": tf, "columns": {}, "times": [],
+                "error": "server lane unavailable", "asOf": time.time()}
 
 
 # ── Dark-Pool Reclaim Confluence (dpc-v1) ───────────────────────────────────

@@ -87,31 +87,44 @@ const BARS = makeBars(300)
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists exactly the 16 natives that have a compute function', () => {
-    expect(listDefinitions().map(d => d.id).sort()).toEqual([
+  it('lists 16 natives and 1 server definition — SEVENTEEN, across two lanes', () => {
+    expect(NATIVE_DEFS.map(d => d.id).sort()).toEqual([
       'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
       'macd', 'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
     ])
+    expect(listDefinitions().map(d => d.id).sort()).toEqual([
+      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
+      'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+    ])
   })
 
-  it('does NOT include rsLine — it is the SERVER lane, not a missing native', () => {
-    // ⛔ THE ABSENCE IS THE DESIGN, and it is a different absence from
-    // volumeProfile's. `volumeProfile` has no definition at all; `rsLine` has a
-    // fully validated one and is simply not on THIS lane: its compute needs a
-    // second symbol, which spec §4's `compute({bars, inputs, …})` cannot reach
-    // (decision A3). Task 13's `serverCompute` lane is what moves it into
-    // `listDefinitions()`; until then a user cannot enable an indicator the
-    // binder would throw on.
-    expect(listDefinitions().some(d => d.id === 'rsLine')).toBe(false)
-    expect(getDefinition('rsLine')).toBe(null)
-    // …and it IS authored and valid, so this is a lane, not a gap.
+  it('DOES include rsLine now — the server lane landed, and the hand-back is closed', () => {
+    // ⭐ PHASE C TASK 13 INVERTED THIS CASE, AND THE OLD TEXT IS WORTH KEEPING
+    // IN VIEW. It read: *"`rsLine` … is simply not on THIS lane … Task 13's
+    // `serverCompute` lane is what moves it into `listDefinitions()`; until then
+    // a user cannot enable an indicator the binder would throw on."* The lane
+    // landed, and the objection is answered rather than waived — `computeFor`
+    // dispatches on `compute.kind` before the `NATIVE_COMPUTE` lookup, so the
+    // throw the old assertion pinned is now unreachable FOR THIS DEFINITION and
+    // still reachable for a native that lost its function (the case below).
+    expect(listDefinitions().some(d => d.id === 'rsLine')).toBe(true)
+    expect(getDefinition('rsLine').id).toBe('rsLine')
+    // …and it is still its own LANE, not folded into the natives.
     expect(SERVER_DEFS.map(d => d.id)).toEqual(['rsLine'])
     expect(SERVER_DEFS[0].compute.kind).toBe('server')
     expect(validateDefinition(SERVER_DEFS[0]).ok).toBe(true)
-    // The one thing that must stay true while it is off-lane: the native adapter
-    // has no entry for it, so a mutation that "just registers it" throws where it
-    // is wrong instead of drawing a flat line at 1.0.
-    expect(() => computeFor(SERVER_DEFS[0], BARS, {})).toThrow(/no native compute registered/)
+    expect(NATIVE_DEFS.some(d => d.id === 'rsLine')).toBe(false)
+    // ⛔ AND THE SERVER BRANCH RETURNS `{}` RATHER THAN THROWING — the exact
+    // property that made registering it safe. With no `ctx.sym` there is nothing
+    // to fetch, and an empty column set is what `hasData` reads as "draw nothing
+    // this paint", the same answer a native's warmup pad gives.
+    expect(computeFor(SERVER_DEFS[0], BARS, {})).toEqual({})
+    expect(computeFor(SERVER_DEFS[0], BARS, {}, { sym: '', tf: 'D' })).toEqual({})
+    // ⛔ …while the throw is INTACT for a native naming a compute that is gone.
+    // Deleting the server branch must not be the same thing as deleting the
+    // guard: this is the positive control for the case above.
+    expect(() => computeFor({ ...SERVER_DEFS[0], compute: { kind: 'native', fn: 'rsLine' } }, BARS, {}))
+      .toThrow(/no native compute registered/)
   })
 
   it('does NOT include volumeProfile — it is a canvas overlay, not a definition', () => {
@@ -124,7 +137,10 @@ describe('native registry — membership', () => {
   it('getDefinition returns null for an unknown id and the def for a known one', () => {
     expect(getDefinition('nope')).toBe(null)
     expect(getDefinition('rsi').id).toBe('rsi')
-    expect(NATIVE_DEFS.length).toBe(listDefinitions().length)
+    // 16 natives + 1 server definition. The two lanes are DIFFERENT sizes now,
+    // which is the whole reason `listDefinitions()` had to become a union.
+    expect(NATIVE_DEFS.length + SERVER_DEFS.length).toBe(listDefinitions().length)
+    expect(NATIVE_DEFS.length).toBe(16)
   })
 })
 
@@ -182,7 +198,7 @@ const JULY_LEGACY_DEFAULTS = {
  * fires whenever a row is missing would silently absolve the NEXT migration that
  * forgot one, which is exactly what the coverage test below exists to catch.
  */
-const NOT_A_MIGRATION = ['atrBands', 'avwap']
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine']
 
 describe('the July defaults table', () => {
   it('covers every MIGRATED definition and nothing else — a missing row is a silent no-op', () => {
@@ -487,7 +503,10 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
     // "settings keys − definitions == carve-out" grew on the definitions side
     // only. The carve-out did not move, the blob did not move, and this number
     // is the one thing that had to.
-    expect(listDefinitions()).toHaveLength(16)
+    // ⭐ AND SIXTEEN BECAME SEVENTEEN AT PHASE C TASK 13, on the OTHER lane:
+    // `rsLine` is `compute.kind: 'server'`, so it grew the definitions side
+    // again without touching the settings blob or the carve-out.
+    expect(listDefinitions()).toHaveLength(17)
     // ⭐ B5 TASK 9: the arithmetic used to be 14 + 1 = 15, where 15 was the
     // settings blob's own section count. The blob enumerates ONLY the carve-out
     // now — the other fourteen are folded into `indicatorInstances` — so the

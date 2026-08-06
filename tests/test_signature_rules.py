@@ -1,3 +1,5 @@
+import pytest
+
 from api.services.signature.rules import parse_money, VERSIONS
 
 
@@ -78,3 +80,67 @@ def test_all_constants_match_owner_spec():
     # in the sanctioned set. Adding it re-arms the tripwire.
     assert r.VERSIONS == {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1",
                           "dpc": "dpc-v1"}
+
+
+# ── Phase C Task 13: the genericization may not touch what the ledger STORES ──
+
+def test_the_ledger_key_vocabulary_is_UNCHANGED_by_genericization():
+    """🔴 THE ONE THING THIS TASK MAY NOT DO.
+
+    Ten rows of real history are keyed `(indicator='fcb', version='fcb-v2',
+    tf='1D', …)`. `ledger.py` is INSERT-only — there is no rewrite path, so a
+    re-key orphans history that cannot be reconstructed. The definition may be
+    called `uct-flow-breakout` on the chart; what it WRITES stays 'fcb'/'1D'.
+    """
+    from api.services.signature.registry_defs import (
+        LEDGER_INDICATOR_FOR, LEDGER_TF_FOR)
+    assert LEDGER_INDICATOR_FOR["uct-flow-breakout"] == "fcb"
+    assert LEDGER_TF_FOR["1D"] == "1D"
+
+
+def test_every_signature_definition_maps_to_the_ledger_key_it_ALREADY_WROTE():
+    """The whole vocabulary, not just the one the brief names.
+
+    `VERSIONS` is keyed by the LEDGER indicator ('dpl'/'fcb'/'gxw'/'dpc'), and
+    the ledger's uniqueness key includes it. A definition whose `rules_key` did
+    not resolve there would look up `None` and write a NULL version — a row that
+    joins to nothing and can never be attributed to a rule.
+    """
+    from api.services.signature import registry_defs as rd
+    from api.services.signature.rules import VERSIONS
+    assert set(rd.LEDGER_INDICATOR_FOR) == set(rd.SIGNATURE_DEF_IDS)
+    for def_id in rd.SIGNATURE_DEF_IDS:
+        key = rd.ledger_indicator(def_id)
+        assert key in VERSIONS, f"{def_id} -> {key!r} is not a versioned rule"
+        assert rd.definition(def_id)["rules_key"] == key
+
+
+def test_rs_line_writes_NOTHING_to_the_ledger_and_that_is_a_different_answer():
+    """None is "writes nothing"; an unknown id RAISES. Two different questions.
+
+    `rsLine` shares the server lane with the three Signature rules and shares
+    nothing else: it is a chart indicator, not a recorded signal. Collapsing the
+    two answers would make "I forgot to add a row" indistinguishable from "this
+    one deliberately has none".
+    """
+    from api.services.signature import registry_defs as rd
+    assert rd.ledger_indicator("rsLine") is None
+    with pytest.raises(rd.DefinitionNotOffered):
+        rd.ledger_indicator("no-such-definition")
+
+
+def test_the_bars_store_key_and_the_ledger_label_are_DIFFERENT_maps():
+    """"D" is what `bars_sqlite` stores daily rows under; "1D" is the PRODUCT
+    label the ledger row carries. `_fetch_bars`' docstring is the cautionary
+    tale — passing the product label to the store matches no rows at all and the
+    indicator ships permanently, silently dead. Two maps, and neither is the
+    other's inverse."""
+    from api.services.signature import registry_defs as rd
+    assert rd.store_tf("1D") == "D" and rd.store_tf("D") == "D"
+    assert rd.ledger_tf("D") == "1D" and rd.ledger_tf("1D") == "1D"
+    assert rd.store_tf("5") == "5"
+    # An unknown timeframe falls back to daily for the STORE (a real key), and
+    # is returned VERBATIM for the ledger — guessing a ledger tf would put a
+    # second, weaker opinion in front of `record_signal`'s own refusal.
+    assert rd.store_tf("nonsense") == "D"
+    assert rd.ledger_tf("nonsense") == "nonsense"

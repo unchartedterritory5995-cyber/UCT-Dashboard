@@ -228,6 +228,26 @@ describe('chipsFrom — the ONE formatting pipeline, fed by either lane', () => 
 })
 
 describe('the chip declarations cannot silently lose — or gain — a chip', () => {
+  /**
+   * ⛔ AN EXPLICIT LIST, AND IT IS THE TRADE TASK 14 NAMED AND TASK 13 TOOK.
+   *
+   * Task 14 wrote: *"`avwap` declares `legend: { hide: true }` rather than a
+   * chip, and that is a trade I made rather than a preference… A tenth chip
+   * forces that list to grow, and a list that has learnt to grow no longer
+   * catches the next migration that DROPS one."* `rsLine` is that tenth chip: it
+   * takes its OWN PANE, and a pane whose crosshair prints nothing is an
+   * indicator you cannot read a value off — a strictly worse product than a
+   * frozen count.
+   *
+   * The list-that-grows objection is answered by EXCLUDING it by name rather
+   * than loosening the comparison. The nine remain an equality against the
+   * shipped artifact; a tenth that is not written down here is still a failure,
+   * and a DROP among the nine still fails. What is given up is only the claim
+   * "no definition anywhere declares a chip the 2026 legend did not", which was
+   * never the thing being protected.
+   */
+  const NOT_IN_THE_SHIPPED_LEGEND = ['rsLine::rsLine']
+
   /** Every plot in the registry that declares a VISIBLE chip. */
   const declared = () => {
     const out = []
@@ -240,6 +260,9 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     }
     return out.sort()
   }
+
+  /** …minus the chips that postdate the shipped legend. */
+  const declaredThatShipped = () => declared().filter(k => !NOT_IN_THE_SHIPPED_LEGEND.includes(k))
 
   it('the NINE chips the shipped legend rendered are exactly the nine declared', () => {
     // ⭐ THE RAIL THAT REPLACED THE SLOT BRIDGE, and it is derived from the
@@ -257,8 +280,15 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     // `shippedLegendChips()` parses the real pre-B4 `legChips` array out of
     // `git show`, so the expectation IS the artifact.
     const shipped = shippedLegendChips()
-    expect(Object.keys(shipped).sort(), 'the declared chips and the SHIPPED nine disagree').toEqual(declared())
-    expect(declared().length, 'the shipped legend printed nine indicator chips').toBe(9)
+    expect(Object.keys(shipped).sort(), 'the declared chips and the SHIPPED nine disagree')
+      .toEqual(declaredThatShipped())
+    expect(declaredThatShipped().length, 'the shipped legend printed nine indicator chips').toBe(9)
+    // …and every excluded key is a chip that REALLY IS DECLARED, so the list
+    // cannot quietly hold a typo or a chip somebody deleted.
+    for (const key of NOT_IN_THE_SHIPPED_LEGEND) {
+      expect(declared(), `NOT_IN_THE_SHIPPED_LEGEND names ${key}, which declares no chip`).toContain(key)
+      expect(shipped[key], `${key} IS in the shipped legend — it cannot be excluded`).toBeUndefined()
+    }
   })
 
   it('every declared chip formats exactly as its shipped row did', () => {

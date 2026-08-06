@@ -255,7 +255,7 @@ describe('Flip B — the set itself', () => {
     // with no flip happening at all. That distinction is the whole of §A5.
     expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     // ⭐ B5 TASK 13: this line used to read `ENGINE_MIGRATED_DEF_IDS` on the left
     // and `ENGINE_FLIPPED_DEF_IDS` on the right — the subset relation. With both
     // literals deleted the honest form is the one that can still FAIL: everything

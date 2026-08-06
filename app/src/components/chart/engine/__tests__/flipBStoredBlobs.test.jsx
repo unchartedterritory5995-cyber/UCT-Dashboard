@@ -288,7 +288,7 @@ describe('the blob shapes themselves — without these the cases below prove not
     // with no flip happening at all. That distinction is the whole of §A5.
     expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
   })
 })
 

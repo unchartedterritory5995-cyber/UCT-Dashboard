@@ -972,11 +972,33 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
 
   const instanceOf = (defId) => ({ instanceId: `legacy:${defId}`, defId, inputs: {}, hidden: false })
 
+  /**
+   * ⛔ THE SERVER LANE IS EXCLUDED FROM THE LEGACY-TOGGLE RAILS, BY NAME.
+   *
+   * Every case in this block measures *"the legacy block and the engine do not
+   * BOTH draw"*, which presupposes a legacy block. `rsLine` (Phase C Task 13)
+   * never had one, and its columns are FETCHED — in jsdom, with no lane
+   * response, `computeFor` returns `{}` and the binder correctly binds nothing.
+   * Asserting `> 0` there would demand a network round trip from a render test.
+   *
+   * ⛔ DERIVED FROM `compute.kind`, NOT HAND-LISTED, and then CHECKED: the
+   * exclusion must be exactly the server lane and never empty, so a native
+   * quietly re-declared `server` to dodge a failing rail is itself a failure.
+   */
+  const SERVER_LANE = registry.listDefinitions()
+    .filter(d => d.compute.kind === 'server').map(d => d.id)
+  const NATIVE_OWNED = [...ENGINE_OWNED].filter(id => !SERVER_LANE.includes(id))
+
+  it('the server lane is excluded from these rails, and it is exactly rsLine', () => {
+    expect(SERVER_LANE).toEqual(['rsLine'])
+    expect(NATIVE_OWNED.length).toBe(ENGINE_OWNED.size - 1)
+  })
+
   it('names at least one definition — otherwise every case below is vacuous', () => {
     expect(ENGINE_OWNED.size).toBeGreaterThan(0)
   })
 
-  it.each([...ENGINE_OWNED])(
+  it.each(NATIVE_OWNED)(
     '%s: legacy toggle ON + an engine instance ⇒ the SAME number of series as legacy alone',
     (defId) => {
       // Series COUNT, not scale id: it holds for a price overlay (which has no
@@ -1400,8 +1422,12 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     const chipBearing = registry.listDefinitions().filter(declaresChip).map(d => d.id)
     const unmigrated = registry.listDefinitions()
       .filter(d => !ENGINE_OWNED.has(d.id)).map(d => d.id)
+    // ⭐ SEVEN AT PHASE C TASK 13. `rsLine` takes its OWN PANE, and a pane whose
+    // crosshair prints nothing is a value you cannot read — see the trade recorded
+    // in `readout.test.js`. It is `ENGINE_OWNED` like every other definition, so
+    // the loop below covers it unchanged.
     expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
-      .toEqual(['atr', 'ichimoku', 'macd', 'rsi', 'sar', 'stoch'])
+      .toEqual(['atr', 'ichimoku', 'macd', 'rsLine', 'rsi', 'sar', 'stoch'])
     for (const id of chipBearing) {
       expect(ENGINE_OWNED.has(id),
         `${id} declares a chip and is NOT migrated — with the legacy chip lane deleted, ` +
@@ -3751,9 +3777,11 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // definition there is.
     // ⭐ SIXTEEN AT PHASE C TASK 14: `avwap` and `atrBands` are the first
     // definitions that were never a legacy block, so the set grew without a flip.
+    // ⭐ SEVENTEEN AT PHASE C TASK 13: `rsLine` is the first `compute.kind:
+    // 'server'` definition, so the set grew again with no flip and no block.
     expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -3800,8 +3828,15 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // from a legacy toggle alone, on the timeframe it lives on. It is the same
     // structural claim (the migrator is per definition, not per set) asserted in
     // the direction that is now reachable, and it grows with the set.
+    // ⛔ NATIVES ONLY — see the SERVER_LANE note in the drawn-once block. A
+    // fetched column cannot arrive inside a synchronous render test, and a rail
+    // that demanded one would be measuring jsdom's network, not the migrator.
+    const serverLane = registry.listDefinitions()
+      .filter(d => d.compute.kind === 'server').map(d => d.id)
+    expect(serverLane, 'the server-lane exclusion selects nothing — it is inert')
+      .toEqual(['rsLine'])
     let seen = 0
-    for (const defId of ENGINE_OWNED) {
+    for (const defId of [...ENGINE_OWNED].filter(id => !serverLane.includes(id))) {
       cleanup(); H.reset()
       draw({ indicators: { [defId]: { enabled: true } } }, tfFor(defId))
       const bound = H.binderApis[0].bindings().filter(b => b.defId === defId)
@@ -3817,6 +3852,10 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // every series-expressible definition there is.
     // ⭐ 14 → 16 at Phase C Task 14, and NOT because a fifteenth block was migrated:
     // `avwap` and `atrBands` are the first definitions that never had one.
+    // ⭐ STILL 16 AT PHASE C TASK 13, AND THAT IS THE POINT: the registry grew to
+    // seventeen and this number did NOT, because the seventeenth is on the server
+    // lane and has no legacy toggle to be reached from. Written as a literal so
+    // "the set went empty" and "a native slipped into the exclusion" both fail.
     expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(16)
   })
 
@@ -3917,7 +3956,10 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // list would still pass if BOTH sides collapsed. It was fifteen until Phase C
     // Task 14 added `avwap` and `atrBands`, and this line moving IS the proof that
     // a new definition reaches the right-click menu with no edit to the menu.
-    expect(items).toHaveLength(17)
+    // ⭐ EIGHTEEN AT PHASE C TASK 13 — `rsLine` reaches the right-click menu with
+    // no edit to the menu, on the SERVER lane, which is the same proof one lane
+    // further out.
+    expect(items).toHaveLength(18)
     expect(items).toHaveLength(catalogRows().length)
     expect(items.map(i => i.id)).toEqual(catalogRows().map(r => 'ind-' + r.id))
     expect(items.map(i => i.label)).toEqual(catalogRows().map(r => r.shortName))

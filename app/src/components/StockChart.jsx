@@ -6665,6 +6665,14 @@ export default function StockChart({
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
         bars: filteredBars,
+        // ⭐ THE SERVER LANE'S ONLY REQUIREMENT (Phase C Task 13). A native
+        // ignores both; a `compute.kind: 'server'` definition (the RS line) is
+        // fetched per (symbol, timeframe) and cannot resolve without them.
+        // `resolvedTf`, not the raw `tf` prop: the prop is optional and falls
+        // back to a preference, and a null timeframe would key the lane's cache
+        // differently from the request the hook actually makes.
+        sym,
+        tf: resolvedTf,
         adjustTime,
         applyData: _applyData,
         plan: { noop: _noop, incr: _incr, fresh: _freshChart },

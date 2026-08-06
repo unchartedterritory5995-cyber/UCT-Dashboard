@@ -374,7 +374,7 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
       .toEqual([...SHIPPED_STACK_ORDER].filter(id => id in juliaIds))
     // …and the filter really removed something, or it is a no-op wearing a reason.
     expect([...SHIPPED_STACK_ORDER].filter(id => !(id in juliaIds)).sort())
-      .toEqual(['atrBands', 'avwap'])
+      .toEqual(['atrBands', 'avwap', 'rsLine'])
     // Non-vacuity twice over: the record covers every registered definition, and
     // it is NOT registry order (which is what this line used to assert).
     expect([...SHIPPED_STACK_ORDER].sort())
@@ -417,7 +417,10 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     expect(on.length).toBeGreaterThan(0)
     // …and the definitions the blob never named really are OFF, by name.
     const notCarried = [...ENGINE_OWNED].filter(id => !juliaIds.includes(id)).sort()
-    expect(notCarried).toEqual(['atrBands', 'avwap'])
+    // ⭐ THREE SINCE PHASE C TASK 13. All three are definitions that were never a
+    // settings section, so no July blob could name them and none may be switched
+    // on by migrating one.
+    expect(notCarried).toEqual(['atrBands', 'avwap', 'rsLine'])
     for (const id of notCarried) {
       expect(isIndicatorEnabled(cs, id, ENGINE_OWNED),
         `${id} was switched ON by a migration of a blob that never mentioned it`).toBe(false)

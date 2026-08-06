@@ -557,9 +557,32 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
     }
   })
 
-  it('every pane-target definition declares a height, and there are nine', () => {
+  /**
+   * ⛔ AN EXPLICIT LIST, NOT A FILTER THAT ABSOLVES ANYTHING MISSING.
+   *
+   * `OSC` is the NINE oscillators the shipped `computePaneMargins` gave a band
+   * to, and every one of them has a pixel number behind it. `rsLine` (Phase C
+   * Task 13) is a pane definition that was NEVER a shipped pane: it is the first
+   * `compute.kind: 'server'` definition and there was no legacy geometry for it
+   * to match. Excluding it by name keeps the equality below an EQUALITY — a
+   * `filter(id => OSC.includes(id))` would go on passing if one of the nine
+   * disappeared, which is the whole thing this case is for.
+   */
+  const NEVER_A_SHIPPED_PANE = ['rsLine']
+
+  it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
     const paneDefs = listDefinitions().filter(d => d.placement.target === 'pane')
-    expect(paneDefs.map(d => d.id).sort()).toEqual([...OSC].sort())
+    expect(paneDefs.map(d => d.id).filter(id => !NEVER_A_SHIPPED_PANE.includes(id)).sort())
+      .toEqual([...OSC].sort())
+    // …and the exclusion names definitions that EXIST and really are panes, so a
+    // rename cannot hide inside it.
+    for (const id of NEVER_A_SHIPPED_PANE) {
+      const d = paneDefs.find(x => x.id === id)
+      expect(d, `NEVER_A_SHIPPED_PANE names ${id}, which is not a pane definition`).toBeTruthy()
+      expect(OSC.includes(id), `${id} IS one of the shipped nine — it cannot be excluded`).toBe(false)
+    }
+    // The height rule is TOTAL — the exclusion above is about the shipped-band
+    // record, not about whether a pane has to declare its size.
     for (const d of paneDefs) {
       expect(typeof d.placement.pane?.height, `${d.id}`).toBe('number')
     }

@@ -99,6 +99,7 @@ import {
   computeATRBands,
   AVWAP_ANCHORS,
 } from '../indicators'
+import { serverColumnsFor } from './serverCompute'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -958,18 +959,35 @@ export function hasAnyFinite(col) {
 }
 
 /**
- * Compute one native into the columnar contract.
+ * Compute one definition into the columnar contract.
  *
  * @param {object} def   a registry definition (its `compute.fn` selects the native)
  * @param {Array}  bars  `[{t,o,h,l,c,v}]` — columns are index-aligned to these
  * @param {object} inputs partial input map; anything missing uses the declared default
+ * @param {object} [ctx] `{sym, tf}` — REQUIRED for the server lane, ignored by natives
  * @returns {{[plotKey]: Float64Array}} one input-length NaN-padded column per data plot
  *
  * THROWS on an unknown `compute.fn`. Loud on purpose, mirroring
  * `indicator_compute.compute_case`: a definition naming a native this adapter
  * does not know must fail where it is wrong, not return `{}` and render blank.
+ *
+ * ⭐ THE SERVER LANE (Phase C Task 13). `compute.kind: 'server'` does NOT resolve
+ * a native — its columns are FETCHED. It is dispatched on the KIND, before the
+ * `compute.fn` lookup, because a server definition naming `fn: 'rsLine'` has no
+ * entry in `NATIVE_COMPUTE` and never will: the throw below is right for a
+ * native that lost its function and wrong for a definition that never had one.
+ *
+ * ⛔ AND IT RETURNS `{}` RATHER THAN THROWING WHILE THE FETCH IS IN FLIGHT.
+ * `rsLine` was kept OUT of `listDefinitions()` by Task 14 for exactly one reason
+ * — *"registering it would publish an indicator the binder throws on"* — so the
+ * lane is only allowed to close that hand-back if it cannot throw. An empty
+ * column set is the same thing `hasData` already reads for a warmup pad: the
+ * binding draws nothing this paint and draws on the next.
  */
-export function computeFor(def, bars, inputs) {
+export function computeFor(def, bars, inputs, ctx) {
+  if (def?.compute?.kind === 'server') {
+    return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
+  }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
     throw new Error(
@@ -1148,9 +1166,9 @@ if (_registered.errors.length) {
   throw new Error(`nativeRegistry: invalid native definitions:\n  ${_registered.errors.join('\n  ')}`)
 }
 
-/** The 16 native definitions, frozen. `volumeProfile` is NOT among them, and
- *  neither is `rsLine` — see `SERVER_DEFS` below, which is a different lane
- *  rather than a different list. */
+/** The 16 NATIVE definitions, frozen. `volumeProfile` is NOT among them, and
+ *  neither is `rsLine` — see `SERVER_DEFS` below, which is a different LANE
+ *  rather than a different list. `listDefinitions()` is the union of the two. */
 export const NATIVE_DEFS = Object.freeze(_registered.defs)
 
 /**
@@ -1165,23 +1183,24 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
  * Its benchmark is an `enum` of a fixed list for the same reason its cousin's
  * anchor is — `symbol` is a RESERVED input type and `defSchema` fails closed.
  *
- * ⛔ AND WHY IT IS NOT REGISTERED YET, STATED PLAINLY RATHER THAN HIDDEN.
- * **Task 13 owns the lane** (`engine/serverCompute.js` +
- * `fetchColumns(defId, sym, tf, inputs)`) and has not landed. Putting this in
- * `RAW_DEFS` today would publish an indicator a user can enable and the binder
- * cannot draw: `computeFor` resolves `NATIVE_COMPUTE[compute.fn]` and THROWS on
- * a miss, by design. So the definition is authored, validated by the same
- * `registerDefinitions` every native goes through — schema, `$ref` resolution,
- * source referents, event columns — and exported for Task 13 to merge into the
- * lane in one line. It is a HAND-BACK, not a half-build: everything Task 14 owns
- * about the RS line (the maths, the golden fixture read by both lanes, the
- * definition) is here and pinned.
+ * ✅ AND IT IS NOW REGISTERED — TASK 14'S HAND-BACK, CLOSED BY TASK 13.
+ * Task 14 wrote here: *"Putting this in `RAW_DEFS` today would publish an
+ * indicator a user can enable and the binder cannot draw: `computeFor` resolves
+ * `NATIVE_COMPUTE[compute.fn]` and THROWS on a miss, by design."* That was the
+ * whole objection and it is answered, not waived: `computeFor` now dispatches on
+ * `compute.kind` BEFORE the `NATIVE_COMPUTE` lookup, and the server branch
+ * returns `{}` while the fetch is in flight instead of throwing. So
+ * `listDefinitions()` is the UNION of the two lanes — **16 → 17** — and the
+ * definition is reachable, drawable and addressable like any other.
  *
- * ⚠️ `listDefinitions()` STAYS NATIVE-ONLY WHILE THAT IS TRUE, which is why
- * `enumerationSites.test.js`'s *"every definition still resolves a compute"* rail
- * did not have to be weakened to accommodate this. A rail that had to be relaxed
- * for a definition nothing can draw would have stopped guarding the fourteen
- * that ship.
+ * ⚠️ `meta.tier` IS `premium`, AND THAT IS A CORRECTION, NOT A DECORATION. Task
+ * 14 authored it `free`, before the lane that serves it existed. The lane is
+ * `/api/signature/columns`, which declares `Depends(require_paid)` on its own
+ * handler like every other route in that module — so a `free` claim here would
+ * be a definition promising data its lane refuses to hand over, which is exactly
+ * the silently-dead indicator this phase exists to retire. The tier is a badge
+ * in `IndicatorLibraryDialog` and gates nothing by itself; the gate is the
+ * handler, and this is the declaration matching it.
  */
 const RS_LINE_RAW = {
   schemaVersion: SCHEMA_VERSION,
@@ -1191,7 +1210,7 @@ const RS_LINE_RAW = {
   meta: {
     name: 'Relative Strength Line', shortName: 'RS', category: 'Momentum',
     description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
-    tags: ['comparative', 'momentum'], tier: 'free', repaint: 'non-repainting',
+    tags: ['comparative', 'momentum'], tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
   },
   placement: { target: 'pane', pane: { height: 0.15 } },
@@ -1217,8 +1236,11 @@ if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }
 
-/** Server-lane definitions — authored and VALIDATED, not yet bound. Task 13's
- *  `serverCompute` lane is what moves these into `listDefinitions()`. */
+/** Server-lane definitions — authored, VALIDATED and, since Task 13's
+ *  `serverCompute` lane landed, IN `listDefinitions()`. Kept as its own export
+ *  because the lane is the thing that differs: a caller asking "which of these
+ *  do I have to fetch?" reads this, not a `compute.kind` scan it would have to
+ *  keep in step by hand. */
 export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 
 /**
@@ -1256,14 +1278,26 @@ export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
  */
 export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']))
 
-const _byId = new Map(NATIVE_DEFS.map(d => [d.id, d]))
+/** ⭐ ONE INDEX ACROSS BOTH LANES. `getDefinition` is what `instances.js` and the
+ *  binder resolve through, so a server definition missing from here would be an
+ *  instance the chart drops on the floor — visible as nothing at all. */
+const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS].map(d => [d.id, d]))
 
 /** @returns {object|null} the definition, or null when nothing is registered under `defId`. */
 export function getDefinition(defId) {
   return _byId.get(defId) || null
 }
 
-/** @returns {object[]} every registered native definition. */
+/**
+ * @returns {object[]} every registered definition — BOTH LANES.
+ *
+ * ⭐ 16 NATIVE + 1 SERVER = 17 (Phase C Task 13). This used to be
+ * `[...NATIVE_DEFS]`, and the union is the one line Task 14 handed back. A
+ * caller that wants only the natives asks `NATIVE_DEFS`; a caller enumerating
+ * "what indicators exist" must see both, because a definition invisible to this
+ * list is invisible to the catalog, the settings migration and the alert
+ * addressing alike.
+ */
 export function listDefinitions() {
-  return [...NATIVE_DEFS]
+  return [...NATIVE_DEFS, ...SERVER_DEFS]
 }

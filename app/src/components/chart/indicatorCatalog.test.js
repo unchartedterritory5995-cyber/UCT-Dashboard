@@ -237,8 +237,13 @@ describe('the catalog covers every settings section, and nothing else', () => {
   })
 
   it('splits by placement target, not by a hand-written list', () => {
-    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv'])
+    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'rsLine'])
     expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    // ⭐ `rsLine` (Phase C Task 13) is a PANE definition and lands at the END of
+    // the oscillator list, because `listDefinitions()` is now `natives ++ server`
+    // and order is z-order. It is asserted in the equality above rather than
+    // filtered out: the catalog is what the Add-Indicator dialog reads, and an
+    // indicator missing from it is an indicator nobody can turn on.
     // Every definition is one or the other — `volume` is a target too, but no
     // NATIVE declares it (the migrator assigns it from cs.volumeOverlayIndicators).
     const both = [...oscillatorIds(), ...priceOverlayIds()].sort()
@@ -534,7 +539,7 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
       engineRegistry.listDefinitions().map(d => [d.id, d.inputs.map(i => i.key)])))
     // …and that map is not empty, so `greyed` being `{}` above is the
     // short-circuit doing its job rather than the predicate having stopped.
-    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(16)   // 14 + Task 14's avwap/atrBands
+    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(17)   // 14 + avwap/atrBands + rsLine
   })
 })
 
@@ -556,9 +561,15 @@ describe('the library needs a sentence per indicator, and the schema already all
   })
 
   it('and adding them did not break registration — every definition still validates', () => {
-    expect(engineRegistry.listDefinitions().length).toBe(16)   // 14 + Task 14's avwap/atrBands
+    // 14 + Task 14's avwap/atrBands + Task 13's server-lane rsLine
+    expect(engineRegistry.listDefinitions().length).toBe(17)
     for (const d of engineRegistry.listDefinitions()) {
-      expect(d.meta.tier).toBe('free')
+      // ⛔ `premium` FOR THE SERVER LANE, AND IT IS NOT A LOOSENING. `rsLine`
+      // is served by `/api/signature/columns`, which declares
+      // `Depends(require_paid)` on its own handler — a `free` claim would be a
+      // definition promising data its lane refuses to hand over. The tier is
+      // asserted PER LANE so neither answer can drift into the other.
+      expect(d.meta.tier, d.id).toBe(d.compute.kind === 'server' ? 'premium' : 'free')
       expect(d.meta.repaint).toBe('non-repainting')
     }
   })

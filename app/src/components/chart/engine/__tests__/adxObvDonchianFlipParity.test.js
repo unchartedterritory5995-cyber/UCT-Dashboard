@@ -854,7 +854,11 @@ describe('the last three together', () => {
     // series-expressible LEGACY block; `avwap` and `atrBands` are the first two
     // definitions that were never a block at all, so the set grew without any
     // migration happening — which is exactly what §A5 said a new indicator costs.
-    expect(ENGINE_OWNED.size, 'the engine-owned set is empty or shrank').toBe(16)
+    // ⭐ AND SIXTEEN BECAME SEVENTEEN AT PHASE C TASK 13 — `rsLine` is the first
+    // `compute.kind: 'server'` definition, so the set grew again with no flip and
+    // no legacy block; `engineOwnsDefId` is a registry lookup and the registry is
+    // now the union of two lanes.
+    expect(ENGINE_OWNED.size, 'the engine-owned set is empty or shrank').toBe(17)
     // ⭐⭐ B5 TASK 13 — "MIGRATED equals FLIPPED" IS NOT ASSERTABLE ANY MORE, AND
     // THAT IS THE RETIREMENT RATHER THAN A GAP. A line stood here comparing
     // `ENGINE_MIGRATED_DEF_IDS` with `ENGINE_FLIPPED_DEF_IDS`; both literals are

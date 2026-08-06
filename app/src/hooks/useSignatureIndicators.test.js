@@ -11,7 +11,10 @@ import { createElement } from 'react'
 import { renderHook, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { CHART_DEFAULTS } from '../components/chart/chartDefaults'
-import { signatureUrls, SIGNATURE_TOGGLE, useSignatureIndicators } from './useSignatureIndicators'
+import { serverColumnsUrl } from '../components/chart/engine/serverCompute'
+import {
+  signatureUrls, SIGNATURE_TOGGLE, SIGNATURE_DEF_ID, useSignatureIndicators,
+} from './useSignatureIndicators'
 
 const ALL_NULL = { dpl: null, gxw: null, fcb: null }
 
@@ -60,12 +63,35 @@ describe('signature request suppression', () => {
     expect(signatureUrls('AAPL', undefined, true, 'D')).toEqual(ALL_NULL)
   })
 
-  it('hits the paid signature endpoints with an encoded symbol', () => {
+  it('addresses a DEFINITION on the ONE server lane, not three hardcoded paths', () => {
+    // ⭐ PHASE C TASK 13 — the genericization, at the call site. The three paths
+    // this asserted are still mounted (they are the shipped surface), but the
+    // hook no longer names one: every overlay is `/api/signature/columns` with a
+    // `defId`, exactly like the RS line. A fourth Signature indicator is a row in
+    // `registry_defs.SERVER_DEFS` plus a row in `SIGNATURE_DEF_ID` — not a fourth
+    // path, a fourth SWR key, a fourth build function and a fourth cache.
     expect(signatureUrls('BRK-B', allOn, true, 'D')).toEqual({
-      dpl: '/api/signature/darkpool-levels?sym=BRK-B',
-      gxw: '/api/signature/gex-walls?sym=BRK-B',
-      fcb: '/api/signature/flow-breakout?sym=BRK-B',
+      dpl: '/api/signature/columns?defId=uct-darkpool-levels&sym=BRK-B&tf=D',
+      gxw: '/api/signature/columns?defId=uct-gex-walls&sym=BRK-B&tf=D',
+      fcb: '/api/signature/columns?defId=uct-flow-breakout&sym=BRK-B&tf=D',
     })
+    // …and NO path is hardcoded here any more: every url comes out of
+    // `serverColumnsUrl`, so the two cannot disagree about where the lane is.
+    for (const key of ['dpl', 'gxw', 'fcb']) {
+      expect(signatureUrls('BRK-B', allOn, true, 'D')[key])
+        .toBe(serverColumnsUrl(SIGNATURE_DEF_ID[key], 'BRK-B', 'D', null))
+    }
+  })
+
+  it('⛔ the three definition ids are the ones the SERVER declares', () => {
+    // A rename on either side would leave the overlay silently absent — a 404
+    // from the lane reads exactly like a quiet tape. The Python half of this
+    // pairing is `test_the_three_signature_definition_ids_are_the_ones_the_hook_
+    // addresses`, which reads THIS FILE and diffs it against
+    // `registry_defs.SIGNATURE_DEF_IDS`.
+    expect(Object.keys(SIGNATURE_DEF_ID).sort()).toEqual(Object.keys(SIGNATURE_TOGGLE).sort())
+    expect(Object.values(SIGNATURE_DEF_ID)).toEqual(
+      ['uct-darkpool-levels', 'uct-gex-walls', 'uct-flow-breakout'])
   })
 
   // StockChart passes `exactDateRange ? undefined : cs.signature` — an undefined
@@ -109,7 +135,7 @@ describe('signature request suppression', () => {
         { wrapper },
       )
       await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
-        '/api/signature/darkpool-levels?sym=AAPL',
+        '/api/signature/columns?defId=uct-darkpool-levels&sym=AAPL&tf=D',
         expect.objectContaining({ credentials: 'include' }),
       ))
     })

@@ -96,18 +96,58 @@ def test_bad_symbol_rejected(client):
 
 # ── the paywall (mutation check: delete the gate and this fails) ────────────
 
-def test_a_free_user_is_refused_on_every_route(client, monkeypatch):
-    """402 with the Signature copy, on ALL THREE routes. A gate applied to two
-    of three routes passes any single-route test."""
+def test_a_free_user_is_refused_on_EVERY_route_DERIVED_FROM_THE_ROUTER(client, monkeypatch):
+    """402 with the Signature copy, on every route the ROUTER declares.
+
+    ⭐ THE LIST IS DERIVED, AND THAT IS THE REPAIR. It used to be three
+    hardcoded paths, and the docstring already said why that is dangerous —
+    *"a gate applied to two of three routes passes any single-route test"* —
+    while the router had grown to FIVE. `/confluence` and `/confluence-scan`
+    rode uncovered, and Task 13 adds `/definitions` and `/columns`. Reading the
+    route table means a new route without its own `Depends(require_paid)` is
+    caught on the run that adds it, not on the day somebody notices.
+
+    ⛔ AND THE COUNT IS ASSERTED, so a router that stopped mounting its routes
+    would make the loop iterate zero times and pass for free.
+    """
     client.dependency_overrides[get_current_user_with_plan] = _free_user
     monkeypatch.setattr(sig, "_dpl_build", lambda sym: {"levels": []})
     monkeypatch.setattr(sig, "_fcb_build", lambda sym: {"signals": []})
     monkeypatch.setattr(sig, "_gxw_build", lambda sym: {"levels": []})
     c = TestClient(client)
-    for path in ("darkpool-levels", "flow-breakout", "gex-walls"):
-        r = c.get(f"/api/signature/{path}?sym=NVDA")
-        assert r.status_code == 402, path
+
+    # Every route, with whatever query params it declares as required — a 422
+    # would be a MISS, because validation runs after the dependency and a
+    # missing gate would show up as a 200 or a 500 instead.
+    params = {"sym": "NVDA", "syms": "NVDA", "defId": "rsLine"}
+    seen = 0
+    for route in sig.router.routes:
+        qs = "&".join(f"{k}={v}" for k, v in params.items())
+        r = c.get(f"{route.path}?{qs}")
+        assert r.status_code == 402, f"{route.path} -> {r.status_code}"
         assert r.json()["detail"] == "UCT Signature indicators require a paid plan"
+        seen += 1
+    assert seen == 7, f"the router mounts {seen} routes — re-read this rail"
+
+
+def test_every_route_declares_its_OWN_require_paid_dependency(client):
+    """The structural half, because the behavioural one above cannot see a
+    route that was gated by a ROUTER-level dependency instead.
+
+    There is no router-level dependency here on purpose: `include_router` is
+    called without one in `main.py`, so a route omitting its own is reachable
+    by anybody. Reading each endpoint's signature says so directly.
+    """
+    for route in sig.router.routes:
+        deps = [
+            p.default.dependency
+            for p in inspect.signature(route.endpoint).parameters.values()
+            if hasattr(p.default, "dependency")
+        ]
+        assert sig.require_paid in deps, f"{route.path} declares no require_paid"
+    assert sig.router.dependencies == [], (
+        "a router-level dependency would make the per-handler rail above pass "
+        "for a route that has none of its own")
 
 
 def test_the_prefix_is_never_under_api_flow(client):
@@ -1190,3 +1230,290 @@ def test_a_recovered_flow_read_pops_an_unexpired_negative_entry(client, monkeypa
 
     assert [s["direction"] for s in payload["signals"]] == ["bull"], payload
     assert "SPY" not in sig._FCB_NEG_CACHE, "a good payload must pop the outage immediately"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Phase C Task 13 — THE GENERIC SERVER LANE
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_the_sweep_still_imports_the_two_router_symbols_it_needs():
+    """⛔ `sweep.py` IMPORTS `_flow_base_url` AND `_fetch_bars` FROM THIS ROUTER,
+    and the nightly sweep is the ONLY ledger writer that runs unattended.
+
+    Moving or renaming either breaks it SILENTLY — the import raises inside a
+    scheduler thread, the job logs and dies, and nothing on any surface says the
+    ledger stopped growing. Task 13 adds `_fetch_bars_for_tf` beside `_fetch_bars`
+    precisely so the old one never has to move; this asserts the import the way
+    the sweep performs it, not by reading the source.
+    """
+    from api.routers.signature import _fetch_bars, _flow_base_url
+    assert callable(_fetch_bars) and callable(_flow_base_url)
+    # …and the sweep's own call sites still resolve, executed for real.
+    import api.services.signature.sweep as sweep_mod
+    src = inspect.getsource(sweep_mod)
+    assert "from api.routers.signature import _flow_base_url" in src
+    assert "from api.routers.signature import _fetch_bars" in src
+    # The signature the sweep passes through as `fetch_bars=` — a bare (sym) call.
+    assert list(inspect.signature(_fetch_bars).parameters) == ["sym", "count"]
+
+
+def test_the_lane_names_no_tenant(client):
+    """⭐ A LANE IS GENERIC WHEN A FOURTH TENANT NEEDS NO CODE IN IT.
+
+    `registry_defs.serve` resolves the definition, validates the inputs, calls
+    the provider and enforces the wire contract. Read its own AST: no string
+    literal in it is a definition id, so there is no `if def_id ==` for a
+    reviewer to miss. Spec §10's "genericize in C" is this assertion.
+
+    ⚠️ Re-parsed by NAME, never sliced by line number — a co-worker inserting
+    lines above it returned the WRONG SLICE for Task 7 mid-run.
+    """
+    import ast
+    from api.services.signature import registry_defs as rd
+    tree = ast.parse(inspect.getsource(rd))
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == "serve")
+    literals = {n.value for n in ast.walk(fn)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    ids = {d["id"] for d in rd.SERVER_DEFS}
+    assert literals & ids == set(), f"the lane hardcodes a tenant: {literals & ids}"
+    # ⛔ AND THE PROBE CAN SEE A NAME THAT IS REALLY THERE, or the emptiness above
+    # is a broken walk rather than a clean function.
+    provider_fn = next(n for n in tree.body
+                       if isinstance(n, ast.FunctionDef) and n.name == "provider_for")
+    assert any(isinstance(n, ast.Constant) and isinstance(n.value, str)
+               for n in ast.walk(provider_fn))
+    # …and the four tenants really exist, so "names no tenant" is not vacuous.
+    assert len(ids) == 4
+
+
+def test_the_columns_route_serves_the_rs_line_as_a_bare_positional_ARRAY(client, monkeypatch):
+    """⚠️ THE WIRE CONTRACT: arrays with `null`, never point objects.
+
+    `[{time, value}]` is what the BINDER produces at its own boundary. A server
+    emitting it would put that conversion in two places with nothing keeping them
+    equal, and the first divergence is a line drawn on the wrong bars.
+    """
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    bars_by_sym = {
+        "NVDA": [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 100.0, "v": 1},
+                 {"t": 2, "o": 1, "h": 1, "l": 1, "c": 110.0, "v": 1}],
+        "SPY": [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 400.0, "v": 1}],
+    }
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf",
+                        lambda sym, tf, count=400: bars_by_sym.get(sym.upper(), []))
+    c = TestClient(client)
+    r = c.get("/api/signature/columns?defId=rsLine&sym=NVDA&tf=D")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["defId"] == "rsLine" and body["sym"] == "NVDA"
+    assert body["times"] == [1, 2]
+    col = body["columns"]["rsLine"]
+    assert isinstance(col, list) and len(col) == 2
+    assert col == [0.25, None], col          # 100/400, then a bar the benchmark lacks
+    assert all(v is None or isinstance(v, (int, float)) for v in col)
+    assert not any(isinstance(v, dict) for v in col), "compute emitted point objects"
+
+
+def test_the_lane_REFUSES_point_objects_from_a_tenant(client):
+    """The refusal itself, driven directly — the route above cannot exercise it
+    without a provider that is already wrong."""
+    from api.services.signature import registry_defs as rd
+    with pytest.raises(rd.ColumnContractViolation, match="point objects"):
+        rd.wire_columns("rsLine", {"rsLine": [{"time": 1, "value": 2.0}]})
+    # …and a well-formed column of the same length passes, so the refusal is
+    # about the SHAPE and not about the data.
+    assert rd.wire_columns("rsLine", {"rsLine": [2.0]}) == {"rsLine": [2.0]}
+
+
+def test_the_lane_refuses_columns_a_definition_does_not_declare(client):
+    from api.services.signature import registry_defs as rd
+    with pytest.raises(rd.ColumnContractViolation, match="declares"):
+        rd.wire_columns("rsLine", {"somethingElse": [1.0]})
+    # Ragged columns are a DIFFERENT refusal with a DIFFERENT phrase — two gates
+    # sharing one phrase is how a `pytest.raises(match=…)` stays green with the
+    # safety deleted (Task 9's M1).
+    with pytest.raises(rd.ColumnContractViolation, match="ragged"):
+        rd.wire_columns("uct-flow-breakout", {"bull": [1.0, 0.0], "bear": [0.0]})
+
+
+def test_NaN_and_inf_cross_the_wire_as_null(client):
+    """FastAPI serializes with `allow_nan=False` and a browser's `r.json()`
+    throws on a bare NaN — one poisoned cell would take the WHOLE overlay down
+    rather than one bar."""
+    from api.services.signature import registry_defs as rd
+    out = rd.wire_columns("rsLine", {"rsLine": [float("nan"), float("inf"), 1.5]})
+    assert out == {"rsLine": [None, None, 1.5]}
+
+
+def test_the_flow_breakout_becomes_EVENT_COLUMNS_joined_by_DATE(client, monkeypatch):
+    """⭐ THE SIGNATURE DEFINITION THAT IS A REAL COLUMN TENANT.
+
+    A breakout is an EVENT — a {0, 1} column per direction, index-aligned to
+    bars — which is the shape Phase C's alert grammar addresses. The markers the
+    chart draws are one rendering of it, not the thing itself.
+
+    ⚠️ JOINED BY DATE, NEVER BY INDEX: one missing bar under an index join
+    shifts every subsequent signal, and the result is plausible and wrong for the
+    whole history rather than absent for one bar.
+    """
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    bars = [{"t": 20260803, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1},
+            {"t": 20260804, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1},
+            {"t": 20260805, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}]
+    monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: bars)
+    monkeypatch.setattr(sig, "_serve_fcb", lambda s: {
+        "sym": s, "version": "fcb-v2", "asOf": 1.0,
+        "signals": [{"barTime": 20260804, "direction": "bull", "close": 1.0,
+                     "version": "fcb-v2", "callPrem": 1.0, "putPrem": 0.0}]})
+    c = TestClient(client)
+    body = c.get("/api/signature/columns?defId=uct-flow-breakout&sym=NVDA&tf=D").json()
+    assert body["columns"]["bull"] == [0.0, 1.0, 0.0]
+    assert body["columns"]["bear"] == [0.0, 0.0, 0.0]
+    # …and the signals list rides the SAME envelope, so the shipped marker
+    # overlay costs no second request.
+    assert [s["direction"] for s in body["signals"]] == ["bull"]
+    assert body["times"] == [20260803, 20260804, 20260805]
+
+
+def test_a_LEVELS_definition_declares_no_columns_and_says_so(client, monkeypatch):
+    """Dark-pool levels and GEX walls draw horizontal LEVELS, which v1's plot
+    vocabulary cannot express as a column (`hlines` takes a STATIC array,
+    `zones` is schema-RESERVED). `columns: {}` + `times: []` is the honest
+    declaration; inventing a column would be a definition that lies."""
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    monkeypatch.setattr(sig, "_serve_dpl",
+                        lambda s: {"sym": s, "levels": [{"price": 1.0}], "version": "dpl-v1"})
+    c = TestClient(client)
+    body = c.get("/api/signature/columns?defId=uct-darkpool-levels&sym=NVDA&tf=D").json()
+    assert body["columns"] == {} and body["times"] == []
+    assert body["levels"] == [{"price": 1.0}]
+
+
+def test_an_unknown_definition_is_a_404_and_a_bad_enum_is_a_422(client):
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+    assert c.get("/api/signature/columns?defId=nope&sym=NVDA").status_code == 404
+    r = c.get('/api/signature/columns?defId=rsLine&sym=NVDA&inputs={"benchmark":"TSLA"}')
+    assert r.status_code == 422, r.text
+    assert "enum" in r.json()["detail"]
+    assert c.get("/api/signature/columns?defId=rsLine&sym=NVDA&inputs=notjson").status_code == 422
+
+
+def test_the_definitions_route_publishes_the_lane(client):
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    body = TestClient(client).get("/api/signature/definitions").json()
+    ids = [d["id"] for d in body["definitions"]]
+    assert ids == ["uct-darkpool-levels", "uct-gex-walls", "uct-flow-breakout", "rsLine"]
+    for d in body["definitions"]:
+        assert d["compute"]["kind"] == "server"
+
+
+def test_the_three_signature_definition_ids_are_the_ones_the_hook_addresses():
+    """Cross-lane: the JS hook and the Python registry name the SAME three.
+
+    A rename on either side leaves the overlay silently absent — the lane 404s
+    and an absent overlay reads exactly like a quiet tape.
+    """
+    import pathlib
+    import re
+    from api.services.signature import registry_defs as rd
+    src = pathlib.Path("app/src/hooks/useSignatureIndicators.js").read_text(encoding="utf-8")
+    block = src.split("export const SIGNATURE_DEF_ID = {", 1)[1].split("}", 1)[0]
+    js_ids = re.findall(r"'([^']+)'", block)
+    assert js_ids == list(rd.SIGNATURE_DEF_IDS), (js_ids, rd.SIGNATURE_DEF_IDS)
+    # ⛔ …and the hook no longer names one of the three legacy PATHS *in code*,
+    # which is the genericization itself. The three routes stay MOUNTED (asserted
+    # above); what changed is that the client addresses a definition instead.
+    #
+    # ⚠️ COMMENTS ARE STRIPPED FIRST, and the STRIPPER is what makes the zeroes
+    # mean anything: the hook names all three paths in PROSE deliberately (the
+    # retirement is worth reading about at the call site), and a probe that could
+    # not tell a sentence from a fetch would force the prose out.
+    code = re.sub(r"(?m)^\s*//.*$", "", src)
+    code = re.sub(r"/\*[\s\S]*?\*/", "", code)
+    for path in ("darkpool-levels", "gex-walls", "flow-breakout"):
+        assert f"/api/signature/{path}" not in code, f"the hook still hardcodes /{path}"
+        assert f"/api/signature/{path}" in src, (
+            f"the stripper ate everything — /{path} is not even in the prose")
+
+
+def test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES():
+    """The `enum` vocabulary is shared, so a benchmark added on one side alone is
+    a red test rather than an option that resolves to nothing."""
+    import pathlib
+    import re
+    from api.services.signature import registry_defs as rd
+    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    block = src.split("key: 'benchmark'", 1)[1].split("options:", 1)[1].split("]],", 1)[0]
+    js = re.findall(r"\['([A-Z]+)',", block)
+    assert js == list(rd.RS_LINE_BENCHMARKS), (js, rd.RS_LINE_BENCHMARKS)
+    assert len(js) >= 2, "a one-option enum makes this comparison vacuous"
+
+
+def test_a_provider_row_is_ALL_a_fourth_tenant_costs(client):
+    """⭐ THE GENERICITY CLAIM, EXERCISED RATHER THAN ARGUED.
+
+    A definition row plus one `register_provider` call, and the lane serves it —
+    no branch, no route, no client change. If this ever needs an edit inside
+    `registry_defs.serve`, the lane stopped being one.
+    """
+    from api.services.signature import registry_defs as rd
+    fourth = {
+        "schemaVersion": rd.SCHEMA_VERSION, "id": "probe-tenant", "version": 1,
+        "compute": {"kind": "server", "fn": "probe", "rev": 1},
+        "meta": {"name": "Probe", "tier": "premium", "repaint": "non-repainting"},
+        "placement": {"target": "pane"},
+        "inputs": [{"key": "mode", "type": "enum", "default": "a", "options": ["a", "b"]}],
+        "columns": ["probe"], "payload_keys": [], "rules_key": None,
+    }
+    rd._BY_ID["probe-tenant"] = fourth
+    try:
+        rd.register_provider("probe-tenant", lambda sym, tf, inputs: {
+            "columns": {"probe": [1.0, None]}, "times": [1, 2], "mode": inputs["mode"]})
+        out = rd.serve("probe-tenant", "NVDA", "D", {"mode": "b"})
+        assert out["columns"] == {"probe": [1.0, None]}
+        assert out["times"] == [1, 2] and out["inputs"] == {"mode": "b"}
+        # …and its refusals are the lane's, not its own.
+        with pytest.raises(rd.InputRejected):
+            rd.serve("probe-tenant", "NVDA", "D", {"mode": "z"})
+    finally:
+        rd._BY_ID.pop("probe-tenant", None)
+        rd._PROVIDERS.pop("probe-tenant", None)
+
+
+def test_a_declared_definition_with_no_provider_refuses_DISTINCTLY(client):
+    """A row with nothing plugged in is a different failure from an unknown id,
+    and they carry DISJOINT phrases: two gates sharing one made a
+    `pytest.raises(match=…)` still match with the safety deleted (Task 9's M1)."""
+    from api.services.signature import registry_defs as rd
+    saved = rd._PROVIDERS.pop("rsLine", None)
+    try:
+        with pytest.raises(rd.DefinitionHasNoProvider, match="nothing plugged in"):
+            rd.provider_for("rsLine")
+        with pytest.raises(rd.DefinitionNotOffered, match="no server-lane definition"):
+            rd.provider_for("nope")
+    finally:
+        if saved is not None:
+            rd._PROVIDERS["rsLine"] = saved
+
+
+def test_the_columns_lane_never_500s_on_OUR_defect(client, monkeypatch, caplog):
+    """Rule 1: a build must not 500 a user's chart. A provider that violates the
+    wire contract is OUR defect, so it is logged with a traceback and answered
+    with an envelope the client draws nothing from — never a 500, and never a
+    payload anything could remember as good."""
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    from api.services.signature import registry_defs as rd
+    saved = rd._PROVIDERS["rsLine"]
+    rd.register_provider("rsLine", lambda sym, tf, inputs: {
+        "columns": {"rsLine": [{"time": 1, "value": 2.0}]}, "times": [1]})
+    try:
+        with caplog.at_level(logging.ERROR):
+            r = TestClient(client, raise_server_exceptions=False).get(
+                "/api/signature/columns?defId=rsLine&sym=NVDA")
+        assert r.status_code == 200, r.text
+        assert r.json()["columns"] == {} and r.json()["error"]
+        assert any("server lane failed" in rec.message for rec in caplog.records)
+    finally:
+        rd.register_provider("rsLine", saved)

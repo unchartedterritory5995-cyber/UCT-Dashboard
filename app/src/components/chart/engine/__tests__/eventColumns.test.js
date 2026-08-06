@@ -195,12 +195,18 @@ const SHIPPED_COLUMNS = Object.freeze({
   // afterwards still have plots-only column sets.
   avwap: ['avwap'],
   atrBands: ['upper', 'middle', 'lower'],
+  // ── Phase C Task 13, the SERVER lane ──
+  // One plot, one column — and it is written here for the same reason as the
+  // rest: `columnKeys` is a pure read of the DECLARATION, so a server-lane
+  // definition is covered by exactly the same rail as a native. Where the two
+  // lanes differ is who FILLS the column, which is `computeFor`'s business.
+  rsLine: ['rsLine'],
 })
 
 describe('columnKeys — plots ∪ events', () => {
   it('every shipped definition returns exactly the columns written down above', () => {
     const defs = listDefinitions()
-    expect(defs.length, 'the registry changed size — re-read SHIPPED_COLUMNS').toBe(16)
+    expect(defs.length, 'the registry changed size — re-read SHIPPED_COLUMNS').toBe(17)
     expect(Object.keys(SHIPPED_COLUMNS).sort()).toEqual(defs.map(d => d.id).sort())
     for (const def of defs) {
       expect(columnKeys(def), def.id).toEqual(SHIPPED_COLUMNS[def.id])
