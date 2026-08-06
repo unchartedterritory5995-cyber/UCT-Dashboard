@@ -4,6 +4,7 @@ Alerts are checked against live prices on each polling cycle.
 """
 
 import uuid
+import time
 import logging
 import threading
 from datetime import datetime, timezone
@@ -16,21 +17,46 @@ _logger = logging.getLogger(__name__)
 _check_lock = threading.Lock()
 
 
-def create_alert(user_id: str, sym: str, target_price: float, direction: str) -> dict:
+def create_alert(user_id: str, sym: str, target_price: float, direction: str,
+                 alert_type: str = "price", anchors: tuple | None = None) -> dict:
+    """Create a price/line/trendline alert.
+
+    anchors (trendline only) = (t1, p1, t2, p2) — two chart-line anchor points as
+    (unix-seconds, price). The server-side checker interpolates the line's level at
+    check time from these; for 'price'/'line' they stay NULL and target_price is the
+    fixed level.
+    """
+    at1 = ap1 = at2 = ap2 = None
+    if alert_type == "trendline" and anchors and len(anchors) == 4:
+        at1, ap1, at2, ap2 = anchors
     conn = get_connection()
     try:
         alert_id = str(uuid.uuid4())[:12]
         now = datetime.now(timezone.utc).isoformat()
         conn.execute(
-            "INSERT INTO watchlist_alerts (id, user_id, sym, target_price, direction, is_active, created_at) VALUES (?,?,?,?,?,?,?)",
-            (alert_id, user_id, sym.upper(), target_price, direction, 1, now),
+            "INSERT INTO watchlist_alerts (id, user_id, sym, target_price, direction, is_active, created_at, "
+            "alert_type, anchor_t1, anchor_p1, anchor_t2, anchor_p2) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (alert_id, user_id, sym.upper(), target_price, direction, 1, now,
+             alert_type, at1, ap1, at2, ap2),
         )
         conn.commit()
         return {"id": alert_id, "user_id": user_id, "sym": sym.upper(),
                 "target_price": target_price, "direction": direction,
-                "is_active": 1, "created_at": now}
+                "is_active": 1, "created_at": now, "alert_type": alert_type,
+                "anchor_t1": at1, "anchor_p1": ap1, "anchor_t2": at2, "anchor_p2": ap2}
     finally:
         conn.close()
+
+
+def _alert_level_now(alert: dict, now_sec: float) -> float:
+    """The alert's level at `now_sec`. For a trendline, linearly interpolate/extrapolate
+    from the two anchors; otherwise the fixed target_price."""
+    if (alert.get("alert_type") == "trendline"):
+        t1, p1 = alert.get("anchor_t1"), alert.get("anchor_p1")
+        t2, p2 = alert.get("anchor_t2"), alert.get("anchor_p2")
+        if None not in (t1, p1, t2, p2) and t2 != t1:
+            return p1 + (p2 - p1) * ((now_sec - t1) / (t2 - t1))
+    return alert["target_price"]
 
 
 def list_user_alerts(user_id: str, active_only: bool = True) -> list[dict]:
@@ -92,6 +118,7 @@ def check_alerts_against_prices(price_data: dict) -> list[dict]:
     finally:
         conn.close()
 
+    now_sec = time.time()
     triggered = []
     for row in active:
         alert = dict(row)
@@ -99,7 +126,8 @@ def check_alerts_against_prices(price_data: dict) -> list[dict]:
         if sym not in price_data:
             continue
         current_price = price_data[sym]
-        target = alert["target_price"]
+        # For a trendline alert the level moves over time; interpolate it at "now".
+        target = _alert_level_now(alert, now_sec)
         direction = alert["direction"]
 
         fire = False

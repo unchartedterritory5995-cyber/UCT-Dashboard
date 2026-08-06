@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import useSWR from 'swr'
+import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
@@ -2689,6 +2689,77 @@ export default function StockChart({
   }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
+
+  // "Set alert" from a line/trendline's right-click menu → create a server-side
+  // watchlist alert (fires the bell/email/Discord like any price alert; appears in
+  // the Alerts widget). A horizontal line = a fixed-price 'line' alert; a sloped
+  // line = a 'trendline' alert carrying its two anchors (real unix-seconds + price)
+  // so the checker can interpolate the line's level over time. A point placed past
+  // the last candle (futureBars) is resolved to a real future time via the bar cadence.
+  const handleSetDrawingAlert = useCallback(async (drawing, direction) => {
+    if (!sym || !drawing) return
+    const pts = drawing.points || []
+    const kind = (drawing.type === 'horizontal' || drawing.type === 'hray') ? 'line' : 'trendline'
+    const arr = drawBarsRef.current || []
+    // Exact per-bar spacing for THIS timeframe (matches how the chart lays out its
+    // uniform logical axis), so a point placed past the last candle resolves to a
+    // real future time consistent with the visual line — not a fragile median.
+    const barSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'W' ? 604800 : resolvedTf === 'M' ? 2592000 : 86400)
+    // A drawing point's `time` is in the chart's DISPLAY epoch, NOT true UTC:
+    //  • intraday = UTC-floored + _ET_OFFSET (fake-ET shift for the axis)
+    //  • D/W/M    = a "YYYY-MM-DD" ET date STRING
+    // The server-side checker compares against true-UTC time.time(), so we MUST
+    // convert here or the trendline evaluates hours off (intraday) or not at all
+    // (daily → Math.round(string) = NaN → alert never created).
+    const toUtcSec = (t) => {
+      if (typeof t === 'number' && Number.isFinite(t)) return t - _ET_OFFSET          // reverse the intraday ET shift
+      if (typeof t === 'string') {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
+        if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], 16, 0, 0) / 1000               // D/W/M date → ~noon ET (16:00 UTC)
+      }
+      return NaN
+    }
+    const anchorUtc = (p) => {
+      const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
+      if (fb > 0 && arr.length) {
+        const lastUtc = toUtcSec(arr[arr.length - 1].t)
+        return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
+      }
+      return toUtcSec(p?.time)
+    }
+    const body = { sym, direction, alert_type: kind }
+    if (kind === 'line') {
+      const price = pts[0]?.price
+      if (!Number.isFinite(price)) return
+      body.target_price = price
+    } else {
+      const a = pts[0], b = pts[1]
+      if (!Number.isFinite(a?.price) || !Number.isFinite(b?.price)) return
+      const t1 = anchorUtc(a), t2 = anchorUtc(b)
+      if (!Number.isFinite(t1) || !Number.isFinite(t2)) return
+      body.target_price = b.price   // display fallback (latest anchor); server falls back to it if t1==t2
+      body.anchor_t1 = Math.round(t1); body.anchor_p1 = a.price
+      body.anchor_t2 = Math.round(t2); body.anchor_p2 = b.price
+    }
+    try {
+      const res = await fetch('/api/watchlist-alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const created = res.ok ? await res.json().catch(() => null) : null
+      // Instant: prepend into the Alerts widget's SWR cache, then revalidate every
+      // watchlist-alerts cache so the new alert shows immediately (no 30s poll wait).
+      if (created?.id) {
+        globalMutate(
+          '/api/watchlist-alerts?active_only=false',
+          (cur) => (Array.isArray(cur) ? [created, ...cur] : cur),
+          { revalidate: true },
+        )
+      }
+      globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
+    } catch { /* non-fatal */ }
+  }, [sym, resolvedTf])
 
   // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
   // bubble the new array to the parent via onAnnotationsChange (no localStorage).
@@ -8992,6 +9063,8 @@ export default function StockChart({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sym, target_price: Number(price.toFixed(2)), direction }),
       })
+      // Refresh every watchlist-alerts cache so the Alerts widget shows it instantly.
+      if (r.ok) globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
       showChartToast(r.ok ? `Alert ${direction} ${price.toFixed(2)}` : 'Alert failed')
     } catch { showChartToast('Alert failed') }
   }, [sym, showChartToast])
@@ -9177,7 +9250,17 @@ export default function StockChart({
       if (price == null || logical == null) return null
       const arr = drawBarsRef.current || []
       if (!arr.length) return null
-      const idx = Math.max(0, Math.min(arr.length - 1, Math.round(logical)))
+      // Allow the endpoint to extend PAST the last candle, matching the overlay's
+      // toChart→fromLogical: a logical index beyond the last bar is stored as the
+      // last bar's time + a whole-bar `futureBars` offset (capped), so the point
+      // maps into the empty right-pad instead of clamping to the last candle.
+      const rounded = Math.round(logical)
+      const lastIdx = arr.length - 1
+      if (rounded > lastIdx) {
+        const t = arr[lastIdx]?.t
+        return t == null ? null : { time: t, price, futureBars: Math.min(500, rounded - lastIdx) }
+      }
+      const idx = Math.max(0, rounded)
       const t = arr[idx]?.t
       return t == null ? null : { time: t, price }
     }
@@ -9195,19 +9278,31 @@ export default function StockChart({
       ctx.clearRect(0, 0, w, h)
       const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
       ctx.strokeStyle = col; ctx.lineWidth = cs.drawingDefaults?.width || 1
+      // Match the toolbar Trendline tool exactly: a clean line, NO endpoint dots,
+      // honoring the saved dash style.
+      if (cs.drawingDefaults?.style === 'dashed') ctx.setLineDash([6, 4]); else ctx.setLineDash([])
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-      ctx.fillStyle = col
-      ctx.beginPath(); ctx.arc(x1, y1, 3, 0, 6.283); ctx.fill()
-      ctx.beginPath(); ctx.arc(x2, y2, 3, 0, 6.283); ctx.fill()
+    }
+    // Coalesce high-frequency pointermove into ONE render per animation frame so the
+    // preview tracks the cursor smoothly — no per-event synchronous redraw jank on a
+    // live-updating chart (the "snaps around" stutter).
+    let previewRaf = null
+    let lastPos = null
+    const renderPreview = () => {
+      previewRaf = null
+      const st = trendDragStateRef.current
+      if (!st || !lastPos) return
+      drawPreview(st.startX, st.startY, lastPos.x, lastPos.y, lastPos.w, lastPos.h)
     }
     const onMove = (e) => {
-      const st = trendDragStateRef.current; if (!st) return
-      const { x, y, w, h } = getPos(e)
-      drawPreview(st.startX, st.startY, x, y, w, h)
+      if (!trendDragStateRef.current) return
+      lastPos = getPos(e)
+      if (previewRaf == null) previewRaf = requestAnimationFrame(renderPreview)
     }
     const end = (e) => {
       const st = trendDragStateRef.current
       trendDragStateRef.current = null
+      if (previewRaf != null) { cancelAnimationFrame(previewRaf); previewRaf = null }
       clearPreview()
       measureLockRef.current = false
       try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
@@ -10666,6 +10761,7 @@ export default function StockChart({
             redo={redo}
             snapshotHistory={snapshotHistory}
             onSaveDefaults={(d) => handleUpdateChartSettings({ ...cs, drawingDefaults: { ...cs.drawingDefaults, ...d } })}
+            onSetAlert={handleSetDrawingAlert}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}

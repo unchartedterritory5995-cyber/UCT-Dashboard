@@ -66,6 +66,17 @@ export function alertsWidgetStyleVars(s) {
     vars['--alerts-fs'] = `${ALERTS_TEXT_SIZES[s.textSize] || ALERTS_TEXT_SIZES.m}px`
   }
 
+  // Bold gold for the Set button + delete "×" that STAYS readable on the widget's
+  // canvas: a dark gold on a light canvas, bright gold on a dark one — the chart's
+  // 1D-pill gold per theme. Emitted ALWAYS (not just custom canvases) so the default
+  // light/OLED themes get it too. (Computed here, not left to a CSS var cascade,
+  // because the charts theme can otherwise pin the widget to the bright gold.)
+  {
+    const solidBg = s.bgMode === 'gradient' ? (s.bgGradient?.top || s.bg) : s.bg
+    const bgRgb = parseColor(solidBg)
+    if (bgRgb) vars['--alerts-gold-strong'] = luminance(bgRgb) > 0.5 ? '#7a5c16' : '#c9a84c'
+  }
+
   if (isCustomCanvas(s)) {
     const solid = s.bgMode === 'gradient' ? (s.bgGradient?.top || s.bg) : s.bg
     vars['--alerts-bg'] = s.bgMode === 'gradient'

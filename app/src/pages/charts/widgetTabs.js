@@ -15,16 +15,16 @@
 
 // Types offerable as a tab + their labels. The short label rides the compact tab
 // chip in the header; the menu label matches the "+ Add Widget" menu wording.
-export const WIDGET_TAB_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts']
+export const WIDGET_TAB_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar']
 export const WIDGET_TAB_LABEL = {
   chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes', scanner: 'Scanner',
   fundamentals: 'Fundamentals', breadth: 'Breadth', aisearch: 'AI Search',
-  news: 'News', profile: 'Profile', alerts: 'Alerts',
+  news: 'News', profile: 'Profile', alerts: 'Alerts', calendar: 'Calendar',
 }
 export const WIDGET_TAB_MENU_LABEL = {
   chart: 'Chart', watchlist: 'Watchlist', themes: 'Theme Tracker', scanner: 'Scanner',
   fundamentals: 'Fundamentals', breadth: 'Breadth', aisearch: 'AI Search',
-  news: 'News & Catalysts', profile: 'Stock Profile', alerts: 'Alerts',
+  news: 'News & Catalysts', profile: 'Stock Profile', alerts: 'Alerts', calendar: 'Calendar',
 }
 
 // Short random id (app code — Math.random is fine here; only workflow scripts ban it).
