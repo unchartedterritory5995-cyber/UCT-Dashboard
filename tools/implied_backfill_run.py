@@ -141,9 +141,10 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.from_store:
-        syms = sorted({r["sym"] for r in store.all_symbols()}) if hasattr(store, "all_symbols") else []
+        syms = store.all_symbols()
         if not syms:
-            print("--from-store: no symbols found in the store", file=sys.stderr)
+            print("--from-store: the store has no snapshots yet — pass --syms",
+                  file=sys.stderr)
             return 2
     else:
         syms = [s.strip().upper() for s in args.syms.split(",") if s.strip()]
