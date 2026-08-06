@@ -19,7 +19,11 @@ export default function PaywallTeaser({ sym }) {
           <li><UIcon name="dollar" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Institutional ownership, insider activity, short interest</li>
           <li><UIcon name="mic" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />AI call recaps + full transcripts with TTS</li>
         </ul>
-        <button className={styles.paywallCta} onClick={() => navigate('/settings?section=billing')}>
+        {/* Free users are blocked from /settings by AuthGuard (isPaid gate) —
+            routing there would immediately bounce them back to Morning Wire
+            with no explanation. /subscribe is the free-accessible upgrade
+            page (mirrors the locked NavBar/MoreSheet items' CTA target). */}
+        <button className={styles.paywallCta} onClick={() => navigate('/subscribe')}>
           Upgrade to unlock →
         </button>
       </div>
