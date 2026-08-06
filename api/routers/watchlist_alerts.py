@@ -16,8 +16,10 @@ class AlertCreate(BaseModel):
 
 
 @router.get("/api/watchlist-alerts")
-def list_alerts(user: dict = Depends(get_current_user)):
-    return watchlist_alert_service.list_user_alerts(user["id"])
+def list_alerts(active_only: bool = True, user: dict = Depends(get_current_user)):
+    # active_only defaults True (back-compat with the bell + useWatchlistAlerts hook);
+    # the Alerts widget passes active_only=false to also show recently-triggered rows.
+    return watchlist_alert_service.list_user_alerts(user["id"], active_only=active_only)
 
 
 @router.post("/api/watchlist-alerts")
