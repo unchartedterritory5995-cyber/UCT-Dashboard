@@ -35,21 +35,93 @@
     <meta name="twitter:description" content="A complete trading desk run by an AI research team. The brief at 7:35 AM, vetted catalysts, a coach on every trade. 7-day free trial." />
     <meta name="twitter:image" content="https://uctintelligence.com/og-image.png" />
 
-    <!-- ── Fonts: preconnect + preload for LCP ── -->
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Single request for both brand families: Instrument Sans — the single brand face (UI + landing, numbers included). -->
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
-    />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
-    />
+    <!-- ══ Fonts: SELF-HOSTED (app/public/fonts, served by the /fonts mount in
+         api/main.py). Instrument Sans is the brand face AND the chart's axis font.
+         ⛔ DO NOT put this back on fonts.googleapis.com: lightweight-charts bakes
+         whichever font resolves AT DRAW TIME into its axis <canvas> and never
+         repaints, so a third-party font host is a CORRECTNESS dependency of every
+         chart — including the headless Morning Wire → Substack renderer, which
+         drives this page. Measured: delaying the font 2.5 s moved 4,911 px of a
+         parity capture. Full account: tools/chart_parity.py (TEXT_FONT_PROBE_JS)
+         + docs/runbooks/chart-parity-gate.md; gated by tests/test_chart_parity_harness.py.
+         The blocks below TRANSCRIBE what Google's css2 API served (v4, Chrome UA)
+         — same styles/weights/font-display/unicode-range, only the URLs changed,
+         and the .woff2 files are Google's own binaries byte-for-byte.
+         ⚠️ There is NO 300 face: Instrument Sans is a 400–700 variable font, so
+         the old `0,300` in that URL already resolved to 400. Do not add one. ══ -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-sans-v4-latin.woff2" crossorigin />
+    <style>
+      /* latin-ext */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: italic; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext-italic.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* latin */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: italic; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-italic.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* latin-ext */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* latin */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 400;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* latin-ext */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 500;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* latin */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 500;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* latin-ext */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 600;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* latin */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 600;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* latin-ext */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 700;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* latin */
+      @font-face {
+        font-family: 'Instrument Sans'; font-style: normal; font-weight: 700;
+        font-stretch: 100%; font-display: swap;
+        src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+    </style>
 
     <!-- ── YouTube: warm DNS/TLS for the Desk video library + player ──
          Thumbnails come from i.ytimg.com; the IFrame Player API + embed come

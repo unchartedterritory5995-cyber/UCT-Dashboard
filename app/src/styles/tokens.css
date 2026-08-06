@@ -1,5 +1,13 @@
-/* Fonts (Instrument Sans + Inter + JetBrains Mono) are loaded via a single
-   <link> in app/index.html for proper preload — do NOT re-add an @import here. */
+/* Instrument Sans is SELF-HOSTED: @font-face lives inline in app/index.html
+   (app/public/fonts/*.woff2, served by the /fonts mount in api/main.py), so the
+   declarations are parsed before any stylesheet request and the binary is
+   preloaded from THIS origin. Do NOT re-add an @import here, and do NOT put it
+   back on fonts.googleapis.com — the chart's canvas axis bakes whichever font
+   resolves at draw time, so a third-party font host is a correctness dependency
+   of every chart, not a styling one. The reasoning is written out in index.html.
+   (The "+ Inter + JetBrains Mono" this comment used to name have not been
+   requested by any <link> for a long time; --font-mono is Instrument Sans too,
+   deliberately — see designTokens.js.) */
 
 :root {
   --ut-green: #2d8c4e;
