@@ -187,12 +187,33 @@ describe('a blob written before the engine existed', () => {
     const registryOrder = engineRegistry.listDefinitions().map(d => d.id)
     const paneIds = engineRegistry.listDefinitions()
       .filter(d => d.placement.target === 'pane').map(d => d.id)
-    expect(paneIds, 'the registry declares no stacked oscillator — this control is vacuous')
+    // ⛔ AN EXPLICIT LIST, NOT A FILTER THAT ABSOLVES ANYTHING MISSING. `rsLine`
+    // (Phase C Task 13) is a pane definition that was never a SHIPPED pane —
+    // `computePaneMargins` never gave it a band, so it is APPENDED by
+    // `computeShippedStackOrder` like every other later definition rather than
+    // inserted into the frozen head. Naming it keeps both lines below equalities.
+    const NEVER_A_SHIPPED_PANE = ['rsLine']
+    const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
+    for (const id of NEVER_A_SHIPPED_PANE) {
+      expect(paneIds, `NEVER_A_SHIPPED_PANE names ${id}, which is not a pane definition`)
+        .toContain(id)
+      expect(SHIPPED_STACK_ORDER.indexOf(id),
+        `${id} is inside the frozen head — it DID ship`).toBeGreaterThan(13)
+    }
+    expect(shippedPaneIds, 'the registry declares no stacked oscillator — this control is vacuous')
       .toHaveLength(9)
     expect([...SHIPPED_STACK_ORDER.slice(0, 9)].sort(),
-      'the nine head entries are not the nine pane definitions').toEqual([...paneIds].sort())
-    expect(SHIPPED_STACK_ORDER.slice(9)).toEqual(registryOrder.filter(id => !paneIds.includes(id)))
-    expect(SHIPPED_STACK_ORDER.slice(9)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+      'the nine head entries are not the nine pane definitions').toEqual([...shippedPaneIds].sort())
+    expect(SHIPPED_STACK_ORDER.slice(9))
+      .toEqual(registryOrder.filter(id => !shippedPaneIds.includes(id)))
+    // ⭐ EIGHT SINCE PHASE C TASK 13. The derived line above is the claim that
+    // matters — the tail IS everything outside the shipped nine, in registry
+    // order — and it grew with the registry on its own. This literal is the
+    // record of WHICH ones, and the first five may never move: they are the
+    // shipped z-order. `rsLine` is last and is a PANE, which is exactly what
+    // `computeShippedStackOrder` appending rather than inserting means.
+    expect(SHIPPED_STACK_ORDER.slice(9))
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -399,10 +420,15 @@ describe('a blob written before the engine existed', () => {
       'paneMargins.js is back. It was retired into `engine/paneLayout.js` at B5 Task 12 — '
       + 'the band map is `computePaneLayout(...).bands` now, and a second copy of that '
       + 'arithmetic is what the retirement was for.').toBe(false)
-    expect(SHIPPED_STACK_ORDER).toEqual([
+    // ⭐ THE FOURTEEN ARE THE RETIRED TABLE, VERBATIM AND FROZEN; anything after
+    // them is a definition authored later, which `computeShippedStackOrder`
+    // APPENDS by design (a new indicator must not be dropped from the fold, and
+    // it must not be inserted into a stack order that already shipped).
+    expect(SHIPPED_STACK_ORDER.slice(0, 14)).toEqual([
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
+    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the
@@ -439,7 +465,7 @@ describe('the allow-list, asserted by what it DESTROYS', () => {
     expect(Object.keys(cs.indicators)).toEqual(['volumeProfile'])
     // …and the fixture really did name fourteen, so the empty answer is a
     // destruction rather than an empty input.
-    expect(Object.keys(all)).toHaveLength(14)
+    expect(Object.keys(all)).toHaveLength(17)   // 14 + avwap/atrBands + Task 13's rsLine
   })
 
   it('⛔ mergeSettingsOverride still passes a legacy section through UNTOUCHED', () => {

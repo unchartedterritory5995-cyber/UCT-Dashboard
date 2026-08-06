@@ -215,6 +215,29 @@ def deliver_alert_payload(
     others. Safe to call from a background thread (no Flask/FastAPI context
     is required).
     """
+    # ⭐ FIRE-ONCE FOR THE CHART INDICATOR LANE (Phase C Task 11) — the ONE gate
+    # every channel below is downstream of.
+    #
+    # `indicator_alert_evaluator._run_one_cycle` calls this on EVERY cycle the
+    # condition is true, and `above`/`below` are LEVEL conditions with no
+    # reference to `prev`, so before this line an armed alert re-delivered bell +
+    # email + Discord every 60 seconds for as long as it stayed true. The claim
+    # is an atomic compare-and-set on the fired log: it succeeds exactly once per
+    # RECORDED fire and refuses for a duplicate, a snoozed alert, or a fire
+    # already delivered.
+    #
+    # ⚠️ MATCHED ON THE EXACT SOURCE. Every other caller of this function passes
+    # its own (`awareness_engine`, `calendar_alert`, `catalyst_alert`,
+    # `catalyst_mustknow`, `catalyst_digest`, `indicator_alert_migration`), and
+    # `indicator_alert` is both the parameter default and the only value the
+    # indicator evaluator sends. A prefix match would have swallowed the
+    # migration notice, which is a DIFFERENT event ("the maths changed") that
+    # must not be deduped against a fire.
+    if source == "indicator_alert":
+        from api.services import indicator_alert_service as _ias
+        if not _ias.claim_delivery((extra_data or {}).get("alert_id")):
+            return
+
     data = {"symbol": sym, "source": source}
     if extra_data:
         data.update(extra_data)

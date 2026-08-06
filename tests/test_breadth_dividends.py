@@ -63,16 +63,27 @@ def test_multiple_events_compound():
     assert f[0, 4] == pytest.approx(1.0)
 
 
-def test_ex_date_on_the_measured_session_scales_the_whole_frame():
-    # THE case that anchoring at the frame's end would miss: the collector pulls
-    # through the measured day, so a name going ex THAT day has its entire
-    # history scaled - including the frame's last bar.
+def test_ex_date_past_the_frame_is_ignored_even_with_as_of():
+    """The frame's last bar stays RAW, which keeps one-day metrics untouched.
+
+    An earlier build scaled the whole frame for a dividend going ex on the
+    measured session, reasoning that the collector anchors there. Ten reconciled
+    sessions rejected it: rescaling the last bar moves `prev_close`, the
+    denominator of every one-day metric, and `adv_decline` degraded from 7.2 to
+    12.0 with the sign 9+/0- as borderline decliners flipped to advancers.
+    `as_of` is now accepted and ignored; this test is what keeps it that way.
+    """
     _seed([("AAA", 20260608, 1.0)])
     closes = np.full((1, 5), 100.0)
-    plain = bd.factors(["AAA"], DATES, closes)
-    assert np.all(plain == 1.0), "outside the frame and no as_of => no effect"
-    withted = bd.factors(["AAA"], DATES, closes, as_of=20260608)
-    assert np.all(withted == pytest.approx(0.99)), "every bar predates it"
+    assert np.all(bd.factors(["AAA"], DATES, closes) == 1.0)
+    assert np.all(bd.factors(["AAA"], DATES, closes, as_of=20260608) == 1.0)
+
+
+def test_last_bar_is_never_adjusted():
+    _seed([("AAA", 20260603, 1.0)])
+    closes = np.full((1, 5), 100.0)
+    f = bd.factors(["AAA"], DATES, closes)
+    assert f[0, -1] == 1.0, "prev_close must stay raw or one-day metrics move"
 
 
 def test_outsized_event_is_skipped_not_applied():
@@ -168,3 +179,26 @@ def test_basis_ships_dark_and_the_override_wins(monkeypatch):
     monkeypatch.setattr(live, "dividend_basis_enabled", lambda: True)
     off = live._apply_dividend_basis(["AAA"], DATES, closes, 20260605, False)
     assert np.array_equal(off, closes)
+
+
+def test_anchor_switches_off_once_the_basis_is_corrected(monkeypatch):
+    """The anchor and the basis correction do the SAME job — running both
+    double-counts it.
+
+    Measured over 10 reconciled sessions, mean failing fields per session:
+        basis off:  raw 8.1  anchored 1.9   (anchor is load-bearing)
+        basis on:   raw 1.3  anchored 6.8   (anchor now injects error)
+    e.g. stage2_count raw 8.9 vs anchored 50.9.
+    """
+    from api.services import breadth_live as live
+
+    monkeypatch.setenv("BREADTH_DIVIDEND_BASIS", "0")
+    assert live._anchorable("pct_above_200sma") is True
+    assert live._anchorable("stage2_count") is True
+
+    monkeypatch.setenv("BREADTH_DIVIDEND_BASIS", "1")
+    assert live._anchorable("pct_above_200sma") is False
+    assert live._anchorable("stage2_count") is False
+    # Things that were never anchorable stay that way for their own reasons.
+    assert live._anchorable("spy_close") is False
+    assert live._anchorable("universe_count") is False

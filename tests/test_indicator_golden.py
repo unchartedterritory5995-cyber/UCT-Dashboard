@@ -8,6 +8,7 @@ and the ban on regenerating fixtures: ``tests/fixtures/indicators/_schema.md``.
 import json
 import math
 import pathlib
+from datetime import datetime
 
 import pytest
 
@@ -36,13 +37,38 @@ CASES = [
     "donchian_20",
     "ichimoku_9_26_52",
     "sar_default",
+    # ── Phase C: SAR's two EVENT columns ──
+    # `sar_events_default` OWNS NO BARS — `barsFrom` points at `sar_default.json`,
+    # whose `sar` and `trend` columns both lanes have pinned since B5, so these
+    # two columns are DERIVED from numbers that already had an oracle and not one
+    # fixture byte was reseeded to add them.
+    "sar_events_default",
+    "sar_events_outside_bar",
     # Own no bars: `barsFrom` points at the CHART PARITY GATE's intraday fixture,
     # so this lane's 1e-9 compare runs on the exact series the chart draws.
     "vwap_session_expected",
     "intraday5m_sessions",
+    # ── Phase C Task 14 ──
+    # Both own no bars either, and for the same reason each time: the referent
+    # already carries a column this case must be DERIVABLE from.
+    #   `avwap_session`    → vwap_extended_hours_utc_midnight's `etSessionVwap`
+    #   `atr_bands_14_2`   → atr_14's `atr`
+    "avwap_session",
+    "atr_bands_14_2",
 ]
 
 VWAP_CASES = ["vwap_extended_hours_utc_midnight", "vwap_dst_transition"]
+
+# ⛔ THE RS LINE IS ITS OWN LIST BECAUSE IT IS NOT DISPATCHABLE THROUGH
+# `compute_case`, AND THAT IS A STATEMENT ABOUT THE INDICATOR RATHER THAN ABOUT
+# THIS FILE. It needs TWO series — its own and the benchmark's — and both
+# `compute_case(kind, bars, params)` and spec §4's
+# `compute({bars, inputs, prevState, barstate})` carry exactly ONE. That single
+# constraint is what makes the definition `compute.kind: 'server'` (decision A3)
+# and what keeps `rs_line` out of `_CASE_COLUMNS`; smuggling the benchmark
+# through `params` to get a row in the parametrised sweep would make the dispatch
+# lie about its own shape at exactly one row.
+RS_LINE_CASES = ["rs_line_spy"]
 
 # Cases whose bars live in another file. The indirection is the point — see
 # `_generate.py::_write_referenced` — so it gets its own list rather than being
@@ -50,6 +76,16 @@ VWAP_CASES = ["vwap_extended_hours_utc_midnight", "vwap_dst_transition"]
 REFERENCED_CASES = {
     "intraday5m_sessions": "app/src/pages/parityBars/intraday5m.json",
     "vwap_session_expected": "app/src/pages/parityBars/intraday5m.json",
+    # Phase C. The referent is another FIXTURE rather than the parity bars, and
+    # the reason is the same one: `sar_events_default`'s two columns are derived
+    # from `sar_default`'s `sar` and `trend`, so the two cases must be one series.
+    # A copy would let `sar_default` be reseeded without this case noticing.
+    "sar_events_default": "tests/fixtures/indicators/sar_default.json",
+    # Phase C Task 14. Same shape, same reason: each referent already carries the
+    # column its dependant must be derivable from, so a copy would let the
+    # referent be reseeded without the dependant noticing.
+    "avwap_session": "tests/fixtures/indicators/vwap_extended_hours_utc_midnight.json",
+    "atr_bands_14_2": "tests/fixtures/indicators/atr_14.json",
 }
 
 # ─── the ONE column that pads at BOTH ends ───────────────────────────────────
@@ -174,8 +210,9 @@ def test_obv_has_no_pad_at_all_because_bar_zero_is_seeded_with_zero():
 def test_every_fixture_file_is_covered_by_a_test():
     """A fixture nobody reads is a fixture nobody maintains."""
     on_disk = {p.stem for p in FIX.glob("*.json")}
-    assert on_disk == set(CASES) | set(VWAP_CASES), (
-        f"fixture files and the CASES lists disagree: {on_disk ^ (set(CASES) | set(VWAP_CASES))}"
+    listed = set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES)
+    assert on_disk == listed, (
+        f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )
 
 
@@ -289,7 +326,12 @@ def test_a_referenced_case_really_is_referenced():
             f"regenerating that fixture stops turning this case red."
         )
         assert case["barsFrom"] == ref
-        assert (ROOT / "app" / "src" / "pages" / "parityBars" / "intraday5m.json").exists()
+        # ⚠️ THIS LINE USED TO HARDCODE `app/src/pages/parityBars/intraday5m.json`
+        # for EVERY row, which was true only while every row referenced that one
+        # file. Phase C added a row that references another FIXTURE, so the
+        # existence check now reads the row's own `ref` — strictly stronger: it
+        # was checking one path twice and is now checking each row's referent.
+        assert ROOT.joinpath(*ref.split("/")).exists(), f"{name}: {ref} does not exist"
 
 
 def test_the_parity_fixture_is_intraday_bars_the_chart_can_actually_draw():
@@ -499,6 +541,209 @@ def test_hand_computed_sar_is_clamped_to_the_prior_lows():
     assert trend == [None, 1.0, 1.0]
 
 
+# ─── SAR's two EVENT columns (Phase C) ───────────────────────────────────────
+# Events are columns valued {0, 1, None} (spec §3.1). SAR is the first indicator
+# in the platform to declare any, and the reason is that it is the one indicator
+# that CANNOT be addressed by a fixed threshold: its value jumps to the other
+# side of price at every flip, so the same number means "trailing below an
+# uptrend" one bar and "above a downtrend" the next.
+#
+# ⭐ THE COLUMNS COST NO RESEED. `compute_sar_raw` already returned a ±1 `trend`
+# column and `sar_default.json` has pinned it in BOTH lanes since B5 — so these
+# two are derived from numbers that already had an oracle, and the tests below
+# recompute them from THAT fixture rather than from the new code.
+
+SAR_EVENT_CASES = ["sar_events_default", "sar_events_outside_bar"]
+
+
+@pytest.mark.parametrize("name", SAR_EVENT_CASES)
+def test_event_columns_are_a_domain_of_zero_one_and_none(name):
+    """{0.0, 1.0, None}, None ONLY at bar 0, and never constant.
+
+    ⚠️ THE 1e-9 COMPARE ABOVE CANNOT MAKE THIS CLAIM. `_close` would be just as
+    happy with 0.9999999999 as with 1.0, and just as happy with an all-zero
+    column as with one that fires — a legal column that pins nothing. The domain
+    and the non-constancy are separate assertions for that reason.
+
+    ⚠️ None IS NOT "no event". It is the warmup pad: bar 0 has no SAR at all (the
+    trend seed consumes it), so there is nothing to have crossed. `0.0` is
+    "computed, did not happen" — including bar 1, which is computable and has no
+    prior side or trend to have moved away from.
+    """
+    case = load_case(name)
+    bars = case_bars(case)
+    got = ic.compute_case("sar_events", bars, case["params"])
+    assert set(got) == {"priceCrossedSar", "trendFlipped"}
+    for col, series in got.items():
+        assert len(series) == len(bars), f"{name}.{col} not aligned to bars"
+        assert series[0] is None, f"{name}.{col}[0] must be the pad — bar 0 has no SAR"
+        assert all(v is not None for v in series[1:]), f"{name}.{col} has a hole after bar 0"
+        assert set(series[1:]) <= {0.0, 1.0}, (
+            f"{name}.{col} left the {{0, 1, None}} domain: {sorted(set(series[1:]))}"
+        )
+        assert set(series[1:]) == {0.0, 1.0}, (
+            f"{name}.{col} is constant — a column that never fires pins nothing"
+        )
+        assert case["expected"][col] == series, f"{name}.{col} fixture disagrees exactly"
+        assert series[1] == 0.0, f"{name}.{col}[1] must be 0 — computable, with no prior"
+
+
+def test_sar_events_are_DERIVED_from_sar_defaults_already_pinned_columns():
+    """⭐ THE ORACLE THAT IS NEITHER LANE'S NEW CODE.
+
+    `sar_events_default` owns no bars: it points at `sar_default.json`, whose
+    `sar` and `trend` columns two lanes have asserted at rel-tol 1e-9 since B5.
+    Both event columns are recomputed HERE from those pinned numbers —
+    `trendFlipped` is `trend[i] != trend[i-1]`, `priceCrossedSar` is
+    `(close > sar)` changing — and the fixture must equal them.
+
+    Without this, the fixture would be a snapshot of `compute_sar_events`
+    asserted by `compute_sar_events`. With it, it is a derivation from something
+    older than either, and reseeding `sar_default` turns it red.
+    """
+    src = load_case("sar_default")
+    case = load_case("sar_events_default")
+    assert case["barsFrom"] == "tests/fixtures/indicators/sar_default.json"
+    assert case["params"] == src["params"]
+    bars = case_bars(case)
+    pin_sar, pin_trend = src["expected"]["sar"], src["expected"]["trend"]
+
+    def above(i):
+        return None if pin_sar[i] is None else bars[i]["c"] > pin_sar[i]
+
+    n = len(bars)
+    d_crossed, d_flipped = [None] * n, [None] * n
+    for i in range(1, n):
+        if pin_trend[i] is not None:
+            d_flipped[i] = 1.0 if (pin_trend[i - 1] is not None
+                                   and pin_trend[i - 1] != pin_trend[i]) else 0.0
+        if above(i) is not None:
+            d_crossed[i] = 1.0 if (above(i - 1) is not None
+                                   and above(i - 1) != above(i)) else 0.0
+
+    assert case["expected"]["trendFlipped"] == d_flipped
+    assert case["expected"]["priceCrossedSar"] == d_crossed
+    # …and the derivation is non-trivial: the trend really does flip on these
+    # bars, so the columns are not "all zeros" agreeing with "all zeros".
+    assert d_flipped.count(1.0) > 1, "the trend never flips — the derivation pins nothing"
+
+
+def test_the_two_event_columns_are_TWO_columns():
+    """⚠️ MEASURED: on `sar_default`'s 140 real bars they are element-for-element
+    EQUAL, and `sar_events_outside_bar` exists because of it.
+
+    A side change without a trend change is only reachable around an OUTSIDE
+    reversal bar: on reversal the new SAR is the prior leg's extreme point, which
+    a bar making a new high can close beyond. `sar_default` contains no such bar,
+    so on that case alone a lane that returned the SAME column twice — or
+    returned the two the wrong way round — would be completely invisible.
+    """
+    default = load_case("sar_events_default")["expected"]
+    assert default["priceCrossedSar"] == default["trendFlipped"], (
+        "the two columns now differ on sar_default's bars — good news, but the note "
+        "in both fixtures and this test's premise are stale; re-measure"
+    )
+    ob = load_case("sar_events_outside_bar")["expected"]
+    assert ob["priceCrossedSar"] != ob["trendFlipped"], (
+        "the outside-bar case no longer separates the two columns — the ONLY case "
+        "that can tell priceCrossedSar from trendFlipped has gone vacuous"
+    )
+    # The two divergent bars, by index, so a series edit cannot quietly move them.
+    assert (ob["trendFlipped"][5], ob["priceCrossedSar"][5]) == (1.0, 0.0)
+    assert (ob["trendFlipped"][6], ob["priceCrossedSar"][6]) == (0.0, 1.0)
+
+
+def test_hand_computed_sar_events_on_the_outside_bar():
+    """The seven bars of `sar_events_outside_bar`, on paper.
+
+    Uptrend seeds at bars[0].l = 98 with ep = bars[0].h = 100, af = 0.02, so the
+    SAR climbs 98 / 98 / 98.36 / 98.9712 while the close stays above it.
+
+    Bar 5 projects 98.9712 + 0.10*(108 - 98.9712) = 99.87408. Its LOW (95) is
+    below that, so the trend flips DOWN and the SAR jumps to ep = 108 — but its
+    CLOSE (112) is ABOVE 108, so the price did not change sides.
+    Bar 6 is a downtrend bar, so the SAR is clamped UP to the prior high (113),
+    and the close (107) is now below it: the side changes with no trend change.
+    """
+    bars = load_case("sar_events_outside_bar")["bars"]
+    sar, trend = ic.compute_sar_raw(bars, 0.02, 0.2)
+    assert sar == [None, 98.0, 98.0, 98.36, 98.9712, 108.0, 113.0]
+    assert trend == [None, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0]
+    crossed, flipped = ic.compute_sar_events(bars, 0.02, 0.2)
+    assert flipped == [None, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+    assert crossed == [None, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
+def test_compute_sar_events_pads_a_series_too_short_to_have_a_sar():
+    """A too-short series is all-None, never all-zero.
+
+    `0.0` would be a lie: it says "computed, did not happen" about a bar where
+    nothing was computed at all.
+    """
+    for n in (0, 1):
+        bars = [{"t": i, "h": 1.0, "l": 1.0, "c": 1.0} for i in range(n)]
+        crossed, flipped = ic.compute_sar_events(bars)
+        assert crossed == [None] * n and flipped == [None] * n
+
+
+def test_compute_sar_events_DERIVES_from_compute_sar_raw_and_does_not_re_implement_it():
+    """⛔ A SOURCE PROBE, AND IT IS THE ONLY THING THAT CAN KILL THIS MUTATION.
+
+    An exact re-implementation of the SAR loop inside `compute_sar_events` is an
+    EQUIVALENT MUTANT against every value comparison in this file and in the
+    vitest lane: the numbers would be identical. What would NOT be identical is
+    the future — a second copy drifts the first time somebody edits one of them,
+    and a twin is precisely what this programme exists to retire.
+
+    So the claim is structural, and it is made through `ast` rather than a text
+    search: a mention in a comment or in the docstring (which says
+    ``compute_sar_raw`` in prose, twice) is a `Constant`, not a `Call`, so it
+    cannot satisfy this. That is the "source probe defeated by a comment" trap,
+    closed by construction instead of by a stripper.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(ic.compute_sar_events)))
+    called = {
+        n.func.id for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "compute_sar_raw" in called, (
+        "compute_sar_events no longer CALLS compute_sar_raw — it is a second SAR "
+        "implementation, and the two will disagree the day one of them is edited"
+    )
+    # The control for the probe: prose alone must not satisfy it. `compute_sar`
+    # (the delivery wrapper) also calls `compute_sar_raw`; `compute_rsi_raw`
+    # calls nothing of the sort, so the set really is a call set.
+    rsi = ast.parse(textwrap.dedent(inspect.getsource(ic.compute_rsi_raw)))
+    rsi_calls = {
+        n.func.id for n in ast.walk(rsi)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "compute_sar_raw" not in rsi_calls
+
+
+def test_case_columns_names_the_two_events_in_the_order_compute_case_returns():
+    """`_CASE_COLUMNS` is the ledgered (kind → columns) map, and it is READ.
+
+    ⚠️ THE ORDER IS LOAD-BEARING HERE IN A WAY IT IS NOT ELSEWHERE. Both event
+    columns are `{0, 1, None}`, so swapping them in the tuple — or swapping the
+    two values `compute_sar_events` returns — moves no VALUE that a "did the
+    number change?" test can see. `_generate.py` writes fixtures in
+    `case_columns` order and this asserts the tuple against the names
+    `compute_case` actually returns, so a swap in either place is a red test.
+    """
+    assert ic.case_columns("sar_events") == ("priceCrossedSar", "trendFlipped")
+    case = load_case("sar_events_outside_bar")
+    got = ic.compute_case("sar_events", case["bars"], case["params"])
+    assert tuple(got) == ic.case_columns("sar_events")
+    # And the two really are distinguishable on this case, so "the tuple is
+    # right" is a claim with consequences.
+    assert got["priceCrossedSar"] != got["trendFlipped"]
+
+
 def test_hand_computed_vwap_is_volume_weighted_and_cumulative():
     # One ET session (14:00 and 15:00 ET on 2026-06-10, both inside one UTC day
     # so this case is about the ARITHMETIC, not the bucketing).
@@ -585,7 +830,15 @@ def test_delivery_wrappers_still_round(getter, ndigits):
     is round at DELIVERY, not in compute; this test is that ruling's gate.
     """
     closes = [100 + (i * 7 % 13) * 0.37 + i * 0.11 for i in range(80)]
-    bars = [{"t": i, "o": c, "h": c + 0.9, "l": c - 0.8, "c": c, "v": 1000 + i * 37}
+    # ⚠️ `t` IS A REAL INSTANT AND THAT IS NOT COSMETIC. This grid used to build
+    # bars with `t: 0, 1, 2 …`, a counter — which is the 1970 unit error, and the
+    # `compute_vwap` row was therefore measuring the rounding of a column
+    # anchored on 1970-01-01. `compute_vwap` now refuses a `t` that is not an
+    # instant (`VWAP_MIN_INSTANT`), so the row reddened with "nothing computed"
+    # and named its own fixture. 5-minute bars from 2026-08-02 09:00 UTC; every
+    # other row here ignores `t` entirely.
+    bars = [{"t": 1785410100 + i * 300, "o": c, "h": c + 0.9, "l": c - 0.8,
+             "c": c, "v": 1000 + i * 37}
             for i, c in enumerate(closes)]
     series = getter(closes, bars)
     values = [v for v in series if v is not None]
@@ -624,3 +877,388 @@ def test_compute_case_columns_are_input_length_even_when_uncomputable():
     bars = [{"t": i, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1} for i in range(3)]
     got = ic.compute_case("rsi", bars, {"period": 14})
     assert got["rsi"] == [None, None, None]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PHASE C TASK 14 — Anchored VWAP · ATR bands · the RS line
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# The two new fixture cases ride the parametrised sweep like every other case.
+# What follows is what that sweep CANNOT say: that the anchor is the ET calendar
+# and not a 1970 artefact of the wrong unit, that the bands are derived from a
+# column older than their own code, and that the RS line's second series is real.
+
+
+def test_avwap_session_anchor_IS_the_ET_session_the_referent_already_pinned():
+    """⭐ THE ORACLE THAT IS NOT THIS CODE.
+
+    `avwap_session` owns no bars: it points at
+    `vwap_extended_hours_utc_midnight.json`, whose `session.etSessionVwap` was
+    written BEFORE this lane had a VWAP at all and has never been reseeded. So
+    AVWAP's `session` anchor is required to equal that series exactly — a fixture
+    generated from `compute_avwap_raw` and asserted only by `compute_avwap_raw`
+    would be a snapshot of one afternoon's work.
+    """
+    case = load_case("avwap_session")
+    src = load_case("vwap_extended_hours_utc_midnight")
+    assert case["barsFrom"] == "tests/fixtures/indicators/vwap_extended_hours_utc_midnight.json"
+    exp = case["expected"]["avwap"]
+    ref = src["session"]["etSessionVwap"]
+    assert len(exp) == len(ref)
+    for i, (a, b) in enumerate(zip(exp, ref)):
+        assert _close(a, b, case["relTol"]), f"avwap_session[{i}]: {a!r} != etSessionVwap {b!r}"
+
+
+def test_avwap_session_anchor_is_NOT_the_utc_day():
+    """Non-vacuity for the case above, in the referent's own vocabulary.
+
+    These 17 bars are ONE ET session that the retired UTC-day bucketing splits in
+    two at the 20:00 ET bar. A lane that anchored on the UTC day would collapse
+    the accumulator to that bar's typical price; the fixture's column does not.
+    """
+    case = load_case("avwap_session")
+    src = load_case("vwap_extended_hours_utc_midnight")
+    s = src["session"]
+    got = case["expected"]["avwap"]
+    assert s["etResetIndices"] == [0], "the referent stopped being one ET session"
+    assert len(s["utcResetIndices"]) == 2
+    split = s["utcResetIndices"][1]
+    assert s["etHour"][split] == 20
+    b = src["bars"][split]
+    tp = (b["h"] + b["l"] + b["c"]) / 3
+    assert abs(got[split] - tp) > 1.0, (
+        "the 20:00 ET bar collapsed to its own typical price — this column is UTC-anchored"
+    )
+
+
+def test_avwap_REFUSES_a_date_shaped_t_instead_of_anchoring_in_1970():
+    """🔴 THE UNIT CONTROL, AND IT FAILS IF THE UNIT IS WRONG.
+
+    `_fetch_bars_for_alert` hands `compute_vwap` the store's `YYYYMMDD` integer
+    where real unix seconds are expected. That is not a hypothetical: 20250101
+    read as unix seconds is **1970-08-23**, and two years of daily bars span
+    11,130 seconds — one bucket, one reset at index 0, no exception, a plausible
+    line. AVWAP must not reproduce it.
+
+    ⛔ THE REFUSAL IS AN ALL-None COLUMN, NOT A ONE-BUCKET ANSWER, and this test
+    is why: a one-bucket fallback and the 1970 defect are the SAME OUTPUT, so a
+    control could not tell them apart.
+    """
+    from datetime import timezone
+
+    # The defect itself, measured rather than asserted from memory.
+    assert datetime.fromtimestamp(20250101, timezone.utc).strftime("%Y-%m-%d") == "1970-08-23"
+    assert datetime.fromtimestamp(20251231, timezone.utc).strftime("%Y-%m-%d") == "1970-08-23"
+
+    zone = ic._et_zone()
+
+    def bar(t, c):
+        return {"t": t, "o": c, "h": c + 1.0, "l": c - 1.0, "c": c, "v": 1000.0}
+
+    # CONTROL A — REAL unix seconds, one bar a day from 2025-01-02, 400 of them.
+    t0 = int(datetime(2025, 1, 2, 12, 0, tzinfo=zone).timestamp())
+    real = [bar(t0 + i * 86400, 100.0 + i * 0.25) for i in range(400)]
+    dates = [datetime.fromtimestamp(b["t"], zone) for b in real]
+    a = ic.compute_avwap_raw(real, "year")
+    assert all(v is not None for v in a), "the control produced no AVWAP at all"
+    years = sorted({d.year for d in dates})
+    assert len(years) >= 2, "the control never crosses a year boundary"
+    resets = [i for i in range(1, len(real))
+              if abs(a[i] - (real[i]["h"] + real[i]["l"] + real[i]["c"]) / 3) < 1e-9]
+    assert len(resets) == len(years) - 1, (resets, years)
+
+    # CONTROL B — the SAME calendar days, encoded YYYYMMDD. The unit is wrong, so
+    # there is no answer: not one bucket, not 1970, nothing.
+    wrong = [bar(int(d.strftime("%Y%m%d")), b["c"]) for d, b in zip(dates, real)]
+    assert wrong[0]["t"] == 20250102
+    for anchor in ("session", "week", "month", "quarter", "year"):
+        assert ic.compute_avwap_raw(wrong, anchor) == [None] * len(wrong), anchor
+
+    # …and the two swing anchors are PURE PRICE, so they are untouched by the
+    # guard. A guard that fired on them would refuse a column it cannot doubt.
+    for anchor in ("swingHigh", "swingLow"):
+        assert all(v is not None for v in ic.compute_avwap_raw(wrong, anchor)), anchor
+
+
+def test_avwap_calendar_anchors_are_FIVE_different_ET_boundaries():
+    """Each named calendar anchor re-anchors at its own ET boundary — no two of
+    the distinct ones are the same column on a series that crosses all of them.
+
+    Hourly bars from Fri 2025-12-26 12:00 ET across eleven ET calendar days, so
+    the window crosses a session, TWO Mondays (2025-12-29 and 2026-01-05), a
+    month, a quarter and a year. The second Monday is what stops `week` passing
+    by coinciding with `year`.
+    """
+    zone = ic._et_zone()
+    t0 = int(datetime(2025, 12, 26, 12, 0, tzinfo=zone).timestamp())
+    bars = [
+        {"t": t0 + i * 3600, "o": 100.0, "h": 100.0 + (i % 7), "l": 99.0,
+         "c": 100.0 + (i % 5) * 0.5, "v": 1000.0 + i}
+        for i in range(24 * 11)
+    ]
+
+    def tp(b):
+        return (b["h"] + b["l"] + b["c"]) / 3
+
+    def reset_indices(anchor):
+        col = ic.compute_avwap_raw(bars, anchor)
+        assert all(v is not None for v in col), anchor
+        return [i for i, b in enumerate(bars) if abs(col[i] - tp(b)) < 1e-9]
+
+    # ⭐ THE EXPECTATION IS DERIVED FROM `datetime` DIRECTLY, not hand-counted and
+    # not read back out of `_et_anchor_key`. `isocalendar()` is an INDEPENDENT
+    # Monday-anchored week — the code under test does its own civil arithmetic —
+    # so agreeing with it is a real second opinion rather than a tautology.
+    ets = [datetime.fromtimestamp(b["t"], zone) for b in bars]
+    keyers = {
+        "session": lambda d: (d.year, d.month, d.day),
+        "week": lambda d: d.isocalendar()[:2],
+        "month": lambda d: (d.year, d.month),
+        "quarter": lambda d: (d.year, (d.month - 1) // 3),
+        "year": lambda d: (d.year,),
+    }
+    for anchor, key in keyers.items():
+        want = [0] + [i for i in range(1, len(ets)) if key(ets[i]) != key(ets[i - 1])]
+        assert reset_indices(anchor) == want, anchor
+
+    # The window really does cross every boundary — otherwise the five loops
+    # above all measured the same thing.
+    counts = {a: len(reset_indices(a)) for a in keyers}
+    assert counts["session"] > counts["week"] > counts["year"] >= 2, counts
+    assert counts["week"] >= 3, "only one Monday — `week` could pass by coinciding with `year`"
+    assert reset_indices("month") == reset_indices("quarter") == reset_indices("year")
+    cols = {a: ic.compute_avwap_raw(bars, a) for a in ("session", "week", "year")}
+    for x, y in (("session", "week"), ("week", "year"), ("session", "year")):
+        assert cols[x] != cols[y], f"{x} and {y} are the same column"
+
+
+def test_avwap_session_anchor_SURVIVES_THE_DST_CHANGE():
+    """⚠️ THE ZONE IS RESOLVED PER INSTANT, NOT FROM A MODULE-LOAD OFFSET.
+
+    A fixed `_ET_OFFSET` captured at import is correct for half the year and
+    silently an hour wrong for the other half depending on when the process
+    started — the defect class `VWAP_SESSION_ANCHOR` retired, and the reason
+    `StockChart.jsx:517`'s constant must never become the anchor's source.
+
+    `vwap_dst_transition` is the fixture written for exactly this: two ET
+    sessions of identical wall-clock shape either side of the change, whose
+    `session.etSessionVwap` predates every line of AVWAP. The session anchor has
+    to reproduce it on BOTH sides.
+    """
+    src = load_case("vwap_dst_transition")
+    bars = src["bars"]
+    s = src["session"]
+    got = ic.compute_avwap_raw(bars, "session")
+    assert len(set(s["etDate"])) == 2, "the fixture stopped spanning two sessions"
+    for i, (g, e) in enumerate(zip(got, s["etSessionVwap"])):
+        assert _close(g, e, src["relTol"]), f"vwap_dst_transition[{i}]: {g!r} != {e!r}"
+    # Non-vacuous: the retired UTC-day bucketing split each session at a
+    # DIFFERENT ET hour (20:00 on EDT, 19:00 on EST) — the boundary tracked the
+    # offset rather than the trading day. Those two mid-session wipes do not
+    # happen here.
+    mid = [i for i in s["utcResetIndices"] if i not in s["etResetIndices"]]
+    assert len(mid) == 2, mid
+    for i in mid:
+        tp_i = (bars[i]["h"] + bars[i]["l"] + bars[i]["c"]) / 3
+        assert abs(got[i] - tp_i) > 1.0, f"bar {i} collapsed — the anchor moved with the offset"
+
+
+def test_avwap_fails_closed_on_an_anchor_the_maths_does_not_know():
+    """`params_json` on a stored alert row is user-supplied and unvalidated, so
+    an anchor outside the vocabulary is a live input, not a hypothetical. It
+    draws NOTHING rather than silently falling back to `session`."""
+    bars = [{"t": 1780272000 + i * 3600, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10.0}
+            for i in range(5)]
+    assert ic.compute_avwap_raw(bars, "anchor:1780272000") == [None] * 5
+    assert ic.compute_avwap_raw(bars, "") == [None] * 5
+    assert ic.AVWAP_ANCHORS == (
+        "session", "week", "month", "quarter", "year", "swingHigh", "swingLow",
+    )
+
+
+def test_the_avwap_anchor_vocabulary_is_ONE_list_across_BOTH_LANES():
+    """A second copy of an enum is how an option a user can pick becomes an
+    anchor the maths does not know. `indicators.js` exports `AVWAP_ANCHORS` and
+    the definition's `enum` options are built FROM it; this asserts the Python
+    lane names the same seven, in the same order."""
+    src = (ROOT / "app" / "src" / "components" / "chart" / "indicators.js").read_text(encoding="utf-8")
+    marker = "export const AVWAP_ANCHORS = Object.freeze(["
+    start = src.index(marker) + len(marker)
+    body = src[start:src.index("])", start)]
+    js = [chunk.strip().strip("'\"") for chunk in body.split(",") if chunk.strip()]
+    assert js == list(ic.AVWAP_ANCHORS), (js, ic.AVWAP_ANCHORS)
+
+
+def test_atr_bands_are_DERIVED_from_atr_14s_already_pinned_column():
+    """⭐ THE ORACLE IS OLDER THAN EITHER IMPLEMENTATION, exactly as it is for
+    SAR's two event columns. `atr_bands_14_2` owns no bars — it points at
+    `atr_14.json`, whose `atr` column both lanes have asserted at 1e-9 since B5 —
+    so every number in it is `close ± 2 × <that pinned column>` and a reseed of
+    `atr_14` turns this case red."""
+    case = load_case("atr_bands_14_2")
+    src = load_case("atr_14")
+    assert case["barsFrom"] == "tests/fixtures/indicators/atr_14.json"
+    assert src["params"]["period"] == case["params"]["period"] == 14
+    mult = case["params"]["multiplier"]
+    bars = case_bars(case)
+    pinned = src["expected"]["atr"]
+
+    for i, a in enumerate(pinned):
+        if a is None:
+            for col in ("upper", "middle", "lower"):
+                assert case["expected"][col][i] is None, f"{col}[{i}] outlived the ATR pad"
+            continue
+        c = bars[i]["c"]
+        assert _close(case["expected"]["middle"][i], c, case["relTol"]), i
+        assert _close(case["expected"]["upper"][i], c + mult * a, case["relTol"]), i
+        assert _close(case["expected"]["lower"][i], c - mult * a, case["relTol"]), i
+
+    # The three columns share ONE pad, and it is the head only. A middle that
+    # existed where the edges did not would be a band with nothing to draw
+    # between — the unrenderable shape `validateBandEdges` refuses one level up.
+    first = next(i for i, v in enumerate(case["expected"]["middle"]) if v is not None)
+    assert first == 14, first
+    for col in ("upper", "middle", "lower"):
+        vals = case["expected"][col]
+        assert all(v is None for v in vals[:first]) and all(v is not None for v in vals[first:])
+
+
+def test_atr_bands_READ_the_multiplier_input():
+    """🔴 THE MUTATION THIS EXISTS FOR: `multiplier` written as a literal.
+
+    `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
+    `lineStyle` only, and a band's WIDTH IN PRICE is none of those — so the
+    multiplier has to be an input the COMPUTE reads. A hardcoded 2.0 would keep
+    `atr_bands_14_2` (multiplier 2) perfectly green while every user who moved
+    the control got the same band, which is why the fixture alone cannot make
+    this claim.
+    """
+    case = load_case("atr_bands_14_2")
+    bars = case_bars(case)
+    base = case["expected"]
+    for mult in (1.0, 2.5, 3.0):
+        upper, middle, lower = ic.compute_atr_bands_raw(bars, 14, mult)
+        assert middle == base["middle"], "the middle moved with the multiplier"
+        moved = [i for i in range(14, len(bars)) if abs(upper[i] - base["upper"][i]) > 1e-9]
+        assert len(moved) == len(bars) - 14, (mult, len(moved))
+        for i in range(14, len(bars)):
+            assert abs((upper[i] - middle[i]) - (middle[i] - lower[i])) < 1e-9
+
+
+def test_rs_line_matches_the_golden_column_and_JOINS_BY_TIME():
+    """The RS line's fixture, read by the same rules as every other case — plus
+    the one claim only a two-series indicator can make.
+
+    Bar 6's `t` is ABSENT from `benchmarkBars`. Under an index join every ratio
+    from bar 6 on would shift by one and the line would be plausible and wrong
+    for the whole history; under a time join bar 6 is the only null and bars
+    7-11 are unmoved.
+    """
+    case = load_case("rs_line_spy")
+    bars, bench = case["bars"], case["benchmarkBars"]
+    got = ic.compute_rs_line_raw(bars, bench)
+    exp = case["expected"]["rsLine"]
+    assert len(got) == len(bars) == len(exp)
+    for i, (g, e) in enumerate(zip(got, exp)):
+        assert _close(g, e, case["relTol"]), f"rs_line_spy.rsLine[{i}]: {g!r} != {e!r}"
+
+    holes = [i for i, v in enumerate(exp) if v is None]
+    assert len(holes) == 1 and holes[0] > 0, holes
+    gap = holes[0]
+    assert {b["t"] for b in bench}.isdisjoint({bars[gap]["t"]})
+    by_t = {b["t"]: b["c"] for b in bench}
+    for i in range(gap + 1, len(bars)):
+        assert _close(got[i], bars[i]["c"] / by_t[bars[i]["t"]], case["relTol"]), i
+
+
+def test_a_single_symbol_rs_line_is_ONE_POINT_ZERO_and_that_is_the_failure_mode():
+    """🔴 THE MUTATION THIS EXISTS FOR: RS line implemented as a native reading
+    only `bars`.
+
+    A native's compute contract (spec §4) carries ONE series, so a native RS line
+    could only divide the chart's closes by themselves — a flat line at 1.0 that
+    looks exactly like an indicator that is working. This names the number.
+    """
+    case = load_case("rs_line_spy")
+    bars = case["bars"]
+    assert ic.compute_rs_line_raw(bars, bars) == [1.0] * len(bars)
+    real = [v for v in case["expected"]["rsLine"] if v is not None]
+    assert len({round(v, 12) for v in real}) > 1, "the fixture's RS line is constant"
+    assert all(abs(v - 1.0) > 1e-6 for v in real)
+
+
+def test_compute_case_has_NO_rs_line_row_because_it_carries_ONE_bars():
+    """⛔ THE STRUCTURAL HALF OF THE SAME CLAIM.
+
+    `compute_case(kind, bars, params)` carries one series and spec §4's
+    `compute({bars, inputs, prevState, barstate})` carries one too. The RS line
+    needs two, which is exactly why decision A3 makes its definition
+    `compute.kind: 'server'`. A row here would have to smuggle the benchmark
+    through `params`, and the dispatch would be lying about its own shape at one
+    row — so there is no row, and this is the assertion that keeps it that way.
+    """
+    assert ic.case_columns("rs_line") == ()
+    with pytest.raises(KeyError):
+        ic.compute_case("rs_line", load_case("rs_line_spy")["bars"], {"benchmark": "SPY"})
+    assert ic.case_columns("avwap") == ("avwap",)
+    assert ic.case_columns("atr_bands") == ("upper", "middle", "lower")
+
+
+@pytest.mark.parametrize(
+    "getter, ndigits",
+    [
+        (lambda b: ic.compute_avwap(b, "session"), 4),
+        (lambda b: ic.compute_atr_bands(b, 14, 2.0)[0], 4),
+        (lambda b: ic.compute_atr_bands(b, 14, 2.0)[1], 4),
+        (lambda b: ic.compute_atr_bands(b, 14, 2.0)[2], 4),
+    ],
+)
+def test_task_14_delivery_wrappers_still_round(getter, ndigits):
+    """Decision A4: the wrappers are NOT retired, so every new address rounds at
+    the same delivery boundary every existing one does. A new address that
+    skipped it would compare a user's threshold against a different number from
+    every other alert on the same chart."""
+    # ⚠️ SIX-DECIMAL INPUTS, DELIBERATELY. `compute_atr_bands`' middle column IS
+    # the close, so on a 3dp price the wrapper's 4dp rounding is a no-op and the
+    # non-vacuity check below would pass whether the wrapper rounded or not —
+    # exactly the shape `compute_obv` was pulled out of the older grid for.
+    bars = [
+        {"t": 1780272000 + i * 3600,
+         "o": 100.0 + i * 0.1371234, "h": 100.9174231 + i * 0.1371234,
+         "l": 99.1132917 + i * 0.1371234, "c": 100.3716528 + i * 0.1371234,
+         "v": 1000.0 + i}
+        for i in range(60)
+    ]
+    delivered = [v for v in getter(bars) if v is not None]
+    assert delivered, "nothing delivered — this row proves nothing"
+    assert all(v == round(v, ndigits) for v in delivered)
+    assert any(abs(v - round(v, ndigits - 1)) > 1e-12 for v in delivered)
+
+
+def test_the_rs_line_wrapper_rounds_at_SIX_because_it_delivers_a_RATIO():
+    """⚠️ SIX, NOT FOUR, AND THE DIFFERENCE IS LOAD-BEARING.
+
+    Every other price-scale wrapper rounds to 4 because it delivers a PRICE. The
+    RS line delivers a ratio — about 0.10 for the fixture's pair — so 4dp
+    quantises a real RS move into nothing. The wrappers are the boundary user
+    thresholds are compared at (decision A4), which is precisely why the
+    precision has to suit the scale of the number rather than the habit of the
+    module.
+    """
+    case = load_case("rs_line_spy")
+    bars, bench = case["bars"], case["benchmarkBars"]
+    raw = ic.compute_rs_line_raw(bars, bench)
+    delivered = ic.compute_rs_line(bars, bench)
+    assert [v is None for v in raw] == [v is None for v in delivered]
+    vals = [v for v in delivered if v is not None]
+    assert all(v == round(v, 6) for v in vals)
+    assert any(r != d for r, d in zip(raw, delivered) if r is not None)
+
+    # …and 4dp really would have cost something, MEASURED rather than asserted:
+    # a 1e-4 quantum on a ratio near 0.10 is ~1e-3 of the value, while the same
+    # 1e-4 on a price near 100 — which is what every other wrapper delivers — is
+    # ~1e-6 of it. Three orders of magnitude, which is the whole argument.
+    assert any(round(v, 4) != v for v in vals), "4dp is lossless here — the row proves nothing"
+    worst_ratio_quantum = 1e-4 / min(abs(v) for v in vals)
+    price_quantum = 1e-4 / 100.0
+    assert worst_ratio_quantum > 100 * price_quantum, worst_ratio_quantum

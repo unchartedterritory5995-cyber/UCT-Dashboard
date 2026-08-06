@@ -437,7 +437,7 @@ describe('the price overlays keep their z-order across the migration', () => {
     // overlay it currently sits below, and LWC z-stacks by insertion.
     expect(engineRegistry.listDefinitions()
       .filter(d => d.placement?.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
   })
 
   it('the binder inserts them in registry order regardless of the instance list\'s order', () => {

@@ -1,0 +1,455 @@
+{
+ "note": "THE DECLARED DIFF. What the closed-bar rebuild CHANGES about an armed alert, per ADDRESS, per DIRECTION, with a REASON and a bounded COUNT. Measured by `python tools/alert_replay.py --diff --mode-a forming --mode-b closed`, which is also the gate: an UNDECLARED difference fails in EITHER direction (a MISSING alert is the failure a user cannot see and cannot report), a row whose count is smaller than what was observed fails, and a row declared but NOT observed in a given configuration is REPORTED, never failed (B5's `provenance_unmet` ruling). The row counts SUM to the recorded totals below — that equality is what refuses an unbounded declaration, which is a wildcard wearing a number. ⛔ 'gained' = the CLOSED lane fires where the forming lane did not. 'lost' = the forming lane fires where the closed lane does not. ⚠️ THIS FILE IS DATA, NOT OUTPUT. There is deliberately no committed generator: a re-runnable 're-declare whatever the code now does' button converts a real behaviour change into a green build. When `--diff` names a group that moved, a human writes the reason.",
+ "measured": {
+  "head": "f36c840aada6f551981693ba7f92ac80de2d8373",
+  "command": "python tools/alert_replay.py --diff --out tools/alert_replay_out/t15_diff.json",
+  "k": 4,
+  "fixtures": [
+   "intraday5m",
+   "spy_daily",
+   "nvda_5m_extended",
+   "wick_that_unwinds"
+  ],
+  "addresses_covered": 31,
+  "addresses_in_catalog": 31,
+  "addresses_that_change": 31,
+  "forming_fires": 569830,
+  "closed_fires": 555332,
+  "forming_keys": 435259,
+  "closed_keys": 138833,
+  "gained": 109355,
+  "lost": 405781,
+  "identity_gained": 6859,
+  "identity_lost": 29869,
+  "shapes": {
+   "lost": {
+    "value_moved": 338376,
+    "shifted_later": 28070,
+    "vanished": 39335
+   },
+   "gained": {
+    "value_moved": 102496,
+    "shifted_later": 6750,
+    "appeared": 109
+   }
+  },
+  "per_fixture": {
+   "intraday5m": {
+    "bars": 579,
+    "alerts": 331,
+    "forming_fires": 183560,
+    "closed_fires": 178744,
+    "forming_keys": 144128,
+    "closed_keys": 44686,
+    "gained": 35554,
+    "lost": 134996,
+    "identity_gained": 1715,
+    "identity_lost": 8596
+   },
+   "spy_daily": {
+    "bars": 400,
+    "alerts": 319,
+    "forming_fires": 119957,
+    "closed_fires": 118208,
+    "forming_keys": 94257,
+    "closed_keys": 29552,
+    "gained": 24873,
+    "lost": 89578,
+    "identity_gained": 1918,
+    "identity_lost": 6489
+   },
+   "nvda_5m_extended": {
+    "bars": 800,
+    "alerts": 331,
+    "forming_fires": 254288,
+    "closed_fires": 246792,
+    "forming_keys": 187920,
+    "closed_keys": 61698,
+    "gained": 46728,
+    "lost": 172950,
+    "identity_gained": 2702,
+    "identity_lost": 12304
+   },
+   "wick_that_unwinds": {
+    "bars": 66,
+    "alerts": 307,
+    "forming_fires": 12025,
+    "closed_fires": 11588,
+    "forming_keys": 8954,
+    "closed_keys": 2897,
+    "gained": 2200,
+    "lost": 8257,
+    "identity_gained": 524,
+    "identity_lost": 2480
+   }
+  }
+ },
+ "rows": [
+  {
+   "address": "adx.adx",
+   "direction": "gained",
+   "count": 5119,
+   "reason": "5119 fires the closed lane produces and the forming lane does not: 4904 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 215 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `adx.adx` is an ADX/DMI column, which is a smoothed directional average — a partial bar feeds it a range and a direction that are both still moving."
+  },
+  {
+   "address": "adx.adx",
+   "direction": "lost",
+   "count": 10966,
+   "reason": "10966 fires the forming lane produces and the closed lane does not: 10388 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 452 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 126 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `adx.adx` is an ADX/DMI column, which is a smoothed directional average — a partial bar feeds it a range and a direction that are both still moving."
+  },
+  {
+   "address": "adx.minusDI",
+   "direction": "gained",
+   "count": 5271,
+   "reason": "5271 fires the closed lane produces and the forming lane does not: 4858 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 412 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 1 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `adx.minusDI` is an ADX/DMI column, which is a smoothed directional average — a partial bar feeds it a range and a direction that are both still moving."
+  },
+  {
+   "address": "adx.minusDI",
+   "direction": "lost",
+   "count": 15319,
+   "reason": "15319 fires the forming lane produces and the closed lane does not: 13920 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 1172 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 227 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `adx.minusDI` is an ADX/DMI column, which is a smoothed directional average — a partial bar feeds it a range and a direction that are both still moving."
+  },
+  {
+   "address": "adx.plusDI",
+   "direction": "gained",
+   "count": 5338,
+   "reason": "5338 fires the closed lane produces and the forming lane does not: 4915 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 423 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `adx.plusDI` is an ADX/DMI column, which is a smoothed directional average — a partial bar feeds it a range and a direction that are both still moving."
+  },
+  {
+   "address": "adx.plusDI",
+   "direction": "lost",
+   "count": 15556,
+   "reason": "15556 fires the forming lane produces and the closed lane does not: 14175 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 1156 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 225 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `adx.plusDI` is an ADX/DMI column, which is a smoothed directional average — a partial bar feeds it a range and a direction that are both still moving."
+  },
+  {
+   "address": "atr",
+   "direction": "gained",
+   "count": 5440,
+   "reason": "5440 fires the closed lane produces and the forming lane does not: 5144 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 296 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. ATR is a range average: the forming bar's true range grows as the bar widens, so the forming lane's number only ever rises through a bar while the closed lane reports the finished range."
+  },
+  {
+   "address": "atr",
+   "direction": "lost",
+   "count": 16501,
+   "reason": "16501 fires the forming lane produces and the closed lane does not: 14529 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 1215 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 757 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. ATR is a range average: the forming bar's true range grows as the bar widens, so the forming lane's number only ever rises through a bar while the closed lane reports the finished range."
+  },
+  {
+   "address": "bb",
+   "direction": "gained",
+   "count": 215,
+   "reason": "215 fires the closed lane produces and the forming lane does not: 175 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 40 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `bb` is the legacy price-vs-BAND relation: the value is the CLOSE and the band is a declared operand, not a number the user typed. The closed lane reads BOTH sides at the closed bar (`_closed_threshold_operand_value` truncates to bars[:i+1]), so a touch that only the intra-bar HIGH reached no longer fires — reading the band off the forming bar while reading the close off the closed one would be a repaint hiding on the right-hand side of the comparison."
+  },
+  {
+   "address": "bb",
+   "direction": "lost",
+   "count": 834,
+   "reason": "834 fires the forming lane produces and the closed lane does not: 438 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 235 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 161 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `bb` is the legacy price-vs-BAND relation: the value is the CLOSE and the band is a declared operand, not a number the user typed. The closed lane reads BOTH sides at the closed bar (`_closed_threshold_operand_value` truncates to bars[:i+1]), so a touch that only the intra-bar HIGH reached no longer fires — reading the band off the forming bar while reading the close off the closed one would be a repaint hiding on the right-hand side of the comparison."
+  },
+  {
+   "address": "bb.lower",
+   "direction": "gained",
+   "count": 5150,
+   "reason": "5150 fires the closed lane produces and the forming lane does not: 5077 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 73 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `bb.lower` is a Bollinger band, built from the mean and standard deviation of the running closes."
+  },
+  {
+   "address": "bb.lower",
+   "direction": "lost",
+   "count": 20611,
+   "reason": "20611 fires the forming lane produces and the closed lane does not: 19775 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 495 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 341 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `bb.lower` is a Bollinger band, built from the mean and standard deviation of the running closes."
+  },
+  {
+   "address": "bb.middle",
+   "direction": "gained",
+   "count": 5164,
+   "reason": "5164 fires the closed lane produces and the forming lane does not: 5107 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 57 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `bb.middle` is a Bollinger band, built from the mean and standard deviation of the running closes."
+  },
+  {
+   "address": "bb.middle",
+   "direction": "lost",
+   "count": 20669,
+   "reason": "20669 fires the forming lane produces and the closed lane does not: 20001 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 390 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 278 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `bb.middle` is a Bollinger band, built from the mean and standard deviation of the running closes."
+  },
+  {
+   "address": "bb.upper",
+   "direction": "gained",
+   "count": 5142,
+   "reason": "5142 fires the closed lane produces and the forming lane does not: 5069 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 73 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `bb.upper` is a Bollinger band, built from the mean and standard deviation of the running closes."
+  },
+  {
+   "address": "bb.upper",
+   "direction": "lost",
+   "count": 20638,
+   "reason": "20638 fires the forming lane produces and the closed lane does not: 19724 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 510 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 404 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `bb.upper` is a Bollinger band, built from the mean and standard deviation of the running closes."
+  },
+  {
+   "address": "cci",
+   "direction": "gained",
+   "count": 5799,
+   "reason": "5799 fires the closed lane produces and the forming lane does not: 5175 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 624 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `cci` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "cci",
+   "direction": "lost",
+   "count": 22143,
+   "reason": "22143 fires the forming lane produces and the closed lane does not: 18860 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 2110 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 1173 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `cci` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "close",
+   "direction": "gained",
+   "count": 5258,
+   "reason": "5258 fires the closed lane produces and the forming lane does not: 5121 are the SAME alert on the SAME bar carrying the CLOSED price instead of whatever the tape happened to print when the poller looked; 137 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `close` is the bar's own price and it is the ONE address whose forming value is not a derived series at all but the running last trade, so 'the number moved' here is the rawest form of the change this phase makes: a level alert stops being answered against a price that is still moving."
+  },
+  {
+   "address": "close",
+   "direction": "lost",
+   "count": 21774,
+   "reason": "21774 fires the forming lane produces and the closed lane does not: 19682 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar price while the closed lane fires ONCE PER BAR at the closed price; 1402 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 690 VANISH outright — the price touched the level on a wick that unwound before the bar closed, which is the most literal instance in the whole diff of the defect this phase exists to remove. `close` is the bar's own price, so this row is what a user means when they say 'my price alert fired and the candle closed nowhere near it'."
+  },
+  {
+   "address": "donchian.lower",
+   "direction": "gained",
+   "count": 1044,
+   "reason": "1044 fires the closed lane produces and the forming lane does not: 990 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 43 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 11 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `donchian.lower` is a Donchian channel edge, which is a rolling extreme — an intra-bar high or low can push the channel out and then be given back before the bar closes."
+  },
+  {
+   "address": "donchian.lower",
+   "direction": "lost",
+   "count": 1583,
+   "reason": "1583 fires the forming lane produces and the closed lane does not: 1106 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 391 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 86 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `donchian.lower` is a Donchian channel edge, which is a rolling extreme — an intra-bar high or low can push the channel out and then be given back before the bar closes."
+  },
+  {
+   "address": "donchian.middle",
+   "direction": "gained",
+   "count": 1623,
+   "reason": "1623 fires the closed lane produces and the forming lane does not: 1568 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 48 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 7 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `donchian.middle` is a Donchian channel edge, which is a rolling extreme — an intra-bar high or low can push the channel out and then be given back before the bar closes."
+  },
+  {
+   "address": "donchian.middle",
+   "direction": "lost",
+   "count": 3576,
+   "reason": "3576 fires the forming lane produces and the closed lane does not: 2463 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 756 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 357 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `donchian.middle` is a Donchian channel edge, which is a rolling extreme — an intra-bar high or low can push the channel out and then be given back before the bar closes."
+  },
+  {
+   "address": "donchian.upper",
+   "direction": "gained",
+   "count": 718,
+   "reason": "718 fires the closed lane produces and the forming lane does not: 664 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 42 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 12 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `donchian.upper` is a Donchian channel edge, which is a rolling extreme — an intra-bar high or low can push the channel out and then be given back before the bar closes."
+  },
+  {
+   "address": "donchian.upper",
+   "direction": "lost",
+   "count": 2139,
+   "reason": "2139 fires the forming lane produces and the closed lane does not: 1014 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 912 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 213 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `donchian.upper` is a Donchian channel edge, which is a rolling extreme — an intra-bar high or low can push the channel out and then be given back before the bar closes."
+  },
+  {
+   "address": "ichimoku.chikou",
+   "direction": "lost",
+   "count": 19574,
+   "reason": "19574 fires the forming lane produces and the closed lane does not: 19574 VANISH outright, and NOT for the wick reason every other row here carries. ⛔ chikou back-shifts bar i's CLOSE to index i-26, so the newest 26 slots of the column are None by construction. The forming lane's `_last_non_none` walks backwards past that trailing pad and reports a number from 26 bars ago; the closed lane reads series[i] and reports NO VALUE at the bar being judged, which is the honest answer — chikou at the newest closed bar is a fact about a bar that has not happened. A chikou alert therefore STOPS FIRING ENTIRELY, and it is the one row of this diff a user will report as 'my Chikou alert broke'. It gains nothing back."
+  },
+  {
+   "address": "ichimoku.kijun",
+   "direction": "gained",
+   "count": 1387,
+   "reason": "1387 fires the closed lane produces and the forming lane does not: 1335 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 42 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 10 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `ichimoku.kijun` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.kijun",
+   "direction": "lost",
+   "count": 3031,
+   "reason": "3031 fires the forming lane produces and the closed lane does not: 2112 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 622 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 297 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `ichimoku.kijun` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.spanA",
+   "direction": "gained",
+   "count": 2822,
+   "reason": "2822 fires the closed lane produces and the forming lane does not: 2744 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 69 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 9 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `ichimoku.spanA` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.spanA",
+   "direction": "lost",
+   "count": 5362,
+   "reason": "5362 fires the forming lane produces and the closed lane does not: 4332 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 528 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 502 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `ichimoku.spanA` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.spanB",
+   "direction": "gained",
+   "count": 937,
+   "reason": "937 fires the closed lane produces and the forming lane does not: 893 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 35 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 9 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `ichimoku.spanB` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.spanB",
+   "direction": "lost",
+   "count": 2225,
+   "reason": "2225 fires the forming lane produces and the closed lane does not: 1321 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 698 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 206 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `ichimoku.spanB` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.tenkan",
+   "direction": "gained",
+   "count": 2291,
+   "reason": "2291 fires the closed lane produces and the forming lane does not: 2207 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 72 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 12 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `ichimoku.tenkan` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "ichimoku.tenkan",
+   "direction": "lost",
+   "count": 4828,
+   "reason": "4828 fires the forming lane produces and the closed lane does not: 3535 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 749 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 544 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. `ichimoku.tenkan` is an Ichimoku line built from rolling midpoints of highs and lows, so a partial bar's extreme moves it and a retrace takes it back."
+  },
+  {
+   "address": "macd",
+   "direction": "gained",
+   "count": 196,
+   "reason": "196 fires the closed lane produces and the forming lane does not: 169 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 25 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 2 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `macd` is a MACD column built from EMAs of the running close."
+  },
+  {
+   "address": "macd",
+   "direction": "lost",
+   "count": 525,
+   "reason": "525 fires the forming lane produces and the closed lane does not: 305 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 194 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 26 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value. `macd` is a MACD column built from EMAs of the running close."
+  },
+  {
+   "address": "macd.histogram",
+   "direction": "gained",
+   "count": 5524,
+   "reason": "5524 fires the closed lane produces and the forming lane does not: 5054 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 470 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `macd.histogram` is a MACD column built from EMAs of the running close."
+  },
+  {
+   "address": "macd.histogram",
+   "direction": "lost",
+   "count": 21266,
+   "reason": "21266 fires the forming lane produces and the closed lane does not: 18920 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 1332 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 1014 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `macd.histogram` is a MACD column built from EMAs of the running close."
+  },
+  {
+   "address": "macd.signal",
+   "direction": "gained",
+   "count": 5218,
+   "reason": "5218 fires the closed lane produces and the forming lane does not: 5042 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 176 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `macd.signal` is a MACD column built from EMAs of the running close."
+  },
+  {
+   "address": "macd.signal",
+   "direction": "lost",
+   "count": 20271,
+   "reason": "20271 fires the forming lane produces and the closed lane does not: 19663 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 483 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 125 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `macd.signal` is a MACD column built from EMAs of the running close."
+  },
+  {
+   "address": "mfi",
+   "direction": "gained",
+   "count": 4455,
+   "reason": "4455 fires the closed lane produces and the forming lane does not: 4000 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 449 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 6 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. `mfi` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "mfi",
+   "direction": "lost",
+   "count": 16900,
+   "reason": "16900 fires the forming lane produces and the closed lane does not: 14897 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 1378 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 625 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `mfi` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "obv",
+   "direction": "gained",
+   "count": 4309,
+   "reason": "4309 fires the closed lane produces and the forming lane does not: 4128 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 162 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 19 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. OBV is a running volume total, so the forming lane's number climbs through the bar as volume accrues and the closed lane reports the bar's finished total. Its `cross_zero` condition is meaningful only because of the pinned zero seed, and that seed is identical in both lanes."
+  },
+  {
+   "address": "obv",
+   "direction": "lost",
+   "count": 17365,
+   "reason": "17365 fires the forming lane produces and the closed lane does not: 15725 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 1146 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 494 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. OBV is a running volume total, so the forming lane's number climbs through the bar as volume accrues and the closed lane reports the bar's finished total. Its `cross_zero` condition is meaningful only because of the pinned zero seed, and that seed is identical in both lanes."
+  },
+  {
+   "address": "price_vs_ma",
+   "direction": "gained",
+   "count": 4931,
+   "reason": "4931 fires the closed lane produces and the forming lane does not: 4895 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 36 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `price_vs_ma` is a spread this lane synthesises (close − MA), so it moves with the running close on every poll and settles once at the bar's close."
+  },
+  {
+   "address": "price_vs_ma",
+   "direction": "lost",
+   "count": 19394,
+   "reason": "19394 fires the forming lane produces and the closed lane does not: 18279 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 787 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 328 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `price_vs_ma` is a spread this lane synthesises (close − MA), so it moves with the running close on every poll and settles once at the bar's close."
+  },
+  {
+   "address": "rsi",
+   "direction": "gained",
+   "count": 5397,
+   "reason": "5397 fires the closed lane produces and the forming lane does not: 5053 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 344 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `rsi` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "rsi",
+   "direction": "lost",
+   "count": 21933,
+   "reason": "21933 fires the forming lane produces and the closed lane does not: 18211 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 2339 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 1383 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `rsi` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "sar.priceCrossedSar",
+   "direction": "gained",
+   "count": 136,
+   "reason": "136 fires the closed lane produces and the forming lane does not: 131 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 5 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. An EVENT column valued {0, 1, None}, with its 0.5 decoder DECLARED rather than typed by a user. The forming lane asks `_last_non_none` for the newest defined element, which on a partial bar is a crossing computed against a bar that has not finished moving; the closed lane reads series[i] and sees the crossing on the bar it actually happened."
+  },
+  {
+   "address": "sar.priceCrossedSar",
+   "direction": "lost",
+   "count": 139,
+   "reason": "139 fires the forming lane produces and the closed lane does not: 131 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 8 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. An EVENT column valued {0, 1, None}, with its 0.5 decoder DECLARED rather than typed by a user. The forming lane asks `_last_non_none` for the newest defined element, which on a partial bar is a crossing computed against a bar that has not finished moving; the closed lane reads series[i] and sees the crossing on the bar it actually happened."
+  },
+  {
+   "address": "sar.trendFlipped",
+   "direction": "gained",
+   "count": 136,
+   "reason": "136 fires the closed lane produces and the forming lane does not: 130 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on; 6 APPEAR with no forming-lane counterpart — the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed and never fired at all. An EVENT column valued {0, 1, None}, with its 0.5 decoder DECLARED rather than typed by a user. A SAR trend flip computed on a partial bar can un-flip before that bar closes; the closed lane judges the flip once, on the finished bar."
+  },
+  {
+   "address": "sar.trendFlipped",
+   "direction": "lost",
+   "count": 137,
+   "reason": "137 fires the forming lane produces and the closed lane does not: 130 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 7 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. An EVENT column valued {0, 1, None}, with its 0.5 decoder DECLARED rather than typed by a user. A SAR trend flip computed on a partial bar can un-flip before that bar closes; the closed lane judges the flip once, on the finished bar."
+  },
+  {
+   "address": "stoch",
+   "direction": "gained",
+   "count": 5814,
+   "reason": "5814 fires the closed lane produces and the forming lane does not: 5160 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 654 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `stoch` is a stochastic reading, which is where the running close sits inside a rolling high-low range — the single most path-sensitive shape here."
+  },
+  {
+   "address": "stoch",
+   "direction": "lost",
+   "count": 22929,
+   "reason": "22929 fires the forming lane produces and the closed lane does not: 17433 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 3314 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 2182 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `stoch` is a stochastic reading, which is where the running close sits inside a rolling high-low range — the single most path-sensitive shape here."
+  },
+  {
+   "address": "stoch.d",
+   "direction": "gained",
+   "count": 5671,
+   "reason": "5671 fires the closed lane produces and the forming lane does not: 5036 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 635 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `stoch.d` is a stochastic reading, which is where the running close sits inside a rolling high-low range — the single most path-sensitive shape here."
+  },
+  {
+   "address": "stoch.d",
+   "direction": "lost",
+   "count": 22003,
+   "reason": "22003 fires the forming lane produces and the closed lane does not: 18657 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 2301 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 1045 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `stoch.d` is a stochastic reading, which is where the running close sits inside a rolling high-low range — the single most path-sensitive shape here."
+  },
+  {
+   "address": "vwap",
+   "direction": "gained",
+   "count": 3036,
+   "reason": "3036 fires the closed lane produces and the forming lane does not: 2997 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 39 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. VWAP accumulates price×volume within a session, so the forming lane's value moves with every partial print. ⭐ RE-COUNTED 2026-08-06 AFTER THE UNIT FIX (`29569946`), AND THE DROP IS THE FIX, NOT A NEW LANE DIFFERENCE. This row used to read 4,232 because `_fetch_bars_for_alert` handed `compute_vwap_raw` the store's YYYYMMDD integer as `t`, so 400 daily bars landed one SECOND apart and the whole window accumulated into a single 1970-anchored session — in BOTH lanes, which is why the defect never showed up as a lane difference. `compute_vwap` now validates its own unit and refuses the whole column, so a DAILY vwap alert produces no value, takes no threshold ladder, and contributes nothing here; every fire left in this row is intraday. The frozen fire log moved with it, once, deliberately (`2999e8f0`)."
+  },
+  {
+   "address": "vwap",
+   "direction": "lost",
+   "count": 12661,
+   "reason": "12661 fires the forming lane produces and the closed lane does not: 11757 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 567 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 337 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one. VWAP accumulates price×volume within a session, so the forming lane's value moves with every partial print. ⭐ RE-COUNTED 2026-08-06 AFTER THE UNIT FIX (`29569946`), AND THE DROP IS THE FIX, NOT A NEW LANE DIFFERENCE. This row used to read 17,462 because `_fetch_bars_for_alert` handed `compute_vwap_raw` the store's YYYYMMDD integer as `t`, so 400 daily bars landed one SECOND apart and the whole window accumulated into a single 1970-anchored session — in BOTH lanes, which is why the defect never showed up as a lane difference. `compute_vwap` now validates its own unit and refuses the whole column, so a DAILY vwap alert produces no value, takes no threshold ladder, and contributes nothing here; every fire left in this row is intraday. The frozen fire log moved with it, once, deliberately (`2999e8f0`)."
+  },
+  {
+   "address": "williams_r",
+   "direction": "gained",
+   "count": 5814,
+   "reason": "5814 fires the closed lane produces and the forming lane does not: 5160 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 654 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `williams_r` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "williams_r",
+   "direction": "lost",
+   "count": 22929,
+   "reason": "22929 fires the forming lane produces and the closed lane does not: 17433 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 3314 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 2182 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `williams_r` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  }
+ ]
+}

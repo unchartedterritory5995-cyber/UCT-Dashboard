@@ -102,11 +102,38 @@ describe('poolKey — the pool key is the LWC constructor and nothing else', () 
   })
 
   it('every registered data-bearing plot maps to a known pool key', () => {
+    // ⚠️ THIS USED TO ITERATE `registry.columnKeys(def)`, AND THAT STOPPED BEING
+    // THE SAME SET IN PHASE C. `columnKeys` is now "the columns compute must
+    // return" = data plots ∪ EVENTS, and an event has no plot object at all —
+    // `def.plots.find(...)` came back `undefined` for `sar.trendFlipped` and the
+    // case asked the renderer for a pool key to draw a signal in.
+    //
+    // The claim was always about PLOTS, so it now says so, using `pool.js`'s own
+    // `dataPlots` rule verbatim (that function is module-private, which is why
+    // the filter is spelled out rather than imported). An event deliberately gets
+    // no series, no pane and no chip; `__tests__/eventColumns.test.js` is where
+    // the event half is asserted.
     for (const def of registry.listDefinitions()) {
-      for (const plotKey of registry.columnKeys(def)) {
-        const k = poolKey(def.plots.find(p => p.key === plotKey))
-        expect(POOL_KEYS, `${def.id}.${plotKey}`).toContain(k)
+      const dataPlots = (def.plots || []).filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
+      expect(dataPlots.length, `${def.id}: no data plots — this case is vacuous for it`).toBeGreaterThan(0)
+      for (const plot of dataPlots) {
+        expect(POOL_KEYS, `${def.id}.${plot.key}`).toContain(poolKey(plot))
       }
+    }
+  })
+
+  it('⛔ an EVENT key gets no pool key — it is a column, not a series', () => {
+    // The other side of the correction above, asserted rather than assumed: a
+    // caller that fed a `columnKeys` entry straight to `poolKey` would now be
+    // handing it an event, and the answer must be "nothing to draw" rather than
+    // a guessed series type.
+    const sar = registry.getDefinition('sar')
+    const eventKeys = (sar.events || []).map(e => e.key)
+    expect(eventKeys.length, 'sar declares no events — this case is vacuous').toBeGreaterThan(0)
+    for (const key of eventKeys) {
+      expect(registry.columnKeys(sar), `columnKeys must contain ${key}`).toContain(key)
+      expect(sar.plots.find(p => p.key === key), `${key} is a plot?`).toBeUndefined()
+      expect(poolKey(sar.plots.find(p => p.key === key))).toBeNull()
     }
   })
 

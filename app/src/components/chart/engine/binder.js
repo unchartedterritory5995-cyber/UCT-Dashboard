@@ -466,10 +466,25 @@ export function createBinder({ chart, LWC }) {
       if (memo && memo.registry === registry && memo.def === def && memo.bars === bars && memo.sig === sig) {
         cols = memo.cols
       } else {
-        const r = attempt(() => registry.computeFor(def, bars, inst.inputs))
+        // ⭐ `{sym, tf}` is the SERVER LANE's only requirement (Phase C Task 13).
+        // A native ignores it entirely; a `compute.kind: 'server'` definition
+        // cannot be fetched without it, and passing nothing would leave the RS
+        // line registered, enabled and permanently blank — a definition that
+        // lies. It rides the ctx rather than a module global on purpose: a
+        // 16-cell Multi-Chart grid has sixteen symbols and one module.
+        const r = attempt(() => registry.computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
-        computeMemo.set(inst.instanceId, { registry, def, bars, sig, cols })
+        // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
+        // one column, so this can only be the server lane answering "the fetch
+        // has not landed yet" — and remembering that answer against an unchanged
+        // (def, bars, inputs) key would pin the indicator blank until the bars
+        // array changed for some unrelated reason.
+        if (Object.keys(cols).length) {
+          computeMemo.set(inst.instanceId, { registry, def, bars, sig, cols })
+        } else {
+          computeMemo.delete(inst.instanceId)
+        }
       }
       for (const plotKey of Object.keys(cols)) {
         columns.set(bindingKey(inst.instanceId, plotKey), cols[plotKey])

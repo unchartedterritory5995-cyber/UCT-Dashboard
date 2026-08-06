@@ -160,6 +160,12 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(ledger, "_INITED", False)
     for slot in (sig._DPL_STALE, sig._FCB_STALE, sig._GXW_STALE):
         slot._slots.clear()
+    # The proven-index-filed memo is module state that OUTLIVES a request by
+    # design — that is the whole point of it — so it outlives a test too. Left
+    # uncleared, the first test here teaches the router that SPY is index-filed
+    # and every later SPY test then sees `indexes` asked FIRST, which is correct
+    # behaviour reported as a failure. Cleared, each test states its own premise.
+    sig._FCB_INDEX_FILED.clear()
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
     app = FastAPI()
     app.include_router(sig.router)

@@ -97,6 +97,35 @@ export async function createIndicatorAlert(payload) {
   return null
 }
 
+/**
+ * ⭐ SPEC §8: *"threshold prefilled from current value"*.
+ *
+ * What this plot reads RIGHT NOW on this symbol and timeframe, from the module
+ * that EVALUATES it — never a second compute in the browser. A prefill computed
+ * here would suggest a number the alert would not agree with, on the one screen
+ * where the two are compared.
+ *
+ * ⚠️ RESOLVES TO `null` ON EVERY FAILURE, INCLUDING "not enough bars". That is
+ * the honest answer for a cold symbol and it renders as the empty box the user
+ * already had; a thrown error here would break the form for a missing
+ * convenience.
+ *
+ * @returns {Promise<number|null>}
+ */
+export async function fetchCurrentValue({ sym, tf, indicator, params }) {
+  if (!sym || !tf || !indicator) return null
+  const q = new URLSearchParams({ sym, tf, indicator })
+  if (params && Object.keys(params).length) q.set('params', JSON.stringify(params))
+  try {
+    const r = await fetch(`${KEY}/current-value?${q.toString()}`, { credentials: 'include' })
+    if (!r.ok) return null
+    const body = await r.json()
+    return Number.isFinite(body?.value) ? body.value : null
+  } catch {
+    return null
+  }
+}
+
 export async function deleteIndicatorAlert(id) {
   try {
     await fetch(`${KEY}/${id}`, { method: 'DELETE', credentials: 'include' })

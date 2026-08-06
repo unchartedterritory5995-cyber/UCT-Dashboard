@@ -324,6 +324,12 @@ consequences ("resets evaluator `last_value`, suppresses the first
 post-migration cycle") have **no population to act on today**. The only user
 visibly affected is the one looking at an intraday chart.
 
+> ⚠️ **ADDENDUM 2026-08-06 — the table above was true when written and is now
+> FALSE in its first two rows.** `vwap` is an alertable address. Do not quote
+> §9f without §10.
+
+
+
 ### 9g. Carried forward
 
 1. **ET midnight, not an explicit 04:00 anchor.** They are identical for every
@@ -357,3 +363,48 @@ visibly affected is the one looking at an intraday chart.
    mutations only died once the assertions matched the **table ROW** — label,
    separator and value together. **Prose about a number is not the number**, and
    a second copy anywhere in scope makes a containment check unfalsifiable.
+
+---
+
+## 10. ADDENDUM — 2026-08-06: §9f's "no population" is no longer true
+
+**Appended, not rewritten.** §9f is preserved verbatim above because it is an
+accurate record of what was checked on 2026-08-03 and of the evidence the owner
+decided on. Two of its rows describe a tree that no longer exists.
+
+| §9f said | what is true on 2026-08-06 |
+|---|---|
+| *`indicator_compute.py` — "No VWAP function at all"* | **`compute_vwap` / `compute_vwap_raw` ship**, and they take the CORRECTED ET-session logic (`indicator_compute.py`, "PRESERVED (CORRECTED) BEHAVIOUR"). |
+| *`indicator_alert_evaluator.py` — "`INDICATOR_FUNCS` has 8 keys … No `vwap`"* | **`INDICATOR_FUNCS` has 28 addresses across 14 groups, and `vwap` is one of them** (Phase B5). A user can arm a VWAP alert, and `test_a_vwap_alert_can_now_actually_fire` asserts it does. |
+| *"its §5 consequences … have no population to act on today"* | **There is now a lane to act on.** Production carries zero armed indicator alerts as of this date, so the population is still empty in fact — but it is no longer empty by construction, which is the difference that matters. |
+
+**What was built because of this.** Phase C Task 7 landed the machinery §5 named,
+before the first real population meets it: `api/services/alert_rev_migration.py`.
+`migrate_bindings_to_rev(address, new_rev, *, notify)` performs the three effects
+in one transaction — `def_rev`, `last_value := NULL`, `rev_migrated_at := now` —
+and `suppress_first_cycle(alert)` eats the alert's first post-migration
+evaluation. `indicator_alert_evaluator._run_one_cycle` consults it.
+
+**Why the suppression is not optional, measured on this record's own fixture.**
+At index 386 of `app/src/pages/parityBars/intraday5m.json` — the third ET session's
+open — the UTC-day lane reads **93.9178** and the ET-session lane reads
+**108.3633**. An alert holding the first number and computing the second fires
+"crossed above 100" on the deploy, and the user is told a level was crossed
+because the ANCHOR moved. Resetting `last_value` kills that crossing, but
+`above`/`below` never read a previous value at all, so a level binding still
+fires immediately on the new number: **the reset covers the crossings and the
+suppression covers the cycle, and neither one covers the other's half.**
+
+**Scope, stated so it is not assumed.** This migration path is for ALERT
+bindings. It writes `indicator_alerts` and its own side table and **nothing
+else** — in particular it does not rewrite `chart_settings` or
+`charts_workspace_layout`, whose stored blobs are handled by Phase B's read-time
+migration and are correct in production today
+(`tests/test_alert_rev_migration.py::test_the_migration_touches_NO_STORED_CHART_SETTINGS_BLOB`).
+
+**The rail that keeps this record and the code in step.** `compute.rev` is
+authored in `nativeRegistry.js`; the alert lane keeps `ADDRESS_REVS` beside it
+and `test_the_python_rev_table_matches_the_JS_registry` parses the registry
+source and fails when they disagree. **The next `compute.rev` bump lands red in
+Python until somebody opens the migration module** — which is exactly the moment
+the migration is meant to be run, rather than the moment after.

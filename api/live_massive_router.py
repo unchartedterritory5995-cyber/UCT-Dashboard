@@ -126,6 +126,7 @@ DEFAULT_THRESHOLDS = {
     # to cut the ~70s curated scan that starves WS ingestion -> blank sides. Dark
     # by default; flip live in the ?tune=1 panel. See _incr_classify.
     "incremental_scan": False,
+    "autopush_incremental": False,
     # Clean-directional gate (DARK). When on, a bid-side SELL on a MIXED contract
     # — total session ASK-buying >= this print's size * close_min_long_frac — is
     # two-way flow, not clean bearish conviction → dropped from directional
@@ -2366,9 +2367,17 @@ def _incr_classify(r):
     return dict(fresh) if fresh is not None else None
 
 
-def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
+def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
     """Heavy scan + classify for /recent, split out so the endpoint can cache
-    the result. All params already resolved (today = concrete M/D/YYYY)."""
+    the result. All params already resolved (today = concrete M/D/YYYY).
+
+    only_symbols (2026-08-06): restrict the ENTIRE pipeline to these underlyings by
+    adding `AND Symbol IN (...)` to the flow.db scan. The incremental auto-push
+    scanner passes the handful of symbols with new prints so a 60s push cycle
+    classifies a few hundred rows instead of the 80K day — while still seeing each
+    contract's FULL-DAY prints (so contract_totals / net-flow / hit-counts stay
+    exact). Leaves the result cache untouched conceptually — callers that scope must
+    NOT store under the canonical key (auto-push discards the return)."""
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
@@ -2448,18 +2457,25 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
             source_clause = "source IN ('stocks','indexes')"
         else:
             source_clause = "source = 'stocks'"
+        # Optional symbol scope (incremental auto-push): fragment + params injected
+        # into BOTH the main scan and the close-detector ledger so the whole pass
+        # is restricted to the touched underlyings.
+        sym_clause, sym_params = "", []
+        if only_symbols:
+            sym_clause = " AND Symbol IN (%s)" % ",".join("?" for _ in only_symbols)
+            sym_params = [str(s).upper() for s in only_symbols]
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
                    Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
               FROM flow
              WHERE {source_clause}
-               AND CreatedDate = ?
+               AND CreatedDate = ?{sym_clause}
                AND (Color IN ('MAGENTA', 'YELLOW')
                     OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
              ORDER BY id DESC
              LIMIT ?
-        """, (today, override_sql_floor, sql_limit))
+        """, (today, *sym_params, override_sql_floor, sql_limit))
         rows = cur.fetchall()
         # Clean-directional gate (dark): FULL-TAPE session long-build ledger —
         # cumulative ASK-side volume per contract from EVERY sided print today
@@ -2473,9 +2489,9 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
             _lc = conn.execute(f"""
                 SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume
                   FROM flow
-                 WHERE {source_clause} AND CreatedDate = ?
+                 WHERE {source_clause} AND CreatedDate = ?{sym_clause}
                    AND Side IN ('A','AA','B','BB')
-            """, (today,))
+            """, (today, *sym_params))
             _gross_before = _build_session_long_ledger(_lc.fetchall())
         else:
             _gross_before = {}
@@ -4518,13 +4534,73 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
 # SEPARATE pushed.db files, so a double scanner would double-post rather than
 # dedup (_record_push's INSERT OR IGNORE only guards within one file).
 
+# Incremental auto-push watermark (2026-08-06). The legacy 60s scan re-classified the
+# whole 80K-row day every cycle; at the cold open that runs >60s → apscheduler
+# coalesce-skips → pushes lag 3-4 min, and the CPU pin contributes to the WS drops.
+# Instead, remember the last row id seen and each cycle scan ONLY the underlyings with
+# a new curated-eligible print — feeding _compute_recent their FULL-DAY prints so the
+# per-contract push gates (contract_totals / net-flow) stay exact. Dedup (pushed_alerts)
+# is the backstop, so a scoped scan can never double- or under-push a contract that got
+# new activity. Gated by the `autopush_incremental` threshold (dark default; flip live
+# via ?tune, no restart — so a bad open can be reverted instantly); off = legacy.
+_autopush_last_id = 0
+_autopush_day = None
+
+
+def _autopush_new_symbols(today: str, last_id: int):
+    """(symbols with a curated-eligible print id>last_id, new max row id). Pure read;
+    one `id > ?` scan. `syms` empty + max unchanged when nothing new."""
+    override_cfg = _load_thresholds().get("premium_override", {})
+    floor = int(override_cfg.get("min_premium", 1_000_000))
+    etf_enabled = _load_thresholds().get("etf_enabled", False)
+    src = "source IN ('stocks','indexes')" if etf_enabled else "source = 'stocks'"
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(f"""
+            SELECT DISTINCT Symbol FROM flow
+             WHERE {src} AND CreatedDate = ? AND id > ?
+               AND (Color IN ('MAGENTA','YELLOW')
+                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+        """, (today, last_id, floor)).fetchall()
+        mx = conn.execute(
+            f"SELECT MAX(id) FROM flow WHERE {src} AND CreatedDate = ? AND id > ?",
+            (today, last_id)).fetchone()[0]
+    finally:
+        conn.close()
+    syms = [r["Symbol"] for r in rows if r["Symbol"]]
+    return syms, (mx if mx is not None else last_id)
+
+
 def auto_push_scan_single():
     """Timer-driven single-print scan. _compute_recent calls _apply_auto_push
-    internally on the FULL classified set (before the [:limit] trim), so `limit`
-    here doesn't affect what fires — it only bounds the response we discard."""
+    internally on the classified set (before the [:limit] trim), so `limit` here
+    doesn't affect what fires — it only bounds the response we discard.
+
+    Incremental mode (`autopush_incremental` threshold): scope the scan to underlyings
+    with new prints since the watermark, so a cycle is sub-second even at the cold
+    open. First scan of the day / after a restart does one full catch-up (pushes
+    anything missed during downtime), then goes incremental."""
     if not _AUTO_PUSH_CFG.get("enabled") or not _in_market_hours():
         return
-    _compute_recent(_today_mdyyyy(), 500, None, "recent", None, True)
+    global _autopush_last_id, _autopush_day
+    if not _load_thresholds().get("autopush_incremental", False):
+        _compute_recent(_today_mdyyyy(), 500, None, "recent", None, True)  # legacy full scan
+        return
+    today = _today_mdyyyy()
+    if _autopush_day != today:
+        _autopush_last_id, _autopush_day = 0, today
+    if _autopush_last_id == 0:
+        # First cycle of the day / after restart: one full-day catch-up, then arm the
+        # watermark so every later cycle is incremental.
+        _compute_recent(today, 500, None, "recent", None, True)
+        _, mx = _autopush_new_symbols(today, 0)
+        _autopush_last_id = mx
+        return
+    syms, mx = _autopush_new_symbols(today, _autopush_last_id)
+    if syms:
+        _compute_recent(today, 500, None, "recent", None, True, only_symbols=syms)
+    _autopush_last_id = mx
 
 
 def auto_push_scan_accum():
@@ -4826,6 +4902,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_min_legs",         # distinct contracts that make it a structure
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
+        "autopush_incremental",      # perf: 60s auto-push scans only new-activity symbols (dark)
         "close_detector_enabled",    # clean-directional gate: drop contaminated bid-sells (dark)
         "close_min_long_frac",       # ask-vol multiple of print size that flags a mixed sell
         "close_net_frac",            # DEPRECATED (renamed -> close_min_long_frac). Kept in the

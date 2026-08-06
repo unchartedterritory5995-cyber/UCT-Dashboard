@@ -189,6 +189,20 @@ _METRIC_LOOKBACK = {
 def _anchorable(key: str) -> bool:
     if key.startswith("_") or key == "universe_count" or _is_index_field(key):
         return False
+    # The anchor exists to subtract the dividend-basis offset. Once that offset
+    # is corrected at source there is nothing left to subtract, and anchoring
+    # removes yesterday's NOISE instead of a real bias — measured across 10
+    # reconciled sessions, mean failures per session:
+    #
+    #                       raw      anchored
+    #   basis off           8.1        1.9      <- anchor is load-bearing
+    #   basis on            1.3        6.8      <- anchor now INJECTS error
+    #
+    # e.g. stage2_count raw 8.9 vs anchored 50.9. This is the same trap the
+    # project already recorded once: RE-DERIVE A THRESHOLD AFTER CHANGING WHAT
+    # IT GATES. `_ANCHOR_MIN_LOOKBACK` was fitted under the uncorrected basis.
+    if dividend_basis_enabled():
+        return False
     return _METRIC_LOOKBACK.get(key, 0) >= _ANCHOR_MIN_LOOKBACK
 
 
@@ -294,11 +308,19 @@ _ACCURACY: dict[str, str] = {
     "new_20d_highs": "tight", "new_20d_lows": "tight",
     "universe_count": "tight",
     # 1.6-3.4% — threshold counts on long-window levels
-    "stage2_count": "close", "stage4_count": "close", "near_52w_high": "close",
-    "up_25pct_quarter": "close", "down_25pct_quarter": "close",
-    "up_50pct_month": "close", "down_50pct_month": "close",
-    # small counts on a hard 252-day threshold; 4-9% swings session to session
-    "new_52w_highs": "approximate", "new_ath": "approximate",
+    "stage2_count": "close", "stage4_count": "close",
+    "up_25pct_quarter": "close", "down_50pct_month": "close",
+    # RE-GRADED 2026-08-06 from 10 sessions on the dividend-corrected basis.
+    # Graded off each metric's WORST observed session, not its mean: a 10-session
+    # mean would have promoted eight of these, and a grade a metric fails on a
+    # bad day is a false promise. near_52w_high 0.9% mean / 2.9% worst;
+    # new_52w_highs 1.3/2.6; down_25pct_quarter 1.9/2.8; up_50pct_month 0.0/0.0.
+    "near_52w_high": "tight", "down_25pct_quarter": "tight",
+    "up_50pct_month": "tight", "new_52w_highs": "tight",
+    "new_ath": "close",                       # 1.5% mean but 4.3% worst
+    # Still wide on their worst session even though the mean improved sharply:
+    # new_52w_lows 2.9% mean / 30.0% worst (a 1-name move on a base of ~3),
+    # mcclellan_osc 1.8/10.6 (an oscillator crossing zero has no stable scale).
     "new_52w_lows": "approximate", "hvc_52w": "approximate",
     # ratios with their own natural scale
     "up_vol_ratio": "close", "mcclellan_osc": "approximate",

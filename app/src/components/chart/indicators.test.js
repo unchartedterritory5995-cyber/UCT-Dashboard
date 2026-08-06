@@ -15,6 +15,9 @@ import {
   computeATR,
   computeIchimoku,
   computeParabolicSAR,
+  computeAVWAP,
+  VWAP_MIN_INSTANT,
+  AVWAP_MIN_INSTANT,
 } from './indicators'
 
 // ─── shared helpers for the bar-aligned, NaN-padded output contract ──────────
@@ -217,6 +220,72 @@ describe('computeVWAP', () => {
     expect(vwap.length).toBe(2)
     // day 2 typical = (220 + 200 + 210)/3 = 210
     expect(vwap[1].value).toBeCloseTo(210, 10)
+  })
+
+  // ─── 🟢 THE 1970 ANCHOR, CLOSED ON THIS LANE TOO ───────────────────────────
+  //
+  // The measured defect was on the PYTHON twin: `_fetch_bars_for_alert` handed
+  // `compute_vwap` the bars store's `YYYYMMDD` int, so 400 daily bars became one
+  // "session" beginning 1970-08-23, and nothing raised. THIS lane reaches the
+  // same place by a different door — a daily bar arrives with `t` as the STRING
+  // '2026-08-05', `bar.t * 1000` is NaN, and the old code fell through to a
+  // stable 'invalid' day key. One bucket for the whole series, same silence.
+  //
+  // Regular use never met it: `eligibility.VWAP_TIMEFRAMES` is intraday-only, so
+  // the chart never asks for daily VWAP. That gate is a CALLER's promise; this is
+  // the maths refusing on its own, so a regression in the gate cannot draw a
+  // 1970 line. The two lanes must also agree, and the golden fixtures compare
+  // them at rel-tol 1e-9 — a guard on one side only is a divergence.
+  describe('the unit gate', () => {
+    const day = (i) => ({ h: 101 + i, l: 99 + i, c: 100 + i, v: 1000 })
+
+    it('refuses the WHOLE column for a date-shaped `t`, never one bucket', () => {
+      const bars = [20260803, 20260804, 20260805, 20260806].map((t, i) => ({ t, ...day(i) }))
+      const got = computeVWAP(bars)
+      expect(got.length).toBe(4)
+      expect(got.every(p => !Number.isFinite(p.value))).toBe(true)
+      // …and NOT the one-bucket answer, which is what the defect produced and
+      // what a "plausible fallback" would produce. Stated separately on purpose:
+      // this is the assertion that catches a future fix which ANSWERS.
+      const typical = (b) => (b.h + b.l + b.c) / 3
+      expect(got.some((p, i) => Math.abs(p.value - typical(bars[i])) < 1e-9)).toBe(false)
+    })
+
+    it('refuses a YYYY-MM-DD STRING `t` — the encoding this lane actually sees', () => {
+      const bars = ['2026-08-03', '2026-08-04', '2026-08-05'].map((t, i) => ({ t, ...day(i) }))
+      expect(computeVWAP(bars).every(p => !Number.isFinite(p.value))).toBe(true)
+    })
+
+    it('refuses the whole series when only ONE bar is bad', () => {
+      const good = Array.from({ length: 5 }, (_, i) => ({ t: 1785410100 + i * 300, ...day(i) }))
+      expect(computeVWAP(good).every(p => Number.isFinite(p.value))).toBe(true)
+      const mixed = good.map((b, i) => (i === 3 ? { ...b, t: 20250101 } : b))
+      expect(computeVWAP(mixed).every(p => !Number.isFinite(p.value))).toBe(true)
+    })
+
+    it('draws the boundary at 1990-01-01 and accepts the floor itself', () => {
+      expect(VWAP_MIN_INSTANT).toBe(631152000)
+      expect(new Date(VWAP_MIN_INSTANT * 1000).toISOString()).toBe('1990-01-01T00:00:00.000Z')
+      expect(computeVWAP([{ t: VWAP_MIN_INSTANT - 1, ...day(0) }])[0].value).toBeNaN()
+      expect(computeVWAP([{ t: VWAP_MIN_INSTANT, ...day(0) }])[0].value).toBeCloseTo(100, 10)
+    })
+
+    it('is ONE constant with AVWAP, not a copy of its value', () => {
+      // `computeAVWAP(bars, 'session')` is documented to be `computeVWAP(bars)`
+      // bar for bar. While only one of them validated the unit that was FALSE on
+      // exactly the inputs carrying the defect, so the guard is shared.
+      expect(AVWAP_MIN_INSTANT).toBe(VWAP_MIN_INSTANT)
+      const bars = Array.from({ length: 12 }, (_, i) => ({ t: 1785410100 + i * 300, ...day(i) }))
+      const vwap = computeVWAP(bars).map(p => p.value)
+      const avwap = computeAVWAP(bars, 'session').map(p => p.value)
+      expect(vwap).toEqual(avwap)
+      expect(vwap.every(Number.isFinite)).toBe(true)   // non-vacuity: real numbers
+
+      const ymd = bars.map((b, i) => ({ ...b, t: 20260101 + i }))
+      expect(computeVWAP(ymd).map(p => p.value)).toEqual(
+        computeAVWAP(ymd, 'session').map(p => p.value))
+      expect(computeVWAP(ymd).every(p => !Number.isFinite(p.value))).toBe(true)
+    })
   })
 })
 

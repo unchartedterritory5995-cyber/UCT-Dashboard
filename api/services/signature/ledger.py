@@ -14,9 +14,15 @@ Invariants (enforced HERE, not in callers — wire/store.py precedent):
   row is bad forever — raising is the only correction this store has.
 - False means EXACTLY ONE thing: this signal is already recorded. A dropped
   write must never be reported as a duplicate (see record_signal).
-
-`tf` is the product-facing timeframe the surface shows — "1D", never the
-bars-store key "D". They are different rows; callers write "1D".
+- `tf` is the product-facing timeframe the surface shows — "1D", never the
+  bars-store key "D". That used to be this sentence and nothing else, i.e. a
+  convention; it is now ENFORCED at the door (`_PRODUCT_TIMEFRAMES`). A second
+  writer arrived in Phase C — the indicator alert lane, whose alerts carry the
+  bars-store key because that is what `bars_sqlite.get_bars` takes — so the
+  spelling this column has never had to defend became something one caller
+  would hand over by simply passing the field it already had. A key that spells
+  one timeframe two ways breaks fire-once exactly the way an unnormalized
+  `bar_time` does, and orphans every row written the other way.
 """
 from __future__ import annotations
 
@@ -40,6 +46,21 @@ _INITED = False
 _INT64_LIMIT = 2 ** 63
 # Every column the schema declares NOT NULL and stores as TEXT.
 _KEY_TEXT_FIELDS = ("indicator", "version", "sym", "tf", "direction")
+
+# The eight timeframes the product actually shows, spelled the way the chart's
+# own TF bar spells them (`app/src/pages/charts/widgets/ChartWidget.jsx`). This
+# is a WHITELIST rather than a blacklist of the bars-store keys on purpose: the
+# failure it exists to stop is a second spelling of one timeframe, and "1d",
+# "daily" and "60m" are that failure just as much as "D" is.
+_PRODUCT_TIMEFRAMES = frozenset(
+    {"1m", "5m", "15m", "30m", "1h", "1D", "1W", "1M"})
+
+# The same eight, keyed by the bars-store code they are stored under, so the
+# refusal can say WHICH spelling was handed in instead of only that it was
+# wrong. Naming it is the difference between a caller fixing the bug and a
+# caller deleting the alert.
+_BARS_STORE_TF_KEYS = {"1": "1m", "5": "5m", "15": "15m", "30": "30m",
+                       "60": "1h", "D": "1D", "W": "1W", "M": "1M"}
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS signature_signals (
@@ -135,11 +156,31 @@ def record_signal(indicator: str, version: str, sym: str, tf: str, direction: st
     the NOT NULL failure: a `version=None` (what `rules.VERSIONS.get(typo)`
     hands you) would otherwise be swallowed as a duplicate, silently dropping
     the write AND suppressing every retry of it under fire-once.
+
+    `tf` is checked against `_PRODUCT_TIMEFRAMES` for the same reason and with a
+    worse consequence: a wrong-vocabulary `tf` is a VALID row that keys itself
+    away from every other row for the same session, so nothing fails and nothing
+    ever surfaces it.
     """
     for name, val in zip(_KEY_TEXT_FIELDS,
                          (indicator, version, sym, tf, direction)):
         if not isinstance(val, str) or not val:
             raise ValueError(f"{name} must be a non-empty str, got {val!r}")
+
+    # ⛔ THE TIMEFRAME VOCABULARY, ENFORCED RATHER THAN DOCUMENTED. `tf` is a KEY
+    # column: the same session written "1D" once and "D" once is two rows, and
+    # this store has no rewrite path to merge them. The alert lane carries the
+    # bars-store code (`bars_sqlite.get_bars(sym, "D", n)`), so handing over the
+    # field it already holds is the natural mistake, and it is silent — the write
+    # SUCCEEDS and simply orphans itself from every row the surface reads.
+    if tf not in _PRODUCT_TIMEFRAMES:
+        hint = _BARS_STORE_TF_KEYS.get(tf)
+        raise ValueError(
+            f"tf must be a product timeframe label — one of "
+            f"{sorted(_PRODUCT_TIMEFRAMES)} — got {tf!r}"
+            + (f"; that is the bars-store key for {hint!r}, which is how this "
+               f"column spells it" if hint else "")
+        )
 
     key_time = _normalize_bar_time(bar_time)
     try:

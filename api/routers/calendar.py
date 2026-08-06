@@ -1602,8 +1602,69 @@ def _weekly_payload_is_good(payload: dict | None) -> bool:
     return any(d.get("bmo") or d.get("amc") or d.get("tbd") for d in days)
 
 
+def _full_econ_cached(week_start: str, week_end: str) -> dict:
+    """Full-impact econ for the week (ALL impacts + ACTUAL prints), for the widget's
+    star filter. FMP is primary — it carries actuals + all impacts and covers any week;
+    ForexFactory include_low is a no-actuals fallback. EMPTY results are NOT cached, so a
+    transient provider hiccup can't 'stick' the widget on the curated set for 10 min."""
+    ck = f"econ_full::{week_start}"
+    cached = cache.get(ck)
+    if cached:
+        return cached
+    data = {}
+    try:
+        from api.services import econ_calendar_fmp
+        data = econ_calendar_fmp.fetch_us_econ_week_full(week_start, week_end) or {}
+    except Exception as exc:
+        _logger.warning("Calendar: FMP full econ failed: %s", exc)
+    if not data:
+        try:
+            data = _fetch_ff_events(week_start, week_end, include_low=True) or {}
+        except Exception as exc:
+            _logger.warning("Calendar: FF full econ fallback failed: %s", exc)
+            data = {}
+    if data:
+        cache.set(ck, data, ttl=300)
+    return data
+
+
+def _overlay_full_impact_econ(payload: dict) -> dict:
+    """Shallow-copy a calendar payload, replacing each day's econ/fed with the FULL
+    ForexFactory set (all impacts + an `impact` level). Days FF doesn't cover keep
+    their curated econ; earnings buckets are untouched. Never mutates the cache."""
+    days = payload.get("days") or {}
+    ws, we = payload.get("week_start"), payload.get("week_end")
+    if not days or not ws or not we:
+        return payload
+    ff = _full_econ_cached(ws, we)
+    if not ff:
+        return payload
+    new_days = {}
+    for ds, day in days.items():
+        if ds in ff:
+            d = dict(day)
+            d["econ"] = ff[ds].get("econ", [])
+            d["fed"] = ff[ds].get("fed", [])
+            new_days[ds] = d
+        else:
+            new_days[ds] = day
+    out = dict(payload)
+    out["days"] = new_days
+    return out
+
+
 @router.get("/api/calendar")
-def get_calendar(week: str | None = None):
+def get_calendar(week: str | None = None, full_impact: bool = False):
+    """Weekly calendar. `full_impact=1` (used by the Calendar widget's star filter)
+    overlays ALL-impact ForexFactory econ; the default is the curated Med/High+Fed
+    set the main Calendar page + downstream consumers rely on."""
+    payload = _get_calendar_payload(week)
+    if full_impact:
+        payload = _overlay_full_impact_econ(payload)
+    return payload
+
+
+def _get_calendar_payload(week: str | None = None):
     """Weekly calendar. Optional ?week=YYYY-MM-DD pages to any week within
     ±52 weeks (snapped to that date's Monday). The current week keeps the
     EW+Finviz merged path and the legacy calendar_weekly cache key untouched
@@ -1790,6 +1851,30 @@ def _is_key_event(title: str) -> bool:
     return any(k in t for k in _KEY_TERMS)
 
 
+# The events a trader treats as HIGH impact (the widget's 3-star tier). ForexFactory's
+# own "High" folder is narrower (and, e.g., marks Fed speeches Low), so we promote this
+# curated set to 'high' regardless of FF's label. Matches a TradingEconomics-style
+# high-impact list. FF titles differ from other sources (e.g. "Non-Farm Employment
+# Change", "UoM Consumer Sentiment") so terms are chosen to catch FF's wording.
+_HIGH_IMPACT_TERMS = (
+    "employment change", "payrolls", "unemployment rate",   # jobs report (NFP), not productivity
+    "cpi", "core inflation", "inflation rate", "consumer price",
+    "ppi", "producer price", "pce", "retail sales", "gdp",
+    "fomc statement", "fomc meeting", "fomc economic projections",   # the decision/minutes, not speeches
+    "federal funds rate", "interest rate decision", "rate decision",
+    "ism manufacturing pmi", "ism services pmi", "ism non-manufacturing pmi",   # headline PMI, not sub-prices
+    "consumer sentiment", "durable goods",
+    "building permits", "housing starts", "existing home sales", "new home sales",
+)
+
+
+def _is_high_impact(title: str) -> bool:
+    t = (title or "").lower()
+    if "speak" in t or "speech" in t:   # Fed/official speeches are never the high tier
+        return False
+    return any(k in t for k in _HIGH_IMPACT_TERMS)
+
+
 def _is_fed_speaker(title: str) -> bool:
     t = (title or "").lower().strip()
     # STRUCTURAL first. FMP ships "Fed <Name> Speech" / "Fed <Name> Speaks" for
@@ -1847,9 +1932,12 @@ def _parse_ff_datetime(raw) -> datetime | None:
     return None
 
 
-def _fetch_ff_events(week_start: str, week_end: str) -> dict:
+def _fetch_ff_events(week_start: str, week_end: str, include_low: bool = False) -> dict:
     """Fetch USD economic events from ForexFactory for the given week range.
-    Returns {YYYY-MM-DD: {econ: [...], fed: [...]}}
+    Returns {YYYY-MM-DD: {econ: [...], fed: [...]}}. `include_low=True` keeps the
+    Low-impact (yellow) events too and every event carries an `impact` level
+    ('low'|'medium'|'high') — used by the Calendar WIDGET's star filter. The default
+    (curated) view keeps only Medium/High + Fed, exactly as before.
     """
     import requests
 
@@ -1875,9 +1963,9 @@ def _fetch_ff_events(week_start: str, week_end: str) -> dict:
             if not title:
                 continue
 
-            # Keep: High/Medium impact + all Fed speakers
+            # Keep: High/Medium impact + all Fed speakers (curated). include_low keeps all.
             is_fed = _is_fed_speaker(title)
-            if impact == "Low" and not is_fed:
+            if not include_low and impact == "Low" and not is_fed:
                 continue
 
             date_raw = ev.get("date", "")
@@ -1900,11 +1988,20 @@ def _fetch_ff_events(week_start: str, week_end: str) -> dict:
             forecast = ev.get("forecast") or None
             previous = ev.get("previous") or None
 
+            # Impact tier for the widget's star filter: promote curated high-impact
+            # events to 'high' regardless of FF's label; else use FF's Medium/Low.
+            if _is_high_impact(title) or impact == "High":
+                imp = "high"
+            elif impact == "Medium":
+                imp = "medium"
+            else:
+                imp = "low"
             if is_fed:
                 result[ds]["fed"].append({
                     "time":  time_str,
                     "event": title,
                     "note":  impact,
+                    "impact": imp,
                 })
             else:
                 actual = ev.get("actual") or None
@@ -1915,6 +2012,7 @@ def _fetch_ff_events(week_start: str, week_end: str) -> dict:
                     "prior":    previous,
                     "actual":   actual,   # populated by FF once the event releases
                     "is_key":   _is_key_event(title),
+                    "impact":   imp,
                 })
 
     # A feed whose every row fails to parse is the exact failure that hid for

@@ -32,6 +32,11 @@ tools/chart_parity_out/
 tools/chart_parity_out_*/
 # The built dists a parity run serves (`cp -r app/dist .parity-dist-a`).
 .parity-dist-*/
+
+# Alert replay scratch output (`tools/alert_replay.py --diff --out …`). Multi-MB
+# per run and regenerable; the COMMITTED artifacts of that tool are
+# tests/fixtures/alerts/{replay_bars,fire_log_forming,fire_diff_declared}.json.
+tools/alert_replay_out/
 tools/_local_backend.log
 
 # SnapTrade smoke-test state (contains a userSecret)

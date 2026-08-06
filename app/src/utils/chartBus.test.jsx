@@ -58,7 +58,12 @@ describe('the add-indicator allow-list is derived, not written down', () => {
   it('is the catalog plus the MA aliases, and nothing invented', () => {
     const { indicators, aliases } = allowedIndicatorNames()
     expect(indicators).toEqual(catalogRows().map(r => r.id.toLowerCase()))
-    expect(aliases).toEqual(['avwap', 'ma9', 'ma20', 'ma50', 'ma200', 'ema9', 'ema20', 'ema50'])
+    // ⭐ `avwap` LEFT THIS LIST AT PHASE C TASK 14. It was an alias because AVWAP
+    // existed only as a click-anchored DRAWING; there is a definition now, so the
+    // same words are honoured. The MA slots stay aliases — a slot is positional
+    // and the registry has no concept of one.
+    expect(aliases).toEqual(['ma9', 'ma20', 'ma50', 'ma200', 'ema9', 'ema20', 'ema50'])
+    expect(indicators, 'avwap did not become a real indicator').toContain('avwap')
   })
 
   it('carries the eleven the hand-written Set refused — and the list is not trivially short', () => {
@@ -96,8 +101,14 @@ describe('the add-indicator allow-list is derived, not written down', () => {
     // The eight are legitimate things to SAY; this surface cannot draw them.
     // Collapsing the two would make "add a 9 EMA" and "add asdf" the same event.
     expect(resolveIndicatorAdd('ma9').reason).toBe('alias')
-    expect(resolveIndicatorAdd('avwap').reason).toBe('alias')
+    expect(resolveIndicatorAdd('ema20').reason).toBe('alias')
     expect(resolveIndicatorAdd('asdf').reason).toBe('unknown')
+    // …and `avwap` used to be the third alias and is now HONOURED — Phase C Task
+    // 14 gave it a definition, so a refusal became a draw. Asserted here rather
+    // than only in the derivation test above, because THIS is the case that would
+    // have gone quietly green if the alias list and the catalog both dropped it.
+    expect(resolveIndicatorAdd('avwap').reason).toBe('honoured')
+    expect(resolveIndicatorAdd('avwap').row.id).toBe('avwap')
   })
 })
 
@@ -193,7 +204,11 @@ describe('⭐ and a chart LISTENS — the half that had never existed', () => {
     const H = mountBus({ chart_settings: SEED })
     await waitFor(() => expect(H.result.current.loading).toBe(false))
 
-    expect(addIndicator('avwap'), 'a valid thing to say').toBe('avwap')
+    // ⚠️ `avwap` WAS THE THIRD NAME HERE AND IS NOT ANY MORE — it has a definition
+    // as of Phase C Task 14, so the listener WOULD write for it and the
+    // by-identity assertion below would fail for the right reason. The MA slots
+    // are still the refusal class this case is about.
+    expect(addIndicator('ma9'), 'a valid thing to say').toBe('ma9')
     await act(async () => { addIndicator('ma9'); addIndicator('ema20') })
 
     // BY IDENTITY: the stored blob is the same string object it started as.

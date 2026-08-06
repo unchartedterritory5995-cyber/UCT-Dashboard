@@ -121,3 +121,70 @@ export function stripComments(src) {
   }
   return out
 }
+
+/** Python's comment shapes, stripped; STRING CONTENTS PRESERVED.
+ *
+ *  ⭐ WHY A SECOND STRIPPER EXISTS AT ALL. Two of the enumeration ledger's rows
+ *  are PYTHON and the JS discovery scan walks `app/src/**\/*.jsx?`, so it
+ *  structurally cannot see either — a Python enumeration is invisible to it
+ *  however many indicator ids it names, which is exactly the shape that turned
+ *  seven sites into thirty-two. The Python half of that scan needs the same
+ *  code-not-prose guarantee `stripComments` gives the JS half, and it needs it
+ *  from ONE place: a predicate re-typed per suite is the twin this phase retires.
+ *
+ *  ⛔ STRINGS ARE NOT STRIPPED, ON PURPOSE — the same ruling `stripComments`
+ *  carries. A Python enumeration lives in dict LITERALS (`INDICATOR_FUNCS`,
+ *  `_CASE_COLUMNS`, `_INDICATOR_ALIASES`) whose keys are strings; a stripper that
+ *  also dropped string contents would lose every real site, which is the false
+ *  negative that makes a scan worthless.
+ *
+ *  ⛔ TRIPLE-QUOTED DOCSTRINGS ARE STRIPPED. They are where this repo's Python
+ *  writes its prose, and `indicator_alert_evaluator.py`'s `alert_catalog`
+ *  docstring names plot addresses in running text. Read as code, a docstring is a
+ *  false positive that a maintainer can only fix by rewording prose — the exact
+ *  symptom fix B4 Task 10 had to undo on the JS side.
+ *
+ *  ⛔ IT IS NOT A PARSER, AND ITS LIMITS ARE STATED. Four states: code, `#` line
+ *  comment, triple-quoted block, single-quoted string. It does not model
+ *  f-string substitutions, nested quotes inside a docstring, or implicit line
+ *  joins. What it guarantees is narrow and sufficient: text after a `#` and text
+ *  inside `"""`/`'''` does not reach the caller, and text inside a `'`/`"` string
+ *  DOES.
+ *
+ *  Newlines are preserved so line numbers survive.
+ */
+export function stripPyComments(src) {
+  let out = ''
+  let i = 0
+  let mode = 'code'
+  let quote = ''
+  while (i < src.length) {
+    const c = src[i]
+    if (mode === 'code') {
+      if (c === '#') {
+        while (i < src.length && src[i] !== '\n' && src[i] !== '\r') i += 1
+        continue
+      }
+      if (src.startsWith('"""', i) || src.startsWith("'''", i)) {
+        quote = src.slice(i, i + 3); mode = 'tri'; i += 3; continue
+      }
+      if (c === '"' || c === "'") { quote = c; mode = 'str'; out += c; i += 1; continue }
+      out += c; i += 1; continue
+    }
+    if (mode === 'tri') {
+      if (src.startsWith(quote, i)) { mode = 'code'; i += 3; continue }
+      // ⚠️ CR AND LF BOTH SURVIVE. This worktree stores several files CRLF, and
+      // collapsing a `\r` to a space would fuse two lines' worth of stripped
+      // prose into one — harmless for the id scan, but it destroys the line
+      // numbering this function promises.
+      out += (c === '\n' || c === '\r') ? c : ' '
+      i += 1; continue
+    }
+    // mode === 'str'
+    if (c === '\\') { out += src.slice(i, i + 2); i += 2; continue }
+    out += c
+    if (c === quote) mode = 'code'
+    i += 1
+  }
+  return out
+}

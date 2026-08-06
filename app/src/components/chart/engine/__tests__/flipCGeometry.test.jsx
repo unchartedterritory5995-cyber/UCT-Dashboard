@@ -291,8 +291,13 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     }
     // ⛔ NON-VACUITY. An `oscillatorIds()` that returned `[]` would pass every
     // line above without executing one of them.
-    expect(checked).toBe(9)
-    expect(ids).toHaveLength(9)
+    // ⭐ TEN AT PHASE C TASK 13. `rsLine` joined the `pane` target on the SERVER
+    // lane, so `oscillatorIds()` returns ten. Its `before` is DERIVED rather than
+    // historical — it never shipped, so there is no pre-Flip-C picture of it — and
+    // the loop is a self-consistency check for it while it stays a transcription
+    // check for the nine that did ship. Kept as an equality, not a floor.
+    expect(checked).toBe(10)
+    expect(ids).toHaveLength(10)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {

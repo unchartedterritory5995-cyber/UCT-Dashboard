@@ -15,7 +15,39 @@
 //     inputs:     { period: 7 },   // ONLY what the user actually set (see below)
 //     placement:  { target: 'pane' },
 //     hidden:     false,
-//   }
+//     scope:      'chart-2',       // ⭐ PHASE C TASK 12 — OPTIONAL, and ABSENT
+//   }                              //    IS THE GLOBAL CASE. See below.
+//
+// ─── `scope`: WHICH CHART, AND WHY ABSENT IS NOT A VALUE ─────────────────────
+//
+// Spec §5 shipped the instance model with `scope?` and the note *"`scope`
+// (chartId) present from day one as data; global default at cutover, per-chart
+// + templates flips on in Phase C"*. ⛔ IT WAS NOT PRESENT — B5 shipped the six
+// fields above it and nothing else — so Phase C ADDS it, and an addition to a
+// shape every production blob already has has exactly one hard requirement:
+// **an existing user's blob must not change at all.**
+//
+// That is why absent means global rather than `scope: 'global'`. A sentinel
+// string would have to be WRITTEN into every instance of every stored blob to
+// mean what the blob already means, which is a migration with no upside and a
+// key-order change in every row. So:
+//
+//   · ABSENT            → global. Draws on every chart. Every row today.
+//   · a non-empty string→ that chart id, and only that chart.
+//   · `null`            → MALFORMED, and refused with a reason. It is not the
+//                         same as absent: `JSON.stringify` DROPS an `undefined`
+//                         value and keeps a `null`, so absent and explicit-
+//                         undefined collapse into one stored shape while `null`
+//                         survives as a third. Reading it as "global" would make
+//                         a stored value mean the same as no value at all.
+//
+// ⚠️ THE FILTER AND THE VALIDATOR ANSWER DIFFERENT QUESTIONS AND MAY DISAGREE.
+// `instanceScope` (below) answers *"which chart does this draw on"* and returns
+// `undefined` for anything that is not a non-empty string — i.e. a malformed
+// instance keeps drawing everywhere, the direction that does not make an
+// indicator vanish inside the paint. `validateInstance` answers *"is this stored
+// data well-formed"* and REPORTS the same value, so the user gets a reason.
+// Both behaviours are pinned in `__tests__/alertSets.test.js`.
 //
 // ⛔ THIS MODULE IS PURE AND WRITES NOTHING. It reads a settings blob and
 // returns arrays. Nothing here persists, renders, or touches lightweight-charts
@@ -89,6 +121,56 @@ export const LEGACY_ID_PREFIX = 'legacy:'
  */
 export function legacyInstanceId(defId) {
   return `${LEGACY_ID_PREFIX}${defId}`
+}
+
+// ─── scope: the instance-shape half of per-chart sets ────────────────────────
+
+/** The field name, in one place, so the two producers and the two readers below
+ *  cannot drift apart on a string literal. */
+export const INSTANCE_SCOPE_FIELD = 'scope'
+
+/**
+ * Which chart this instance belongs to, or `undefined` for a GLOBAL one.
+ *
+ * ⛔ NEVER RETURNS A SENTINEL. "Global" is the absence of an answer, not the
+ * string `'global'` — see the header. A caller wanting "is this global" asks
+ * `instanceScope(inst) === undefined`, which is true for every instance in every
+ * blob that exists today and stays true without anything being written.
+ *
+ * Anything that is not a non-empty string reads as global, deliberately: this
+ * runs inside the paint, and the failure direction that matters is the one where
+ * a malformed field cannot make an indicator disappear.
+ */
+export function instanceScope(inst) {
+  if (!isPlainObject(inst)) return undefined
+  let v
+  try { v = inst[INSTANCE_SCOPE_FIELD] } catch { return undefined }  // booby-trapped getter
+  return isNonEmptyString(v) ? v : undefined
+}
+
+/**
+ * A COPY of `inst` scoped to `chartId` — or, with a null/empty `chartId`, a copy
+ * with the scope REMOVED.
+ *
+ * ⚠️ `scope` IS APPENDED LAST, ALWAYS, and re-scoping moves it to the end rather
+ * than editing it in place. Field order is what a stored blob's bytes are: every
+ * other key keeps the position it already had, so a diff of a user's
+ * `chart_settings` shows one added key and nothing else. (`cloneInstance` and
+ * the migrator's own emitter both document the same rule.)
+ *
+ * ⛔ CLEARING DELETES THE KEY. Setting it to `undefined` would leave a key that
+ * `JSON.stringify` drops on the way out and `merge()` skips on the way in — the
+ * half-deletion shape B5 Task 4 shipped, which every output-reading test passed.
+ */
+export function scopeInstance(inst, chartId) {
+  if (!isPlainObject(inst)) return inst
+  const out = {}
+  for (const key of Object.keys(inst)) {
+    if (key === INSTANCE_SCOPE_FIELD) continue
+    out[key] = inst[key]
+  }
+  if (isNonEmptyString(chartId)) out[INSTANCE_SCOPE_FIELD] = chartId
+  return out
 }
 
 // ─── small local helpers ─────────────────────────────────────────────────────
@@ -387,6 +469,15 @@ export function migrateLegacyToInstances(cs, registry) {
 
     // Field order matches the documented instance shape rather than the order
     // they happened to be assigned in.
+    //
+    // ⭐ PHASE C TASK 12 — AND THERE IS NO `scope` HERE, WHICH IS THE POINT.
+    // A legacy toggle is a GLOBAL fact: `cs.indicators.rsi.enabled` was never
+    // about one chart, and the blob it came from has no chart id in it to be
+    // about one. So the seed emits the same six fields it emitted before this
+    // task, in the same order, and the strongest available form of "key order
+    // is unchanged in every stored blob" is that the key is never written.
+    // `__tests__/alertSets.test.js` asserts it across the whole fixture corpus,
+    // including the genuine production capture.
     out.push({
       instanceId: inst.instanceId,
       defId: inst.defId,
@@ -498,6 +589,24 @@ export function validateInstance(inst, registry, ctx) {
     // ─ hidden ─
     if (inst.hidden !== undefined && inst.hidden !== null && typeof inst.hidden !== 'boolean') {
       errors.push(`hidden: expected true or false, got ${fmt(inst.hidden)}`)
+    }
+
+    // ─ scope (PHASE C TASK 12) ─
+    //
+    // ⛔ THE ONLY THREE ANSWERS ARE "ABSENT", "A CHART ID" AND "MALFORMED", and
+    // `null` is the third one. It has to be, because it is the one of the three
+    // serialisations that SURVIVES `JSON.stringify` while an absent key and an
+    // explicit `undefined` collapse into each other — so reading `null` as
+    // "global" would give a stored value the same meaning as no value, and a
+    // client that wrote it would never learn it had done nothing.
+    if (hasOwn(inst, INSTANCE_SCOPE_FIELD) && inst[INSTANCE_SCOPE_FIELD] !== undefined) {
+      if (!isNonEmptyString(inst[INSTANCE_SCOPE_FIELD])) {
+        errors.push(
+          `scope: expected a chart id (a non-empty string), got ${fmt(inst[INSTANCE_SCOPE_FIELD])} — ` +
+          `an ABSENT scope is what "this indicator is on every chart" means, so there is no ` +
+          `null, no empty string and no sentinel: omit the key`,
+        )
+      }
     }
 
     // ─ placement ─

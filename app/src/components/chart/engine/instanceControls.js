@@ -172,8 +172,23 @@ function inputsFromLegacy(def, section) {
  * `cs` with a new instance list — sorted into SHIPPED STACK order (see
  * `stackOrderRank`) and marked `preset: 'custom'`, which is what every other
  * settings write in `ChartToolbar` does.
+ *
+ * ⭐ EXPORTED AT PHASE C TASK 12. It is not a new control door — it writes no
+ * `cs.indicators.<id>.enabled` and decides nothing about what is on; it is the
+ * ONE place an instance list is put back into a settings blob in the shipped
+ * order, and per-chart sets need that same order for a list that now contains
+ * instances belonging to different charts.
+ *
+ * ⛔ `scope` IS NOT A SORT KEY. The stack order is what a user's PANES are in;
+ * grouping a chart's own instances together would reorder the panes of anyone
+ * who ever scoped one. The sort is by definition, exactly as before, and
+ * `instancesForChart` filters afterwards — so the panes a chart shows are a
+ * SUBSEQUENCE of the global order, never a re-sort of it.
+ *
+ * Omitting `registry` leaves the list in its incoming order (no definition
+ * ranks, `Array.prototype.sort` is stable since ES2019).
  */
-function withInstances(cs, instances, registry) {
+export function withInstances(cs, instances, registry) {
   const order = stackOrderRank(registry)
   const sorted = [...instances].sort((a, b) =>
     (order.get(a && a.defId) ?? 1e9) - (order.get(b && b.defId) ?? 1e9))
