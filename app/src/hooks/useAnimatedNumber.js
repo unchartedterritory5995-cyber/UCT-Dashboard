@@ -40,9 +40,19 @@ export default function useAnimatedNumber(value, { duration = 350 } = {}) {
     }
     const from = shownRef.current
     if (from === value) return undefined
-    const start = performance.now()
+    // Anchor the tween on the FIRST rAF timestamp, not on performance.now().
+    // They are not guaranteed to be the same clock — under load the rAF stamp can
+    // read persistently BEFORE a performance.now() sampled moments earlier, which
+    // made `now - start` negative. Reading both ends off `now` removes the skew by
+    // construction.
+    let start = null
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / duration)
+      if (start === null) start = now
+      // Clamp BOTH ends anyway, as defence. ease() = 1-(1-t)**3 explodes on a
+      // negative t — t=-2.5 turns a 100->200 tween into -4087 — and this hook
+      // drives the Journal account-balance hero, so the failure mode is a user
+      // watching their balance flash a wild negative for a frame.
+      const t = Math.min(1, Math.max(0, (now - start) / duration))
       const cur = t >= 1 ? value : from + (value - from) * ease(t)
       shownRef.current = cur
       setDisplay(cur)
