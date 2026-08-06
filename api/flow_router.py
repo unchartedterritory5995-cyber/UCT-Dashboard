@@ -39,7 +39,7 @@ Performance design:
 from fastapi import APIRouter, Request, Depends
 from api.flow_admin_auth import require_flow_admin
 from fastapi.responses import JSONResponse, Response
-from api.flow_db import FlowDB
+from api.flow_db import FlowDB, parse_columns
 from collections import OrderedDict
 import os
 import gzip
@@ -512,12 +512,16 @@ async def upload_flow(request: Request, _auth: dict = Depends(require_flow_admin
         )
 
 
-def _build_gzipped_symbol_csv(symbol: str, source: str) -> bytes:
-    """Gzip the UNCAPPED flow for a single ticker (Search deep-dive). One symbol
-    is a tiny result set, so no premium cap — unlike the bulk /data path."""
+def _build_gzipped_symbol_csv(symbol: str, source: str, columns=None) -> bytes:
+    """Gzip the UNCAPPED flow for a single ticker (Search deep-dive). No premium
+    cap — unlike the bulk /data path.
+
+    `columns` is the caller's projection (already validated by
+    `parse_columns`); None means every column, which is what every caller that
+    does not ask got before this parameter existed."""
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
-        for chunk in db.stream_csv_symbol(symbol, source=source):
+        for chunk in db.stream_csv_symbol(symbol, source=source, columns=columns):
             if isinstance(chunk, str):
                 chunk = chunk.encode("utf-8")
             gz.write(chunk)
@@ -525,18 +529,28 @@ def _build_gzipped_symbol_csv(symbol: str, source: str) -> bytes:
 
 
 @flow_router.get("/ticker/{symbol}")
-def get_flow_ticker(symbol: str, source: str = "stocks"):
+def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = ""):
     """Uncapped flow for ONE ticker. The bulk /data endpoint keeps only the
     top-N rows by premium, which drops most of a small-cap's low-premium prints
     (ACI: 5 of 68 rows reached the browser, $1.5M of $3.84M). The Search tab
-    calls this instead so a ticker's totals reflect its COMPLETE flow. Tiny
-    payload (tens of rows), so no cap and no CF cache."""
+    calls this instead so a ticker's totals reflect its COMPLETE flow.
+
+    `?cols=A,B,C` narrows the projection to those columns, in that order, with
+    a header that describes them. It is OPTIONAL and defaults to every column,
+    so an older caller — and an older deploy of this service answering a newer
+    caller — behaves exactly as before. An UNKNOWN column is a 400, never a
+    quietly narrower body: the consumers of this surface resolve fields by name,
+    and a wrong question must not come back looking like a quiet tape."""
     sym = (symbol or "").strip().upper()
     if not sym:
         return Response(content="", status_code=400, media_type="text/plain")
     src = "indexes" if source == "indexes" else "stocks"
     try:
-        gzipped = _build_gzipped_symbol_csv(sym, src)
+        columns = parse_columns(cols)
+    except ValueError as e:
+        return Response(content=f"Error: {e}", status_code=400, media_type="text/plain")
+    try:
+        gzipped = _build_gzipped_symbol_csv(sym, src, columns=columns)
     except Exception as e:
         return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
     return Response(
