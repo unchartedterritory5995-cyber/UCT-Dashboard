@@ -1,8 +1,11 @@
 """Per-ticker company metadata (name/sector/industry).
 
-Source: yfinance .info (all three) with Finnhub profile2 fallback for
-name/industry. In-memory TTLCache + disk-persisted JSON under /data,
-24h TTL. Never raises — returns all-null on total failure (uncached)."""
+Source: yfinance .info (all three) with FMP `stable/profile` then Finnhub
+`profile2` fallback for name/industry (2026-08-05 migration — FMP is the new
+PRIMARY of the two paid/free fallback legs; Finnhub stays as an explicit,
+never-removed fallback since it costs nothing once FMP succeeds first).
+In-memory TTLCache + disk-persisted JSON under /data, 24h TTL. Never raises
+— returns all-null on total failure (uncached)."""
 import json
 import logging
 import os
@@ -58,7 +61,8 @@ def _from_finnhub(ticker: str):
     # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
     # call shares the process-wide token bucket / 429 cooldown with every
     # other Finnhub caller instead of spending the same account budget
-    # uncoordinated.
+    # uncoordinated. This is now the FALLBACK leg — see _from_fmp above it
+    # in _base_meta's call order (2026-08-05 profile2→FMP migration).
     j = fh_get("/stock/profile2", {"symbol": ticker}, timeout=15)
     if not isinstance(j, dict):
         return {"name": None, "sector": None, "industry": None}
@@ -66,6 +70,67 @@ def _from_finnhub(ticker: str):
         "name": (j.get("name") or None),
         "sector": None,  # Finnhub profile2 has no GICS sector
         "industry": (j.get("finnhubIndustry") or None),
+    }
+
+
+_FMP_PROFILE_TIMEOUT = 8  # own bounded budget — NEVER routed through Finnhub's
+                          # shared token bucket (finnhub_client.py); see
+                          # docs/superpowers/plans/2026-08-05-data-dependability-migration.md Task 8.
+
+
+def _fmp_row(data):
+    """FMP `stable/*` endpoints return either a list-of-one dict or (some
+    endpoints) a bare dict. Normalize to the single row dict or None."""
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    return None
+
+
+def _fmp_market_cap_musd(row: dict):
+    """Convert FMP `stable/profile`'s `marketCap` (raw USD UNITS) to millions,
+    matching the millions-of-local-currency convention the retired Finnhub
+    `marketCapitalization` field used, so a future consumer comparing the two
+    across a migration boundary can never repeat the known 10^6-unit mismatch
+    (`lesson_market_cap_cache_poison_and_finnhub_currency`). NOTE: unlike
+    Finnhub, FMP's marketCap is USD-denominated, not local currency — that FX
+    difference is a separate axis this helper does not attempt to correct.
+    None in (missing/non-numeric) -> None out; never fabricates a value."""
+    if not isinstance(row, dict):
+        return None
+    raw = row.get("marketCap")
+    if raw is None:
+        return None
+    try:
+        return float(raw) / 1_000_000.0
+    except (TypeError, ValueError):
+        return None
+
+
+def _from_fmp(ticker: str):
+    """FMP `stable/profile` — the new PRIMARY leg ahead of the Finnhub
+    profile2 fallback (2026-08-05 migration, plan Task 8). Field mapping
+    (probed live): name<-companyName, sector<-sector (FMP splits sector
+    from industry; Finnhub profile2 has no sector at all), industry<-industry
+    (finer-grained than Finnhub's coarse finnhubIndustry). Any field FMP
+    doesn't supply stays None — never fabricated, never defaulted to 0/"".
+    `market_cap_musd` is carried on this dict (already unit-converted, see
+    _fmp_market_cap_musd) for any future caller; _base_meta's merge below
+    only reads name/sector/industry from it today. Never raises — mirrors
+    _from_finnhub's all-None-on-failure contract exactly so the merge in
+    _base_meta can treat both legs identically."""
+    from api.services import earnings_estimates as ee
+
+    data = ee._fmp_get("/stable/profile", {"symbol": ticker}, timeout=_FMP_PROFILE_TIMEOUT)
+    row = _fmp_row(data)
+    if not row:
+        return {"name": None, "sector": None, "industry": None, "market_cap_musd": None}
+    return {
+        "name": (row.get("companyName") or None),
+        "sector": (row.get("sector") or None),
+        "industry": (row.get("industry") or None),
+        "market_cap_musd": _fmp_market_cap_musd(row),
     }
 
 
@@ -91,15 +156,32 @@ def _base_meta(ticker: str) -> dict:
         _logger.info("ticker_meta yfinance failed for %s: %s — trying Finnhub", ticker, e)
         data = {"name": None, "sector": None, "industry": None}
 
-    # Fall back to Finnhub whenever the NAME is still missing — NOT only when the
-    # whole payload is empty. yfinance's .info is flaky and often returns a PARTIAL
-    # response (GICS sector/industry present but longName/shortName absent); the
-    # old `not any(data.values())` gate saw the sector/industry and skipped the
-    # fallback, permanently caching name=None. That was the "some tickers show no
-    # company name in the header/watermark" bug (424 of ~4,060 tickers — every one
-    # of them had sector+industry but a null name). Merge field-by-field so
-    # yfinance's accurate GICS sector/industry are KEPT and only the missing name
-    # (and industry, if blank) are taken from Finnhub.
+    # Fall back to FMP, then Finnhub, whenever the NAME is still missing — NOT
+    # only when the whole payload is empty. yfinance's .info is flaky and often
+    # returns a PARTIAL response (GICS sector/industry present but longName/
+    # shortName absent); the old `not any(data.values())` gate saw the
+    # sector/industry and skipped the fallback, permanently caching name=None.
+    # That was the "some tickers show no company name in the header/watermark"
+    # bug (424 of ~4,060 tickers — every one of them had sector+industry but a
+    # null name). Merge field-by-field so yfinance's accurate GICS sector/
+    # industry are KEPT and only the missing name (and industry, if blank) are
+    # taken from the fallback legs.
+    #
+    # FMP `stable/profile` is tried FIRST (2026-08-05 profile2->FMP migration,
+    # plan Task 8) — it's the paid/stronger source. Finnhub profile2 is kept
+    # as an explicit, never-removed fallback for whatever FMP still can't
+    # fill; it costs nothing once FMP already succeeded.
+    if not data.get("name"):
+        try:
+            fmp = _from_fmp(ticker)
+            data = {
+                "name": data.get("name") or fmp.get("name"),
+                "sector": data.get("sector") or fmp.get("sector"),
+                "industry": data.get("industry") or fmp.get("industry"),
+            }
+        except Exception as e_fmp:
+            _logger.info("ticker_meta FMP failed for %s: %s — trying Finnhub", ticker, e_fmp)
+
     if not data.get("name"):
         try:
             fh = _from_finnhub(ticker)

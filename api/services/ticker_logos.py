@@ -19,6 +19,11 @@ function reports into.
 
 Mirrors the ticker_meta disk-cache + ticker_names prewarm patterns.
 Never raises.
+
+The Finnhub `/stock/profile2` leg (last resort, `_finnhub_logo_bytes`) tries
+FMP `stable/profile` first (2026-08-05 migration) -- see that function's
+docstring for why FMP is a real but currently always-empty attempt here (no
+logo field on that endpoint) rather than a replacement.
 """
 import io
 import logging
@@ -129,7 +134,52 @@ def _is_ssrf_safe_url(url: str) -> bool:
     return True
 
 
+# FMP's own bounded budget for the leg below — NEVER routed through
+# Finnhub's shared token bucket (finnhub_client.py). Separate from the
+# _TIMEOUT used for the CDN/Finnhub sources in this file.
+_FMP_TIMEOUT = 6
+
+
+def _fmp_profile_row(sym: str):
+    """FMP `stable/profile` — the new PRIMARY attempt for this leg (2026-08-05
+    profile2 migration, plan Task 8). Returns the parsed row dict or None.
+    Never raises (`earnings_estimates._fmp_get` already swallows every
+    failure and returns None; this just normalizes the list-of-one shape)."""
+    from api.services import earnings_estimates as ee
+
+    data = ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=_FMP_TIMEOUT)
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    return None
+
+
 def _finnhub_logo_bytes(sym: str):
+    # FMP-primary attempt first (2026-08-05 profile2->FMP migration, plan
+    # Task 8). Probed live: FMP's `stable/profile` schema has NO logo/image
+    # field (confirmed 2026-08-05) -- so this is a real, tested attempt that
+    # today always falls through to the Finnhub leg below, the ONLY source in
+    # this chain that actually supplies a logo URL. Kept explicit (not
+    # skipped) so this leg mirrors the FMP-primary / Finnhub-fallback pattern
+    # used at the other two profile2 call sites, and so a defensive
+    # `image`/`logo` field FMP might add later is picked up automatically
+    # without anyone having to remember to touch this file again.
+    row = _fmp_profile_row(sym)
+    if row:
+        fmp_url = (row.get("image") or row.get("logo") or "").strip()
+        if fmp_url and _is_ssrf_safe_url(fmp_url):
+            try:
+                r = requests.get(fmp_url, headers=_HEADERS, timeout=_FMP_TIMEOUT)
+                if r.ok and r.content:
+                    return r.content
+                if r.status_code == 429 or r.status_code >= 500:
+                    _mark_transient()
+            except requests.exceptions.RequestException:
+                _mark_transient()
+            except Exception:
+                pass
+
     # The profile2 lookup is routed through the shared finnhub_client.fh_get
     # (2026-08-05) so it shares the process-wide token bucket / 429 cooldown
     # with every other Finnhub caller. The SECOND request below (fetching the

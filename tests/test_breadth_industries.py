@@ -7,6 +7,7 @@ stragglers, and never blocks on the request path.
 """
 import os
 import tempfile
+from unittest import mock
 
 import pytest
 from fastapi import FastAPI
@@ -100,6 +101,79 @@ def test_fallback_persists_industry(imap, monkeypatch):
     monkeypatch.setattr(imap._FALLBACK_POOL, "submit", lambda fn: fn())
     imap._enqueue_fallback("NEWCO")
     assert imap.get_industries(["NEWCO"])["NEWCO"] == "Biotechnology"
+
+
+# ── FMP `stable/profile` migration (2026-08-05, plan Task 8) ─────────────────
+# _fetch_fallback now tries yfinance -> FMP stable/profile -> Finnhub profile2
+# (last resort), instead of yfinance -> Finnhub directly.
+
+def test_fetch_fallback_tries_fmp_before_finnhub(imap, monkeypatch):
+    """FMP is the new PRIMARY of the two remaining legs: when yfinance has
+    nothing, FMP resolving both sector+industry means Finnhub is never called."""
+    def _fh_should_not_be_called(*a, **k):
+        raise AssertionError("Finnhub must not be reached when FMP resolves")
+
+    with mock.patch("yfinance.Ticker") as YF, \
+         mock.patch.object(imap, "_fmp_profile_row",
+                           return_value={"sector": "Technology", "industry": "Semiconductors"}), \
+         mock.patch("api.services.finnhub_client.fh_get", side_effect=_fh_should_not_be_called):
+        YF.return_value.info = {}  # yfinance has nothing -> falls to FMP
+        sec, ind, src = imap._fetch_fallback("NEWCO")
+    assert (sec, ind, src) == ("Technology", "Semiconductors", "fmp")
+
+
+def test_fetch_fallback_falls_through_to_finnhub_when_fmp_has_no_industry(imap, monkeypatch):
+    """FMP returning a row without an industry (e.g. sector-only, or no row at
+    all) must fall through to the Finnhub leg -- never fabricate an industry."""
+    with mock.patch("yfinance.Ticker") as YF, \
+         mock.patch.object(imap, "_fmp_profile_row", return_value={"sector": "Technology"}), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"finnhubIndustry": "Semiconductors"}):
+        YF.return_value.info = {}
+        sec, ind, src = imap._fetch_fallback("NEWCO")
+    assert (sec, ind, src) == (None, "Semiconductors", "finnhub")
+
+
+def test_fetch_fallback_fmp_none_row_yields_none_not_fabricated(imap, monkeypatch):
+    """`_fmp_profile_row` returning None entirely (no FMP_API_KEY, or a clean
+    miss) must not raise and must not fabricate a placeholder industry."""
+    with mock.patch("yfinance.Ticker") as YF, \
+         mock.patch.object(imap, "_fmp_profile_row", return_value=None), \
+         mock.patch("api.services.finnhub_client.fh_get", return_value=None):
+        YF.return_value.info = {}
+        sec, ind, src = imap._fetch_fallback("ZZZZ")
+    assert (sec, ind, src) == (None, None, None)
+
+
+# ── C26 clobber-guard regression: weekly bulk refresh must never overwrite a
+# good sector/industry with a NULL from a partial FMP/Finviz row ────────────
+
+def test_upsert_coalesce_preserves_existing_sector_on_null_overwrite(imap):
+    """THE clobber bug (cache-poison audit C26): a second write for the same
+    ticker with sector/industry=None (e.g. a Finviz row that doesn't classify
+    it, or a partial per-ticker fallback) must NOT blank out a previously-good
+    value. `_upsert_many`'s ON CONFLICT clause must COALESCE, not overwrite."""
+    imap._upsert_many([("NEWCO", "Healthcare", "Biotechnology", "yfinance", 100)])
+    assert imap.get_industries(["NEWCO"])["NEWCO"] == "Biotechnology"
+    assert imap.get_groups(["NEWCO"])["NEWCO"] == {"sector": "Healthcare", "industry": "Biotechnology"}
+
+    # A later write for the SAME ticker with NULL sector/industry (source
+    # changed to "finviz", but the row didn't classify it) must preserve the
+    # prior good values, only bumping source/fetched_at.
+    imap._upsert_many([("NEWCO", None, None, "finviz", 200)])
+
+    assert imap.get_industries(["NEWCO"])["NEWCO"] == "Biotechnology"
+    groups = imap.get_groups(["NEWCO"])["NEWCO"]
+    assert groups == {"sector": "Healthcare", "industry": "Biotechnology"}
+
+
+def test_upsert_coalesce_still_applies_a_real_replacement_value(imap):
+    """Control direction for the COALESCE test above: a NON-null new value
+    still overwrites the old one (COALESCE only protects against NULL, it
+    doesn't pin the first-ever value forever)."""
+    imap._upsert_many([("NEWCO", "Healthcare", "Biotechnology", "yfinance", 100)])
+    imap._upsert_many([("NEWCO", "Technology", "Biotech Tools", "finviz", 200)])
+    assert imap.get_groups(["NEWCO"])["NEWCO"] == {"sector": "Technology", "industry": "Biotech Tools"}
 
 
 def test_status_shape(imap):

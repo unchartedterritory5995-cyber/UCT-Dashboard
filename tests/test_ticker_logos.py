@@ -97,6 +97,161 @@ def test_logodev_is_first_source_short_circuits_chain():
     fh.assert_not_called()
 
 
+# ── FMP `stable/profile` migration (2026-08-05, plan Task 8) ──────────────────
+# _finnhub_logo_bytes now tries FMP `stable/profile` FIRST (own bounded
+# timeout, never routed through Finnhub's shared token bucket), falling
+# through to the existing Finnhub profile2 call unchanged. FMP's real,
+# probed schema has NO logo/image field, so today this is a real (not
+# skipped) attempt that always falls through -- these tests cover both that
+# fall-through path and the defensive "if FMP ever adds the field" path.
+
+def test_fmp_profile_row_parses_list_of_one_shape():
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+        row = tl._fmp_profile_row("AAPL")
+    assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
+
+
+def test_fmp_profile_row_parses_bare_dict_shape():
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value={"companyName": "Apple Inc."}):
+        row = tl._fmp_profile_row("AAPL")
+    assert row == {"companyName": "Apple Inc."}
+
+
+def test_fmp_profile_row_none_on_empty_response():
+    with mock.patch("api.services.earnings_estimates._fmp_get", return_value=None):
+        assert tl._fmp_profile_row("ZZZZ") is None
+    with mock.patch("api.services.earnings_estimates._fmp_get", return_value=[]):
+        assert tl._fmp_profile_row("ZZZZ") is None
+
+
+def test_finnhub_logo_bytes_falls_through_to_finnhub_when_fmp_has_no_logo_field():
+    """THE real-world shape (probed 2026-08-05): FMP's stable/profile row
+    exists but has no image/logo field at all -- must fall through cleanly to
+    the actual Finnhub leg, which supplies the real logo bytes."""
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _R()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get) as req_get:
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    # Only the Finnhub CDN URL was ever fetched -- FMP had nothing to offer.
+    req_get.assert_called_once()
+    assert req_get.call_args[0][0] == "https://static.finnhub.io/aapl.png"
+
+
+def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
+    """Defensive path: if FMP's schema ever adds an `image` field, it's used
+    as the PRIMARY source and Finnhub is never called at all."""
+    fmp_png = b"\x89PNG\r\n\x1a\nfmp-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = fmp_png
+            status_code = 200
+        return _R()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"companyName": "Apple Inc.",
+                                   "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
+         mock.patch("api.services.finnhub_client.fh_get") as fh, \
+         mock.patch("requests.get", side_effect=_fake_get):
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == fmp_png
+    fh.assert_not_called()  # Finnhub never reached -- FMP already supplied the logo
+
+
+def test_finnhub_logo_bytes_fmp_image_url_rejected_by_ssrf_guard_falls_to_finnhub():
+    """A non-https / private-host `image` URL from FMP must be rejected by the
+    same SSRF guard as every other source, and fall through to Finnhub."""
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _R()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"image": "http://169.254.169.254/aapl.png"}]), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get) as req_get:
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    req_get.assert_called_once()
+    assert req_get.call_args[0][0] == "https://static.finnhub.io/aapl.png"
+
+
+def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
+    """A provider hiccup fetching the FMP-sourced image (5xx) marks transient
+    and the code still proceeds to try Finnhub afterwards."""
+    tl._reset_transient()
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        if "fmp-cdn" in url:
+            class _Bad:
+                ok = False
+                content = b""
+                status_code = 503
+            return _Bad()
+        class _Good:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _Good()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get):
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    assert tl._was_transient() is True
+
+
+def test_finnhub_logo_bytes_no_fmp_api_key_short_circuits_to_finnhub(tmp_path):
+    """When FMP_API_KEY is unset, `_fmp_get` returns None WITHOUT a network
+    call (verified by `earnings_estimates._fmp_get` itself) -- `_finnhub_logo_bytes`
+    must degrade straight to the Finnhub leg."""
+    import os
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _R()
+
+    env = dict(os.environ)
+    env.pop("FMP_API_KEY", None)
+    with mock.patch.dict(os.environ, env, clear=True), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get) as req_get:
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    # requests.get was called exactly once -- for the Finnhub CDN URL, never FMP.
+    req_get.assert_called_once()
+    assert req_get.call_args[0][0] == "https://static.finnhub.io/aapl.png"
+
+
 # ── E3: miss-retry + Clearbit tests ───────────────────────────────────────────
 
 def test_run_miss_retry_only_touches_miss_tickers(tmp_path):
