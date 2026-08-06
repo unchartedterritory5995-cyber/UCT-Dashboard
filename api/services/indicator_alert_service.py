@@ -119,6 +119,29 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     ("arm_epoch", "ALTER TABLE indicator_alerts ADD COLUMN arm_epoch INTEGER NOT NULL DEFAULT 0"),
     ("snooze_until", "ALTER TABLE indicator_alerts ADD COLUMN snooze_until INTEGER"),
     ("last_fire_key", "ALTER TABLE indicator_alerts ADD COLUMN last_fire_key TEXT"),
+    # ⭐ PHASE C TASK 10 (spec §8): WHICH INSTANCE OF THE INDICATOR.
+    # An alert has always named a DEFINITION and evaluated an INSTANCE — the
+    # period lived in `params_json` on the ALERT, so the chart and the alert
+    # could disagree about it with nothing to notice. This is the chart
+    # instance's own opaque id, stored so the binding is nameable and so a
+    # DELETED instance can be reported instead of silently drifting.
+    ("instance_id", "ALTER TABLE indicator_alerts ADD COLUMN instance_id TEXT"),
+    # ⭐ THE DELETION GUARD, AND IT IS DELIBERATELY **NOT** A `state`.
+    #
+    # 🔴 MEASURED, AND IT CHANGED THE DESIGN. The obvious home was
+    # `state = 'needs_attention'`, which is what the brief specified. It cannot
+    # be: `record_evaluation` clears that state the moment a value arrives
+    # ("whatever was broken is not broken now"), and an orphaned alert KEEPS
+    # PRODUCING VALUES — it evaluates from the `params_json` snapshot. So the
+    # flag would have been cleared by the next 60-second cycle, i.e. it would
+    # have been green in the test that set it and gone before any user saw it.
+    #
+    # An orphaned binding is orthogonal to the FIRING lifecycle
+    # (armed/fired/snoozed/needs_attention/error): the alert is armed, correct,
+    # and firing — it just names a chart instance that no longer exists. So it
+    # gets its own durable column and the state machine keeps its meaning.
+    ("instance_missing_at",
+     "ALTER TABLE indicator_alerts ADD COLUMN instance_missing_at INTEGER"),
 )
 
 
@@ -177,13 +200,19 @@ def _row_to_dict(row: tuple) -> dict:
         "arm_epoch": row[17] or 0,
         "snooze_until": row[18],
         "last_fire_key": row[19],
+        "instance_id": row[20],
+        "instance_missing_at": row[21],
+        # A bool for every surface, so no caller has to know that NULL means
+        # "bound, or never checked" and a number means "the chart lost it".
+        "instance_missing": row[21] is not None,
     }
 
 
 _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
-    "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key"
+    "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
+    "instance_id, instance_missing_at"
 )
 
 
@@ -206,8 +235,19 @@ def create(
     threshold: Optional[float],
     tf: str,
     params_json: Optional[Any] = None,
+    instance_id: Optional[str] = None,
 ) -> int:
-    """Create a new indicator alert. Returns the new alert ID."""
+    """Create a new indicator alert. Returns the new alert ID.
+
+    ⚠️ `instance_id` IS OPTIONAL AND `params_json` IS STILL THE TRUTH THE
+    EVALUATOR READS. The id names the chart instance this alert was armed from;
+    the params are the SNAPSHOT of that instance's inputs at the moment it was
+    armed. Reading the live chart at evaluation time instead would mean an
+    alert's meaning changed every time somebody dragged a period slider, and
+    would make the alert lane depend on a preferences blob it cannot see from a
+    background thread. So: the snapshot evaluates, and the id is what lets a
+    DELETED instance be reported rather than quietly outlived.
+    """
     if params_json is not None and not isinstance(params_json, str):
         params_json = json.dumps(params_json)
     now = int(time.time())
@@ -215,8 +255,9 @@ def create(
         cur = db.execute(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
-            "active, trigger_count, created_at, state, state_at, arm_epoch) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0)",
+            "active, trigger_count, created_at, state, state_at, arm_epoch, "
+            "instance_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -228,6 +269,7 @@ def create(
                 now,
                 STATE_ARMED,
                 now,
+                None if instance_id is None else str(instance_id),
             ),
         )
         return int(cur.lastrowid)
@@ -243,12 +285,38 @@ def get(alert_id: int) -> Optional[dict]:
 
 
 def list_for_user(user_id: str) -> list[dict]:
+    """This user's alerts, each NAMING THE INSTANCE it evaluates.
+
+    ⭐ SPEC §8: *"instance named in alert rows ('RSI(7) crossed 70' vs
+    'RSI(14)')"*. The label is computed by
+    `indicator_alert_evaluator.instance_label` from the row's own `params_json`,
+    so the name a user reads and the number the evaluator computes come from the
+    SAME field. A label built in the frontend from a second table of parameter
+    names is the twin this phase spent its whole budget retiring.
+    """
     with _conn() as db:
         rows = db.execute(
             f"SELECT {_COLS} FROM indicator_alerts WHERE user_id=? ORDER BY created_at DESC",
             (str(user_id),),
         ).fetchall()
-    return [_row_to_dict(r) for r in rows]
+    return [_with_instance_label(_row_to_dict(r)) for r in rows]
+
+
+def _with_instance_label(row: dict) -> dict:
+    """Add `instance_label` to a row. Never raises — a label is not worth a 500.
+
+    ⚠️ NOT applied by `_row_to_dict`, and that is deliberate: `list_active()`
+    feeds the evaluator and the Task 6 SHADOW lane, which compare rows and must
+    not start carrying a derived display field that could differ between two
+    processes running different code. Only the user-facing listing is decorated.
+    """
+    try:
+        from api.services import indicator_alert_evaluator as ev
+        address = ev.resolve_address(row.get("indicator"))
+        row["instance_label"] = ev.instance_label(address, ev._parse_params(row))
+    except Exception:  # noqa: BLE001 - a display label must not break a listing
+        row["instance_label"] = row.get("indicator")
+    return row
 
 
 def list_active() -> list[dict]:
@@ -536,6 +604,125 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     return False, None
 
 
+# ─── SPEC §6/§8: THE DELETION GUARD, FROM THE OTHER SIDE ─────────────────────
+
+_INSTANCE_BLOBS: tuple[str, ...] = ("charts_workspace_layout", "chart_settings",
+                                    "multichart_state")
+
+
+def _walk_instance_ids(node: Any, out: set) -> None:
+    """Collect every `instanceId` string anywhere in a decoded preferences blob.
+
+    ⛔ VOCABULARY-FREE, ON PURPOSE, AND THAT IS THE WHOLE DESIGN. The obvious
+    implementation reads `settings.indicators` and maps each `defId` onto an
+    alert address — and that map LIES for two of the fourteen: `williams_r` is
+    `williamsR` in the engine, and `price_vs_ma` has NO chart definition at all
+    (it is a spread this lane synthesises). It would also need a second bridge
+    from input KEYS to param keys (`stdDev` vs `stddev`). An `instanceId` is an
+    opaque string on both sides, so matching one against another needs neither
+    bridge and cannot mis-map anything.
+
+    ⚠️ IT WALKS THE WHOLE BLOB rather than a known path, because the user's real
+    chart does not live at a known path: the global `chart_settings` is only a
+    SEED, and the live instances sit under
+    `charts_workspace_layout -> widgets[].opts.settings`. A path-based read
+    would report every instance as deleted for every user with a workspace.
+    """
+    if isinstance(node, dict):
+        value = node.get("instanceId")
+        if isinstance(value, str) and value:
+            out.add(value)
+        for child in node.values():
+            _walk_instance_ids(child, out)
+    elif isinstance(node, list):
+        for child in node:
+            _walk_instance_ids(child, out)
+
+
+def chart_instance_ids(user_id: str) -> Optional[set]:
+    """Every chart-instance id this user's stored chart blobs still contain.
+
+    ``None`` means "cannot tell" — no blob was readable, or the store raised.
+    ⛔ THE THREE-STATE RETURN IS LOAD-BEARING. An empty set says "the user has a
+    chart and it holds no instances", which orphans every alert they own; `None`
+    says "do not conclude anything", which is the honest reading of a store that
+    did not answer. Collapsing them would flag every alert on the box the first
+    time `auth.db` was busy.
+    """
+    try:
+        from api.services import auth_service
+        prefs = auth_service.get_user_preferences(str(user_id)) or {}
+    except Exception:  # noqa: BLE001 - a diagnostic may not break a sweep
+        return None
+    found: set = set()
+    seen_any = False
+    for key in _INSTANCE_BLOBS:
+        raw = prefs.get(key)
+        if raw is None:
+            continue
+        try:
+            blob = json.loads(raw) if isinstance(raw, str) else raw
+        except (TypeError, ValueError):
+            continue
+        seen_any = True
+        _walk_instance_ids(blob, found)
+    return found if seen_any else None
+
+
+def sweep_orphaned_instances(*, now: Optional[float] = None) -> dict:
+    """⭐ SPEC §8, THE HALF THAT IS NOT ABOUT FIRING: an alert whose INSTANCE is gone.
+
+    Deleting `RSI(7)` from the chart used to leave its alert armed, firing, and
+    describing itself as "RSI" — indistinguishable on every surface from an
+    alert bound to the `RSI(14)` still on the chart. **The alert keeps
+    evaluating** (from the `params_json` snapshot, which is exactly why the
+    snapshot exists) and it says so, which is the opposite of the silence the
+    rest of this module exists to end.
+
+    ⚠️ IT ALSO UN-FLAGS. An instance that comes back — an undo, a template
+    re-applied, a workspace restored — clears the mark, so this reports the
+    CURRENT binding rather than accumulating a scar.
+
+    ⛔ ONE PREFERENCES READ PER USER PER SWEEP, not one per alert. The blob is a
+    workspace layout and can be large.
+    """
+    now_i = _now(now)
+    out = {"considered": 0, "checked": 0, "orphaned": 0, "cleared": 0}
+    by_user: dict = {}
+    for alert in list_active():
+        out["considered"] += 1
+        instance_id = alert.get("instance_id")
+        if not instance_id:
+            # An alert that names no instance cannot have lost one. Every alert
+            # created before this column existed is in this branch, which is why
+            # the migration does not have to guess a value for them.
+            continue
+        user_id = alert["user_id"]
+        if user_id not in by_user:
+            by_user[user_id] = chart_instance_ids(user_id)
+        alive = by_user[user_id]
+        if alive is None:
+            continue
+        out["checked"] += 1
+        missing = instance_id not in alive
+        already = alert.get("instance_missing_at") is not None
+        if missing and not already:
+            _set_instance_missing(alert["id"], now_i)
+            out["orphaned"] += 1
+        elif already and not missing:
+            _set_instance_missing(alert["id"], None)
+            out["cleared"] += 1
+    return out
+
+
+def _set_instance_missing(alert_id: int, at: Optional[int]) -> None:
+    with _conn() as db:
+        db.execute(
+            "UPDATE indicator_alerts SET instance_missing_at=? WHERE id=?",
+            (at, int(alert_id)),
+        )
+
+
 def sweep_silent_alerts(*, now: Optional[float] = None,
                         silent_after_sec: int = None) -> dict:
     """⭐ THE tzdata CASE, MADE VISIBLE — an alert that is ON and says NOTHING.
@@ -591,6 +778,13 @@ def sweep_silent_alerts(*, now: Optional[float] = None,
         if is_fault and detail:
             mark_needs_attention(alert["id"], detail, now=now_i)
             out["flagged"] += 1
+    # ⚠️ RIDES THE SAME JOB DELIBERATELY. `api/main.py`'s 5-minute job calls this
+    # one function, and that hunk belongs to Task 11; a second scheduler entry
+    # for a second sweep would be a second thing to forget to register. Its
+    # counters are merged under their own keys so neither sweep can be read as
+    # the other.
+    out.update({f"instance_{k}": v for k, v in
+                sweep_orphaned_instances(now=now_i).items()})
     return out
 
 

@@ -70,7 +70,24 @@ from api.services.alert_conditions import (  # noqa: F401  (re-exported)
     resolve_operand,
 )
 
+# ⭐ IMPORTED AT MODULE LEVEL, NOT LAZILY, BECAUSE THE DISPATCH TABLE IS BUILT
+# FROM IT AT IMPORT. `alert_series` imports nothing from this module (its own
+# `indicator_compute` import is inside the closures), so there is no cycle —
+# and a lazy import here would mean `INDICATOR_FUNCS` could not exist until
+# somebody called something.
+from api.services import alert_series
+
 _logger = logging.getLogger(__name__)
+
+#: One address → its number on the newest bar that has one.
+ValueFn = Callable[[list[dict], dict], Optional[float]]
+#: A partition of the address space. ⚠️ Deliberately NOT spelled inline as
+#: `dict[str, Callable[...]]` at the assignments below: the enumeration ledger's
+#: anchor for the LITERAL that retired here is that annotated form of
+#: `INDICATOR_FUNCS`, and `enumerationSites.test.js` re-runs that anchor
+#: demanding ZERO matches. An annotation that happened to re-spell it would
+#: report the retirement as undone.
+AddressFuncs = dict[str, ValueFn]
 _running = threading.Event()
 _thread: Optional[threading.Thread] = None
 
@@ -110,83 +127,6 @@ def _last_non_none(seq: list) -> Optional[float]:
     return None
 
 
-def _value_rsi(bars: list[dict], params: dict) -> Optional[float]:
-    from api.services import indicator_compute
-    period = int(params.get("period", 14))
-    closes = [b["c"] for b in bars]
-    return _last_non_none(indicator_compute.compute_rsi(closes, period))
-
-
-def _value_macd(bars: list[dict], params: dict) -> Optional[float]:
-    from api.services import indicator_compute
-    fast = int(params.get("fast", 12))
-    slow = int(params.get("slow", 26))
-    signal = int(params.get("signal", 9))
-    closes = [b["c"] for b in bars]
-    macd, _sig, _hist = indicator_compute.compute_macd(closes, fast, slow, signal)
-    return _last_non_none(macd)
-
-
-def _value_stoch(bars: list[dict], params: dict) -> Optional[float]:
-    from api.services import indicator_compute
-    k_period = int(params.get("k_period", 14))
-    d_period = int(params.get("d_period", 3))
-    k, _d = indicator_compute.compute_stoch(bars, k_period, d_period)
-    return _last_non_none(k)
-
-
-def _value_williams_r(bars: list[dict], params: dict) -> Optional[float]:
-    from api.services import indicator_compute
-    period = int(params.get("period", 14))
-    return _last_non_none(indicator_compute.compute_williams_r(bars, period))
-
-
-def _value_cci(bars: list[dict], params: dict) -> Optional[float]:
-    from api.services import indicator_compute
-    period = int(params.get("period", 20))
-    return _last_non_none(indicator_compute.compute_cci(bars, period))
-
-
-def _value_mfi(bars: list[dict], params: dict) -> Optional[float]:
-    from api.services import indicator_compute
-    period = int(params.get("period", 14))
-    return _last_non_none(indicator_compute.compute_mfi(bars, period))
-
-
-def _value_price_vs_ma(bars: list[dict], params: dict) -> Optional[float]:
-    """Return the spread (close − MA) for ``price_vs_ma`` alerts.
-
-    Frontend stores this as a single alert where the user picks an MA type
-    (sma/ema) and a period; we publish ``close − ma`` so the user can set
-    a threshold of 0 for "price above/below MA" or a positive number for
-    "price more than $X above MA".
-    """
-    from api.services import indicator_compute
-    period = int(params.get("period", 50))
-    ma_type = (params.get("type") or "sma").lower()
-    closes = [b["c"] for b in bars]
-    if not closes:
-        return None
-    if ma_type == "ema":
-        ma_series = indicator_compute.compute_ema(closes, period)
-    else:
-        ma_series = indicator_compute.compute_sma(closes, period)
-    last_ma = _last_non_none(ma_series)
-    if last_ma is None:
-        return None
-    return float(closes[-1]) - last_ma
-
-
-def _value_bb(bars: list[dict], params: dict) -> Optional[float]:
-    """For BB alerts the ``current`` we return is the latest close; the
-    caller looks up the appropriate band as the threshold (touch_upper /
-    touch_lower) from the same compute pass.
-    """
-    if not bars:
-        return None
-    return float(bars[-1]["c"])
-
-
 # ─── B5: THE OTHER SIX DEFINITIONS, AND HOW A PLOT IS NAMED ──────────────────
 #
 # Seven engine definitions could not be alerted on at all (`vwap`, `atr`, `sar`,
@@ -206,10 +146,17 @@ def _value_bb(bars: list[dict], params: dict) -> Optional[float]:
 # SPECIAL CASE BOLTED ON. All eight pre-B5 keys are bare, and three of them
 # (`macd`, `bb`, `stoch`) name a base with several plots — so a bare address is
 # DEFINED as the base's first plot, and the eight legacy entries keep their exact
-# spelling, their exact position, and the exact same callable object. A row
-# already in `indicator_alerts` therefore resolves through the identical function
-# it always did; `tests/fixtures/indicator_alert_baseline.json` replays 5,040
-# recorded evaluations to prove that rather than assert it.
+# spelling and their exact position.
+#
+# ⚠️ WHAT PHASE C TASK 10 CHANGED IN THAT SENTENCE, AND IT MATTERED ENOUGH TO
+# EDIT: this used to end "…and the exact same callable object". It is no longer
+# the same OBJECT — the dict below is derived, so every entry is a fresh closure
+# over `alert_series.SERIES_FUNCS`. It is the same NUMBER, which is the claim
+# that was ever worth making, and it is the claim the evidence supports:
+# `tests/fixtures/indicator_alert_baseline.json` replays 5,040 recorded
+# evaluations and `tools/alert_replay.py --check` replays 691,195 recorded
+# fires, both recorded against the retired closures. Identity was the proxy;
+# those two are the measurement.
 #
 # ⚠️ `bb` IS NOT `bb.middle`, AND THAT IS DELIBERATE. The legacy `bb` alert
 # reports the CLOSE and looks the band up as a dynamic threshold (a bb-only
@@ -223,98 +170,89 @@ def _value_bb(bars: list[dict], params: dict) -> Optional[float]:
 # missing entry explains nothing.
 
 
-def _plot_of(compute_name: str, index: Optional[int] = None,
-             on_closes: bool = False, **defaults):
-    """Build a value function for one plot of one indicator.
+# ⭐⭐ PHASE C TASK 10 — THE HAND-WRITTEN DISPATCH DICT IS GONE.
+#
+# `INDICATOR_FUNCS` was 28 rows of `_plot_of("compute_adx", 1, period=14)`, and
+# `alert_series.SERIES_FUNCS` was 28 rows of `_column("compute_adx", 1,
+# period=14)` — the same compute, the same column index, the same `on_closes`
+# input shape, the same defaults, differing only in a `_last_non_none` at the
+# end. Task 5 added that twin DELIBERATELY (the 5,040-row recorded baseline pins
+# those closures and a rebuild had to be provably identical first) and recorded
+# the debt on the enumeration ledger. This is the payment.
+#
+# ⛔ THE DIRECTION WAS NEVER A CHOICE. A column determines its last value; a last
+# value determines nothing about the column. So the closed-bar table is the one
+# that survives and the value lane composes `_last_non_none` onto it.
+#
+# ⛔ THE NAME SURVIVES, THE LITERAL DOES NOT — AND THAT DISTINCTION IS THE WHOLE
+# RETIREMENT. `tools/alert_replay.py` generates the frozen 691,195-fire grid by
+# iterating `ev.INDICATOR_FUNCS`, `api/services/alert_shadow_log.py` bounds a
+# diff declaration with it, and `tools/alert_soak_matrix.py` arms from the
+# catalog behind it. All three read a MAPPING, none of them reads a literal, and
+# the mapping they read is now computed. What is gone is the second place a
+# person had to edit — which is what an enumeration site IS.
+#
+# ⚠️ LOOKED UP AT CALL TIME, NOT AT BUILD TIME. Two committed controls re-point a
+# live entry at runtime (`test_the_replay_fails_when_an_address_is_repointed`,
+# and Task 2's fire-log control rebinds `rsi` at `alert_series`), so the closure
+# resolves `SERIES_FUNCS[address]` on every call. Capturing the column function
+# once at import would keep serving the pre-mutation callable — a control that
+# cannot fail.
 
-    Reads the DELIVERY wrapper (`compute_atr`, not `compute_atr_raw`) because
-    that is the rounding both live consumers of this module have always compared
-    user thresholds against — see `indicator_compute`'s module docstring. `index`
-    selects a column from a multi-output compute; `None` means single-output.
 
-    ⚠️ `on_closes` IS NOT DECORATION. `indicator_compute` has two input shapes and
-    the difference is invisible at the call site: `compute_macd` and `compute_bb`
-    take a list of CLOSES, everything else takes the bar dicts. Passing bars to a
-    closes-taking function raises `TypeError`, which `_evaluate_one` catches and
-    logs and turns into `(None, False)` — i.e. an alert that is offered and
-    silently never fires, the exact defect this task closes, reintroduced by a
-    one-word slip. `test_every_new_address_produces_a_number` is the gate, and it
-    caught precisely this while the change was being written.
+def _value_of(address: str) -> ValueFn:
+    """One address -> "what number is this plot at, on the newest bar with one".
 
-    ⚠️ AN OFF-BY-ONE IN `index` IS INVISIBLE TO ANY "the value changed" TEST — a
-    swapped +DI/-DI still returns a plausible number. The gate is
-    `test_every_plot_address_resolves_to_the_column_it_names`, which asserts
-    ORDERING invariants a swap has to violate (upper >= middle >= lower, -DI == 0
-    on a pure uptrend, tenkan > kijun > spanB on a rising series).
+    The exact composition the retired `_plot_of` performed inline. It returns
+    `None` for an address the column table has never heard of rather than
+    raising, because that is what `INDICATOR_FUNCS.get()` did and a stored typo
+    has always been a silent no-fire (the create path validates the two cases
+    that matter now; a legacy row predates that).
     """
     def fn(bars: list[dict], params: dict) -> Optional[float]:
-        from api.services import indicator_compute
-        kwargs = {k: type(v)(params.get(k, v)) for k, v in defaults.items()}
-        series = [b["c"] for b in bars] if on_closes else bars
-        out = getattr(indicator_compute, compute_name)(series, **kwargs)
-        return _last_non_none(out if index is None else out[index])
-    fn.__name__ = f"_value_{compute_name}_{index}"
+        column = alert_series.SERIES_FUNCS.get(address)
+        if column is None:
+            return None
+        return _last_non_none(column(bars, params))
+    fn.__name__ = f"_value_{address}"
     return fn
 
-# Dispatch map: PLOT ADDRESS → value function, for every address that names a
-# LEVEL. A condition's right-hand side comes from `THRESHOLD_OPERAND` when one is
-# declared for (address, condition); for everything else the user-supplied
-# threshold from the alert row is used verbatim.
-# ⚠️ INSERTION ORDER IS THE DROPDOWN'S ORDER since B4 Task 9, and it is pinned.
-# The first eight are ordered to match the order the retired
-# `IndicatorAlertPopover.INDICATORS` literal shipped, so collapsing the twin
-# changed what a user sees by NOTHING — and B5 APPENDS, so it still does not.
-# `alert_catalog` groups by the part before the dot, in this order, which is why
-# `macd.signal` joins the `macd` group where it already sits rather than opening
-# a fifteenth one at the end.
-INDICATOR_FUNCS: dict[str, Callable[[list[dict], dict], Optional[float]]] = {
-    # ── the eight that existed before B5. DO NOT REORDER, DO NOT REBIND. ──
-    "rsi": _value_rsi,
-    "macd": _value_macd,
-    "bb": _value_bb,
-    "stoch": _value_stoch,
-    "williams_r": _value_williams_r,
-    "cci": _value_cci,
-    "mfi": _value_mfi,
-    "price_vs_ma": _value_price_vs_ma,
-    # ── B5: the remaining plots of bases that were already alertable ──
-    # ⚠️ `on_closes=True` on macd/bb — those two computes take CLOSES, not bars.
-    "macd.signal": _plot_of("compute_macd", 1, on_closes=True, fast=12, slow=26, signal=9),
-    "macd.histogram": _plot_of("compute_macd", 2, on_closes=True, fast=12, slow=26, signal=9),
-    "bb.upper": _plot_of("compute_bb", 0, on_closes=True, period=20, stddev=2.0),
-    "bb.middle": _plot_of("compute_bb", 1, on_closes=True, period=20, stddev=2.0),
-    "bb.lower": _plot_of("compute_bb", 2, on_closes=True, period=20, stddev=2.0),
-    "stoch.d": _plot_of("compute_stoch", 1, k_period=14, d_period=3),
-    # ── B5: the six definitions that could not be alerted on at all ──
-    "vwap": _plot_of("compute_vwap"),
-    "atr": _plot_of("compute_atr", None, period=14),
-    "adx.adx": _plot_of("compute_adx", 0, period=14),
-    "adx.plusDI": _plot_of("compute_adx", 1, period=14),
-    "adx.minusDI": _plot_of("compute_adx", 2, period=14),
-    "obv": _plot_of("compute_obv"),
-    "donchian.upper": _plot_of("compute_donchian", 0, period=20),
-    "donchian.middle": _plot_of("compute_donchian", 1, period=20),
-    "donchian.lower": _plot_of("compute_donchian", 2, period=20),
-    "ichimoku.tenkan": _plot_of("compute_ichimoku", 0, tenkan_period=9, kijun_period=26, senkou_b_period=52),
-    "ichimoku.kijun": _plot_of("compute_ichimoku", 1, tenkan_period=9, kijun_period=26, senkou_b_period=52),
-    "ichimoku.spanA": _plot_of("compute_ichimoku", 2, tenkan_period=9, kijun_period=26, senkou_b_period=52),
-    "ichimoku.spanB": _plot_of("compute_ichimoku", 3, tenkan_period=9, kijun_period=26, senkou_b_period=52),
-    "ichimoku.chikou": _plot_of("compute_ichimoku", 4, tenkan_period=9, kijun_period=26, senkou_b_period=52),
+
+# ─── THE THREE PARTITIONS OF THE ADDRESS SPACE ───────────────────────────────
+#
+# Not three tables of functions — three answers to "what QUESTION does this
+# address answer", written down as closed sets of names. Everything not named
+# here is a LEVEL, which is the overwhelming majority and the reason the
+# classification is expressed as two short exclusion lists rather than as a
+# 31-row `ADDRESS_KIND` map (which would have been the retired enumeration
+# wearing a different hat).
+#
+# ⚠️ AN EVENT IS NOT A LEVEL: its column is {0, 1, None} and comparing it to a
+# number a user typed is meaningless in both directions. Task 3's split.
+#
+# ⚠️ A PRICE IS A LEVEL BUT IT IS NOT AN INDICATOR, and it is separated for a
+# measured reason, not a taxonomic one — see `_series_close`: the frozen replay
+# grid is generated from `INDICATOR_FUNCS` in order, so a 29th entry there moves
+# 691,195 recorded fires.
+EVENT_ADDRESSES: tuple[str, ...] = ("sar.priceCrossedSar", "sar.trendFlipped")
+PRICE_ADDRESSES: tuple[str, ...] = ("close",)
+
+_ALL_VALUE_FUNCS: AddressFuncs = {
+    address: _value_of(address) for address in alert_series.SERIES_FUNCS
 }
 
+# ⚠️ INSERTION ORDER IS THE DROPDOWN'S ORDER since B4 Task 9, and it is pinned by
+# `test_catalog_order_is_the_dropdown_order_and_it_did_not_change`. The order
+# authority moved WITH the table: it is `SERIES_FUNCS`' insertion order now,
+# which lists the 28 levels first in exactly the order the retired dict did.
+# `alert_catalog` groups by the part before the dot, in this order, which is why
+# `macd.signal` joins the `macd` group where it already sits.
+INDICATOR_FUNCS: AddressFuncs = {
+    address: fn for address, fn in _ALL_VALUE_FUNCS.items()
+    if address not in EVENT_ADDRESSES and address not in PRICE_ADDRESSES
+}
 
 # ─── PHASE C TASK 3: EVENT ADDRESSES — A COLUMN THAT IS NOT A LEVEL ──────────
-#
-# ⭐ A SECOND TABLE, NOT SEVENTEEN MORE ROWS IN THE FIRST, AND THE SPLIT IS THE
-# POINT. Every key in `INDICATOR_FUNCS` answers "what number is this plot at?" —
-# a LEVEL, which a user compares against a threshold they choose. An EVENT column
-# answers "did this happen on this bar?" and is valued {0, 1, None}: comparing it
-# to a level the user typed would be meaningless in both directions.
-#
-# Keeping them apart is what lets the refusal below stay a REFUSAL rather than
-# becoming a filter over one merged dict — `THRESHOLD_ADDRESSES` and
-# `EVENT_ADDRESSES` are two tables with different questions behind them, and
-# `sar` is in exactly one of them.
 #
 # ⚠️ CONSUMED BY KEY, NEVER BY REACHING INTO THE ENGINE REGISTRY. The event
 # columns come from `indicator_compute.compute_sar_events`, whose contract is
@@ -322,29 +260,65 @@ INDICATOR_FUNCS: dict[str, Callable[[list[dict], dict], Optional[float]]] = {
 # input length and valued 0.0 / 1.0 / None. That function is DERIVED from
 # `compute_sar_raw`'s already-pinned ±1 trend column, so nothing is reseeded and
 # there is no second SAR loop anywhere.
-EVENT_FUNCS: dict[str, Callable[[list[dict], dict], Optional[float]]] = {
-    "sar.priceCrossedSar": _plot_of("compute_sar_events", 0, step=0.02, max_step=0.2),
-    "sar.trendFlipped": _plot_of("compute_sar_events", 1, step=0.02, max_step=0.2),
-}
+EVENT_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in EVENT_ADDRESSES}
 
-# The two vocabularies, named. Read by `alert_catalog`, by `_evaluate_one`, and
-# by `test_sar_has_no_fixed_threshold_address_and_says_why` — which asserts
+# ─── PHASE C TASK 10: THE PRICE ADDRESS — A LEFT OPERAND AT LAST ─────────────
+#
+# ⭐ WHAT THIS UNBLOCKS. `alert_conditions.OPERAND_KINDS` has carried `"close"`
+# since Task 3, but only as a RIGHT-hand operand: you could ask "VWAP crossed
+# below price" and not "price crossed above VWAP", which is the same event and
+# the wrong sentence. `close` is now an address, so it is a LEFT operand, and
+# the relation reads the way a trader says it.
+#
+# ⛔ IT IS STILL NOT THE PRICE-ALERT PRODUCT. `watchlist_alerts` delivers a bare
+# price level off the 15-second live-price poll; this is a closed-bar reading on
+# the alert's own timeframe, with fire-once and a fired log. Task 11's router
+# refusal is NARROWED, not deleted — see `_PRICE_ALIASES` there.
+PRICE_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in PRICE_ADDRESSES}
+
+# The vocabularies, named. Read by `alert_catalog`, by `_evaluate_one`, and by
+# `test_sar_has_no_fixed_threshold_address_and_says_why` — which asserts
 # membership of one and absence from the other, so neither can be answered twice.
 THRESHOLD_ADDRESSES: tuple[str, ...] = tuple(INDICATOR_FUNCS)
-EVENT_ADDRESSES: tuple[str, ...] = tuple(EVENT_FUNCS)
+
+# ⛔ THE ONE LIST EVERY "walk all the addresses" SITE READS, IN CATALOG ORDER.
+# Task 6 found a live fork caused by hand-listing partitions at a call site: the
+# replay adapter consulted `INDICATOR_FUNCS` alone, so the two `sar` EVENT
+# addresses read `(None, False)` in the harness while the shipped lane fired one
+# 39 times on spy_daily — *and it survived because the anti-fork rail iterated
+# the same dict the bug was in*. A third partition is exactly when that happens
+# again, so there is now one list and the rails iterate IT.
+ADDRESS_PARTITIONS: tuple[AddressFuncs, ...] = (
+    INDICATOR_FUNCS, EVENT_FUNCS, PRICE_FUNCS,
+)
 
 
-def value_function(address: str) -> Optional[Callable[[list[dict], dict], Optional[float]]]:
-    """The value function for a canonical address, level or event.
+def all_addresses() -> list[str]:
+    """Every alertable address, in catalog order. THE one enumeration."""
+    return [a for partition in ADDRESS_PARTITIONS for a in partition]
+
+
+def value_function(address: str) -> Optional[ValueFn]:
+    """The value function for a canonical address: level, event or price.
 
     ⚠️ LOOKED UP LIVE, NEVER SNAPSHOTTED INTO A MERGED DICT. `INDICATOR_FUNCS`
     is re-pointed at runtime by two different controls — the replay's own
     `test_the_replay_fails_when_an_address_is_repointed` and Task 2's fire-log
     control both rebind a live entry — and a module-level `{**A, **B}` would
     keep serving the pre-mutation callable, which is a control that cannot fail.
+
+    ⚠️ THREE PARTITIONS ARE CONSULTED, AND `_TOTALITY` IS WHY THAT LIST CANNOT
+    ROT. `test_value_function_consults_every_partition` derives the partitions
+    from the module and fails if one of them is unreachable from here — Task 6
+    measured this exact defect for real (`make_forming_evaluate` consulted only
+    `INDICATOR_FUNCS`, so both `sar` event addresses silently read `None` in the
+    harness while the live lane fired one 39 times).
     """
-    fn = INDICATOR_FUNCS.get(address)
-    return fn if fn is not None else EVENT_FUNCS.get(address)
+    for partition in ADDRESS_PARTITIONS:
+        fn = partition.get(address)
+        if fn is not None:
+            return fn
+    return None
 
 
 def address_value(address: str, bars: list[dict], params: dict) -> Optional[float]:
@@ -604,6 +578,12 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     "sar.trendFlipped": [
         {"value": "above", "label": "SAR trend flipped this bar", "needs_threshold": False},
     ],
+    # ── PHASE C TASK 10: the PRICE address ───────────────────────────────────
+    # The same four a level gets, and no `touch_*`: those two are declared
+    # operands belonging to `bb`, and offering them here would need a second
+    # `THRESHOLD_OPERAND` row per band — i.e. a product decision about which
+    # band "price touches the band" means, which nobody has made.
+    "close": _OSCILLATOR_CONDITIONS,
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -646,6 +626,8 @@ ALERT_LABELS: dict[str, str] = {
     # ── PHASE C: the two EVENT addresses ──
     "sar.priceCrossedSar": "Price / SAR cross",
     "sar.trendFlipped": "SAR trend flip",
+    # ── PHASE C TASK 10: the PRICE address ──
+    "close": "Price (Close)",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -704,9 +686,7 @@ def plot_base(address: str) -> str:
 # ⚠️ IT COVERS THE EVENT ADDRESSES TOO, AND THEY ARE THE camelCase CASE AGAIN:
 # `"sar.priceCrossedSar".lower()` is not a key either. Folding both tables here
 # is what keeps ONE resolution rule for ONE address grammar.
-_CANONICAL_ADDRESS: dict[str, str] = {
-    a.lower(): a for a in list(INDICATOR_FUNCS) + list(EVENT_FUNCS)
-}
+_CANONICAL_ADDRESS: dict[str, str] = {a.lower(): a for a in all_addresses()}
 
 
 def resolve_address(raw: Optional[str]) -> str:
@@ -721,13 +701,59 @@ def resolve_address(raw: Optional[str]) -> str:
     return _CANONICAL_ADDRESS.get(lowered, lowered)
 
 
+def instance_label(address: str, params: Optional[dict] = None) -> str:
+    """⭐ SPEC §8 — "RSI(7) crossed 70" vs "RSI(14)", from ONE authority.
+
+    An indicator alert has always named a DEFINITION (`"RSI"`) while evaluating
+    an INSTANCE (`rsi` with `period=7`, because `params_json` said so). Two
+    alerts one keystroke apart rendered identically on every surface, and the
+    chart and the alert could disagree about the period with nothing to notice.
+
+    ⛔ THE KNOBS ARE DERIVED, NEVER LISTED. `alert_series.address_inputs` reads
+    them off the column function that actually consumes them, so this cannot
+    name a parameter the compute ignores, and a compute that gains one is
+    labelled without editing anything here. A hand-written
+    `{"rsi": ["period"], …}` map is the retired dict's shape exactly.
+
+    ⚠️ ONLY NON-DEFAULT-FREE ADDRESSES GET A SUFFIX. `vwap`, `obv`, `bb` and
+    `close` take no parameters at all, so "VWAP()" would be noise: they render
+    as the bare label, which is also what every existing surface already shows.
+    """
+    base = ALERT_LABELS.get(address, address)
+    defaults = alert_series.address_inputs(address)
+    if not defaults:
+        return base
+    resolved = dict(defaults)
+    for key, default in defaults.items():
+        if params and key in params and params[key] is not None:
+            try:
+                resolved[key] = type(default)(params[key])
+            except (TypeError, ValueError):
+                resolved[key] = params[key]
+    parts = []
+    for value in resolved.values():
+        if isinstance(value, float) and value == int(value):
+            parts.append(str(int(value)))
+        else:
+            parts.append(str(value))
+    return f"{base}({', '.join(parts)})"
+
+
 def alert_catalog() -> list[dict]:
     """What the alert dropdown may offer, grouped by indicator.
 
-    Keyed off ``INDICATOR_FUNCS``, so an entry cannot exist for something that
-    cannot be evaluated. Raises ``KeyError`` on a value function with no
-    condition list — a new address has to fail HERE rather than render an empty
-    condition dropdown and an un-submittable form.
+    Keyed off the three address partitions, so an entry cannot exist for
+    something that cannot be evaluated. Raises ``KeyError`` on a value function
+    with no condition list — a new address has to fail HERE rather than render
+    an empty condition dropdown and an un-submittable form.
+
+    ⭐ EACH PLOT CARRIES ITS `inputs` (PHASE C TASK 10). That is the INSTANCE's
+    shape — the knobs whose values make `RSI(7)` a different alert from
+    `RSI(14)`. Until this shipped the popover sent no params at all, so every
+    alert a user could create was on the DEFAULT instance and spec §8's two
+    sentences were literally unrepresentable. The values are read off the column
+    functions (`alert_series.address_inputs`), so the dropdown cannot offer a
+    knob the compute ignores.
 
     Each entry is one INDICATOR and carries its `plots`, because several plots
     per indicator is the whole point: "alert me on Ichimoku" names five different
@@ -745,12 +771,13 @@ def alert_catalog() -> list[dict]:
     all eight pre-B5 indicators `plots[0]` IS the legacy address, so a client
     that never looks at `plots` reads exactly the entry it read before.
     """
-    # ⚠️ LEVELS FIRST, THEN EVENTS — so the pre-B5 eight are still the first
-    # eight groups, the B5 six still follow in their order, and Phase C APPENDS
-    # `sar` at the end. An existing user's dropdown opens on the same option it
-    # always did and every option they already knew is where it was.
+    # ⚠️ LEVELS FIRST, THEN EVENTS, THEN PRICE — so the pre-B5 eight are still
+    # the first eight groups, the B5 six still follow in their order, Phase C
+    # appended `sar`, and Task 10 appends `close` after it. An existing user's
+    # dropdown opens on the same option it always did and every option they
+    # already knew is where it was. `ADDRESS_PARTITIONS` is that order.
     groups: dict[str, list[str]] = {}
-    for address in list(INDICATOR_FUNCS) + list(EVENT_FUNCS):
+    for address in all_addresses():
         groups.setdefault(plot_base(address), []).append(address)
 
     entries = []
@@ -764,6 +791,10 @@ def alert_catalog() -> list[dict]:
                 # was handed would edit every one of them.
                 "conditions": list(ALERT_CONDITIONS[address]),
                 "default_threshold": _DEFAULT_THRESHOLDS.get(address),
+                # The instance's shape. `{}` means "this address takes no
+                # parameters", which is a real answer and not a missing one.
+                "inputs": alert_series.address_inputs(address),
+                "instance_label": instance_label(address),
             }
             for address in addresses
         ]

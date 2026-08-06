@@ -7,6 +7,7 @@ The background evaluator (started from the app lifespan) reads the same
 table and dispatches deliveries through the watchlist-alert pipeline, so
 these endpoints only need to manage the alert rows themselves.
 """
+import json
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,6 +28,11 @@ class AlertCreate(BaseModel):
     threshold: Optional[float] = None
     tf: str
     params: Optional[dict[str, Any]] = None
+    # ⭐ SPEC §8: WHICH INSTANCE. Optional, and an absent one is not an error —
+    # a client that does not know its chart's instances (or an alert armed from
+    # somewhere that has no chart at all) still gets an alert; what it does not
+    # get is the deletion guard, because there is no binding to guard.
+    instance_id: Optional[str] = None
 
 
 class SnoozeBody(BaseModel):
@@ -37,11 +43,23 @@ class SnoozeBody(BaseModel):
 # `watchlist_alerts` already exists and already delivers price alerts, through
 # `check_alerts_against_prices` on the 15-second live-price poll. A bare price
 # alert asked for HERE is the same product under a second name, and two products
-# with one name is how a user ends up with two alerts and one notification. The
-# chart lane's price relation is an OPERAND (`{"kind": "close"}`, the grammar
-# Task 3 built) evaluated closed-bar on the alert's own timeframe — a different
-# question with a different latency, not a synonym.
-_PRICE_ALIASES = {"price", "close", "last", "last_price", "px"}
+# with one name is how a user ends up with two alerts and one notification.
+#
+# ⭐ NARROWED BY PHASE C TASK 10, NOT DELETED — AND `close` LEFT THE SET.
+# Task 11 wrote this list when `close` was not an address, so refusing every
+# spelling of "price" was the only available answer. `close` IS an address now
+# (`PRICE_FUNCS`), which is what makes price a LEFT operand and makes "price
+# crossed above VWAP" sayable in the order a trader says it — the thing Task 11
+# recorded as structurally blocked. The refusal survives for the spellings that
+# name NO address: they are what a user types when they mean the live-price
+# lane, and pointing them at it is more useful than a 400 that says "unknown".
+#
+# ⛔ THE TWO PRODUCTS STAY DIFFERENT, AND THE DIFFERENCE IS NOT A SLOGAN: this
+# lane reads a bar on the alert's own timeframe, fires ONCE per armed episode
+# (Task 11's fired log), and re-arms only when the condition goes false;
+# `watchlist_alerts` reads a live tick every 15 seconds. Same word, different
+# question, different latency — `GET /api/indicator-alerts/latency` states it.
+_PRICE_ALIASES = {"price", "last", "last_price", "px"}
 
 # Worst-case seconds between the event and the notification, per timeframe.
 # Spec §8 requires this to be STATED rather than discovered. It is
@@ -118,10 +136,11 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
     if raw.lower() in _PRICE_ALIASES:
         raise HTTPException(
             status_code=400,
-            detail=("A bare price alert belongs to the watchlist alert lane "
-                    "(/api/watchlist-alerts), which already delivers it on the "
-                    "15-second live-price poll. Building a second one here "
-                    "would give you two alerts under one name."),
+            detail=("A live price alert belongs to the watchlist alert lane "
+                    "(/api/watchlist-alerts), which delivers it on the "
+                    "15-second live-price poll. This lane reads the bar on your "
+                    "chart's timeframe — ask for the indicator 'close' if that "
+                    "is the question you mean."),
         )
     address = indicator_alert_evaluator.resolve_address(raw)
     if indicator_alert_evaluator.value_function(address) is None:
@@ -139,8 +158,59 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
         threshold=body.threshold,
         tf=body.tf,
         params_json=body.params,
+        instance_id=body.instance_id,
     )
     return {"id": alert_id}
+
+
+@router.get("/current-value")
+def get_current_value(sym: str, tf: str, indicator: str,
+                      params: Optional[str] = None,
+                      user: dict = Depends(get_current_user)):
+    """⭐ SPEC §8: *"threshold prefilled from current value"*.
+
+    What this plot reads RIGHT NOW on this symbol and timeframe, so the
+    threshold box opens on a number that is near the market instead of on a
+    constant. `_DEFAULT_THRESHOLDS` can only serve the bounded oscillators (RSI
+    70, ADX 25); every price-scale address — vwap, atr, the bands, every
+    Ichimoku line, and now `close` — has no meaningful default without knowing
+    the symbol, which is why they all render an empty box today.
+
+    ⛔ IT IS THE EVALUATOR'S OWN `address_value`, NOT A SECOND COMPUTE. A
+    prefill that came from a different code path would suggest a number the
+    alert would not agree with, on the one screen where the two are compared.
+
+    ⚠️ NEVER AN ERROR FOR "NOT ENOUGH BARS". `{"value": null}` is the honest
+    answer for a cold symbol and it renders as an empty box, which is exactly
+    what the user had before. Only an address that cannot be evaluated at all
+    is a 400 — the same refusal the create path makes, one step earlier.
+
+    ⚠️ DECLARED ABOVE `/{alert_id}`, like `/catalog` and `/fired`.
+    """
+    address = indicator_alert_evaluator.resolve_address((indicator or "").strip())
+    if indicator_alert_evaluator.value_function(address) is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{indicator!r} is not an indicator this chart can evaluate.")
+    parsed: dict[str, Any] = {}
+    if params:
+        try:
+            decoded = json.loads(params)
+            if isinstance(decoded, dict):
+                parsed = decoded
+        except ValueError:
+            raise HTTPException(status_code=400,
+                                detail="params must be a JSON object")
+    try:
+        bars = indicator_alert_evaluator._fetch_bars_for_alert(
+            sym.upper(), tf, 200)
+        value = indicator_alert_evaluator.address_value(address, bars, parsed)
+    except Exception as exc:  # noqa: BLE001 - a prefill is never worth a 500
+        return {"value": None, "detail": f"{type(exc).__name__}: {exc}"}
+    return {
+        "value": None if value is None else float(value),
+        "instance_label": indicator_alert_evaluator.instance_label(address, parsed),
+    }
 
 
 @router.delete("/{alert_id}")

@@ -21,6 +21,8 @@ const H = vi.hoisted(() => ({
   catalog: { catalog: [], isLoading: false, error: null },
   alerts: [],
   created: [],
+  valueCalls: [],
+  currentValue: null,
 }))
 
 vi.mock('../../hooks/useIndicatorAlerts', () => ({
@@ -29,6 +31,10 @@ vi.mock('../../hooks/useIndicatorAlerts', () => ({
   createIndicatorAlert: (payload) => { H.created.push(payload); return Promise.resolve({ id: 1 }) },
   deleteIndicatorAlert: () => {},
   toggleIndicatorAlert: () => {},
+  // ⭐ SPEC §8's threshold prefill. `H.currentValue` defaults to null, which is
+  // "no answer for this symbol yet" — the state every existing case here ran
+  // in, so none of them changes meaning. The prefill's own cases set it.
+  fetchCurrentValue: (args) => { H.valueCalls.push(args); return Promise.resolve(H.currentValue) },
 }))
 
 import IndicatorAlertPopover from './IndicatorAlertPopover'
@@ -50,6 +56,8 @@ beforeEach(() => {
   H.catalog = { catalog: [], isLoading: false, error: null }
   H.alerts = []
   H.created.length = 0
+  H.valueCalls.length = 0
+  H.currentValue = null
 })
 afterEach(cleanup)
 
@@ -338,5 +346,140 @@ describe('the five literals the alert popover used to hand-write are GONE', () =
       'a TWIN of indicator_alert_evaluator.INDICATOR_FUNCS — which is what let a `vwap` alert be ' +
       'created that can never fire. The catalog is served: GET /api/indicator-alerts/catalog.',
     ).toEqual([])
+  })
+})
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE C TASK 10 — SPEC §8: THE INSTANCE, ON THE SURFACE.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const RSI_WITH_INPUTS = [{
+  indicator: 'rsi',
+  label: 'RSI',
+  conditions: [{ value: 'above', label: 'Above threshold', needs_threshold: true }],
+  default_threshold: 70,
+  plots: [{
+    value: 'rsi',
+    label: 'RSI',
+    instance_label: 'RSI(14)',
+    inputs: { period: 14 },
+    conditions: [{ value: 'above', label: 'Above threshold', needs_threshold: true }],
+    default_threshold: 70,
+  }],
+}]
+
+const VWAP_NO_DEFAULT = [{
+  indicator: 'vwap',
+  label: 'VWAP',
+  conditions: [{ value: 'above', label: 'Above threshold', needs_threshold: true }],
+  default_threshold: null,
+  plots: [{
+    value: 'vwap',
+    label: 'VWAP',
+    instance_label: 'VWAP',
+    inputs: {},
+    conditions: [{ value: 'above', label: 'Above threshold', needs_threshold: true }],
+    default_threshold: null,
+  }],
+}]
+
+describe('spec §8 — an alert names its INSTANCE', () => {
+  it('⭐ submits the instance, so RSI(7) and RSI(14) are two different alerts', async () => {
+    H.catalog = { catalog: RSI_WITH_INPUTS, isLoading: false, error: null }
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+
+    // The knob is rendered FROM THE SERVED PLOT, seeded with its default.
+    const period = await screen.findByLabelText('period input')
+    expect(period.value).toBe('14')
+
+    fireEvent.change(period, { target: { value: '7' } })
+    fireEvent.click(screen.getByText('Add Alert'))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+
+    // ⛔ THE PAYLOAD CARRIES THE PARAMS. Before this shipped the popover sent
+    // none at all, so every alert a user could create was on the DEFAULT
+    // instance and the spec's two sentences were literally unrepresentable.
+    expect(H.created[0].params).toEqual({ period: 7 })
+    expect(H.created[0].indicator).toBe('rsi')
+  })
+
+  it('renders no knob for an address that declares none', async () => {
+    H.catalog = { catalog: VWAP_NO_DEFAULT, isLoading: false, error: null }
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    await screen.findByLabelText('Condition')
+    expect(screen.queryByLabelText('period input')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '5' } })
+    fireEvent.click(screen.getByText('Add Alert'))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    // …and no empty `params` object is invented for it.
+    expect(H.created[0].params).toBeUndefined()
+  })
+
+  it('⭐ prefills the threshold from the CURRENT VALUE where no default is declared', async () => {
+    H.currentValue = 187.4321
+    H.catalog = { catalog: VWAP_NO_DEFAULT, isLoading: false, error: null }
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+
+    const box = await screen.findByLabelText('Threshold')
+    await waitFor(() => expect(box.value).toBe('187.4321'))
+    // …and it asked the server for THIS plot on THIS symbol, not for something else.
+    expect(H.valueCalls.at(-1)).toMatchObject({ sym: 'AAPL', indicator: 'vwap' })
+  })
+
+  it('⛔ does NOT overwrite a declared default — RSI stays 70, not "RSI right now"', async () => {
+    H.currentValue = 43.2
+    H.catalog = { catalog: RSI_WITH_INPUTS, isLoading: false, error: null }
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+
+    const box = await screen.findByLabelText('Threshold')
+    expect(box.value).toBe('70')
+    // The declared defaults are CONVENTIONAL LEVELS (RSI 70, ADX 25). Replacing
+    // one with the live reading removes the meaning from the box — so the
+    // prefill must not even ask.
+    await waitFor(() => expect(box.value).toBe('70'))
+    expect(H.valueCalls).toEqual([])
+  })
+
+  it('names the instance in the alert ROW, from the server', async () => {
+    H.catalog = { catalog: RSI_WITH_INPUTS, isLoading: false, error: null }
+    H.alerts = [{
+      id: 1, sym: 'AAPL', indicator: 'rsi', condition: 'above', threshold: 70,
+      tf: 'D', active: true, trigger_count: 0, created_at: 1,
+      instance_label: 'RSI(7)',
+    }]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    // ⭐ SPEC §8 VERBATIM: "RSI(7) crossed 70" vs "RSI(14)". The label is
+    // computed server-side from the row's own `params_json`, so the name a user
+    // reads and the number that fired come from the same field.
+    expect(await screen.findByText(/RSI\(7\)/)).toBeTruthy()
+  })
+
+  it('says so when the chart instance the alert was armed from is GONE', async () => {
+    H.catalog = { catalog: RSI_WITH_INPUTS, isLoading: false, error: null }
+    H.alerts = [{
+      id: 1, sym: 'AAPL', indicator: 'rsi', condition: 'above', threshold: 70,
+      tf: 'D', active: true, trigger_count: 0, created_at: 1,
+      instance_label: 'RSI(7)', instance_missing: true,
+    }]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect(await screen.findByText(/was removed/)).toBeTruthy()
+    // ⛔ AND IT IS NOT REPORTED AS DEAD. It keeps evaluating from the inputs it
+    // recorded; conflating "the binding is stale" with "this can never fire" is
+    // the opposite error and would tell a user to delete a working alert.
+    expect(screen.queryByText(/no longer evaluated/)).toBeNull()
+  })
+
+  it('⛔ CONTROL: a bound alert shows neither message', async () => {
+    H.catalog = { catalog: RSI_WITH_INPUTS, isLoading: false, error: null }
+    H.alerts = [{
+      id: 1, sym: 'AAPL', indicator: 'rsi', condition: 'above', threshold: 70,
+      tf: 'D', active: true, trigger_count: 0, created_at: 1,
+      instance_label: 'RSI(14)', instance_missing: false,
+    }]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    await screen.findByText(/RSI\(14\)/)
+    expect(screen.queryByText(/was removed/)).toBeNull()
+    expect(screen.queryByText(/no longer evaluated/)).toBeNull()
   })
 })

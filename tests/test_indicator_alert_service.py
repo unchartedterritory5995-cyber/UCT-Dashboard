@@ -182,3 +182,180 @@ def test_route_toggle(client):
     assert r3.status_code == 200
     assert r3.json()["active"] is True
     assert ias.get(alert_id)["active"] is True
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PHASE C TASK 10 — SPEC §6/§8: THE DELETION GUARD, FROM THE OTHER SIDE.
+#
+# An orphaned binding is VISIBLE, never silently dead: the alert keeps
+# evaluating from the `params_json` snapshot recorded when it was armed, and it
+# asks to be re-pointed.
+# ═════════════════════════════════════════════════════════════════════════════
+
+import json as _json
+
+
+def _prefs(monkeypatch, blobs: dict):
+    """Stand in for the preferences store with a literal blob per user."""
+    from api.services import auth_service
+    monkeypatch.setattr(auth_service, "get_user_preferences",
+                        lambda uid: dict(blobs.get(uid, {})), raising=False)
+
+
+def _workspace(*instances) -> str:
+    """A `charts_workspace_layout` blob shaped like the real one.
+
+    ⛔ THE INSTANCES ARE NESTED UNDER `widgets[].opts.settings`, NOT AT THE TOP
+    LEVEL, and that nesting is the reason the scan walks the whole blob instead
+    of reading a known path: the global `chart_settings` is only a SEED and the
+    user's live chart lives here. A path-based read would report every instance
+    as deleted for every user who has a workspace.
+    """
+    return _json.dumps({
+        "widgets": [
+            {"id": "w1", "opts": {"settings": {"indicators": [
+                {"instanceId": i, "defId": i.split(":")[-1]} for i in instances
+            ]}}},
+        ],
+    })
+
+
+def test_an_alert_whose_instance_was_DELETED_is_flagged_not_silent(tmp_db, monkeypatch):
+    """⭐ THE HEADLINE OF THE GUARD, AND THE ALERT KEEPS WORKING.
+
+    Deleting `RSI(7)` from the chart used to leave its alert armed, firing, and
+    describing itself as "RSI" — indistinguishable on every surface from an
+    alert bound to the `RSI(14)` still on the chart.
+    """
+    alert_id = ias.create(user_id="u1", sym="AAPL", indicator="rsi",
+                          condition="above", threshold=70, tf="D",
+                          params_json={"period": 7}, instance_id="chart-1:rsi#a")
+    _prefs(monkeypatch, {"u1": {"charts_workspace_layout":
+                                _workspace("chart-1:rsi#a", "chart-1:rsi#b")}})
+
+    # …bound: not flagged, and the sweep says it actually LOOKED.
+    out = ias.sweep_orphaned_instances()
+    assert out["checked"] == 1, "the sweep did not check the alert at all"
+    assert out["orphaned"] == 0
+    assert ias.get(alert_id)["instance_missing"] is False
+
+    # …now the user deletes that instance from the chart.
+    _prefs(monkeypatch, {"u1": {"charts_workspace_layout":
+                                _workspace("chart-1:rsi#b")}})
+    out = ias.sweep_orphaned_instances()
+    assert out["orphaned"] == 1
+    row = ias.get(alert_id)
+    assert row["instance_missing"] is True
+    assert row["instance_missing_at"] is not None
+
+    # ⛔ AND IT IS STILL EVALUATING, AND STILL ON RSI(7). `params_json` is the
+    # snapshot precisely so the alert survives its instance; a guard that
+    # silently disarmed the alert would be the same silence in a new place.
+    assert row["active"] is True
+    assert row["state"] == ias.STATE_ARMED
+    assert ias.list_for_user("u1")[0]["instance_label"] == "RSI(7)"
+
+
+def test_the_flag_CLEARS_when_the_instance_comes_back(tmp_db, monkeypatch):
+    """An undo, a template re-applied, a workspace restored.
+
+    This reports the CURRENT binding rather than accumulating a scar — a flag
+    that only ever goes on is a flag every long-lived alert eventually carries.
+    """
+    alert_id = ias.create(user_id="u1", sym="AAPL", indicator="rsi",
+                          condition="above", threshold=70, tf="D",
+                          instance_id="i-1")
+    _prefs(monkeypatch, {"u1": {"chart_settings": _workspace("i-2")}})
+    assert ias.sweep_orphaned_instances()["orphaned"] == 1
+    assert ias.get(alert_id)["instance_missing"] is True
+
+    _prefs(monkeypatch, {"u1": {"chart_settings": _workspace("i-1", "i-2")}})
+    out = ias.sweep_orphaned_instances()
+    assert out["cleared"] == 1
+    assert ias.get(alert_id)["instance_missing"] is False
+
+
+def test_an_unreadable_preferences_store_flags_NOTHING(tmp_db, monkeypatch):
+    """⛔ THE THREE-STATE RETURN, AND WHY IT IS NOT A BOOLEAN.
+
+    "The user has a chart and it holds no instances" orphans every alert they
+    own. "The store did not answer" must conclude nothing. Collapsing the two
+    would flag every alert on the box the first time `auth.db` was busy — a
+    fleet-wide false alarm produced by a diagnostic.
+    """
+    alert_id = ias.create(user_id="u1", sym="AAPL", indicator="rsi",
+                          condition="above", threshold=70, tf="D",
+                          instance_id="i-1")
+
+    from api.services import auth_service
+    monkeypatch.setattr(auth_service, "get_user_preferences",
+                        lambda uid: (_ for _ in ()).throw(RuntimeError("db busy")),
+                        raising=False)
+    assert ias.chart_instance_ids("u1") is None
+    out = ias.sweep_orphaned_instances()
+    assert out["checked"] == 0 and out["orphaned"] == 0
+    assert ias.get(alert_id)["instance_missing"] is False
+
+    # …a user with NO chart blob at all is the same "cannot tell", not "empty".
+    _prefs(monkeypatch, {"u1": {}})
+    assert ias.chart_instance_ids("u1") is None
+    assert ias.sweep_orphaned_instances()["orphaned"] == 0
+
+    # ⛔ CONTROL: with a real blob present, an empty instance list DOES orphan —
+    # otherwise every assertion above is satisfied by a guard that never fires.
+    _prefs(monkeypatch, {"u1": {"chart_settings": _workspace()}})
+    assert ias.chart_instance_ids("u1") == set()
+    assert ias.sweep_orphaned_instances()["orphaned"] == 1
+
+
+def test_an_alert_that_names_no_instance_is_never_orphaned(tmp_db, monkeypatch):
+    """Every alert created before the column existed is in this branch.
+
+    Which is why the migration does not have to guess a value for them, and why
+    a box full of legacy rows does not light up on the first sweep after deploy.
+    """
+    alert_id = ias.create(user_id="u1", sym="AAPL", indicator="rsi",
+                          condition="above", threshold=70, tf="D")
+    assert ias.get(alert_id)["instance_id"] is None
+    _prefs(monkeypatch, {"u1": {"chart_settings": _workspace("something-else")}})
+    out = ias.sweep_orphaned_instances()
+    assert out["considered"] == 1 and out["checked"] == 0 and out["orphaned"] == 0
+    assert ias.get(alert_id)["instance_missing"] is False
+
+
+def test_the_orphan_flag_is_NOT_a_state_because_a_state_would_be_cleared(tmp_db, monkeypatch):
+    """🔴 MEASURED, AND IT CHANGED THE DESIGN.
+
+    The obvious home was `state = 'needs_attention'`, which is what the brief
+    specified. `record_evaluation` clears that state the moment a value arrives
+    ("whatever was broken is not broken now") — and an orphaned alert KEEPS
+    PRODUCING VALUES, because it evaluates from the snapshot. So the flag would
+    have been green in the test that set it and gone within one 60-second cycle,
+    before any user saw it. This test is that measurement, kept.
+    """
+    alert_id = ias.create(user_id="u1", sym="AAPL", indicator="rsi",
+                          condition="above", threshold=70, tf="D",
+                          instance_id="i-1")
+    _prefs(monkeypatch, {"u1": {"chart_settings": _workspace("i-2")}})
+    ias.sweep_orphaned_instances()
+    ias.mark_needs_attention(alert_id, "pretend the flag lived in `state`")
+    assert ias.get(alert_id)["state"] == ias.STATE_NEEDS_ATTENTION
+
+    # one ordinary evaluation later…
+    ias.record_evaluation(alert_id, 55.0)
+    assert ias.get(alert_id)["state"] == ias.STATE_ARMED, (
+        "the state machine cleared it, exactly as designed")
+    # …and the durable flag is untouched, which is the whole reason it is a
+    # column and not a state.
+    assert ias.get(alert_id)["instance_missing"] is True
+
+
+def test_the_silence_sweep_reports_the_instance_counters_under_their_own_keys(tmp_db, monkeypatch):
+    """One scheduler job, two sweeps, and neither can be read as the other."""
+    ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+               threshold=70, tf="D", instance_id="i-1")
+    _prefs(monkeypatch, {"u1": {"chart_settings": _workspace("i-2")}})
+    out = ias.sweep_silent_alerts()
+    assert out["instance_orphaned"] == 1
+    assert {"considered", "silent", "flagged"} <= set(out)
+    assert out["considered"] == out["instance_considered"] == 1

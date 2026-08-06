@@ -668,12 +668,30 @@ def test_route_snooze_and_rearm_are_ownership_checked(client):
 
 
 def test_route_refuses_a_bare_price_alert_and_NAMES_the_other_lane(client):
-    for alias in ("price", "close", "LAST"):
+    """⭐ NARROWED BY PHASE C TASK 10, AND THE NARROWING IS THE POINT.
+
+    `close` used to be on this list because it was not an address; it IS one now
+    (`PRICE_FUNCS`), which is what makes price a LEFT operand and closes the
+    thing Task 11 recorded as structurally blocked. The refusal survives for
+    every spelling that still names no address — which is the half that was
+    ever load-bearing, because those are what a user types when they mean the
+    live-price product.
+    """
+    for alias in ("price", "LAST", "px", "last_price"):
         r = client.post("/api/indicator-alerts", json={
             "sym": "AAPL", "indicator": alias, "condition": "above",
             "threshold": 200, "tf": "D"})
         assert r.status_code == 400, f"{alias} was accepted"
         assert "watchlist" in r.json()["detail"].lower()
+    # ⛔ …AND `close` IS ACCEPTED, or the paragraph above is a story about a
+    # change that did not happen. This is the whole Task 11 hand-back: an alert
+    # whose LEFT operand is the price.
+    ok = client.post("/api/indicator-alerts", json={
+        "sym": "AAPL", "indicator": "close", "condition": "cross_above",
+        "threshold": 200, "tf": "D"})
+    assert ok.status_code == 200, ok.text
+    stored = ias.get(ok.json()["id"])
+    assert stored["indicator"] == "close"
 
 
 def test_route_refuses_an_indicator_that_can_never_fire(client):
@@ -690,22 +708,36 @@ def test_route_refuses_an_indicator_that_can_never_fire(client):
 
 # ─── the soak matrix: it observes everything and can mail nobody ─────────────
 
+def _diff_addresses() -> list:
+    """The addresses the frozen `--diff` instrument drives, read from it."""
+    from api.services import indicator_alert_evaluator as ev
+    return list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+
 def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     from tools import alert_soak_matrix as soak
     expected = {s["address"] for s in soak.catalog_addresses()}
-    assert len(expected) == 30, (
-        f"the catalog has {len(expected)} addresses, not the 30 Task 6's diff "
-        "enumerates — the matrix and the diff have drifted apart")
+    # ⚠️ 31 SINCE PHASE C TASK 10, AND THE EXTRA ONE IS NAMED. The soak reads
+    # `alert_catalog()` at runtime, so it grew with it; the frozen `--diff`
+    # enumerates `INDICATOR_FUNCS + EVENT_FUNCS` and is still 30, because the
+    # `close` address deliberately lives in a THIRD partition that the frozen
+    # replay grid does not generate from (`_series_close` says why). Naming the
+    # difference here rather than loosening the number to `>= 30`.
+    assert len(expected) == 31, (
+        f"the catalog has {len(expected)} addresses, not 31 — the matrix and "
+        "the catalog have drifted apart")
+    assert expected - set(_diff_addresses()) == {"close"}, (
+        "the set the soak arms and the set the frozen --diff drives differ by "
+        "something other than the one address Task 10 declared")
 
     first = soak.arm("owner-1", "SPY", "5", 30)
     assert sorted(first["created"]) == sorted(expected)
     again = soak.arm("owner-1", "SPY", "5", 30)
     assert again["created"] == [], "re-arming duplicated the matrix"
-    assert len(soak.soak_rows()) == 30
+    assert len(soak.soak_rows()) == 31
 
     out = soak.verify()
-    assert out["armed"] == 30
-    assert out["visible_to_shadow"] == 30, (
+    assert out["armed"] == 31
+    assert out["visible_to_shadow"] == 31, (
         "the shadow lane cannot see the matrix — the soak would observe nothing "
         "and Task 8's three-session gate would pass VACUOUSLY")
     assert out["deliverable_now"] == 0
@@ -740,8 +772,8 @@ def test_the_soak_matrix_CANNOT_deliver_even_when_every_alert_triggers(
         f"the soak matrix delivered {len(channels['delivered'])} alerts to the "
         "owner")
     assert fl.count_fires() == 0, "a snoozed alert consumed its episode key"
-    # and the lane the soak exists to feed still sees all thirty
-    assert len({a["id"] for a in ias.list_active()}) == 30
+    # and the lane the soak exists to feed still sees every one of them
+    assert len({a["id"] for a in ias.list_active()}) == 31
 
 
 def test_route_latency_states_the_worst_case_per_timeframe(client):

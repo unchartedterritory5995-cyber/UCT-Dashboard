@@ -288,8 +288,34 @@ const LEDGER = [
   // being a TWIN: `IndicatorAlertPopover`'s INDICATORS + CONDITIONS are served
   // from the module that owns the evaluation, so the dropdown cannot offer an
   // alert that cannot fire, and this becomes the ONE naming authority.
-  { file: 'api/services/indicator_alert_evaluator.py', region: "INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority",
-    anchor: 'INDICATOR_FUNCS: dict[str,', fate: 'C' },
+  // ⭐⭐⭐ PHASE C TASK 10 — `INDICATOR_FUNCS` RETIRED, AND THE ROW DID NOT LEAVE.
+  //
+  // The 28-row hand-written dict of value closures is GONE: it is DERIVED from
+  // `alert_series.SERIES_FUNCS` now (a value is the last non-None element of a
+  // column, which is the definition rather than a coincidence), and the
+  // retirement is proven BY IDENTITY in `RETIRED_BY_C_TASK10` — the old anchor,
+  // `INDICATOR_FUNCS: dict[str,`, re-run under the same regex that used to
+  // demand exactly one and now demands ZERO.
+  //
+  // ⚠️ BUT THE FILE STILL HAND-LISTS ADDRESSES, AND THAT WAS MEASURED, NOT
+  // ASSUMED. Task 10's brief predicted the Python discovery scan would either
+  // stop finding this file (row gone, `SITE_COUNT` 8 → 7) or keep finding it.
+  // It KEEPS finding it, on `ALERT_CONDITIONS` / `ALERT_LABELS` /
+  // `ALERT_BASE_LABELS`, which quote `"rsi"`, `"macd"`, `"bb"`, `"vwap"`,
+  // `"stoch"`, `"mfi"`, `"cci"`, `"atr"`, `"adx"`, `"obv"`, `"donchian"` and
+  // `"sar"` as code. So the row is RE-POINTED at the enumeration that actually
+  // survives instead of being deleted — a deleted row here plus a file the scan
+  // still names is exactly the "unledgered site" failure two tests down.
+  //
+  // ⛔ FATE `keep`, AND IT IS AN ARGUMENT RATHER THAN A DEMOTION. WHICH
+  // CONDITIONS an address offers is a product decision nothing can derive: does
+  // `macd` offer `cross_zero`? does `bb` offer `touch_upper` instead of a
+  // threshold? does `obv` get a zero line? Those answers are not in any chart
+  // definition and never will be — the registry describes how a plot is DRAWN.
+  // Same shape as `_INDICATOR_ALIASES` two rows down, which was already `keep`
+  // for the same reason.
+  { file: 'api/services/indicator_alert_evaluator.py', region: 'ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives',
+    anchor: 'ALERT_CONDITIONS: dict[str, list[dict]] = {', fate: 'keep' },
   // ⭐⭐ PHASE C TASK 5 — THE PYTHON SCAN CAUGHT THIS ROW BEFORE A HUMAN DID, AND
   // IT CAUGHT IT ON THE COMMIT THAT CREATED IT. `alert_series.SERIES_FUNCS` is
   // the closed-bar lane's `address → FULL aligned column` table: the same 30
@@ -315,9 +341,29 @@ const LEDGER = [
   // fate nobody owns is the shape this ledger exists to catch; it is recorded
   // here and handed forward rather than quietly re-fated to `keep`, which would
   // ALSO disarm the Python scan's non-vacuity floor two rows down.
+  // ⭐⭐ PHASE C TASK 10 CLAIMED THIS FATE, AND THE ANSWER IS `keep`. The row
+  // above predicted *"the two retire together or not at all"*. Half of that was
+  // right and half was wrong, and the half that was wrong is the interesting
+  // one: they did not retire together — one retired INTO the other. A column
+  // determines its last value; a last value determines nothing about a column,
+  // so there was never a choice about which twin could survive.
+  //
+  // ⛔ AND WHAT SURVIVED IS NOT DERIVABLE, WHICH IS WHAT MAKES `keep` HONEST
+  // RATHER THAN CONVENIENT. Each row names a PYTHON compute function, a COLUMN
+  // INDEX into its tuple output, an input SHAPE (`on_closes`) and a set of
+  // DEFAULTS. A chart definition carries none of those: it names a JS `compute.fn`
+  // and describes how a plot is drawn. And two of the addresses have no
+  // definition to derive from AT ALL — `price_vs_ma` is a spread this lane
+  // synthesises (there is no such chart indicator) and `close` is the bar's own
+  // price. B4 adjudication A4 said "a dict of Python closures cannot be derived
+  // from a JS definition"; that sentence is still true, and it is the reason
+  // this row stops being a promise and becomes a fact.
+  //
+  // ⚠️ THE `C` BUCKET WENT 3 → 1 HERE, AND THE ONE THAT IS LEFT IS HANDED ON,
+  // not quietly re-fated — see `_INDICATOR_ALIASES` below.
   { file: 'api/services/alert_series.py',
-    region: 'SERIES_FUNCS — address → the full aligned column, the closed-bar lane',
-    anchor: 'SERIES_FUNCS: dict[str,', fate: 'C' },
+    region: 'SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table',
+    anchor: 'SERIES_FUNCS: dict[str,', fate: 'keep' },
   // ⭐ THE SIXTH SITE THE JS DISCOVERY SCAN STRUCTURALLY CANNOT SEE, found by the
   // wave that fixed the voice bus and added here by this file's one writer. The
   // JS scan walks `app/src/**/*.jsx?` only, so a Python enumeration was invisible
@@ -339,6 +385,16 @@ const LEDGER = [
   // the one place in this codebase where naming `sar` is a decision somebody
   // wrote a paragraph about. A ledger whose whole job is stopping a comment from
   // outliving its subject cannot carry a fabricated example of its own.
+  // ⚠️ THE LAST `C` ROW, AND PHASE C TASK 10 DELIBERATELY DID NOT CLAIM IT.
+  // Task 10 was the last task that COULD, and the honest reading is that this
+  // row is very probably mis-fated: the sizing case at the bottom of this file
+  // already measures it as *"a `keep`-shaped list of synonyms nothing can
+  // derive"* — eleven spoken PHRASES ("bollinger bands", "moving average")
+  // mapping to seven ids, which no registry contains and no derivation can
+  // produce. But Task 10 touched no voice file, wrote no test against this map,
+  // and re-fating a row on the strength of a comment is the two-character edit
+  // this ledger's own header warns about. So it is HANDED FORWARD with the
+  // recommendation written down, which is what the `C` column is for.
   { file: 'api/services/voice_client_action_tools.py', region: '_INDICATOR_ALIASES — the voice add_chart_indicator phrase map',
     anchor: '_INDICATOR_ALIASES = {', fate: 'C' },
   // ⭐⭐ PHASE C TASK 1 — THE ROW THE PYTHON SCAN FOUND ON ITS FIRST RUN.
@@ -607,6 +663,43 @@ const RETIRED_BY_B5_TASK9 = [
     /"rsi"\s*:\s*\{\s*"enabled"/g],
 ]
 
+/** ⭐⭐⭐ WHAT PHASE C TASK 10 RETIRED — and it is the FIRST retirement of a
+ *  PYTHON site this ledger has recorded.
+ *
+ *  `indicator_alert_evaluator.INDICATOR_FUNCS` was 28 rows of
+ *  `_plot_of("compute_adx", 1, period=14)`, sitting beside 28 rows of
+ *  `alert_series._column("compute_adx", 1, period=14)` that named the same
+ *  compute, the same column index, the same input shape and the same defaults,
+ *  and differed only by a `_last_non_none` at the end. B4 adjudication A4 fated
+ *  it `C`; Phase C Task 5 built the twin instead of retiring it, deliberately,
+ *  and recorded the debt on the row. This is the payment.
+ *
+ *  ⛔ THE ANCHOR IS RE-RUN, NOT DROPPED, AND THAT IS THE WHOLE METHOD. The
+ *  ledger row's anchor demanded EXACTLY ONE match for years; the retirement is
+ *  only real if the same pattern now matches ZERO. A control that stops looking
+ *  is a control that rots, so the pattern outlives the row it policed.
+ *
+ *  ⚠️ WHAT IS DELIBERATELY *NOT* CLAIMED HERE: that the NAME is gone.
+ *  `tools/alert_replay.py` generates the frozen 691,195-fire grid by iterating
+ *  `ev.INDICATOR_FUNCS`, `alert_shadow_log` bounds a diff declaration with it,
+ *  and `alert_soak_matrix` arms from the catalog behind it. All three read a
+ *  MAPPING and none reads a literal. What retired is the second place a person
+ *  had to edit, which is what an enumeration SITE is. The Python-side rail
+ *  (`test_the_hand_written_dispatch_literal_is_GONE_by_identity`) asserts both
+ *  halves — the literal absent AND the mapping present — because either one
+ *  alone describes a different change. */
+const RETIRED_BY_C_TASK10 = [
+  ['api/services/indicator_alert_evaluator.py',
+    'INDICATOR_FUNCS — the hand-written 28-closure dispatch literal',
+    /INDICATOR_FUNCS:\s*dict\[str,/g],
+  ['api/services/indicator_alert_evaluator.py',
+    '_plot_of — the second column builder, now `alert_series._column` alone',
+    /def\s+_plot_of\s*\(/g],
+  ['api/services/indicator_alert_evaluator.py',
+    'the eight hand-written per-indicator value functions',
+    /def\s+_value_(?:rsi|macd|stoch|williams_r|cci|mfi|price_vs_ma|bb)\s*\(/g],
+]
+
 const RETIRED_BY_B4_TASK10 = [
   ['app/src/components/chart/engine/readout.js',
     'LEGACY_SLOTS — the legend slot bridge', /export\s+const\s+LEGACY_SLOTS\s*=/g],
@@ -774,7 +867,24 @@ const RETIRED_BY_B4_ALERTS = [
  *
  *  ⚠️ AND THE `C` BUCKET IS NOW THREE ROWS THAT NO REMAINING PHASE C TASK HAS
  *  CLAIMED — see the comment on the new row. The number went up, the fates did
- *  not move, and the prediction underneath them is older than it looks. */
+ *  not move, and the prediction underneath them is older than it looks.
+ *
+ *  ⭐⭐⭐ 8 → 8 AT PHASE C TASK 10, AND FOR ONCE THE INTERESTING NUMBER IS NOT THE
+ *  TOTAL. `{C: 3, keep: 5}` → `{C: 1, keep: 7}`: the first RETIREMENT of a Python
+ *  site this ledger has recorded (`INDICATOR_FUNCS`, proven gone in
+ *  `RETIRED_BY_C_TASK10`) and, beside it, a fate CLAIMED AND ANSWERED
+ *  (`SERIES_FUNCS` is `keep` — it is the table the other one retired into, and
+ *  it is not derivable from anything).
+ *
+ *  ⛔ THE TOTAL DID NOT FALL AND THAT WAS MEASURED, NOT ASSUMED. Task 10's brief
+ *  predicted `SITE_COUNT` 8 → 7 on the theory that the Python discovery scan
+ *  would stop finding `indicator_alert_evaluator.py` once its dict was gone. It
+ *  does NOT stop finding it: `ALERT_CONDITIONS` / `ALERT_LABELS` /
+ *  `ALERT_BASE_LABELS` still quote a dozen ids as code. So the row was
+ *  RE-POINTED at the enumeration that survives rather than deleted — deleting it
+ *  while the scan still names the file is the "unledgered site" failure this
+ *  ledger exists to produce. The prediction was a hypothesis; the scan was the
+ *  measurement. */
 const SITE_COUNT = 8
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
@@ -870,7 +980,21 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // floor above is derived from `keep`, so a third `C` row cannot disarm the
     // Python scan — but it does mean the `C` bucket now holds THREE retirements
     // this phase has not scheduled. Named on the row itself.
-    expect(counts).toEqual({ C: 3, keep: 5 })
+    //
+    // ⭐⭐⭐ `{C: 3, keep: 5}` → `{C: 1, keep: 7}` AT PHASE C TASK 10, AND THIS IS
+    // THE FIRST TIME THIS PHASE THE `C` BUCKET HAS FALLEN. Two rows moved and
+    // they moved for two DIFFERENT reasons, which is why they are not one edit:
+    // `INDICATOR_FUNCS` was RETIRED (the literal is gone, proven by identity in
+    // `RETIRED_BY_C_TASK10`) and its file re-pointed at the enumeration that
+    // survives; `SERIES_FUNCS` was RE-FATED after the claim on it was tested and
+    // found false — it is the table the other one retired INTO, and it is not
+    // derivable from anything. The third `C` row is deliberately still `C`.
+    //
+    // ⛔ AND THE PYTHON FLOOR GOT STRONGER, NOT WEAKER, WHICH IS THE THING TO
+    // CHECK ON ANY EDIT THAT MOVES A ROW OUT OF `C`. That floor is derived from
+    // `keep`; it had exactly ONE Python subject and now has THREE, so the scan
+    // it protects is measured against more, not less.
+    expect(counts).toEqual({ C: 1, keep: 7 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -928,8 +1052,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'If a fate really moved, regenerate this literal from LEDGER rather than editing a row by ' +
       'hand, and move the histogram in the same commit.',
     ).toEqual([
-      ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, the closed-bar lane", "C"],
-      ["api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority", "C"],
+      ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table", "keep"],
+      ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives", "keep"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch", "keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map", "C"],
       ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays", "keep"],
@@ -937,6 +1061,34 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once", "keep"],
       ["tools/chart_parity_cases.json::the parity case list", "keep"],
     ])
+  })
+
+  it('⭐⭐ the Python dispatch literal PHASE C TASK 10 retired is GONE, by identity', () => {
+    const back = RETIRED_BY_C_TASK10
+      .filter(([file, , re]) => [...read(file).matchAll(re)].length !== 0)
+      .map(([file, what]) => `${file} :: ${what}`)
+    expect(back,
+      'the hand-written alert dispatch table is back. It is DERIVED from '
+      + '`alert_series.SERIES_FUNCS` — a value is the last non-None element of a column — '
+      + 'and a second table of the same 28 closures is the twin Phase C spent its budget '
+      + 'retiring.',
+    ).toEqual([])
+    // ⛔ AND THE PATTERNS CAN STILL SEE WHAT THEY FORBID. Task 1 measured this
+    // exact trap for real: a negative fixture that the raw scan structurally
+    // could not match reported a mutation as a SURVIVOR. A demand-zero pattern
+    // that has quietly stopped matching reports every file as clean.
+    const planted = [
+      'INDICATOR_FUNCS: dict[str, Callable] = {',
+      'def _plot_of(compute_name):',
+      'def _value_rsi(bars, params):',
+    ].join('\n')
+    expect(RETIRED_BY_C_TASK10.map(([, , re]) => [...planted.matchAll(re)].length))
+      .toEqual([1, 1, 1])
+    // ⭐ AND THE SUCCESSOR IS REALLY THERE, or "the literal is gone" is
+    // satisfied by an alert lane that lost its address table altogether.
+    const EV = read('api/services/indicator_alert_evaluator.py')
+    expect(EV).toContain('INDICATOR_FUNCS')
+    expect(EV).toContain('alert_series.SERIES_FUNCS')
   })
 
   it('the two sites this task retired are GONE, not merely unlisted', () => {
@@ -1526,11 +1678,23 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     //
     // BY NAME and NON-EMPTY, both: a count alone goes green the day the last
     // `keep` Python row is renamed.
+    //
+    // ONE SUBJECT -> THREE AT PHASE C TASK 10, AND THE FLOOR GOT STRONGER, WHICH
+    // IS THE THING TO CHECK ON ANY EDIT THAT MOVES A ROW OUT OF `C`. Retiring
+    // `INDICATOR_FUNCS` did NOT take its file off this scan (`ALERT_CONDITIONS`
+    // still quotes a dozen ids as code), and `alert_series.SERIES_FUNCS` was
+    // re-fated `keep` because it is the table the other one retired INTO. So the
+    // two files this task worked on became FLOOR rather than ceiling: a scan
+    // that stopped seeing either of them now fails BY NAME.
     const keepPython = [...new Set(LEDGER.filter(s => s.fate === 'keep').map(s => s.file))]
       .filter(f => /^api\/.*\.py$/.test(f)).sort()
     expect(keepPython,
       'the Python scan has no surviving subject to be measured against',
-    ).toEqual(['api/services/indicator_compute.py'])
+    ).toEqual([
+      'api/services/alert_series.py',
+      'api/services/indicator_alert_evaluator.py',
+      'api/services/indicator_compute.py',
+    ])
     for (const f of keepPython) {
       expect(found, `the Python scan stopped seeing ${f}`).toContain(f)
     }
@@ -1566,18 +1730,45 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   //
   // ⛔ BOTH READ THE PYTHON SOURCE THROUGH `stripPyComments`, so neither can be
   // satisfied by a comment that happens to name the right things.
-  it('⭐ the two Python C rows are the size the ledger says — 28 addresses, and NO `sar` alias', () => {
-    // ── INDICATOR_FUNCS: the literal's own keys, not a prose count ──
-    const EV = stripPyComments(read('api/services/indicator_alert_evaluator.py'))
-    const open = EV.indexOf('INDICATOR_FUNCS: dict[str,')
-    expect(open, 'the evaluator dict moved — this whole case is measuring nothing')
+  it('⭐ the two Python address tables are the size the ledger says — 28 addresses, and NO `sar` alias', () => {
+    // ── THE ADDRESS TABLE: its own keys, not a prose count ──
+    //
+    // ⭐⭐ MOVED DOWN A LEVEL AT PHASE C TASK 10, WHICH IS WHY IT STILL EXISTS.
+    // It used to slice `INDICATOR_FUNCS`' hand-written literal out of the
+    // evaluator. That literal is RETIRED (it derives from
+    // `alert_series.SERIES_FUNCS` now), so this case lost its subject and the
+    // tempting move was to delete it. Instead it reads the table that
+    // SURVIVED and measures the same claim: 28 levels in 14 groups. What it
+    // GAINS is the two partitions the derivation introduced, so the 28 can no
+    // longer be preserved by quietly moving an address into one of them.
+    const SERIES = stripPyComments(read('api/services/alert_series.py'))
+    const open = SERIES.indexOf('SERIES_FUNCS: dict[str,')
+    expect(open, 'the column table moved, so this whole case is measuring nothing')
       .toBeGreaterThan(-1)
-    const brace = EV.indexOf('{', open)
-    const close = brace + EV.slice(brace).search(/\r?\n\}/)
-    const body = EV.slice(brace, close)
-    expect(body.length, 'the dict body came back empty — the delimiter search failed')
+    const brace = SERIES.indexOf('{', open)
+    const close = brace + SERIES.slice(brace).search(/\r?\n\}/)
+    const body = SERIES.slice(brace, close)
+    expect(body.length, 'the dict body came back empty: the delimiter search failed')
       .toBeGreaterThan(200)
-    const addresses = [...body.matchAll(/"([a-z_][\w.]*)"\s*:/g)].map(m => m[1])
+    const all = [...body.matchAll(/"([a-z_][\w.]*)"\s*:/g)].map(m => m[1])
+    expect(all.length, 'the column table is not 31 = 28 levels + 2 events + 1 price')
+      .toBe(31)
+
+    // The three partitions, read from the evaluator AS CODE. The two small ones
+    // are closed exclusion tuples; everything else is a LEVEL, which is the same
+    // rule the module itself applies, so a new address lands in the level count
+    // BY DEFAULT and moves the 28 below. That is the failure that is wanted.
+    const EV = stripPyComments(read('api/services/indicator_alert_evaluator.py'))
+    const tupleOf = (name) => {
+      const m = EV.match(new RegExp(name + ': tuple\\[str, \\.\\.\\.\\] = \\(([^)]*)\\)'))
+      expect(m, name + ' is not declared as a closed tuple any more').toBeTruthy()
+      return [...m[1].matchAll(/"([^"]+)"/g)].map(x => x[1])
+    }
+    const events = tupleOf('EVENT_ADDRESSES')
+    const prices = tupleOf('PRICE_ADDRESSES')
+    expect(events).toEqual(['sar.priceCrossedSar', 'sar.trendFlipped'])
+    expect(prices).toEqual(['close'])
+    const addresses = all.filter(a => !events.includes(a) && !prices.includes(a))
 
     expect(addresses.length,
       'the evaluator address count moved. It is 28, in 14 groups — NOT the 25 the B5 SDD '

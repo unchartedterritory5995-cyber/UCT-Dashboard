@@ -29,15 +29,35 @@ a fact about a bar that has not happened yet. That is a DELIBERATE difference
 between the lanes, not an oversight, and `test_chikou_has_no_value_at_the_newest_bar`
 pins it in both directions.
 
-⛔ THIS TABLE IS A TWIN OF `INDICATOR_FUNCS` AND THE TWIN IS NOT LEFT ON TRUST.
-`test_every_address_series_ends_where_the_value_function_says_it_does` drives
-EVERY address in `INDICATOR_FUNCS` + `EVENT_FUNCS` through both and demands
-`_last_non_none(series_for(a, bars, p)) == value_function(a)(bars, p)` exactly, on
-real fixtures across several param sets — which catches a wrong column index, a
-wrong `on_closes`, a wrong compute name and a dropped delivery wrapper, all of
-which return plausible numbers. `test_the_series_table_covers_every_address` is
-the totality half: a rail that only checks what somebody remembered to list is a
-LIST, not a rail.
+⭐⭐ PHASE C TASK 10 — THIS TABLE IS NO LONGER A TWIN. IT IS THE ONE TABLE.
+`indicator_alert_evaluator.INDICATOR_FUNCS` used to be a second hand-written
+dict of 28 closures naming the same computes, the same column indices, the same
+`on_closes` input shapes and the same defaults, differing only in the
+`_last_non_none` at the end. It is now DERIVED from this one — a value is the
+last non-None element of a column, which is the definition, not a coincidence.
+
+⛔ THE DERIVATION RUNS IN ONE DIRECTION ONLY, AND THAT IS WHY IT IS THIS TABLE
+THAT SURVIVED. A column determines its last value; a last value determines
+nothing about the column. There was never a choice about which of the two twins
+could retire into the other.
+
+⚠️ WHAT THE COLLAPSE COST, SAID PLAINLY. The old
+`test_every_address_series_ends_where_the_value_function_says_it_does` demanded
+`_last_non_none(series_for(a, bars, p)) == value_function(a)(bars, p)` across
+real fixtures and several param sets — and it was load-bearing, because a wrong
+column index, a wrong `on_closes`, a wrong compute name or a dropped delivery
+wrapper all return plausible numbers. That equality is now TRUE BY
+CONSTRUCTION, so it has been moved DOWN A LEVEL rather than deleted: what
+guards those four mistakes today is
+`test_every_plot_address_resolves_to_the_column_it_names` (ORDERING invariants a
+swap has to violate) plus the 5,040-row recorded baseline and the 691,195-fire
+frozen log, both of which were recorded against the RETIRED closures and go red
+if this table computes one different number.
+
+⚠️ EVERY ENTRY CARRIES ITS OWN DEFAULTS AS DATA (`fn.inputs`), read by
+`address_inputs`. That is what lets the alert catalog say "RSI(14)" and an alert
+row say "RSI(7)" without a second table of parameter names — see
+`indicator_alert_evaluator.instance_label`.
 """
 
 from __future__ import annotations
@@ -51,11 +71,17 @@ def _column(compute_name: str, index: Optional[int] = None,
             on_closes: bool = False, **defaults) -> Callable[[list[dict], dict], Series]:
     """Build a SERIES function for one plot of one indicator.
 
-    The exact counterpart of `indicator_alert_evaluator._plot_of`, minus the
-    `_last_non_none` at the end — same delivery wrapper, same `index`, same
-    `on_closes` input shape, same params coercion. Keeping the two builders
-    shaped identically is what makes the equivalence rail a one-line assertion
-    instead of a per-address argument.
+    ⭐ THIS IS THE ONLY BUILDER LEFT. It absorbed `indicator_alert_evaluator`'s
+    `_plot_of`, which was the same function with `_last_non_none` bolted on the
+    end; the value lane now composes that call itself. Same delivery wrapper,
+    same `index`, same `on_closes` input shape, same params coercion — because
+    it is literally the same code, not because two copies were kept in step.
+
+    ⚠️ `defaults` IS KEPT ON THE FUNCTION, not just closed over. `fn.inputs` is
+    what `address_inputs` reads, and it is what lets an alert row name its
+    INSTANCE ("RSI(7)" vs "RSI(14)") without a second hand-written table of
+    which parameters each address takes. Closing over it and not exposing it
+    would have forced exactly that table.
     """
     def fn(bars: list[dict], params: dict) -> Series:
         from api.services import indicator_compute
@@ -64,6 +90,7 @@ def _column(compute_name: str, index: Optional[int] = None,
         out = getattr(indicator_compute, compute_name)(series, **kwargs)
         return list(out if index is None else out[index])
     fn.__name__ = f"_series_{compute_name}_{index}"
+    fn.inputs = dict(defaults)
     return fn
 
 
@@ -76,6 +103,36 @@ def _series_bb(bars: list[dict], params: dict) -> Series:
     `bb.middle` / `bb.lower` are the band VALUES, a different question.
     """
     return [float(b["c"]) for b in bars]
+
+
+_series_bb.inputs = {}
+
+
+def _series_close(bars: list[dict], params: dict) -> Series:
+    """⭐ PHASE C TASK 10 — THE BAR'S OWN CLOSE, AS A FIRST-CLASS ADDRESS.
+
+    Task 11 needed price as a LEFT operand and could not have it: a left operand
+    is an address, and every address lived in `INDICATOR_FUNCS`, whose 28 keys
+    generate the frozen replay grid (`tools/alert_replay.py::build_alert_grid`).
+    Adding a 29th key there would have moved 691,195 recorded fires, so Task 11
+    shipped a 400 instead and handed the address forward.
+
+    ⛔ SO IT IS NOT A 29th KEY. It is a THIRD PARTITION (`PRICE_FUNCS`), exactly
+    the shape Task 3 used for the two `sar` EVENT addresses and for the same
+    reason, verbatim: *"growing `INDICATOR_FUNCS` would have DESTROYED THE
+    INSTRUMENT."* The frozen grid still enumerates 28 and `--check` still reads
+    691,195, digest for digest.
+
+    ⚠️ IT IS THE SAME NUMBER `bb` REPORTS, AND THAT IS NOT A REASON TO SHARE ONE
+    ENTRY. `bb`'s value is the close because the legacy `bb` alert is a
+    price-vs-BAND relation whose band arrives as a declared operand; `close`'s
+    value is the close because it IS the close. One function object for both
+    would make a future change to either one silently change the other.
+    """
+    return [float(b["c"]) for b in bars]
+
+
+_series_close.inputs = {}
 
 
 def _series_price_vs_ma(bars: list[dict], params: dict) -> Series:
@@ -98,10 +155,23 @@ def _series_price_vs_ma(bars: list[dict], params: dict) -> Series:
     return [None if ma is None else float(c) - ma for c, ma in zip(closes, ma_series)]
 
 
-# The table. Key order mirrors `INDICATOR_FUNCS` then `EVENT_FUNCS` so a reader
-# diffing the two files reads them in the same order; nothing depends on it (the
-# dropdown's order authority is still `INDICATOR_FUNCS`, and
-# `test_the_series_table_covers_every_address` compares SETS).
+_series_price_vs_ma.inputs = {"period": 50, "type": "sma"}
+
+
+# ⭐⭐ THE TABLE — AND SINCE PHASE C TASK 10 ITS KEY ORDER IS LOAD-BEARING.
+#
+# It used to mirror `INDICATOR_FUNCS`' order for a reader's convenience and
+# nothing depended on it. `INDICATOR_FUNCS` is now DERIVED from this dict by
+# filtering out the event and price partitions, and Python dicts preserve
+# insertion order, so THIS is the dropdown's order authority. Insertion order
+# has been the dropdown's order since B4 Task 9 and is pinned by
+# `test_catalog_order_is_the_dropdown_order_and_it_did_not_change`, which is
+# why the 28 levels stay exactly where they are and the two new partitions are
+# APPENDED at the end rather than filed next to their relatives.
+#
+# ⛔ A NEW LEVEL ADDRESS INSERTED ANYWHERE BUT THE END OF THE FIRST 28 MOVES
+# EVERY USER'S DROPDOWN, and also moves the frozen replay grid, which is
+# generated in `INDICATOR_FUNCS` order.
 SERIES_FUNCS: dict[str, Callable[[list[dict], dict], Series]] = {
     # ── the eight that existed before B5 ──
     "rsi": _column("compute_rsi", None, on_closes=True, period=14),
@@ -137,7 +207,27 @@ SERIES_FUNCS: dict[str, Callable[[list[dict], dict], Series]] = {
     # ── PHASE C: the two EVENT addresses ──
     "sar.priceCrossedSar": _column("compute_sar_events", 0, step=0.02, max_step=0.2),
     "sar.trendFlipped": _column("compute_sar_events", 1, step=0.02, max_step=0.2),
+    # ── PHASE C TASK 10: the one PRICE address ──
+    "close": _series_close,
 }
+
+
+def address_inputs(address: str) -> dict:
+    """The parameters this address takes, and their defaults.
+
+    ⭐ DERIVED FROM THE COLUMN FUNCTION ITSELF (`fn.inputs`), never from a second
+    table of "which knobs does rsi have". That second table is precisely the
+    shape this task retired on the value side, and building a new one on the
+    parameter side would have traded one twin for another.
+
+    An empty dict means the address takes no parameters — `bb` (the close),
+    `close`, `vwap`, `obv`. `{}` is returned for an unknown address too: a
+    caller asking for the knobs of something that does not exist is asking a
+    question with no wrong answer, and raising here would make the catalog's own
+    construction able to fail on a typo in a *label*.
+    """
+    fn = SERIES_FUNCS.get(address)
+    return dict(getattr(fn, "inputs", {}) or {})
 
 
 def series_function(address: str) -> Optional[Callable[[list[dict], dict], Series]]:

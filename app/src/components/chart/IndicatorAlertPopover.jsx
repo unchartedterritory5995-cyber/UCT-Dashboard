@@ -30,6 +30,7 @@ import {
   createIndicatorAlert,
   deleteIndicatorAlert,
   toggleIndicatorAlert,
+  fetchCurrentValue,
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
 import UIcon from '../ui/UIcon'
@@ -85,6 +86,12 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
   const [plot, setPlot] = useState('')
   const [condition, setCondition] = useState('')
   const [threshold, setThreshold] = useState('')
+  // ⭐ SPEC §8 — WHICH INSTANCE. `{period: 7}` vs `{period: 14}` is what makes
+  // "RSI(7) crossed 70" a different alert from "RSI(14)". Until this existed
+  // the popover sent NO params at all, so every alert a user could create was
+  // on the default instance and the spec's two sentences were unrepresentable.
+  // The shape comes from the served plot's `inputs`, never from a list here.
+  const [params, setParams] = useState({})
   const [tf, setTf] = useState('D')
   const [submitting, setSubmitting] = useState(false)
   const firstFieldRef = useRef(null)
@@ -121,6 +128,7 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
     if (!p) return
     setPlot(p.value)
     setCondition(p.conditions?.[0]?.value || '')
+    setParams({ ...(p.inputs || {}) })
     setThreshold(
       p.default_threshold === null || p.default_threshold === undefined
         ? ''
@@ -149,6 +157,37 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
   const conditionEntry = conditionOptions.find((c) => c.value === condition) || null
   const needsThreshold = !!conditionEntry?.needs_threshold
   const catalogReady = !catalogLoading && !catalogError && catalog.length > 0
+  const inputKeys = useMemo(
+    () => Object.keys(plotEntry?.inputs || {}),
+    [plotEntry],
+  )
+
+  // ⭐ SPEC §8: "threshold prefilled from current value".
+  //
+  // ⛔ ONLY WHERE THE CATALOG DECLARES NO DEFAULT, AND THAT LINE IS THE WHOLE
+  // DESIGN. The declared defaults are CONVENTIONAL LEVELS — RSI 70, ADX 25,
+  // Stochastic 80 — and replacing "70" with "RSI is 43.2 right now" would
+  // remove the meaning from the box. Every address WITHOUT one is price-scale
+  // (vwap, atr, the bands, every Ichimoku line, `close`), where no default is
+  // possible without knowing the symbol, and those are exactly the ones that
+  // render an empty box today. So the prefill fills the empty boxes and touches
+  // nothing else.
+  //
+  // ⚠️ It also never overwrites what the user has typed: the effect only writes
+  // when the field is still empty at the moment the value lands.
+  useEffect(() => {
+    if (!plot || !ownSym || !needsThreshold) return
+    if (plotEntry?.default_threshold !== null
+        && plotEntry?.default_threshold !== undefined) return
+    let live = true
+    fetchCurrentValue({ sym: ownSym, tf, indicator: plot, params }).then((v) => {
+      if (!live || v === null) return
+      setThreshold((current) => (current === ''
+        ? String(Number(v.toFixed(4)))
+        : current))
+    })
+    return () => { live = false }
+  }, [plot, plotEntry, ownSym, tf, needsThreshold, params])
 
   /** A stored alert's display label, from the served catalog. An alert naming
    *  something the evaluator cannot evaluate gets its raw id back AND is flagged
@@ -184,6 +223,10 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
       condition,
       tf,
     }
+    // The INSTANCE this alert names. Sent verbatim so the stored row records
+    // which one it was armed on, rather than inheriting whatever the compute
+    // default happens to be on the day it fires.
+    if (inputKeys.length) payload.params = params
     if (needsThreshold) {
       const num = parseFloat(threshold)
       if (!Number.isFinite(num)) return
@@ -258,6 +301,32 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
           </div>
         )}
 
+        {/* The instance's knobs. Rendered from the SERVED plot's `inputs`, so
+            this cannot offer a parameter the compute ignores and cannot miss
+            one it gained — the two failure modes a hand-written map has. */}
+        {inputKeys.map((key) => (
+          <div className={styles.row} key={key}>
+            <span className={styles.label}>{key}</span>
+            <input
+              className={styles.input}
+              type={typeof plotEntry.inputs[key] === 'number' ? 'number' : 'text'}
+              step="any"
+              aria-label={`${key} input`}
+              value={params[key] ?? ''}
+              disabled={!catalogReady}
+              onChange={(e) => {
+                const raw = e.target.value
+                setParams((prev) => ({
+                  ...prev,
+                  [key]: typeof plotEntry.inputs[key] === 'number'
+                    ? (raw === '' ? '' : Number(raw))
+                    : raw,
+                }))
+              }}
+            />
+          </div>
+        ))}
+
         <div className={styles.row}>
           <span className={styles.label}>Condition</span>
           <select
@@ -327,7 +396,12 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
         ) : (
           symAlerts.map((a) => {
             const trigAt = fmtTriggeredAt(a.triggered_at)
-            const indLbl = labelForAlert(a)
+            // ⭐ SPEC §8: the ROW NAMES THE INSTANCE. `instance_label` is
+            // computed server-side from this row's own `params_json` by the
+            // module that evaluates it, so the name a user reads and the number
+            // that fired come from the same field. The catalog label remains
+            // the fallback for a row served before this shipped.
+            const indLbl = a.instance_label || labelForAlert(a)
             const condLbl = conditionLabelForAlert(a)
             const thrTxt =
               a.threshold !== null && a.threshold !== undefined ? ` @ ${a.threshold}` : ''
@@ -352,6 +426,17 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
                     {cannotFire && (
                       <span className={styles.cannotFire}>
                         Cannot fire — this alert type is no longer evaluated
+                      </span>
+                    )}
+                    {/* ⭐ SPEC §6/§8, THE DELETION GUARD FROM THE OTHER SIDE.
+                        The indicator this alert was armed from is gone from the
+                        chart. The alert is NOT dead — it keeps evaluating from
+                        the inputs it recorded — and saying so is the whole
+                        point: an orphaned binding used to be invisible. */}
+                    {a.instance_missing && (
+                      <span className={styles.cannotFire}>
+                        The chart indicator this alert was armed from was removed
+                        — still watching {indLbl}
                       </span>
                     )}
                     {trigAt && (

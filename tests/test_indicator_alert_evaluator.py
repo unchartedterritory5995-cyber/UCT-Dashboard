@@ -81,6 +81,22 @@ def _ramp_bars(n: int, start: float = 100.0, step: float = 1.0) -> list[dict]:
     return bars
 
 
+def _zigzag_bars(n: int, start: float = 100.0, step: float = 1.0) -> list[dict]:
+    """Bars that go up and down, so a shorter RSI period reads differently.
+
+    ⛔ A MONOTONIC RAMP MAKES RSI 100 AT EVERY PERIOD, which makes "RSI(7) and
+    RSI(14) are two different alerts" untestable — every period agrees. Any
+    fixture for an INSTANCE claim has to separate the instances first.
+    """
+    bars = []
+    price = start
+    for i in range(n):
+        price += step * (1.0 if (i // 3) % 2 == 0 else -1.4)
+        bars.append({"t": 1700000000 + i * 300, "o": price, "h": price + 0.6,
+                     "l": price - 0.6, "c": price, "v": 1000 + i})
+    return bars
+
+
 def _falling_bars(n: int, start: float = 100.0, step: float = 1.0) -> list[dict]:
     """Monotonically falling synthetic bars — RSI = 0 once warm."""
     bars = []
@@ -284,23 +300,37 @@ def _catalog_addresses() -> list[str]:
 
 
 def test_catalog_offers_exactly_what_can_be_evaluated():
-    """⭐ TWO TABLES SINCE PHASE C, AND THE UNION IS THE OFFER.
+    """⭐ THREE PARTITIONS SINCE TASK 10, AND THE UNION IS THE OFFER.
 
     `INDICATOR_FUNCS` holds addresses that name a LEVEL; `EVENT_FUNCS` holds
-    addresses that name a `{0, 1, None}` column. They are separate because the
-    questions are — see `_SAR_IS_NOT_A_THRESHOLD` — and the catalog is their
-    union, so an address in neither cannot be offered and an address in either
-    cannot be silently dropped.
-    """
-    from api.services.indicator_alert_evaluator import EVENT_FUNCS, INDICATOR_FUNCS
+    addresses that name a `{0, 1, None}` column; `PRICE_FUNCS` holds the bar's
+    own close. They are separate because the questions are (`_SAR_IS_NOT_A_THRESHOLD`)
+    and because the frozen replay grid iterates the first one (`_series_close`),
+    and the catalog is their union.
 
+    ⛔ MOVED DOWN A LEVEL WHEN THE HAND-WRITTEN DICT RETIRED. This used to name
+    the two tables by hand, so the day a THIRD partition arrived it would have
+    kept passing while covering less — which is how a rail rots green. It reads
+    `ADDRESS_PARTITIONS` now, so a fourth partition is in scope the moment it
+    exists, and the count below is what makes "somebody deleted a partition from
+    that tuple" fail rather than shrink quietly.
+    """
+    ev = evaluator
     addresses = _catalog_addresses()
-    assert set(addresses) == set(INDICATOR_FUNCS) | set(EVENT_FUNCS)
+    assert set(addresses) == set(ev.all_addresses())
     # …and no address is served twice, which a grouping bug could do silently.
     assert len(addresses) == len(set(addresses))
-    # …and the two tables are DISJOINT, or "which table answers for this
-    # address" would depend on lookup order rather than on what it names.
-    assert not set(INDICATOR_FUNCS) & set(EVENT_FUNCS)
+    # …and the partitions are pairwise DISJOINT, or "which table answers for
+    # this address" would depend on lookup order rather than on what it names.
+    seen: set[str] = set()
+    for partition in ev.ADDRESS_PARTITIONS:
+        assert not (seen & set(partition)), "an address is in two partitions"
+        seen |= set(partition)
+    # ⛔ NON-VACUITY: the tuple really holds the three, and each is non-empty.
+    # `ADDRESS_PARTITIONS = ()` satisfies every line above.
+    assert len(ev.ADDRESS_PARTITIONS) == 3
+    assert all(len(p) for p in ev.ADDRESS_PARTITIONS)
+    assert seen == set(ev.INDICATOR_FUNCS) | set(ev.EVENT_FUNCS) | set(ev.PRICE_FUNCS)
 
 
 def test_a_group_name_is_never_mistaken_for_an_address():
@@ -394,9 +424,13 @@ def test_shared_condition_lists_are_handed_out_as_copies():
 def test_adding_a_value_function_without_a_condition_list_fails_loudly():
     """A ninth indicator with no conditions has to fail HERE, at the catalog,
     not in a second dropdown that renders empty."""
-    alertable = set(evaluator.INDICATOR_FUNCS) | set(evaluator.EVENT_FUNCS)
+    alertable = set(evaluator.all_addresses())
     assert alertable <= set(evaluator.ALERT_CONDITIONS)
     assert set(evaluator.ALERT_CONDITIONS) <= alertable
+    # …and every address is LABELLED too. A missing label renders the raw
+    # address in the dropdown, which is not a crash and is exactly why nothing
+    # ever caught one.
+    assert alertable <= set(evaluator.ALERT_LABELS)
 
 
 def test_needs_threshold_is_declared_per_condition_not_guessed():
@@ -951,9 +985,17 @@ def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
     # ⭐ AND PHASE C APPENDS TOO. `sar` is last because the catalog walks the
     # LEVEL table and then the EVENT table, so neither the eight nor the six
     # moved when the fifteenth group arrived.
-    assert served[8:] == [
+    #
+    # ⚠️ THIS LITERAL IS UNCHANGED BY TASK 10 AND THAT IS THE POINT — the
+    # retirement replaced a hand-written dict with a DERIVATION, and a
+    # derivation that walked the registry would have produced the registry's
+    # order, not this one. The slice is the only edit: `close` is a SIXTEENTH
+    # group appended after `sar`, by the same append-never-reorder rule the
+    # docstring above states, and the seven names below are byte-identical.
+    assert served[8:15] == [
         "vwap", "atr", "adx", "obv", "donchian", "ichimoku", "sar",
     ]
+    assert served[15:] == ["close"]
     # …and the three legacy multi-plot bases still open on their legacy address,
     # so the pre-selected plot is the one the bare spelling has always meant.
     by_base = {e["indicator"]: e for e in evaluator.alert_catalog()}
@@ -1252,3 +1294,304 @@ def test_the_replay_fails_when_an_address_is_repointed():
     # …and the restore really restored it, or every later test in this file is
     # running against a corrupted dict.
     assert evaluator.INDICATOR_FUNCS["rsi"] is original
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PHASE C TASK 10 — THE HAND-WRITTEN DICT RETIRES, AND AN ALERT NAMES ITS
+# INSTANCE.
+# ═════════════════════════════════════════════════════════════════════════════
+
+import ast as _ast  # noqa: E402
+import re as _re  # noqa: E402
+
+from api.services import alert_series as _alert_series  # noqa: E402
+
+_EVALUATOR_SRC = pathlib.Path(evaluator.__file__).read_text(encoding="utf-8")
+
+# The 28 addresses the retired literal held, transcribed ONCE, in its order.
+# ⛔ THIS IS NOT A COPY OF THE NEW TABLE — it is the RECORD of the old one, and
+# it is the whole point of the assertion below: a derivation is only a
+# retirement if it produces what the literal produced. It is checked against the
+# frozen fire log's own `address_count` too, which was recorded before any of
+# this existed.
+_RETIRED_LITERAL_ADDRESSES = [
+    "rsi", "macd", "bb", "stoch", "williams_r", "cci", "mfi", "price_vs_ma",
+    "macd.signal", "macd.histogram", "bb.upper", "bb.middle", "bb.lower",
+    "stoch.d", "vwap", "atr", "adx.adx", "adx.plusDI", "adx.minusDI", "obv",
+    "donchian.upper", "donchian.middle", "donchian.lower",
+    "ichimoku.tenkan", "ichimoku.kijun", "ichimoku.spanA", "ichimoku.spanB",
+    "ichimoku.chikou",
+]
+
+
+def test_the_derived_table_IS_the_retired_literal_28_addresses_in_14_groups():
+    """⭐ THE MEASUREMENT THE RETIREMENT STANDS ON.
+
+    ⚠️ IT IS 28, NOT THE 25 THE B5 LEDGER AND ITS GAP REPORT BOTH CARRIED. A
+    plan carrying 25 forward would have shipped an assertion that failed on its
+    first run FOR THE WRONG REASON. 8 legacy + 6 same-base + 14 new-base.
+
+    ⛔ A SORTED LIST, AND ALSO THE EXACT ORDER. The set says the derivation lost
+    nothing; the sequence says it did not REORDER, and order is the dropdown's
+    order (pinned since B4 Task 9) as well as the order the frozen replay grid
+    is generated in. A set-only assertion is green for a derivation that
+    shuffles every user's `<select>` and moves 691,195 recorded fires.
+    """
+    assert len(evaluator.INDICATOR_FUNCS) == 28
+    assert sorted(evaluator.INDICATOR_FUNCS) == sorted(_RETIRED_LITERAL_ADDRESSES)
+    assert list(evaluator.INDICATOR_FUNCS) == _RETIRED_LITERAL_ADDRESSES
+    assert len({evaluator.plot_base(a) for a in evaluator.INDICATOR_FUNCS}) == 14
+    # …and `sar` is still absent from the THRESHOLD vocabulary. 28 with `sar` in
+    # it would be a different 28.
+    assert "sar" not in evaluator.INDICATOR_FUNCS
+    assert evaluator.THRESHOLD_ADDRESSES == tuple(_RETIRED_LITERAL_ADDRESSES)
+
+
+def test_the_frozen_fire_log_agrees_the_grid_is_still_28_wide():
+    """The independent witness: a number recorded before this task existed.
+
+    `tools/alert_replay.py` stores `address_count` in the frozen log and warns
+    on `--check` when the live table has grown or shrunk. Reading it here makes
+    that warning a FAILURE in the suite as well, because a printed warning
+    inside a 900-line replay run is a control nobody sees.
+    """
+    log = json.loads(
+        (_FIXTURES / "alerts" / "fire_log_forming.json").read_text(encoding="utf-8"))
+    assert log["address_count"] == len(evaluator.INDICATOR_FUNCS) == 28
+
+
+def test_the_hand_written_dispatch_literal_is_GONE_by_identity():
+    """⛔ THE RETIREMENT, VERIFIED THE WAY THE LEDGER VERIFIES ONE.
+
+    The enumeration ledger's anchor for this site is the literal's own
+    declaration, `INDICATOR_FUNCS: dict[str,`. It must now match ZERO times —
+    re-run here under the same regex that used to demand exactly one, because a
+    control that stops looking is a control that rots.
+
+    ⚠️ AND THE NAME MUST SURVIVE. `tools/alert_replay.py` generates the frozen
+    grid from `ev.INDICATOR_FUNCS`, `alert_shadow_log` bounds a declaration with
+    it, and `alert_soak_matrix` arms from the catalog behind it. What retired is
+    the LITERAL — the second place a person had to edit — not the mapping.
+    """
+    anchor = _re.compile(r"INDICATOR_FUNCS:\s*dict\[str,")
+    assert anchor.findall(_EVALUATOR_SRC) == [], (
+        "the hand-written dispatch dict is back. It is DERIVED from "
+        "`alert_series.SERIES_FUNCS` — a value is the last non-None element of "
+        "a column — and a second table of the same 28 closures is exactly the "
+        "twin Phase C retired.")
+    # …and the regex can still see the shape it is looking for, so the emptiness
+    # above is a fact about the file and not about a broken pattern.
+    assert anchor.findall("INDICATOR_FUNCS: dict[str, int] = {}") != []
+    assert isinstance(evaluator.INDICATOR_FUNCS, dict)
+
+
+def test_no_second_value_table_survives_anywhere_in_the_module():
+    """⛔ THE RETIREMENT, FAKED — THE MUTATION THIS TASK OWES.
+
+    A derivation that is still shadowed by hand-written per-address value
+    functions has retired nothing; it has added a third table. So: the module
+    may declare NO function whose name starts with `_value_` other than the
+    builder, and no `_plot_of`. Read as an AST rather than as text so a name
+    inside a comment or a docstring can neither satisfy nor violate it.
+    """
+    tree = _ast.parse(_EVALUATOR_SRC)
+    defined = {n.name for n in _ast.walk(tree)
+               if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef))}
+    leftovers = sorted(n for n in defined
+                       if (n.startswith("_value_") and n != "_value_of")
+                       or n == "_plot_of")
+    assert leftovers == [], (
+        f"{leftovers} are hand-written value functions living beside the "
+        "derivation. `_value_of` composes `_last_non_none` onto the column "
+        "table; a per-address function here is the retired dict growing back "
+        "one row at a time.")
+    # ⛔ NON-VACUITY: the scan really does see this module's functions, and the
+    # names it hunts are ones it WOULD match if they existed.
+    assert "_value_of" in defined and "_last_non_none" in defined
+    assert {n for n in defined if n.startswith("_value")} == {"_value_of"}
+
+
+def test_every_derived_value_is_the_last_non_none_of_its_column():
+    """The derivation, asserted as the definition it claims to be.
+
+    ⚠️ THIS IS DELIBERATELY NOT THE OLD TWIN RAIL. That one compared two
+    hand-written tables and was load-bearing because they could drift; this one
+    is true by construction and says so. What it still catches is a `_value_of`
+    that stopped composing the column — a cache, a snapshot, or an `[-1]`
+    instead of the last NON-NONE element (which differs for every padded column,
+    and for `ichimoku.chikou` differs on EVERY bar).
+    """
+    bars = _ramp_bars(120)
+    for address in evaluator.all_addresses():
+        column = _alert_series.series_for(address, bars, {})
+        expected = None
+        for v in reversed(column):
+            if v is not None:
+                expected = float(v)
+                break
+        got = evaluator.value_function(address)(bars, {})
+        assert got == expected, address
+    # ⛔ NON-VACUITY: `chikou` is the address whose last element is None while
+    # its last non-None value is a real number 26 bars back, so "the last
+    # element" and "the last non-None element" are not the same function here.
+    chikou = _alert_series.series_for("ichimoku.chikou", bars, {})
+    assert chikou[-1] is None
+    assert evaluator.value_function("ichimoku.chikou")(bars, {}) is not None
+
+
+def test_the_column_table_is_read_at_CALL_time_not_captured_at_import():
+    """⛔ THE CONTROL THAT TWO COMMITTED ORACLES DEPEND ON.
+
+    `test_the_replay_fails_when_an_address_is_repointed` and Task 2's fire-log
+    control both re-point a LIVE table entry at runtime. A `_value_of` that
+    captured `SERIES_FUNCS[address]` at import would keep serving the
+    pre-mutation callable — a control that cannot fail, which is the exact
+    defect Task 6 found in `make_forming_evaluate`.
+    """
+    bars = _ramp_bars(80)
+    original = _alert_series.SERIES_FUNCS["rsi"]
+    before = evaluator.value_function("rsi")(bars, {})
+    try:
+        _alert_series.SERIES_FUNCS["rsi"] = lambda b, p: [1.0] * len(b)
+        assert evaluator.value_function("rsi")(bars, {}) == 1.0
+    finally:
+        _alert_series.SERIES_FUNCS["rsi"] = original
+    assert evaluator.value_function("rsi")(bars, {}) == before
+
+
+def test_value_function_consults_every_partition():
+    """⛔ THE ANTI-FORK RAIL, DERIVED FROM THE PARTITION LIST ITSELF.
+
+    Task 6 measured this defect for real: `make_forming_evaluate` resolved
+    through `INDICATOR_FUNCS.get()` while the shipped lane resolved through
+    `value_function()`, so both `sar` EVENT addresses read `(None, False)` in
+    the harness while the live lane fired one 39 times — **and it survived
+    because the anti-fork rail iterated the same dict the bug was in.** A third
+    partition is precisely when that happens again.
+    """
+    for partition in evaluator.ADDRESS_PARTITIONS:
+        assert partition, "an empty partition makes the loop below vacuous"
+        for address in partition:
+            assert evaluator.value_function(address) is partition[address], address
+    # …and an address in no partition resolves to nothing, so this is not just
+    # "returns something for everything".
+    assert evaluator.value_function("rsx") is None
+
+
+# ─── the PRICE address: a LEFT operand at last ───────────────────────────────
+
+def test_price_is_a_LEFT_operand_and_evaluates_on_both_lanes():
+    """🔴 THE THING TASK 11 RECORDED AS STRUCTURALLY BLOCKED.
+
+    `alert_conditions.OPERAND_KINDS` has carried `"close"` since Task 3, but
+    only as a RIGHT-hand operand: you could ask "VWAP crossed below price" and
+    not "price crossed above VWAP", which is the same event and the wrong
+    sentence. An alert's LEFT side is its `indicator` field, i.e. an ADDRESS —
+    so price needed one.
+    """
+    bars = _ramp_bars(60, start=100.0, step=1.0)
+    assert "close" in evaluator.PRICE_FUNCS
+    assert evaluator.value_function("close") is not None
+    assert evaluator.address_value("close", bars, {}) == pytest.approx(bars[-1]["c"])
+    # the closed lane can read it too, aligned to the bars, or an armed `close`
+    # alert would evaluate today and stop dead at Task 8's cutover.
+    column = _alert_series.series_for("close", bars, {})
+    assert len(column) == len(bars)
+    assert column[0] == pytest.approx(bars[0]["c"])
+    # …and it is OFFERED, with the four level conditions.
+    served = {e["indicator"]: e for e in evaluator.alert_catalog()}
+    assert "close" in served
+    assert [c["value"] for c in served["close"]["conditions"]] == [
+        "above", "below", "cross_above", "cross_below"]
+
+
+def test_the_price_address_is_kept_OUT_of_the_frozen_replay_grid():
+    """⛔ WHY IT IS A THIRD PARTITION AND NOT A 29th LEVEL.
+
+    `tools/alert_replay.py::build_alert_grid` generates the frozen 691,195-fire
+    grid by iterating `INDICATOR_FUNCS`. A 29th key there moves every recorded
+    digest — which is why Task 3 put the two `sar` EVENT addresses in their own
+    table, in its own words: *"growing it would have DESTROYED THE INSTRUMENT."*
+    Same reason, same shape, and this is the assertion that stops somebody
+    "tidying" the three partitions back into one.
+    """
+    assert "close" not in evaluator.INDICATOR_FUNCS
+    assert "close" not in evaluator.EVENT_FUNCS
+    assert len(evaluator.INDICATOR_FUNCS) == 28
+    # …and it IS in the catalog, so this is a statement about the INSTRUMENT and
+    # not about an address nobody can reach.
+    assert "close" in evaluator.all_addresses()
+
+
+# ─── spec §8: the alert names its INSTANCE ───────────────────────────────────
+
+def test_two_instances_of_one_definition_are_two_different_alerts():
+    """⭐ SPEC §8, THE HEADLINE. `RSI(7)` and `RSI(14)` are not the same alert.
+
+    They never were — the period has always lived in `params_json` — but nothing
+    on any surface said so, and the popover sent no params at all, so every
+    alert a user could create was on the DEFAULT instance and the two sentences
+    in the spec were literally unrepresentable.
+    """
+    # ⚠️ A ZIGZAG, NOT A RAMP, AND THE FIRST DRAFT OF THIS TEST GOT IT WRONG.
+    # On a monotonically rising series RSI is 100 at EVERY period, so `RSI(7) ==
+    # RSI(14)` — the assertion below would have failed on a tree where params
+    # reach the compute perfectly. The instances have to be separable by the
+    # FIXTURE before they can be separated by the code.
+    bars = _zigzag_bars(90)
+    v7 = evaluator.address_value("rsi", bars, {"period": 7})
+    v14 = evaluator.address_value("rsi", bars, {"period": 14})
+    assert v7 is not None and v14 is not None
+    assert v7 != v14, (
+        "the two instances computed the identical number — `params_json` is not "
+        "reaching the compute, and every alert is on the default instance")
+    # …and the NAME distinguishes them, from one authority, so the row a user
+    # reads cannot describe a different instance from the one that evaluated.
+    assert evaluator.instance_label("rsi", {"period": 7}) == "RSI(7)"
+    assert evaluator.instance_label("rsi", {"period": 14}) == "RSI(14)"
+    assert evaluator.instance_label("rsi") == "RSI(14)"  # the declared default
+
+
+def test_the_instance_label_reads_the_knobs_off_the_compute_not_a_list():
+    """⛔ THE KNOBS ARE DERIVED, OR THIS IS THE RETIRED DICT WEARING A HAT.
+
+    `address_inputs` reads `fn.inputs` off the column function that actually
+    consumes them. A hand-written `{"rsi": ["period"], …}` map would be a new
+    enumeration site on the day the old one retired.
+    """
+    assert _alert_series.address_inputs("rsi") == {"period": 14}
+    assert _alert_series.address_inputs("macd") == {"fast": 12, "slow": 26, "signal": 9}
+    assert _alert_series.address_inputs("price_vs_ma") == {"period": 50, "type": "sma"}
+    # A parameterless address renders bare — "VWAP()" would be noise, and it is
+    # also what every existing surface already shows.
+    for bare in ("vwap", "obv", "bb", "close"):
+        assert _alert_series.address_inputs(bare) == {}
+        assert evaluator.instance_label(bare) == evaluator.ALERT_LABELS[bare]
+    assert evaluator.instance_label("macd", {"fast": 5}) == "MACD(5, 26, 9)"
+    # ⛔ TOTALITY: every address's declared knobs are exactly the ones its column
+    # function consumes, for every address there is — so a compute that gains a
+    # parameter cannot be labelled with the old ones.
+    # ⛔ COMPARED AGAINST THE BASE LABEL, NOT AGAINST "does it contain a
+    # bracket" — `close`'s label is literally "Price (Close)", so the bracket
+    # test reported a parameterless address as parameterised. Measured, not
+    # reasoned: the first draft failed on exactly that address.
+    for address in evaluator.all_addresses():
+        declared = _alert_series.address_inputs(address)
+        base = evaluator.ALERT_LABELS[address]
+        label = evaluator.instance_label(address, None)
+        assert (label != base) is bool(declared), address
+
+
+def test_the_catalog_carries_the_instance_shape_for_every_plot():
+    """The popover cannot offer `RSI(7)` unless it is told `rsi` has a `period`."""
+    for entry in evaluator.alert_catalog():
+        for plot in entry["plots"]:
+            assert "inputs" in plot, plot["value"]
+            assert plot["inputs"] == _alert_series.address_inputs(plot["value"])
+            assert plot["instance_label"] == evaluator.instance_label(plot["value"])
+    # non-vacuity: at least one plot really does declare knobs, and at least one
+    # really declares none — a catalog where every `inputs` were `{}` would pass
+    # every line above and offer no instance anywhere.
+    shapes = {bool(p["inputs"])
+              for e in evaluator.alert_catalog() for p in e["plots"]}
+    assert shapes == {True, False}

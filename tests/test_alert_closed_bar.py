@@ -470,10 +470,16 @@ def test_the_series_table_covers_every_address_and_nothing_else():
     four `dpc` ones rode unpinned for the rule's entire life. A new address in
     `INDICATOR_FUNCS` with no series function is an alert that silently never
     fires on the closed lane — the `vwap` defect, reached from a new direction.
+
+    ⭐ AND SINCE PHASE C TASK 10 IT RUNS THE OTHER WAY TOO, WHICH IS STRONGER.
+    `INDICATOR_FUNCS` is DERIVED from `SERIES_FUNCS` now, so "every address has
+    a series function" is true by construction; what this pins is that the
+    partitioning does not LOSE one — an address dropped from every partition
+    would be a column nothing can address, and the equality catches it from the
+    side that is still hand-written.
     """
-    assert set(alert_series.SERIES_FUNCS) == (
-        set(ev.INDICATOR_FUNCS) | set(ev.EVENT_FUNCS))
-    assert len(alert_series.SERIES_FUNCS) == 30
+    assert set(alert_series.SERIES_FUNCS) == set(ev.all_addresses())
+    assert len(alert_series.SERIES_FUNCS) == 31  # 28 levels + 2 events + close
 
 
 def test_series_for_asserts_its_length_rather_than_trusting_it(wick):
