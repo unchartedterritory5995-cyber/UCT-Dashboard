@@ -2816,6 +2816,40 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
 
+        # Breadth live -- rebuild the day's reference levels BEFORE the open.
+        #
+        # Levels are cached per session day, keyed on the last completed
+        # session. The boot warm covers a deploy, but the pod does not reboot
+        # overnight, so at 09:30 the key rolls to yesterday's date and the cache
+        # misses. Deriving levels reads ~1M daily bars -- seconds of blocking
+        # SQLite and numpy -- and without this the FIRST person to open Breadth
+        # after the bell pays it, at the busiest moment of the day. The
+        # herd-collapse lock means the rest queue behind them rather than each
+        # paying it, which is better and still not good.
+        #
+        # 09:05 ET: after the prior session is settled in bars.db, comfortably
+        # before the open. Mirrors the RS-rankings warmer, which re-warms under
+        # its own TTL for the same reason.
+        try:
+            def _breadth_live_daily_warm():
+                try:
+                    from api.services.breadth_live import warm
+                    logging.getLogger(__name__).info(
+                        "[breadth-live] pre-open warm %s", warm())
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[breadth-live] pre-open warm failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_live_daily_warm,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=_ET),
+                id="breadth_live_preopen_warm", max_instances=1, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth-live pre-open warm scheduled (weekdays 9:05 ET)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth-live pre-open warm")
+
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the
         # web pod (auth.db is web-local). Bounded async concurrency inside the
