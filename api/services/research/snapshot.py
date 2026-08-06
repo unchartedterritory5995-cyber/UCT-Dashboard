@@ -20,6 +20,7 @@ import logging
 import threading
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services import fundamentals_snapshot_store as snap_store
 from api.services.fundamentals import get_fundamentals
 from api.services.research.ratings import get_ratings
@@ -27,6 +28,8 @@ from api.services.research.ratings import get_ratings
 _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 1800  # 30 min — matches the fundamentals envelope
+_FAIL_TTL = 300    # 5 min — an all-null composition self-heals fast instead of
+                   # hiding a lower-level service's own (much shorter) recovery
 _SNAP_KIND = "research_snapshot"
 _STALE_SERVE_MAX = 2 * 86400   # serve an expired snapshot up to 2 days old while refreshing
 
@@ -161,11 +164,17 @@ def _build_snapshot(sym: str) -> dict:
         "analyst_count": fund.get("analyst_count"),
     }
 
-    cache.set(ck, out, _CACHE_TTL)
-    # Persist only when something actually resolved — a transient all-null
-    # composition must not become days of stale-served blanks.
-    if out["composite"] is not None or out["name"] != sym or any(
+    # `complete` gates BOTH the memory cache write and the disk persist — a
+    # transient all-null composition (both `get_fundamentals`/`get_ratings`
+    # failed) used to still get the full 30-min memory TTL even though the
+    # persist below was already correctly guarded against it, which meant a
+    # request landing seconds after the blip would see a needlessly stale
+    # blank instead of retrying quickly.
+    complete = out["composite"] is not None or out["name"] != sym or any(
         v is not None for v in out["metrics"].values()
-    ):
-        snap_store.put(_SNAP_KIND, sym, out, _CACHE_TTL)
+    )
+    set_by_completeness(
+        ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL,
+        persist=lambda v: snap_store.put(_SNAP_KIND, sym, v, _CACHE_TTL),
+    )
     return out

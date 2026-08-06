@@ -8,13 +8,17 @@ checklist, computed on-demand per ticker from data we already fetch
 **v1 scoring is threshold-calibrated (absolute), not universe-percentile.**
 The design's nightly cap_universe percentile job + peer-rank is a future
 optimization; this ships a working, useful Ratings tab now. Scores map metric
-values to 0-99 via hand-calibrated bands documented inline. Cached 12h.
+values to 0-99 via hand-calibrated bands documented inline. Cached 12h -- but
+only when the three underlying fetches (fundamentals, ownership, price
+history) all resolved without raising; a leg that failed shortens the TTL
+instead of pinning a partial composite for half a day.
 """
 from __future__ import annotations
 
 import logging
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.fundamentals import get_fundamentals
 from api.services.research.ownership import get_ownership
 from api.services.research import ratings_db
@@ -22,7 +26,8 @@ from api.services.yfinance_pool import fetch_history
 
 _logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 43_200  # 12h
+_CACHE_TTL = 43_200  # 12h -- only when every leg resolved
+_FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
 _METHOD_ABSOLUTE = "Threshold-calibrated v1 — absolute scoring; universe-percentile ranking is a future enhancement."
 
 
@@ -234,19 +239,29 @@ def get_ratings(sym):
         return cached
 
     fund = {}
+    fund_ok = True
     try:
         fund = get_fundamentals(sym) or {}
+        if isinstance(fund, dict) and "error" in fund:
+            # get_fundamentals never raises -- a failure surfaces as an
+            # {"error": ...} dict instead. That IS a failed leg here.
+            fund_ok = False
+            fund = {}
     except Exception as exc:
+        fund_ok = False
         _logger.warning("ratings: fundamentals failed for %s: %s", sym, exc)
 
     own = {}
+    own_ok = True
     try:
         own = get_ownership(sym) or {}
     except Exception as exc:
+        own_ok = False
         _logger.warning("ratings: ownership failed for %s: %s", sym, exc)
 
     closes = vols = None
     last_close = None
+    hist_ok = True
     try:
         df = fetch_history(sym, period="1y")
         if df is not None and not getattr(df, "empty", True):
@@ -254,6 +269,7 @@ def get_ratings(sym):
             vols = list(df["Volume"])
             last_close = closes[-1] if closes else None
     except Exception as exc:
+        hist_ok = False
         _logger.warning("ratings: history failed for %s: %s", sym, exc)
 
     # ── Phase 2: rank against the nightly universe distributions when available,
@@ -340,5 +356,6 @@ def get_ratings(sym):
         "group_rs": group_rs,          # RS percentile within sector (1-99)
         "group_sector_n": group_sector_n,  # # names in the sector pool
     }
-    cache.set(ck, out, _CACHE_TTL)
+    complete = fund_ok and own_ok and hist_ok
+    set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

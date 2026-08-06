@@ -1,7 +1,9 @@
 import io
 import os
+import time
 from unittest import mock
 
+import requests
 from PIL import Image
 
 from api.services import ticker_logos as tl
@@ -189,6 +191,154 @@ def test_prewarm_router_misses_param():
     assert r.json()["mode"] == "miss_retry"
     miss_fn.assert_called_once()
     full_fn.assert_not_called()
+
+
+# ── transient vs. genuine miss (2026-08-05 cache-poison sweep) ────────────────
+# A source that answers cleanly with "not found" (404, empty body) is a
+# genuine verdict and keeps the full 7-day retry window. A source that never
+# gets a clean answer at all (timeout/connection-error/429/5xx) is a provider
+# hiccup, not a verdict, and must retry within minutes instead of a week.
+
+class TestTransientTracking:
+    def setup_method(self):
+        tl._reset_transient()
+
+    def test_url_bytes_marks_transient_on_timeout(self):
+        with mock.patch("requests.get", side_effect=requests.exceptions.Timeout("boom")):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is True
+
+    def test_url_bytes_marks_transient_on_connection_error(self):
+        with mock.patch("requests.get",
+                        side_effect=requests.exceptions.ConnectionError("dns fail")):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is True
+
+    def test_url_bytes_marks_transient_on_429(self):
+        class _Resp:
+            ok = False
+            status_code = 429
+            content = b""
+        with mock.patch("requests.get", return_value=_Resp()):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is True
+
+    def test_url_bytes_marks_transient_on_5xx(self):
+        class _Resp:
+            ok = False
+            status_code = 503
+            content = b""
+        with mock.patch("requests.get", return_value=_Resp()):
+            tl._url_bytes("https://example.com/logo.png")
+        assert tl._was_transient() is True
+
+    def test_url_bytes_does_not_mark_transient_on_clean_404(self):
+        """A clean 404 is a real answer, not a hiccup -- must NOT flip the
+        transient flag (otherwise every genuine miss would get the short TTL
+        and the miss-retry pass would just hammer providers all day)."""
+        class _Resp:
+            ok = False
+            status_code = 404
+            content = b""
+        with mock.patch("requests.get", return_value=_Resp()):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is False
+
+    def test_finnhub_logo_bytes_marks_transient_on_timeout(self):
+        with mock.patch("api.services.finnhub_client.fh_get",
+                        side_effect=requests.exceptions.Timeout("boom")):
+            out = tl._finnhub_logo_bytes("AAPL")
+        assert out is None
+        assert tl._was_transient() is True
+
+
+class TestResolveAndCacheMissClassification:
+    def test_writes_transient_marker_on_provider_hiccup(self, tmp_path):
+        """THE regression: before this fix, a Timeout/429/5xx during
+        resolution wrote the EXACT SAME empty .miss sentinel as a genuine
+        "no logo anywhere" verdict -- pinning a monogram for the full 7-day
+        TTL even though the provider recovered within minutes."""
+        def _fake_fetch(s):
+            tl._mark_transient()
+            return None
+        with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
+             mock.patch.object(tl, "_fetch_sources", side_effect=_fake_fetch):
+            out = tl.resolve_and_cache("ZZZZ")
+        assert out is None
+        miss_path = os.path.join(str(tmp_path), "ZZZZ.miss")
+        assert os.path.exists(miss_path)
+        with open(miss_path) as f:
+            assert f.read().strip() == tl._MISS_TRANSIENT_MARKER
+
+    def test_writes_plain_miss_on_genuine_absence(self, tmp_path):
+        """Control direction: a clean 'nothing found anywhere, no errors'
+        result still writes the original plain (7-day) sentinel."""
+        with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
+             mock.patch.object(tl, "_fetch_sources", return_value=None):
+            out = tl.resolve_and_cache("YYYY")
+        assert out is None
+        miss_path = os.path.join(str(tmp_path), "YYYY.miss")
+        assert os.path.exists(miss_path)
+        with open(miss_path) as f:
+            assert f.read().strip() == ""
+
+    def test_transient_flag_reset_between_calls(self, tmp_path):
+        """A stale transient flag from a PRIOR resolve on the same thread must
+        not leak into a later, cleanly-404ing call and mislabel it."""
+        calls = {"n": 0}
+
+        def _fake_fetch(s):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                tl._mark_transient()
+            return None
+
+        with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
+             mock.patch.object(tl, "_fetch_sources", side_effect=_fake_fetch):
+            tl.resolve_and_cache("FIRST")
+            tl.resolve_and_cache("SECOND")
+
+        with open(os.path.join(str(tmp_path), "SECOND.miss")) as f:
+            assert f.read().strip() == ""  # not "transient" leaked from FIRST
+
+
+class TestRecentMissTtlSplit:
+    def test_transient_miss_expires_after_the_short_ttl(self, tmp_path, monkeypatch):
+        """THE regression: `_recent_miss` used to apply the 7-day `_MISS_TTL`
+        uniformly regardless of WHY the miss happened. A transient-marked
+        file aged just past the short TTL (but nowhere near 7 days) must
+        already read as retryable."""
+        monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+        miss_path = os.path.join(str(tmp_path), "ZZZZ.miss")
+        with open(miss_path, "w") as f:
+            f.write(tl._MISS_TRANSIENT_MARKER)
+        past = time.time() - (tl._MISS_TRANSIENT_TTL + 60)
+        os.utime(miss_path, (past, past))
+        assert tl._recent_miss("ZZZZ") is False
+
+    def test_genuine_miss_stays_recent_at_the_same_age(self, tmp_path, monkeypatch):
+        """Control direction: a PLAIN (genuine) miss file at the identical age
+        is still well inside its 7-day window."""
+        monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+        miss_path = os.path.join(str(tmp_path), "YYYY.miss")
+        with open(miss_path, "w"):
+            pass
+        past = time.time() - (tl._MISS_TRANSIENT_TTL + 60)
+        os.utime(miss_path, (past, past))
+        assert tl._recent_miss("YYYY") is True
+
+    def test_genuine_miss_expires_after_seven_days(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+        miss_path = os.path.join(str(tmp_path), "YYYY.miss")
+        with open(miss_path, "w"):
+            pass
+        past = time.time() - (tl._MISS_TTL + 60)
+        os.utime(miss_path, (past, past))
+        assert tl._recent_miss("YYYY") is False
 
 
 def test_run_hires_upgrade_recaches_existing(tmp_path, monkeypatch):

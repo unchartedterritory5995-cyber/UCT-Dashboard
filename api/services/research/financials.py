@@ -6,7 +6,16 @@ bounded yfinance pool. Summary balance-sheet + profitability metrics reuse
 the existing ``get_fundamentals`` service. No dependency on the untested FMP
 ``stable/*-statement`` endpoints — those can layer in later as an enhancement.
 
-Cached 48h via the shared in-memory cache singleton.
+Cached 48h via the shared in-memory cache singleton -- but ONLY when every leg
+(annual statement, quarterly statement, fundamentals summary) actually
+resolved. A leg that failed (yfinance pool timeout/exception) gets the whole
+payload cached at the short `_FAIL_TTL` instead, so a transient yfinance blip
+self-heals in minutes rather than leaving the Financials tab blank for two
+days (the original bug: a single 12s pool timeout poisoned the 48h cache with
+an all-empty payload -- see `test_research_financials.py`). A ticker that
+genuinely has, say, no quarterly statement is NOT the same as a failure: the
+completeness check below distinguishes "the fetch raised" from "the fetch
+succeeded and returned nothing," and only the former is a failure.
 """
 from __future__ import annotations
 
@@ -14,12 +23,14 @@ import logging
 import math
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.fundamentals import get_fundamentals
 from api.services.yfinance_pool import run_in_pool
 
 _logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 172_800  # 48h
+_CACHE_TTL = 172_800  # 48h -- only for a COMPLETE fetch (every leg resolved)
+_FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
 
 # yfinance income-statement row labels vary; try each in order.
 _REVENUE = ["Total Revenue", "TotalRevenue", "Operating Revenue", "OperatingRevenue"]
@@ -114,15 +125,20 @@ def _income_grid(df, n, quarterly):
 
 
 def _fetch_income(sym, quarterly):
+    """Return (df_or_None, ok). ``ok`` is False ONLY when the pool call itself
+    raised (timeout or any yfinance error) -- a genuine provider failure. A
+    successful call that returns an empty/short DataFrame (a young company
+    with fewer than 5 years of statements, say) is `ok=True` -- that is real
+    data, not a failure, and must not shorten the cache TTL."""
     def _do():
         import yfinance as yf
         t = yf.Ticker(sym)
         return t.quarterly_income_stmt if quarterly else t.income_stmt
     try:
-        return run_in_pool(_do, timeout=12)
+        return run_in_pool(_do, timeout=12), True
     except Exception as exc:  # TimeoutError or any yfinance error → no data
         _logger.warning("yf income stmt failed for %s (q=%s): %s", sym, quarterly, exc)
-        return None
+        return None, False
 
 
 def get_financials(sym):
@@ -135,13 +151,23 @@ def get_financials(sym):
     if cached is not None:
         return cached
 
-    annual = _income_grid(_fetch_income(sym, False), 5, False)
-    quarterly = _income_grid(_fetch_income(sym, True), 8, True)
+    annual_df, annual_ok = _fetch_income(sym, False)
+    quarterly_df, quarterly_ok = _fetch_income(sym, True)
+    annual = _income_grid(annual_df, 5, False)
+    quarterly = _income_grid(quarterly_df, 8, True)
 
     fund = {}
+    fund_ok = True
     try:
         fund = get_fundamentals(sym) or {}
+        if isinstance(fund, dict) and "error" in fund:
+            # get_fundamentals never raises -- it negative-caches its own
+            # failures into an {"error": ...} dict instead. That IS a failed
+            # leg from this module's point of view.
+            fund_ok = False
+            fund = {}
     except Exception as exc:
+        fund_ok = False
         _logger.warning("get_fundamentals failed for %s: %s", sym, exc)
 
     out = {
@@ -163,5 +189,6 @@ def get_financials(sym):
             "net_margin": fund.get("profit_margin_pct"),
         },
     }
-    cache.set(ck, out, _CACHE_TTL)
+    complete = annual_ok and quarterly_ok and fund_ok
+    set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

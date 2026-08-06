@@ -3,7 +3,12 @@ float, and insider activity.
 
 Institutional + short/float come from yfinance (info + institutional_holders)
 via the bounded pool; insider activity reuses the existing Finnhub-backed
-``get_insider_activity`` service. Cached 12h.
+``get_insider_activity`` service. Cached 12h -- but only when the two HARD
+provider legs (the yfinance pull, the insider feed) resolved without raising.
+A 13F filing genuinely not existing for a ticker (most small/mid caps) or an
+insider feed that legitimately has nothing recent are NOT failures -- only an
+exception from the underlying fetch is treated as one, so a quiet ticker
+doesn't get needlessly refetched every few minutes.
 """
 from __future__ import annotations
 
@@ -13,12 +18,14 @@ import math
 
 from api.services import earnings_estimates as ee
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.insider import get_insider_activity
 from api.services.yfinance_pool import run_in_pool
 
 _logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 43_200  # 12h
+_CACHE_TTL = 43_200  # 12h -- only when both hard legs resolved
+_FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
 _TF_MAX_HOLDERS = 12   # top institutional holders to surface
 
 
@@ -158,6 +165,10 @@ def _thirteen_f(symbol):
 
 
 def _fetch_yf(sym):
+    """Returns {} ONLY when the pool call itself raised -- callers use that
+    as the "did this leg actually fail" signal (`bool(raw)` is False only on
+    a genuine provider exception; a successful call always returns a dict,
+    even one whose values are individually None/empty)."""
     def _do():
         import yfinance as yf
         t = yf.Ticker(sym)
@@ -179,18 +190,27 @@ def get_ownership(sym):
     if cached is not None:
         return cached
 
-    raw = _fetch_yf(sym) or {}
+    raw = _fetch_yf(sym)
+    yf_ok = bool(raw)          # {} means _fetch_yf's exception path fired
+    raw = raw or {}
     info = raw.get("info") or {}
 
     insider = []
+    insider_ok = True
     try:
         insider = (get_insider_activity(sym) or [])[:10]
     except Exception as exc:
+        insider_ok = False
         _logger.warning("insider activity failed for %s: %s", sym, exc)
 
     try:
         thirteen_f = _thirteen_f(sym)
     except Exception as exc:
+        # _thirteen_f already swallows its own per-endpoint failures
+        # internally and returns None for "no 13F filed" too (common and
+        # legitimate for most non-mega-caps) -- this outer except is a
+        # defensive backstop, not a completeness signal, so it does not
+        # factor into `complete` below.
         _logger.warning("13F ownership failed for %s: %s", sym, exc)
         thirteen_f = None
 
@@ -201,5 +221,6 @@ def get_ownership(sym):
         "insider": insider,
         "thirteen_f": thirteen_f,
     }
-    cache.set(ck, out, _CACHE_TTL)
+    complete = yf_ok and insider_ok
+    set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

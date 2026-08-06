@@ -60,21 +60,41 @@ class TestIncomeGrid:
         assert fin._income_grid(pd.DataFrame(), 5, False) == []
 
 
+class TestFetchIncome:
+    def test_success_returns_df_and_ok_true(self, monkeypatch):
+        df = _income_df([("2024-12-31", {"Total Revenue": 1.0})])
+        monkeypatch.setattr(fin, "run_in_pool", lambda fn, timeout=None: df)
+        out_df, ok = fin._fetch_income("TEST", False)
+        assert ok is True
+        assert out_df is df
+
+    def test_exception_returns_none_and_ok_false(self, monkeypatch):
+        def _boom(fn, timeout=None):
+            raise TimeoutError("yfinance pool timeout")
+        monkeypatch.setattr(fin, "run_in_pool", _boom)
+        out_df, ok = fin._fetch_income("TEST", False)
+        assert out_df is None
+        assert ok is False
+
+
 class TestGetFinancials:
     def setup_method(self):
         cache.invalidate("research_fin::TEST")
+
+    def _fund_ok(self):
+        return {
+            "total_cash": "$50.0B", "total_debt": "$100.0B", "debt_to_equity": 1.5,
+            "current_ratio": 1.1, "free_cash_flow": "$90.0B",
+            "roe_pct": 120.0, "roa_pct": 25.0, "gross_margin_pct": 40.0,
+            "operating_margin_pct": 30.0, "profit_margin_pct": 25.0,
+        }
 
     def test_shape_and_cache(self, monkeypatch):
         df = _income_df([
             ("2024-12-31", {"Total Revenue": 1000.0, "Gross Profit": 400.0, "Operating Income": 300.0, "Net Income": 250.0, "Diluted EPS": 6.0}),
         ])
-        monkeypatch.setattr(fin, "_fetch_income", lambda sym, q: df)
-        monkeypatch.setattr(fin, "get_fundamentals", lambda sym: {
-            "total_cash": "$50.0B", "total_debt": "$100.0B", "debt_to_equity": 1.5,
-            "current_ratio": 1.1, "free_cash_flow": "$90.0B",
-            "roe_pct": 120.0, "roa_pct": 25.0, "gross_margin_pct": 40.0,
-            "operating_margin_pct": 30.0, "profit_margin_pct": 25.0,
-        })
+        monkeypatch.setattr(fin, "_fetch_income", lambda sym, q: (df, True))
+        monkeypatch.setattr(fin, "get_fundamentals", lambda sym: self._fund_ok())
         out = fin.get_financials("test")
         assert out["sym"] == "TEST"
         assert out["annual"][0]["gross_margin"] == 40.0
@@ -82,6 +102,72 @@ class TestGetFinancials:
         assert out["metrics"]["roe"] == 120.0
         # cached now
         assert cache.get("research_fin::TEST") is not None
+
+    def _captured_ttl(self, monkeypatch, *, fetch_income, get_fundamentals):
+        seen = {}
+        real_set = cache.set
+
+        def spy(key, value, ttl=None):
+            if key == "research_fin::TEST":
+                seen["ttl"] = ttl
+            return real_set(key, value, ttl)
+
+        monkeypatch.setattr(fin, "_fetch_income", fetch_income)
+        monkeypatch.setattr(fin, "get_fundamentals", get_fundamentals)
+        monkeypatch.setattr(cache, "set", spy)
+        out = fin.get_financials("test")
+        return out, seen.get("ttl")
+
+    def test_a_complete_fetch_is_cached_for_the_full_48h_ttl(self, monkeypatch):
+        df = _income_df([("2024-12-31", {"Total Revenue": 1000.0})])
+        out, ttl = self._captured_ttl(
+            monkeypatch,
+            fetch_income=lambda sym, q: (df, True),
+            get_fundamentals=lambda sym: self._fund_ok(),
+        )
+        assert out["annual"] and out["balance"]["debt_to_equity"] == 1.5
+        assert ttl == fin._CACHE_TTL          # 48h correct ONLY when nothing failed
+
+    def test_annual_fetch_timeout_gets_the_short_fail_ttl_not_48h(self, monkeypatch):
+        """THE regression this fixes: a single 12s yfinance pool timeout on the
+        ANNUAL leg used to poison the whole Financials tab -- including the
+        quarterly grid and the fundamentals summary that both resolved fine --
+        for a full 48 hours. It must self-heal in minutes instead."""
+        qdf = _income_df([("2024-12-31", {"Total Revenue": 500.0})])
+        out, ttl = self._captured_ttl(
+            monkeypatch,
+            fetch_income=lambda sym, q: (None, False) if not q else (qdf, True),
+            get_fundamentals=lambda sym: self._fund_ok(),
+        )
+        # the quarterly leg that DID resolve is still served, not thrown away
+        assert out["quarterly"]
+        assert out["annual"] == []
+        assert ttl == fin._FAIL_TTL
+        assert ttl < fin._CACHE_TTL
+
+    def test_fundamentals_failure_also_shortens_the_ttl(self, monkeypatch):
+        df = _income_df([("2024-12-31", {"Total Revenue": 1000.0})])
+        out, ttl = self._captured_ttl(
+            monkeypatch,
+            fetch_income=lambda sym, q: (df, True),
+            get_fundamentals=lambda sym: {"error": "yfinance failed", "ticker": "TEST"},
+        )
+        assert out["annual"]                  # good legs still served
+        assert out["balance"]["debt_to_equity"] is None
+        assert ttl == fin._FAIL_TTL
+
+    def test_a_ticker_with_genuinely_no_quarterly_history_is_not_a_failure(self, monkeypatch):
+        """An empty-but-successfully-returned DataFrame (fetch did not raise)
+        is legitimate emptiness, not a provider failure -- must still get the
+        full 48h TTL."""
+        adf = _income_df([("2024-12-31", {"Total Revenue": 1000.0})])
+        out, ttl = self._captured_ttl(
+            monkeypatch,
+            fetch_income=lambda sym, q: (adf, True) if not q else (pd.DataFrame(), True),
+            get_fundamentals=lambda sym: self._fund_ok(),
+        )
+        assert out["quarterly"] == []
+        assert ttl == fin._CACHE_TTL
 
 
 class TestRoute:
