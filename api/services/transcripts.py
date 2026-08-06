@@ -1,11 +1,34 @@
-"""Earnings call transcript service — Finnhub fetch + Claude AI summarization.
+"""Earnings call transcript service — FMP/Finnhub fetch + Claude AI summarization.
 
-Two-step flow:
-  1. Finnhub /stock/earnings-transcripts/list → get transcript IDs
-  2. Finnhub /stock/earnings-transcripts?id={id} → full transcript text
-  3. Claude Haiku summarization → structured bullets + sentiment
+FMP `stable/earning-call-transcript(-dates)` PRIMARY (2026-08-05), Finnhub
+`/stock/transcripts*` fallback:
+  1. FMP   stable/earning-call-transcript-dates → newest (year, quarter)
+     FMP   stable/earning-call-transcript?symbol=&year=&quarter= → full text
+  1b. Finnhub /stock/transcripts/list → transcript IDs (fallback leg)
+      Finnhub /stock/transcripts?id={id} → full transcript text
+  2. Claude Haiku/Sonnet summarization → structured bullets + sentiment
 
 Cache: 24h on success, 1h on miss.
+
+── 2026-08-05: FMP promoted to primary ──────────────────────────────────────
+Live probe (three rounds, 10s apart): Finnhub `/stock/transcripts/list`
+returned **403 on every call** — this Finnhub plan does not carry the
+endpoint, not a throttle. The EarningsModal transcript section has therefore
+been permanently hidden for every user (CLAUDE.md documented this as
+"Requires Finnhub premium — section hides when unavailable").
+
+FMP `stable/earning-call-transcript-dates` + `stable/earning-call-transcript`
+(already paid FMP Ultimate, verified 200 with real content — 84 quarters for
+AAPL, full body for the latest) are now tried first. Finnhub stays as an
+explicit fallback (costs nothing once FMP succeeds — fh_get short-circuits
+the cached 403 for 24h — and is the safety net if FMP has an outage).
+
+The FMP call plumbing (auth, bounded timeout, error handling) is NOT
+duplicated here — it's delegated to api.services.fmp_transcripts' private
+helpers (`_available` / `_fetch`), which already implement the same two-leg
+fetch for the separate verbatim-transcript feature (earnings_intel.py). This
+module wants FMP's single joined `content` string instead of that module's
+speaker-segmented shape, so it calls the raw fetch, not `get_transcript()`.
 """
 
 from __future__ import annotations
@@ -24,15 +47,59 @@ _HEAD_CHARS                = 3_000    # CEO/CFO prepared remarks
 _TAIL_CHARS                = 4_000    # analyst Q&A section
 
 
-def _fetch_latest_transcript(symbol: str) -> dict | None:
-    """Fetch the most recent earnings call transcript from Finnhub.
+def _smart_truncate(full_text: str) -> str:
+    """Keep CEO/CFO remarks (head) + analyst Q&A (tail); drop the middle on
+    long transcripts. Same 3K/4K boundaries for both the FMP and Finnhub
+    legs — unchanged by the 2026-08-05 provider migration."""
+    if len(full_text) > _MAX_TRANSCRIPT_CHARS:
+        head = full_text[:_HEAD_CHARS]
+        tail = full_text[-_TAIL_CHARS:]
+        return (
+            f"{head}\n\n"
+            f"[... transcript truncated — {len(full_text):,} chars total ...]\n\n"
+            f"{tail}"
+        )
+    return full_text
 
-    Both legs route through the shared api.services.finnhub_client.fh_get
-    (2026-08-05) so they share the process-wide token bucket / 429 cooldown
-    with every other Finnhub caller instead of spending the same account
-    budget uncoordinated.
 
-    Returns {text, quarter, year, title} or None if unavailable.
+def _fetch_latest_transcript_fmp(symbol: str) -> dict | None:
+    """FMP leg — stable/earning-call-transcript-dates → newest (year,
+    quarter) → stable/earning-call-transcript for the full `content` string.
+
+    Builds `text` from FMP's single pre-joined `content` string, NOT from a
+    speaker-`parts` list (that was Finnhub's shape) — there is nothing to
+    concatenate here.
+    """
+    from api.services import fmp_transcripts
+
+    avail = fmp_transcripts._available(symbol)
+    if not avail:
+        return None
+    year, quarter = avail[0]  # _available returns [(fiscalYear, quarter), ...] newest-first
+
+    row = fmp_transcripts._fetch(symbol, year, quarter)
+    content = row.get("content") if isinstance(row, dict) else None
+    full_text = (content or "").strip()
+    if not full_text:
+        return None
+
+    return {
+        "text":    _smart_truncate(full_text),
+        "quarter": quarter,
+        "year":    year,
+        "title":   f"{symbol.upper()} Q{quarter} {year}",
+    }
+
+
+def _fetch_latest_transcript_finnhub(symbol: str) -> dict | None:
+    """Fallback leg — Finnhub /stock/transcripts/list + /stock/transcripts.
+    403s on this plan as of 2026-08-05; kept because fh_get short-circuits
+    the cached 403 for 24h (costs nothing once FMP succeeds) and is the
+    safety net if FMP has an outage.
+
+    Routed through the shared api.services.finnhub_client.fh_get so both
+    legs share the process-wide token bucket / 429 cooldown with every other
+    Finnhub caller instead of spending the same process budget uncoordinated.
     """
     from api.services.finnhub_client import fh_get
 
@@ -77,22 +144,29 @@ def _fetch_latest_transcript(symbol: str) -> dict | None:
     if not full_text.strip():
         return None
 
-    # Smart truncation: keep CEO/CFO remarks (head) + analyst Q&A (tail)
-    if len(full_text) > _MAX_TRANSCRIPT_CHARS:
-        head = full_text[:_HEAD_CHARS]
-        tail = full_text[-_TAIL_CHARS:]
-        full_text = (
-            f"{head}\n\n"
-            f"[... transcript truncated — {len(full_text):,} chars total ...]\n\n"
-            f"{tail}"
-        )
-
     return {
-        "text":    full_text,
+        "text":    _smart_truncate(full_text),
         "quarter": latest.get("quarter") or detail.get("quarter"),
         "year":    latest.get("year") or detail.get("year"),
         "title":   latest.get("title", ""),
     }
+
+
+def _fetch_latest_transcript(symbol: str) -> dict | None:
+    """Fetch the most recent earnings call transcript. FMP primary, Finnhub
+    fallback — see module docstring "2026-08-05: FMP promoted to primary".
+
+    Returns {text, quarter, year, title} or None if unavailable.
+    """
+    try:
+        fmp_result = _fetch_latest_transcript_fmp(symbol)
+    except Exception as exc:
+        _logger.warning("FMP transcript fetch failed for %s: %s", symbol, exc)
+        fmp_result = None
+    if fmp_result is not None:
+        return fmp_result
+
+    return _fetch_latest_transcript_finnhub(symbol)
 
 
 def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int | None) -> dict | None:
@@ -177,7 +251,7 @@ def get_transcript_summary(symbol: str) -> dict | None:
     if cached is not None:
         return cached
 
-    # Fetch transcript from Finnhub
+    # Fetch transcript (FMP primary, Finnhub fallback)
     transcript = _fetch_latest_transcript(symbol)
     if not transcript:
         # No transcript available — cache negative result for 1h
