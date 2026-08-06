@@ -183,7 +183,7 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
 
         metrics = {}
         try:
-            metrics = get_day_metrics(date=ds) or {}
+            metrics = get_day_metrics(date_str=ds) or {}
         except Exception as exc:                       # noqa: BLE001
             _logger.warning("[week-post] day-metrics failed for %s: %s", ds, exc)
 

@@ -65,7 +65,7 @@ def _rank(weeks: int, *, reported: bool, tracked: set) -> list[dict]:
         for ds, day in (payload.get("days") or {}).items():
             metrics = {}
             try:
-                metrics = get_day_metrics(date=ds) or {}
+                metrics = get_day_metrics(date_str=ds) or {}
             except Exception:
                 pass
             for bucket in ("bmo", "amc", "tbd"):

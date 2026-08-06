@@ -17,9 +17,30 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+import math
 from typing import Optional
 
 _logger = logging.getLogger(__name__)
+
+
+def _finite_pct(v: float | None) -> float | None:
+    """`None`-safe AND `NaN`-safe percent, rounded to 1 decimal.
+
+    A yfinance daily `Close` can be `NaN` around a data gap / split-adjustment
+    edge (confirmed live for UBER); dividing through it yields `float('nan')`,
+    which passes an `is not None` check (`nan is not None` is `True` — the
+    Python-side sibling of this codebase's `Number(null) === 0` JS trap) and
+    then breaks stdlib `json.dumps`, which raises `ValueError: Out of range
+    float values are not JSON compliant: nan` — 500ing the WHOLE
+    /api/earnings-analysis/{sym} response, not just this one field."""
+    if v is None:
+        return None
+    try:
+        if math.isnan(v) or math.isinf(v):
+            return None
+    except TypeError:
+        return None
+    return round(v, 1)
 
 
 # ─── 1. Pre-earnings price-action context ──────────────────────────────────────
@@ -38,14 +59,19 @@ def get_pre_earnings_context(sym: str) -> Optional[dict]:
         last = float(closes.iloc[-1])
         ret_5d = ((last / float(closes.iloc[-6])) - 1) * 100 if len(closes) >= 6 else None
         ret_30d = ((last / float(closes.iloc[-22])) - 1) * 100 if len(closes) >= 22 else None
+        # Sanitize BEFORE building the label too — an unsanitized NaN still
+        # compares False in `nan >= 0` (no exception), so the label would
+        # silently read "nan% / 5d" for a real user instead of omitting it.
+        ret_5d = _finite_pct(ret_5d)
+        ret_30d = _finite_pct(ret_30d)
         parts = []
         if ret_30d is not None:
             parts.append(f"{'+' if ret_30d >= 0 else ''}{ret_30d:.1f}% / 30d")
         if ret_5d is not None:
             parts.append(f"{'+' if ret_5d >= 0 else ''}{ret_5d:.1f}% / 5d")
         return {
-            "ret_5d_pct":  round(ret_5d, 1) if ret_5d is not None else None,
-            "ret_30d_pct": round(ret_30d, 1) if ret_30d is not None else None,
+            "ret_5d_pct":  ret_5d,
+            "ret_30d_pct": ret_30d,
             "label":       " · ".join(parts) if parts else None,
         }
     except Exception as e:
