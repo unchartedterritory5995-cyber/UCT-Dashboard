@@ -5,14 +5,21 @@ Covers:
      Step 1 — six cases).
   2. Two end-to-end ``_evaluate_one`` tests with mocked bars that exercise the
      RSI compute → condition match path.
+  3. The served catalog (B4 Task 9) and, since B5, the PLOT ADDRESSING scheme
+     plus the recorded proof that the eight pre-B5 addresses did not move.
 """
 
 from __future__ import annotations
+
+import json
+import pathlib
 
 import pytest
 
 from api.services import indicator_alert_evaluator as evaluator
 from api.services.indicator_alert_evaluator import check_condition
+
+_FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 
 
 # ─── pure condition tests (plan Task 3 Step 1) ───────────────────────────────
@@ -363,3 +370,121 @@ def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
         "the two dicts fell into the same order — 'which one is iterated' just "
         "became unobservable, and the mutation that swaps them is now equivalent"
     )
+
+
+# ─── B5: THE EIGHT PRE-B5 ADDRESSES DID NOT MOVE ─────────────────────────────
+#
+# B5 widened `INDICATOR_FUNCS` from 8 keys to a set of PLOT ADDRESSES so the
+# seven engine definitions that could never be alerted on (vwap, atr, sar,
+# ichimoku, adx, obv, donchian) became reachable. The gate on that work is that
+# an alert a user armed BEFORE the change fires exactly when it fired before.
+#
+# ⛔ AN IDENTITY CHECK IS NOT THAT PROOF. `INDICATOR_FUNCS['rsi'] is _value_rsi`
+# stays green through a change to `indicator_compute`'s delivery rounding, to a
+# helper both lanes share, or to `_evaluate_one`'s threshold plumbing — all of
+# which move the NUMBER a user's threshold is compared against. So the numbers
+# themselves are the oracle: `tests/fixtures/indicator_alert_baseline.json` was
+# recorded by `tests/fixtures/_gen_alert_baseline.py` from the tree as it stood
+# BEFORE the change, and this replays every row.
+#
+# ⚠️ EXACT EQUALITY, NEVER approx. Half a unit in the last place is precisely
+# what flips a comparison at a boundary, which is the regression this exists to
+# catch; a tolerance here would wave through the one defect it is aimed at.
+
+def _load_alert_baseline() -> dict:
+    path = _FIXTURES / "indicator_alert_baseline.json"
+    assert path.exists(), (
+        "the pre-B5 alert baseline is missing. It cannot be regenerated from the "
+        "current tree — that would re-record whatever the code now does."
+    )
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_the_eight_legacy_addresses_evaluate_identically():
+    """Every recorded (value, triggered) reproduces, bit for bit."""
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    mismatches = []
+    for i, row in enumerate(doc["rows"]):
+        alert = {
+            "id": 1, "user_id": "u", "sym": "TEST", "tf": "D",
+            "indicator": row["indicator"],
+            "condition": row["condition"],
+            "threshold": row["threshold"],
+            "params_json": None if row["params"] is None else json.dumps(row["params"]),
+            "last_value": row["prev"],
+        }
+        value, triggered = evaluator._evaluate_one(alert, bars=bars)
+        if value != row["value"] or triggered != row["triggered"]:
+            mismatches.append(
+                f"row {i} {row['indicator']}/{row['condition']} thr={row['threshold']} "
+                f"prev={row['prev']} params={row['params']}: "
+                f"got ({value!r}, {triggered!r}) want ({row['value']!r}, {row['triggered']!r})"
+            )
+    assert not mismatches, (
+        f"{len(mismatches)} of {len(doc['rows'])} recorded evaluations changed. An alert a "
+        f"user already armed would fire differently.\n" + "\n".join(mismatches[:12])
+    )
+
+
+def test_the_baseline_grid_can_actually_detect_a_change():
+    """A recorded grid that never fires, or always fires, pins nothing.
+
+    ⚠️ THE NON-VACUITY HALF. The replay above compares a stored answer to a
+    computed one; if every stored answer were `(None, False)` — the shape an
+    `INDICATOR_FUNCS` miss produces — it would pass while proving that all eight
+    addresses had been DELETED. So: every row computed a value, and the fired /
+    not-fired split is genuinely mixed.
+    """
+    doc = _load_alert_baseline()
+    rows = doc["rows"]
+    assert len(rows) > 1000, "the grid is too small to cover the condition branches"
+    assert all(r["value"] is not None for r in rows), (
+        "a recorded row computed no value — an address that stopped resolving would "
+        "reproduce that `None` exactly and the replay would call it identical"
+    )
+    fired = sum(1 for r in rows if r["triggered"])
+    assert 0 < fired < len(rows), f"the grid is saturated ({fired}/{len(rows)} fired)"
+    # …and it covers all eight, every condition each of them offers.
+    assert {r["indicator"] for r in rows} == set(doc["indicators"])
+    assert len(doc["indicators"]) == 8
+
+
+def test_the_replay_fails_when_an_address_is_repointed():
+    """The replay's own control: break one address, and it must go RED.
+
+    Without this, "the replay is green" is compatible with a replay that cannot
+    fail — the exact `lesson_gate_that_cannot_fail` shape. `rsi` is re-pointed at
+    `mfi`'s value function (a real, computable, DIFFERENT number, not a stub that
+    returns None) and the replay must report it.
+    """
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    rsi_rows = [r for r in doc["rows"] if r["indicator"] == "rsi"]
+    assert rsi_rows, "no rsi rows to break"
+
+    original = evaluator.INDICATOR_FUNCS["rsi"]
+    evaluator.INDICATOR_FUNCS["rsi"] = evaluator.INDICATOR_FUNCS["mfi"]
+    try:
+        changed = 0
+        for row in rsi_rows:
+            alert = {
+                "id": 1, "user_id": "u", "sym": "TEST", "tf": "D",
+                "indicator": "rsi", "condition": row["condition"],
+                "threshold": row["threshold"],
+                "params_json": None if row["params"] is None else json.dumps(row["params"]),
+                "last_value": row["prev"],
+            }
+            value, triggered = evaluator._evaluate_one(alert, bars=bars)
+            if value != row["value"] or triggered != row["triggered"]:
+                changed += 1
+    finally:
+        evaluator.INDICATOR_FUNCS["rsi"] = original
+
+    assert changed > 0, (
+        "re-pointing `rsi` at another indicator changed NOTHING the replay reads — "
+        "the replay cannot fail and proves nothing"
+    )
+    # …and the restore really restored it, or every later test in this file is
+    # running against a corrupted dict.
+    assert evaluator.INDICATOR_FUNCS["rsi"] is original
