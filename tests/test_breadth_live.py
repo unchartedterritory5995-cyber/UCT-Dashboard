@@ -601,7 +601,13 @@ def test_accuracy_grades_come_from_measurement_and_gate_accordingly():
     assert bl._tolerance_for("spy_above_50sma") == {"abs": 0}
     assert bl.accuracy_of("adv_decline") == "tight"
     assert bl.accuracy_of("stage2_count") == "close"
-    assert bl.accuracy_of("new_52w_highs") == "approximate"
+    # Re-graded 2026-08-06: the dividend-corrected basis took this from 9.9
+    # names off (10/10 one-signed) to 1.3% mean / 2.6% worst across 10 sessions.
+    # `new_52w_lows` stayed `approximate` — its mean improved too, but one
+    # session ran 30% off a base of ~3 names, and the grade follows the WORST
+    # session, not the mean.
+    assert bl.accuracy_of("new_52w_highs") == "tight"
+    assert bl.accuracy_of("new_52w_lows") == "approximate"
     # strictly widening: exact <= tight <= close <= approximate
     rels = [bl.ACCURACY_TIERS[t].get("rel", 0)
             for t in ("exact", "tight", "close", "approximate")]
