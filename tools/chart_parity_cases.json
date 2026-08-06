@@ -3433,7 +3433,7 @@
     },
     {
       "name": "engine_three_bands_stacked",
-      "why": "mfi + cci + williamsR together are the only case with THREE ADJACENT OSCILLATOR BANDS WHOSE SCALES DIFFER (0..100 pinned, autoScale, -100..0 pinned). It is what sees a band mis-stacked by one slot or a scale range leaking between adjacent price scales — neither of which any single-indicator case can produce, because with one oscillator on there is only one band and only one named scale to inherit from. `computePaneMargins` stacks them bottom-to-top as cci {top .85}, williamsR {top .70, bottom .15}, mfi {top .55, bottom .30}, so a one-slot shift moves 15% of the chart height, and a leaked `{minimum:-100, maximum:0}` onto the `mfi` scale would frame an 0..100 oscillator upside down. Seven guides are drawn across the three, in three shapes and two styles. ⚠️ No `instancesB`: BOTH sides project from the mirror, which is the state a real user with three oscillators on is actually in.",
+      "why": "mfi + cci + williamsR together are the only case with THREE ADJACENT OSCILLATOR BANDS WHOSE SCALES DIFFER (0..100 pinned, autoScale, -100..0 pinned). It is what sees a band mis-stacked by one slot or a scale range leaking between adjacent price scales — neither of which any single-indicator case can produce, because with one oscillator on there is only one band and only one named scale to inherit from. `computePaneMargins` stacks them bottom-to-top as cci {top .85}, williamsR {top .70, bottom .15}, mfi {top .55, bottom .30}, so a one-slot shift moves 15% of the chart height, and a leaked `{minimum:-100, maximum:0}` onto the `mfi` scale would frame an 0..100 oscillator upside down. Seven guides are drawn across the three, in three shapes and two styles. ⚠️ No `instancesB`: BOTH sides project from the mirror, which is the state a real user with three oscillators on is actually in. 🔴 THE NUMBER IS 161,089 AND IT WAS 161,036 — AN OWNER RULING, NOT A REGRESSION, AND THE ONLY CASE IN 46 THE CHOICE MOVES. 161,036 was measured against a side A built from `debd6265`, which PREDATES `c1a5ca69` (B5 Task 13 Job 1 — the fold seeds `SHIPPED_STACK_ORDER`). A side A without that commit measures the CUTOVER **plus the stack-order seed**; a side A built from the SHIPPING TREE measures the cutover alone, which is what this gate is for. Ruled 2026-08-05: side A is the shipping tree with `PANE_MODE = 'bands'` substituted at vite TRANSFORM time (app/src untouched), and the expect is the cutover-only number. Re-measured single-valued 3/3 at A `30506fc6bf1f` vs B `9dbf64b1835b`; the +53 decomposes as price_plot +14 / mid_panes +12 / osc_strip +27 — the three stacked bands' boundaries rounding one row differently, not an indicator moving. Proved live from both sides: `--expect 161089` exits 0, `161088` exits 1, `161090` exits 1. ⛔ DO NOT 'fix' this back to 161,036 — doing so re-introduces a side A that does not exist on this branch, and the case then measures two changes at once.",
       "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes b9adaba27035: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[228, 117, 61, 61, 61]",
       "regions": [
         {
@@ -3454,7 +3454,7 @@
             1200,
             268
           ],
-          "expect": 3340
+          "expect": 3354
         },
         {
           "name": "mid_panes",
@@ -3464,7 +3464,7 @@
             1200,
             387
           ],
-          "expect": 73453
+          "expect": 73465
         },
         {
           "name": "osc_strip",
@@ -3474,7 +3474,7 @@
             1200,
             572
           ],
-          "expect": 84243
+          "expect": 84270
         },
         {
           "name": "time_axis",
@@ -3522,7 +3522,7 @@
           }
         }
       },
-      "expect": 161036
+      "expect": 161089
     },
     {
       "name": "adx_only",
