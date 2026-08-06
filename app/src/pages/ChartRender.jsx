@@ -47,6 +47,7 @@ import { useSearchParams } from 'react-router-dom'
 import StockChart from '../components/StockChart'
 import { mergeSettingsOverride } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
+import { paneHeightAlerts } from '../components/chart/engine/binder'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
@@ -470,7 +471,27 @@ export default function ChartRender() {
       configurable: true,
       get: () => currentPaneManifest(),
     })
-    return () => { try { delete window.__paneManifest } catch { /* non-configurable */ } }
+    // ⭐ AND THE HEIGHT ALERTS, FOR THE SAME REASON AND WITH A SHARPER ONE.
+    // `binder.paneHeightAlerts()` counts every pane-height disagreement between
+    // the layout and the renderer that SURVIVED its own re-apply — a real,
+    // deliberately non-throwing condition (a blank chart beats a 1-px drift)
+    // whose only output was a `console.warn` nobody collects. That made it the
+    // last B5 residue: a check with no reader.
+    //
+    // The parity gate is the reader that can act on it. A capture with a live
+    // alert is a capture whose panes are NOT the geometry `computePaneLayout`
+    // computed, so its pixels are not comparable to an `expect` measured when
+    // they were — the same class of precondition as `FontNotSettledError`, and
+    // like it, it never sees a pixel count. Getter for the same ordering reason
+    // as the manifest: nothing here knows when a chart exists.
+    Object.defineProperty(window, '__paneHeightAlerts', {
+      configurable: true,
+      get: () => paneHeightAlerts(),
+    })
+    return () => {
+      try { delete window.__paneManifest } catch { /* non-configurable */ }
+      try { delete window.__paneHeightAlerts } catch { /* non-configurable */ }
+    }
   }, [fixedBars])
 
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>

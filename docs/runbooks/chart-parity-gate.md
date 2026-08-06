@@ -332,11 +332,11 @@ diff of this size ever reproduces, it is a finding, not this artefact.
 
 > **If you take one thing from this section:** the artefact above is not a
 > renderer property and it is not an "axis-width ratchet". The chart's axis font
-> is fetched **from `fonts.googleapis.com`** and lightweight-charts bakes
-> whichever font resolves **at draw time** into the axis canvas. `--font-retries`
-> (default 2) now REFUSES a capture that lost that race, and
-> `FontNotSettledError` exits 1. If you see it, the machine could not reach the
-> font CDN.
+> *was* fetched from `fonts.googleapis.com` and lightweight-charts bakes whichever
+> font resolves **at draw time** into the axis canvas. **The font has since been
+> SELF-HOSTED (2026-08-05, §"the fix" below), so `--font-retries` defaults to 0
+> and `FontNotSettledError` exits 1 on the FIRST raced capture.** If you see it
+> now, it is a regression in `app/` or `api/` — not a network hiccup.
 
 **Where the evidence came from.** B5 Task 13's 20-run gate left 46 case-runs ×
 20 × 2 sides = **1,840 captures on disk** (`tools/chart_parity_out_gate2`). Every
@@ -393,11 +393,76 @@ screenshots rule. `--no-font-gate` records the probe without acting on it — th
 is how the base rate is measured, it is written into `report.json` as
 `font_gate: false`, and **a gate run must never use it**.
 
-⚠️ **THE REAL FIX IS IN `app/src` AND IT IS NOT MADE HERE.** Self-host Instrument
-Sans (or `<link rel=preload>` it, or repaint the chart on
-`document.fonts.ready`). Until then this route's determinism — and the Morning
-Wire → Substack chart renderer's, which drives the same page — depends on a
-third-party font CDN answering before the first canvas draw.
+### ✅ THE FIX — the font is SELF-HOSTED, and that is why `--font-retries` is 0
+
+This was carried as *"the real fix is in `app/src` and it is not made here"* for
+one task. It is made now, because the exposure was never only the gate's: the
+**Morning Wire → Substack chart renderer** (`morning-wire/substack/chartwidget.py`
+driving `ChartRender` headlessly) is the same page, so a slow or blocked Google
+response meant a **newsletter chart rendered in a fallback font, silently, in
+something the firm emails to subscribers.**
+
+| | |
+|---|---|
+| binaries | `app/public/fonts/instrument-sans-v4-{latin,latin-ext}[-italic].woff2` — Google's own files, byte-for-byte |
+| declarations | inline `<style>` in `app/index.html`, a transcription of what `css2?family=Instrument+Sans:…` served (same styles/weights/`font-display`/`unicode-range`; only the URLs changed) |
+| preload | `<link rel=preload as=font crossorigin href=/fonts/instrument-sans-v4-latin.woff2>` — the subset every price/time label lives in |
+| route | `app.mount("/fonts", …)` in `api/main.py`, **ahead of the SPA catch-all** |
+| gated by | `tests/test_chart_parity_harness.py` §"the axis font is SELF-HOSTED" |
+
+**Why this removes the race rather than shortening it.** The request now starts
+at HTML-parse time from the **same origin** that is about to deliver the JS
+bundle — megabytes, which must then parse and mount React before any chart draws
+at all. A 30 kB font from that origin can only lose that race if the app did not
+load. And there is no longer a separate host that can be rate-limited, blocked by
+a corporate proxy, or down on its own.
+
+⛔ **THE ROUTE IS THE PART THAT LOOKS OPTIONAL AND IS NOT.** `api/main.py`'s
+catch-all answers any unmatched path with `index.html`. Without the `/fonts`
+mount the browser is handed HTML for a `.woff2`, every `@font-face` fails, and
+the axis falls back **permanently** — strictly worse than the CDN it replaced. A
+test asserts the mount exists and precedes the catch-all, and a second one
+fetches every built `dist/fonts/*.woff2` through the real app and checks the
+`wOF2` magic.
+
+**Measured after the fix:** with `--font-retries 0`, captures report the probe
+installed, ~180–195 canvas text ops each, **0 unready, 0 reloads**.
+
+⚠️ There is **no 300 face** — Instrument Sans is a 400–700 variable font and
+Google's own CSS never served one, so the old `0,300` in that URL already
+resolved to 400. Do not "helpfully" add one; it would change what ships.
+
+### ✅ The PANE-HEIGHT ALERT precondition — the same shape, a different fact
+
+`binder.verifyPendingLayout` checks, one sync later, that the renderer's pane
+heights are the ones `computePaneLayout` asked for. A **first** disagreement is
+converged (re-applied once) because the first sync of every chart disagrees by
+construction — `paneStackHeightPx` is itself rAF-stale, so a real 400 px chart
+reads 401. Only a disagreement that **survived its own correction** is recorded,
+into `paneHeightAlerts()`. B5 deliberately made that a report rather than a
+throw: a blank chart is worse than a one-pixel drift.
+
+Until 2026-08-05 nothing read it — a real condition counted for nobody. The gate
+reads it now:
+
+* `ChartRender` publishes `window.__paneHeightAlerts` as a **getter**, under
+  `?fixedbars=` only, exactly like `__paneManifest` and for the same ordering
+  reason (nothing on that page knows when a chart exists).
+* `read_pane_height_alerts` normalises it, and `capture()` raises
+  `PaneLayoutAlertError` when it is non-empty.
+* `--no-pane-alert-gate` records without acting, for measuring a base rate. **A
+  gate run must never use it**, and `report.json` carries `pane_alert_gate`.
+
+⛔ **It is a precondition, not a tolerance** — it never sees a pixel count. A
+capture carrying a surviving alert is not drawn at the geometry the layout
+computed, so it is not comparable to an `expect` measured when it was. And unlike
+the font gate it does **not** retry: a reload cannot change a layout the renderer
+declined to adopt; it would just take the same picture twice.
+
+⚠️ An absent hook reads `installed: false` and does **not** fail — a build older
+than the hook is a version mismatch, not a wrong geometry. That is exactly why
+`ChartRender.manifest.test.jsx` pins the publication: deleting those two lines
+would otherwise turn the refusal into a check with no subject, silently.
 
 A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
 `index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and

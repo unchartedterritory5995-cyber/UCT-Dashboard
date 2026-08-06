@@ -668,11 +668,31 @@ class FontNotSettledError(RuntimeError):
 # `collapse_case` turns into a failed case and a non-zero exit. Nothing is ever
 # accepted with a fallback-font axis.
 #
-# ⚠️ THE REAL FIX IS IN `app/src`, AND IT IS NOT MADE HERE: self-host the font
-# (or `<link rel=preload>` it, or repaint the chart on `document.fonts.ready`).
-# Until then every consumer of this route — the parity gate AND the Morning Wire
-# → Substack chart renderer — depends on a third-party font CDN answering before
-# the first canvas draw.
+# ✅ THE REAL FIX LANDED IN `app/` ON 2026-08-05, AND IT IS WHY `--font-retries`
+# NOW DEFAULTS TO **0**. Instrument Sans is SELF-HOSTED: the @font-face blocks
+# are inline in `app/index.html` against `/fonts/*.woff2` (Google's own binaries,
+# copied byte-for-byte out of `app/public/fonts`, served by the `/fonts` mount in
+# `api/main.py`), and the latin face the axis draws in is `<link rel=preload
+# as=font crossorigin>`ed from THIS origin. There is no third-party host left to
+# be slow, blocked, or down, and the binary is requested at HTML-parse time —
+# before the far larger JS bundle that has to arrive, parse and mount React
+# before any chart draws at all.
+#
+# So a raced capture is no longer a fact about the public internet that a reload
+# can wash out; it is a REGRESSION — someone deleted the /fonts mount, or moved
+# the font behind the bundle, or put it back on a CDN. Retrying would hide
+# exactly that. The gate therefore refuses on the FIRST raced capture by
+# default; `--font-retries N` survives for an operator debugging a machine, and
+# `capture()` still raises `FontNotSettledError` when the condition persists.
+# The refusal is unchanged and is still a PRECONDITION, not a tolerance: the
+# probe never sees a pixel count.
+#
+# The source-side half of this is gated in `tests/test_chart_parity_harness.py`
+# (§ "the axis font is SELF-HOSTED"): no third-party font host in index.html
+# outside a comment, every @font-face URL resolving to a real woff2 this repo
+# ships, the axis's own face preloaded, and `/fonts` routed ahead of the SPA
+# catch-all — because the catch-all answers an unmatched `.woff2` with
+# `index.html`, which is a silent permanent fallback-font axis.
 TEXT_FONT_PROBE_JS = r"""
 (() => {
   const P = { ops: 0, unready: 0, firstUnreadyMs: null, families: {} };
@@ -763,6 +783,47 @@ def read_text_font_probe(page) -> dict:
     }
 
 
+def read_pane_height_alerts(page) -> dict:
+    """``window.__paneHeightAlerts`` — `{message: count}`, normalised, never raising.
+
+    ⭐ WHAT IT MEANS AND WHY THE GATE READS IT. `binder.verifyPendingLayout` checks,
+    one sync later, that the renderer's pane heights are the ones
+    `computePaneLayout` asked for. A first disagreement is CONVERGED (re-applied
+    once) because the first sync of every chart disagrees by construction —
+    `paneStackHeightPx` is itself rAF-stale, so a real 400 px chart reads 401.
+    Only a disagreement that survives its own correction is recorded here, and
+    B5 deliberately made that a REPORT rather than a throw: a blank chart is
+    worse than a one-pixel drift.
+
+    A report nothing reads is not a report, and that was the last piece of Flip C
+    residue. This is the reader that can act on it: a capture carrying a live
+    alert is a capture whose panes are not the geometry the layout computed, so
+    its pixels are not comparable to an `expect` measured when they were. Same
+    family as the font probe — a PRECONDITION on one capture, blind to pixels,
+    never a tolerance.
+
+    An absent hook reads ``installed: False`` rather than "clean", for the same
+    reason `read_text_font_probe` does: a check that was not installed and a
+    check that found nothing must not look the same in a report.
+    """
+    try:
+        value = page.evaluate("() => window.__paneHeightAlerts ?? null")
+    except Exception:                                     # noqa: BLE001
+        value = None
+    if not isinstance(value, dict):
+        return {"installed": False, "alerts": {}}
+    return {"installed": True,
+            "alerts": {str(k): int(v or 0) for k, v in value.items()}}
+
+
+class PaneLayoutAlertError(RuntimeError):
+    """The renderer's pane heights disagreed with the layout and stayed that way.
+
+    See ``read_pane_height_alerts``. The chart is *drawn* — that is the whole
+    point of the alert being a report — but it is not drawn at the geometry the
+    recorded numbers were measured at, so it is not a measurement."""
+
+
 def _pixels(png_bytes: bytes) -> bytes:
     """The DECODED RGB bytes of a screenshot.
 
@@ -805,7 +866,8 @@ def _capture_once(page, url: str, ready_timeout_ms: int, stable_tries: int,
                     # accepted — a manifest read before the chart stopped moving
                     # would describe a layout the screenshot never shows.
                     "manifest": read_manifest(page),
-                    "font_probe": read_text_font_probe(page)}
+                    "font_probe": read_text_font_probe(page),
+                    "pane_alerts": read_pane_height_alerts(page)}
         prev_png, prev_px = png, px
         page.wait_for_timeout(settle_ms)
 
@@ -819,7 +881,8 @@ def _capture_once(page, url: str, ready_timeout_ms: int, stable_tries: int,
 
 def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
             stable_tries: int = 8, settle_ms: int = 220,
-            font_retries: int = 2, font_gate: bool = True) -> dict:
+            font_retries: int = 0, font_gate: bool = True,
+            pane_alert_gate: bool = True) -> dict:
     """Drive the page and screenshot the #chart-export ELEMENT, PROVING it settled.
 
     ``_capture_once`` is one page LOAD: it waits on ``window.__chartReady`` (the
@@ -866,8 +929,25 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
             "lightweight-charts bakes whichever font resolves AT DRAW TIME into the axis "
             "canvas and never repaints it, so this capture carries fallback glyphs or a "
             "fallback-derived baseline: it is settled, and it is not comparable to any "
-            "recorded `expect`. The chart's family is loaded from fonts.googleapis.com by "
-            "app/index.html — check this machine can reach it, or raise --font-retries. "
+            "recorded `expect`. The family is SELF-HOSTED and PRELOADED from this origin "
+            "(app/index.html @font-face -> /fonts/*.woff2, app/public/fonts, mounted in "
+            "api/main.py), so this is a REGRESSION to find, not a network hiccup to retry: "
+            "check the /fonts route still exists and serves the woff2 rather than the SPA "
+            "catch-all's index.html, and that the preload link still names the face the "
+            "axis draws in. --font-retries N reloads instead of refusing, for debugging a "
+            f"machine — it is not a fix. url={url}"
+        )
+
+    alerts = last.get("pane_alerts") or {"installed": False, "alerts": {}}
+    if pane_alert_gate and alerts["alerts"]:
+        raise PaneLayoutAlertError(
+            f"the chart reported {sum(alerts['alerts'].values())} pane-height alert(s) that "
+            f"survived a re-apply: {alerts['alerts']}. `binder.verifyPendingLayout` converges "
+            "a first disagreement (the first sync of every chart disagrees by construction — "
+            "paneStackHeightPx is rAF-stale), so this one did not converge: the renderer's "
+            "panes are NOT the geometry computePaneLayout asked for. The chart is drawn — "
+            "that is why the binder reports instead of throwing — but its pixels are not "
+            "comparable to an `expect` measured at the geometry the layout computes. "
             f"url={url}"
         )
 
@@ -1703,11 +1783,19 @@ def main() -> int:
                          "silently-accepted frame.")
     ap.add_argument("--settle-ms", type=int, default=220,
                     help="delay between stability screenshots")
-    ap.add_argument("--font-retries", type=int, default=2,
+    ap.add_argument("--font-retries", type=int, default=0,
                     help="max page RELOADS when a capture's canvas text was drawn before "
                          "its webfont loaded (see TEXT_FONT_PROBE_JS). A settled capture "
                          "with fallback glyphs is not a measurement; exhausting this "
-                         "raises FontNotSettledError, never a number.")
+                         "raises FontNotSettledError, never a number. DEFAULT 0 since the "
+                         "font was self-hosted + preloaded: a race is now a regression in "
+                         "app/ or api/, and reloading would hide it.")
+    ap.add_argument("--no-pane-alert-gate", action="store_true",
+                    help="RECORD window.__paneHeightAlerts without acting on it. The "
+                         "alert means the renderer's pane heights disagreed with the "
+                         "layout and stayed that way after a re-apply, so the capture "
+                         "is not at the geometry any `expect` was measured at. For "
+                         "measuring a base rate — a gate run must never use it.")
     ap.add_argument("--no-font-gate", action="store_true",
                     help="RECORD the canvas-text font probe without acting on it. For "
                          "measuring the base rate — a gate run must never use it.")
@@ -1886,6 +1974,7 @@ def main() -> int:
         "global_expect": args.expect,
         "font_gate": not args.no_font_gate,
         "font_retries": args.font_retries,
+        "pane_alert_gate": not args.no_pane_alert_gate,
         "tolerance_reason": args.tolerance_reason,
         "repeat": args.repeat,
         # Filled in AFTER the collapse, and only if nothing failed — see the
@@ -1951,7 +2040,8 @@ def main() -> int:
                                           stable_tries=args.stable_tries,
                                           settle_ms=args.settle_ms,
                                           font_retries=args.font_retries,
-                                          font_gate=not args.no_font_gate)
+                                          font_gate=not args.no_font_gate,
+                                          pane_alert_gate=not args.no_pane_alert_gate)
                             entry[f"url_{side}"] = url
                             run[f"shots_{side}"] = cap["shots"]
                             run[f"ready_ms_{side}"] = cap["ready_ms"]
@@ -1963,6 +2053,10 @@ def main() -> int:
                             # font, must be visible in report.json beside its pixels.
                             run[f"font_probe_{side}"] = cap.get("font_probe")
                             run[f"font_reloads_{side}"] = cap.get("font_reloads")
+                            # ...and so does the pane-height alert map, for the same
+                            # reason: `installed: false` here means the page published
+                            # no hook, which a reader must be able to tell from "clean".
+                            run[f"pane_alerts_{side}"] = cap.get("pane_alerts")
                         finally:
                             ctx.close()
 

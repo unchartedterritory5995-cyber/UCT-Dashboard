@@ -83,7 +83,7 @@ class FakeLocator:
 
 
 class FakePage:
-    def __init__(self, frames, ready=None, font_probes=None):
+    def __init__(self, frames, ready=None, font_probes=None, pane_alerts=None):
         self.loc = FakeLocator(frames)
         self.ready = ready or {"ms": 3500, "reason": "stable", "frames": 4}
         self.goto_url = None
@@ -96,6 +96,10 @@ class FakePage:
         # observable, which `read_text_font_probe` must report as installed:False
         # and NOT as a clean bill of health).
         self.font_probes = list(font_probes or [])
+        # `window.__paneHeightAlerts`, per page LOAD. `None` (the default) means
+        # the page published no hook at all — which must read as installed:False,
+        # NOT as "no alerts", for the same reason as the font probe above.
+        self.pane_alerts = list(pane_alerts or [])
 
     def goto(self, url, **_kw):
         self.goto_url = url
@@ -115,6 +119,11 @@ class FakePage:
                 return None
             i = min(self.goto_count - 1, len(self.font_probes) - 1)
             return self.font_probes[i]
+        if "__paneHeightAlerts" in expr:
+            if not self.pane_alerts:
+                return None
+            i = min(self.goto_count - 1, len(self.pane_alerts) - 1)
+            return self.pane_alerts[i]
         return True
 
     def locator(self, _sel):
@@ -562,9 +571,15 @@ def test_main_EXITS_1_when_a_capture_lost_its_font_race(monkeypatch, tmp_path):
     assert "FontNotSettledError" in report["results"][0]["error"]
     assert report["flake_bound_95"] is None
     # The run's posture is recorded, so a green report cannot hide that the gate
-    # was switched off for it.
+    # was switched off for it. This also pins the CLI DEFAULT, and the default is
+    # 0 on purpose: since the axis font was self-hosted + preloaded from this
+    # origin (2026-08-05) a raced capture can no longer be the public internet
+    # being slow — it is a regression in app/ or api/, and a reload would launder
+    # it into a green run. Raising this back to a non-zero default re-opens that.
     assert report["font_gate"] is True
-    assert report["font_retries"] == 2
+    assert report["font_retries"] == 0, (
+        "--font-retries must DEFAULT to 0 now that the font is self-hosted; a "
+        "non-zero default silently retries past a deleted /fonts route")
 
 
 def test_main_records_when_the_font_gate_was_switched_OFF(monkeypatch, tmp_path):
@@ -2151,3 +2166,267 @@ def test_every_region_block_records_the_TWO_BUILDS_it_was_derived_from():
         assert "paneHeights" in stamp, f"{case['name']}'s stamp carries no pane heights"
         checked += 1
     assert checked >= 46, f"only {checked} stamped block(s) — the rail lost its subject"
+
+
+# ══ the axis font is SELF-HOSTED — the source half of the font precondition ══
+#
+# The probe tests above prove the HARNESS can detect a webfont race. These prove
+# the APP no longer has one to hand it. Until 2026-08-05 `app/index.html` pulled
+# Instrument Sans from `fonts.googleapis.com`, and because lightweight-charts
+# bakes whichever font resolves AT DRAW TIME into the axis canvas and never
+# repaints it, a slow or blocked third-party response produced a settled chart
+# with a fallback axis — in the parity gate AND in the Morning Wire → Substack
+# newsletter renderer, which drives the same page headlessly.
+# `FontNotSettledError` stays a precondition either way; what changed is that
+# satisfying it no longer depends on a CDN, which is why `--font-retries` now
+# defaults to 0.
+#
+# ⛔ Each of these guards a DIFFERENT silent-fallback-axis failure. They are not
+# one check written five ways: a URL can be same-origin and 404 (route), present
+# and unreferenced (typo), referenced and unpreloaded (late), preloaded without
+# `crossorigin` (downloaded twice, warms nothing), or the whole thing can quietly
+# go back to Google.
+
+INDEX_HTML = ROOT / "app" / "index.html"
+PUBLIC_FONTS = ROOT / "app" / "public" / "fonts"
+_HTML_COMMENT_RE = r"<!--.*?-->"
+
+
+def _strip_html_comments(html: str) -> str:
+    import re
+    return re.sub(_HTML_COMMENT_RE, "", html, flags=re.S)
+
+
+def _index_html() -> str:
+    return INDEX_HTML.read_text(encoding="utf-8")
+
+
+def test_the_html_comment_stripper_is_neither_a_no_op_nor_a_nuke():
+    """CONTROL for the scan below. It reads comment-STRIPPED html so the fix can
+    be documented in place by name; without this control an identity stripper
+    would let a live `<link href=fonts.googleapis.com>` pass, because the word
+    also appears in the paragraph explaining why it must not be there."""
+    assert "CDNHOST" not in _strip_html_comments("<!-- CDNHOST -->")
+    assert "CDNHOST" in _strip_html_comments("<p>CDNHOST</p>")
+
+
+def test_the_axis_font_is_not_fetched_from_a_THIRD_PARTY_HOST():
+    code = _strip_html_comments(_index_html())
+    for host in ("fonts.googleapis.com", "fonts.gstatic.com"):
+        assert host not in code, (
+            f"app/index.html loads a font from {host} again. That makes a third-party "
+            "host a CORRECTNESS dependency of every chart, not a styling one: the axis "
+            "is drawn into a canvas that is never repainted when a font lands late, so "
+            "a slow/blocked response ships a chart — and a NEWSLETTER chart — with a "
+            "fallback axis, silently. Self-host it (app/public/fonts + @font-face in "
+            "index.html + the /fonts mount in api/main.py).")
+
+
+def test_index_html_still_EXPLAINS_why_the_font_host_is_not_used():
+    """The host may appear ONLY inside a comment. Deleting the explanation is how
+    the next person 'tidies up' the @font-face block back onto a CDN."""
+    import re
+    comments = " ".join(re.findall(_HTML_COMMENT_RE, _index_html(), flags=re.S))
+    assert "fonts.googleapis.com" in comments, (
+        "index.html no longer records WHY the font is self-hosted — the argument has "
+        "to survive next to the code, or it gets reverted as dead weight")
+
+
+def _font_face_urls():
+    import re
+    code = _strip_html_comments(_index_html())
+    return [u.strip().strip("'\"")
+            for u in re.findall(r"src:\s*url\(([^)]+)\)", code)]
+
+
+def test_every_font_face_URL_resolves_to_a_woff2_THIS_REPO_SHIPS():
+    urls = _font_face_urls()
+    assert urls, "app/index.html declares no @font-face src at all"
+    for u in urls:
+        assert u.startswith("/fonts/"), (
+            f"@font-face src {u!r} is not an absolute same-origin /fonts/ path")
+        f = PUBLIC_FONTS / u[len("/fonts/"):]
+        assert f.is_file(), (
+            f"@font-face names {u} but {f} does not exist. Vite copies public/ "
+            "VERBATIM — a typo here is a 404 at runtime and a permanent fallback axis, "
+            "and nothing in the browser reports it as an error.")
+        data = f.read_bytes()
+        assert data[:4] == b"wOF2", (
+            f"{f} is not a woff2 (bad magic) — an HTML error page saved over a font "
+            "file looks exactly like this, and @font-face fails silently")
+        # ⛔ THE woff2 HEADER DECLARES ITS OWN TOTAL LENGTH (bytes 8..12, big-endian),
+        # so this equality is a self-consistency check the file cannot fake — and it
+        # is the one that catches the hazard `core.autocrlf=true` creates on this
+        # box: a font that ever gets treated as TEXT has every 0x0A rewritten to
+        # 0x0D 0x0A on checkout. The magic bytes survive that; the length does not.
+        # `.gitattributes` marks fonts binary; this is what proves it held.
+        declared = int.from_bytes(data[8:12], "big")
+        assert declared == len(data), (
+            f"{f} declares {declared} bytes in its woff2 header but is {len(data)} on "
+            "disk — the file has been rewritten (line-ending conversion is the usual "
+            "cause). @font-face will reject it and the chart axis falls back silently.")
+
+
+def test_the_LATIN_face_the_axis_actually_draws_in_is_PRELOADED_from_this_origin():
+    """Price labels are digits and time labels are ASCII month names, so the axis
+    lives entirely in the `latin` subset. Preloading it starts the fetch at
+    HTML-parse time, ahead of the far larger JS bundle that must arrive, parse and
+    mount React before any chart draws at all — which is why the race is GONE
+    rather than merely shorter."""
+    import re
+    code = _strip_html_comments(_index_html())
+    preloads = re.findall(r"<link\b[^>]*\brel=[\"']preload[\"'][^>]*>", code)
+    font_preloads = [p for p in preloads if 'as="font"' in p or "as='font'" in p]
+    assert font_preloads, (
+        "no <link rel=preload as=font> — the font is then fetched only after the "
+        "stylesheet that declares it, which puts it back in a race with the chart")
+
+    declared = set(_font_face_urls())
+    hrefs = set()
+    for p in font_preloads:
+        assert "crossorigin" in p, (
+            f"{p} preloads a font without `crossorigin`. Font fetches are ALWAYS "
+            "CORS-mode anonymous, so a preload without it does not match the real "
+            "request: the browser downloads the file TWICE and warms nothing.")
+        m = re.search(r"href=[\"']([^\"']+)[\"']", p)
+        assert m, f"preload link with no href: {p}"
+        hrefs.add(m.group(1))
+
+    assert hrefs <= declared, (
+        f"preloaded {sorted(hrefs - declared)}, which no @font-face uses — a preload "
+        "matching no request is a wasted download AND leaves the real face late")
+    latin = {u for u in declared if u.endswith("-latin.woff2")}
+    assert latin and latin <= hrefs, (
+        f"the normal-weight latin face {sorted(latin)} is not preloaded; that is the "
+        "one lightweight-charts draws every price and time label in")
+
+
+def test_dist_fonts_is_ROUTED_ahead_of_the_SPA_catch_all():
+    """api/main.py's catch-all answers ANY unmatched path with index.html, so
+    without its own mount a `.woff2` request returns HTML, every @font-face fails,
+    and the axis falls back FOREVER — strictly worse than the CDN it replaced.
+    Source-level because standing the whole app up is not this suite's job; the
+    functional half is the next test."""
+    src = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    mount = src.find('app.mount("/fonts"')
+    fallback = src.find("def spa_fallback(")
+    assert mount != -1, (
+        'api/main.py has no app.mount("/fonts", ...) — dist/fonts/*.woff2 is then '
+        "answered by the SPA catch-all with index.html")
+    assert fallback != -1, "api/main.py has no spa_fallback — this rail lost its subject"
+    assert mount < fallback, (
+        "the /fonts mount is declared AFTER the SPA catch-all, which claims "
+        "/{full_path:path} — the mount can never be reached")
+
+
+async def test_the_BUILT_dist_serves_the_font_and_not_index_html():
+    """The functional half. Skips when app/ has not been built, so it is silent in
+    a bare checkout and load-bearing during the gate, which always builds."""
+    dist_fonts = ROOT / "app" / "dist" / "fonts"
+    if not dist_fonts.is_dir():
+        pytest.skip("app/dist/fonts absent — build app/ first (the gate always does)")
+
+    from httpx import ASGITransport, AsyncClient
+    from api.main import app as fastapi_app
+
+    names = sorted(p.name for p in dist_fonts.glob("*.woff2"))
+    assert names, "app/dist/fonts exists but ships no woff2 — public/fonts was not copied"
+
+    async with AsyncClient(transport=ASGITransport(app=fastapi_app),
+                           base_url="http://test") as ac:
+        for name in names:
+            r = await ac.get(f"/fonts/{name}")
+            assert r.status_code == 200, f"/fonts/{name} -> {r.status_code}"
+            assert r.content[:4] == b"wOF2", (
+                f"/fonts/{name} served {r.headers.get('content-type')!r} whose first "
+                f"bytes are {r.content[:16]!r} — that is the SPA catch-all handing back "
+                "index.html, which is a permanently broken @font-face and a permanently "
+                "fallback-font axis")
+
+
+# ══ the pane-height alert map, and the reader it never had ══════════════════
+#
+# `binder.paneHeightAlerts()` counts every pane-height disagreement between the
+# layout and the renderer that SURVIVED its own re-apply. B5 made that a REPORT
+# rather than a throw on purpose — the first sync of every chart disagrees by
+# construction (`paneStackHeightPx` is rAF-stale, a real 400 px chart reads 401),
+# and a blank chart is worse than a one-pixel drift. But its only output was a
+# `console.warn` nobody collects, which left it as the last piece of Flip C
+# residue: a check with no reader.
+#
+# The gate is the reader that can act on it, on exactly the terms the font probe
+# established — a PRECONDITION on ONE capture, blind to pixels, never a
+# tolerance. A capture carrying a surviving alert is not drawn at the geometry
+# `computePaneLayout` asked for, so it is not comparable to an `expect` measured
+# when it was.
+
+def test_a_surviving_pane_height_alert_REFUSES_the_capture(tmp_path):
+    page = FakePage([png("#123456")] * 2,
+                    pane_alerts=[{"paneLayout: pane 2 is 77px, expected 78px": 1}])
+    with pytest.raises(cp.PaneLayoutAlertError) as e:
+        cp.capture(page, "http://x/r/chart?case=rsi_only", tmp_path / "a.png", settle_ms=1)
+    # The message has to name the geometry, or the next reader debugs the wrong thing.
+    assert "pane 2 is 77px" in str(e.value)
+    assert "not comparable" in str(e.value)
+
+
+def test_an_EMPTY_alert_map_is_not_a_refusal(tmp_path):
+    """THE CONTROL. Without it a gate hard-wired to raise scores a perfect run on
+    the case above — and every real capture is this one."""
+    out = tmp_path / "a.png"
+    page = FakePage([png("#123456")] * 2, pane_alerts=[{}])
+    info = cp.capture(page, "http://x", out, settle_ms=1)
+    assert out.exists()
+    assert info["pane_alerts"] == {"installed": True, "alerts": {}}
+
+
+def test_a_page_with_NO_alert_hook_reads_as_not_installed_and_still_passes(tmp_path):
+    """"the hook was not there" and "there were no alerts" must not look the same
+    in a report — but only the first must not fail the run, because a build older
+    than the hook is a harness/build mismatch, not a wrong geometry."""
+    out = tmp_path / "a.png"
+    page = FakePage([png("#123456")] * 2)          # publishes nothing
+    info = cp.capture(page, "http://x", out, settle_ms=1)
+    assert info["pane_alerts"] == {"installed": False, "alerts": {}}
+    assert out.exists()
+
+
+def test_the_alert_gate_can_be_switched_OFF_and_the_map_is_still_RECORDED(tmp_path):
+    out = tmp_path / "a.png"
+    page = FakePage([png("#123456")] * 2,
+                    pane_alerts=[{"paneLayout: the chart has 2 panes, expected at least 3": 4}])
+    info = cp.capture(page, "http://x", out, settle_ms=1, pane_alert_gate=False)
+    assert out.exists(), "--no-pane-alert-gate must still produce the capture"
+    assert info["pane_alerts"]["alerts"] == {
+        "paneLayout: the chart has 2 panes, expected at least 3": 4}, (
+        "...and must still REPORT it, or the base rate cannot be measured")
+
+
+def test_the_alert_gate_does_NOT_reload_the_way_the_font_gate_does(tmp_path):
+    """A raced font is fixed by a reload (the binary is then cached); a layout the
+    renderer refused to adopt is not. Reloading here would just take the same
+    picture again and call the second one evidence."""
+    page = FakePage([png("#123456")] * 2, pane_alerts=[{"paneLayout: pane 1 is 0px, expected 60px": 1}])
+    with pytest.raises(cp.PaneLayoutAlertError):
+        cp.capture(page, "http://x", tmp_path / "a.png", settle_ms=1)
+    assert page.goto_count == 1
+
+
+def test_main_RECORDS_the_alert_map_beside_the_pixels_and_its_own_posture(monkeypatch, tmp_path):
+    frame = png("#0e0f0d", size=(1200, 620))
+
+    def settles(page, url, out_png, *_a, **_kw):
+        Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_png).write_bytes(frame)
+        return {"shots": 2, "settled": True, "ready_ms": 3500, "ready_reason": "stable",
+                "pane_alerts": {"installed": True, "alerts": {}}}
+
+    rc = _drive_main(monkeypatch, tmp_path, settles, cases=("volume_profile_only",),
+                     extra_argv=["--include-placeholders"])
+    assert rc == 0
+    report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
+    run = report["results"][0]["runs"][0]
+    assert run["pane_alerts_a"] == {"installed": True, "alerts": {}}
+    assert run["pane_alerts_b"] == {"installed": True, "alerts": {}}
+    # A green report must not be able to hide that the gate was off for it.
+    assert report["pane_alert_gate"] is True
