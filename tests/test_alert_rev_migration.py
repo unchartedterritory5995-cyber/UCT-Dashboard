@@ -481,12 +481,32 @@ def test_the_DELIVERY_CYCLE_consults_the_suppression(env):
     function only they called. This asserts the SHIPPED cycle names it, so a
     refactor that drops the call site fails structurally as well.
     """
-    src = inspect.getsource(ev._run_one_cycle)
+    # ⚠️ RE-PARSED FROM THE FILE BY NAME, NOT `inspect.getsource`. That helper
+    # slices the file at the line numbers captured when the module was IMPORTED,
+    # so an edit to this file while the suite is running hands it the wrong lines
+    # and it reports a missing call site that is right there. Measured for real
+    # on 2026-08-06 in a shared worktree. Finding a `FunctionDef` by name in a
+    # fresh parse cannot drift.
+    module = ast.parse(Path(ev.__file__).read_text(encoding="utf-8"))
+    cycles = [n for n in module.body
+              if isinstance(n, ast.FunctionDef) and n.name == "_run_one_cycle"]
+    assert len(cycles) == 1, f"expected one _run_one_cycle, found {len(cycles)}"
+    src = ast.unparse(cycles[0])
     assert "alert_rev_migration" in src, (
         "_run_one_cycle no longer imports the migration guard")
     assert "consume_if_suppressed" in src, (
         "_run_one_cycle no longer consults suppress-and-consume — every armed "
         "binding on a migrated definition re-fires on the deploy")
+
+    # The control: the same parse of a DIFFERENT function does NOT contain it, so
+    # the two assertions above are reading `_run_one_cycle`'s body and not the
+    # whole module. A whole-file `in` would pass on the docstring alone.
+    others = [n for n in module.body
+              if isinstance(n, ast.FunctionDef) and n.name == "_evaluate_one"]
+    assert len(others) == 1
+    assert "consume_if_suppressed" not in ast.unparse(others[0]), (
+        "the scan is reading more than the cycle's own body — it would pass on "
+        "any mention anywhere in the module")
 
 
 def test_the_three_effects_are_ONE_TRANSACTION(env):
