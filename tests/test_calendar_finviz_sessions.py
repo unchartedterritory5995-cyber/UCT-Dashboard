@@ -7,6 +7,8 @@ report whose session is perfectly well known.
 
 Fixtures are real shapes from the live export, captured 2026-08-06.
 """
+import time
+
 import pytest
 
 from api.routers import calendar as cal
@@ -139,3 +141,145 @@ class TestMergeLeg:
         assert added >= 2
         syms = {e["sym"] for e in cal._day_entries(days["2026-08-05"])}
         assert {"AAA", "BBB"} <= syms
+
+
+class TestFinvizNameMap:
+    """Company names came only from ticker_meta, whose miss path is a 2-worker
+    pool capped at 24 in flight. On a finished day carrying 400+ reporters most
+    symbols miss, so cards rendered nameless for many requests running. Finviz
+    returns the whole market's Ticker/Company/Sector in ONE export (11,556
+    tickers, measured 0.89s).
+
+    That call is NEVER made inline: `_fetch_finviz_universe` carries a 90s
+    timeout and this runs on the request path of a single-process uvicorn with
+    one shared threadpool — the unbounded-external-call shape behind the
+    2026-07-01 524 outage. Cold returns {} and warms in the background.
+    """
+
+    UNIVERSE = [
+        {"Ticker": "AAA", "Company": "Alpha Corp", "Sector": "Technology"},
+        {"Ticker": "BBB", "Company": "Beta Inc", "Sector": "Healthcare"},
+        {"Ticker": "CCC", "Company": "", "Sector": ""},          # blank both
+    ]
+
+    @pytest.fixture(autouse=True)
+    def _clear(self):
+        from api.services.cache import cache
+        cache.invalidate("finviz_name_map")
+        cal._FV_NAME_INFLIGHT = False
+        yield
+        cache.invalidate("finviz_name_map")
+        cal._FV_NAME_INFLIGHT = False
+
+    def _seed(self, monkeypatch, universe=None):
+        """Put a resolved map in the cache without touching the network."""
+        from api.services.cache import cache
+        monkeypatch.setattr("api.services.industry_map._fetch_finviz_universe",
+                            lambda: self.UNIVERSE if universe is None else universe)
+        built = cal._build_finviz_name_map()
+        if built:
+            cache.set("finviz_name_map", built, ttl=60)
+        return built
+
+    def test_builds_a_map_and_skips_blank_rows(self, monkeypatch):
+        m = self._seed(monkeypatch)
+        assert m["AAA"] == {"name": "Alpha Corp", "sector": "Technology"}
+        assert "CCC" not in m, "a row with neither name nor sector is not an answer"
+
+    def test_the_cold_call_never_blocks_and_returns_empty(self, monkeypatch):
+        """The load-bearing property: a calendar build must not wait on Finviz."""
+        started = []
+        monkeypatch.setattr(cal, "_warm_finviz_name_map", lambda: started.append(1))
+        assert cal._finviz_name_map() == {}
+        assert started == [1], "the cold path did not kick a background warm"
+
+    def test_the_warm_thread_populates_the_cache(self, monkeypatch):
+        monkeypatch.setattr("api.services.industry_map._fetch_finviz_universe",
+                            lambda: self.UNIVERSE)
+        cal._warm_finviz_name_map()
+        for _ in range(100):
+            if cal._finviz_name_map():
+                break
+            time.sleep(0.02)
+        assert cal._finviz_name_map()["AAA"]["name"] == "Alpha Corp"
+
+    def test_an_empty_result_is_never_cached(self, monkeypatch):
+        """THE realistic failure: `_fetch_finviz_universe` swallows its own
+        errors and returns [] — it does not raise. Caching that for 24h would
+        blank every card for a day, far worse than the miss it avoids."""
+        from api.services.cache import cache
+        monkeypatch.setattr("api.services.industry_map._fetch_finviz_universe", lambda: [])
+        cal._warm_finviz_name_map()
+        time.sleep(0.15)
+        assert cache.get("finviz_name_map") is None, "an empty result was cached"
+
+    def test_a_raised_failure_also_yields_nothing(self, monkeypatch):
+        from api.services.cache import cache
+        def boom():
+            raise RuntimeError("finviz down")
+        monkeypatch.setattr("api.services.industry_map._fetch_finviz_universe", boom)
+        assert cal._build_finviz_name_map() == {}
+        cal._warm_finviz_name_map()
+        time.sleep(0.15)
+        assert cache.get("finviz_name_map") is None
+
+    def test_only_one_warm_runs_at_a_time(self, monkeypatch):
+        """Without the in-flight flag every build in the ~1s cold window starts
+        its OWN whole-market fetch — a self-inflicted herd on the very surface
+        this keeps off the request path."""
+        calls = []
+        def slow():
+            calls.append(1)
+            time.sleep(0.3)
+            return self.UNIVERSE
+        monkeypatch.setattr("api.services.industry_map._fetch_finviz_universe", slow)
+        for _ in range(5):
+            cal._warm_finviz_name_map()
+        time.sleep(0.5)
+        assert len(calls) == 1, f"{len(calls)} concurrent whole-market fetches"
+
+    def test_fills_a_name_ticker_meta_does_not_have(self, monkeypatch):
+        self._seed(monkeypatch)
+        monkeypatch.setattr("api.services.ticker_meta._mem", {})
+        monkeypatch.setattr("api.services.ticker_meta._disk_get", lambda s: None)
+        days = {"2026-08-05": {"bmo": [{"sym": "AAA"}], "amc": [], "tbd": []}}
+        cal._attach_names(days)
+        e = days["2026-08-05"]["bmo"][0]
+        assert e["name"] == "Alpha Corp"
+        assert e["sector"] == "Technology"
+
+    def test_ticker_meta_still_wins(self, monkeypatch):
+        """Finviz FILLS a gap; it does not override the richer source."""
+        self._seed(monkeypatch)
+        monkeypatch.setattr("api.services.ticker_meta._mem",
+                            {"tmeta_AAA": {"name": "Alpha Corporation Inc.", "sector": "Tech"}})
+        monkeypatch.setattr("api.services.ticker_meta._disk_get", lambda s: None)
+        days = {"2026-08-05": {"bmo": [{"sym": "AAA"}], "amc": [], "tbd": []}}
+        cal._attach_names(days)
+        assert days["2026-08-05"]["bmo"][0]["name"] == "Alpha Corporation Inc."
+
+    def test_a_name_already_on_the_entry_is_not_overwritten(self, monkeypatch):
+        """An entry can arrive already carrying a name from the wire/EW data.
+        ticker_meta may still miss it, which drops through to the Finviz block —
+        and Finviz's short-form name must not clobber the one already there."""
+        self._seed(monkeypatch)
+        monkeypatch.setattr("api.services.ticker_meta._mem", {})
+        monkeypatch.setattr("api.services.ticker_meta._disk_get", lambda s: None)
+        days = {"2026-08-05": {"bmo": [{"sym": "AAA", "name": "Alpha Corp (wire)"}],
+                               "amc": [], "tbd": []}}
+        cal._attach_names(days)
+        assert days["2026-08-05"]["bmo"][0]["name"] == "Alpha Corp (wire)"
+        assert days["2026-08-05"]["bmo"][0]["sector"] == "Technology"
+
+    def test_an_unknown_symbol_still_reaches_the_async_queue(self, monkeypatch):
+        """Finviz must not swallow the existing fallback for names it lacks."""
+        self._seed(monkeypatch)
+        monkeypatch.setattr("api.services.ticker_meta._mem", {})
+        monkeypatch.setattr("api.services.ticker_meta._disk_get", lambda s: None)
+        queued = []
+        monkeypatch.setattr(cal._NAME_POOL, "submit",
+                            lambda fn, *a, **k: queued.append(a[0] if a else None))
+        days = {"2026-08-05": {"bmo": [{"sym": "ZZZ"}], "amc": [], "tbd": []}}
+        cal._attach_names(days)
+        assert days["2026-08-05"]["bmo"][0].get("name") is None
+        assert "ZZZ" in cal._NAME_INFLIGHT or queued, "the async fallback was bypassed"

@@ -994,14 +994,110 @@ def _attach_date_moves(days: dict) -> None:
                 e["date_moved"] = mv
 
 
+_FV_NAME_TTL = 24 * 3600
+_FV_NAME_WARMING = threading.Lock()
+_FV_NAME_INFLIGHT = False
+
+
+def _warm_finviz_name_map() -> None:
+    """Build the map on ONE background thread, at most one at a time.
+
+    Without the in-flight flag, every calendar build during the ~1s window
+    before the first one lands would start its OWN whole-market fetch — a
+    self-inflicted herd on exactly the surface this is trying to keep off the
+    request path.
+    """
+    global _FV_NAME_INFLIGHT
+    with _FV_NAME_WARMING:
+        if _FV_NAME_INFLIGHT:
+            return
+        _FV_NAME_INFLIGHT = True
+
+    def _run():
+        global _FV_NAME_INFLIGHT
+        try:
+            out = _build_finviz_name_map()
+            if out:
+                cache.set("finviz_name_map", out, ttl=_FV_NAME_TTL)
+        except Exception as exc:
+            _logger.warning("Finviz name-map warm failed: %s", exc)
+        finally:
+            with _FV_NAME_WARMING:
+                _FV_NAME_INFLIGHT = False
+
+    threading.Thread(target=_run, daemon=True, name="finviz-name-map").start()
+
+
+def _finviz_name_map() -> dict[str, dict]:
+    """{TICKER: {name, sector}} for the WHOLE market, from one Finviz Elite call.
+
+    `_attach_names` below is cache-hits-only by design, and its miss path is a
+    2-worker pool capped at 24 in flight — fine for a handful of names, far too
+    slow for a finished day carrying 400+ reporters, where most symbols miss and
+    the card renders blank for many requests running.
+
+    Finviz returns the entire market's Ticker/Company/Sector in ONE export, so a
+    single call resolves what the trickle needs hundreds of requests to reach.
+    Reuses `industry_map._fetch_finviz_universe` rather than issuing its own
+    request — that helper already owns the token, the 301 redirect and the 90s
+    timeout, and a second copy would drift from it.
+
+    Cached 24h: names and sectors do not move intraday. Returns {} on any
+    failure, so `_attach_names` just falls through to its existing path.
+    """
+    cached = cache.get("finviz_name_map")
+    if cached is not None:
+        return cached
+    # NEVER build inline. Measured 0.89s warm-network, but
+    # `_fetch_finviz_universe` carries a 90s timeout, and this runs on the
+    # request path in a single-process uvicorn with ONE shared anyio
+    # threadpool — a hung Finviz would pin a worker for a minute and a half
+    # per calendar build. That is precisely the unbounded-external-call shape
+    # behind the 2026-07-01 524 outage.
+    #
+    # So: kick a bounded background warm and return {} for THIS request. The
+    # async name queue still covers this build, and the next one gets the whole
+    # map. Same contract `_attach_names` already advertises — "never blocks the
+    # build, miss → next request".
+    _warm_finviz_name_map()
+    return {}
+
+
+def _build_finviz_name_map() -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    try:
+        from api.services.industry_map import _fetch_finviz_universe
+        for row in _fetch_finviz_universe():
+            sym = (row.get("Ticker") or "").strip().upper()
+            if not sym:
+                continue
+            name = (row.get("Company") or "").strip() or None
+            sector = (row.get("Sector") or "").strip() or None
+            if name or sector:
+                out[sym] = {"name": name, "sector": sector}
+    except Exception as exc:
+        _logger.warning("Finviz name map failed: %s", exc)
+        return {}
+    # Returns the map; the WARM THREAD owns the cache write, and writes only a
+    # map that actually resolved. Caching {} for 24h after a transient failure
+    # would blank every card for a day. `_fetch_finviz_universe` swallows its
+    # own errors and returns [] rather than raising, so the empty case is the
+    # LIKELY failure, not the exceptional one.
+    return out
+
+
 def _attach_names(days: dict) -> None:
     """Best-effort company names + GICS sector onto every entry, cache-hits only.
     Both come from the same ticker_meta cache; sector powers the calendar's
-    sector-scoping filter chips (never blocks the build — miss → next request)."""
+    sector-scoping filter chips (never blocks the build — miss → next request).
+
+    A ticker_meta miss falls back to the whole-market Finviz map BEFORE queueing
+    the async backfill — see `_finviz_name_map`."""
     try:
         from api.services.ticker_meta import _mem, _disk_get, _base_meta
     except Exception:
         return
+    fv_names = _finviz_name_map()
     for day in days.values():
         for e in _day_entries(day):
             sym = (e.get("sym") or "").upper()
@@ -1020,7 +1116,20 @@ def _attach_names(days: dict) -> None:
                     e["sector"] = meta["sector"]
                 if meta.get("name"):
                     continue
-            # Miss → bounded async backfill (resolves for the next request)
+            # ticker_meta miss → the whole-market Finviz map, which is already
+            # in memory. This runs BEFORE the async queue on purpose: the queue
+            # resolves 24 symbols per request cycle, so on a 400-reporter day
+            # most cards stayed nameless for many requests. ticker_meta still
+            # WINS where it has an answer — this only fills what it lacks.
+            fv = fv_names.get(sym)
+            if fv:
+                if fv.get("name") and not e.get("name"):
+                    e["name"] = fv["name"]
+                if fv.get("sector") and not e.get("sector"):
+                    e["sector"] = fv["sector"]
+                if e.get("name"):
+                    continue
+            # Still a miss → bounded async backfill (resolves for the next request)
             with _NAME_GUARD:
                 if sym in _NAME_INFLIGHT or len(_NAME_INFLIGHT) >= _NAME_INFLIGHT_MAX:
                     continue
