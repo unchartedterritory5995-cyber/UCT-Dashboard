@@ -238,3 +238,27 @@ describe('BriefSection', () => {
     expect(container.querySelector('a[href=""]')).toBeNull()
   })
 })
+
+describe('the loading state is labeled', () => {
+  it('names what is happening instead of showing a bare grey box', async () => {
+    // A fetch that never settles pins the component in its loading state —
+    // the same place a member sits for 10-15s while the LLM writes a brief
+    // for a symbol nobody has opened today.
+    global.fetch = vi.fn(() => new Promise(() => {}))
+    renderBrief()
+
+    const box = await screen.findByTestId('brief-loading')
+    // Announced, not silent — a naked skeleton div tells a screen reader nothing.
+    expect(box.getAttribute('role')).toBe('status')
+    expect(box.getAttribute('aria-live')).toBe('polite')
+    // And it reads as work-in-progress, not as an error or an empty answer.
+    expect(screen.getByText(/Writing this brief/i)).toBeTruthy()
+    expect(screen.queryByText(/unavailable/i)).toBeNull()
+  })
+
+  it('CONTROL: the label is gone once the brief renders', async () => {
+    renderBrief()
+    expect(await screen.findByText(/Guidance is the whole story/)).toBeTruthy()
+    expect(screen.queryByTestId('brief-loading')).toBeNull()
+  })
+})

@@ -288,3 +288,49 @@ describe('EarningsHistorySection', () => {
     expect(table.getAttribute('aria-label') || table.querySelector('caption')).toBeTruthy()
   })
 })
+
+describe('pending vs genuinely-empty history', () => {
+  // A row with no enrichment at all — exactly what the modal commits when a
+  // fast click beats the enrichment batch.
+  const bare = { sym: 'NVDA' }
+
+  it('says LOADING while the enrichment batch is still in flight', () => {
+    render(<EarningsHistorySection row={bare} reportDate="2026-08-27" enrichReady={false} />)
+    expect(screen.getByText(/Loading earnings history/i)).toBeTruthy()
+    expect(screen.queryByText(/No reported quarters yet/i)).toBeNull()
+  })
+
+  it('says NO HISTORY once the batch has landed and still has nothing', () => {
+    render(<EarningsHistorySection row={bare} reportDate="2026-08-27" enrichReady />)
+    expect(screen.getByText(/No reported quarters yet/i)).toBeTruthy()
+    expect(screen.queryByText(/Loading earnings history/i)).toBeNull()
+  })
+
+  it('CONTROL: enrichReady never suppresses history that actually exists', () => {
+    // Whatever the batch flag says, real quarters must render. This is what
+    // stops the fix from degrading into "show a spinner whenever unsure".
+    const withHistory = {
+      sym: 'NVDA',
+      beat_history: [
+        { period: '2025-08-27', epsActual: 0.68, epsEstimate: 0.64, surprisePercent: 6.2 },
+        { period: '2025-11-19', epsActual: 0.81, epsEstimate: 0.75, surprisePercent: 8.0 },
+      ],
+    }
+    for (const ready of [true, false]) {
+      const { unmount } = render(
+        <EarningsHistorySection row={withHistory} reportDate="2026-08-27" enrichReady={ready} />,
+      )
+      expect(screen.getByTestId('history-table')).toBeTruthy()
+      expect(screen.queryByText(/Loading earnings history/i)).toBeNull()
+      expect(screen.queryByText(/No reported quarters yet/i)).toBeNull()
+      unmount()
+    }
+  })
+
+  it('defaults to the definitive empty state when no flag is passed', () => {
+    // Other mount sites (MyStocksHub, direct research routes) do not thread
+    // the flag; they must keep today's behavior, not inherit a spinner.
+    render(<EarningsHistorySection row={bare} reportDate="2026-08-27" />)
+    expect(screen.getByText(/No reported quarters yet/i)).toBeTruthy()
+  })
+})

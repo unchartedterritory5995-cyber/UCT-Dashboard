@@ -4031,6 +4031,11 @@ export default function StockChart({
   // `_sessionLive` exists, so the object check it replaced was redundant anyway.
   const intradaySessionTagLines = useMemo(() => {
     if (!sessionTagsIntraday) return null
+    // Seed price only. The chip's live PRICE is driven by the rAF sync effect below,
+    // which glues it to the developing candle's drawn close (liveBarRef) so the chip
+    // and candle move in unison regardless of which feed/clock paints the bar. This
+    // per-tick memo just keeps the chip existing + titled; it must NOT fight the rAF
+    // on price (the effect that applies it skips `price` for this tag — see below).
     const extPx = sessionExtPrice
     if (!Number.isFinite(extPx) || extPx <= 0) return null
     return [{
@@ -4080,12 +4085,17 @@ export default function StockChart({
         const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
         const prevC = i > 0 ? arr[i - 1].close : c.open
         const isUp = (c.close != null && prevC != null) ? c.close >= prevC : (c.close >= c.open)
-        const col = isUp ? effUp : effDown
-        arr[i] = { ...c, color: col, borderColor: col, wickColor: col }
+        const bodyCol = isUp ? effUp : effDown
+        // Match the user's SEPARATE border + wick colors too (same derivation as the
+        // live candle series options), not just the body color — falls back to the
+        // body color when no distinct border/wick is set or on bold/Model-Book looks.
+        const borCol = userCandleColors ? (isUp ? (cs.candles.upBorder || bodyCol) : (cs.candles.downBorder || bodyCol)) : bodyCol
+        const wickCol = userCandleColors ? (isUp ? (cs.candles.upWick || bodyCol) : (cs.candles.downWick || bodyCol)) : bodyCol
+        arr[i] = { ...c, color: bodyCol, borderColor: borCol, wickColor: wickCol }
       }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, cs.candles.upColor, cs.candles.downColor]
+    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick]
   )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
@@ -5839,9 +5849,16 @@ export default function StockChart({
 
       if (decision.kind === 'new') {
         const isDW = !isIntradayTf
-        const openPrice = (isDW && liveSnap.day_open) ? liveSnap.day_open : (lb ? lb.open : lp)
-        const highPrice = isDW ? Math.max(liveSnap.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : lp)
-        const lowPrice = isDW ? Math.min((liveSnap.day_low && liveSnap.day_low > 0) ? liveSnap.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : lp)
+        // A NEW bucket must NOT inherit O/H/L from liveBarRef — that's the PREVIOUS
+        // bar (decision.kind==='new' ⇒ lb.time !== barTime). Fusing lb.low gave a
+        // freshly-opened intraday candle the prior candle's low (the "current candle's
+        // low extends to the last candle" glitch on a 5m switch, seeded by the stale
+        // provisional tail in liveBarRef). Gate the fusion on a bucket-time match, so a
+        // new intraday bar starts clean from the tick — matching Writers A + B.
+        const _lbSame = lb && lb.time === barTime
+        const openPrice = (isDW && liveSnap.day_open) ? liveSnap.day_open : (_lbSame ? lb.open : lp)
+        const highPrice = isDW ? Math.max(liveSnap.day_high || openPrice, lp) : (_lbSame ? Math.max(lb.high, lp) : lp)
+        const lowPrice = isDW ? Math.min((liveSnap.day_low && liveSnap.day_low > 0) ? liveSnap.day_low : openPrice, lp) : (_lbSame ? Math.min(lb.low, lp) : lp)
         const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update(newBar)
@@ -7442,14 +7459,45 @@ export default function StockChart({
     // Same tag count = same tags in the same roles (daily = [locked close, ext],
     // intraday = [ext]); only their prices/titles move. Update in place.
     if (sessionTagRefs.current.length === tags.length) {
-      tags.forEach((t, i) => { try { sessionTagRefs.current[i].applyOptions(opts(t)) } catch { /* series gone */ } })
+      tags.forEach((t, i) => {
+        const o = opts(t)
+        // The INTRADAY Pre/Post chip's live price is owned by the rAF sync effect
+        // below (glued to the developing candle); this per-tick effect must not fight
+        // it on price, or the chip flickers between two feeds. Keep title/color fresh.
+        if (sessionTagsIntraday && t._sessionTag === 'ext') delete o.price
+        try { sessionTagRefs.current[i].applyOptions(o) } catch { /* series gone */ }
+      })
       return
     }
     for (const pl of sessionTagRefs.current) {
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday])
+
+  // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
+  // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
+  // Massive push / realtimeCandle) — each on its OWN feed + throttle — while the chip
+  // previously read sessionExtPrice, a DIFFERENT feed, so during a fast pre/post-market
+  // move the two showed different prices. A rAF loop mirrors the chip to the candle's
+  // exact drawn close (liveBarRef.close) every frame, so they move in unison with no
+  // cross-feed lag. Intraday ext only; only writes when the value actually changes.
+  useEffect(() => {
+    if (!sessionTagsIntraday) return
+    let raf = 0
+    let lastPx = null
+    const tick = () => {
+      const line = sessionTagRefs.current?.[0]
+      const px = liveBarRef.current?.close
+      if (line && Number.isFinite(px) && px > 0 && px !== lastPx) {
+        lastPx = px
+        try { line.applyOptions({ price: px }) } catch { /* series gone */ }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [sessionTagsIntraday])
 
   // ── Custom-TF live developing bar ──
   // Custom intraday TFs skip the native single-writer machinery (that's keyed on the

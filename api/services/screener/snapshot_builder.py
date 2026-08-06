@@ -29,6 +29,12 @@ def build_row(ticker, bars, ratings_row, fundamentals) -> dict:
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
+    # ONE sanitize for all four bar consumers below. Each of them does bare
+    # OHLC arithmetic, so a single null close (halt, thin tape, provider gap)
+    # used to raise out of whichever ran first and lose the whole row — the
+    # ticker's fundamentals and ratings included, which had nothing to do with
+    # the bad bar. See technicals.usable_bars.
+    bars = technicals.usable_bars(bars)
     if bars:
         row.update(technicals.compute_technicals(bars))
         row.update(candles.single_candle(bars))

@@ -55,11 +55,23 @@ export default function IntroAnimation() {
   // listener here would be swallowed). Capture fires first by construction,
   // making the skip immune to that whole class of bug. Keys we don't handle
   // pass through untouched (no preventDefault/stopPropagation).
+  //
+  // A skip key is CONSUMED, not merely handled first. Running in capture only
+  // guaranteed we went first — the event still travelled on to everything
+  // underneath, so ONE Escape did two things. On a deep link
+  // (/calendar?earnings=NVDA) the modal opens behind the intro, and the Escape
+  // that dismissed the intro also reached EarningsModal's window keydown
+  // listener → onClose() → the ?earnings param stripped: the symbol in a
+  // shared link vanished before the member ever saw it. stopImmediatePropagation
+  // (not plain stopPropagation) because a keystroke whose target IS window
+  // dispatches at AT_TARGET, where only the immediate form stops a sibling
+  // listener on that same node.
   useEffect(() => {
     if (phase !== 'playing') return
     const handleKey = (e) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.code === 'Space') {
         e.preventDefault()
+        e.stopImmediatePropagation()
         finish()
       }
     }

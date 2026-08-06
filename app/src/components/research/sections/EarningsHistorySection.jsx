@@ -50,7 +50,7 @@ function rev(v) {
   return n >= 1000 ? `$${(n / 1000).toFixed(2)}B` : `$${Math.round(n)}M`
 }
 
-export default function EarningsHistorySection({ row, reportDate, expectedMove }) {
+export default function EarningsHistorySection({ row, reportDate, expectedMove, enrichReady = true }) {
   const quarters = useMemo(() => buildQuarters({
     beatHistory: row?.beat_history, histStats: row?.hist_stats, reportDate, row,
   }), [row, reportDate])
@@ -58,6 +58,29 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove }
   const reported = quarters.filter((q) => q.reported)
 
   if (!reported.length) {
+    // "Still fetching" and "genuinely never reported" looked IDENTICAL here:
+    // both render with no reported quarters, and the section stated the second
+    // as fact. On a fast click (Month view → day drawer → ticker) the modal
+    // commits a row BEFORE the enrichment batch lands, so a company with ten
+    // years of history was told it had none — then silently corrected itself a
+    // second later. CalendarDayTable already draws this exact distinction on
+    // the same data ("a blank column reads as broken, not loading"); this is
+    // that rule reaching the modal.
+    //
+    // `enrichReady` is the batch-level signal (has the week's enrichment
+    // response arrived at all). It is deliberately NOT "row.beat_history ==
+    // null": a provider that legitimately has nothing for this ticker leaves
+    // that field null forever, which would pin the section on a spinner that
+    // never resolves. Once the batch is in, an absent history is an ANSWER.
+    if (!enrichReady) {
+      return (
+        <EmptyState
+          icon="clock"
+          title="Loading earnings history…"
+          hint="Pulling estimate-versus-reported quarters and next-day reactions."
+        />
+      )
+    }
     return (
       <EmptyState
         icon="clock"

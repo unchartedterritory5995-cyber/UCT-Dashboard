@@ -141,3 +141,85 @@ class TestRoute:
         r = self._client().get("/api/research/ownership/AAPL")
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "institutional", "short", "insider"}
+
+
+class TestShareClassMixing:
+    """yfinance mixes SHARE CLASSES on dual-class tickers — it divides a
+    whole-company figure by a single-class share count. Live-measured
+    2026-08-06 against the production endpoint; every fixture below is a real
+    response, not an invented edge case.
+
+    Two impossible artifacts reached the Ownership tab: a float LARGER than
+    shares outstanding (float is a subset of shares outstanding), and
+    institutions holding more than 100% of a company. FMP's stable/shares-float
+    is class-correct on all four measured tickers and agrees with yfinance to
+    the share on single-class megacaps.
+    """
+
+    # (ticker, yfinance float, yfinance outstanding, FMP float, FMP outstanding)
+    DUAL_CLASS = [
+        ("ATROB", 40_337_603.0, 10_900_000.0, 19_093_178.0, 35_851_963.0),
+        ("ATRO", 40_337_603.0, 38_448_408.0, 31_324_615.0, 38_448_408.0),
+        ("BRK-B", 1_166_258.0, 1_398_308_677.0, 1_393_387_948.0, 2_156_853_595.0),
+        ("LEN-B", 204_214_039.0, 30_389_139.0, 78_914_196.0, 248_295_271.0),
+    ]
+
+    def test_fmp_share_counts_win_over_yfinance(self):
+        for sym, yf_float, yf_out, fmp_float, fmp_out in self.DUAL_CLASS:
+            s = own._short(
+                {"floatShares": yf_float, "sharesOutstanding": yf_out},
+                {"float_shares": fmp_float, "shares_outstanding": fmp_out},
+            )
+            assert s["float_shares"] == fmp_float, sym
+            assert s["shares_outstanding"] == fmp_out, sym
+            # The whole point: the published pair is now arithmetically possible.
+            assert s["float_shares"] <= s["shares_outstanding"], sym
+
+    def test_yfinance_alone_would_have_published_the_impossible_pair(self):
+        """Control — proves the fixtures really are broken upstream, so the
+        assertion above is testing the fix rather than agreeing with itself."""
+        broken = [
+            (sym, yf_float, yf_out)
+            for sym, yf_float, yf_out, _, _ in self.DUAL_CLASS
+            if yf_float > yf_out
+        ]
+        assert {b[0] for b in broken} == {"ATROB", "ATRO", "LEN-B"}
+        # BRK-B's pair is not float>outstanding, it is float ~1000x too SMALL
+        # (1.17M against 1.4B outstanding) — a different face of the same
+        # class-mixing bug, caught by preferring FMP rather than by the guard.
+        assert 1_166_258.0 / 1_398_308_677.0 < 0.01
+
+    def test_contradictory_pair_is_suppressed_not_clamped(self):
+        """When FMP has nothing and yfinance's pair still contradicts itself,
+        publish neither — we cannot tell which side is wrong."""
+        s = own._short({"floatShares": 40_337_603.0, "sharesOutstanding": 10_900_000.0}, {})
+        assert s["float_shares"] is None
+        assert s["shares_outstanding"] is None
+        # Unrelated fields on the same card must survive the suppression.
+        s2 = own._short(
+            {"floatShares": 40_337_603.0, "sharesOutstanding": 10_900_000.0,
+             "sharesShort": 1_234_567, "shortRatio": 2.5}, {})
+        assert s2["shares_short"] == 1_234_567
+        assert s2["days_to_cover"] == 2.5
+
+    def test_equal_float_and_outstanding_is_legal(self):
+        """Boundary: float == outstanding is possible (no restricted stock),
+        so the guard must be strictly-greater, not >=."""
+        s = own._short({}, {"float_shares": 5_000.0, "shares_outstanding": 5_000.0})
+        assert s["float_shares"] == 5_000.0
+        assert s["shares_outstanding"] == 5_000.0
+
+    def test_fmp_partial_falls_back_per_field(self):
+        s = own._short({"floatShares": 900.0, "sharesOutstanding": 1_000.0},
+                       {"float_shares": None, "shares_outstanding": 1_000.0})
+        assert s["float_shares"] == 900.0
+        assert s["shares_outstanding"] == 1_000.0
+
+    def test_institutional_pct_over_100_suppressed(self):
+        """ATRO read 101.84% institutional ownership on 2026-08-06."""
+        out = own._institutional(None, {"heldPercentInstitutions": 1.0184})
+        assert out["pct_held"] is None
+
+    def test_institutional_pct_at_or_under_100_survives(self):
+        assert own._institutional(None, {"heldPercentInstitutions": 1.0})["pct_held"] == 100.0
+        assert own._institutional(None, {"heldPercentInstitutions": 0.7185})["pct_held"] == 71.85

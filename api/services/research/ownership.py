@@ -45,7 +45,18 @@ def _pct(frac):
 
 def _institutional(holders_df, info):
     info = info or {}
-    out = {"pct_held": _pct(info.get("heldPercentInstitutions")), "holders": []}
+    # Same class-mixing defect as the float/outstanding pair: yfinance divides
+    # a whole-company institutional holding by a single-class share count and
+    # reports >100% (ATRO read 101.84% on 2026-08-06). Institutions cannot hold
+    # more than all of the shares outstanding, so a figure over 100 is not a
+    # number to present — it is a signal the inputs came from two different
+    # share classes. Suppress rather than cap: capping to 100.0 would state a
+    # precise fact no provider actually reported.
+    pct_held = _pct(info.get("heldPercentInstitutions"))
+    if pct_held is not None and pct_held > 100:
+        _logger.warning("heldPercentInstitutions %.2f%% exceeds 100 — suppressing", pct_held)
+        pct_held = None
+    out = {"pct_held": pct_held, "holders": []}
     if holders_df is None or getattr(holders_df, "empty", True):
         return out
 
@@ -75,14 +86,67 @@ def _institutional(holders_df, info):
     return out
 
 
-def _short(info):
+def _fmp_share_counts(symbol):
+    """Float + shares outstanding from FMP `stable/shares-float`.
+
+    PRIMARY over yfinance because yfinance mixes SHARE CLASSES on dual-class
+    tickers: it reports a whole-company float against a single-class share
+    count, producing a float LARGER than shares outstanding — an impossible
+    pair that was rendering on the Ownership tab. Measured 2026-08-06:
+
+        ticker  yfinance float / outstanding     FMP float / outstanding
+        ATROB     40,337,603 / 10,900,000  X       19,093,178 /    35,851,963
+        ATRO      40,337,603 / 38,448,408  X       31,324,615 /    38,448,408
+        BRK-B      1,166,258 /  1.398e9    X    1,393,387,948 / 2,156,853,595
+        LEN-B    204,214,039 / 30,389,139  X       78,914,196 /   248,295,271
+
+    On single-class megacaps the two agree (NVDA/MSFT float matched to the
+    share), so this is a correctness fix for the broken tail, not a change in
+    what the common case shows. Returns {} on any failure so the caller falls
+    back to yfinance rather than blanking the card.
+    """
+    try:
+        data = ee._fmp_get("/stable/shares-float", {"symbol": symbol})
+    except Exception as exc:
+        _logger.warning("FMP shares-float failed for %s: %s", symbol, exc)
+        return {}
+    row = data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
+    if not row:
+        return {}
+    return {
+        "float_shares": _num(row.get("floatShares")),
+        "shares_outstanding": _num(row.get("outstandingShares")),
+    }
+
+
+def _short(info, share_counts=None):
     info = info or {}
+    counts = share_counts or {}
+    # FMP first, yfinance only where FMP had nothing (see _fmp_share_counts).
+    float_shares = counts.get("float_shares")
+    if float_shares is None:
+        float_shares = _num(info.get("floatShares"))
+    shares_out = counts.get("shares_outstanding")
+    if shares_out is None:
+        shares_out = _num(info.get("sharesOutstanding"))
+
+    # A float larger than shares outstanding is arithmetically impossible —
+    # float is a SUBSET of shares outstanding. If a pair still contradicts
+    # itself after the FMP swap, we cannot tell WHICH side is wrong, so we
+    # publish neither: an em dash is honest, two confident numbers that can't
+    # both be true are not. Never "repair" by clamping one to the other —
+    # that invents a figure no provider reported.
+    if float_shares is not None and shares_out is not None and float_shares > shares_out:
+        _logger.warning("share counts inconsistent (float %s > outstanding %s) — suppressing both",
+                        float_shares, shares_out)
+        float_shares = shares_out = None
+
     return {
         "shares_short": _num(info.get("sharesShort")),
         "short_pct_float": _pct(info.get("shortPercentOfFloat")),
         "days_to_cover": _num(info.get("shortRatio")),
-        "float_shares": _num(info.get("floatShares")),
-        "shares_outstanding": _num(info.get("sharesOutstanding")),
+        "float_shares": float_shares,
+        "shares_outstanding": shares_out,
         "prior_month_short": _num(info.get("sharesShortPriorMonth")),
     }
 
@@ -214,10 +278,16 @@ def get_ownership(sym):
         _logger.warning("13F ownership failed for %s: %s", sym, exc)
         thirteen_f = None
 
+    try:
+        share_counts = _fmp_share_counts(sym)
+    except Exception as exc:  # defensive: _fmp_share_counts already swallows
+        _logger.warning("share counts failed for %s: %s", sym, exc)
+        share_counts = {}
+
     out = {
         "sym": sym,
         "institutional": _institutional(raw.get("inst"), info),
-        "short": _short(info),
+        "short": _short(info, share_counts),
         "insider": insider,
         "thirteen_f": thirteen_f,
     }
