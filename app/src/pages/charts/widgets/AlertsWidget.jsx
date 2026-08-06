@@ -172,7 +172,6 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
         </div>
         {!isTriggered && (
           <span className={styles.right}>
-            <span className={styles.live}>{live != null ? `$${fmtPrice(live)}` : '—'}</span>
             <span className={`${styles.status}${priceAbove == null ? '' : priceAbove ? ' ' + styles.statusAbove : ' ' + styles.statusBelow}`}>
               {priceAbove == null ? '—' : priceAbove ? 'Price above' : 'Price below'}
             </span>

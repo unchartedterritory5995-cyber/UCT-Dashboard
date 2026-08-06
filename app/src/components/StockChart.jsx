@@ -9055,6 +9055,8 @@ export default function StockChart({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sym, target_price: Number(price.toFixed(2)), direction }),
       })
+      // Refresh every watchlist-alerts cache so the Alerts widget shows it instantly.
+      if (r.ok) globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
       showChartToast(r.ok ? `Alert ${direction} ${price.toFixed(2)}` : 'Alert failed')
     } catch { showChartToast('Alert failed') }
   }, [sym, showChartToast])
