@@ -336,7 +336,7 @@ Re-measured at this task's commit, after the ledger edits: vitest **4,071 / 409*
 (a layout table B4 is forbidden from modifying) and A4 re-fated
 `indicator_alert_evaluator.INDICATOR_FUNCS` to the new fate `C` (spec §8 rebuilds
 the evaluator). That is the decision; the resulting histogram is **not restated
-here**. `enumerationSites.test.js` → *"every B4 region is retired — 2 to C, 4 kept, and NO
+here**. `enumerationSites.test.js` → *"every B4 region is retired — 2 to C, 5 kept, and NO
 B4, B5 or phase key"* asserts it, and every B4 task decremented the `B4`
 bucket, so a number copied into this paragraph would be a control that rots green
 — read it there.
@@ -361,6 +361,24 @@ bucket, so a number copied into this paragraph would be a control that rots gree
 > the retired stack order, which the discovery scan flagged the moment it was
 > inlined). That renamed the test for the THIRD time, and the rail went red on
 > this line again — which is now the only reason the citation above is current.
+
+> ⭐ **RE-CITED A FOURTH TIME 2026-08-06 (PHASE C TASK 1), AND THIS ONE MOVED THE
+> TITLE WITHOUT ANY RETIREMENT AT ALL.** Task 1 taught the discovery scan to read
+> **Python** — two of the ledger's rows are Python and the JS scan, which walks
+> `app/src/**` for `.js`/`.jsx`, structurally could not see either — and its first
+> run over 787 `.py` files found an **unledgered** site: `indicator_compute.py`'s
+> `_CASE_COLUMNS`. So the histogram went `{C: 2, keep: 4}` → `{C: 2, keep: 5}` by
+> ADDITION, `SITE_COUNT` 6 → 7, and the test renamed itself again. The rail went
+> red on this line for the **fourth** time. Nothing about this decision changed;
+> the citation did — which is the entire argument for a rail that fails on a
+> title, and against a paragraph that restates a number.
+>
+> ⚠️ The added row's fate — `keep`, not `C` — is load-bearing rather than
+> editorial: **both** Python `C` rows retire in Phase C, so the Python scan's
+> non-vacuity floor is derived from `keep` (the same re-derivation B5 Task 12 had
+> to make on the JS side, applied here *before* the collapse instead of after).
+> Fated `C`, that floor would become `[]`, and `[].filter(...)` is `[]` — the
+> assertion passes while checking nothing.
 
 > 🔴 **CORRECTED 2026-08-04 (B5 Task 1), and the correction is the point.** This
 > sentence cited that test as *"the retirement column adds up"* — the title it had
