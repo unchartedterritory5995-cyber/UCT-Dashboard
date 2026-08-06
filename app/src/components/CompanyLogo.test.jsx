@@ -13,21 +13,46 @@ describe('CompanyLogo', () => {
     expect(img.getAttribute('src')).toMatch(/^\/api\/ticker-logo\/NVDA\?v=\d+/)
   })
 
-  it('RETRIES on image error before falling back — a transient miss never sticks', () => {
+  it('ALWAYS shows the monogram as a base — never an empty box', () => {
+    render(<CompanyLogo sym="ZZZZ" />)
+    // The monogram letter is present immediately, beneath the (not-yet-loaded) image,
+    // so a cold/transient/just-deployed logo always shows a clean letter tile.
+    expect(screen.getByText('Z')).toBeInTheDocument()
+    expect(screen.getByAltText('ZZZZ logo')).toBeInTheDocument()
+  })
+
+  it('retries with a cache-busted URL on error — a transient miss never sticks', () => {
     vi.useFakeTimers()
     render(<CompanyLogo sym="ZZZZ" />)
     const img = screen.getByAltText('ZZZZ logo')
-    // First error → NOT the monogram yet; it schedules a cache-busted retry.
+    const before = img.getAttribute('src')
     fireEvent.error(img)
-    expect(screen.queryByText('Z')).toBeNull()
-    // Drive the retries (MAX_RETRY = 3, 1800ms each): each re-render re-fetches with a
-    // bumped _r cache-bust; keep erroring until the retry budget is spent.
-    for (let i = 0; i < 4; i++) {
-      act(() => { vi.advanceTimersByTime(1800) })
-      const cur = screen.queryByAltText('ZZZZ logo')
-      if (cur) fireEvent.error(cur)
-    }
-    // Budget exhausted → monogram.
+    // First backoff elapses → re-render re-fetches with a bumped _r cache-bust.
+    act(() => { vi.advanceTimersByTime(1000) })
+    const after = screen.getByAltText('ZZZZ logo').getAttribute('src')
+    expect(after).not.toBe(before)
+    expect(after).toMatch(/_r=1/)
+    // The monogram stays visible the whole time (never an empty box).
     expect(screen.getByText('Z')).toBeInTheDocument()
+  })
+
+  it('reveals the logo (fades out the monogram) once a REAL image loads', () => {
+    render(<CompanyLogo sym="NVDA" />)
+    const img = screen.getByAltText('NVDA logo')
+    // A real (non-placeholder) logo: naturalWidth > 2.
+    Object.defineProperty(img, 'naturalWidth', { value: 256, configurable: true })
+    fireEvent.load(img)
+    expect(screen.getByText('N')).toHaveStyle({ opacity: '0' })   // monogram hidden
+    expect(img).toHaveStyle({ opacity: '1' })                      // logo shown
+  })
+
+  it('a cold 1x1 placeholder load does NOT reveal (keeps the monogram, schedules a retry)', () => {
+    render(<CompanyLogo sym="ZZZZ" />)
+    const img = screen.getByAltText('ZZZZ logo')
+    Object.defineProperty(img, 'naturalWidth', { value: 1, configurable: true })
+    fireEvent.load(img)
+    // Placeholder → monogram stays visible, image stays hidden.
+    expect(screen.getByText('Z')).toHaveStyle({ opacity: '1' })
+    expect(img).toHaveStyle({ opacity: '0' })
   })
 })

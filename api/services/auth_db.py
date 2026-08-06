@@ -563,7 +563,11 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ticker_tags_sym ON ticker_tags(sym)")
         conn.commit()
 
-        # Watchlist alerts table (per-symbol price alerts)
+        # Watchlist alerts table (per-symbol price alerts). alert_type extends the
+        # plain price alert to chart-drawing alerts: 'line' = a horizontal line (the
+        # level IS target_price) and 'trendline' = a sloped line, whose level at any
+        # moment is interpolated from the two anchor points (anchor_t*/anchor_p*, unix
+        # seconds + price). 'price' = the classic manual price alert.
         conn.execute("""
             CREATE TABLE IF NOT EXISTS watchlist_alerts (
                 id              TEXT PRIMARY KEY,
@@ -573,12 +577,35 @@ def init_db():
                 direction       TEXT NOT NULL,
                 is_active       INTEGER DEFAULT 1,
                 triggered_at    TIMESTAMP,
-                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                alert_type      TEXT DEFAULT 'price',
+                anchor_t1       INTEGER,
+                anchor_p1       REAL,
+                anchor_t2       INTEGER,
+                anchor_p2       REAL
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wl_alerts_user ON watchlist_alerts(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wl_alerts_active ON watchlist_alerts(is_active)")
         conn.commit()
+
+        # Migration: add drawing-alert columns to watchlist_alerts if missing (existing DBs)
+        wa_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlist_alerts)").fetchall()]
+        _wa_new = [
+            ("alert_type", "ALTER TABLE watchlist_alerts ADD COLUMN alert_type TEXT DEFAULT 'price'"),
+            ("anchor_t1", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_t1 INTEGER"),
+            ("anchor_p1", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_p1 REAL"),
+            ("anchor_t2", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_t2 INTEGER"),
+            ("anchor_p2", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_p2 REAL"),
+        ]
+        _wa_added = False
+        for _col, _ddl in _wa_new:
+            if _col not in wa_cols:
+                conn.execute(_ddl)
+                _wa_added = True
+        if _wa_added:
+            conn.commit()
+            print("[auth] Migrated: added drawing-alert columns to watchlist_alerts")
 
         # Migration: add sort_order column to watchlist_items if missing
         wi_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlist_items)").fetchall()]

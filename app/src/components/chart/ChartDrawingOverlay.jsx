@@ -984,6 +984,8 @@ export default function ChartDrawingOverlay({
   savedColors = [],          // shared saved-color swatches (same list as Chart Settings)
   onSaveColor = null,        //   → the drawing color picker (ColorPanel) reuses them
   onDeleteColor = null,
+  onSetAlert = null,         // (drawing, 'above'|'below') => void — "Set alert" on a line/trendline's
+                             //   right-click menu. Provided only by the MAIN chart (it knows the symbol).
   readOnly = false,          // display-only layer (multi-chart grid cells): skip the window
                              //   keydown handler entirely — a NOOP-wired instance would still
                              //   preventDefault Escape/Ctrl+Z/Ctrl+V app-wide, ×N cells.
@@ -2479,6 +2481,8 @@ export default function ChartDrawingOverlay({
             drawing={d}
             levelSupported={LEVEL_LINE_TYPES.has(d.type)}
             horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
+            alertSupported={!!onSetAlert && LEVEL_LINE_TYPES.has(d.type)}
+            onSetAlert={(direction) => { onSetAlert?.(d, direction); setCtxMenu(null) }}
             currentLevel={leftLevel}
             onSetLevel={(price) => {
               // Flatten the whole line onto the typed price — a clean horizontal
@@ -2615,10 +2619,11 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
+  const [alertOpen, setAlertOpen] = useState(false)
   const [levelVal, setLevelVal] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)  // brief "Saved ✓" confirmation
   const openLevel = () => { setLevelVal(fmtLevel(currentLevel)); setLevelOpen(o => !o) }
@@ -2812,7 +2817,40 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
           icon={<><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>}
         />
       )}
-      {(levelSupported || horizontalSupported) && (
+      {alertSupported && (
+        <>
+          <MenuAction
+            label="Set alert…"
+            onClick={() => setAlertOpen(o => !o)}
+            big={sheet}
+            icon={<><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>}
+          />
+          {alertOpen && (
+            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+              {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
+                  surface, so theme-variable colors (which flip dark on light) would
+                  be unreadable here. */}
+              {[
+                { dir: 'above', label: '▲ Above', col: '#3cb868' },
+                { dir: 'below', label: '▼ Below', col: '#ff5b5b' },
+              ].map(b => (
+                <button
+                  key={b.dir}
+                  onClick={() => onSetAlert?.(b.dir)}
+                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}`}
+                  style={{
+                    flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
+                    background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
+                    borderRadius: 6, color: b.col, cursor: 'pointer',
+                    fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 700,
+                  }}
+                >{b.label}</button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {(levelSupported || horizontalSupported || alertSupported) && (
         <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
       )}
 

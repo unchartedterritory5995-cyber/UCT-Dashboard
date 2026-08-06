@@ -2932,6 +2932,38 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth-live pre-open warm")
 
+        # Dividend basis for the breadth levels. The sweep is ~9 minutes of
+        # paged vendor calls, so it runs well before the 09:05 level warm that
+        # consumes it — a level built from a half-swept store under-adjusts the
+        # oldest part of every 52-week window rather than failing.
+        #
+        # 04:40 ET daily (not weekdays-only): ex-dates are assigned on calendar
+        # days, and a Monday level frame reaches back through the weekend.
+        try:
+            def _breadth_dividends_refresh():
+                try:
+                    from api.services import breadth_dividends as bdiv
+                    h = bdiv.refresh()
+                    log = logging.getLogger(__name__)
+                    log.info("[breadth-live] dividend sweep rows=%s tickers=%s truncated=%s",
+                             h.get("rows"), h.get("tickers"), h.get("truncated"))
+                    if h.get("truncated"):
+                        log.warning("[breadth-live] dividend sweep TRUNCATED — levels "
+                                    "will under-adjust older windows")
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[breadth-live] dividend sweep failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_dividends_refresh,
+                trigger=CronTrigger(hour=4, minute=40, timezone=_ET),
+                id="breadth_dividends_refresh", max_instances=1, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth dividend sweep scheduled (daily 4:40 ET)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth dividend sweep")
+
         # Breadth live -- sample the session's shape on a CLOCK, not on traffic.
         #
         # The intraday store only recorded when someone called the endpoint, so
