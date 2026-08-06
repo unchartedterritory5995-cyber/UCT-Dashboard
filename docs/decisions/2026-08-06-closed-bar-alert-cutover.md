@@ -233,8 +233,20 @@ the same list the code under test does can only ever see what that list contains
 the same shape as the `dpc` constants finding in the pre-C repair.
 
 Proof it moved nothing else: `python tools/alert_replay.py --check` is still exit 0,
-8 (fixture, k) pairs, **691,195 fires, digest for digest** — `build_alert_grid` is
-untouched and the diff's two extra alerts come from a separate `build_event_alerts`.
+8 (fixture, k) pairs, **digest for digest** — `build_alert_grid` is untouched and the
+diff's extra alerts come from separate `build_event_alerts` / `build_price_alerts`
+passes that never touch the frozen grid.
+
+⚠️ **THE FIRE TOTAL THAT USED TO BE QUOTED HERE HAS MOVED ONCE, ON PURPOSE, AND THE
+SENTENCE IS NOW WRITTEN SO IT CANNOT ROT AGAIN.** It read 691,195 from Task 2 until the
+daily-VWAP unit fix landed (`29569946` + `2999e8f0`) and re-froze it at **685,193**
+(−6,002, 0.87%). That was the one sanctioned exception to *"if the log moves, that is a
+finding, never a number to regenerate"*, and it was justified at three independent
+resolutions before the re-freeze: **6 of 8 (fixture, k) pairs byte-identical**; across
+all 1,244 keys × 8 pairs **exactly 20 moved and every one was a `spy_daily|vwap|…`
+address, non-VWAP = 0**; and `per_address_fires` moved for **exactly 1 of 28** addresses.
+The claim this paragraph makes — *"it moved nothing else"* — is about **`build_alert_grid`
+being untouched**, and that claim is checked by the digest equality, not by the total.
 
 ## 10. Baseline, by command
 

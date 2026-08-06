@@ -49,7 +49,9 @@ from api.services.cache import cache
 from api.services.serve_stale import ServeStale
 from api.services.signature import ledger, registry_defs, rules
 from api.services.signature.darkpool_levels import fetch_dp_levels
-from api.services.signature.flow_breakout import _bar_date_iso, fcb_signals, flow_by_date
+from api.services.signature.flow_breakout import (
+    FLOW_COLS, _bar_date_iso, fcb_signals, flow_by_date,
+)
 from api.services.signature.gex_walls import fetch_gex_walls
 from api.services.signature.rules import parse_money
 
@@ -121,6 +123,52 @@ _FCB_NEG_MAX_KEYS = 256
 # Deliberately NOT the loose startswith("C") used elsewhere in the repo — see
 # _flow_join_stats for why that difference has to be observable.
 _FLOW_SIDE_DOMAIN = frozenset({"C", "CALL", "P", "PUT"})
+
+# ── the flow read's budget, and what it is spent on ─────────────────────────
+#
+# ⭐ ONE BUDGET FOR THE WHOLE READ, NOT ONE PER SOURCE. `_fetch_flow_by_date`
+# can issue TWO requests (stocks, then indexes). Each carried its own
+# `timeout=15.0`, so an index symbol whose first leg was merely SLOW rather than
+# dead could hold an anyio worker for **thirty** seconds — while every comment
+# in this module, and the negative cache's entire justification ("every request
+# pays 15s"), describes the request path's budget as fifteen. The second leg now
+# gets what is LEFT of the budget.
+_FLOW_READ_BUDGET_S = 15.0
+# Below this there is no point starting a streamed read: it would expire partway
+# through the body and the half-parsed join would be thrown away regardless.
+# Declining to start is scored as a FAILED read (None), never as an empty tape —
+# the caller must retry it next request, not remember "no signal" for 30 minutes.
+_FLOW_READ_MIN_LEG_S = 1.0
+
+# The projection the flow join actually reads. Derived from `FLOW_COLS` — the
+# tuple `flow_by_date` resolves BY NAME out of the response header — so the
+# question we ask and the fields we parse cannot drift apart. Measured against
+# production 2026-08-06: `/api/flow/ticker/SPY?source=indexes` is 349,203 rows
+# over 22 columns = 40.9 MB of CSV, of which this join reads three fields.
+_FLOW_COLS_PARAM = ",".join(FLOW_COLS)
+
+# ── which source a symbol is filed under ────────────────────────────────────
+#
+# `/api/flow/ticker` defaults to `source=stocks`, and index/ETF symbols live
+# under `indexes`, so SPY/QQQ/IWM pay a WHOLE EXTRA ROUND TRIP that can only
+# ever return a bare header (measured on prod: 1.06 s TTFB for a 145-byte
+# response) before the real read even starts.
+#
+# This remembers ONLY the proven-index-filed symbols, and only when an `indexes`
+# read actually RETURNED ROWS. It is deliberately not the symmetric "remember
+# whichever source answered":
+#   * `stocks` is already the documented default order, so remembering it would
+#     record what the code does anyway;
+#   * a symbol that appears in BOTH sources must keep resolving to `stocks`, the
+#     order this surface has always had.
+# It is never written from a FAILURE (a 500 is not a filing) and never from an
+# EMPTY read (that is the poisoning `lesson_market_cap_cache_poison` names), and
+# it is UNLEARNED the moment `indexes` stops answering for a symbol that
+# `stocks` does — so an upstream re-filing costs one wasted probe, not a
+# permanently wrong route.
+_FCB_INDEX_FILED: dict[str, float] = {}
+_FCB_INDEX_FILED_LOCK = threading.Lock()
+_FCB_INDEX_FILED_MAX_KEYS = 512
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -228,7 +276,8 @@ def _flow_base_url() -> str:
     return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
 
 
-def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[dict]] | None:
+def _read_flow_source(sym: str, source: str, cutoff_iso: str,
+                      *, timeout: float = _FLOW_READ_BUDGET_S) -> dict[str, list[dict]] | None:
     """One STREAMED read of ONE flow source, or **None when the read FAILED**.
 
     An unreachable flow service and a genuinely quiet tape both produce zero
@@ -246,6 +295,18 @@ def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[
     a time and keeps three keys, inside the bar window it is about to join
     against.
 
+    **And it now ASKS for three fields rather than discarding nineteen.**
+    Streaming bounded this side's memory; it did nothing about the other side,
+    which still SELECTed 22 columns, CSV-wrote them and gzipped the lot into
+    memory before shipping a byte. That build is where the cold seconds were:
+    measured on a replica of production's own rows, SPY/indexes went 2585 ms and
+    10.2 MB gzipped to 678 ms and 2.1 MB, NVDA 1203 ms to 306 ms, AAPL 610 ms to
+    187 ms — and this side's decode+parse fell with it (SPY 1367 ms to 781 ms).
+    `cols=` is optional upstream and defaults to every column, so a service that
+    has not taken the change yet answers exactly as it does today: slower, never
+    wrong. A column it does not recognise is a 400 — which lands here as a
+    FAILED read, not as a quiet tape.
+
     **No credential is forwarded.** `/api/flow/ticker/{symbol}` declares no auth
     dependency on either service, so sending the caller's session cookie to an
     env-configurable base URL would buy nothing and hand a live credential to
@@ -253,7 +314,9 @@ def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[
     """
     url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
     try:
-        with httpx.stream("GET", url, params={"source": source}, timeout=15.0) as resp:
+        with httpx.stream("GET", url,
+                          params={"source": source, "cols": _FLOW_COLS_PARAM},
+                          timeout=timeout) as resp:
             if resp.status_code != 200:
                 logger.warning("signature: flow read for %s (%s) returned HTTP %s",
                                sym, source, resp.status_code)
@@ -262,6 +325,28 @@ def _read_flow_source(sym: str, source: str, cutoff_iso: str) -> dict[str, list[
     except Exception as exc:                       # noqa: BLE001
         logger.warning("signature: flow read for %s (%s) failed: %s", sym, source, exc)
         return None
+
+
+def _fcb_index_filed(sym: str) -> bool:
+    """Has an `indexes` read ever RETURNED ROWS for this symbol?"""
+    return sym in _FCB_INDEX_FILED
+
+
+def _fcb_remember_index_filed(sym: str) -> None:
+    # Locked: the prune below ITERATES the dict, so a concurrent writer would
+    # raise "dictionary changed size during iteration" — on the cold path,
+    # which is a 500 (rule 1). Same shape as the two negative caches.
+    with _FCB_INDEX_FILED_LOCK:
+        _FCB_INDEX_FILED[sym] = time.time()
+        if len(_FCB_INDEX_FILED) > _FCB_INDEX_FILED_MAX_KEYS:  # the key is user input
+            oldest_first = sorted(_FCB_INDEX_FILED, key=lambda k: _FCB_INDEX_FILED[k])
+            for key in oldest_first[:-_FCB_INDEX_FILED_MAX_KEYS]:
+                _FCB_INDEX_FILED.pop(key, None)
+
+
+def _fcb_forget_index_filed(sym: str) -> None:
+    with _FCB_INDEX_FILED_LOCK:
+        _FCB_INDEX_FILED.pop(sym, None)
 
 
 def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]] | None:
@@ -284,11 +369,54 @@ def _fetch_flow_by_date(sym: str, cutoff_iso: str = "") -> dict[str, list[dict]]
     fallback read itself fails, that failure is returned too — an index symbol
     whose second read died must be retried next request, not remembered as
     signal-free for the next 30 minutes.
+
+    **Two things bound it now.**
+
+    *One budget, not two.* Both legs used to carry their own 15s timeout, so the
+    worst case for an index symbol was 30s on an anyio worker. The pair shares
+    `_FLOW_READ_BUDGET_S`; the second leg is given the remainder, and if too
+    little is left to finish a body it is not started — reported as a FAILED
+    read, because "we ran out of time" is not "the tape was quiet".
+
+    *And the wasted probe is learned away.* Once `indexes` has answered for a
+    symbol WITH ROWS, that symbol asks `indexes` first and the bare-header
+    `stocks` round trip stops being paid. Still not a hardcoded list —
+    membership stays upstream's to change, and the memo unlearns itself the
+    first time `indexes` comes back empty and `stocks` does not.
     """
-    by_date = _read_flow_source(sym, "stocks", cutoff_iso)
-    if by_date is None or by_date:
+    deadline = time.monotonic() + _FLOW_READ_BUDGET_S
+    index_first = _fcb_index_filed(sym)
+    first = "indexes" if index_first else "stocks"
+    second = "stocks" if index_first else "indexes"
+
+    by_date = _read_flow_source(sym, first, cutoff_iso,
+                                timeout=_FLOW_READ_BUDGET_S)
+    if by_date is None:
+        return None
+    if by_date:
+        if first == "indexes":
+            _fcb_remember_index_filed(sym)
         return by_date
-    return _read_flow_source(sym, "indexes", cutoff_iso)
+
+    remaining = deadline - time.monotonic()
+    if remaining < _FLOW_READ_MIN_LEG_S:
+        logger.warning("signature: flow read for %s spent its whole %.0fs budget on "
+                       "%s and had %.2fs left for %s — reporting a FAILED read, "
+                       "not a quiet tape", sym, _FLOW_READ_BUDGET_S, first,
+                       max(remaining, 0.0), second)
+        return None
+
+    by_date = _read_flow_source(sym, second, cutoff_iso, timeout=remaining)
+    if by_date:
+        if second == "indexes":
+            _fcb_remember_index_filed(sym)
+        else:
+            # `indexes` went quiet and `stocks` answered: the memo that sent us
+            # to `indexes` first is no longer true. Unlearn it, or this symbol
+            # pays the wasted probe forever — the mirror image of the one this
+            # memo exists to remove.
+            _fcb_forget_index_filed(sym)
+    return by_date
 
 
 def _flow_join_stats(rows) -> dict:

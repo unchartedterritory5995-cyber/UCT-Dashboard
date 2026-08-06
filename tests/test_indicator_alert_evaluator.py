@@ -498,6 +498,58 @@ def test_a_vwap_alert_can_now_actually_fire():
     assert triggered_high is False
 
 
+def test_a_DAILY_vwap_alert_answers_NOTHING_rather_than_a_number_from_1970():
+    """🟢 THE 1970 ANCHOR, ASSERTED WHERE A USER MEETS IT.
+
+    `tests/test_indicator_compute.py` measures the compute. This measures the
+    LANE: a row exactly as `indicator_alerts` stores one, evaluated through the
+    shipped `_evaluate_one`, on bars shaped exactly as `_fetch_bars_for_alert`
+    returns them for `tf="D"` — `t` is the store's `YYYYMMDD` INT, because
+    `bars_sqlite`'s own docstring says daily rows are keyed that way and the
+    fetch passes the key through verbatim (deliberately: `bar_close_epoch` reads
+    that encoding).
+
+    Before the fix this returned a real-looking price computed from a single
+    "session" that began on **1970-08-23**, and `triggered` was decided from it.
+    A member could have been emailed about it. Now the value is `None`, the cycle
+    records nothing, and nothing is delivered.
+
+    ⚠️ THE CONTROL IS THE POINT — WITHOUT IT THIS PASSES ON A BROKEN VWAP. The
+    SAME CLOSES with intraday timestamps still produce a real number, so what is
+    being asserted is that the UNIT is refused, not that VWAP stopped working.
+    """
+    closes = [100.0 + (i % 7) for i in range(60)]
+
+    def row(t, c):
+        return {"t": t, "o": c, "h": c + 1.0, "l": c - 1.0, "c": c, "v": 10_000}
+
+    def alert(tf):
+        return {"id": 99, "user_id": 1, "sym": "TEST", "indicator": "vwap",
+                "condition": "above", "threshold": 1.0, "tf": tf,
+                "params_json": None, "last_value": None}
+
+    # THE DEFECT'S INPUT: 60 consecutive trading-ish days as YYYYMMDD ints.
+    import datetime as _dt
+    day = _dt.date(2026, 1, 2)
+    daily = []
+    for c in closes:
+        daily.append(row(int(day.strftime("%Y%m%d")), c))
+        day += _dt.timedelta(days=1)
+    value, triggered = evaluator._evaluate_one(alert("D"), bars=daily)
+    assert value is None, (
+        f"a daily vwap alert produced {value!r}. Every bar's `t` here is a "
+        f"YYYYMMDD int, which read as unix seconds is 1970 — so whatever that "
+        f"number is, it is not a VWAP.")
+    assert triggered is False
+
+    # THE CONTROL: same closes, real 5-minute instants → a real number that
+    # triggers. So the refusal above is about the encoding and nothing else.
+    intraday = [row(1785410100 + i * 300, c) for i, c in enumerate(closes)]
+    value_5, triggered_5 = evaluator._evaluate_one(alert("5"), bars=intraday)
+    assert value_5 is not None and triggered_5 is True
+    assert min(b["l"] for b in intraday) <= value_5 <= max(b["h"] for b in intraday)
+
+
 def test_all_seven_previously_unalertable_definitions_are_reachable():
     """The gap, closed and counted.
 

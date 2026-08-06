@@ -74,6 +74,49 @@ COLUMNS = [
 _HEADER_LINE = ",".join(COLUMNS) + "\n"
 _SELECT_COLS = ", ".join(COLUMNS)
 
+# The projection allow-list. `cols=` is user input that lands in a SELECT list,
+# so it is resolved against this set BY MEMBERSHIP and never interpolated raw.
+_COLUMN_SET = frozenset(COLUMNS)
+
+
+def parse_columns(raw):
+    """Resolve a `cols=` request into a validated projection, or None for ALL.
+
+    Blank/absent means every column — the shape every existing caller gets and
+    the reason this parameter is additive rather than a change.
+
+    ⛔ AN UNKNOWN NAME IS REFUSED, NEVER DROPPED. Silently skipping it would
+    narrow the header, and the readers on this surface resolve their fields BY
+    NAME from that header (`signature.flow_breakout.flow_by_date` looks up
+    CreatedDate/CallPut/Premium and RAISES when one is missing). A dropped
+    column therefore turns into either a raised parse — recoverable, because the
+    caller scores it as a FAILED read — or, on a reader that tolerated the gap,
+    a join that matches nothing and reports a quiet tape. The whole point of
+    this module's date/symbol scoping is that an empty result and a wrong
+    question must never look alike, so the wrong question gets an error.
+
+    Duplicates are collapsed (a repeated name would emit a repeated column);
+    ORDER IS THE CALLER'S, because the header it receives has to describe the
+    rows it receives.
+    """
+    if raw is None:
+        return None
+    names = [n.strip() for n in str(raw).split(",")]
+    names = [n for n in names if n]
+    if not names:
+        return None
+    unknown = [n for n in names if n not in _COLUMN_SET]
+    if unknown:
+        raise ValueError(
+            f"unknown flow column(s) requested: {unknown} — the flow table "
+            f"exports {COLUMNS}")
+    seen, out = set(), []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
 # Dedup key — uniquely identifies a single trade
 DEDUP_COLS = [
     "CreatedDate", "CreatedTime", "Symbol", "Type", "Volume",
@@ -432,7 +475,7 @@ class FlowDB:
         finally:
             conn.close()
 
-    def stream_csv_symbol(self, symbol: str, source: str = "stocks"):
+    def stream_csv_symbol(self, symbol: str, source: str = "stocks", columns=None):
         """Stream ALL flow rows for a single SYMBOL, uncapped, across every date.
 
         The bulk stream_csv caps large ranges to the top-N rows by premium, which
@@ -441,16 +484,38 @@ class FlowDB:
         rows, $1.5M of $3.84M). The Search deep-dive uses THIS instead: one symbol
         is a tiny, indexed result set (tens of rows via idx_flow_symbol), so it is
         never capped and always reflects the ticker\'s complete flow.
+
+        ⚠️ "TENS OF ROWS" WAS TRUE OF AN UPLOADED BBS CSV AND IS NOT TRUE OF THE
+        LIVE OPRA TAPE. Measured against production 2026-08-06: SPY/indexes is
+        349,203 rows = 40.9 MB of CSV over 22 columns, NVDA 141,639 rows /
+        19.9 MB, AAPL 68,018 / 9.5 MB — all built into memory before a byte
+        ships. `columns` lets a caller that reads three fields ask for three
+        fields: the same rows, the same order, a header that describes them.
+        Measured on a replica of those exact rows, SPY 40.9 MB -> 7.3 MB and the
+        build 2585 ms -> 678 ms.
+
+        `columns=None` is every column, so every existing caller is untouched.
         """
+        cols = list(columns) if columns else COLUMNS
+        bad = [c for c in cols if c not in _COLUMN_SET]
+        if bad:
+            # Deliberately NOT worded like `parse_columns`' refusal: these are
+            # two different gates on two different surfaces (a request boundary
+            # and a store method), and a test that pins one by message must not
+            # be able to pass while the other is deleted.
+            raise ValueError(
+                f"stream_csv_symbol projection is not in the flow schema: {bad}")
+        header_line = ",".join(cols) + "\n"
+        select_cols = ", ".join(cols)
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         try:
             cursor = conn.execute(
-                f"SELECT {_SELECT_COLS} FROM flow WHERE source = ? AND Symbol = ?",
+                f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ?",
                 (source, symbol),
             )
-            yield _HEADER_LINE
+            yield header_line
             buf = io.StringIO()
             writer = csv.writer(buf)
             count = 0

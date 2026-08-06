@@ -10768,6 +10768,14 @@ export default function StockChart({
           />
           <ChartToolbar
             ref={toolbarRef}
+            /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped
+               the column, the API field, the label and the deletion guard and
+               left them without one, because the only surface that could supply
+               a chart instance is the alert popover and the popover is mounted
+               from here. This is the SAME list the binder was handed (written in
+               `updateChart`), so the popover can never offer an instance this
+               chart is not drawing. */
+            chartInstances={engineInstancesRef.current}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -10909,6 +10917,7 @@ export default function StockChart({
           />
           {annotationsEditable && (
             <ChartToolbar
+              chartInstances={engineInstancesRef.current}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -10999,6 +11008,7 @@ export default function StockChart({
           />
           {indexAnnotationsEditable && (
             <ChartToolbar
+              chartInstances={engineInstancesRef.current}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}

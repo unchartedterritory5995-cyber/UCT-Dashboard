@@ -114,13 +114,20 @@ def test_sar_events_are_in_the_zero_one_none_domain():
         assert 1.0 in series[1:], f"{name} never fires on these bars — the case is vacuous"
 
 
-# ─── ⚠️ AN OPEN DEFECT, PINNED WHERE IT CAN BE SEEN ─────────────────────────
+# ─── 🟢 THE 1970 ANCHOR, CLOSED — WAS A PIN, IS NOW THE REGRESSION TEST ──────
+#
+# This block was `test_DEFECT_vwap_on_a_daily_YYYYMMDD_series_is_one_session_
+# anchored_in_1970`, written by Task 5 to make an OPEN defect visible and to go
+# red the day somebody corrected it. It went red. The paragraph it was holding is
+# below, in the past tense, with the assertion turned over: the same series that
+# used to produce one 1970-anchored bucket is now REFUSED, and the same control
+# still proves the claim is about the UNIT and not about VWAP.
 
-def test_DEFECT_vwap_on_a_daily_YYYYMMDD_series_is_one_session_anchored_in_1970():
-    """🔴 THIS TEST ASSERTS A BUG. Read it before "fixing" the red it will turn.
+def test_vwap_REFUSES_a_daily_YYYYMMDD_series_instead_of_anchoring_it_in_1970():
+    """🟢 THE FIX, MEASURED AT THE SHAPE THE DEFECT HAD.
 
     `compute_vwap_raw` documents `t` as UNIX SECONDS and both lanes' fixtures use
-    them. The LIVE alert path does not: `indicator_alert_evaluator.
+    them. The LIVE alert path did not: `indicator_alert_evaluator.
     _fetch_bars_for_alert` passes the bars store's timestamp straight through as
     `t`, and for a DAILY bar that value is a `YYYYMMDD` INT (the alert replay
     harness's `spy_daily` fixture records exactly that: *"`t` is a `YYYYMMDD` int
@@ -128,27 +135,36 @@ def test_DEFECT_vwap_on_a_daily_YYYYMMDD_series_is_one_session_anchored_in_1970(
 
     `20260806` read as unix seconds is **1970-08-23 08:00:06 ET**. Two whole
     YEARS of daily bars span 11,130 of those seconds — about three hours — so
-    every one of them lands inside one ET calendar day and the session
-    accumulator NEVER RESETS. A 400-day daily VWAP is one continuous "session"
-    beginning in 1970.
+    every one of them landed inside one ET calendar day and the session
+    accumulator NEVER RESET. A 400-day daily VWAP was one continuous "session"
+    beginning in 1970, and **it did not raise**, so nothing anywhere surfaced it.
 
-    **It does not raise.** `compute_vwap_raw`'s defensive branch catches a
-    NON-NUMERIC `t` (a `'YYYY-MM-DD'` string) and yields a stable `'invalid'`
-    bucket; a numeric `YYYYMMDD` sails straight through the arithmetic, so
-    nothing anywhere surfaces it.
+    ⭐ WHY REFUSE RATHER THAN CONVERT, WHICH IS THE ONLY INTERESTING QUESTION
+    HERE. Two things could have been done with a date-shaped `t`:
 
-    ⛔ DELIBERATELY NOT FIXED HERE, and the reason is the fix's location. The
-    unit mismatch is at the CALL SITE — the evaluator hands a compute documented
-    in seconds a number in days — and that file belongs to the alert lane. Fixing
-    it inside `compute_vwap_raw` (sniffing the `YYYYMMDD` shape) would change what
-    an ARMED alert computes, which is a behavioural change to a live surface and
-    is not this task's to make. What this task owes is that the defect stop being
-    invisible, so: it is measured, it is written down, and the day somebody
-    corrects the call site THIS TEST GOES RED with the paragraph in hand.
+      * translate it to an instant, which would make daily VWAP resolve to each
+        bar's own typical price — one session per bar, because a daily bar IS a
+        session. That is a plausible NUMBER for a question that has no answer,
+        and it would ship under the name of an indicator it is not.
+      * refuse the column outright, which is what the CHART lane already says by
+        construction: `eligibility.VWAP_TIMEFRAMES` is `1/5/15/30/60` and VWAP is
+        not offered on daily at all.
 
-    The control below is what makes the claim "the unit is wrong" rather than
-    "VWAP is broken": the SAME closes with real unix-second timestamps reset once
-    per ET day, exactly as they should.
+    The second, and the guard is `VWAP_MIN_INSTANT` — the constant Task 14 had
+    already introduced for `compute_avwap_raw`, now shared rather than copied.
+    That sharing is itself load-bearing: `compute_avwap_raw(bars, "session")` is
+    documented to equal `compute_vwap_raw(bars)` bar for bar, and while only one
+    of the two validated the unit that promise was FALSE on exactly these inputs.
+    `test_vwap_and_session_avwap_agree_including_when_they_both_refuse` is where
+    that equality is asserted.
+
+    ⛔ AND THE REFUSAL IS THE WHOLE COLUMN, NEVER ONE BUCKET. "One bucket for the
+    whole series" IS what the defect produced, so a fallback with that shape
+    could not be told apart from it.
+
+    The control at the bottom is what makes the claim "the unit is wrong" rather
+    than "VWAP is broken": the SAME closes with real unix-second timestamps still
+    reset once per ET day, exactly as they should.
     """
     days = [(2026, m, d) for m in (1, 2) for d in range(1, 29)]
 
@@ -157,21 +173,21 @@ def test_DEFECT_vwap_on_a_daily_YYYYMMDD_series_is_one_session_anchored_in_1970(
 
     def collapsed(out, bars):
         """Indices where the accumulator holds exactly one bar's typical price —
-        i.e. where a session opened."""
+        i.e. where a session opened. A refused (``None``) bar is not a session
+        open, so it contributes no index; that is what lets the same helper
+        describe both the defect's output and the fix's."""
         return [
             i for i, b in enumerate(bars)
-            if abs(out[i] - (b["h"] + b["l"] + b["c"]) / 3.0) < 1e-9
+            if out[i] is not None
+            and abs(out[i] - (b["h"] + b["l"] + b["c"]) / 3.0) < 1e-9
         ]
 
-    # THE DEFECT: the store's daily key, passed through verbatim.
+    # THE INPUT THAT CARRIED THE DEFECT: the store's daily key, verbatim.
     ymd_bars = [bar(int("%04d%02d%02d" % ymd), i) for i, ymd in enumerate(days)]
-    ymd_out = compute_vwap_raw(ymd_bars)
-    assert collapsed(ymd_out, ymd_bars) == [0], (
-        "a daily YYYYMMDD series now resets more than once — the 1970 anchor has "
-        "been corrected somewhere. That is GOOD NEWS: delete this test, and record "
-        "the fix wherever it landed."
-    )
-    # …and it really is 1970, not merely 'one long session'.
+
+    # The arithmetic that made it 1970 is still true of the INPUT — asserted
+    # first, so this test names the reason the column is refused rather than
+    # merely observing that it is. Nothing here calls compute.
     from datetime import datetime
     import zoneinfo
     et = zoneinfo.ZoneInfo("America/New_York")
@@ -182,6 +198,29 @@ def test_DEFECT_vwap_on_a_daily_YYYYMMDD_series_is_one_session_anchored_in_1970(
     assert last.timestamp() - first.timestamp() < 3 * 3600, (
         "two months of daily bars span more than three hours — re-measure the span"
     )
+
+    # THE FIX: the whole column, refused.
+    ymd_out = compute_vwap_raw(ymd_bars)
+    assert ymd_out == [None] * len(days), (
+        "a daily YYYYMMDD series produced VALUES again. Whatever it produced, it "
+        "was computed from a `t` that is 1970-08-23 — see the assertions above."
+    )
+    # …and specifically NOT the one-bucket shape, which is what the defect looked
+    # like and what a 'plausible fallback' would look like too. This assertion is
+    # redundant with the one above ON PURPOSE: it is the one that would catch a
+    # future 'fix' that answers with a single session instead of refusing.
+    assert collapsed(ymd_out, ymd_bars) != [0]
+    assert not any(v is not None for v in ymd_out)
+
+    # THE SECOND DOOR, closed by the same gate: the CHART lane's daily encoding is
+    # a 'YYYY-MM-DD' STRING, which used to reach a stable 'invalid' day key — one
+    # bucket for the series, the identical defect by another route.
+    iso_bars = [bar("%04d-%02d-%02d" % ymd, i) for i, ymd in enumerate(days)]
+    assert compute_vwap_raw(iso_bars) == [None] * len(days)
+
+    # `True` is an `int` in Python and 1 < VWAP_MIN_INSTANT, so a boolean `t`
+    # must be refused as a unit error and not silently floor-divided into 1970.
+    assert compute_vwap_raw([bar(True, 0), bar(False, 1)]) == [None, None]
 
     # THE CONTROL: the same series with real unix seconds resets once per ET day.
     import calendar
@@ -194,3 +233,117 @@ def test_DEFECT_vwap_on_a_daily_YYYYMMDD_series_is_one_session_anchored_in_1970(
         "the control failed: compute_vwap_raw does not reset per ET day even on real "
         "unix seconds, so the assertion above is not measuring a UNIT mismatch"
     )
+    # The control is only a control if it produced REAL VALUES — an all-None
+    # column would satisfy `collapsed(...) == []`, and on a one-day series `[]`
+    # is not `list(range(56))`, but on a shorter one it could be. Say it anyway.
+    assert all(v is not None for v in unix_out)
+
+
+def test_vwap_and_session_avwap_agree_including_when_they_both_refuse():
+    """⭐ THE ORACLE THAT MAKES THE REFUSAL NON-ARBITRARY, AND IT PREDATES IT.
+
+    `compute_avwap_raw`'s own docstring has said since Task 14 that ``session``
+    "is the same boundary `compute_vwap_raw` uses (the ET calendar day), so on a
+    one-session series the two are the same number bar for bar". That sentence
+    was FALSE on exactly the inputs that carried the 1970 defect: AVWAP refused a
+    date-shaped `t` (`AVWAP_MIN_INSTANT`) while VWAP answered with one 1970
+    bucket. Nothing measured the disagreement, because nothing compared them.
+
+    So this compares them — in BOTH directions, on the SAME series:
+      * real unix seconds → identical, element for element, and finite;
+      * `YYYYMMDD` ints → BOTH all-None.
+
+    A future edit that reverts VWAP's guard fails the second half; one that
+    reverts AVWAP's fails it too; one that makes VWAP *convert* instead of refuse
+    fails it as an inequality rather than as a missing None, which is the more
+    informative red.
+    """
+    from api.services.indicator_compute import compute_avwap_raw
+
+    import calendar
+    from datetime import datetime, timezone
+
+    days = [(2026, m, d) for m in (1, 2) for d in range(1, 29)]
+
+    def bar(t, i):
+        return {"t": t, "h": 101.0 + i, "l": 99.0 + i, "c": 100.0 + i, "v": 1000}
+
+    unix_bars = [
+        bar(calendar.timegm(
+            datetime(y, m, d, 15, 0, tzinfo=timezone.utc).timetuple()), i)
+        for i, (y, m, d) in enumerate(days)
+    ]
+    vwap = compute_vwap_raw(unix_bars)
+    avwap = compute_avwap_raw(unix_bars, "session")
+    assert vwap == avwap
+    # NON-VACUITY: `[] == []` and `[None…] == [None…]` would also satisfy the
+    # line above. These numbers are real.
+    assert len(vwap) == len(days) and all(v is not None for v in vwap)
+
+    ymd_bars = [bar(int("%04d%02d%02d" % ymd), i) for i, ymd in enumerate(days)]
+    assert compute_vwap_raw(ymd_bars) == compute_avwap_raw(ymd_bars, "session")
+    assert compute_vwap_raw(ymd_bars) == [None] * len(days)
+
+
+def test_the_vwap_unit_floor_is_ONE_constant_and_sits_at_1990():
+    """The guard AVWAP already had and VWAP now shares — one object, not two.
+
+    ⛔ `AVWAP_MIN_INSTANT` is retained as a NAME because the JS lane exports it
+    and `goldenFixtures.test.js` imports it; what it must never be again is a
+    SECOND VALUE.
+
+    🔴 AND THE OBVIOUS WAY TO ASSERT THAT IS VACUOUS — MEASURED, NOT ASSUMED.
+    `assert AVWAP_MIN_INSTANT is VWAP_MIN_INSTANT` looks like the strict version
+    of `==`, and it is not: CPython folds equal constants in ONE code object into
+    ONE object, and a module body is one code object, so `A = 631152000;
+    B = 631152000` gives `A is B` → **True**. Probed before this test was
+    written. The identity check would have passed on exactly the edit it exists
+    to catch.
+
+    So the rail is STRUCTURAL, read off the source with an AST — never a grep,
+    which on this repo has twice counted prose in a comment as a call site.
+    `AVWAP_MIN_INSTANT` must be assigned from the NAME `VWAP_MIN_INSTANT`; a
+    literal there fails, whatever the literal is.
+    """
+    import ast
+    import pathlib
+    from datetime import datetime, timezone
+    from api.services import indicator_compute as ic
+
+    assert ic.AVWAP_MIN_INSTANT == ic.VWAP_MIN_INSTANT
+    assert datetime.fromtimestamp(
+        ic.VWAP_MIN_INSTANT, timezone.utc).strftime("%Y-%m-%d") == "1990-01-01"
+
+    tree = ast.parse(pathlib.Path(ic.__file__).read_bytes().decode("utf-8"))
+    assigned_from = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+                and isinstance(node.targets[0], ast.Name):
+            assigned_from[node.targets[0].id] = node.value
+    assert set(assigned_from) >= {"VWAP_MIN_INSTANT", "AVWAP_MIN_INSTANT"}, (
+        "one of the two constants is no longer a module-level assignment — this "
+        "rail then checks nothing")
+    rhs = assigned_from["AVWAP_MIN_INSTANT"]
+    assert isinstance(rhs, ast.Name) and rhs.id == "VWAP_MIN_INSTANT", (
+        "AVWAP_MIN_INSTANT is assigned "
+        f"{ast.dump(rhs)[:80]} instead of the NAME VWAP_MIN_INSTANT. Two "
+        "constants that happen to be equal today is how the guard drifts apart, "
+        "and `is` cannot see it (CPython folds equal literals in one module).")
+    # The control: the OTHER one really is the literal, so this rail is
+    # distinguishing two shapes rather than accepting everything.
+    assert isinstance(assigned_from["VWAP_MIN_INSTANT"], ast.Constant)
+
+    # THE BOUNDARY, both sides, so the comparison cannot silently become `<=`/`>`
+    # in a way no test notices. One second under is refused; the floor itself is
+    # accepted.
+    def bar(t):
+        return {"t": t, "h": 101.0, "l": 99.0, "c": 100.0, "v": 1000}
+
+    assert compute_vwap_raw([bar(ic.VWAP_MIN_INSTANT - 1)]) == [None]
+    assert compute_vwap_raw([bar(ic.VWAP_MIN_INSTANT)]) == [100.0]
+    # …and a series is refused as a WHOLE when only ONE bar is bad — the property
+    # that makes "never one bucket" true rather than merely intended.
+    mixed = [bar(1785410100 + i * 300) for i in range(5)]
+    assert all(v is not None for v in compute_vwap_raw(mixed))
+    mixed[3] = bar(20250101)
+    assert compute_vwap_raw(mixed) == [None] * 5

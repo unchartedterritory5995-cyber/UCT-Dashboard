@@ -709,25 +709,51 @@ def test_route_refuses_an_indicator_that_can_never_fire(client):
 # ─── the soak matrix: it observes everything and can mail nobody ─────────────
 
 def _diff_addresses() -> list:
-    """The addresses the frozen `--diff` instrument drives, read from it."""
-    from api.services import indicator_alert_evaluator as ev
-    return list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+    """The addresses the `--diff` instrument ACTUALLY DROVE, read OFF THE RUN.
+
+    ⭐ ALL THREE PARTITIONS SINCE PHASE C TASK 15. `build_alert_grid` still
+    generates from `INDICATOR_FUNCS` alone — that is the frozen fire log's
+    instrument and nothing may grow it — but `lane_diff` adds the event and price
+    addresses on top (`build_event_alerts`, `build_price_alerts`), so what the
+    DIFF drives and what the soak ARMS are now the same set.
+
+    🔴 AND THE FIRST VERSION OF THIS HELPER WAS VACUOUS, PROVEN BY MUTATION.
+    It returned `INDICATOR_FUNCS + EVENT_FUNCS + PRICE_FUNCS` — the evaluator's
+    PARTITIONS — and called that "the instrument". Task 15's M2 deleted
+    `build_price_alerts` from `lane_diff`, i.e. silently returned the declared
+    diff's coverage to 30 of 31, and this file stayed GREEN: the helper was
+    reading the catalog on both sides of its own equality.
+
+    ⛔ IT ALSO DOES NOT RE-ASSEMBLE THE THREE LISTS ITSELF, which would be the
+    same defect one level down (a helper that reimplements the logic it checks).
+    `lane_diff` publishes the set it drove; this reads it, on the SMALLEST frozen
+    fixture, because the question is WHICH addresses and not how many fires.
+    """
+    from tools import alert_replay as ar
+    return ar.lane_diff(names=["wick_that_unwinds"], progress=False)["addresses"]
 
 def test_the_soak_matrix_covers_the_WHOLE_catalog_and_is_idempotent(tmp_db):
     from tools import alert_soak_matrix as soak
     expected = {s["address"] for s in soak.catalog_addresses()}
-    # ⚠️ 31 SINCE PHASE C TASK 10, AND THE EXTRA ONE IS NAMED. The soak reads
-    # `alert_catalog()` at runtime, so it grew with it; the frozen `--diff`
-    # enumerates `INDICATOR_FUNCS + EVENT_FUNCS` and is still 30, because the
-    # `close` address deliberately lives in a THIRD partition that the frozen
-    # replay grid does not generate from (`_series_close` says why). Naming the
-    # difference here rather than loosening the number to `>= 30`.
+    # ⚠️ 31 SINCE PHASE C TASK 10, AND SINCE TASK 15 THE DIFF DRIVES ALL 31.
+    # The soak reads `alert_catalog()` at runtime, so it grew with it; the
+    # frozen replay GRID still enumerates `INDICATOR_FUNCS` alone and always
+    # will (`--check`'s 691,195 fires are recorded against exactly that grid,
+    # and `_series_close` says why `close` went into a third partition instead
+    # of a 29th key). What changed is the DIFF, which adds the event and price
+    # addresses on top of the grid — so this difference is now EMPTY, and it is
+    # asserted as an equality rather than loosened to `>= 30`.
     assert len(expected) == 31, (
         f"the catalog has {len(expected)} addresses, not 31 — the matrix and "
         "the catalog have drifted apart")
-    assert expected - set(_diff_addresses()) == {"close"}, (
-        "the set the soak arms and the set the frozen --diff drives differ by "
-        "something other than the one address Task 10 declared")
+    assert expected - set(_diff_addresses()) == set(), (
+        "the soak arms an address the --diff instrument does not drive: "
+        f"{sorted(expected - set(_diff_addresses()))}. An address nobody drove "
+        "is an address whose cutover behaviour is undeclared by omission "
+        "rather than by decision.")
+    assert set(_diff_addresses()) - expected == set(), (
+        "the --diff instrument drives an address the soak cannot arm — the "
+        "other direction, so neither set can quietly grow past the other")
 
     first = soak.arm("owner-1", "SPY", "5", 30)
     assert sorted(first["created"]) == sorted(expected)

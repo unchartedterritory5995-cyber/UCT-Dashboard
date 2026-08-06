@@ -385,18 +385,42 @@ const LEDGER = [
   // the one place in this codebase where naming `sar` is a decision somebody
   // wrote a paragraph about. A ledger whose whole job is stopping a comment from
   // outliving its subject cannot carry a fabricated example of its own.
-  // ⚠️ THE LAST `C` ROW, AND PHASE C TASK 10 DELIBERATELY DID NOT CLAIM IT.
-  // Task 10 was the last task that COULD, and the honest reading is that this
-  // row is very probably mis-fated: the sizing case at the bottom of this file
-  // already measures it as *"a `keep`-shaped list of synonyms nothing can
-  // derive"* — eleven spoken PHRASES ("bollinger bands", "moving average")
-  // mapping to seven ids, which no registry contains and no derivation can
-  // produce. But Task 10 touched no voice file, wrote no test against this map,
-  // and re-fating a row on the strength of a comment is the two-character edit
-  // this ledger's own header warns about. So it is HANDED FORWARD with the
-  // recommendation written down, which is what the `C` column is for.
+  // ⭐⭐⭐ PHASE C TASK 15 ADJUDICATED IT, AND THE ANSWER IS `keep` — SO THE `C`
+  // BUCKET IS NOW EMPTY AND THE PHASE ENDS WITH NO FATE IT DID NOT ANSWER.
+  //
+  // Task 10 handed this forward with a recorded recommendation and no test.
+  // Task 15's brief put the case for the other side: Task 14 ships an `avwap`
+  // DEFINITION, so at least one entry "becomes derivable" and the derivable half
+  // should retire. ⛔ **THAT PREMISE IS FALSE, AND IT IS FALSE BY MEASUREMENT
+  // RATHER THAN BY ARGUMENT.** Derivable means "some mechanism produces the id
+  // from the phrase", and this tool has exactly one: `_INDICATOR_ALIASES.get(raw,
+  // raw.replace(" ", ""))`. Under that fallback `"anchored vwap"` resolves to
+  // `anchoredvwap`, which is not a definition — so deleting the row Task 14 is
+  // supposed to have made redundant BREAKS the phrase. What Task 14 actually
+  // changed is one door further out (`'avwap'` left `NON_DEFINITION_ALIASES` in
+  // `chartBusIndicators.js`, so the CLIENT now honours an action it used to
+  // refuse); the phrase map is untouched by that and is exactly as irreducible as
+  // it was.
+  //
+  // ⛔ AND "IRREDUCIBLE" IS NOW A NUMBER, NOT AN ADJECTIVE. The case at the
+  // bottom of this file DELETES the map and re-resolves all eleven phrases
+  // through the shipped fallback: **nine of the eleven change answer.** The two
+  // that do not are `"macd"` and `"rsi"`, which are identity rows. The nine are a
+  // MISHEARING (`"v-wap"`), two TRUNCATIONS (`"anchored"`, `"bollinger"`), four
+  // colloquial MA phrases whose targets (`ma50`, `ma200`) are **not registry ids
+  // at all**, and two multi-word names the fallback de-spaces into something else.
+  // Nothing in a definition declares what a user says out loud, and two of the
+  // seven targets are not definitions — which is the same argument `INDICATOR_CHORDS`
+  // makes about a (key, indicator) pair, made in a second vocabulary.
+  //
+  // ⚠️ THE ROW MOVES BECAUSE A FATE WHOSE CONDITION HAS ARRIVED IS A CONTROL THAT
+  // ROTS GREEN. `C` means "Phase C retires it"; Phase C ends at this task. B5
+  // Task 13 DELETED two `phase` rows for exactly this reason. This one is not
+  // deleted — the file is still an enumeration the discovery scan finds — it is
+  // re-fated, with the claim under it turned into an assertion so the next reader
+  // gets a measurement instead of a recommendation.
   { file: 'api/services/voice_client_action_tools.py', region: '_INDICATOR_ALIASES — the voice add_chart_indicator phrase map',
-    anchor: '_INDICATOR_ALIASES = {', fate: 'C' },
+    anchor: '_INDICATOR_ALIASES = {', fate: 'keep' },
   // ⭐⭐ PHASE C TASK 1 — THE ROW THE PYTHON SCAN FOUND ON ITS FIRST RUN.
   // `_CASE_COLUMNS` maps a golden-fixture KIND to its COLUMN NAMES, and the two
   // vocabularies are not the same one: `williams_r` here is `williamsR` in the
@@ -994,12 +1018,25 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // CHECK ON ANY EDIT THAT MOVES A ROW OUT OF `C`. That floor is derived from
     // `keep`; it had exactly ONE Python subject and now has THREE, so the scan
     // it protects is measured against more, not less.
-    expect(counts).toEqual({ C: 1, keep: 7 })
+    expect(counts).toEqual({ keep: 8 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
       're-opening a `phase` fate means a migration is running again — say which').toEqual([])
     expect(LEDGER.filter(s2 => s2.fate === 'B5' || s2.fate === 'B4'), 'B4/B5 re-opened').toEqual([])
+    // ⛔⭐⭐ AND NO `C` — THE FOURTH EMPTY BUCKET, AND THE ONE THAT ENDS THE PHASE.
+    // `C` meant "Phase C retires it". Phase C answered all three rows that ever
+    // carried it: `INDICATOR_FUNCS` was RETIRED (Task 10, proven by identity in
+    // `RETIRED_BY_C_TASK10`), `SERIES_FUNCS` was RE-FATED after its claim was
+    // tested and found false (Task 10), and `_INDICATOR_ALIASES` was ADJUDICATED
+    // `keep` on a measurement (Task 15). A row still sitting in this bucket after
+    // the phase it names has ended would be a control that goes on passing about a
+    // retirement nobody is going to do — the exact shape B5 Task 13 deleted the
+    // two `phase` rows to avoid. Its absence is asserted, not assumed.
+    expect(LEDGER.filter(s2 => s2.fate === 'C'),
+      'a `C` fate is open again after Phase C shipped. `C` means "Phase C retires it" and '
+      + 'Phase C is over, so this row is a promise nobody can keep: give it a real fate '
+      + '(and a reason) or open a new letter for the phase that will actually do it.').toEqual([])
   })
 
   // ⭐ B5 A8. THE ASSERTION ABOVE IS A HISTOGRAM AND B4'S REVIEW MEASURED ITS
@@ -1055,7 +1092,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table", "keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives", "keep"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch", "keep"],
-      ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map", "C"],
+      ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map", "keep"],
       ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays", "keep"],
       ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE", "keep"],
       ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once", "keep"],
@@ -1696,6 +1733,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // re-fated `keep` because it is the table the other one retired INTO. So the
     // two files this task worked on became FLOOR rather than ceiling: a scan
     // that stopped seeing either of them now fails BY NAME.
+    //
+    // ⭐ THREE -> FOUR AT PHASE C TASK 15, AND IT ARRIVED THE SAME WAY. Re-fating
+    // `_INDICATOR_ALIASES` from `C` to `keep` did not just tidy a bucket: it moved
+    // `voice_client_action_tools.py` from a row that was ABOUT to disappear into
+    // the floor this scan is measured against. That is the whole reason the floor
+    // is derived from `keep` and never from `C` — every row that leaves `C`
+    // either leaves the ledger entirely or STRENGTHENS this list, and this test
+    // failing on the re-fate (rather than passing quietly at three) is what said
+    // so. The `C` bucket is empty now, so the floor can no longer collapse at all.
     const keepPython = [...new Set(LEDGER.filter(s => s.fate === 'keep').map(s => s.file))]
       .filter(f => /^api\/.*\.py$/.test(f)).sort()
     expect(keepPython,
@@ -1704,6 +1750,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'api/services/alert_series.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
+      'api/services/voice_client_action_tools.py',
     ])
     for (const f of keepPython) {
       expect(found, `the Python scan stopped seeing ${f}`).toContain(f)
@@ -1830,6 +1877,51 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       .not.toContain('sar')
     // …and the extractor really parsed pairs rather than emptying.
     expect(Object.fromEntries(alias)['bollinger bands']).toBe('bb')
+
+    // ⭐⭐ PHASE C TASK 15 — "IRREDUCIBLE" TURNED INTO A NUMBER, WHICH IS WHAT
+    // MOVED THIS ROW OFF `C`. Task 10 handed the fate forward with a written
+    // RECOMMENDATION and no test; a recommendation is exactly the two-character
+    // edit the ledger's own header warns about. So the claim is measured instead:
+    // DELETE the map and re-resolve every phrase through the fallback the tool
+    // actually applies, and count how many answers change.
+    //
+    // ⛔ THE FALLBACK IS READ OFF THE SOURCE, NOT RETYPED. If `add_chart_indicator`
+    // ever grows a real derivation (a `meta.name` normaliser, say), this line goes
+    // red and the measurement below has to be re-taken — which is the day this row
+    // genuinely becomes derivable, and the day somebody should look at it again.
+    expect(VC, 'the resolver `add_chart_indicator` applies when the phrase map MISSES has '
+      + 'changed. The count below measures the map against exactly that fallback, so it is '
+      + 'no longer measuring what ships — re-take it.')
+      .toContain('_INDICATOR_ALIASES.get(raw, raw.replace(" ", ""))')
+    const fallback = phrase => phrase.split(' ').join('')
+    const redundant = alias.filter(([phrase, id]) => fallback(phrase) === id).map(p => p[0])
+    const loadBearing = alias.filter(([phrase, id]) => fallback(phrase) !== id).map(p => p[0])
+
+    expect(redundant.sort(),
+      'the set of alias rows the fallback would answer identically moved. These are the only '
+      + 'rows that could be DELETED without changing what the voice tool understands.')
+      .toEqual(['macd', 'rsi'])
+    expect(loadBearing.length,
+      'the number of alias rows that are load-bearing moved. This is the whole argument '
+      + 'this ledger row makes for `keep`: without the map these phrases resolve to something '
+      + 'that is not an indicator at all (`anchored vwap` -> `anchoredvwap`), so shipping an '
+      + '`avwap` DEFINITION makes them derivable.')
+      .toBe(9)
+
+    // ⛔ AND TWO OF THE SEVEN TARGETS ARE NOT DEFINITIONS AT ALL, which is the
+    // half no registry change can ever reach: `ma50`/`ma200` are moving-average
+    // SLOTS on the chart settings blob, not registered indicators.
+    const defIds = new Set(engineRegistry.listDefinitions().map(d => d.id))
+    expect([...new Set(alias.map(p => p[1]))].filter(id => !defIds.has(id)).sort(),
+      'the alias targets that are not registry definitions moved — if `ma50`/`ma200` ever '
+      + 'become definitions, half of the argument above expires and this row should be re-read')
+      .toEqual(['ma200', 'ma50'])
+    // …and the control: `avwap` IS one, so the filter above is discriminating
+    // rather than reporting every target it was handed.
+    expect(defIds.has('avwap'),
+      'Phase C Task 14 registered `avwap`; if it is gone the measurement above is being '
+      + 'taken against a registry that no longer contains the definition it argues about')
+      .toBe(true)
   })
 
   // ⭐ AND THE STRIPPER ITSELF, BOTH DIRECTIONS, ON THE SCAN'S OWN PREDICATE.

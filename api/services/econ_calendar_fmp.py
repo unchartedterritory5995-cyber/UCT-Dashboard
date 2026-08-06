@@ -68,6 +68,73 @@ def _clean(v) -> str | None:
     return str(v)
 
 
+def fetch_us_econ_week_full(from_ds: str, to_ds: str) -> dict:
+    """{YYYY-MM-DD (ET): {econ: [...], fed: [...]}} — EVERY US econ event (all impacts,
+    no curation), each carrying actual/estimate/prior + an impact tier
+    ('low'|'medium'|'high'). Powers the Calendar WIDGET's star filter, which needs the
+    low-impact events AND the actual prints (ForexFactory's JSON feed has neither).
+    Returns {} on any failure."""
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        _logger.warning("[econ-fmp-full] FMP_API_KEY not set")
+        return {}
+    try:
+        import requests
+        r = requests.get(
+            "https://financialmodelingprep.com/stable/economic-calendar",
+            params={"from": from_ds, "to": to_ds, "apikey": key},
+            timeout=20,
+        )
+        if not r.ok:
+            _logger.warning("[econ-fmp-full] HTTP %d", r.status_code)
+            return {}
+        rows = r.json()
+        if not isinstance(rows, list):
+            return {}
+    except Exception as exc:                            # noqa: BLE001
+        _logger.warning("[econ-fmp-full] fetch failed: %s", exc)
+        return {}
+
+    from api.routers.calendar import _is_fed_speaker, _is_high_impact
+
+    out: dict[str, dict] = {}
+    for row in rows:
+        if (row.get("country") or "").upper() not in ("US", "USA"):
+            continue
+        title = (row.get("event") or "").strip()
+        if not title:
+            continue
+        raw = str(row.get("date") or "")
+        try:
+            dt = datetime.strptime(raw[:19], "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=timezone.utc).astimezone(_ET)
+        except ValueError:
+            continue
+        ds = dt.strftime("%Y-%m-%d")
+        if ds < from_ds or ds > to_ds:
+            continue
+        fmp_imp = (row.get("impact") or "").lower()
+        if _is_high_impact(title) or fmp_imp == "high":
+            tier = "high"
+        elif fmp_imp == "medium":
+            tier = "medium"
+        else:
+            tier = "low"
+        bucket = out.setdefault(ds, {"econ": [], "fed": []})
+        if _is_fed_speaker(title):
+            bucket["fed"].append({"time": _fmt_time(dt), "event": title,
+                                  "note": row.get("impact"), "impact": tier})
+        else:
+            bucket["econ"].append({
+                "time": _fmt_time(dt), "event": title,
+                "estimate": _clean(row.get("estimate")),
+                "prior": _clean(row.get("previous")),
+                "actual": _clean(row.get("actual")),
+                "impact": tier,
+            })
+    return out
+
+
 def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict[str, list[dict]]:
     """{YYYY-MM-DD (ET): [{time, event, estimate, prior, is_fed}]}.
 

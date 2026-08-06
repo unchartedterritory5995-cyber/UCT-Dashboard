@@ -33,6 +33,7 @@ import {
   fetchCurrentValue,
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
+import { instancesForAddress } from './engine/alertSets'
 import UIcon from '../ui/UIcon'
 
 // Timeframes are NOT an indicator list — they are the bar sizes the evaluator
@@ -77,7 +78,7 @@ function fmtTriggeredAt(epochSec) {
   return formatET(epochSec * 1000)
 }
 
-export default function IndicatorAlertPopover({ sym, onClose }) {
+export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [] }) {
   const ownSym = sym ? String(sym).toUpperCase() : ''
   const { alerts } = useIndicatorAlerts()
   const { catalog, isLoading: catalogLoading, error: catalogError } = useIndicatorAlertCatalog()
@@ -92,6 +93,12 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
   // on the default instance and the spec's two sentences were unrepresentable.
   // The shape comes from the served plot's `inputs`, never from a list here.
   const [params, setParams] = useState({})
+  // ⭐ SPEC §8, THE OTHER HALF — WHICH CHART INSTANCE. Task 10 shipped the
+  // column and the deletion guard with no producer; this is it. The list comes
+  // from the chart that mounted this popover, the match is derived
+  // (`instancesForAddress`), and an address that names no definition yields
+  // NOTHING rather than a plausible wrong id.
+  const [instanceId, setInstanceId] = useState('')
   const [tf, setTf] = useState('D')
   const [submitting, setSubmitting] = useState(false)
   const firstFieldRef = useRef(null)
@@ -115,6 +122,27 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
     for (const e of catalog) for (const p of plotsOf(e)) m.set(p.value, p)
     return m
   }, [catalog])
+
+  /** The instances THIS chart draws for the selected address, derived — see
+   *  `alertSets.instancesForAddress`. `[]` for an address that names no
+   *  definition (`price_vs_ma`, `close`), which is the honest answer. */
+  const addressInstances = useMemo(
+    () => instancesForAddress(chartInstances, plot),
+    [chartInstances, plot],
+  )
+
+  // ⛔ THE SELECTION MUST STAY LEGAL, AND A DEFAULT IS ONLY OFFERED WHEN THERE
+  // IS NOTHING TO CHOOSE. One instance means the answer is not ambiguous, so it
+  // is adopted; two or more means the user has to say which RSI they mean, and
+  // guessing would attach the alert to an instance nobody picked. Zero clears
+  // it, so switching to `close` cannot carry the previous plot's instance id.
+  useEffect(() => {
+    setInstanceId((prev) => {
+      if (addressInstances.length === 1) return addressInstances[0].instanceId
+      if (prev && addressInstances.some((i) => i.instanceId === prev)) return prev
+      return ''
+    })
+  }, [addressInstances])
 
   const entry = byIndicator.get(indicator) || null
   const plotOptions = useMemo(() => plotsOf(entry), [entry])
@@ -227,6 +255,12 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
     // which one it was armed on, rather than inheriting whatever the compute
     // default happens to be on the day it fires.
     if (inputKeys.length) payload.params = params
+    // ⚠️ ONLY WHEN THERE IS ONE TO NAME. An absent `instance_id` is what every
+    // legacy row has and it is never reported as orphaned, so an unnamed alert
+    // behaves exactly as it did before this producer existed. `params_json` is
+    // still the truth the evaluator reads — the id says which instance it was
+    // armed FROM, so that deleting that instance can be reported.
+    if (instanceId) payload.instance_id = instanceId
     if (needsThreshold) {
       const num = parseFloat(threshold)
       if (!Number.isFinite(num)) return
@@ -326,6 +360,32 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
             />
           </div>
         ))}
+
+        {/* ⭐ WHICH INSTANCE. Rendered ONLY when this chart draws more than one
+            of the selected indicator — "RSI(7) crossed 70" and "RSI(14) crossed
+            70" are different alerts (spec §8) and only the user knows which one
+            they are looking at. One instance is adopted silently; none leaves
+            the field absent, which is what every alert created before this
+            producer existed carries. */}
+        {addressInstances.length > 1 && (
+          <div className={styles.row}>
+            <span className={styles.label}>Instance</span>
+            <select
+              className={styles.select}
+              aria-label="Instance"
+              value={instanceId}
+              onChange={(e) => setInstanceId(e.target.value)}
+            >
+              {addressInstances.map((i) => (
+                <option key={i.instanceId} value={i.instanceId}>
+                  {Object.keys(i.inputs || {}).length
+                    ? Object.entries(i.inputs).map(([k, v]) => `${k} ${v}`).join(' · ')
+                    : 'defaults'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className={styles.row}>
           <span className={styles.label}>Condition</span>

@@ -936,8 +936,41 @@ def _et_zone():
     return _ET_ZONE
 
 
+#: The earliest instant a bar's ``t`` may carry and still be believed as a real
+#: point in time: 1990-01-01T00:00:00Z. Anything below it is not an instant, it
+#: is a number in some OTHER unit that happens to fit in the same field.
+#:
+#: ⛔ THIS CONSTANT EXISTS BECAUSE THE LIVE ALERT LANE HANDED THIS FUNCTION DAYS
+#: AND IT ANSWERED. `bars_sqlite` stores daily/weekly/monthly timestamps as
+#: ``YYYYMMDD`` INTS (its own module docstring says so) and intraday ones as unix
+#: seconds; `indicator_alert_evaluator._fetch_bars_for_alert` passes the store's
+#: value through verbatim as ``t``, which is correct — `bar_close_epoch` and
+#: `closed_bar_index` READ that calendar encoding and would break if it were
+#: rewritten under them. What was wrong is that a compute documented in SECONDS
+#: accepted it: ``20250101`` read as unix seconds is **1970-08-23**, two years of
+#: daily bars span 11,130 of those seconds, and every bar therefore landed in one
+#: ET calendar day. A 400-bar daily VWAP was ONE session beginning in 1970, and
+#: because it never raised, nothing anywhere surfaced it.
+#:
+#: ⛔ THE REFUSAL IS AN ALL-``None`` COLUMN, NOT A PLAUSIBLE ANSWER, AND THAT IS
+#: THE WHOLE POINT. "One bucket for the whole series" IS the defect's output, so a
+#: fallback shaped like it could never be told apart from it. Neither is the
+#: answer a *converted* column: a session VWAP whose session is a whole daily bar
+#: is just that bar's typical price wearing an indicator's name — a plausible
+#: number for a question that has none. The chart lane says the same thing by
+#: construction (`eligibility.VWAP_TIMEFRAMES` is intraday-only); this is that
+#: gate, restated where it cannot be routed around.
+VWAP_MIN_INSTANT = 631152000
+
+
 def compute_vwap_raw(bars: List[dict]) -> List[MaybeNum]:
     """Session-anchored VWAP, unrounded. Mirrors ``computeVWAP``.
+
+    ⛔ REFUSES THE WHOLE COLUMN when any bar's ``t`` is not a real instant —
+    see ``VWAP_MIN_INSTANT``. Both doors are closed by the one check: the alert
+    lane's ``20250101`` date-shaped INT and the chart lane's ``'2026-08-05'``
+    date STRING. The string used to reach a stable ``'invalid'`` bucket, which
+    is one bucket for the series, which is the defect by another name.
 
     ⚠️ PRESERVED (CORRECTED) BEHAVIOUR — THE SESSION IS THE ET CALENDAR DAY.
     Owner decision `VWAP_SESSION_ANCHOR`, accepted 2026-08-03 at a measured 2,590
@@ -966,6 +999,14 @@ def compute_vwap_raw(bars: List[dict]) -> List[MaybeNum]:
     n = len(bars)
     if n == 0:
         return []
+    # THE UNIT GATE. It runs BEFORE `_et_zone()` so a refused series costs no tz
+    # lookup, and before any accumulation so the answer is all-or-nothing — a
+    # per-bar skip would leave the surviving bars in one bucket, which is the
+    # shape being refused.
+    for bar in bars:
+        t = bar.get("t")
+        if isinstance(t, bool) or not isinstance(t, (int, float)) or t < VWAP_MIN_INSTANT:
+            return [None] * n
     out: List[MaybeNum] = [None] * n
     cum_pv = 0.0
     cum_vol = 0.0
@@ -974,20 +1015,16 @@ def compute_vwap_raw(bars: List[dict]) -> List[MaybeNum]:
     memo_key = None
     zone = _et_zone()
     for i, bar in enumerate(bars):
-        t = bar.get("t")
-        if isinstance(t, bool) or not isinstance(t, (int, float)):
-            # A non-numeric `t` (a 'YYYY-MM-DD' daily bar). The JS lane yields a
-            # stable 'invalid' sentinel here rather than throwing and blanking the
-            # column; the intraday gate keeps VWAP off those timeframes anyway.
-            day_key = "invalid"
+        # `t` is a real instant: the gate above already refused everything else,
+        # so there is no defensive branch here to fall through to.
+        t = bar["t"]
+        hour = int(t // 3600)
+        if hour == memo_hour:
+            day_key = memo_key
         else:
-            hour = int(t // 3600)
-            if hour == memo_hour:
-                day_key = memo_key
-            else:
-                day_key = datetime.fromtimestamp(t, zone).strftime("%Y-%m-%d")
-                memo_hour = hour
-                memo_key = day_key
+            day_key = datetime.fromtimestamp(t, zone).strftime("%Y-%m-%d")
+            memo_hour = hour
+            memo_key = day_key
         if day_key != current_day:
             cum_pv = 0.0
             cum_vol = 0.0
@@ -1029,12 +1066,19 @@ AVWAP_ANCHORS: Tuple[str, ...] = (
 #: is a **unit error** — a value that is not unix seconds at all — and never "a
 #: very old bar".
 #:
-#: It exists because the defect is LIVE in this repo and MEASURED: the daily call
-#: site ``_fetch_bars_for_alert`` hands ``compute_vwap`` the store's ``YYYYMMDD``
-#: integer (``20250101``) where real unix seconds are expected, so the anchor
-#: resolves to **1970-08-23**, two years of daily bars span 11,130 seconds, and
-#: 56 bars of "daily VWAP" produce exactly ONE reset — at index 0. Nothing
-#: raises, so nothing surfaces it: the line is plausible and wrong.
+#: It existed because the defect WAS LIVE in this repo and MEASURED: the daily
+#: call site ``_fetch_bars_for_alert`` handed ``compute_vwap`` the store's
+#: ``YYYYMMDD`` integer (``20250101``) where real unix seconds are expected, so
+#: the anchor resolved to **1970-08-23**, two years of daily bars spanned 11,130
+#: seconds, and 56 bars of "daily VWAP" produced exactly ONE reset — at index 0.
+#: Nothing raised, so nothing surfaced it: the line was plausible and wrong.
+#:
+#: ⭐ IT IS NOW ``VWAP_MIN_INSTANT`` ITSELF, NOT A COPY OF ITS VALUE, AND THAT IS
+#: LOAD-BEARING. ``compute_avwap_raw(bars, "session")`` is documented to be
+#: ``compute_vwap_raw(bars)`` bar for bar; while only one of them validated the
+#: unit that promise was FALSE on precisely the inputs that carry the defect —
+#: AVWAP refused a daily series while VWAP answered 1970. Two constants that
+#: happen to be equal today is how that gap reopens, so there is one.
 #:
 #: ⚠️ THE ANCHOR IS STILL ENCODED BY CALENDAR SEMANTICS, NEVER BY MAGNITUDE.
 #: This constant does not decide *which* anchor a bar falls in; it decides
@@ -1046,7 +1090,7 @@ AVWAP_ANCHORS: Tuple[str, ...] = (
 #: ⛔ THE REFUSAL IS AN ALL-``None`` COLUMN, NOT A PLAUSIBLE ANSWER. A "one
 #: bucket for the whole series" fallback is exactly what the live defect
 #: produces, so it could not be told apart from it.
-AVWAP_MIN_INSTANT = 631152000
+AVWAP_MIN_INSTANT = VWAP_MIN_INSTANT
 
 
 def _et_anchor_key(t: float, anchor: str, zone) -> str:

@@ -690,6 +690,12 @@ function ChartToolbar({
   setMagnet = null,              // when provided, shows the magnet toggle
   toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
   hideSettingsButton = false,    // charts workspace has the new ChartSettingsModal — drop the legacy V1 gear + inline panel there
+  // ⭐ The chart's own engine instances, forwarded to the alert popover so an
+  // alert can name the INSTANCE it was armed from (Phase C Task 15). Default
+  // `[]`, so every mount site that does not pass it behaves exactly as before:
+  // no instance is offered and the alert carries no `instance_id`, which is
+  // what every row created before this producer existed carries.
+  chartInstances = [],
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -990,6 +996,7 @@ function ChartToolbar({
             <IndicatorAlertPopover
               sym={currentSym}
               onClose={() => setAlertPopoverOpen(false)}
+              chartInstances={chartInstances}
             />
           )}
         </div>

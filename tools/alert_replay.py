@@ -1049,6 +1049,46 @@ def build_event_alerts(fixture: str, tf: str) -> list[dict]:
     return out
 
 
+def build_price_alerts(fixture: str, bars: list[dict], tf: str,
+                       evaluate: Callable[[dict, list[dict]], tuple]) -> list[dict]:
+    """The PRICE partition's addresses, as alerts — the diff's SECOND coverage extension.
+
+    ⛔ `build_alert_grid` IS NOT TOUCHED, FOR THE SAME REASON `build_event_alerts`
+    does not touch it. The frozen 691,195-fire log was recorded against a grid
+    generated from `INDICATOR_FUNCS`, and Phase C Task 10 put `close` in a THIRD
+    partition (`PRICE_FUNCS`) precisely so that making price a LEFT operand could
+    not grow that dict and destroy the instrument. So the 28-address grid stays
+    byte-identical for `--record`/`--check`, and the diff — which compares two
+    lanes against each other and never against the frozen log — adds the price
+    addresses on top. That is what takes the declared diff from **30 of 31**
+    armable addresses to **31 of 31**.
+
+    ⚠️ AND IT IS NOT A COPY OF `build_event_alerts`, BECAUSE A PRICE ADDRESS IS A
+    DIFFERENT KIND OF THING. An event address takes no threshold — its operand is
+    DECLARED (`THRESHOLD_OPERAND` → const 0.5), which is exactly why it can be
+    offered without one. `close` is a LEVEL: every one of its four conditions sets
+    `needs_threshold`, so it takes the same three-quantile ladder derived from its
+    OWN closed-bar series that `build_alert_grid` gives every other level address.
+    A price address driven at a hand-picked threshold would measure the threshold,
+    not the lane.
+    """
+    from api.services import indicator_alert_evaluator as ev
+
+    out: list[dict] = []
+    for address in ev.PRICE_FUNCS:
+        ladder = _ladder(closed_bar_values(bars, address, evaluate))
+        for cond in ev.ALERT_CONDITIONS[address]:
+            thresholds: list = ladder if cond.get("needs_threshold") else [None]
+            for thr in thresholds:
+                out.append({
+                    "id": 0, "user_id": "replay", "sym": fixture, "tf": tf,
+                    "indicator": address, "condition": cond["value"],
+                    "threshold": thr, "params_json": None, "last_value": None,
+                    "alert_key": f"{fixture}|{address}|{cond['value']}|{thr!r}",
+                })
+    return out
+
+
 def _lane_sets(bars: list[dict], alerts: list[dict], k: int,
                evaluate: Callable[[dict, list[dict]], tuple]) -> tuple:
     """(fire count, keyed set, identity set) for one lane on one fixture.
@@ -1145,7 +1185,8 @@ def lane_diff(names: Optional[list[str]] = None, k: int = DIFF_K,
         bars = fx["bars"]
         tf = fx.get("tf", "?")
         alerts, _ = build_alert_grid(name, bars, tf, grid_evaluate)
-        alerts = alerts + build_event_alerts(name, tf)
+        alerts = (alerts + build_event_alerts(name, tf)
+                  + build_price_alerts(name, bars, tf, grid_evaluate))
         addresses |= {address_of(a["alert_key"]) for a in alerts}
         if progress:
             print(f"  {name:20} ({len(bars)} bars x {len(alerts)} alerts) k={k} …",
@@ -1207,10 +1248,19 @@ def lane_diff(names: Optional[list[str]] = None, k: int = DIFF_K,
             if n:
                 rows.append({"address": addr, "direction": direction, "count": n})
 
-    catalog = list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+    catalog = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+               + list(ev.PRICE_FUNCS))
     return {
         "k": k,
         "fixtures": names,
+        # ⛔ THE SET, NOT ONLY ITS SIZE — AND A MUTATION IS WHY. Phase C Task 15's
+        # M2 (delete `build_price_alerts` from the assembly above) SURVIVED,
+        # because the only test asserting "the diff drives every armable address"
+        # was reading the evaluator's PARTITIONS and calling them the instrument.
+        # A count cannot say WHICH, and a caller that re-assembles these three
+        # lists to find out is reimplementing the thing it is checking. So the
+        # instrument publishes what it drove.
+        "addresses": sorted(addresses),
         "addresses_covered": len(addresses),
         "addresses_in_catalog": len(catalog),
         "addresses_that_change": len(per_address),

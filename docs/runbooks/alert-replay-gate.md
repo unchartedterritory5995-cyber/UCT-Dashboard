@@ -162,9 +162,19 @@ ALERT_REPLAY_FULL=1 PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_alert_
 PYTHONDONTWRITEBYTECODE=1 python tools/phase_c_gauntlet.py
 ```
 
-Measured on `24341123`: `--check` **exit 0** (8 (fixture, k) pairs, 691,195 fires) ·
-`--repaint` **exit 0** · `pytest tests/test_alert_replay.py` **53 passed, 1 skipped** ·
+Measured on `24341123`: `--check` **exit 0** (8 (fixture, k) pairs) · `--repaint`
+**exit 0** · `pytest tests/test_alert_replay.py` **53 passed, 1 skipped** ·
 `phase_c_gauntlet.py` **7/7 KILLED, exit 0**.
+
+⛔ **THE FIRE COUNT IS DELIBERATELY NOT WRITTEN DOWN HERE ANY MORE, AND THAT IS A FIX,
+NOT A GAP.** This page used to carry it in three places. It is asserted in exactly one:
+`tests/fixtures/alerts/fire_log_forming.json`, by `--check`'s **exit code**. A copy of a
+test's expectation in prose is a control that rots green — it goes on agreeing with a
+number nobody re-measured — and this page proved it by rotting: the log was legitimately
+re-frozen when the daily-VWAP unit fix landed (`2999e8f0`, the ONE sanctioned exception
+to *"if the log moves that is a finding, never a number to regenerate"*), and all three
+copies here went stale in the same minute while every gate stayed green. **Read the
+number off `--check`; do not carry it.**
 
 ⛔ **`PYTHONDONTWRITEBYTECODE=1` IS NOT OPTIONAL.** A same-size mutation applied within
 one second of the last run imports the previous `.pyc` and the mutation silently never
@@ -178,7 +188,7 @@ written under.
 
 ---
 
-## How the log stores 691,195 fires in ~600 KB and is still an equality
+## How the log stores every fire in ~600 KB and is still an equality
 
 The first recording was **42 MB** of raw rows. Each `(fixture, k, alert)` now records its
 **count** and a **sha256 over the exact ordered `(bar_index, sample, repr(value))`
@@ -188,11 +198,14 @@ is bought back two ways: the digest is **per-alert**, so a failure names which a
 moved, and **`wick_that_unwinds` keeps its rows verbatim** and is replayed row-for-row by
 pytest on every run.
 
-⚠️ **691,195 is not a grid that is too wide — it is a finding.** This evaluator has
-**no fire-once**: `indicator_alert_service.record_trigger` bumps `trigger_count` and
-leaves `active=1`, so `list_active` hands the alert straight back on the next cycle. An
-`above 70` RSI alert re-delivers bell + email + Discord **every 60 seconds** for as long
-as RSI stays above 70. The log records that faithfully rather than deduping it away.
+⚠️ **THE SIX-FIGURE FIRE COUNT IS NOT A GRID THAT IS TOO WIDE — IT IS A FINDING.** The
+evaluator this log was frozen from has **no fire-once**:
+`indicator_alert_service.record_trigger` bumps `trigger_count` and leaves `active=1`, so
+`list_active` hands the alert straight back on the next cycle. An `above 70` RSI alert
+re-delivers bell + email + Discord **every 60 seconds** for as long as RSI stays above 70.
+The log records that faithfully rather than deduping it away. (Phase C Task 11 shipped the
+fire-once guard — `alert_fired_log.record_fire`, `UNIQUE(alert_id, fire_key)` — so the
+count is a record of what the FORMING lane did, not of what a member's inbox gets today.)
 
 ---
 
@@ -211,6 +224,104 @@ Params stay at their defaults **on purpose**:
 `tests/fixtures/indicator_alert_baseline.json` already replays 5,040 combinations *across
 params* on one fixed series; this log's job is the orthogonal one — the same params walked
 bar by bar down real tape.
+
+---
+
+## 6. What the pixel zero does NOT cover — per deliverable, the REAL gate
+
+Phase C closed with a whole-phase run of the Phase-B pixel gate: **46 pre-existing cases,
+5 runs each, `--expect 0`, two full builds** (A = `4374b0c0`, `origin/master` WITHOUT
+Phase C, build `6d49eaf36d1c`; B = `b97c75b6`, the same master WITH Phase C, build
+`ac24eaedab49`). The result is **0 changed pixels on every case on every run** — the
+distinct set of measured values across all 230 comparisons is `{0}`, so there is no
+variance to round away — and **zero provenance movement**: not one pool `key` changed, so
+no series was created by a different module.
+
+⛔⛔ **AND THAT NUMBER IS ALMOST ENTIRELY BLIND TO PHASE C, WHICH IS WHY IT IS WRITTEN
+DOWN HERE INSTEAD OF QUOTED AS A RESULT.** The headless `/r/chart` route renders a chart
+from a committed bar fixture. It **mounts no alert popover, arms nothing, presses no key,
+opens no toolbar, and runs no evaluator.** A total regression of the entire alert lane —
+every alert firing on every poll, or none of them firing at all — renders **0 changed
+pixels**. B4's adjudication A4 (*"a total regression of B4 still reports 0 px — the parity
+route mounts none of it"*) applies to C word for word.
+
+So the zero is a **NON-REGRESSION statement about the chart**, and nothing else: it says
+Phase C — which added two native definitions, one server definition, a per-chart instance
+filter and a binder change — did not move a pixel of the fourteen indicators that were
+already shipping. That is worth having. It is not a gate on anything below.
+
+| deliverable | what it ships | the gate that can actually fail | does the pixel 0 cover it? |
+|---|---|---|---|
+| T2 replay harness · repaint oracle | `tools/alert_replay.py` | `--repaint` **exit code**, which aborts on a ZERO as vacuous | **no** |
+| T3 operand grammar | `api/services/alert_conditions.py` | `--check` digest equality + 36 parametrised cases against a verbatim inlined copy of the deleted body | **no** |
+| T4 events are columns | `EVENT_FUNCS`, the two `sar` columns | `tests/test_indicator_golden.py` · `eventColumns.test.js` (both lanes, 1e-9) | **no** |
+| T5 closed-bar evaluator (dark) | `_evaluate_one_closed`, `closed_bar_index` | `tests/test_alert_closed_bar.py` + `--repaint --mode closed`, which refuses a lane that never fires | **no** |
+| T6 shadow lane · declared diff | `alert_shadow_log.py`, `fire_diff_declared.json` | `--diff` **exit code**: undeclared in EITHER direction fails | **no** |
+| T7 `compute.rev` force-migration | the `_run_one_cycle` guard, `ADDRESS_REVS` | `tests/test_alert_rev_migration.py`, driven through the REAL cycle | **no** |
+| T9 the ledger door | `admit_alert_fire` | `tests/test_alert_ledger_admission.py` + the **AST** zero-call-site rail | **no** |
+| T10 alerts name the instance · `INDICATOR_FUNCS` retires | derived value table, `PRICE_FUNCS`, `instance_id` | `tests/test_indicator_alert_evaluator.py` · `IndicatorAlertPopover.test.jsx` | **no** — the popover is not mounted by `/r/chart` |
+| T11 fire-once · re-arm · fired log · soak matrix | `alert_fired_log.py`, `tools/alert_soak_matrix.py` | `tests/test_alert_fired_log.py` + `--verify` (exits 1 on deliverable / invisible / unarmed) | **no** |
+| T12 per-chart alert sets · templates | `engine/alertSets.js` | `alertSets.test.js` + the `mergeChartSettings` corpus digest | **partly** — a merge change WOULD move pixels, so the 0 covers that half and only that half |
+| T13 Signature on a generic server lane | `engine/serverCompute.js`, `/api/signature/columns` | `tests/test_signature_router.py`, whose route list is DERIVED from `sig.router.routes` | **no** — and see §6.3 |
+| T14 AVWAP · ATR bands | `computeAVWAP`, `computeATRBands`, both lanes | `tests/test_indicator_golden.py` (1e-9, both lanes) **and** the two parity cases below | **yes**, and they are now measured |
+| T14 / T13 RS line | `computeRSLine`, `rsLine` on the server lane | the golden fixture in both lanes | **NO — REFUSED, §6.3** |
+| T15 the enumeration ledger | `enumerationSites.test.js` | that file's own exit code | **no** |
+
+### 6.1 The case file's declared numbers are a B5 measurement, not a general gate
+
+Every one of the 46 live cases carries an `expect` and a `regions` block, and **all of
+them are the Flip-C delta** — a bands build against a panes build, written by B5 Task 12.
+Run any other pair of builds against them and all 46 "fail" while measuring 0: the run
+above recorded **510 region failures and not one pixel failure**. So a Phase-C-shaped
+question (*"did this commit move the chart?"*) is asked with `--expect 0`, and the region
+numbers are read as **measurements** rather than as gates. Rewriting them would destroy
+the Flip-C record; the correct move is to say which comparison you are making.
+
+### 6.2 The one geometry difference, and why it is the instrument
+
+The pane manifest is diffed alongside the pixels, and a manifest that moves while no pixel
+does is a failure **by design** — one of the two is lying. It fired on all 230 comparisons,
+and the diff is **exactly and only** this, with no other key on any case:
+
+```
+axisLabelWidthPx: None -> {'right': 76, 'left': 0}
+panes[N].axisLabelWidthPx: None -> {'right': 76, 'left': 0}
+```
+
+That field is Task 14's, added so the still-open OBV axis-width finding stops being an
+unattributable pixel storm. It **did not exist on side A**, so the cross-check cannot be
+satisfied across the commit that introduced it — a one-time cost, paid once, and zero from
+the next commit onward. Every other GEOMETRY key — pane count, per-pane pixel height,
+series type, `priceScaleId`, pane index and insertion ORDER — is byte-identical on all 46
+cases, and PROVENANCE is empty on all 230. There is no escape hatch for this in the
+harness and **none was added**: declaring it away would retire a check that catches a real
+class of regression.
+
+### 6.3 🔴 `rs_line_spy_only` — REFUSED, with the measurement that refuses it
+
+Task 13 named two preconditions Task 14 could not have known: the RS line's columns are
+**FETCHED**, and the route is **`Depends(require_paid)`**. The parity route goes
+**hermetic** under `?fixedbars=` — every `/api/` call short-circuits — so the fetch can
+never resolve.
+
+**Measured, not assumed.** With `rsLine` enabled on side A and disabled on side B, the
+harness did not report a number at all; it raised:
+
+```
+PaneLayoutAlertError: the chart reported 1 pane-height alert(s) that survived a re-apply:
+{'paneLayout: the chart has 2 panes, expected at least 3': 1}
+```
+
+i.e. the instance IS created and a pane IS requested, and the renderer produces no pane
+because there is no column to draw. **An `expect` filled in from a run in this state would
+be a green number meaning the indicator is absent** — precisely what Task 14 wrote into
+this case when it was blocked on a lane that did not exist yet. The case therefore stays
+`status: placeholder`, and the requirement for whoever runs it is recorded in the case
+itself: **assert a non-empty column was consumed BEFORE trusting any pixel number**, from
+a PAID session, because a 402 and a quiet answer are indistinguishable at the pixel level.
+
+⭐ The pane-alert gate refusing to report is the outcome to want here. It is the difference
+between a harness that says *"I cannot measure this"* and one that says *"0"*.
 
 ---
 

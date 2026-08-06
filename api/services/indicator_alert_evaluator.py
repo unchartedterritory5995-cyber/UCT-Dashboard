@@ -818,6 +818,18 @@ def _fetch_bars_for_alert(sym: str, tf: str, count: int = 200) -> list[dict]:
     (not the HTTP endpoint) to avoid a round-trip and to keep the loop
     isolated from web-layer concerns.
 
+    ⛔ ``t`` IS THE STORE'S KEY AND ITS UNIT DEPENDS ON ``tf``. `bars_sqlite`'s
+    own module docstring is the contract: intraday (1/5/15/30/60) rows carry unix
+    SECONDS, daily/weekly/monthly rows carry a ``YYYYMMDD`` INT. This function
+    passes that value through verbatim, deliberately — `bar_close_epoch` and
+    `closed_bar_index` READ the calendar encoding (`_bar_calendar_date`), and
+    normalising it to an instant here would silently break the closed lane on
+    production while the frozen replay, which feeds fixture bars directly, stayed
+    green. So the unit is not uniform, and a consumer that needs an INSTANT must
+    say so: `compute_vwap_raw` now refuses a column whose ``t`` is not one
+    (`indicator_compute.VWAP_MIN_INSTANT`). Before it did, a daily VWAP alert
+    computed a 400-bar "session" anchored in **1970-08-23** and never said a word.
+
     Empty list is returned (and silently absorbed by the caller) when the
     store has no rows for the (sym, tf) — typical for a fresh deploy or a
     ticker that nobody has yet requested.
@@ -969,11 +981,20 @@ def _bar_calendar_date(t) -> Optional["object"]:
     """A daily/weekly/monthly bar's `t` → its calendar date, or ``None``.
 
     ⛔ `bars_sqlite` STORES DAILY TIMESTAMPS AS YYYYMMDD INTS. 20260805 read as
-    unix seconds is 1970-08-23 — that is not hypothetical, it is the live
+    unix seconds is 1970-08-23 — that was not hypothetical, it was the live
     `_fetch_bars_for_alert` → `compute_vwap` defect Task 2 measured and pinned
-    (400 trading days landing 11,130 seconds apart, i.e. one "session"). The
-    ledger's own `_normalize_bar_time` exists for the same reason. So the
-    encoding is decided by the TIMEFRAME, never by the magnitude of the number.
+    (400 trading days landing 11,130 seconds apart, i.e. one "session"), CLOSED
+    by `indicator_compute.VWAP_MIN_INSTANT`, which refuses a column whose `t` is
+    not an instant rather than answering from 1970. The ledger's own
+    `_normalize_bar_time` exists for the same reason.
+
+    ⭐ NOTE WHICH DIRECTION THE FIX WENT, BECAUSE THIS FUNCTION IS WHY. The unit
+    was corrected at the CONSUMER that needs an instant, not at the store or at
+    `_fetch_bars_for_alert` — rewriting `t` to an epoch upstream would have
+    silently broken THIS function and `closed_bar_index` with it, on production,
+    while the frozen replay (which feeds fixture bars straight in) stayed green.
+    So the encoding is still decided by the TIMEFRAME, never by the magnitude of
+    the number.
     """
     import datetime as _dt
     if isinstance(t, str):

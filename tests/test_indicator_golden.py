@@ -830,7 +830,15 @@ def test_delivery_wrappers_still_round(getter, ndigits):
     is round at DELIVERY, not in compute; this test is that ruling's gate.
     """
     closes = [100 + (i * 7 % 13) * 0.37 + i * 0.11 for i in range(80)]
-    bars = [{"t": i, "o": c, "h": c + 0.9, "l": c - 0.8, "c": c, "v": 1000 + i * 37}
+    # ⚠️ `t` IS A REAL INSTANT AND THAT IS NOT COSMETIC. This grid used to build
+    # bars with `t: 0, 1, 2 …`, a counter — which is the 1970 unit error, and the
+    # `compute_vwap` row was therefore measuring the rounding of a column
+    # anchored on 1970-01-01. `compute_vwap` now refuses a `t` that is not an
+    # instant (`VWAP_MIN_INSTANT`), so the row reddened with "nothing computed"
+    # and named its own fixture. 5-minute bars from 2026-08-02 09:00 UTC; every
+    # other row here ignores `t` entirely.
+    bars = [{"t": 1785410100 + i * 300, "o": c, "h": c + 0.9, "l": c - 0.8,
+             "c": c, "v": 1000 + i * 37}
             for i, c in enumerate(closes)]
     series = getter(closes, bars)
     values = [v for v in series if v is not None]

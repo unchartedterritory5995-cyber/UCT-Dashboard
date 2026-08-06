@@ -210,13 +210,22 @@ def test_the_diff_is_NON_VACUOUS_in_both_directions(measured):
 def test_the_diff_covers_EVERY_address_in_the_catalog(measured):
     """The address count the diff covers, asserted rather than described.
 
-    30 = 28 `INDICATOR_FUNCS` + 2 `EVENT_FUNCS`. The fire log's grid is the 28
-    (it was frozen from `INDICATOR_FUNCS` before the event addresses existed);
-    the diff adds the two on top via `build_event_alerts`, because "what changes
-    for an armed alert" has to mean every address a user can actually arm.
+    31 = 28 `INDICATOR_FUNCS` + 2 `EVENT_FUNCS` + 1 `PRICE_FUNCS`. The fire
+    log's grid is the 28 (it was frozen from `INDICATOR_FUNCS` before either of
+    the other two partitions existed); the diff adds the rest on top via
+    `build_event_alerts` and `build_price_alerts`, because "what changes for an
+    armed alert" has to mean every address a user can actually arm.
+
+    ⭐ 30 → 31 AT PHASE C TASK 15, AND THE ONE THAT ARRIVED IS `close`. Task 10
+    made price a LEFT operand by putting it in a THIRD partition so that doing
+    so could not grow `INDICATOR_FUNCS` and destroy the frozen replay grid — and
+    the cost of that (correct) choice was that the declared diff drove 30 of the
+    31 armable addresses, bounded by an assertion in `test_alert_fired_log.py`
+    that the difference was exactly `{"close"}`. It is now the empty set.
     """
-    catalog = list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
-    assert measured["addresses_in_catalog"] == len(catalog) == 30
+    catalog = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+               + list(ev.PRICE_FUNCS))
+    assert measured["addresses_in_catalog"] == len(catalog) == 31
     assert measured["addresses_covered"] == len(catalog), (
         f"the diff drove {measured['addresses_covered']} of {len(catalog)} "
         "addresses — an address nobody drove is an address whose cutover "
@@ -300,7 +309,7 @@ def test_the_declaration_records_the_measurement_it_was_taken_from(declared):
     m = declared["measured"]
     assert m["k"] == ar.DIFF_K
     assert sorted(m["fixtures"]) == sorted(ar.fixture_names())
-    assert m["addresses_covered"] == 30
+    assert m["addresses_covered"] == 31
     assert m["forming_fires"] > 0 and m["closed_fires"] > 0
     assert m["gained"] > 0 and m["lost"] > 0
     assert isinstance(m.get("head"), str) and len(m["head"]) >= 8
@@ -387,6 +396,43 @@ def test_the_live_lane_DOES_change_that_table_which_is_why_the_shadow_may_not(sh
     assert after != before, (
         "a full live cycle left indicator_alerts unchanged — the byte-identity "
         "assertion above is measuring nothing")
+
+
+def test_the_VWAP_UNIT_FIX_cannot_make_the_shadow_lane_write_MORE(shadow_env):
+    """⛔ THE SHADOW LANE IS LIVE ON PRODUCTION RIGHT NOW, SO THE FIX OWES THIS.
+
+    `run_shadow_cycle` calls `_fetch_bars_for_alert` too, against 31 armed soak
+    alerts. The VWAP unit gate can only ever turn a VALUE into `None` — never the
+    other way — and `run_shadow_cycle` `continue`s on `value is None` BEFORE
+    `shadow_record`. So the fix's effect on this lane is bounded to writing
+    strictly FEWER rows, which is asserted here rather than argued:
+
+      * a DAILY vwap alert (the encoding that carried the defect) contributes
+        ZERO shadow rows — not a row with a 1970-derived value;
+      * the intraday alerts around it still write theirs, so "zero" is a
+        statement about that alert and not about a cycle that did not run.
+
+    (The 31 rows actually armed on production are `tf="5"` —
+    `alert_soak_matrix.DEFAULT_TF` — so on real tape this fix changes nothing
+    they observe. This test covers the row that WOULD have been affected.)
+    """
+    daily_id = ias.create(user_id="u1", sym="WICK", indicator="vwap",
+                          condition="above", threshold=1.0, tf="D")
+    intraday_id = ias.create(user_id="u1", sym="WICK", indicator="vwap",
+                             condition="above", threshold=1.0, tf="5")
+    shadow.run_shadow_cycle()
+    rows = shadow.shadow_rows()
+    by_alert = {}
+    for r in rows:
+        by_alert.setdefault(r["alert_id"], []).append(r)
+
+    assert daily_id not in by_alert, (
+        "the daily vwap alert wrote a shadow row. Its bars carry YYYYMMDD `t`, "
+        "so any value it produced came from a 1970-anchored session.")
+    assert by_alert.get(intraday_id), (
+        "the INTRADAY vwap alert wrote nothing either — then 'the daily one "
+        "wrote nothing' is a statement about the fixture, not about the fix")
+    assert all(r["value"] is not None for r in by_alert[intraday_id])
 
 
 def test_the_shadow_lane_writes_ITS_OWN_store_and_it_is_not_auth_db(shadow_env):

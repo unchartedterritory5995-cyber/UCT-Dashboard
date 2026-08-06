@@ -35,6 +35,8 @@ import {
   applyAlertTemplate,
   templateInstanceId,
   TEMPLATE_ID_PREFIX,
+  addressBase,
+  instancesForAddress,
 } from '../alertSets'
 import { validateInstance, normalizeInstances } from '../instances'
 import { withInstances } from '../instanceControls'
@@ -449,5 +451,60 @@ describe('applyAlertTemplate — a PATCH scoped to one chart', () => {
     const { kept, dropped } = normalizeInstances(out.settings.indicatorInstances, R)
     expect(dropped, 'the template produced instances the normaliser drops').toEqual([])
     expect(kept).toHaveLength(2)
+  })
+})
+
+// ─── WHICH INSTANCE AN ALERT NAMES (Phase C Task 15) ────────────────────────
+//
+// Task 10 shipped `instance_id` with no producer and named the reason: the
+// popover holds an alert ADDRESS and the chart holds a DEFINITION id, and it
+// MEASURED `address === defId` as a lie for two of fourteen groups. These cases
+// are that measurement, kept — the bridge is derived and the two liars are the
+// subjects, so a "simplification" back to equality dies here.
+describe('instancesForAddress — the bridge that does NOT lie', () => {
+  const inst = (instanceId, defId, inputs) => ({ instanceId, defId, inputs })
+
+  it('addressBase takes the part before the dot, and answers nothing for a non-string', () => {
+    expect(addressBase('ichimoku.tenkan')).toBe('ichimoku')
+    expect(addressBase('rsi')).toBe('rsi')
+    expect(addressBase(undefined)).toBe('')
+    expect(addressBase(42)).toBe('')
+  })
+
+  it('⭐ matches `williams_r` to a `williamsR` instance — the case equality got WRONG', () => {
+    const list = [inst('i1', 'williamsR', { period: 14 })]
+    expect(instancesForAddress(list, 'williams_r').map(i => i.instanceId)).toEqual(['i1'])
+    // …and the control: a naive `address === defId` returns nothing here, which
+    // is why this file carries the case rather than a comment about it.
+    expect(list.filter(i => i.defId === 'williams_r')).toEqual([])
+  })
+
+  it('⛔ answers NOTHING for the two addresses that name no definition', () => {
+    const list = [inst('i1', 'rsi', { period: 14 }), inst('i2', 'williamsR', {})]
+    // `price_vs_ma` is a spread the alert lane synthesises; `close` is the bar's
+    // own price. Neither is a chart indicator, so neither may be given one.
+    expect(instancesForAddress(list, 'price_vs_ma')).toEqual([])
+    expect(instancesForAddress(list, 'close')).toEqual([])
+    // …and the list really did contain matchable things, so the two empties
+    // above are about the ADDRESS and not about an empty fixture.
+    expect(instancesForAddress(list, 'rsi')).toHaveLength(1)
+  })
+
+  it('matches a grouped address on its base, and keeps STORED order for two of one kind', () => {
+    const list = [
+      inst('a', 'rsi', { period: 7 }),
+      inst('b', 'ichimoku', {}),
+      inst('c', 'rsi', { period: 14 }),
+    ]
+    expect(instancesForAddress(list, 'ichimoku.tenkan').map(i => i.instanceId)).toEqual(['b'])
+    expect(instancesForAddress(list, 'rsi').map(i => i.instanceId)).toEqual(['a', 'c'])
+    expect(instancesForAddress(list, 'macd.signal')).toEqual([])
+  })
+
+  it('reads a settings blob as happily as a bare list, and survives a hostile row', () => {
+    const cs = { indicatorInstances: [inst('a', 'rsi', {})] }
+    expect(instancesForAddress(cs, 'rsi').map(i => i.instanceId)).toEqual(['a'])
+    const hostile = [{ get defId() { throw new Error('boom') } }, inst('a', 'rsi', {})]
+    expect(instancesForAddress(hostile, 'rsi').map(i => i.instanceId)).toEqual(['a'])
   })
 })
