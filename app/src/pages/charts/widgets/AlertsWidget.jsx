@@ -178,7 +178,7 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
           </span>
         )}
         <button type="button" className={styles.delBtn} onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
-          <UIcon name="x" size={12} />
+          <UIcon name="x" size={13} strokeWidth={2.4} gold={false} />
         </button>
       </div>
     )
@@ -261,7 +261,7 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
           onKeyDown={e => { if (e.key === 'Enter') addAlert() }}
         />
         <button type="button" className={styles.addBtn} onClick={addAlert} disabled={!canAdd}>
-          <UIcon name="bell" size={11} /> Set
+          <UIcon name="bell" size={11} gold={false} /> Set
         </button>
       </div>
 

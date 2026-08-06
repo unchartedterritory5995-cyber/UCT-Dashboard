@@ -1091,7 +1091,26 @@ export default function ChartDrawingOverlay({
     // takes the byte-identical original path below — no regression to existing
     // drawings. Falls through to the normal mapping if extrapolation fails.
     if (Number.isFinite(futureBars) && futureBars > 0 && bars?.length) {
-      try { x = chart.timeScale().logicalToCoordinate((bars.length - 1) + futureBars) } catch {}
+      const targetLogical = (bars.length - 1) + futureBars
+      try { x = chart.timeScale().logicalToCoordinate(targetLogical) } catch {}
+      // Robust fallback: logicalToCoordinate returns null for a logical index beyond
+      // the extrapolatable right-pad (seen on INTRADAY), which then fell through to the
+      // last bar's time below — snapping a future endpoint back onto the last candle
+      // (or to a null x → off-screen). Project the pixel from the visible range's
+      // px-per-bar instead, so the endpoint stays exactly where it was drawn.
+      if (x == null) {
+        try {
+          const range = chart.timeScale().getVisibleLogicalRange()
+          if (range) {
+            const lo = Math.ceil(range.from), hi = Math.floor(range.to)
+            const xa = chart.timeScale().logicalToCoordinate(lo)
+            const xb = chart.timeScale().logicalToCoordinate(hi)
+            if (xa != null && xb != null && hi !== lo) {
+              x = xa + (targetLogical - lo) * ((xb - xa) / (hi - lo))
+            }
+          }
+        } catch { /* fall through to the time-based mapping below */ }
+      }
     }
     if (x == null && time != null) {
       try { x = chart.timeScale().timeToCoordinate(time) } catch {}

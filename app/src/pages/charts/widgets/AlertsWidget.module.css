@@ -129,11 +129,11 @@
   justify-content: center;
   gap: 3px;
   background: transparent;
-  border: 1px solid var(--alerts-gold-strong, #a8842a);
+  border: 1.5px solid var(--alerts-gold-strong, #a8842a);
   color: var(--alerts-gold-strong, #a8842a);
   font-family: inherit;
   font-size: 0.8em;
-  font-weight: 700;
+  font-weight: 800;
   padding: 4px 9px;
   border-radius: 6px;
   cursor: pointer;
@@ -234,7 +234,7 @@
   cursor: pointer;
   transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
 }
-.row:hover .delBtn { opacity: 0.5; }
+.row:hover .delBtn { opacity: 0.85; }
 .delBtn:hover { opacity: 1; color: var(--alerts-gold-strong, #a8842a); background: var(--alerts-row-hover, rgba(255, 255, 255, 0.06)); }
 
 /* States */
