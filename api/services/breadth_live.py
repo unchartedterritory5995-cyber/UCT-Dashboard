@@ -47,6 +47,23 @@ THE PRICE BASIS — why the live LEVEL can't match, and what to do about it
     `live(prior) − stored(prior)` per metric on every response, so the
     divergence is a published number instead of a hidden one.
 
+    2026-08-06 — the bias is now CORRECTED AT SOURCE, not just anchored over.
+    The anchor fixes an aggregate level; it cannot fix WHICH names sit on the
+    wrong side of a threshold, so the long-lookback counts stayed biased in a
+    single direction. Measured across 10 reconciled sessions, raw delta and the
+    sign of that delta:
+
+        new_52w_highs  -9.9  0+/10-      stage2_count   -57.6  0+/10-
+        new_ath       -10.2  0+/10-      stage4_count   +38.1  10+/0-
+        new_52w_lows   +5.4  10+/0-      near_52w_high  -52.5  0+/10-
+        up_25pct_quarter -17.8 0+/10-
+
+    Seventy comparisons, zero exceptions — not noise. `breadth_dividends.py`
+    rebuilds the frame on the collector's dividend-adjusted basis before levels
+    are built (validated against yfinance itself: 14 tickers, <=0.019% mean
+    deviation, non-payers exactly 1.0000). Gated by `BREADTH_DIVIDEND_BASIS`,
+    which ships OFF; `reconcile(..., dividend_basis=)` measures both arms.
+
 STORAGE
     This module NEVER writes `breadth_snapshots`. The collector remains its
     only writer and the daily series stays authoritative.
@@ -778,6 +795,51 @@ def universe(snapshot_date: Optional[str] = None) -> tuple[list[str], Optional[s
     return tickers, d
 
 
+def dividend_basis_enabled() -> bool:
+    """Ships DARK — an explicit "1" turns it on.
+
+    Inverted relative to `BREADTH_LIVE_ENABLED` on purpose: this one rewrites
+    the numbers the page already shows, so the deploy must be a no-op and the
+    change must be a deliberate flip, made only after the A/B below is run
+    against production data.
+    """
+    return os.environ.get("BREADTH_DIVIDEND_BASIS", "0") == "1"
+
+
+def _apply_dividend_basis(tickers: list[str], dates: list[int],
+                          closes: np.ndarray, measured_ts: int,
+                          override: Optional[bool] = None) -> np.ndarray:
+    """Put the history frame on the collector's DIVIDEND-adjusted basis.
+
+    The 4:15 collector reads yfinance `auto_adjust=True`; `bars.db` is
+    split-only, which is right for charts and wrong for comparing today's price
+    to a 252-day-old level. Measured across 10 reconciled sessions, that basis
+    gap was not noise — every long-lookback metric missed in the SAME direction
+    10 times out of 10 (highs/stage2/near-high under, lows/stage4 over).
+
+    Fails OPEN: any problem returns the unadjusted frame, which is exactly
+    today's shipped behaviour. A dividend store that is missing, stale or
+    half-swept must degrade to the old numbers, never to rescaled ones.
+
+    `override` forces the arm regardless of the flag, so `reconcile` can measure
+    BOTH bases against the same stored rows in a single deploy. Without that,
+    proving this out would mean a redeploy between the two arms and comparing
+    numbers gathered from different processes.
+    """
+    use = dividend_basis_enabled() if override is None else override
+    if not use:
+        return closes
+    try:
+        from api.services import breadth_dividends as bdiv
+        adj = bdiv.adjust(tickers, dates, closes, as_of=measured_ts)
+        if adj.shape != closes.shape:
+            return closes
+        return adj
+    except Exception as e:                       # noqa: BLE001 - never break the read
+        print(f"[breadth_live] dividend basis skipped: {type(e).__name__}: {e}")
+        return closes
+
+
 def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Optional[dict]:
     """Levels as of the last completed session, cached until a new one lands."""
     conn = _bars_conn()
@@ -789,7 +851,11 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
     tickers, uni_date = universe()
     if not tickers:
         return None
-    key = (as_of_ts, uni_date, len(tickers))
+    # The measured session, not the frame's end. It joins the cache key because
+    # a holiday or weekend holds `as_of_ts` still while the day moves, and the
+    # dividend anchor follows the day (see `_apply_dividend_basis`).
+    measured_ts = _ts_int(_now_et().date())
+    key = (as_of_ts, uni_date, len(tickers), measured_ts)
 
     with _levels_lock:
         if not force and _levels_cache.get("key") == key:
@@ -807,6 +873,7 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         if len(dates) < 221:
             return None
         closes, volumes = _load_frame(conn, tickers, dates)
+        closes = _apply_dividend_basis(tickers, dates, closes, measured_ts)
         levels = build_levels(tickers, closes, volumes, as_of_ts)
         levels["universe_date"] = uni_date
         levels["index"] = build_index_levels(_load_index_series(conn, as_of_ts, start))
@@ -818,7 +885,8 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         return levels
 
 
-def _metrics_at_close(conn, tickers: list[str], target_ts: int) -> Optional[dict]:
+def _metrics_at_close(conn, tickers: list[str], target_ts: int,
+                      dividend_basis: Optional[bool] = None) -> Optional[dict]:
     """Run the live method against a COMPLETED session's closes.
 
     Same code path, known inputs — this is what makes the basis shift
@@ -836,6 +904,7 @@ def _metrics_at_close(conn, tickers: list[str], target_ts: int) -> Optional[dict
     if len(dates) < 221:
         return None
     closes, volumes = _load_frame(conn, tickers, dates)
+    closes = _apply_dividend_basis(tickers, dates, closes, target_ts, dividend_basis)
     levels = build_levels(tickers, closes, volumes, prior)
     index_levels = build_index_levels(_load_index_series(conn, prior, start))
     del closes, volumes
@@ -1087,7 +1156,7 @@ def compute_live(force: bool = False) -> dict:
 
 # ── The gate ──────────────────────────────────────────────────────────────────
 
-def reconcile(target_iso: str) -> dict:
+def reconcile(target_iso: str, dividend_basis: Optional[bool] = None) -> dict:
     """Replay the live path for a past session and diff it against the stored row.
 
     Levels come from sessions strictly before `target_iso` and that day's actual
@@ -1119,7 +1188,7 @@ def reconcile(target_iso: str) -> dict:
     if stored is None:
         return {"ok": False, "reason": f"no stored breadth row for {target_iso}"}
 
-    live = _metrics_at_close(conn, tickers, target_ts)
+    live = _metrics_at_close(conn, tickers, target_ts, dividend_basis)
     if live is None:
         return {"ok": False, "reason": f"bars.db cannot support a live replay of {target_iso}"}
 

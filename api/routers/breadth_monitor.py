@@ -6,6 +6,8 @@ POST /api/breadth-monitor/push    — store new snapshot (auth required)
 """
 
 import os
+import threading
+
 from fastapi import APIRouter, HTTPException, Request
 from api.services import breadth_monitor as svc
 from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
@@ -118,18 +120,58 @@ def get_breadth_live(force: bool = False):
 
 
 @router.get("/api/breadth-monitor/live/reconcile")
-def reconcile_breadth_live(date: str, request: Request):
+def reconcile_breadth_live(date: str, request: Request,
+                           dividend_basis: int | None = None):
     """Replay the live path for a past session and diff it against the stored row.
 
     This is the gate: no live value goes on screen until it passes.
+
+    `?dividend_basis=1|0` forces the price-basis arm instead of reading the
+    `BREADTH_DIVIDEND_BASIS` flag, so both bases can be measured against the
+    same stored rows in ONE deploy. Comparing arms across two deploys would
+    mean comparing numbers produced by different processes, on a universe and
+    a bars.db that both moved in between.
     """
     _check_auth(request)
     from api.services import breadth_live as live
 
     try:
-        return live.reconcile(date)
+        return live.reconcile(
+            date, None if dividend_basis is None else bool(dividend_basis))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/breadth-monitor/live/dividends")
+def breadth_dividends_status():
+    """What the dividend store holds, and whether the last sweep truncated.
+
+    `truncated` is the field that matters: a sweep that ran out of PAGES rather
+    than out of data leaves only the recent tail, which does not fail — it
+    quietly under-adjusts the oldest part of every 52-week window.
+    """
+    from api.services import breadth_dividends as bdiv
+    from api.services import breadth_live as live
+
+    h = bdiv.health()
+    h["basis_enabled"] = live.dividend_basis_enabled()
+    return h
+
+
+@router.post("/api/breadth-monitor/live/dividends/refresh")
+def breadth_dividends_refresh(request: Request, background: bool = True):
+    """Sweep dividends. ~9 minutes for the full market, so it defaults to
+    detached — a synchronous call would hold a request thread for the whole
+    sweep on a single-process web pod."""
+    _check_auth(request)
+    from api.services import breadth_dividends as bdiv
+
+    if not background:
+        return bdiv.refresh()
+
+    threading.Thread(target=bdiv.refresh, name="breadth-dividends-refresh",
+                     daemon=True).start()
+    return {"started": True, **bdiv.health()}
 
 
 @router.get("/api/breadth-monitor/live/store")
