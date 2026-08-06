@@ -98,7 +98,12 @@
     /* NOT space-between: with two readings it puts the whitespace BETWEEN them,
        which splits one group into two disconnected clusters. Grouped left, the
        pair reads as a single line and the slack falls harmlessly at the end. */
-    gap: 18px;
+    /* 12px, not the 18px this started at, because 18 WRAPPED at 375px once the
+       values reached their widest — see the svg width note below. 12 clears
+       that case with 4px spare and still reads as grouping: the gap INSIDE an
+       item is 5px, so 12 keeps the ~2.4x inter/intra ratio that tells the eye
+       where one reading ends (desktop runs 22 vs 8). */
+    gap: 12px;
     justify-content: flex-start;
   }
   .item { gap: 5px; }
@@ -108,6 +113,21 @@
      to a second row and the "tidier" stack came out TALLER than what it
      replaced. DayPath carries a viewBox, so CSS can scale it — shrink the path
      and both readings share one line. */
+  /* 40px is a MEASURED CEILING, not a guess — do not widen it.
+     With a full session's path the line looks cramped at 390px and there
+     appears to be slack at the right, which invites exactly that change. That
+     slack is an illusion of two things: the widest phone in this tier, and
+     today's values. Measured at 375px (iPhone SE/mini) with the two
+     phone-visible readings at their widest (`100.0` and `100.0%`), the row
+     fits on ONE line only at 40px (15px spare) and 42px (11px). At 44px it
+     wraps and the strip jumps 61px -> 92px. So the reachable gain is ~5%, and
+     spending it would leave a phone-and-value combination that wraps in
+     production with no CSS change to blame.
+     That same measurement found a LATENT wrap that shipped on 2026-08-05: at
+     the original 18px item gap, 375px + `100.0`/`100.0%` already wrapped. It
+     had never been seen because it needs the narrowest phone AND values a
+     character wider than a normal session prints. The gap above is now 12px,
+     which is what actually fixes it — the 40px here is unchanged. */
   .item svg { width: 40px; }
   .label { font-size: 9px; letter-spacing: 0.6px; }
   .value { font-size: 13px; }
