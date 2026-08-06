@@ -13,6 +13,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
+import { useWorkspace } from '../WorkspaceContext'
 import { useAuth } from '../../../context/AuthContext'
 import usePreferences from '../../../hooks/usePreferences'
 import useLivePrices from '../../../hooks/useLivePrices'
@@ -40,8 +41,29 @@ function fmtDate(ts) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export default function AlertsWidget({ opts, onOptsChange }) {
+// The alert's level right now. A trendline's level is interpolated/extrapolated
+// from its two anchors (matches the server-side checker); everything else is the
+// fixed target_price.
+function levelNow(a) {
+  if (a.alert_type === 'trendline') {
+    const { anchor_t1: t1, anchor_p1: p1, anchor_t2: t2, anchor_p2: p2 } = a
+    if ([t1, p1, t2, p2].every(v => v != null) && t2 !== t1) {
+      const now = Date.now() / 1000
+      return p1 + (p2 - p1) * ((now - t1) / (t2 - t1))
+    }
+  }
+  return Number(a.target_price)
+}
+
+export default function AlertsWidget({ color, opts, onOptsChange }) {
   const { user } = useAuth()
+  // One-directional link: clicking an alert row PUBLISHES its symbol to this
+  // widget's color group (→ any chart on the same group jumps to it). We never
+  // READ the group here, so scanning tickers on the chart never touches the list.
+  const { setGroupSym } = useWorkspace() || {}
+  const goToSym = useCallback((sym) => {
+    if (sym && setGroupSym) setGroupSym(color, sym.toUpperCase())
+  }, [setGroupSym, color])
 
   // ── Appearance settings (⚙) — mirrors the News widget ──
   const { prefs } = usePreferences()
@@ -119,9 +141,15 @@ export default function AlertsWidget({ opts, onOptsChange }) {
   const renderRow = (a, isTriggered) => {
     const dirCls = a.direction === 'above' ? styles.above : styles.below
     const live = isTriggered ? null : liveFor(a.sym)
-    const priceAbove = live != null ? live >= Number(a.target_price) : null
+    const priceAbove = live != null ? live >= levelNow(a) : null
+    const dirWord = a.direction === 'above' ? 'above ' : 'below '
     return (
-      <div key={a.id} className={`${styles.row}${isTriggered ? ' ' + styles.rowTriggered : ''}`}>
+      <div
+        key={a.id}
+        className={`${styles.row}${isTriggered ? ' ' + styles.rowTriggered : ''}`}
+        onClick={() => goToSym(a.sym)}
+        title={`Show ${a.sym} on the linked chart`}
+      >
         <span className={`${styles.dirIcon} ${dirCls}`} title={a.direction === 'above' ? 'Cross above' : 'Cross below'} aria-hidden="true">
           {a.direction === 'above' ? '▲' : '▼'}
         </span>
@@ -129,8 +157,11 @@ export default function AlertsWidget({ opts, onOptsChange }) {
           <div className={styles.line1}>
             <span className={styles.rowSym}>{a.sym}</span>
             <span className={styles.cond}>
-              {a.direction === 'above' ? 'above ' : 'below '}
-              <span className={styles.target}>${fmtPrice(a.target_price)}</span>
+              {a.alert_type === 'line'
+                ? <>{dirWord}line</>
+                : a.alert_type === 'trendline'
+                  ? <>{dirWord}trendline</>
+                  : <>{dirWord}<span className={styles.target}>${fmtPrice(a.target_price)}</span></>}
             </span>
           </div>
           <div className={styles.sub}>
@@ -147,7 +178,7 @@ export default function AlertsWidget({ opts, onOptsChange }) {
             </span>
           </span>
         )}
-        <button type="button" className={styles.delBtn} onClick={() => removeAlert(a.id)} title="Delete alert" aria-label="Delete alert">
+        <button type="button" className={styles.delBtn} onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
           <UIcon name="x" size={12} />
         </button>
       </div>

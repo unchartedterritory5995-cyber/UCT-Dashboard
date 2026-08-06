@@ -2690,6 +2690,53 @@ export default function StockChart({
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
 
+  // "Set alert" from a line/trendline's right-click menu → create a server-side
+  // watchlist alert (fires the bell/email/Discord like any price alert; appears in
+  // the Alerts widget). A horizontal line = a fixed-price 'line' alert; a sloped
+  // line = a 'trendline' alert carrying its two anchors (real unix-seconds + price)
+  // so the checker can interpolate the line's level over time. A point placed past
+  // the last candle (futureBars) is resolved to a real future time via the bar cadence.
+  const handleSetDrawingAlert = useCallback((drawing, direction) => {
+    if (!sym || !drawing) return
+    const pts = drawing.points || []
+    const kind = (drawing.type === 'horizontal' || drawing.type === 'hray') ? 'line' : 'trendline'
+    const arr = drawBarsRef.current || []
+    const realTimeOf = (p) => {
+      const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
+      if (fb > 0 && arr.length >= 2) {
+        const lastT = arr[arr.length - 1].t
+        const diffs = []
+        for (let i = Math.max(1, arr.length - 30); i < arr.length; i++) {
+          const d = arr[i].t - arr[i - 1].t
+          if (d > 0) diffs.push(d)
+        }
+        diffs.sort((a, b) => a - b)
+        const interval = diffs.length ? diffs[Math.floor(diffs.length / 2)] : 86400
+        return lastT + fb * interval
+      }
+      return p?.time
+    }
+    const body = { sym, direction, alert_type: kind }
+    if (kind === 'line') {
+      const price = pts[0]?.price
+      if (!Number.isFinite(price)) return
+      body.target_price = price
+    } else {
+      const a = pts[0], b = pts[1]
+      if (!Number.isFinite(a?.price) || !Number.isFinite(b?.price)) return
+      const t1 = realTimeOf(a), t2 = realTimeOf(b)
+      if (!Number.isFinite(t1) || !Number.isFinite(t2)) return
+      body.target_price = b.price   // display fallback (latest anchor)
+      body.anchor_t1 = Math.round(t1); body.anchor_p1 = a.price
+      body.anchor_t2 = Math.round(t2); body.anchor_p2 = b.price
+    }
+    fetch('/api/watchlist-alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => { /* non-fatal */ })
+  }, [sym])
+
   // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
   // bubble the new array to the parent via onAnnotationsChange (no localStorage).
   const annAdd = useCallback((d) => {
@@ -9169,7 +9216,17 @@ export default function StockChart({
       if (price == null || logical == null) return null
       const arr = drawBarsRef.current || []
       if (!arr.length) return null
-      const idx = Math.max(0, Math.min(arr.length - 1, Math.round(logical)))
+      // Allow the endpoint to extend PAST the last candle, matching the overlay's
+      // toChart→fromLogical: a logical index beyond the last bar is stored as the
+      // last bar's time + a whole-bar `futureBars` offset (capped), so the point
+      // maps into the empty right-pad instead of clamping to the last candle.
+      const rounded = Math.round(logical)
+      const lastIdx = arr.length - 1
+      if (rounded > lastIdx) {
+        const t = arr[lastIdx]?.t
+        return t == null ? null : { time: t, price, futureBars: Math.min(500, rounded - lastIdx) }
+      }
+      const idx = Math.max(0, rounded)
       const t = arr[idx]?.t
       return t == null ? null : { time: t, price }
     }
@@ -10658,6 +10715,7 @@ export default function StockChart({
             redo={redo}
             snapshotHistory={snapshotHistory}
             onSaveDefaults={(d) => handleUpdateChartSettings({ ...cs, drawingDefaults: { ...cs.drawingDefaults, ...d } })}
+            onSetAlert={handleSetDrawingAlert}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
