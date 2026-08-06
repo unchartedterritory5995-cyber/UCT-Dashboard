@@ -81,12 +81,33 @@
 
 /* On a phone the strip would push the table off the first screen, so it drops
    to the two readings that answer "is the market working right now" and the
-   per-metric paths go with them. */
+   per-metric paths go with them.
+
+   It also STACKS: side by side, the stamp sat alone against a two-row column of
+   metrics, wasting the width it was holding and reading like an accident. Stamp
+   on its own line, metrics sharing the full width beneath it. */
 @media (max-width: 640px) {
-  .strip { gap: 10px; padding: 7px 10px; }
-  .items { gap: 14px; }
+  .strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    padding: 8px 10px;
+  }
+  .items {
+    width: 100%;
+    gap: 10px;
+    justify-content: space-between;
+  }
+  .item { gap: 5px; }
   .item:nth-child(n + 3) { display: none; }
   .since { display: none; }
+  /* Each reading needs ~190px at the desktop path width, so two of them wrapped
+     to a second row and the "tidier" stack came out TALLER than what it
+     replaced. DayPath carries a viewBox, so CSS can scale it — shrink the path
+     and both readings share one line. */
+  .item svg { width: 40px; }
+  .label { font-size: 9px; letter-spacing: 0.6px; }
+  .value { font-size: 13px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
