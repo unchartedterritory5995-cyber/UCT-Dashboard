@@ -364,3 +364,48 @@ class TestPastWeekLeg:
         _, moved = cal._merge_finviz_sessions(
             days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: True, {})
         assert moved == 1, "the current-week path must still re-bucket"
+
+
+class TestRefreshCacheTtl:
+    """`POST /api/calendar/refresh` was the ONE calendar_weekly write bypassing
+    set_by_completeness. An admin hitting refresh during a provider outage
+    rebuilt a degraded week and PINNED it for the full 10-minute TTL — the one
+    moment someone is actively trying to fix the calendar is the worst moment
+    to make a bad answer stick.
+    """
+
+    def test_a_degraded_refresh_gets_the_short_ttl(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(cal, "_weekly_payload_is_good", lambda r: False)
+        monkeypatch.setattr(cal, "set_by_completeness",
+                            lambda k, v, **kw: seen.update(kw))
+        remembered = []
+        monkeypatch.setattr(cal._WEEKLY_STALE, "remember",
+                            lambda *a: remembered.append(a))
+        self._run_refresh(monkeypatch)
+        assert seen["complete"] is False
+        assert seen["ttl_partial"] == cal._CACHE_FAIL_TTL == 60
+        assert not remembered, "a degraded week must not become the stale fallback"
+
+    def test_a_good_refresh_gets_the_full_ttl_and_the_stale_slot(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(cal, "_weekly_payload_is_good", lambda r: True)
+        monkeypatch.setattr(cal, "set_by_completeness",
+                            lambda k, v, **kw: seen.update(kw))
+        remembered = []
+        monkeypatch.setattr(cal._WEEKLY_STALE, "remember",
+                            lambda *a: remembered.append(a))
+        self._run_refresh(monkeypatch)
+        assert seen["complete"] is True
+        assert seen["ttl_ok"] == cal._CACHE_TTL
+        assert remembered, "a good refresh must seed the stale fallback"
+
+    def _run_refresh(self, monkeypatch):
+        """Drive refresh_calendar with every provider stubbed out."""
+        monkeypatch.setattr(cal, "_build_live", lambda *a, **k: {})
+        monkeypatch.setattr(cal, "_patch_today_actuals", lambda *a, **k: None)
+        monkeypatch.setattr(cal, "_merge_sticky_actuals", lambda *a, **k: None)
+        monkeypatch.setattr(cal, "_curate_econ_events", lambda *a, **k: None)
+        monkeypatch.setattr(cal, "_attach_names", lambda *a, **k: None)
+        monkeypatch.setattr(cal, "_attach_date_moves", lambda *a, **k: None)
+        cal.refresh_calendar(user={"role": "admin"})

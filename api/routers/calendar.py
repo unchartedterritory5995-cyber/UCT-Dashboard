@@ -2096,12 +2096,22 @@ def refresh_calendar(user: dict = Depends(require_admin)):
         "source":          "refresh",
         "is_current_week": True,
     }
-    cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
+    # The ONE calendar_weekly write that used to bypass `set_by_completeness`
+    # (the normal build path has used it since the cache-policy pass). An admin
+    # hitting refresh during a provider outage rebuilt a degraded week and then
+    # PINNED it for the full 10 minutes — the one moment someone is actively
+    # trying to fix the calendar is the worst moment to make it stick. Same
+    # goodness test the serve-stale slot below already applies, evaluated once.
+    good = _weekly_payload_is_good(result)
+    set_by_completeness(
+        "calendar_weekly", result,
+        complete=good, ttl_ok=_CACHE_TTL, ttl_partial=_CACHE_FAIL_TTL,
+    )
     # This freshly-rebuilt week also becomes the serve-stale fallback. Without
     # it the admin's forced refresh would leave the PREVIOUS week in the slot,
     # which then resurfaces the moment this entry lapses — a manual refresh
     # would visibly un-apply itself 10 minutes later.
-    if _weekly_payload_is_good(result):
+    if good:
         _WEEKLY_STALE.remember("current", result)
     totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]),
                    "tbd": len(d.get("tbd", [])), "econ": len(d["econ"])}
