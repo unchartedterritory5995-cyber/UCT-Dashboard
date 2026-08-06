@@ -38,8 +38,15 @@ same oracle, the same bars and the same grid it reads 0 / 0 at every k.
 which is byte for byte what an armed alert did yesterday. The cutover is one
 constant in its own commit, after the shadow-mode soak — spec §8. Until then the
 closed lane is reachable only by asking for it explicitly (``mode="closed"``),
-which is what the tests do, and no fire it produces may enter the Signature
-receipts ledger.
+which is what the tests do.
+
+⭐ AND THERE IS NOW A DOOR TO THE SIGNATURE RECEIPTS LEDGER, WITH A LOCK ON IT.
+``admit_alert_fire`` is the only way a fire from this module reaches
+``signature.ledger``, and it REFUSES — by raising, never by returning False —
+unless the lane is ``closed`` and the bar it names has actually closed. This
+paragraph used to assert the absence of such a write; an absence stops being a
+control the moment it stops being true, so it names the gate instead, and
+``tests/test_alert_ledger_admission.py`` goes red if the gate is removed.
 """
 
 from __future__ import annotations
@@ -488,9 +495,11 @@ _SAR_IS_NOT_A_THRESHOLD = (
 # fixture BOTH lanes read, so the lane Phase C replaces cannot drift from the
 # chart in the meantime.
 #
-# ⚠️ AND THE FIRES THESE PRODUCE ARE NOT LEDGER-GRADE. This evaluator reads the
-# FORMING bar with cycle-granularity crossings; nothing here may feed the
-# Signature receipts ledger until the closed-bar rebuild lands.
+# ⚠️ AND A FIRE FROM THESE IS LEDGER-GRADE ONLY THROUGH `admit_alert_fire`. The
+# forming lane reads the bar that is still being built with cycle-granularity
+# crossings, so its fires are not receipts — but that is now a GATE rather than a
+# sentence: the door below raises on a forming-lane fire and on a bar that has
+# not closed, and `test_alert_ledger_admission.py` fails if either refusal goes.
 
 _OSCILLATOR_CONDITIONS: list[dict] = [
     {"value": "above",       "label": "Above threshold", "needs_threshold": True},
@@ -1147,6 +1156,181 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
         threshold = dyn
 
     return current, check_condition(condition, current, prev, threshold), i
+
+
+# ─── THE LEDGER DOOR ─────────────────────────────────────────────────────────
+#
+# ⭐ THE CONSTRAINT CARRIED SINCE B1 IS CLOSED HERE AND NOWHERE EARLIER.
+# Spec §8: *nothing enters the ledger unless it is closed-bar evaluated*. Every
+# task from 1 through 8 was ordered to leave this door shut, and until now the
+# honesty of the ledger was an ABSENCE — two comments in this module saying the
+# fires were not ledger-grade, and no code anywhere that would stop one. An
+# absence stops being a control the moment it stops being true.
+#
+# ⛔ SO THE REFUSAL IS A RAISE, NOT A RETURN. `ledger.record_signal` already
+# returns False for exactly one thing — "already recorded" — and its own
+# docstring calls a dropped write reported as a duplicate *"the one lie
+# fire-once cannot survive"*. A refusal that returned False would be that lie,
+# and it would be indistinguishable from the steady state.
+#
+# ⛔ NOTHING CALLS THIS YET, AND THAT IS DELIBERATE. `_run_one_cycle` is the live
+# lane; while `ALERT_EVAL_MODE` is `"forming"` a call from there would raise on
+# every fire. Wiring belongs AFTER the cutover, never as part of it — spec §8 and
+# the phase plan both say the door opens after the flip, not with it.
+
+# The ledger's `version` column exists so a rule whose ARITHMETIC changed
+# produces a distinguishable row rather than silently reusing a key
+# (`signature/rules.py::VERSIONS` is the same idea for the three Signature
+# rules). The alert lane's arithmetic IS the closed-bar evaluator, so the string
+# names the lane: a forming-lane row cannot exist under it by construction,
+# which is the point — a receipt has to say what produced it.
+ALERT_LEDGER_VERSION = "alert-closed-v1"
+
+# ⚠️ TWO VOCABULARIES FOR ONE TIMEFRAME, AND THE LEDGER OWNS THE OTHER ONE. An
+# alert's `tf` is the BARS-STORE key, because that is what it hands
+# `bars_sqlite.get_bars`. The ledger's `tf` is the PRODUCT label the surface
+# shows, and ten rows of real history are already keyed that way with no rewrite
+# path. Passing the field we already hold is the natural mistake and it is
+# SILENT: the row lands and simply orphans itself.
+_LEDGER_TIMEFRAME: dict[str, str] = {
+    "1": "1m", "5": "5m", "15": "15m", "30": "30m", "60": "1h",
+    "D": "1D", "W": "1W", "M": "1M",
+}
+
+_NOT_LEDGER_GRADE = "forming-bar fires are not ledger-grade"
+
+
+def ledger_timeframe(tf: str) -> str:
+    """A bars-store timeframe code → the product label the ledger keys on.
+
+    RAISES on a code with no label rather than passing the code through. The
+    create path validates nothing, so `tf` can be any string a client sent; a
+    guess here writes a spelling into an append-only key column that nothing can
+    correct afterwards.
+    """
+    label = _LEDGER_TIMEFRAME.get(str(tf or "").strip().upper())
+    if label is None:
+        raise RuntimeError(
+            f"no product timeframe label for {tf!r} — the ledger keys on the "
+            f"label the surface shows ({sorted(set(_LEDGER_TIMEFRAME.values()))}), "
+            f"and this lane will not invent one"
+        )
+    return label
+
+
+def admit_alert_fire(alert: dict, value: Optional[float],
+                     bar_index: Optional[int], bars: list[dict], *,
+                     now_epoch: Optional[float] = None) -> bool:
+    """Record an alert-lane fire in the Signature ledger — or REFUSE, loudly.
+
+    Returns what `ledger.record_signal` returns and nothing else: **True** for a
+    new row, **False** for "already recorded". Every refusal is a `RuntimeError`,
+    so a caller can never read a refusal as a duplicate.
+
+    Three conditions, ALL required:
+
+      1. ``eval_mode() == "closed"``. The forming lane judges the bar that is
+         still being built and takes `prev` from whatever the previous 60-second
+         poll stored, so whether it fires at all depends on when the loop
+         happened to look — Task 2 measured 636,205 keyed disagreements across
+         intra-bar granularities. A receipt for that is a receipt for a coin
+         toss.
+      2. ``bar_index`` names a bar of this alert's timeframe that has actually
+         CLOSED as of ``now_epoch`` — `bar_close_epoch` decides, per timeframe,
+         through the ET calendar. The mode is a global; this is a fact about one
+         bar and one clock, and flipping the constant must not be enough to
+         admit a mid-bar fire.
+      3. ``bar_index < len(bars) - 1``, **or** the bar is closed by the clock.
+         ⚠️ Honest note: (2) already demands the second half, so this gate adds
+         no refusal today — it is belt-and-braces, kept because the window handed
+         in is not always the store's own and a future weakening of (2) must
+         still not admit the newest bar by default.
+
+    ⚠️ AND THE LEDGER'S KEY VOCABULARY IS NOT NEGOTIABLE:
+
+      * ``tf`` is the PRODUCT label ("1D"), never the bars-store key ("D") —
+        `ledger_timeframe` above, and the ledger refuses the other spelling at
+        its own door too.
+      * ``indicator`` is this lane's canonical ADDRESS (`"rsi"`, `"adx.plusDI"`),
+        which is NOT the chart engine's plot address. `"rsi.rsi"` looks *more*
+        correct and is a second vocabulary in a key column; the two genuinely
+        differ (`williams_r` is `williamsR` there, and `price_vs_ma` has no chart
+        definition at all).
+      * ``direction`` is the alert's CONDITION (`"cross_above"`), not `"bull"` /
+        `"bear"`. The alert lane never expressed a market opinion — "RSI above
+        70" is bearish to one trader and bullish to another — and inventing one
+        would put a judgement nobody made into a store with no rewrite path.
+      * ``price`` is the judged bar's CLOSE, the same thing the FCB writers put
+        there. The indicator value goes in `meta`: for `price_vs_ma` the value
+        is a spread, and a spread in a column ten real rows fill with a dollar
+        price is the same class of corruption as the wrong `tf`.
+    """
+    from api.services.signature import ledger
+
+    mode = eval_mode()
+    if mode != "closed":
+        raise RuntimeError(
+            f"{_NOT_LEDGER_GRADE}: ALERT_EVAL_MODE is {mode!r}. The lane that "
+            f"produced this fire judges the bar that is still forming, so the "
+            f"fire may exist only because of when the loop looked."
+        )
+
+    if (not isinstance(bar_index, int) or isinstance(bar_index, bool)
+            or not bars or not 0 <= bar_index < len(bars)):
+        raise RuntimeError(
+            f"bar_index {bar_index!r} is not a position in the {len(bars or [])}-bar "
+            f"window handed in — a receipt must name a bar that exists"
+        )
+
+    tf_key = str(alert.get("tf") or "")
+    label = ledger_timeframe(tf_key)                # refuses before anything else
+    now = time.time() if now_epoch is None else float(now_epoch)
+
+    bar = bars[bar_index]
+    close_at = bar_close_epoch(bar.get("t"), tf_key)
+    # ⚠️ THIS REFUSAL DELIBERATELY DOES NOT REUSE `_NOT_LEDGER_GRADE`. It is a
+    # fact about ONE BAR and one clock, not about the lane, and a shared phrase
+    # would make the mode test above pass on a tree with the mode gate deleted —
+    # the refusal would still match the string while checking something else.
+    if close_at is None or now < close_at:
+        raise RuntimeError(
+            f"bar {bar_index} (t={bar.get('t')!r}, tf={tf_key!r}) has not closed "
+            f"as of {now!r} (closes at {close_at!r}) — a row the store can still "
+            f"move is not a receipt"
+        )
+
+    if not (bar_index < len(bars) - 1 or now >= close_at):   # (3), see docstring
+        raise RuntimeError(
+            f"bar {bar_index} is the newest bar in the window and the clock does "
+            f"not say it closed"
+        )
+
+    if value is None:
+        raise RuntimeError(
+            "a fire with no value is not a receipt — refusing rather than "
+            "recording a signal whose number nobody can read back"
+        )
+
+    address = resolve_address(alert.get("indicator"))
+    condition = str(alert.get("condition") or "")
+
+    # Data-shaped refusals (an unusable sym / condition / price / meta) are the
+    # LEDGER's to make and it raises ValueError on every one of them — enforced
+    # in the store, not in this caller, so a future writer that bypasses this
+    # door still hits the same rails.
+    return ledger.record_signal(
+        address, ALERT_LEDGER_VERSION, str(alert.get("sym") or ""), label,
+        condition, bar.get("t"), bar.get("c"),
+        meta={
+            "lane": "closed",
+            "value": value,
+            "address": address,
+            "condition": condition,
+            "threshold": alert.get("threshold"),
+            "alertId": alert.get("id"),
+            "barIndex": bar_index,
+        },
+    )
 
 
 # ─── cycle + delivery ────────────────────────────────────────────────────────
