@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 
 from api.routers import signature as sig
 from api.middleware.auth_middleware import get_current_user_with_plan
+from api.services.signature import flow_breakout
 
 
 @pytest.fixture
@@ -564,7 +565,12 @@ def test_flow_is_read_from_the_proxied_surface_and_forwards_no_credential(monkey
 
     assert seen["method"] == "GET"
     assert seen["url"] == "http://flow.test:8080/api/flow/ticker/NVDA"
-    assert seen["params"] == {"source": "stocks"}
+    # `cols` is the projection the join actually parses, and it is pinned to
+    # FLOW_COLS rather than spelled out: the question asked upstream and the
+    # fields `flow_by_date` resolves BY NAME out of the reply must be the same
+    # list, or the reply is missing a column the parser will raise on.
+    assert seen["params"] == {"source": "stocks",
+                              "cols": ",".join(flow_breakout.FLOW_COLS)}
     assert seen["timeout"] == 15.0
     assert not (seen["headers"] or {}), f"no credential may ride along: {seen['headers']}"
     assert "cookie" not in str(seen).lower()
@@ -1517,3 +1523,210 @@ def test_the_columns_lane_never_500s_on_OUR_defect(client, monkeypatch, caplog):
         assert any("server lane failed" in rec.message for rec in caplog.records)
     finally:
         rd.register_provider("rsLine", saved)
+
+
+# -- the cold read's cost: where the seconds went, and what stops paying them --
+#
+# Measured against production 2026-08-06. `/api/signature/flow-breakout` cold:
+# SPY 15.4 s, TSLA 13.0 s, QQQ 12.9 s, NVDA 9.0 s, AAPL/IWM/AMD 3.6-3.9 s - all
+# HTTP 200 with real data, so neither the negative cache nor the ledger fallback
+# (both failure-only) can fire. The seconds are in the UPSTREAM BUILD: measured
+# TTFB on `/api/flow/ticker`, SPY?source=indexes 7.59 s for 8.2 MB gzipped
+# (41 MB / 349,203 rows over 22 columns), NVDA 3.63 s, AAPL 1.68 s - plus a
+# whole extra 1.06 s round trip for SPY's `stocks` probe, which can only ever
+# return a 145-byte bare header.
+
+
+def _flow_probe_seq(monkeypatch, bodies, status=200, delays=None):
+    """Record EVERY flow call, and answer per `?source=`.
+
+    `_flow_probe` keeps only the last call, which cannot see a two-leg read at
+    all - the leg count, the leg ORDER and the timeout each leg was handed are
+    the whole behaviour here.
+
+    `delays[source]` sleeps before answering, which is how the budget is spent
+    without a fake clock: the deadline is real wall time, and a test that moved
+    a patched clock instead would pass against an implementation that had no
+    deadline in it.
+    """
+    import httpx as _httpx
+    calls = []
+
+    class _Resp:
+        def __init__(self, body):
+            self.status_code = status
+            self._body = body
+
+        def iter_lines(self):
+            yield from self._body.splitlines()
+
+    class _Ctx:
+        def __init__(self, body):
+            self._body = body
+
+        def __enter__(self):
+            return _Resp(self._body)
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_stream(method, url, params=None, headers=None, timeout=None, **kw):
+        source = (params or {}).get("source")
+        calls.append({"source": source, "timeout": timeout, "url": url,
+                      "cols": (params or {}).get("cols")})
+        if delays and source in delays:
+            time.sleep(delays[source])
+        return _Ctx(bodies.get(source, _EMPTY_FLOW))
+
+    monkeypatch.setattr(_httpx, "stream", fake_stream)
+    return calls
+
+
+_EMPTY_FLOW = "CreatedDate,CallPut,Premium\r\n"
+_NARROW_ROWS = _EMPTY_FLOW + "6/21/2026,C,$1.2M\r\n"
+
+
+@pytest.fixture(autouse=True)
+def _forget_which_source_answered():
+    """The index-filed memo is per-PROCESS by design and so leaks between tests.
+
+    Autouse rather than per-test: it is invisible state, and a test that forgot
+    to clear it would not fail here - it would fail somewhere else, later, as a
+    leg order nobody wrote.
+    """
+    sig._FCB_INDEX_FILED.clear()
+    yield
+    sig._FCB_INDEX_FILED.clear()
+
+
+def test_the_flow_read_asks_for_only_the_columns_the_join_parses(monkeypatch):
+    """The read streams so THIS side never holds the body; `cols` is so the
+    OTHER side never builds it. Upstream SELECTed 22 columns, CSV-wrote them and
+    gzipped the lot into memory before shipping a byte, for the three fields
+    `flow_by_date` resolves by name.
+
+    Pinned to `FLOW_COLS` itself, not to a spelled-out list: the question asked
+    and the fields parsed are the same tuple, and a hand-copied list here would
+    let them drift the moment one side gained a field.
+    """
+    calls = _flow_probe_seq(monkeypatch, {"stocks": _NARROW_ROWS})
+
+    by_date = sig._fetch_flow_by_date("NVDA")
+
+    assert [c["cols"] for c in calls] == [",".join(flow_breakout.FLOW_COLS)]
+    assert set(flow_breakout.FLOW_COLS) == {"CreatedDate", "CallPut", "Premium"}
+    # And the narrowed reply still joins - asking for less must not mean parsing
+    # less. A `cols` the far side ignores yields the full header and this passes
+    # too, which is exactly the back-compatibility being claimed.
+    assert [r["Premium"] for r in by_date["2026-06-21"]] == ["$1.2M"]
+
+
+def test_the_two_source_read_spends_ONE_budget_across_BOTH_legs(monkeypatch):
+    """Each leg used to carry its own `timeout=15.0`, so an index symbol whose
+    first leg was merely SLOW could hold an anyio worker for THIRTY seconds -
+    while the negative cache's whole justification, and every comment in the
+    module, calls the request path's budget fifteen.
+
+    The second leg gets the REMAINDER. Asserted as a strict inequality against
+    the budget, because a fresh full timeout is precisely the bug.
+    """
+    calls = _flow_probe_seq(monkeypatch,
+                            {"stocks": _EMPTY_FLOW, "indexes": _NARROW_ROWS},
+                            delays={"stocks": 0.25})
+
+    by_date = sig._fetch_flow_by_date("SPY")
+
+    assert [c["source"] for c in calls] == ["stocks", "indexes"]
+    assert calls[0]["timeout"] == sig._FLOW_READ_BUDGET_S
+    assert calls[1]["timeout"] < sig._FLOW_READ_BUDGET_S, calls
+    assert calls[1]["timeout"] >= sig._FLOW_READ_BUDGET_S - 5.0, "not a nonsense remainder"
+    assert list(by_date) == ["2026-06-21"]
+
+
+def test_a_spent_budget_is_a_FAILED_read_never_a_quiet_tape(monkeypatch):
+    """When the first leg eats the budget the second is not started at all -
+    and the answer is None, not `{}`.
+
+    That distinction is the correctness half. `{}` would flow to `fcb_signals`,
+    produce `signals: []`, satisfy `_fcb_good`, and be written to the TTL cache
+    AND remembered by the stale slot: "we ran out of time" served as "the tape
+    was quiet" for the next thirty minutes (`lesson_market_cap_cache_poison`).
+    """
+    monkeypatch.setattr(sig, "_FLOW_READ_BUDGET_S", 1.4)
+    calls = _flow_probe_seq(monkeypatch,
+                            {"stocks": _EMPTY_FLOW, "indexes": _NARROW_ROWS},
+                            delays={"stocks": 1.3})
+
+    result = sig._fetch_flow_by_date("SPY")
+
+    assert result is None, "a spent budget must be a failure, not an empty join"
+    assert [c["source"] for c in calls] == ["stocks"], "the second leg must not start"
+
+
+def test_an_index_filed_symbol_stops_paying_the_bare_header_probe(monkeypatch):
+    """SPY's flow is filed under `indexes`, so the default `stocks` leg can only
+    ever return a bare header - a whole extra round trip (measured 1.06 s TTFB
+    on prod for a 145-byte body) before the real read begins.
+
+    Learned, never hardcoded: membership stays upstream's to change. The FIRST
+    read still pays both legs - that is what teaches it.
+    """
+    calls = _flow_probe_seq(monkeypatch,
+                            {"stocks": _EMPTY_FLOW, "indexes": _NARROW_ROWS})
+
+    assert list(sig._fetch_flow_by_date("SPY")) == ["2026-06-21"]
+    assert [c["source"] for c in calls] == ["stocks", "indexes"]
+
+    calls.clear()
+    assert list(sig._fetch_flow_by_date("SPY")) == ["2026-06-21"]
+    assert [c["source"] for c in calls] == ["indexes"], "the probe must not be paid twice"
+
+    # A real stock is untouched: `stocks` stays the default order, and it must
+    # still cost exactly ONE request.
+    stock_calls = _flow_probe_seq(monkeypatch, {"stocks": _NARROW_ROWS})
+    assert list(sig._fetch_flow_by_date("NVDA")) == ["2026-06-21"]
+    assert [c["source"] for c in stock_calls] == ["stocks"]
+
+
+def test_the_index_memo_is_UNLEARNED_when_indexes_stops_answering(monkeypatch):
+    """A memo that cannot be wrong is a hardcoded list with extra steps.
+
+    If upstream re-files a symbol, `indexes` goes empty and `stocks` answers.
+    Without the unlearn, that symbol pays the wasted probe on EVERY later read -
+    the mirror image of the cost this memo exists to remove - so the drop is
+    asserted by observing the leg order of the read AFTER the one that healed.
+    """
+    _flow_probe_seq(monkeypatch, {"stocks": _EMPTY_FLOW, "indexes": _NARROW_ROWS})
+    sig._fetch_flow_by_date("SPY")
+    assert "SPY" in sig._FCB_INDEX_FILED
+
+    # Upstream re-files it: `indexes` is now empty and `stocks` carries the rows.
+    calls = _flow_probe_seq(monkeypatch,
+                            {"stocks": _NARROW_ROWS, "indexes": _EMPTY_FLOW})
+    assert list(sig._fetch_flow_by_date("SPY")) == ["2026-06-21"]
+    assert [c["source"] for c in calls] == ["indexes", "stocks"]
+
+    calls.clear()
+    assert list(sig._fetch_flow_by_date("SPY")) == ["2026-06-21"]
+    assert [c["source"] for c in calls] == ["stocks"], "the stale memo must be gone"
+
+
+def test_a_failed_read_never_teaches_the_memo_anything(monkeypatch):
+    """A 500 is not a filing. Remembering a source because a read of it FAILED
+    would route every later read of that symbol at the source least likely to
+    answer, and `lesson_market_cap_cache_poison` is the same rule one level up:
+    never record a failed fetch as a fact.
+    """
+    _flow_probe_seq(monkeypatch, {"indexes": _NARROW_ROWS}, status=503)
+
+    assert sig._fetch_flow_by_date("SPY") is None
+    assert sig._FCB_INDEX_FILED == {}, sig._FCB_INDEX_FILED
+
+
+def test_an_empty_read_never_teaches_the_memo_anything(monkeypatch):
+    """Both sources quiet is an ANSWER, but it is not evidence of a filing.
+    Recording it would pin a symbol to a source that returned nothing."""
+    _flow_probe_seq(monkeypatch, {})
+
+    assert sig._fetch_flow_by_date("ZZZZ") == {}
+    assert sig._FCB_INDEX_FILED == {}, sig._FCB_INDEX_FILED
