@@ -368,9 +368,10 @@ that text was rasterised, in two flavours:
   a rounding boundary, i.e. a *placement* computed from different font metrics.
 
 **The cause.** `StockChart.jsx` sets the chart's `fontFamily` to
-`'Instrument Sans', sans-serif`, and `app/index.html` loads Instrument Sans from
-**`https://fonts.googleapis.com`** — a public-internet request on the one route
-whose selling point is that `?fixedbars=` makes it hermetic. Canvas text is
+`'Instrument Sans', sans-serif`, and at the time `app/index.html` LOADED Instrument
+Sans from **`https://fonts.googleapis.com`** — a public-internet request on the one
+route whose selling point is that `?fixedbars=` makes it hermetic. (Past tense as of
+2026-08-05: the font is self-hosted now — see the fix below.) Canvas text is
 immediate-mode: LWC never repaints an axis because a font arrived. So the two
 flavours are the two places the race can land — metrics-and-glyphs both early
 (fallback glyphs), or metrics early and glyphs late (real glyphs, fallback

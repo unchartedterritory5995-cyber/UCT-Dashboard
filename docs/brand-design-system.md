@@ -70,7 +70,17 @@ The dashboard reads as *editorial, restrained, and operator-grade*. Old-world ca
 
 ### 2.1 Single Font Family
 
-The entire UI uses **one** typeface: **Instrument Sans** (Google Fonts).
+The entire UI uses **one** typeface: **Instrument Sans**.
+
+⛔ **SELF-HOSTED SINCE 2026-08-05 — DO NOT RE-ADD THE `@import` BELOW.** It is kept
+only to show which faces we ship. The real declarations are inline in
+`app/index.html` against `/fonts/*.woff2` (`app/public/fonts`, routed by the
+`/fonts` mount in `api/main.py`). Not a preference: lightweight-charts bakes
+whichever font resolves AT DRAW TIME into its axis canvas and never repaints, so a
+third-party font host is a correctness dependency of every chart — including the
+headless Morning Wire → Substack renderer. Gated by
+`tests/test_chart_parity_harness.py`; the argument is in
+`docs/runbooks/chart-parity-gate.md`.
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
