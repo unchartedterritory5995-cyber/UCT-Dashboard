@@ -69,6 +69,60 @@ function instanceList(csOrList) {
   return []
 }
 
+// ─── WHICH INSTANCE AN ALERT NAMES (Phase C Task 15) ────────────────────────
+//
+// Task 10 shipped the `instance_id` column, the API field, the label and the
+// deletion guard, and left them WITH NO PRODUCER — because the popover knows an
+// alert ADDRESS (`rsi`, `williams_r`, `ichimoku.tenkan`) and a chart knows a
+// DEFINITION id (`rsi`, `williamsR`, …), and it MEASURED the obvious
+// `address === defId` bridge as a lie for `williams_r` and for `price_vs_ma`.
+// Task 12 measured the hand-back again and found it was not one prop but two.
+//
+// ⛔ SO THE BRIDGE HERE IS DERIVED AND WEAKER THAN THE ONE THAT LIED, WHICH IS
+// WHY IT IS TRUE. It claims only this: an address and the definition it was
+// armed from are THE SAME WORD IN TWO SPELLINGS — `williams_r`/`williamsR`,
+// `macd.signal`/`macd`. So the key is the base (the part before the dot) with
+// every separator removed and the case dropped. An address that names no
+// definition (`price_vs_ma` is a spread the alert lane synthesises; `close` is
+// the bar's own price) matches NOTHING, which is the honest answer and the one
+// the lying map could not give.
+//
+// ⛔ AND IT NAMES NO INDICATOR. Not one id appears below — the comparison is
+// between two strings the caller supplies, so a fifteenth definition costs
+// nothing here. That is the same rule the rest of this module keeps.
+
+/** A comparison key for an id, insensitive to separators and case. */
+function idKey(s) {
+  return typeof s === 'string' ? s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : ''
+}
+
+/** The part of an alert address before the dot — `ichimoku.tenkan` → `ichimoku`. */
+export function addressBase(address) {
+  return typeof address === 'string' ? address.split('.')[0] : ''
+}
+
+/**
+ * Every instance in `csOrList` whose definition is the one `address` addresses.
+ *
+ * Returns `[]` — never a guess — when the address names no definition. An empty
+ * result is what makes an alert armed on `price_vs_ma` or `close` carry NO
+ * `instance_id`, which is the correct failure direction: an alert with no
+ * instance is never reported as orphaned, so nothing legacy is disturbed.
+ *
+ * @param {object|unknown[]} csOrList a settings blob or a bare instance list
+ * @param {string} address an alert address, e.g. `rsi` or `adx.plusDI`
+ * @returns {object[]} the matching instances, in the order they were stored
+ */
+export function instancesForAddress(csOrList, address) {
+  const want = idKey(addressBase(address))
+  if (!want) return []
+  return instanceList(csOrList).filter((i) => {
+    let defId
+    try { defId = i?.defId } catch { return false }   // booby-trapped getter
+    return idKey(defId) === want
+  })
+}
+
 // ─── which indicators does THIS chart draw ──────────────────────────────────
 
 /**

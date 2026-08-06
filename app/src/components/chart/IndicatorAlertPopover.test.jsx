@@ -483,3 +483,105 @@ describe('spec §8 — an alert names its INSTANCE', () => {
     expect(screen.queryByText(/no longer evaluated/)).toBeNull()
   })
 })
+
+// ─── SPEC §8: THE ALERT NAMES THE INSTANCE (Phase C Task 15) ────────────────
+//
+// Task 10 shipped the `instance_id` column, the API field, the label and the
+// deletion guard and reported that they had NO PRODUCER: the only surface that
+// could supply a chart instance is this popover, and it is mounted from
+// `StockChart.jsx` -> `ChartToolbar.jsx`. Task 12 re-measured the hand-back and
+// found the naive bridge (`address === defId`) lies for two of fourteen groups.
+// This is the producer, and these are the cases that stop it lying again.
+describe('IndicatorAlertPopover — which chart INSTANCE the alert names', () => {
+  const inst = (instanceId, defId, inputs) => ({ instanceId, defId, inputs })
+
+  it('sends NO instance_id when the chart passes nothing — every legacy row is this row', async () => {
+    mockCatalog(RSI_ONLY)
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0]).not.toHaveProperty('instance_id')
+    // ⛔ …AND THAT ABSENCE IS CHECKED THROUGH REAL JSON. `JSON.stringify` DROPS
+    // an `undefined` value, so a payload carrying `instance_id: undefined` would
+    // satisfy a naive `toBeUndefined()` while being indistinguishable on the
+    // wire from one that omits the key. This branch has shipped exactly that
+    // fixture once, so the round-trip is the assertion.
+    expect(Object.keys(JSON.parse(JSON.stringify(H.created[0])))).not.toContain('instance_id')
+  })
+
+  it('⭐ adopts the ONE instance this chart draws, with no picker to answer', async () => {
+    mockCatalog(RSI_ONLY)
+    render(
+      <IndicatorAlertPopover
+        sym="AAPL"
+        onClose={() => {}}
+        chartInstances={[inst('rsi-1', 'rsi', { period: 14 })]}
+      />,
+    )
+    // One instance is not a choice, so no control is rendered for it.
+    expect(screen.queryByLabelText('Instance')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0].instance_id).toBe('rsi-1')
+  })
+
+  it('⭐ TWO instances is a QUESTION, not a guess — spec §8s two RSIs', async () => {
+    mockCatalog(RSI_ONLY)
+    render(
+      <IndicatorAlertPopover
+        sym="AAPL"
+        onClose={() => {}}
+        chartInstances={[inst('rsi-7', 'rsi', { period: 7 }), inst('rsi-14', 'rsi', { period: 14 })]}
+      />,
+    )
+    expect(optionValues('Instance')).toEqual(['rsi-7', 'rsi-14'])
+    fireEvent.change(screen.getByLabelText('Instance'), { target: { value: 'rsi-14' } })
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0].instance_id).toBe('rsi-14')
+  })
+
+  it('⛔ an address that names NO definition carries no instance, even when the chart is full', async () => {
+    // `price_vs_ma` is a spread this lane synthesises; there is no such chart
+    // indicator, so there is nothing honest to name. The chart deliberately
+    // DOES draw something, so the empty answer is about the address.
+    mockCatalog([{
+      indicator: 'price_vs_ma',
+      label: 'Price vs MA',
+      conditions: [{ value: 'above', label: 'Above threshold', needs_threshold: true }],
+      default_threshold: 0,
+    }])
+    render(
+      <IndicatorAlertPopover
+        sym="AAPL"
+        onClose={() => {}}
+        chartInstances={[inst('rsi-1', 'rsi', { period: 14 })]}
+      />,
+    )
+    expect(screen.queryByLabelText('Instance')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0].indicator).toBe('price_vs_ma')
+    expect(Object.keys(JSON.parse(JSON.stringify(H.created[0])))).not.toContain('instance_id')
+  })
+
+  it('⛔ switching to an indicator this chart does not draw CLEARS the id it had', async () => {
+    mockCatalog([...RSI_ONLY, ADX_GROUPED])
+    render(
+      <IndicatorAlertPopover
+        sym="AAPL"
+        onClose={() => {}}
+        chartInstances={[inst('rsi-1', 'rsi', { period: 14 })]}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'adx' } })
+    fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0].indicator).toBe('adx.adx')
+    // …a stale `rsi-1` here would attach an ADX alert to an RSI instance, and
+    // deleting that RSI would then report the ADX alert as orphaned.
+    expect(Object.keys(JSON.parse(JSON.stringify(H.created[0])))).not.toContain('instance_id')
+  })
+})

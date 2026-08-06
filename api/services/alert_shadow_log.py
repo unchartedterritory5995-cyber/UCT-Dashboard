@@ -336,7 +336,14 @@ def validate_declaration(declared: dict, addresses: Optional[Iterable[str]] = No
 
     if addresses is None:
         from api.services import indicator_alert_evaluator as ev
-        addresses = list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+        # ⚠️ ALL THREE PARTITIONS. Phase C Task 10 put `close` in a THIRD
+        # dict (`PRICE_FUNCS`) so that making price a LEFT operand could not grow
+        # `INDICATOR_FUNCS` and destroy the frozen replay grid. A two-partition
+        # `known` set here would call the one address Task 15 added to the diff
+        # 'not in the catalog' — i.e. it would refuse the declaration that closes
+        # the last coverage hole, which is the opposite of what this check is for.
+        addresses = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+                     + list(ev.PRICE_FUNCS))
     known = set(addresses)
 
     seen: set[tuple[str, str]] = set()

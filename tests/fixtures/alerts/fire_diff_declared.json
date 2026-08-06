@@ -2,7 +2,7 @@
  "note": "THE DECLARED DIFF. What the closed-bar rebuild CHANGES about an armed alert, per ADDRESS, per DIRECTION, with a REASON and a bounded COUNT. Measured by `python tools/alert_replay.py --diff --mode-a forming --mode-b closed`, which is also the gate: an UNDECLARED difference fails in EITHER direction (a MISSING alert is the failure a user cannot see and cannot report), a row whose count is smaller than what was observed fails, and a row declared but NOT observed in a given configuration is REPORTED, never failed (B5's `provenance_unmet` ruling). The row counts SUM to the recorded totals below — that equality is what refuses an unbounded declaration, which is a wildcard wearing a number. ⛔ 'gained' = the CLOSED lane fires where the forming lane did not. 'lost' = the forming lane fires where the closed lane does not. ⚠️ THIS FILE IS DATA, NOT OUTPUT. There is deliberately no committed generator: a re-runnable 're-declare whatever the code now does' button converts a real behaviour change into a green build. When `--diff` names a group that moved, a human writes the reason.",
  "measured": {
   "head": "f36c840aada6f551981693ba7f92ac80de2d8373",
-  "command": "python tools/alert_replay.py --diff --mode-a forming --mode-b closed --out tools/alert_replay_out/diff.json",
+  "command": "python tools/alert_replay.py --diff --out tools/alert_replay_out/t15_diff.json",
   "k": 4,
   "fixtures": [
    "intraday5m",
@@ -10,77 +10,77 @@
    "nvda_5m_extended",
    "wick_that_unwinds"
   ],
-  "addresses_covered": 30,
-  "addresses_in_catalog": 30,
-  "addresses_that_change": 30,
-  "forming_fires": 552083,
-  "closed_fires": 537680,
-  "forming_keys": 417935,
-  "closed_keys": 134420,
-  "gained": 105293,
-  "lost": 388808,
-  "identity_gained": 6724,
-  "identity_lost": 29045,
+  "addresses_covered": 31,
+  "addresses_in_catalog": 31,
+  "addresses_that_change": 31,
+  "forming_fires": 569830,
+  "closed_fires": 555332,
+  "forming_keys": 435259,
+  "closed_keys": 138833,
+  "gained": 109355,
+  "lost": 405781,
+  "identity_gained": 6859,
+  "identity_lost": 29869,
   "shapes": {
    "lost": {
-    "value_moved": 323461,
-    "vanished": 38658,
-    "shifted_later": 26689
+    "value_moved": 338376,
+    "shifted_later": 28070,
+    "vanished": 39335
    },
    "gained": {
-    "value_moved": 98569,
-    "shifted_later": 6615,
+    "value_moved": 102496,
+    "shifted_later": 6750,
     "appeared": 109
    }
   },
   "per_fixture": {
    "intraday5m": {
     "bars": 579,
-    "alerts": 319,
-    "forming_fires": 176492,
-    "closed_fires": 171676,
-    "forming_keys": 137192,
-    "closed_keys": 42919,
-    "gained": 33970,
-    "lost": 128243,
-    "identity_gained": 1682,
-    "identity_lost": 8381
+    "alerts": 331,
+    "forming_fires": 183560,
+    "closed_fires": 178744,
+    "forming_keys": 144128,
+    "closed_keys": 44686,
+    "gained": 35554,
+    "lost": 134996,
+    "identity_gained": 1715,
+    "identity_lost": 8596
    },
    "spy_daily": {
     "bars": 400,
     "alerts": 319,
-    "forming_fires": 119896,
-    "closed_fires": 118120,
-    "forming_keys": 94217,
-    "closed_keys": 29530,
-    "gained": 24851,
-    "lost": 89538,
-    "identity_gained": 1895,
-    "identity_lost": 6389
+    "forming_fires": 119957,
+    "closed_fires": 118208,
+    "forming_keys": 94257,
+    "closed_keys": 29552,
+    "gained": 24873,
+    "lost": 89578,
+    "identity_gained": 1918,
+    "identity_lost": 6489
    },
    "nvda_5m_extended": {
     "bars": 800,
-    "alerts": 319,
-    "forming_fires": 244556,
-    "closed_fires": 237068,
-    "forming_keys": 178350,
-    "closed_keys": 59267,
-    "gained": 44429,
-    "lost": 163512,
-    "identity_gained": 2670,
-    "identity_lost": 12082
+    "alerts": 331,
+    "forming_fires": 254288,
+    "closed_fires": 246792,
+    "forming_keys": 187920,
+    "closed_keys": 61698,
+    "gained": 46728,
+    "lost": 172950,
+    "identity_gained": 2702,
+    "identity_lost": 12304
    },
    "wick_that_unwinds": {
     "bars": 66,
-    "alerts": 295,
-    "forming_fires": 11139,
-    "closed_fires": 10816,
-    "forming_keys": 8176,
-    "closed_keys": 2704,
-    "gained": 2043,
-    "lost": 7515,
-    "identity_gained": 477,
-    "identity_lost": 2193
+    "alerts": 307,
+    "forming_fires": 12025,
+    "closed_fires": 11588,
+    "forming_keys": 8954,
+    "closed_keys": 2897,
+    "gained": 2200,
+    "lost": 8257,
+    "identity_gained": 524,
+    "identity_lost": 2480
    }
   }
  },
@@ -192,6 +192,18 @@
    "direction": "lost",
    "count": 22143,
    "reason": "22143 fires the forming lane produces and the closed lane does not: 18860 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 2110 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 1173 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase. `cci` is an oscillator computed from the running close, so its value moves with every intra-bar print and settles only when the bar closes."
+  },
+  {
+   "address": "close",
+   "direction": "gained",
+   "count": 5258,
+   "reason": "5258 fires the closed lane produces and the forming lane does not: 5121 are the SAME alert on the SAME bar carrying the CLOSED price instead of whatever the tape happened to print when the poller looked; 137 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. `close` is the bar's own price and it is the ONE address whose forming value is not a derived series at all but the running last trade, so 'the number moved' here is the rawest form of the change this phase makes: a level alert stops being answered against a price that is still moving."
+  },
+  {
+   "address": "close",
+   "direction": "lost",
+   "count": 21774,
+   "reason": "21774 fires the forming lane produces and the closed lane does not: 19682 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar price while the closed lane fires ONCE PER BAR at the closed price; 1402 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close; 690 VANISH outright — the price touched the level on a wick that unwound before the bar closed, which is the most literal instance in the whole diff of the defect this phase exists to remove. `close` is the bar's own price, so this row is what a user means when they say 'my price alert fired and the candle closed nowhere near it'."
   },
   {
    "address": "donchian.lower",
@@ -418,14 +430,14 @@
   {
    "address": "vwap",
    "direction": "gained",
-   "count": 4232,
-   "reason": "4232 fires the closed lane produces and the forming lane does not: 4191 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 41 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. VWAP accumulates price×volume within a session, so the forming lane's value moves with every partial print. ⚠️ CARRIED, NOT FIXED: on a DAILY timeframe `_fetch_bars_for_alert` passes the store's YYYYMMDD int through as `t`, so the session anchor lands in 1970 and the whole window reads as one session — in BOTH lanes. This diff measures the lane change, not that defect."
+   "count": 3036,
+   "reason": "3036 fires the closed lane produces and the forming lane does not: 2997 are the SAME alert on the SAME bar carrying the CLOSED number instead of a running one; 39 land one bar LATER than the forming lane's — the same crossing, judged at the close of the bar it happened on. VWAP accumulates price×volume within a session, so the forming lane's value moves with every partial print. ⭐ RE-COUNTED 2026-08-06 AFTER THE UNIT FIX (`29569946`), AND THE DROP IS THE FIX, NOT A NEW LANE DIFFERENCE. This row used to read 4,232 because `_fetch_bars_for_alert` handed `compute_vwap_raw` the store's YYYYMMDD integer as `t`, so 400 daily bars landed one SECOND apart and the whole window accumulated into a single 1970-anchored session — in BOTH lanes, which is why the defect never showed up as a lane difference. `compute_vwap` now validates its own unit and refuses the whole column, so a DAILY vwap alert produces no value, takes no threshold ladder, and contributes nothing here; every fire left in this row is intraday. The frozen fire log moved with it, once, deliberately (`2999e8f0`)."
   },
   {
    "address": "vwap",
    "direction": "lost",
-   "count": 17462,
-   "reason": "17462 fires the forming lane produces and the closed lane does not: 16524 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 580 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 358 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one — the forming lane saw the crossing mid-bar, the closed lane judges it at that bar's close. VWAP accumulates price×volume within a session, so the forming lane's value moves with every partial print. ⚠️ CARRIED, NOT FIXED: on a DAILY timeframe `_fetch_bars_for_alert` passes the store's YYYYMMDD int through as `t`, so the session anchor lands in 1970 and the whole window reads as one session — in BOTH lanes. This diff measures the lane change, not that defect."
+   "count": 12661,
+   "reason": "12661 fires the forming lane produces and the closed lane does not: 11757 are the SAME alert on the SAME bar at a different NUMBER — `above` and `below` are LEVEL conditions with no reference to `prev`, so the live lane re-delivers bell+email+Discord on every 60-second poll at the running intra-bar value, while the closed lane fires ONCE PER BAR at the closed value; 567 VANISH outright — the crossing existed only on a wick that unwound before the bar closed, which is the entire purpose of this phase; 337 fire one bar EARLIER in the forming lane and reappear one bar later in the closed one. VWAP accumulates price×volume within a session, so the forming lane's value moves with every partial print. ⭐ RE-COUNTED 2026-08-06 AFTER THE UNIT FIX (`29569946`), AND THE DROP IS THE FIX, NOT A NEW LANE DIFFERENCE. This row used to read 17,462 because `_fetch_bars_for_alert` handed `compute_vwap_raw` the store's YYYYMMDD integer as `t`, so 400 daily bars landed one SECOND apart and the whole window accumulated into a single 1970-anchored session — in BOTH lanes, which is why the defect never showed up as a lane difference. `compute_vwap` now validates its own unit and refuses the whole column, so a DAILY vwap alert produces no value, takes no threshold ladder, and contributes nothing here; every fire left in this row is intraday. The frozen fire log moved with it, once, deliberately (`2999e8f0`)."
   },
   {
    "address": "williams_r",

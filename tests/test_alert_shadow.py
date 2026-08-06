@@ -210,13 +210,22 @@ def test_the_diff_is_NON_VACUOUS_in_both_directions(measured):
 def test_the_diff_covers_EVERY_address_in_the_catalog(measured):
     """The address count the diff covers, asserted rather than described.
 
-    30 = 28 `INDICATOR_FUNCS` + 2 `EVENT_FUNCS`. The fire log's grid is the 28
-    (it was frozen from `INDICATOR_FUNCS` before the event addresses existed);
-    the diff adds the two on top via `build_event_alerts`, because "what changes
-    for an armed alert" has to mean every address a user can actually arm.
+    31 = 28 `INDICATOR_FUNCS` + 2 `EVENT_FUNCS` + 1 `PRICE_FUNCS`. The fire
+    log's grid is the 28 (it was frozen from `INDICATOR_FUNCS` before either of
+    the other two partitions existed); the diff adds the rest on top via
+    `build_event_alerts` and `build_price_alerts`, because "what changes for an
+    armed alert" has to mean every address a user can actually arm.
+
+    ⭐ 30 → 31 AT PHASE C TASK 15, AND THE ONE THAT ARRIVED IS `close`. Task 10
+    made price a LEFT operand by putting it in a THIRD partition so that doing
+    so could not grow `INDICATOR_FUNCS` and destroy the frozen replay grid — and
+    the cost of that (correct) choice was that the declared diff drove 30 of the
+    31 armable addresses, bounded by an assertion in `test_alert_fired_log.py`
+    that the difference was exactly `{"close"}`. It is now the empty set.
     """
-    catalog = list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
-    assert measured["addresses_in_catalog"] == len(catalog) == 30
+    catalog = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+               + list(ev.PRICE_FUNCS))
+    assert measured["addresses_in_catalog"] == len(catalog) == 31
     assert measured["addresses_covered"] == len(catalog), (
         f"the diff drove {measured['addresses_covered']} of {len(catalog)} "
         "addresses — an address nobody drove is an address whose cutover "
@@ -300,7 +309,7 @@ def test_the_declaration_records_the_measurement_it_was_taken_from(declared):
     m = declared["measured"]
     assert m["k"] == ar.DIFF_K
     assert sorted(m["fixtures"]) == sorted(ar.fixture_names())
-    assert m["addresses_covered"] == 30
+    assert m["addresses_covered"] == 31
     assert m["forming_fires"] > 0 and m["closed_fires"] > 0
     assert m["gained"] > 0 and m["lost"] > 0
     assert isinstance(m.get("head"), str) and len(m["head"]) >= 8
