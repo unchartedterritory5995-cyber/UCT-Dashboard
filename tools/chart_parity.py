@@ -605,6 +605,164 @@ class ChartNotSettledError(RuntimeError):
     diff enters a report as a migration result."""
 
 
+class FontNotSettledError(RuntimeError):
+    """Canvas TEXT was drawn (or measured) before its webfont had loaded.
+
+    See ``TEXT_FONT_PROBE_JS``. This is a *settled* wrong render, not a moving
+    one — which is why ``ChartNotSettledError`` cannot catch it — so it gets its
+    own refusal."""
+
+
+# ─── the axis TEXT layer, and the 1-in-900 render it produced ────────────────
+#
+# 🔴 MEASURED OFF THE STORED ARTEFACTS OF THE 20-RUN GATE (B5 Task 13,
+# `tools/chart_parity_out_gate2`, 1,840 captures). Two captures — `adx_only`
+# run 12 and `engine_mfi_vs_legacy` run 8, BOTH on side A — disagreed with the
+# other nineteen of their own case-side. Every other case-side was
+# single-valued: 2 anomalous captures in 1,840 (0.109%).
+#
+# The record attributed them to "an axis-width RATCHET: LWC shares one
+# price-axis column, its width steps, and a step-wider settle re-fits plot,
+# volume pane, osc strip and time axis together". **THE ARTEFACTS REFUTE THAT.**
+# Re-diffing each anomalous capture against its own case-side's other nineteen:
+#
+#     plot rectangle (x < 1100, 40 ≤ y < 572) ......... 0 changed pixels
+#     right price-axis gutter (x ≥ 1100) ....... 1,727 / 3,560 changed
+#     time-axis label row (572 ≤ y) ................ 0 / 1,351 changed
+#
+# **The plot is BYTE-IDENTICAL.** Nothing re-fitted; the axis column cannot have
+# changed width, because a narrower plot is a different plot. What moved is the
+# TEXT: the same tick VALUES (136.00 / 132.00 / 128.00) rendered with different
+# glyphs (`adx_only`, label bands one row shorter and 14% less ink) or the same
+# glyphs one pixel lower (`engine_mfi_vs_legacy`, 7 of 11 label bands shifted
+# +1 with identical ink, the other 4 byte-identical — a rounding boundary).
+#
+# ⭐ THE CAUSE, AND IT IS NOT A RENDERER PROPERTY. The chart's axis font is
+# `'Instrument Sans', sans-serif` (`StockChart.jsx`), and `app/index.html` loads
+# Instrument Sans from **`https://fonts.googleapis.com`** — a live request to the
+# public internet, on a route whose whole point is that `?fixedbars=` makes it
+# hermetic. lightweight-charts draws axis labels into a canvas and does not
+# repaint when a font arrives later, so whichever font is resolved AT DRAW TIME
+# is baked in for that load. That gives exactly the two observed states:
+#
+#   * font not loaded when the label was MEASURED *and* drawn → fallback glyphs
+#     (`adx_only`);
+#   * font not loaded when the label's vertical placement was measured but
+#     loaded by the time it was painted → real glyphs, fallback-derived baseline,
+#     ±1 px (`engine_mfi_vs_legacy`).
+#
+# Both require at least one canvas text operation to happen while the family is
+# not yet in `document.fonts`. That is a positively identifiable fact about a
+# capture, so the harness asks for it instead of inferring it from the pixels:
+# the probe below wraps `fillText`/`strokeText`/`measureText` and records, per
+# call, whether the first family named in `ctx.font` was loaded AT THAT MOMENT.
+#
+# ⛔ WHY THIS IS NOT A TOLERANCE, AND WHY THE RETRY IS NOT "RUN IT AGAIN UNTIL
+# GREEN". The probe never looks at a pixel count and cannot tell A from B: it is
+# a precondition on ONE capture, in the same family as `__chartReady` and the
+# two-consecutive-identical-screenshots rule — *this frame was produced under the
+# conditions every recorded number was measured under*. A capture that fails it
+# is not a wrong measurement, it is not a measurement. The retry re-LOADS the
+# page in the same context, where the font is now in cache; a condition that
+# survives `--font-retries` reloads raises `FontNotSettledError`, which
+# `collapse_case` turns into a failed case and a non-zero exit. Nothing is ever
+# accepted with a fallback-font axis.
+#
+# ⚠️ THE REAL FIX IS IN `app/src`, AND IT IS NOT MADE HERE: self-host the font
+# (or `<link rel=preload>` it, or repaint the chart on `document.fonts.ready`).
+# Until then every consumer of this route — the parity gate AND the Morning Wire
+# → Substack chart renderer — depends on a third-party font CDN answering before
+# the first canvas draw.
+TEXT_FONT_PROBE_JS = r"""
+(() => {
+  const P = { ops: 0, unready: 0, firstUnreadyMs: null, families: {} };
+  Object.defineProperty(window, '__uctTextFontProbe', {
+    get: () => ({ ops: P.ops, unready: P.unready, firstUnreadyMs: P.firstUnreadyMs,
+                  families: Object.assign({}, P.families) }),
+    configurable: true,
+  });
+  // Generic families are ALWAYS available, so a draw that names one is never
+  // evidence of a race. Counting them would make `unready` unreachable-by-
+  // construction on some pages and noisy on others.
+  const GENERIC = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
+    'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded', 'math', 'emoji']);
+  // `ctx.font` serialises to "<style> <weight> <size>[/<lh>] <family>[, <family>…]".
+  // Only the FIRST family matters: `document.fonts.check` on a list that ends in
+  // `sans-serif` answers TRUE forever, which is how this check would have been
+  // written to pass on every capture.
+  const firstFamilySpec = (font) => {
+    const i = font.indexOf(',');
+    return i === -1 ? font : font.slice(0, i);
+  };
+  const familyOf = (spec) => {
+    const parts = spec.trim().split(/\s+/);
+    let idx = -1;
+    for (let i = 0; i < parts.length; i++) {
+      if (/^-?[\d.]+(px|pt|pc|in|cm|mm|em|rem|ex|ch|vh|vw|vmin|vmax|%)?(\/.+)?$/.test(parts[i])) idx = i;
+    }
+    return parts.slice(idx + 1).join(' ').replace(/^['"]|['"]$/g, '');
+  };
+  const probe = (ctx, text) => {
+    let font;
+    try { font = ctx.font; } catch (e) { return; }
+    if (typeof font !== 'string' || !font) return;
+    const spec = firstFamilySpec(font);
+    const fam = familyOf(spec);
+    if (!fam || GENERIC.has(fam.toLowerCase())) return;
+    P.ops += 1;
+    let ok = true;
+    try { ok = document.fonts.check(spec, String(text == null ? 'x' : text)); } catch (e) { ok = true; }
+    if (ok) return;
+    P.unready += 1;
+    if (P.firstUnreadyMs === null) P.firstUnreadyMs = Math.round(performance.now());
+    const k = fam.slice(0, 48);
+    P.families[k] = (P.families[k] || 0) + 1;
+  };
+  const C = window.CanvasRenderingContext2D && window.CanvasRenderingContext2D.prototype;
+  if (!C) return;
+  for (const name of ['fillText', 'strokeText']) {
+    const orig = C[name];
+    if (typeof orig !== 'function') continue;
+    C[name] = function (text) {
+      probe(this, text);
+      return orig.apply(this, arguments);
+    };
+  }
+  const om = C.measureText;
+  if (typeof om === 'function') {
+    C.measureText = function (text) {
+      probe(this, text);
+      return om.apply(this, arguments);
+    };
+  }
+})();
+"""
+
+
+def read_text_font_probe(page) -> dict:
+    """``window.__uctTextFontProbe``, normalised, never raising.
+
+    A page that never installed the probe (or a Playwright build that dropped the
+    init script) reads ``ops: 0`` — which is REPORTED as ``installed: False``
+    rather than as a clean bill of health, because "no text was drawn" and "the
+    probe was not there" must not look the same in a report.
+    """
+    try:
+        value = page.evaluate("() => window.__uctTextFontProbe ?? null")
+    except Exception:                                     # noqa: BLE001
+        value = None
+    if not isinstance(value, dict):
+        return {"installed": False, "ops": 0, "unready": 0,
+                "firstUnreadyMs": None, "families": {}}
+    return {
+        "installed": True,
+        "ops": int(value.get("ops") or 0),
+        "unready": int(value.get("unready") or 0),
+        "firstUnreadyMs": value.get("firstUnreadyMs"),
+        "families": value.get("families") or {},
+    }
+
+
 def _pixels(png_bytes: bytes) -> bytes:
     """The DECODED RGB bytes of a screenshot.
 
@@ -617,26 +775,9 @@ def _pixels(png_bytes: bytes) -> bytes:
     return Image.open(BytesIO(png_bytes)).convert("RGB").tobytes()
 
 
-def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
-            stable_tries: int = 8, settle_ms: int = 220) -> dict:
-    """Drive the page and screenshot the #chart-export ELEMENT, PROVING it settled.
-
-    Waits on ``window.__chartReady`` (the page's own contract: settings landed,
-    fixture landed, plus a pixel-stability settle) and then on
-    ``document.fonts.ready`` — a cold vs warm webfont cache is a real,
-    reproducible source of diff noise that has nothing to do with the indicator
-    under test.
-
-    Then captures repeatedly, ``settle_ms`` apart, until two CONSECUTIVE captures
-    decode to identical pixels; that pair is what gets written. Bounded by
-    ``stable_tries``; exhausting it raises ``ChartNotSettledError`` rather than
-    accepting a frame.
-
-    Returns a small dict of capture diagnostics (how many shots it took, and what
-    the page itself said about its own settle) so the report can show that the
-    numbers came from settled canvases and not from a timer.
-    """
-    out_png.parent.mkdir(parents=True, exist_ok=True)
+def _capture_once(page, url: str, ready_timeout_ms: int, stable_tries: int,
+                  settle_ms: int) -> dict:
+    """ONE page LOAD, driven to a proven-settled screenshot. See ``capture``."""
     page.goto(url, wait_until="domcontentloaded", timeout=45_000)
     page.wait_for_function("() => window.__chartReady === true", timeout=ready_timeout_ms)
     page.evaluate("() => document.fonts.ready.then(() => true)")
@@ -657,14 +798,14 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
         png = el.screenshot()
         px = _pixels(png)
         if prev_px is not None and px == prev_px:
-            out_png.write_bytes(prev_png)
-            return {"shots": shot_no, "settled": True,
+            return {"shots": shot_no, "settled": True, "png": prev_png,
                     "ready_ms": ready.get("ms"), "ready_reason": ready.get("reason"),
                     "ready_frames": ready.get("frames"),
                     # Read from the SETTLED page, next to the bytes that were
                     # accepted — a manifest read before the chart stopped moving
                     # would describe a layout the screenshot never shows.
-                    "manifest": read_manifest(page)}
+                    "manifest": read_manifest(page),
+                    "font_probe": read_text_font_probe(page)}
         prev_png, prev_px = png, px
         page.wait_for_timeout(settle_ms)
 
@@ -674,6 +815,65 @@ def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
         f"(page said ready after {ready.get('ms')}ms via {ready.get('reason')}). "
         f"url={url}"
     )
+
+
+def capture(page, url: str, out_png: Path, ready_timeout_ms: int = 60_000,
+            stable_tries: int = 8, settle_ms: int = 220,
+            font_retries: int = 2, font_gate: bool = True) -> dict:
+    """Drive the page and screenshot the #chart-export ELEMENT, PROVING it settled.
+
+    ``_capture_once`` is one page LOAD: it waits on ``window.__chartReady`` (the
+    page's own contract: settings landed, fixture landed, plus a pixel-stability
+    settle) and then on ``document.fonts.ready``, then captures repeatedly
+    ``settle_ms`` apart until two CONSECUTIVE captures decode to identical
+    pixels. Bounded by ``stable_tries``; exhausting it raises
+    ``ChartNotSettledError`` rather than accepting a frame.
+
+    ⭐ AND THIS FUNCTION REFUSES A CAPTURE WHOSE CANVAS TEXT WAS DRAWN BEFORE ITS
+    WEBFONT ARRIVED. The ``document.fonts.ready`` await above happens AFTER
+    ``__chartReady``, which is far too late to matter: lightweight-charts has
+    already painted the axis labels into a canvas and never repaints them when a
+    font lands. Such a capture is *settled* — two identical screenshots,
+    ``ready_reason: stable`` — and wrong, which is exactly the 2-in-1,840 render
+    decomposed above ``TEXT_FONT_PROBE_JS``. The probe identifies it positively;
+    this loop RELOADS (by then the font is in the context's cache) up to
+    ``font_retries`` times, and raises ``FontNotSettledError`` if it persists.
+    ``font_gate=False`` records the probe without acting on it — how the base
+    rate is measured before the refusal is trusted.
+
+    Returns a small dict of capture diagnostics (how many shots it took, what the
+    page said about its own settle, the font probe, and how many reloads the font
+    gate needed) so a report can show the numbers came from settled canvases
+    drawn in the font every recorded `expect` was measured in.
+    """
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    page.add_init_script(TEXT_FONT_PROBE_JS)
+
+    last = None
+    for attempt in range(max(0, font_retries) + 1):
+        last = _capture_once(page, url, ready_timeout_ms, stable_tries, settle_ms)
+        last["font_reloads"] = attempt
+        if not font_gate or not last["font_probe"]["unready"]:
+            break
+
+    probe = last["font_probe"]
+    if font_gate and probe["unready"]:
+        raise FontNotSettledError(
+            f"{probe['unready']} of {probe['ops']} canvas text operation(s) ran before "
+            f"their font was loaded — first at {probe['firstUnreadyMs']}ms — and it "
+            f"persisted across {last['font_reloads']} reload(s). "
+            f"Families: {probe['families']}. "
+            "lightweight-charts bakes whichever font resolves AT DRAW TIME into the axis "
+            "canvas and never repaints it, so this capture carries fallback glyphs or a "
+            "fallback-derived baseline: it is settled, and it is not comparable to any "
+            "recorded `expect`. The chart's family is loaded from fonts.googleapis.com by "
+            "app/index.html — check this machine can reach it, or raise --font-retries. "
+            f"url={url}"
+        )
+
+    png = last.pop("png")
+    out_png.write_bytes(png)
+    return last
 
 
 # ─── the pane manifest ───────────────────────────────────────────────────────
@@ -1503,6 +1703,14 @@ def main() -> int:
                          "silently-accepted frame.")
     ap.add_argument("--settle-ms", type=int, default=220,
                     help="delay between stability screenshots")
+    ap.add_argument("--font-retries", type=int, default=2,
+                    help="max page RELOADS when a capture's canvas text was drawn before "
+                         "its webfont loaded (see TEXT_FONT_PROBE_JS). A settled capture "
+                         "with fallback glyphs is not a measurement; exhausting this "
+                         "raises FontNotSettledError, never a number.")
+    ap.add_argument("--no-font-gate", action="store_true",
+                    help="RECORD the canvas-text font probe without acting on it. For "
+                         "measuring the base rate — a gate run must never use it.")
     args = ap.parse_args()
 
     if args.repeat < 1:
@@ -1676,6 +1884,8 @@ def main() -> int:
         "instances_side": args.instances_side,
         "global_tolerance": args.tolerance,
         "global_expect": args.expect,
+        "font_gate": not args.no_font_gate,
+        "font_retries": args.font_retries,
         "tolerance_reason": args.tolerance_reason,
         "repeat": args.repeat,
         # Filled in AFTER the collapse, and only if nothing failed — see the
@@ -1739,12 +1949,20 @@ def main() -> int:
                             shots[side] = out_dir / side / f"{case['name']}{sfx}.png"
                             cap = capture(page, url, shots[side], args.ready_timeout,
                                           stable_tries=args.stable_tries,
-                                          settle_ms=args.settle_ms)
+                                          settle_ms=args.settle_ms,
+                                          font_retries=args.font_retries,
+                                          font_gate=not args.no_font_gate)
                             entry[f"url_{side}"] = url
                             run[f"shots_{side}"] = cap["shots"]
                             run[f"ready_ms_{side}"] = cap["ready_ms"]
                             run[f"ready_reason_{side}"] = cap["ready_reason"]
                             run[f"manifest_{side}"] = cap.get("manifest")
+                            # The canvas-text font probe travels with the number it
+                            # produced: a capture that needed a reload, or (under
+                            # --no-font-gate) one that was accepted with an unready
+                            # font, must be visible in report.json beside its pixels.
+                            run[f"font_probe_{side}"] = cap.get("font_probe")
+                            run[f"font_reloads_{side}"] = cap.get("font_reloads")
                         finally:
                             ctx.close()
 

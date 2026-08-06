@@ -83,21 +83,38 @@ class FakeLocator:
 
 
 class FakePage:
-    def __init__(self, frames, ready=None):
+    def __init__(self, frames, ready=None, font_probes=None):
         self.loc = FakeLocator(frames)
         self.ready = ready or {"ms": 3500, "reason": "stable", "frames": 4}
         self.goto_url = None
+        self.goto_count = 0
         self.waited_ms = []
+        self.init_scripts = []
+        # One entry per page LOAD, so a test can say "the font raced on the first
+        # load and not on the reload" — which is the whole shape of the artefact.
+        # `None` means the probe never ran (the default: no font instrumentation
+        # observable, which `read_text_font_probe` must report as installed:False
+        # and NOT as a clean bill of health).
+        self.font_probes = list(font_probes or [])
 
     def goto(self, url, **_kw):
         self.goto_url = url
+        self.goto_count += 1
 
     def wait_for_function(self, *_a, **_kw):
         pass
 
+    def add_init_script(self, script):
+        self.init_scripts.append(script)
+
     def evaluate(self, expr):
         if "__chartReadyMs" in expr:
             return dict(self.ready)
+        if "__uctTextFontProbe" in expr:
+            if not self.font_probes:
+                return None
+            i = min(self.goto_count - 1, len(self.font_probes) - 1)
+            return self.font_probes[i]
         return True
 
     def locator(self, _sel):
@@ -164,6 +181,188 @@ def test_capture_waits_between_shots(tmp_path):
     page = FakePage([png("#111111"), png("#222222"), png("#222222")])
     cp.capture(page, "http://x", tmp_path / "a.png", settle_ms=250)
     assert page.waited_ms[:2] == [250, 250], "re-screenshotting without a delay proves nothing"
+
+
+# ─── the canvas-TEXT font race, and why `settled` was never enough ───────────
+#
+# B5 FOLLOW-UP. Two captures in 1,840 of Task 13's 20-run gate were SETTLED
+# (`shots 2/2`, `ready_reason: stable`) and still disagreed with the other
+# nineteen of their own case-side — and re-diffing the stored artefacts showed
+# the PLOT byte-identical with every changed pixel in the price-axis gutter and
+# the time-axis label row: the axis TEXT was rasterised from a different font (or
+# from a different font's metrics). See `TEXT_FONT_PROBE_JS` for the full
+# decomposition. `ChartNotSettledError` structurally cannot catch that — the
+# frame is not moving, it is finished and wrong — so the refusal is its own.
+
+_FONT_OK = {"ops": 40, "unready": 0, "firstUnreadyMs": None, "families": {}}
+_FONT_RACED = {"ops": 40, "unready": 7, "firstUnreadyMs": 120,
+               "families": {"Instrument Sans": 7}}
+
+
+def test_capture_INSTALLS_the_text_font_probe_before_the_page_loads(tmp_path):
+    page = FakePage([png("#123456"), png("#123456")])
+    cp.capture(page, "http://x", tmp_path / "a.png", settle_ms=1)
+    assert page.init_scripts == [cp.TEXT_FONT_PROBE_JS], (
+        "the probe must be an INIT script — installed after the page's own scripts "
+        "have run, it would miss every text operation that already happened, which "
+        "is precisely the ones that matter"
+    )
+
+
+def test_a_capture_whose_TEXT_beat_its_FONT_is_refused_not_written(tmp_path):
+    out = tmp_path / "a.png"
+    page = FakePage([png("#123456")] * 20, font_probes=[_FONT_RACED])
+    with pytest.raises(cp.FontNotSettledError) as e:
+        cp.capture(page, "http://x/r/chart?case=adx_only", out, settle_ms=1, font_retries=2)
+    assert not out.exists(), "wrote a capture drawn in a fallback font"
+    assert "adx_only" in str(e.value), "the error must name the capture it refused"
+    assert "Instrument Sans" in str(e.value), "the error must name the family that raced"
+    assert page.goto_count == 3, "the reload is bounded by --font-retries (1 + 2)"
+
+
+def test_the_font_refusal_RELOADS_and_ACCEPTS_a_capture_that_heals(tmp_path):
+    # THE CONTROL FOR THE TEST ABOVE. If the refusal fired on any probe at all,
+    # or if the reload never happened, this would raise too — and the gate would
+    # be unrunnable rather than strict.
+    out = tmp_path / "a.png"
+    page = FakePage([png("#123456")] * 20, font_probes=[_FONT_RACED, _FONT_OK])
+    info = cp.capture(page, "http://x", out, settle_ms=1, font_retries=2)
+    assert info["font_reloads"] == 1, "healed on the second load and must say so"
+    assert info["font_probe"]["unready"] == 0
+    assert page.goto_count == 2, "kept reloading after it had a clean capture"
+    assert out.exists()
+
+
+def test_a_clean_capture_never_reloads(tmp_path):
+    page = FakePage([png("#123456")] * 4, font_probes=[_FONT_OK])
+    info = cp.capture(page, "http://x", tmp_path / "a.png", settle_ms=1)
+    assert info["font_reloads"] == 0
+    assert page.goto_count == 1
+
+
+def test_font_retries_0_refuses_IMMEDIATELY_and_still_refuses(tmp_path):
+    page = FakePage([png("#123456")] * 8, font_probes=[_FONT_RACED])
+    with pytest.raises(cp.FontNotSettledError):
+        cp.capture(page, "http://x", tmp_path / "a.png", settle_ms=1, font_retries=0)
+    assert page.goto_count == 1, "--font-retries 0 must mean ZERO reloads, not zero checks"
+
+
+def test_no_font_gate_RECORDS_the_race_without_acting_on_it(tmp_path):
+    # This is how the base rate gets measured. It must never be what a gate run
+    # uses, and the report records `font_gate` so a reader can tell.
+    out = tmp_path / "a.png"
+    page = FakePage([png("#123456")] * 8, font_probes=[_FONT_RACED])
+    info = cp.capture(page, "http://x", out, settle_ms=1, font_gate=False)
+    assert out.exists(), "--no-font-gate must still produce the capture"
+    assert info["font_probe"]["unready"] == 7, "…and must still REPORT the race"
+    assert page.goto_count == 1
+
+
+def test_a_page_with_NO_font_probe_reads_as_not_installed_not_as_clean():
+    # "no text was drawn" and "the instrumentation was not there" must not look
+    # the same in a report — the second is a check that stopped being a check.
+    page = FakePage([png("#123456")] * 2)
+    probe = cp.read_text_font_probe(page)
+    assert probe["installed"] is False
+    assert probe["unready"] == 0
+
+
+# ─── the probe's JS, RUN — because a structural scan of it is a proxy ────────
+#
+# ⚠️ THE FIRST VERSION OF THE TWO TESTS BELOW WAS A `in js` SCAN, AND THE
+# MUTATION GAUNTLET PROVED IT WORTHLESS: `return font` in place of
+# `font.slice(0, i)` and `C.__unusedMeasureText =` in place of `C.measureText =`
+# BOTH SURVIVED, because the identifiers they searched for still appeared
+# elsewhere in the source. The probe is behaviour and it is gated by running it.
+
+def _run_probe_js(node, tmp_path, body):
+    """Execute TEXT_FONT_PROBE_JS under node with a stubbed DOM and return the probe.
+
+    `document.fonts.check` is stubbed to the REAL spec behaviour that makes this
+    whole check delicate: a font list containing a generic family is ALWAYS
+    satisfiable, so `check` answers true for it. Only the un-generic first family
+    can ever answer false.
+    """
+    import json as _json
+    import subprocess
+
+    src = tmp_path / "probe.mjs"
+    src.write_text(
+        "globalThis.window = globalThis;\n"
+        "globalThis.performance = { now: () => 1 };\n"
+        "const GENERIC_RE = /(^|[\\s,'\"])(sans-serif|serif|monospace)([\\s,'\"]|$)/;\n"
+        "globalThis.document = { fonts: { check: (spec) =>"
+        " GENERIC_RE.test(spec) || /Loaded Face/.test(spec) } };\n"
+        "class Ctx { constructor(f) { this.font = f } }\n"
+        "globalThis.CanvasRenderingContext2D = Ctx;\n"
+        "Ctx.prototype.fillText = function () {};\n"
+        "Ctx.prototype.strokeText = function () {};\n"
+        "Ctx.prototype.measureText = function () { return { width: 1 } };\n"
+        + cp.TEXT_FONT_PROBE_JS
+        + body
+        + "\nconsole.log(JSON.stringify(window.__uctTextFontProbe));\n",
+        encoding="utf-8",
+    )
+    p = subprocess.run([node, str(src)], capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    return _json.loads(p.stdout.strip().splitlines()[-1])
+
+
+@pytest.fixture()
+def node_bin():
+    import shutil
+    exe = shutil.which("node")
+    if not exe:
+        pytest.skip("node not on PATH — the probe's JS cannot be executed here")
+    return exe
+
+
+def test_the_font_probe_checks_only_the_FIRST_family_named(node_bin, tmp_path):
+    # `document.fonts.check("12px 'Instrument Sans', sans-serif")` is TRUE on
+    # every machine forever, because `sans-serif` is always available. A probe
+    # written against the whole shorthand is a check that CANNOT FAIL; the slice
+    # at the first comma is the entire reason it can.
+    probe = _run_probe_js(
+        node_bin, tmp_path,
+        'new Ctx(\'12px "Instrument Sans", sans-serif\').fillText("136.00", 0, 0);',
+    )
+    assert probe["ops"] == 1
+    assert probe["unready"] == 1, (
+        "the probe passed the WHOLE font list to document.fonts.check, which a "
+        "trailing generic family satisfies forever — this check cannot fail"
+    )
+    assert probe["families"] == {"Instrument Sans": 1}
+
+
+def test_the_font_probe_hooks_measureText_and_skips_generic_families(node_bin, tmp_path):
+    # The artefact has TWO flavours and they come through DIFFERENT hooks:
+    # fallback GLYPHS (fillText) and a fallback-derived BASELINE (measureText).
+    # And a draw that names only a generic family is not evidence of anything.
+    probe = _run_probe_js(
+        node_bin, tmp_path,
+        'new Ctx(\'12px "Instrument Sans"\').measureText("136.00");\n'
+        'new Ctx("12px sans-serif").fillText("x", 0, 0);\n'
+        'new Ctx("bold 11px monospace").strokeText("x", 0, 0);',
+    )
+    assert probe["ops"] == 1, "a generic-family draw was counted as an op"
+    assert probe["unready"] == 1, (
+        "measureText is unhooked — the ±1-pixel-baseline flavour of this artefact "
+        "is drawn with the REAL glyphs and is invisible to a fillText-only probe"
+    )
+
+
+def test_the_font_probe_stays_QUIET_when_the_font_is_there(node_bin, tmp_path):
+    # THE CONTROL. Without it a probe hard-wired to `unready += 1` scores a
+    # perfect run on both tests above.
+    probe = _run_probe_js(
+        node_bin, tmp_path,
+        # `check` is stubbed true for "Loaded Face", which stands in for a family
+        # that HAS arrived — same shape of call as the two tests above.
+        'new Ctx(\'12px "Loaded Face", sans-serif\').fillText("136.00", 0, 0);',
+    )
+    assert probe["ops"] == 1, "the op was not counted at all"
+    assert probe["unready"] == 0
+    assert probe["firstUnreadyMs"] is None
 
 
 # ─── the bound the report is required to quote ───────────────────────────────
@@ -345,6 +544,45 @@ def test_main_EXITS_1_when_a_capture_never_settles(monkeypatch, tmp_path):
     # assignment, not `write_report`'s branch — the two are gated separately
     # because the JSON field is what a consumer reads without the prose.
     assert report["flake_bound_95"] is None
+
+
+def test_main_EXITS_1_when_a_capture_lost_its_font_race(monkeypatch, tmp_path):
+    # The same last link as the test above, for the OTHER refusal. A settled
+    # capture drawn in a fallback font produced a wrong SIX-FIGURE number twice in
+    # Task 13's 1,840 captures; if that raise did not reach the exit code, the
+    # gate would print `🔴 ERROR` and tell a script it passed.
+    def font_raced(page, url, out_png, *_a, **_kw):
+        raise cp.FontNotSettledError(f"text drawn before its font loaded: {url}")
+
+    rc = _drive_main(monkeypatch, tmp_path, font_raced)
+
+    assert rc == 1
+    report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
+    assert report["failures"] == 1
+    assert "FontNotSettledError" in report["results"][0]["error"]
+    assert report["flake_bound_95"] is None
+    # The run's posture is recorded, so a green report cannot hide that the gate
+    # was switched off for it.
+    assert report["font_gate"] is True
+    assert report["font_retries"] == 2
+
+
+def test_main_records_when_the_font_gate_was_switched_OFF(monkeypatch, tmp_path):
+    frame = png("#0e0f0d", size=(1200, 620))
+
+    def settles(page, url, out_png, *_a, **_kw):
+        Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_png).write_bytes(frame)
+        return {"shots": 2, "settled": True, "ready_ms": 3500, "ready_reason": "stable"}
+
+    rc = _drive_main(monkeypatch, tmp_path, settles, cases=("volume_profile_only",),
+                     extra_argv=["--include-placeholders", "--no-font-gate"])
+    assert rc == 0
+    report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
+    assert report["font_gate"] is False, (
+        "a measurement run that disabled the refusal must say so in the report — "
+        "otherwise a base-rate run and a gate run are indistinguishable afterwards"
+    )
 
 
 def test_main_EXITS_0_when_every_capture_is_identical(monkeypatch, tmp_path):

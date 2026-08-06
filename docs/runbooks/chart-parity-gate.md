@@ -328,6 +328,77 @@ lands in the PLOT, survives `--repeat 20`, and does not care whether the
 translation is zero. Run them before you reach for this paragraph — and if a
 diff of this size ever reproduces, it is a finding, not this artefact.
 
+### ✅ …AND IT IS NOW ROOT-CAUSED: a WEBFONT RACE, and the gate refuses it
+
+> **If you take one thing from this section:** the artefact above is not a
+> renderer property and it is not an "axis-width ratchet". The chart's axis font
+> is fetched **from `fonts.googleapis.com`** and lightweight-charts bakes
+> whichever font resolves **at draw time** into the axis canvas. `--font-retries`
+> (default 2) now REFUSES a capture that lost that race, and
+> `FontNotSettledError` exits 1. If you see it, the machine could not reach the
+> font CDN.
+
+**Where the evidence came from.** B5 Task 13's 20-run gate left 46 case-runs ×
+20 × 2 sides = **1,840 captures on disk** (`tools/chart_parity_out_gate2`). Every
+capture was re-hashed: **exactly two disagreed with the other nineteen of their
+own case-side** — `adx_only` A/run 12 and `engine_mfi_vs_legacy` A/run 8 — and
+**90 of 92 case-sides were single-valued**. Two anomalies in 1,840 = **0.109 %**.
+Both captures reported `shots 2/2`, `ready_reason: stable`.
+
+**What they actually were.** Diffing each anomaly against a clean capture *of the
+same side*:
+
+| where | `adx_only` r12 | `engine_mfi_vs_legacy` r8 |
+|---|---:|---:|
+| plot rectangle `x < 1100`, `40 ≤ y < 572` | **0** | **0** |
+| right price-axis gutter `x ≥ 1100` | 3,560 | 1,727 |
+| time-axis label row `y ≥ 572` | 1,351 | 0 |
+
+**The plot is BYTE-IDENTICAL in both.** Nothing re-fitted, and the axis column
+cannot have changed width — a narrower plot is a different plot. Best translation
+alignment is `dx = dy = 0` (±1 and ±2 are all worse), so nothing shifted either.
+The tick VALUES are the same (`136.00 / 132.00 / 128.00`). What changed is how
+that text was rasterised, in two flavours:
+
+* **`adx_only` — different GLYPHS.** Label bands one row shorter with ~14 % less
+  ink (`236 → 203` px). Magnified side by side it is plainly a different
+  typeface: the fallback.
+* **`engine_mfi_vs_legacy` — the same glyphs, one pixel lower.** 7 of 11 label
+  bands moved `+1` with *identical* ink; the other 4 are byte-identical. That is
+  a rounding boundary, i.e. a *placement* computed from different font metrics.
+
+**The cause.** `StockChart.jsx` sets the chart's `fontFamily` to
+`'Instrument Sans', sans-serif`, and `app/index.html` loads Instrument Sans from
+**`https://fonts.googleapis.com`** — a public-internet request on the one route
+whose selling point is that `?fixedbars=` makes it hermetic. Canvas text is
+immediate-mode: LWC never repaints an axis because a font arrived. So the two
+flavours are the two places the race can land — metrics-and-glyphs both early
+(fallback glyphs), or metrics early and glyphs late (real glyphs, fallback
+baseline, ±1 px).
+
+**What the harness does about it.** `TEXT_FONT_PROBE_JS` is an **init script**
+that wraps `fillText` / `strokeText` / `measureText` and records, per call,
+whether the **first family named in `ctx.font`** was in `document.fonts` at that
+moment. First family only: `document.fonts.check("12px 'Instrument Sans',
+sans-serif")` answers `true` on every machine forever, because `sans-serif`
+always exists — that slice is the entire reason the check can fail. A capture
+with `unready > 0` is RELOADED (the font is in the context cache by then) up to
+`--font-retries` times; one that survives raises `FontNotSettledError`.
+
+⛔ **This is a precondition, not a tolerance, and the difference is structural.**
+The probe never sees a pixel count and cannot tell A from B; it says *this frame
+was produced under the conditions every recorded `expect` was measured under*. It
+sits in the same family as `__chartReady` and the two-consecutive-identical-
+screenshots rule. `--no-font-gate` records the probe without acting on it — that
+is how the base rate is measured, it is written into `report.json` as
+`font_gate: false`, and **a gate run must never use it**.
+
+⚠️ **THE REAL FIX IS IN `app/src` AND IT IS NOT MADE HERE.** Self-host Instrument
+Sans (or `<link rel=preload>` it, or repaint the chart on
+`document.fonts.ready`). Until then this route's determinism — and the Morning
+Wire → Substack chart renderer's, which drives the same page — depends on a
+third-party font CDN answering before the first canvas draw.
+
 A plain `python -m http.server` is NOT a substitute: `/r/chart` has no
 `index.html` on disk (BrowserRouter resolves it in the browser), so it 404s and
 the harness screenshots an error page. Address the server as
