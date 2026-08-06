@@ -283,3 +283,84 @@ class TestFinvizNameMap:
         cal._attach_names(days)
         assert days["2026-08-05"]["bmo"][0].get("name") is None
         assert "ZZZ" in cal._NAME_INFLIGHT or queued, "the async fallback was bypassed"
+
+
+class TestPastWeekLeg:
+    """`_backfill_past_days` gave the CURRENT week a third source; past weeks
+    had the identical Finnhub-outage exposure. A past week is pure history, so
+    an empty one is simply WRONG rather than merely early.
+    """
+
+    def test_filter_picks_this_week_prev_week_or_nothing(self):
+        from datetime import date
+        today = date(2026, 8, 6)          # Thursday
+        this_mon, prev_mon = date(2026, 8, 3), date(2026, 7, 27)
+        assert cal._finviz_week_filter(this_mon, today) == "earningsdate_thisweek"
+        assert cal._finviz_week_filter(prev_mon, today) == "earningsdate_prevweek"
+        # Finviz exposes NO arbitrary range. Older weeks must return None so the
+        # caller skips — an unrecognised filter token is DROPPED silently by
+        # Finviz, which would quietly serve the WRONG week rather than error.
+        assert cal._finviz_week_filter(date(2026, 7, 20), today) is None
+        assert cal._finviz_week_filter(date(2026, 8, 10), today) is None   # future
+
+    def test_a_far_past_week_makes_no_finviz_call(self, monkeypatch):
+        def boom(*a, **k):
+            raise AssertionError("must not request a week Finviz cannot serve")
+        monkeypatch.setattr("requests.get", boom)
+        monkeypatch.setenv("FINVIZ_API_KEY", "tok")
+        from datetime import date
+        assert cal._finviz_week_filter(date(2025, 1, 6), date(2026, 8, 6)) is None
+
+    def test_shared_merge_adds_and_rebuckets(self, fv):
+        days = {"2026-08-05": {"bmo": [], "amc": [],
+                               "tbd": [{"sym": "AAA", "eps_est": 2.0}]}}
+        added, moved = cal._merge_finviz_sessions(
+            days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: True, {})
+        assert moved == 1 and added >= 1
+        assert [e["sym"] for e in days["2026-08-05"]["amc"]] == ["AAA"]
+        assert days["2026-08-05"]["amc"][0]["eps_est"] == 2.0   # the object moved
+        assert days["2026-08-05"]["tbd"] == []
+
+    def test_shared_merge_never_duplicates_a_known_symbol(self, fv):
+        days = {"2026-08-05": {"bmo": [{"sym": "AAA"}], "amc": [], "tbd": []}}
+        cal._merge_finviz_sessions(days, {"2026-08-05"}, "earningsdate_thisweek",
+                                   lambda s: True, {})
+        syms = [e["sym"] for e in cal._day_entries(days["2026-08-05"])]
+        assert syms.count("AAA") == 1
+        assert "AAA" in [e["sym"] for e in days["2026-08-05"]["bmo"]]
+
+    def test_shared_merge_honours_the_universe_filter(self, fv):
+        days = {"2026-08-05": {"bmo": [], "amc": [], "tbd": []}}
+        added, _ = cal._merge_finviz_sessions(
+            days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: s == "AAA", {})
+        assert added == 1
+        assert [e["sym"] for e in cal._day_entries(days["2026-08-05"])] == ["AAA"]
+
+    def test_shared_merge_never_raises(self, monkeypatch):
+        monkeypatch.setenv("FINVIZ_API_KEY", "tok")
+        def boom(*a, **k):
+            raise RuntimeError("finviz down")
+        monkeypatch.setattr("requests.get", boom)
+        days = {"2026-08-05": {"bmo": [], "amc": [], "tbd": []}}
+        assert cal._merge_finviz_sessions(days, {"2026-08-05"},
+                                          "earningsdate_thisweek", lambda s: True, {}) == (0, 0)
+
+    def test_rebucket_false_adds_without_moving(self, fv):
+        """The range week's cap is a tight [:40] applied AFTER this merge, so
+        moving rows into bmo/amc pushes them past it and the surplus is CUT —
+        measured, 66 reporters lost to gain 8 sessions."""
+        days = {"2026-08-05": {"bmo": [], "amc": [],
+                               "tbd": [{"sym": "AAA", "eps_est": 2.0}]}}
+        added, moved = cal._merge_finviz_sessions(
+            days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: True, {},
+            rebucket=False)
+        assert moved == 0
+        assert [e["sym"] for e in days["2026-08-05"]["tbd"]] == ["AAA"]
+        assert added >= 1                      # BBB still gets added
+        assert "BBB" in [e["sym"] for e in cal._day_entries(days["2026-08-05"])]
+
+    def test_rebucket_default_is_on(self, fv):
+        days = {"2026-08-05": {"bmo": [], "amc": [], "tbd": [{"sym": "AAA"}]}}
+        _, moved = cal._merge_finviz_sessions(
+            days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: True, {})
+        assert moved == 1, "the current-week path must still re-bucket"

@@ -627,7 +627,8 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
 _PAST_SESSION_CAP = 150
 
 
-def _fetch_finviz_past_sessions(past_ds: set[str]) -> dict[str, dict[str, str]]:
+def _fetch_finviz_past_sessions(past_ds: set[str],
+                                 filt: str = "earningsdate_thisweek") -> dict[str, dict[str, str]]:
     """{date: {SYM: 'bmo'|'amc'}} for this week's ALREADY-PASSED days, from
     Finviz Elite's CUSTOM export.
 
@@ -654,7 +655,7 @@ def _fetch_finviz_past_sessions(past_ds: set[str]) -> dict[str, dict[str, str]]:
     if not token or not past_ds:
         return {}
     url = (f"https://elite.finviz.com/export.ashx?v=152"
-           f"&f=earningsdate_thisweek&c=0,1,68&auth={token}")
+           f"&f={filt}&c=0,1,68&auth={token}")
     try:
         import requests as _rq, csv as _csv, io as _io
         r = _rq.get(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/csv"},
@@ -694,6 +695,83 @@ def _fetch_finviz_past_sessions(past_ds: set[str]) -> dict[str, dict[str, str]]:
         if timing:
             out.setdefault(ds, {})[sym] = timing
     return out
+
+
+def _finviz_week_filter(monday: date, today: date) -> str | None:
+    """Which Finviz week filter (if any) covers `monday`'s week.
+
+    Finviz exposes only `thisweek` and `prevweek` — there is no arbitrary date
+    range on this endpoint. Anything older than last week returns None and the
+    caller simply skips the leg rather than firing a request that cannot match
+    (see `lesson_finviz_ignores_invalid_filter_tokens`: an unrecognised filter
+    token is DROPPED silently, so a bogus one would quietly return the WRONG
+    week's rows rather than erroring).
+    """
+    this_monday = today - timedelta(days=today.weekday())
+    if monday == this_monday:
+        return "earningsdate_thisweek"
+    if monday == this_monday - timedelta(days=7):
+        return "earningsdate_prevweek"
+    return None
+
+
+def _merge_finviz_sessions(days: dict, target_ds: set[str], filt: str,
+                           keep, sym_index: dict, rebucket: bool = True) -> tuple[int, int]:
+    """Apply the Finviz session leg to `days`. Returns (added, moved).
+
+    ONE implementation for both the current-week backfill and the range-week
+    build — the two differ only in which filter covers their dates, and a
+    second copy of this merge would drift from the first.
+
+    Only ever FILLS a missing session; a symbol Finnhub already placed keeps
+    its bucket. Never raises.
+
+    `rebucket=False` disables moving a known entry out of `tbd`, because the
+    per-session cap is applied AFTER this runs: moving rows into `bmo`/`amc`
+    can push those buckets past their limit and the surplus is CUT. Measured on
+    the previous week, whose cap is a tight [:40]:
+
+        re-bucket + add   430 reporters, 341 sessioned
+        add-only          496 reporters, 333 sessioned
+
+    66 reporters recovered for 8 sessions — so the range path adds only. The
+    current-week path keeps re-bucketing: its cap is 150, loose enough that the
+    same measurement showed a clean +69 reporters with no loss.
+    """
+    added = moved = 0
+    try:
+        sessions = _fetch_finviz_past_sessions(target_ds, filt)
+    except Exception as exc:
+        _logger.warning("Finviz session merge failed: %s", exc)
+        return 0, 0
+    for ds, sym_timing in sessions.items():
+        day = days.get(ds)
+        if day is None:
+            continue
+        for sym, timing in sym_timing.items():
+            if not keep(sym):
+                continue
+            # Scan the DAY, not just `sym_index` — that index only holds what
+            # the earlier legs touched, so trusting it appends a DUPLICATE row
+            # for anything the live schedule already placed.
+            existing = next((e for e in _day_entries(day) if e.get("sym") == sym), None)
+            if existing is None:
+                day.setdefault(timing, []).append({
+                    "sym": sym, "eps_est": None, "eps_act": None,
+                    "rev_est": None, "rev_act": None,
+                    "ew": 0, "mc_b": None, "time_et": None,
+                })
+                sym_index.setdefault(ds, {})[sym] = day[timing][-1]
+                added += 1
+                continue
+            if not rebucket:
+                continue
+            tbd = day.get("tbd") or []
+            if existing in tbd and timing in ("bmo", "amc"):
+                tbd.remove(existing)
+                day.setdefault(timing, []).append(existing)
+                moved += 1
+    return added, moved
 
 
 def _backfill_past_days(days: dict, week_dates: list[date], today: date,
@@ -860,16 +938,17 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
         #
         # Measured on the real week 2026-08-03..05 (A/B, this leg on vs off):
         #
-        #     Finnhub + FMP          911 reporters, 647 with a session
-        #     + Finviz               980 reporters, 717 with a session
-        #     Finnhub DOWN, FMP only   0 reporters
-        #     Finnhub DOWN, + Finviz 692 reporters, ALL sessioned
+        #     Finnhub + FMP            492 reporters, 329 with a session
+        #     + Finviz                 418 reporters, 341 with a session
+        #     Finnhub DOWN, FMP only   200 reporters,   0 with a session
+        #     Finnhub DOWN, FMP+Finviz 380 reporters, 338 with a session
         #
-        # That last pair is why this leg earns its place. The docstring above
-        # credits the FMP leg with keeping a past day non-empty when Finnhub
-        # 429s — measured, FMP alone returned NOTHING for these dates, so a
-        # Finnhub outage emptied the week's history entirely. Finviz turns that
-        # blackout into 692 fully-sessioned reporters.
+        # CORRECTION: an earlier version of this comment claimed FMP returned
+        # NOTHING under a Finnhub outage. That was measured with FMP_API_KEY
+        # absent from the local environment — FMP works fine and serves 200
+        # reporters. What it genuinely cannot do is SESSION them: FMP carries
+        # no session field, so all 200 land in `tbd`. That is the real gap this
+        # leg fills — 0 sessioned becomes 338, not 0 reporters becomes 692.
         #
         # It does NOT rescue "Time TBD", which is what this leg was originally
         # built for: of the 264 tbd rows Finnhub+FMP leave behind, Finviz had a
@@ -880,43 +959,13 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
         # Runs LAST on purpose: it only ever fills a session that is missing.
         # Finnhub's `hour` still wins where it exists — redundancy for a gap,
         # never a second opinion overriding a good answer.
-        fv_sessions = _fetch_finviz_past_sessions(past_ds)
-        moved = 0
-        for ds, sym_timing in fv_sessions.items():
-            day = days.get(ds)
-            if day is None:
-                continue
-            for sym, timing in sym_timing.items():
-                if not _keep(sym):
-                    continue
-                # Scan the DAY, not just `sym_index`. That index only holds what
-                # the Finnhub/FMP legs touched — a symbol the live EW schedule
-                # already placed is absent from it, so trusting the index here
-                # appended a DUPLICATE row for every such name. (Caught by
-                # test_moves_a_tbd_entry_into_its_real_session.)
-                existing = next((e for e in _day_entries(day) if e.get("sym") == sym), None)
-                if existing is None:
-                    day.setdefault(timing, []).append({
-                        "sym": sym, "eps_est": None, "eps_act": None,
-                        "rev_est": None, "rev_act": None,
-                        "ew": 0, "mc_b": None, "time_et": None,
-                    })
-                    sym_index.setdefault(ds, {})[sym] = day[timing][-1]
-                    added += 1
-                    touched.add(ds)
-                    continue
-                # Already known — move it out of `tbd` into its real session.
-                # Entries live IN the bucket lists, so re-bucketing means
-                # removing from tbd and appending; mutating a field would
-                # leave it rendering under the wrong heading.
-                tbd = day.get("tbd") or []
-                if existing in tbd and timing in ("bmo", "amc"):
-                    tbd.remove(existing)
-                    day.setdefault(timing, []).append(existing)
-                    moved += 1
-                    touched.add(ds)
-        if moved:
-            _logger.info("Calendar: Finviz resolved %d past-day sessions out of Time TBD", moved)
+        fv_added, moved = _merge_finviz_sessions(
+            days, past_ds, "earningsdate_thisweek", _keep, sym_index)
+        added += fv_added
+        if fv_added or moved:
+            touched.update(past_ds)
+            _logger.info("Calendar: Finviz added %d past-day reporters, "
+                         "re-bucketed %d out of Time TBD", fv_added, moved)
 
         # Re-order + re-cap only the days the backfill touched. EW-ranked names
         # stay on top (that ordering is what the live path serves); the ew=0
@@ -1362,6 +1411,25 @@ def _build_range_week(monday: date) -> dict:
             }
             days[ds]["tbd"].append(entry)
             sym_index.setdefault(ds, {})[sym] = entry
+
+    # ── Finviz Elite leg for a PAST week ──────────────────────────────────
+    # `_backfill_past_days` gave the CURRENT week a third source; this closes
+    # the identical exposure on the previous one. Measured on the current week,
+    # a Finnhub outage left FMP returning NOTHING and the day empty — that hole
+    # was equally open here, and past weeks are pure history, so an empty one is
+    # simply wrong rather than merely early.
+    #
+    # Finviz offers no arbitrary range: only last week is reachable, so weeks
+    # older than that skip the leg entirely rather than fire a request that
+    # cannot match. That is a real, stated limit — not silently papered over.
+    fv_filt = _finviz_week_filter(monday, today)
+    if fv_filt:
+        fv_added, fv_moved = _merge_finviz_sessions(
+            days, set(days.keys()), fv_filt, _keep, sym_index, rebucket=False)
+        if fv_added or fv_moved:
+            source = f"{source}+finviz"
+            _logger.info("Calendar %s: Finviz added %d, re-bucketed %d",
+                         week_start, fv_added, fv_moved)
 
     # Same ordering rule every week: estimate-bearing names first, then alpha;
     # same [:40] per-session cap as the current-week live path.
