@@ -1,0 +1,299 @@
+/* Calendar widget — a single day's economic events + pre-market / after-hours
+   earnings, with prev/next day navigation. Canvas + text follow the app theme
+   (--bg/--text) until the user picks an explicit look via ⚙; --cal-fs scales the
+   whole widget's type (S / M / L). */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--cal-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--cal-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-sans);
+  font-size: var(--cal-fs, 13.5px);
+}
+
+/* Header: ◀ date ▶ + gear */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6em;
+  height: 1.6em;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  cursor: pointer;
+  font-size: 0.95em;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.navBtn:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.06)); }
+.dateWrap { display: inline-flex; flex-direction: column; align-items: center; min-width: 0; line-height: 1.15; }
+.dateMain {
+  font-weight: 700;
+  font-size: 0.95em;
+  letter-spacing: 0.3px;
+  color: var(--cal-chrome-strong, var(--cal-text, var(--text-bright, #e0dac8)));
+  white-space: nowrap;
+}
+.dateSub {
+  font-size: 0.66em;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+}
+.todayPill {
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  font-weight: 800;
+}
+.gearBtn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+}
+.gearBtn:hover, .gearBtnActive {
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  background: var(--cal-row-hover, rgba(255, 255, 255, 0.06));
+}
+.todayBtn {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 0.68em;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.todayBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); background: var(--cal-row-hover, rgba(255, 255, 255, 0.06)); }
+
+/* Body */
+.list { flex: 1; min-height: 0; overflow-y: auto; }
+/* Sections read as distinct blocks: a gap + divider between them, and a STICKY,
+   gold, bolder header on an opaque band so one section never blends into the next
+   (and you always see which section you're scrolling through). */
+.section { padding-bottom: 4px; }
+.section + .section { margin-top: 8px; border-top: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.1))); }
+.sectionHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  background: var(--cal-bg-solid, var(--widget-canvas, var(--bg, #0e0f0d)));
+  border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+}
+.sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); display: inline-flex; }
+.sectionHead .count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  font-weight: 600;
+}
+.sectionHead.pre .headIcon { color: #e0a53c; }
+.sectionHead.post .headIcon { color: #6f8dbf; }
+
+/* Economic event row */
+.econRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px 6px 12px;
+  border-left: 2px solid transparent;
+}
+.econRow.key { border-left-color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); background: var(--cal-tint, rgba(255, 255, 255, 0.03)); }
+.econTime {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.74em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  flex: 0 0 auto;
+  min-width: 4.4em;
+}
+.econMain { min-width: 0; flex: 1; }
+.econName { font-size: 0.86em; color: var(--cal-text, var(--text-bright, #e0dac8)); }
+.fedTag {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  border: 1px solid color-mix(in srgb, var(--cal-gold-strong, #c9a84c) 45%, transparent);
+  vertical-align: 1px;
+}
+.econStats {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 0.72em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cal-text, var(--text-bright, #e0dac8));
+  opacity: 0.7;
+}
+.econStats b { color: var(--cal-text, var(--text-bright, #e0dac8)); font-weight: 700; opacity: 1; }
+
+/* Earnings row */
+.earnRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.earnRow:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.03)); }
+.earnSym {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.3px;
+  color: var(--cal-symbol, var(--cal-accent, var(--cal-gold-strong, var(--ut-gold, #c9a84c))));
+  flex: 0 0 auto;
+}
+/* Company name in parens — dims + ellipsizes, and hides entirely when the widget
+   is narrow (see the @container rule) so it never crams the row. */
+.earnCompany {
+  font-size: 0.76em;
+  color: var(--cal-text, var(--text-bright, #e0dac8));
+  opacity: 0.78;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+/* Two right-aligned value columns (EPS · REV). Reported rows show a % surprise
+   (colored up/down); pending rows show the estimate (regular text color). The header
+   labels + data cells share a fixed width + font-size so the columns line up. */
+.earnColHead { display: flex; align-items: center; gap: 8px; padding: 3px 10px 5px; }
+.colHeadSpacer { flex: 1 1 auto; min-width: 0; }
+.epsCol, .revCol {
+  flex: 0 0 auto;
+  width: 4.2em;
+  font-size: 0.72em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.earnColHead .epsCol, .earnColHead .revCol {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  opacity: 0.85;
+}
+.earnRow .epsCol { margin-left: auto; }   /* keep the pair right-aligned even when the name is hidden */
+.earnRow .epsCol, .earnRow .revCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
+.earnRow .epsCol.pos, .earnRow .revCol.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }
+.earnRow .epsCol.neg, .earnRow .revCol.neg { color: var(--cal-neg, var(--ut-red-bright, #ff5b5b)); }
+
+/* Collapsible TBD */
+.tbdToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tbdToggle:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.tbdToggle .chev { margin-left: auto; transition: transform 140ms ease; }
+.tbdToggle.open .chev { transform: rotate(90deg); }
+
+/* States */
+.empty, .loading {
+  padding: 20px 14px;
+  font-size: 0.85em;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  line-height: 1.55;
+  text-align: center;
+}
+.emptyIcon { display: block; margin: 0 auto 8px; opacity: 0.5; }
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: calspin 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 7px;
+}
+@keyframes calspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* "Show all N" / "Show less" expander below a section's top-10. */
+.showAll {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  font-family: inherit;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.showAll:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.04)); }
+.showAll .chev { margin-left: auto; display: inline-flex; transition: transform 140ms ease; }
+.showAll.open .chev { transform: rotate(90deg); }
+
+/* Responsive: the company name minimizes first as the widget narrows; the EPS
+   column only drops on a very thin widget (root = .widgetBody container). */
+@container (max-width: 320px) { .earnCompany { display: none; } }
+@container (max-width: 210px) {
+  .revCol { display: none; }
+  .econStats { gap: 7px; }
+}

@@ -9055,6 +9055,8 @@ export default function StockChart({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sym, target_price: Number(price.toFixed(2)), direction }),
       })
+      // Refresh every watchlist-alerts cache so the Alerts widget shows it instantly.
+      if (r.ok) globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
       showChartToast(r.ok ? `Alert ${direction} ${price.toFixed(2)}` : 'Alert failed')
     } catch { showChartToast('Alert failed') }
   }, [sym, showChartToast])
@@ -9268,19 +9270,31 @@ export default function StockChart({
       ctx.clearRect(0, 0, w, h)
       const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
       ctx.strokeStyle = col; ctx.lineWidth = cs.drawingDefaults?.width || 1
+      // Match the toolbar Trendline tool exactly: a clean line, NO endpoint dots,
+      // honoring the saved dash style.
+      if (cs.drawingDefaults?.style === 'dashed') ctx.setLineDash([6, 4]); else ctx.setLineDash([])
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-      ctx.fillStyle = col
-      ctx.beginPath(); ctx.arc(x1, y1, 3, 0, 6.283); ctx.fill()
-      ctx.beginPath(); ctx.arc(x2, y2, 3, 0, 6.283); ctx.fill()
+    }
+    // Coalesce high-frequency pointermove into ONE render per animation frame so the
+    // preview tracks the cursor smoothly — no per-event synchronous redraw jank on a
+    // live-updating chart (the "snaps around" stutter).
+    let previewRaf = null
+    let lastPos = null
+    const renderPreview = () => {
+      previewRaf = null
+      const st = trendDragStateRef.current
+      if (!st || !lastPos) return
+      drawPreview(st.startX, st.startY, lastPos.x, lastPos.y, lastPos.w, lastPos.h)
     }
     const onMove = (e) => {
-      const st = trendDragStateRef.current; if (!st) return
-      const { x, y, w, h } = getPos(e)
-      drawPreview(st.startX, st.startY, x, y, w, h)
+      if (!trendDragStateRef.current) return
+      lastPos = getPos(e)
+      if (previewRaf == null) previewRaf = requestAnimationFrame(renderPreview)
     }
     const end = (e) => {
       const st = trendDragStateRef.current
       trendDragStateRef.current = null
+      if (previewRaf != null) { cancelAnimationFrame(previewRaf); previewRaf = null }
       clearPreview()
       measureLockRef.current = false
       try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }

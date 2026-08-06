@@ -27,7 +27,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [], showPerf = true }) {
+export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [], showPerf = true, textHint = 'titles & tickers' }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
@@ -148,7 +148,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
 
           {/* Text */}
           <div className={styles.sectionLabel}>Text</div>
-          <Row label="Text color" hint="titles & tickers">{swatch('textColor', 'Text')}</Row>
+          <Row label="Text color" hint={textHint}>{swatch('textColor', 'Text')}</Row>
 
           {/* Performance / % Change */}
           {showPerf && (
