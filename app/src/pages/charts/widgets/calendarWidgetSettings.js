@@ -15,8 +15,8 @@ export const CALENDAR_WIDGET_DEFAULTS = {
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // primary text (event names + company names + est/EPS labels)
   symbolColor: '#c9a84c',                           // earnings tickers
-  posColor: '#1ae51a',                              // positive EPS / estimate value
-  negColor: '#ff5b5b',                              // negative EPS / estimate value
+  posColor: '#1ae51a',                              // upside surprise (EPS% / Rev% beat)
+  negColor: '#ff5b5b',                              // downside surprise (EPS% / Rev% miss)
   textSize: 'm',                                    // 's' | 'm' | 'l'
 }
 

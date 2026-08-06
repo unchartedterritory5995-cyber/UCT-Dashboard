@@ -54,27 +54,45 @@ function fmtNum(v, digits = 2) {
   if (!Number.isFinite(n)) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
+// Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
+function fmtRev(m) {
+  const n = Number(m)
+  if (!Number.isFinite(n)) return '—'
+  if (n >= 1000) return `$${(n / 1000).toFixed(1)}B`
+  if (n >= 10) return `$${Math.round(n)}M`
+  return `$${n.toFixed(1)}M`
+}
+// A reported metric's % surprise vs its estimate (colored by sign); falls back to the
+// raw actual (neutral) when there's no usable estimate base (est missing or 0).
+function surpriseCell(act, est, fmtVal) {
+  if (act == null) return null
+  if (est != null && est !== 0) {
+    const pct = ((act - est) / Math.abs(est)) * 100
+    return { text: `${pct >= 0 ? '+' : ''}${pct.toFixed(Math.abs(pct) < 10 ? 1 : 0)}%`, up: pct >= 0 }
+  }
+  return { text: fmtVal(act), up: null }
+}
 const mcapDesc = (a, b) => (Number.isFinite(b.mc_b) ? b.mc_b : -1) - (Number.isFinite(a.mc_b) ? a.mc_b : -1)
 const TOP_EARNINGS = 10   // largest 10 by market cap; the rest behind "Show all"
 
-// A single earnings row: logo + ticker + (company name, dims/hides when narrow) + EPS.
+// A single earnings row: logo + ticker + (company name) + two right-aligned columns.
+// Reported → EPS% / Rev% surprise (colored up/down); pending → est EPS / est Rev (neutral).
 function EarnRow({ c, onPick }) {
   const { name } = useTickerMeta(c.sym)
-  // Reported (eps_act) and upcoming (eps_est) render IDENTICALLY — same size/weight —
-  // differing only in the "EPS"/"est" label; the value is colored by its sign.
-  const reported = c.eps_act != null
-  const val = reported ? c.eps_act : (c.eps_est != null ? c.eps_est : null)
-  const signCls = val == null ? '' : (val >= 0 ? styles.pos : styles.neg)
+  const eps = c.eps_act != null
+    ? surpriseCell(c.eps_act, c.eps_est, fmtNum)
+    : (c.eps_est != null ? { text: fmtNum(c.eps_est), up: null, est: true } : null)
+  const rev = c.rev_act != null
+    ? surpriseCell(c.rev_act, c.rev_est, fmtRev)
+    : (c.rev_est != null ? { text: fmtRev(c.rev_est), up: null, est: true } : null)
+  const cls = (cell) => (!cell || cell.est || cell.up == null ? '' : (cell.up ? styles.pos : styles.neg))
   return (
     <div className={styles.earnRow} onClick={() => onPick(c.sym)} title={`Show ${c.sym} on the linked chart`}>
       <CompanyLogo sym={c.sym} size={16} name={name} round />
       <span className={styles.earnSym}>{c.sym}</span>
       {name && <span className={styles.earnCompany}>({name})</span>}
-      {val != null && (
-        <span className={`${styles.earnMeta} ${signCls}`}>
-          <span className={styles.lbl}>{reported ? 'EPS' : 'est'} </span>{fmtNum(val)}
-        </span>
-      )}
+      <span className={`${styles.epsCol} ${cls(eps)}`}>{eps?.text ?? '—'}</span>
+      <span className={`${styles.revCol} ${cls(rev)}`}>{rev?.text ?? '—'}</span>
     </div>
   )
 }
@@ -89,6 +107,11 @@ function EarningsSection({ title, iconName, cls, items, onPick }) {
       <div className={`${styles.sectionHead} ${cls}`}>
         <span className={styles.headIcon}><UIcon name={iconName} size={13} /></span>
         {title}<span className={styles.count}>{items.length}</span>
+      </div>
+      <div className={styles.earnColHead}>
+        <span className={styles.colHeadSpacer} />
+        <span className={styles.epsCol}>EPS</span>
+        <span className={styles.revCol}>REV</span>
       </div>
       {shown.map(c => <EarnRow key={c.sym} c={c} onPick={onPick} />)}
       {sorted.length > TOP_EARNINGS && (
@@ -163,9 +186,9 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
           textHint="names & EPS"
           extraSections={[
             { label: 'Symbol', rows: [{ key: 'symbolColor', label: 'Symbol color', hint: 'earnings tickers' }] },
-            { label: 'EPS / Estimate', rows: [
-              { key: 'posColor', label: 'Positive', hint: 'value ≥ 0' },
-              { key: 'negColor', label: 'Negative', hint: 'value < 0' },
+            { label: 'Surprise colors', rows: [
+              { key: 'posColor', label: 'Upside surprise', hint: 'beat' },
+              { key: 'negColor', label: 'Downside surprise', hint: 'miss' },
             ] },
             { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
               { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
