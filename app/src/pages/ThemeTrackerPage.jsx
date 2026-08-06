@@ -1,10 +1,9 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
-import SymbolSearch from '../components/chart/SymbolSearch'
 import CompanyLogo from '../components/CompanyLogo'
 import uctMark from '../components/intro/assets/compass-mark.png'
 import useThemeIndexBars from '../hooks/useThemeIndexBars'
@@ -21,6 +20,13 @@ import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel
 import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_FONT_PX, mergeThemeTrackerSettings, themeTrackerStyleVars, themeTrackerDefaultsForTheme } from './theme-tracker/themeTrackerSettings'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
+
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+// NOTE: the theme-index chart below (barsOverride/watermark/liveUpdates=false)
+// stays on bare StockChart — only the normal-symbol mount adopts ChartPane.
+const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -728,7 +734,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           ) : selectedSym ? (
             <>
               <div className={styles.chartHeader}>
-                <SymbolSearch sym={selectedSym} onSymbolChange={(s) => { setSelectedSym(s); setSelectedName('') }} />
                 <span className={styles.chartName}>{selectedName}</span>
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
@@ -740,19 +745,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
-                <div className={styles.chartPeriodTabs}>
-                  {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
-                    <button
-                      key={p}
-                      className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}
-                      onClick={() => setChartPeriod(p)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
-              <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={(s) => { setSelectedSym(s); setSelectedName('') }} onTfChange={setChartPeriod} />
+              {/* ChartPane owns the identity row (ticker search + company name +
+                  session toggle + clock) and the timeframe bar now — the page's
+                  own SymbolSearch + period-tabs row used to sit here and would
+                  just duplicate ChartPane's canonical ones, so both are retired. */}
+              <Suspense fallback={<div className={styles.chartEmpty}>Loading chart…</div>}>
+                <ChartPane
+                  sym={selectedSym}
+                  tf={chartPeriod}
+                  onSymbolChange={(s) => { setSelectedSym(s); setSelectedName('') }}
+                  onTfChange={setChartPeriod}
+                  stored={null}
+                />
+              </Suspense>
               <div className={styles.newsLabel}>News — {selectedSym}</div>
             </>
           ) : (

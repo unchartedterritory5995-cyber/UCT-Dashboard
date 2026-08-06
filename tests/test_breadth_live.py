@@ -743,3 +743,25 @@ def test_any_other_value_leaves_it_on(monkeypatch):
     for v in ("1", "true", "yes", ""):
         monkeypatch.setenv("BREADTH_LIVE_ENABLED", v)
         assert bl.enabled() is (v != "0"), v
+
+
+def test_a_pre_open_warm_is_registered_for_every_trading_morning():
+    """Levels are cached per session DAY. The pod does not reboot overnight, so
+    at 09:30 the cache key rolls and misses — and deriving levels reads ~1M
+    daily bars. Without this job the first person to open Breadth after the bell
+    pays that, at the busiest moment of the day.
+
+    ⚠️ `timezone=_ET` is load-bearing: a naive cron would fire on the container's
+    UTC clock, i.e. 5:05 AM ET, before the prior session has settled in bars.db.
+    """
+    import re
+    from pathlib import Path
+    src = Path(__file__).resolve().parent.parent / "api" / "main.py"
+    text = src.read_text(encoding="utf-8")
+    assert "breadth_live_preopen_warm" in text, "pre-open warm job is not registered"
+    block = text[text.index("breadth_live_preopen_warm") - 900:
+                 text.index("breadth_live_preopen_warm") + 200]
+    assert "timezone=_ET" in block, "cron must be ET-anchored, not the container's UTC"
+    assert re.search(r'hour=9,\s*minute=5', block), "expected 9:05 ET, before the 9:30 open"
+    assert 'day_of_week="mon-fri"' in block, "no need to warm on a weekend"
+    assert "from api.services.breadth_live import warm" in block

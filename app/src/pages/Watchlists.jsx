@@ -26,7 +26,7 @@
 //     you chose yourself will happily exercise code no user can reach — that
 //     mistake already cost one design rework (2026-07-31).
 //
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -41,8 +41,6 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import StockChart from '../components/StockChart'
-import SymbolSearch from '../components/chart/SymbolSearch'
 import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -55,8 +53,12 @@ import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mer
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
 const fetcher = url => fetch(url).then(r => r.json())
-const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
+
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 // Configurable columns (right-click a header to hide/show, drag a gridline to resize).
 // Flag + Sym are fixed (star + identity). Persisted per-user in localStorage.
 const OPTIONAL_COLS = [  // hideable via right-click
@@ -1833,7 +1835,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {selectedSym ? (
             <>
               <div className={styles.chartHeader}>
-                <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
                     <UIcon name="flag" size={12} style={{verticalAlign:'-1px',marginRight:3}} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
@@ -1844,17 +1845,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 ><UIcon name="flag" size={13} style={{verticalAlign:'-2px',marginRight:4}} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
-                <div className={styles.chartPeriodTabs}>
-                  {PERIODS.map(([p, label]) => (
-                    <button
-                      key={p}
-                      className={`${styles.chartPeriodBtn}${chartPeriod === p ? ' ' + styles.chartPeriodBtnActive : ''}`}
-                      onClick={() => setChartPeriod(p)}
-                    >{label}</button>
-                  ))}
-                </div>
               </div>
-              <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
+              {/* ChartPane owns the identity row (ticker search + company name +
+                  session toggle + clock) and the timeframe bar now — the page's
+                  own SymbolSearch + period-tabs row used to sit here and would
+                  just duplicate ChartPane's canonical ones, so both are retired. */}
+              <Suspense fallback={<div className={styles.chartEmpty}>Loading chart…</div>}>
+                <ChartPane
+                  sym={selectedSym}
+                  tf={chartPeriod}
+                  onSymbolChange={setSelectedSym}
+                  onTfChange={setChartPeriod}
+                  stored={null}
+                />
+              </Suspense>
             </>
           ) : (
             <div className={styles.chartEmpty}>

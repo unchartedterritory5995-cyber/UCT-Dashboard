@@ -44,17 +44,22 @@ test('closes modal on overlay click', () => {
 })
 
 test('modal shows tab buttons for all timeframes', async () => {
-  // The modal was rebuilt around Lightweight Charts (StockChart). It now
-  // exposes 8 timeframe tabs (1min through Monthly) instead of the old 5.
+  // The popup now mounts ChartPane — the same chart /charts renders — so the
+  // timeframe row is ChartPane's, not this component's. Same intent as before
+  // (every timeframe reachable from the popup); the labels are the workspace's
+  // canonical ones (1m/5m/…/1D/1W) instead of the old bespoke 1min/5min/Daily.
   const user = userEvent.setup()
   renderWithProviders(<TickerPopup sym="NVDA" />)
   await user.click(screen.getByTestId('ticker-NVDA'))
-  expect(screen.getByRole('button', { name: '1min' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '5min' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '30min' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '1hr' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Daily' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Weekly' })).toBeInTheDocument()
+  // Wait on the chart stub FIRST. ChartPane is a lazy chunk and a heavier one
+  // than bare StockChart was, so under full-suite parallel load the Suspense
+  // fallback can still be up when a findByRole for a button times out. Once the
+  // stub is present the pane has mounted, so its timeframe bar is present too
+  // and the rest can be synchronous.
+  await screen.findByTestId('stock-chart-NVDA-D')
+  for (const label of ['1m', '5m', '30m', '1h', '1D', '1W']) {
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+  }
 })
 
 test('modal renders stock chart for the active timeframe', async () => {
@@ -65,9 +70,11 @@ test('modal renders stock chart for the active timeframe', async () => {
   renderWithProviders(<TickerPopup sym="NVDA" />)
   await user.click(screen.getByTestId('ticker-NVDA'))
   // Default tab on open is Daily → tf="D". findBy (not getBy) waits for the heavy
-  // StockChart mount to render the stub — getBy raced under full-suite parallel load.
+  // chart mount to render the stub — getBy raced under full-suite parallel load.
+  // The StockChart mock still applies: ChartPane imports the very same module.
   expect(await screen.findByTestId('stock-chart-NVDA-D')).toBeInTheDocument()
-  // Switching to 5min triggers the chart to re-render with tf="5".
-  await user.click(screen.getByRole('button', { name: '5min' }))
+  // Switching timeframe on ChartPane's bar must still reach StockChart's tf, so
+  // the popup's tab state and the pane stay in lockstep.
+  await user.click(await screen.findByRole('button', { name: '5m' }))
   expect(await screen.findByTestId('stock-chart-NVDA-5')).toBeInTheDocument()
 })
