@@ -158,9 +158,9 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
             <span className={styles.rowSym}>{a.sym}</span>
             <span className={styles.cond}>
               {a.alert_type === 'line'
-                ? <>{dirWord}line</>
+                ? <>{dirWord}line <span className={styles.target}>${fmtPrice(a.target_price)}</span></>
                 : a.alert_type === 'trendline'
-                  ? <>{dirWord}trendline</>
+                  ? <>{dirWord}trendline <span className={styles.target}>${fmtPrice(levelNow(a))}</span></>
                   : <>{dirWord}<span className={styles.target}>${fmtPrice(a.target_price)}</span></>}
             </span>
           </div>
