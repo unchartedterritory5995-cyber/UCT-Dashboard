@@ -451,3 +451,56 @@ OptionsFlow 93.26 kB gz, entry 115.95 kB gz.
 
 **Not verifiable from jsdom:** real iOS gesture arbitration, haptics, and whether the OS text-
 selection callout competes with the hold. Needs a real-device pass.
+
+---
+
+## ⛔ Settings resolution — the thing that was wrong, and how it actually works (2026-08-05)
+
+**The trap:** the global `chart_settings` pref is NOT "the user's chart". It is only the
+untouched **seed** a brand-new widget inherits. The moment a user edits a `/charts` widget, that
+edit is written to **`charts_workspace_layout`** → `widgets[].opts.settings` (or, for an extra
+tab, `opts.chartTabs[].settings`) — see `ChartWidget.jsx:116-122`. The global blob is left
+behind.
+
+Phase B shipped popups reading `chart_settings`, believing it was the user's chart. It wasn't,
+so every popup rendered **defaults**. The owner spotted it immediately: *"I would prefer it to
+have the layout settings and colors vs just standard."*
+
+**How it resolves now**, for surfaces that pass `stored === null` and no `onStore` (every popup):
+
+1. `charts_default_chart_widget` pref, if it names a chart widget that has settings → that wins.
+   *(Forward-wired. No UI sets this yet; the scan below covers the common case.)*
+2. Otherwise scan **all** `type === 'chart'` widgets in order and take the **first with genuinely
+   non-empty settings** — main tab first, then its `chartTabs[]`. ⚠️ It used to take the *first
+   widget* regardless, so a customized chart that wasn't first still rendered the seed.
+3. Otherwise `chart_settings`. Otherwise defaults.
+
+Every step is defensive: the pref may be a JSON string or object, malformed, missing `widgets`,
+have no chart widget, or a `chartTabs` that isn't an array. It never throws.
+
+### ⚠️ Resolving `cs` is only HALF the job
+
+`ChartPane` originally passed `settingsOverride={stored || null}` to StockChart. With `stored`
+null that is `null`, and `StockChart.jsx:1031` builds its base from the **global** blob — so the
+pane's *chrome* used the user's colors while the **actual chart** (candles, MAs, background,
+watermark) still drew the seed. The hook therefore also returns the raw resolved blob
+(`ownChartSource`, memoized), and `ChartPane` passes `stored || ownChartSource || null`.
+
+⛔ **Do NOT "fix" this by making StockChart's base widget-resolved.** `/charts` widgets pass their
+own blob as `settingsOverride` merged over that base; a widget-resolved base would let one widget
+inherit another's look. The override is the only correct lever.
+
+### Same bug, separate code path
+
+`grid/GridChartCell` built `settingsOverride` as `{chartType}` only, so Multi-Chart cells fell
+back to the seed independently. Fixed by merging the resolved settings **underneath** the
+per-cell chart type. Its locked invariants (`backgroundWarm={false}`, `React.memo`, identity-
+stable `settingsOverride`) are unchanged — check them before touching that file.
+
+### Popups are read-only for settings
+
+Because reads resolve from the widget, a popup writing the global blob would write a
+*lower-priority* layer and appear to do nothing. So no settings gear renders when
+`stored === null && !onStore`. Settings are edited on `/charts`. Deliberately no write path into
+`charts_workspace_layout` — the workspace has its own debounced writer and racing it risks
+clobbering the user's board.
