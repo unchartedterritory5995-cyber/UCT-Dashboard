@@ -3,37 +3,47 @@ import usePreferences from '../../../hooks/usePreferences'
 import { mergeChartSettings } from '../chartDefaults'
 import { menuThemeVars } from '../../../utils/dividerColor'
 
+function isNonEmptySettingsObj(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0
+}
+
 // Every /charts widget owns its own settings blob in `opts.settings` inside the
-// `charts_workspace_layout` pref (see ChartWidget.jsx). The global
-// `chart_settings` pref is only the untouched SEED that a brand-new widget
-// starts from — it is NOT "the user's chart". A surface that IS the user's one
-// chart (stored=null, no onStore — every popup/embedded chart outside the
-// /charts workspace itself) must resolve to the FIRST chart widget's settings
-// when one exists, falling back to the seed otherwise, so it renders what the
-// owner actually configured rather than the untouched default.
+// `charts_workspace_layout` pref (see ChartWidget.jsx) — or, when the user
+// customized an EXTRA tab instead of the main one, in
+// `opts.chartTabs[].settings` (see chartTabs.js). The global `chart_settings`
+// pref is only the untouched SEED that a brand-new widget starts from — it is
+// NOT "the user's chart". A surface that IS the user's one chart (stored=null,
+// no onStore — every popup/embedded chart outside the /charts workspace
+// itself) must resolve, for the FIRST chart widget: its main-tab settings,
+// else the first extra tab that has settings, else null (caller falls back
+// to the seed) — so it renders what the owner actually configured rather than
+// the untouched default.
 //
-// Defensive at every step: the layout pref may be absent, a JSON string, an
-// already-parsed object, malformed JSON, missing a `widgets` array, or missing
-// a chart widget entirely — every failure falls through to `chart_settings`
-// and this NEVER throws.
-function resolveOwnChartSettingsSource(chartSettings, workspaceLayoutRaw) {
+// Returns the RAW, unmerged blob that won (or null). Defensive at every step:
+// the layout pref may be absent, a JSON string, an already-parsed object,
+// malformed JSON, missing a `widgets` array, missing a chart widget entirely,
+// or `chartTabs` may be absent/not-an-array/contain entries without a
+// `settings` object — every failure falls through to null and this NEVER
+// throws.
+function resolveOwnChartSettingsSource(workspaceLayoutRaw) {
   try {
-    if (workspaceLayoutRaw) {
-      const parsed = typeof workspaceLayoutRaw === 'string' ? JSON.parse(workspaceLayoutRaw) : workspaceLayoutRaw
-      const widgets = parsed?.widgets
-      if (Array.isArray(widgets)) {
-        const chartWidget = widgets.find((w) => w?.type === 'chart')
-        const widgetSettings = chartWidget?.opts?.settings
-        if (widgetSettings && typeof widgetSettings === 'object' && !Array.isArray(widgetSettings)
-          && Object.keys(widgetSettings).length > 0) {
-          return widgetSettings
-        }
-      }
+    if (!workspaceLayoutRaw) return null
+    const parsed = typeof workspaceLayoutRaw === 'string' ? JSON.parse(workspaceLayoutRaw) : workspaceLayoutRaw
+    const widgets = parsed?.widgets
+    if (!Array.isArray(widgets)) return null
+    const chartWidget = widgets.find((w) => w?.type === 'chart')
+    if (!chartWidget) return null
+    const widgetSettings = chartWidget?.opts?.settings
+    if (isNonEmptySettingsObj(widgetSettings)) return widgetSettings
+    const tabs = chartWidget?.opts?.chartTabs
+    if (Array.isArray(tabs)) {
+      const tab = tabs.find((t) => isNonEmptySettingsObj(t?.settings))
+      if (tab) return tab.settings
     }
   } catch {
-    // Any parse/shape failure falls through to the seed below.
+    // Any parse/shape failure falls through to null below.
   }
-  return chartSettings
+  return null
 }
 
 // Resolves the chart settings a surface should render with, and gives it one
@@ -53,11 +63,22 @@ function resolveOwnChartSettingsSource(chartSettings, workspaceLayoutRaw) {
 export default function useChartSurfaceSettings({ stored = null, onStore = null, chartsTheme = 'default' } = {}) {
   const { prefs, setPref } = usePreferences()
   const isOwnChartSurface = stored === null && !onStore
+  // The RAW, unmerged blob that won the own-chart resolution (the widget's or
+  // a tab's settings) — or null when it fell back to the chart_settings seed
+  // (in which case StockChart's own base, read from that same seed, is already
+  // correct and needs no override). null on every non-own-chart surface. MUST
+  // stay identity-stable across renders with unchanged inputs — ChartPane hands
+  // this straight to StockChart's `settingsOverride`, documented there as a
+  // memo dep that must not thrash.
+  const ownChartSource = useMemo(
+    () => (isOwnChartSurface ? resolveOwnChartSettingsSource(prefs.charts_workspace_layout) : null),
+    [isOwnChartSurface, prefs.charts_workspace_layout],
+  )
   const globalCs = useMemo(() => mergeChartSettings(
     isOwnChartSurface
-      ? resolveOwnChartSettingsSource(prefs.chart_settings, prefs.charts_workspace_layout)
+      ? (ownChartSource || prefs.chart_settings)
       : prefs.chart_settings,
-  ), [isOwnChartSurface, prefs.chart_settings, prefs.charts_workspace_layout])
+  ), [isOwnChartSurface, ownChartSource, prefs.chart_settings])
   const storedCs = useMemo(() => (stored ? mergeChartSettings(stored) : null), [stored])
   const cs = storedCs || globalCs
 
@@ -81,5 +102,12 @@ export default function useChartSurfaceSettings({ stored = null, onStore = null,
     [menuCanvasColor, menuGradient?.top, menuGradient?.bottom],
   )
 
-  return { cs, menuVars, write, patchHeader }
+  return {
+    cs, menuVars, write, patchHeader,
+    // The raw resolved own-chart source (or null) — see the doc comment above
+    // `ownChartSource`. Consumed by ChartPane as StockChart's `settingsOverride`
+    // so the ACTUAL CHART (candles/MAs/background/watermark), not just the
+    // chrome around it, renders what the owner configured.
+    ownChartSource,
+  }
 }

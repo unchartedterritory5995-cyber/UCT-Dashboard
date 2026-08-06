@@ -319,10 +319,16 @@ def get_webcast_url(ticker: str) -> Optional[str]:
 # ── get_rating_changes ────────────────────────────────────────────────────────
 
 def get_rating_changes(ticker: str) -> list[dict[str, Any]]:
-    """Recent analyst recommendation changes from Finnhub /stock/recommendation.
+    """Recent analyst recommendation changes, newest first, with
+    month-over-month net (buy-side minus sell-side) deltas. Empty list on
+    total failure.
 
-    Returns list of recommendation periods with month-over-month net deltas,
-    newest first. Empty list on failure.
+    FMP `stable/grades-historical` is primary (data-dependability migration
+    plan, Task 5) — Finnhub `/stock/recommendation` shares the process-wide
+    60/min budget across every caller in the app and is the weaker plan
+    overall. Finnhub only fires when FMP yields nothing usable, and is
+    routed through the shared `finnhub_client.fh_get` token bucket / 429
+    cooldown so it never spends that shared budget uncoordinated.
     """
     sym = (ticker or "").upper().strip()
     if not sym:
@@ -333,22 +339,32 @@ def get_rating_changes(ticker: str) -> list[dict[str, Any]]:
     if hit is not None:
         return hit
 
-    # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
-    # call shares the process-wide token bucket / 429 cooldown with every
-    # other Finnhub caller instead of spending the same account budget
-    # uncoordinated.
-    from api.services.finnhub_client import fh_get
+    from api.services import earnings_estimates as ee
+    data = ee._fmp_grades_historical(sym, limit=4)
 
-    data = fh_get("/stock/recommendation", {"symbol": sym}, timeout=10)
-    if not isinstance(data, list):
+    if not data:
+        from api.services.finnhub_client import fh_get
+        fh_data = fh_get("/stock/recommendation", {"symbol": sym}, timeout=10)
+        if isinstance(fh_data, list):
+            data = [
+                {
+                    "period":     item.get("period") or "",
+                    "strongBuy":  int(item.get("strongBuy") or 0),
+                    "buy":        int(item.get("buy") or 0),
+                    "hold":       int(item.get("hold") or 0),
+                    "sell":       int(item.get("sell") or 0),
+                    "strongSell": int(item.get("strongSell") or 0),
+                }
+                for item in fh_data[:4] if isinstance(item, dict)
+            ]
+
+    if not data:
         _cache().set(ck, [], _RATINGS_TTL)
         return []
 
     # Normalize and compute net (buy-side minus sell-side) + month-over-month delta
     rows = []
     for item in data[:4]:   # last 4 months is enough context
-        if not isinstance(item, dict):
-            continue
         sb = int(item.get("strongBuy") or 0)
         b  = int(item.get("buy") or 0)
         h  = int(item.get("hold") or 0)

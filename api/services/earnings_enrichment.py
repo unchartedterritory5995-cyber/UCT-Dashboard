@@ -182,17 +182,21 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
 def get_estimate_revisions(sym: str) -> Optional[dict]:
     """Analyst recommendation trend over last ~3 months (proxy for EPS revisions).
 
-    Uses Finnhub /stock/recommendation. Returns net change in (strongBuy+buy)
-    minus (sell+strongSell) over 30d and 90d.
+    FMP `stable/grades-historical` is primary (data-dependability migration
+    plan, Task 5); Finnhub `/stock/recommendation` is the fallback when FMP
+    yields nothing, routed through the shared finnhub_client.fh_get token
+    bucket / 429 cooldown so it never spends that shared budget uncoordinated.
+    Returns net change in (strongBuy+buy) minus (sell+strongSell) over 30d
+    and 90d.
     """
     try:
-        # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
-        # call shares the process-wide token bucket / 429 cooldown with every
-        # other Finnhub caller instead of spending the same account budget
-        # uncoordinated.
-        from api.services.finnhub_client import fh_get
-        resp = fh_get("/stock/recommendation", {"symbol": sym.upper()}, timeout=8)
-        if not isinstance(resp, list) or not resp:
+        from api.services import earnings_estimates as ee
+        resp = ee._fmp_grades_historical(sym.upper(), limit=4)
+        if not resp:
+            from api.services.finnhub_client import fh_get
+            fh_resp = fh_get("/stock/recommendation", {"symbol": sym.upper()}, timeout=8)
+            resp = fh_resp if isinstance(fh_resp, list) else []
+        if not resp:
             return None
         resp.sort(key=lambda x: x.get("period", ""), reverse=True)
         latest = resp[0]

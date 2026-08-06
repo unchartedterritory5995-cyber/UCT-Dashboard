@@ -87,6 +87,7 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
+from api.routers import provider_coverage as provider_coverage_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
@@ -1574,6 +1575,21 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] fundamentals_monitor started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] fundamentals_monitor start failed")
+
+    # Provider-coverage monitor (Task 22/23, 2026-08-05 data-dependability
+    # migration) — generalizes fundamentals_monitor's detect->self-heal->alert
+    # pattern to per-FIELD fill rate across research/earnings surfaces (the
+    # two Finnhub endpoints that 403'd on every call for months were a 200
+    # response with an empty field, not a down endpoint — this catches that
+    # class). Web-side for the same reason: self-heal is a cache invalidation
+    # and the cache users read is web-local. No-ops unless
+    # PROVIDER_COVERAGE_MONITOR_ENABLED=1.
+    try:
+        from api.services import provider_coverage_monitor
+        provider_coverage_monitor.start()
+        logging.getLogger(__name__).info("[startup] provider_coverage_monitor started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] provider_coverage_monitor start failed")
 
     # Volume-level disk watchdog. Runs on EVERY service (web/worker/flow-worker)
     # because the 2026-07-23 incident proved per-feature disk guards can't see
@@ -4349,6 +4365,7 @@ app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
+app.include_router(provider_coverage_router.router)  # /api/admin/provider-coverage — Task 22/23
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)

@@ -353,6 +353,27 @@ class TestGetWebcastUrl:
 
 
 class TestGetRatingChanges:
+    """get_rating_changes: FMP `stable/grades-historical` primary, Finnhub
+    `/stock/recommendation` fallback (data-dependability migration plan,
+    Task 5). Both sources are mocked at the module functions this file calls
+    (`earnings_estimates._fmp_grades_historical`, `finnhub_client.fh_get`)
+    rather than at `requests.get`, since `_fmp_grades_historical` already has
+    its own dedicated shape/failure test coverage in
+    tests/test_earnings_estimates_fmp_grades.py — these tests only lock in
+    get_rating_changes' OWN composition (net/net_delta) and its
+    FMP-first-then-Finnhub-fallback ordering.
+    """
+
+    def _fmp_response(self):
+        # Shape returned by earnings_estimates._fmp_grades_historical (already
+        # remapped from FMP's raw analystRatings* field names).
+        return [
+            {"period": "2026-06-01", "strongBuy": 30, "buy": 10,
+             "hold": 5, "sell": 1, "strongSell": 0},
+            {"period": "2026-05-01", "strongBuy": 27, "buy": 9,
+             "hold": 6, "sell": 2, "strongSell": 0},
+        ]
+
     def _fh_response(self):
         return [
             {"period": "2026-06-01", "strongBuy": 30, "buy": 10,
@@ -361,65 +382,83 @@ class TestGetRatingChanges:
              "hold": 6, "sell": 2, "strongSell": 0},
         ]
 
-    def test_returns_list_with_deltas(self):
+    def test_returns_list_with_deltas_from_fmp(self):
+        """FMP is primary — Finnhub is never touched when FMP answers."""
         from api.services.call_recap import get_rating_changes
-        import requests
 
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
-             patch("api.services.call_recap.os") as mock_os, \
-             patch("api.services.call_recap._req" if False else "requests.get") as mock_get:
-            # Simpler: patch requests directly inside the module
-            pass
-
-        # Use a complete mock
-        with patch("api.services.call_recap._cache") as mock_cache_fn, \
-             patch.dict("os.environ", {"FINNHUB_API_KEY": "test-key"}), \
-             patch("requests.get") as mock_get:
+             patch("api.services.earnings_estimates._fmp_grades_historical",
+                   return_value=self._fmp_response()) as fmp_spy, \
+             patch("api.services.finnhub_client.fh_get") as fh_spy:
 
             mock_cache = MagicMock()
             mock_cache.get.return_value = None
             mock_cache_fn.return_value = mock_cache
 
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = self._fh_response()
-            mock_get.return_value = mock_resp
-
             result = get_rating_changes("NVDA")
 
+        fmp_spy.assert_called_once_with("NVDA", limit=4)
+        fh_spy.assert_not_called()
         assert isinstance(result, list)
         assert len(result) == 2
         assert "net" in result[0]
         assert "net_delta" in result[0]
+        assert result[0]["net"] == (30 + 10) - (1 + 0)
         # Oldest entry should have net_delta=None
         assert result[-1]["net_delta"] is None
 
-    def test_empty_on_no_api_key(self):
+    def test_falls_back_to_finnhub_when_fmp_yields_nothing(self):
         from api.services.call_recap import get_rating_changes
 
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
-             patch.dict("os.environ", {}, clear=True):
+             patch("api.services.earnings_estimates._fmp_grades_historical",
+                   return_value=[]), \
+             patch("api.services.finnhub_client.fh_get",
+                   return_value=self._fh_response()) as fh_spy:
 
             mock_cache = MagicMock()
             mock_cache.get.return_value = None
             mock_cache_fn.return_value = mock_cache
 
-            # Remove Finnhub key
-            import os as _os
-            orig = _os.environ.pop("FINNHUB_API_KEY", None)
-            try:
-                result = get_rating_changes("NVDA")
-            finally:
-                if orig:
-                    _os.environ["FINNHUB_API_KEY"] = orig
+            result = get_rating_changes("NVDA")
 
-        assert result == []
+        fh_spy.assert_called_once()
+        assert fh_spy.call_args.args[0] == "/stock/recommendation"
+        assert len(result) == 2
+        assert result[0]["net"] == (30 + 10) - (1 + 0)
+        assert result[-1]["net_delta"] is None
 
-    def test_empty_on_request_failure(self):
+    def test_empty_when_both_providers_yield_nothing(self):
         from api.services.call_recap import get_rating_changes
 
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
-             patch.dict("os.environ", {"FINNHUB_API_KEY": "test-key"}), \
-             patch("requests.get", side_effect=RuntimeError("network")):
+             patch("api.services.earnings_estimates._fmp_grades_historical",
+                   return_value=[]), \
+             patch("api.services.finnhub_client.fh_get", return_value=None):
+
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None
+            mock_cache_fn.return_value = mock_cache
+
+            result = get_rating_changes("NVDA")
+
+        assert result == []
+
+    def test_empty_on_no_ticker(self):
+        from api.services.call_recap import get_rating_changes
+        assert get_rating_changes("") == []
+        assert get_rating_changes(None) == []
+
+    def test_empty_on_fmp_and_finnhub_request_failure(self):
+        """End-to-end: FMP down (its own bounded try/except returns []) AND
+        Finnhub raising is swallowed by fh_get's own contract (never raises) —
+        confirms the composition layer here adds no new failure mode."""
+        from api.services.call_recap import get_rating_changes
+
+        with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.earnings_estimates._fmp_grades_historical",
+                   return_value=[]), \
+             patch("api.services.finnhub_client.fh_get", return_value=None):
 
             mock_cache = MagicMock()
             mock_cache.get.return_value = None

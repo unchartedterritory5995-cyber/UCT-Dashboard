@@ -291,46 +291,67 @@ class TestFetchQuarterlyHistoryOrderGuarantee:
         dates = [row["reportedDate"] for row in out]
         assert dates == ["2026-07-30", "2026-04-30", "2026-01-29", "2025-10-30"]
 
-    def test_av_fallback_response_is_also_sorted_newest_first(self, monkeypatch):
+    def test_blank_date_rows_never_reach_the_sort_fmp_filters_them_first(self, monkeypatch):
+        """A row with no date must never masquerade as 'most recent'. FMP's
+        own leg drops a blank/missing date BEFORE `_newest_first` ever sees
+        it (`if actual is None or estimated is None or not date_str:
+        continue`) -- this pins that filter down explicitly rather than
+        relying on it as an untested side effect."""
         from api.services import engine
-        monkeypatch.delenv("FMP_API_KEY", raising=False)
-        monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "test-key")
-        shuffled_av = {
-            "quarterlyEarnings": [
-                {"fiscalDateEnding": "2025-09-30", "reportedDate": "2025-10-28",
-                 "reportedEPS": "1", "estimatedEPS": "1"},
-                {"fiscalDateEnding": "2026-06-30", "reportedDate": "2026-07-29",
-                 "reportedEPS": "2", "estimatedEPS": "2"},
-                {"fiscalDateEnding": "2025-12-31", "reportedDate": "2026-01-27",
-                 "reportedEPS": "3", "estimatedEPS": "3"},
-            ]
-        }
-        monkeypatch.setattr("api.services.engine._av_get", lambda *a, **k: shuffled_av)
+        monkeypatch.setenv("FMP_API_KEY", "test-key")
+        mixed = [
+            {"date": "", "epsActual": 9.0, "epsEstimated": 9.0},
+            {"date": None, "epsActual": 8.0, "epsEstimated": 8.0},
+            {"date": "2026-04-30", "epsActual": 2.0, "epsEstimated": 1.9},
+        ]
+
+        class _FakeResp:
+            def json(self):
+                return mixed
+
+        monkeypatch.setattr("requests.get", lambda *a, **k: _FakeResp())
+
         out = engine._fetch_quarterly_history("AAPL")
         dates = [row["reportedDate"] for row in out]
-        assert dates == ["2026-07-29", "2026-01-27", "2025-10-28"]
+        assert dates == ["2026-04-30"]   # both blank-date rows dropped, not sorted-last
 
-    def test_an_unparseable_date_sorts_last_not_first(self, monkeypatch):
-        """A row with no date must never masquerade as 'most recent' — it
-        should sort to the END, not silently corrupt index-0. Exercised via
-        the AV-fallback branch, which (unlike FMP's) does not pre-filter
-        blank dates before handing rows to the sort — the only path that
-        actually reaches `_newest_first` with a blank-date row."""
+    def test_no_fmp_key_returns_empty_never_a_fabricated_fallback(self, monkeypatch):
+        """AlphaVantage's EARNINGS fallback was removed 2026-08-05 (data-
+        dependability migration plan, Phase 3 Task 12) -- AV's free tier is
+        capped at 25 requests/day (exhausted on every observation) and it
+        was the sole caller of a 13s-sleep-under-lock reachable from the
+        request path. A missing FMP key must now return [] honestly rather
+        than trying a second provider or raising.
+
+        Uses a call-recording spy rather than a raising one: an inlined AV
+        leg wrapped in the same broad `except Exception` this function
+        already uses for FMP would otherwise swallow a raising probe's
+        AssertionError and still return [] for the WRONG reason (a caught
+        exception) rather than the right one (AV was never attempted)."""
         from api.services import engine
         monkeypatch.delenv("FMP_API_KEY", raising=False)
-        monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "test-key")
-        mixed_av = {
-            "quarterlyEarnings": [
-                {"fiscalDateEnding": "", "reportedDate": "",
-                 "reportedEPS": "9", "estimatedEPS": "9"},
-                {"fiscalDateEnding": "2026-04-30", "reportedDate": "2026-04-30",
-                 "reportedEPS": "2", "estimatedEPS": "1.9"},
-            ]
-        }
-        monkeypatch.setattr("api.services.engine._av_get", lambda *a, **k: mixed_av)
-        out = engine._fetch_quarterly_history("AAPL")
-        dates = [row.get("reportedDate") for row in out]
-        assert dates == ["2026-04-30", ""]   # the dated row wins index 0, not the blank one
+        monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "test-key")  # present but must be UNUSED
+
+        calls = []
+
+        def _spy(url, *a, **k):
+            calls.append(url)
+            raise RuntimeError("network disabled in test")
+
+        monkeypatch.setattr("requests.get", _spy)
+        result = engine._fetch_quarterly_history("AAPL")
+        assert result == []
+        assert not any("alphavantage" in u for u in calls), (
+            f"AlphaVantage was contacted despite its EARNINGS leg being removed: {calls}")
+
+    def test_av_get_and_its_lock_no_longer_exist(self):
+        """Locks in the removal itself -- a regression that re-adds the AV
+        leg (and its 13s-sleep-under-lock, the request-path 524-outage risk
+        this task closed) would restore this attribute."""
+        from api.services import engine
+        assert not hasattr(engine, "_av_get")
+        assert not hasattr(engine, "_av_lock")
+        assert not hasattr(engine, "_av_last_call")
 
 
 class TestFetchQuarterlyHistoryCapAfterSort:
