@@ -49,6 +49,7 @@ function timeMin(t) {
   if (m[3].toLowerCase() === 'p') h += 12
   return h * 60 + Number(m[2])
 }
+const IMPACT_LVL = { low: 1, medium: 2, high: 3 }   // star threshold: 1★=all, 2★=med+high, 3★=high
 function fmtNum(v, digits = 2) {
   const n = Number(v)
   if (!Number.isFinite(n)) return '—'
@@ -234,23 +235,32 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   const isToday = selected === todayView
   const [tbdOpen, setTbdOpen] = useState(false)
 
-  // ── Data — the whole week for the selected date (same-week nav reuses the cache) ──
+  // ── Impact star filter (persisted per-widget): 1★ = all, 2★ = medium+high, 3★ = high. ──
+  const econStars = [1, 2, 3].includes(opts?.econStars) ? opts.econStars : 1
+  const setEconStars = useCallback((n) => onOptsChange?.({ ...(opts || {}), econStars: n }), [opts, onOptsChange])
+
+  // ── Data — the whole week for the selected date (same-week nav reuses the cache).
+  // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──
   const monday = mondayOfISO(selected)
-  const { data, isLoading } = useSWR(`/api/calendar?week=${monday}`, fetcher, {
+  const { data, isLoading } = useSWR(`/api/calendar?week=${monday}&full_impact=1`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
   const day = data?.days?.[selected] || null
 
+  const hasAnyEcon = (day?.econ?.length || 0) + (day?.fed?.length || 0) > 0
   const econItems = useMemo(() => {
     if (!day) return []
-    const econ = (day.econ || []).map(e => ({ time: e.time, event: e.event, estimate: e.estimate, prior: e.prior, actual: e.actual, key: !!e.is_key, fed: false }))
-    const fed = (day.fed || []).map(e => ({ time: e.time, event: e.event, note: e.note, key: true, fed: true }))
-    return [...econ, ...fed].sort((a, b) => timeMin(a.time) - timeMin(b.time))
-  }, [day])
+    const lvl = (imp) => (IMPACT_LVL[imp] || 2)   // unknown (curated far-week) → medium
+    const econ = (day.econ || []).map(e => ({ time: e.time, event: e.event, estimate: e.estimate, prior: e.prior, actual: e.actual, fed: false, lvl: lvl(e.impact) }))
+    const fed = (day.fed || []).map(e => ({ time: e.time, event: e.event, note: e.note, fed: true, lvl: lvl(e.impact) }))
+    return [...econ, ...fed]
+      .filter(x => x.lvl >= econStars)
+      .sort((a, b) => timeMin(a.time) - timeMin(b.time))
+  }, [day, econStars])
   const bmo = day?.bmo || []
   const amc = day?.amc || []
   const tbd = useMemo(() => [...(day?.tbd || [])].sort(mcapDesc), [day])
-  const nothing = !isLoading && day && econItems.length === 0 && bmo.length === 0 && amc.length === 0 && tbd.length === 0
+  const nothing = !isLoading && day && !hasAnyEcon && bmo.length === 0 && amc.length === 0 && tbd.length === 0
 
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
@@ -312,27 +322,41 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
           </div>
         )}
 
-        {econItems.length > 0 && (
+        {hasAnyEcon && (
           <div className={styles.section}>
             <div className={styles.sectionHead}>
               <span className={styles.headIcon}><UIcon name="globe" size={13} /></span>
               Economic Events<span className={styles.titleCount}>({econItems.length})</span>
+              <span className={styles.stars}>
+                {[1, 2, 3].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`${styles.starBtn}${n <= econStars ? ' ' + styles.starOn : ''}`}
+                    onClick={() => setEconStars(n)}
+                    title={n === 1 ? 'All events' : n === 2 ? 'Medium & high impact' : 'High impact only'}
+                    aria-label={n === 1 ? 'Show all events' : n === 2 ? 'Show medium and high impact' : 'Show high impact only'}
+                  ><UIcon name={n <= econStars ? 'star-fill' : 'star'} size={12} gold={false} /></button>
+                ))}
+              </span>
             </div>
-            {econItems.map((e, i) => (
-              <div key={`${e.time}-${e.event}-${i}`} className={`${styles.econRow}${e.key ? ' ' + styles.key : ''}`}>
-                <span className={styles.econTime}>{e.time || '—'}</span>
-                <div className={styles.econMain}>
-                  <div className={styles.econName}>{e.event}{e.fed && <span className={styles.fedTag}>FED</span>}</div>
-                  {!e.fed && (e.estimate != null || e.prior != null || e.actual != null) && (
-                    <div className={styles.econStats}>
-                      {e.actual != null && <span>act <b>{e.actual}</b></span>}
-                      {e.estimate != null && <span>est {e.estimate}</span>}
-                      {e.prior != null && <span>prior {e.prior}</span>}
-                    </div>
-                  )}
+            {econItems.length === 0
+              ? <div className={styles.econEmpty}>No events at this impact level.</div>
+              : econItems.map((e, i) => (
+                <div key={`${e.time}-${e.event}-${i}`} className={styles.econRow}>
+                  <span className={styles.econTime}>{e.time || '—'}</span>
+                  <div className={styles.econMain}>
+                    <div className={styles.econName}>{e.event}{e.fed && <span className={styles.fedTag}>FED</span>}</div>
+                    {!e.fed && (e.estimate != null || e.prior != null || e.actual != null) && (
+                      <div className={styles.econStats}>
+                        {e.actual != null && <span>act <b>{e.actual}</b></span>}
+                        {e.estimate != null && <span>est {e.estimate}</span>}
+                        {e.prior != null && <span>prior {e.prior}</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
 

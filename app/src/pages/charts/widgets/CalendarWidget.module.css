@@ -136,6 +136,21 @@
 .sectionHead .colBtn:hover, .headTitle:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
 .sectionHead .colActive { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
 .sortCaret { font-size: 0.72em; margin-left: 2px; font-weight: 700; }
+/* Impact star filter on the Economic Events header (1★ all · 2★ med+high · 3★ high). */
+.stars { margin-left: auto; display: inline-flex; align-items: center; gap: 1px; }
+.starBtn {
+  background: none; border: none; padding: 2px;
+  display: inline-flex; cursor: pointer;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+}
+.starBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.starOn { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.econEmpty {
+  padding: 10px 12px;
+  font-size: 0.78em;
+  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  opacity: 0.85;
+}
 
 /* Economic event row */
 .econRow {
