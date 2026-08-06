@@ -188,10 +188,10 @@
   cursor: pointer;
 }
 .earnRow:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.03)); }
-/* Clicked/selected row — stays highlighted; ↑/↓ moves the selection through the list. */
+/* Clicked/selected row — stays highlighted with the SAME grey as hover; ↑/↓ moves
+   the selection through the list. */
 .earnRowSelected, .earnRowSelected:hover {
-  background: color-mix(in srgb, var(--cal-gold-strong, #c9a84c) 13%, transparent);
-  box-shadow: inset 2px 0 0 var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  background: var(--cal-row-hover, rgba(255, 255, 255, 0.03));
 }
 .earnSym {
   font-family: var(--font-mono, monospace);
