@@ -34,6 +34,7 @@ THE FOUR RULES THIS MODULE EXISTS TO ENFORCE
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -382,6 +383,60 @@ def _fcb_remember_error(sym: str, payload: dict) -> None:
                 _FCB_NEG_CACHE.pop(key, None)
 
 
+def _fcb_ledger_signals(sym: str, bars) -> list[dict]:
+    """The nightly sweep's ALREADY-COMPUTED signals for this symbol — READ ONLY.
+
+    FCB is a daily, closed-bar signal, and the request path passes
+    `include_last=False`, so the newest bar it can ever fire on is the last
+    CLOSED session. The 20:05 ET sweep evaluated that same session last night
+    and wrote the result here. **During RTH the two cover the same window** —
+    no new closed bar has appeared since — so for a swept symbol this is not a
+    downgrade of the live compute, it is the same answer without the 15s read.
+
+    Bounded to the window `bars` covers, because the ledger is append-only and
+    holds every signal ever recorded; returning all of them would paint arrows
+    on a chart window that does not contain them.
+
+    Both sides of the window comparison go through `_bar_date_iso`, the ONE
+    decoder the flow join already uses, rather than comparing raw ints: the
+    ledger normalizes bar_time to a YYYYMMDD key and the bars store hands back
+    the same encoding today, but this module's entire history is encodings
+    drifting apart silently. ISO dates sort chronologically, so it is a plain
+    string compare.
+
+    Never raises: a fallback that can fail is not a fallback (rule 1).
+    """
+    if not bars:
+        return []
+    cutoff_iso = _bar_date_iso(bars[0]["t"])
+    want = rules.VERSIONS["fcb"]
+    out = []
+    try:
+        for row in ledger.get_signals(sym, limit=500):
+            if (row.get("indicator") != "fcb" or row.get("tf") != "1D"
+                    or row.get("version") != want):
+                continue
+            iso = _bar_date_iso(row.get("bar_time"))
+            if not iso or (cutoff_iso and iso < cutoff_iso):
+                continue
+            meta = {}
+            if row.get("meta_json"):
+                try:
+                    meta = json.loads(row["meta_json"]) or {}
+                except (TypeError, ValueError):
+                    meta = {}
+            out.append({"barTime": row["bar_time"], "direction": row["direction"],
+                        "close": row["price"], "version": row["version"],
+                        "callPrem": meta.get("callPrem"), "putPrem": meta.get("putPrem")})
+    except Exception:                              # noqa: BLE001 — see rule 1
+        logger.exception("signature: fcb ledger fallback read failed for %s", sym)
+        return []
+    # Ascending — lightweight-charts requires markers in ascending time order,
+    # and `get_signals` deliberately returns NEWEST-first.
+    out.sort(key=lambda s: _bar_date_iso(s["barTime"]))
+    return out
+
+
 def _fcb_build(sym: str) -> dict:
     try:
         # Bars FIRST: the flow window is derived from them. Reading flow with no
@@ -391,12 +446,23 @@ def _fcb_build(sym: str) -> dict:
         cutoff_iso = _bar_date_iso(bars[0]["t"]) if bars else ""
         by_date = _fetch_flow_by_date(sym, cutoff_iso)
         if by_date is None:
-            # No "signals" key at all: good() is `"signals" in p`, so this
-            # envelope is refused by the slot AND never written to the TTL
-            # cache — which is exactly why it must be remembered as an
-            # OUTAGE below, or every request rebuilds it.
-            payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
-                       "error": "flow unavailable", "asOf": time.time()}
+            # The live read failed. Before calling it a failure, ask the ledger
+            # what the nightly sweep already computed for this window.
+            recorded = _fcb_ledger_signals(sym, bars)
+            if recorded:
+                logger.warning("signature: fcb flow read failed for %s — serving %d "
+                               "signal(s) from the nightly ledger instead", sym, len(recorded))
+                payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                           "signals": recorded, "source": "ledger", "asOf": time.time()}
+            else:
+                # Nothing recorded for this symbol — an UNSWEPT symbol and a
+                # genuinely signal-free one are indistinguishable from here, so
+                # this stays a failure. No "signals" key at all: good() is
+                # `"signals" in p`, so the envelope is refused by the stale slot
+                # and never becomes "no signal" for the next 30 minutes
+                # (lesson_market_cap_cache_poison).
+                payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                           "error": "flow unavailable", "asOf": time.time()}
         else:
             _log_flow_join(sym, by_date)
             signals = fcb_signals(bars, by_date, include_last=False)  # NEVER the forming session
