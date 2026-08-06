@@ -765,3 +765,28 @@ def test_a_pre_open_warm_is_registered_for_every_trading_morning():
     assert re.search(r'hour=9,\s*minute=5', block), "expected 9:05 ET, before the 9:30 open"
     assert 'day_of_week="mon-fri"' in block, "no need to warm on a weekend"
     assert "from api.services.breadth_live import warm" in block
+
+
+def test_the_session_is_sampled_on_a_clock_not_on_traffic():
+    """The intraday store originally recorded only when someone called the
+    endpoint, so the session path was a record of who happened to be looking.
+    Observed on the first live session: six points in an hour, with a
+    47-minute hole spanning the stretch nobody opened the page.
+
+    ⚠️ `timezone=_ET` is load-bearing — a naive cron samples on the container's
+    UTC clock and would cover 09:00-16:00 UTC, i.e. overnight in New York.
+    """
+    import re
+    from pathlib import Path
+    text = (Path(__file__).resolve().parent.parent / "api" / "main.py").read_text(encoding="utf-8")
+    assert "breadth_live_intraday_sample" in text, "intraday sampler is not registered"
+    i = text.index("breadth_live_intraday_sample")
+    block = text[i - 1200:i + 200]
+    assert "timezone=_ET" in block, "sampler must be ET-anchored, not the container's UTC"
+    assert re.search(r'hour="9-16"', block), "expected regular hours only"
+    assert re.search(r'minute="\*"', block), "expected a per-minute tick"
+    assert 'day_of_week="mon-fri"' in block, "no session on a weekend"
+    # coalesce + a grace window so a busy loop collapses missed ticks into one
+    # rather than firing a burst of identical computations.
+    assert "coalesce=True" in block
+    assert "misfire_grace_time" in block
