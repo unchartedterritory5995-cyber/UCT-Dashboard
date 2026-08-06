@@ -276,7 +276,17 @@ describe('Parabolic SAR', () => {
   it('does not leak isUptrend into any column', () => {
     const def = getDefinition('sar')
     const cols = computeFor(def, BARS, {})
-    expect(Object.keys(cols)).toEqual(['sar'])
+    // ⭐ THREE COLUMNS SINCE PHASE C, NOT ONE — and this line USED TO READ
+    // `toEqual(['sar'])`. `priceCrossedSar` and `trendFlipped` are `sar`'s two
+    // declared EVENTS, and events are columns (spec §3.1); `registerDefinitions`
+    // refuses the definition if they do not come back. The claim this case
+    // actually makes is unchanged and is the one below: `isUptrend` still never
+    // reaches a column. `trendFlipped` is that flag's CHANGE, which is a number
+    // in a `{0, 1, NaN}` domain — not the boolean riding on the point.
+    // Their VALUES are pinned in both lanes by
+    // `tests/fixtures/indicators/sar_events_*.json`; the wiring is asserted in
+    // `__tests__/eventColumns.test.js`.
+    expect(Object.keys(cols)).toEqual(['sar', 'priceCrossedSar', 'trendFlipped'])
     expect(JSON.stringify(Object.keys(cols))).not.toMatch(/isUptrend/)
     const raw = computeParabolicSAR(BARS, 0.02, 0.2)
     expect(raw.some(p => 'isUptrend' in p)).toBe(true)   // it IS there upstream

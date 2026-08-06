@@ -25,10 +25,20 @@
 // bar. NaN is the gap value (not null, not 0) so `Number.isFinite` is the single
 // "is there a value here" test, exactly as `indicators.js` established in B1.
 //
-// One column per DATA-BEARING plot. `hlines` plots — the 70/50/30 guides and
-// friends — are static levels, not series: they declare `levels` and return no
-// column. `columnKeys(def)` is the authority on which plots bear data, and
-// nothing else in the engine should re-derive that rule.
+// One column per DATA-BEARING plot AND ONE PER DECLARED EVENT. `hlines` plots —
+// the 70/50/30 guides and friends — are static levels, not series: they declare
+// `levels` and return no column. `columnKeys(def)` is the authority on which
+// keys bear data, and nothing else in the engine should re-derive that rule.
+//
+// ⭐ THIS PARAGRAPH USED TO SAY "one column per DATA-BEARING PLOT" and stop
+// there, which was true for the whole of B1-B5 and is now half the rule.
+// `events[]` was in the schema from B1 and read by nothing: `columnKeys` looked
+// at `def.plots` only, so an event could be declared, computed nothing, and
+// register cleanly. Phase C Task 4 widened `columnKeys` to the union and added a
+// REGISTRATION-TIME gate (`validateEventColumns`) that runs the compute over a
+// probe series and refuses a definition whose event names no column or whose
+// event column holds anything but 0, 1 or NaN. `sar` is the first definition to
+// declare any.
 //
 // hasAnyFinite() REPLACES `.length` AS THE PANE-EXISTENCE TEST
 // ------------------------------------------------------------
@@ -66,6 +76,7 @@
 import {
   validateDefinition,
   validateSourceReferents,
+  isEventColumnValue,
   SCHEMA_VERSION,
 } from './defSchema'
 import {
@@ -83,6 +94,7 @@ import {
   computeOBV,
   computeDonchian,
   computeParabolicSAR,
+  computeParabolicSAREvents,
 } from '../indicators'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
@@ -370,7 +382,15 @@ const RAW_DEFS = [
     ]),
 
   // ── Parabolic SAR ────────────────────────────────────────────────────────
-  nativeDef('sar', 'sar',
+  //
+  // ⭐ THE FIRST DEFINITION IN THE PLATFORM TO DECLARE `events`, and the reason
+  // the array stopped being inert. `sar` is deliberately NOT alertable by a fixed
+  // threshold — the value jumps to the other side of price at every flip, so the
+  // same number means "trailing below an uptrend" one bar and "above a downtrend"
+  // the next (`indicator_alert_evaluator._SAR_IS_NOT_OFFERED` writes that out and
+  // a test asserts the prose survives). Phase C's answer is to address it BY
+  // EVENT instead, and these two are the addresses.
+  ({ ...nativeDef('sar', 'sar',
     { name: 'Parabolic SAR', shortName: 'SAR', category: 'Trend',
       description: 'A trailing dot that flips side when the trend does.',
       tags: ['overlay', 'trend', 'stops'] },
@@ -391,6 +411,16 @@ const RAW_DEFS = [
       { key: 'sar', label: 'SAR', style: 'markers', color: '$color', width: 3, role: 'primary',
         legend: { decimals: 4 } },
     ]),
+    // ⚠️ AN EVENT IS A COLUMN, NOT A SERIES. These two draw nothing — they gain no
+    // pool key, no pane and no legend chip — which is why they are `events[]` and
+    // not plots with a style. `NATIVE_COMPUTE.sar` returns a `{0,1,NaN}` column
+    // for each, `registerDefinitions` refuses this definition if it does not, and
+    // the shared fixture `tests/fixtures/indicators/sar_events_default.json` pins
+    // both against the Python lane at rel-tol 1e-9.
+    events: [
+      { key: 'priceCrossedSar', label: 'Price crossed SAR' },
+      { key: 'trendFlipped', label: 'SAR trend flipped' },
+    ] }),
 
   // ── Ichimoku Cloud ───────────────────────────────────────────────────────
   nativeDef('ichimoku', 'ichimoku',
@@ -577,7 +607,17 @@ const NATIVE_COMPUTE = {
   // `isUptrend` rides on every SAR point (a preserved quirk — indicators.js
   // docstring §2). Reading only `.value` here is what keeps it out of the
   // columns; a generic "copy the object" adapter would have carried it through.
-  sar: (bars, p) => ({ sar: computeParabolicSAR(bars, p.step, p.maxStep) }),
+  //
+  // ⭐ AND SINCE PHASE C IT RETURNS THREE COLUMNS, NOT ONE. `priceCrossedSar` and
+  // `trendFlipped` are `sar`'s two declared events, and events are columns — the
+  // schema now refuses to register a definition whose events name no column, so
+  // these two are not optional. They are DERIVED from the same SAR pass (see
+  // `computeParabolicSAREvents`), never a second loop, and `isUptrend` still does
+  // not reach a column: `trendFlipped` is the flag's CHANGE, which is a number.
+  sar: (bars, p) => ({
+    sar: computeParabolicSAR(bars, p.step, p.maxStep),
+    ...computeParabolicSAREvents(bars, p.step, p.maxStep),
+  }),
 
   ichimoku: (bars, p) => {
     const raw = computeIchimoku(bars, p.tenkanPeriod, p.kijunPeriod, p.senkouBPeriod)
@@ -728,8 +768,21 @@ function resolveInputs(def, inputs) {
 // ─── public surface ──────────────────────────────────────────────────────────
 
 /**
- * The plot keys a definition returns a COLUMN for: every plot except static
- * `hlines` guides, which draw declared levels and compute nothing.
+ * The column keys a definition's compute must return: every plot except static
+ * `hlines` guides, PLUS every declared event.
+ *
+ * ⭐ EVENTS JOIN PLOTS HERE, AND THAT ONE-LINE WIDENING IS WHAT MAKES `events[]`
+ * REAL. Until Phase C this function read `def.plots` only, so an event could be
+ * declared and was inert: nothing computed a column for it, nothing checked that
+ * one came back, and `defSchema.validateEvent` guarded only the key's SHAPE.
+ * `validateEvent` has always guaranteed events and plots share ONE namespace (a
+ * collision is a registration error), so the union cannot alias.
+ *
+ * ⚠️ THIS IS NO LONGER "the data-bearing PLOTS", and a caller that wants those
+ * must say so. `pool.js::dataPlots` is the one that does — it filters
+ * `def.plots` itself because a plan needs the whole plot object (style, colour,
+ * width), and an event has no plot object at all. Feeding an event key to
+ * `poolKey` would ask the renderer for a series to draw a signal in.
  *
  * The engine's one place for this rule. `computeFor` deliberately does NOT build
  * its output from this list — it builds from what the native actually returned —
@@ -737,9 +790,14 @@ function resolveInputs(def, inputs) {
  * silently empty column.
  */
 export function columnKeys(def) {
-  return (def?.plots || [])
-    .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
-    .map(p => p.key)
+  return [
+    ...(def?.plots || [])
+      .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
+      .map(p => p.key),
+    ...(def?.events || [])
+      .filter(e => e && typeof e.key === 'string')
+      .map(e => e.key),
+  ]
 }
 
 /**
@@ -791,15 +849,113 @@ export function computeFor(def, bars, inputs) {
 }
 
 /**
+ * The canned series every event-declaring definition is computed over at
+ * registration.
+ *
+ * 200 bars because the longest warmup among the natives is Ichimoku's 52 and the
+ * check has to see COMPUTED bars, not just pad — a probe short enough to leave a
+ * column entirely NaN would pass the domain check while measuring nothing.
+ *
+ * Deterministic and DELIBERATELY OSCILLATING: `t` steps a real 5-minute bar,
+ * and the price walks a sum of two out-of-phase sines so it reverses hard enough
+ * to make SAR flip repeatedly. A monotonic ramp would leave `trendFlipped` all
+ * zeros, which is still a legal column — but then a definition whose events were
+ * silently constant would look exactly like one whose events work.
+ */
+const EVENT_PROBE_BARS = (() => {
+  const bars = []
+  for (let i = 0; i < 200; i++) {
+    const mid = 100 + 6 * Math.sin(i / 5.5) + 2.5 * Math.sin(i / 1.7)
+    bars.push({
+      t: 1780272000 + i * 300,
+      o: mid - 0.15, h: mid + 0.7, l: mid - 0.7, c: mid,
+      v: 100000 + (i * 7919) % 50000,
+    })
+  }
+  return bars
+})()
+
+/**
+ * Every declared event returns a column, and every value in it is 0, 1 or NaN.
+ *
+ * ⭐ THIS IS THE HALF `defSchema` CANNOT DO. `validateDefinition` is a pure
+ * function of one definition and never runs a compute lane, so "the key names a
+ * returned column" and "that column is {0,1,NaN}" have to be asked HERE, where a
+ * compute exists. A schema that only checks the DECLARATION is a schema that
+ * lets a bad column ship: before this, a definition could name three events,
+ * return nothing for any of them, and register cleanly.
+ *
+ * ⚠️ IT RUNS ONLY FOR DEFINITIONS THAT DECLARE EVENTS, on purpose. Thirteen of
+ * the fourteen natives declare none, so there is nothing to check and no probe
+ * compute to pay for; the day one grows an event it starts paying, which is the
+ * right shape. (The PLOT columns are covered by `nativeRegistry.test.js`'s
+ * column-set assertion, which is a test rather than a registration gate because
+ * a plot that returns nothing renders nothing — visible — while an event that
+ * returns nothing is a signal nobody can see is missing.)
+ *
+ * ⚠️ A compute that THROWS is an error, not a skip. `computeFor` throws on an
+ * unknown `compute.fn`, and a definition whose events cannot be computed at all
+ * is exactly the definition this gate exists to refuse.
+ *
+ * @returns {string[]} errors, empty when every event column is honest.
+ */
+function validateEventColumns(def) {
+  const events = Array.isArray(def?.events) ? def.events : []
+  if (!events.length) return []
+
+  let columns
+  try {
+    columns = computeFor(def, EVENT_PROBE_BARS, {})
+  } catch (err) {
+    return [
+      `events: compute could not be run to check the event columns `
+      + `(${err && err.message ? err.message : String(err)}) — a definition that declares `
+      + `events must be computable, or the events are a promise nothing keeps`,
+    ]
+  }
+
+  const errors = []
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i]
+    if (!ev || typeof ev.key !== 'string') continue   // already reported by defSchema
+    const path = `events[${i}]`
+    const col = columns[ev.key]
+    if (col === undefined || col === null || typeof col.length !== 'number') {
+      errors.push(
+        `${path}.key: ${JSON.stringify(ev.key)} returned no column — an event IS a column `
+        + `(spec §3.1), so a key its compute never produces is a signal that can never fire. `
+        + `Columns returned: ${Object.keys(columns).join(', ') || 'none'}`,
+      )
+      continue
+    }
+    for (let j = 0; j < col.length; j++) {
+      if (isEventColumnValue(col[j])) continue
+      errors.push(
+        `${path}.key: column ${JSON.stringify(ev.key)}[${j}] must be 0, 1 or NaN — got ${col[j]}. `
+        + `An event column is a {0, 1, NaN} domain: 1 is "it happened", 0 is "computed, did not `
+        + `happen", NaN is the warmup pad. Any other value would be read as a signal by the `
+        + `alert grammar, the screener and the AST lane alike.`,
+      )
+      break   // one bad column, one error — a mis-scaled column would report 200
+    }
+  }
+  return errors
+}
+
+/**
  * Validate and index a batch of definitions.
  *
- * Two passes, because they answer two different questions:
+ * THREE passes, because they answer three different questions:
  *   1. `validateDefinition` — is each definition well-formed ON ITS OWN?
  *   2. `validateSourceReferents` — do its `source` inputs point at columns that
  *      EXIST? That needs the whole batch, which is why it could not live in
  *      defSchema's per-definition validator (B2 Task 2 carry-in b). A `source`
  *      resolving to nothing would silently compute over the wrong series, so it
  *      is rejected at registration exactly like an unresolvable `$ref`.
+ *   3. `validateEventColumns` — does every declared event actually COME BACK,
+ *      valued `{0, 1, NaN}`? That needs a compute, which is why it could not
+ *      live there either (Phase C Task 4). **A definition that lies about its
+ *      events must not register.**
  *
  * Never throws: a bad definition is DATA about a problem. Callers decide whether
  * a rejection is fatal — for the natives below it is, because they are authored
@@ -831,6 +987,11 @@ export function registerDefinitions(rawDefs) {
     const srcErrors = validateSourceReferents(def, resolve)
     if (srcErrors.length) {
       errors.push(...srcErrors.map(e => `${def.id}: ${e}`))
+      continue
+    }
+    const eventErrors = validateEventColumns(def)
+    if (eventErrors.length) {
+      errors.push(...eventErrors.map(e => `${def.id}: ${e}`))
       continue
     }
     defs.push(def)
