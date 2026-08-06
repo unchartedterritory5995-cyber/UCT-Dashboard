@@ -627,13 +627,89 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
 _PAST_SESSION_CAP = 150
 
 
+def _fetch_finviz_past_sessions(past_ds: set[str]) -> dict[str, dict[str, str]]:
+    """{date: {SYM: 'bmo'|'amc'}} for this week's ALREADY-PASSED days, from
+    Finviz Elite's CUSTOM export.
+
+    This exists because the claim in `_backfill_past_days` — that Finviz rolls
+    a reported company forward and stops matching `earningsdate_thisweek` — is
+    true of the PRESET view (`v=111`) the live path uses, and NOT of the custom
+    view. Measured 2026-08-06, `v=152&c=0,1,68` returned the whole week
+    including every past day: Mon 125, Tue 314, Wed 464, Thu 473, Fri 51.
+    (`earningsdate_prevweek` retains a further week — unused here, since this
+    function only serves the current week's history.)
+
+    Finviz encodes the session as a SENTINEL CLOCK TIME, not a real one:
+    8:30 AM = BMO, 4:30 PM = AMC, and those two values covered 1,427 of 1,429
+    rows. Parsed as a threshold rather than an equality so a future sentinel
+    change degrades to `tbd` instead of silently mislabelling every row.
+
+    ⚠️ The export mixes TWO date formats in one response (`8/6/2026` and
+    `08/06/2026`); matching only the unpadded one silently drops rows.
+
+    Never raises — a Finviz failure must leave the past-day merge exactly as
+    it was. Returns {} when the token is absent.
+    """
+    token = os.environ.get("FINVIZ_API_KEY") or os.environ.get("FINVIZ_TOKEN")
+    if not token or not past_ds:
+        return {}
+    url = (f"https://elite.finviz.com/export.ashx?v=152"
+           f"&f=earningsdate_thisweek&c=0,1,68&auth={token}")
+    try:
+        import requests as _rq, csv as _csv, io as _io
+        r = _rq.get(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/csv"},
+                    timeout=20, allow_redirects=True)
+        if not r.ok:
+            _logger.warning("Finviz session fetch HTTP %d", r.status_code)
+            return {}
+        rows = list(_csv.DictReader(_io.StringIO(r.text)))
+    except Exception as exc:
+        _logger.warning("Finviz session fetch failed: %s", exc)
+        return {}
+
+    out: dict[str, dict[str, str]] = {}
+    for row in rows:
+        sym = (row.get("Ticker") or "").strip().upper()
+        raw = (row.get("Earnings Date") or "").strip()
+        if not sym or not raw:
+            continue
+        parts = raw.split(None, 1)
+        try:
+            m, d, y = (int(x) for x in parts[0].split("/"))   # handles 8/6 and 08/06
+            ds = date(y, m, d).isoformat()
+        except (ValueError, IndexError):
+            continue
+        if ds not in past_ds:
+            continue
+        timing = None
+        if len(parts) > 1:
+            try:
+                t = datetime.strptime(parts[1].strip(), "%I:%M:%S %p").time()
+                if t.hour < 9 or (t.hour == 9 and t.minute < 30):
+                    timing = "bmo"
+                elif t.hour >= 16:
+                    timing = "amc"
+            except ValueError:
+                timing = None
+        if timing:
+            out.setdefault(ds, {})[sym] = timing
+    return out
+
+
 def _backfill_past_days(days: dict, week_dates: list[date], today: date,
                         cap_uni: set | None) -> int:
     """Refill the current week's ALREADY-PASSED days from Finnhub's range calendar.
 
-    EarningsWhispers and Finviz are forward-looking SCHEDULES, not archives: once
-    a company reports, EW drops it from that date and Finviz's `Earnings` column
-    rolls to the next quarter, so `earningsdate_thisweek` stops matching it.
+    EarningsWhispers is a forward-looking SCHEDULE, not an archive: once a
+    company reports, EW drops it from that date.
+
+    Finviz was believed to behave the same way ("its `Earnings` column rolls to
+    the next quarter, so `earningsdate_thisweek` stops matching it"). That is
+    true only of the PRESET view (`v=111`) the live path uses. The CUSTOM view
+    retains the whole week including past days — measured 2026-08-06, `v=152`
+    returned Mon 125 / Tue 314 / Wed 464 against EW's handful. It is now the
+    third leg below, where it resolves the session field the other two are
+    weakest on. See `_fetch_finviz_past_sessions`.
     `_build_live` rebuilds the whole week on every cache miss, so Monday — then
     Tuesday — progressively empties while the week is still open (2026-07-30: EW
     served 2 names for Mon 7/27 and 6 for Tue 7/28 against Finnhub's 119 / 180).
@@ -779,6 +855,68 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
                 sym_index.setdefault(ds, {})[sym] = entry
                 added += 1
                 touched.add(ds)
+
+        # ── Finviz Elite leg — a THIRD independent past-day source.
+        #
+        # Measured on the real week 2026-08-03..05 (A/B, this leg on vs off):
+        #
+        #     Finnhub + FMP          911 reporters, 647 with a session
+        #     + Finviz               980 reporters, 717 with a session
+        #     Finnhub DOWN, FMP only   0 reporters
+        #     Finnhub DOWN, + Finviz 692 reporters, ALL sessioned
+        #
+        # That last pair is why this leg earns its place. The docstring above
+        # credits the FMP leg with keeping a past day non-empty when Finnhub
+        # 429s — measured, FMP alone returned NOTHING for these dates, so a
+        # Finnhub outage emptied the week's history entirely. Finviz turns that
+        # blackout into 692 fully-sessioned reporters.
+        #
+        # It does NOT rescue "Time TBD", which is what this leg was originally
+        # built for: of the 264 tbd rows Finnhub+FMP leave behind, Finviz had a
+        # session for exactly ONE. The two populations are near-disjoint —
+        # Finviz's screener simply does not carry those names. The +70 sessioned
+        # rows above are symbols it ADDS, not tbd rows it re-buckets.
+        #
+        # Runs LAST on purpose: it only ever fills a session that is missing.
+        # Finnhub's `hour` still wins where it exists — redundancy for a gap,
+        # never a second opinion overriding a good answer.
+        fv_sessions = _fetch_finviz_past_sessions(past_ds)
+        moved = 0
+        for ds, sym_timing in fv_sessions.items():
+            day = days.get(ds)
+            if day is None:
+                continue
+            for sym, timing in sym_timing.items():
+                if not _keep(sym):
+                    continue
+                # Scan the DAY, not just `sym_index`. That index only holds what
+                # the Finnhub/FMP legs touched — a symbol the live EW schedule
+                # already placed is absent from it, so trusting the index here
+                # appended a DUPLICATE row for every such name. (Caught by
+                # test_moves_a_tbd_entry_into_its_real_session.)
+                existing = next((e for e in _day_entries(day) if e.get("sym") == sym), None)
+                if existing is None:
+                    day.setdefault(timing, []).append({
+                        "sym": sym, "eps_est": None, "eps_act": None,
+                        "rev_est": None, "rev_act": None,
+                        "ew": 0, "mc_b": None, "time_et": None,
+                    })
+                    sym_index.setdefault(ds, {})[sym] = day[timing][-1]
+                    added += 1
+                    touched.add(ds)
+                    continue
+                # Already known — move it out of `tbd` into its real session.
+                # Entries live IN the bucket lists, so re-bucketing means
+                # removing from tbd and appending; mutating a field would
+                # leave it rendering under the wrong heading.
+                tbd = day.get("tbd") or []
+                if existing in tbd and timing in ("bmo", "amc"):
+                    tbd.remove(existing)
+                    day.setdefault(timing, []).append(existing)
+                    moved += 1
+                    touched.add(ds)
+        if moved:
+            _logger.info("Calendar: Finviz resolved %d past-day sessions out of Time TBD", moved)
 
         # Re-order + re-cap only the days the backfill touched. EW-ranked names
         # stay on top (that ordering is what the live path serves); the ew=0
