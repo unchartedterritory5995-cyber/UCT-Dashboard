@@ -35,7 +35,42 @@ def _rsi(closes, n=14):
 
 
 def _pct(a, b):
-    return round((a - b) / b * 100, 2) if b else None
+    # `if b` guarded the DENOMINATOR only, so a null numerator raised
+    # TypeError instead of returning None — and a bar with a null close is
+    # ordinary (halted names, a thin tape, a provider gap). That took down the
+    # whole row build in snapshot_builder.build_row, not just this one field.
+    # Both operands must be real numbers; anything else has no percentage.
+    if a is None or not b:
+        return None
+    try:
+        return round((a - b) / b * 100, 2)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def usable_bars(bars: list[dict]) -> list[dict]:
+    """Bars whose O/H/L/C are all real, finite numbers.
+
+    The screener's four bar consumers — compute_technicals, single_candle,
+    multi_candle, detect_patterns — all do bare arithmetic on these fields.
+    A single null anywhere raised TypeError out of whichever one reached it
+    first and killed the ENTIRE row in snapshot_builder.build_row: every
+    field lost, for a ticker whose only problem was one session without a
+    print. Bars are sanitized ONCE at the build_row boundary rather than
+    guarded inside five functions.
+
+    Requires all four fields, not just the close: `gap_pct` reads `o`, ADR
+    reads `h`/`l`, and the candle/pattern modules read all four. A bar
+    missing any of them cannot produce a screener row anyway.
+
+    `x == x` rejects NaN (which is a float and passes isinstance); the bool
+    check rejects True/False, which are ints in Python and would otherwise
+    sail through as prices of 1 and 0.
+    """
+    def ok(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
+
+    return [b for b in (bars or []) if all(ok(b.get(k)) for k in ("o", "h", "l", "c"))]
 
 
 def compute_technicals(bars: list[dict]) -> dict:
@@ -48,6 +83,25 @@ def compute_technicals(bars: list[dict]) -> dict:
     out["new_52w_high"] = False
     if not bars:
         return out
+
+    # Drop bars without a usable numeric close BEFORE anything reads them.
+    # `_rsi`, `_sma`, `_ema` and the ADR loop each do bare arithmetic on
+    # `closes`, so ONE null close anywhere in the series raised TypeError out
+    # of compute_technicals and killed the entire row in
+    # snapshot_builder.build_row — every field lost, not just the one that
+    # touched the gap. Guarding each consumer would be a game of whack-a-mole
+    # across five functions; sanitizing the input once fixes the family.
+    #
+    # Filtered as WHOLE BARS, never as a separate `closes` list: `gap_pct`,
+    # ADR and the 52-week window index off `bars` while everything else
+    # indexes off `closes`, so filtering only one of them would silently pair
+    # today's open with some other session's close. A dropped bar shifts the
+    # lookbacks by design — "vs the prior session that actually printed" is
+    # the honest reading of a gap in the tape.
+    bars = usable_bars(bars)
+    if not bars:
+        return out
+
     closes = [b["c"] for b in bars]
     price = closes[-1]
     out["price"] = price
