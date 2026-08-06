@@ -1219,9 +1219,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       d => d.plots.filter(p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
         .map(p => `${d.id}::${p.key}`)).sort()
     expect(declared, 'a chip-bearing plot lost its `legend` declaration — a user\'s chip ' +
-      'disappears the moment one of these nine loses it, on EITHER lane').toEqual([
+      'disappears the moment one of these ten loses it, on EITHER lane').toEqual([
       'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
-      'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+      // TEN AT PHASE C TASK 13. `rsLine` takes its own PANE, and a pane whose
+      // crosshair prints nothing is a value you cannot read. Kept an EQUALITY, so a
+      // DROP among the others still fails.
+      'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
     ])
     // ⭐ AND THE SPLIT BETWEEN THE TWO LANES, WHICH IS WHAT B5 MOVES. This loop
     // used to read *"for `stoch`, `atr`, `sar`, `ichimoku`: NOT migrated — B4
@@ -1236,7 +1239,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // and the empty list is now itself a claim: it is what licensed deleting the
     // registrar, and re-populating it without also re-adding a producer is a chip
     // drawn by nobody.
-    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku']
+    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -1309,7 +1312,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const wide = mergeChartSettings(JSON.parse(JSON.stringify({ settingsVersion: 2, indicators: all })))
     expect(Object.keys(wide.indicators)).toEqual(['volumeProfile'])
     expect(Object.keys(all), 'the fixture named nothing — the destruction above is vacuous')
-      .toHaveLength(16)
+      .toHaveLength(17)
     // …and the frozen capture writes the same one key, through the wrapper.
     const frozen = JSON.parse(uctDefaultChartSettings())
     expect(Object.keys(frozen.indicators)).toEqual(['volumeProfile'])
@@ -1399,8 +1402,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // every chart while leaving this file's `[]` above perfectly green.
   it('⛔ …and every definition still resolves a compute — the exports are NOT dead', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(16)
-    for (const def of defs) {
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
+    // THE SERVER LANE IS SKIPPED HERE AND ONLY HERE. This case is about the
+    // `compute*` EXPORTS not being dead; a `compute.kind: 'server'` definition has
+    // no export to be dead, its columns are FETCHED, and `computeFor` correctly
+    // returns {} with no ctx. Derived from the kind and then CHECKED, so a native
+    // re-declared `server` to dodge this rail is itself a failure.
+    const serverLane = defs.filter(d => d.compute.kind === 'server').map(d => d.id)
+    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine'])
+    for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
       const cols = engineRegistry.computeFor(def, PROBE_BARS, {})
@@ -2007,9 +2017,10 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // fourteen get (it forbids the id appearing in that file in ANY form).
     avwap: [],
     atrBands: [],
+    rsLine: [],
   }
   /** The definitions that never had a hand-written block to retire. */
-  const NEVER_MIGRATED = ['avwap', 'atrBands']
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2018,7 +2029,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null,
+    avwap: null, atrBands: null, rsLine: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2308,7 +2319,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 16,
+      flipSetSize: 17,
       mutableSets: [],
     })
   })
@@ -2499,7 +2510,7 @@ describe('the surviving enumeration is the registry, and it has to stay complete
   // real merge — for every definition there is.
   it('every definition is REACHABLE from a v1 blob that names it', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(16)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
     const unreachable = []
     for (const def of defs) {
       const blob = JSON.stringify({ indicators: { [def.id]: { enabled: true } } })
