@@ -507,3 +507,62 @@ describe('buildQuarters — beat_history sort + index-alignment trust (DECISION 
     expect(rows.every((r) => r.reaction_pct != null)).toBe(true)
   })
 })
+
+describe('one print must not render as two quarters', () => {
+  // Live on prod 2026-08-06: JAZZ's 2026-08-03 print appeared as BOTH
+  // "Q2 26" (from history) and "Q3 26" (a label invented by quarterLabel's
+  // calendar-month fallback), because the calendar row carried no fiscal
+  // identity so the fiscal-key dedupe could not fire. Every existing fixture
+  // supplied the fiscal fields the real row lacks, so no test saw it.
+  const fmpHistory = [
+    { period: '2026-06-30', report_date: '2026-08-03', actual: 5.71,
+      estimate: 6.18, year: 2026, quarter: 2, revenue_actual: 1208300000 },
+    { period: '2026-03-31', report_date: '2026-05-05', actual: 6.34,
+      estimate: 4.64, year: 2026, quarter: 1, revenue_actual: 1068900000 },
+  ]
+
+  it('dedupes on the announcement date when the row has no fiscal identity', () => {
+    const out = buildQuarters({
+      beatHistory: fmpHistory,
+      histStats: null,
+      reportDate: '2026-08-03',
+      row: { sym: 'JAZZ', reported_eps: 5.71, eps_estimate: 6.30 },  // no year/quarter
+    })
+    expect(out).toHaveLength(2)
+    const labels = out.map((q) => q.quarter)
+    expect(new Set(labels).size).toBe(labels.length)
+    expect(labels).not.toContain('Q3 26')
+  })
+
+  it('still dedupes on fiscal identity when the row does carry it', () => {
+    const out = buildQuarters({
+      beatHistory: fmpHistory,
+      histStats: null,
+      reportDate: '2026-08-03',
+      row: { sym: 'JAZZ', year: 2026, quarter: 2, reported_eps: 5.71 },
+    })
+    expect(out).toHaveLength(2)
+  })
+
+  it('still appends a genuinely NEW upcoming report', () => {
+    // The guard must not swallow a real future quarter — that would delete
+    // the implied-move bar the section exists to draw.
+    const out = buildQuarters({
+      beatHistory: fmpHistory,
+      histStats: null,
+      reportDate: '2026-11-04',
+      row: { sym: 'JAZZ', eps_estimate: 6.42 },
+    })
+    expect(out).toHaveLength(3)
+    expect(out[out.length - 1].reported).toBe(false)
+  })
+
+  it('carries revenue through from the FMP leg', () => {
+    const out = buildQuarters({
+      beatHistory: fmpHistory, histStats: null,
+      reportDate: '2026-11-04', row: { sym: 'JAZZ' },
+    })
+    const q1 = out.find((q) => q.quarter === 'Q1 26')
+    expect(q1.revenue_actual).toBeCloseTo(1068.9, 1)   // millions
+  })
+})
