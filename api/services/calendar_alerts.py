@@ -75,12 +75,50 @@ def try_record_alert(user_id: str, ticker: str, market_date: str) -> bool:
 
 # ── Collect reporters for a market date ──────────────────────────────────────
 
+def _fmp_reporters_for_date(market_date: str) -> set[str]:
+    """FMP `stable/earnings-calendar` breadth leg — ONE call scoped to the
+    single `market_date` (never a multi-day range: a wider FMP calendar call
+    silently truncates and is NOT date-fair — see
+    `api/services/implied_store.py:384-398` / `api/routers/calendar.py`'s
+    `_fmp_calendar_day`, the same idiom mirrored here). Used only when the
+    cache + Finnhub legs above came back empty; only ever CONTRIBUTES symbols
+    (this function has no concept of session, so it never decides bmo/amc —
+    callers only need the raw reporting set for a watchlist intersection).
+    Never raises; returns empty set on failure or missing key."""
+    import os
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return set()
+    try:
+        import requests
+        resp = requests.get(
+            "https://financialmodelingprep.com/stable/earnings-calendar",
+            params={"from": market_date, "to": market_date, "apikey": key},
+            timeout=10,
+        )
+        if not resp.ok:
+            return set()
+        data = resp.json()
+    except Exception as e:
+        _logger.debug("[cal-alerts] FMP fallback failed: %s", e)
+        return set()
+    if not isinstance(data, list):
+        return set()
+    return {
+        (row.get("symbol") or "").strip().upper()
+        for row in data
+        if isinstance(row, dict) and row.get("symbol")
+    }
+
+
 def _get_reporters_for_date(market_date: str) -> set[str]:
     """Return the set of ticker symbols reporting on market_date.
 
     Pulls from the weekly calendar cache (calendar_weekly) — built by the
-    /api/calendar endpoint — then falls back to a live Finnhub fetch.
-    Never raises; returns empty set on failure.
+    /api/calendar endpoint — then falls back to a live Finnhub fetch, then to
+    an FMP breadth leg so a Finnhub throttle/429 does not silently zero out
+    the alert run for the day. Never raises; returns empty set on total
+    failure.
     """
     result: set[str] = set()
     try:
@@ -113,7 +151,13 @@ def _get_reporters_for_date(market_date: str) -> set[str]:
     except Exception as e:
         _logger.debug("[cal-alerts] Finnhub fallback failed: %s", e)
 
-    return result
+    if result:
+        return result
+
+    # Both the cache and Finnhub came back empty (a genuinely quiet day looks
+    # identical to a throttled one from here) — FMP breadth leg so a Finnhub
+    # 429 does not silently drop the whole day's alerts.
+    return _fmp_reporters_for_date(market_date)
 
 
 # ── Collect all users + their My-Stocks sets ─────────────────────────────────
