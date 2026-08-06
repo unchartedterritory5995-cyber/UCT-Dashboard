@@ -5455,9 +5455,16 @@ export default function StockChart({
 
       if (decision.kind === 'new') {
         const isDW = !isIntradayTf
-        const openPrice = (isDW && liveSnap.day_open) ? liveSnap.day_open : (lb ? lb.open : lp)
-        const highPrice = isDW ? Math.max(liveSnap.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : lp)
-        const lowPrice = isDW ? Math.min((liveSnap.day_low && liveSnap.day_low > 0) ? liveSnap.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : lp)
+        // A NEW bucket must NOT inherit O/H/L from liveBarRef — that's the PREVIOUS
+        // bar (decision.kind==='new' ⇒ lb.time !== barTime). Fusing lb.low gave a
+        // freshly-opened intraday candle the prior candle's low (the "current candle's
+        // low extends to the last candle" glitch on a 5m switch, seeded by the stale
+        // provisional tail in liveBarRef). Gate the fusion on a bucket-time match, so a
+        // new intraday bar starts clean from the tick — matching Writers A + B.
+        const _lbSame = lb && lb.time === barTime
+        const openPrice = (isDW && liveSnap.day_open) ? liveSnap.day_open : (_lbSame ? lb.open : lp)
+        const highPrice = isDW ? Math.max(liveSnap.day_high || openPrice, lp) : (_lbSame ? Math.max(lb.high, lp) : lp)
+        const lowPrice = isDW ? Math.min((liveSnap.day_low && liveSnap.day_low > 0) ? liveSnap.day_low : openPrice, lp) : (_lbSame ? Math.min(lb.low, lp) : lp)
         const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update(newBar)
