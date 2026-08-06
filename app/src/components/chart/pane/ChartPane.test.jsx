@@ -4,8 +4,16 @@ import { vi } from 'vitest'
 // Same mock surface as the ChartWidget header rail (Task 1), re-based to this
 // directory. Every path below resolves to the SAME module the widget rail mocks,
 // so the two files describe one component tree from two entry points.
+// `stockChartSpy` captures every prop StockChart is rendered with, so tests can
+// assert on `settingsOverride` reaching the ACTUAL CHART, not just the chrome
+// around it (the whole point of the settings-resolution fix). Declared via
+// vi.hoisted so it's initialized before vi.mock's hoisted factory runs.
+const { stockChartSpy } = vi.hoisted(() => ({ stockChartSpy: vi.fn() }))
 vi.mock('../../StockChart', () => ({
-  default: ({ sym }) => <div><span data-testid="chart-sym">{sym}</span></div>,
+  default: (props) => {
+    stockChartSpy(props)
+    return <div><span data-testid="chart-sym">{props.sym}</span></div>
+  },
 }))
 vi.mock('../SymbolSearch', async () => {
   const { forwardRef, useImperativeHandle } = await import('react')
@@ -41,8 +49,14 @@ vi.mock('../../../hooks/useFundamentalSnapshot', () => ({
     isLoading: false,
   })),
 }))
+// Mutable so individual tests can shape `prefs` (in particular
+// `charts_workspace_layout`) without re-mocking the module — mirrors the
+// pattern in useChartSurfaceSettings.test.js. Reset to `{}` in beforeEach so
+// pre-existing tests (which never touch this) see the same empty prefs as
+// before.
+let mockPrefs = {}
 vi.mock('../../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: {}, setPref: () => {}, loading: false }),
+  default: () => ({ prefs: mockPrefs, setPref: () => {}, loading: false }),
 }))
 vi.mock('../../../hooks/useThemeIndexBars', () => ({
   default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }),
@@ -57,6 +71,11 @@ vi.mock('../../../utils/extSession', () => ({ getExtSessionCached: () => ({ sess
 
 import ChartPane from './ChartPane'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+
+beforeEach(() => {
+  mockPrefs = {}
+  stockChartSpy.mockClear()
+})
 
 test('renders identity, timeframe bar and chart from props alone', () => {
   render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} />)
@@ -141,4 +160,106 @@ test('tfCodes locks the timeframe set: no overflow chevron to escape through', a
 test('without tfCodes the overflow chevron is still there', async () => {
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} />)
   expect(await screen.findByRole('button', { name: 'More timeframes' })).toBeInTheDocument()
+})
+
+// --- Owner-feedback Defect 2: density="mini" ---
+// mini is for ~320px-tall popups (the Options Flow contract chart): only the
+// timeframe bar and the chart render — no identity row (so no company name/
+// logo/day-change/session toggle/clock), no meta row, no settings gear.
+test('density="mini" renders the timeframe bar and the chart, but no identity row, meta row, clock, or gear', () => {
+  render(<ChartPane sym="NVDA" tf="D" density="mini" onTfChange={() => {}} />)
+  // Still there: the TF bar and the chart itself.
+  expect(screen.getByRole('button', { name: '1D' })).toBeTruthy()
+  expect(screen.getByTestId('chart-sym').textContent).toBe('NVDA')
+  // Gone: identity row (the ticker/company label + its search affordance),
+  // meta row, market clock, settings gear.
+  expect(screen.queryByTestId('sym-label')).toBeNull()
+  expect(screen.queryByText('Market Cap')).toBeNull()
+  expect(screen.queryByTestId('market-clock')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Chart settings' })).toBeNull()
+})
+
+test('density="mini" fetches fundamentals with enabled=false (it never renders the meta row that needs them)', () => {
+  useFundamentalSnapshot.mockClear()
+  render(<ChartPane sym="NVDA" tf="D" density="mini" onTfChange={() => {}} />)
+  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', false)
+})
+
+// --- Owner-feedback Defect 1: the settings gear must not lie about being live ---
+// A surface that IS the user's one chart (stored=null, no onStore) now reads
+// its settings from the /charts workspace layout, so an edit made through this
+// popup's gear would write the lower-priority global chart_settings pref and
+// visibly do nothing. Hide the gear there; keep it wherever a real write sink
+// exists (onStore, i.e. a /charts widget/tab).
+test('stored={null} with no onStore renders no settings gear (a write here would silently no-op)', () => {
+  render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} stored={null} />)
+  expect(screen.queryByRole('button', { name: 'Chart settings' })).toBeNull()
+})
+
+test('onStore supplied (a /charts widget/tab) still renders the settings gear', () => {
+  const onStore = vi.fn()
+  render(
+    <ChartPane
+      sym="NVDA" tf="D"
+      onSymbolChange={() => {}} onTfChange={() => {}}
+      stored={null} onStore={onStore}
+    />,
+  )
+  expect(screen.getByRole('button', { name: 'Chart settings' })).toBeTruthy()
+})
+
+// --- The chart-pane phase: the resolved settings must reach the CHART, not
+// just the chrome around it. --------------------------------------------------
+// Before this fix, ChartPane always passed `settingsOverride={stored || null}`
+// to StockChart — on an own-chart surface (stored=null, no onStore, every
+// popup) that is unconditionally null, so StockChart built its base from the
+// untouched `chart_settings` seed even though the chrome (identity row/meta
+// colors, via `cs`) already resolved from the /charts workspace layout. This
+// is the whole point of the task: without it, the ACTUAL CHART — candles, MA
+// overlays, background, watermark — renders the wrong (default) look while
+// everything around it looks correct.
+test('own-chart surface (stored=null, no onStore): StockChart receives settingsOverride equal to the workspace chart widget\'s blob', () => {
+  mockPrefs = {
+    chart_settings: { background: '#111111' },
+    charts_workspace_layout: {
+      widgets: [
+        { id: 'w-watch', type: 'watchlist', opts: {} },
+        { id: 'w-chart', type: 'chart', opts: { settings: { background: '#abc123', preset: 'custom' } } },
+      ],
+    },
+  }
+  render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} />)
+  expect(stockChartSpy).toHaveBeenCalled()
+  const lastCall = stockChartSpy.mock.calls.at(-1)[0]
+  expect(lastCall.settingsOverride).toEqual({ background: '#abc123', preset: 'custom' })
+})
+
+test('own-chart surface with no distinctive workspace settings: StockChart receives settingsOverride=null (its own chart_settings-seeded base is already correct)', () => {
+  mockPrefs = { chart_settings: { background: '#111111' } }
+  render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} />)
+  const lastCall = stockChartSpy.mock.calls.at(-1)[0]
+  expect(lastCall.settingsOverride).toBeNull()
+})
+
+// --- /charts is unaffected: a widget/tab surface (stored + onStore) keeps
+// getting exactly its own `stored` blob, ignoring the workspace layout
+// entirely — even when that layout would otherwise resolve to something else.
+test('/charts widget surface (stored + onStore): StockChart still receives the stored blob, workspace layout ignored', () => {
+  mockPrefs = {
+    chart_settings: { background: '#111111' },
+    charts_workspace_layout: {
+      widgets: [{ id: 'w-chart', type: 'chart', opts: { settings: { background: '#should-not-be-used' } } }],
+    },
+  }
+  const onStore = vi.fn()
+  const storedBlob = { background: '#mywidget' }
+  render(
+    <ChartPane
+      sym="NVDA" tf="D"
+      onSymbolChange={() => {}} onTfChange={() => {}}
+      stored={storedBlob} onStore={onStore}
+    />,
+  )
+  const lastCall = stockChartSpy.mock.calls.at(-1)[0]
+  expect(lastCall.settingsOverride).toBe(storedBlob)
 })
