@@ -13,8 +13,10 @@ export const CALENDAR_WIDGET_DEFAULTS = {
   bgMode: 'solid',                                  // 'solid' | 'gradient'
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
-  textColor: '#e0dac8',                             // primary text (event names + est/EPS)
+  textColor: '#e0dac8',                             // primary text (event names + company names + est/EPS labels)
   symbolColor: '#c9a84c',                           // earnings tickers
+  posColor: '#1ae51a',                              // positive EPS / estimate value
+  negColor: '#ff5b5b',                              // negative EPS / estimate value
   textSize: 'm',                                    // 's' | 'm' | 'l'
 }
 
@@ -25,6 +27,8 @@ export const CALENDAR_WIDGET_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   textColor: '#1f2328',
   symbolColor: '#7a5c16',
+  posColor: '#0a5c22',
+  negColor: '#7d1620',
 }
 
 /** The default settings blob for the current app theme ('light' → white canvas). */
@@ -58,6 +62,8 @@ export function calendarWidgetStyleVars(s) {
 
   if (s.textColor && s.textColor !== D.textColor) vars['--cal-text'] = s.textColor
   if (s.symbolColor && s.symbolColor !== D.symbolColor) vars['--cal-symbol'] = s.symbolColor
+  if (s.posColor && s.posColor !== D.posColor) vars['--cal-pos'] = s.posColor
+  if (s.negColor && s.negColor !== D.negColor) vars['--cal-neg'] = s.negColor
   if (s.textSize && s.textSize !== D.textSize) {
     vars['--cal-fs'] = `${CALENDAR_TEXT_SIZES[s.textSize] || CALENDAR_TEXT_SIZES.m}px`
   }

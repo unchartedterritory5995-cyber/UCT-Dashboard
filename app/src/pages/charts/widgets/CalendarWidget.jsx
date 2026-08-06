@@ -60,19 +60,21 @@ const TOP_EARNINGS = 10   // largest 10 by market cap; the rest behind "Show all
 // A single earnings row: logo + ticker + (company name, dims/hides when narrow) + EPS.
 function EarnRow({ c, onPick }) {
   const { name } = useTickerMeta(c.sym)
-  const beat = c.eps_act != null && c.eps_est != null ? c.eps_act >= c.eps_est : null
+  // Reported (eps_act) and upcoming (eps_est) render IDENTICALLY — same size/weight —
+  // differing only in the "EPS"/"est" label; the value is colored by its sign.
+  const reported = c.eps_act != null
+  const val = reported ? c.eps_act : (c.eps_est != null ? c.eps_est : null)
+  const signCls = val == null ? '' : (val >= 0 ? styles.pos : styles.neg)
   return (
     <div className={styles.earnRow} onClick={() => onPick(c.sym)} title={`Show ${c.sym} on the linked chart`}>
       <CompanyLogo sym={c.sym} size={16} name={name} round />
       <span className={styles.earnSym}>{c.sym}</span>
       {name && <span className={styles.earnCompany}>({name})</span>}
-      <span className={styles.earnMeta}>
-        {c.eps_act != null
-          ? <span className={beat ? styles.earnBeat : styles.earnMiss}>EPS {fmtNum(c.eps_act)}</span>
-          : c.eps_est != null
-            ? <span><span className={styles.lbl}>est </span>{fmtNum(c.eps_est)}</span>
-            : null}
-      </span>
+      {val != null && (
+        <span className={`${styles.earnMeta} ${signCls}`}>
+          <span className={styles.lbl}>{reported ? 'EPS' : 'est'} </span>{fmtNum(val)}
+        </span>
+      )}
     </div>
   )
 }
@@ -161,6 +163,10 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
           textHint="names & EPS"
           extraSections={[
             { label: 'Symbol', rows: [{ key: 'symbolColor', label: 'Symbol color', hint: 'earnings tickers' }] },
+            { label: 'EPS / Estimate', rows: [
+              { key: 'posColor', label: 'Positive', hint: 'value ≥ 0' },
+              { key: 'negColor', label: 'Negative', hint: 'value < 0' },
+            ] },
             { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
               { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
             ] }] },

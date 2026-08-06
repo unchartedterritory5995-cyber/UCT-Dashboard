@@ -193,27 +193,28 @@
 .earnCompany {
   font-size: 0.76em;
   color: var(--cal-text, var(--text-bright, #e0dac8));
-  opacity: 0.6;
+  opacity: 0.78;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
   flex: 1 1 auto;
 }
+/* Reported EPS + upcoming estimates share this ONE style (identical size/weight);
+   only the sign class colors the value. */
 .earnMeta {
   margin-left: auto;
-  display: flex;
-  gap: 9px;
   font-size: 0.72em;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--cal-text, var(--text-bright, #e0dac8));
   white-space: nowrap;
   flex: 0 0 auto;
   padding-left: 8px;
 }
-.earnMeta .lbl { opacity: 0.6; }
-.earnBeat { color: var(--ut-green-bright, #1ae51a); font-weight: 700; }
-.earnMiss { color: var(--ut-red-bright, #ff5b5b); font-weight: 700; }
+.earnMeta .lbl { opacity: 0.55; font-weight: 600; }
+.earnMeta.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }
+.earnMeta.neg { color: var(--cal-neg, var(--ut-red-bright, #ff5b5b)); }
 
 /* Collapsible TBD */
 .tbdToggle {
