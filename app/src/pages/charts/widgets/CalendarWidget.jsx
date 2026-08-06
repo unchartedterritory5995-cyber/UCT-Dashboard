@@ -235,8 +235,9 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   const isToday = selected === todayView
   const [tbdOpen, setTbdOpen] = useState(false)
 
-  // ── Impact star filter (persisted per-widget): 1★ = all, 2★ = medium+high, 3★ = high. ──
-  const econStars = [1, 2, 3].includes(opts?.econStars) ? opts.econStars : 1
+  // ── Impact star filter (persisted per-widget): 1★ = all, 2★ = medium+high, 3★ = high.
+  // Default 3★ (high-impact only) for a new widget; persists once the user changes it. ──
+  const econStars = [1, 2, 3].includes(opts?.econStars) ? opts.econStars : 3
   const setEconStars = useCallback((n) => onOptsChange?.({ ...(opts || {}), econStars: n }), [opts, onOptsChange])
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
