@@ -190,12 +190,17 @@ const SHIPPED_COLUMNS = Object.freeze({
   adx: ['adx', 'plusDI', 'minusDI'],
   obv: ['obv'],
   donchian: ['upper', 'middle', 'lower'],
+  // ── Phase C Task 14. Neither declares an EVENT, which is the point of listing
+  // them: the widening moved `sar` and nothing else, and two definitions added
+  // afterwards still have plots-only column sets.
+  avwap: ['avwap'],
+  atrBands: ['upper', 'middle', 'lower'],
 })
 
 describe('columnKeys — plots ∪ events', () => {
   it('every shipped definition returns exactly the columns written down above', () => {
     const defs = listDefinitions()
-    expect(defs.length, 'the registry changed size — re-read SHIPPED_COLUMNS').toBe(14)
+    expect(defs.length, 'the registry changed size — re-read SHIPPED_COLUMNS').toBe(16)
     expect(Object.keys(SHIPPED_COLUMNS).sort()).toEqual(defs.map(d => d.id).sort())
     for (const def of defs) {
       expect(columnKeys(def), def.id).toEqual(SHIPPED_COLUMNS[def.id])

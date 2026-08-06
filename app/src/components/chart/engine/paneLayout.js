@@ -885,6 +885,36 @@ function _defaultVisibleScaleId(chart) {
   return o.defaultVisiblePriceScaleId ?? null
 }
 
+/**
+ * The rendered width of a scale-owner's price-axis columns, `{right, left}`.
+ *
+ * ⚠️ `width()` IS ONE OF THE SIX MEMBERS `IPriceScaleApi` ACTUALLY HAS in
+ * lightweight-charts 5.2.0 (applyOptions, options, width, setVisibleRange,
+ * getVisibleRange, setAutoScale) — unlike `priceScaleId()`, which the manifest's
+ * own docstring above records as absent. So this is a real read from the
+ * renderer, not a prediction from the definition.
+ *
+ * ⛔ NEVER THROWS AND NEVER PARTIALLY ANSWERS. A chart or pane that cannot answer
+ * yields `null` for that side, which the diff reports as a change rather than as
+ * a zero — a `0` here would read as "the axis collapsed", which is a different
+ * and alarming claim.
+ *
+ * @param {object} owner an `IChartApi` or an `IPaneApi` — both expose `priceScale(id)`
+ */
+function axisWidths(owner) {
+  const read = (id) => {
+    try {
+      if (!owner || typeof owner.priceScale !== 'function') return null
+      const scale = owner.priceScale(id)
+      const w = scale && typeof scale.width === 'function' ? scale.width() : null
+      return Number.isFinite(w) ? w : null
+    } catch {
+      return null
+    }
+  }
+  return { right: read('right'), left: read('left') }
+}
+
 export function paneManifest(chart, bindings) {
   let panes
   try { panes = chart && typeof chart.panes === 'function' ? chart.panes() : null } catch { panes = null }
@@ -906,9 +936,31 @@ export function paneManifest(chart, bindings) {
     chartHeight: heights.reduce((s, h) => s + h, 0)
       + Math.max(0, panes.length - 1) * SEPARATOR_PX,
     separatorPx: SEPARATOR_PX,
+    // 🔴 THE OBV FINDING, MADE VISIBLE (Phase C Task 14).
+    //
+    // LWC shares ONE price-axis column across every pane, and its width is a
+    // RATCHET over the widest label any series on it produces. OBV's labels are
+    // "12.4M"-shaped where every oscillator's are two digits, and the measured
+    // cost of that one difference was **82,498 changed pixels** where every other
+    // indicator's sub-choices cost 2,540-5,316: the wider column re-fits the plot
+    // area, so EVERY series on the chart moves and the pixel count says nothing
+    // about why.
+    //
+    // ⛔ SO IT IS RECORDED, NOT PREDICTED. `tools/chart_parity.py` diffs this
+    // object as GEOMETRY — anything not in `PROVENANCE_LEAVES` is — so a
+    // definition whose labels widen the shared column now fails the gate with the
+    // WIDTH IN HAND instead of as an unattributable pixel storm. The expectation
+    // for Task 14's own definitions (ATR bands ride the price scale; the RS line
+    // reads ~0.9-1.1, narrower than a price) is that neither moves it. The
+    // expectation is not the gate; this field is.
+    axisLabelWidthPx: axisWidths(chart),
     panes: panes.map((p, i) => ({
       index: typeof p?.paneIndex === 'function' ? p.paneIndex() : i,
       height: heights[i],
+      // …and per pane too, because Flip C gave each pane its OWN axis. A
+      // chart-level number alone would report the shared column and miss a pane
+      // whose own axis widened underneath it.
+      axisLabelWidthPx: axisWidths(p),
       stretchFactor: typeof p?.getStretchFactor === 'function' ? p.getStretchFactor() : null,
       series: (typeof p?.getSeries === 'function' ? p.getSeries() : []).map((s) => {
         const meta = byPane.get(s) || {}

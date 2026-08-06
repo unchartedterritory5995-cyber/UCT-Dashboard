@@ -192,7 +192,12 @@ describe('a blob written before the engine existed', () => {
     expect([...SHIPPED_STACK_ORDER.slice(0, 9)].sort(),
       'the nine head entries are not the nine pane definitions').toEqual([...paneIds].sort())
     expect(SHIPPED_STACK_ORDER.slice(9)).toEqual(registryOrder.filter(id => !paneIds.includes(id)))
-    expect(SHIPPED_STACK_ORDER.slice(9)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    // ⭐ SEVEN SINCE PHASE C TASK 14. The derived line above is the claim that
+    // matters — the tail IS the non-pane definitions in registry order — and it
+    // grew with the registry on its own. This literal is the record of WHICH
+    // ones, and the first five may never move: they are the shipped z-order.
+    expect(SHIPPED_STACK_ORDER.slice(9))
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -399,10 +404,15 @@ describe('a blob written before the engine existed', () => {
       'paneMargins.js is back. It was retired into `engine/paneLayout.js` at B5 Task 12 — '
       + 'the band map is `computePaneLayout(...).bands` now, and a second copy of that '
       + 'arithmetic is what the retirement was for.').toBe(false)
-    expect(SHIPPED_STACK_ORDER).toEqual([
+    // ⭐ THE FOURTEEN ARE THE RETIRED TABLE, VERBATIM AND FROZEN; anything after
+    // them is a definition authored later, which `computeShippedStackOrder`
+    // APPENDS by design (a new indicator must not be dropped from the fold, and
+    // it must not be inserted into a stack order that already shipped).
+    expect(SHIPPED_STACK_ORDER.slice(0, 14)).toEqual([
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
+    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the
@@ -439,7 +449,7 @@ describe('the allow-list, asserted by what it DESTROYS', () => {
     expect(Object.keys(cs.indicators)).toEqual(['volumeProfile'])
     // …and the fixture really did name fourteen, so the empty answer is a
     // destruction rather than an empty input.
-    expect(Object.keys(all)).toHaveLength(14)
+    expect(Object.keys(all)).toHaveLength(16)   // 14 + Task 14's avwap/atrBands
   })
 
   it('⛔ mergeSettingsOverride still passes a legacy section through UNTOUCHED', () => {

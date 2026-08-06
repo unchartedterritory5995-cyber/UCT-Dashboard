@@ -3749,9 +3749,11 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // is the control-rot shape this branch keeps finding. It names the COUNT, and
     // the count is now `listDefinitions().length` — every series-expressible
     // definition there is.
+    // ⭐ SIXTEEN AT PHASE C TASK 14: `avwap` and `atrBands` are the first
+    // definitions that were never a legacy block, so the set grew without a flip.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
+        'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -3813,7 +3815,9 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // It moves once per B5 migration task — 4 → 6 at Task 5, 6 → 8 at Task 6,
     // 8 → 11 at Task 7, 11 → 14 at Task 8 — where it stops, because fourteen is
     // every series-expressible definition there is.
-    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(14)
+    // ⭐ 14 → 16 at Phase C Task 14, and NOT because a fifteenth block was migrated:
+    // `avwap` and `atrBands` are the first definitions that never had one.
+    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(16)
   })
 
   it('the binder is handed the LAYOUT\'S OWN band map, and the bands follow the INSTANCE LIST', () => {
@@ -3908,9 +3912,12 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
   it('the Indicators submenu offers every settings section, not a hand-picked eight', () => {
     const view = renderChart({ settings: mergeChartSettings(null) })
     const items = submenuOf(sectionOf(openContextMenu(view, { region: 'price' }), 'region'), 'indicators')
-    // ⭐ FIFTEEN, not eight — asserted as a NUMBER as well as a list, because
-    // `toEqual` against a derived list would still pass if BOTH sides collapsed.
-    expect(items).toHaveLength(15)
+    // ⭐ SEVENTEEN (16 definitions + the carved-out volumeProfile), not eight —
+    // asserted as a NUMBER as well as a list, because `toEqual` against a derived
+    // list would still pass if BOTH sides collapsed. It was fifteen until Phase C
+    // Task 14 added `avwap` and `atrBands`, and this line moving IS the proof that
+    // a new definition reaches the right-click menu with no edit to the menu.
+    expect(items).toHaveLength(17)
     expect(items).toHaveLength(catalogRows().length)
     expect(items.map(i => i.id)).toEqual(catalogRows().map(r => 'ind-' + r.id))
     expect(items.map(i => i.label)).toEqual(catalogRows().map(r => r.shortName))

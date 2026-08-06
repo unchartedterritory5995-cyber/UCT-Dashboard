@@ -238,7 +238,7 @@ describe('the catalog covers every settings section, and nothing else', () => {
 
   it('splits by placement target, not by a hand-written list', () => {
     expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv'])
-    expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
     // Every definition is one or the other — `volume` is a target too, but no
     // NATIVE declares it (the migrator assigns it from cs.volumeOverlayIndicators).
     const both = [...oscillatorIds(), ...priceOverlayIds()].sort()
@@ -534,7 +534,7 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
       engineRegistry.listDefinitions().map(d => [d.id, d.inputs.map(i => i.key)])))
     // …and that map is not empty, so `greyed` being `{}` above is the
     // short-circuit doing its job rather than the predicate having stopped.
-    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(14)
+    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(16)   // 14 + Task 14's avwap/atrBands
   })
 })
 
@@ -556,7 +556,7 @@ describe('the library needs a sentence per indicator, and the schema already all
   })
 
   it('and adding them did not break registration — every definition still validates', () => {
-    expect(engineRegistry.listDefinitions().length).toBe(14)
+    expect(engineRegistry.listDefinitions().length).toBe(16)   // 14 + Task 14's avwap/atrBands
     for (const d of engineRegistry.listDefinitions()) {
       expect(d.meta.tier).toBe('free')
       expect(d.meta.repaint).toBe('non-repainting')

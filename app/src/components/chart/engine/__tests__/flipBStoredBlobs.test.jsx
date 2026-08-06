@@ -282,9 +282,13 @@ describe('the blob shapes themselves — without these the cases below prove not
     // `mfi`, `cci` and `williamsR` at Task 7. The blobs below are unchanged and
     // so are their expectations, which is the claim: a stored July blob renders
     // the same chart after SEVEN more definitions move lane.
+    // ⭐ SIXTEEN AT PHASE C TASK 14 — and NOT because a fifteenth legacy block was
+    // migrated. Fourteen really was every series-expressible BLOCK; `avwap` and
+    // `atrBands` are the first definitions that never were one, so the set grew
+    // with no flip happening at all. That distinction is the whole of §A5.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
+        'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
   })
 })
 

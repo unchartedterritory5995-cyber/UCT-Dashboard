@@ -1,0 +1,31 @@
+{
+  "case": "avwap_session",
+  "kind": "avwap",
+  "note": "AVWAP anchored on the ET SESSION, on the extended-hours bars whose UTC day flips MID-SESSION at 20:00 ET. Owns no bars: `barsFrom` points at vwap_extended_hours_utc_midnight.json, so the ET anchor and the retired UTC one are provably measured against ONE series and this column is required to equal that fixture's already-pinned `session.etSessionVwap` exactly. A UTC-day anchor splits these 17 bars in two at index 16 and cannot satisfy it at 1e-9.",
+  "barsFrom": "tests/fixtures/indicators/vwap_extended_hours_utc_midnight.json",
+  "params": {
+    "anchor": "session"
+  },
+  "relTol": 1e-09,
+  "expected": {
+    "avwap": [
+      180.0,
+      180.33333333333334,
+      180.74117647058824,
+      181.59428571428572,
+      183.73269841269843,
+      184.37535353535353,
+      184.77763779527558,
+      185.1149668874172,
+      185.40554913294798,
+      185.68476683937823,
+      185.9683816651076,
+      186.27892527287995,
+      186.64038604305864,
+      187.2341226472374,
+      187.27959305804907,
+      187.30612002376708,
+      187.4002364066194
+    ]
+  }
+}

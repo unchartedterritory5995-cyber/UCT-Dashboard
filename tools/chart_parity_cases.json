@@ -4034,6 +4034,55 @@
       "name": "volume_profile_only",
       "status": "placeholder",
       "settings": {}
+    },
+    {
+      "name": "avwap_session_only",
+      "status": "placeholder",
+      "why": "PHASE C TASK 14. Anchored VWAP at its `session` anchor on the SAME 579 five-minute extended-hours bars `vwap_only` renders, so the two are measurable against ONE series: on this window AVWAP(session) must draw the exact line session VWAP draws, and any difference is the anchor resolving somewhere other than the ET calendar day. That makes `vwap_only` this case's own control -- a picture, not only a fixture column. [!] INTRADAY ONLY, AND NOT FOR TASTE: above 60m this repo's bars carry no instant (a 'YYYY-MM-DD' string on the chart lane, a YYYYMMDD integer on the alert lane), and reading that integer as unix seconds is the LIVE defect that anchors the daily VWAP in 1970-08-23. `computeAVWAP` refuses such a series outright and `meta.timeframes` stops a user ever reaching the refusal, so a daily fixture here would render an empty chart on BOTH sides and report 0 changed pixels forever -- the gate-that-cannot-fail shape. [!] THE FAIL-PROOF IS THE ANCHOR, NOT A COLOUR: re-run with {\"anchor\": \"week\"} and the number must MOVE. B5 Task 5 measured the obvious period probe VACUOUS for ATR (ATR(14) == ATR(21) at the last bar to the last bit, only the NaN head moves) and B5 Task 8 found `period` on OBV exiting 1 FOR THE WRONG REASON (the instance was dropped and the series vanished) -- so read WHY the probe killed before trusting it. On these three ET sessions `session` gives three anchors and `week` gives two (Fri 2025-10-31 is in the week of Mon 2025-10-27; Mon 11-03 and Tue 11-04 are in the next), which is a real difference in the drawn line rather than a NaN-head shift. [RED] AND THE MANIFEST IS HALF THE MEASUREMENT: `axisLabelWidthPx` must be IDENTICAL on both sides. AVWAP rides the price scale, so the expectation is that it cannot widen the shared axis column -- but the OBV finding (82,498 px from label width alone, where every other indicator's sub-choices cost 2,540-5,316) is exactly the case where an expectation was wrong and the pixel count could not say why.",
+      "tf": "5",
+      "fixedbars": "intraday5m",
+      "bars": 579,
+      "settings": {
+        "indicators": {
+          "avwap": {
+            "enabled": true,
+            "anchor": "session",
+            "color": "#F5A623",
+            "lineStyle": "solid",
+            "lineWidth": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "atr_bands_only",
+      "status": "placeholder",
+      "why": "PHASE C TASK 14. A `band` plot on `placement.target: 'price'` -- the third in this file after `bb` and `donchian`, and the first whose width is a USER INPUT rather than a period. It is the case that sees `$multiplier` written as a plot literal: `$<inputKey>` substitution is legal in color/width/levels/lineStyle only, so a band's width in PRICE has to be an input the compute reads, and a literal would draw one multiplier for every user while the settings form offered a control that changed nothing. [!] THE FAIL-PROOF IS {\"multiplier\": 3}, NOT {\"period\": 21}. B5 Task 5 measured the period probe VACUOUS for ATR itself -- ATR(14) and ATR(21) agree at the last bar to the last bit and only the NaN head moves -- and these bands are ATR times a constant, so the same trap applies unchanged. The multiplier scales the envelope on EVERY computable bar, which is a different class of perturbation. Read WHY it killed: a probe that exits 1 because the INSTANCE was dropped (B5 Task 8's OBV finding) measures nothing. [RED] `axisLabelWidthPx` must be IDENTICAL on both sides: the bands ride the price scale and cannot introduce a label wider than a price -- expected, and the expectation is not the gate.",
+      "settings": {
+        "indicators": {
+          "atrBands": {
+            "enabled": true,
+            "period": 14,
+            "multiplier": 2,
+            "color": "rgba(245,166,35,0.75)"
+          }
+        }
+      }
+    },
+    {
+      "name": "rs_line_spy_only",
+      "status": "placeholder",
+      "why": "PHASE C TASK 14 -- BLOCKED ON TASK 13, DELIBERATELY AND VISIBLY. The RS line is `compute.kind: 'server'` (decision A3): spec 4's `compute({bars, inputs, prevState, barstate})` carries ONE `bars` and this indicator needs two, its own and the benchmark's. Task 13 owns the generic server lane (`engine/serverCompute.js`, `fetchColumns(defId, sym, tf, inputs)`) and it has not landed, so `rsLine` is authored and VALIDATED in `nativeRegistry.SERVER_DEFS` but is not in `listDefinitions()` -- a user cannot enable an indicator the binder would throw on. [STOP] THIS CASE MUST NOT BE FILLED IN BEFORE THAT LANE EXISTS. Rendering it today draws NOTHING on both sides and reports 0 changed pixels, which is the gate-that-cannot-fail: a green number meaning the indicator is absent. [RED] WHEN IT IS FILLED IN, `axisLabelWidthPx` IS THE MEASUREMENT THAT MATTERS. This is the ONLY one of Task 14's three definitions that takes its own PANE, and the OBV finding is precisely about a pane definition's labels widening the shared axis column: OBV's '12.4M' labels cost 82,498 changed pixels where every other indicator's sub-choices cost 2,540-5,316. An RS line reads as a ratio near 1 for a benchmark-like name and near 0.02 for a cheap one, so the expectation is that its labels are NARROWER than a price -- and the expectation is not the gate. Measure the width; do not predict it. [!] Fail-proof with {\"benchmark\": \"QQQ\"}: a different denominator is a different line on every computable bar. A colour probe would not see a line that is silently 1.0 everywhere, which is exactly what a single-symbol RS line draws.",
+      "settings": {
+        "indicators": {
+          "rsLine": {
+            "enabled": true,
+            "benchmark": "SPY",
+            "color": "#4ECDC4",
+            "lineWidth": 1
+          }
+        }
+      }
     }
   ]
 }

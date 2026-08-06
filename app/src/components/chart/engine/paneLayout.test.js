@@ -437,8 +437,16 @@ describe('stack order is DATA, and it comes from the instance list', () => {
     // The other half of `SHIPPED_STACK_ORDER`'s contract. It is not a pane order
     // -- an overlay reserves no pane -- but it IS legacy z-order, and LWC z-stacks
     // by insertion order, so it may not move either.
-    expect(SHIPPED_STACK_ORDER.filter((id) => !OSC.includes(id)))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    // ⭐ A PREFIX, NOT AN EQUALITY, SINCE PHASE C TASK 14. `computeShippedStackOrder`
+    // APPENDS a definition authored after the array froze (`avwap`, `atrBands`),
+    // which is the designed behaviour — the frozen list is the historical record
+    // of what shipped, not the catalogue. The claim that may never move is the
+    // relative order of the FIVE that shipped, because that IS legacy z-order.
+    const overlays = SHIPPED_STACK_ORDER.filter((id) => !OSC.includes(id))
+    expect(overlays.slice(0, 5)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    // …and everything after them is a LATER definition, never a re-ordered one.
+    expect(overlays.slice(5).some(id => ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].includes(id)))
+      .toBe(false)
     // Non-vacuity: every registered definition appears exactly once.
     const ids = listDefinitions().map(d => d.id)
     expect([...SHIPPED_STACK_ORDER].sort()).toEqual([...ids].sort())
@@ -539,7 +547,11 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
     // in paneMargins.js"*: a height on `bb` would reserve vertical space for
     // something that draws inside the candles' pane.
     const overlays = listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id)
-    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    // Phase C Task 14 appended `avwap` and `atrBands`: both draw inside the
+    // candles' pane, so both belong here and neither declares a height. The
+    // claim is TOTAL — every price-target definition, whenever it was authored —
+    // so it is asserted as a set plus the shipped five in their z-order.
+    expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
     for (const id of overlays) {
       expect(getDefinition(id).placement.pane, `${id} declares a pane`).toBeUndefined()
     }
@@ -633,6 +645,57 @@ describe('paneManifest reads the renderer back', () => {
   it('it is JSON — it crosses a browser boundary', () => {
     const m = paneManifest(chart, [])
     expect(JSON.parse(JSON.stringify(m))).toEqual(m)
+  })
+
+  // ─── 🔴 the OBV axis-width finding, carried as a MEASUREMENT (Phase C T14) ──
+  //
+  // LWC shares ONE price-axis column and its width is a ratchet over the widest
+  // label on it. OBV's "12.4M" labels cost **82,498 changed pixels** where every
+  // other indicator's sub-choices cost 2,540-5,316, because a wider column
+  // re-fits the plot area and moves EVERY series — and the pixel count cannot
+  // say why. `tools/chart_parity.py` diffs this manifest as GEOMETRY, so
+  // recording the width is what turns that storm into an attributable number.
+  //
+  // ⛔ THESE CASES ARE WHAT MAKES DELETING THE FIELD FAIL. A manifest that simply
+  // stopped carrying it would diff clean forever, and the finding would go back
+  // to being invisible — which is exactly the state it was in before this task.
+
+  const scaleOf = (w) => ({ width: () => w, applyOptions() {}, options: () => ({}) })
+  const withScales = (panes, right, left) => ({
+    panes: () => panes,
+    priceScale: (id) => (id === 'right' ? scaleOf(right) : scaleOf(left)),
+  })
+
+  it('records the price-axis column width, chart-level AND per pane', () => {
+    const panes = [
+      { ...fakePane(0, 505, 505, [candles]), priceScale: (id) => scaleOf(id === 'right' ? 61 : 0) },
+      { ...fakePane(1, 88, 88, [rsiLine]), priceScale: (id) => scaleOf(id === 'right' ? 47 : 0) },
+    ]
+    const m = paneManifest(withScales(panes, 61, 0), [])
+    expect(m.axisLabelWidthPx).toEqual({ right: 61, left: 0 })
+    expect(m.panes.map(p => p.axisLabelWidthPx))
+      .toEqual([{ right: 61, left: 0 }, { right: 47, left: 0 }])
+    // …and it really is READ from the renderer: a wider label widens the number,
+    // which is the whole mechanism the finding describes.
+    const wider = paneManifest(withScales(panes, 96, 0), [])
+    expect(wider.axisLabelWidthPx.right).toBe(96)
+    expect(wider.axisLabelWidthPx).not.toEqual(m.axisLabelWidthPx)
+  })
+
+  it('a chart that cannot answer reports null, never a zero', () => {
+    // ⛔ `0` WOULD BE A DIFFERENT CLAIM — "the axis collapsed" — and the diff
+    // would report it as a geometry change with a plausible number attached.
+    expect(paneManifest(chart, []).axisLabelWidthPx).toEqual({ right: null, left: null })
+    const throws = { panes: () => [fakePane(0, 88, 88, [])], priceScale: () => { throw new Error('x') } }
+    expect(paneManifest(throws, []).axisLabelWidthPx).toEqual({ right: null, left: null })
+    const noWidth = { panes: () => [fakePane(0, 88, 88, [])], priceScale: () => ({}) }
+    expect(paneManifest(noWidth, []).axisLabelWidthPx).toEqual({ right: null, left: null })
+  })
+
+  it('and it survives the JSON round trip the parity harness reads it through', () => {
+    const panes = [{ ...fakePane(0, 505, 505, [candles]), priceScale: () => scaleOf(61) }]
+    const m = paneManifest(withScales(panes, 61, 12), [])
+    expect(JSON.parse(JSON.stringify(m)).axisLabelWidthPx).toEqual({ right: 61, left: 12 })
   })
 
   // ⚠️ `IPriceScaleApi` in lightweight-charts 5.2.0 has NO `priceScaleId()`

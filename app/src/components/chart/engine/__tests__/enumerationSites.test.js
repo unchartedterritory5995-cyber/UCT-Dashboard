@@ -1157,7 +1157,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const wide = mergeChartSettings(JSON.parse(JSON.stringify({ settingsVersion: 2, indicators: all })))
     expect(Object.keys(wide.indicators)).toEqual(['volumeProfile'])
     expect(Object.keys(all), 'the fixture named nothing — the destruction above is vacuous')
-      .toHaveLength(14)
+      .toHaveLength(16)
     // …and the frozen capture writes the same one key, through the wrapper.
     const frozen = JSON.parse(uctDefaultChartSettings())
     expect(Object.keys(frozen.indicators)).toEqual(['volumeProfile'])
@@ -1247,7 +1247,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // every chart while leaving this file's `[]` above perfectly green.
   it('⛔ …and every definition still resolves a compute — the exports are NOT dead', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(14)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(16)
     for (const def of defs) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
@@ -1805,7 +1805,20 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     adx: ['adxSeriesRef', 'adxPlusDIRef', 'adxMinusDIRef'],
     obv: ['obvSeriesRef'],
     donchian: ['donchianUpperRef', 'donchianMiddleRef', 'donchianLowerRef'],
+    // ⭐⭐ PHASE C TASK 14 — THE FIRST ROWS THAT ARE DELIBERATELY EMPTY, AND THE
+    // EMPTINESS IS A DECLARATION RATHER THAN AN OMISSION. `avwap` and `atrBands`
+    // were never a hand-written `StockChart.jsx` block, so there are no refs to
+    // record and no `indicatorData` branch to name. The coverage check below was
+    // changed from "has a TRUTHY row" to "has a row AT ALL" precisely so this
+    // still has to be written down: a definition added without a row is a silent
+    // no-op, and a definition added with an EMPTY row is a claim — measured by
+    // `neverHadABlock` beneath it, which is STRICTER than the per-ref check the
+    // fourteen get (it forbids the id appearing in that file in ANY form).
+    avwap: [],
+    atrBands: [],
   }
+  /** The definitions that never had a hand-written block to retire. */
+  const NEVER_MIGRATED = ['avwap', 'atrBands']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -1813,13 +1826,15 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     ichimoku: 'computeIchimoku', mfi: 'computeMFI', cci: 'computeCCI',
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
+    // …and `null` where there never was one. See NEVER_MIGRATED above.
+    avwap: null, atrBands: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
     // The gate on the finding above. `REFS[id] || []` and `if (fn && …)` both
     // pass by DEFAULT for an id nobody listed, so without this the two cases
     // below shrink in coverage every time the flip set grows and stay green.
-    const missing = [...ENGINE_OWNED].filter(id => !REFS[id] || !COMPUTES[id])
+    const missing = [...ENGINE_OWNED].filter(id => !(id in REFS) || !(id in COMPUTES))
     expect(missing,
       'a flipped definition has no row in REFS/COMPUTES, so the two cases below assert '
       + 'NOTHING about it. Add the refs its deleted block owned and the compute its '
@@ -1834,6 +1849,21 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // set that has stopped growing.
     expect(Object.keys(REFS).sort()).toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
     expect(Object.keys(COMPUTES).sort()).toEqual(Object.keys(REFS).sort())
+    // ⛔ AND AN EMPTY ROW IS ONLY LEGAL FOR A DEFINITION THAT NEVER HAD A BLOCK,
+    // where it buys a STRONGER claim than the per-ref one: the id may not appear
+    // in `StockChart.jsx` in any form at all. A migrated definition with an
+    // emptied row would fail here, which is what stops the escape hatch becoming
+    // a way to opt out of the two cases below.
+    const emptyRows = Object.keys(REFS).filter(id => !REFS[id].length || !COMPUTES[id])
+    expect(emptyRows.sort()).toEqual([...NEVER_MIGRATED].sort())
+    const chart = stripComments(read('app/src/components/StockChart.jsx'))
+    for (const id of NEVER_MIGRATED) {
+      expect(chart.toLowerCase().includes(id.toLowerCase()),
+        `${id} never had a hand-written block, so StockChart.jsx must not name it at all`)
+        .toBe(false)
+    }
+    // …and the probe can see a name that IS there, or the loop above is vacuous.
+    expect(chart.toLowerCase().includes('vwap')).toBe(true)
   })
 
   it('declares no series ref and creates no series for a flipped id', () => {
@@ -2087,7 +2117,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 14,
+      flipSetSize: 16,
       mutableSets: [],
     })
   })
@@ -2229,10 +2259,12 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
         `${def.id} is a price overlay — a pane height for it would reserve space for nothing`)
         .toBe(false)
     }
-    // Non-vacuity: the five price overlays really were visited, by name.
-    expect(checked).toBe(5)
+    // Non-vacuity: every price overlay really was visited, by name. SEVEN since
+    // Phase C Task 14 — `avwap` and `atrBands` draw inside the candles' pane too,
+    // so A6 covers them and this count is what says so.
+    expect(checked).toBe(7)
     expect(engineRegistry.listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
     // …and the predicate catches the thing it is for.
     expect(reserves({ placement: { target: 'price', pane: { height: 0.15 } } })).toBe(true)
     // …and the file it used to read really is gone, so nobody re-points it back.
@@ -2276,7 +2308,7 @@ describe('the surviving enumeration is the registry, and it has to stay complete
   // real merge — for every definition there is.
   it('every definition is REACHABLE from a v1 blob that names it', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(14)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(16)
     const unreachable = []
     for (const def of defs) {
       const blob = JSON.stringify({ indicators: { [def.id]: { enabled: true } } })

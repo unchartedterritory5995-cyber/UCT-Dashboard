@@ -95,6 +95,9 @@ import {
   computeDonchian,
   computeParabolicSAR,
   computeParabolicSAREvents,
+  computeAVWAP,
+  computeATRBands,
+  AVWAP_ANCHORS,
 } from '../indicators'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
@@ -154,6 +157,19 @@ const nativeDef = (id, fn, meta, placement, inputs, plots) => ({
 const fixedPane = (min, max, height) => ({ target: 'pane', scale: { min, max }, pane: { height } })
 const autoPane = (height) => ({ target: 'pane', pane: { height } })
 const onPrice = { target: 'price' }
+
+/** The `enum` labels for `indicators.AVWAP_ANCHORS` (Phase C Task 14).
+ *
+ *  ⛔ A LOOKUP KEYED BY THE FROZEN LIST, NOT A SECOND LIST. `avwap`'s options are
+ *  `AVWAP_ANCHORS.map(a => [a, AVWAP_ANCHOR_LABELS[a]])`, so the VALUES can only
+ *  ever be the anchors the compute accepts. A hand-typed options array is how a
+ *  value a user can PICK becomes an anchor the maths REFUSES — a control that
+ *  silently draws nothing — and an anchor added without a label here surfaces as
+ *  an `undefined` label at registration rather than as a missing dropdown row. */
+const AVWAP_ANCHOR_LABELS = {
+  session: 'Session', week: 'Week', month: 'Month', quarter: 'Quarter',
+  year: 'Year', swingHigh: 'Swing high', swingLow: 'Swing low',
+}
 
 const colorInput = (key, label, dflt) => ({ key, type: 'color', label, default: dflt })
 const periodInput = (key, label, dflt, min, max) => ({
@@ -571,6 +587,113 @@ const RAW_DEFS = [
       { key: 'middle', label: 'Mid', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'largeDashed', role: 'primary' },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'solid', role: 'secondary' },
     ]),
+
+  // ══ PHASE C TASK 14 — the first definitions that are NOT a migration ═══════
+  //
+  // Every definition above this line is a legacy `StockChart.jsx` render block
+  // wearing the schema. These two are new indicators, authored as definitions
+  // from the start, and that is the whole claim spec §A5 makes: a sixteenth
+  // indicator costs ONE definition and zero edits to any list.
+  //
+  // ⚠️ THEY ARE APPENDED, AND THE ORDER IS Z-ORDER. `instances.js`'s stack order
+  // and the binder's draw order both read this array's order, so inserting
+  // ANYWHERE ELSE would re-stack the five shipped price overlays behind or in
+  // front of one another and move pixels on charts that never enabled these.
+
+  // ── Anchored VWAP ────────────────────────────────────────────────────────
+  nativeDef('avwap', 'avwap',
+    {
+      name: 'Anchored VWAP', shortName: 'AVWAP', category: 'Volume',
+      description: 'Volume-weighted average price measured from a chosen anchor, not from the session open.',
+      tags: ['overlay', 'volume', 'anchored'],
+      // ⚠️ INTRADAY ONLY, AND FOR A HARDER REASON THAN VWAP'S. Session VWAP is
+      // gated because a session indicator is meaningless on a daily bar. AVWAP
+      // is gated because ABOVE 60m THIS REPO'S BARS DO NOT CARRY AN INSTANT: the
+      // daily series `t` is a 'YYYY-MM-DD' string on this lane (asserted by
+      // `test_the_parity_fixture_is_intraday_bars_the_chart_can_actually_draw`)
+      // and a `YYYYMMDD` integer on the alert lane's — and reading that integer
+      // as unix seconds is the LIVE defect at `_fetch_bars_for_alert`, which
+      // anchors the daily VWAP in **1970-08-23** and produces exactly one reset.
+      // `computeAVWAP` refuses such a series outright (an all-NaN column, never a
+      // plausible one-bucket answer); this declaration is what stops a user ever
+      // reaching that refusal, and `engine/eligibility.js` enforces it.
+      timeframes: ['1', '5', '15', '30', '60'],
+    },
+    onPrice,
+    [
+      // ⭐ AN `enum`, NOT A `time` — decision A3, and the reserved input types
+      // stay reserved. `defSchema` fails closed on `time`, and click-to-anchor
+      // already ships as the DRAWING TOOL in `ChartDrawingOverlay.jsx`, which is
+      // anchored by a click and needs no definition (nor a settings-form control
+      // the spec has never described).
+      //
+      // ⛔ THE OPTIONS ARE BUILT FROM `indicators.AVWAP_ANCHORS`, NOT RETYPED.
+      // The compute fails closed on an anchor outside that list, so a hand-typed
+      // option here is how a value a user can PICK becomes an anchor the maths
+      // REFUSES — a control that silently draws nothing.
+      {
+        key: 'anchor', type: 'enum', label: 'Anchor', default: 'session',
+        options: AVWAP_ANCHORS.map(a => [a, AVWAP_ANCHOR_LABELS[a]]),
+      },
+      colorInput('color', 'Color', '#F5A623'),
+      {
+        key: 'lineStyle', type: 'enum', label: 'Line style', default: 'solid',
+        options: [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']],
+      },
+      { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+    ],
+    [
+      // ⚠️ `legend.hide`, LIKE ITS SESSION SIBLING, AND THE REASON IS A RAIL
+      // RATHER THAN A TASTE. `readout.test.js` and `enumerationSites.test.js`
+      // pin the chip set to *the NINE the shipped legend rendered* — a frozen
+      // historical record whose job is that a user's chip cannot silently
+      // disappear. A tenth chip here would force that list to be widened, and a
+      // list widened for a new indicator stops being a record of what shipped:
+      // the next migration that DROPS a chip would land in a table that has
+      // already learnt to grow. AVWAP is read off the price scale it sits on,
+      // exactly as session VWAP is, and its anchor is named in the settings row
+      // and the library. A chip for it is a separate, declarable decision — one
+      // `legend` edit and one line in that table, taken deliberately.
+      {
+        key: 'avwap', label: 'AVWAP', style: 'line',
+        color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
+        role: 'primary', legend: { hide: true },
+      },
+    ]),
+
+  // ── ATR bands ────────────────────────────────────────────────────────────
+  nativeDef('atrBands', 'atrBands',
+    { name: 'ATR Bands', shortName: 'ATR Bands', category: 'Volatility',
+      // ⚠️ THE WORDING IS LOAD-BEARING AND THIS IS THE SECOND DRAFT. It read
+      // "…a multiple of Average True Range", and the library dialog builds an
+      // option's ACCESSIBLE NAME from name + description — so that phrase made
+      // `getByRole('option', {name: /Average True Range/})` match TWO rows and
+      // four existing tests failed on ambiguity rather than on anything real.
+      // A description is user-facing copy AND a selector; keep the other
+      // indicator's full name out of it.
+      description: 'The close with a volatility envelope — a multiple of ATR either side of it.',
+      tags: ['overlay', 'volatility', 'bands'], legendParams: ['period', 'multiplier'] },
+    onPrice,
+    [
+      periodInput('period', 'Period', 14, 2, 200),
+      // ⭐ `multiplier` IS AN INPUT THE COMPUTE READS, AND IT HAD TO BE.
+      // `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
+      // `lineStyle` — `SUBSTITUTABLE_PLOT_FIELDS`, locked by spec §3.1 — and a
+      // band's WIDTH IN PRICE is none of those. Written as a plot literal it
+      // would render one multiplier for every user while the settings form
+      // offered a control that changed nothing, and `atr_bands_14_2.json`
+      // (multiplier 2) would stay green the whole time.
+      { key: 'multiplier', type: 'float', label: 'Multiplier', default: 2, min: 0.1, max: 10, step: 0.1 },
+      colorInput('color', 'Color', 'rgba(245,166,35,0.75)'),
+    ],
+    [
+      { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+      // The middle IS the band's centre column — the close — and `edges` names
+      // the two that bound it. Same shape as BB and Donchian; see defSchema's
+      // `validateBandEdges` for why the edges stay first-class plots.
+      { key: 'middle', label: 'Close', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { hide: true } },
+      { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+    ]),
 ]
 
 // ─── the compute adapter ─────────────────────────────────────────────────────
@@ -644,6 +767,23 @@ const NATIVE_COMPUTE = {
     const raw = computeDonchian(bars, p.period)
     return { upper: raw.upper, middle: raw.middle, lower: raw.lower }
   },
+
+  // ── Phase C Task 14 ──
+  avwap: (bars, p) => ({ avwap: computeAVWAP(bars, p.anchor) }),
+
+  atrBands: (bars, p) => {
+    const raw = computeATRBands(bars, p.period, p.multiplier)
+    return { upper: raw.upper, middle: raw.middle, lower: raw.lower }
+  },
+
+  // ⛔ THERE IS NO `rsLine` ENTRY, AND ITS ABSENCE IS THE POINT. This adapter's
+  // signature is `(bars, inputs)` — ONE series — so a native RS line could only
+  // divide the chart's closes by themselves, which is 1.0 on every bar: a flat
+  // line that looks exactly like an indicator that is working. `RS_LINE_DEF`
+  // below is `compute.kind: 'server'` for that reason (decision A3), and
+  // `computeFor` throwing here is what a mutation adding the row would have to
+  // silence. See `test_a_single_symbol_rs_line_is_ONE_POINT_ZERO…` in
+  // `tests/test_indicator_golden.py` for the number.
 }
 
 /**
@@ -1008,8 +1148,78 @@ if (_registered.errors.length) {
   throw new Error(`nativeRegistry: invalid native definitions:\n  ${_registered.errors.join('\n  ')}`)
 }
 
-/** The 14 native definitions, frozen. `volumeProfile` is NOT among them. */
+/** The 16 native definitions, frozen. `volumeProfile` is NOT among them, and
+ *  neither is `rsLine` — see `SERVER_DEFS` below, which is a different lane
+ *  rather than a different list. */
 export const NATIVE_DEFS = Object.freeze(_registered.defs)
+
+/**
+ * The RS line — the first `compute.kind: 'server'` definition, and DELIBERATELY
+ * NOT IN `NATIVE_DEFS`.
+ *
+ * ⭐ WHY IT IS SERVER-LANE (decision A3). Spec §4's compute contract is
+ * `compute({bars, inputs, prevState, barstate})` — ONE `bars`. The RS line needs
+ * two series, its own and the benchmark's, and a second symbol is not reachable
+ * from that signature. Extending it is a schema change, not a C feature, so the
+ * indicator moves lanes instead: its columns are FETCHED, not computed here.
+ * Its benchmark is an `enum` of a fixed list for the same reason its cousin's
+ * anchor is — `symbol` is a RESERVED input type and `defSchema` fails closed.
+ *
+ * ⛔ AND WHY IT IS NOT REGISTERED YET, STATED PLAINLY RATHER THAN HIDDEN.
+ * **Task 13 owns the lane** (`engine/serverCompute.js` +
+ * `fetchColumns(defId, sym, tf, inputs)`) and has not landed. Putting this in
+ * `RAW_DEFS` today would publish an indicator a user can enable and the binder
+ * cannot draw: `computeFor` resolves `NATIVE_COMPUTE[compute.fn]` and THROWS on
+ * a miss, by design. So the definition is authored, validated by the same
+ * `registerDefinitions` every native goes through — schema, `$ref` resolution,
+ * source referents, event columns — and exported for Task 13 to merge into the
+ * lane in one line. It is a HAND-BACK, not a half-build: everything Task 14 owns
+ * about the RS line (the maths, the golden fixture read by both lanes, the
+ * definition) is here and pinned.
+ *
+ * ⚠️ `listDefinitions()` STAYS NATIVE-ONLY WHILE THAT IS TRUE, which is why
+ * `enumerationSites.test.js`'s *"every definition still resolves a compute"* rail
+ * did not have to be weakened to accommodate this. A rail that had to be relaxed
+ * for a definition nothing can draw would have stopped guarding the fourteen
+ * that ship.
+ */
+const RS_LINE_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsLine',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsLine', rev: 1 },
+  meta: {
+    name: 'Relative Strength Line', shortName: 'RS', category: 'Momentum',
+    description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
+    tags: ['comparative', 'momentum'], tier: 'free', repaint: 'non-repainting',
+    legendParams: ['benchmark'],
+  },
+  placement: { target: 'pane', pane: { height: 0.15 } },
+  inputs: [
+    // ⭐ AN `enum` OF A FIXED LIST, NOT A `symbol` (decision A3). `symbol` is in
+    // `RESERVED_INPUT_TYPES` and `defSchema` refuses it with a distinct message;
+    // three benchmarks cover the question this indicator answers and need no new
+    // input type, no symbol picker and no second data-entitlement question.
+    {
+      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY',
+      options: [['SPY', 'S&P 500 (SPY)'], ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)']],
+    },
+    colorInput('color', 'Color', '#4ECDC4'),
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+  ],
+  plots: [
+    { key: 'rsLine', label: 'RS', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+  ],
+}
+
+const _serverRegistered = registerDefinitions([RS_LINE_RAW])
+if (_serverRegistered.errors.length) {
+  throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
+}
+
+/** Server-lane definitions — authored and VALIDATED, not yet bound. Task 13's
+ *  `serverCompute` lane is what moves these into `listDefinitions()`. */
+export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 
 /**
  * The `CHART_DEFAULTS.indicators` keys that deliberately have NO definition.

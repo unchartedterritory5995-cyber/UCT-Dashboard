@@ -29,6 +29,11 @@ import {
   computeIchimoku,
   computeParabolicSAR,
   computeParabolicSAREvents,
+  computeAVWAP,
+  computeATRBands,
+  computeRSLine,
+  AVWAP_ANCHORS,
+  AVWAP_MIN_INSTANT,
 } from './indicators'
 
 // vitest is normally run from `app/`, but the same suite has to resolve when it
@@ -364,6 +369,196 @@ describe('golden fixtures — shared with the Python lane', () => {
     const old = vwapByUtcDay(bars)
     const worst = Math.max(...got.map((v, i) => Math.abs(v - old[i])))
     expect(worst, 'the two bucketings agree on these bars — the case pins nothing').toBeGreaterThan(5)
+  })
+
+  // ─── Phase C Task 14: AVWAP · ATR bands · the RS line ─────────────────────
+  //
+  // ⭐ ALL THREE OWN AN ORACLE OLDER THAN THEIR OWN CODE, and that is the only
+  // reason a fixture written this week is worth anything. `avwap_session` must
+  // equal a VWAP series pinned in 2026-08; `atr_bands_14_2` must equal
+  // `atr_14`'s committed `atr` column arithmetic; `rs_line_spy` must differ from
+  // the flat 1.0 a single-symbol implementation produces. A fixture generated
+  // from the new code and asserted only by the new code is a snapshot.
+
+  it('avwap_session — the ET session anchor, on the bars the UTC one SPLITS', () => {
+    const c = loadCase('avwap_session')
+    const bars = caseBars(c)
+    const got = col(computeAVWAP(bars, c.params.anchor))
+    expectSomeValues(c.expected.avwap, 'avwap_session.avwap')
+    alignedClose(got, c.expected.avwap, c.relTol, 'avwap_session.avwap')
+
+    // ⭐ THE ORACLE. The referent's `session.etSessionVwap` was written before
+    // either lane had an AVWAP and has never been reseeded; the `session` anchor
+    // IS that boundary, so this equality is the claim.
+    const src = loadCase('vwap_extended_hours_utc_midnight')
+    expect(c.barsFrom).toBe('tests/fixtures/indicators/vwap_extended_hours_utc_midnight.json')
+    alignedClose(got, src.session.etSessionVwap, c.relTol, 'avwap_session vs etSessionVwap')
+
+    // Non-vacuous, in the referent's own vocabulary: these 17 bars are ONE ET
+    // session that the retired UTC-day bucketing splits at the 20:00 ET bar.
+    const s = src.session
+    expect(s.etResetIndices).toEqual([0])
+    const split = s.utcResetIndices[1]
+    expect(s.etHour[split]).toBe(20)
+    expect(Math.abs(got[split] - typicalPrice(bars[split])),
+      'the 20:00 ET bar collapsed to its own typical price — this column is UTC-anchored',
+    ).toBeGreaterThan(1)
+    expect(Math.abs(vwapByUtcDay(bars)[split] - got[split])).toBeGreaterThan(1)
+
+    // …and `anchor` is READ. `swingHigh` is a different series on these same
+    // bars, so a lane that ignored the parameter could not satisfy the column.
+    expect(col(computeAVWAP(bars, 'swingHigh'))).not.toEqual(got)
+    // MEASURED LIMIT, DECLARED: `swingLow` IS equal here. These bars make their
+    // low on bar 0 and never re-make it, so the low anchor never moves off the
+    // session open. This case cannot tell those two apart and does not claim to.
+    expect(col(computeAVWAP(bars, 'swingLow'))).toEqual(got)
+  })
+
+  it('avwap — the ANCHOR is ET calendar semantics, and the UNIT is validated', () => {
+    // 🔴 THE CONTROL THAT FAILS IF THE UNIT IS WRONG. `_fetch_bars_for_alert`
+    // hands the daily VWAP call site the store's YYYYMMDD integer where real
+    // unix seconds are expected, so the anchor lands in **1970-08-23** and 56
+    // daily bars produce exactly ONE reset. AVWAP must not reproduce it — and
+    // the refusal is an all-NaN column rather than one bucket, because ONE
+    // BUCKET IS WHAT THE DEFECT LOOKS LIKE.
+    expect(new Date(20250101 * 1000).toISOString().slice(0, 10)).toBe('1970-08-23')
+    expect(new Date(20251231 * 1000).toISOString().slice(0, 10)).toBe('1970-08-23')
+
+    const bar = (t, c) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 1000 })
+    // CONTROL A — real unix seconds, one bar a day from 2025-01-02, 400 of them.
+    const T0 = Math.floor(Date.UTC(2025, 0, 2, 17, 0) / 1000)
+    const real = Array.from({ length: 400 }, (_, i) => bar(T0 + i * 86400, 100 + i * 0.25))
+    const a = col(computeAVWAP(real, 'year'))
+    expect(a.every(Number.isFinite), 'the control produced no AVWAP at all').toBe(true)
+    const resets = a.map((v, i) => (Math.abs(v - typicalPrice(real[i])) < 1e-9 ? i : -1))
+      .filter(i => i > 0)
+    expect(resets.length, 'the control never crosses a year boundary').toBeGreaterThan(0)
+
+    // CONTROL B — the SAME days, encoded YYYYMMDD. No answer at all.
+    const ymd = (t) => {
+      const d = new Date(t * 1000)
+      return Number(`${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`)
+    }
+    const wrong = real.map(b => bar(ymd(b.t), b.c))
+    expect(wrong[0].t).toBe(20250102)
+    expect(wrong[0].t).toBeLessThan(AVWAP_MIN_INSTANT)
+    for (const anchor of ['session', 'week', 'month', 'quarter', 'year']) {
+      expect(col(computeAVWAP(wrong, anchor)).every(Number.isNaN), anchor).toBe(true)
+    }
+    // …and the two swing anchors are PURE PRICE, so the guard leaves them alone.
+    for (const anchor of ['swingHigh', 'swingLow']) {
+      expect(col(computeAVWAP(wrong, anchor)).every(Number.isFinite), anchor).toBe(true)
+    }
+    // An anchor the maths does not know draws NOTHING — `params_json` on a
+    // stored alert row is user-supplied, so this is a live input.
+    expect(col(computeAVWAP(real, 'anchor:1780272000')).every(Number.isNaN)).toBe(true)
+    expect([...AVWAP_ANCHORS]).toEqual(
+      ['session', 'week', 'month', 'quarter', 'year', 'swingHigh', 'swingLow'])
+  })
+
+  it('avwap — the session anchor SURVIVES the DST change (per-instant, not a module offset)', () => {
+    // A fixed `_ET_OFFSET` captured at import is correct for half the year and
+    // an hour wrong for the other half. `vwap_dst_transition` is the fixture
+    // written for that: two ET sessions of identical wall-clock shape either
+    // side of the change, whose `etSessionVwap` predates every line of AVWAP.
+    const c = loadCase('vwap_dst_transition')
+    const s = c.session
+    const got = col(computeAVWAP(c.bars, 'session'))
+    expect(new Set(s.etDate).size).toBe(2)
+    alignedClose(got, s.etSessionVwap, c.relTol, 'avwap dst.etSessionVwap')
+    const mid = s.utcResetIndices.filter(i => !s.etResetIndices.includes(i))
+    expect(mid.length).toBe(2)
+    mid.forEach(i => {
+      expect(Math.abs(got[i] - typicalPrice(c.bars[i])),
+        `bar ${i} collapsed — the anchor moved with the UTC offset`).toBeGreaterThan(1)
+    })
+  })
+
+  it('atr_bands_14_2 — DERIVED from atr_14\'s already-pinned atr column', () => {
+    const c = loadCase('atr_bands_14_2')
+    const bars = caseBars(c)
+    const got = computeATRBands(bars, c.params.period, c.params.multiplier)
+    for (const k of ['upper', 'middle', 'lower']) {
+      expectSomeValues(c.expected[k], `atr_bands_14_2.${k}`)
+      alignedClose(col(got[k]), c.expected[k], c.relTol, `atr_bands_14_2.${k}`)
+    }
+
+    // ⭐ THE ORACLE THAT IS NEITHER LANE'S NEW CODE: `atr_14.json`'s committed
+    // `atr` column, which both lanes have asserted at 1e-9 since B5. A reseed of
+    // that fixture turns this case red, which is what `barsFrom` buys.
+    const src = loadCase('atr_14')
+    expect(c.barsFrom).toBe('tests/fixtures/indicators/atr_14.json')
+    expect(src.params.period).toBe(c.params.period)
+    const m = c.params.multiplier
+    src.expected.atr.forEach((a, i) => {
+      if (a === null) {
+        for (const k of ['upper', 'middle', 'lower']) expect(c.expected[k][i]).toBeNull()
+        return
+      }
+      expect(c.expected.middle[i]).toBeCloseTo(bars[i].c, 12)
+      expect(c.expected.upper[i]).toBeCloseTo(bars[i].c + m * a, 12)
+      expect(c.expected.lower[i]).toBeCloseTo(bars[i].c - m * a, 12)
+    })
+
+    // ONE pad, shared by all three, at the head only — a middle that existed
+    // where the edges did not would be a band with nothing to draw between.
+    const first = c.expected.middle.findIndex(v => v !== null)
+    expect(first).toBe(14)
+    for (const k of ['upper', 'middle', 'lower']) {
+      expect(col(got[k]).slice(0, first).every(Number.isNaN), k).toBe(true)
+      expect(col(got[k]).slice(first).every(Number.isFinite), k).toBe(true)
+    }
+
+    // 🔴 `multiplier` IS READ BY THE COMPUTE. It cannot be a plot `$ref` —
+    // substitution is legal in color/width/levels/lineStyle only, and a band's
+    // WIDTH IN PRICE is none of those — so a literal here would keep this
+    // fixture (multiplier 2) green while every user who moved the control got
+    // the same band.
+    for (const mult of [1, 2.5, 3]) {
+      const alt = computeATRBands(bars, 14, mult)
+      expect(col(alt.middle)).toEqual(col(got.middle))
+      const moved = col(alt.upper).slice(first)
+        .filter((v, i) => Math.abs(v - col(got.upper).slice(first)[i]) > 1e-9)
+      expect(moved.length, `multiplier ${mult} changed nothing`).toBe(bars.length - first)
+      for (let i = first; i < bars.length; i++) {
+        expect(alt.upper[i].value - alt.middle[i].value)
+          .toBeCloseTo(alt.middle[i].value - alt.lower[i].value, 9)
+      }
+    }
+  })
+
+  it('rs_line_spy — TWO series, joined BY TIME, and never a flat 1.0', () => {
+    const c = loadCase('rs_line_spy')
+    const got = col(computeRSLine(c.bars, c.benchmarkBars))
+    expectSomeValues(c.expected.rsLine, 'rs_line_spy.rsLine')
+    alignedClose(got, c.expected.rsLine, c.relTol, 'rs_line_spy.rsLine')
+
+    // The hole is EXACTLY one and it is NOT at the head. A head pad would be
+    // indistinguishable from every other indicator's warmup and prove nothing
+    // about the join; a hole in the MIDDLE is only reachable by matching times.
+    const holes = c.expected.rsLine.map((v, i) => (v === null ? i : -1)).filter(i => i >= 0)
+    expect(holes.length).toBe(1)
+    const gap = holes[0]
+    expect(gap).toBeGreaterThan(0)
+    expect(c.benchmarkBars.some(b => b.t === c.bars[gap].t)).toBe(false)
+    // …and the bars AFTER it are unshifted — under an index join every ratio
+    // from here on would be one bar out and the whole line plausible and wrong.
+    const closeAt = new Map(c.benchmarkBars.map(b => [b.t, b.c]))
+    for (let i = gap + 1; i < c.bars.length; i++) {
+      expect(got[i]).toBeCloseTo(c.bars[i].c / closeAt.get(c.bars[i].t), 12)
+    }
+
+    // 🔴 THE FAILURE MODE THE CASE NAMES. A native's compute contract carries
+    // ONE series (spec §4), so a native RS line could only divide the chart's
+    // closes by themselves: a flat line at 1.0 that looks exactly like an
+    // indicator that is working. THAT is why the definition is server-lane.
+    expect(col(computeRSLine(c.bars, c.bars))).toEqual(c.bars.map(() => 1))
+    const real = got.filter(Number.isFinite)
+    expect(new Set(real.map(v => v.toFixed(12))).size,
+      'the fixture\'s RS line is constant').toBeGreaterThan(1)
+    expect(real.every(v => Math.abs(v - 1) > 1e-6)).toBe(true)
+    // No benchmark at all is the NaN pad, never a 1.0 stand-in.
+    expect(col(computeRSLine(c.bars, [])).every(Number.isNaN)).toBe(true)
   })
 
   it('intraday5m_sessions — the same 5-minute bars the PIXEL gate renders', () => {

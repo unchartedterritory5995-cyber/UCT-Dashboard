@@ -249,9 +249,13 @@ describe('Flip B — the set itself', () => {
     // derived precisely because a derived expectation agrees with the code by
     // construction: an id silently dropped from the registry would keep a derived
     // version green and fails this one by name.
+    // ⭐ SIXTEEN AT PHASE C TASK 14 — and NOT because a fifteenth legacy block was
+    // migrated. Fourteen really was every series-expressible BLOCK; `avwap` and
+    // `atrBands` are the first definitions that never were one, so the set grew
+    // with no flip happening at all. That distinction is the whole of §A5.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'bb', 'cci', 'donchian', 'ichimoku', 'macd', 'mfi', 'obv', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
+        'mfi', 'obv', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     // ⭐ B5 TASK 13: this line used to read `ENGINE_MIGRATED_DEF_IDS` on the left
     // and `ENGINE_FLIPPED_DEF_IDS` on the right — the subset relation. With both
     // literals deleted the honest form is the one that can still FAIL: everything

@@ -754,7 +754,7 @@ describe('donchian — a band plot with edges, and the LAST price overlay', () =
     // last is what keeps it on top of the four it sits on top of today.
     expect(engineRegistry.listDefinitions()
       .filter(d => d.placement && d.placement.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
     // …and the binder really does insert in the order it is handed, which is why
     // the instance list's order is the thing that has to be registry order.
     const overlays = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].map(id => ({
@@ -850,7 +850,11 @@ describe('the last three together', () => {
     expect(ENGINE_OWNED.size).toBe(engineRegistry.listDefinitions().length)
     expect([...ENGINE_OWNED].sort())
       .toEqual(engineRegistry.listDefinitions().map(d => d.id).sort())
-    expect(ENGINE_OWNED.size, 'fourteen series-expressible natives').toBe(14)
+    // ⭐ FOURTEEN BECAME SIXTEEN at Phase C Task 14. The fourteen are still every
+    // series-expressible LEGACY block; `avwap` and `atrBands` are the first two
+    // definitions that were never a block at all, so the set grew without any
+    // migration happening — which is exactly what §A5 said a new indicator costs.
+    expect(ENGINE_OWNED.size, 'the engine-owned set is empty or shrank').toBe(16)
     // ⭐⭐ B5 TASK 13 — "MIGRATED equals FLIPPED" IS NOT ASSERTABLE ANY MORE, AND
     // THAT IS THE RETIREMENT RATHER THAN A GAP. A line stood here comparing
     // `ENGINE_MIGRATED_DEF_IDS` with `ENGINE_FLIPPED_DEF_IDS`; both literals are
