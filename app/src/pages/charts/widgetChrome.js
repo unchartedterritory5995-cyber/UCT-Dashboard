@@ -11,6 +11,7 @@ import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { mergeWatchlistSettings } from '../watchlist/watchlistSettings'
 import { mergeNewsWidgetSettings } from './widgets/newsWidgetSettings'
 import { mergeProfileWidgetSettings } from './widgets/profileWidgetSettings'
+import { mergeAlertsWidgetSettings } from './widgets/alertsWidgetSettings'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { sanitizeChartTabs } from './chartTabs'
 import { resolveActiveTab } from './widgetTabs'
@@ -89,8 +90,10 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'news' || surrogate.type === 'profile') {
-    const mergeFn = surrogate.type === 'news' ? mergeNewsWidgetSettings : mergeProfileWidgetSettings
+  if (surrogate.type === 'news' || surrogate.type === 'profile' || surrogate.type === 'alerts') {
+    const mergeFn = surrogate.type === 'news'
+      ? mergeNewsWidgetSettings
+      : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings : mergeProfileWidgetSettings
     const own = simpleOwnCanvas(surrogate.opts?.settings, mergeFn)
     if (!own) return null
     const entry = canvasEntry(own.canvas)

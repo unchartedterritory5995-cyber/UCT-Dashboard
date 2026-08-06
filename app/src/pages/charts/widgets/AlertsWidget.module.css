@@ -1,0 +1,257 @@
+/* Alerts widget — a per-color-group price-alert command center. Canvas + text
+   follow the app theme (--bg/--text) until the user picks an explicit per-widget
+   look via ⚙; --alerts-fs scales the whole widget's type (S / M / L). */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--alerts-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-sans);
+  font-size: var(--alerts-fs, 13.5px);
+}
+
+/* Header: logo + symbol + scope pills + gear */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.titleWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
+}
+.title {
+  font-weight: 700;
+  font-size: 0.9em;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.countBadge {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68em;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 8px;
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
+  color: var(--alerts-accent, var(--ut-gold, #c9a84c));
+}
+.gearBtn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+}
+.gearBtn:hover, .gearBtnActive {
+  color: var(--alerts-accent, var(--ut-gold, #c9a84c));
+  background: var(--alerts-row-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* Quick-add — any ticker, a level, above/below (wraps to 2 rows when narrow) */
+.quickAdd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--alerts-row-divider, rgba(255, 255, 255, 0.05));
+  flex: 0 0 auto;
+}
+.tickerInput {
+  flex: 0 0 auto;
+  width: 5.8em;
+  min-width: 0;
+  background: var(--alerts-track, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
+  border-radius: 6px;
+  color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 4px 7px;
+  outline: none;
+}
+.tickerInput::placeholder { color: var(--alerts-chrome, var(--text-muted, #8b8674)); font-weight: 500; letter-spacing: 0; }
+.tickerInput:focus { border-color: var(--alerts-accent, var(--ut-gold, #c9a84c)); }
+.dirToggle { display: inline-flex; border-radius: 6px; overflow: hidden; flex: 0 0 auto; }
+.dirBtn {
+  background: var(--alerts-track, rgba(255, 255, 255, 0.06));
+  border: none;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 0.8em;
+  font-weight: 600;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.dirBtnAbove.dirBtnOn { background: color-mix(in srgb, var(--alerts-above, #1ae51a) 22%, transparent); color: var(--alerts-above, #1ae51a); }
+.dirBtnBelow.dirBtnOn { background: color-mix(in srgb, var(--alerts-below, #ff5b5b) 22%, transparent); color: var(--alerts-below, #ff5b5b); }
+.priceInput {
+  flex: 1 1 auto;
+  min-width: 3.5em;
+  max-width: 7em;
+  background: var(--alerts-track, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
+  border-radius: 6px;
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  padding: 4px 7px;
+  outline: none;
+}
+.priceInput:focus { border-color: var(--alerts-accent, var(--ut-gold, #c9a84c)); }
+.addBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: 1px solid var(--alerts-gold-strong, #a8842a);
+  color: var(--alerts-gold-strong, #a8842a);
+  font-family: inherit;
+  font-size: 0.8em;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.addBtn:hover { background: color-mix(in srgb, var(--alerts-gold-strong, #a8842a) 15%, transparent); }
+.addBtn:disabled { opacity: 0.45; cursor: default; }
+
+/* List */
+.list { flex: 1; min-height: 0; overflow-y: auto; }
+.sectionLabel {
+  padding: 8px 10px 3px;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  opacity: 0.8;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--alerts-row-divider, rgba(255, 255, 255, 0.05));
+  cursor: pointer;
+}
+.row:hover { background: var(--alerts-row-hover, rgba(255, 255, 255, 0.03)); }
+.rowTriggered { opacity: 0.62; }
+
+.dirIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55em;
+  height: 1.55em;
+  border-radius: 5px;
+  font-size: 0.7em;
+  line-height: 1;
+}
+.dirIcon.above { color: var(--alerts-above, #1ae51a); background: color-mix(in srgb, var(--alerts-above, #1ae51a) 14%, transparent); }
+.dirIcon.below { color: var(--alerts-below, #ff5b5b); background: color-mix(in srgb, var(--alerts-below, #ff5b5b) 14%, transparent); }
+
+.main { min-width: 0; flex: 1; }
+.line1 { display: flex; align-items: baseline; gap: 6px; }
+.rowSym {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 0.9em;
+  letter-spacing: 0.3px;
+  color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
+}
+.cond {
+  font-size: 0.82em;
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.target { font-family: var(--font-mono, monospace); font-weight: 600; opacity: 1; }
+
+/* Created / triggered date label under the condition line. */
+.sub {
+  margin-top: 3px;
+  font-size: 0.7em;
+  letter-spacing: 0.3px;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  opacity: 0.85;
+}
+
+/* Right column: live price + its position vs the alert level. */
+.right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
+.live {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+}
+.status { font-size: 0.66em; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--alerts-chrome, var(--text-muted, #8b8674)); white-space: nowrap; }
+.statusAbove { color: var(--alerts-above, #1ae51a); }
+.statusBelow { color: var(--alerts-below, #ff5b5b); }
+
+.delBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--alerts-gold-strong, #a8842a);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.row:hover .delBtn { opacity: 0.5; }
+.delBtn:hover { opacity: 1; color: var(--alerts-gold-strong, #a8842a); background: var(--alerts-row-hover, rgba(255, 255, 255, 0.06)); }
+
+/* States */
+.empty {
+  padding: 18px 14px;
+  font-size: 0.85em;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  line-height: 1.55;
+  text-align: center;
+}
+.emptyIcon { display: block; margin: 0 auto 8px; opacity: 0.5; }
+
+/* Responsive: collapse at narrow widget widths (root = .widgetBody container) */
+@container (max-width: 300px) {
+  .cond { font-size: 0.76em; }
+  .live { display: none; }
+}
+@container (max-width: 230px) {
+  .right { display: none; }
+}

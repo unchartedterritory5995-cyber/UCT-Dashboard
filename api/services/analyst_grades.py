@@ -23,6 +23,13 @@ _log = logging.getLogger(__name__)
 
 cache = _cache_singleton          # module-level handle — tests patch this
 _TTL = 6 * 3_600                  # 6h — analyst data moves slowly intra-day
+# A result shaped by a PROVIDER FAILURE self-heals in 5 min instead of 6h. The
+# two are not the same thing: "this small-cap has no analyst coverage" is a real
+# answer worth holding for 6h, while "FMP timed out" is not an answer at all and
+# used to be indistinguishable from it — both cached `{"_miss": True}` for the
+# full 6h, so one transient blip blanked a ticker's analyst panel for the rest
+# of the session.
+_FAIL_TTL = 300
 _MAX_ACTIONS = 12                 # recent grade actions to surface
 _MAX_TREND = 6                    # months of rating-bucket history
 
@@ -120,25 +127,44 @@ def get_analyst_grades(ticker: str) -> Optional[dict]:
     if cached is not None:
         return None if cached.get("_miss") else cached
 
+    # Track whether each leg ANSWERED, separately from what it answered. An
+    # empty result from a leg that ran cleanly is a fact about the company; an
+    # empty result from a leg that raised is a fact about the provider. Same
+    # shape as research/ownership.py's yf_ok/insider_ok.
+    all_answered = True
+
     try:
         consensus = _consensus(ticker)
     except Exception:
         consensus = None
+        all_answered = False
     try:
         price_target = _price_target(ticker)
     except Exception:
         price_target = None
+        all_answered = False
     try:
         actions = _recent_actions(ticker)
     except Exception:
         actions = []
+        all_answered = False
     try:
         trend = _trend(ticker)
     except Exception:
         trend = []
+        all_answered = False
 
     if not (consensus or price_target or actions):
-        cache.set(cache_key, {"_miss": True}, ttl=_TTL)
+        # No data. Hold it 6h only if every provider actually ANSWERED — that
+        # is genuine "no analyst coverage". If any leg raised, this emptiness
+        # is the outage talking, so retry in 5 min.
+        # Deliberately this module's own `cache`, not cache_policy's
+        # set_by_completeness: that helper writes through the shared singleton
+        # and would bypass the module-level seam the existing tests patch. The
+        # policy is identical — the completeness decision is what matters, not
+        # which helper applies it.
+        cache.set(cache_key, {"_miss": True},
+                  ttl=_TTL if all_answered else _FAIL_TTL)
         return None
 
     payload = {
@@ -148,5 +174,8 @@ def get_analyst_grades(ticker: str) -> Optional[dict]:
         "recent_actions": actions,
         "trend":          trend,
     }
-    cache.set(cache_key, payload, ttl=_TTL)
+    # A payload assembled while a leg was down is missing a section it would
+    # otherwise have; hold it briefly so the gap fills rather than persisting
+    # a partial picture for 6h.
+    cache.set(cache_key, payload, ttl=_TTL if all_answered else _FAIL_TTL)
     return payload
