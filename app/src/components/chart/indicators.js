@@ -46,6 +46,11 @@
  *    it.
  * 2. **Parabolic SAR** — returns a third field, `isUptrend`, alongside
  *    `time`/`value`; the consumer strips it before handing data to LWC.
+ *    ⭐ AS OF PHASE C IT IS ALSO READ: `computeParabolicSAREvents` DERIVES SAR's
+ *    two `{0,1,NaN}` event columns from this same pass (`trendFlipped` is
+ *    literally this flag changing). The quirk is unchanged — the flag still
+ *    rides along and the chart consumer still strips it — it simply stopped
+ *    being a behaviour with no reader.
  * 3. **OBV** — already full-length and seeded with `{ value: 0 }` at bar 0
  *    rather than a NaN pad, so its line starts at zero on the first bar.
  */
@@ -553,4 +558,88 @@ export function computeParabolicSAR(bars, step = 0.02, maxStep = 0.2) {
     result[i].isUptrend = isUptrend
   }
   return result
+}
+
+// ─── SAR's two EVENT columns ─────────────────────────────────────────────────
+//
+// ⭐ THE VALUE HAS ALWAYS BEEN THERE; ONLY THE NAME IS NEW. `computeParabolicSAR`
+// already rides an `isUptrend` boolean on every point, and the Python lane
+// already carries it as a numeric ±1 `trend` column pinned by
+// `tests/fixtures/indicators/sar_default.json`. These two columns are DERIVED
+// from that output — never a second SAR loop, which is the twin this programme
+// exists to retire.
+//
+// WHY SAR NEEDS EVENTS AT ALL. `sar` is deliberately not alertable by a fixed
+// threshold: the value JUMPS TO THE OTHER SIDE OF PRICE at every flip, so the
+// same number means "trailing below an uptrend" on one bar and "above a
+// downtrend" on the next. A level is meaningless; the two things a trader
+// actually watches for are events, and these are them.
+//
+//   priceCrossedSar — the CLOSE moved to the other side of the stop this bar
+//   trendFlipped    — the SAR itself jumped sides this bar
+//
+// THEY ARE NOT THE SAME COLUMN, and the difference is a real bar shape rather
+// than a rounding artefact. In an uptrend that does not reverse, `close >= sar`
+// always holds (SAR is clamped at or below the two prior lows, and the reversal
+// test is `low < sar`); by symmetry a downtrend keeps `close <= sar`. So a side
+// change without a trend change is impossible EXCEPT around a reversal bar — and
+// there it is reachable: on reversal the new SAR is the prior leg's extreme
+// point, which an OUTSIDE bar can close beyond. That bar flips the trend without
+// flipping the side, and the next bar flips the side without flipping the trend.
+//
+// ⚠️ THE DOMAIN IS `{0, 1, NaN}` AND `NaN` IS NOT "NO EVENT". It is the warmup
+// pad, exactly as it is in every plot column: bar 0 has no SAR at all (the trend
+// seed consumes it), so there is nothing to have crossed. `0` means "computed,
+// did not happen". Bar 1 is `0` in both columns for the same reason read the
+// other way round: it is computable, and no prior side or trend exists for it to
+// have moved away from, so nothing happened. Collapsing NaN into 0 would make a
+// 200-bar indicator's warmup read as 199 non-events.
+//
+// ⚠️ `close > sar` IS STRICT, in both lanes, and an exact tie therefore reads as
+// "not above". Ties are measure-zero on real tape; what matters is that
+// `api/services/indicator_compute.compute_sar_events` makes the identical choice,
+// because the two are asserted against one fixture at rel-tol 1e-9.
+
+/** Was the close above the stop on this bar? `null` where either is unusable. */
+function sarSideAbove(close, sar) {
+  if (!Number.isFinite(close) || !Number.isFinite(sar)) return null
+  return close > sar
+}
+
+/**
+ * SAR's two event columns, as `[{time, value}]` series in the `{0, 1, NaN}`
+ * domain.
+ *
+ * ⚠️ DERIVED FROM `computeParabolicSAR`, NOT RE-IMPLEMENTED. It recomputes the
+ * SAR pass rather than taking the points as an argument, so there is exactly one
+ * public shape and one place the maths lives; the cost is one extra O(n) walk
+ * that the binder memoises per (instance, bars, inputs) anyway.
+ *
+ * @returns {{priceCrossedSar: Array, trendFlipped: Array}}
+ */
+export function computeParabolicSAREvents(bars, step = 0.02, maxStep = 0.2) {
+  const empty = { priceCrossedSar: [], trendFlipped: [] }
+  if (!bars || bars.length < 2) return empty
+  const points = computeParabolicSAR(bars, step, maxStep)
+  if (!points.length) return empty
+
+  const priceCrossedSar = blank(bars)
+  const trendFlipped = blank(bars)
+
+  for (let i = 1; i < bars.length; i++) {
+    const trend = points[i] ? points[i].isUptrend : undefined
+    const prevTrend = points[i - 1] ? points[i - 1].isUptrend : undefined
+    const side = sarSideAbove(bars[i].c, points[i] ? points[i].value : NA)
+    const prevSide = sarSideAbove(bars[i - 1].c, points[i - 1] ? points[i - 1].value : NA)
+
+    // Bar 1 has a trend and a side but no PRIOR of either — the seed bar is the
+    // pad. "Nothing happened" is the honest answer, not a gap.
+    if (typeof trend === 'boolean') {
+      trendFlipped[i].value = (typeof prevTrend === 'boolean' && prevTrend !== trend) ? 1 : 0
+    }
+    if (side !== null) {
+      priceCrossedSar[i].value = (prevSide !== null && prevSide !== side) ? 1 : 0
+    }
+  }
+  return { priceCrossedSar, trendFlipped }
 }

@@ -284,12 +284,23 @@ def _catalog_addresses() -> list[str]:
 
 
 def test_catalog_offers_exactly_what_can_be_evaluated():
-    from api.services.indicator_alert_evaluator import INDICATOR_FUNCS
+    """⭐ TWO TABLES SINCE PHASE C, AND THE UNION IS THE OFFER.
+
+    `INDICATOR_FUNCS` holds addresses that name a LEVEL; `EVENT_FUNCS` holds
+    addresses that name a `{0, 1, None}` column. They are separate because the
+    questions are — see `_SAR_IS_NOT_A_THRESHOLD` — and the catalog is their
+    union, so an address in neither cannot be offered and an address in either
+    cannot be silently dropped.
+    """
+    from api.services.indicator_alert_evaluator import EVENT_FUNCS, INDICATOR_FUNCS
 
     addresses = _catalog_addresses()
-    assert set(addresses) == set(INDICATOR_FUNCS)
+    assert set(addresses) == set(INDICATOR_FUNCS) | set(EVENT_FUNCS)
     # …and no address is served twice, which a grouping bug could do silently.
     assert len(addresses) == len(set(addresses))
+    # …and the two tables are DISJOINT, or "which table answers for this
+    # address" would depend on lookup order rather than on what it names.
+    assert not set(INDICATOR_FUNCS) & set(EVENT_FUNCS)
 
 
 def test_a_group_name_is_never_mistaken_for_an_address():
@@ -383,21 +394,38 @@ def test_shared_condition_lists_are_handed_out_as_copies():
 def test_adding_a_value_function_without_a_condition_list_fails_loudly():
     """A ninth indicator with no conditions has to fail HERE, at the catalog,
     not in a second dropdown that renders empty."""
-    assert set(evaluator.INDICATOR_FUNCS) <= set(evaluator.ALERT_CONDITIONS)
-    assert set(evaluator.ALERT_CONDITIONS) <= set(evaluator.INDICATOR_FUNCS)
+    alertable = set(evaluator.INDICATOR_FUNCS) | set(evaluator.EVENT_FUNCS)
+    assert alertable <= set(evaluator.ALERT_CONDITIONS)
+    assert set(evaluator.ALERT_CONDITIONS) <= alertable
 
 
 def test_needs_threshold_is_declared_per_condition_not_guessed():
     """The popover used to keep its own THRESHOLD_CONDITIONS set. The served
-    entry carries the flag, and a threshold-taking condition must declare it."""
+    entry carries the flag, and a threshold-taking condition must declare it.
+
+    ⭐ PHASE C GENERALISED THE RULE INSTEAD OF ADDING AN EXCEPTION TO IT. A
+    condition asks the USER for a number exactly when the operand grammar has
+    nothing DECLARED for (address, condition). `bb`'s touches were the one
+    pre-existing case and they satisfied this by accident — `touch_upper` is not
+    in the threshold-taking set at all — so writing the rule as a hand-listed set
+    would have kept working while meaning something narrower than it says. The
+    two SAR event addresses are the first case where the declaration is what
+    makes the flag False, which is what makes the rule observable.
+    """
     threshold_taking = {"above", "below", "cross_above", "cross_below"}
+    declared = 0
     for e in evaluator.alert_catalog():
         for p in e["plots"]:
             for c in p["conditions"]:
+                has_operand = (p["value"], c["value"]) in evaluator.THRESHOLD_OPERAND
+                declared += 1 if has_operand else 0
                 assert isinstance(c["needs_threshold"], bool)
-                assert c["needs_threshold"] is (c["value"] in threshold_taking), (
-                    f'{p["value"]}/{c["value"]} declares the wrong threshold need'
-                )
+                assert c["needs_threshold"] is (
+                    c["value"] in threshold_taking and not has_operand
+                ), f'{p["value"]}/{c["value"]} declares the wrong threshold need'
+    assert declared, (
+        "no offered condition has a declared operand — the `and not has_operand` "
+        "clause is unreachable and this rule is the old hand-listed set again")
 
 
 # ─── B5: THE SEVEN THAT COULD NOT BE ALERTED ON ──────────────────────────────
@@ -439,14 +467,16 @@ def test_a_vwap_alert_can_now_actually_fire():
 def test_all_seven_previously_unalertable_definitions_are_reachable():
     """The gap, closed and counted.
 
-    Six of the seven get addresses; `sar` deliberately does not — see the test
-    below, which asserts the reason is still written down.
+    ⭐ ALL SEVEN NOW, WHICH IS THE PHASE C DELTA. B5 reached six of them and
+    deferred `sar` because the two meaningful SAR questions are RELATIONAL and
+    this lane had one bb-only relational primitive. The grammar is built, so
+    `sar` is reachable — but only through the two EVENT addresses, never through
+    a level. The test below is where that narrower claim lives.
     """
     addresses = set(_catalog_addresses())
     bases = {evaluator.plot_base(a) for a in addresses}
-    for definition in ("vwap", "atr", "adx", "obv", "donchian", "ichimoku"):
+    for definition in ("vwap", "atr", "adx", "obv", "donchian", "ichimoku", "sar"):
         assert definition in bases, f"{definition} still cannot be alerted on"
-    assert "sar" not in bases
 
 
 @pytest.mark.parametrize("address", [
@@ -584,13 +614,22 @@ def test_no_two_addresses_collide_when_case_is_folded():
         assert evaluator.resolve_address(address) == address
 
 
-def test_sar_is_deliberately_not_offered_and_says_why():
-    """`sar` IS ported — it just is not a threshold question.
+def test_sar_has_no_fixed_threshold_address_and_says_why():
+    """SAR is alertable now — by EVENT, never by a fixed level.
 
-    ⚠️ THE REASON IS PART OF THE ASSERTION. An indicator missing from a dict
-    explains nothing, and the next person to notice the asymmetry would simply
-    add it. So: the compute exists (the gap is not being hidden), no address
-    names it, and the written reason is still in the module.
+    ⭐ MOVED DOWN A LEVEL, NOT DELETED. Its predecessor
+    (`test_sar_is_deliberately_not_offered_and_says_why`) asserted `sar` was
+    absent from `INDICATOR_FUNCS` AND that the written reason was still present.
+    The absence claim NARROWED — SAR has two event addresses now — but the REASON
+    did not change one word: a stop level that jumps to the other side of price
+    at every flip names no trading event at a fixed number. So the prose survives
+    beside the narrower refusal, and this still refuses to let a threshold entry
+    be added without someone reading it.
+
+    ⚠️ WITH A POSITIVE CONTROL. `assert "sar" not in THRESHOLD_ADDRESSES` is also
+    satisfied by a tree where SAR went back to being un-alertable entirely — the
+    exact state this task left behind — so the two event addresses are asserted
+    in the same breath.
     """
     from api.services import indicator_compute
 
@@ -599,9 +638,77 @@ def test_sar_is_deliberately_not_offered_and_says_why():
     assert any(v is not None for v in sar)
     assert set(v for v in trend if v is not None) <= {1.0, -1.0}
 
-    assert not [a for a in _catalog_addresses() if evaluator.plot_base(a) == "sar"]
-    assert "markers" in evaluator._SAR_IS_NOT_OFFERED
-    assert "Phase C" in evaluator._SAR_IS_NOT_OFFERED
+    # ── the refusal, narrowed to FIXED-THRESHOLD addressing ──
+    assert "sar" not in evaluator.THRESHOLD_ADDRESSES
+    assert "sar" not in {evaluator.plot_base(a) for a in evaluator.THRESHOLD_ADDRESSES}
+    assert "jumps" in evaluator._SAR_IS_NOT_A_THRESHOLD
+    assert "relational" in evaluator._SAR_IS_NOT_A_THRESHOLD
+    assert "markers" in evaluator._SAR_IS_NOT_A_THRESHOLD
+
+    # ── the positive control ──
+    assert "sar.trendFlipped" in evaluator.EVENT_ADDRESSES
+    assert "sar.priceCrossedSar" in evaluator.EVENT_ADDRESSES
+    assert {evaluator.plot_base(a) for a in evaluator.EVENT_ADDRESSES} == {"sar"}
+    # …and they are OFFERED, not merely declared: a table nothing reads would
+    # satisfy the two lines above while the dropdown showed nothing.
+    offered = set(_catalog_addresses())
+    assert {"sar.trendFlipped", "sar.priceCrossedSar"} <= offered
+    # …and no OFFERED sar address takes a user-typed threshold, which is the
+    # refusal restated where a user could actually reach it.
+    for entry in evaluator.alert_catalog():
+        for plot in entry["plots"]:
+            if evaluator.plot_base(plot["value"]) != "sar":
+                continue
+            assert plot["default_threshold"] is None
+            for cond in plot["conditions"]:
+                assert cond["needs_threshold"] is False, (
+                    f'{plot["value"]}/{cond["value"]} asks the user for a SAR level')
+
+
+def test_the_sar_event_addresses_produce_a_zero_one_column_and_fire_on_it():
+    """⛔ THE OFFER MUST BE ABLE TO FIRE — the `vwap` defect, one more time.
+
+    A declared event address that computes nothing is an alert a user can arm
+    that never tells them anything, which is the class this whole programme has
+    been closing. Both directions: a bar where the event happened triggers, a bar
+    where it did not does not, and the column really is `{0, 1}`.
+    """
+    from api.services import indicator_compute
+
+    bars = _intraday_bars(200)
+    crossed, flipped = indicator_compute.compute_sar_events(bars)
+    assert len(crossed) == len(bars) and len(flipped) == len(bars)
+    assert set(v for v in crossed if v is not None) <= {0.0, 1.0}
+    assert set(v for v in flipped if v is not None) <= {0.0, 1.0}
+    assert any(v == 1.0 for v in flipped), (
+        "the oscillating fixture never flips trend — this proves nothing")
+
+    def evaluate_at(address, upto):
+        return evaluator._evaluate_one(
+            {
+                "id": 1, "user_id": 1, "sym": "TEST", "indicator": address,
+                "condition": "above", "threshold": None, "tf": "5",
+                "params_json": None, "last_value": None,
+            },
+            bars=bars[:upto],
+        )
+
+    fired = [i for i, v in enumerate(flipped) if v == 1.0 and i > 60]
+    quiet = [i for i, v in enumerate(flipped) if v == 0.0 and i > 60]
+    assert fired and quiet, "the column is constant — one direction is untestable"
+
+    value, triggered = evaluate_at("sar.trendFlipped", fired[0] + 1)
+    assert (value, triggered) == (1.0, True)
+    value, triggered = evaluate_at("sar.trendFlipped", quiet[0] + 1)
+    assert (value, triggered) == (0.0, False)
+    # ⚠️ AND `0.0` IS NOT `None`. `_evaluate_one` short-circuits on None, and a
+    # falsy-vs-None slip here would silently drop every "did not happen" bar,
+    # taking `record_evaluation`'s write-back with it.
+    assert value is not None
+
+    # The other event resolves too, and through the camelCase fold.
+    assert evaluate_at("sar.priceCrossedSar", 200)[0] is not None
+    assert evaluate_at("SAR.PRICECROSSEDSAR", 200)[0] is not None
 
 
 def test_an_unknown_address_is_still_accepted_and_still_never_fires():
@@ -631,6 +738,126 @@ def test_an_unknown_address_is_still_accepted_and_still_never_fires():
         bars=_ramp_bars(60),
     )
     assert (value, triggered) == (None, False)
+
+
+# ─── PHASE C: the operand grammar, where `_evaluate_one` reads it ────────────
+
+def test_a_malformed_operand_is_loud_at_the_boundary_not_a_silent_no_fire():
+    """⛔ IT RAISES OUT OF `_evaluate_one`, AND THAT IS THE DESIGN.
+
+    Every other failure in this function is absorbed into `(None, False)` — the
+    right answer for a short bar window. A malformed OPERAND is not that: it is a
+    bug in a declaration, and swallowing it would produce an alert that is
+    offered and can never fire, which is verbatim the `vwap` defect reached from
+    a new direction. The declaration is read OUTSIDE the compute try/except so
+    the raise reaches the cycle's per-alert handler, which logs and counts it.
+    """
+    bars = _ramp_bars(60)
+    alert = {
+        "id": 1, "user_id": 1, "sym": "TEST", "indicator": "rsi",
+        "condition": "above", "threshold": 70.0, "tf": "D",
+        "params_json": None, "last_value": None,
+    }
+    # The control: unmutated, this evaluates cleanly.
+    assert evaluator._evaluate_one(dict(alert), bars=bars)[0] is not None
+
+    original = dict(evaluator.THRESHOLD_OPERAND)
+    evaluator.THRESHOLD_OPERAND[("rsi", "above")] = {"kind": "vibes"}
+    try:
+        with pytest.raises(ValueError, match="unknown operand kind"):
+            evaluator._evaluate_one(dict(alert), bars=bars)
+    finally:
+        evaluator.THRESHOLD_OPERAND.clear()
+        evaluator.THRESHOLD_OPERAND.update(original)
+    assert evaluator.THRESHOLD_OPERAND == original
+
+
+def test_the_dynamic_threshold_is_a_table_lookup_and_not_a_bb_branch():
+    """The non-measurement half of the retirement, read off the SOURCE.
+
+    ⚠️ COMMENT-STRIPPED, WITH THE RAW TEXT AS ITS CONTROL. The retired name and
+    the old branch both survive in TOMBSTONE PROSE on purpose (a deleted
+    mechanism nobody can find the reason for gets rebuilt), so a raw `in` probe
+    would report the retirement incomplete forever. The claim is about CODE.
+    """
+    import re
+
+    src = pathlib.Path(evaluator.__file__).read_text(encoding="utf-8")
+    body = src.split("def _evaluate_one")[1].split("\ndef ")[0]
+    code = "\n".join(
+        line for line in body.splitlines()
+        if not line.lstrip().startswith("#")
+    )
+    # The control: the tombstone prose IS still there, in the comments, so this
+    # is measuring the difference between code and prose rather than absence.
+    assert '_bb_threshold_override' in body
+    assert re.search(r'indicator\s*==\s*"bb"', body)
+    # …and neither survives in the CODE.
+    assert '_bb_threshold_override' not in code
+    assert not re.search(r'indicator\s*==\s*"bb"', code)
+    assert "threshold_operand_value(" in code
+
+    # …and the only surviving DEFINITION of the retired name is a delegation.
+    # ⚠️ READ AS AN AST, NOT AS TEXT. A line count would be measuring the
+    # tombstone's prose, and prose is exactly what is supposed to be long here.
+    # The claim is that the executable body is one `return` of one call.
+    import ast
+
+    tree = ast.parse(src)
+    tombs = [n for n in ast.walk(tree)
+             if isinstance(n, ast.FunctionDef) and n.name == "_bb_threshold_override"]
+    assert len(tombs) == 1, "the retired name is defined more than once"
+    stmts = [n for n in tombs[0].body
+             if not (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant))]
+    assert len(stmts) == 1 and isinstance(stmts[0], ast.Return), (
+        "the retired override still has a body — it is meant to be a delegation")
+    call = stmts[0].value
+    assert isinstance(call, ast.Call) and call.func.id == "threshold_operand_value"
+    # …and no band arithmetic survives anywhere in it.
+    assert not [n for n in ast.walk(tombs[0])
+                if isinstance(n, ast.Name) and "compute" in n.id]
+
+
+def test_the_operand_table_is_the_only_place_a_relation_is_declared():
+    """Every declared pair must name an address the catalog actually offers, and
+    a condition that address actually offers — a row pointing at neither is a
+    relation nobody can reach, which is the un-fireable-offer shape inverted."""
+    offered = {p["value"]: {c["value"] for c in p["conditions"]}
+               for e in evaluator.alert_catalog() for p in e["plots"]}
+    assert evaluator.THRESHOLD_OPERAND, "no relation is declared at all"
+    for (address, condition), spec in evaluator.THRESHOLD_OPERAND.items():
+        assert address in offered, f"{address} is declared and not offered"
+        assert condition in offered[address], (
+            f"{address}/{condition} is declared and the address does not offer it")
+        assert spec["kind"] in evaluator.OPERAND_KINDS
+        if spec["kind"] == "address":
+            assert spec["address"] in evaluator.INDICATOR_FUNCS, (
+                f'{spec["address"]} is the right-hand side of a relation and is '
+                "not an address that can be computed")
+
+
+def test_a_line_can_now_be_compared_to_another_line():
+    """⭐ WHAT THE GRAMMAR UNLOCKED, AS A NUMBER.
+
+    MACD-vs-its-signal-LINE was refused for exactly the reason `sar` was — one
+    bb-only relational primitive. It is EXPRESSIBLE now and costs one row, which
+    this proves by resolving it rather than by asserting a comment. (It is
+    deliberately not OFFERED yet; see the `macd` note in `ALERT_CONDITIONS`.)
+    """
+    bars = _intraday_bars(200)
+    signal = evaluator.address_value("macd.signal", bars, {})
+    line = evaluator.address_value("macd", bars, {})
+    assert signal is not None and line is not None and signal != line
+
+    resolved = evaluator.resolve_operand(
+        {"kind": "address", "address": "macd.signal"}, bars, {},
+        evaluator.address_value,
+    )
+    assert resolved == signal
+    # …and the relation answers a real question: the line is above its signal
+    # exactly when `check_condition` says so against the resolved operand.
+    assert check_condition("above", line, None, resolved) is (line > signal)
+    assert check_condition("below", line, None, resolved) is (line < signal)
 
 
 # ─── the served route (B4 Task 9) ────────────────────────────────────────────
@@ -690,7 +917,12 @@ def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
     assert served[:8] == [
         "rsi", "macd", "bb", "stoch", "williams_r", "cci", "mfi", "price_vs_ma",
     ]
-    assert served[8:] == ["vwap", "atr", "adx", "obv", "donchian", "ichimoku"]
+    # ⭐ AND PHASE C APPENDS TOO. `sar` is last because the catalog walks the
+    # LEVEL table and then the EVENT table, so neither the eight nor the six
+    # moved when the fifteenth group arrived.
+    assert served[8:] == [
+        "vwap", "atr", "adx", "obv", "donchian", "ichimoku", "sar",
+    ]
     # …and the three legacy multi-plot bases still open on their legacy address,
     # so the pre-selected plot is the one the bare spelling has always meant.
     by_base = {e["indicator"]: e for e in evaluator.alert_catalog()}

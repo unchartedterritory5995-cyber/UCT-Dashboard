@@ -1,0 +1,88 @@
+{
+  "case": "sar_events_outside_bar",
+  "kind": "sar_events",
+  "note": "THE CASE THAT PROVES THE TWO EVENTS ARE TWO COLUMNS. Seven hand-built bars, every number derivable on paper. Bars 0-4 are a clean uptrend: SAR seeds at bars[0].l = 98 and climbs 98 / 98 / 98.36 / 98.9712 while the close stays above it. Bar 5 is an OUTSIDE REVERSAL: its low (95) takes out the projected SAR (99.87408) so the trend flips DOWN and the SAR jumps to the prior extreme point (ep = 108) \u2014 but its close (112) is ABOVE that, so the price did NOT change sides. trendFlipped=1, priceCrossedSar=0. Bar 6 is the mirror: the downtrend clamps SAR up to the prior high (113), the close (107) is now below it, and the side changes with no trend change. trendFlipped=0, priceCrossedSar=1. On `sar_default`'s 140 real bars the two columns are element-for-element EQUAL, so without this case a lane that returned the same column twice \u2014 or returned them the wrong way round \u2014 would be invisible.",
+  "params": {
+    "step": 0.02,
+    "max_step": 0.2
+  },
+  "relTol": 1e-09,
+  "bars": [
+    {
+      "t": 1780272000,
+      "o": 98.5,
+      "h": 100.0,
+      "l": 98.0,
+      "c": 99.0,
+      "v": 1000
+    },
+    {
+      "t": 1780272300,
+      "o": 99.2,
+      "h": 102.0,
+      "l": 99.0,
+      "c": 101.0,
+      "v": 1100
+    },
+    {
+      "t": 1780272600,
+      "o": 101.2,
+      "h": 104.0,
+      "l": 101.0,
+      "c": 103.0,
+      "v": 1200
+    },
+    {
+      "t": 1780272900,
+      "o": 103.2,
+      "h": 106.0,
+      "l": 103.0,
+      "c": 105.0,
+      "v": 1300
+    },
+    {
+      "t": 1780273200,
+      "o": 105.2,
+      "h": 108.0,
+      "l": 105.0,
+      "c": 107.0,
+      "v": 1400
+    },
+    {
+      "t": 1780273500,
+      "o": 106.0,
+      "h": 113.0,
+      "l": 95.0,
+      "c": 112.0,
+      "v": 9000
+    },
+    {
+      "t": 1780273800,
+      "o": 109.5,
+      "h": 110.0,
+      "l": 106.0,
+      "c": 107.0,
+      "v": 1500
+    }
+  ],
+  "expected": {
+    "priceCrossedSar": [
+      null,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "trendFlipped": [
+      null,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ]
+  }
+}

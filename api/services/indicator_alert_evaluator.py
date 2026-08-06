@@ -25,66 +25,22 @@ import time
 from collections import defaultdict
 from typing import Any, Callable, Optional
 
+# ⭐ THE CONDITION FUNCTION AND THE OPERAND GRAMMAR NOW LIVE IN ONE MODULE, AND
+# THEY ARE RE-EXPORTED HERE ON PURPOSE. `check_condition` was MOVED VERBATIM —
+# two committed oracles (the 5,040-row `indicator_alert_baseline.json` and the
+# 691,195-fire `fire_log_forming.json`) are pointed at this NAME, and every
+# consumer — `tools/alert_replay.py`, `tests/test_alert_replay.py`, this module's
+# own tests — reaches it as `indicator_alert_evaluator.check_condition`. A move
+# that also renamed the door would have been a rename wearing a refactor's hat.
+from api.services.alert_conditions import (  # noqa: F401  (re-exported)
+    OPERAND_KINDS,
+    check_condition,
+    resolve_operand,
+)
+
 _logger = logging.getLogger(__name__)
 _running = threading.Event()
 _thread: Optional[threading.Thread] = None
-
-
-# ─── pure condition matching ─────────────────────────────────────────────────
-
-def check_condition(
-    condition: str,
-    current: Optional[float],
-    prev: Optional[float],
-    threshold: Optional[float],
-) -> bool:
-    """Does an alert fire given current + previous indicator values?
-
-    ``current`` is the latest indicator value (last computed bar). ``prev``
-    is the value persisted from the previous evaluation cycle — used only by
-    cross-* conditions. ``threshold`` is the user-supplied trigger level for
-    above / below / cross_above / cross_below.
-
-    Returns ``False`` for unknown conditions, missing values, or any case
-    where the condition is well-defined but not met. Pure function — no
-    side effects, no I/O, no module imports.
-    """
-    if current is None:
-        return False
-
-    if condition == "above":
-        return threshold is not None and current > threshold
-    if condition == "below":
-        return threshold is not None and current < threshold
-    if condition == "cross_above":
-        # Crossed UP through threshold: prev was at/below, current is strictly above.
-        return (
-            prev is not None
-            and threshold is not None
-            and prev <= threshold
-            and current > threshold
-        )
-    if condition == "cross_below":
-        # Crossed DOWN through threshold: prev was at/above, current is strictly below.
-        return (
-            prev is not None
-            and threshold is not None
-            and prev >= threshold
-            and current < threshold
-        )
-    if condition == "cross_zero":
-        # Crossed through zero in either direction.
-        if prev is None:
-            return False
-        return (prev <= 0 < current) or (prev >= 0 > current)
-    if condition == "touch_upper":
-        # Used for Bollinger Band upper-touch — current is expected to be the
-        # close, threshold is the upper-band value at the same bar.
-        return threshold is not None and current >= threshold
-    if condition == "touch_lower":
-        # Mirror of touch_upper for the lower band.
-        return threshold is not None and current <= threshold
-    return False
 
 
 # ─── indicator dispatch ──────────────────────────────────────────────────────
@@ -174,22 +130,6 @@ def _value_bb(bars: list[dict], params: dict) -> Optional[float]:
     return float(bars[-1]["c"])
 
 
-# indicator name → (callable that returns current value, callable that returns
-# threshold override for touch_upper/touch_lower or None)
-def _bb_threshold_override(bars: list[dict], params: dict, condition: str) -> Optional[float]:
-    """For BB touch_upper/touch_lower: dynamic threshold = current band value."""
-    if condition not in ("touch_upper", "touch_lower"):
-        return None
-    from api.services import indicator_compute
-    period = int(params.get("period", 20))
-    stddev = float(params.get("stddev", 2.0))
-    closes = [b["c"] for b in bars]
-    upper, _mid, lower = indicator_compute.compute_bb(closes, period, stddev)
-    if condition == "touch_upper":
-        return _last_non_none(upper)
-    return _last_non_none(lower)
-
-
 # ─── B5: THE OTHER SIX DEFINITIONS, AND HOW A PLOT IS NAMED ──────────────────
 #
 # Seven engine definitions could not be alerted on at all (`vwap`, `atr`, `sar`,
@@ -215,14 +155,15 @@ def _bb_threshold_override(bars: list[dict], params: dict, condition: str) -> Op
 # recorded evaluations to prove that rather than assert it.
 #
 # ⚠️ `bb` IS NOT `bb.middle`, AND THAT IS DELIBERATE. The legacy `bb` alert
-# reports the CLOSE and looks the band up as a dynamic threshold
-# (`_bb_threshold_override`) — a price-vs-band relation, not a plot's value.
-# `bb.upper`/`bb.middle`/`bb.lower` are the band VALUES, which is a different
-# (and also useful) question. Collapsing them would silently change what every
-# armed `bb` alert means.
+# reports the CLOSE and looks the band up as a dynamic threshold (a bb-only
+# override until Phase C, one row of `THRESHOLD_OPERAND` since) — a price-vs-band
+# relation, not a plot's value. `bb.upper`/`bb.middle`/`bb.lower` are the band
+# VALUES, which is a different (and also useful) question. Collapsing them would
+# silently change what every armed `bb` alert means.
 #
-# ⛔ `sar` IS PORTED BUT NOT OFFERED. See `_SAR_IS_NOT_OFFERED` below — the
-# reason is written down there because a missing entry explains nothing.
+# ⛔ `sar` HAS NO FIXED-THRESHOLD ADDRESS, AND HAS TWO EVENT ADDRESSES. See
+# `_SAR_IS_NOT_A_THRESHOLD` below — the reason is written down there because a
+# missing entry explains nothing.
 
 
 def _plot_of(compute_name: str, index: Optional[int] = None,
@@ -258,9 +199,10 @@ def _plot_of(compute_name: str, index: Optional[int] = None,
     fn.__name__ = f"_value_{compute_name}_{index}"
     return fn
 
-# Dispatch map: PLOT ADDRESS → value function. The threshold override hook is
-# applied only for BB; for everything else the user-supplied threshold from
-# the alert row is used verbatim.
+# Dispatch map: PLOT ADDRESS → value function, for every address that names a
+# LEVEL. A condition's right-hand side comes from `THRESHOLD_OPERAND` when one is
+# declared for (address, condition); for everything else the user-supplied
+# threshold from the alert row is used verbatim.
 # ⚠️ INSERTION ORDER IS THE DROPDOWN'S ORDER since B4 Task 9, and it is pinned.
 # The first eight are ordered to match the order the retired
 # `IndicatorAlertPopover.INDICATORS` literal shipped, so collapsing the twin
@@ -304,36 +246,165 @@ INDICATOR_FUNCS: dict[str, Callable[[list[dict], dict], Optional[float]]] = {
 }
 
 
-# ⛔ WHY `sar` IS PORTED AND STILL NOT OFFERED.
+# ─── PHASE C TASK 3: EVENT ADDRESSES — A COLUMN THAT IS NOT A LEVEL ──────────
 #
-# `compute_sar` exists and agrees with the chart at 1e-9 — the compute gap is
-# closed for it like the rest. What it does NOT have is a meaningful threshold
-# question, and offering one anyway would re-open the exact defect this task
-# closes: an alert a user can arm that never tells them anything true.
+# ⭐ A SECOND TABLE, NOT SEVENTEEN MORE ROWS IN THE FIRST, AND THE SPLIT IS THE
+# POINT. Every key in `INDICATOR_FUNCS` answers "what number is this plot at?" —
+# a LEVEL, which a user compares against a threshold they choose. An EVENT column
+# answers "did this happen on this bar?" and is valued {0, 1, None}: comparing it
+# to a level the user typed would be meaningless in both directions.
+#
+# Keeping them apart is what lets the refusal below stay a REFUSAL rather than
+# becoming a filter over one merged dict — `THRESHOLD_ADDRESSES` and
+# `EVENT_ADDRESSES` are two tables with different questions behind them, and
+# `sar` is in exactly one of them.
+#
+# ⚠️ CONSUMED BY KEY, NEVER BY REACHING INTO THE ENGINE REGISTRY. The event
+# columns come from `indicator_compute.compute_sar_events`, whose contract is
+# `(bars, step, max_step) -> (price_crossed_sar, trend_flipped)`, each aligned to
+# input length and valued 0.0 / 1.0 / None. That function is DERIVED from
+# `compute_sar_raw`'s already-pinned ±1 trend column, so nothing is reseeded and
+# there is no second SAR loop anywhere.
+EVENT_FUNCS: dict[str, Callable[[list[dict], dict], Optional[float]]] = {
+    "sar.priceCrossedSar": _plot_of("compute_sar_events", 0, step=0.02, max_step=0.2),
+    "sar.trendFlipped": _plot_of("compute_sar_events", 1, step=0.02, max_step=0.2),
+}
+
+# The two vocabularies, named. Read by `alert_catalog`, by `_evaluate_one`, and
+# by `test_sar_has_no_fixed_threshold_address_and_says_why` — which asserts
+# membership of one and absence from the other, so neither can be answered twice.
+THRESHOLD_ADDRESSES: tuple[str, ...] = tuple(INDICATOR_FUNCS)
+EVENT_ADDRESSES: tuple[str, ...] = tuple(EVENT_FUNCS)
+
+
+def value_function(address: str) -> Optional[Callable[[list[dict], dict], Optional[float]]]:
+    """The value function for a canonical address, level or event.
+
+    ⚠️ LOOKED UP LIVE, NEVER SNAPSHOTTED INTO A MERGED DICT. `INDICATOR_FUNCS`
+    is re-pointed at runtime by two different controls — the replay's own
+    `test_the_replay_fails_when_an_address_is_repointed` and Task 2's fire-log
+    control both rebind a live entry — and a module-level `{**A, **B}` would
+    keep serving the pre-mutation callable, which is a control that cannot fail.
+    """
+    fn = INDICATOR_FUNCS.get(address)
+    return fn if fn is not None else EVENT_FUNCS.get(address)
+
+
+def address_value(address: str, bars: list[dict], params: dict) -> Optional[float]:
+    """One plot address → its number on the last bar of ``bars``.
+
+    The resolver handed to `alert_conditions.resolve_operand` for an `address`
+    operand, so the RIGHT side of a relation is computed by the exact same
+    function that computes a LEFT side. That is what makes "compare a line to
+    another line" impossible to get subtly wrong: there is no second code path
+    for the right-hand operand to round differently in.
+    """
+    fn = value_function(resolve_address(address))
+    if fn is None or not bars:
+        return None
+    return fn(bars, params)
+
+
+# ⭐ THE OPERAND TABLE — WHERE `_bb_threshold_override` WENT.
+#
+# A condition's right-hand side used to be a number the user typed, with exactly
+# ONE exception: a bb-only function that recomputed the band and substituted it
+# for the threshold. That exception is now a DECLARATION. The behaviour is
+# unchanged bit for bit — `bb.upper` is the same `compute_bb` delivery wrapper,
+# read at the same index, through the same `_last_non_none` — and the proof is
+# that `tools/alert_replay.py --check` reproduces all 691,195 frozen fires and
+# `indicator_alert_baseline.json`'s 5,040 recorded pairs replay unmoved.
+#
+# ⛔ AND `bb` STILL IS NOT `bb.middle`. The legacy `bb` alert reports the CLOSE
+# and looks the BAND up as the threshold — a price-vs-band RELATION, not a plot's
+# value. Collapsing it into the band's own value would silently change what every
+# armed `bb` alert means, and the 5,040 recorded rows say so.
+#
+# ⛔ AN EVENT'S 0.5 IS NOT A THRESHOLD, IT IS A DECODER. The column is valued
+# {0, 1, None}; 0.5 is the only number that separates them and it is DECLARED
+# here rather than typed by a user, which is precisely why the event addresses
+# are offered while a fixed threshold on SAR's own value still is not. It also
+# means `check_condition` needed no new branch and stayed verbatim.
+THRESHOLD_OPERAND: dict[tuple[str, str], dict] = {
+    ("bb", "touch_upper"): {"kind": "address", "address": "bb.upper"},
+    ("bb", "touch_lower"): {"kind": "address", "address": "bb.lower"},
+    ("sar.priceCrossedSar", "above"): {"kind": "const", "value": 0.5},
+    ("sar.trendFlipped", "above"): {"kind": "const", "value": 0.5},
+}
+
+
+def threshold_operand_value(address: str, condition: str, bars: list[dict],
+                            params: dict) -> Optional[float]:
+    """The DECLARED right-hand side for (address, condition), as a number.
+
+    ``None`` when nothing is declared — which is the common case and means "use
+    the threshold the user typed". A declared operand that cannot be computed
+    yet also returns ``None`` and the user's threshold stands, exactly as the
+    bb-only override behaved.
+    """
+    spec = THRESHOLD_OPERAND.get((address, condition))
+    if spec is None:
+        return None
+    return resolve_operand(spec, bars, params, address_value)
+
+
+def _bb_threshold_override(bars: list[dict], params: dict,
+                           condition: str) -> Optional[float]:
+    """⚰️ TOMBSTONE. The module's ONE relational primitive, retired into the
+    grammar — this is now a two-line delegation with no band arithmetic in it.
+
+    ⚠️ THE NAME SURVIVES BECAUSE TWO FILES OUTSIDE THIS LANE BIND IT DIRECTLY:
+    `tools/alert_replay.py::make_forming_evaluate` and
+    `tests/test_alert_replay.py::_closed_bar_evaluate`. Both are the frozen fire
+    log's own instrument, both were written in Task 2, and re-pointing them at
+    `threshold_operand_value` belongs to the task that rebuilds the harness for
+    the closed lane — not to the task whose gate is that the instrument's reading
+    did not move. Deleting the symbol here would have broken the measurement
+    being used to prove the change was safe.
+
+    It is not a shim that hides a fork: `test_the_harness_agrees_with_the_evaluators_own_evaluate_one`
+    drives BOTH this function's callers and `_evaluate_one` over every address ×
+    condition × threshold × prev on the wick fixture and demands exact equality,
+    so a divergence between the two lanes is red before any replay number moves.
+    """
+    return threshold_operand_value("bb", condition, bars, params)
+
+
+# ⛔ WHY `sar` IS ALERTABLE BY EVENT AND STILL HAS NO FIXED-THRESHOLD ADDRESS.
+#
+# `compute_sar` exists and agrees with the chart at 1e-9 — the compute gap was
+# closed for it in B5 like the rest. What it does NOT have is a meaningful
+# threshold question, and offering one anyway would re-open the exact defect this
+# programme closes: an alert a user can arm that never tells them anything true.
 #
 # SAR's plot style is `markers`, and its value is a stop level that JUMPS to the
 # OTHER SIDE of price at every trend flip. So "SAR crosses above 250" is a claim
 # about where the stop happens to sit in absolute terms, which is not a trading
 # event: the same number means "trailing below an uptrend" one bar and "trailing
-# above a downtrend" the next.
+# above a downtrend" the next. THAT ARGUMENT HAS NOT CHANGED ONE WORD.
 #
-# The two questions that ARE meaningful — "price crossed the SAR" and "the trend
-# flipped" — are both RELATIONAL, and this module has exactly one relational
-# primitive (`_bb_threshold_override`), which is bb-only. Building a second is a
-# change to the EVALUATION lane, and that is spec §8's, in Phase C. This module
-# already makes that call once, for the same reason, about comparing MACD to its
-# signal LINE (see the `macd` note in `ALERT_CONDITIONS`); making it differently
-# here would be inconsistent, not more helpful.
+# What HAS changed is the premise underneath the old deferral. The two questions
+# that ARE meaningful — "price crossed the SAR" and "the trend flipped" — are
+# both RELATIONAL, and until Phase C this module had exactly one relational
+# primitive (`_bb_threshold_override`), which was bb-only; building a second was
+# a change to the EVALUATION lane and that was spec §8's, in Phase C. THIS IS
+# PHASE C, the grammar above IS that primitive, and it is built once — so the
+# same sentence that refused SAR then is what offers it now, as `EVENT_FUNCS`.
+# The MACD-vs-signal-LINE refusal in `ALERT_CONDITIONS` was deferred with the
+# identical sentence and is likewise expressible now, as
+# `{"kind": "address", "address": "macd.signal"}`.
 #
-# So: no `sar` address. `test_sar_is_deliberately_not_offered_and_says_why`
-# asserts the absence AND that this reasoning is still here, so the entry cannot
-# be added without someone reading it.
-_SAR_IS_NOT_OFFERED = (
-    "sar is a markers plot whose value alternates above and below price at every "
+# So: two `sar` EVENT addresses, and still no `sar` in `THRESHOLD_ADDRESSES`.
+# `test_sar_has_no_fixed_threshold_address_and_says_why` asserts the narrower
+# absence AND that this reasoning is still here — with the two event addresses as
+# its positive control, so it cannot pass on a tree where SAR simply went back to
+# being un-alertable.
+_SAR_IS_NOT_A_THRESHOLD = (
+    "sar is a markers plot whose value jumps to the other side of price at every "
     "trend flip, so a fixed threshold names no trading event. The meaningful SAR "
-    "questions (price crossed SAR, the trend flipped) are relational, and a "
-    "second relational primitive is a change to the evaluation lane — spec §8, "
-    "Phase C."
+    "questions (price crossed SAR, the trend flipped) are relational, and Phase C "
+    "builds that relational primitive once — spec §8 — so they are offered as "
+    "EVENT addresses while a fixed-threshold address is still refused."
 )
 
 
@@ -398,8 +469,8 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     # 🔴 TWO DELIBERATE CORRECTIONS TO THE RETIRED FRONTEND LITERAL, BOTH MEASURED.
     #
     # 1. `needs_threshold` is TRUE for both crosses. The B4 brief specified False.
-    #    It cannot be: `_value_macd` returns the MACD LINE, `_bb_threshold_override`
-    #    is the only dynamic threshold in this module and it is `bb`-only, and
+    #    It cannot be: `_value_macd` returns the MACD LINE, and (AS OF B4/B5, past
+    #    tense now) the module's only dynamic threshold was a bb-only override, and
     #    `check_condition("cross_above", …)` returns False whenever `threshold is
     #    None`. A False here would offer an alert that can never fire — the exact
     #    `vwap` class this task exists to close, re-opened inside the fix.
@@ -407,9 +478,16 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     #    threshold for these two (its `THRESHOLD_CONDITIONS` was keyed on the
     #    CONDITION, not on indicator+condition), so the shipped behaviour has
     #    always been "MACD crosses the number you typed" while the shipped label
-    #    said "signal". The naming authority may not carry that lie. Comparing
+    #    said "signal". The naming authority may not carry that lie.
+    #    ⭐ PHASE C UPDATE, AND THE CLAUSE THAT STOPPED BEING TRUE: "comparing
     #    against the signal LINE would need a macd threshold override, which is a
-    #    change to the evaluation lane — spec §8's, in Phase C.
+    #    change to the evaluation lane — spec §8's, in Phase C." That change is
+    #    BUILT (see `THRESHOLD_OPERAND`), so the relation is now EXPRESSIBLE as
+    #    `{"kind": "address", "address": "macd.signal"}` and costs one row. It is
+    #    deliberately not OFFERED in this commit: adding a row here changes what
+    #    the dropdown means for an indicator eight legacy alerts are armed on, and
+    #    that is a product decision with its own gate, not a side effect of
+    #    building the grammar. The refusal above is now a CHOICE, not a limit.
     "macd": [
         {"value": "cross_above", "label": "Crosses above level", "needs_threshold": True},
         {"value": "cross_below", "label": "Crosses below level", "needs_threshold": True},
@@ -458,6 +536,21 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     "obv": _OSCILLATOR_CONDITIONS + [
         {"value": "cross_zero", "label": "Crosses zero line", "needs_threshold": False},
     ],
+    # ── PHASE C: the two EVENT addresses ─────────────────────────────────────
+    # ONE condition each, and it is `above` rather than a new condition string —
+    # the event column is {0, 1, None} and `THRESHOLD_OPERAND` declares the 0.5
+    # that separates them, so this rides the grammar instead of adding a branch
+    # to `check_condition` (whose two committed oracles are pointed at it
+    # verbatim). `needs_threshold` is False because the operand is DECLARED, and
+    # that is now the general rule rather than a bb-shaped exception:
+    # a condition asks the user for a number exactly when nothing is declared
+    # for it — see `test_needs_threshold_is_declared_per_condition_not_guessed`.
+    "sar.priceCrossedSar": [
+        {"value": "above", "label": "Price crossed SAR this bar", "needs_threshold": False},
+    ],
+    "sar.trendFlipped": [
+        {"value": "above", "label": "SAR trend flipped this bar", "needs_threshold": False},
+    ],
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -497,6 +590,9 @@ ALERT_LABELS: dict[str, str] = {
     "ichimoku.spanA": "Senkou Span A",
     "ichimoku.spanB": "Senkou Span B",
     "ichimoku.chikou": "Chikou Span",
+    # ── PHASE C: the two EVENT addresses ──
+    "sar.priceCrossedSar": "Price / SAR cross",
+    "sar.trendFlipped": "SAR trend flip",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -507,6 +603,10 @@ ALERT_BASE_LABELS: dict[str, str] = {
     "adx": "ADX / DMI",
     "donchian": "Donchian Channels",
     "ichimoku": "Ichimoku Cloud",
+    # `sar` is a group name and NOT an address — deliberately, and it is the
+    # whole refusal: the base names no level you could threshold, only the two
+    # events under it.
+    "sar": "Parabolic SAR",
 }
 
 _DEFAULT_THRESHOLDS: dict[str, float] = {
@@ -547,7 +647,13 @@ def plot_base(address: str) -> str:
 # as the definition does, or there are two vocabularies again) and resolution
 # folds case instead. Storing an already-lowercased legacy key still lands on the
 # identical function object, which the recorded baseline replay proves.
-_CANONICAL_ADDRESS: dict[str, str] = {a.lower(): a for a in INDICATOR_FUNCS}
+#
+# ⚠️ IT COVERS THE EVENT ADDRESSES TOO, AND THEY ARE THE camelCase CASE AGAIN:
+# `"sar.priceCrossedSar".lower()` is not a key either. Folding both tables here
+# is what keeps ONE resolution rule for ONE address grammar.
+_CANONICAL_ADDRESS: dict[str, str] = {
+    a.lower(): a for a in list(INDICATOR_FUNCS) + list(EVENT_FUNCS)
+}
 
 
 def resolve_address(raw: Optional[str]) -> str:
@@ -586,8 +692,12 @@ def alert_catalog() -> list[dict]:
     all eight pre-B5 indicators `plots[0]` IS the legacy address, so a client
     that never looks at `plots` reads exactly the entry it read before.
     """
+    # ⚠️ LEVELS FIRST, THEN EVENTS — so the pre-B5 eight are still the first
+    # eight groups, the B5 six still follow in their order, and Phase C APPENDS
+    # `sar` at the end. An existing user's dropdown opens on the same option it
+    # always did and every option they already knew is where it was.
     groups: dict[str, list[str]] = {}
-    for address in INDICATOR_FUNCS:
+    for address in list(INDICATOR_FUNCS) + list(EVENT_FUNCS):
         groups.setdefault(plot_base(address), []).append(address)
 
     entries = []
@@ -686,7 +796,7 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None) -> tuple[Optio
     # every camelCase plot address (`adx.plusDI`, `ichimoku.spanA`). See
     # `_CANONICAL_ADDRESS`.
     indicator = resolve_address(alert.get("indicator"))
-    fn = INDICATOR_FUNCS.get(indicator)
+    fn = value_function(indicator)
     if fn is None:
         return None, False
 
@@ -711,11 +821,24 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None) -> tuple[Optio
     condition = alert.get("condition") or ""
     threshold = alert.get("threshold")
 
-    # BB touch conditions: the threshold is dynamic (current upper/lower band).
-    if indicator == "bb":
-        dyn = _bb_threshold_override(bars, params, condition)
-        if dyn is not None:
-            threshold = dyn
+    # ⭐ THE DYNAMIC THRESHOLD IS NOW A DECLARED OPERAND, NOT A BRANCH.
+    #
+    # This used to read `if indicator == "bb": dyn = _bb_threshold_override(…)`,
+    # which is why a relation could only ever be asked about one indicator. The
+    # table is consulted by (address, condition), so a new relation is a new ROW
+    # in `THRESHOLD_OPERAND` and no new code here — and an address with nothing
+    # declared keeps the threshold the user typed, byte for byte as before.
+    #
+    # ⛔ DELIBERATELY OUTSIDE THE try/except ABOVE. That block absorbs a compute
+    # failure into a silent no-fire, which is the right answer for a short bar
+    # window and the WRONG answer for a malformed declaration: `resolve_operand`
+    # RAISES on an operand kind nobody implements, and swallowing that would turn
+    # a bug in a declaration into an alert that is offered and never fires — the
+    # `vwap` defect, reached from a new direction. It propagates to the cycle's
+    # per-alert handler, which logs it and counts an error.
+    dyn = threshold_operand_value(indicator, condition, bars, params)
+    if dyn is not None:
+        threshold = dyn
 
     prev_value = alert.get("last_value")
     triggered = check_condition(condition, value, prev_value, threshold)

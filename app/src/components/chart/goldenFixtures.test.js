@@ -28,6 +28,7 @@ import {
   computeDonchian,
   computeIchimoku,
   computeParabolicSAR,
+  computeParabolicSAREvents,
 } from './indicators'
 
 // vitest is normally run from `app/`, but the same suite has to resolve when it
@@ -245,6 +246,105 @@ describe('golden fixtures — shared with the Python lane', () => {
     // …and it is a real signal on these bars, not a constant.
     const seen = new Set(c.expected.trend.filter(v => v !== null))
     expect(seen, 'the trend never flips — the column pins nothing').toEqual(new Set([1, -1]))
+  })
+
+  // ─── Phase C: SAR's two EVENT columns ─────────────────────────────────────
+  //
+  // ⭐ THEY COST NO RESEED, AND THAT IS THE POINT. `compute_sar_raw` already
+  // returned a ±1 `trend` column and `sar_default.json` has pinned it in BOTH
+  // lanes since B5 — so `trendFlipped` is `trend[i] != trend[i-1]` over numbers
+  // two lanes already agree on, and `priceCrossedSar` is `(close > sar)` changing
+  // over the `sar` column beside it. `sar_events_default` therefore OWNS NO BARS:
+  // it points at `sar_default.json` with `barsFrom`, so the two cases cannot
+  // drift apart and a reseed of one turns the other red.
+  //
+  // ⚠️ THE DOMAIN IS `{0, 1, NaN}` AND `NaN` IS NOT "NO EVENT" — it is the warmup
+  // pad, exactly as in every plot column. `alignedClose` alone would be satisfied
+  // by a column of the right numbers in the wrong TYPE, so the domain gets its
+  // own assertion.
+
+  /** Both event columns for a case, as plain number arrays. */
+  const sarEventCols = (c, bars) => {
+    const got = computeParabolicSAREvents(bars, c.params.step, c.params.max_step)
+    return { priceCrossedSar: col(got.priceCrossedSar), trendFlipped: col(got.trendFlipped) }
+  }
+
+  const assertEventCase = (name) => {
+    const c = loadCase(name)
+    const bars = caseBars(c)
+    const got = sarEventCols(c, bars)
+    for (const key of ['priceCrossedSar', 'trendFlipped']) {
+      expectSomeValues(c.expected[key], `${name}.${key}`)
+      alignedClose(got[key], c.expected[key], c.relTol, `${name}.${key}`)
+      // The domain, in the fixture AND in this lane's output.
+      for (let i = 0; i < bars.length; i++) {
+        expect(c.expected[key][i] === null || c.expected[key][i] === 0 || c.expected[key][i] === 1,
+          `${name}.${key}[${i}] fixture = ${c.expected[key][i]}`).toBe(true)
+        expect(got[key][i] === 0 || got[key][i] === 1 || Number.isNaN(got[key][i]),
+          `${name}.${key}[${i}] = ${got[key][i]}`).toBe(true)
+      }
+      // NaN ONLY at bar 0 — the trend seed consumes it. Bar 1 is 0: computable,
+      // with no prior side or trend to have moved away from.
+      expect(Number.isNaN(got[key][0]), `${name}.${key}[0] must be the pad`).toBe(true)
+      expect(got[key].slice(1).every(v => !Number.isNaN(v)),
+        `${name}.${key} has a hole after bar 0`).toBe(true)
+      // …and it FIRES. A column of all zeros is legal and pins nothing.
+      expect(new Set(got[key].slice(1)), `${name}.${key} is constant`).toEqual(new Set([0, 1]))
+    }
+    return { c, bars, got }
+  }
+
+  it('sar_events_default — DERIVED from sar_default\'s already-pinned columns', () => {
+    const { c, bars, got } = assertEventCase('sar_events_default')
+
+    // ⭐ THE ORACLE THAT IS NEITHER LANE'S NEW CODE. Recompute both columns from
+    // `sar_default.json`'s `sar` and `trend` — numbers this repo has asserted at
+    // 1e-9 in two languages since B5 — and require the fixture to equal them. A
+    // fixture generated from `compute_sar_events` and asserted only against
+    // `computeParabolicSAREvents` would be a snapshot of two things I wrote on
+    // the same afternoon; this makes it a derivation from something older.
+    const src = loadCase('sar_default')
+    expect(c.barsFrom, 'the case grew its own bars').toBe('tests/fixtures/indicators/sar_default.json')
+    expect(src.params).toEqual(c.params)
+    const pinSar = src.expected.sar
+    const pinTrend = src.expected.trend
+    const dCrossed = [], dFlipped = []
+    for (let i = 0; i < bars.length; i++) {
+      const above = (j) => (pinSar[j] === null ? null : bars[j].c > pinSar[j])
+      if (i === 0) { dCrossed.push(null); dFlipped.push(null); continue }
+      dFlipped.push(pinTrend[i] === null ? null
+        : (pinTrend[i - 1] !== null && pinTrend[i - 1] !== pinTrend[i] ? 1 : 0))
+      dCrossed.push(above(i) === null ? null
+        : (above(i - 1) !== null && above(i - 1) !== above(i) ? 1 : 0))
+    }
+    expect(c.expected.trendFlipped).toEqual(dFlipped)
+    expect(c.expected.priceCrossedSar).toEqual(dCrossed)
+
+    // ⚠️ THE MEASURED LIMIT OF THIS CASE, DECLARED RATHER THAN WISHED AWAY. On
+    // these 140 real bars the two columns are element-for-element EQUAL: a side
+    // change without a trend change is only reachable around an OUTSIDE reversal
+    // bar and this series has none. So this case alone CANNOT tell the two apart,
+    // and `sar_events_outside_bar` below is the case that can.
+    expect(got.priceCrossedSar).toEqual(got.trendFlipped)
+  })
+
+  it('sar_events_outside_bar — the case that proves the two events are TWO columns', () => {
+    const { got } = assertEventCase('sar_events_outside_bar')
+
+    // Hand-computed, and every number is on paper in the fixture's `note`.
+    // Bar 5 is an outside reversal: its LOW takes out the projected SAR so the
+    // trend flips down and the SAR jumps to the prior extreme (108) — but its
+    // CLOSE (112) is above that, so the price did not change sides.
+    expect(got.trendFlipped[5]).toBe(1)
+    expect(got.priceCrossedSar[5]).toBe(0)
+    // Bar 6 is the mirror: the downtrend clamps the SAR up to the prior high
+    // (113), the close (107) is now below it, and the side changes with no trend
+    // change.
+    expect(got.trendFlipped[6]).toBe(0)
+    expect(got.priceCrossedSar[6]).toBe(1)
+    // Which is the whole claim: without this case, returning the SAME column
+    // twice — or returning the two the wrong way round — would be invisible.
+    expect(got.priceCrossedSar).not.toEqual(got.trendFlipped)
   })
 
   it('vwap_session_expected — VWAP asserted by BOTH lanes, on the PIXEL gate\'s bars', () => {

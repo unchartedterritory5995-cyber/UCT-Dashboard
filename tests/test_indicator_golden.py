@@ -36,6 +36,13 @@ CASES = [
     "donchian_20",
     "ichimoku_9_26_52",
     "sar_default",
+    # ── Phase C: SAR's two EVENT columns ──
+    # `sar_events_default` OWNS NO BARS — `barsFrom` points at `sar_default.json`,
+    # whose `sar` and `trend` columns both lanes have pinned since B5, so these
+    # two columns are DERIVED from numbers that already had an oracle and not one
+    # fixture byte was reseeded to add them.
+    "sar_events_default",
+    "sar_events_outside_bar",
     # Own no bars: `barsFrom` points at the CHART PARITY GATE's intraday fixture,
     # so this lane's 1e-9 compare runs on the exact series the chart draws.
     "vwap_session_expected",
@@ -50,6 +57,11 @@ VWAP_CASES = ["vwap_extended_hours_utc_midnight", "vwap_dst_transition"]
 REFERENCED_CASES = {
     "intraday5m_sessions": "app/src/pages/parityBars/intraday5m.json",
     "vwap_session_expected": "app/src/pages/parityBars/intraday5m.json",
+    # Phase C. The referent is another FIXTURE rather than the parity bars, and
+    # the reason is the same one: `sar_events_default`'s two columns are derived
+    # from `sar_default`'s `sar` and `trend`, so the two cases must be one series.
+    # A copy would let `sar_default` be reseeded without this case noticing.
+    "sar_events_default": "tests/fixtures/indicators/sar_default.json",
 }
 
 # ─── the ONE column that pads at BOTH ends ───────────────────────────────────
@@ -289,7 +301,12 @@ def test_a_referenced_case_really_is_referenced():
             f"regenerating that fixture stops turning this case red."
         )
         assert case["barsFrom"] == ref
-        assert (ROOT / "app" / "src" / "pages" / "parityBars" / "intraday5m.json").exists()
+        # ⚠️ THIS LINE USED TO HARDCODE `app/src/pages/parityBars/intraday5m.json`
+        # for EVERY row, which was true only while every row referenced that one
+        # file. Phase C added a row that references another FIXTURE, so the
+        # existence check now reads the row's own `ref` — strictly stronger: it
+        # was checking one path twice and is now checking each row's referent.
+        assert ROOT.joinpath(*ref.split("/")).exists(), f"{name}: {ref} does not exist"
 
 
 def test_the_parity_fixture_is_intraday_bars_the_chart_can_actually_draw():
@@ -497,6 +514,209 @@ def test_hand_computed_sar_is_clamped_to_the_prior_lows():
     sar, trend = ic.compute_sar_raw(bars, 0.02, 0.2)
     assert sar == [None, 8.0, 8.0]
     assert trend == [None, 1.0, 1.0]
+
+
+# ─── SAR's two EVENT columns (Phase C) ───────────────────────────────────────
+# Events are columns valued {0, 1, None} (spec §3.1). SAR is the first indicator
+# in the platform to declare any, and the reason is that it is the one indicator
+# that CANNOT be addressed by a fixed threshold: its value jumps to the other
+# side of price at every flip, so the same number means "trailing below an
+# uptrend" one bar and "above a downtrend" the next.
+#
+# ⭐ THE COLUMNS COST NO RESEED. `compute_sar_raw` already returned a ±1 `trend`
+# column and `sar_default.json` has pinned it in BOTH lanes since B5 — so these
+# two are derived from numbers that already had an oracle, and the tests below
+# recompute them from THAT fixture rather than from the new code.
+
+SAR_EVENT_CASES = ["sar_events_default", "sar_events_outside_bar"]
+
+
+@pytest.mark.parametrize("name", SAR_EVENT_CASES)
+def test_event_columns_are_a_domain_of_zero_one_and_none(name):
+    """{0.0, 1.0, None}, None ONLY at bar 0, and never constant.
+
+    ⚠️ THE 1e-9 COMPARE ABOVE CANNOT MAKE THIS CLAIM. `_close` would be just as
+    happy with 0.9999999999 as with 1.0, and just as happy with an all-zero
+    column as with one that fires — a legal column that pins nothing. The domain
+    and the non-constancy are separate assertions for that reason.
+
+    ⚠️ None IS NOT "no event". It is the warmup pad: bar 0 has no SAR at all (the
+    trend seed consumes it), so there is nothing to have crossed. `0.0` is
+    "computed, did not happen" — including bar 1, which is computable and has no
+    prior side or trend to have moved away from.
+    """
+    case = load_case(name)
+    bars = case_bars(case)
+    got = ic.compute_case("sar_events", bars, case["params"])
+    assert set(got) == {"priceCrossedSar", "trendFlipped"}
+    for col, series in got.items():
+        assert len(series) == len(bars), f"{name}.{col} not aligned to bars"
+        assert series[0] is None, f"{name}.{col}[0] must be the pad — bar 0 has no SAR"
+        assert all(v is not None for v in series[1:]), f"{name}.{col} has a hole after bar 0"
+        assert set(series[1:]) <= {0.0, 1.0}, (
+            f"{name}.{col} left the {{0, 1, None}} domain: {sorted(set(series[1:]))}"
+        )
+        assert set(series[1:]) == {0.0, 1.0}, (
+            f"{name}.{col} is constant — a column that never fires pins nothing"
+        )
+        assert case["expected"][col] == series, f"{name}.{col} fixture disagrees exactly"
+        assert series[1] == 0.0, f"{name}.{col}[1] must be 0 — computable, with no prior"
+
+
+def test_sar_events_are_DERIVED_from_sar_defaults_already_pinned_columns():
+    """⭐ THE ORACLE THAT IS NEITHER LANE'S NEW CODE.
+
+    `sar_events_default` owns no bars: it points at `sar_default.json`, whose
+    `sar` and `trend` columns two lanes have asserted at rel-tol 1e-9 since B5.
+    Both event columns are recomputed HERE from those pinned numbers —
+    `trendFlipped` is `trend[i] != trend[i-1]`, `priceCrossedSar` is
+    `(close > sar)` changing — and the fixture must equal them.
+
+    Without this, the fixture would be a snapshot of `compute_sar_events`
+    asserted by `compute_sar_events`. With it, it is a derivation from something
+    older than either, and reseeding `sar_default` turns it red.
+    """
+    src = load_case("sar_default")
+    case = load_case("sar_events_default")
+    assert case["barsFrom"] == "tests/fixtures/indicators/sar_default.json"
+    assert case["params"] == src["params"]
+    bars = case_bars(case)
+    pin_sar, pin_trend = src["expected"]["sar"], src["expected"]["trend"]
+
+    def above(i):
+        return None if pin_sar[i] is None else bars[i]["c"] > pin_sar[i]
+
+    n = len(bars)
+    d_crossed, d_flipped = [None] * n, [None] * n
+    for i in range(1, n):
+        if pin_trend[i] is not None:
+            d_flipped[i] = 1.0 if (pin_trend[i - 1] is not None
+                                   and pin_trend[i - 1] != pin_trend[i]) else 0.0
+        if above(i) is not None:
+            d_crossed[i] = 1.0 if (above(i - 1) is not None
+                                   and above(i - 1) != above(i)) else 0.0
+
+    assert case["expected"]["trendFlipped"] == d_flipped
+    assert case["expected"]["priceCrossedSar"] == d_crossed
+    # …and the derivation is non-trivial: the trend really does flip on these
+    # bars, so the columns are not "all zeros" agreeing with "all zeros".
+    assert d_flipped.count(1.0) > 1, "the trend never flips — the derivation pins nothing"
+
+
+def test_the_two_event_columns_are_TWO_columns():
+    """⚠️ MEASURED: on `sar_default`'s 140 real bars they are element-for-element
+    EQUAL, and `sar_events_outside_bar` exists because of it.
+
+    A side change without a trend change is only reachable around an OUTSIDE
+    reversal bar: on reversal the new SAR is the prior leg's extreme point, which
+    a bar making a new high can close beyond. `sar_default` contains no such bar,
+    so on that case alone a lane that returned the SAME column twice — or
+    returned the two the wrong way round — would be completely invisible.
+    """
+    default = load_case("sar_events_default")["expected"]
+    assert default["priceCrossedSar"] == default["trendFlipped"], (
+        "the two columns now differ on sar_default's bars — good news, but the note "
+        "in both fixtures and this test's premise are stale; re-measure"
+    )
+    ob = load_case("sar_events_outside_bar")["expected"]
+    assert ob["priceCrossedSar"] != ob["trendFlipped"], (
+        "the outside-bar case no longer separates the two columns — the ONLY case "
+        "that can tell priceCrossedSar from trendFlipped has gone vacuous"
+    )
+    # The two divergent bars, by index, so a series edit cannot quietly move them.
+    assert (ob["trendFlipped"][5], ob["priceCrossedSar"][5]) == (1.0, 0.0)
+    assert (ob["trendFlipped"][6], ob["priceCrossedSar"][6]) == (0.0, 1.0)
+
+
+def test_hand_computed_sar_events_on_the_outside_bar():
+    """The seven bars of `sar_events_outside_bar`, on paper.
+
+    Uptrend seeds at bars[0].l = 98 with ep = bars[0].h = 100, af = 0.02, so the
+    SAR climbs 98 / 98 / 98.36 / 98.9712 while the close stays above it.
+
+    Bar 5 projects 98.9712 + 0.10*(108 - 98.9712) = 99.87408. Its LOW (95) is
+    below that, so the trend flips DOWN and the SAR jumps to ep = 108 — but its
+    CLOSE (112) is ABOVE 108, so the price did not change sides.
+    Bar 6 is a downtrend bar, so the SAR is clamped UP to the prior high (113),
+    and the close (107) is now below it: the side changes with no trend change.
+    """
+    bars = load_case("sar_events_outside_bar")["bars"]
+    sar, trend = ic.compute_sar_raw(bars, 0.02, 0.2)
+    assert sar == [None, 98.0, 98.0, 98.36, 98.9712, 108.0, 113.0]
+    assert trend == [None, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0]
+    crossed, flipped = ic.compute_sar_events(bars, 0.02, 0.2)
+    assert flipped == [None, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+    assert crossed == [None, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
+def test_compute_sar_events_pads_a_series_too_short_to_have_a_sar():
+    """A too-short series is all-None, never all-zero.
+
+    `0.0` would be a lie: it says "computed, did not happen" about a bar where
+    nothing was computed at all.
+    """
+    for n in (0, 1):
+        bars = [{"t": i, "h": 1.0, "l": 1.0, "c": 1.0} for i in range(n)]
+        crossed, flipped = ic.compute_sar_events(bars)
+        assert crossed == [None] * n and flipped == [None] * n
+
+
+def test_compute_sar_events_DERIVES_from_compute_sar_raw_and_does_not_re_implement_it():
+    """⛔ A SOURCE PROBE, AND IT IS THE ONLY THING THAT CAN KILL THIS MUTATION.
+
+    An exact re-implementation of the SAR loop inside `compute_sar_events` is an
+    EQUIVALENT MUTANT against every value comparison in this file and in the
+    vitest lane: the numbers would be identical. What would NOT be identical is
+    the future — a second copy drifts the first time somebody edits one of them,
+    and a twin is precisely what this programme exists to retire.
+
+    So the claim is structural, and it is made through `ast` rather than a text
+    search: a mention in a comment or in the docstring (which says
+    ``compute_sar_raw`` in prose, twice) is a `Constant`, not a `Call`, so it
+    cannot satisfy this. That is the "source probe defeated by a comment" trap,
+    closed by construction instead of by a stripper.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(ic.compute_sar_events)))
+    called = {
+        n.func.id for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "compute_sar_raw" in called, (
+        "compute_sar_events no longer CALLS compute_sar_raw — it is a second SAR "
+        "implementation, and the two will disagree the day one of them is edited"
+    )
+    # The control for the probe: prose alone must not satisfy it. `compute_sar`
+    # (the delivery wrapper) also calls `compute_sar_raw`; `compute_rsi_raw`
+    # calls nothing of the sort, so the set really is a call set.
+    rsi = ast.parse(textwrap.dedent(inspect.getsource(ic.compute_rsi_raw)))
+    rsi_calls = {
+        n.func.id for n in ast.walk(rsi)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "compute_sar_raw" not in rsi_calls
+
+
+def test_case_columns_names_the_two_events_in_the_order_compute_case_returns():
+    """`_CASE_COLUMNS` is the ledgered (kind → columns) map, and it is READ.
+
+    ⚠️ THE ORDER IS LOAD-BEARING HERE IN A WAY IT IS NOT ELSEWHERE. Both event
+    columns are `{0, 1, None}`, so swapping them in the tuple — or swapping the
+    two values `compute_sar_events` returns — moves no VALUE that a "did the
+    number change?" test can see. `_generate.py` writes fixtures in
+    `case_columns` order and this asserts the tuple against the names
+    `compute_case` actually returns, so a swap in either place is a red test.
+    """
+    assert ic.case_columns("sar_events") == ("priceCrossedSar", "trendFlipped")
+    case = load_case("sar_events_outside_bar")
+    got = ic.compute_case("sar_events", case["bars"], case["params"])
+    assert tuple(got) == ic.case_columns("sar_events")
+    # And the two really are distinguishable on this case, so "the tuple is
+    # right" is a claim with consequences.
+    assert got["priceCrossedSar"] != got["trendFlipped"]
 
 
 def test_hand_computed_vwap_is_volume_weighted_and_cumulative():

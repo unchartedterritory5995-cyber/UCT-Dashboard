@@ -831,6 +831,78 @@ def compute_sar(
     return _round_series(sar, 4), trend
 
 
+def compute_sar_events(
+    bars: List[dict],
+    step: float = 0.02,
+    max_step: float = 0.2,
+) -> Tuple[List[MaybeNum], List[MaybeNum]]:
+    """``(price_crossed_sar, trend_flipped)`` as ``{0.0, 1.0, None}`` columns.
+
+    ⚠️ DERIVED FROM ``compute_sar_raw``, NOT RE-IMPLEMENTED. The ``trend`` column
+    is already ±1 and already pinned by ``tests/fixtures/indicators/sar_default``
+    in BOTH lanes, so not one fixture byte is reseeded to add these and neither
+    lane can re-baseline under the other. A second SAR loop here would be the
+    twin this whole programme retires.
+
+    WHY SAR HAS EVENTS AT ALL. ``sar`` is deliberately not alertable by a fixed
+    threshold — the value JUMPS TO THE OTHER SIDE OF PRICE at every flip, so the
+    same number means "trailing below an uptrend" on one bar and "above a
+    downtrend" on the next (``indicator_alert_evaluator._SAR_IS_NOT_OFFERED``).
+    These two are what a trader actually watches for instead:
+
+    * ``price_crossed_sar`` — the CLOSE moved to the other side of the stop.
+    * ``trend_flipped``     — the SAR itself jumped sides.
+
+    THEY ARE NOT THE SAME COLUMN. In an uptrend that does not reverse
+    ``close >= sar`` always holds (SAR is clamped at or below the two prior lows
+    and the reversal test is ``low < sar``); a downtrend keeps ``close <= sar`` by
+    symmetry. So a side change without a trend change is only reachable around a
+    reversal bar — and there it IS reachable: on reversal the new SAR is the prior
+    leg's extreme point, which an OUTSIDE bar can close beyond. That bar flips the
+    trend without flipping the side; the next flips the side without the trend.
+
+    ⚠️ THE DOMAIN IS ``{0.0, 1.0, None}`` AND ``None`` IS NOT "NO EVENT". It is
+    the warmup pad: bar 0 has no SAR at all (the trend seed consumes it), so there
+    is nothing to have crossed. ``0.0`` is "computed, did not happen" — including
+    bar 1, which is computable and has no prior side or trend to have moved away
+    from.
+
+    ⚠️ ``close > sar`` IS STRICT, and the JS lane
+    (``indicators.computeParabolicSAREvents``) makes the identical choice — the
+    two are asserted against one fixture at rel-tol 1e-9, so a tie-break that
+    disagreed would show up as a changed number rather than as a shrug.
+
+    ⛔ THERE IS DELIBERATELY NO ``_raw`` / delivery PAIR. Every other indicator has
+    one because the delivery layer ROUNDS for the two live consumers that compare
+    against user thresholds. This column's whole domain is ``{0, 1, None}``:
+    there are no decimals to round, so a ``compute_sar_events_raw`` would be a
+    second name for one function and an invitation to make them differ.
+    """
+    sar, trend = compute_sar_raw(bars, step, max_step)
+    n = len(bars)
+    crossed: List[MaybeNum] = [None] * n
+    flipped: List[MaybeNum] = [None] * n
+    if n < 2:
+        return crossed, flipped
+
+    def _above(i: int) -> Optional[bool]:
+        s = sar[i]
+        if s is None:
+            return None
+        return bars[i]["c"] > s
+
+    for i in range(1, n):
+        t, prev_t = trend[i], trend[i - 1]
+        side, prev_side = _above(i), _above(i - 1)
+        # Bar 1 has a trend and a side but no PRIOR of either — the seed bar is
+        # the pad. "Nothing happened" is the honest answer, not a gap.
+        if t is not None:
+            flipped[i] = 1.0 if (prev_t is not None and prev_t != t) else 0.0
+        if side is not None:
+            crossed[i] = 1.0 if (prev_side is not None and prev_side != side) else 0.0
+    return crossed, flipped
+
+
 # ─── VWAP ────────────────────────────────────────────────────────────────────
 
 _ET_ZONE = None
@@ -954,6 +1026,14 @@ _CASE_COLUMNS: Dict[str, Tuple[str, ...]] = {
     "donchian": ("upper", "middle", "lower"),
     "ichimoku": ("tenkan", "kijun", "spanA", "spanB", "chikou"),
     "sar": ("sar", "trend"),
+    # ── Phase C: SAR's two EVENT columns ──
+    # A SEPARATE kind, not two more columns on `sar`. Adding them there would
+    # have changed `sar_default`'s column set, and `test_python_lane_matches_the_
+    # golden_columns` asserts `set(got) == set(case["expected"])` — so the fixture
+    # whose `trend` column makes these two derivable in the first place would have
+    # had to be reseeded to add them. It was not: `sar_events_default` points at
+    # `sar_default`'s bars with `barsFrom` and both lanes read both files.
+    "sar_events": ("priceCrossedSar", "trendFlipped"),
     # `vwap` is NOT here and must not be: the two pre-existing vwap fixtures
     # carry `"expected": null` because Python had no VWAP when they were written,
     # and `test_vwap_session_fixtures_carry_a_real_trap` asserts exactly that.
@@ -1040,5 +1120,10 @@ def compute_case(
             bars, float(p.get("step", 0.02)), float(p.get("max_step", 0.2)),
         )
         return {"sar": sar, "trend": trend}
+    if kind == "sar_events":
+        crossed, flipped = compute_sar_events(
+            bars, float(p.get("step", 0.02)), float(p.get("max_step", 0.2)),
+        )
+        return {"priceCrossedSar": crossed, "trendFlipped": flipped}
     # kind == "vwap_series" — deliberately not "vwap"; see _CASE_COLUMNS.
     return {"vwap": compute_vwap_raw(bars)}

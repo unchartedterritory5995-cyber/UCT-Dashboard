@@ -203,6 +203,54 @@ price. The fixture carries it as a numeric `trend` column (`+1` / `−1`) becaus
 the fixture compare is numeric, and a flag no fixture reads is a behaviour with
 no oracle at all.
 
+## SAR's two EVENT columns — `sar_events_default` + `sar_events_outside_bar` (Phase C)
+
+Spec §3.1: **events are columns**, valued `{0, 1, null}`. `sar` is the first
+indicator in the platform to declare any, and the reason is the one thing it
+cannot do: it cannot be addressed by a fixed threshold, because its value jumps
+to the other side of price at every flip. So it is addressed by event instead —
+`priceCrossedSar` (the close moved to the other side of the stop) and
+`trendFlipped` (the SAR itself jumped sides).
+
+**⭐ THEY COST NO RESEED, AND THAT IS WHY THEY ARE SAFE.** `sar_default` has
+carried an `expected.trend` column — pinned by both lanes at rel-tol 1e-9 —
+since B5. `trendFlipped` is `trend[i] != trend[i-1]`; `priceCrossedSar` is
+`(close > sar)` changing over the `sar` column beside it. So:
+
+* `sar_events_default` carries **`barsFrom: tests/fixtures/indicators/sar_default.json`** —
+  the second case in the directory to own no bars, and the first whose referent
+  is another fixture. Both lanes recompute both columns from `sar_default`'s
+  **already-pinned** `sar` and `trend` and require the fixture to equal them, so
+  the oracle is older than either implementation and a reseed of `sar_default`
+  turns this case red.
+* **`null` is the warmup pad, not "no event".** Bar 0 has no SAR at all (the
+  trend seed consumes it). Bar 1 is `0` in both columns: computable, with no
+  prior side or trend to have moved away from. `0` is "computed, did not happen".
+* The `relTol` compare cannot make the domain claim (`0.9999999999` would pass),
+  so `{0, 1, null}` and "the column is not constant" are separate assertions in
+  both lanes.
+
+**⚠️ Why there are TWO cases.** Measured: on `sar_default`'s 140 real bars the
+two columns are **element-for-element equal**. A side change without a trend
+change is only reachable around an *outside reversal bar* — on reversal the new
+SAR is the prior leg's extreme point, which a bar making a new high can close
+beyond — and that series has none. So `sar_events_default` alone could not tell
+`priceCrossedSar` from `trendFlipped`: a lane returning the same column twice, or
+the two the wrong way round, would be invisible.
+
+`sar_events_outside_bar` is seven **hand-built** bars that contain exactly that
+shape, and every number in it is derivable on paper (`test_hand_computed_sar_
+events_on_the_outside_bar`): bar 5 flips the trend without flipping the side
+(`trendFlipped=1, priceCrossedSar=0`) and bar 6 flips the side without flipping
+the trend (`0, 1`).
+
+**Neither case came from `_generate.py`.** That script ran once and is not being
+re-run — see "Regeneration is banned" above. These two were written by a one-off
+script that asserted the domain, the pad, the non-constancy, the hand derivation
+from `sar_default`'s pinned columns and the two cases' relationship to each other
+*before* writing anything; the guarantee that matters afterwards is that both
+lanes reproduce every number from an oracle that is not the code under test.
+
 ---
 
 ## The case that owns no bars — `intraday5m_sessions`
