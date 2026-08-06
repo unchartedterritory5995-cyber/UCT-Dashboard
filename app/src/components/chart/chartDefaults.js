@@ -192,6 +192,7 @@ export const CHART_DEFAULTS = {
   signature: { darkPoolLevels: false, gexWalls: false, flowSignals: false },
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
+  sessionView: 'regular',      // D/W/M "Regular Hours" vs "Include pre/post-market" preview candle — PERSISTED so the user's choice sticks across refreshes/sessions
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
 
   theme: 'dark', // 'dark' | 'light'
@@ -401,6 +402,7 @@ export function mergeChartSettings(userSettings) {
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
+    sessionView: parsed.sessionView === 'extended' ? 'extended' : CHART_DEFAULTS.sessionView,
     volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)
       ? parsed.volumeOverlayIndicators
       : CHART_DEFAULTS.volumeOverlayIndicators,

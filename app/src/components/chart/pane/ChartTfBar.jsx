@@ -24,10 +24,18 @@ export default function ChartTfBar({ tf, visibleTfs, onTf, menu = {}, showMenu =
         <button
           type="button"
           className={styles.tfBtn}
+          // Flex-center the chevron: the old "⌄" text glyph rendered low in its
+          // line-box (owner: "arrow sits near the bottom"). An inline SVG centered by
+          // flex sits dead-center regardless of which host's styles module is passed.
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           title="More timeframes"
           aria-label="More timeframes"
           onClick={(e) => { setAnchor(e.currentTarget.getBoundingClientRect()); setOpen(v => !v) }}
-        >⌄</button>
+        >
+          <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
+            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       )}
       {showMenu && open && (
         <TimeframeMenu
