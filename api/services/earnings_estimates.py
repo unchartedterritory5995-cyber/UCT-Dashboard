@@ -153,9 +153,30 @@ def get_earnings_intel(ticker: str) -> dict | None:
     if cached is not None:
         return None if cached is _INTEL_FAIL_SENTINEL else cached
 
-    # ── 1. Historical EPS (last 4 quarters) ─────────────────────────────────
+    # ── 1. Historical EPS ───────────────────────────────────────────────────
+    #
+    # FMP FIRST, Finnhub as fallback. Finnhub's /stock/earnings is capped at 4
+    # quarters, carries no revenue, and rides a ~55/min process-wide bucket
+    # shared with live member traffic -- on a heavy earnings day the calendar
+    # enrichment sheds symbols and the modal then reported "No reported
+    # quarters yet" for companies that had plainly reported. FMP Ultimate is a
+    # different budget entirely, returns MORE quarters, and includes revenue.
+    #
+    # `history_answered` below keys off whichever leg answered, so a shed
+    # Finnhub call no longer decides whether we claim to know this company's
+    # history.
     beat_history = []
-    eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 4})
+    fmp_hist = None
+    try:
+        from api.services.earnings_history_fmp import fmp_beat_history
+        fmp_hist = fmp_beat_history(ticker, limit=8)
+    except Exception as exc:                       # never let this leg raise
+        _logger.warning("FMP earnings history failed for %s: %s", ticker, exc)
+    if fmp_hist:
+        beat_history = fmp_hist
+
+    # Only spend the scarce Finnhub call when FMP gave us nothing usable.
+    eps_raw = None if beat_history else _fh_get("/stock/earnings", {"symbol": ticker, "limit": 4})
     if isinstance(eps_raw, list):
         for q in eps_raw:
             actual = q.get("actual")
@@ -246,7 +267,13 @@ def get_earnings_intel(ticker: str) -> dict | None:
         # "No reported quarters yet" as fact for a company that has plainly
         # reported (JAZZ, live 2026-08-06 -- Finnhub returned 4 real quarters
         # on a direct call seconds later).
-        "history_answered": isinstance(eps_raw, list),
+        # EITHER provider answering means we know this company's history.
+        # `fmp_beat_history` keeps the same None-vs-[] contract as `_fh_get`
+        # (None = never got an answer, [] = answered, nothing there), and
+        # `eps_raw` is None when FMP already succeeded and we deliberately
+        # skipped the scarce Finnhub call — so that case must read as
+        # ANSWERED, not as a shrug.
+        "history_answered": (fmp_hist is not None) or isinstance(eps_raw, list),
     }
     # ⛔ NEVER CACHE A FAILED FETCH AS A VALUE — for 6 hours, at least.
     #
