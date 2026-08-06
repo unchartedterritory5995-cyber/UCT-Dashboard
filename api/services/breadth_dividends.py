@@ -191,19 +191,25 @@ def factors(tickers: list[str], dates: list[int], closes: np.ndarray,
     no-op rather than a wrong answer — an unrefreshed store must not silently
     rescale anything.
 
-    `as_of` is the SESSION BEING MEASURED, which is normally one day past the
-    end of this history frame. It matters: the collector pulls yfinance through
-    that day, so its whole series is anchored there, and a name going ex-dividend
-    ON that day has its entire history — including the frame's last bar — scaled
-    down. Anchoring at the frame's end instead would leave every name that goes
-    ex today mis-levelled by roughly its yield. Pass it.
+    ⛔ `as_of` is ACCEPTED AND IGNORED. It used to extend the adjustment to
+    dividends going ex on the session being measured, on the reasoning that the
+    collector pulls yfinance through that day so its whole series — including
+    the frame's last bar — is anchored there. That reasoning is sound and the
+    measurement still rejected it: scaling the last bar rescales `prev_close`,
+    which is the denominator of every ONE-DAY metric, and ~27 names go ex on a
+    typical day. Over 10 reconciled sessions `adv_decline` degraded from 7.2 to
+    12.0 with the sign 9+/0- — borderline decliners flipped to advancers.
+
+    The frame's last bar therefore stays RAW, which keeps the one-day metrics
+    exactly where they are today while the long-lookback levels get corrected.
+    The parameter is kept so callers need not change and so this note has
+    somewhere to live.
     """
     n, m = closes.shape
     out = np.ones((n, m), dtype=np.float64)
     if n == 0 or m == 0:
         return out
-    hi = max(dates[-1], as_of) if as_of else dates[-1]
-    divs = _load(tickers, dates[0], hi)
+    divs = _load(tickers, dates[0], dates[-1])      # `as_of` deliberately unused
     if not divs:
         return out
 
@@ -217,29 +223,12 @@ def factors(tickers: list[str], dates: list[int], closes: np.ndarray,
         # ratio placed at the ex-date's own index; factor for date j is the
         # product of every ratio at an index STRICTLY GREATER than j.
         at = np.ones(m, dtype=np.float64)
-        tail = 1.0          # ex-dates AFTER the frame: they scale every bar in it
         for ex, cash in events:
             j = pos.get(ex)
             if j is None:                      # ex-date on a non-session day
                 j = next((k for k, ts in enumerate(dates) if ts >= ex), None)
             if j is None:
-                # Past the frame entirely — i.e. going ex on the session being
-                # measured. Every bar in the frame predates it, so it multiplies
-                # the whole row; the prior close is the frame's own last bar.
-                prev = closes[r, -1]
-                k = m - 1
-                while k >= 0 and (np.isnan(prev) or prev <= 0):
-                    prev = closes[r, k]
-                    k -= 1
-                if np.isnan(prev) or prev <= 0:
-                    skipped_prev += 1
-                    continue
-                ratio = 1.0 - (cash / prev)
-                if ratio <= 1.0 - MAX_YIELD_PER_EVENT:
-                    skipped_big += 1
-                    continue
-                tail *= ratio
-                continue
+                continue                       # past the frame; see `as_of` note
             if j == 0:
                 continue                       # nothing in-frame is older than it
             prev = closes[r, j - 1]
@@ -258,8 +247,7 @@ def factors(tickers: list[str], dates: list[int], closes: np.ndarray,
         # exclusive suffix product: factor[j] = prod(at[j+1:])
         suffix = np.cumprod(at[::-1])[::-1]
         out[r, :-1] = suffix[1:]
-        out[r, -1] = 1.0        # nothing inside the frame post-dates its last bar
-        out[r, :] *= tail       # ...but an ex-date on the measured day does
+        out[r, -1] = 1.0        # the last bar stays RAW — see the `as_of` note
 
     _health["skipped_no_prev_close"] = skipped_prev
     _health["skipped_outsized"] = skipped_big
