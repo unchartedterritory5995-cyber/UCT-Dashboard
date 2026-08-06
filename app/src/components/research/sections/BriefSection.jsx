@@ -37,7 +37,24 @@ export default function BriefSection({ sym, row, stepping }) {
   // signal, so it's still passed through.)
   const { data, isLoading, generate, retry } = useEarningsBrief(sym, { cachedOnly: !!stepping })
 
-  if (isLoading) return <SkeletonBlock height={200} />
+  // A bare 200px grey box held the canvas for 10-15s with nothing to read: the
+  // brief is LLM-generated on a cold symbol, so this is the longest wait in the
+  // modal, and an unlabeled rectangle is indistinguishable from a broken panel.
+  // Every other slow surface here says what it is doing; this one didn't.
+  // The skeleton stays (it is the §3.4 size contract — removing it reintroduces
+  // layout shift when the prose lands); it just gains a caption. role=status +
+  // aria-live announces the wait to a screen reader, which a naked div cannot.
+  if (isLoading) {
+    return (
+      <div className={styles.wrap} role="status" aria-live="polite" data-testid="brief-loading">
+        <EyebrowLabel>{PROVENANCE}</EyebrowLabel>
+        <p className={styles.provenance}>
+          Writing this brief — a name we haven&apos;t covered today takes a few seconds.
+        </p>
+        <SkeletonBlock height={200} />
+      </div>
+    )
+  }
 
   // I1: a rejected fetch AND the backend's own error fallback (engine.py's
   // earnings-analysis except-branch, which returns `{..., error: str(e)}`

@@ -862,6 +862,7 @@ export default function Calendar() {
             stepping={stepping}
             onPollActuals={mutate}
             isTodayReporter={isTodayReporter}
+            enrichReady={!!enrichmentByDate}
           />
         </ErrorBoundary>
       )}

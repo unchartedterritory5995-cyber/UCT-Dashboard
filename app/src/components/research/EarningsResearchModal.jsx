@@ -110,7 +110,7 @@ export default function EarningsResearchModal({
   section = null, onSectionChange,
   onClose,
   onStepPrev = null, onStepNext = null, stepping = false,
-  onPollActuals = null, isTodayReporter = false,
+  onPollActuals = null, isTodayReporter = false, enrichReady = true,
   nowMs,
 }) {
   const navigate = useNavigate()
@@ -286,6 +286,7 @@ export default function EarningsResearchModal({
             lifecycle={lifecycle}
             expectedMove={em}
             stepping={stepping}
+            enrichReady={enrichReady}
           />
         </div>
       </div>

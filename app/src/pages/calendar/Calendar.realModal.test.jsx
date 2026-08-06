@@ -254,8 +254,10 @@ describe('the modal must not freeze on an un-enriched row (Task 12)', () => {
     // Jump to the History section while still un-enriched — the exact click
     // sequence the controller ran live.
     fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
-    // Characterizes the starting (pre-enrichment) state: nothing to show yet.
-    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+    // Characterizes the starting state: the enrichment batch has not landed,
+    // so the section says it is LOADING — it must not assert 'no history' as
+    // fact about a company that has ten years of it (see EarningsHistorySection).
+    expect(await screen.findByText(/Loading earnings history/i)).toBeTruthy()
 
     // Enrichment resolves on the already-mounted, already-open modal.
     act(() => { pushEnrichmentUpdate(ENRICHMENT) })
@@ -314,8 +316,10 @@ describe('the modal must not freeze on an un-enriched row — REAL useWeekEnrich
     expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
 
     fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
-    // Characterizes the starting state: the real fetch hasn't resolved yet.
-    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+    // Characterizes the starting state: the enrichment batch has not landed,
+    // so the section says it is LOADING — it must not assert 'no history' as
+    // fact about a company that has ten years of it (see EarningsHistorySection).
+    expect(await screen.findByText(/Loading earnings history/i)).toBeTruthy()
 
     // The real enrichment-batch request finally resolves — the EXACT shape
     // GET /api/calendar/enrichment-batch?dates=... returns in production.
@@ -381,7 +385,10 @@ describe('independent enrichment fields must not freeze each other out (Task 12 
     fireEvent.click(await screen.findByText('NVDA'))
     await screen.findByRole('dialog')
     fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
-    expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+    // Characterizes the starting state: the enrichment batch has not landed,
+    // so the section says it is LOADING — it must not assert 'no history' as
+    // fact about a company that has ten years of it (see EarningsHistorySection).
+    expect(await screen.findByText(/Loading earnings history/i)).toBeTruthy()
 
     // Stage 1: hist_stats + expected_move land; beat_history is still null,
     // exactly like CAT's live Finnhub negative-cache window.
@@ -390,7 +397,16 @@ describe('independent enrichment fields must not freeze each other out (Task 12 
     // (earningsHistoryModel.js's `buildQuarters` only emits past rows from
     // `beatHistory`), so a premature "fully enriched" verdict here would be
     // WRONG, not just early.
+    //
+    // And it is the DEFINITIVE empty state here, not the loading one: the
+    // batch has now answered, and `enrichReady` is batch-level on purpose. A
+    // per-field "beat_history is still null" spinner would never resolve for
+    // the many tickers whose history genuinely stays null forever. This is the
+    // deliberate cost of that choice — a real history that arrives in a later
+    // stage shows "none" for one beat — and the alternative is a permanent
+    // spinner, which is worse.
     expect(await screen.findByText('No reported quarters yet')).toBeTruthy()
+    expect(screen.queryByText(/Loading earnings history/i)).toBeNull()
 
     // Stage 2: beat_history finally arrives (Finnhub's negative-cache TTL
     // expired) — the ONLY field that changed since stage 1.
