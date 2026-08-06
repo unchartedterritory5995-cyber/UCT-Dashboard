@@ -1,0 +1,269 @@
+/* Alerts widget — a per-color-group price-alert command center. Canvas + text
+   follow the app theme (--bg/--text) until the user picks an explicit per-widget
+   look via ⚙; --alerts-fs scales the whole widget's type (S / M / L). */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--alerts-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-sans);
+  font-size: var(--alerts-fs, 13.5px);
+}
+
+/* Header: logo + symbol + scope pills + gear */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.symWrap { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; }
+.sym {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-weight: 700;
+  font-size: 0.95em;
+  letter-spacing: 0.4px;
+  color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
+  flex: 0 0 auto;
+}
+.filters { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+.pill {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 0.78em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill:hover { background: var(--alerts-row-hover, rgba(255, 255, 255, 0.05)); }
+.pillOn {
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
+  color: var(--alerts-accent, var(--ut-gold, #c9a84c));
+  font-weight: 600;
+}
+.count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72em;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+.gearBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+.gearBtn:hover, .gearBtnActive {
+  color: var(--alerts-accent, var(--ut-gold, #c9a84c));
+  background: var(--alerts-row-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* Quick-add — set a new alert on the linked symbol */
+.quickAdd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--alerts-row-divider, rgba(255, 255, 255, 0.05));
+  flex: 0 0 auto;
+}
+.dirToggle { display: inline-flex; border-radius: 6px; overflow: hidden; flex: 0 0 auto; }
+.dirBtn {
+  background: var(--alerts-track, rgba(255, 255, 255, 0.06));
+  border: none;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 0.8em;
+  font-weight: 600;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.dirBtnAbove.dirBtnOn { background: color-mix(in srgb, var(--alerts-above, #1ae51a) 22%, transparent); color: var(--alerts-above, #1ae51a); }
+.dirBtnBelow.dirBtnOn { background: color-mix(in srgb, var(--alerts-below, #ff5b5b) 22%, transparent); color: var(--alerts-below, #ff5b5b); }
+.priceInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--alerts-track, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
+  border-radius: 6px;
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  padding: 4px 7px;
+  outline: none;
+}
+.priceInput:focus { border-color: var(--alerts-accent, var(--ut-gold, #c9a84c)); }
+.addBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
+  border: 1px solid color-mix(in srgb, var(--alerts-accent, #c9a84c) 45%, transparent);
+  color: var(--alerts-accent, var(--ut-gold, #c9a84c));
+  font-family: inherit;
+  font-size: 0.8em;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.addBtn:hover { background: color-mix(in srgb, var(--alerts-accent, #c9a84c) 26%, transparent); }
+.addBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* List */
+.list { flex: 1; min-height: 0; overflow-y: auto; }
+.sectionLabel {
+  padding: 8px 10px 3px;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  opacity: 0.8;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--alerts-row-divider, rgba(255, 255, 255, 0.05));
+}
+.row:hover { background: var(--alerts-row-hover, rgba(255, 255, 255, 0.03)); }
+.rowTriggered { opacity: 0.62; }
+
+.dirIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55em;
+  height: 1.55em;
+  border-radius: 5px;
+  font-size: 0.7em;
+  line-height: 1;
+}
+.dirIcon.above { color: var(--alerts-above, #1ae51a); background: color-mix(in srgb, var(--alerts-above, #1ae51a) 14%, transparent); }
+.dirIcon.below { color: var(--alerts-below, #ff5b5b); background: color-mix(in srgb, var(--alerts-below, #ff5b5b) 14%, transparent); }
+
+.main { min-width: 0; flex: 1; }
+.line1 { display: flex; align-items: baseline; gap: 6px; }
+.rowSym {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 0.9em;
+  letter-spacing: 0.3px;
+  color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
+}
+.cond {
+  font-size: 0.82em;
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.target { font-family: var(--font-mono, monospace); font-weight: 600; opacity: 1; }
+
+/* Proximity meter — a thin track whose fill grows as live price nears the target.
+   Within ~1% it glows ("Armed"); once the condition is met it reads "Hit". */
+.meterRow { display: flex; align-items: center; gap: 7px; margin-top: 4px; }
+.track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--alerts-track, rgba(255, 255, 255, 0.07));
+  overflow: hidden;
+}
+.fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  border-radius: 3px;
+  transition: width 320ms ease;
+}
+.fill.above { background: linear-gradient(90deg, color-mix(in srgb, var(--alerts-above, #1ae51a) 40%, transparent), var(--alerts-above, #1ae51a)); }
+.fill.below { background: linear-gradient(90deg, color-mix(in srgb, var(--alerts-below, #ff5b5b) 40%, transparent), var(--alerts-below, #ff5b5b)); }
+.armed .fill { box-shadow: 0 0 7px 1px currentColor; animation: alertsPulse 1.3s ease-in-out infinite; }
+.armed .fill.above { color: var(--alerts-above, #1ae51a); }
+.armed .fill.below { color: var(--alerts-below, #ff5b5b); }
+@keyframes alertsPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .armed .fill { animation: none; } }
+
+.dist {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72em;
+  font-variant-numeric: tabular-nums;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: 3.8em;
+  text-align: right;
+}
+.distArmed { color: var(--alerts-accent, var(--ut-gold, #c9a84c)); font-weight: 700; }
+.distHit { color: var(--alerts-above, #1ae51a); font-weight: 700; }
+
+.right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
+.live {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+  color: var(--alerts-text, var(--text-bright, #e0dac8));
+}
+.liveLbl { font-size: 0.62em; letter-spacing: 0.5px; text-transform: uppercase; color: var(--alerts-chrome, var(--text-muted, #8b8674)); opacity: 0.7; }
+
+.delBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.row:hover .delBtn { opacity: 0.6; }
+.delBtn:hover { opacity: 1; color: var(--alerts-below, #ff5b5b); background: var(--alerts-row-hover, rgba(255, 255, 255, 0.06)); }
+
+/* States */
+.empty {
+  padding: 18px 14px;
+  font-size: 0.85em;
+  color: var(--alerts-chrome, var(--text-muted, #8b8674));
+  line-height: 1.55;
+  text-align: center;
+}
+.emptyIcon { display: block; margin: 0 auto 8px; opacity: 0.5; }
+
+/* Responsive: collapse at narrow widget widths (root = .widgetBody container) */
+@container (max-width: 300px) {
+  .liveLbl { display: none; }
+  .cond { font-size: 0.76em; }
+}
+@container (max-width: 230px) {
+  .filters .count { display: none; }
+  .right { display: none; }
+}

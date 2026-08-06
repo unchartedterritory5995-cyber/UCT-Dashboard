@@ -7,6 +7,7 @@ import BreadthWidget from './widgets/BreadthWidget'
 import AiSearchWidget from './widgets/AiSearchWidget'
 import NewsWidget from './widgets/NewsWidget'
 import ProfileWidget from './widgets/ProfileWidget'
+import AlertsWidget from './widgets/AlertsWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import {
@@ -26,6 +27,7 @@ const TYPE_LABEL = {
   aisearch: 'AI Search',
   news: 'News',
   profile: 'Profile',
+  alerts: 'Alerts',
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
@@ -44,6 +46,7 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
     case 'aisearch':  return <AiSearchWidget color={key} />
     case 'news':      return <NewsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'profile':   return <ProfileWidget color={key} opts={opts} onOptsChange={onOptsChange} />
+    case 'alerts':    return <AlertsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
   }
 }
@@ -66,7 +69,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // News/Profile follow the app theme when uncustomized: on the light theme the
   // workspace otherwise keeps this .widget dark (border + chrome). This flag lets the
   // CSS re-flip the light tokens (incl. the border) for the whole widget.
-  const themeFollow = ['news', 'profile', 'watchlist', 'fundamentals', 'themes', 'breadth', 'scanner', 'aisearch'].includes(active.type) && !active.opts?.settings
+  const themeFollow = ['news', 'profile', 'alerts', 'watchlist', 'fundamentals', 'themes', 'breadth', 'scanner', 'aisearch'].includes(active.type) && !active.opts?.settings
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined

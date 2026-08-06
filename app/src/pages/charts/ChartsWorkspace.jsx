@@ -175,13 +175,14 @@ const WIDGET_DEFAULTS = {
   aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
   news:      { w: 6,  h: 10, minW: 2, minH: 4 },
   profile:   { w: 6,  h: 12, minW: 3, minH: 5 },
+  alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile']
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts']
 const WIDGET_LABELS = {
   chart: 'Chart',
   watchlist: 'Watchlist',
@@ -192,6 +193,7 @@ const WIDGET_LABELS = {
   aisearch: 'AI Search',
   news: 'News & Catalysts',
   profile: 'Stock Profile',
+  alerts: 'Alerts',
 }
 
 function parseLayout(raw) {
