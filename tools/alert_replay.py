@@ -931,6 +931,16 @@ def cmd_freeze_bars(args) -> int:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    # ⚠️ cp1252 KILLS A HARNESS'S OWN STDOUT. On this box `sys.stdout` is cp1252,
+    # `…` happens to map (0x85) and `⛔` does not — so every print here worked and
+    # `--help`, which echoes this module's docstring, died with UnicodeEncodeError
+    # and exit 1. A tool that cannot print its own usage is a tool nobody can use.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:                                    # noqa: BLE001
+            pass
+
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--freeze-bars", action="store_true")
     ap.add_argument("--record", action="store_true")
