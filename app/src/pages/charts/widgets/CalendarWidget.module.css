@@ -97,17 +97,27 @@
 
 /* Body */
 .list { flex: 1; min-height: 0; overflow-y: auto; }
-.section { border-bottom: 1px solid var(--cal-row-divider, rgba(255, 255, 255, 0.05)); }
+/* Sections read as distinct blocks: a gap + divider between them, and a STICKY,
+   gold, bolder header on an opaque band so one section never blends into the next
+   (and you always see which section you're scrolling through). */
+.section { padding-bottom: 4px; }
+.section + .section { margin-top: 8px; border-top: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.1))); }
 .sectionHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 10px 5px;
-  font-size: 0.7em;
-  font-weight: 700;
-  letter-spacing: 0.8px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  background: var(--cal-bg-solid, var(--widget-canvas, var(--bg, #0e0f0d)));
+  border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
 }
 .sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); display: inline-flex; }
 .sectionHead .count {
@@ -156,9 +166,10 @@
   margin-top: 2px;
   font-size: 0.72em;
   font-variant-numeric: tabular-nums;
-  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  color: var(--cal-text, var(--text-bright, #e0dac8));
+  opacity: 0.7;
 }
-.econStats b { color: var(--cal-text, var(--text-bright, #e0dac8)); font-weight: 700; }
+.econStats b { color: var(--cal-text, var(--text-bright, #e0dac8)); font-weight: 700; opacity: 1; }
 
 /* Earnings row */
 .earnRow {
@@ -174,8 +185,20 @@
   font-weight: 700;
   font-size: 0.85em;
   letter-spacing: 0.3px;
-  color: var(--cal-accent, var(--cal-chrome-strong, var(--ut-gold, #c9a84c)));
+  color: var(--cal-symbol, var(--cal-accent, var(--cal-gold-strong, var(--ut-gold, #c9a84c))));
   flex: 0 0 auto;
+}
+/* Company name in parens — dims + ellipsizes, and hides entirely when the widget
+   is narrow (see the @container rule) so it never crams the row. */
+.earnCompany {
+  font-size: 0.76em;
+  color: var(--cal-text, var(--text-bright, #e0dac8));
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .earnMeta {
   margin-left: auto;
@@ -183,10 +206,12 @@
   gap: 9px;
   font-size: 0.72em;
   font-variant-numeric: tabular-nums;
-  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  color: var(--cal-text, var(--text-bright, #e0dac8));
   white-space: nowrap;
+  flex: 0 0 auto;
+  padding-left: 8px;
 }
-.earnMeta .lbl { opacity: 0.7; }
+.earnMeta .lbl { opacity: 0.6; }
 .earnBeat { color: var(--ut-green-bright, #1ae51a); font-weight: 700; }
 .earnMiss { color: var(--ut-red-bright, #ff5b5b); font-weight: 700; }
 
@@ -234,8 +259,30 @@
 @keyframes calspin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 
-/* Responsive: collapse at narrow widget widths (root = .widgetBody container) */
-@container (max-width: 260px) {
+/* "Show all N" / "Show less" expander below a section's top-10. */
+.showAll {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  font-family: inherit;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.showAll:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.04)); }
+.showAll .chev { margin-left: auto; display: inline-flex; transition: transform 140ms ease; }
+.showAll.open .chev { transform: rotate(90deg); }
+
+/* Responsive: the company name minimizes first as the widget narrows; the EPS
+   column only drops on a very thin widget (root = .widgetBody container). */
+@container (max-width: 320px) { .earnCompany { display: none; } }
+@container (max-width: 230px) {
   .earnMeta { display: none; }
   .econStats { gap: 7px; }
 }

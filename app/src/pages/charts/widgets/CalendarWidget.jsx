@@ -12,6 +12,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
+import useTickerMeta from '../../../hooks/useTickerMeta'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
@@ -52,6 +53,50 @@ function fmtNum(v, digits = 2) {
   const n = Number(v)
   if (!Number.isFinite(n)) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
+const mcapDesc = (a, b) => (Number.isFinite(b.mc_b) ? b.mc_b : -1) - (Number.isFinite(a.mc_b) ? a.mc_b : -1)
+const TOP_EARNINGS = 10   // largest 10 by market cap; the rest behind "Show all"
+
+// A single earnings row: logo + ticker + (company name, dims/hides when narrow) + EPS.
+function EarnRow({ c, onPick }) {
+  const { name } = useTickerMeta(c.sym)
+  const beat = c.eps_act != null && c.eps_est != null ? c.eps_act >= c.eps_est : null
+  return (
+    <div className={styles.earnRow} onClick={() => onPick(c.sym)} title={`Show ${c.sym} on the linked chart`}>
+      <CompanyLogo sym={c.sym} size={16} name={name} round />
+      <span className={styles.earnSym}>{c.sym}</span>
+      {name && <span className={styles.earnCompany}>({name})</span>}
+      <span className={styles.earnMeta}>
+        {c.eps_act != null
+          ? <span className={beat ? styles.earnBeat : styles.earnMiss}>EPS {fmtNum(c.eps_act)}</span>
+          : c.eps_est != null
+            ? <span><span className={styles.lbl}>est </span>{fmtNum(c.eps_est)}</span>
+            : null}
+      </span>
+    </div>
+  )
+}
+
+// An earnings section: the top 10 by market cap, then a "Show all N" expander.
+function EarningsSection({ title, iconName, cls, items, onPick }) {
+  const [showAll, setShowAll] = useState(false)
+  const sorted = useMemo(() => [...items].sort(mcapDesc), [items])
+  const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
+  return (
+    <div className={styles.section}>
+      <div className={`${styles.sectionHead} ${cls}`}>
+        <span className={styles.headIcon}><UIcon name={iconName} size={13} /></span>
+        {title}<span className={styles.count}>{items.length}</span>
+      </div>
+      {shown.map(c => <EarnRow key={c.sym} c={c} onPick={onPick} />)}
+      {sorted.length > TOP_EARNINGS && (
+        <button type="button" className={`${styles.showAll}${showAll ? ' ' + styles.open : ''}`} onClick={() => setShowAll(s => !s)}>
+          {showAll ? 'Show less' : `Show all ${sorted.length}`}
+          <span className={styles.chev}><UIcon name="chevronRight" size={12} /></span>
+        </button>
+      )}
+    </div>
+  )
 }
 
 export default function CalendarWidget({ color, opts, onOptsChange }) {
@@ -104,25 +149,8 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   }, [day])
   const bmo = day?.bmo || []
   const amc = day?.amc || []
-  const tbd = day?.tbd || []
+  const tbd = useMemo(() => [...(day?.tbd || [])].sort(mcapDesc), [day])
   const nothing = !isLoading && day && econItems.length === 0 && bmo.length === 0 && amc.length === 0 && tbd.length === 0
-
-  const renderEarn = (c) => {
-    const beat = c.eps_act != null && c.eps_est != null ? c.eps_act >= c.eps_est : null
-    return (
-      <div key={c.sym} className={styles.earnRow} onClick={() => goToSym(c.sym)} title={`Show ${c.sym} on the linked chart`}>
-        <CompanyLogo sym={c.sym} size={16} name={null} round />
-        <span className={styles.earnSym}>{c.sym}</span>
-        <span className={styles.earnMeta}>
-          {c.eps_act != null
-            ? <span className={beat ? styles.earnBeat : styles.earnMiss}>EPS {fmtNum(c.eps_act)}</span>
-            : c.eps_est != null
-              ? <span><span className={styles.lbl}>est </span>{fmtNum(c.eps_est)}</span>
-              : null}
-        </span>
-      </div>
-    )
-  }
 
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
@@ -130,9 +158,13 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         <NewsSettingsPanel
           title="Calendar Settings"
           showPerf={false}
-          extraSections={[{ label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
-            { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
-          ] }] }]}
+          textHint="names & EPS"
+          extraSections={[
+            { label: 'Symbol', rows: [{ key: 'symbolColor', label: 'Symbol color', hint: 'earnings tickers' }] },
+            { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
+              { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
+            ] }] },
+          ]}
           settings={settings}
           onChange={patchSettings}
           onReset={resetSettings}
@@ -201,23 +233,11 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         )}
 
         {bmo.length > 0 && (
-          <div className={styles.section}>
-            <div className={`${styles.sectionHead} ${styles.pre}`}>
-              <span className={styles.headIcon}><UIcon name="sun" size={13} /></span>
-              Pre-Market Earnings<span className={styles.count}>{bmo.length}</span>
-            </div>
-            {bmo.map(renderEarn)}
-          </div>
+          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} onPick={goToSym} />
         )}
 
         {amc.length > 0 && (
-          <div className={styles.section}>
-            <div className={`${styles.sectionHead} ${styles.post}`}>
-              <span className={styles.headIcon}><UIcon name="moon" size={13} /></span>
-              After-Hours Earnings<span className={styles.count}>{amc.length}</span>
-            </div>
-            {amc.map(renderEarn)}
-          </div>
+          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} onPick={goToSym} />
         )}
 
         {tbd.length > 0 && (
@@ -226,7 +246,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               Time TBD<span className={styles.count} style={{ marginLeft: 6 }}>{tbd.length}</span>
               <span className={styles.chev}><UIcon name="chevronRight" size={12} /></span>
             </button>
-            {tbdOpen && tbd.map(renderEarn)}
+            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} onPick={goToSym} />)}
           </div>
         )}
       </div>
