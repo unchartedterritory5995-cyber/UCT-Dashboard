@@ -247,6 +247,18 @@ def _warm_extended_volumes_async(tickers: list[str]) -> None:
     threading.Thread(target=_build, daemon=True, name="live-prices-exvol").start()
 
 
+def _prev_session_change(prev_day: dict, prior_close) -> dict:
+    """{prev_change, prev_change_pct} — the prevDay session's OWN change (its close vs
+    the close of the session before it). The header shows this as the regular-hours
+    number during pre-market/overnight. Both None until the prior-close cache warms."""
+    pd_c = _f(prev_day.get("c"))
+    pp_c = _f(prior_close)
+    if pd_c and pp_c and pp_c > 0:
+        abs_ = pd_c - pp_c
+        return {"prev_change": round(abs_, 4), "prev_change_pct": round(abs_ / pp_c * 100.0, 4)}
+    return {"prev_change": None, "prev_change_pct": None}
+
+
 def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> dict | None:
     """Build a quote from prevDay when the live feed is empty (market closed).
 
@@ -286,6 +298,11 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
         "day_close": round(close, 2),
         "ext_price": None,
         "ext_session": None,
+        # This row already REPRESENTS the last completed session (its change is that
+        # session's move), so there's no separate pre-market split — the header uses
+        # `change`/`change_pct` here. Kept for response-shape consistency.
+        "prev_change": None,
+        "prev_change_pct": None,
         # Marks a row served from the last completed session rather than a live
         # feed. Price alerts skip these so a weekend poll can't re-fire Friday.
         "market_closed": True,
@@ -310,6 +327,10 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     degraded: dict = {}
     need_exvol: list[str] = []   # active extended-hours tickers awaiting an aggregate warm
     _today = _today_yyyymmdd()    # for the date-guarded last-known aggregate
+    # Closes of the session BEFORE the last completed one (cached, warmed async) — lets
+    # us report the PREVIOUS regular session's change (prevDay.c vs the one before it),
+    # which the header's pre-market split shows as the "original" (regular-hours) number.
+    _, _prior_map = _session_closes()
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")
         if not ticker:
@@ -419,6 +440,10 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             "day_close": round(float(day["c"]), 2) if day.get("c") else None,
             "ext_price": ext_price,
             "ext_session": ext_session,
+            # The PREVIOUS regular session's change (prevDay.c vs the close before it).
+            # The header shows this as the "original" regular-hours number during
+            # pre-market/overnight, when today's regular session hasn't happened yet.
+            **_prev_session_change(prev_day, _prior_map.get(ticker)),
         }
 
     # Serve last-session values for the held-back tickers when the market isn't
