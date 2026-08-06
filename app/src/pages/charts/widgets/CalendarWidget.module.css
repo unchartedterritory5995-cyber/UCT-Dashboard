@@ -120,14 +120,21 @@
   border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
 }
 .sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); display: inline-flex; }
-.sectionHead .count {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
-  font-weight: 600;
-}
 .sectionHead.pre .headIcon { color: #e0a53c; }
 .sectionHead.post .headIcon { color: #6f8dbf; }
+/* Clickable title (→ sort by market cap) + clickable EPS/REV column labels
+   (→ sort by that surprise; click again reverses). */
+.headTitle {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer; text-align: left;
+}
+.titleCount { margin-left: 3px; font-weight: 600; opacity: 0.6; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.count { font-variant-numeric: tabular-nums; opacity: 0.75; }
+.colBtn { background: none; border: none; padding: 0; margin: 0; font-family: inherit; cursor: pointer; }
+.sectionHead .colBtn:hover, .headTitle:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.sectionHead .colActive { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.sortCaret { font-size: 0.72em; margin-left: 2px; font-weight: 700; }
 
 /* Economic event row */
 .econRow {
@@ -200,28 +207,28 @@
   min-width: 0;
   flex: 0 1 auto;
 }
-/* Two right-aligned value columns (EPS · REV). Reported rows show a % surprise
-   (colored up/down); pending rows show the estimate (regular text color). The header
-   labels + data cells share a fixed width + font-size so the columns line up. */
-.earnColHead { display: flex; align-items: center; gap: 8px; padding: 3px 10px 5px; }
-.colHeadSpacer { flex: 1 1 auto; min-width: 0; }
+/* The EPS · REV labels live in the sticky section header (see .sectionHead) and the
+   values in each row; both use this fixed-gap wrapper so their spacing + right edge
+   line up identically. Reported rows show a % surprise (colored up/down); pending
+   rows show the estimate (regular text color). */
+.valCols { display: flex; align-items: baseline; gap: 16px; flex: 0 0 auto; margin-left: auto; }
 .epsCol, .revCol {
   flex: 0 0 auto;
-  width: 4.2em;
-  font-size: 0.72em;
+  width: 5em;
+  /* font-size fixed off the widget's --cal-fs (NOT the parent) so the header labels
+     and row values compute the SAME column width regardless of their container. */
+  font-size: calc(var(--cal-fs, 13.5px) * 0.72);
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
 }
-.earnColHead .epsCol, .earnColHead .revCol {
+.sectionHead .epsCol, .sectionHead .revCol {
   font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  letter-spacing: 0.4px;
   color: var(--cal-chrome, var(--text-muted, #8b8674));
-  opacity: 0.85;
 }
-.earnRow .epsCol { margin-left: auto; }   /* keep the pair right-aligned even when the name is hidden */
+.estTag { font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
 .earnRow .epsCol, .earnRow .revCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
 .earnRow .epsCol.pos, .earnRow .revCol.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }
 .earnRow .epsCol.neg, .earnRow .revCol.neg { color: var(--cal-neg, var(--ut-red-bright, #ff5b5b)); }
@@ -292,8 +299,9 @@
 
 /* Responsive: the company name minimizes first as the widget narrows; the EPS
    column only drops on a very thin widget (root = .widgetBody container). */
-@container (max-width: 320px) { .earnCompany { display: none; } }
-@container (max-width: 210px) {
+@container (max-width: 340px) { .earnCompany { display: none; } }
+@container (max-width: 220px) {
   .revCol { display: none; }
+  .valCols { gap: 0; }
   .econStats { gap: 7px; }
 }
