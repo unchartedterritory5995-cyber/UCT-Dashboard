@@ -159,16 +159,13 @@ function ChartPane({
     : null
 
   // ── Extended-hours session view ("Regular Hours" / "Include pre/post-market") ──
-  // Ephemeral per-pane state (not persisted). Defaults to Regular Hours and
-  // auto-reverts at the 9:30 bell, staying regular through the RTH session.
-  // Only meaningful on D/W/M; the toggle is hidden on intraday.
-  const mkt = useMarketOpen()
-  const [sessionView, setSessionView] = useState('regular')
-  // Lifted verbatim from ChartWidget. The setState IS the point: an external
-  // clock signal (the 9:30 bell) resets the view exactly once per open, not on
-  // a render cascade.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (mkt.isOpen) setSessionView('regular') }, [mkt.isOpen])
+  // Only meaningful on D/W/M; the toggle is hidden on intraday. PERSISTED per-surface
+  // via chart settings (see sessionView below) so the user's choice STICKS across
+  // refreshes + market open/close until they switch back to Regular Hours — it no
+  // longer resets to Regular on refresh or at the 9:30 bell (owner ask). useMarketOpen
+  // is still called for its 60s re-render, which refreshes the ext-session window
+  // (extEnabled/extLabel) used by the toggle below.
+  useMarketOpen()
   const isDWMtf = DWM.includes(tf)
   // Extended session stays "post-market" from 4pm ET through 4am (post window +
   // overnight), then flips to "pre-market" at 4am. Re-evaluated on the 60s
@@ -189,6 +186,20 @@ function ChartPane({
     chartsTheme,
   })
   const extHoursOn = chartCs.extendedHoursShading ?? true
+
+  // D/W/M "Include pre/post-market" view. Local state for an instant toggle, SEEDED
+  // and re-hydrated from the persisted chart setting, and persisted on change — so it
+  // responds immediately AND survives refreshes + market open/close (it no longer
+  // resets to Regular). Writing rides the same settings sink as every other chart pref.
+  const [sessionView, setSessionViewState] = useState(() => (chartCs.sessionView === 'extended' ? 'extended' : 'regular'))
+  useEffect(() => {
+    setSessionViewState(chartCs.sessionView === 'extended' ? 'extended' : 'regular')
+  }, [chartCs.sessionView])
+  const setSessionView = useCallback((v) => {
+    const nv = v === 'extended' ? 'extended' : 'regular'
+    setSessionViewState(nv)
+    writeActiveSettings({ ...chartCs, sessionView: nv, preset: 'custom' })
+  }, [chartCs, writeActiveSettings])
 
   // ── Intraday extended-hours toggle ("Regular Hours" / "Extended Hours") ──
   // On intraday timeframes the D/W/M session toggle above is hidden; this pair

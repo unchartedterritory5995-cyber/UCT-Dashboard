@@ -3639,19 +3639,12 @@ export default function StockChart({
   // `_sessionLive` exists, so the object check it replaced was redundant anyway.
   const intradaySessionTagLines = useMemo(() => {
     if (!sessionTagsIntraday) return null
-    // Pin the Pre/Post chip to the ON-CHART developing candle's close (liveBarRef),
-    // not the raw live ext price. During a fast pre/post-market earnings move the
-    // candle repaint is PACED (realtimeCandle LIVE_UI_CADENCE, leading + trailing
-    // flush) while sessionExtPrice ticks continuously, so the chip led the candle by
-    // up to a cadence window (owner: "label ahead of the candle"). Showing the candle's
-    // own close makes the chip == what's drawn — it can never run ahead. Guard a stale
-    // liveBarRef (e.g. at the RTH→ext transition it may still hold the prior close) by
-    // only trusting it when it's tracking the ext price (within 5%); else use ext price.
-    const _lb = liveBarRef.current
-    const _barPx = (_lb && Number.isFinite(_lb.close) && _lb.close > 0) ? _lb.close : null
-    const _tracks = _barPx != null && Number.isFinite(sessionExtPrice)
-      && Math.abs(_barPx - sessionExtPrice) <= sessionExtPrice * 0.05
-    const extPx = _tracks ? _barPx : sessionExtPrice
+    // Seed price only. The chip's live PRICE is driven by the rAF sync effect below,
+    // which glues it to the developing candle's drawn close (liveBarRef) so the chip
+    // and candle move in unison regardless of which feed/clock paints the bar. This
+    // per-tick memo just keeps the chip existing + titled; it must NOT fight the rAF
+    // on price (the effect that applies it skips `price` for this tag — see below).
+    const extPx = sessionExtPrice
     if (!Number.isFinite(extPx) || extPx <= 0) return null
     return [{
       price: extPx, color: SESSION_EXT_COLOR, lineWidth: 1, lineStyle: 0,
@@ -6776,14 +6769,45 @@ export default function StockChart({
     // Same tag count = same tags in the same roles (daily = [locked close, ext],
     // intraday = [ext]); only their prices/titles move. Update in place.
     if (sessionTagRefs.current.length === tags.length) {
-      tags.forEach((t, i) => { try { sessionTagRefs.current[i].applyOptions(opts(t)) } catch { /* series gone */ } })
+      tags.forEach((t, i) => {
+        const o = opts(t)
+        // The INTRADAY Pre/Post chip's live price is owned by the rAF sync effect
+        // below (glued to the developing candle); this per-tick effect must not fight
+        // it on price, or the chip flickers between two feeds. Keep title/color fresh.
+        if (sessionTagsIntraday && t._sessionTag === 'ext') delete o.price
+        try { sessionTagRefs.current[i].applyOptions(o) } catch { /* series gone */ }
+      })
       return
     }
     for (const pl of sessionTagRefs.current) {
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday])
+
+  // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
+  // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
+  // Massive push / realtimeCandle) — each on its OWN feed + throttle — while the chip
+  // previously read sessionExtPrice, a DIFFERENT feed, so during a fast pre/post-market
+  // move the two showed different prices. A rAF loop mirrors the chip to the candle's
+  // exact drawn close (liveBarRef.close) every frame, so they move in unison with no
+  // cross-feed lag. Intraday ext only; only writes when the value actually changes.
+  useEffect(() => {
+    if (!sessionTagsIntraday) return
+    let raf = 0
+    let lastPx = null
+    const tick = () => {
+      const line = sessionTagRefs.current?.[0]
+      const px = liveBarRef.current?.close
+      if (line && Number.isFinite(px) && px > 0 && px !== lastPx) {
+        lastPx = px
+        try { line.applyOptions({ price: px }) } catch { /* series gone */ }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [sessionTagsIntraday])
 
   // ── Custom-TF live developing bar ──
   // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
