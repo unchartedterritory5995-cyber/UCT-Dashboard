@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import useSWR from 'swr'
+import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
@@ -2696,25 +2696,36 @@ export default function StockChart({
   // line = a 'trendline' alert carrying its two anchors (real unix-seconds + price)
   // so the checker can interpolate the line's level over time. A point placed past
   // the last candle (futureBars) is resolved to a real future time via the bar cadence.
-  const handleSetDrawingAlert = useCallback((drawing, direction) => {
+  const handleSetDrawingAlert = useCallback(async (drawing, direction) => {
     if (!sym || !drawing) return
     const pts = drawing.points || []
     const kind = (drawing.type === 'horizontal' || drawing.type === 'hray') ? 'line' : 'trendline'
     const arr = drawBarsRef.current || []
-    const realTimeOf = (p) => {
-      const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
-      if (fb > 0 && arr.length >= 2) {
-        const lastT = arr[arr.length - 1].t
-        const diffs = []
-        for (let i = Math.max(1, arr.length - 30); i < arr.length; i++) {
-          const d = arr[i].t - arr[i - 1].t
-          if (d > 0) diffs.push(d)
-        }
-        diffs.sort((a, b) => a - b)
-        const interval = diffs.length ? diffs[Math.floor(diffs.length / 2)] : 86400
-        return lastT + fb * interval
+    // Exact per-bar spacing for THIS timeframe (matches how the chart lays out its
+    // uniform logical axis), so a point placed past the last candle resolves to a
+    // real future time consistent with the visual line — not a fragile median.
+    const barSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'W' ? 604800 : resolvedTf === 'M' ? 2592000 : 86400)
+    // A drawing point's `time` is in the chart's DISPLAY epoch, NOT true UTC:
+    //  • intraday = UTC-floored + _ET_OFFSET (fake-ET shift for the axis)
+    //  • D/W/M    = a "YYYY-MM-DD" ET date STRING
+    // The server-side checker compares against true-UTC time.time(), so we MUST
+    // convert here or the trendline evaluates hours off (intraday) or not at all
+    // (daily → Math.round(string) = NaN → alert never created).
+    const toUtcSec = (t) => {
+      if (typeof t === 'number' && Number.isFinite(t)) return t - _ET_OFFSET          // reverse the intraday ET shift
+      if (typeof t === 'string') {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
+        if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], 16, 0, 0) / 1000               // D/W/M date → ~noon ET (16:00 UTC)
       }
-      return p?.time
+      return NaN
+    }
+    const anchorUtc = (p) => {
+      const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
+      if (fb > 0 && arr.length) {
+        const lastUtc = toUtcSec(arr[arr.length - 1].t)
+        return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
+      }
+      return toUtcSec(p?.time)
     }
     const body = { sym, direction, alert_type: kind }
     if (kind === 'line') {
@@ -2724,18 +2735,31 @@ export default function StockChart({
     } else {
       const a = pts[0], b = pts[1]
       if (!Number.isFinite(a?.price) || !Number.isFinite(b?.price)) return
-      const t1 = realTimeOf(a), t2 = realTimeOf(b)
+      const t1 = anchorUtc(a), t2 = anchorUtc(b)
       if (!Number.isFinite(t1) || !Number.isFinite(t2)) return
-      body.target_price = b.price   // display fallback (latest anchor)
+      body.target_price = b.price   // display fallback (latest anchor); server falls back to it if t1==t2
       body.anchor_t1 = Math.round(t1); body.anchor_p1 = a.price
       body.anchor_t2 = Math.round(t2); body.anchor_p2 = b.price
     }
-    fetch('/api/watchlist-alerts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).catch(() => { /* non-fatal */ })
-  }, [sym])
+    try {
+      const res = await fetch('/api/watchlist-alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const created = res.ok ? await res.json().catch(() => null) : null
+      // Instant: prepend into the Alerts widget's SWR cache, then revalidate every
+      // watchlist-alerts cache so the new alert shows immediately (no 30s poll wait).
+      if (created?.id) {
+        globalMutate(
+          '/api/watchlist-alerts?active_only=false',
+          (cur) => (Array.isArray(cur) ? [created, ...cur] : cur),
+          { revalidate: true },
+        )
+      }
+      globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
+    } catch { /* non-fatal */ }
+  }, [sym, resolvedTf])
 
   // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
   // bubble the new array to the parent via onAnnotationsChange (no localStorage).
