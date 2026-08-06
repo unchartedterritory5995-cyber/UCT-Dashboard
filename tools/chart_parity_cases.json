@@ -1729,6 +1729,7 @@
       ],
       "_provenanceReason": "B5 TASK 13 -- THE CUTOVER EMPTIES PANE 0 AND THE MANIFEST COMPARES SERIES POSITIONALLY. Under 'bands' every oscillator lives in pane 0 alongside the candles and the price overlays; under 'panes' it moves to a pane of its own, so the slot that held `legacy:rsi::rsi` on side A holds `legacy:bb::upper` on side B. NO SERIES IS CREATED BY AN UNEXPECTED MODULE -- the set of binding keys in the manifest is identical on both sides; only their INDEX inside pane 0 moves, which is the cutover doing exactly what it says it does. Declared, not tolerated: the pairs below are the measured ones, so a DIFFERENT shift (a series that really did change module, or one more of them) still fails -- `provenance_verdict` counts, so an extra occurrence is EXTRA.",
       "_regionsFrom": "gen_parity_regions.py -- bands 1c74866baccb panes b9adaba27035: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[282, 117, 62, 68]",
+      "_expectFrom": "⭐ RE-MEASURED 2026-08-05, AFTER THE 275-COMMIT MASTER MERGE, AND THE MOVE DECOMPOSES INTO THE TWO NAMED MASTER COMMITS. A `9d980a82b72d` (THIS tree with `PANE_MODE = 'bands'`) → B `5752d78e3564` (THIS tree as it ships), served==disk on both, `--instances-side none`; 27 observations across four invocations — including one `--repeat 20` sweep that read it 20/20 — every one 158,093 with these exact regions, and `rest`/`export_header`/`time_axis` 0 on every one. The recorded 156,783 was measured before the merge. This is the ONLY intraday case with oscillator panes, so master's two intraday-only default-ON features do not cancel across the two pane modes the way they do on the other eight intraday cases (all still 1,200).\n\n`price_plot` 15,370 → 15,326 (−44) is `93655d6a` (prev-day High/Low/Close reference lines) IN FULL, and that is an EQUALITY, not an argument: disabling the three lines on BOTH sides returns `price_plot` to EXACTLY 15,370 — the recorded pre-merge number — and moves no other region by a pixel. Their own footprint on this case is 642 px, all of it in `price_plot`, IDENTICAL in both pane modes (one build per side, `--perturb-b` lines-off), which is both the non-vacuity control (the lines really do draw here) and the reason only 44 px of them survive: they land on the same pixels in both modes, so they cancel.\n\n`mid_panes` 95,538 → 41,129 (−54,409) AND `osc_strip` 45,875 → 101,638 (+55,763) are `378bc714` (session shading extended into the volume pane) IN FULL. With the shading off on both sides (`extendedHoursShading:false` plus `?ext=1`, so the pre/post CANDLES stay and only the bands go) the case reads 95,127 — `mid_panes` 41,130, `osc_strip` 38,665 — so toggling that one feature moves 62,973 px, all of it inside those two regions, and `mid_panes` moves by ONE. ⭐ THE ASYMMETRY IS THE WHOLE NUMBER: the shading's own footprint here is 65,052 px in the volume pane under `'panes'` (the merge measured 64,816 for the same feature on `vwap_only`'s volume pane) and **0 px in `osc_strip`**, against **72,823 px in `osc_strip` under `'bands'`** — because under `'bands'` this case's volume pane sits at y 455–572, INSIDE `osc_strip`, and is shaded, while under `'panes'` y 441–572 is the two oscillator panes, which no shading reaches. So `378bc714` simultaneously made the volume band AGREE across the modes (`mid_panes` falls 54,409) and gave `osc_strip` a shaded-vs-unshaded mismatch it did not have before (`osc_strip` rises 55,763).\n\n⚠️ Everything above is settings-only, on ONE pair of builds: no `app/src` file was edited to produce any of it. ⛔ The number was not widened — it was re-measured, and 156,783 is recoverable from this build pair by turning the two features off.",
       "regions": [
         {
           "name": "export_header",
@@ -1748,7 +1749,7 @@
             1200,
             322
           ],
-          "expect": 15370
+          "expect": 15326
         },
         {
           "name": "mid_panes",
@@ -1758,7 +1759,7 @@
             1200,
             441
           ],
-          "expect": 95538
+          "expect": 41129
         },
         {
           "name": "osc_strip",
@@ -1768,7 +1769,7 @@
             1200,
             572
           ],
-          "expect": 45875
+          "expect": 101638
         },
         {
           "name": "time_axis",
@@ -1817,7 +1818,7 @@
           }
         }
       },
-      "expect": 156783
+      "expect": 158093
     },
     {
       "name": "intraday_bars_only",
@@ -1869,6 +1870,7 @@
       "fixedbars": "intraday5m",
       "bars": 579,
       "priceLine": false,
+      "_priceLineReason": "⭐ ATTRIBUTED, AND IT IS NOT THE FLIP-C CLASS — which is exactly why a reader scanning for this key found nothing and B5 Task 13 §6.6 called it unattributable. The other 28 suppressions are DERIVED from *pane 0's height differing between the two sides*; this case's pane 0 is 414 px on BOTH sides (see `_regionsFrom`), so the last-price line cannot move for that reason and the case is correctly outside that class. What earns it is the ORIGINAL B3 artefact (runbook §'The 24-pixel artefact'): the candle series' dashed last-price line is BISTABLE — Chromium rasterises its dash boundaries two ways at a given pane geometry — and the measurement that pins it to THIS case is already in `why` above: one run in five of a 24-case cross-build sweep, exactly ONE row (y=166), 24 columns spanning x=13…981, values alternating the candle UP colour with the background, with no engine instance on either side, 9 of 10 stored captures byte-identical, and 20/20 clean on re-run. That account was written into `why` and never into this key.\n\nRE-VERIFIED 2026-08-05 on A `9d980a82b72d` / B `5752d78e3564`: the same case run UNSUPPRESSED (`priceLine` removed) reads the IDENTICAL 1,200 px on 20/20 runs, on the same single row — y=454, the pane separator — with BOTH sides single-valued across all 40 captures (95% bound on a per-run flake: 13.9%), and the suppressed case reads the same 1,200 20/20 in the same sweep. So on these builds the line is byte-identical across the two sides and the suppression costs the number nothing. KEPT rather than removed: it retires a documented, still-latent noise source for free, and the cost already stated in `why` (a regression that moved ONLY the last-price line goes unseen on this case) is unchanged by either choice.",
       "settings": {},
       "expect": 1200
     },
