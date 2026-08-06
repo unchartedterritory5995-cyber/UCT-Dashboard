@@ -11,6 +11,7 @@ import time as _time
 import requests
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services import yf_util
 
 _logger = logging.getLogger(__name__)
@@ -19,6 +20,11 @@ _CACHE_TTL = 21_600  # 6 hours (used by get_earnings_intel)
 _FRESH_TTL = 900     # 15 min — earnings-window fast path for an incomplete year
 _INTEL_FAIL_TTL = 600  # 10 min — negative cache when ALL intel calls fail (429 storm damper)
 _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
+_MARKERS_EMPTY_TTL = 600     # 10 min — an all-empty markers build self-heals fast,
+                             # and is NEVER written to the /data disk copy (see
+                             # get_chart_markers) — a transient provider blip must
+                             # not overwrite (or poison a cold cache with) what
+                             # would otherwise be served effectively forever.
 _TIMEOUT = 6  # seconds per Finnhub request
 
 # ── chart-markers persistent cache ───────────────────────────────────────────
@@ -748,8 +754,18 @@ def get_chart_markers(ticker: str) -> dict:
         return data
 
     result = _build_chart_markers(ticker)
-    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
-    _markers_disk_write(ticker, result)
+    # Same completeness guard as `_schedule_markers_refresh` above (:88) — a
+    # transient provider blip that leaves every section empty must NOT
+    # overwrite a good disk copy (or poison a cold cache) for the full 12h /
+    # forever-on-disk lifetime. It gets a short retry TTL instead and is
+    # never persisted, so the next request (minutes later) rebuilds from a
+    # provider that has likely recovered.
+    complete = bool(result.get("earnings") or result.get("splits") or result.get("dividends"))
+    set_by_completeness(
+        cache_key, result, complete=complete,
+        ttl_ok=_MARKERS_CACHE_TTL, ttl_partial=_MARKERS_EMPTY_TTL,
+        persist=lambda v: _markers_disk_write(ticker, v),
+    )
     return result
 
 

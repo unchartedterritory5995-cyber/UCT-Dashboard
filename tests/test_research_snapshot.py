@@ -70,3 +70,55 @@ def test_snapshot_ignores_fundamentals_error_dict(monkeypatch):
 def test_snapshot_empty_sym():
     assert snap.get_snapshot("")["sym"] == ""
     assert snap.get_snapshot(None)["metrics"] == {}
+
+
+class TestSnapshotCachePolicy:
+    """The memory cache write and the disk persist are gated by the SAME
+    completeness predicate -- before this fix only the persist was, so a
+    transient all-null composition still pinned a blank in memory for the
+    full 30-min TTL even though the persist correctly refused to write it."""
+
+    def _spy(self, monkeypatch):
+        seen = {}
+        real_set = snap.cache.set
+
+        def spy(key, value, ttl=None):
+            if key == "research_snapshot::TEST":
+                seen["ttl"] = ttl
+            return real_set(key, value, ttl)
+
+        monkeypatch.setattr(snap.cache, "set", spy)
+        return seen
+
+    def test_a_complete_build_gets_the_full_ttl_and_is_persisted(self, monkeypatch):
+        monkeypatch.setattr(snap, "get_fundamentals", lambda s: {"name": "Test Co"})
+        monkeypatch.setattr(snap, "get_ratings", lambda s: {"composite": 80, "components": {}, "checkup": []})
+        persisted = {}
+        monkeypatch.setattr(snap.snap_store, "put",
+                            lambda kind, sym, out, ttl: persisted.__setitem__(sym, (out, ttl)))
+        seen = self._spy(monkeypatch)
+        _clear_cache("TEST")
+
+        out = snap.get_snapshot("TEST")
+        assert out["name"] == "Test Co"
+        assert seen.get("ttl") == snap._CACHE_TTL
+        assert "TEST" in persisted
+
+    def test_all_sources_failing_gets_the_short_ttl_and_is_not_persisted(self, monkeypatch):
+        """THE regression: before this fix `cache.set` ran unconditionally at
+        the full 30-min TTL even when everything below it failed."""
+        def boom(s):
+            raise RuntimeError("yfinance down")
+        monkeypatch.setattr(snap, "get_fundamentals", boom)
+        monkeypatch.setattr(snap, "get_ratings", boom)
+        persisted = {}
+        monkeypatch.setattr(snap.snap_store, "put",
+                            lambda kind, sym, out, ttl: persisted.__setitem__(sym, (out, ttl)))
+        seen = self._spy(monkeypatch)
+        _clear_cache("TEST")
+
+        out = snap.get_snapshot("TEST")
+        assert out["composite"] is None
+        assert seen.get("ttl") == snap._FAIL_TTL
+        assert seen.get("ttl") < snap._CACHE_TTL
+        assert "TEST" not in persisted

@@ -17,12 +17,15 @@ from api.services.fundamentals import get_fundamentals, _fmt_billions
 from api.services.earnings_table import get_earnings_table
 from api.services import fundamentals_snapshot_store as snap_store
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.middleware.auth_middleware import get_current_user
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
 
-_FH_METRIC_TTL = 3600  # 1 hour
+_FH_METRIC_TTL = 3600  # 1 hour -- only for a build with at least one field resolved
+_FUND_FAIL_TTL = 300   # 5 min -- an all-null build self-heals fast instead of
+                       # riding the full hour (or, worse, the 7-day disk ceiling)
 _TIMEOUT = 10
 _SNAP_KIND = "fund_snapshot_v3"       # /api/fundamentals/{ticker} payloads (v3: +inception/inst-own)
 _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snapshot
@@ -194,11 +197,17 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         "inst_own_pct": base.get("held_pct_institutions"),  # pct e.g. 75.4
     }
 
-    cache.set(f"api_fund::{sym}", result, _FH_METRIC_TTL)
-    # Persist only when at least one field resolved — a transient all-null
-    # build must not become a week of stale-served blanks.
-    if any(v is not None for k, v in result.items() if k != "ticker"):
-        snap_store.put(_SNAP_KIND, sym, result, _FH_METRIC_TTL)
+    # `complete` gates BOTH the memory cache write and the disk persist below
+    # — the persist was already correctly guarded; the preceding cache.set
+    # was not, so a transient all-null build (both get_fundamentals and the
+    # Finnhub metric leg failed) used to pin a blank for the full hour
+    # in-memory even though the disk copy correctly refused to be poisoned.
+    complete = any(v is not None for k, v in result.items() if k != "ticker")
+    set_by_completeness(
+        f"api_fund::{sym}", result, complete=complete,
+        ttl_ok=_FH_METRIC_TTL, ttl_partial=_FUND_FAIL_TTL,
+        persist=lambda v: snap_store.put(_SNAP_KIND, sym, v, _FH_METRIC_TTL),
+    )
     return result
 
 

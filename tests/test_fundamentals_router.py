@@ -188,3 +188,62 @@ class TestFundamentalsEndpoint:
             r = client.get("/api/fundamentals/AMD")
         data = r.json()
         assert data["market_cap"] is None
+
+
+class TestCachePolicy:
+    """The memory cache write and the disk persist are gated by the SAME
+    completeness predicate -- before this fix only the persist was, so a
+    fully-failed build (both get_fundamentals and the Finnhub metric leg
+    empty) still pinned a blank in memory for the full 1-hour TTL."""
+
+    def _spy(self, monkeypatch):
+        import api.routers.fundamentals as router_mod
+        seen = {}
+        real_set = router_mod.cache.set
+
+        def spy(key, value, ttl=None):
+            if key == "api_fund::TESTCP":
+                seen["ttl"] = ttl
+            return real_set(key, value, ttl)
+
+        monkeypatch.setattr(router_mod.cache, "set", spy)
+        return seen, router_mod
+
+    def test_a_complete_build_gets_the_full_ttl_and_is_persisted(self, client, monkeypatch):
+        seen, router_mod = self._spy(monkeypatch)
+        persisted = {}
+        monkeypatch.setattr(router_mod.snap_store, "put",
+                            lambda kind, sym, out, ttl: persisted.__setitem__(sym, out))
+        p1, p2, p3 = (
+            patch("api.routers.fundamentals.get_fundamentals", return_value=dict(_SAMPLE_FUND)),
+            patch("api.routers.fundamentals._fh_metric_get", return_value=dict(_SAMPLE_FH)),
+            patch("api.routers.fundamentals.cache.get", return_value=None),
+        )
+        with p1, p2, p3:
+            r = client.get("/api/fundamentals/TESTCP")
+        assert r.status_code == 200
+        assert seen.get("ttl") == router_mod._FH_METRIC_TTL
+        assert "TESTCP" in persisted
+
+    def test_all_sources_failing_gets_the_short_ttl_and_is_not_persisted(self, client, monkeypatch):
+        """THE regression: before this fix `cache.set` at the router level ran
+        unconditionally at the full 1-hour TTL even when every field in the
+        result was None."""
+        seen, router_mod = self._spy(monkeypatch)
+        persisted = {}
+        monkeypatch.setattr(router_mod.snap_store, "put",
+                            lambda kind, sym, out, ttl: persisted.__setitem__(sym, out))
+        p1, p2, p3 = (
+            patch("api.routers.fundamentals.get_fundamentals",
+                 return_value={"error": "yfinance failed", "ticker": "TESTCP"}),
+            patch("api.routers.fundamentals._fh_metric_get", return_value={}),
+            patch("api.routers.fundamentals.cache.get", return_value=None),
+        )
+        with p1, p2, p3:
+            r = client.get("/api/fundamentals/TESTCP")
+        assert r.status_code == 200
+        data = r.json()
+        assert all(v is None for k, v in data.items() if k != "ticker")
+        assert seen.get("ttl") == router_mod._FUND_FAIL_TTL
+        assert seen.get("ttl") < router_mod._FH_METRIC_TTL
+        assert "TESTCP" not in persisted

@@ -1006,6 +1006,44 @@ def register_signature_sweep_job(scheduler):
     return True
 
 
+def register_logo_miss_retry_job(scheduler):
+    """Register the daily ticker-logo miss-retry pass (03:25 ET).
+
+    `ticker_logos.resolve_and_cache()` writes a `.miss` sentinel whenever
+    every source in the logo chain fails for a ticker -- up to a 7-day retry
+    TTL for a genuine "no logo anywhere" verdict (a provider hiccup instead
+    gets a much shorter TTL, see `ticker_logos._MISS_TRANSIENT_TTL`).
+    `run_miss_retry()` is the ONLY thing that ever clears a `.miss` file
+    early, and until this registration it had no scheduler entry at all --
+    a logo that failed once during a provider blip stayed a monogram for the
+    full retry window even after every source recovered, because nothing
+    was ever calling the retry pass. Gated by `LOGO_MISS_RETRY_ENABLED`
+    (default on). Low concurrency (<=2 workers, 1s inter-attempt sleep
+    inside `run_miss_retry`) so it never contends with request-path logo
+    fetches; safe against overlap -- a second call while one is running
+    returns `{"skipped": True}` immediately. Returns True if registered.
+    """
+    import os
+    if os.environ.get("LOGO_MISS_RETRY_ENABLED", "1") != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _run():
+        try:
+            from api.services import ticker_logos
+            stats = ticker_logos.run_miss_retry()
+            print(f"[scheduler] logo_miss_retry: {stats}")
+        except Exception as e:
+            print(f"[scheduler] logo_miss_retry error (non-fatal): {e}")
+
+    scheduler.add_job(
+        _run,
+        trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+        id="logo_miss_retry", max_instances=1, replace_existing=True,
+    )
+    return True
+
+
 def register_wire_watchdog_job(scheduler):
     """Server-side missed-run watchdog for the morning wire (review-panel fix).
 
@@ -2944,6 +2982,13 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0, timezone=_ET), id="cot_daily_catchup", max_instances=1, replace_existing=True)
         _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0, timezone=_ET), id="session_cleanup", max_instances=1, replace_existing=True)
+
+        # -- Ticker logo miss-retry (2026-08-05 cache-poison sweep) ----------
+        try:
+            register_logo_miss_retry_job(_scheduler)
+            print("[startup] logo miss-retry scheduled (daily 3:25am ET)")
+        except Exception as e:
+            print(f"[scheduler] logo miss-retry registration error: {e}")
 
         # -- auth.db continuous backup to R2 (DARK, env-gated) ----------------
         # auth.db is the crown-jewel DB and web-local (single web pod volume).
