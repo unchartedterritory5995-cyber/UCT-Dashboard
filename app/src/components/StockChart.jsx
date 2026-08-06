@@ -3639,7 +3639,19 @@ export default function StockChart({
   // `_sessionLive` exists, so the object check it replaced was redundant anyway.
   const intradaySessionTagLines = useMemo(() => {
     if (!sessionTagsIntraday) return null
-    const extPx = sessionExtPrice
+    // Pin the Pre/Post chip to the ON-CHART developing candle's close (liveBarRef),
+    // not the raw live ext price. During a fast pre/post-market earnings move the
+    // candle repaint is PACED (realtimeCandle LIVE_UI_CADENCE, leading + trailing
+    // flush) while sessionExtPrice ticks continuously, so the chip led the candle by
+    // up to a cadence window (owner: "label ahead of the candle"). Showing the candle's
+    // own close makes the chip == what's drawn — it can never run ahead. Guard a stale
+    // liveBarRef (e.g. at the RTH→ext transition it may still hold the prior close) by
+    // only trusting it when it's tracking the ext price (within 5%); else use ext price.
+    const _lb = liveBarRef.current
+    const _barPx = (_lb && Number.isFinite(_lb.close) && _lb.close > 0) ? _lb.close : null
+    const _tracks = _barPx != null && Number.isFinite(sessionExtPrice)
+      && Math.abs(_barPx - sessionExtPrice) <= sessionExtPrice * 0.05
+    const extPx = _tracks ? _barPx : sessionExtPrice
     if (!Number.isFinite(extPx) || extPx <= 0) return null
     return [{
       price: extPx, color: SESSION_EXT_COLOR, lineWidth: 1, lineStyle: 0,
