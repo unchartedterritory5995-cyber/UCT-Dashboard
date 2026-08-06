@@ -2853,6 +2853,34 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=3600,
             )
 
+            # Historical backfill sweep — 17:00 ET, AFTER the close and AFTER
+            # both jobs above. Reconstructs the pre-earnings straddle for past
+            # quarters so the RICH/CHEAP verdict has paired history to compare
+            # against, instead of waiting a year for nightly capture to build it.
+            #
+            # SAME flag, for the same reason setup_grade shares it: all three
+            # write the same store in the same nightly window, and a separate
+            # flag would let this silently diverge from the data it extends.
+            #
+            # 17:00 rather than alongside them because they contend for ONE
+            # process-wide Finnhub budget that is also shared with live member
+            # traffic. Run at the open, this sweep managed 1 row per 20 seconds
+            # and spent its time in rate-limit cooldowns; the capture has a
+            # deadline and this does not, so this yields.
+            #
+            # Incremental by construction (`_has_snapshot` skips what it already
+            # captured) and wall-clock bounded, so an interrupted night simply
+            # continues the next one — no babysitting, no manual relaunch.
+            from api.services import implied_backfill as _implied_backfill
+            _scheduler.add_job(
+                _implied_backfill.run_backfill_sweep,
+                trigger=CronTrigger(hour=_implied_backfill.SWEEP_HOUR_ET,
+                                     minute=_implied_backfill.SWEEP_MINUTE_ET,
+                                     day_of_week="mon-fri", timezone=_ET),
+                id="implied_backfill_sweep", max_instances=1, coalesce=True,
+                replace_existing=True, misfire_grace_time=3600,
+            )
+
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
         # (ticker_types table) fresh so the flow write path classifies new ETFs
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
