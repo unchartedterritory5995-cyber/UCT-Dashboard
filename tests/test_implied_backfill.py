@@ -351,3 +351,33 @@ def test_all_symbols_returns_distinct_syms(tmp_path, monkeypatch):
     store.record_implied("NVDA", "2025-08-27", p, "2025-08-26T21:00:00Z")
     store.record_implied("AAPL", "2025-10-30", p, "2025-10-29T21:00:00Z")
     assert store.all_symbols() == ["AAPL", "NVDA"]
+
+
+class TestScaleMismatch:
+    """A split between the report and now puts spot and strikes on different
+    scales. `straddle_from_rows` picks the NEAREST strike, so it cannot detect
+    this — it returns a well-formed straddle on a deep-OTM pair and the implied
+    move comes out enormous but confident. That is the exact failure mode this
+    whole module is written to avoid, so it gets an explicit backstop.
+    """
+
+    def test_spot_is_requested_UNADJUSTED(self, api):
+        """Split-adjusted closes are restated into today's share terms;
+        `as_of` strikes are the ones listed then. They must match."""
+        ib.historical_expected_move("NVDA", REPORT)
+        aggs = [p for (u, p) in api.calls if "/v2/aggs/" in u]
+        assert aggs, "no spot fetch"
+        for p in aggs:
+            assert p["adjusted"] == "false", p
+
+    def test_far_from_the_money_atm_is_refused(self, monkeypatch):
+        # Spot restated 10:1 lower than the strikes that existed then: the
+        # nearest strike (175) is ~10x spot.
+        fake = FakeApi(agg_results=[{"c": 18.14, "t": PRIOR_MS}])
+        monkeypatch.setattr(polygon_options, "_safe_get", fake)
+        assert ib.historical_expected_move("NVDA", REPORT) is None
+
+    def test_a_normal_atm_pick_still_passes(self, api):
+        out = ib.historical_expected_move("NVDA", REPORT)
+        assert out is not None
+        assert abs(out["strike"] - out["spot"]) / out["spot"] <= 0.20
