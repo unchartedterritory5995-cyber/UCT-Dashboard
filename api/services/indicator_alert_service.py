@@ -142,6 +142,21 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # gets its own durable column and the state machine keeps its meaning.
     ("instance_missing_at",
      "ALTER TABLE indicator_alerts ADD COLUMN instance_missing_at INTEGER"),
+    # ⭐ PHASE C TASK 12 (spec §5): WHICH CHART THIS ALERT BELONGS TO.
+    #
+    # NULL = GLOBAL, and that is the whole migration. Every row that exists —
+    # today, zero in production — is NULL, so a nullable column with no backfill
+    # leaves every alert on every chart exactly where it was. A NOT NULL column
+    # with a `'global'` default would have written a sentinel into every row to
+    # mean what the row already meant.
+    #
+    # ⛔⛔ IT IS A DISPLAY DIMENSION AND `list_active()` MUST NEVER READ IT.
+    # `list_active()` is what the evaluator, the Task 6 SHADOW lane and the Task
+    # 11 soak matrix all read. A scope filter there would make the 30 soak rows —
+    # or any user's scoped alert — invisible to the shadow lane, and Task 8's
+    # cutover gate would then pass on an empty set: a gate that cannot fail. The
+    # rail is `test_a_scoped_alert_is_still_visible_to_list_active`.
+    ("scope", "ALTER TABLE indicator_alerts ADD COLUMN scope TEXT"),
 )
 
 
@@ -205,6 +220,10 @@ def _row_to_dict(row: tuple) -> dict:
         # A bool for every surface, so no caller has to know that NULL means
         # "bound, or never checked" and a number means "the chart lost it".
         "instance_missing": row[21] is not None,
+        # ⭐ WHICH CHART. `None` is GLOBAL — served as JSON `null`, which the
+        # frontend's `alertSetFor` reads as "on every chart" for exactly the
+        # reason the column is nullable.
+        "scope": row[22],
     }
 
 
@@ -212,8 +231,22 @@ _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at"
+    "instance_id, instance_missing_at, scope"
 )
+
+
+def _clean_scope(scope: Optional[Any]) -> Optional[str]:
+    """A chart id, or ``None`` for GLOBAL — with exactly one spelling of global.
+
+    ⛔ ONE REPRESENTATION, DELIBERATELY. If ``''`` and ``None`` could both be
+    stored, ``scope IS NULL`` would be a filter that misses half the global rows
+    and ``scope = ?`` would be one that matches none of them — the alert set
+    would depend on which client wrote the row. Blank in, NULL stored.
+    """
+    if scope is None:
+        return None
+    text = str(scope).strip()
+    return text or None
 
 
 def _now(now: Optional[float] = None) -> int:
@@ -236,8 +269,14 @@ def create(
     tf: str,
     params_json: Optional[Any] = None,
     instance_id: Optional[str] = None,
+    scope: Optional[str] = None,
 ) -> int:
     """Create a new indicator alert. Returns the new alert ID.
+
+    ⚠️ `scope` IS OPTIONAL AND OMITTING IT MEANS **GLOBAL**, not "unknown".
+    An alert armed from a surface with no chart identity belongs to every chart,
+    which is what every alert meant before this column existed. A caller that
+    wants a per-chart alert says so.
 
     ⚠️ `instance_id` IS OPTIONAL AND `params_json` IS STILL THE TRUTH THE
     EVALUATOR READS. The id names the chart instance this alert was armed from;
@@ -256,8 +295,8 @@ def create(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?)",
+            "instance_id, scope) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -270,6 +309,10 @@ def create(
                 STATE_ARMED,
                 now,
                 None if instance_id is None else str(instance_id),
+                # An empty string is not a chart id — it is a client that had
+                # nothing to send. Stored as NULL so there is exactly ONE
+                # representation of "global" in the column.
+                _clean_scope(scope),
             ),
         )
         return int(cur.lastrowid)
@@ -284,7 +327,7 @@ def get(alert_id: int) -> Optional[dict]:
     return _row_to_dict(row) if row else None
 
 
-def list_for_user(user_id: str) -> list[dict]:
+def list_for_user(user_id: str, scope: Optional[str] = None) -> list[dict]:
     """This user's alerts, each NAMING THE INSTANCE it evaluates.
 
     ⭐ SPEC §8: *"instance named in alert rows ('RSI(7) crossed 70' vs
@@ -293,11 +336,26 @@ def list_for_user(user_id: str) -> list[dict]:
     so the name a user reads and the number the evaluator computes come from the
     SAME field. A label built in the frontend from a second table of parameter
     names is the twin this phase spent its whole budget retiring.
+
+    ⭐ PHASE C TASK 12 — `scope` NARROWS THIS TO ONE CHART'S ALERT SET, and the
+    set is *global + that chart*, never *that chart alone*. An alert armed before
+    per-chart sets existed (all of them) is NULL-scoped and has always shown on
+    every chart; a filter that dropped it would empty every user's alert list the
+    day the column landed.
+
+    Omitting `scope` returns EVERYTHING, which is what the alert manager wants
+    and what this function did before — so no existing caller changes behaviour.
     """
+    clean = _clean_scope(scope)
+    where = "user_id=?"
+    args: list[Any] = [str(user_id)]
+    if clean is not None:
+        where += " AND (scope IS NULL OR scope=?)"
+        args.append(clean)
     with _conn() as db:
         rows = db.execute(
-            f"SELECT {_COLS} FROM indicator_alerts WHERE user_id=? ORDER BY created_at DESC",
-            (str(user_id),),
+            f"SELECT {_COLS} FROM indicator_alerts WHERE {where} ORDER BY created_at DESC",
+            tuple(args),
         ).fetchall()
     return [_with_instance_label(_row_to_dict(r)) for r in rows]
 
@@ -327,6 +385,25 @@ def list_active() -> list[dict]:
     so it can never re-arm; and the Task 6 shadow lane reads this same function,
     so filtering would silently shrink what the soak observes. The quiet is at
     delivery.
+
+    ⛔⛔ AND DO NOT FILTER BY `scope` EITHER — PHASE C TASK 12. `scope` says which
+    CHART an alert is displayed on; it says nothing about whether the alert
+    should be evaluated, and a chart nobody has open is not a reason to stop
+    watching the market. Three readers make that concrete:
+
+      · the evaluator (`_run_one_cycle`) — a scoped alert would silently stop
+        firing whenever nobody had that chart open, which is never;
+      · the Task 6 SHADOW lane (`alert_shadow_log.run_shadow_cycle`) — it
+        observes exactly what this returns;
+      · the Task 11 SOAK MATRIX — 30 rows armed then snoozed, whose entire
+        purpose is to give Task 8's three-session gate something to observe.
+        Production has ZERO armed alerts, so if a scope filter hid the matrix the
+        gate would pass on an empty set. That is
+        [[lesson_gate_that_cannot_fail]] in the one place this phase cannot
+        afford it.
+
+    `test_a_scoped_alert_is_still_visible_to_list_active` is the rail, and the
+    soak-matrix half of it drives `tools/alert_soak_matrix.verify()` itself.
     """
     with _conn() as db:
         rows = db.execute(

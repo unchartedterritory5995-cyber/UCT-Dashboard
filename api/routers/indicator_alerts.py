@@ -33,6 +33,10 @@ class AlertCreate(BaseModel):
     # somewhere that has no chart at all) still gets an alert; what it does not
     # get is the deletion guard, because there is no binding to guard.
     instance_id: Optional[str] = None
+    # ⭐ SPEC §5 / PHASE C TASK 12: WHICH CHART. Optional, and omitting it means
+    # GLOBAL — the alert shows on every chart, which is what every alert created
+    # before this field existed means and must keep meaning.
+    scope: Optional[str] = None
 
 
 class SnoozeBody(BaseModel):
@@ -71,8 +75,20 @@ _CYCLE_SECONDS = 60
 
 
 @router.get("")
-def list_my_alerts(user: dict = Depends(get_current_user)):
-    return {"alerts": ias.list_for_user(user["id"])}
+def list_my_alerts(scope: Optional[str] = None,
+                   user: dict = Depends(get_current_user)):
+    """This user's alerts — all of them, or ONE CHART'S ALERT SET.
+
+    ⭐ PHASE C TASK 12. `?scope=<chartId>` returns *global + that chart*, never
+    *that chart alone*: every alert that exists today is unscoped, and unscoped
+    has always meant "on every chart". Omitting the parameter is the alert
+    manager's view and is byte-for-byte what this returned before.
+
+    ⛔ THIS IS A DISPLAY FILTER AND IT IS NOWHERE NEAR THE EVALUATOR. What FIRES
+    is decided by `indicator_alert_service.list_active()`, which is scope-blind
+    on purpose — see its docstring, and the rail that keeps it that way.
+    """
+    return {"alerts": ias.list_for_user(user["id"], scope=scope)}
 
 
 @router.get("/catalog")
@@ -159,6 +175,7 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
         tf=body.tf,
         params_json=body.params,
         instance_id=body.instance_id,
+        scope=body.scope,
     )
     return {"id": alert_id}
 
