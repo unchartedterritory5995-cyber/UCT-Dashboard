@@ -9,7 +9,16 @@ its place. Two of them live in `tools/alert_replay.py`.
 |---|---|---|---|
 | 1 | **the fire log as an EQUALITY** | `tests/fixtures/alerts/fire_log_forming.json` | `python tools/alert_replay.py --check` |
 | 2 | **the repaint oracle** | this document's number, below | `python tools/alert_replay.py --repaint --k 1 2 4 8` |
+| 2b | **the DECLARED lane diff** (Task 6) | `tests/fixtures/alerts/fire_diff_declared.json` | `python tools/alert_replay.py --diff --mode-a forming --mode-b closed` |
 | 3 | the ledger admission census | Task 9 | — |
+
+🔴 **(2) AND (2b) ARE DIFFERENT QUESTIONS AND ONE DOES NOT IMPLY THE OTHER.** The
+repaint oracle asks *"does this lane agree with ITSELF across granularities"* — Task
+5 drove it to 0/0. The diff asks *"does the NEW lane agree with the OLD one, and
+where it does not, is every difference DECLARED"*. Task 5 measured that the oracle
+is **necessary and not sufficient**: its M1 (the defect restored) and M4 (a
+uniformly shifted column) both repaint ZERO and are both wrong. Never read "0
+repaints" as "the lane is correct".
 
 ---
 
@@ -131,6 +140,17 @@ PYTHONDONTWRITEBYTECODE=1 python tools/alert_replay.py --check ; echo "EXIT=$?"
 
 # THE REPAINT ORACLE (~10 min; k ∈ {1,2,4,8}). Exits non-zero — loudly — on a zero.
 PYTHONDONTWRITEBYTECODE=1 python tools/alert_replay.py --repaint --k 1 2 4 8 ; echo "EXIT=$?"
+
+# THE DECLARED LANE DIFF (~15 min; both lanes at k=4, all 30 addresses). Exits
+# non-zero on an UNDECLARED difference in EITHER direction, on a declaration that
+# under-counts, and — loudly — on a one-sided or empty diff.
+PYTHONDONTWRITEBYTECODE=1 python tools/alert_replay.py --diff --mode-a forming \
+    --mode-b closed --out tools/alert_replay_out/diff.json ; echo "EXIT=$?"
+
+# The diff's fast rails, incl. the whole shadow lane (seconds; wick fixture only)
+PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_alert_shadow.py -q
+# …and the same file measuring all four fixtures instead of one
+ALERT_DIFF_FULL=1 PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_alert_shadow.py -q
 
 # The fast rails (seconds)
 PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_alert_replay.py -q

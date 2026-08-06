@@ -32,18 +32,209 @@ here rather than in the SDD ledger. The programme has corrected a prose count si
 times already (7→16→20→21→22→32 enumeration sites; "84 chart pytest" matching no
 command; "25 alert addresses" when the dict holds **28** — see §10.3).
 
-## 3. The measurement — NOT YET TAKEN
+## 3. The measurement
 
-**Owner: Task 2.** This section is deliberately EMPTY and deliberately not deleted.
+⚠️ **This section said "NOT YET TAKEN — Owner: Task 2" until Task 6 filled it, and
+that was four tasks late.** Task 2 did take its measurement; it recorded it in
+`docs/runbooks/alert-replay-gate.md` and left this section untouched, so the record
+that the cutover commit reads has carried an empty measurement while three tasks
+built on top of it. Recorded rather than quietly fixed: a decision record whose
+measurement lives in a different file is a record nobody can act on.
 
-The repaint oracle — the same real bars replayed at K intra-bar cycle
-granularities — has not been run. Today's evaluator **must** disagree across K;
-Task 2's gate is that the disagreement is *measured and non-zero*, and a zero
-**aborts as vacuous** rather than reading as good news.
+### 3.1 The repaint oracle — does the lane agree with ITSELF? (Tasks 2 and 5)
 
-⛔ Do not write a number here from a prediction. A decision record whose
-measurement section is filled in by the task that *planned* the measurement is the
-shape this programme has corrected six times.
+| lane | fires per k `{1, 2, 4, 8}` | keyed disagreement | identity disagreement |
+|---|---|---|---|
+| **forming** (live) | `139,870 · 276,500 · 551,325 · 1,089,548` | **636,205** | **17,295** |
+| **closed** (dark) | `134,135 · 268,270 · 536,540 · 1,073,080` | **0** | **0** |
+
+Four frozen real-bar fixtures, 1,845 bars, 1,244 alerts. Reproduce with
+`python tools/alert_replay.py --repaint --k 1 2 4 8 --mode {forming,closed}`; a
+forming ZERO and a closed NON-zero both abort as vacuous, and the closed mode also
+aborts on **no fires** (the closed lane fired 2,012,025 times while reading 0/0).
+Full provenance in `docs/runbooks/alert-replay-gate.md`.
+
+🔴 **AND IT IS NECESSARY, NOT SUFFICIENT — MEASURED, NOT ARGUED.** Task 5's
+mutation M1 restored the defect itself (`prev = last_value`) and M4 shifted a whole
+column by one bar; **both repaint ZERO and both are wrong**, because the replay
+writes `last_value` back after every sample and a closed value is identical at
+every sample of one bar. What killed them was a direct invariance test and a length
+assertion. **Nothing below is built on "0 repaints" as a proxy for correctness.**
+
+### 3.2 The lane diff — does the NEW lane agree with the OLD one? (Task 6)
+
+A different question, and the one that reaches an inbox. Both lanes on the same
+bars, the same grid and the same **k = 4** (the granularity the frozen fire log was
+recorded at — a 60-second poll looking four times inside a 5-minute bar). Fires are
+compared as `fire_key` **with the value inside the key**, because the single
+largest shape here is a fire whose NUMBER moved.
+
+```
+python tools/alert_replay.py --diff --mode-a forming --mode-b closed \
+       --out tools/alert_replay_out/diff.json
+```
+
+**Table 1 — total fires per lane.** 1,845 bars × 319 alerts (295 on the 66-bar
+fixture), **30 of 30 catalog addresses driven**.
+
+| lane | fires DELIVERED | distinct fires (`fire_key`) |
+|---|---|---|
+| **forming** (live today) | **552,083** | **417,935** |
+| **closed** (dark) | **537,680** | **134,420** |
+
+| fixture | bars | forming fires / keys | closed fires / keys | gained | lost |
+|---|---|---|---|---|---|
+| `intraday5m` | 579 | 176,492 / 137,192 | 171,676 / 42,919 | 33,970 | 128,243 |
+| `spy_daily` | 400 | 119,896 / 94,217 | 118,120 / 29,530 | 24,851 | 89,538 |
+| `nvda_5m_extended` | 800 | 244,556 / 178,350 | 237,068 / 59,267 | 44,429 | 163,512 |
+| `wick_that_unwinds` | 66 | 11,139 / 8,176 | 10,816 / 2,704 | 2,043 | 7,515 |
+
+⭐ **The row that matters to a user is the SECOND column, not the first.** The two
+lanes deliver a comparable number of times (552,083 vs 537,680) because neither has
+fire-once. But the forming lane's 552,083 deliveries carry only **417,935 distinct
+facts**, and the closed lane's 537,680 carry **134,420** — because `above` and
+`below` re-deliver on every poll at a slightly different running number, and the
+closed lane says the same thing every time.
+
+**Table 2 — what changes.**
+
+| direction | fires (`fire_key`) | fires (`alert_key`, `bar_index` only) |
+|---|---|---|
+| **gained** — the closed lane fires where the forming lane did not | **105,293** | **6,724** |
+| **lost** — the forming lane fires where the closed lane does not | **388,808** | **29,045** |
+
+Every differing fire is given a SHAPE mechanically, by looking for the same alert
+on the same bar / the adjacent bar in the other lane — so the four shapes this
+phase predicted are *recognised* rather than assumed:
+
+| shape | lost | gained | what it is |
+|---|---|---|---|
+| `value_moved` | **323,461** | **98,569** | same alert, same bar, different NUMBER — the per-poll re-delivery |
+| `shifted_later` | **26,689** | **6,615** | the forming lane saw the crossing mid-bar; the closed lane fires it at that bar's close |
+| `vanished` | **38,658** | — | the crossing existed only on a wick that unwound — **this is the phase's whole purpose** |
+| `appeared` | — | **109** | the forming lane's `prev` was a mid-bar value that had ALREADY crossed, so the bar-close crossing was swallowed |
+
+⚠️ **PRICE THE `above`/`below` CHANGE AS A COUNT — it is the one most likely to
+surprise a user.** `above`/`below` are LEVEL conditions with no reference to `prev`,
+so today a held condition re-delivers bell + email + Discord **every 60 seconds**.
+They account for **373,748 of the 388,808 lost fires (96.1 %)** and **99,299 of the
+105,293 gained (94.3 %)**. After the cutover the same alert arrives **once per bar**.
+That is a reduction in noise, not a loss of information — but a member whose RSI
+alert used to arrive every minute will notice, and it should be said before it
+happens, not after. (Fire-once / re-arm is **Task 11's**, still absent, still latent
+— prod `indicator_alerts` has zero rows.)
+
+**Table 3 — the gained/lost count per address, and every one declared.** All 30
+addresses change. The declaration lives in
+`tests/fixtures/alerts/fire_diff_declared.json` — **59 rows**, each naming an
+ADDRESS, a DIRECTION, a bounded COUNT and a prose REASON. An **undeclared**
+difference FAILS in either direction (a *missing* alert is the failure a user
+cannot see and cannot report); a declared difference that does not OCCUR in a given
+configuration is REPORTED, never failed (B5's `provenance_unmet` ruling); and the
+row counts **sum to the recorded totals**, which is what refuses a count larger than
+what was measured — an unbounded declaration is a wildcard wearing a number.
+
+| address | lost | gained | lost shapes | gained shapes |
+|---|---|---|---|---|
+| `adx.adx` | 10,966 | 5,119 | value_moved 10,388 · shifted_later 452 · vanished 126 | value_moved 4,904 · shifted_later 215 |
+| `adx.minusDI` | 15,319 | 5,271 | value_moved 13,920 · shifted_later 1,172 · vanished 227 | value_moved 4,858 · shifted_later 412 · appeared 1 |
+| `adx.plusDI` | 15,556 | 5,338 | value_moved 14,175 · shifted_later 1,156 · vanished 225 | value_moved 4,915 · shifted_later 423 |
+| `atr` | 16,501 | 5,440 | value_moved 14,529 · shifted_later 757 · vanished 1,215 | value_moved 5,144 · shifted_later 296 |
+| `bb` | 834 | 215 | value_moved 438 · shifted_later 235 · vanished 161 | value_moved 175 · shifted_later 40 |
+| `bb.lower` | 20,611 | 5,150 | value_moved 19,775 · shifted_later 495 · vanished 341 | value_moved 5,077 · shifted_later 73 |
+| `bb.middle` | 20,669 | 5,164 | value_moved 20,001 · shifted_later 390 · vanished 278 | value_moved 5,107 · shifted_later 57 |
+| `bb.upper` | 20,638 | 5,142 | value_moved 19,724 · shifted_later 510 · vanished 404 | value_moved 5,069 · shifted_later 73 |
+| `cci` | 22,143 | 5,799 | value_moved 18,860 · shifted_later 2,110 · vanished 1,173 | value_moved 5,175 · shifted_later 624 |
+| `donchian.lower` | 1,583 | 1,044 | value_moved 1,106 · vanished 391 · shifted_later 86 | value_moved 990 · shifted_later 43 · appeared 11 |
+| `donchian.middle` | 3,576 | 1,623 | value_moved 2,463 · vanished 756 · shifted_later 357 | value_moved 1,568 · shifted_later 48 · appeared 7 |
+| `donchian.upper` | 2,139 | 718 | value_moved 1,014 · vanished 912 · shifted_later 213 | value_moved 664 · shifted_later 42 · appeared 12 |
+| **`ichimoku.chikou`** | **19,574** | **0** | **vanished 19,574** | — |
+| `ichimoku.kijun` | 3,031 | 1,387 | value_moved 2,112 · vanished 622 · shifted_later 297 | value_moved 1,335 · shifted_later 42 · appeared 10 |
+| `ichimoku.spanA` | 5,362 | 2,822 | value_moved 4,332 · vanished 528 · shifted_later 502 | value_moved 2,744 · shifted_later 69 · appeared 9 |
+| `ichimoku.spanB` | 2,225 | 937 | value_moved 1,321 · vanished 698 · shifted_later 206 | value_moved 893 · shifted_later 35 · appeared 9 |
+| `ichimoku.tenkan` | 4,828 | 2,291 | value_moved 3,535 · vanished 749 · shifted_later 544 | value_moved 2,207 · shifted_later 72 · appeared 12 |
+| `macd` | 525 | 196 | vanished 305 · shifted_later 194 · value_moved 26 | shifted_later 169 · value_moved 25 · appeared 2 |
+| `macd.histogram` | 21,266 | 5,524 | value_moved 18,920 · shifted_later 1,332 · vanished 1,014 | value_moved 5,054 · shifted_later 470 |
+| `macd.signal` | 20,271 | 5,218 | value_moved 19,663 · shifted_later 483 · vanished 125 | value_moved 5,042 · shifted_later 176 |
+| `mfi` | 16,900 | 4,455 | value_moved 14,897 · shifted_later 1,378 · vanished 625 | value_moved 4,000 · shifted_later 449 · appeared 6 |
+| `obv` | 17,365 | 4,309 | value_moved 15,725 · shifted_later 1,146 · vanished 494 | value_moved 4,128 · shifted_later 162 · appeared 19 |
+| `price_vs_ma` | 19,394 | 4,931 | value_moved 18,279 · shifted_later 787 · vanished 328 | value_moved 4,895 · shifted_later 36 |
+| `rsi` | 21,933 | 5,397 | value_moved 18,211 · shifted_later 2,339 · vanished 1,383 | value_moved 5,053 · shifted_later 344 |
+| `sar.priceCrossedSar` | 139 | 136 | shifted_later 131 · vanished 8 | shifted_later 131 · appeared 5 |
+| `sar.trendFlipped` | 137 | 136 | shifted_later 130 · vanished 7 | shifted_later 130 · appeared 6 |
+| `stoch` | 22,929 | 5,814 | value_moved 17,433 · shifted_later 3,314 · vanished 2,182 | value_moved 5,160 · shifted_later 654 |
+| `stoch.d` | 22,003 | 5,671 | value_moved 18,657 · shifted_later 2,301 · vanished 1,045 | value_moved 5,036 · shifted_later 635 |
+| `vwap` | 17,462 | 4,232 | value_moved 16,524 · shifted_later 358 · vanished 580 | value_moved 4,191 · shifted_later 41 |
+| `williams_r` | 22,929 | 5,814 | value_moved 17,433 · shifted_later 3,314 · vanished 2,182 | value_moved 5,160 · shifted_later 654 |
+
+⚠️ **`stoch` and `williams_r` are byte-identical in this table and that is
+arithmetic, not a duplicated row.** `compute_williams_r == compute_stoch − 100`
+exactly (asserted), and the threshold ladder is three quantiles of each address's
+*own* series, so the two grids are the same grid shifted — every fire maps one to
+one. Left in rather than collapsed, because a coincidence nobody explains reads as
+a bug in the instrument.
+
+### 3.3 The row a user will call a bug: `ichimoku.chikou`
+
+`ichimoku.chikou` **loses 19,574 fires and gains none**, and every one of them is
+shaped `vanished` — but **not for the wick reason every other row carries**. The
+chikou column back-shifts bar *i*'s close to index *i − 26*, so the newest 26 slots
+are `None` by construction. The forming lane's `_last_non_none` walks backwards past
+that trailing pad and reports a number from 26 bars ago; the closed lane reads
+`series[i]` and reports no value at the bar being judged.
+
+**So a Chikou alert stops firing entirely at the cutover.** That is the honest
+answer — chikou at the newest closed bar is a fact about a bar that has not happened
+— and the alternatives are worse: forward-displacing the cloud is an owner-facing
+chart change, and reaching backwards is the forming lane's defect reintroduced in
+one column. It is named here, with a count, so it is a decision at T8 and not a
+support ticket at T8 + 1.
+
+### 3.4 What the shadow soak adds that none of the above can
+
+The frozen fixtures prove the lane is correct **on history**. `ALERT_SHADOW_ENABLED=1`
+runs the closed lane as its **own APScheduler job** (`indicator_alert_shadow_cycle`,
+60 s) against the **live tape**, with real armed alerts, real gaps and a real clock,
+writing only to `/data/alert_shadow.db`.
+
+⛔ **The shadow lane may not write `indicator_alerts`.** It shares the rows it reads
+with the live lane, and `last_value` there is not bookkeeping — under
+`ALERT_EVAL_MODE == "forming"` it IS the `prev` a crossing is measured against, so a
+shadow write would change what the LIVE lane fires: the observer changing the
+observed, on production, silently. The rail is
+`test_a_shadow_cycle_leaves_indicator_alerts_BYTE_IDENTICAL`, which dumps the whole
+table before and after a cycle, with
+`test_the_live_lane_DOES_change_that_table_which_is_why_the_shadow_may_not` as its
+control.
+
+⛔ **Its own job, not a branch inside `_run_one_cycle`.** Two jobs can be disabled
+independently; a branch cannot — turning the soak off would otherwise mean editing
+the code path that DELIVERS.
+
+**Before Task 8: at least three full trading sessions with the flag on**, comparing
+the shadow log against the live lane's `triggered_at` daily, and folding any new
+difference shape into `fire_diff_declared.json` **before** the cutover, not after.
+
+### 3.5 The fork this measurement found
+
+Widening the diff from the fire log's 28 `INDICATOR_FUNCS` addresses to all **30**
+(the two `sar` EVENT addresses included) exposed a live fork in the harness:
+`tools/alert_replay.py::make_forming_evaluate` resolved its value function through
+`INDICATOR_FUNCS` alone, while the shipped `_evaluate_one` resolves through
+`value_function`, which consults `INDICATOR_FUNCS` **and then** `EVENT_FUNCS`. So
+`sar.priceCrossedSar` evaluated to `(None, False)` in the harness and fired **39
+times** in the shipped lane on `spy_daily` alone.
+
+It survived because **the anti-fork rail iterated the same dict the bug was in** —
+`test_the_harness_agrees_with_the_evaluators_own_evaluate_one` looped
+`ev.INDICATOR_FUNCS`, so no oracle had ever driven an event address through that
+function. Both now iterate `INDICATOR_FUNCS + EVENT_FUNCS`. **A rail that iterates
+the same list the code under test does can only ever see what that list contains** —
+the same shape as the `dpc` constants finding in the pre-C repair.
+
+Proof it moved nothing else: `python tools/alert_replay.py --check` is still exit 0,
+8 (fixture, k) pairs, **691,195 fires, digest for digest** — `build_alert_grid` is
+untouched and the diff's two extra alerts come from a separate `build_event_alerts`.
 
 ## 10. Baseline, by command
 

@@ -11,6 +11,8 @@ are written under.
     python tools/alert_replay.py --record                      # once, on the UNMODIFIED tree
     python tools/alert_replay.py --check                       # the gate
     python tools/alert_replay.py --repaint --k 1 2 4 8         # the repaint oracle
+    python tools/alert_replay.py --diff --mode-a forming --mode-b closed
+                                                               # the DECLARED lane diff
 
 WHY THIS EXISTS AT ALL. Phase C ships a NOTIFICATION. No screenshot catches a
 wrong alert and an email cannot be un-sent, so the pixel gate that carried Phases
@@ -26,6 +28,13 @@ this file:
       disagreement. Today's evaluator judges the FORMING bar with
       cycle-granularity crossings, so it MUST disagree across K; a zero is
       REFUSED as vacuous rather than reported as a pass.
+  (3) THE DECLARED LANE DIFF (Task 6). A DIFFERENT question from (2), and one it
+      structurally cannot answer: (2) asks whether a lane agrees with ITSELF across
+      granularities — Task 5 drove that to 0/0 — while this asks whether the NEW
+      lane agrees with the OLD one, and where it does not, whether every difference
+      is DECLARED per address with a reason. 🔴 Task 5 MEASURED that (2) is
+      necessary and NOT sufficient: its M1 (the defect restored) and M4 (a
+      uniformly shifted column) both repaint ZERO and are both wrong.
 
 ⚠️ THIS TOOL CHANGES NO SHIPPED SOURCE. It reads `indicator_alert_evaluator`;
 it does not edit it, and `test_this_task_changed_no_shipped_source` is the rail.
@@ -216,7 +225,18 @@ def make_forming_evaluate() -> Callable[[dict, list[dict]], tuple]:
 
     def evaluate(alert: dict, seen: list[dict]) -> tuple:
         address = ev.resolve_address(alert.get("indicator"))
-        fn = ev.INDICATOR_FUNCS.get(address)
+        # 🔴 `ev.value_function(address)`, NOT `ev.INDICATOR_FUNCS.get(address)`,
+        # AND THE DIFFERENCE WAS A LIVE FORK. `_evaluate_one` resolves through
+        # `value_function`, which consults `INDICATOR_FUNCS` **and then**
+        # `EVENT_FUNCS`; this adapter consulted only the first, so the two `sar`
+        # event addresses evaluated to `(None, False)` here while the SHIPPED
+        # forming lane fired them 39 times on spy_daily alone. It was invisible to
+        # every committed measurement because `build_alert_grid` generates the
+        # grid from `INDICATOR_FUNCS`, so no oracle had ever driven an event
+        # address through this function — the anti-fork rail included, which
+        # iterated the same dict. Task 6's diff drove all 30 addresses and found
+        # it. The rail now iterates both tables.
+        fn = ev.value_function(address)
         if fn is None or not seen:
             return None, False
         params = ev._parse_params(alert)
@@ -967,6 +987,319 @@ def cmd_repaint(args) -> int:
     return 0
 
 
+# ─── Task 6: THE DECLARED DIFF — WHAT CHANGES FOR AN ARMED ALERT ─────────────
+#
+# ⭐ THE REPAINT ORACLE SAYS THE CLOSED LANE IS INTERNALLY CONSISTENT. IT SAYS
+# NOTHING ABOUT WHAT A USER'S INBOX RECEIVES. Task 5 measured 0 keyed / 0 identity
+# disagreement at every k while the closed lane fired 2,012,025 times — that is
+# "the answer does not depend on when you looked", which is the property the phase
+# exists to buy. It is NOT "the answer is the same as yesterday's", and it must not
+# be: the whole point is that a wick fire STOPS happening.
+#
+# So this measures the OTHER thing: the symmetric difference between the two
+# lanes' fire sets, grouped by ADDRESS and DIRECTION, so every change that reaches
+# a real inbox on cutover day is declared with a reason instead of discovered.
+#
+# ⛔ AND IT IS MEASURED WITH THE VALUE IN THE KEY (`fire_key`), for the same
+# reason the fire log is: a fire whose NUMBER moved is a different fact about the
+# world, and the single largest shape in this diff — an `above` alert that fired
+# on every poll at a slightly different intra-bar value and now fires once per bar
+# at the closed value — is invisible to a key without it.
+
+# The granularity both lanes are driven at. k=4 is the FORMING granularity the
+# frozen fire log was recorded at (`RECORD_KS`), i.e. an evaluator that looked
+# four times inside each bar — which is what a 60-second poll does to a 5-minute
+# bar. The closed lane is k-INVARIANT (Task 5: 0/0 at k ∈ {1,2,4,8}), so driving
+# BOTH lanes at the same k costs nothing on its side and removes the need for a
+# cross-k argument: same bars, same grid, same k, only the evaluator changes.
+DIFF_K = 4
+
+
+def address_of(alert_key: str) -> str:
+    """The plot address inside an `alert_key`. Public because the diff groups on it."""
+    return _address_of(alert_key)
+
+
+def build_event_alerts(fixture: str, tf: str) -> list[dict]:
+    """The two EVENT addresses, as alerts — the diff's coverage extension.
+
+    ⛔ `build_alert_grid` IS NOT TOUCHED, AND THAT IS DELIBERATE. It generates
+    from `INDICATOR_FUNCS`, the frozen fire log was recorded against exactly that
+    grid, and Task 3 put the event addresses in a SEPARATE `EVENT_FUNCS` partly
+    because growing the first dict would have destroyed the instrument. So the
+    28-address grid stays byte-identical for `--record`/`--check`, and the diff —
+    which compares two lanes against each other and never against the frozen log —
+    adds the two `sar` event addresses on top, so the declared diff covers all
+    **30** armable addresses rather than the 28 the fire log pins.
+
+    An event address takes no threshold ladder: its operand is DECLARED
+    (`THRESHOLD_OPERAND` → const 0.5), which is exactly why it is offered at all.
+    """
+    from api.services import indicator_alert_evaluator as ev
+
+    out: list[dict] = []
+    for address in ev.EVENT_FUNCS:
+        for cond in ev.ALERT_CONDITIONS[address]:
+            out.append({
+                "id": 0, "user_id": "replay", "sym": fixture, "tf": tf,
+                "indicator": address, "condition": cond["value"],
+                "threshold": None, "params_json": None, "last_value": None,
+                "alert_key": f"{fixture}|{address}|{cond['value']}|None",
+            })
+    return out
+
+
+def _lane_sets(bars: list[dict], alerts: list[dict], k: int,
+               evaluate: Callable[[dict, list[dict]], tuple]) -> tuple:
+    """(fire count, keyed set, identity set) for one lane on one fixture.
+
+    The fire LIST is dropped immediately — a k=4 forming pass over the four
+    fixtures is ~550k fire dicts and only the sets are ever compared.
+    """
+    fires = replay(bars, alerts, k=k, evaluate=evaluate)
+    keyed = {fire_key(f) for f in fires}
+    ident = {(f["alert_key"], f["bar_index"]) for f in fires}
+    return len(fires), keyed, ident
+
+
+def _classify(lost: set, gained: set) -> tuple[dict, dict]:
+    """Give every differing fire a SHAPE, mechanically, not by assumption.
+
+    The brief for this task listed four shapes it expected. A shape that is
+    assumed is a shape nobody measured, so each one is DERIVED from the two sets:
+
+      `value_moved`   the same alert fired on the same bar in both lanes, at a
+                      different number. This is the `above`/`below` re-delivery
+                      shape — the forming lane fires once per poll at the running
+                      intra-bar value; the closed lane fires once per bar at the
+                      closed value.
+      `shifted_later` (lost) the same alert fires one bar LATER in the closed lane
+                      / (gained) one bar EARLIER in the forming lane. A crossing
+                      the forming lane saw mid-bar lands at that bar's close.
+      `vanished`      lost with no closed-lane counterpart on this bar or the next.
+      `appeared`      gained with no forming-lane counterpart on this bar or the
+                      previous one.
+    """
+    lost_ident = {(k[0], k[1]) for k in lost}
+    gained_ident = {(k[0], k[1]) for k in gained}
+    lost_shapes: dict[str, int] = {}
+    gained_shapes: dict[str, int] = {}
+    # …and the same classification PER ADDRESS, because the reason a declaration
+    # carries has to be about THAT address, not about the diff in aggregate.
+    by_address: dict[str, dict[str, dict[str, int]]] = {}
+
+    def _bump(address: str, direction: str, shape: str) -> None:
+        slot = by_address.setdefault(address, {"lost": {}, "gained": {}})[direction]
+        slot[shape] = slot.get(shape, 0) + 1
+
+    for ak, bi, *_rest in lost:
+        if (ak, bi) in gained_ident:
+            shape = "value_moved"
+        elif (ak, bi + 1) in gained_ident:
+            shape = "shifted_later"
+        else:
+            shape = "vanished"
+        lost_shapes[shape] = lost_shapes.get(shape, 0) + 1
+        _bump(_address_of(ak), "lost", shape)
+    for ak, bi, *_rest in gained:
+        if (ak, bi) in lost_ident:
+            shape = "value_moved"
+        elif (ak, bi - 1) in lost_ident:
+            shape = "shifted_later"
+        else:
+            shape = "appeared"
+        gained_shapes[shape] = gained_shapes.get(shape, 0) + 1
+        _bump(_address_of(ak), "gained", shape)
+    return lost_shapes, gained_shapes, by_address
+
+
+def lane_diff(names: Optional[list[str]] = None, k: int = DIFF_K,
+              progress: bool = True) -> dict:
+    """What the closed lane CHANGES about an armed alert, per address.
+
+    Both lanes on the same bars, the same grid and the same k. Returns the
+    per-(address, direction) counts a declaration has to cover, the shape
+    breakdown behind them, and the per-lane fire totals that make a zero
+    impossible to read as good news.
+    """
+    from api.services import indicator_alert_evaluator as ev
+
+    names = list(names) if names else fixture_names()
+    grid_evaluate = make_forming_evaluate()          # also THE forming lane
+    closed_evaluate = make_closed_evaluate()
+
+    per_address: dict[str, dict[str, int]] = {}
+    per_condition: dict[str, dict[str, int]] = {}
+    shapes: dict[str, dict[str, int]] = {"lost": {}, "gained": {}}
+    shapes_by_address: dict[str, dict[str, dict[str, int]]] = {}
+    examples: dict[str, list] = {"lost": [], "gained": []}
+    totals = {"forming_fires": 0, "closed_fires": 0,
+              "forming_keys": 0, "closed_keys": 0,
+              "gained": 0, "lost": 0,
+              "identity_gained": 0, "identity_lost": 0}
+    per_fixture: dict[str, dict] = {}
+    addresses: set[str] = set()
+
+    for name in names:
+        fx = load_fixture(name)
+        bars = fx["bars"]
+        tf = fx.get("tf", "?")
+        alerts, _ = build_alert_grid(name, bars, tf, grid_evaluate)
+        alerts = alerts + build_event_alerts(name, tf)
+        addresses |= {address_of(a["alert_key"]) for a in alerts}
+        if progress:
+            print(f"  {name:20} ({len(bars)} bars x {len(alerts)} alerts) k={k} …",
+                  flush=True)
+
+        f_n, f_keys, f_ident = _lane_sets(bars, alerts, k, grid_evaluate)
+        c_n, c_keys, c_ident = _lane_sets(bars, alerts, k, closed_evaluate)
+
+        gained = c_keys - f_keys
+        lost = f_keys - c_keys
+        l_shapes, g_shapes, a_shapes = _classify(lost, gained)
+        for src, dst in ((l_shapes, shapes["lost"]), (g_shapes, shapes["gained"])):
+            for kk, vv in src.items():
+                dst[kk] = dst.get(kk, 0) + vv
+        for addr, dirs in a_shapes.items():
+            slot = shapes_by_address.setdefault(addr, {"lost": {}, "gained": {}})
+            for direction, counts in dirs.items():
+                for kk, vv in counts.items():
+                    slot[direction][kk] = slot[direction].get(kk, 0) + vv
+
+        for key_set, direction in ((gained, "gained"), (lost, "lost")):
+            for fk in key_set:
+                addr = address_of(fk[0])
+                per_address.setdefault(addr, {"gained": 0, "lost": 0})
+                per_address[addr][direction] += 1
+                ckey = f"{addr}|{fk[0].split('|')[2]}"
+                per_condition.setdefault(ckey, {"gained": 0, "lost": 0})
+                per_condition[ckey][direction] += 1
+        for direction, key_set in (("gained", gained), ("lost", lost)):
+            for fk in sorted(key_set)[:3]:
+                if len(examples[direction]) < 24:
+                    examples[direction].append(list(fk))
+
+        totals["forming_fires"] += f_n
+        totals["closed_fires"] += c_n
+        totals["forming_keys"] += len(f_keys)
+        totals["closed_keys"] += len(c_keys)
+        totals["gained"] += len(gained)
+        totals["lost"] += len(lost)
+        totals["identity_gained"] += len(c_ident - f_ident)
+        totals["identity_lost"] += len(f_ident - c_ident)
+        per_fixture[name] = {
+            "bars": len(bars), "alerts": len(alerts),
+            "forming_fires": f_n, "closed_fires": c_n,
+            "forming_keys": len(f_keys), "closed_keys": len(c_keys),
+            "gained": len(gained), "lost": len(lost),
+            "identity_gained": len(c_ident - f_ident),
+            "identity_lost": len(f_ident - c_ident),
+        }
+        if progress:
+            print(f"      forming {f_n} fires / {len(f_keys)} keys · "
+                  f"closed {c_n} fires / {len(c_keys)} keys · "
+                  f"gained {len(gained)} · lost {len(lost)}", flush=True)
+
+    rows = []
+    for addr in sorted(per_address):
+        for direction in ("gained", "lost"):
+            n = per_address[addr][direction]
+            if n:
+                rows.append({"address": addr, "direction": direction, "count": n})
+
+    catalog = list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
+    return {
+        "k": k,
+        "fixtures": names,
+        "addresses_covered": len(addresses),
+        "addresses_in_catalog": len(catalog),
+        "addresses_that_change": len(per_address),
+        "totals": totals,
+        "rows": rows,
+        "per_address": {a: per_address[a] for a in sorted(per_address)},
+        "per_condition": {c: per_condition[c] for c in sorted(per_condition)},
+        "shapes": shapes,
+        "shapes_by_address": {a: shapes_by_address[a] for a in sorted(shapes_by_address)},
+        "per_fixture": per_fixture,
+        "examples": examples,
+    }
+
+
+def cmd_diff(args) -> int:
+    mode_a = args.mode_a or "forming"
+    mode_b = args.mode_b or "closed"
+    if (mode_a, mode_b) != ("forming", "closed"):
+        raise SystemExit(
+            f"--diff measures forming → closed, got {mode_a!r} → {mode_b!r}. "
+            "The declaration's DIRECTION words ('gained' = the closed lane fires "
+            "where the forming lane did not, 'lost' = the reverse) are anchored to "
+            "that orientation; swapping it would silently invert every reason."
+        )
+    k = args.k[0] if args.k else DIFF_K
+    names = args.only or None
+    print(f"=== LANE DIFF ({mode_a} → {mode_b}, k={k}, window={PROD_BAR_WINDOW}) ===")
+    res = lane_diff(names, k=k)
+
+    t = res["totals"]
+    print("\n=== THE DIFF ===")
+    print(f"  addresses covered      : {res['addresses_covered']} "
+          f"of {res['addresses_in_catalog']} in the catalog")
+    print(f"  addresses that change  : {res['addresses_that_change']}")
+    print(f"  forming fires / keys   : {t['forming_fires']} / {t['forming_keys']}")
+    print(f"  closed  fires / keys   : {t['closed_fires']} / {t['closed_keys']}")
+    print(f"  GAINED (closed only)   : {t['gained']}   identity {t['identity_gained']}")
+    print(f"  LOST   (forming only)  : {t['lost']}   identity {t['identity_lost']}")
+    print(f"  shapes lost            : {res['shapes']['lost']}")
+    print(f"  shapes gained          : {res['shapes']['gained']}")
+
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(res, fh, indent=1, default=str)
+            fh.write("\n")
+        print(f"\n  wrote {args.out}")
+
+    # 🔴 THE VACUITY REFUSAL. A diff of nothing is exactly what a broken harness
+    # produces, and "nothing changes" is the one answer this measurement may never
+    # report without proving it could have seen a change.
+    if not t["forming_fires"] or not t["closed_fires"]:
+        raise SystemExit(
+            "A LANE FIRED NOTHING — ABORTING AS VACUOUS. A diff between a lane and "
+            "silence is not a diff."
+        )
+    if not t["lost"] or not t["gained"]:
+        raise SystemExit(
+            f"THE DIFF IS ONE-SIDED (gained={t['gained']} lost={t['lost']}) — "
+            "ABORTING AS VACUOUS. The cutover both stops fires and starts them; a "
+            "measurement that can only see one direction cannot see the one a user "
+            "cannot report — a MISSING alert."
+        )
+
+    # …and then the declaration, which is the gate.
+    from api.services import alert_shadow_log as shadow
+    try:
+        declared = shadow.declared_diff()
+    except FileNotFoundError:
+        print(f"\n  !! no declaration at {shadow.DECLARED_DIFF_PATH} — every one of "
+              f"the {len(res['rows'])} (address, direction) groups above is "
+              f"UNDECLARED.")
+        return 1
+    report = shadow.diff_report(res, declared)
+    print("\n=== THE DECLARATION ===")
+    print(f"  declared rows          : {len(declared.get('rows', []))}")
+    print(f"  undeclared groups      : {len(report['undeclared'])}")
+    print(f"  over-budget groups     : {len(report['over_budget'])}")
+    print(f"  declared-but-unmet     : {len(report['unmet'])}  (REPORTED, never failed)")
+    for row in report["unmet"]:
+        print(f"      unmet: {row['address']} {row['direction']} "
+              f"declared {row['declared']}, observed {row['observed']}")
+    bad = report["undeclared"] + report["over_budget"] + shadow.validate_declaration(declared)
+    for problem in bad:
+        print(f"  RED  {problem}")
+    print(f"\n{'EVERY DIFFERENCE IS DECLARED' if not bad else f'{len(bad)} UNDECLARED / OVER-BUDGET'}")
+    return 1 if bad else 0
+
+
 def cmd_freeze_bars(args) -> int:
     if os.path.exists(BARS_PATH) and not args.force:
         raise SystemExit(f"{BARS_PATH} already exists — --freeze-bars is ONE-SHOT.")
@@ -1100,6 +1433,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--record", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--repaint", action="store_true")
+    # ⭐ `--diff` IS THE TASK-6 MEASUREMENT AND IT IS A DIFFERENT QUESTION FROM
+    # `--repaint`. The repaint oracle asks "does this lane agree with ITSELF across
+    # granularities" (Task 5 drove it to 0/0). This asks "does the new lane agree
+    # with the OLD one, and where it does not, is every difference DECLARED".
+    ap.add_argument("--diff", action="store_true")
+    ap.add_argument("--mode-a", dest="mode_a", choices=("forming", "closed"), default=None)
+    ap.add_argument("--mode-b", dest="mode_b", choices=("forming", "closed"), default=None)
     ap.add_argument("--k", nargs="*", type=int)
     # ⚠️ `--mode` APPLIES TO `--repaint` ONLY. `--check` is the FORMING log's
     # gate by definition: `fire_log_forming.json` was recorded from the forming
@@ -1122,6 +1462,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return cmd_check(args)
     if args.repaint:
         return cmd_repaint(args)
+    if args.diff:
+        return cmd_diff(args)
     ap.print_help()
     return 2
 

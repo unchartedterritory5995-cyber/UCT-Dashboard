@@ -2703,6 +2703,42 @@ async def lifespan(app: FastAPI):
         except Exception as _e_sig:
             print(f"[startup] floor signal job skip: {_e_sig}")
 
+        # -- Indicator alerts: the CLOSED-BAR SHADOW LANE (Phase C Task 6) ------
+        # ⭐ BOTH LANES RUN, ONE LANE DELIVERS. The live evaluator
+        # (`indicator_alert_evaluator.start_evaluator`, its own daemon thread,
+        # started far above) is untouched and keeps delivering on the FORMING
+        # lane. This job evaluates the SAME alerts on the SAME bars through the
+        # closed lane and writes what it WOULD have fired to its own database —
+        # no delivery, no record_trigger, no record_evaluation, no ledger, no
+        # email. Its worst failure mode is a wasted cycle.
+        #
+        # ⛔ ITS OWN JOB, NOT A SECOND BRANCH INSIDE `_run_one_cycle`. Two jobs can
+        # be disabled independently; a branch cannot — turning the shadow off
+        # would mean touching the code path that DELIVERS, which is the one thing
+        # a soak must never be able to do. `ALERT_SHADOW_ENABLED=1` is what
+        # registers it (default off) AND `run_shadow_cycle` re-checks the same
+        # flag, so a manual call from a REPL obeys the switch too.
+        #
+        # 60s to match the live evaluator's interval, so the two lanes see the
+        # same tape at the same cadence and the daily comparison of the shadow log
+        # against `indicator_alerts.triggered_at` is like-for-like.
+        try:
+            if os.environ.get("ALERT_SHADOW_ENABLED", "0") == "1":
+                from api.services import alert_shadow_log as _alert_shadow
+                _alert_shadow.init_schema()
+                _scheduler.add_job(
+                    _alert_shadow.run_shadow_cycle,
+                    trigger=IntervalTrigger(seconds=60),
+                    id="indicator_alert_shadow_cycle", max_instances=1,
+                    coalesce=True, replace_existing=True, misfire_grace_time=30)
+                print("[startup] indicator alert SHADOW lane scheduled (every 60s, "
+                      "writes alert_shadow.db only)")
+            else:
+                print("[startup] indicator alert shadow lane OFF "
+                      "(set ALERT_SHADOW_ENABLED=1 to soak the closed lane)")
+        except Exception as _e_shadow:
+            print(f"[startup] indicator alert shadow job skip: {_e_shadow}")
+
         # -- Dark pool: nightly Massive ingest (2026-07-24) --------------------
         # Replaces the manual BBS CSV loop (download -> app/public -> redeploy).
         # 19:20 ET weekdays: after the 19:00 window close, so the full session

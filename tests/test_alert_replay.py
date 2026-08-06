@@ -227,11 +227,19 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
     Every address × every condition the catalog offers × a threshold ladder ×
     several `prev` values, driven through BOTH, demanding exact equality of
     `(value, triggered)`.
+
+    🔴 IT ITERATES **BOTH** TABLES, AND IT DID NOT UNTIL PHASE C TASK 6. Iterating
+    `INDICATOR_FUNCS` alone left the two `EVENT_FUNCS` addresses undriven, and a
+    real fork lived in exactly that gap: the adapter looked its value function up
+    in `INDICATOR_FUNCS` while `_evaluate_one` resolves through `value_function`,
+    which consults both — so `sar.priceCrossedSar` evaluated to `(None, False)` in
+    the harness and fired 39 times in the shipped lane. A rail that iterates the
+    same list the code under test does can only ever see what that list contains.
     """
     window = wick[-ar.PROD_BAR_WINDOW:]
     prevs = [None, -50.0, 0.0, 1.0, 50.0, 69.0, 70.0, 101.0]
     compared = 0
-    for address in ev.INDICATOR_FUNCS:
+    for address in list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS):
         for cond in ev.ALERT_CONDITIONS[address]:
             thresholds = [None, -1.0, 0.0, 50.0, 70.0, 100.0, 100.5]
             for thr in thresholds:
@@ -248,17 +256,24 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
 
 
 def test_the_fork_rail_is_not_vacuous(wick, forming):
-    """The rail above compares nothing unless the addresses produce numbers."""
+    """The rail above compares nothing unless the addresses produce numbers.
+
+    ⚠️ AND IT COVERS BOTH TABLES TOO. This is the half that would have caught the
+    event-address fork on its own: `sar.priceCrossedSar` returned `None` from the
+    adapter for every window, which is indistinguishable from "an address the
+    harness never asked about" unless the list being asked includes it.
+    """
     window = wick[-ar.PROD_BAR_WINDOW:]
+    catalog = list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
     valued = []
-    for address in ev.INDICATOR_FUNCS:
+    for address in catalog:
         alert = {"id": 1, "user_id": "u", "sym": "T", "tf": "5",
                  "indicator": address, "condition": "above", "threshold": 0.0,
                  "params_json": None, "last_value": None, "alert_key": "k"}
         value, _ = forming(alert, window)
         if value is not None:
             valued.append(address)
-    missing = sorted(set(ev.INDICATOR_FUNCS) - set(valued))
+    missing = sorted(set(catalog) - set(valued))
     assert not missing, f"addresses produced no value on wick_that_unwinds: {missing}"
 
 
