@@ -211,6 +211,33 @@ def run_visual(save: bool) -> tuple[list[str], list[str]]:
                 if save:
                     page.screenshot(path=str(OUT / f"{name}-monitor.png"))
 
+                # Data Charts. ECharts renders to CANVAS here, so there is no
+                # SVG text to read and no DOM to assert the NOW line against —
+                # an ad-hoc probe got this surface wrong twice by assuming
+                # otherwise. What IS reliably observable is whether the chart
+                # mounted and drew at all: a container with real dimensions and
+                # a canvas inside it. The contents are covered properly by
+                # BreadthCharts.live.test.jsx, which asserts the option object
+                # ECharts is actually handed. Claiming more than that here would
+                # be a check that cannot fail.
+                try:
+                    page.click("button:has-text('Data Charts')", timeout=6000)
+                    page.wait_for_timeout(6000)
+                    chart = page.evaluate(
+                        "() => { const el = document.querySelector('[_echarts_instance_]');"
+                        " const r = el && el.getBoundingClientRect(); return {"
+                        " mounted: !!el,"
+                        " size: r ? [Math.round(r.width), Math.round(r.height)] : null,"
+                        " canvas: el ? el.querySelectorAll('canvas').length : 0 } }")
+                    notes.append(f"[{name}] charts: {chart}")
+                    if not chart["mounted"]:
+                        problems.append(f"[{name}] Data Charts never mounted a chart")
+                    elif not chart["canvas"] or min(chart["size"] or [0, 0]) < 50:
+                        problems.append(f"[{name}] Data Charts mounted but drew nothing "
+                                        f"(size={chart['size']} canvas={chart['canvas']})")
+                except Exception as e:
+                    notes.append(f"[{name}] charts check skipped: {str(e)[:80]}")
+
                 # Views: the cursor must not present today as a finished day.
                 try:
                     page.click("button:has-text('Views')", timeout=6000)

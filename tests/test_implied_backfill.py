@@ -269,14 +269,14 @@ class TestFiscalJoin:
 
         monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp)
         monkeypatch.setattr(ee_mod, "_fh_get", fake_fh)
-        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)   # no real sleeping in tests
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)   # no real sleeping in tests
         return run
 
     def test_off_calendar_filer_gets_the_right_quarter(self, providers):
         """NVDA is the case a 'most recent period before the announcement'
         rule mislabels — every quarter, by exactly one, silently."""
         got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
-               for r in providers.past_reports("NVDA", 4)}
+               for r in ib.past_reports("NVDA", 4)}
         assert got["2025-11-19"] == (2026, 3)
         assert got["2026-02-25"] == (2026, 4)
         assert got["2026-05-20"] == (2027, 1)
@@ -284,7 +284,7 @@ class TestFiscalJoin:
     def test_september_filer_gets_the_right_quarter(self, providers):
         """AAPL is the mirror case, which an 'on or after' rule mislabels."""
         got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
-               for r in providers.past_reports("AAPL", 4)}
+               for r in ib.past_reports("AAPL", 4)}
         assert got["2025-10-30"] == (2025, 4)
         assert got["2026-01-29"] == (2026, 1)
         assert got["2026-04-30"] == (2026, 2)
@@ -292,7 +292,7 @@ class TestFiscalJoin:
     def test_future_announcements_are_excluded(self, providers):
         """NVDA's 2026-08-26 row has not reported — there is no implied move
         to reconstruct and no realized move to pair it against."""
-        dates = [r["report_date"] for r in providers.past_reports("NVDA", 8)]
+        dates = [r["report_date"] for r in ib.past_reports("NVDA", 8)]
         assert "2026-08-26" not in dates
 
     def test_one_quarter_is_never_claimed_twice(self, monkeypatch):
@@ -315,14 +315,14 @@ class TestFiscalJoin:
         monkeypatch.setattr(ee_mod, "_fh_get", lambda p, q: [
             {"period": "2025-12-31", "year": 2026, "quarter": 3},
         ])
-        rows = run.past_reports("NVDA", 8)
+        rows = ib.past_reports("NVDA", 8)
         assert len(rows) == 1, rows
         assert (rows[0]["fiscal_year"], rows[0]["fiscal_quarter"]) == (2026, 3)
         # Newest wins — announcements are walked newest-first.
         assert rows[0]["report_date"] == "2025-11-25"
 
     def test_distinct_quarters_all_survive(self, providers):
-        rows = providers.past_reports("NVDA", 8)
+        rows = ib.past_reports("NVDA", 8)
         keys = [(r["fiscal_year"], r["fiscal_quarter"]) for r in rows]
         assert len(keys) == len(set(keys))
         assert len(keys) >= 3
@@ -336,7 +336,7 @@ class TestFiscalJoin:
         monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
         monkeypatch.setattr(ee_mod, "_fh_get",
                             lambda p, q: [{"period": "2023-03-31", "year": 2023, "quarter": 1}])
-        assert run.past_reports("NVDA", 4) == []
+        assert ib.past_reports("NVDA", 4) == []
 
 
 def test_all_symbols_returns_distinct_syms(tmp_path, monkeypatch):
@@ -398,8 +398,8 @@ class TestFinnhubPacing:
         'this company has no earnings history', so the symbol was dropped."""
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
-        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
-        monkeypatch.setattr(run, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
         monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
         calls = {"n": 0}
 
@@ -410,7 +410,7 @@ class TestFinnhubPacing:
             return [{"period": "2025-12-31", "year": 2026, "quarter": 3}]
 
         monkeypatch.setattr(ee_mod, "_fh_get", flaky)
-        rows = run.past_reports("NVDA", 4)
+        rows = ib.past_reports("NVDA", 4)
         assert calls["n"] == 2, "should have retried through the cooldown"
         assert rows and (rows[0]["fiscal_year"], rows[0]["fiscal_quarter"]) == (2026, 3)
 
@@ -418,8 +418,8 @@ class TestFinnhubPacing:
         """A ticker Finnhub genuinely does not cover must not retry forever."""
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
-        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
-        monkeypatch.setattr(run, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
         monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
         calls = {"n": 0}
 
@@ -428,8 +428,8 @@ class TestFinnhubPacing:
             return []
 
         monkeypatch.setattr(ee_mod, "_fh_get", always_empty)
-        assert run.past_reports("NVDA", 4) == []
-        assert calls["n"] == run._FH_ATTEMPTS
+        assert ib.past_reports("NVDA", 4) == []
+        assert calls["n"] == ib._FH_ATTEMPTS
 
     def test_no_finnhub_call_at_all_when_fmp_has_nothing(self, monkeypatch):
         """Don't spend the shared budget on a symbol we already know we cannot
@@ -445,7 +445,7 @@ class TestFinnhubPacing:
             return []
 
         monkeypatch.setattr(ee_mod, "_fh_get", spy)
-        assert run.past_reports("NVDA", 4) == []
+        assert ib.past_reports("NVDA", 4) == []
         assert called["n"] == 0
 
     def test_every_finnhub_call_is_actually_paced(self, monkeypatch):
@@ -455,11 +455,83 @@ class TestFinnhubPacing:
         mutation deleting the sleep is invisible to them.)"""
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
-        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 2.5)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 2.5)
         slept = []
-        monkeypatch.setattr(run.time, "sleep", lambda s: slept.append(s))
+        monkeypatch.setattr(ib.time, "sleep", lambda s: slept.append(s))
         monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
         monkeypatch.setattr(ee_mod, "_fh_get",
                             lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
-        run.past_reports("NVDA", 4)
+        ib.past_reports("NVDA", 4)
         assert 2.5 in slept, f"no pacing sleep observed: {slept}"
+
+
+class TestNightlySweep:
+    """The sweep is what makes this durable. A one-shot script has to be
+    babysat and dies with its shell; a bounded, incremental cron re-registers
+    on every boot and simply continues tomorrow.
+    """
+
+    @pytest.fixture
+    def sweep_env(self, monkeypatch, tmp_path):
+        from api.services import implied_store as store
+        monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "s.db"))
+        monkeypatch.setattr(store, "_INITIALIZED", set())
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        return store
+
+    def test_writes_what_is_missing_and_skips_what_it_has(self, sweep_env, monkeypatch, api):
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+        out = ib.run_backfill_sweep()
+        assert "wrote 1" in out, out
+        assert len(store.get_implied_history("NVDA")) == 1
+
+        # Second night: nothing new to do, and crucially it does NOT refetch.
+        out2 = ib.run_backfill_sweep()
+        assert "wrote 0" in out2 and "already had 1" in out2, out2
+
+    def test_the_time_ceiling_stops_it_and_says_so(self, sweep_env, monkeypatch, api):
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: [f"SYM{i}" for i in range(50)])
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+        out = ib.run_backfill_sweep(max_seconds=0)
+        assert "time ceiling" in out and "continues tomorrow" in out, out
+
+    def test_one_bad_symbol_never_ends_the_night(self, sweep_env, monkeypatch, api):
+        """A scheduler job that throws takes its own next fire with it."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["BOOM", "NVDA"])
+
+        def flaky(sym, q):
+            if sym == "BOOM":
+                raise RuntimeError("provider exploded")
+            return [{"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3}]
+
+        monkeypatch.setattr(ib, "past_reports", flaky)
+        out = ib.run_backfill_sweep()
+        assert "wrote 1" in out, out          # NVDA still got done
+
+    def test_a_broken_symbol_list_returns_a_message_not_an_exception(self, monkeypatch):
+        from api.services import implied_store as store
+
+        def boom():
+            raise RuntimeError("db gone")
+
+        monkeypatch.setattr(store, "all_symbols", boom)
+        out = ib.run_backfill_sweep()
+        assert "could not read" in out
+
+    def test_it_runs_after_the_close_and_after_the_nightly_capture(self):
+        """Ordering is load-bearing: all three share ONE Finnhub budget, and
+        the capture has a deadline while this does not."""
+        from api.services import implied_store, setup_grade
+        assert ib.SWEEP_HOUR_ET == 17
+        assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) > \
+               (implied_store.CAPTURE_HOUR_ET, implied_store.CAPTURE_MINUTE_ET)
+        assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) > \
+               (setup_grade.GRADE_SNAPSHOT_HOUR_ET, setup_grade.GRADE_SNAPSHOT_MINUTE_ET)

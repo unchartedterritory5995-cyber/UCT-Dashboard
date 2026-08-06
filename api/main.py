@@ -2853,6 +2853,34 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=3600,
             )
 
+            # Historical backfill sweep — 17:00 ET, AFTER the close and AFTER
+            # both jobs above. Reconstructs the pre-earnings straddle for past
+            # quarters so the RICH/CHEAP verdict has paired history to compare
+            # against, instead of waiting a year for nightly capture to build it.
+            #
+            # SAME flag, for the same reason setup_grade shares it: all three
+            # write the same store in the same nightly window, and a separate
+            # flag would let this silently diverge from the data it extends.
+            #
+            # 17:00 rather than alongside them because they contend for ONE
+            # process-wide Finnhub budget that is also shared with live member
+            # traffic. Run at the open, this sweep managed 1 row per 20 seconds
+            # and spent its time in rate-limit cooldowns; the capture has a
+            # deadline and this does not, so this yields.
+            #
+            # Incremental by construction (`_has_snapshot` skips what it already
+            # captured) and wall-clock bounded, so an interrupted night simply
+            # continues the next one — no babysitting, no manual relaunch.
+            from api.services import implied_backfill as _implied_backfill
+            _scheduler.add_job(
+                _implied_backfill.run_backfill_sweep,
+                trigger=CronTrigger(hour=_implied_backfill.SWEEP_HOUR_ET,
+                                     minute=_implied_backfill.SWEEP_MINUTE_ET,
+                                     day_of_week="mon-fri", timezone=_ET),
+                id="implied_backfill_sweep", max_instances=1, coalesce=True,
+                replace_existing=True, misfire_grace_time=3600,
+            )
+
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
         # (ticker_types table) fresh so the flow write path classifies new ETFs
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
@@ -2903,6 +2931,42 @@ async def lifespan(app: FastAPI):
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth-live pre-open warm")
+
+        # Breadth live -- sample the session's shape on a CLOCK, not on traffic.
+        #
+        # The intraday store only recorded when someone called the endpoint, so
+        # the session path was a record of who happened to be looking rather
+        # than of the market. Observed on the first live session: six points in
+        # an hour, with a 47-minute hole spanning the stretch nobody opened the
+        # page. Post-launch traffic would have hidden this without fixing it —
+        # a quiet twenty minutes still leaves a gap, and the whole point of the
+        # path is that it is continuous.
+        #
+        # compute_live() is cached ~55s and record() enforces its own minimum
+        # interval, so a per-minute tick costs exactly one real computation a
+        # minute (~0.6s) and is idempotent against any user traffic that also
+        # arrives. Confined to regular hours: outside them the read is
+        # correctly withheld and the call is a no-op.
+        try:
+            def _breadth_live_sample():
+                try:
+                    from api.routers.breadth_monitor import get_breadth_live
+                    get_breadth_live()
+                except Exception as _e:
+                    logging.getLogger(__name__).debug(
+                        "[breadth-live] sample tick skipped: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_live_sample,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*",
+                                    timezone=_ET),
+                id="breadth_live_intraday_sample", max_instances=1,
+                coalesce=True, misfire_grace_time=30, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth-live intraday sampler")
 
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the

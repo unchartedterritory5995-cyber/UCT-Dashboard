@@ -627,13 +627,167 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
 _PAST_SESSION_CAP = 150
 
 
+def _fetch_finviz_past_sessions(past_ds: set[str],
+                                 filt: str = "earningsdate_thisweek") -> dict[str, dict[str, str]]:
+    """{date: {SYM: 'bmo'|'amc'}} for this week's ALREADY-PASSED days, from
+    Finviz Elite's CUSTOM export.
+
+    This exists because the claim in `_backfill_past_days` — that Finviz rolls
+    a reported company forward and stops matching `earningsdate_thisweek` — is
+    true of the PRESET view (`v=111`) the live path uses, and NOT of the custom
+    view. Measured 2026-08-06, `v=152&c=0,1,68` returned the whole week
+    including every past day: Mon 125, Tue 314, Wed 464, Thu 473, Fri 51.
+    (`earningsdate_prevweek` retains a further week — unused here, since this
+    function only serves the current week's history.)
+
+    Finviz encodes the session as a SENTINEL CLOCK TIME, not a real one:
+    8:30 AM = BMO, 4:30 PM = AMC, and those two values covered 1,427 of 1,429
+    rows. Parsed as a threshold rather than an equality so a future sentinel
+    change degrades to `tbd` instead of silently mislabelling every row.
+
+    ⚠️ The export mixes TWO date formats in one response (`8/6/2026` and
+    `08/06/2026`); matching only the unpadded one silently drops rows.
+
+    Never raises — a Finviz failure must leave the past-day merge exactly as
+    it was. Returns {} when the token is absent.
+    """
+    token = os.environ.get("FINVIZ_API_KEY") or os.environ.get("FINVIZ_TOKEN")
+    if not token or not past_ds:
+        return {}
+    url = (f"https://elite.finviz.com/export.ashx?v=152"
+           f"&f={filt}&c=0,1,68&auth={token}")
+    try:
+        import requests as _rq, csv as _csv, io as _io
+        r = _rq.get(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/csv"},
+                    timeout=20, allow_redirects=True)
+        if not r.ok:
+            _logger.warning("Finviz session fetch HTTP %d", r.status_code)
+            return {}
+        rows = list(_csv.DictReader(_io.StringIO(r.text)))
+    except Exception as exc:
+        _logger.warning("Finviz session fetch failed: %s", exc)
+        return {}
+
+    out: dict[str, dict[str, str]] = {}
+    for row in rows:
+        sym = (row.get("Ticker") or "").strip().upper()
+        raw = (row.get("Earnings Date") or "").strip()
+        if not sym or not raw:
+            continue
+        parts = raw.split(None, 1)
+        try:
+            m, d, y = (int(x) for x in parts[0].split("/"))   # handles 8/6 and 08/06
+            ds = date(y, m, d).isoformat()
+        except (ValueError, IndexError):
+            continue
+        if ds not in past_ds:
+            continue
+        timing = None
+        if len(parts) > 1:
+            try:
+                t = datetime.strptime(parts[1].strip(), "%I:%M:%S %p").time()
+                if t.hour < 9 or (t.hour == 9 and t.minute < 30):
+                    timing = "bmo"
+                elif t.hour >= 16:
+                    timing = "amc"
+            except ValueError:
+                timing = None
+        if timing:
+            out.setdefault(ds, {})[sym] = timing
+    return out
+
+
+def _finviz_week_filter(monday: date, today: date) -> str | None:
+    """Which Finviz week filter (if any) covers `monday`'s week.
+
+    Finviz exposes only `thisweek` and `prevweek` — there is no arbitrary date
+    range on this endpoint. Anything older than last week returns None and the
+    caller simply skips the leg rather than firing a request that cannot match
+    (see `lesson_finviz_ignores_invalid_filter_tokens`: an unrecognised filter
+    token is DROPPED silently, so a bogus one would quietly return the WRONG
+    week's rows rather than erroring).
+    """
+    this_monday = today - timedelta(days=today.weekday())
+    if monday == this_monday:
+        return "earningsdate_thisweek"
+    if monday == this_monday - timedelta(days=7):
+        return "earningsdate_prevweek"
+    return None
+
+
+def _merge_finviz_sessions(days: dict, target_ds: set[str], filt: str,
+                           keep, sym_index: dict, rebucket: bool = True) -> tuple[int, int]:
+    """Apply the Finviz session leg to `days`. Returns (added, moved).
+
+    ONE implementation for both the current-week backfill and the range-week
+    build — the two differ only in which filter covers their dates, and a
+    second copy of this merge would drift from the first.
+
+    Only ever FILLS a missing session; a symbol Finnhub already placed keeps
+    its bucket. Never raises.
+
+    `rebucket=False` disables moving a known entry out of `tbd`, because the
+    per-session cap is applied AFTER this runs: moving rows into `bmo`/`amc`
+    can push those buckets past their limit and the surplus is CUT. Measured on
+    the previous week, whose cap is a tight [:40]:
+
+        re-bucket + add   430 reporters, 341 sessioned
+        add-only          496 reporters, 333 sessioned
+
+    66 reporters recovered for 8 sessions — so the range path adds only. The
+    current-week path keeps re-bucketing: its cap is 150, loose enough that the
+    same measurement showed a clean +69 reporters with no loss.
+    """
+    added = moved = 0
+    try:
+        sessions = _fetch_finviz_past_sessions(target_ds, filt)
+    except Exception as exc:
+        _logger.warning("Finviz session merge failed: %s", exc)
+        return 0, 0
+    for ds, sym_timing in sessions.items():
+        day = days.get(ds)
+        if day is None:
+            continue
+        for sym, timing in sym_timing.items():
+            if not keep(sym):
+                continue
+            # Scan the DAY, not just `sym_index` — that index only holds what
+            # the earlier legs touched, so trusting it appends a DUPLICATE row
+            # for anything the live schedule already placed.
+            existing = next((e for e in _day_entries(day) if e.get("sym") == sym), None)
+            if existing is None:
+                day.setdefault(timing, []).append({
+                    "sym": sym, "eps_est": None, "eps_act": None,
+                    "rev_est": None, "rev_act": None,
+                    "ew": 0, "mc_b": None, "time_et": None,
+                })
+                sym_index.setdefault(ds, {})[sym] = day[timing][-1]
+                added += 1
+                continue
+            if not rebucket:
+                continue
+            tbd = day.get("tbd") or []
+            if existing in tbd and timing in ("bmo", "amc"):
+                tbd.remove(existing)
+                day.setdefault(timing, []).append(existing)
+                moved += 1
+    return added, moved
+
+
 def _backfill_past_days(days: dict, week_dates: list[date], today: date,
                         cap_uni: set | None) -> int:
     """Refill the current week's ALREADY-PASSED days from Finnhub's range calendar.
 
-    EarningsWhispers and Finviz are forward-looking SCHEDULES, not archives: once
-    a company reports, EW drops it from that date and Finviz's `Earnings` column
-    rolls to the next quarter, so `earningsdate_thisweek` stops matching it.
+    EarningsWhispers is a forward-looking SCHEDULE, not an archive: once a
+    company reports, EW drops it from that date.
+
+    Finviz was believed to behave the same way ("its `Earnings` column rolls to
+    the next quarter, so `earningsdate_thisweek` stops matching it"). That is
+    true only of the PRESET view (`v=111`) the live path uses. The CUSTOM view
+    retains the whole week including past days — measured 2026-08-06, `v=152`
+    returned Mon 125 / Tue 314 / Wed 464 against EW's handful. It is now the
+    third leg below, where it resolves the session field the other two are
+    weakest on. See `_fetch_finviz_past_sessions`.
     `_build_live` rebuilds the whole week on every cache miss, so Monday — then
     Tuesday — progressively empties while the week is still open (2026-07-30: EW
     served 2 names for Mon 7/27 and 6 for Tue 7/28 against Finnhub's 119 / 180).
@@ -780,6 +934,39 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
                 added += 1
                 touched.add(ds)
 
+        # ── Finviz Elite leg — a THIRD independent past-day source.
+        #
+        # Measured on the real week 2026-08-03..05 (A/B, this leg on vs off):
+        #
+        #     Finnhub + FMP            492 reporters, 329 with a session
+        #     + Finviz                 418 reporters, 341 with a session
+        #     Finnhub DOWN, FMP only   200 reporters,   0 with a session
+        #     Finnhub DOWN, FMP+Finviz 380 reporters, 338 with a session
+        #
+        # CORRECTION: an earlier version of this comment claimed FMP returned
+        # NOTHING under a Finnhub outage. That was measured with FMP_API_KEY
+        # absent from the local environment — FMP works fine and serves 200
+        # reporters. What it genuinely cannot do is SESSION them: FMP carries
+        # no session field, so all 200 land in `tbd`. That is the real gap this
+        # leg fills — 0 sessioned becomes 338, not 0 reporters becomes 692.
+        #
+        # It does NOT rescue "Time TBD", which is what this leg was originally
+        # built for: of the 264 tbd rows Finnhub+FMP leave behind, Finviz had a
+        # session for exactly ONE. The two populations are near-disjoint —
+        # Finviz's screener simply does not carry those names. The +70 sessioned
+        # rows above are symbols it ADDS, not tbd rows it re-buckets.
+        #
+        # Runs LAST on purpose: it only ever fills a session that is missing.
+        # Finnhub's `hour` still wins where it exists — redundancy for a gap,
+        # never a second opinion overriding a good answer.
+        fv_added, moved = _merge_finviz_sessions(
+            days, past_ds, "earningsdate_thisweek", _keep, sym_index)
+        added += fv_added
+        if fv_added or moved:
+            touched.update(past_ds)
+            _logger.info("Calendar: Finviz added %d past-day reporters, "
+                         "re-bucketed %d out of Time TBD", fv_added, moved)
+
         # Re-order + re-cap only the days the backfill touched. EW-ranked names
         # stay on top (that ordering is what the live path serves); the ew=0
         # tail takes _build_range_week's rule — estimate-bearing first, then
@@ -856,14 +1043,110 @@ def _attach_date_moves(days: dict) -> None:
                 e["date_moved"] = mv
 
 
+_FV_NAME_TTL = 24 * 3600
+_FV_NAME_WARMING = threading.Lock()
+_FV_NAME_INFLIGHT = False
+
+
+def _warm_finviz_name_map() -> None:
+    """Build the map on ONE background thread, at most one at a time.
+
+    Without the in-flight flag, every calendar build during the ~1s window
+    before the first one lands would start its OWN whole-market fetch — a
+    self-inflicted herd on exactly the surface this is trying to keep off the
+    request path.
+    """
+    global _FV_NAME_INFLIGHT
+    with _FV_NAME_WARMING:
+        if _FV_NAME_INFLIGHT:
+            return
+        _FV_NAME_INFLIGHT = True
+
+    def _run():
+        global _FV_NAME_INFLIGHT
+        try:
+            out = _build_finviz_name_map()
+            if out:
+                cache.set("finviz_name_map", out, ttl=_FV_NAME_TTL)
+        except Exception as exc:
+            _logger.warning("Finviz name-map warm failed: %s", exc)
+        finally:
+            with _FV_NAME_WARMING:
+                _FV_NAME_INFLIGHT = False
+
+    threading.Thread(target=_run, daemon=True, name="finviz-name-map").start()
+
+
+def _finviz_name_map() -> dict[str, dict]:
+    """{TICKER: {name, sector}} for the WHOLE market, from one Finviz Elite call.
+
+    `_attach_names` below is cache-hits-only by design, and its miss path is a
+    2-worker pool capped at 24 in flight — fine for a handful of names, far too
+    slow for a finished day carrying 400+ reporters, where most symbols miss and
+    the card renders blank for many requests running.
+
+    Finviz returns the entire market's Ticker/Company/Sector in ONE export, so a
+    single call resolves what the trickle needs hundreds of requests to reach.
+    Reuses `industry_map._fetch_finviz_universe` rather than issuing its own
+    request — that helper already owns the token, the 301 redirect and the 90s
+    timeout, and a second copy would drift from it.
+
+    Cached 24h: names and sectors do not move intraday. Returns {} on any
+    failure, so `_attach_names` just falls through to its existing path.
+    """
+    cached = cache.get("finviz_name_map")
+    if cached is not None:
+        return cached
+    # NEVER build inline. Measured 0.89s warm-network, but
+    # `_fetch_finviz_universe` carries a 90s timeout, and this runs on the
+    # request path in a single-process uvicorn with ONE shared anyio
+    # threadpool — a hung Finviz would pin a worker for a minute and a half
+    # per calendar build. That is precisely the unbounded-external-call shape
+    # behind the 2026-07-01 524 outage.
+    #
+    # So: kick a bounded background warm and return {} for THIS request. The
+    # async name queue still covers this build, and the next one gets the whole
+    # map. Same contract `_attach_names` already advertises — "never blocks the
+    # build, miss → next request".
+    _warm_finviz_name_map()
+    return {}
+
+
+def _build_finviz_name_map() -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    try:
+        from api.services.industry_map import _fetch_finviz_universe
+        for row in _fetch_finviz_universe():
+            sym = (row.get("Ticker") or "").strip().upper()
+            if not sym:
+                continue
+            name = (row.get("Company") or "").strip() or None
+            sector = (row.get("Sector") or "").strip() or None
+            if name or sector:
+                out[sym] = {"name": name, "sector": sector}
+    except Exception as exc:
+        _logger.warning("Finviz name map failed: %s", exc)
+        return {}
+    # Returns the map; the WARM THREAD owns the cache write, and writes only a
+    # map that actually resolved. Caching {} for 24h after a transient failure
+    # would blank every card for a day. `_fetch_finviz_universe` swallows its
+    # own errors and returns [] rather than raising, so the empty case is the
+    # LIKELY failure, not the exceptional one.
+    return out
+
+
 def _attach_names(days: dict) -> None:
     """Best-effort company names + GICS sector onto every entry, cache-hits only.
     Both come from the same ticker_meta cache; sector powers the calendar's
-    sector-scoping filter chips (never blocks the build — miss → next request)."""
+    sector-scoping filter chips (never blocks the build — miss → next request).
+
+    A ticker_meta miss falls back to the whole-market Finviz map BEFORE queueing
+    the async backfill — see `_finviz_name_map`."""
     try:
         from api.services.ticker_meta import _mem, _disk_get, _base_meta
     except Exception:
         return
+    fv_names = _finviz_name_map()
     for day in days.values():
         for e in _day_entries(day):
             sym = (e.get("sym") or "").upper()
@@ -882,7 +1165,20 @@ def _attach_names(days: dict) -> None:
                     e["sector"] = meta["sector"]
                 if meta.get("name"):
                     continue
-            # Miss → bounded async backfill (resolves for the next request)
+            # ticker_meta miss → the whole-market Finviz map, which is already
+            # in memory. This runs BEFORE the async queue on purpose: the queue
+            # resolves 24 symbols per request cycle, so on a 400-reporter day
+            # most cards stayed nameless for many requests. ticker_meta still
+            # WINS where it has an answer — this only fills what it lacks.
+            fv = fv_names.get(sym)
+            if fv:
+                if fv.get("name") and not e.get("name"):
+                    e["name"] = fv["name"]
+                if fv.get("sector") and not e.get("sector"):
+                    e["sector"] = fv["sector"]
+                if e.get("name"):
+                    continue
+            # Still a miss → bounded async backfill (resolves for the next request)
             with _NAME_GUARD:
                 if sym in _NAME_INFLIGHT or len(_NAME_INFLIGHT) >= _NAME_INFLIGHT_MAX:
                     continue
@@ -1115,6 +1411,25 @@ def _build_range_week(monday: date) -> dict:
             }
             days[ds]["tbd"].append(entry)
             sym_index.setdefault(ds, {})[sym] = entry
+
+    # ── Finviz Elite leg for a PAST week ──────────────────────────────────
+    # `_backfill_past_days` gave the CURRENT week a third source; this closes
+    # the identical exposure on the previous one. Measured on the current week,
+    # a Finnhub outage left FMP returning NOTHING and the day empty — that hole
+    # was equally open here, and past weeks are pure history, so an empty one is
+    # simply wrong rather than merely early.
+    #
+    # Finviz offers no arbitrary range: only last week is reachable, so weeks
+    # older than that skip the leg entirely rather than fire a request that
+    # cannot match. That is a real, stated limit — not silently papered over.
+    fv_filt = _finviz_week_filter(monday, today)
+    if fv_filt:
+        fv_added, fv_moved = _merge_finviz_sessions(
+            days, set(days.keys()), fv_filt, _keep, sym_index, rebucket=False)
+        if fv_added or fv_moved:
+            source = f"{source}+finviz"
+            _logger.info("Calendar %s: Finviz added %d, re-bucketed %d",
+                         week_start, fv_added, fv_moved)
 
     # Same ordering rule every week: estimate-bearing names first, then alpha;
     # same [:40] per-session cap as the current-week live path.
@@ -1781,12 +2096,22 @@ def refresh_calendar(user: dict = Depends(require_admin)):
         "source":          "refresh",
         "is_current_week": True,
     }
-    cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
+    # The ONE calendar_weekly write that used to bypass `set_by_completeness`
+    # (the normal build path has used it since the cache-policy pass). An admin
+    # hitting refresh during a provider outage rebuilt a degraded week and then
+    # PINNED it for the full 10 minutes — the one moment someone is actively
+    # trying to fix the calendar is the worst moment to make it stick. Same
+    # goodness test the serve-stale slot below already applies, evaluated once.
+    good = _weekly_payload_is_good(result)
+    set_by_completeness(
+        "calendar_weekly", result,
+        complete=good, ttl_ok=_CACHE_TTL, ttl_partial=_CACHE_FAIL_TTL,
+    )
     # This freshly-rebuilt week also becomes the serve-stale fallback. Without
     # it the admin's forced refresh would leave the PREVIOUS week in the slot,
     # which then resurfaces the moment this entry lapses — a manual refresh
     # would visibly un-apply itself 10 minutes later.
-    if _weekly_payload_is_good(result):
+    if good:
         _WEEKLY_STALE.remember("current", result)
     totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]),
                    "tbd": len(d.get("tbd", [])), "econ": len(d["econ"])}
