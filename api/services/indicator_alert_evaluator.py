@@ -1196,7 +1196,8 @@ def _run_one_cycle() -> dict[str, Any]:
     Returns a small summary dict (counts) useful for tests and ad-hoc
     debugging via the evaluator's REPL.
     """
-    summary = {"considered": 0, "evaluated": 0, "triggered": 0, "errors": 0}
+    summary = {"considered": 0, "evaluated": 0, "triggered": 0, "errors": 0,
+               "suppressed": 0}
     try:
         from api.services import indicator_alert_service as ias
         alerts = ias.list_active()
@@ -1216,6 +1217,15 @@ def _run_one_cycle() -> dict[str, Any]:
         groups[(a["sym"], a["tf"])].append(a)
 
     from api.services import indicator_alert_service as ias
+    # ⭐ THE FIRST CYCLE AFTER A `compute.rev` MIGRATION IS EATEN HERE, AND IT HAS
+    # TO BE HERE. A migration resets `last_value` so no crossing can be
+    # fabricated out of two different revisions' numbers — but `above`/`below`
+    # never read `prev`, so without this every level binding on the migrated
+    # definition fires at once on the first evaluation after deploy, and the user
+    # is told a level was crossed because the ANCHOR moved. `consume_if_suppressed`
+    # returns False for every alert that has never been migrated, which is every
+    # alert on a tree where no migration has run.
+    from api.services import alert_rev_migration as _rev
 
     for (sym, tf), alerts_in_group in groups.items():
         try:
@@ -1227,6 +1237,9 @@ def _run_one_cycle() -> dict[str, Any]:
 
         for alert in alerts_in_group:
             try:
+                if _rev.consume_if_suppressed(alert, bars=bars):
+                    summary["suppressed"] += 1
+                    continue
                 value, triggered = _evaluate_one(alert, bars=bars)
                 if value is None:
                     continue
