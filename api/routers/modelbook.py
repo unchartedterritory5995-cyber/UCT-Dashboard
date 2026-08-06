@@ -364,6 +364,7 @@ def _compute_year_stats(symbol: str, year: int, stock_id=None) -> dict:
         return cached
 
     stats = {"open_close_pct": None, "low_high_pct": None, "avg_vol": None}
+    yb = []
     try:
         yb = _load_year_bars(symbol, year, stock_id)
         if yb:
@@ -380,9 +381,15 @@ def _compute_year_stats(symbol: str, year: int, stock_id=None) -> dict:
             if dvols:
                 stats["avg_vol"] = round(sum(dvols) / len(dvols))  # avg daily $ volume
     except Exception:
-        pass
+        yb = []
 
-    cache.set(ckey, stats, ttl=86400)  # 24h; full-year stats don't change
+    # A bare `except: pass` used to cache the all-None default at the same 24h
+    # TTL as a real result, indistinguishable from "computed, genuinely
+    # nothing to show" -- a fetch failure (or bars_fetch raising) pinned the
+    # year's stats to "—" for a full day. Mirrors the sibling pattern at
+    # get_stock_bars (`ttl=86400*30 if bars else 1800`) a few hundred lines
+    # below: only a real bar pull earns the long TTL.
+    cache.set(ckey, stats, ttl=86400 if yb else 1800)
     return stats
 
 

@@ -11,12 +11,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 from api.services.cache import cache
-from api.services.finnhub_client import fh_get
+from api.services.finnhub_client import fh_get, fh_budget_denied_total
 
 _logger = logging.getLogger(__name__)
 
 _PER_TICKER_TTL = 4 * 3600  # 4 hours
 _FEED_TTL = 3600             # 1 hour
+_FEED_FAIL_TTL = 300         # 5 min — used when the Finnhub budget was denied mid-fan-out
 
 
 def get_insider_activity(ticker: str) -> list[dict]:
@@ -85,6 +86,14 @@ def get_recent_insider_buys() -> list[dict]:
         except Exception:
             return tk, []
 
+    # Snapshot the process-wide Finnhub denial counter before the fan-out
+    # (same idiom as calendar.py's enrichment build): ~55 tickers × one
+    # Finnhub call each can exceed the account's per-minute budget within a
+    # single feed build. A budget-shed ticker returns [] indistinguishably
+    # from "no insider buys this week" -- caching that partial batch at the
+    # full 1h success TTL would starve the feed of names that were simply
+    # never reached this pass.
+    denied_before = fh_budget_denied_total()
     buys: list[dict] = []
     with ThreadPoolExecutor(max_workers=10) as ex:
         for tk, txns in ex.map(_fetch, tickers):
@@ -94,11 +103,12 @@ def get_recent_insider_buys() -> list[dict]:
                 if t["date"] < cutoff:
                     continue
                 buys.append({**t, "symbol": tk})
+    throttled = fh_budget_denied_total() > denied_before
 
     # Sort by dollar amount descending — most notable first
     buys.sort(key=lambda b: b["amount"], reverse=True)
     result = buys[:50]  # cap at 50
-    cache.set(cache_key, result, _FEED_TTL)
+    cache.set(cache_key, result, _FEED_FAIL_TTL if throttled else _FEED_TTL)
     return result
 
 

@@ -119,12 +119,17 @@ def _upsert_many(rows: list[tuple]) -> None:
         return
     _ensure_init()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        # COALESCE keeps a prior good value when the new row's sector/industry
+        # is NULL (e.g. a Finviz bulk row with a blank Sector column for a
+        # ticker Finviz's export just doesn't classify) — without it, a weekly
+        # bulk refresh clobbers a GOOD yfinance-resolved sector/industry with
+        # None. `source`/`fetched_at` still track the latest write attempt.
         c.executemany(
             """INSERT INTO industry_map (ticker, sector, industry, source, fetched_at)
                VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(ticker) DO UPDATE SET
-                 sector = excluded.sector,
-                 industry = excluded.industry,
+                 sector = COALESCE(excluded.sector, sector),
+                 industry = COALESCE(excluded.industry, industry),
                  source = excluded.source,
                  fetched_at = excluded.fetched_at""",
             rows,

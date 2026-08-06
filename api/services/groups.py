@@ -32,6 +32,9 @@ _ETF_THEME_TTL = 3600.0
 
 _AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", "claude-haiku-4-5")
 _AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cache 6h
+_AI_PEERS_REFUSAL_TTL = 300.0         # missing name = ticker_meta's yfinance+Finnhub legs
+                                       # both blipped OR a genuinely bad ticker — indistin-
+                                       # guishable here, so retry soon rather than pin 6h
 _AI_PEERS_VERSION = "v1"              # bump to invalidate the whole AI-peer cache
 _AI_PEERS_TIMEOUT = float(os.environ.get("GROUPS_AI_PEERS_TIMEOUT", "6"))
 _AI_PEERS_SEM = threading.Semaphore(int(os.environ.get("GROUPS_AI_PEERS_CONCURRENCY", "3")))
@@ -433,7 +436,11 @@ def _ai_peers(seed_hy: str, n: int) -> list:
     from api.services import ticker_meta
     meta = ticker_meta.get_ticker_meta(seed_hy) or {}
     if not meta.get("name"):
-        cache.set(key, [], _AI_PEERS_TTL)     # cache the refusal too (cheap, avoids re-calling)
+        # Cache the refusal too (cheap, avoids re-calling the AI) -- but on a
+        # SHORT TTL, not the 6h success one. A double-provider blip in
+        # ticker_meta is indistinguishable at this level from a genuinely
+        # nameless ticker, so err toward retrying soon.
+        cache.set(key, [], _AI_PEERS_REFUSAL_TTL)
         return []
     seed_sector = (meta.get("sector") or "").strip().lower()
     seed_industry = (meta.get("industry") or "").strip().lower()

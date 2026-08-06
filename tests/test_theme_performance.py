@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from api.main import app
+from api.services.cache import cache as _real_cache
 
 
 # ── Task 1 tests ──────────────────────────────────────────────────────────────
@@ -115,15 +116,21 @@ def _run_computation_and_capture(MOCK_WIRE, FAKE_BARS):
          patch("api.services.theme_performance._save_to_disk"), \
          patch.object(tp.theme_db, "get_all_themes",
                       return_value={"themes": [], "sectors": []}), \
-         patch("api.services.theme_performance.cache") as mock_cache:
+         patch.object(_real_cache, "set", wraps=_real_cache.set) as mock_set, \
+         patch.object(_real_cache, "invalidate", wraps=_real_cache.invalidate):
+        # Patching the METHOD on the real singleton (not replacing the whole
+        # `cache` module-level name) so a call routed through
+        # `cache_policy.set_by_completeness` (a DIFFERENT module's `cache`
+        # reference to the same object) is captured too — `patch("...cache")`
+        # only intercepts calls made via theme_performance's own name binding.
         # Task 4: _run_computation unions wire holdings with the merged
         # theme-DB membership — pin the taxonomy empty so a machine-local
         # seeded auth.db can't leak extra holdings into the shape asserts.
         # Snapshot the call count before our sync run so we ignore any
         # late-arriving writes from a different code path.
-        before = len(mock_cache.set.call_args_list)
+        before = len(mock_set.call_args_list)
         tp._run_computation()
-        new_calls = mock_cache.set.call_args_list[before:]
+        new_calls = mock_set.call_args_list[before:]
         result = None
         for call in new_calls:
             if call.args and call.args[0] == tp._CACHE_KEY:
@@ -172,6 +179,78 @@ def test_build_theme_performance_no_wire_data():
     result = _run_computation_and_capture(MOCK_WIRE=None, FAKE_BARS=[])
     assert result is not None
     assert result["themes"] == []
+
+
+# ── data-dependability C13: universe-wide return-fetch failure must not ──────
+# ── get "status": "ok" at the full TTL + a permanent disk persist ───────────
+
+def _run_computation_full(MOCK_WIRE, FAKE_BARS):
+    """Like _run_computation_and_capture but also returns the ttl passed to
+    cache.set and the _save_to_disk mock, so the completeness gate (ttl +
+    persist-or-not) can be asserted directly."""
+    import time
+    from api.services import theme_performance as tp
+
+    deadline = time.monotonic() + 5.0
+    while tp._computing and time.monotonic() < deadline:
+        time.sleep(0.05)
+
+    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
+         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
+         patch("api.services.theme_performance._save_to_disk") as mock_save, \
+         patch.object(tp.theme_db, "get_all_themes",
+                      return_value={"themes": [], "sectors": []}), \
+         patch.object(_real_cache, "set", wraps=_real_cache.set) as mock_set, \
+         patch.object(_real_cache, "invalidate", wraps=_real_cache.invalidate):
+        before = len(mock_set.call_args_list)
+        tp._run_computation()
+        new_calls = mock_set.call_args_list[before:]
+        result, ttl = None, None
+        for call in new_calls:
+            if call.args and call.args[0] == tp._CACHE_KEY:
+                result = call.args[1]
+                ttl = call.kwargs.get("ttl", call.args[2] if len(call.args) > 2 else None)
+                break
+        save_call_count = mock_save.call_count
+    return result, ttl, save_call_count
+
+
+_MOCK_WIRE_ONE_THEME = {
+    "themes": {
+        "UFO": {
+            "name": "Space", "etf_name": "Procure Space ETF",
+            "holdings": [{"sym": "RKLB", "name": "Rocket Lab", "pct": 8.5}],
+            "intl_holdings": [], "1W": 5.2, "1M": 12.3, "3M": 30.1,
+        }
+    }
+}
+
+
+def test_universe_wide_return_failure_gets_short_ttl_and_is_not_persisted():
+    """Every symbol's return fetch failing at once (e.g. Massive fully down)
+    used to still stamp "status": "ok" and persist to disk at the full 15-min
+    TTL -- `_load_from_disk` then serves that all-null snapshot for up to 26h.
+    """
+    result, ttl, save_calls = _run_computation_full(_MOCK_WIRE_ONE_THEME, FAKE_BARS=[])
+
+    assert result is not None
+    from api.services import theme_performance as tp
+    assert ttl <= tp._CACHE_FAIL_TTL + 1
+    assert ttl < tp._CACHE_TTL
+    assert save_calls == 0, "an all-null pass must NOT reach the disk persist"
+
+
+def test_healthy_returns_get_the_full_ttl_and_are_persisted():
+    """Control: real bar data flowing through must still get the normal 15-
+    min TTL and the disk persist (this predicate must not blanket-block it)."""
+    FAKE_BARS = [{"t": 1700000000000 + i * 86400000, "c": float(100 + i)} for i in range(300)]
+    result, ttl, save_calls = _run_computation_full(_MOCK_WIRE_ONE_THEME, FAKE_BARS)
+
+    assert result is not None
+    from api.services import theme_performance as tp
+    assert ttl > tp._CACHE_FAIL_TTL
+    assert ttl == tp._CACHE_TTL
+    assert save_calls == 1
 
 
 # ── Task 3 tests ──────────────────────────────────────────────────────────────

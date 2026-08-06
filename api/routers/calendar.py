@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 _ET = ZoneInfo("America/New_York")
 from fastapi import APIRouter, Depends, Query
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.serve_stale import ServeStale
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import calendar_personalization as _cp
@@ -31,6 +32,7 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _CACHE_TTL = 600  # 10 min — shorter to pick up reported actuals faster
+_CACHE_FAIL_TTL = 60  # a week that fails `_weekly_payload_is_good` self-heals in 1 min, not 10
 
 # EarningsWhispers connection-drops rapid/parallel bursts, so the per-day live
 # fetch is PACED sequentially with a short delay + retry instead of 5 parallel
@@ -1242,7 +1244,18 @@ def _build_current_week() -> dict:
         "source":          source,
         "is_current_week": True,
     }
-    cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
+    # `_WEEKLY_STALE.serve()` checks the raw TTL cache (`fresh()`) BEFORE ever
+    # consulting the last-known-good stale slot -- so an unconditional write
+    # here let a poisoned empty-week rebuild win over a real prior week for
+    # the next `_CACHE_TTL` (10 min), even though `_weekly_payload_is_good`
+    # exists specifically to keep a bad build out of the stale slot. Apply
+    # the SAME predicate to the raw cache write so both paths agree.
+    set_by_completeness(
+        "calendar_weekly", result,
+        complete=_weekly_payload_is_good(result),
+        ttl_ok=_CACHE_TTL,
+        ttl_partial=_CACHE_FAIL_TTL,
+    )
     return result
 
 
@@ -1760,6 +1773,7 @@ def get_reactions(date_str: str | None = Query(None, alias="date")):
 # ── Day metrics: price + avg volume + market cap for filter bar ────────────────
 
 _METRICS_TTL = 120  # 2 min — stable enough for filtering purposes
+_METRICS_FAIL_TTL = 300  # both Finviz + Massive came back empty-handed — retry in 5 min, not up to 24h
 
 
 @router.get("/api/calendar/day-metrics")
@@ -1876,10 +1890,13 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
             _logger.warning("Calendar metrics: Finviz fetch failed: %s", exc)
 
     # ── 2. Massive fallback for price (if Finviz failed) ──────────────────────
+    massive_ok = False
     if not fv_ok:
         try:
             from api.services.massive import _get_client
             rich = _get_client().get_batch_rich_snapshots(syms)
+            if rich:
+                massive_ok = True
             for sym, snap in rich.items():
                 if sym in result:
                     result[sym]["price"]   = snap.get("price")
@@ -1887,7 +1904,19 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
         except Exception as exc:
             _logger.warning("Calendar metrics: Massive fallback failed: %s", exc)
 
-    cache.set(cache_key, result, ttl=ttl)
+    # Finviz (unset key or fetch failure) AND the Massive fallback both empty-
+    # handed is a total provider-side miss, not a legitimately blank day — a
+    # blank price/avg-vol/mcap silently zeroes the filter bar AND flattens the
+    # importance hierarchy. Distinguish it from a normal day where at least
+    # one leg produced real numbers (individual symbols can still be missing
+    # from either provider; that is not this failure).
+    have_data = fv_ok or massive_ok or any(v.get("price") is not None for v in result.values())
+    set_by_completeness(
+        cache_key, result,
+        complete=have_data,
+        ttl_ok=ttl,
+        ttl_partial=_METRICS_FAIL_TTL,
+    )
     return result
 
 
@@ -2180,16 +2209,26 @@ def _build_enrichment_for_date(target: str) -> dict:
     # necessary" is the safe direction; erring the other way is the bug this
     # task exists to fix.
     throttled = fh_budget_denied_total() > denied_before
-    if throttled:
+
+    # Second failure signal, independent of the Finnhub budget: `expected_move`
+    # comes from the yfinance option-chain path (_bounded_em), not Finnhub, so
+    # a universe-wide yfinance outage collapses with_em to 0 without moving the
+    # Finnhub denial counter at all. `with_em == 0` is BY DESIGN for is_past
+    # (the docstring above: implied move is deliberately skipped for past
+    # dates) -- only flag the collapse for a day that should have moves.
+    with_em = sum(1 for v in out.values() if v.get("expected_move"))
+    em_collapsed = (not is_past) and len(syms) > 0 and with_em == 0
+    if throttled or em_collapsed:
         ttl = _ENRICH_TTL
 
     _ENRICH_STATS[target] = {
         "total":     len(syms),
-        "with_em":   sum(1 for v in out.values() if v.get("expected_move")),
+        "with_em":   with_em,
         "with_hist": sum(1 for v in out.values() if v.get("hist_stats")),
         "with_beats": sum(1 for v in out.values() if v.get("beat_history")),
         "past":      is_past,
         "throttled": throttled,
+        "em_collapsed": em_collapsed,
         "computed_at": datetime.now(_ET).isoformat(timespec="seconds"),
     }
     # Bound the telemetry dict (it would otherwise grow one key per browsed day)
@@ -2611,6 +2650,8 @@ def export_single_report_ics(sym: str, date_str: str = Query(..., alias="date"),
     )
 
 
+_ANTICIPATED_PNG_FAIL_TTL = 300  # empty ranked list = provider failure, not a real blank week
+
 @router.get("/api/calendar/most-anticipated.png")
 def most_anticipated_png(week: str | None = None):
     """A shareable PNG of the week's biggest earnings reporters, ranked by
@@ -2692,8 +2733,18 @@ def most_anticipated_png(week: str | None = None):
         _logger.warning("Most-anticipated PNG render failed: %s", exc)
         return _Response(content="render error", status_code=500, media_type="text/plain")
 
-    ttl = 6 * 3600 if end < _today_et() else 1800
-    cache.set(ck, png, ttl=ttl)
+    # A trading week with ZERO reporters does not exist (same rule
+    # `_weekly_payload_is_good` applies to the calendar itself) -- an empty
+    # `ranked` here means the underlying `get_calendar()` build failed or came
+    # back empty, not that the week genuinely has no earnings. Don't pin that
+    # blank card for 6h (a past week) / 30min (current/future).
+    ttl_ok = 6 * 3600 if end < _today_et() else 1800
+    set_by_completeness(
+        ck, png,
+        complete=bool(ranked),
+        ttl_ok=ttl_ok,
+        ttl_partial=_ANTICIPATED_PNG_FAIL_TTL,
+    )
     return _Response(content=png, media_type="image/png",
                      headers={"Cache-Control": "public, max-age=1800"})
 

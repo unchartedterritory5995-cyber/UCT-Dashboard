@@ -84,8 +84,9 @@ def _bulk_load_user_contexts() -> dict[str, dict]:
 # lookup falls through to a live Finnhub call, so an unmemoized scan would re-hit
 # Finnhub up to (days+1)x every cycle. Earnings dates inside a ~3-day window don't
 # move hour-to-hour, so a 1h TTL is safe and cuts the cold-window Finnhub load.
-_EARNINGS_MEMO: dict = {}          # (today_iso, days) -> (fetched_at_epoch, result)
+_EARNINGS_MEMO: dict = {}          # (today_iso, days) -> (fetched_at_epoch, result, partial)
 _EARNINGS_MEMO_TTL = 3600          # seconds
+_EARNINGS_MEMO_TTL_PARTIAL = 300   # a day's reporter lookup failed — retry the window in 5 min, not 1h
 
 
 def _reset_earnings_memo() -> None:
@@ -103,12 +104,16 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
     key = (today.isoformat(), int(days))
     hit = _EARNINGS_MEMO.get(key)
     now = _time.time()
-    if hit is not None and (now - hit[0]) < _EARNINGS_MEMO_TTL:
-        return dict(hit[1])  # copy — callers must not mutate the cache
+    if hit is not None:
+        fetched_at, value, was_partial = hit
+        ttl = _EARNINGS_MEMO_TTL_PARTIAL if was_partial else _EARNINGS_MEMO_TTL
+        if (now - fetched_at) < ttl:
+            return dict(value)  # copy — callers must not mutate the cache
 
     from api.services.calendar_alerts import _get_reporters_for_date
 
     out: dict[str, str] = {}
+    any_failed = False
     for offset in range(0, max(0, days) + 1):
         d = today + timedelta(days=offset)
         d_str = d.isoformat()
@@ -116,11 +121,16 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
             reporters = _get_reporters_for_date(d_str)
         except Exception as e:  # noqa: BLE001
             _log.debug("[awareness] earnings lookup failed for %s: %s", d_str, e)
+            any_failed = True
             continue
         for sym in reporters:
             if sym not in out:  # keep the EARLIEST date per symbol
                 out[sym] = d_str
-    _EARNINGS_MEMO[key] = (now, dict(out))
+    # A day's lookup failing mid-window used to memoize the (now day-
+    # incomplete) window for the full 1h TTL regardless — silencing R5
+    # earnings-proximity awareness for any symbol reporting on the failed
+    # day until the memo naturally expired.
+    _EARNINGS_MEMO[key] = (now, dict(out), any_failed)
     return out
 
 
