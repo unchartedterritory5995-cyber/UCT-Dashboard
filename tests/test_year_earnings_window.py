@@ -5,6 +5,14 @@ later, cutting off Q1/Q2)."""
 from api.services import earnings_estimates as ee
 
 
+def test_av_earnings_leg_removed():
+    """Locks in the 2026-08-05 removal (data-dependability migration plan,
+    Phase 3 Task 12) -- AlphaVantage's EARNINGS leg is gone, along with its
+    inability to tell a rate-limit from a genuine no-data year."""
+    assert not hasattr(ee, "_year_earnings_from_av")
+    assert not hasattr(ee, "_av_num")
+
+
 def test_history_limit_scales_with_age():
     # An older book year must pull MORE history than a recent one.
     assert ee._history_limit(2016) > ee._history_limit(2024)
@@ -55,23 +63,32 @@ def _eps_row(quarter, year, eps_a):
 
 def test_sources_merge_fills_missing_quarters(monkeypatch):
     # FMP has a GAP (only Q1, with revenue — the JKS 2013 symptom). Finnhub fills
-    # Q2, AlphaVantage fills Q3+Q4. Result must be all four, FMP's revenue kept.
+    # Q2. Result: FMP's revenue kept on Q1, Q2 gap-filled EPS-only, Q3/Q4 stay
+    # genuine placeholders — AlphaVantage's EARNINGS leg (which used to fill
+    # deep gaps like this for old ADR years) was removed 2026-08-05 (data-
+    # dependability migration plan, Phase 3 Task 12): its free tier is 25
+    # requests/day, already exhausted on every observation, and it could not
+    # tell a rate-limit from "this stock never reported" (same `[]` either
+    # way). A genuinely-unfilled quarter must render as an honest "—"
+    # placeholder, never a fabricated/guessed row.
     fmp_q1 = {"date": "2013-05-15", "quarter": 1, "year": 2013,
               "eps_actual": -5.06, "eps_estimate": -1.3, "eps_surprise_pct": -286.0,
               "revenue_actual": 187.26e6, "revenue_estimate": 29.7e6,
               "revenue_surprise_pct": 529.0}
     monkeypatch.setattr(ee, "_year_earnings_from_fmp", lambda t, y: [fmp_q1])
     monkeypatch.setattr(ee, "_year_earnings_from_stock", lambda t, y: [_eps_row(2, 2013, 1.0)])
-    monkeypatch.setattr(ee, "_year_earnings_from_av",
-                        lambda t, y: [_eps_row(3, 2013, 4.45), _eps_row(4, 2013, 3.77)])
 
     rows = ee.get_year_earnings("ZZJKS", 2013)
-    assert [r["quarter"] for r in rows] == [1, 2, 3, 4]
+    assert [r["quarter"] for r in rows] == [1, 2, 3, 4]   # all 4 slots always present
     q1 = next(r for r in rows if r["quarter"] == 1)
     assert q1["revenue_actual"] == 187.26e6  # FMP's revenue preserved
-    # Gap-filled quarters are EPS-only (no revenue available from those sources).
+    # Gap-filled quarter is EPS-only (no revenue available from Finnhub).
     assert next(r for r in rows if r["quarter"] == 2)["revenue_actual"] is None
-    assert next(r for r in rows if r["quarter"] == 4)["eps_actual"] == 3.77
+    assert next(r for r in rows if r["quarter"] == 2)["eps_actual"] == 1.0
+    # Q3/Q4 have no source at all now — genuine placeholders, not fabricated.
+    q4 = next(r for r in rows if r["quarter"] == 4)
+    assert q4["eps_actual"] is None
+    assert q4["date"] is None
 
 
 def test_get_year_earnings_fresh_caps_incomplete_year_ttl(monkeypatch):
@@ -86,7 +103,6 @@ def test_get_year_earnings_fresh_caps_incomplete_year_ttl(monkeypatch):
          "eps_estimate": 0.9, "eps_surprise_pct": 11.0, "revenue_actual": 1e9,
          "revenue_estimate": 0.9e9, "revenue_surprise_pct": 11.0}])
     monkeypatch.setattr(ee, "_year_earnings_from_stock", lambda t, y: [])
-    monkeypatch.setattr(ee, "_year_earnings_from_av", lambda t, y: [])
     from datetime import datetime, timezone
     cur_y = datetime.now(timezone.utc).year
     ee.get_year_earnings("ZZFRESH", cur_y, fresh=True)
@@ -131,7 +147,6 @@ def test_finnhub_gapfill_uses_calendar_slot_not_finnhub_fiscal(monkeypatch):
     finnhub_raw = [{"period": "2025-09-27", "year": 2025, "quarter": 4,
                     "actual": 1.85, "estimate": 1.80, "surprisePercent": 2.8}]
     monkeypatch.setattr(ee, "_fh_get", lambda path, params, timeout=None: finnhub_raw)
-    monkeypatch.setattr(ee, "_year_earnings_from_av", lambda t, y: [])
 
     rows = ee.get_year_earnings("ZZAAPL", 2025)
     by_q = {r["quarter"]: r for r in rows}
@@ -153,7 +168,6 @@ def test_merge_stops_early_when_fmp_complete(monkeypatch):
     def _boom(t, y):
         raise AssertionError("fill source must not be called when FMP is complete")
     monkeypatch.setattr(ee, "_year_earnings_from_stock", _boom)
-    monkeypatch.setattr(ee, "_year_earnings_from_av", _boom)
 
     rows = ee.get_year_earnings("ZZCOMPLETE", 2013)
     assert [r["quarter"] for r in rows] == [1, 2, 3, 4]

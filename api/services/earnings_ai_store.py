@@ -55,13 +55,33 @@ def get(kind: str, sym: str):
 
 def put(kind: str, sym: str, result: dict) -> None:
     """Persist a successful result atomically. Callers must only persist real
-    output (non-empty preview_text / analysis) — a miss should stay lazy."""
+    output (non-empty preview_text / analysis) — a miss should stay lazy.
+
+    `allow_nan=False` — a NaN/Inf anywhere in `result` (e.g. a yfinance
+    data-gap producing a NaN return in earnings_enrichment.get_pre_earnings_
+    context, live-verified for UBER) must never reach disk. The plain
+    `json.dump` default (`allow_nan=True`) used to write it "successfully" —
+    valid-per-Python, invalid-per-spec JSON — which only moved the crash from
+    THIS write to EVERY future read: Starlette's own JSONResponse encoder uses
+    `allow_nan=False`, so a poisoned file 500'd `/api/earnings-analysis/{sym}`
+    on every request for up to `_MAX_AGE_SECS[kind]` (7 days for analysis)
+    until it finally aged out — surviving a server restart, because that is
+    this store's whole point. Refusing to persist here is the disk-cache
+    sibling of "never cache a failed fetch as a value"."""
     try:
         os.makedirs(_DIR, exist_ok=True)
         p = _path(kind, sym)
         tmp = p + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(result, fh)
+        try:
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(result, fh, allow_nan=False)
+        except ValueError as e:
+            _logger.warning("earnings_ai_store.put refused a non-finite payload %s/%s: %s", kind, sym, e)
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            return
         os.replace(tmp, p)
     except Exception as e:
         _logger.debug("earnings_ai_store.put failed %s/%s: %s", kind, sym, e)

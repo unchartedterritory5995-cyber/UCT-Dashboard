@@ -2600,43 +2600,41 @@ export default function OptionsFlowDashboard() {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
           <div style={{ borderRight:"1px solid "+P.bd, display:"flex", flexDirection:"column", height:320 }}>
-            <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
-              {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label])=>(
-                <button key={val} onClick={()=>setContractChartTf(val)}
-                  style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(contractChartTf===val?P.ac:P.bd+"80"),
-                    background:contractChartTf===val?P.ac+"22":"transparent", color:contractChartTf===val?P.ac:P.dm,
-                    fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                  {label}
-                </button>
-              ))}
-              {/* Dark Pool toggle — same global setting as the chart modal */}
-              <button onClick={() => setShowDarkPool(v => !v)}
-                title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
-                style={{ marginLeft:"auto", padding:"2px 8px", borderRadius:3,
-                  border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
-                  background:showDarkPool?"#c9a84c22":"transparent",
-                  color:showDarkPool?"#c9a84c":P.dm,
-                  fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-                  display:"flex", alignItems:"center", gap:4 }}>
-                <span style={{ width:6, height:6, borderRadius:"50%",
-                  background:showDarkPool?"#c9a84c":"transparent",
-                  border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
-                Dark Pools
-              </button>
-            </div>
             <div style={{ flex:1, minHeight:0 }}>
               {/* The user's OWN chart: stored={null} + no onStore = the global
                   chart_settings blob, so this popup renders whatever they set up
-                  on /charts. density="compact" because this column is only 320px
-                  tall (see the height:320 parent above) — the full shell would
-                  spend most of it on chrome. The symbol is the contract's, so
-                  onSymbolChange is omitted and the identity row is a static label. */}
+                  on /charts. density="mini" because this column is only 320px
+                  tall (see the height:320 parent above) — even the compact shell
+                  left no room for candles, and ChartPane already renders its own
+                  canonical timeframe bar, so the host's old TF button row (that
+                  stacked a second row of buttons directly on top of it) is gone —
+                  only the Dark Pool toggle rides along, in the slot next to
+                  ChartPane's own bar. The symbol is the contract's, so
+                  onSymbolChange is omitted and the identity row is a static label
+                  (moot at mini density, which never renders an identity row). */}
               <ChartPane
                 sym={sym}
                 tf={contractChartTf}
                 onTfChange={setContractChartTf}
                 stored={null}
-                density="compact"
+                density="mini"
+                slots={{
+                  tfBarRight: (
+                    <button onClick={() => setShowDarkPool(v => !v)}
+                      title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
+                      style={{ padding:"2px 8px", borderRadius:3,
+                        border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
+                        background:showDarkPool?"#c9a84c22":"transparent",
+                        color:showDarkPool?"#c9a84c":P.dm,
+                        fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                        display:"flex", alignItems:"center", gap:4 }}>
+                      <span style={{ width:6, height:6, borderRadius:"50%",
+                        background:showDarkPool?"#c9a84c":"transparent",
+                        border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
+                      Dark Pools
+                    </button>
+                  ),
+                }}
                 stockChartProps={{
                   height: "100%",
                   liveUpdates: true,
@@ -3145,6 +3143,12 @@ export default function OptionsFlowDashboard() {
   }
 
   async function fetchContractHistory(sym, cp, strike, exp, force = false) {
+    // Warm the ChartPane CHUNK (mirrors TickerPopup's hover warm) — every
+    // contract-detail popup call site invokes this first, so a contract
+    // select is the earliest reliable signal the chart is about to render.
+    // Firing it here lets the chunk fetch overlap the history/quote fetches
+    // below instead of only starting once the popup is already open.
+    import('../components/chart/pane/ChartPane');
     const k = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
 
     // 1. Fetch history from Schwab backfill + tracker

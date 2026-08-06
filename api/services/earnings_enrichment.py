@@ -17,9 +17,30 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+import math
 from typing import Optional
 
 _logger = logging.getLogger(__name__)
+
+
+def _finite_pct(v: float | None) -> float | None:
+    """`None`-safe AND `NaN`-safe percent, rounded to 1 decimal.
+
+    A yfinance daily `Close` can be `NaN` around a data gap / split-adjustment
+    edge (confirmed live for UBER); dividing through it yields `float('nan')`,
+    which passes an `is not None` check (`nan is not None` is `True` — the
+    Python-side sibling of this codebase's `Number(null) === 0` JS trap) and
+    then breaks stdlib `json.dumps`, which raises `ValueError: Out of range
+    float values are not JSON compliant: nan` — 500ing the WHOLE
+    /api/earnings-analysis/{sym} response, not just this one field."""
+    if v is None:
+        return None
+    try:
+        if math.isnan(v) or math.isinf(v):
+            return None
+    except TypeError:
+        return None
+    return round(v, 1)
 
 
 # ─── 1. Pre-earnings price-action context ──────────────────────────────────────
@@ -38,14 +59,19 @@ def get_pre_earnings_context(sym: str) -> Optional[dict]:
         last = float(closes.iloc[-1])
         ret_5d = ((last / float(closes.iloc[-6])) - 1) * 100 if len(closes) >= 6 else None
         ret_30d = ((last / float(closes.iloc[-22])) - 1) * 100 if len(closes) >= 22 else None
+        # Sanitize BEFORE building the label too — an unsanitized NaN still
+        # compares False in `nan >= 0` (no exception), so the label would
+        # silently read "nan% / 5d" for a real user instead of omitting it.
+        ret_5d = _finite_pct(ret_5d)
+        ret_30d = _finite_pct(ret_30d)
         parts = []
         if ret_30d is not None:
             parts.append(f"{'+' if ret_30d >= 0 else ''}{ret_30d:.1f}% / 30d")
         if ret_5d is not None:
             parts.append(f"{'+' if ret_5d >= 0 else ''}{ret_5d:.1f}% / 5d")
         return {
-            "ret_5d_pct":  round(ret_5d, 1) if ret_5d is not None else None,
-            "ret_30d_pct": round(ret_30d, 1) if ret_30d is not None else None,
+            "ret_5d_pct":  ret_5d,
+            "ret_30d_pct": ret_30d,
             "label":       " · ".join(parts) if parts else None,
         }
     except Exception as e:
@@ -182,17 +208,21 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
 def get_estimate_revisions(sym: str) -> Optional[dict]:
     """Analyst recommendation trend over last ~3 months (proxy for EPS revisions).
 
-    Uses Finnhub /stock/recommendation. Returns net change in (strongBuy+buy)
-    minus (sell+strongSell) over 30d and 90d.
+    FMP `stable/grades-historical` is primary (data-dependability migration
+    plan, Task 5); Finnhub `/stock/recommendation` is the fallback when FMP
+    yields nothing, routed through the shared finnhub_client.fh_get token
+    bucket / 429 cooldown so it never spends that shared budget uncoordinated.
+    Returns net change in (strongBuy+buy) minus (sell+strongSell) over 30d
+    and 90d.
     """
     try:
-        # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
-        # call shares the process-wide token bucket / 429 cooldown with every
-        # other Finnhub caller instead of spending the same account budget
-        # uncoordinated.
-        from api.services.finnhub_client import fh_get
-        resp = fh_get("/stock/recommendation", {"symbol": sym.upper()}, timeout=8)
-        if not isinstance(resp, list) or not resp:
+        from api.services import earnings_estimates as ee
+        resp = ee._fmp_grades_historical(sym.upper(), limit=4)
+        if not resp:
+            from api.services.finnhub_client import fh_get
+            fh_resp = fh_get("/stock/recommendation", {"symbol": sym.upper()}, timeout=8)
+            resp = fh_resp if isinstance(fh_resp, list) else []
+        if not resp:
             return None
         resp.sort(key=lambda x: x.get("period", ""), reverse=True)
         latest = resp[0]

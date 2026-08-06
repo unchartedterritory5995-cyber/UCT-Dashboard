@@ -793,28 +793,38 @@ def _pull_av_news() -> dict[str, dict]:
     is rate-limited to ~25 calls/day and is SHARED with the earnings-history
     widget, so a live call every refresh would starve that budget. This is wired
     + ready so that setting a dedicated/premium AV key + the flag lights it up
-    with zero further work. Rate-limit-aware (an "Information"/"Note" throttle
-    reply => {}, same as any error). Fail-soft in every direction."""
+    with zero further work. Routed through `alphavantage_client.av_get` (data-
+    dependability migration, Task 15) so this call is coordinated with every
+    other AlphaVantage caller in the process instead of spending the account's
+    25/day budget with no visibility to the others — `CATALYST_AV_NEWS_KEY`,
+    when set, still overrides the default key (see `av_get`'s `api_key` param
+    docstring for the caveat: the daily bucket/cooldown are one process-wide
+    counter regardless of which underlying key is used). Rate-limit-aware (an
+    "Information"/"Note" throttle reply => {}, same as any error, via the
+    shared classifier). Fail-soft in every direction."""
     if os.environ.get("CATALYST_AV_NEWS_ENABLED", "0").lower() not in ("1", "true", "yes"):
         return {}
     key = os.environ.get("CATALYST_AV_NEWS_KEY") or os.environ.get("ALPHAVANTAGE_API_KEY", "")
     if not key:
         return {}
+    from api.services.alphavantage_client import av_get
+    limit = int(os.environ.get("CATALYST_AV_NEWS_LIMIT", "200"))
+    timeout = float(os.environ.get("CATALYST_AV_NEWS_TIMEOUT", "12"))
     try:
-        import requests
-        limit = int(os.environ.get("CATALYST_AV_NEWS_LIMIT", "200"))
-        timeout = float(os.environ.get("CATALYST_AV_NEWS_TIMEOUT", "12"))
-        r = requests.get("https://www.alphavantage.co/query",
-                         params={"function": "NEWS_SENTIMENT", "apikey": key,
-                                 "sort": "LATEST", "limit": limit}, timeout=timeout)
-        r.raise_for_status()
-        data = r.json() or {}
+        data = av_get(
+            {"function": "NEWS_SENTIMENT", "sort": "LATEST", "limit": limit},
+            timeout=timeout,
+            api_key=key,
+        ) or {}
     except Exception as e:
         logger.warning("[catalyst-sources] AV news pull failed: %s", e)
         return {}
     feed = data.get("feed")
     if not isinstance(feed, list) or not feed:
-        # "Information"/"Note" throttle reply, or a genuinely empty window.
+        # av_get already returns None (folded to {} above) on a throttle
+        # reply, a spent daily budget, or a genuinely empty window — all
+        # three collapse to the same {} here, matching the pre-existing
+        # fail-soft behavior of this function.
         return {}
     min_rel = _envf("CATALYST_AV_NEWS_MIN_RELEVANCE", 0.1)
     agg: dict[str, list[float]] = defaultdict(list)

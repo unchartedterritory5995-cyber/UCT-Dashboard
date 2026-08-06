@@ -119,12 +119,17 @@ def _upsert_many(rows: list[tuple]) -> None:
         return
     _ensure_init()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        # COALESCE keeps a prior good value when the new row's sector/industry
+        # is NULL (e.g. a Finviz bulk row with a blank Sector column for a
+        # ticker Finviz's export just doesn't classify) — without it, a weekly
+        # bulk refresh clobbers a GOOD yfinance-resolved sector/industry with
+        # None. `source`/`fetched_at` still track the latest write attempt.
         c.executemany(
             """INSERT INTO industry_map (ticker, sector, industry, source, fetched_at)
                VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(ticker) DO UPDATE SET
-                 sector = excluded.sector,
-                 industry = excluded.industry,
+                 sector = COALESCE(excluded.sector, sector),
+                 industry = COALESCE(excluded.industry, industry),
                  source = excluded.source,
                  fetched_at = excluded.fetched_at""",
             rows,
@@ -161,9 +166,26 @@ _FALLBACK_LOCK = threading.Lock()
 _FALLBACK_CAP = 8
 
 
+def _fmp_profile_row(ticker: str):
+    """FMP `stable/profile` — the new PRIMARY fallback leg ahead of Finnhub
+    profile2 (2026-08-05 migration, plan Task 8). Own bounded timeout,
+    NEVER routed through Finnhub's shared token-bucket budget
+    (finnhub_client.py). Returns the parsed row dict or None; never raises
+    (`earnings_estimates._fmp_get` already swallows every failure)."""
+    from api.services import earnings_estimates as ee
+
+    data = ee._fmp_get("/stable/profile", {"symbol": ticker}, timeout=8.0)
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    return None
+
+
 def _fetch_fallback(ticker: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Return (sector, industry, source) for a ticker Finviz didn't cover.
-    Tries yfinance (finest, GICS-style industry) then Finnhub. Never raises."""
+    Tries yfinance (finest, GICS-style industry) -> FMP `stable/profile` ->
+    Finnhub profile2 (last resort). Never raises."""
     # yfinance
     try:
         import yfinance as yf
@@ -174,10 +196,23 @@ def _fetch_fallback(ticker: str) -> tuple[Optional[str], Optional[str], Optional
             return sec, ind, "yfinance"
     except Exception as e:
         logger.info("[industry_map] yfinance fallback %s failed: %s", ticker, e)
+    # FMP `stable/profile` — new PRIMARY of the two remaining legs (2026-08-05
+    # profile2->FMP migration). FMP splits sector from industry (Finnhub
+    # profile2 has no sector at all), so a hit here fills BOTH columns.
+    try:
+        row = _fmp_profile_row(ticker)
+        if row:
+            ind = (row.get("industry") or "").strip() or None
+            sec = (row.get("sector") or "").strip() or None
+            if ind:
+                return sec, ind, "fmp"
+    except Exception as e:
+        logger.info("[industry_map] FMP fallback %s failed: %s", ticker, e)
     # Finnhub — routed through the shared api.services.finnhub_client.fh_get
     # (2026-08-05) so this call shares the process-wide token bucket / 429
     # cooldown with every other Finnhub caller instead of spending the same
-    # account budget uncoordinated (was a raw httpx.get here).
+    # account budget uncoordinated (was a raw httpx.get here). Kept as an
+    # explicit, never-removed fallback for whatever FMP still can't fill.
     try:
         from api.services.finnhub_client import fh_get
         j = fh_get("/stock/profile2", {"symbol": ticker}, timeout=10.0)

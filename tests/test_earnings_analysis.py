@@ -326,3 +326,117 @@ class TestGenerateEarningsPreview:
         self._run()
         assert cache.get("earnings_preview_v2_PL") is not None
         assert cache.get("earnings_analysis_v2_PL") is None
+
+
+# ── Enrichment completeness gate (data-dependability C17) ────────────────────
+#
+# TTL/persist used to be decided on the AI leg alone (`analysis is not None`
+# / `preview_text` truthy). A total or shed enrichment fan-out failure
+# (pre_earnings/hist_moves/revisions/beat_surprises/implied_move/key_quotes)
+# could still earn the full 12h TTL and a PERMANENT disk write as long as
+# Claude produced text -- and because `signals_hash` is derived only from
+# `row` (not enrichment), the disk-persisted partial would satisfy
+# skip-if-stable forever and never retry the missing legs.
+
+def _ttl_remaining(key: str) -> float:
+    import time
+    _, expires_at = cache._store[key]
+    return expires_at - time.time()
+
+
+def _mock_structured_analysis(headline="Solid beat", summary="Beat on EPS and revenue.",
+                               bullets=None):
+    """A valid JSON analysis response (`_parse_json_block` expects headline/
+    summary/bullets) -- `_mock_anthropic_analysis()` above returns plain text,
+    which `_generate_earnings_analysis` treats as a failed AI call (`analysis`
+    stays None), so it can't exercise the "AI succeeded but enrichment
+    didn't" case these tests need."""
+    import json
+    if bullets is None:
+        bullets = ["Revenue beat guide.", "Margins expanded.", "Guidance raised."]
+    payload = json.dumps({"headline": headline, "summary": summary, "bullets": bullets})
+    msg = MagicMock()
+    msg.content = [MagicMock(type="text", text=payload)]
+    return msg
+
+
+class TestEnrichmentCompletenessGateAnalysis:
+    ROW = {"verdict": "beat", "reported_eps": 1.60, "eps_estimate": 1.50,
+           "surprise_pct": "+6.7%", "rev_actual": 14000, "rev_estimate": 13500,
+           "rev_surprise_pct": "+3.7%", "change_pct": 5.2}
+    QUARTERS = _make_quarters([(1.60, 1.50), (1.50, 1.40), (1.40, 1.30), (1.35, 1.25), (1.30, 1.20)])
+
+    def setup_method(self):
+        cache.invalidate("earnings_analysis_v2_ENR")
+
+    def _run(self, enrichment):
+        with patch.object(engine, "_fetch_quarterly_history", return_value=self.QUARTERS), \
+             patch.object(engine, "_with_retry", return_value=[]), \
+             patch("api.services.earnings_enrichment.enrich_earnings_response",
+                   return_value=enrichment), \
+             patch.object(engine, "_get_anthropic_client") as mock_ac:
+            mock_ac.return_value.messages.create.return_value = _mock_structured_analysis()
+            return engine._generate_earnings_analysis("ENR", self.ROW)
+
+    def test_complete_enrichment_gets_full_ttl_and_persists(self):
+        """All 6 legs present (values, or legitimately None per-leg) -> 12h TTL, persisted."""
+        enrichment = {"pre_earnings": None, "hist_moves": None, "revisions": None,
+                      "beat_surprises": None, "implied_move": None, "key_quotes": None}
+        result = self._run(enrichment)
+        assert result["analysis"] is not None
+        assert _ttl_remaining("earnings_analysis_v2_ENR") > 40_000  # ~12h (43,200s)
+        from api.services import earnings_ai_store
+        assert earnings_ai_store.get("analysis", "ENR") is not None
+
+    def test_shed_partial_enrichment_gets_short_ttl_and_is_not_persisted(self):
+        """Fewer than 6 keys (the 25s fan-out deadline cut it off) -> short retry TTL, NOT persisted."""
+        enrichment = {"pre_earnings": None, "hist_moves": {"avg_abs_move": 4.2}, "revisions": None}
+        result = self._run(enrichment)
+        assert result["analysis"] is not None  # the AI leg itself still succeeded
+        assert _ttl_remaining("earnings_analysis_v2_ENR") <= 400  # ~5 min (300s)
+        from api.services import earnings_ai_store
+        assert earnings_ai_store.get("analysis", "ENR") is None
+
+    def test_total_enrichment_failure_gets_short_ttl_and_is_not_persisted(self):
+        """Empty dict (the outer try/except caught a raise) -> short TTL, NOT persisted."""
+        result = self._run({})
+        assert result["analysis"] is not None
+        assert _ttl_remaining("earnings_analysis_v2_ENR") <= 400
+        from api.services import earnings_ai_store
+        assert earnings_ai_store.get("analysis", "ENR") is None
+
+
+class TestEnrichmentCompletenessGatePreview:
+    PENDING_ROW = {"sym": "ENR2", "verdict": "Pending", "eps_estimate": -0.04,
+                   "rev_estimate": 78.0, "change_pct": 5.64}
+    QUARTERS = _make_quarters([
+        (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)])
+
+    def setup_method(self):
+        cache.invalidate("earnings_preview_v2_ENR2")
+
+    def _run(self, enrichment):
+        with patch.object(engine, "_fetch_quarterly_history", return_value=self.QUARTERS), \
+             patch.object(engine, "_with_retry", return_value=[]), \
+             patch("api.services.earnings_enrichment.enrich_earnings_response",
+                   return_value=enrichment), \
+             patch.object(engine, "_get_anthropic_client") as mock_ac:
+            mock_ac.return_value.messages.create.return_value = _mock_preview_response()
+            return engine._generate_earnings_preview("ENR2", self.PENDING_ROW)
+
+    def test_complete_enrichment_gets_full_ttl_and_persists(self):
+        enrichment = {"pre_earnings": None, "hist_moves": None, "revisions": None,
+                      "beat_surprises": None, "implied_move": None, "key_quotes": None}
+        result = self._run(enrichment)
+        assert len(result["preview_text"]) > 0
+        assert _ttl_remaining("earnings_preview_v2_ENR2") > 40_000
+        from api.services import earnings_ai_store
+        assert earnings_ai_store.get("preview", "ENR2") is not None
+
+    def test_shed_partial_enrichment_gets_short_ttl_and_is_not_persisted(self):
+        enrichment = {"pre_earnings": None}  # only 1/6 legs — deadline-shed
+        result = self._run(enrichment)
+        assert len(result["preview_text"]) > 0
+        assert _ttl_remaining("earnings_preview_v2_ENR2") <= 400
+        from api.services import earnings_ai_store
+        assert earnings_ai_store.get("preview", "ENR2") is None

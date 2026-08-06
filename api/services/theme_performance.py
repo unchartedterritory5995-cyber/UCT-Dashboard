@@ -23,6 +23,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.engine import _load_wire_data
 from api.services.massive import get_agg_bars
 from api.services import theme_db
@@ -52,6 +53,7 @@ def looks_like_ticker(s: str | None) -> bool:
 
 _CACHE_KEY = "theme_performance"
 _CACHE_TTL = 900          # 15 min in-memory cache
+_CACHE_FAIL_TTL = 120     # universe-wide return fetch failure — self-heal in 2 min, never persist
 _ROTATION_CACHE_KEY = "theme_rotation"
 _ROTATION_CACHE_TTL = 900  # 15 min rotation signals cache
 _LIVE_1D_KEY = "theme_live_1d_map"
@@ -334,11 +336,33 @@ def _run_computation() -> None:
             "status": "ok",
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
-        # Write to in-memory cache and persist to volume
-        cache.set(_CACHE_KEY, result, ttl=_CACHE_TTL)
+        # Per-symbol fetch failures already degrade gracefully to null returns
+        # (the `except` in the fan-out above) -- that's normal (a thin/delisted
+        # holding here and there). What this predicate catches is the DIFFERENT
+        # failure: every single symbol coming back null at once (e.g. Massive
+        # fully down), which used to stamp "status": "ok" unconditionally and
+        # persist to disk regardless -- `_load_from_disk` then serves that
+        # all-null snapshot for up to 26h with no recompute trigger until the
+        # next scheduled pass.
+        complete = (not all_syms) or any(
+            v is not None
+            for sym in all_syms
+            for v in returns_map.get(sym, {}).values()
+        )
+        set_by_completeness(
+            _CACHE_KEY, result,
+            complete=complete,
+            ttl_ok=_CACHE_TTL,
+            ttl_partial=_CACHE_FAIL_TTL,
+            persist=_save_to_disk,
+        )
         cache.invalidate(_OVERLAID_KEY)
-        _save_to_disk(result)
-        print(f"[theme-perf] Computation done — {len(themes_out)} themes persisted to disk")
+        if complete:
+            print(f"[theme-perf] Computation done — {len(themes_out)} themes persisted to disk")
+        else:
+            print(f"[theme-perf] Computation returned all-null returns for "
+                  f"{len(all_syms)} symbols — NOT persisted to disk, retrying in "
+                  f"{_CACHE_FAIL_TTL}s")
 
     except Exception as e:
         print(f"[theme-perf] Computation failed: {e}")

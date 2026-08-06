@@ -29,7 +29,8 @@ import logging
 import os
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 log = logging.getLogger("alpha_gold_eod")
 
@@ -68,6 +69,37 @@ def get_alpha_gold_today(today: str | None = None) -> list[dict]:
     alerts = list((payload or {}).get("alerts") or [])
     alerts.sort(key=lambda a: (a.get("alertPremium") or 0), reverse=True)
     return alerts
+
+
+def _earnings_soon_syms(within_days: int) -> set[str]:
+    """Uppercase symbols reporting earnings within `within_days` calendar days,
+    read from the flow-worker's earnings-date cache ({sym: 'YYYY-MM-DD'} of the
+    EARLIEST upcoming report, populated by the massive_ws_worker earnings-calendar
+    task). Used to drop pre-earnings names from the EOD card. Fail-open: an empty
+    set on a cold/unreadable cache, so a data gap never blanks the whole card."""
+    if within_days <= 0:
+        return set()
+    try:
+        from api import massive_ws_worker as mw
+        cache = dict(getattr(mw, "_ER_DATE_CACHE", None) or {})
+    except Exception:
+        return set()
+    if not cache:
+        return set()
+    try:
+        today = datetime.now(ZoneInfo("America/New_York")).date()
+    except Exception:
+        return set()
+    horizon = today + timedelta(days=within_days)
+    out: set[str] = set()
+    for sym, dstr in cache.items():
+        try:
+            d = datetime.strptime(str(dstr), "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            continue
+        if today <= d <= horizon:          # upcoming report within the window
+            out.add(str(sym).upper())
+    return out
 
 
 # ── formatting helpers ─────────────────────────────────────────────────────
@@ -383,6 +415,20 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         from api import live_massive_router as lmr
         day = today or lmr._today_mdyyyy()
         alerts = get_alpha_gold_today(day)
+        # Owner rule: drop names reporting earnings this week (binary-event risk) —
+        # the featured Alpha Gold list should be clean directional flow, not a
+        # pre-earnings gamble. Window is env-tunable; NET bar below stays the
+        # OVERALL day flow (deliberately unfiltered). Fail-open on a cold ER cache.
+        er_days = int(os.getenv("ALPHA_GOLD_EOD_ER_EXCLUDE_DAYS", "7"))
+        er_syms = _earnings_soon_syms(er_days)
+        if er_syms:
+            dropped = sorted({(a.get("ticker") or "").upper() for a in alerts
+                              if (a.get("ticker") or "").upper() in er_syms})
+            if dropped:
+                alerts = [a for a in alerts
+                          if (a.get("ticker") or "").upper() not in er_syms]
+                log.info("[alpha-gold-eod] excluded %d earnings-week name(s) "
+                         "(<=%dd): %s", len(dropped), er_days, ", ".join(dropped))
         date_text = _date_text(day)
         top_n = int(os.getenv("ALPHA_GOLD_EOD_TOP_N", "30"))
         # NET bar reflects the OVERALL day's directional flow (the LiveFlow "Market

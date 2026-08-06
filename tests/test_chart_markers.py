@@ -308,6 +308,72 @@ class TestGetChartMarkersDiskPersistence:
         assert len(r2["earnings"]) == 1
 
 
+class TestGetChartMarkersCachePolicy:
+    """The disk write (persisted, served effectively forever) and the memory
+    cache TTL must both be gated on completeness -- mirrors the ALREADY
+    correct pattern at `_schedule_markers_refresh` (:88), which the initial
+    build below did not follow before this fix."""
+
+    def setup_method(self):
+        _fresh_cache("EMPTYMKT")
+
+    def _disk_exists(self, ticker):
+        import os
+        return os.path.exists(earnings_estimates._markers_disk_path(ticker))
+
+    def test_all_sources_failing_does_not_write_the_disk_copy(self):
+        """THE regression: every source empty used to still call
+        `_markers_disk_write` unconditionally, so a transient outage
+        overwrote a good persisted copy (or, on a cold cache, planted a
+        blank that would be served effectively forever on every future
+        redeploy)."""
+        with patch.object(earnings_estimates, "_fh_get", side_effect=RuntimeError("boom")), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None):
+            result = earnings_estimates.get_chart_markers("EMPTYMKT")
+
+        assert result == {"earnings": [], "splits": [], "dividends": []}
+        assert not self._disk_exists("EMPTYMKT")
+
+    def test_all_sources_failing_gets_the_short_retry_ttl_not_12h(self):
+        seen = {}
+        real_set = cache.set
+
+        def spy(key, value, ttl=None):
+            if key == "chart_markers_EMPTYMKT":
+                seen["ttl"] = ttl
+            return real_set(key, value, ttl)
+
+        with patch.object(earnings_estimates, "_fh_get", side_effect=RuntimeError("boom")), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(cache, "set", spy):
+            earnings_estimates.get_chart_markers("EMPTYMKT")
+
+        assert seen.get("ttl") == earnings_estimates._MARKERS_EMPTY_TTL
+        assert seen.get("ttl") < earnings_estimates._MARKERS_CACHE_TTL
+
+    def test_a_complete_build_still_writes_disk_and_gets_the_full_ttl(self):
+        """Control direction: a real result must NOT be caught by the same
+        guard -- it still persists and still gets the long TTL."""
+        eps_payload = [{"period": "2026-04-01", "actual": 1.0, "estimate": 0.9}]
+        seen = {}
+        real_set = cache.set
+
+        def spy(key, value, ttl=None):
+            if key == "chart_markers_EMPTYMKT":
+                seen["ttl"] = ttl
+            return real_set(key, value, ttl)
+
+        with patch.object(earnings_estimates, "_fh_get",
+                          side_effect=lambda path, params: eps_payload if path == "/stock/earnings" else []), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(cache, "set", spy):
+            result = earnings_estimates.get_chart_markers("EMPTYMKT")
+
+        assert len(result["earnings"]) == 1
+        assert self._disk_exists("EMPTYMKT")
+        assert seen.get("ttl") == earnings_estimates._MARKERS_CACHE_TTL
+
+
 # ─── Route-level tests ────────────────────────────────────────────────────────
 
 class TestChartMarkersRoute:

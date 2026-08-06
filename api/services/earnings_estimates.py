@@ -11,6 +11,7 @@ import time as _time
 import requests
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services import yf_util
 
 _logger = logging.getLogger(__name__)
@@ -19,6 +20,11 @@ _CACHE_TTL = 21_600  # 6 hours (used by get_earnings_intel)
 _FRESH_TTL = 900     # 15 min — earnings-window fast path for an incomplete year
 _INTEL_FAIL_TTL = 600  # 10 min — negative cache when ALL intel calls fail (429 storm damper)
 _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
+_MARKERS_EMPTY_TTL = 600     # 10 min — an all-empty markers build self-heals fast,
+                             # and is NEVER written to the /data disk copy (see
+                             # get_chart_markers) — a transient provider blip must
+                             # not overwrite (or poison a cold cache with) what
+                             # would otherwise be served effectively forever.
 _TIMEOUT = 6  # seconds per Finnhub request
 
 # ── chart-markers persistent cache ───────────────────────────────────────────
@@ -173,18 +179,23 @@ def get_earnings_intel(ticker: str) -> dict | None:
             })
 
     # ── 2. Analyst recommendation consensus ──────────────────────────────────
-    consensus = None
-    rec_raw = _fh_get("/stock/recommendation", {"symbol": ticker})
-    if isinstance(rec_raw, list) and rec_raw:
-        latest = rec_raw[0]  # most recent month
-        consensus = {
-            "buy": latest.get("buy", 0),
-            "hold": latest.get("hold", 0),
-            "sell": latest.get("sell", 0),
-            "strongBuy": latest.get("strongBuy", 0),
-            "strongSell": latest.get("strongSell", 0),
-            "period": latest.get("period", ""),
-        }
+    # FMP `stable/grades-consensus` primary (Finnhub `/stock/recommendation`
+    # shares the process-wide 60/min budget across every caller in the app
+    # and is a weaker plan overall — see the data-dependability migration
+    # plan, Task 5). Finnhub only fires when FMP yields nothing.
+    consensus = _fmp_consensus_snapshot(ticker)
+    if consensus is None:
+        rec_raw = _fh_get("/stock/recommendation", {"symbol": ticker})
+        if isinstance(rec_raw, list) and rec_raw:
+            latest = rec_raw[0]  # most recent month
+            consensus = {
+                "buy": latest.get("buy", 0),
+                "hold": latest.get("hold", 0),
+                "sell": latest.get("sell", 0),
+                "strongBuy": latest.get("strongBuy", 0),
+                "strongSell": latest.get("strongSell", 0),
+                "period": latest.get("period", ""),
+            }
 
     # ── 3. Price target ──────────────────────────────────────────────────────
     price_target = None
@@ -341,6 +352,75 @@ def _fmp_price_target_fallback(ticker: str) -> dict | None:
     }
 
 
+def _fmp_consensus_snapshot(ticker: str) -> dict | None:
+    """FMP `stable/grades-consensus` — the CURRENT analyst rating-bucket
+    snapshot (one row, no history). Used by get_earnings_intel's `consensus`
+    leg, which only ever reads the latest month from the Finnhub shape it
+    replaces (`/stock/recommendation[0]`).
+
+    Same output shape as the Finnhub leg ({buy,hold,sell,strongBuy,
+    strongSell,period}) so downstream consumers need no change. FMP's
+    endpoint is a point-in-time snapshot, not a dated series, so `period`
+    is always "" here — never fabricated from `stable/grades-historical`'s
+    dated rows (a different endpoint, used where history is actually read;
+    see `_fmp_grades_historical`).
+
+    Returns None (never a zero-filled dict) when FMP has nothing usable, so
+    the caller's Finnhub fallback still fires and a genuine all-zero
+    consensus from Finnhub is never confused with an absent one.
+    """
+    row = _fmp_get("/stable/grades-consensus", {"symbol": ticker}, timeout=4)
+    row = row[0] if isinstance(row, list) and row and isinstance(row[0], dict) else None
+    if not row:
+        return None
+    buckets = {k: _int_or_none(row.get(k)) for k in
+               ("buy", "hold", "sell", "strongBuy", "strongSell")}
+    if all(v is None for v in buckets.values()):
+        return None
+    return {
+        "buy": buckets["buy"] or 0,
+        "hold": buckets["hold"] or 0,
+        "sell": buckets["sell"] or 0,
+        "strongBuy": buckets["strongBuy"] or 0,
+        "strongSell": buckets["strongSell"] or 0,
+        "period": "",
+    }
+
+
+def _fmp_grades_historical(ticker: str, limit: int = 4) -> list:
+    """FMP `stable/grades-historical` — monthly analyst rating-bucket
+    snapshots, newest first (live-verified). Powers consumers that need a
+    DATED series (recent-change deltas) rather than just the latest count —
+    unlike `stable/grades-consensus`'s single current snapshot.
+
+    Field names differ from grades-consensus (`analystRatingsBuy` vs `buy`)
+    — remapped here to the SAME {period,strongBuy,buy,hold,sell,strongSell}
+    shape as the Finnhub `/stock/recommendation` list this replaces, so
+    call_recap.get_rating_changes / earnings_enrichment.get_estimate_revisions
+    need no downstream change. Returns [] (never a partial/malformed row) on
+    failure — callers fall back to Finnhub in that case.
+    """
+    data = _fmp_get("/stable/grades-historical", {"symbol": ticker, "limit": limit}, timeout=4)
+    if not isinstance(data, list):
+        return []
+    out = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        period = str(row.get("date") or "")[:10]
+        if not period:
+            continue
+        out.append({
+            "period": period,
+            "strongBuy": _int_or_none(row.get("analystRatingsStrongBuy")) or 0,
+            "buy": _int_or_none(row.get("analystRatingsBuy")) or 0,
+            "hold": _int_or_none(row.get("analystRatingsHold")) or 0,
+            "sell": _int_or_none(row.get("analystRatingsSell")) or 0,
+            "strongSell": _int_or_none(row.get("analystRatingsStrongSell")) or 0,
+        })
+    return out
+
+
 def _fiscal_q_from_report(date_str: str):
     """(quarter, fiscal_year) for a report ANNOUNCED on date_str, assuming a
     calendar fiscal year — companies report ~1-2 months after the quarter ends:
@@ -481,63 +561,6 @@ def _year_earnings_from_stock(ticker: str, year: int) -> list:
     return rows
 
 
-def _av_num(v):
-    """Parse an AlphaVantage numeric string ('5.73', 'None', '') → float or None."""
-    try:
-        if v is None or str(v).strip().lower() in ("", "none", "-"):
-            return None
-        return float(v)
-    except (TypeError, ValueError):
-        return None
-
-
-def _year_earnings_from_av(ticker: str, year: int) -> list:
-    """EPS-only quarters of `year` from AlphaVantage `EARNINGS` — the deepest FREE
-    historical source (covers years/ADRs that FMP `stable/earnings` and Finnhub
-    lack, e.g. JKS/VIPS 2013). Quarter is taken from `fiscalDateEnding` (authoritative
-    period end), not a report-date heuristic. Best-effort: returns [] on any
-    failure OR an AV rate-limit Note/Information response (free tier = 25/day)."""
-    key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-    if not key:
-        return []
-    try:
-        r = requests.get(
-            "https://www.alphavantage.co/query",
-            params={"function": "EARNINGS", "symbol": ticker, "apikey": key},
-            timeout=12,
-        )
-        r.raise_for_status()
-        j = r.json()
-    except Exception as exc:
-        _logger.info("AV EARNINGS failed for %s: %s", ticker, exc)
-        return []
-    if not isinstance(j, dict) or "quarterlyEarnings" not in j:
-        # {"Note": ...} / {"Information": ...} (throttled) or {"Error Message": ...}.
-        return []
-    rows = []
-    for q in j.get("quarterlyEarnings", []):
-        fde = str(q.get("fiscalDateEnding") or "")[:10]
-        # Shared period-end mapper (same scheme as FMP/Finnhub) so offset-fiscal
-        # filers land in the SAME slot rather than being dropped/mislabeled.
-        quarter, fy = _fiscal_q_from_period_end(fde)
-        if quarter is None or fy != int(year):
-            continue
-        eps_a, eps_e = _av_num(q.get("reportedEPS")), _av_num(q.get("estimatedEPS"))
-        surp = _av_num(q.get("surprisePercentage"))
-        rows.append({
-            "date": str(q.get("reportedDate") or fde)[:10],
-            "quarter": quarter,
-            "year": fy,
-            "eps_actual": eps_a,
-            "eps_estimate": eps_e,
-            "eps_surprise_pct": round(surp, 1) if surp is not None else _surprise_pct(eps_a, eps_e),
-            "revenue_actual": None,
-            "revenue_estimate": None,
-            "revenue_surprise_pct": None,
-        })
-    return rows
-
-
 def _year_earnings_from_yf(ticker: str, year: int) -> list:
     """Quarterly EPS + revenue (ACTUALS only — Yahoo gives no estimates for these,
     so surprise % stays blank) from yfinance's quarterly income statement. Yahoo
@@ -627,11 +650,16 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bo
     fallback never filled them):
       1. FMP `stable/earnings` — EPS + revenue (richest; the only one with revenue).
       2. Finnhub `/stock/earnings` — EPS only — fills quarters FMP is missing.
-      3. AlphaVantage `EARNINGS` — EPS only, deepest free history — fills the rest.
+      3. yfinance — EPS + revenue actuals (no estimates) — foreign-listing fallback.
+    (AlphaVantage's EARNINGS leg was removed 2026-08-05, data-dependability
+    migration plan Phase 3 Task 12: its free tier is 25 requests/DAY,
+    already exhausted on every observation, and it returns the SAME `[]` on
+    a rate-limit as on a genuine no-data year — indistinguishable, so a
+    throttled AV call could silently look like "this stock never reported"
+    rather than "retry later.")
     Each fill only populates quarters still empty, so FMP's revenue is never lost.
     Cached per (ticker, year): a closed year that came back COMPLETE (all 4 quarters)
-    caches for weeks; an incomplete one caches briefly so it retries (e.g. once an
-    AV rate-limit clears) until it fills."""
+    caches for weeks; an incomplete one caches briefly so it retries until it fills."""
     ticker = ticker.upper()
     ckey = f"mb_year_earnings_{ticker}_{int(year)}"
     cached = cache.get(ckey)
@@ -653,9 +681,7 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bo
                 r["quarter"] = q
                 by_q[q] = r
 
-    # Gather all sources for one provider symbol. AV deep-history fill is gated to
-    # CLOSED years: for the in-progress year, missing quarters simply aren't
-    # reported yet, so spending AV's scarce 25/day quota on it is wasteful.
+    # Gather all sources for one provider symbol.
     def _gather(prov):
         prov = (prov or "").upper().strip()
         if not prov:
@@ -663,8 +689,6 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bo
         _fill(_year_earnings_from_fmp(prov, year))
         if len(by_q) < 4:
             _fill(_year_earnings_from_stock(prov, year))
-        if closed and len(by_q) < 4:
-            _fill(_year_earnings_from_av(prov, year))
         # yfinance (Yahoo) covers international markets the US providers miss.
         # Only for foreign-looking symbols (suffixed/numeric) to avoid adding a
         # slow yfinance call to every US stock that merely has an FMP gap.
@@ -748,8 +772,18 @@ def get_chart_markers(ticker: str) -> dict:
         return data
 
     result = _build_chart_markers(ticker)
-    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
-    _markers_disk_write(ticker, result)
+    # Same completeness guard as `_schedule_markers_refresh` above (:88) — a
+    # transient provider blip that leaves every section empty must NOT
+    # overwrite a good disk copy (or poison a cold cache) for the full 12h /
+    # forever-on-disk lifetime. It gets a short retry TTL instead and is
+    # never persisted, so the next request (minutes later) rebuilds from a
+    # provider that has likely recovered.
+    complete = bool(result.get("earnings") or result.get("splits") or result.get("dividends"))
+    set_by_completeness(
+        cache_key, result, complete=complete,
+        ttl_ok=_MARKERS_CACHE_TTL, ttl_partial=_MARKERS_EMPTY_TTL,
+        persist=lambda v: _markers_disk_write(ticker, v),
+    )
     return result
 
 

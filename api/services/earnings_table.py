@@ -98,22 +98,53 @@ def _in_earnings_window(next_date, last_report, now, days=1):
 
 
 def _next_earnings(ticker):
-    """Upcoming earnings date + consensus from Finnhub /calendar/earnings."""
+    """Upcoming earnings date + consensus. Finnhub `/calendar/earnings`
+    (symbol-filtered, session-aware — though this function has never surfaced
+    `hour`, so no session information is lost by falling back) is primary;
+    FMP `stable/earnings` is a breadth fallback for when Finnhub is
+    throttled/empty (2026-08-05, data-dependability migration Task 13). FMP's
+    per-symbol `stable/earnings` carries the SAME forward row shape (a future
+    report has `epsEstimated`/`date` with a null `epsActual`) as the
+    historical rows `_year_earnings_from_fmp` already consumes above."""
     from datetime import date, timedelta
     today = date.today()
     to = today + timedelta(days=120)
     data = ee._fh_get("/calendar/earnings",
                       {"symbol": ticker, "from": today.isoformat(), "to": to.isoformat()})
     rows = (data or {}).get("earningsCalendar") if isinstance(data, dict) else None
-    if not rows:
-        return None
-    rows = sorted(rows, key=lambda r: str(r.get("date") or ""))
-    nxt = rows[0]
-    return {
-        "date": str(nxt.get("date") or "")[:10] or None,
-        "eps_estimate": nxt.get("epsEstimate"),
-        "rev_estimate": nxt.get("revenueEstimate"),
-    }
+    if rows:
+        rows = sorted(rows, key=lambda r: str(r.get("date") or ""))
+        nxt = rows[0]
+        return {
+            "date": str(nxt.get("date") or "")[:10] or None,
+            "eps_estimate": nxt.get("epsEstimate"),
+            "rev_estimate": nxt.get("revenueEstimate"),
+        }
+
+    # Finnhub returned nothing (throttle/429/missing key) — FMP breadth
+    # fallback. `stable/earnings` is a single symbol-scoped call (not a
+    # multi-day calendar sweep), so the "one call per day" truncation rule
+    # that governs the calendar.py/calendar_alerts.py breadth legs doesn't
+    # apply here.
+    fmp_rows = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
+    if isinstance(fmp_rows, list):
+        today_iso = today.isoformat()
+        upcoming = [
+            r for r in fmp_rows
+            if isinstance(r, dict)
+            and r.get("epsActual") is None and r.get("revenueActual") is None
+            and str(r.get("date") or "")[:10] >= today_iso
+        ]
+        if upcoming:
+            upcoming.sort(key=lambda r: str(r.get("date") or ""))
+            nxt = upcoming[0]
+            return {
+                "date": str(nxt.get("date") or "")[:10] or None,
+                "eps_estimate": nxt.get("epsEstimated"),
+                "rev_estimate": nxt.get("revenueEstimated"),
+            }
+
+    return None
 
 
 def _last_report_date(ticker):

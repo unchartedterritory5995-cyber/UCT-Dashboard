@@ -114,11 +114,16 @@ def _captured_ttl(monkeypatch):
 # ── Requirement 1: Finnhub stays primary ────────────────────────────────────
 
 def test_finnhub_success_short_circuits_fmp(monkeypatch):
-    """When Finnhub supplies a full price target, FMP is never called at all."""
+    """When Finnhub supplies a full price target, FMP's price-target-consensus
+    leg is never called at all. (The consensus leg is FMP-primary as of P2
+    Task 5 and legitimately fires its own `stable/grades-consensus` call
+    regardless of the price-target outcome — this test only locks in the
+    price-target leg's own Finnhub-primary/FMP-fallback ordering.)"""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=True))
-    with patch.object(ee, "_fmp_get") as fmp_spy:
+    with patch.object(ee, "_fmp_get", return_value=None) as fmp_spy:
         result = ee.get_earnings_intel(SYM)
-    fmp_spy.assert_not_called()
+    pt_paths = [c.args[0] for c in fmp_spy.call_args_list]
+    assert "/stable/price-target-consensus" not in pt_paths
     assert result["price_target"] == {
         "targetHigh": 500.0, "targetLow": 300.0, "targetMean": 420.0,
         "targetMedian": 415.0, "lastUpdated": "2026-08-01",
@@ -133,13 +138,18 @@ def test_finnhub_yields_nothing_falls_back_to_fmp_consensus_endpoint(monkeypatch
 
     def fake_fmp_get(path, params, timeout=10):
         calls.append((path, dict(params), timeout))
+        # Same fixture shape for every path on purpose — this test only cares
+        # about the price-target leg; the consensus leg (called first, see
+        # Task 5) correctly rejects this shape (no buy/hold/sell keys) and
+        # falls back to Finnhub on its own, exercised by other tests.
         return _FMP_PT_CONSENSUS
 
     monkeypatch.setattr(ee, "_fmp_get", fake_fmp_get)
     result = ee.get_earnings_intel(SYM)
 
-    assert len(calls) == 1
-    path, params, timeout = calls[0]
+    pt_calls = [c for c in calls if c[0] == "/stable/price-target-consensus"]
+    assert len(pt_calls) == 1
+    path, params, timeout = pt_calls[0]
     assert path == "/stable/price-target-consensus"
     assert params["symbol"] == SYM
 

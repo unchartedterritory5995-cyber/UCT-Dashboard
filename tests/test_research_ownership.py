@@ -48,11 +48,14 @@ class TestGetOwnership:
     def setup_method(self):
         cache.invalidate("research_own::TEST")
 
-    def test_shape_and_cache(self, monkeypatch):
-        monkeypatch.setattr(own, "_fetch_yf", lambda sym: {
+    def _yf_ok(self):
+        return {
             "info": {"heldPercentInstitutions": 0.6, "shortPercentOfFloat": 0.01},
             "inst": None,
-        })
+        }
+
+    def test_shape_and_cache(self, monkeypatch):
+        monkeypatch.setattr(own, "_fetch_yf", lambda sym: self._yf_ok())
         monkeypatch.setattr(own, "get_insider_activity", lambda sym: [
             {"name": "CEO", "title": "CEO", "type": "buy", "shares": 1000, "amount": 250000, "date": "2026-05-01"},
         ])
@@ -62,6 +65,63 @@ class TestGetOwnership:
         assert out["short"]["short_pct_float"] == 1.0
         assert out["insider"][0]["type"] == "buy"
         assert cache.get("research_own::TEST") is not None
+
+    def _captured_ttl(self, monkeypatch, *, fetch_yf, insider, thirteen_f=lambda s: None):
+        seen = {}
+        real_set = cache.set
+
+        def spy(key, value, ttl=None):
+            if key == "research_own::TEST":
+                seen["ttl"] = ttl
+            return real_set(key, value, ttl)
+
+        monkeypatch.setattr(own, "_fetch_yf", fetch_yf)
+        monkeypatch.setattr(own, "get_insider_activity", insider)
+        monkeypatch.setattr(own, "_thirteen_f", thirteen_f)
+        monkeypatch.setattr(cache, "set", spy)
+        out = own.get_ownership("test")
+        return out, seen.get("ttl")
+
+    def test_a_complete_fetch_is_cached_for_the_full_12h_ttl(self, monkeypatch):
+        out, ttl = self._captured_ttl(
+            monkeypatch, fetch_yf=lambda s: self._yf_ok(), insider=lambda s: [],
+        )
+        assert out["institutional"]["pct_held"] == 60.0
+        assert ttl == own._CACHE_TTL
+
+    def test_yfinance_fetch_failure_shortens_the_ttl_not_12h(self, monkeypatch):
+        """THE regression this guards: a yfinance pool timeout used to still
+        cache the (institutional=blank, short=blank) result for the full 12h."""
+        out, ttl = self._captured_ttl(
+            monkeypatch, fetch_yf=lambda s: {}, insider=lambda s: [
+                {"name": "CEO", "type": "buy", "shares": 500, "date": "2026-05-01"},
+            ],
+        )
+        # the insider leg that DID resolve is still served
+        assert out["insider"]
+        assert out["institutional"]["pct_held"] is None
+        assert ttl == own._FAIL_TTL
+        assert ttl < own._CACHE_TTL
+
+    def test_insider_activity_failure_also_shortens_the_ttl(self, monkeypatch):
+        def _boom(s):
+            raise RuntimeError("finnhub down")
+        out, ttl = self._captured_ttl(
+            monkeypatch, fetch_yf=lambda s: self._yf_ok(), insider=_boom,
+        )
+        assert out["institutional"]["pct_held"] == 60.0   # good leg still served
+        assert out["insider"] == []
+        assert ttl == own._FAIL_TTL
+
+    def test_a_ticker_with_genuinely_no_13f_filing_is_not_a_failure(self, monkeypatch):
+        """13F absence is normal for most non-mega-caps -- must still get the
+        full 12h TTL, not be treated the same as a provider failure."""
+        out, ttl = self._captured_ttl(
+            monkeypatch, fetch_yf=lambda s: self._yf_ok(), insider=lambda s: [],
+            thirteen_f=lambda s: None,
+        )
+        assert out["thirteen_f"] is None
+        assert ttl == own._CACHE_TTL
 
 
 class TestRoute:

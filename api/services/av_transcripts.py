@@ -12,6 +12,25 @@ Rate-limit discipline:
 - On throttle response (Information/Note key present, or missing transcript key):
   return None and short-cache 5 min to avoid hammering.
 - Never raise.
+
+`_fetch_quarter`'s HTTP call is now GATED by the shared
+`api.services.alphavantage_client` daily budget (data-dependability
+migration, Task 15) rather than firing an uncoordinated `requests.get` —
+this was one of up to seven AV call sites in this codebase spending the SAME
+25/day account budget with zero visibility to each other. It consults the
+primitives directly (`av_take_token`/`av_note_throttle`/
+`is_av_throttle_response`) rather than the full `av_get`/`av_get_status`
+wrapper, mirroring the escape hatch `finnhub_client.py` documents for a
+caller that needs to keep its own HTTP call shape (here: the exact
+`requests.get(url, timeout=15)` this module's existing test suite patches,
+and the throttle-vs-genuine-miss distinction this probe loop already relies
+on to decide "stop probing" vs "try the next candidate" — the same reason
+`av_get_status` exists as a lower-level alternative to `av_get`, see that
+module's docstring). It deliberately does NOT gate on
+`alphavantage_client.av_in_cooldown()` before its own attempts — see
+`_fetch_quarter`'s docstring for why — but DOES engage that shared cooldown
+via `av_note_throttle` when it detects its own throttle, so other AV callers
+still benefit from what this one just learned.
 """
 from __future__ import annotations
 
@@ -22,6 +41,11 @@ import requests as _requests_module
 from datetime import date, timedelta
 from typing import Optional
 
+from api.services.alphavantage_client import (
+    av_take_token as _av_take_token,
+    av_note_throttle as _av_note_throttle,
+    is_av_throttle_response as _is_av_throttle,
+)
 from api.services.cache import cache as _cache_singleton
 
 _log = logging.getLogger(__name__)
@@ -77,12 +101,32 @@ def _fetch_quarter(ticker: str, quarter: str) -> Optional[dict]:
     """Fetch a single (ticker, quarter) from AV.
 
     Returns dict with 'segments' list on success, None on any failure.
-    Raises nothing.
+    Gated by the shared `alphavantage_client` daily budget before any
+    network call is made (see module docstring, Task 15). Raises nothing.
+
+    Deliberately does NOT also pre-check `alphavantage_client.av_in_cooldown()`
+    here — this probe loop already stops itself on the FIRST throttle it
+    personally observes (the `_THROTTLED` sentinel below), so it doesn't need
+    to additionally defer to a cooldown some OTHER caller engaged moments
+    ago; it still CONTRIBUTES to that shared cooldown (`_av_note_throttle`
+    below) so other callers benefit from what this one just learned. This is
+    a one-way handoff, not full bidirectional gating — see
+    `alphavantage_client.py`'s module docstring on the budget-vs-cooldown
+    split for callers with their own existing throttle-vs-miss handling.
     """
     key = _av_key()
     if not key:
         _log.debug("[av_transcripts] ALPHAVANTAGE_API_KEY not set")
         return None
+
+    # Shared, process-wide daily budget — consulted BEFORE the network call
+    # so an already-exhausted day costs zero HTTP round trips here too.
+    # Treated the same as an AV-issued throttle: return the sentinel so the
+    # probe loop in get_transcript stops immediately instead of burning more
+    # of an already-spent budget on the next candidate quarter.
+    if not _av_take_token():
+        _log.info("[av_transcripts] AV daily budget exhausted — skipping %s %s", ticker, quarter)
+        return _THROTTLED
 
     url = (
         "https://www.alphavantage.co/query"
@@ -108,9 +152,11 @@ def _fetch_quarter(ticker: str, quarter: str) -> Optional[dict]:
         _log.warning("[av_transcripts] JSON parse error for %s %s: %s", ticker, quarter, exc)
         return None
 
-    # Throttle / quota response detection — return sentinel so caller stops probing
-    if "Information" in data or "Note" in data:
+    # Throttle / quota response detection (shared classifier, Task 15) —
+    # return sentinel so caller stops probing
+    if _is_av_throttle(data):
         _log.info("[av_transcripts] AV throttle/quota response for %s %s", ticker, quarter)
+        _av_note_throttle(f"av_transcripts:{ticker}:{quarter}")
         return _THROTTLED  # distinct from None (genuine miss)
 
     raw_segments = data.get("transcript")

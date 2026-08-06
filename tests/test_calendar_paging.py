@@ -140,7 +140,18 @@ def test_days_for_date_resolves_current_vs_range_week():
 
 def test_month_unknown_hour_lands_in_tbd():
     today = cal_mod._today_et()
-    ds = today.replace(day=15).isoformat()
+    # Pick a day THIS MONTH that is guaranteed to be a weekday, rather than
+    # hardcoding day 15 -- the month endpoint correctly OMITS weekend dates
+    # from `days`, so a weekend 15th (e.g. 2026-08-15, a Saturday) silently
+    # makes this test pass for the wrong reason (day missing from the
+    # response) instead of exercising the unknown-hour-lands-in-tbd
+    # behaviour it's meant to guard. Every month's first 7 days contain at
+    # least one weekday, so this is deterministic without pinning a literal
+    # date that could itself age into a weekend.
+    day_num = 1
+    while date(today.year, today.month, day_num).weekday() >= 5:  # Sat=5, Sun=6
+        day_num += 1
+    ds = date(today.year, today.month, day_num).isoformat()
     payload = {"earningsCalendar": [
         {"symbol": "PEP", "date": ds, "hour": "", "epsEstimate": 1.0,
          "revenueEstimate": None, "epsActual": None, "revenueActual": None},

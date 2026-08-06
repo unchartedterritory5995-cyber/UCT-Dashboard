@@ -79,20 +79,28 @@ _EARNINGS_AI_MAX_TOKENS         = 1800     # post-earnings: rich narrative + 5 s
 _EARNINGS_PREVIEW_AI_MAX_TOKENS = 1800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
-_AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
+# `enrich_earnings_response` (earnings_enrichment.py) ALWAYS returns a dict
+# with all six of these keys present (value or None) -- it never raises.
+# Fewer than six keys means the 25s deadline in the fan-out cut it off before
+# every leg resolved (a shed partial), and zero keys means the outer
+# try/except here caught a total failure. Either way that's a fan-out
+# failure, distinct from an individual leg being legitimately None (a stock
+# with no options, no recent quotes, etc. — normal and NOT a reason to
+# refetch). See _generate_earnings_analysis / _generate_earnings_preview.
+_ENRICHMENT_LEG_KEYS = ("pre_earnings", "hist_moves", "revisions",
+                        "beat_surprises", "implied_move", "key_quotes")
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
-_AV_RATE_INTERVAL_SECS      = 13.0     # ≥13s between AV calls → ≤4.6/min (free tier: 5/min)
 _EARNINGS_AI_MODEL          = os.environ.get("EARNINGS_AI_MODEL", "claude-sonnet-5")  # Haiku→Sonnet 4.6 (2026-05-27)→Sonnet 5 (2026-07-12, richer previews; now generate-once + disk-persisted so the better model is affordable). Env-overridable.
 
-# Alpha Vantage free tier: 5 calls/min. Serialize all AV calls with ≥13s spacing.
-_av_lock = _threading.Lock()
-_av_last_call: list[float] = [0.0]  # mutable so inner scope can write
 _anthropic_lock = _threading.Lock()
 
 from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 
-# Bounded pool for pre-warm work. Max 4 workers: respects AV rate limiter
-# (4 concurrent threads → at most 4 AV calls queued, serialized by _av_lock).
+# Bounded pool for pre-warm work (earnings preview/analysis background
+# generation). max_workers=4 is just a general-purpose concurrency cap now —
+# it used to also double as an AlphaVantage rate-limit guard (removed
+# 2026-08-05, Phase 3 Task 12: AV's EARNINGS fallback and its 13s-sleep
+# _av_get were deleted, FMP is the sole quarterly-history source).
 _prewarm_executor = _ThreadPoolExecutor(max_workers=4, thread_name_prefix="prewarm")
 
 
@@ -169,27 +177,24 @@ def _parse_json_block(raw: str) -> dict:
         raise
 
 
-def _av_get(req_module, url: str, timeout: int = _AV_TIMEOUT_SECS) -> dict:
-    """Rate-limited Alpha Vantage GET. Enforces ≥13s between calls (≤4.6/min)."""
-    with _av_lock:
-        wait = _AV_RATE_INTERVAL_SECS - (_time.monotonic() - _av_last_call[0])
-        if wait > 0:
-            _time.sleep(wait)
-        _av_last_call[0] = _time.monotonic()
-    data = req_module.get(url, timeout=timeout).json()
-    if "Note" in data or "Information" in data:
-        # AV returned a rate-limit or info message instead of actual data
-        raise RuntimeError(f"AV rate limit hit for {url!r}: {data.get('Note') or data.get('Information')}")
-    return data
-
-
 def _fetch_quarterly_history(sym: str) -> list:
-    """Fetch up to 12 quarters of EPS history. FMP first, AV fallback.
+    """Fetch up to 12 quarters of EPS history from FMP `stable/earnings`.
 
-    Returns a list normalized to AV's quarterlyEarnings shape so existing
-    code (yoy_eps_growth, beat_streak, beat_history computation) keeps
-    working unchanged. Each item: {reportedDate, fiscalDateEnding,
-    reportedEPS, estimatedEPS, surprise, surprisePercentage, reportTime}.
+    AlphaVantage's EARNINGS fallback was removed 2026-08-05 (data-
+    dependability migration plan, Phase 3 Task 12): AV's free tier is
+    capped at 25 requests/DAY (exhausted on every observation), it is
+    strictly EPS-only where FMP also carries revenue, and it was the sole
+    caller of `_av_get`'s 13s-sleep-under-`_av_lock` — a blocking sleep on
+    the shared anyio threadpool, reachable from `GET
+    /api/earnings-analysis/{sym}` on the request path (the documented
+    524-outage class here). FMP was already the primary leg and answers on
+    every live-probed large cap; a genuine FMP miss now returns [] rather
+    than trading a 13s stall for a 25/day-exhausted second source.
+
+    Returns a list normalized to a stable shape so existing code
+    (yoy_eps_growth, beat_streak, beat_history computation) keeps working
+    unchanged. Each item: {reportedDate, fiscalDateEnding, reportedEPS,
+    estimatedEPS, surprise, surprisePercentage, reportTime}.
 
     GUARANTEED newest-first (sorted by reportedDate/fiscalDateEnding
     descending) — regardless of source. Every consumer treats index 0 as
@@ -202,9 +207,9 @@ def _fetch_quarterly_history(sym: str) -> list:
     `reversed()` (written for a since-superseded AV-only, oldest-first world)
     silently flipped `last_n` to oldest-first end-to-end, mispairing every
     reaction to the wrong quarter (P2 T9 review, CRITICAL). Sorting HERE — the
-    one place every consumer's input funnels through — makes the contract
-    true for both the FMP and the AV-fallback path, instead of true only when
-    FMP happens to answer.
+    one place every consumer's input funnels through — keeps the contract
+    true even for a raw/shuffled FMP response order (the AV fallback this
+    docstring used to also cover was removed 2026-08-05, Phase 3 Task 12).
     """
     def _newest_first(rows: list) -> list:
         # ISO 'YYYY-MM-DD' strings sort correctly as plain strings. A blank/
@@ -270,30 +275,14 @@ def _fetch_quarterly_history(sym: str) -> list:
         except Exception as e:
             _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
 
-    # AV fallback
-    av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-    if av_key:
-        try:
-            av_url = (
-                f"https://www.alphavantage.co/query"
-                f"?function=EARNINGS&symbol={sym}&apikey={av_key}"
-            )
-            av_resp = _av_get(_r, av_url, timeout=_AV_TIMEOUT_SECS)
-            quarters = av_resp.get("quarterlyEarnings", [])
-            if quarters:
-                return _newest_first(quarters)
-        except Exception as e:
-            _logger.warning("AV quarterly history failed for %s: %s", sym, e)
-
     return []
 
 
 def _with_retry(fn, retries: int = 1, delay: float = 2.0):
     """Call fn(); on requests.Timeout or ConnectionError, retry up to `retries` times.
 
-    Note: AV calls go through _av_get() which has its own rate-limit serialization
-    via _av_lock. Adding _with_retry there would conflict with the lock's timing
-    guarantees, so only Finnhub calls are wrapped here.
+    Only Finnhub calls are wrapped here (AlphaVantage's own retry/rate-limit
+    path, `_av_get`, was removed 2026-08-05, Phase 3 Task 12).
     """
     import requests as _r
     for attempt in range(retries + 1):
@@ -465,7 +454,12 @@ def get_themes(period: str = "1W") -> dict:
                 # handle a missing Today value.
                 synthetic[ticker] = {**data, "Today": None}
             else:
-                synthetic[ticker] = {**data, "Today": snap.get(ticker, 0.0)}
+                # `Number(null) === 0` in Python form: defaulting a missing
+                # snapshot to 0.0 rendered EVERY theme at exactly +0.00% on a
+                # Massive outage/miss, indistinguishable from a real flat
+                # print. The curated-only branch two lines up already gets
+                # this right (`"Today": None`) — match it here.
+                synthetic[ticker] = {**data, "Today": snap.get(ticker)}
 
         result = _normalize_themes(synthetic, "Today")
         cache.set(cache_key, result, ttl=30)
@@ -493,8 +487,14 @@ def get_themes(period: str = "1W") -> dict:
             import morning_wire_engine as eng
             raw = eng.fetch_theme_tracker()
         except Exception as e:
+            # This branch only fires when the direct `morning_wire_engine`
+            # import succeeds at all (local-dev fallback only — production
+            # reaches themes via wire_data/`/api/push`) but the fetch itself
+            # raises: always a failure, never a legitimate empty result. A 1h
+            # TTL on an error placeholder used to outlive most local-dev
+            # sessions; retry in a few minutes instead.
             result = {"leaders": [], "laggards": [], "period": period, "error": str(e)}
-            cache.set(cache_key, result, ttl=3600)
+            cache.set(cache_key, result, ttl=300)
             return result
 
     result = _normalize_themes(raw, period)
@@ -516,7 +516,14 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
     for ticker, data in raw.items():
         if not isinstance(data, dict):
             continue
-        pct_val = data.get(period, 0) or 0
+        # `data.get(period, 0) or 0` used to collapse an EXPLICIT None (the
+        # "Today" branch's honest "no snapshot" value, see get_themes) right
+        # back into a fabricated 0 -- `.get(key, default)` only substitutes
+        # the default when the KEY is absent, not when its value is None, so
+        # the `or 0` was doing that collapsing instead. Every theme rendered
+        # at exactly +0.00% on a snapshot miss, indistinguishable from a
+        # genuinely flat print.
+        pct_val = data.get(period)
         pct_str = f"{pct_val:+.2f}%" if isinstance(pct_val, (int, float)) else str(pct_val)
         bar = min(100, max(0, abs(pct_val) * 8)) if isinstance(pct_val, (int, float)) else 50
 
@@ -540,7 +547,10 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
             "intl_count": intl_count,
         })
 
-    items.sort(key=lambda x: x["pct_val"], reverse=True)
+    # None-valued items sink to the end deterministically (tuple compares
+    # the "is missing" flag first) instead of raising `TypeError: '>=' not
+    # supported between instances of 'NoneType' and 'int'`.
+    items.sort(key=lambda x: (x["pct_val"] is None, x["pct_val"] or 0), reverse=True)
 
     def clean(item):
         return {
@@ -553,8 +563,11 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
             "intl_count": item["intl_count"],
         }
 
-    leaders  = [clean(i) for i in items if i["pct_val"] >= 0]
-    laggards = [clean(i) for i in reversed(items) if i["pct_val"] < 0]
+    # A theme whose period value is honestly absent is excluded from the
+    # ranked leaders/laggards split rather than fabricated into either
+    # bucket at a fake 0.00% — absent renders as absent.
+    leaders  = [clean(i) for i in items if i["pct_val"] is not None and i["pct_val"] >= 0]
+    laggards = [clean(i) for i in reversed(items) if i["pct_val"] is not None and i["pct_val"] < 0]
 
     return {"leaders": leaders, "laggards": laggards, "period": period}
 
@@ -669,6 +682,47 @@ def _fetch_ew_live(date_str: str) -> list:
     return result
 
 
+def _fmp_calendar_actuals_for_day(day_iso: str) -> dict:
+    """FMP `stable/earnings-calendar` for exactly ONE calendar day, keyed by
+    symbol -> raw FMP row. ONE call, scoped to a single day — a multi-day FMP
+    calendar call silently truncates and is NOT date-fair (live-measured,
+    `api/services/implied_store.py:384-398`; the same idiom
+    `api/routers/calendar.py::_fmp_calendar_day` mirrors).
+
+    Used only as a breadth fallback in `get_earnings()`, to fill missing
+    ACTUALS on entries whose bmo/amc session ALREADY came from
+    EarningsWhispers/wire/Finnhub — never to invent a new bmo/amc member (FMP
+    carries no session field, so adding one would fabricate a session the
+    same way coercing `tbd` into `amc` would). Returns {} on failure/missing
+    key; never raises."""
+    fmp_key = os.environ.get("FMP_API_KEY", "")
+    if not fmp_key:
+        return {}
+    import requests as _r
+    try:
+        resp = _r.get(
+            "https://financialmodelingprep.com/stable/earnings-calendar",
+            params={"from": day_iso, "to": day_iso, "apikey": fmp_key},
+            timeout=8,
+        )
+        if not resp.ok:
+            return {}
+        data = resp.json()
+    except Exception as e:
+        _logger.warning("get_earnings: FMP calendar fetch failed for %s: %s", day_iso, e)
+        return {}
+    if not isinstance(data, list):
+        return {}
+    out = {}
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        sym = (row.get("symbol") or "").strip().upper()
+        if sym:
+            out[sym] = row
+    return out
+
+
 def get_earnings() -> dict:
     cached = cache.get("earnings")
     if cached:
@@ -677,6 +731,13 @@ def get_earnings() -> dict:
     import datetime
     today     = datetime.date.today().isoformat()
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    # Read once, up front, so it is defined in EVERY branch below (both the
+    # `not ew_ok` and `ew_ok` paths reach the "today AMC" Finnhub patch a few
+    # dozen lines down) — it used to be assigned only inside the `ew_ok`
+    # branch, which raised NameError on the second `if fh_key:` whenever
+    # EarningsWhispers failed (a live provider-outage combination that simply
+    # never got exercised by a test).
+    fh_key = os.environ.get("FINNHUB_API_KEY")
 
     # ── Primary: live EarningsWhispers fetch (today BMO + yesterday AMC) ──────
     bmo_raw: list = []
@@ -736,45 +797,73 @@ def get_earnings() -> dict:
                     entry["rev_estimate"] = entry.get("rev_estimate") or wa.get("rev_estimate")
 
         # ── Finnhub patch: fill remaining Pending from live Finnhub calendar ──
-        fh_key = os.environ.get("FINNHUB_API_KEY")
-        if fh_key:
-            pending_syms = {
-                e["symbol"] for e in (bmo_raw + amc_raw)
-                if e.get("eps_actual") is None
-            }
-            if pending_syms:
-                try:
-                    # Routed through the shared finnhub_client.fh_get
-                    # (2026-08-05) so this market-wide range call shares the
-                    # process-wide token bucket / 429 cooldown with every
-                    # other Finnhub caller — a raw requests.get here spent the
-                    # SAME account budget with no coordination (see
-                    # finnhub_client.py's module docstring).
-                    from api.services.finnhub_client import fh_get as _fh_budgeted_cal
-                    fh_data = _fh_budgeted_cal(
-                        "/calendar/earnings", {"from": yesterday, "to": today}, timeout=15,
-                    )
-                    fh_map = {
-                        e["symbol"]: e
-                        for e in (fh_data or {}).get("earningsCalendar", [])
-                        if e.get("symbol") in pending_syms
-                        and e.get("epsActual") is not None
-                    }
-                    for entry in (bmo_raw + amc_raw):
-                        if entry.get("eps_actual") is not None:
-                            continue
-                        fh = fh_map.get(entry["symbol"])
-                        if fh:
-                            rev_a = fh.get("revenueActual")
-                            rev_e = fh.get("revenueEstimate")
-                            entry["eps_actual"]   = fh["epsActual"]
-                            entry["eps_estimate"] = entry.get("eps_estimate") or fh.get("epsEstimate")
-                            entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
-                            entry["rev_estimate"] = entry.get("rev_estimate") or (
-                                (rev_e / 1_000_000) if rev_e else None
-                            )
-                except Exception:
-                    pass
+        pending_syms = {
+            e["symbol"] for e in (bmo_raw + amc_raw)
+            if e.get("eps_actual") is None
+        }
+        if pending_syms and fh_key:
+            try:
+                # Routed through the shared finnhub_client.fh_get
+                # (2026-08-05) so this market-wide range call shares the
+                # process-wide token bucket / 429 cooldown with every
+                # other Finnhub caller — a raw requests.get here spent the
+                # SAME account budget with no coordination (see
+                # finnhub_client.py's module docstring).
+                from api.services.finnhub_client import fh_get as _fh_budgeted_cal
+                fh_data = _fh_budgeted_cal(
+                    "/calendar/earnings", {"from": yesterday, "to": today}, timeout=15,
+                )
+                fh_map = {
+                    e["symbol"]: e
+                    for e in (fh_data or {}).get("earningsCalendar", [])
+                    if e.get("symbol") in pending_syms
+                    and e.get("epsActual") is not None
+                }
+                for entry in (bmo_raw + amc_raw):
+                    if entry.get("eps_actual") is not None:
+                        continue
+                    fh = fh_map.get(entry["symbol"])
+                    if fh:
+                        rev_a = fh.get("revenueActual")
+                        rev_e = fh.get("revenueEstimate")
+                        entry["eps_actual"]   = fh["epsActual"]
+                        entry["eps_estimate"] = entry.get("eps_estimate") or fh.get("epsEstimate")
+                        entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
+                        entry["rev_estimate"] = entry.get("rev_estimate") or (
+                            (rev_e / 1_000_000) if rev_e else None
+                        )
+            except Exception:
+                pass
+
+        # ── FMP breadth fallback — fills whatever Finnhub still left pending
+        # (throttle/429/missing key). Two per-day calls (yesterday, today),
+        # never one call spanning both (see `_fmp_calendar_actuals_for_day`).
+        # Only ever fills a null field on an EXISTING entry — never adds a
+        # new bmo/amc member (FMP carries no session field).
+        still_pending = {
+            e["symbol"] for e in (bmo_raw + amc_raw)
+            if e.get("eps_actual") is None
+        }
+        if still_pending:
+            try:
+                fmp_map = {}
+                for d_iso in {yesterday, today}:
+                    fmp_map.update(_fmp_calendar_actuals_for_day(d_iso))
+                for entry in (bmo_raw + amc_raw):
+                    if entry.get("eps_actual") is not None:
+                        continue
+                    fr = fmp_map.get(entry["symbol"])
+                    if fr and fr.get("epsActual") is not None:
+                        rev_a = fr.get("revenueActual")
+                        rev_e = fr.get("revenueEstimated")
+                        entry["eps_actual"]   = fr["epsActual"]
+                        entry["eps_estimate"] = entry.get("eps_estimate") or fr.get("epsEstimated")
+                        entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
+                        entry["rev_estimate"] = entry.get("rev_estimate") or (
+                            (rev_e / 1_000_000) if rev_e else None
+                        )
+            except Exception:
+                pass
 
     # ── Tonight's AMC: today's reporters sorted by EW interest ──────────────
     amc_tonight_raw: list = []
@@ -831,6 +920,31 @@ def get_earnings() -> dict:
                     "rev_estimate": (rev_e / 1_000_000) if rev_e else None,
                     "ew_total":     0,
                 })
+        except Exception:
+            pass
+
+    # ── FMP breadth fallback — fills whatever is STILL pending on tonight's
+    # AMC list (Finnhub throttle/429/missing key). Patches EXISTING entries
+    # only — it never adds a new AMC member: FMP's `stable/earnings-calendar`
+    # carries no session field, so an FMP-only symbol has no confirmed
+    # session to be added under (the same rule that keeps an unconfirmed
+    # `hour` in `tbd`, never coerced into `amc`, on the Calendar page).
+    if any(e.get("eps_actual") is None for e in amc_tonight_raw):
+        try:
+            fmp_today_map = _fmp_calendar_actuals_for_day(today)
+            for entry in amc_tonight_raw:
+                if entry.get("eps_actual") is not None:
+                    continue
+                fr = fmp_today_map.get(entry["symbol"])
+                if fr and fr.get("epsActual") is not None:
+                    rev_a = fr.get("revenueActual")
+                    rev_e = fr.get("revenueEstimated")
+                    entry["eps_actual"]   = fr["epsActual"]
+                    entry["eps_estimate"] = entry.get("eps_estimate") or fr.get("epsEstimated")
+                    entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
+                    entry["rev_estimate"] = entry.get("rev_estimate") or (
+                        (rev_e / 1_000_000) if rev_e else None
+                    )
         except Exception:
             pass
 
@@ -972,9 +1086,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     import datetime as _dt
     import requests as _req
 
-    av_key  = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-
-    # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
+    # ── Step 1: Quarterly EPS history (FMP; see _fetch_quarterly_history) ────
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []       # visual pattern e.g. ["✗","✓","✓","✓"] oldest→newest
@@ -1009,7 +1121,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
                 else:
                     beat_history.append("—")
     except Exception as _e:
-        _logger.warning("AV history fetch failed for %s: %s", sym, _e)
+        _logger.warning("Quarterly history processing failed for %s: %s", sym, _e)
 
     # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ────────────
     news_items = []
@@ -1274,11 +1386,21 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
         "key_quotes":        enrichment.get("key_quotes"),
         "signals_hash":      _sig,   # inputs fingerprint for skip-if-stable
     }
-    # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
-    ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS
+    # TTL/persist decided on the AI leg alone used to let a total enrichment
+    # fan-out failure (pre_earnings/hist_moves/revisions/beat_surprises/
+    # implied_move/key_quotes ALL missing) get the full 12h TTL and a
+    # PERMANENT disk write as long as Claude itself produced text. Since
+    # `signals_hash` is derived only from `row` (deliberately, to avoid
+    # re-billing Claude every cycle over churning fetch data — see
+    # `_earnings_signals_hash`), a disk-persisted partial would satisfy the
+    # skip-if-stable reuse check forever and never get a chance to re-fetch
+    # the missing legs.
+    enrichment_complete = all(k in enrichment for k in _ENRICHMENT_LEG_KEYS)
+    complete = analysis is not None and enrichment_complete
+    ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
-    if analysis is not None:
-        _ai_store.put("analysis", sym, result)   # persist only real output
+    if complete:
+        _ai_store.put("analysis", sym, result)   # persist only real, complete output
     return result
 
 
@@ -1325,9 +1447,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
 
     import datetime as _dt
     import requests as _req
-    av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
 
-    # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
+    # ── Step 1: Quarterly EPS history (FMP; see _fetch_quarterly_history) ────
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []
@@ -1361,7 +1482,7 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
                 else:
                     beat_history.append("—")
     except Exception as _e:
-        _logger.warning("AV history fetch failed for %s (preview): %s", sym, _e)
+        _logger.warning("Quarterly history processing failed for %s (preview): %s", sym, _e)
 
     # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ─────────────
     news_items = []
@@ -1635,10 +1756,16 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         "key_quotes":      enrichment.get("key_quotes"),
         "signals_hash":    _sig,   # inputs fingerprint for skip-if-stable
     }
-    ttl = _EARNINGS_CACHE_TTL_HIT if preview_text else _EARNINGS_CACHE_TTL_MISS
+    # Same extension as _generate_earnings_analysis: a real preview_text with
+    # a totally-failed enrichment fan-out must not get the 12h TTL or the
+    # permanent disk write (see that function's comment for why signals_hash
+    # can't catch this on its own).
+    enrichment_complete = all(k in enrichment for k in _ENRICHMENT_LEG_KEYS)
+    complete = bool(preview_text) and enrichment_complete
+    ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
-    # Persist only real output — a miss stays lazy so it retries.
-    if preview_text:
+    # Persist only real, complete output — a miss/partial stays lazy so it retries.
+    if complete:
         _ai_store.put("preview", sym, result)
     return result
 
@@ -1832,12 +1959,23 @@ _news_refresh_lock = _threading.Lock()
 _news_refreshing = False
 
 
-def _store_news(result: list, ttl: float) -> None:
-    """Write the fresh-cache entry and (if it's a real payload) the stale copy."""
+def _store_news(result: list, ttl: float, healthy: bool | None = None) -> None:
+    """Write the fresh-cache entry and (if it's a real, healthy payload) the
+    stale copy.
+
+    `healthy` lets a caller that knows WHICH source produced `result`
+    distinguish "the primary source (AV) actually succeeded" from "merely no
+    explicit `error` key" — an RSS-only fallback payload has neither an
+    `error` key nor a healthy primary source, so the old truthiness-only
+    check couldn't tell them apart. Defaults to that weaker check for callers
+    that don't know the difference.
+    """
     cache.set("news", result, ttl=ttl)
+    ok = healthy if healthy is not None else bool(result and not result[0].get("error"))
     # Only keep a successful payload as the stale fallback — never let an error
-    # placeholder become the value served to every user for the next window.
-    if result and not result[0].get("error"):
+    # placeholder (or, now, an unhealthy-source payload) become the value
+    # served to every user for the next window.
+    if ok:
         _news_stale["value"] = result
 
 
@@ -1876,19 +2014,60 @@ def get_news() -> list:
     return _compute_news()
 
 
+def _fmp_news_item(row: dict, tickers: list[str]) -> dict | None:
+    """Map one `stable/news/general-latest` or `stable/news/stock` row to the
+    engine's news-item shape. Returns None for a malformed/titleless row.
+
+    FMP's `publishedDate` is an ET wall-clock string ("YYYY-MM-DD HH:MM:SS",
+    live-verified 2026-08-05: the freshest row in `general-latest` trailed
+    "now" by minutes when compared against ET, by ~4.6h when compared against
+    UTC) -- the SAME shape the rest of this function already emits for
+    `time`, so no timezone conversion is needed (unlike AV's UTC
+    "YYYYMMDDTHHMMSS" `time_published`).
+
+    `sentiment` is always "neutral" -- FMP's news endpoints carry no
+    sentiment score (the plan's §D3: the AV field this migration explicitly
+    drops rather than fabricate a replacement for). "neutral" is not a
+    guess standing in for missing data; it is the SAME "no signal" default
+    the RSS leg below already uses for the identical reason.
+    """
+    headline = (row.get("title") or "").strip()
+    if not headline:
+        return None
+    return {
+        "headline":  headline,
+        "source":    row.get("publisher") or row.get("site") or "",
+        "url":       row.get("url") or "",
+        "time":      str(row.get("publishedDate") or "")[:19],
+        "category":  _classify_category(row, headline),
+        "sentiment": "neutral",
+        "tickers":   tickers,
+    }
+
+
 def _compute_news() -> list:
     cached = cache.get("news")
     if cached:
         return cached
 
+    fmp_key = os.environ.get("FMP_API_KEY", "")
     av_key = os.environ.get("ALPHAVANTAGE_API_KEY")
-    if not av_key:
+    if not fmp_key and not av_key:
         result = [{"headline": "News unavailable", "source": "", "url": "",
                    "time": "", "category": "GENERAL", "sentiment": "neutral",
                    "tickers": [], "change_pct": None,
-                   "error": "ALPHAVANTAGE_API_KEY not set"}]
+                   "error": "FMP_API_KEY and ALPHAVANTAGE_API_KEY both unset"}]
         _store_news(result, ttl=120)
         return result
+
+    # Defined here (not just inside `try`) so the health-check block after
+    # the try/except below can always read them — an exception raised before
+    # the normal assignment further down (e.g. the ThreadPoolExecutor fan-out
+    # itself failing) must still resolve to "nothing healthy contributed",
+    # never a NameError that skips the failure-TTL contract entirely.
+    av_filtered: list = []
+    fmp_filtered: list = []
+    _av_rate_limited = False
 
     try:
         import requests as _requests
@@ -1904,10 +2083,14 @@ def _compute_news() -> list:
         is_premarket = 4 <= now_et.hour < 9 or (now_et.hour == 9 and now_et.minute < 30)
         time_from = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%dT%H%M")
 
-        # ── Fetch AV + EDGAR in parallel ──────────────────────────────────────
-        _av_rate_limited = False
+        # ── Fetch FMP (primary) + AV (now a fallback leg, see _healthy below)
+        # + EDGAR in parallel. FMP gets its OWN bounded timeout, never on
+        # Finnhub's or AV's budget/rate-limit state. `_av_rate_limited` is
+        # declared above the try block (nonlocal still resolves to it).
 
         def _fetch_av():
+            if not av_key:
+                return []
             nonlocal _av_rate_limited
             r = _requests.get(
                 "https://www.alphavantage.co/query",
@@ -1930,9 +2113,61 @@ def _compute_news() -> list:
             except Exception:
                 return []
 
-        with ThreadPoolExecutor(max_workers=2) as ex:
+        def _fetch_fmp_general():
+            if not fmp_key:
+                return []
+            try:
+                r = _requests.get(
+                    "https://financialmodelingprep.com/stable/news/general-latest",
+                    params={"apikey": fmp_key, "limit": 100},
+                    timeout=10,
+                )
+                r.raise_for_status()
+                data = r.json()
+                return data if isinstance(data, list) else []
+            except Exception as e:
+                _logger.warning("get_news: FMP general-latest failed: %s", e)
+                return []
+
+        def _fmp_stock_symbols() -> str:
+            """Today's movers -- a small, always-fresh, zero-extra-cost ticker
+            batch (already independently cached in massive.py) for the
+            per-symbol `stable/news/stock` leg. Movers are, definitionally,
+            the names generating news right now."""
+            try:
+                from api.services.massive import get_movers
+                m = get_movers() or {}
+                syms = [row.get("sym") for row in (m.get("ripping") or [])] + \
+                       [row.get("sym") for row in (m.get("drilling") or [])]
+                syms = [s for s in dict.fromkeys(syms) if s]  # dedupe, preserve order
+                return ",".join(syms[:40])
+            except Exception:
+                return ""
+
+        def _fetch_fmp_stock():
+            if not fmp_key:
+                return []
+            symbols_csv = _fmp_stock_symbols()
+            if not symbols_csv:
+                return []
+            try:
+                r = _requests.get(
+                    "https://financialmodelingprep.com/stable/news/stock",
+                    params={"symbols": symbols_csv, "apikey": fmp_key, "limit": 100},
+                    timeout=10,
+                )
+                r.raise_for_status()
+                data = r.json()
+                return data if isinstance(data, list) else []
+            except Exception as e:
+                _logger.warning("get_news: FMP news/stock failed: %s", e)
+                return []
+
+        with ThreadPoolExecutor(max_workers=4) as ex:
             av_future = ex.submit(_fetch_av)
             edgar_future = ex.submit(_fetch_edgar)
+            fmp_general_future = ex.submit(_fetch_fmp_general)
+            fmp_stock_future = ex.submit(_fetch_fmp_stock)
             try:
                 av_feed = av_future.result(timeout=20)
             except Exception:
@@ -1941,11 +2176,56 @@ def _compute_news() -> list:
                 edgar_items = edgar_future.result(timeout=15)
             except Exception:
                 edgar_items = []
+            try:
+                fmp_general_rows = fmp_general_future.result(timeout=15)
+            except Exception:
+                fmp_general_rows = []
+            try:
+                fmp_stock_rows = fmp_stock_future.result(timeout=15)
+            except Exception:
+                fmp_stock_rows = []
 
         # ── Noise filters ──────────────────────────────────────────────────────
         _BAD_SOURCES = {"stock titan", "intellectia ai"}
         _BAD_HEADLINE = ("sec filings", "stock news today", "stock price and chart",
                          "latest stock news", "annual report")
+
+        # ── Process FMP feeds → candidate items ──────────────────────────────
+        # general-latest carries no `symbol` (true market-wide headlines,
+        # verified live: every sampled row had `symbol: null`) -- those
+        # become tickers=[] items, a genuinely new content class AV's
+        # ticker_sentiment (which REQUIRED >=1 relevant ticker) never
+        # contributed. news/stock tags exactly the ONE symbol it was queried
+        # for per row -- cap/ETF-checked below via the same `_check_sym_cap`
+        # pipeline AV's tickers go through.
+        fmp_general_items = []
+        for row in fmp_general_rows:
+            if not isinstance(row, dict):
+                continue
+            if (row.get("publisher") or "").lower() in _BAD_SOURCES:
+                continue
+            title = row.get("title") or ""
+            if any(p in title.lower() for p in _BAD_HEADLINE):
+                continue
+            item = _fmp_news_item(row, tickers=[])
+            if item:
+                fmp_general_items.append(item)
+
+        fmp_stock_syms_raw: set[str] = set()
+        fmp_stock_by_sym: dict[str, list[dict]] = {}
+        for row in fmp_stock_rows:
+            if not isinstance(row, dict):
+                continue
+            if (row.get("publisher") or "").lower() in _BAD_SOURCES:
+                continue
+            title = row.get("title") or ""
+            if any(p in title.lower() for p in _BAD_HEADLINE):
+                continue
+            sym = (row.get("symbol") or "").strip().upper()
+            if not sym:
+                continue
+            fmp_stock_syms_raw.add(sym)
+            fmp_stock_by_sym.setdefault(sym, []).append(row)
 
         # ── Process AV feed → candidate items ─────────────────────────────────
         av_candidates = []
@@ -1991,8 +2271,10 @@ def _compute_news() -> list:
                 "tickers":   tickers,
             })
 
-        # ── ETF + volume filter on AV candidates ──────────────────────────────
-        unique_syms = list({sym for it in av_candidates for sym in it["tickers"]})
+        # ── ETF + volume filter on AV + FMP-stock candidates (ONE shared pool) ─
+        unique_syms = list(
+            {sym for it in av_candidates for sym in it["tickers"]} | fmp_stock_syms_raw
+        )
 
         def _check_sym(sym: str) -> tuple[str, bool]:
             return _check_sym_cap(sym)
@@ -2012,9 +2294,23 @@ def _compute_news() -> list:
         for it in av_filtered:
             it["tickers"] = [t for t in it["tickers"] if t in allowed]
 
-        # ── RSS fallback when AV is rate-limited or returns nothing ──────────
+        fmp_stock_items = []
+        for sym, rows in fmp_stock_by_sym.items():
+            if sym not in allowed:
+                continue
+            for row in rows:
+                item = _fmp_news_item(row, tickers=[sym])
+                if item:
+                    fmp_stock_items.append(item)
+        fmp_filtered = fmp_general_items + fmp_stock_items
+
+        # ── RSS fallback when NEITHER primary source (FMP, then AV) produced
+        # anything usable. The AV-specific half of this condition is
+        # UNCHANGED from before this task; only the `not fmp_filtered` guard
+        # is new, so a live FMP success (the now-common case) no longer
+        # forces an RSS fetch just because AV itself was empty/rate-limited.
         rss_items = []
-        if _av_rate_limited or not av_filtered:
+        if not fmp_filtered and (_av_rate_limited or not av_filtered):
             try:
                 from api.services.news_aggregator import fetch_rss_news
                 from datetime import date as _date
@@ -2060,8 +2356,12 @@ def _compute_news() -> list:
             except Exception:
                 pass
 
-        # ── Merge AV + EDGAR + RSS, dedup, sort, take top 40 ─────────────────
-        merged = av_filtered + edgar_items + rss_items
+        # ── Merge FMP + AV + EDGAR + RSS, dedup, sort, take top 40 ───────────
+        # FMP listed FIRST: `_deduplicate_news` picks a same-story winner via
+        # `min(group, key=(_tier, time))`, and `min` keeps the FIRST item on
+        # an exact tie — so when FMP and AV cover the identical story at the
+        # identical source tier, FMP (the new primary) wins the dedup.
+        merged = fmp_filtered + av_filtered + edgar_items + rss_items
         deduped = _deduplicate_news(merged)
         sorted_items = _sort_news(deduped, is_premarket=is_premarket)
         top40 = sorted_items[:40]
@@ -2098,9 +2398,22 @@ def _compute_news() -> list:
                    "time": "", "category": "GENERAL", "sentiment": "neutral",
                    "tickers": [], "change_pct": None, "error": str(e)}]
 
-    # Use longer TTL when AV worked (preserve quota); shorter when RSS fallback used
-    _ttl = 1800 if (result and not result[0].get("error")) else 600
-    _store_news(result, ttl=_ttl)
+    # `result[0].get("error")` is never set on an RSS-only fallback payload
+    # (RSS items carry no "error" key), so a truthiness-only check would give
+    # an RSS-only result the SAME full 30-min success TTL as a healthy pull —
+    # and the same eternal "last good" stale slot below. RSS only ever fires
+    # when BOTH primary sources came up empty/degraded (see the
+    # `if not fmp_filtered and (_av_rate_limited or not av_filtered)` gate
+    # above), so "FMP or AV actually contributed" is the honest source-health
+    # signal, not "no error key happened to be present." (2026-08-05,
+    # data-dependability migration Task 14: generalized from AV-only to
+    # FMP-or-AV now that FMP is the primary leg — an FMP-only cycle, e.g. AV
+    # legitimately rate-limited that day, must still count as healthy.)
+    _fmp_ok = bool(fmp_filtered)
+    _av_ok = bool(av_filtered) and not _av_rate_limited
+    _healthy = bool(result and not result[0].get("error") and (_fmp_ok or _av_ok))
+    _ttl = 1800 if _healthy else 600
+    _store_news(result, ttl=_ttl, healthy=_healthy)
     return result
 
 

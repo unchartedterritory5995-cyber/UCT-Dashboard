@@ -161,6 +161,59 @@ def test_collect_earnings_window_is_memoized(monkeypatch):
     eng._reset_earnings_memo()
 
 
+# ── data-dependability C25: a day's lookup failure must not memoize the ─────
+# ── window-incomplete result for the full 1h TTL ────────────────────────────
+
+def test_collect_earnings_window_partial_day_failure_uses_short_memo_ttl(monkeypatch):
+    """One day's `_get_reporters_for_date` raises -- the resulting window is
+    missing that day's reporters. Must self-heal in minutes, not sit
+    memoized for a full hour (silencing R5 earnings-proximity awareness for
+    any symbol reporting on the failed day)."""
+    import time as _time
+    from api.services.awareness import engine as eng
+
+    eng._reset_earnings_memo()
+
+    def fake_reporters(d_str):
+        if d_str == "2026-07-03":
+            raise RuntimeError("Finnhub down")
+        return {"AAPL"} if d_str == "2026-07-02" else set()
+
+    monkeypatch.setattr(
+        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+    )
+    out = eng._collect_earnings_window(date(2026, 7, 2), 1)
+    assert out == {"AAPL": "2026-07-02"}  # the day that DID resolve is still served
+
+    key = (date(2026, 7, 2).isoformat(), 1)
+    fetched_at, value, was_partial = eng._EARNINGS_MEMO[key]
+    assert was_partial is True
+    ttl_remaining = eng._EARNINGS_MEMO_TTL_PARTIAL - (_time.time() - fetched_at)
+    assert ttl_remaining <= eng._EARNINGS_MEMO_TTL_PARTIAL + 2
+    assert eng._EARNINGS_MEMO_TTL_PARTIAL < eng._EARNINGS_MEMO_TTL
+    eng._reset_earnings_memo()
+
+
+def test_collect_earnings_window_all_days_ok_uses_full_hour_memo_ttl(monkeypatch):
+    """Control: no per-day failure -> the normal 1h memo TTL applies."""
+    from api.services.awareness import engine as eng
+
+    eng._reset_earnings_memo()
+
+    def fake_reporters(d_str):
+        return {"AAPL"} if d_str == "2026-07-02" else set()
+
+    monkeypatch.setattr(
+        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+    )
+    eng._collect_earnings_window(date(2026, 7, 2), 1)
+
+    key = (date(2026, 7, 2).isoformat(), 1)
+    _, _, was_partial = eng._EARNINGS_MEMO[key]
+    assert was_partial is False
+    eng._reset_earnings_memo()
+
+
 # ── _build_market_scan_ctx ───────────────────────────────────────────────────
 
 def test_build_market_scan_ctx_reads_cached_prices_and_regime(db_path, monkeypatch):

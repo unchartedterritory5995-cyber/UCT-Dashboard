@@ -53,6 +53,13 @@ PATH_METRICS = (
 _lock = threading.Lock()
 _last_prune = 0.0
 
+# Health. `record()` swallows its errors on purpose — the live read is the
+# product and must survive a broken store — but swallowed silently for a whole
+# session is how you find out at 4pm that no path was ever written. These make
+# the failure VISIBLE without making it fatal.
+_health = {"last_write_at": None, "last_error": None, "consecutive_failures": 0,
+           "writes": 0}
+
 
 def _db_path() -> str:
     override = os.environ.get("BREADTH_INTRADAY_DB")
@@ -126,9 +133,15 @@ def record(session_date: str, metrics: dict, now: Optional[float] = None) -> boo
                 (session_date, ts, json.dumps(keep)),
             )
             c.commit()
+        _health["last_write_at"] = ts
+        _health["consecutive_failures"] = 0
+        _health["last_error"] = None
+        _health["writes"] += 1
         _maybe_prune(ts)
         return True
     except Exception as e:
+        _health["consecutive_failures"] += 1
+        _health["last_error"] = f"{type(e).__name__}: {e}"
         print(f"[breadth_intraday] record failed: {e}")
         return False
 
@@ -203,6 +216,47 @@ def session_open(session_date: str, metrics=PATH_METRICS) -> dict:
     return {k: v[0][1] for k, v in path.items() if v}
 
 
+def health() -> dict:
+    """Is the store actually writing? Cheap enough for every live payload.
+
+    `ok` is False only once a write has genuinely failed — a store that has not
+    been asked to write yet (pre-open, or after the collector has taken over)
+    is not unhealthy, it is idle.
+    """
+    return {
+        "ok": _health["consecutive_failures"] == 0,
+        "writes": _health["writes"],
+        "last_write_at": _health["last_write_at"],
+        "consecutive_failures": _health["consecutive_failures"],
+        "last_error": _health["last_error"],
+    }
+
+
+def self_test() -> dict:
+    """Prove the volume is writable, without waiting for a session to prove it.
+
+    Writes a probe under a sentinel session date, reads it back, removes it.
+    Lets "can this pod persist an intraday sample?" be answered the evening
+    before rather than at 09:31 with everyone watching.
+    """
+    probe_date = "__selftest__"
+    try:
+        with _conn() as c:
+            c.execute("INSERT OR REPLACE INTO breadth_intraday "
+                      "(session_date, as_of, metrics) VALUES (?, ?, ?)",
+                      (probe_date, 1, json.dumps({"probe": 1})))
+            c.commit()
+            back = c.execute("SELECT metrics FROM breadth_intraday "
+                             "WHERE session_date = ?", (probe_date,)).fetchone()
+            c.execute("DELETE FROM breadth_intraday WHERE session_date = ?", (probe_date,))
+            c.commit()
+        ok = bool(back) and json.loads(back["metrics"]).get("probe") == 1
+        return {"writable": ok, "db": _db_path(),
+                "error": None if ok else "probe did not read back"}
+    except Exception as e:
+        return {"writable": False, "db": _db_path(), "error": f"{type(e).__name__}: {e}"}
+
+
 def status() -> dict:
     """Diagnostics: what the store actually holds."""
     try:
@@ -214,6 +268,7 @@ def status() -> dict:
             ).fetchall()
         return {
             "db": _db_path(),
+            "health": health(),
             "sessions": [
                 {"date": r["session_date"], "samples": r["n"],
                  "first": r["a"], "last": r["b"]}

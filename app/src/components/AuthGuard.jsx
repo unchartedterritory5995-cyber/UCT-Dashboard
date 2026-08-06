@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import BrandSplash from './BrandSplash'
+// Reuses the calendar's OWN deep-link ticker validator (§13 below) rather
+// than a second, drifting regex.
+import { normalizeSym } from '../pages/calendar/useEarningsModalRoute'
 
 function MaintenancePage() {
   return (
@@ -95,6 +98,23 @@ export default function AuthGuard() {
   // the public /subscribe page instead of the Settings billing card.
   if (location.pathname === '/settings' && !isPaid) {
     return <Navigate to={FREE_HOME} replace />
+  }
+
+  // §13 free-tier deep link (owner call, 2026-08-05). Calendar STAYS paid —
+  // this does not touch FREE_PAGES. A shared link like
+  // /calendar?earnings=NVDA used to silently drop the ?earnings param and
+  // bounce a blocked user to bare Morning Wire with no explanation of what
+  // they were sent (the most viral surface in the product, spent as an
+  // unexplained bounce). If the param looks like a real ticker, send that
+  // user to the existing personalized paywall teaser (/research/:sym, which
+  // AuthGuard already lets through below) instead. No param, or a param that
+  // doesn't validate as a ticker, falls through to the EXACT SAME FREE_HOME
+  // bounce as before — this only changes where a blocked /calendar visit
+  // with a valid symbol lands, nothing else. Paid/admin users never reach
+  // this block (isPaid gate below already lets them through unconditionally).
+  if (location.pathname === '/calendar' && !isPaid) {
+    const sym = normalizeSym(new URLSearchParams(location.search).get('earnings'))
+    return <Navigate to={sym ? `/research/${sym}` : FREE_HOME} replace />
   }
 
   // /research/* is paid-only but renders its OWN paywall teaser (not a hard

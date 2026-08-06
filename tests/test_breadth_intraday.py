@@ -18,6 +18,12 @@ def store(tmp_path, monkeypatch):
     from api.services import breadth_intraday as bi
     monkeypatch.setattr(bi, "_schema_ready", False)
     monkeypatch.setattr(bi, "_last_prune", 0.0)
+    # `_health` is module-level and would otherwise carry counts between tests —
+    # the same shared-mutable-state trap the store itself is careful about.
+    monkeypatch.setattr(bi, "_health", {
+        "last_write_at": None, "last_error": None,
+        "consecutive_failures": 0, "writes": 0,
+    })
     return bi
 
 
@@ -142,3 +148,68 @@ def test_the_daily_store_can_be_pointed_at_a_scratch_copy(tmp_path, monkeypatch)
     assert breadth_monitor.get_history(1)[0]["pct_above_50sma"] == 65.3
     monkeypatch.delenv("BREADTH_MONITOR_DB")
     assert breadth_monitor._db_path() != str(tmp_path / "scratch.db")
+
+
+# ── Health ───────────────────────────────────────────────────────────────────
+# `record()` swallows its errors so a broken store can never take the live read
+# down. Swallowed SILENTLY for a whole session is how you find out at 4pm that
+# no path was ever written — so the failure has to be visible somewhere.
+
+def test_a_healthy_store_reports_its_writes(store):
+    store.record("2026-08-05", _sample(0), now=1_000)
+    h = store.health()
+    assert h["ok"] is True and h["writes"] == 1
+    assert h["last_write_at"] == 1_000 and h["last_error"] is None
+
+
+def test_an_idle_store_is_not_an_unhealthy_one(store):
+    """Pre-open, or after the collector takes over, nothing is asked of it."""
+    h = store.health()
+    assert h["ok"] is True and h["writes"] == 0 and h["last_write_at"] is None
+
+
+def test_a_failing_write_is_recorded_rather_than_vanishing(store, monkeypatch):
+    def boom(*a, **k):
+        raise sqlite3.OperationalError("attempt to write a readonly database")
+    monkeypatch.setattr(store, "_conn", boom)
+    assert store.record("2026-08-05", _sample(0)) is False
+    h = store.health()
+    assert h["ok"] is False
+    assert h["consecutive_failures"] == 1
+    assert "readonly" in h["last_error"]
+
+
+def test_health_recovers_once_writes_land_again(store, monkeypatch):
+    calls = {"n": 0}
+    real = store._conn
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise sqlite3.OperationalError("disk I/O error")
+        return real()
+    monkeypatch.setattr(store, "_conn", flaky)
+    store.record("2026-08-05", _sample(0), now=1_000)
+    assert store.health()["ok"] is False
+    store.record("2026-08-05", _sample(1), now=2_000)
+    assert store.health()["ok"] is True
+    assert store.health()["consecutive_failures"] == 0
+
+
+def test_the_self_test_proves_the_volume_is_writable_and_leaves_nothing_behind(store):
+    r = store.self_test()
+    assert r["writable"] is True and r["error"] is None
+    assert store.session_path("__selftest__") == {}, "probe row must be cleaned up"
+
+
+def test_the_self_test_reports_an_unwritable_volume_instead_of_raising(store, monkeypatch):
+    monkeypatch.setattr(store, "_conn", lambda: (_ for _ in ()).throw(
+        sqlite3.OperationalError("unable to open database file")))
+    r = store.self_test()
+    assert r["writable"] is False and "unable to open" in r["error"]
+
+
+def test_status_carries_health_so_one_call_answers_both(store):
+    store.record("2026-08-05", _sample(0), now=1_000)
+    st = store.status()
+    assert st["health"]["ok"] is True
+    assert st["sessions"][0]["samples"] == 1

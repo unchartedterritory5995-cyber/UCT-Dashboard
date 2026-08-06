@@ -3,22 +3,63 @@
 Resolves each ticker's logo ONCE from a multi-source chain, normalizes to
 PNG, and stores under /data/logo_cache/{SYM}.png. Thereafter we serve from
 our own disk (~10ms), immune to third-party outages. Misses write a
-{SYM}.miss sentinel so we don't refetch every request (retried after 7d).
+{SYM}.miss sentinel so we don't refetch every request.
+
+A miss sentinel is NOT one thing: a source that came back and said "no logo
+for this ticker" (a genuine absence) gets the full 7-day retry window, but a
+source that never got a clean answer at all (timeout, connection error, 429,
+5xx -- a provider hiccup, not a verdict) gets a short retry window instead.
+Conflating the two used to pin a monogram in place of a perfectly-findable
+logo for a full week whenever a single request happened to land during a
+provider blip. `_recent_miss` distinguishes the two by a one-word marker
+written into the .miss file's content; `resolve_and_cache` decides which one
+to write via a per-call transient-failure tracker (`_reset_transient` /
+`_mark_transient` / `_was_transient`) that every network-touching source
+function reports into.
+
 Mirrors the ticker_meta disk-cache + ticker_names prewarm patterns.
 Never raises.
+
+The Finnhub `/stock/profile2` leg (last resort, `_finnhub_logo_bytes`) tries
+FMP `stable/profile` first (2026-08-05 migration) -- see that function's
+docstring for why FMP is a real but currently always-empty attempt here (no
+logo field on that endpoint) rather than a replacement.
 """
 import io
 import logging
 import os
+import threading
 import time
 
 import requests
 
 _logger = logging.getLogger(__name__)
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "logo_cache")
-_MISS_TTL = 7 * 86400  # retry a miss after 7 days
+_MISS_TTL = 7 * 86400            # a genuine "no logo anywhere" verdict — retry after 7 days
+_MISS_TRANSIENT_TTL = 1800       # a provider hiccup (timeout/429/5xx) — retry in 30 min
+_MISS_TRANSIENT_MARKER = "transient"
 _HEADERS = {"User-Agent": "Mozilla/5.0"}
 _TIMEOUT = 8
+
+# ── per-call transient-failure tracker ─────────────────────────────────────
+# Thread-local because `resolve_and_cache` runs on whatever thread called it
+# (a request-path caller, the bounded resolve pool, or the miss-retry pool) —
+# each call chains through several source functions on the SAME thread, so a
+# thread-local flag correctly scopes "did anything in THIS attempt look like
+# a provider hiccup rather than a clean not-found."
+_transient_ctx = threading.local()
+
+
+def _reset_transient() -> None:
+    _transient_ctx.hit = False
+
+
+def _mark_transient() -> None:
+    _transient_ctx.hit = True
+
+
+def _was_transient() -> bool:
+    return bool(getattr(_transient_ctx, "hit", False))
 
 
 def _safe(sym: str) -> str:
@@ -42,7 +83,17 @@ def get_logo_path(sym: str):
 def _recent_miss(sym: str) -> bool:
     mp = _miss_path(sym)
     try:
-        return os.path.exists(mp) and (time.time() - os.path.getmtime(mp) < _MISS_TTL)
+        if not os.path.exists(mp):
+            return False
+        age = time.time() - os.path.getmtime(mp)
+        ttl = _MISS_TTL
+        try:
+            with open(mp) as f:
+                if f.read(32).strip() == _MISS_TRANSIENT_MARKER:
+                    ttl = _MISS_TRANSIENT_TTL
+        except OSError:
+            pass  # unreadable content — fall back to the conservative 7-day TTL
+        return age < ttl
     except OSError:
         return False
 
@@ -83,7 +134,52 @@ def _is_ssrf_safe_url(url: str) -> bool:
     return True
 
 
+# FMP's own bounded budget for the leg below — NEVER routed through
+# Finnhub's shared token bucket (finnhub_client.py). Separate from the
+# _TIMEOUT used for the CDN/Finnhub sources in this file.
+_FMP_TIMEOUT = 6
+
+
+def _fmp_profile_row(sym: str):
+    """FMP `stable/profile` — the new PRIMARY attempt for this leg (2026-08-05
+    profile2 migration, plan Task 8). Returns the parsed row dict or None.
+    Never raises (`earnings_estimates._fmp_get` already swallows every
+    failure and returns None; this just normalizes the list-of-one shape)."""
+    from api.services import earnings_estimates as ee
+
+    data = ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=_FMP_TIMEOUT)
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    return None
+
+
 def _finnhub_logo_bytes(sym: str):
+    # FMP-primary attempt first (2026-08-05 profile2->FMP migration, plan
+    # Task 8). Probed live: FMP's `stable/profile` schema has NO logo/image
+    # field (confirmed 2026-08-05) -- so this is a real, tested attempt that
+    # today always falls through to the Finnhub leg below, the ONLY source in
+    # this chain that actually supplies a logo URL. Kept explicit (not
+    # skipped) so this leg mirrors the FMP-primary / Finnhub-fallback pattern
+    # used at the other two profile2 call sites, and so a defensive
+    # `image`/`logo` field FMP might add later is picked up automatically
+    # without anyone having to remember to touch this file again.
+    row = _fmp_profile_row(sym)
+    if row:
+        fmp_url = (row.get("image") or row.get("logo") or "").strip()
+        if fmp_url and _is_ssrf_safe_url(fmp_url):
+            try:
+                r = requests.get(fmp_url, headers=_HEADERS, timeout=_FMP_TIMEOUT)
+                if r.ok and r.content:
+                    return r.content
+                if r.status_code == 429 or r.status_code >= 500:
+                    _mark_transient()
+            except requests.exceptions.RequestException:
+                _mark_transient()
+            except Exception:
+                pass
+
     # The profile2 lookup is routed through the shared finnhub_client.fh_get
     # (2026-08-05) so it shares the process-wide token bucket / 429 cooldown
     # with every other Finnhub caller. The SECOND request below (fetching the
@@ -97,6 +193,13 @@ def _finnhub_logo_bytes(sym: str):
             r = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
             if r.ok and r.content:
                 return r.content
+            if r.status_code == 429 or r.status_code >= 500:
+                _mark_transient()
+    except requests.exceptions.RequestException:
+        # Timeout / connection error / etc. — a hiccup talking to Finnhub or
+        # the CDN, not a verdict that this ticker has no logo.
+        _mark_transient()
+        return None
     except Exception:
         return None
     return None
@@ -107,6 +210,13 @@ def _url_bytes(url: str):
         r = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT, allow_redirects=True)
         if r.ok and r.content and len(r.content) > 200:
             return r.content
+        if r.status_code == 429 or r.status_code >= 500:
+            # Rate-limited or the provider is having a bad day — transient,
+            # not "this ticker has no logo."
+            _mark_transient()
+    except requests.exceptions.RequestException:
+        _mark_transient()
+        return None
     except Exception:
         return None
     return None
@@ -272,6 +382,7 @@ def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool =
     if _recent_miss(s) and not force:
         return None
 
+    _reset_transient()
     raw = _fetch_sources(s)
     if not raw and alt and _safe(alt) != s:
         raw = _fetch_sources(_safe(alt))   # try the exchange-suffixed symbol
@@ -281,9 +392,16 @@ def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool =
 
     os.makedirs(_CACHE_DIR, exist_ok=True)
     if not png:
+        # A provider hiccup (timeout/429/5xx) during this attempt is NOT the
+        # same verdict as "no source has ever heard of this ticker" — pin the
+        # short retry window instead of 7 days so it self-heals once the
+        # provider recovers, rather than showing a monogram for a week while
+        # the source was healthy the whole time.
+        transient = _was_transient()
         try:
-            with open(_miss_path(s), "w"):
-                pass
+            with open(_miss_path(s), "w") as f:
+                if transient:
+                    f.write(_MISS_TRANSIENT_MARKER)
         except OSError:
             pass
         return None

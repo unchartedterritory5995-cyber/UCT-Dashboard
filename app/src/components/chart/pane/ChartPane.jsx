@@ -45,13 +45,22 @@ const DWM = ['D', 'W', 'M']
  *   onSymbolChange         omit to LOCK the symbol — the identity row then
  *                          renders a static label (trade drawer, drill modal)
  *   onTfChange             (code) => void
- *   density                "full" | "compact"; compact drops the meta row, the
- *                          session toggle and the clock (keeps identity + TFs +
- *                          the settings gear)
+ *   density                "full" | "compact" | "mini"; compact drops the meta
+ *                          row, the session toggle and the clock (keeps
+ *                          identity + TFs + the settings gear). mini drops all
+ *                          of that PLUS the identity row and the settings gear
+ *                          — only the timeframe bar and the chart render. Both
+ *                          compact and mini skip the fundamentals fetch.
  *   stored / onStore       settings routing, straight through to
  *                          useChartSurfaceSettings: stored=null with no onStore
- *                          reads AND writes the user's global chart_settings
- *                          ("your chart"); passing onStore isolates this surface
+ *                          means this surface IS the user's one chart — it reads
+ *                          the first /charts chart widget's settings (falling
+ *                          back to the chart_settings seed) and, because that
+ *                          read now outranks the global pref, renders NO
+ *                          settings gear (editing here would write a
+ *                          lower-priority layer that visibly does nothing —
+ *                          settings stay editable on /charts, where they're
+ *                          edited anyway); passing onStore isolates this surface
  *   chartsTheme            'default' | 'sunrise'
  *   stockChartProps        per-surface StockChart passthrough (crosshair bus,
  *                          hotkey arbitration, priceLines, markers, …)
@@ -80,7 +89,7 @@ function ChartPane({
   density = 'full',
   stored = null,
   onStore = null,
-  chartsTheme = 'default',
+  chartsTheme = null,
   stockChartProps = null,
   slots = null,
   onActivate = undefined,
@@ -88,14 +97,26 @@ function ChartPane({
   tfCodes = null,
 }, ref) {
   const compact = density === 'compact'
+  // mini renders ONLY the timeframe bar + the chart — no identity row, no meta
+  // row, no session toggle, no market clock, no settings gear. For ~320px-tall
+  // popups where the full shell leaves no room for candles.
+  const mini = density === 'mini'
+  // stored=null with no onStore is "this surface IS the user's one chart" (see
+  // useChartSurfaceSettings + the density/stored doc above): its read now
+  // resolves from the /charts workspace, so a settings write here would land
+  // on a lower-priority layer and appear to do nothing. Hide the gear rather
+  // than offer an edit that silently no-ops. A workspace widget/tab ALWAYS
+  // passes onStore (even before its first edit, when stored is still null),
+  // so this must key off both, not `stored` alone.
+  const isOwnChartSurface = stored === null && !onStore
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
-  // Fundamentals feed ONLY ChartMetaRow, which `compact` density drops entirely
-  // (and which never renders at all when `showTfBar` is false, since the meta
-  // row lives inside the TF bar). Gate the fetch — and its 5-min poll loop — on
-  // whether that row can even render, so a compact/no-tf-bar pane across ~20
-  // surfaces never opens a request it can't show.
-  const { data: fund } = useFundamentalSnapshot(sym, !compact && showTfBar)
+  // Fundamentals feed ONLY ChartMetaRow, which `compact`/`mini` density drops
+  // entirely (and which never renders at all when `showTfBar` is false, since
+  // the meta row lives inside the TF bar). Gate the fetch — and its 5-min poll
+  // loop — on whether that row can even render, so a compact/mini/no-tf-bar
+  // pane across ~20 surfaces never opens a request it can't show.
+  const { data: fund } = useFundamentalSnapshot(sym, !compact && !mini && showTfBar)
   const mktCap = fund?.metrics?.market_cap || null
   const nextEarnStr = (() => {
     const iso = fund?.next_earnings
@@ -161,7 +182,8 @@ function ChartPane({
   // come straight from the host: a workspace widget/tab passes both (writes stay
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
-  const { cs: chartCs, menuVars, write: writeActiveSettings, patchHeader } = useChartSurfaceSettings({
+  const {
+    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
@@ -328,30 +350,33 @@ function ChartPane({
       {slots?.top}
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
-          toggle + clock onto a second line. */}
-      <ChartIdentityRow
-        searchRef={searchRef}
-        sym={sym}
-        displayLabel={headerLabel}
-        labelColor={hdrColors.title || null}
-        logoSym={themeIdx.isIndex ? null : sym}
-        brandLogo={themeIdx.isIndex}
-        boundsRef={focusableRef}
-        themeVars={menuVars}
-        onSymbolChange={onSymbolChange ? handleSymbolChange : null}
-        showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}
-        dayGain={themeIdx.isIndex ? idxGain : null}
-        dayGainColors={{
-          up: hdrColors.dayChangeUp || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
-          down: hdrColors.dayChangeDown || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
-        }}
-        session={compact ? null : (isDWMtf
-          ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel }
-          : { mode: 'intraday', extHoursOn, onExtHours: setExtHours })}
-        showClock={!compact}
-        rightSlot={slots?.headerRight}
-        styles={styles}
-      />
+          toggle + clock onto a second line. mini omits it entirely — there is
+          no room for it in a ~320px-tall pane. */}
+      {!mini && (
+        <ChartIdentityRow
+          searchRef={searchRef}
+          sym={sym}
+          displayLabel={headerLabel}
+          labelColor={hdrColors.title || null}
+          logoSym={themeIdx.isIndex ? null : sym}
+          brandLogo={themeIdx.isIndex}
+          boundsRef={focusableRef}
+          themeVars={menuVars}
+          onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}
+          dayGain={themeIdx.isIndex ? idxGain : null}
+          dayGainColors={{
+            up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
+            down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
+          }}
+          session={compact ? null : (isDWMtf
+            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel }
+            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours })}
+          showClock={!compact}
+          rightSlot={slots?.headerRight}
+          styles={styles}
+        />
+      )}
       {showTfBar && (
         <ChartTfBar
           tf={tf}
@@ -371,7 +396,7 @@ function ChartPane({
           }}
           styles={styles}
         >
-          {!compact && (
+          {!compact && !mini && (
             <ChartMetaRow
               marketCap={mktCap}
               nextEarnings={nextEarnStr}
@@ -383,16 +408,24 @@ function ChartPane({
           )}
           <div className={styles.tfBarRight}>
             {slots?.tfBarRight}
-            {/* Chart settings gear — part of the shell at every density. */}
-            <button
-              type="button"
-              className={styles.chartSettingsBtn}
-              onClick={openSettings}
-              title="Chart settings"
-              aria-label="Chart settings"
-            >
-              <UIcon name="gear" size={15} />
-            </button>
+            {/* Chart settings gear — omitted for mini (no room, no chrome) and
+                for a surface that IS the user's one chart (stored=null, no
+                onStore): its settings read now resolves from the /charts
+                workspace, so an edit made HERE would write the global
+                chart_settings pref — a layer that read now outranks — and
+                appear to silently do nothing. Settings stay editable on
+                /charts, where they're edited anyway. */}
+            {!mini && !isOwnChartSurface && (
+              <button
+                type="button"
+                className={styles.chartSettingsBtn}
+                onClick={openSettings}
+                title="Chart settings"
+                aria-label="Chart settings"
+              >
+                <UIcon name="gear" size={15} />
+              </button>
+            )}
             {slots?.tfBarEnd}
           </div>
         </ChartTfBar>
@@ -419,8 +452,19 @@ function ChartPane({
              blob (null = inherit the global default). onSettingsPersist routes
              ALL of StockChart's internal settings writes to the same sink the
              pane writes through, so a workspace widget never touches the shared
-             global pref → editing one chart never changes another. */
-          settingsOverride={stored || null}
+             global pref → editing one chart never changes another.
+             A /charts widget/tab wins with its own `stored` blob; otherwise, on
+             an own-chart surface (stored=null, no onStore — every popup), the
+             resolved `ownChartSource` from useChartSurfaceSettings hands the
+             SAME widget/tab blob the chrome above already reads down to
+             StockChart too — without this the chrome (identity/meta colors)
+             would show the owner's settings while the actual chart (candles,
+             MAs, background, watermark) kept rendering the untouched seed.
+             `ownChartSource` is null when nothing distinctive was found (already
+             fell back to the seed), so StockChart's own base — which reads that
+             same seed — is already correct and gets no override. Both operands
+             are memoized upstream, so this stays identity-stable. */
+          settingsOverride={stored || ownChartSource || null}
           onSettingsPersist={writeActiveSettings}
           onSymbolChange={onSymbolChange ? handleSymbolChange : undefined}
           onTfChange={onTfChange}
@@ -473,7 +517,7 @@ function ChartPane({
           volumeSeparatePane
           showRangeSelector
           showSma5
-          canvasTheme={chartsTheme === 'sunrise' ? 'sunrise' : null}
+          canvasTheme={resolvedTheme === 'sunrise' ? 'sunrise' : null}
           volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
           priceScaleTopMargin={0.12}

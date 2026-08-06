@@ -2,7 +2,10 @@
 
 All from yfinance analysis data (earnings_estimate / revenue_estimate /
 eps_trend / eps_revisions / upgrades_downgrades) — free and available on
-yfinance 1.x. Run through the bounded yfinance pool, cached 12h.
+yfinance 1.x. Run through the bounded yfinance pool, cached 12h -- but only
+when both the yfinance pull and the FMP-backed grades enrichment resolved
+without raising. A ticker with no analyst coverage at all is a legitimately
+empty (not failed) result and still gets the full TTL.
 """
 from __future__ import annotations
 
@@ -10,12 +13,14 @@ import logging
 import math
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.yfinance_pool import run_in_pool
 from api.services.analyst_grades import get_analyst_grades
 
 _logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 43_200  # 12h
+_CACHE_TTL = 43_200  # 12h -- only when both legs resolved
+_FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
 
 _PERIOD_LABEL = {"0q": "Current Qtr", "+1q": "Next Qtr", "0y": "Current Yr", "+1y": "Next Yr"}
 _PERIOD_ORDER = ["0q", "+1q", "0y", "+1y"]
@@ -103,6 +108,8 @@ def _rating_changes(ud_df, n=8):
 
 
 def _fetch(sym):
+    """Returns {} ONLY on a genuine pool-call exception -- see
+    research/ownership.py's `_fetch_yf` docstring for the same contract."""
     def _do():
         import yfinance as yf
         t = yf.Ticker(sym)
@@ -130,7 +137,9 @@ def get_estimates(sym):
     if cached is not None:
         return cached
 
-    raw = _fetch(sym) or {}
+    raw = _fetch(sym)
+    fetch_ok = bool(raw)   # {} means _fetch's exception path fired
+    raw = raw or {}
     out = {
         "sym": sym,
         "forward": _forward(raw.get("eps_est"), raw.get("rev_est")),
@@ -143,10 +152,12 @@ def get_estimates(sym):
     # Enrich with FMP Ultimate analyst data: sell-side consensus buckets, price
     # targets, and a richer/more-reliable rating-change feed (override yfinance's
     # upgrades_downgrades only when FMP actually returns actions).
+    grades_ok = True
     try:
         grades = get_analyst_grades(sym)
     except Exception:
         grades = None
+        grades_ok = False
     if grades:
         out["consensus"] = grades.get("consensus")
         out["price_target"] = grades.get("price_target")
@@ -160,5 +171,6 @@ def get_estimates(sym):
                 "action": a.get("action"),
             } for a in acts]
 
-    cache.set(ck, out, _CACHE_TTL)
+    complete = fetch_ok and grades_ok
+    set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

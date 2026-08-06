@@ -1,7 +1,9 @@
 import io
 import os
+import time
 from unittest import mock
 
+import requests
 from PIL import Image
 
 from api.services import ticker_logos as tl
@@ -93,6 +95,161 @@ def test_logodev_is_first_source_short_circuits_chain():
     ld.assert_called_once_with("AAPL")
     url.assert_not_called()
     fh.assert_not_called()
+
+
+# ── FMP `stable/profile` migration (2026-08-05, plan Task 8) ──────────────────
+# _finnhub_logo_bytes now tries FMP `stable/profile` FIRST (own bounded
+# timeout, never routed through Finnhub's shared token bucket), falling
+# through to the existing Finnhub profile2 call unchanged. FMP's real,
+# probed schema has NO logo/image field, so today this is a real (not
+# skipped) attempt that always falls through -- these tests cover both that
+# fall-through path and the defensive "if FMP ever adds the field" path.
+
+def test_fmp_profile_row_parses_list_of_one_shape():
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+        row = tl._fmp_profile_row("AAPL")
+    assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
+
+
+def test_fmp_profile_row_parses_bare_dict_shape():
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value={"companyName": "Apple Inc."}):
+        row = tl._fmp_profile_row("AAPL")
+    assert row == {"companyName": "Apple Inc."}
+
+
+def test_fmp_profile_row_none_on_empty_response():
+    with mock.patch("api.services.earnings_estimates._fmp_get", return_value=None):
+        assert tl._fmp_profile_row("ZZZZ") is None
+    with mock.patch("api.services.earnings_estimates._fmp_get", return_value=[]):
+        assert tl._fmp_profile_row("ZZZZ") is None
+
+
+def test_finnhub_logo_bytes_falls_through_to_finnhub_when_fmp_has_no_logo_field():
+    """THE real-world shape (probed 2026-08-05): FMP's stable/profile row
+    exists but has no image/logo field at all -- must fall through cleanly to
+    the actual Finnhub leg, which supplies the real logo bytes."""
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _R()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get) as req_get:
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    # Only the Finnhub CDN URL was ever fetched -- FMP had nothing to offer.
+    req_get.assert_called_once()
+    assert req_get.call_args[0][0] == "https://static.finnhub.io/aapl.png"
+
+
+def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
+    """Defensive path: if FMP's schema ever adds an `image` field, it's used
+    as the PRIMARY source and Finnhub is never called at all."""
+    fmp_png = b"\x89PNG\r\n\x1a\nfmp-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = fmp_png
+            status_code = 200
+        return _R()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"companyName": "Apple Inc.",
+                                   "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
+         mock.patch("api.services.finnhub_client.fh_get") as fh, \
+         mock.patch("requests.get", side_effect=_fake_get):
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == fmp_png
+    fh.assert_not_called()  # Finnhub never reached -- FMP already supplied the logo
+
+
+def test_finnhub_logo_bytes_fmp_image_url_rejected_by_ssrf_guard_falls_to_finnhub():
+    """A non-https / private-host `image` URL from FMP must be rejected by the
+    same SSRF guard as every other source, and fall through to Finnhub."""
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _R()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"image": "http://169.254.169.254/aapl.png"}]), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get) as req_get:
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    req_get.assert_called_once()
+    assert req_get.call_args[0][0] == "https://static.finnhub.io/aapl.png"
+
+
+def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
+    """A provider hiccup fetching the FMP-sourced image (5xx) marks transient
+    and the code still proceeds to try Finnhub afterwards."""
+    tl._reset_transient()
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        if "fmp-cdn" in url:
+            class _Bad:
+                ok = False
+                content = b""
+                status_code = 503
+            return _Bad()
+        class _Good:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _Good()
+
+    with mock.patch("api.services.earnings_estimates._fmp_get",
+                    return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get):
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    assert tl._was_transient() is True
+
+
+def test_finnhub_logo_bytes_no_fmp_api_key_short_circuits_to_finnhub(tmp_path):
+    """When FMP_API_KEY is unset, `_fmp_get` returns None WITHOUT a network
+    call (verified by `earnings_estimates._fmp_get` itself) -- `_finnhub_logo_bytes`
+    must degrade straight to the Finnhub leg."""
+    import os
+    finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+
+    def _fake_get(url, **kw):
+        class _R:
+            ok = True
+            content = finnhub_png
+            status_code = 200
+        return _R()
+
+    env = dict(os.environ)
+    env.pop("FMP_API_KEY", None)
+    with mock.patch.dict(os.environ, env, clear=True), \
+         mock.patch("api.services.finnhub_client.fh_get",
+                    return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+         mock.patch("requests.get", side_effect=_fake_get) as req_get:
+        out = tl._finnhub_logo_bytes("AAPL")
+    assert out == finnhub_png
+    # requests.get was called exactly once -- for the Finnhub CDN URL, never FMP.
+    req_get.assert_called_once()
+    assert req_get.call_args[0][0] == "https://static.finnhub.io/aapl.png"
 
 
 # ── E3: miss-retry + Clearbit tests ───────────────────────────────────────────
@@ -189,6 +346,154 @@ def test_prewarm_router_misses_param():
     assert r.json()["mode"] == "miss_retry"
     miss_fn.assert_called_once()
     full_fn.assert_not_called()
+
+
+# ── transient vs. genuine miss (2026-08-05 cache-poison sweep) ────────────────
+# A source that answers cleanly with "not found" (404, empty body) is a
+# genuine verdict and keeps the full 7-day retry window. A source that never
+# gets a clean answer at all (timeout/connection-error/429/5xx) is a provider
+# hiccup, not a verdict, and must retry within minutes instead of a week.
+
+class TestTransientTracking:
+    def setup_method(self):
+        tl._reset_transient()
+
+    def test_url_bytes_marks_transient_on_timeout(self):
+        with mock.patch("requests.get", side_effect=requests.exceptions.Timeout("boom")):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is True
+
+    def test_url_bytes_marks_transient_on_connection_error(self):
+        with mock.patch("requests.get",
+                        side_effect=requests.exceptions.ConnectionError("dns fail")):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is True
+
+    def test_url_bytes_marks_transient_on_429(self):
+        class _Resp:
+            ok = False
+            status_code = 429
+            content = b""
+        with mock.patch("requests.get", return_value=_Resp()):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is True
+
+    def test_url_bytes_marks_transient_on_5xx(self):
+        class _Resp:
+            ok = False
+            status_code = 503
+            content = b""
+        with mock.patch("requests.get", return_value=_Resp()):
+            tl._url_bytes("https://example.com/logo.png")
+        assert tl._was_transient() is True
+
+    def test_url_bytes_does_not_mark_transient_on_clean_404(self):
+        """A clean 404 is a real answer, not a hiccup -- must NOT flip the
+        transient flag (otherwise every genuine miss would get the short TTL
+        and the miss-retry pass would just hammer providers all day)."""
+        class _Resp:
+            ok = False
+            status_code = 404
+            content = b""
+        with mock.patch("requests.get", return_value=_Resp()):
+            out = tl._url_bytes("https://example.com/logo.png")
+        assert out is None
+        assert tl._was_transient() is False
+
+    def test_finnhub_logo_bytes_marks_transient_on_timeout(self):
+        with mock.patch("api.services.finnhub_client.fh_get",
+                        side_effect=requests.exceptions.Timeout("boom")):
+            out = tl._finnhub_logo_bytes("AAPL")
+        assert out is None
+        assert tl._was_transient() is True
+
+
+class TestResolveAndCacheMissClassification:
+    def test_writes_transient_marker_on_provider_hiccup(self, tmp_path):
+        """THE regression: before this fix, a Timeout/429/5xx during
+        resolution wrote the EXACT SAME empty .miss sentinel as a genuine
+        "no logo anywhere" verdict -- pinning a monogram for the full 7-day
+        TTL even though the provider recovered within minutes."""
+        def _fake_fetch(s):
+            tl._mark_transient()
+            return None
+        with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
+             mock.patch.object(tl, "_fetch_sources", side_effect=_fake_fetch):
+            out = tl.resolve_and_cache("ZZZZ")
+        assert out is None
+        miss_path = os.path.join(str(tmp_path), "ZZZZ.miss")
+        assert os.path.exists(miss_path)
+        with open(miss_path) as f:
+            assert f.read().strip() == tl._MISS_TRANSIENT_MARKER
+
+    def test_writes_plain_miss_on_genuine_absence(self, tmp_path):
+        """Control direction: a clean 'nothing found anywhere, no errors'
+        result still writes the original plain (7-day) sentinel."""
+        with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
+             mock.patch.object(tl, "_fetch_sources", return_value=None):
+            out = tl.resolve_and_cache("YYYY")
+        assert out is None
+        miss_path = os.path.join(str(tmp_path), "YYYY.miss")
+        assert os.path.exists(miss_path)
+        with open(miss_path) as f:
+            assert f.read().strip() == ""
+
+    def test_transient_flag_reset_between_calls(self, tmp_path):
+        """A stale transient flag from a PRIOR resolve on the same thread must
+        not leak into a later, cleanly-404ing call and mislabel it."""
+        calls = {"n": 0}
+
+        def _fake_fetch(s):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                tl._mark_transient()
+            return None
+
+        with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
+             mock.patch.object(tl, "_fetch_sources", side_effect=_fake_fetch):
+            tl.resolve_and_cache("FIRST")
+            tl.resolve_and_cache("SECOND")
+
+        with open(os.path.join(str(tmp_path), "SECOND.miss")) as f:
+            assert f.read().strip() == ""  # not "transient" leaked from FIRST
+
+
+class TestRecentMissTtlSplit:
+    def test_transient_miss_expires_after_the_short_ttl(self, tmp_path, monkeypatch):
+        """THE regression: `_recent_miss` used to apply the 7-day `_MISS_TTL`
+        uniformly regardless of WHY the miss happened. A transient-marked
+        file aged just past the short TTL (but nowhere near 7 days) must
+        already read as retryable."""
+        monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+        miss_path = os.path.join(str(tmp_path), "ZZZZ.miss")
+        with open(miss_path, "w") as f:
+            f.write(tl._MISS_TRANSIENT_MARKER)
+        past = time.time() - (tl._MISS_TRANSIENT_TTL + 60)
+        os.utime(miss_path, (past, past))
+        assert tl._recent_miss("ZZZZ") is False
+
+    def test_genuine_miss_stays_recent_at_the_same_age(self, tmp_path, monkeypatch):
+        """Control direction: a PLAIN (genuine) miss file at the identical age
+        is still well inside its 7-day window."""
+        monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+        miss_path = os.path.join(str(tmp_path), "YYYY.miss")
+        with open(miss_path, "w"):
+            pass
+        past = time.time() - (tl._MISS_TRANSIENT_TTL + 60)
+        os.utime(miss_path, (past, past))
+        assert tl._recent_miss("YYYY") is True
+
+    def test_genuine_miss_expires_after_seven_days(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+        miss_path = os.path.join(str(tmp_path), "YYYY.miss")
+        with open(miss_path, "w"):
+            pass
+        past = time.time() - (tl._MISS_TTL + 60)
+        os.utime(miss_path, (past, past))
+        assert tl._recent_miss("YYYY") is False
 
 
 def test_run_hires_upgrade_recaches_existing(tmp_path, monkeypatch):
