@@ -42,6 +42,7 @@ import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
+import { clampVolPct, resolveVolPanePct, latchOnDrag } from './chart/volumePaneDrag'
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
@@ -1856,6 +1857,16 @@ export default function StockChart({
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
   // drag sampler compares the live pane % against it to detect a user resize.
   const lastAppliedVolPctRef = useRef(null)
+  // ⭐ FLIP C: a user's separator DRAG, as `{from, pct}` — see chart/volumePaneDrag.js.
+  // `lastAppliedVolPctRef` gates the writer below; it does NOT gate the binder's
+  // `applyPaneStretch`, which re-asserts `paneLayout.above` at the end of EVERY
+  // sync and so put a dragged divider straight back. The layout is computed from
+  // this latch, so the drag becomes the setting rather than fighting it.
+  const volDragLatchRef = useRef(null)
+  // The settings value the latch has to out-rank, stamped where the layout reads
+  // it so the 300 ms sampler does not have to take `cs` as a dependency and
+  // re-subscribe on every settings object identity change.
+  const volPctSettingRef = useRef(null)
   const volMaTailSeriesRef = useRef(null)  // candleFrameFade: post-setup tail of the volume MA (crossfades with everything else)
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
@@ -6201,7 +6212,21 @@ export default function StockChart({
     // work on the first sync and never again: this layout WRITES pixel counts
     // into those factors, so pass two would read `[353, 99]` as if it were the
     // 78/22 the settings say and re-derive a different reference every pass.
-    const _volPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+    // ⭐ …AND A USER'S DRAG OUTRANKS THE SETTING, which is what makes the divider
+    // stay where it was dropped. `layout.above` is re-asserted by the binder at
+    // the end of every sync, so the ONLY way a drag survives is for the layout to
+    // be computed from it. `resolveVolPanePct` falls back to the setting the
+    // instant the setting itself moves, so Settings still wins a genuine change.
+    // ⚠️ The other three readers of this expression (the index-pane effects and
+    // the range-grip position) stay settings-only ON PURPOSE: they run on a prop
+    // change, never on a data poll, so none of them can snap a drag back on its
+    // own — and the layout must have exactly one authority.
+    // `?? 22` because clampVolPct answers null for a value it cannot read; the
+    // expression this replaced produced NaN there, which reaches the layout and
+    // gives the volume pane 0 px.
+    const _volPctSetting = clampVolPct(volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22) ?? 22
+    volPctSettingRef.current = _volPctSetting
+    const _volPct = resolveVolPanePct(_volPctSetting, volDragLatchRef.current)
     const _idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
     // The index pane is hoisted to pane 0 (`s.getPane().moveTo(0)` below), so it
     // comes FIRST in pane order and the candles are pane 1 when it exists.
@@ -9217,13 +9242,21 @@ export default function StockChart({
     }
   }, [])
 
-  // ── Persist a user's volume-pane resize ───────────────────────────────────
+  // ── Keep (and where possible persist) a user's volume-pane resize ─────────
   // LWC has no separator-drag event, so poll the actual volume-pane fraction; when
-  // it diverges from what we last applied (the user dragged the separator), fire
-  // onVolumePaneResize so the caller can persist it + feed it back as
-  // volumePaneHeightPct. Only active when a caller wants to persist (workspace).
+  // it diverges from what we last applied (the user dragged the separator), LATCH
+  // it so the pane layout is computed from the drag, and fire onVolumePaneResize
+  // so a caller that persists can feed it back as volumePaneHeightPct.
+  //
+  // ⛔ THIS NO LONGER REQUIRES `onVolumePaneResize`, AND THAT IS THE FLIP C FIX.
+  // Exactly one surface passes that callback (ChartPane); the divider is
+  // draggable on all of them, and under `'panes'` the binder re-asserts
+  // `paneLayout.above` at the end of every sync — so on ChartWidget, the grid
+  // cells, Model Book and the popover the drag was being undone about once a
+  // second with nothing even watching for it. The latch is per-chart and costs no
+  // backend; persistence is still opt-in and unchanged.
   useEffect(() => {
-    if (!chartReady || !onVolumePaneResize) return undefined
+    if (!chartReady) return undefined
     const chart = chartRef.current
     if (!chart) return undefined
     const id = setInterval(() => {
@@ -9246,14 +9279,23 @@ export default function StockChart({
         // hit every widget. A pointer press within the last 1.5s is the only
         // thing that can move it; nothing else resizes the pane on its own.
         const dragging = Date.now() - lastPointerDownAtRef.current < 1500
-        // Detect + fire only — do NOT touch lastAppliedVolPctRef here. Leaving it at
-        // the code-applied value keeps updateChart's gate (lastApplied === pct)
-        // TRUE during the drag, so a data poll won't re-apply the old height and
-        // snap the pane back. Once the persisted value feeds back as the prop,
-        // updateChart applies it, lastApplied catches up, and this stops firing.
-        if (dragging && applied != null && Math.abs(actual - applied) >= 2 && actual >= 5 && actual <= 60) {
-          onVolumePaneResize(actual)
-        }
+        if (!dragging || applied == null) return
+        // ⚠️ MOVEMENT is judged against what we last APPLIED (the height the pane
+        // is at, exactly as before), while the latch RECORDS the setting it has to
+        // out-rank — see latchOnDrag. A measurement failing the window is LWC's
+        // minimum-height clamp on a short widget, not a user.
+        const latch = latchOnDrag(volPctSettingRef.current, applied, actual)
+        if (!latch) return
+        // ⛔ AND `lastAppliedVolPctRef` MOVES WITH IT. The pane is ALREADY where
+        // the user put it, so the writer in updateChart must not fire: leaving
+        // the ref behind would make `lastApplied !== pct` true, re-apply the
+        // just-latched height, let LWC's clamp move it again, and the next poll
+        // would latch THAT — the "volume pane randomly triples in size" ratchet,
+        // rebuilt. Equal refs mean the drag is recorded and nothing re-writes it.
+        volDragLatchRef.current = latch
+        lastAppliedVolPctRef.current = latch.pct
+        // Persistence stays opt-in: only the workspace wants a global pref moved.
+        onVolumePaneResize?.(latch.pct)
       } catch { /* not ready */ }
     }, 300)
     return () => clearInterval(id)

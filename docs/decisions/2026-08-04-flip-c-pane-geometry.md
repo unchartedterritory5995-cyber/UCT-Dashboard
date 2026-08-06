@@ -636,9 +636,19 @@ on a split that does not divide evenly.
 * **the price pane is no longer pixel-identical** — but the residue is now
   sub-pixel rounding rather than a re-fit (§1), 2,791 px instead of 49,429.
 * **a height disagreement is now silent-ish** — a `console.warn` and a counter
-  instead of a throw. That is the right trade against a blank chart, and it does
-  mean a real drift can ship unnoticed if nobody reads the counter. Task 12 should
-  decide whether it also belongs on `chart_health_alerts`.
+  instead of a throw. That is the right trade against a blank chart, and it did
+  mean a real drift could ship unnoticed because nobody read the counter.
+  ✅ **CLOSED 2026-08-05: `paneHeightAlerts()` HAS A READER, AND IT IS A FAILABLE
+  ONE.** `ChartRender` publishes `window.__paneHeightAlerts` as a getter under
+  `?fixedbars=` (the `__paneManifest` pattern), `chart_parity.py` reads it into
+  every capture's diagnostics, and `capture()` raises `PaneLayoutAlertError` when
+  it is non-empty — a capture whose panes are not the geometry `computePaneLayout`
+  computed is not comparable to an `expect` measured when they were. Precondition,
+  not tolerance: it never sees a pixel count. `--no-pane-alert-gate` records
+  without acting and is written into `report.json`. ⛔ NOT `chart_health_alerts`:
+  that service is server-side and has no client ingest endpoint, so wiring it
+  would have meant a new POST surface on the request path for a diagnostic — the
+  gate is the consumer that can actually act on the fact.
 * **`paneMargins.js`'s nine-row `PANES` table is retired**, and with it the one
   place a reader could see the whole stack at once. That is the last B5 row in the
   enumeration ledger and it is assigned to Task 12.
@@ -648,6 +658,18 @@ on a split that does not divide evenly.
   pixel counts into them. Today's bands mode preserves such a drag; under `'panes'`
   it would be re-applied on the next sync. ⚠️ Draggable dividers being the point of
   Flip C, "remember the drag" is real follow-up work and it is not in this change.
+  ✅ **DONE 2026-08-05, AND NOT AS A THIRD GATE.** Suppressing the binder's write
+  would leave the layout believing a geometry the chart is not in — which is
+  precisely what `paneHeightMismatch` exists to shout about, so the drag would
+  stick and every sync would then report drift. Instead the DRAG BECOMES THE
+  SETTING the layout is computed from (`chart/volumePaneDrag.js`: a `{from, pct}`
+  latch that out-ranks `cs.volume.paneHeightPct` and yields the moment that value
+  itself changes), so layout and renderer agree by construction and
+  `paneStretchPlan` stays a fixed point. Same shape as `vertMarginsRef` for the
+  price axis. The 300 ms sampler no longer requires `onVolumePaneResize`: exactly
+  ONE surface passes it (`ChartPane`), and the divider is draggable on all of
+  them — so the drag now survives on ChartWidget, the grid cells, Model Book and
+  the popover too, while persistence stays opt-in and unchanged.
 
 **What keeping the bands costs — the standing price of doing nothing.** The bands
 are **fake panes**: stacked `scaleMargins` inside pane 0. A user gets no draggable
