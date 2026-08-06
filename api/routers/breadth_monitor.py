@@ -104,10 +104,15 @@ def get_breadth_live(force: bool = False):
             breadth_intraday.record(payload["session_date"], payload["row"])
         payload["path"] = breadth_intraday.session_path(payload["session_date"])
         payload["open"] = breadth_intraday.session_open(payload["session_date"])
+        # A store that fails silently for a whole session is how you discover at
+        # 4pm that no path was ever written. Publishing its health costs nothing
+        # and makes that visible from the same payload the surfaces already read.
+        payload["store"] = breadth_intraday.health()
     except Exception as e:
         # A store that cannot write must still let the live read through.
         print(f"[breadth_monitor] intraday store unavailable: {e}")
         payload["path"], payload["open"] = {}, {}
+        payload["store"] = {"ok": False, "last_error": f"{type(e).__name__}: {e}"}
 
     return payload
 
@@ -125,6 +130,22 @@ def reconcile_breadth_live(date: str, request: Request):
         return live.reconcile(date)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/breadth-monitor/live/store")
+def breadth_live_store(request: Request, selftest: bool = False):
+    """What the intraday store holds, and whether it can actually write.
+
+    `?selftest=1` writes a probe row, reads it back and removes it — so
+    "can this pod persist an intraday sample?" is answerable the evening before
+    a session rather than at 09:31 with everyone watching.
+    """
+    _check_auth(request)
+    from api.services import breadth_intraday
+    out = breadth_intraday.status()
+    if selftest:
+        out["self_test"] = breadth_intraday.self_test()
+    return out
 
 
 @router.get("/api/breadth-monitor/latest")
