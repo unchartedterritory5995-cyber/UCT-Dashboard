@@ -114,6 +114,21 @@ const dayKey = (d) => {
  * period-end derivation below would call a December-ending quarter "Q4",
  * which is wrong for AAPL's actual fiscal Q1.
  */
+/** Dollars -> millions, the unit `EarningsHistorySection.rev()` renders.
+ *  `num()` first so a null/garbage value stays null rather than becoming 0 —
+ *  the phantom-zero trap this module already guards everywhere else. */
+function _millions(v) {
+  const n = num(v)
+  return n == null ? null : n / 1e6
+}
+
+/** Percent change vs estimate, null-safe and zero-safe. */
+function pctChange(actual, estimate) {
+  const a = num(actual), e = num(estimate)
+  if (a == null || e == null || e === 0) return null
+  return ((a - e) / Math.abs(e)) * 100
+}
+
 export function quarterLabel(iso, quarter, year) {
   if (quarter != null && year != null) return `Q${quarter} ${String(year).slice(-2)}`
   const k = dayKey(iso)
@@ -185,6 +200,15 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
       eps_estimate: num(h?.estimate),
       eps_actual: num(h?.actual),
       surprise_pct: num(h?.surprise),
+      // Revenue arrives only from the FMP history leg (Finnhub's earnings
+      // rows are EPS-only, which is why this column rendered an em dash on
+      // every row). Absent on a Finnhub-sourced row -> stays null -> the
+      // section still renders the em dash, exactly as before. Provider
+      // reports revenue in DOLLARS; the section's `rev()` formats millions,
+      // so scale here rather than teaching the formatter two units.
+      revenue_actual: _millions(h?.revenue_actual),
+      revenue_estimate: _millions(h?.revenue_estimate),
+      revenue_surprise_pct: pctChange(h?.revenue_actual, h?.revenue_estimate),
       reaction_pct: indexAlignmentTrusted ? num(moves[i]) : null,
     })
   }).reverse()

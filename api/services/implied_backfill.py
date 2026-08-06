@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+import threading
 import time
 
 from api.services import earnings_estimates as ee
@@ -375,6 +376,65 @@ SWEEP_MINUTE_ET = 0
 _SWEEP_MAX_SECONDS = 3 * 3600
 
 
+# ── the hang guard ──────────────────────────────────────────────────────────
+#
+# The `max_seconds` ceiling below is checked BETWEEN symbols, so it cannot see
+# a call that never returns. That is not theoretical: this sweep hung twice in
+# four days -- at AIG on 08-03 and at ASLE on 08-06 -- each time far short of
+# the ceiling, each time with no end-of-run log line. Because the job is
+# registered `max_instances=1`, one hung execution holds the only slot and
+# silently blocks EVERY subsequent night until the process restarts. That is
+# what cost 08-04 and 08-05 entirely.
+#
+# 60s is generous for one provider round trip that is already paced at 3s.
+_CALL_TIMEOUT = 60
+
+# Progress cadence. The end-of-run summary is the authoritative line, but a
+# 3-hour job that says nothing until it finishes cannot be told apart from a
+# hung one WHILE it matters -- which is exactly how tonight's monitor mistook
+# a stall for completion.
+_PROGRESS_EVERY = 50
+
+_TIMED_OUT = object()
+
+
+def _bounded(fn, timeout: int | None = None):
+    # Resolved at CALL time, not bound as a default argument: a default is
+    # evaluated once at import, so `_CALL_TIMEOUT` could never be tuned at
+    # runtime and — worse — a test that patches it would silently exercise
+    # the 60s production bound instead of the one it thinks it set.
+    """Run `fn` with a wall-clock bound; return `_TIMED_OUT` if it overruns.
+
+    A DAEMON THREAD per call, deliberately, rather than a shared pool: a pool
+    sized N deadlocks again on the N+1th hang, which is the very failure this
+    guard exists to remove. An abandoned thread stays blocked on its socket
+    and is reclaimed when the process restarts; daemon=True keeps it from
+    holding shutdown open. Leaking a thread is strictly better than leaking
+    the only execution slot for three days.
+
+    Exceptions propagate unchanged so the caller's existing per-symbol
+    try/except keeps its current behaviour.
+    """
+    if timeout is None:
+        timeout = _CALL_TIMEOUT
+    box: dict = {}
+
+    def _run():
+        try:
+            box["v"] = fn()
+        except BaseException as exc:                # noqa: BLE001 - re-raised
+            box["e"] = exc
+
+    t = threading.Thread(target=_run, daemon=True, name="implied-backfill-call")
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        return _TIMED_OUT
+    if "e" in box:
+        raise box["e"]
+    return box.get("v")
+
+
 def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
                        quarters: int = _MAX_BACKFILLABLE_QUARTERS) -> str:
     """Reconstruct missing history for every symbol the store already tracks.
@@ -389,7 +449,7 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
     from api.services import implied_store as store
 
     started = time.time()
-    wrote = skipped = no_move = unresolved = 0
+    wrote = skipped = no_move = unresolved = timed_out = 0
     stopped_early = False
     try:
         syms = store.all_symbols()
@@ -397,14 +457,26 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
         _log.warning("implied backfill sweep: symbol list failed: %s", exc)
         return "implied backfill sweep: could not read the symbol list"
 
-    for sym in syms:
+    for idx, sym in enumerate(syms):
         if time.time() - started > max_seconds:
             stopped_early = True
             break
+        # Heartbeat: names the symbol it is ON, so a stall is diagnosable from
+        # the log alone instead of by diffing row counts and guessing.
+        if idx and idx % _PROGRESS_EVERY == 0:
+            _log.info("implied backfill sweep: %d/%d symbols (at %s) — "
+                      "wrote %d, timed out %d",
+                      idx, len(syms), sym, wrote, timed_out)
         try:
-            reports = past_reports(sym, quarters)
+            reports = _bounded(lambda s=sym: past_reports(s, quarters))
         except Exception as exc:
             _log.warning("implied backfill sweep: %s report lookup failed: %s", sym, exc)
+            continue
+        if reports is _TIMED_OUT:
+            timed_out += 1
+            _log.warning("implied backfill sweep: %s report lookup timed out "
+                         "after %ds — skipping (this used to hang the night)",
+                         sym, _CALL_TIMEOUT)
             continue
         if not reports:
             unresolved += 1
@@ -415,7 +487,12 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
                 if store._has_snapshot(sym, rd):
                     skipped += 1
                     continue
-                move = historical_expected_move(sym, rd)
+                move = _bounded(lambda s=sym, d=rd: historical_expected_move(s, d))
+                if move is _TIMED_OUT:
+                    timed_out += 1
+                    _log.warning("implied backfill sweep: %s %s move timed out "
+                                 "after %ds — skipping", sym, rd, _CALL_TIMEOUT)
+                    continue
                 if not move:
                     no_move += 1
                     continue
@@ -430,7 +507,8 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
 
     mins = (time.time() - started) / 60
     summary = (f"implied backfill sweep: wrote {wrote}, already had {skipped}, "
-               f"no straddle {no_move}, unresolved {unresolved} "
+               f"no straddle {no_move}, unresolved {unresolved}, "
+               f"timed out {timed_out} "
                f"over {len(syms)} symbols in {mins:.0f}m"
                + (" (hit the time ceiling; continues tomorrow)" if stopped_early else ""))
 

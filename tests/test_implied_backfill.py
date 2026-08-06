@@ -8,6 +8,7 @@ sameness: same expiry rule, same ATM pick, same mid math, same shape.
 """
 import datetime as _dt
 import logging
+import time
 
 import pytest
 
@@ -606,3 +607,73 @@ class TestTheSweepIsAudible:
         assert "wrote 0" in out and "already had 1" in out, out
         assert not [r for r in caplog.records if r.levelno >= logging.WARNING], \
             "a complete store was reported as a failure"
+
+
+class TestAHangCannotEatTheNight:
+    """A call that never returns must cost ONE symbol, not the whole sweep.
+
+    Lived twice in four days: hung at AIG on 2026-08-03 and at ASLE on
+    2026-08-06, each far short of the `max_seconds` ceiling (which is only
+    checked BETWEEN symbols, so it cannot see a call that never returns) and
+    each with no end-of-run line. With `max_instances=1` the hung execution
+    then held the only slot and blocked every following night until the
+    process restarted -- that is what emptied 08-04 and 08-05.
+    """
+
+    @pytest.fixture
+    def sweep_env(self, monkeypatch, tmp_path):
+        from api.services import implied_store as store
+        monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "s.db"))
+        monkeypatch.setattr(store, "_INITIALIZED", set())
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_CALL_TIMEOUT", 1)   # keep the suite fast
+        return store
+
+    def test_a_hung_symbol_is_skipped_and_the_rest_still_run(self, sweep_env, monkeypatch, api):
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["HANG", "NVDA"])
+
+        def maybe_hang(sym, q):
+            if sym == "HANG":
+                time.sleep(30)          # never returns within the bound
+            return [{"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3}]
+
+        monkeypatch.setattr(ib, "past_reports", maybe_hang)
+        out = ib.run_backfill_sweep()
+
+        assert "timed out 1" in out, out
+        assert "wrote 1" in out, out          # NVDA still got done
+        assert len(store.get_implied_history("NVDA")) == 1
+
+    def test_a_hung_move_lookup_does_not_end_the_symbol_list(self, sweep_env, monkeypatch, api):
+        """The second unbounded call site — the option-chain reconstruction."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["SLOW"])
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+        monkeypatch.setattr(ib, "historical_expected_move",
+                            lambda s, d: time.sleep(30))
+        out = ib.run_backfill_sweep()
+        assert "timed out 1" in out and "wrote 0" in out, out
+
+    def test_the_bound_does_not_penalise_a_healthy_call(self, sweep_env, monkeypatch, api):
+        """The guard must be invisible when nothing hangs."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+        out = ib.run_backfill_sweep()
+        assert "wrote 1" in out and "timed out 0" in out, out
+
+    def test_bounded_propagates_a_real_error_rather_than_swallowing_it(self):
+        """A provider RAISING is a different fact from a provider hanging;
+        collapsing them would hide real breakage behind a timeout count."""
+        def boom():
+            raise RuntimeError("provider exploded")
+        with pytest.raises(RuntimeError, match="exploded"):
+            ib._bounded(boom, timeout=5)
+
+    def test_bounded_returns_the_value_when_it_finishes(self):
+        assert ib._bounded(lambda: 42, timeout=5) == 42
