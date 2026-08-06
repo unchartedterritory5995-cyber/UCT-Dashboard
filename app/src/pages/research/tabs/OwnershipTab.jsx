@@ -49,7 +49,7 @@ export default function OwnershipTab({ sym }) {
       <div className={styles.grid}>
         <section className={styles.card}>
           <div className={styles.ct}>Institutional ownership</div>
-          <div className={styles.kv}><span>% held by institutions</span><b>{fmtPct(inst.pct_held)}</b></div>
+          <div className={styles.kv}><span>% of shares outstanding</span><b>{fmtPct(inst.pct_held)}</b></div>
           {!!inst.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
               <table className={styles.fgrid}>
@@ -83,8 +83,16 @@ export default function OwnershipTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Form 13F · institutional activity <span className={styles.muted}>· {tf.quarter}</span></div>
           <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 10 }}>
+            {/* NOT the same measure as the "% of shares outstanding" figure in
+                the card above, and the two disagree hard: on 2026-08-06 AAPL
+                read 65.95% there against 6.38% here, and ATROB 71.85% against
+                0.47%. That card is the aggregate institutional stake; this one
+                counts only the positions inside THIS quarter's 13F filings.
+                Both were previously labeled "Institutional ownership", so the
+                page appeared to contradict itself on every ticker. The label
+                below states the scope; do not shorten it back. */}
             <div>
-              <div className={styles.muted}>Institutional ownership</div>
+              <div className={styles.muted}>Held by 13F filers</div>
               <div style={{ fontSize: 20, fontWeight: 700 }}>
                 {tfs.ownership_pct != null ? `${tfs.ownership_pct.toFixed(1)}%` : '—'}
                 {fmtChgPp(tfs.ownership_change) && <span className={chgClass(tfs.ownership_change)} style={{ fontSize: 12, marginLeft: 6 }}>{fmtChgPp(tfs.ownership_change)}</span>}
