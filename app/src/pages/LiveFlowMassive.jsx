@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
+import TickerPopup from "../components/TickerPopup";
+import useLongPress from "../components/mobile/useLongPress";
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -1086,13 +1088,24 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, isAdmin, onPush, pushState }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, onOpenChart, isAdmin, onPush, pushState }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
   const dirIsBear = alert._direction === "Bear";
   const isAlpha = tier === "alpha";
   const isSize = tier === "size";
+
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `alert.ticker` — do NOT read the ticker from the event, since
+  // the long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    if (onOpenChart) onOpenChart(alert.ticker);
+  });
 
   // Direction palette — brighter than P.bu / P.be so non-alpha rows still
   // have visual weight. Non-directional tiers (algo) keep neutral coloring.
@@ -1161,6 +1174,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
           onClick={() => onClickTicker(alert.ticker)}
+          {...chartLongPress}
           title={`Filter to ${alert.ticker}`}
         >
           {alert.ticker}
@@ -2820,8 +2834,19 @@ function ContractColumnHeaders({ isAdmin, sortCol, sortDir, onSort }) {
   );
 }
 
-function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck, expired }) {
+function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState, oiCheck, expired }) {
   const [open, setOpen] = useState(false);
+
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `c.ticker` — do NOT read the ticker from the event, since the
+  // long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    onOpenChart && onOpenChart(c.ticker);
+  });
   const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
   const isBull = c.direction === "Bull";
   const isBear = c.direction === "Bear";
@@ -2904,6 +2929,7 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck, ex
         </span>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
           <span onClick={(e) => { e.stopPropagation(); onClickTicker && onClickTicker(c.ticker); }}
+                {...chartLongPress}
                 style={{ color: rowColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
             {c.ticker}
           </span>
@@ -3282,6 +3308,10 @@ export default function LiveFlowMassive() {
   };
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
+  // Right-click (long-press on touch) a ticker cell → open the full chart via
+  // TickerPopup in controlled mode. Independent of tickerFilter/contractFilter
+  // above — one popup rendered at page level, never per-row.
+  const [chartSym, setChartSym] = useState(null);
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
   const [oiFetchState, setOiFetchState] = useState({ loading: false, result: null });
   // Current spot quotes for P/L column. Updated every 30s in a separate
@@ -4477,6 +4507,7 @@ export default function LiveFlowMassive() {
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
             onClickTier={handleClickTier}
+            onOpenChart={setChartSym}
             isAdmin={isTuneMode}
             onPush={handlePush}
             pushState={pushStates[a.id]}
@@ -4518,6 +4549,7 @@ export default function LiveFlowMassive() {
             key={`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`}
             c={c}
             onClickTicker={handleClickTicker}
+            onOpenChart={setChartSym}
             isAdmin={isTuneMode}
             onPush={handlePushContract}
             pushState={contractPushStates[`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`]}
@@ -4551,6 +4583,11 @@ export default function LiveFlowMassive() {
       }}>
         Live Flow ・ Real-time options tape ・ {((STREAM_ENABLED && !curated) || (CURATED_STREAM_ENABLED && curated)) ? "Live stream (SSE)" : `Refreshing every ${POLL_INTERVAL_MS/1000}s`}
       </div>
+
+      {/* Right-click-to-chart popup — one instance for the whole page, never
+          per-row. Controlled mode: TickerPopup renders no trigger, just the
+          full ChartPane modal, opened/closed by chartSym. */}
+      {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
     </div>
       );
 }

@@ -499,6 +499,16 @@
   flex-shrink: 0;   /* never squeeze the company name — show it in full */
 }
 
+/* Static identity label — surfaces that lock the symbol (trade drawer, drill
+   modal) render this instead of the SymbolSearch button. Must match
+   .symbolSlot's type treatment exactly. */
+.symbolStatic {
+  font: inherit;
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
 /* Live day gain ($ + %) beside the ticker — matches the ticker's size + box
    model (14px / 700 / line-height:1, vertically centered) so it lines up on the
    same baseline instead of riding high. */

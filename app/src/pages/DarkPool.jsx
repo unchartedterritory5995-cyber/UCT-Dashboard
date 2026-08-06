@@ -1,7 +1,12 @@
-import { useState, useMemo, useRef, useEffect, Fragment } from "react";
+import { useState, useMemo, useRef, useEffect, Fragment, lazy, Suspense } from "react";
 import TickerPopup from "../components/TickerPopup";
-import StockChart from "../components/StockChart";
 import UIcon from "../components/ui/UIcon";
+
+// The SAME chart the /charts workspace renders — identity row, session
+// toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
+// settings gear and drawing tools. Lazy, so none of it lands in the eager
+// entry chunk.
+const ChartPane = lazy(() => import("../components/chart/pane/ChartPane"));
 
 // ── Built-in CSV parser (no external dependencies) ───────────────────────────
 function parseCSVLine(line) {
@@ -1234,58 +1239,48 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
                   );
                 })}
               </div>
-              {/* Row 2 — candle timeframe (chart aggregation). Independent of
-                  the dark pool window above. Cyan to visually distinguish.
-                  Values map to StockChart's accepted TF strings:
-                    '1','5','15','30','60','D','W','M'. */}
-              <div style={{display:"flex", gap:3, alignItems:"center"}}>
-                <span style={{fontSize:8, color:C.tx3, marginRight:4, letterSpacing:"0.05em",
-                  fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>CANDLES</span>
-                {[
-                  {tf:"1",  label:"1m"},
-                  {tf:"5",  label:"5m"},
-                  {tf:"15", label:"15m"},
-                  {tf:"30", label:"30m"},
-                  {tf:"60", label:"1h"},
-                  {tf:"D",  label:"D"},
-                  {tf:"W",  label:"W"},
-                  {tf:"M",  label:"M"},
-                ].map(({tf, label}) => {
-                  const active = tf === chartTf;
-                  return (
-                    <button key={tf} onClick={() => setChartTf(tf)}
-                      style={{padding:"3px 9px", borderRadius:4, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
-                        border:`1px solid ${active ? C.cyan : C.bdr2}`,
-                        background: active ? C.cyan+"22" : "transparent",
-                        color: active ? C.cyan : C.tx2}}>{label}</button>
-                  );
-                })}
-              </div>
+              {/* Row 2 — candle timeframe (chart aggregation) used to live here
+                  as its own button row. Retired: ChartPane (below) renders the
+                  canonical timeframe bar now. `chartTf`/`setChartTf` stay —
+                  the dark-pool-window effect above still resets chartTf to a
+                  smart default, and ChartPane's onTfChange keeps it in sync
+                  with whatever the user picks on the canonical bar. */}
             </div>
           </div>
 
           {loading && <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>Loading dark pool prints…</div>}
           {error && <div style={{textAlign:"center", padding:"40px 0", color:C.red, fontSize:12}}>Failed to load prints: {error}</div>}
 
-          {/* TradingView-style chart from the shared StockChart component (same
-              one GEX uses). Dark pool bars now render natively inside StockChart
-              via the darkPoolBars prop — uses series.priceToCoordinate() for
-              pixel-perfect alignment that follows zoom/pan. */}
-          <div style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
-            <StockChart
-              sym={it.t}
-              tf={chartTf}
-              height={480}
-              liveUpdates={true}
-              showDrawingTools={true}
-              showVolume={true}
-              darkPoolBars={clusteredPrints}
-              priceFormat={{ type: 'price', precision: 0, minMove: 1 }}
-              hideReplay
-              hidePatterns
-              hideCompare
-              hideCountdown
-            />
+          {/* The SAME chart the /charts workspace renders — identity row,
+              session toggle, market clock, timeframe bar, market-cap/earnings/
+              UCT-rating meta, settings gear and drawing tools. Dark pool bars
+              still render natively inside StockChart via the darkPoolBars prop
+              (now routed through stockChartProps) — uses
+              series.priceToCoordinate() for pixel-perfect alignment that
+              follows zoom/pan. `onSymbolChange` is deliberately omitted: this
+              is a contextual chart for the row the user expanded, so the
+              identity row renders a static label, not a search box. */}
+          <div style={{position:"relative", width:"100%", borderRadius:6, overflow:"hidden"}}>
+            <Suspense fallback={<div style={{height:480, display:"flex", alignItems:"center", justifyContent:"center", color:C.tx3, fontSize:12}}>Loading chart…</div>}>
+              <ChartPane
+                sym={it.t}
+                tf={chartTf}
+                onTfChange={setChartTf}
+                stored={null}
+                stockChartProps={{
+                  height: 480,
+                  liveUpdates: true,
+                  showDrawingTools: true,
+                  showVolume: true,
+                  darkPoolBars: clusteredPrints,
+                  priceFormat: { type: 'price', precision: 0, minMove: 1 },
+                  hideReplay: true,
+                  hidePatterns: true,
+                  hideCompare: true,
+                  hideCountdown: true,
+                }}
+              />
+            </Suspense>
           </div>
 
           <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>

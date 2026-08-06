@@ -1,6 +1,11 @@
-import StockChart from '../../../components/StockChart'
+import { lazy, Suspense } from 'react'
 import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import styles from '../ResearchPage.module.css'
+
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, settings gear and drawing tools. Lazy, so none of it lands in
+// the eager entry chunk.
+const ChartPane = lazy(() => import('../../../components/chart/pane/ChartPane'))
 
 function Surprise({ v }) {
   if (v == null) return <span className={styles.muted}>—</span>
@@ -19,19 +24,31 @@ export default function OverviewTab({ sym, stats, analyst, ai, row }) {
       </section>
       <section className={`${styles.card} ${styles.chartCard}`}>
         <div className={styles.ovChart}>
+          {/* tf="D" is hardcoded — this page has no timeframe state and no
+              switcher anywhere, so `showTfBar={false}` omits ChartPane's bar
+              entirely rather than offering a control the page can't honour.
+              `onSymbolChange` is omitted so the identity row is a static
+              label; `stored={null}` with no `onStore` = the user's own chart
+              settings, everywhere. */}
           {sym && (
-            <StockChart
-              sym={sym}
-              tf="D"
-              height="100%"
-              showDrawingTools={false}
-              hideReplay
-              hidePatterns
-              hideCompare
-              hideCountdown
-              showVolume
-              volumeSeparatePane
-            />
+            <Suspense fallback={<div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading chart…</div>}>
+              <ChartPane
+                sym={sym}
+                tf="D"
+                stored={null}
+                showTfBar={false}
+                stockChartProps={{
+                  height: '100%',
+                  showDrawingTools: false,
+                  hideReplay: true,
+                  hidePatterns: true,
+                  hideCompare: true,
+                  hideCountdown: true,
+                  showVolume: true,
+                  volumeSeparatePane: true,
+                }}
+              />
+            </Suspense>
           )}
         </div>
       </section>
