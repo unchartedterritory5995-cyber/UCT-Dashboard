@@ -41,3 +41,42 @@
 .chipLabel { color: #e2e8f0; font-weight: 700; }
 .chipValue { color: #fff; font-weight: 800; }
 .chipReason { color: #64748b; font-size: 10px; }
+
+/* ── Provisional intraday reading ────────────────────────────────────────────
+   The date cursor is how a reader knows WHICH day the tiles describe. When the
+   cursor sits on the live row there is no day yet, so it says so — a clock
+   instead of a date, in the same gold the Monitor's live row uses. */
+
+.liveTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 12px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.3px;
+  color: var(--ut-gold, #c9a84c);
+  padding: 2px 8px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.09);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.livePulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold, #c9a84c);
+  animation: viewLiveBeat 2.4s ease-out infinite;
+  flex: none;
+}
+
+@keyframes viewLiveBeat {
+  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livePulse { animation: none; }
+}

@@ -1,0 +1,94 @@
+/* Sits between the page header and a table of finished days, so it has to read
+   as "now" without shouting over the data underneath: the same gold the live
+   row uses, one hairline border, no fill beyond a wash. */
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  padding: 8px 14px;
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  border-left: 2px solid var(--ut-gold, #c9a84c);
+  border-radius: 6px;
+  background: rgba(201, 168, 76, 0.055);
+}
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 12px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.4px;
+  color: var(--ut-gold, #c9a84c);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold, #c9a84c);
+  animation: stripBeat 2.4s ease-out infinite;
+  flex: none;
+}
+
+.items {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.9px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.since {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+@keyframes stripBeat {
+  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+}
+
+/* On a phone the strip would push the table off the first screen, so it drops
+   to the two readings that answer "is the market working right now" and the
+   per-metric paths go with them. */
+@media (max-width: 640px) {
+  .strip { gap: 10px; padding: 7px 10px; }
+  .items { gap: 14px; }
+  .item:nth-child(n + 3) { display: none; }
+  .since { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse { animation: none; }
+}

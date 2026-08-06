@@ -192,3 +192,58 @@
   }
 }
 
+
+/* ── Live participation reading ──────────────────────────────────────────────
+   The exposure rating above is a once-a-day number pushed by the morning wire.
+   This line is genuinely intraday, so it is separated from it by a rule and
+   carries its own timestamp — a reader should never have to guess which of the
+   two moved since this morning. */
+
+.liveRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.livePulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold, #c9a84c);
+  animation: tileLiveBeat 2.4s ease-out infinite;
+  flex: none;
+}
+
+.liveLabel {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.liveValue {
+  font-size: 15px;
+  color: var(--ut-gold, #c9a84c);
+  font-weight: 700;
+}
+
+.liveStamp {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+@keyframes tileLiveBeat {
+  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livePulse { animation: none; }
+}
