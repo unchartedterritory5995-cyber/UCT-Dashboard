@@ -2,13 +2,20 @@ import { renderHook, act } from '@testing-library/react'
 import { vi } from 'vitest'
 
 const setPref = vi.fn()
+// Mutable so each test can shape `prefs` (in particular `charts_workspace_layout`)
+// without re-mocking the module. The factory closes over this binding — it is
+// read fresh on every hook call, which is all `usePreferences()` needs to do.
+let mockPrefs = { chart_settings: { background: '#111' } }
 vi.mock('../../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: { chart_settings: { background: '#111' } }, setPref, loading: false }),
+  default: () => ({ prefs: mockPrefs, setPref, loading: false }),
 }))
 
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 
-beforeEach(() => setPref.mockClear())
+beforeEach(() => {
+  setPref.mockClear()
+  mockPrefs = { chart_settings: { background: '#111' } }
+})
 
 test('with stored=null it reads the global blob', () => {
   const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
@@ -79,4 +86,96 @@ test('given stable stored/onStore, write and patchHeader keep identity across a 
   rerender({ stored, onStore })
   expect(result.current.write).toBe(firstWrite)
   expect(result.current.patchHeader).toBe(firstPatchHeader)
+})
+
+// ── Owner-feedback Defect 1 ──────────────────────────────────────────────────
+// Popups (stored=null, no onStore — "this surface IS the user's one chart")
+// were reading the untouched `chart_settings` SEED instead of what the owner
+// actually configured on the /charts workspace. The real chart lives in
+// `charts_workspace_layout`'s first `type:'chart'` widget's `opts.settings`.
+describe('own-chart surface (stored=null, no onStore) resolves from charts_workspace_layout', () => {
+  test('prefers the first chart widget\'s settings over the chart_settings seed', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: {
+        widgets: [
+          { id: 'w-watch', type: 'watchlist', opts: {} },
+          { id: 'w-chart', type: 'chart', opts: { settings: { background: '#abc123' } } },
+        ],
+      },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.cs.background).toBe('#abc123')
+  })
+
+  test('parses charts_workspace_layout when it is a JSON STRING (the real on-wire shape)', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: JSON.stringify({
+        widgets: [{ id: 'w-chart', type: 'chart', opts: { settings: { background: '#ff00ff' } } }],
+      }),
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.cs.background).toBe('#ff00ff')
+  })
+
+  test('falls back to chart_settings on MALFORMED JSON without throwing', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: '{not valid json',
+    }
+    let result
+    expect(() => { ({ result } = renderHook(() => useChartSurfaceSettings({ stored: null }))) }).not.toThrow()
+    expect(result.current.cs.background).toBe('#111')
+  })
+
+  test('falls back to chart_settings when the layout has NO chart widget', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: { widgets: [{ id: 'w-watch', type: 'watchlist', opts: {} }] },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.cs.background).toBe('#111')
+  })
+
+  test('falls back to chart_settings when charts_workspace_layout has NO widgets array', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: { cols: 24 },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.cs.background).toBe('#111')
+  })
+
+  test('falls back to chart_settings when there is NO layout pref at all', () => {
+    mockPrefs = { chart_settings: { background: '#111' } }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.cs.background).toBe('#111')
+  })
+
+  test('falls back to chart_settings when the chart widget\'s opts.settings is an empty object', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: { widgets: [{ id: 'w-chart', type: 'chart', opts: { settings: {} } }] },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.cs.background).toBe('#111')
+  })
+
+  // A /charts widget/tab ALWAYS passes onStore (even before its first edit,
+  // when stored is still null) — this is what distinguishes it from a real
+  // "your chart everywhere" popup. It must NOT pick up the workspace layout's
+  // own chart widget settings; that would make a widget read itself through
+  // an unrelated indirection and diverge the moment a second widget exists.
+  test('a surface with onStore (even with stored=null) is unaffected by charts_workspace_layout', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: {
+        widgets: [{ id: 'w-chart', type: 'chart', opts: { settings: { background: '#zzzzzz' } } }],
+      },
+    }
+    const onStore = vi.fn()
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null, onStore }))
+    expect(result.current.cs.background).toBe('#111')
+  })
 })

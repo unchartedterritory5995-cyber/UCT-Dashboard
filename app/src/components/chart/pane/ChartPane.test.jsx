@@ -142,3 +142,49 @@ test('without tfCodes the overflow chevron is still there', async () => {
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} />)
   expect(await screen.findByRole('button', { name: 'More timeframes' })).toBeInTheDocument()
 })
+
+// --- Owner-feedback Defect 2: density="mini" ---
+// mini is for ~320px-tall popups (the Options Flow contract chart): only the
+// timeframe bar and the chart render — no identity row (so no company name/
+// logo/day-change/session toggle/clock), no meta row, no settings gear.
+test('density="mini" renders the timeframe bar and the chart, but no identity row, meta row, clock, or gear', () => {
+  render(<ChartPane sym="NVDA" tf="D" density="mini" onTfChange={() => {}} />)
+  // Still there: the TF bar and the chart itself.
+  expect(screen.getByRole('button', { name: '1D' })).toBeTruthy()
+  expect(screen.getByTestId('chart-sym').textContent).toBe('NVDA')
+  // Gone: identity row (the ticker/company label + its search affordance),
+  // meta row, market clock, settings gear.
+  expect(screen.queryByTestId('sym-label')).toBeNull()
+  expect(screen.queryByText('Market Cap')).toBeNull()
+  expect(screen.queryByTestId('market-clock')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Chart settings' })).toBeNull()
+})
+
+test('density="mini" fetches fundamentals with enabled=false (it never renders the meta row that needs them)', () => {
+  useFundamentalSnapshot.mockClear()
+  render(<ChartPane sym="NVDA" tf="D" density="mini" onTfChange={() => {}} />)
+  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', false)
+})
+
+// --- Owner-feedback Defect 1: the settings gear must not lie about being live ---
+// A surface that IS the user's one chart (stored=null, no onStore) now reads
+// its settings from the /charts workspace layout, so an edit made through this
+// popup's gear would write the lower-priority global chart_settings pref and
+// visibly do nothing. Hide the gear there; keep it wherever a real write sink
+// exists (onStore, i.e. a /charts widget/tab).
+test('stored={null} with no onStore renders no settings gear (a write here would silently no-op)', () => {
+  render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} stored={null} />)
+  expect(screen.queryByRole('button', { name: 'Chart settings' })).toBeNull()
+})
+
+test('onStore supplied (a /charts widget/tab) still renders the settings gear', () => {
+  const onStore = vi.fn()
+  render(
+    <ChartPane
+      sym="NVDA" tf="D"
+      onSymbolChange={() => {}} onTfChange={() => {}}
+      stored={null} onStore={onStore}
+    />,
+  )
+  expect(screen.getByRole('button', { name: 'Chart settings' })).toBeTruthy()
+})
