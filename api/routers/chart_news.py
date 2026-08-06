@@ -28,11 +28,20 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Query
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_CACHE_TTL = 1800  # 30 min — matches upstream AV cache window
+_CACHE_TTL = 1800        # 30 min — matches upstream FMP/AV cache window
+_CACHE_TTL_EMPTY = 300   # 5 min — an EMPTY result (2026-08-05, data-
+                         # dependability migration Task 14) used to get the
+                         # same 30-min TTL as a real hit — indistinguishable
+                         # from "this ticker genuinely has no news" for half
+                         # an hour even when it was actually a transient
+                         # upstream blip (engine.get_news() itself degraded,
+                         # or a filter matched nothing this cycle). Self-heals
+                         # in 5 min instead.
 _MAX_DAYS = 365
 
 # Engine's get_news() emits ET wall-clock strings; convert via UTC-5 (matches
@@ -129,7 +138,11 @@ def get_ticker_news(ticker: str, days: int = 30) -> list[dict]:
         })
 
     result.sort(key=lambda x: x["time_published"], reverse=True)
-    cache.set(cache_key, result, ttl=_CACHE_TTL)
+    # A non-empty result is a real hit — cache it at the full TTL. An empty
+    # result gets the SHORT ttl_partial (never a persistent store here, so
+    # `persist` is omitted) — see `_CACHE_TTL_EMPTY` above.
+    set_by_completeness(cache_key, result, complete=bool(result),
+                        ttl_ok=_CACHE_TTL, ttl_partial=_CACHE_TTL_EMPTY)
     return result
 
 
