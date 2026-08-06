@@ -3688,12 +3688,17 @@ export default function StockChart({
         const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
         const prevC = i > 0 ? arr[i - 1].close : c.open
         const isUp = (c.close != null && prevC != null) ? c.close >= prevC : (c.close >= c.open)
-        const col = isUp ? effUp : effDown
-        arr[i] = { ...c, color: col, borderColor: col, wickColor: col }
+        const bodyCol = isUp ? effUp : effDown
+        // Match the user's SEPARATE border + wick colors too (same derivation as the
+        // live candle series options), not just the body color — falls back to the
+        // body color when no distinct border/wick is set or on bold/Model-Book looks.
+        const borCol = userCandleColors ? (isUp ? (cs.candles.upBorder || bodyCol) : (cs.candles.downBorder || bodyCol)) : bodyCol
+        const wickCol = userCandleColors ? (isUp ? (cs.candles.upWick || bodyCol) : (cs.candles.downWick || bodyCol)) : bodyCol
+        arr[i] = { ...c, color: bodyCol, borderColor: borCol, wickColor: wickCol }
       }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, cs.candles.upColor, cs.candles.downColor]
+    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick]
   )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
