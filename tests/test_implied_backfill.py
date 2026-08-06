@@ -7,6 +7,7 @@ broken — it would look like an edge. So the tests below are mostly about
 sameness: same expiry rule, same ATM pick, same mid math, same shape.
 """
 import datetime as _dt
+import logging
 
 import pytest
 
@@ -535,3 +536,73 @@ class TestNightlySweep:
                (implied_store.CAPTURE_HOUR_ET, implied_store.CAPTURE_MINUTE_ET)
         assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) > \
                (setup_grade.GRADE_SNAPSHOT_HOUR_ET, setup_grade.GRADE_SNAPSHOT_MINUTE_ET)
+
+
+class TestTheSweepIsAudible:
+    """A sweep that writes nothing must SAY so at WARNING.
+
+    Uses the same isolation as the sweep tests above -- patching `DB_PATH`,
+    the real constant. An earlier version of this file patched `_DB_PATH`,
+    which does not exist; with `raising=False` that silently created a dead
+    attribute and the tests wrote to the real C:\\data database.
+
+    Lived failure (2026-08-06): the nightly cron wrote 0 rows on three
+    consecutive weeknights and produced no log line at all, because the only
+    report of its outcome was a RETURN VALUE and APScheduler discards those.
+    The store sat at 65 backfilled rows while the job "ran" nightly. Silence
+    was indistinguishable from success, so it read as success.
+    """
+
+    @pytest.fixture
+    def sweep_env(self, monkeypatch, tmp_path):
+        from api.services import implied_store as store
+        monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "s.db"))
+        monkeypatch.setattr(store, "_INITIALIZED", set())
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        return store
+
+    def test_a_pass_that_writes_nothing_logs_a_warning(self, sweep_env, monkeypatch, api, caplog):
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA", "AAPL"])
+        # Both symbols resolve to no usable quarter -> wrote 0, skipped 0.
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [])
+
+        with caplog.at_level(logging.WARNING, logger=ib._log.name):
+            out = ib.run_backfill_sweep()
+
+        assert "wrote 0" in out, out
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert warnings, "a sweep that wrote nothing logged no warning -- it is silent again"
+        assert "NOTHING WRITTEN" in warnings[-1].getMessage()
+
+    def test_a_productive_pass_does_not_cry_wolf(self, sweep_env, monkeypatch, api, caplog):
+        """The warning must mean something, so a night that works stays INFO."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+
+        with caplog.at_level(logging.INFO, logger=ib._log.name):
+            out = ib.run_backfill_sweep()
+
+        assert "wrote 1" in out, out
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING], \
+            "a successful sweep raised a warning -- the signal is now noise"
+
+    def test_a_genuinely_complete_store_is_not_an_alarm(self, sweep_env, monkeypatch, api, caplog):
+        """wrote 0 because everything is ALREADY captured is the good end state."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+        ib.run_backfill_sweep()          # first night captures it
+
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger=ib._log.name):
+            out = ib.run_backfill_sweep()   # second night has nothing left to do
+
+        assert "wrote 0" in out and "already had 1" in out, out
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING], \
+            "a complete store was reported as a failure"

@@ -232,6 +232,21 @@ def get_earnings_intel(ticker: str) -> dict | None:
         "beat_history": beat_history,
         "consensus": consensus,
         "price_target": price_target,
+        # Did the history leg ANSWER, or did it just not reply?
+        #
+        # An empty `beat_history` has two causes that are indistinguishable
+        # downstream and mean opposite things: Finnhub replying with an empty
+        # list (this ticker genuinely has no reported quarters) versus the call
+        # being shed or failing (we simply do not know yet). `_fh_get` returns
+        # a list in the first case and None in the second, so that IS the
+        # signal -- an empty list is an answer, None is a shrug.
+        #
+        # The short TTL below already stops a shrug from being SERVED for
+        # hours. This stops it from being STATED: without it the modal renders
+        # "No reported quarters yet" as fact for a company that has plainly
+        # reported (JAZZ, live 2026-08-06 -- Finnhub returned 4 real quarters
+        # on a direct call seconds later).
+        "history_answered": isinstance(eps_raw, list),
     }
     # ⛔ NEVER CACHE A FAILED FETCH AS A VALUE — for 6 hours, at least.
     #

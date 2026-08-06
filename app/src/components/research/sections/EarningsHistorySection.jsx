@@ -81,6 +81,26 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove, 
         />
       )
     }
+    // ...unless the server tells us it never got one. `enrichReady` only says
+    // the BATCH arrived; the enrichment fan-out sheds individual provider
+    // calls for rate budget, so a batch can arrive complete-looking with this
+    // ticker's history missing. `history_unresolved` is that per-symbol
+    // admission, and it outranks the batch signal.
+    //
+    // The distinction is not cosmetic: "No reported quarters yet" is a CLAIM
+    // about the company. JAZZ -- $17B, whose own modal header read "$5.71 vs
+    // $6.30 est" -- was told it had never reported a quarter (live 2026-08-06)
+    // while Finnhub returned four real quarters on a direct call. Saying
+    // nothing true is better than saying something false about a company.
+    if (row?.history_unresolved) {
+      return (
+        <EmptyState
+          icon="clock"
+          title="Earnings history unavailable"
+          hint="We couldn’t reach the history provider for this ticker just now. This refreshes on its own — check back in a few minutes."
+        />
+      )
+    }
     return (
       <EmptyState
         icon="clock"

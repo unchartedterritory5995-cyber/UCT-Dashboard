@@ -2676,16 +2676,33 @@ def _build_enrichment_for_date(target: str) -> dict:
                 move = _bounded_em(lambda s=sym: _inhouse_move(s, target))
             else:
                 move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
+        # Carried per-symbol because the failure IS per-symbol: this fan-out
+        # sheds individual Finnhub calls for budget, so one ticker's history
+        # can be missing in a build where every other ticker's arrived. The
+        # day-level `throttled` signal below shortens the TTL, but it cannot
+        # say WHICH symbols were shed -- and the modal states its answer per
+        # symbol, so the signal has to travel per symbol too.
+        history_unresolved = False
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None
+            # `intel is None` = all three legs failed; `history_answered` False
+            # = the history leg specifically did not reply. Either way we do
+            # not know this ticker's history, which is NOT the same as knowing
+            # it has none. Default True so an older cached intel dict (written
+            # before this key existed) is read as an answer rather than
+            # flipping every symbol to "unavailable" for one cache generation.
+            if not intel or not intel.get("history_answered", True):
+                history_unresolved = True
         except Exception:
-            pass
+            history_unresolved = True
         try:
             hist_stats = _compute_hist_stats(sym)
         except Exception:
             pass
-        return sym, {"expected_move": move, "beat_history": hist, "hist_stats": hist_stats}
+        return sym, {"expected_move": move, "beat_history": hist,
+                     "hist_stats": hist_stats,
+                     "history_unresolved": history_unresolved}
 
     # Bounded WAIT for a compute slot — a request that can't get one returns
     # empty (uncached) instead of parking an anyio thread for the duration of
