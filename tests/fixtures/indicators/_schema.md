@@ -57,6 +57,25 @@ and each lane asserts it in its own vocabulary:
 | Python | `None` | `got[i] is None` |
 | JS | `NaN` | `Number.isNaN(got[i])` |
 
+### The two columns that break the "pad, then values to the end" shape
+
+Both are **preserved quirks**, and both are pinned as NUMBERS rather than waived:
+
+* **`ichimoku_9_26_52.chikou` pads at BOTH ends.** Chikou is plotted
+  `kijunPeriod` bars *back* — bar `i`'s close is written to index `i − 26` — so
+  the last 26 slots are pad. `TRAILING_PAD` in `test_indicator_golden.py` (and
+  the mirrored block in `goldenFixtures.test.js`) declares that length and
+  asserts it in **both** directions: the last 26 are null *and* the slot before
+  them is not. Relaxing the alignment test to "holes allowed" instead would stop
+  it noticing if the back-shift changed, vanished or grew.
+* **`obv_basic.obv` has no pad at all.** B1 pinned bar 0 at `0` rather than "not
+  computable yet". A padded bar 0 satisfies "nulls first, then values" perfectly,
+  so the seed carries its own assertion in each lane.
+
+Ichimoku's *other* quirk — `spanA`/`spanB` are **not** forward-displaced, where
+standard Ichimoku pushes the cloud 26 bars into the future — shows up as the
+mirror image: their last bar carries a value, and both lanes assert it.
+
 This is the Python convention, adopted as the rule for both. The JS lane used to
 *trim* — it returned a short array starting at the first computable bar — which
 is why nothing could be compared position-by-position until Phase B1 Task 5
@@ -144,11 +163,45 @@ defect, and every JS case keeps a local re-implementation of the retired
 bucketing as its non-vacuity control — so "the shipped function is ET-anchored"
 is still measured against a series that can disagree with it.
 
-`Python has no VWAP`, so the BEHAVIOURAL half of these two cases is asserted by
-the JS lane only; the Python lane guards their shape (that UTC bucketing really
-does split the tape more often than ET bucketing would). That shape claim is
-about the FIXTURE, not the code, so it was unaffected by the fix — and it is the
-reason a reseed here would have had to redden both lanes at rel-tol 1e-9.
+The Python lane guards their shape (that UTC bucketing really does split the tape
+more often than ET bucketing would). That shape claim is about the FIXTURE, not
+the code, so it was unaffected by the fix — and it is the reason a reseed here
+would have had to redden both lanes at rel-tol 1e-9.
+
+> **Superseded 2026-08-05 (B5): "Python has no VWAP" is no longer true.**
+> `compute_vwap_raw` exists, and it took the **corrected** ET-session anchoring —
+> so both lanes now assert the BEHAVIOURAL half of these two cases against
+> `session.etSessionVwap`, each with its own re-implementation of the retired
+> UTC bucketing as the non-vacuity control. **These two files still were not
+> reseeded — not one byte.** `expected` stays `null` on both, because
+> `compute_case` deliberately has no `vwap` kind: an entry for it would let a
+> future edit quietly regenerate the two fixtures whose entire value is that they
+> never were. The new case below carries VWAP's `expected` column instead.
+
+## `vwap_session_expected` — VWAP's `expected` column (B5)
+
+A **new** case, on the parity gate's bars via `barsFrom`, with
+`kind: "vwap_series"` (not `"vwap"` — see above). It pins the ET-anchored series
+on the exact 579 five-minute extended-hours bars the chart renders, spanning a
+DST change. Measured on those bars the retired UTC-day bucketing differs by up to
+**$14.45** and stays more than $0.50 wrong for 134 positions, so a lane that
+ported the old logic cannot satisfy this column at 1e-9 — which is what makes it
+a port proof rather than a snapshot.
+
+## The seven that used to be JS-only (B5)
+
+`vwap`, `atr`, `sar`, `ichimoku`, `adx`, `obv` and `donchian` were engine
+definitions with **no Python lane at all**. That is why an indicator alert naming
+one could be stored and could never fire: `_evaluate_one` returns `(None, False)`
+on an `INDICATOR_FUNCS` miss. Their cases — `atr_14`, `adx_14`, `obv_basic`,
+`donchian_20`, `ichimoku_9_26_52`, `sar_default`, `vwap_session_expected` — are
+the proof that the port agrees with the shipped chart, and each one carries the
+quirk its indicator had to preserve.
+
+`sar` needs a note: its JS lane rides an `isUptrend` **boolean** alongside each
+price. The fixture carries it as a numeric `trend` column (`+1` / `−1`) because
+the fixture compare is numeric, and a flag no fixture reads is a behaviour with
+no oracle at all.
 
 ---
 

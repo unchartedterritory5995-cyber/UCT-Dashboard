@@ -22,6 +22,12 @@ import {
   computeCCI,
   computeWilliamsR,
   computeVWAP,
+  computeATR,
+  computeADX,
+  computeOBV,
+  computeDonchian,
+  computeIchimoku,
+  computeParabolicSAR,
 } from './indicators'
 
 // vitest is normally run from `app/`, but the same suite has to resolve when it
@@ -142,6 +148,122 @@ describe('golden fixtures — shared with the Python lane', () => {
     const got = col(computeMFI(c.bars, c.params.period))
     expectSomeValues(c.expected.mfi, 'mfi_14.mfi')
     alignedClose(got, c.expected.mfi, c.relTol, 'mfi_14.mfi')
+  })
+
+  // ─── B5: the seven that used to be JS-ONLY ────────────────────────────────
+  //
+  // `vwap`, `atr`, `sar`, `ichimoku`, `adx`, `obv` and `donchian` had no Python
+  // lane, which is why an alert naming one could be STORED and could never FIRE.
+  // They are ported now, and these are the port proof: each fixture's `expected`
+  // came from the Python core, and this lane — the SHIPPED implementation the
+  // chart draws from, untouched by that port — has to reproduce it at 1e-9.
+  //
+  // ⚠️ THAT DIRECTION IS WHY THE CASES MEAN ANYTHING. A fixture generated from
+  // the new code and asserted only by the new code is a snapshot. Asserted HERE
+  // it is a cross-language agreement, and every quirk the port had to preserve
+  // (OBV's zero seed, Ichimoku's back-shift, SAR's second output) is a number
+  // both lanes now have to keep producing.
+
+  it('atr_14', () => {
+    const c = loadCase('atr_14')
+    const got = col(computeATR(c.bars, c.params.period))
+    expectSomeValues(c.expected.atr, 'atr_14.atr')
+    alignedClose(got, c.expected.atr, c.relTol, 'atr_14.atr')
+  })
+
+  it('adx_14 — and its three columns are the SAME length', () => {
+    const c = loadCase('adx_14')
+    const got = computeADX(c.bars, c.params.period)
+    expectSomeValues(c.expected.adx, 'adx_14.adx')
+    alignedClose(col(got.adx), c.expected.adx, c.relTol, 'adx_14.adx')
+    alignedClose(col(got.plusDI), c.expected.plusDI, c.relTol, 'adx_14.plusDI')
+    alignedClose(col(got.minusDI), c.expected.minusDI, c.relTol, 'adx_14.minusDI')
+    // `adx` used to come back SHORTER than its DIs, so nothing could read them
+    // together at a given bar. It can't now.
+    expect(got.adx.length).toBe(got.plusDI.length)
+    expect(got.adx.length).toBe(got.minusDI.length)
+  })
+
+  it('obv_basic — including the ZERO SEED at bar 0', () => {
+    const c = loadCase('obv_basic')
+    const got = col(computeOBV(c.bars))
+    expectSomeValues(c.expected.obv, 'obv_basic.obv')
+    alignedClose(got, c.expected.obv, c.relTol, 'obv_basic.obv')
+    // ⚠️ PRESERVED QUIRK. Every other indicator pads bar 0; OBV seeds it with 0
+    // so the line starts at zero on the first bar. `alignedClose` above would be
+    // just as happy with a pad on BOTH sides, so the seed gets its own claim.
+    expect(c.expected.obv[0]).toBe(0)
+    expect(got[0]).toBe(0)
+    expect(got.every(Number.isFinite), 'OBV grew a pad it must not have').toBe(true)
+  })
+
+  it('donchian_20', () => {
+    const c = loadCase('donchian_20')
+    const got = computeDonchian(c.bars, c.params.period)
+    expectSomeValues(c.expected.middle, 'donchian_20.middle')
+    alignedClose(col(got.upper), c.expected.upper, c.relTol, 'donchian_20.upper')
+    alignedClose(col(got.middle), c.expected.middle, c.relTol, 'donchian_20.middle')
+    alignedClose(col(got.lower), c.expected.lower, c.relTol, 'donchian_20.lower')
+  })
+
+  it('ichimoku_9_26_52 — including the chikou BACK-SHIFT and the un-displaced cloud', () => {
+    const c = loadCase('ichimoku_9_26_52')
+    const got = computeIchimoku(
+      c.bars, c.params.tenkan_period, c.params.kijun_period, c.params.senkou_b_period,
+    )
+    for (const k of ['tenkan', 'kijun', 'spanA', 'spanB', 'chikou']) {
+      expectSomeValues(c.expected[k], `ichimoku_9_26_52.${k}`)
+      alignedClose(col(got[k]), c.expected[k], c.relTol, `ichimoku_9_26_52.${k}`)
+    }
+    // ⚠️ PRESERVED QUIRK 1 — chikou is plotted `kijunPeriod` bars BACK, so it is
+    // the one column padded at BOTH ends. Asserted as a NUMBER in both
+    // directions: the last 26 slots are pad AND the slot before them is not, so
+    // a back-shift that grew or shrank goes red rather than looking like a hole.
+    const shift = c.params.kijun_period
+    const chikou = col(got.chikou)
+    expect(chikou.slice(-shift).every(Number.isNaN), 'chikou lost its trailing pad').toBe(true)
+    expect(Number.isFinite(chikou[chikou.length - shift - 1]),
+      `chikou's trailing pad is longer than ${shift} — the back-shift moved`).toBe(true)
+    // ⚠️ PRESERVED QUIRK 2 — spanA/spanB are NOT forward-displaced. Standard
+    // Ichimoku pushes the cloud 26 bars into the future, leaving a trailing pad
+    // like chikou's mirror image; this one sits over the price that made it, so
+    // its LAST bar carries a value.
+    expect(Number.isFinite(col(got.spanA).at(-1)), 'spanA became forward-displaced').toBe(true)
+    expect(Number.isFinite(col(got.spanB).at(-1)), 'spanB became forward-displaced').toBe(true)
+  })
+
+  it('sar_default — including the isUptrend flag that rides alongside', () => {
+    const c = loadCase('sar_default')
+    const got = computeParabolicSAR(c.bars, c.params.step, c.params.max_step)
+    expectSomeValues(c.expected.sar, 'sar_default.sar')
+    alignedClose(col(got), c.expected.sar, c.relTol, 'sar_default.sar')
+    // ⚠️ PRESERVED QUIRK — the THIRD field. `isUptrend` rides along on each
+    // point and the chart consumer strips it before handing data to LWC. The
+    // fixture carries it as a numeric ±1 column so it has an oracle at all.
+    const trend = got.map(p => (p.isUptrend === undefined ? NaN : (p.isUptrend ? 1 : -1)))
+    alignedClose(trend, c.expected.trend, c.relTol, 'sar_default.trend')
+    // …and it is a real signal on these bars, not a constant.
+    const seen = new Set(c.expected.trend.filter(v => v !== null))
+    expect(seen, 'the trend never flips — the column pins nothing').toEqual(new Set([1, -1]))
+  })
+
+  it('vwap_session_expected — VWAP asserted by BOTH lanes, on the PIXEL gate\'s bars', () => {
+    // ⭐ The case that closes the "Python has no VWAP" gap. Its bars are the
+    // parity fixture's (via `barsFrom`), so the compute oracle, the rendered
+    // picture and the alert lane are provably one series. Its `expected` column
+    // is the ET-anchored VWAP — `VWAP_SESSION_ANCHOR`, accepted 2026-08-03 —
+    // which the non-vacuity block further down measures against the retired
+    // UTC-day bucketing in dollars.
+    const c = loadCase('vwap_session_expected')
+    const bars = caseBars(c)
+    const got = col(computeVWAP(bars))
+    expectSomeValues(c.expected.vwap, 'vwap_session_expected.vwap')
+    alignedClose(got, c.expected.vwap, c.relTol, 'vwap_session_expected.vwap')
+    // Non-vacuous: had either lane ported the retired bucketing, this column
+    // could not have been satisfied by both at 1e-9.
+    const old = vwapByUtcDay(bars)
+    const worst = Math.max(...got.map((v, i) => Math.abs(v - old[i])))
+    expect(worst, 'the two bucketings agree on these bars — the case pins nothing').toBeGreaterThan(5)
   })
 
   it('intraday5m_sessions — the same 5-minute bars the PIXEL gate renders', () => {

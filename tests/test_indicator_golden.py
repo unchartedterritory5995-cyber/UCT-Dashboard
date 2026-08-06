@@ -16,8 +16,11 @@ from api.services import indicator_compute as ic
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIX = pathlib.Path(__file__).parent / "fixtures" / "indicators"
 
-# The 7 indicators that exist in BOTH lanes. (vwap/atr/sar/ichimoku/obv/
-# donchian/adx are JS-only today; sma/ema exist here but have no fixture case.)
+# Every indicator that exists in BOTH lanes. Until B5 that was SEVEN, and the
+# other seven engine definitions (vwap/atr/sar/ichimoku/obv/donchian/adx) were
+# JS-only — which is why an alert naming one could be stored and could never
+# fire. They are ported now and each carries a case here.
+# (sma/ema exist in this lane but have no fixture case.)
 CASES = [
     "rsi_ramp_14",
     "macd_default",
@@ -26,8 +29,16 @@ CASES = [
     "williams_r_14",
     "cci_20",
     "mfi_14",
-    # Owns no bars: `barsFrom` points at the CHART PARITY GATE's intraday fixture,
+    # ── B5: the seven that used to be JS-only ──
+    "atr_14",
+    "adx_14",
+    "obv_basic",
+    "donchian_20",
+    "ichimoku_9_26_52",
+    "sar_default",
+    # Own no bars: `barsFrom` points at the CHART PARITY GATE's intraday fixture,
     # so this lane's 1e-9 compare runs on the exact series the chart draws.
+    "vwap_session_expected",
     "intraday5m_sessions",
 ]
 
@@ -36,7 +47,24 @@ VWAP_CASES = ["vwap_extended_hours_utc_midnight", "vwap_dst_transition"]
 # Cases whose bars live in another file. The indirection is the point — see
 # `_generate.py::_write_referenced` — so it gets its own list rather than being
 # inferred, and `test_a_referenced_case_really_is_referenced` guards it.
-REFERENCED_CASES = {"intraday5m_sessions": "app/src/pages/parityBars/intraday5m.json"}
+REFERENCED_CASES = {
+    "intraday5m_sessions": "app/src/pages/parityBars/intraday5m.json",
+    "vwap_session_expected": "app/src/pages/parityBars/intraday5m.json",
+}
+
+# ─── the ONE column that pads at BOTH ends ───────────────────────────────────
+#
+# `ichimoku`'s chikou is plotted `kijun_period` bars BACK: bar i's close is
+# written to index i - 26, so the LAST 26 slots are pad. Every other column in
+# every other case pads only at the head.
+#
+# ⛔ DECLARED AS A NUMBER, NOT WAIVED. The obvious way to make the alignment test
+# tolerate this is to skip the column, or to relax "no holes after the first
+# value" to "holes allowed". Both would stop the test noticing if chikou's shift
+# changed, vanished, or grew — which is a PRESERVED QUIRK the chart's picture
+# depends on. Naming the exact trailing length instead means the quirk has a
+# gate: change the back-shift and this goes red with the two numbers in hand.
+TRAILING_PAD = {("ichimoku_9_26_52", "chikou"): 26}
 
 
 def load_case(name):
@@ -91,13 +119,56 @@ def test_columns_are_null_padded_then_continuous(name):
     A hole in the middle would mean an indicator silently skipped a bar, which
     is exactly the kind of thing a value-by-value compare can miss when the
     fixture was generated from the same skip.
+
+    The single exception is DECLARED in ``TRAILING_PAD`` and its length is
+    asserted exactly — see that constant before adding to it.
     """
     case = load_case(name)
     for col, exp in case["expected"].items():
-        first = next((i for i, v in enumerate(exp) if v is not None), None)
+        trailing = TRAILING_PAD.get((name, col), 0)
+        head = exp if trailing == 0 else exp[:-trailing]
+        first = next((i for i, v in enumerate(head) if v is not None), None)
         assert first is not None, f"{name}.{col} is entirely null"
-        assert all(v is None for v in exp[:first]), f"{name}.{col} pad is not contiguous"
-        assert all(v is not None for v in exp[first:]), f"{name}.{col} has a hole after {first}"
+        assert all(v is None for v in head[:first]), f"{name}.{col} pad is not contiguous"
+        assert all(v is not None for v in head[first:]), f"{name}.{col} has a hole after {first}"
+        if trailing:
+            assert all(v is None for v in exp[-trailing:]), (
+                f"{name}.{col} declares a {trailing}-slot trailing pad it does not have"
+            )
+
+
+def test_the_declared_trailing_pad_is_exactly_that_long():
+    """The back-shift, as a NUMBER, in both directions.
+
+    ⚠️ THE TEST ABOVE IS HALF THE CLAIM. It proves the declared tail is null; it
+    would stay green if the tail were LONGER than declared (chikou shifted 40
+    bars back would still have 26 nulls at the end). This pins the boundary: the
+    slot just before the declared pad must carry a value, so the pad is exactly
+    26 and the back-shift is exactly `kijun_period`.
+    """
+    for (name, col), trailing in TRAILING_PAD.items():
+        case = load_case(name)
+        exp = case["expected"][col]
+        assert exp[-trailing] is None, f"{name}.{col} pad starts later than declared"
+        assert exp[-trailing - 1] is not None, (
+            f"{name}.{col} trailing pad is LONGER than the declared {trailing} — the "
+            f"back-shift moved and only this end of the assertion can see it"
+        )
+        # …and it really is the definition's kijun period, not a coincidence.
+        assert trailing == case["params"]["kijun_period"]
+
+
+def test_obv_has_no_pad_at_all_because_bar_zero_is_seeded_with_zero():
+    """⚠️ PRESERVED QUIRK, pinned where a lane would 'correct' it.
+
+    Every other column starts with a null pad. OBV does not: B1 pinned bar 0 at
+    `0` rather than "not computable yet", so the line starts at zero on the first
+    bar. The alignment test above cannot see this — a padded bar 0 satisfies
+    "nulls first, then values" perfectly — so the seed needs its own assertion.
+    """
+    exp = load_case("obv_basic")["expected"]["obv"]
+    assert exp[0] == 0, "OBV's zero seed is gone — bar 0 was padded instead"
+    assert all(v is not None for v in exp), "OBV grew a pad it must not have"
 
 
 def test_every_fixture_file_is_covered_by_a_test():
@@ -110,9 +181,14 @@ def test_every_fixture_file_is_covered_by_a_test():
 
 @pytest.mark.parametrize("name", VWAP_CASES)
 def test_vwap_session_fixtures_carry_a_real_trap(name):
-    """Python has no VWAP, so this lane only guards the fixture's shape — that
-    UTC-day bucketing really does split these sessions more often than ET-day
-    bucketing would. The behavioural assertions live in the vitest lane."""
+    """The fixture's SHAPE: UTC-day bucketing really does split these sessions
+    more often than ET-day bucketing would.
+
+    This is a claim about the FIXTURE, not about either lane's code, which is
+    why it was written before Python had a VWAP and is unchanged now that it
+    does. The behavioural half — that `compute_vwap_raw` produces the ET-anchored
+    series — is the test directly below.
+    """
     case = load_case(name)
     s = case["session"]
     assert case["expected"] is None
@@ -123,6 +199,76 @@ def test_vwap_session_fixtures_carry_a_real_trap(name):
         f"{name}: UTC bucketing must split the tape MORE than ET bucketing, "
         f"else the case pins nothing"
     )
+
+
+def _vwap_by_utc_day(bars):
+    """The bucketing that shipped until 2026-08-03, as the control.
+
+    Deliberately a re-implementation rather than an import: the point is to hold
+    a series `compute_vwap_raw` no longer produces, so "the port is ET-anchored"
+    is measured against something that can disagree with it. Mirrors
+    `vwapByUtcDay` in the vitest lane, for the same reason.
+    """
+    import datetime as _dt
+    out, pv, vol, cur = [], 0.0, 0.0, None
+    for b in bars:
+        key = _dt.datetime.fromtimestamp(b["t"], _dt.timezone.utc).strftime("%Y-%m-%d")
+        if key != cur:
+            pv, vol, cur = 0.0, 0.0, key
+        tp = (b["h"] + b["l"] + b["c"]) / 3.0
+        v = float(b["v"])
+        pv += tp * v
+        vol += v
+        out.append(pv / vol if vol > 0 else None)
+    return out
+
+
+@pytest.mark.parametrize("name", VWAP_CASES)
+def test_the_python_vwap_port_is_ET_ANCHORED_not_utc(name):
+    """⭐ THE PORT PROOF FOR THE ONE INDICATOR THAT HAD A DECISION ATTACHED.
+
+    `VWAP_SESSION_ANCHOR` was accepted 2026-08-03 at a measured 2,590 changed
+    pixels: `computeVWAP` buckets by the ET CALENDAR DAY, not the UTC one. B5
+    ports the CORRECTED logic, so this lane must reproduce
+    `session.etSessionVwap` — a column these fixtures have carried since before
+    Python had a VWAP at all, and which was NOT reseeded for this task.
+
+    ⚠️ THE NON-VACUITY HALF IS THE POINT. On regular trading hours the two
+    bucketings are identical, so a fixture where they agree would pass whether
+    the port took the corrected logic or the retired one. These two cases are
+    extended hours precisely so they disagree, and the assertion below measures
+    that disagreement in dollars before trusting the agreement above it.
+    """
+    case = load_case(name)
+    bars = case["bars"]
+    s = case["session"]
+    got = ic.compute_vwap_raw(bars)
+
+    assert len(got) == len(bars)
+    for i, exp in enumerate(s["etSessionVwap"]):
+        assert _close(got[i], exp, case["relTol"]), f"{name}.vwap[{i}]: {got[i]!r} != {exp!r}"
+
+    # It resets at the ET session opens the fixture names, and at nothing else:
+    # the accumulator collapses to one bar's typical price only where a session
+    # opens, so those indices are exactly `etResetIndices`.
+    collapsed = [
+        i for i, b in enumerate(bars)
+        if abs(got[i] - (b["h"] + b["l"] + b["c"]) / 3.0) < 1e-9
+    ]
+    assert collapsed == s["etResetIndices"], (
+        f"{name}: the port resets at {collapsed}, the ET session opens are "
+        f"{s['etResetIndices']}"
+    )
+
+    # NON-VACUOUS, in dollars: the retired bucketing gives a materially different
+    # number at every boundary it used to trip and this one does not.
+    old = _vwap_by_utc_day(bars)
+    mid_session = [i for i in s["utcResetIndices"] if i not in s["etResetIndices"]]
+    assert mid_session, f"{name} exercises no UTC-only split — it pins nothing"
+    for i in mid_session:
+        assert abs(old[i] - got[i]) > 1.0, (
+            f"{name}: bar {i} splits mid-session but the two bucketings agree to within $1"
+        )
 
 
 # ─── the intraday case the parity gate renders ───────────────────────────────
@@ -266,6 +412,105 @@ def test_hand_computed_mfi():
     ]
     out = ic.compute_mfi_raw(bars, 2)
     assert out[2] == pytest.approx(100 - 100 / (1 + 12000 / 5500), rel=1e-12)
+
+
+def test_hand_computed_atr():
+    # TR[1] = max(12-9, |12-9|, |9-9|)  = 3
+    # TR[2] = max(13-11, |13-11|, |11-11|) = 2
+    # period 2 → seed = (3 + 2) / 2 = 2.5, landing on bars[2].
+    bars = [
+        {"h": 10, "l": 8, "c": 9},
+        {"h": 12, "l": 9, "c": 11},
+        {"h": 13, "l": 11, "c": 12},
+    ]
+    out = ic.compute_atr_raw(bars, 2)
+    assert out[:2] == [None, None]
+    assert out[2] == pytest.approx(2.5, rel=1e-12)
+
+
+def test_hand_computed_donchian():
+    # highs [10, 12, 11] → upper 12; lows [8, 10, 9] → lower 8; middle = 10.
+    bars = [
+        {"h": 10, "l": 8, "c": 9},
+        {"h": 12, "l": 10, "c": 11},
+        {"h": 11, "l": 9, "c": 10},
+    ]
+    upper, middle, lower = ic.compute_donchian_raw(bars, 3)
+    assert upper[:2] == [None, None]
+    assert (upper[2], middle[2], lower[2]) == (12, 10, 8)
+
+
+def test_hand_computed_obv_including_the_unchanged_close_branch():
+    # closes 10 → 11 (up, +200) → 11 (unchanged, carry) → 9 (down, -400)
+    bars = [
+        {"c": 10, "v": 100}, {"c": 11, "v": 200},
+        {"c": 11, "v": 300}, {"c": 9, "v": 400},
+    ]
+    assert ic.compute_obv_raw(bars) == [0.0, 200.0, 200.0, -200.0]
+
+
+def test_hand_computed_adx_saturates_on_a_monotonic_uptrend():
+    """Every bar a higher high AND a higher low ⇒ -DM is 0 on every bar, so -DI
+    is exactly 0 and DX is exactly 100 whatever the true ranges are — which
+    makes ADX exactly 100. Derivable on paper without smoothing arithmetic."""
+    bars = [{"h": 10 + 2 * i, "l": 8 + 2 * i, "c": 9 + 2 * i} for i in range(40)]
+    adx, plus_di, minus_di = ic.compute_adx_raw(bars, 14)
+    assert minus_di[-1] == 0.0
+    assert plus_di[-1] > 0.0
+    assert adx[-1] == pytest.approx(100.0, rel=1e-12)
+    # …and the first values land where Wilder puts them: DIs at bars[period],
+    # ADX a further period-1 bars on, at bars[2*period - 1].
+    assert plus_di[13] is None and plus_di[14] is not None
+    assert adx[26] is None and adx[27] is not None
+
+
+def test_hand_computed_ichimoku_including_the_back_shift():
+    # tenkan 1 / kijun 2 / senkouB 3 over four bars, all mid-points by hand.
+    bars = [
+        {"h": 10, "l": 8, "c": 9},
+        {"h": 12, "l": 9, "c": 11},
+        {"h": 11, "l": 7, "c": 10},
+        {"h": 13, "l": 11, "c": 12},
+    ]
+    tenkan, kijun, span_a, span_b, chikou = ic.compute_ichimoku_raw(bars, 1, 2, 3)
+    # i = 2: tenkan (11+7)/2 = 9 · kijun over bars 1-2 → (12+7)/2 = 9.5
+    #        spanA (9 + 9.5)/2 = 9.25 · spanB over bars 0-2 → (12+7)/2 = 9.5
+    assert (tenkan[2], kijun[2], span_a[2], span_b[2]) == (9, 9.5, 9.25, 9.5)
+    # i = 3: tenkan (13+11)/2 = 12 · kijun over bars 2-3 → (13+7)/2 = 10
+    #        spanA (12 + 10)/2 = 11 · spanB over bars 1-3 → (13+7)/2 = 10
+    assert (tenkan[3], kijun[3], span_a[3], span_b[3]) == (12, 10, 11, 10)
+    # ⚠️ THE BACK-SHIFT: bar i's CLOSE lands at index i - kijun_period (2 here),
+    # so the last two slots are pad — the trailing pad no other column has.
+    assert chikou == [10, 12, None, None]
+
+
+def test_hand_computed_sar_is_clamped_to_the_prior_lows():
+    # c1 > c0 ⇒ uptrend. sar seeds at bars[0].l = 8, ep = bars[0].h = 10, af=.02.
+    # i=1: 8 + .02*(10-8) = 8.04, clamped to min(8.04, prior low 8) = 8.
+    # i=2: ep is now 12, af .04 → 8 + .04*(12-8) = 8.16, clamped to
+    #      min(8.16, 9, 8) = 8. The clamp is what keeps SAR under the trend.
+    bars = [
+        {"h": 10, "l": 8, "c": 9},
+        {"h": 12, "l": 9, "c": 11},
+        {"h": 13, "l": 11, "c": 12},
+    ]
+    sar, trend = ic.compute_sar_raw(bars, 0.02, 0.2)
+    assert sar == [None, 8.0, 8.0]
+    assert trend == [None, 1.0, 1.0]
+
+
+def test_hand_computed_vwap_is_volume_weighted_and_cumulative():
+    # One ET session (14:00 and 15:00 ET on 2026-06-10, both inside one UTC day
+    # so this case is about the ARITHMETIC, not the bucketing).
+    # tp0 = (11+9+10)/3 = 10 · tp1 = (22+18+20)/3 = 20
+    # bar 0: 10 · bar 1: (10*100 + 20*300) / 400 = 7000/400 = 17.5
+    bars = [
+        {"t": 1781028000, "h": 11, "l": 9, "c": 10, "v": 100},
+        {"t": 1781031600, "h": 22, "l": 18, "c": 20, "v": 300},
+    ]
+    out = ic.compute_vwap_raw(bars)
+    assert out[0] == pytest.approx(10.0, rel=1e-12)
+    assert out[1] == pytest.approx(17.5, rel=1e-12)
 
 
 def test_hand_computed_bb_middle_is_the_sma():

@@ -442,6 +442,83 @@ def main() -> None:
         build_vwap_dst_transition(),
     )
 
+    # ── B5: the seven that used to be JS-only ────────────────────────────────
+    # Each `expected` column is the PRECISE Python core, and the JS lane asserts
+    # the same file at 1e-9 — which is what makes these a PORT PROOF rather than
+    # a snapshot of the new code. Six run on the shared `mixed` series (it has a
+    # trend, a 5-bar zero-variance plateau and a sharp reversal, so the branch
+    # each of them guards is actually reached); VWAP cannot, because a daily
+    # series is one ET session per bar and would pin nothing about session
+    # bucketing at all.
+    _write_computed(
+        "atr_14", "atr",
+        "Wilder ATR(14). The seed is the simple MEAN of the first 14 true ranges "
+        "and lands on bars[14]; the 5-bar plateau holds the range constant, which "
+        "is where a smoothing-order slip between the lanes shows first.",
+        mixed, {"period": 14},
+    )
+    _write_computed(
+        "adx_14", "adx",
+        "ADX(14) with +DI/-DI. TWO chained Wilder smoothings — the DI sums, then "
+        "DX — so ADX first lands on bars[2*period-1] = 27 while the DIs land on "
+        "bars[14]. All three columns are bar-aligned; the JS lane used to return "
+        "`adx` SHORTER than its DIs, which is exactly what the alignment rule "
+        "makes unrepresentable.",
+        mixed, {"period": 14},
+    )
+    _write_computed(
+        "obv_basic", "obv",
+        "⚠️ PRESERVED QUIRK — THE ZERO SEED. bars[0] is 0.0, NOT the null pad, so "
+        "this is the one column with no pad at all. B1 pinned it; a lane that "
+        "'corrected' it to a pad would go red here. The plateau's 5 identical "
+        "closes also exercise the 'neither up nor down' branch, where OBV must "
+        "carry forward unchanged rather than add or subtract the bar's volume.",
+        mixed, {},
+    )
+    _write_computed(
+        "donchian_20", "donchian",
+        "Donchian(20) upper/middle/lower over the volatility expansion and the "
+        "sharp drop, so the channel both widens and shifts.",
+        mixed, {"period": 20},
+    )
+    _write_computed(
+        "ichimoku_9_26_52", "ichimoku",
+        "⚠️ TWO PRESERVED QUIRKS, both load-bearing. (1) spanA/spanB are NOT "
+        "forward-displaced 26 bars — standard Ichimoku pushes the cloud into the "
+        "future, this one sits over the price that produced it. (2) chikou IS "
+        "back-shifted 26, so its column is the ONLY one in the whole fixture set "
+        "with a TRAILING null pad — bar i's close is written to index i-26, "
+        "leaving the last 26 slots null. `TRAILING_PAD` in both lanes declares "
+        "that length exactly, so the quirk is pinned as a number rather than "
+        "excused as a hole.",
+        mixed, {"tenkan_period": 9, "kijun_period": 26, "senkou_b_period": 52},
+    )
+    _write_computed(
+        "sar_default", "sar",
+        "⚠️ PRESERVED QUIRK — THE SECOND OUTPUT. The JS lane rides an `isUptrend` "
+        "boolean alongside each SAR price and the chart consumer strips it. It is "
+        "pinned here as a numeric `trend` column (+1/-1) because the fixture "
+        "compare is numeric and a flag no fixture reads is a behaviour with no "
+        "oracle. The series reverses hard enough to flip the trend repeatedly, so "
+        "both the acceleration-factor ramp and the reversal branch are covered.",
+        mixed, {"step": 0.02, "max_step": 0.2},
+    )
+
+    _write_referenced(
+        "vwap_session_expected", "vwap_series",
+        "⭐ VWAP's FIRST `expected` COLUMN IN THE PYTHON LANE. The two older vwap "
+        "cases carry `expected: null` because Python had no VWAP when they were "
+        "written; they are NOT reseeded (their whole value is that they never "
+        "were), so this is a NEW case on the chart parity gate's own bars via "
+        "`barsFrom`. It pins the CORRECTED session anchoring — `VWAP_SESSION_ANCHOR`, "
+        "accepted 2026-08-03 — on the exact 579 five-minute extended-hours bars "
+        "the chart renders, spanning a DST change. Measured on these bars, the "
+        "retired UTC-day bucketing differs by up to $14.45 and stays more than "
+        "$0.50 wrong for 134 positions, so a lane that ported the OLD logic "
+        "cannot pass this at 1e-9.",
+        _PARITY_INTRADAY, load_parity_intraday_bars(), {},
+    )
+
     _write_referenced(
         "intraday5m_sessions", "mfi",
         "The CHART PARITY GATE's intraday bar fixture, asserted by both lanes. Its bars "
@@ -458,7 +535,7 @@ def main() -> None:
         _PARITY_INTRADAY, load_parity_intraday_bars(), {"period": 14},
     )
 
-    print("\nDone — 10 fixtures written. Do NOT re-run this to fix a red test.")
+    print("\nDone — 17 fixtures written. Do NOT re-run this to fix a red test.")
 
 
 if __name__ == "__main__":
