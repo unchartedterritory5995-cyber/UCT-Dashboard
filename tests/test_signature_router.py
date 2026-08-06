@@ -37,6 +37,12 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(ledger, "_INITED", False)
     for slot in (sig._DPL_STALE, sig._FCB_STALE, sig._GXW_STALE):
         slot._slots.clear()
+    # The negative caches are module-level too, and they now ride `fresh()` on
+    # BOTH gex-walls and flow-breakout. A test that legitimately remembers an
+    # outage for NVDA would otherwise answer the NEXT test's cold request from
+    # that entry — the slots were already cleared here for exactly this reason.
+    sig._GXW_NEG_CACHE.clear()
+    sig._FCB_NEG_CACHE.clear()
     app = FastAPI()
     app.include_router(sig.router)
     return app
@@ -868,3 +874,186 @@ def test_fetch_bars_reads_the_real_store_under_the_D_key(tmp_path, monkeypatch):
         assert bars_sqlite.get_bars("SIGX", "1D", 60) == []
     finally:
         bars_sqlite.bump_db_epoch()
+
+
+# ── the FCB negative cache: the 2026-08-06 RTH outage (measured on the pod) ──
+#
+# `GET /api/signature/flow-breakout` returned {"error": "flow unavailable"}
+# after 15-17s for SPY/QQQ/NVDA during RTH, and PASS 2 COST THE SAME. The error
+# envelope is refused by good(), so it reached neither the TTL cache nor the
+# stale slot — leaving ServeStale nothing to serve and every sequential request
+# rebuilding, 15s of an anyio worker each, on the one shared uvicorn loop.
+
+
+def _flow_outage(monkeypatch, *, delay=0.0):
+    """A flow read that fails the way the pod's did: slowly, then None.
+
+    `_fcb_ledger_signals` is stubbed empty so these tests measure the NEGATIVE
+    CACHE alone — with a populated ledger the failed build succeeds from the
+    fallback instead, which is a different rail (tested below).
+    """
+    calls = []
+    monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+
+    def fake(sym, cutoff_iso=""):
+        calls.append(sym)
+        if delay:
+            time.sleep(delay)
+        return None                       # the timeout's return value
+
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", fake)
+    return calls
+
+
+def test_a_flow_outage_is_remembered_so_the_second_request_does_not_rebuild(
+        client, monkeypatch):
+    """THE gate: a second call inside the window must not pay the read again.
+
+    Asserted on the ARTIFACT (the flow read fired once) *and* on the wall clock
+    (the second response beat the stubbed read's own duration), because the
+    count alone would pass for a builder that is simply never reachable."""
+    calls = _flow_outage(monkeypatch, delay=0.5)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    t0 = time.time()
+    first = c.get("/api/signature/flow-breakout?sym=SPY").json()
+    cold = time.time() - t0
+
+    t1 = time.time()
+    second = c.get("/api/signature/flow-breakout?sym=SPY").json()
+    warm = time.time() - t1
+
+    assert first["error"] == second["error"] == "flow unavailable"
+    assert calls == ["SPY"], f"the second request rebuilt: {calls}"
+    assert cold >= 0.5, f"the cold path did not actually pay the read ({cold:.3f}s)"
+    assert warm < 0.25, f"the second request paid the read again ({warm:.3f}s)"
+
+
+def test_the_fcb_negative_entry_expires_so_the_outage_self_heals(client, monkeypatch):
+    """The other direction: 60s of memory, not a permanent refusal. The tape
+    quiets down, the read succeeds, and the very next request must see it."""
+    calls = _flow_outage(monkeypatch)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    assert c.get("/api/signature/flow-breakout?sym=SPY").json()["error"]
+    assert calls == ["SPY"]
+
+    payload, _at = sig._FCB_NEG_CACHE["SPY"]
+    sig._FCB_NEG_CACHE["SPY"] = (payload, time.time() - sig._FCB_NEG_TTL_S - 1)
+
+    def recovered(sym, cutoff_iso=""):
+        calls.append(sym)
+        return _bull_by_date()
+
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", recovered)
+    body = c.get("/api/signature/flow-breakout?sym=SPY").json()
+
+    assert calls == ["SPY", "SPY"]
+    assert [s["direction"] for s in body["signals"]] == ["bull"]
+    assert "SPY" not in sig._FCB_NEG_CACHE, "recovery must clear the negative entry"
+
+
+def test_the_fcb_negative_cache_never_outranks_a_servable_payload(client, monkeypatch):
+    """The GEX courtesy, owed here too. ServeStale checks fresh() BEFORE the
+    stale slot, so a negative entry returned unconditionally would hand an
+    ERROR to a user whose signals payload is seconds old — and self-perpetuate,
+    because every request it answered skipped the stale path. A trader with a
+    fine FCB overlay would watch the arrows vanish the moment the flow-worker
+    got busy, and only the ~1-in-60s that fell through on expiry would see them
+    again."""
+    from api.services.cache import cache
+
+    state = {"mode": "healthy"}
+    monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+
+    def adapter(sym, cutoff_iso=""):
+        return _bull_by_date() if state["mode"] == "healthy" else None
+
+    monkeypatch.setattr(sig, "_fetch_flow_by_date", adapter)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    # 1. cold + healthy -> the TTL cache AND the stale slot hold real signals.
+    good = c.get("/api/signature/flow-breakout?sym=SPY").json()["signals"]
+    assert [s["direction"] for s in good] == ["bull"]
+
+    # The flow-worker saturates, and the 5-min fresh window lapses.
+    state["mode"] = "down"
+    cache.invalidate(sig._ck("fcb", "SPY"))
+
+    # 2. serves the stale signals, kicks a refresh that fails -> negative-cached.
+    assert c.get("/api/signature/flow-breakout?sym=SPY").json()["signals"] == good
+    assert _wait_for(lambda: "SPY" in sig._FCB_NEG_CACHE), "the outage must be remembered"
+    cache.invalidate(sig._ck("fcb", "SPY"))
+
+    # 3. THE regression: a seconds-old good payload still outranks the outage.
+    body = c.get("/api/signature/flow-breakout?sym=SPY").json()
+    assert body.get("signals") == good, body
+    assert not body.get("error"), body
+
+
+def test_the_fcb_negative_cache_still_answers_a_caller_with_nothing(client, monkeypatch):
+    """The other half of the ordering rule: once the stale payload ages out (or
+    never existed), the COLD caller does get the remembered envelope rather than
+    paying the 15s read again. Without this the stand-down would be a blanket
+    disable and the cache would never shield anyone."""
+    calls = _flow_outage(monkeypatch)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    c = TestClient(client)
+
+    assert c.get("/api/signature/flow-breakout?sym=SPY").json()["error"]
+    sig._FCB_STALE._slots.clear()                    # nothing servable remains
+    assert c.get("/api/signature/flow-breakout?sym=SPY").json()["error"]
+    assert calls == ["SPY"]
+
+
+def test_a_fcb_bookkeeping_raise_is_not_a_500(client, monkeypatch, caplog):
+    """The neg-cache write runs on the COLD path, the one with no try/except
+    above it (serve_stale.py:143) — so a raise there is a 500 exactly like a
+    raise from the provider (rule 1). The prune ITERATES the dict, which is
+    precisely the raise this guards."""
+    _flow_outage(monkeypatch)
+
+    def boom(sym, payload):
+        raise RuntimeError("dictionary changed size during iteration")
+
+    monkeypatch.setattr(sig, "_fcb_remember_error", boom)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    with caplog.at_level(logging.ERROR, logger="api.routers.signature"):
+        r = TestClient(client, raise_server_exceptions=False).get(
+            "/api/signature/flow-breakout?sym=SPY")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["error"] == "flow unavailable"
+    assert any("bookkeeping" in rec.getMessage() for rec in caplog.records), caplog.text
+
+
+def test_a_recovered_flow_read_pops_an_unexpired_negative_entry(client, monkeypatch):
+    """Recovery is IMMEDIATE, not TTL-bound — and that needs its OWN rail.
+
+    `test_the_fcb_negative_entry_expires_so_the_outage_self_heals` ages the
+    entry out first, so `_fcb_negative_hit` pops it on the expiry branch before
+    the build ever runs: its closing "not in _FCB_NEG_CACHE" assertion passes
+    even with the recovery pop DELETED. Measured — that mutation SURVIVED the
+    whole suite until this test existed.
+
+    So: stamp the entry NOW (asserted unexpired) and drive `_fcb_build`
+    directly, which is the path ServeStale's background kick takes while the
+    stale slot is still servable — the only way a fresh entry can be cleared
+    before its 60s is up.
+    """
+    monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+    monkeypatch.setattr(sig, "_fetch_flow_by_date",
+                        lambda sym, cutoff_iso="": _bull_by_date())
+
+    sig._FCB_NEG_CACHE["SPY"] = ({"sym": "SPY", "error": "flow unavailable"}, time.time())
+    age = time.time() - sig._FCB_NEG_CACHE["SPY"][1]
+    assert age < sig._FCB_NEG_TTL_S, f"the entry must be UNEXPIRED for this to mean anything ({age})"
+
+    payload = sig._fcb_build("SPY")
+
+    assert [s["direction"] for s in payload["signals"]] == ["bull"], payload
+    assert "SPY" not in sig._FCB_NEG_CACHE, "a good payload must pop the outage immediately"

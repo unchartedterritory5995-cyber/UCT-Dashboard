@@ -91,6 +91,31 @@ _GXW_NEG_LOCK = threading.Lock()
 _GXW_NEG_TTL_S = 60.0
 _GXW_NEG_MAX_KEYS = 256
 
+# ── FCB negative cache ──────────────────────────────────────────────────────
+# The same shape, for the same reason, against a DIFFERENT outage.
+#
+# Measured on the pod 2026-08-06 10:04 ET: `/api/signature/flow-breakout` for
+# SPY/QQQ/NVDA returned `{"error": "flow unavailable"}` after 15-17s, and PASS 2
+# COST THE SAME. That is the tell — `_fcb_good()` is `"signals" in p`, so the
+# error envelope is refused by the stale slot AND never written to the TTL
+# cache, which leaves `fresh()` missing and the slot empty. ServeStale then has
+# nothing to serve, so EVERY sequential request rebuilds: 15s of an anyio worker
+# each, on the ONE shared uvicorn loop, all session (the 2026-07-01 524 class).
+#
+# The 15s is `_read_flow_source`'s `timeout=15.0` on the stocks->indexes
+# FALLBACK leg: SPY is filed under `indexes`, and during RTH the flow-worker is
+# saturated by the live OPRA tape, so a full-history streamed read of `indexes`
+# cannot finish inside the request path's budget. Raising that timeout is not a
+# fix — it moves the cost onto the request path during the busiest minutes.
+#
+# 60s of memory turns "every request pays 15s" into "one request per symbol per
+# minute pays it", while keeping the outage self-healing. Like GEX's, it is
+# strictly a COLD-PATH shield — see _fcb_negative_hit for the ordering rule.
+_FCB_NEG_CACHE: dict[str, tuple[dict, float]] = {}
+_FCB_NEG_LOCK = threading.Lock()
+_FCB_NEG_TTL_S = 60.0
+_FCB_NEG_MAX_KEYS = 256
+
 # The strict side domain the FCB compute uses (flow_breakout._is_call/_is_put).
 # Deliberately NOT the loose startswith("C") used elsewhere in the repo — see
 # _flow_join_stats for why that difference has to be observable.
@@ -317,6 +342,46 @@ def _fcb_good(p) -> bool:
     return bool(p and "signals" in p)
 
 
+def _fcb_negative_hit(sym: str) -> dict | None:
+    """The remembered flow-outage envelope — but ONLY when nothing better exists.
+
+    Identical ordering rule to `_gxw_negative_hit`, and for the identical
+    reason: `ServeStale.serve` checks `fresh()` BEFORE the stale slot, so a
+    negative entry returned unconditionally would OUTRANK a perfectly good
+    signals payload seconds old — and it would keep doing so, because every
+    request it answered skipped the stale path entirely. A user whose chart
+    already carries a fine FCB overlay would watch the arrows vanish the moment
+    the flow-worker got busy.
+
+    So: peek the stale slot first and stand down if it can still serve. This
+    cache is for the COLD herd — the callers who have nothing — and nobody else.
+    """
+    hit = _FCB_NEG_CACHE.get(sym)
+    if not hit:
+        return None
+    payload, at = hit
+    if time.time() - at > _FCB_NEG_TTL_S:
+        with _FCB_NEG_LOCK:
+            _FCB_NEG_CACHE.pop(sym, None)
+        return None
+    value, age = _FCB_STALE.peek(sym)
+    if value is not None and age is not None and age <= _FCB_STALE.max_age:
+        return None                                # a servable payload outranks us
+    return payload
+
+
+def _fcb_remember_error(sym: str, payload: dict) -> None:
+    # Locked: the prune below ITERATES the dict, so a concurrent writer would
+    # raise "dictionary changed size during iteration" — on the cold path,
+    # which is a 500 (rule 1).
+    with _FCB_NEG_LOCK:
+        _FCB_NEG_CACHE[sym] = (payload, time.time())
+        if len(_FCB_NEG_CACHE) > _FCB_NEG_MAX_KEYS:  # bounded: the key is user input
+            oldest_first = sorted(_FCB_NEG_CACHE, key=lambda k: _FCB_NEG_CACHE[k][1])
+            for key in oldest_first[:-_FCB_NEG_MAX_KEYS]:
+                _FCB_NEG_CACHE.pop(key, None)
+
+
 def _fcb_build(sym: str) -> dict:
     try:
         # Bars FIRST: the flow window is derived from them. Reading flow with no
@@ -327,35 +392,55 @@ def _fcb_build(sym: str) -> dict:
         by_date = _fetch_flow_by_date(sym, cutoff_iso)
         if by_date is None:
             # No "signals" key at all: good() is `"signals" in p`, so this
-            # envelope is refused by the slot and retried next request.
-            return {"sym": sym, "version": rules.VERSIONS["fcb"],
-                    "error": "flow unavailable", "asOf": time.time()}
-        _log_flow_join(sym, by_date)
-        signals = fcb_signals(bars, by_date, include_last=False)  # NEVER the forming session
+            # envelope is refused by the slot AND never written to the TTL
+            # cache — which is exactly why it must be remembered as an
+            # OUTAGE below, or every request rebuilds it.
+            payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                       "error": "flow unavailable", "asOf": time.time()}
+        else:
+            _log_flow_join(sym, by_date)
+            signals = fcb_signals(bars, by_date, include_last=False)  # NEVER the forming session
+            for s in signals:
+                # Per SIGNAL, not per build: record_signal raises (ValueError on
+                # any unusable field, sqlite3.IntegrityError on a non-UNIQUE
+                # constraint failure), and one refused row must not cost the
+                # user the others — nor the response. Re-recording is idempotent
+                # by UNIQUE key.
+                try:
+                    ledger.record_signal("fcb", s["version"], sym, "1D", s["direction"],
+                                         s["barTime"], s["close"],
+                                         meta={"callPrem": s["callPrem"],
+                                               "putPrem": s["putPrem"]})
+                except Exception:                  # noqa: BLE001
+                    logger.exception(
+                        "signature: ledger refused fcb %s bar=%r — signal still served",
+                        sym, s.get("barTime"))
+            payload = {"sym": sym, "version": rules.VERSIONS["fcb"], "signals": signals,
+                       "asOf": time.time()}
     except Exception as exc:                       # noqa: BLE001 — see rule 1
         logger.exception("signature: flow-breakout build failed for %s", sym)
-        return {"sym": sym, "version": rules.VERSIONS["fcb"],
-                "error": f"flow breakout unavailable: {exc}", "asOf": time.time()}
-
-    for s in signals:
-        # Per SIGNAL, not per build: record_signal raises (ValueError on any
-        # unusable field, sqlite3.IntegrityError on a non-UNIQUE constraint
-        # failure), and one refused row must not cost the user the others —
-        # nor the response. Re-recording is idempotent by UNIQUE key.
-        try:
-            ledger.record_signal("fcb", s["version"], sym, "1D", s["direction"],
-                                 s["barTime"], s["close"],
-                                 meta={"callPrem": s["callPrem"], "putPrem": s["putPrem"]})
-        except Exception:                          # noqa: BLE001
-            logger.exception("signature: ledger refused fcb %s bar=%r — signal still served",
-                             sym, s.get("barTime"))
-    payload = {"sym": sym, "version": rules.VERSIONS["fcb"], "signals": signals,
-               "asOf": time.time()}
+        payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                   "error": f"flow breakout unavailable: {exc}", "asOf": time.time()}
+    # Bookkeeping gets a guard of its own: it runs on the same cold path as the
+    # build, so a raise HERE is a 500 just the same (rule 1) — and the prune
+    # inside _fcb_remember_error is exactly the kind of raise that means.
     try:
-        cache.set(_ck("fcb", sym), payload, ttl=_FCB_TTL_S)
+        if _fcb_good(payload):
+            cache.set(_ck("fcb", sym), payload, ttl=_FCB_TTL_S)
+            # Recovery is immediate, not TTL-bound: a good payload pops the
+            # negative entry rather than waiting out its 60s.
+            with _FCB_NEG_LOCK:
+                _FCB_NEG_CACHE.pop(sym, None)
+        else:
+            _fcb_remember_error(sym, payload)
     except Exception:                              # noqa: BLE001 — see rule 1
-        logger.exception("signature: fcb cache write failed for %s", sym)
+        logger.exception("signature: fcb bookkeeping failed for %s", sym)
     return payload
+
+
+def _fcb_fresh(sym: str) -> dict | None:
+    hit = cache.get(_ck("fcb", sym))
+    return hit if hit is not None else _fcb_negative_hit(sym)
 
 
 # ── GEX Walls ───────────────────────────────────────────────────────────────
@@ -451,7 +536,11 @@ def darkpool_levels(sym: str = Query(...), _user: dict = Depends(require_paid)):
 @router.get("/flow-breakout")
 def flow_breakout(sym: str = Query(...), _user: dict = Depends(require_paid)):
     s = _sym_or_422(sym)
-    return _FCB_STALE.serve(s, fresh=lambda: cache.get(_ck("fcb", s)),
+    # The negative cache rides the `fresh` slot for the same reason GEX's does:
+    # a waiter that queued behind the single-flight build re-checks fresh()
+    # inside the lock, so the herd collapses onto the ONE read that just timed
+    # out instead of each paying its own 15s.
+    return _FCB_STALE.serve(s, fresh=lambda: _fcb_fresh(s),
                             build=lambda: _fcb_build(s), good=_fcb_good)
 
 
