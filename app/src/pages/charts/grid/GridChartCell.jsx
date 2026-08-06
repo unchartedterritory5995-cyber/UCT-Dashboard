@@ -23,6 +23,7 @@ import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import usePreferences from '../../../hooks/usePreferences'
+import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import { getExtSessionCached } from '../../../utils/extSession'
 import { CHART_TYPE_OPTIONS, mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
@@ -159,14 +160,29 @@ function GridChartCell({
     onChange({ ...cell, tf })
   }, [cell, onChange])
 
+  // The user's OWN chart settings (same resolution as any other "your chart,
+  // everywhere" surface — see useChartSurfaceSettings: charts_default_chart_widget
+  // explicit winner, else the first /charts chart widget that actually has
+  // settings). Without this, a grid cell fell back to StockChart's global
+  // chart_settings SEED for everything except chartType, so a customized
+  // /charts chart still rendered default candles/MAs/background in the grid.
+  // `stored: null` + no `onStore` marks this as an own-chart-reading surface.
+  const { ownChartSource } = useChartSurfaceSettings({ stored: null })
+
   // Per-cell chart type: a PARTIAL settings override merged over the user's
   // global chart_settings inside StockChart — this cell only, never persisted
-  // into the global blob (write-restore lives in StockChart). Stable identity
-  // per the settingsOverride contract.
-  const settingsOverride = useMemo(
-    () => (cell.chartType ? { chartType: cell.chartType } : null),
-    [cell.chartType],
-  )
+  // into the global blob (write-restore lives in StockChart). Precedence is
+  // resolved user settings < per-cell chartType (the per-cell Style picker
+  // must still win over whatever the user's own chart is set to). When there
+  // is no per-cell chartType, the resolved blob is returned AS-IS (same
+  // reference as `ownChartSource`) rather than spread into a new object, so
+  // an unrelated re-render never fabricates a fresh identity. Stable identity
+  // per the settingsOverride contract (StockChart memo dep).
+  const settingsOverride = useMemo(() => {
+    if (!ownChartSource && !cell.chartType) return null
+    if (!cell.chartType) return ownChartSource
+    return { ...(ownChartSource || {}), chartType: cell.chartType }
+  }, [ownChartSource, cell.chartType])
   const handleTypeChange = useCallback((val) => {
     onChange({ ...cell, chartType: val || null })
   }, [cell, onChange])
