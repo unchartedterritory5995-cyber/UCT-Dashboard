@@ -894,6 +894,7 @@ def _flow_outage(monkeypatch, *, delay=0.0):
     """
     calls = []
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+    monkeypatch.setattr(sig, "_fcb_ledger_signals", lambda sym, bars: [])
 
     def fake(sym, cutoff_iso=""):
         calls.append(sym)
@@ -967,6 +968,7 @@ def test_the_fcb_negative_cache_never_outranks_a_servable_payload(client, monkey
 
     state = {"mode": "healthy"}
     monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+    monkeypatch.setattr(sig, "_fcb_ledger_signals", lambda sym, bars: [])
 
     def adapter(sym, cutoff_iso=""):
         return _bull_by_date() if state["mode"] == "healthy" else None
@@ -1029,6 +1031,137 @@ def test_a_fcb_bookkeeping_raise_is_not_a_500(client, monkeypatch, caplog):
     assert r.status_code == 200, r.text
     assert r.json()["error"] == "flow unavailable"
     assert any("bookkeeping" in rec.getMessage() for rec in caplog.records), caplog.text
+
+
+# ── the nightly ledger as the fallback when the live read cannot answer ─────
+
+def _seed_ledger(sym, bar_time, direction="bull", price=105.0, *,
+                 indicator="fcb", version=None, tf="1D", meta=None):
+    from api.services.signature import ledger as _led
+    from api.services.signature import rules as _rules
+    return _led.record_signal(indicator, version or _rules.VERSIONS["fcb"], sym, tf,
+                              direction, bar_time, price,
+                              meta=meta if meta is not None
+                              else {"callPrem": 1200000.0, "putPrem": 50000.0})
+
+
+def _flow_down(monkeypatch):
+    calls = []
+    monkeypatch.setattr(sig, "_fetch_bars", lambda sym, count=60: _bars())
+    monkeypatch.setattr(sig, "_fetch_flow_by_date",
+                        lambda sym, cutoff_iso="": calls.append(sym) or None)
+    return calls
+
+
+def test_a_flow_outage_falls_back_to_the_nightly_ledger(client, monkeypatch):
+    """FCB is a DAILY closed-bar signal and the request path passes
+    include_last=False, so the newest bar it can fire on is the last CLOSED
+    session — the same one the 20:05 ET sweep already evaluated last night.
+    During RTH the two cover the identical window, so the ledger is not a
+    downgrade: it is the same answer without the 15s read."""
+    _flow_down(monkeypatch)
+    assert _seed_ledger("SPY", 20260621) is True
+
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    body = TestClient(client).get("/api/signature/flow-breakout?sym=SPY").json()
+
+    assert body.get("source") == "ledger", body
+    assert not body.get("error"), body
+    assert [(s["barTime"], s["direction"]) for s in body["signals"]] == [(20260621, "bull")]
+    assert body["signals"][0]["callPrem"] == 1200000.0
+    assert body["signals"][0]["close"] == 105.0
+
+
+def test_an_unswept_symbol_is_never_downgraded_to_no_signal(client, monkeypatch):
+    """The ledger's coverage is the sweep's fixed symbol list; the endpoint's is
+    every symbol `_SYM_RE` allows. For a symbol the sweep never walked, an empty
+    ledger and a genuinely quiet tape are INDISTINGUISHABLE — so the fallback
+    must stay a failure there. `good()` is `"signals" in p`, so emitting an
+    empty list would pin 'no signal' on the chart for the next 30 minutes
+    (lesson_market_cap_cache_poison)."""
+    _flow_down(monkeypatch)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    body = TestClient(client).get("/api/signature/flow-breakout?sym=CRWV").json()
+
+    assert body.get("error") == "flow unavailable", body
+    assert "signals" not in body, body
+    assert sig._FCB_STALE.peek("CRWV") == (None, None), "an outage is never remembered as good"
+    assert "CRWV" in sig._FCB_NEG_CACHE, "but it IS remembered as an outage"
+
+
+def test_the_ledger_fallback_is_bounded_to_the_window_the_bars_cover(client, monkeypatch):
+    """The ledger is append-only and holds every signal ever recorded. Returning
+    all of them would plant arrows on a chart window that does not contain
+    them — lightweight-charts SNAPS an off-series marker to the nearest bar
+    rather than dropping it, so an out-of-window signal becomes a confident
+    arrow on the wrong candle."""
+    _flow_down(monkeypatch)
+    assert _seed_ledger("SPY", 20250102) is True     # a year before the window
+    assert _seed_ledger("SPY", 20260621) is True     # inside it
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    body = TestClient(client).get("/api/signature/flow-breakout?sym=SPY").json()
+
+    assert [s["barTime"] for s in body["signals"]] == [20260621], body
+
+
+def test_the_ledger_fallback_is_ascending_and_only_this_indicator(client, monkeypatch):
+    """`get_signals` returns NEWEST-first and every indicator/version/tf in the
+    store. Markers must be ascending, and a dpl row — or a superseded fcb-v1 —
+    must never be rendered as a flow-confirmed breakout."""
+    _flow_down(monkeypatch)
+    for bt in (20260621, 20260605, 20260612):        # deliberately out of order
+        assert _seed_ledger("SPY", bt) is True
+    assert _seed_ledger("SPY", 20260618, indicator="dpl") is True
+    assert _seed_ledger("SPY", 20260619, version="fcb-v1") is True
+    assert _seed_ledger("SPY", 20260620, tf="1W") is True
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    body = TestClient(client).get("/api/signature/flow-breakout?sym=SPY").json()
+
+    assert [s["barTime"] for s in body["signals"]] == [20260605, 20260612, 20260621], body
+
+
+def test_the_ledger_fallback_never_raises_into_the_cold_path(client, monkeypatch):
+    """It runs inside `build()`, which ServeStale calls with no try/except. A
+    fallback that can raise is not a fallback — it converts a degraded answer
+    into a 500 on a user's chart."""
+    from api.services.signature import ledger as _led
+
+    _flow_down(monkeypatch)
+
+    def boom(sym, limit=200):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(_led, "get_signals", boom)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    r = TestClient(client, raise_server_exceptions=False).get(
+        "/api/signature/flow-breakout?sym=SPY")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["error"] == "flow unavailable"
+
+
+def test_the_ledger_is_read_only_on_the_fallback_path(client, monkeypatch):
+    """The store is append-only and its honesty is the product's positioning —
+    Phase C Task 9 owns the write door. Serving a signal must never write one,
+    and a forming-bar fire must never enter it through this path."""
+    from api.services.signature import ledger as _led
+
+    _flow_down(monkeypatch)
+    assert _seed_ledger("SPY", 20260621) is True
+
+    writes = []
+    monkeypatch.setattr(_led, "record_signal",
+                        lambda *a, **kw: writes.append(a) or True)
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+
+    body = TestClient(client).get("/api/signature/flow-breakout?sym=SPY").json()
+
+    assert body["source"] == "ledger"
+    assert writes == [], f"the fallback wrote to the append-only ledger: {writes}"
 
 
 def test_a_recovered_flow_read_pops_an_unexpired_negative_entry(client, monkeypatch):
