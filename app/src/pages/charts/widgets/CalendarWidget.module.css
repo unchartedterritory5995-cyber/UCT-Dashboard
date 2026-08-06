@@ -97,6 +97,7 @@
 
 /* Body */
 .list { flex: 1; min-height: 0; overflow-y: auto; }
+.list:focus, .list:focus-visible { outline: none; }
 /* Sections read as distinct blocks: a gap + divider between them, and a STICKY,
    gold, bolder header on an opaque band so one section never blends into the next
    (and you always see which section you're scrolling through). */
@@ -187,6 +188,11 @@
   cursor: pointer;
 }
 .earnRow:hover { background: var(--cal-row-hover, rgba(255, 255, 255, 0.03)); }
+/* Clicked/selected row — stays highlighted; ↑/↓ moves the selection through the list. */
+.earnRowSelected, .earnRowSelected:hover {
+  background: color-mix(in srgb, var(--cal-gold-strong, #c9a84c) 13%, transparent);
+  box-shadow: inset 2px 0 0 var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+}
 .earnSym {
   font-family: var(--font-mono, monospace);
   font-weight: 700;
