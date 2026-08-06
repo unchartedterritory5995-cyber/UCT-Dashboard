@@ -194,8 +194,37 @@ function etDayKey(msInstant) {
   return `${y}-${m}-${d}`
 }
 
+/**
+ * The earliest instant a bar's `t` may carry and still be believed as a real
+ * point in time: 1990-01-01T00:00:00Z. Anything below it is not an instant, it
+ * is a number in some OTHER unit that happens to fit in the same field.
+ *
+ * ⛔ IT EXISTS BECAUSE THE DEFECT WAS LIVE AND MEASURED, ON THE PYTHON SIDE OF
+ * THIS EXACT FUNCTION. `bars_sqlite` stores daily timestamps as `YYYYMMDD` ints
+ * and `indicator_alert_evaluator._fetch_bars_for_alert` passes them through, so
+ * `compute_vwap` anchored 400 daily bars in **1970-08-23** — one "session" for
+ * two years of tape — and never raised. THIS lane reaches the same place by a
+ * different door: a daily bar arrives here with `t` as the STRING '2026-08-05',
+ * `bar.t * 1000` is NaN, and the old code fell to a stable 'invalid' day key,
+ * which is one bucket for the whole series. Same output, same silence.
+ *
+ * ⛔ THE REFUSAL IS AN ALL-NaN COLUMN, NOT A PLAUSIBLE ANSWER. "One bucket for
+ * the whole series" IS the defect's output, so a fallback shaped like it could
+ * never be told apart from it. `hasAnyFinite` reads false and the indicator
+ * visibly does not draw. Regular use never notices: `eligibility.VWAP_TIMEFRAMES`
+ * keeps this function on timeframes whose `t` is unix seconds, and this is that
+ * gate restated where a regression in it cannot route around the maths.
+ */
+export const VWAP_MIN_INSTANT = 631152000
+
 export function computeVWAP(bars) {
   if (!bars?.length) return []
+  // THE UNIT GATE — all-or-nothing, before any accumulation. A per-bar skip
+  // would leave the surviving bars in one bucket, which is the shape refused.
+  for (let i = 0; i < bars.length; i++) {
+    const t = bars[i].t
+    if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return blank(bars)
+  }
   const result = blank(bars)
   let cumPV = 0, cumVol = 0, currentDay = null
   // One-entry memo on the UTC HOUR. This is exact, not an approximation: every
@@ -226,21 +255,15 @@ export function computeVWAP(bars) {
     // true overnight (20:00–04:00 ET) tape, which this feed does not serve;
     // §7 of the record and the report carry that as a named limit rather than an
     // unmeasured second behaviour change inside an attributable commit.
-    const ms = bar.t * 1000
+    // `bar.t` is a real instant: the gate at the top already refused everything
+    // else, so there is no 'invalid' sentinel branch here to fall through to.
     const hour = Math.floor(bar.t / 3600)
     let dayKey
     if (hour === memoHour) {
       dayKey = memoKey
-    } else if (Number.isFinite(ms)) {
-      dayKey = etDayKey(ms)
-      memoHour = hour; memoKey = dayKey
     } else {
-      // A non-numeric `t` (a 'YYYY-MM-DD' daily bar) used to yield the stable
-      // string 'NaN-NaN-NaN' and therefore never reset. `formatToParts` would
-      // THROW on it and blank the chart, so the sentinel is kept explicitly.
-      // The intraday gate (`eligibility.VWAP_TIMEFRAMES`) keeps this function on
-      // timeframes where `t` is unix seconds.
-      dayKey = 'invalid'
+      dayKey = etDayKey(bar.t * 1000)
+      memoHour = hour; memoKey = dayKey
     }
     if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey }
     const tp = (bar.h + bar.l + bar.c) / 3
@@ -670,12 +693,13 @@ export const AVWAP_ANCHORS = Object.freeze([
  * `t` below it is a **unit error** — a value that is not unix seconds at all —
  * and never "a very old bar".
  *
- * It exists because the defect is LIVE and MEASURED elsewhere in this repo:
- * `_fetch_bars_for_alert` hands `compute_vwap` the store's `YYYYMMDD` integer
- * (`20250101`) where real unix seconds are expected, so the anchor resolves to
- * **1970-08-23**, two years of daily bars span 11,130 seconds, and 56 bars of
- * "daily VWAP" produce exactly ONE reset — at index 0. Nothing raises, so
- * nothing surfaces it: the line is plausible and wrong.
+ * It existed because the defect WAS LIVE and MEASURED elsewhere in this repo:
+ * `_fetch_bars_for_alert` handed `compute_vwap` the store's `YYYYMMDD` integer
+ * (`20250101`) where real unix seconds are expected, so the anchor resolved to
+ * **1970-08-23**, two years of daily bars spanned 11,130 seconds, and 56 bars of
+ * "daily VWAP" produced exactly ONE reset — at index 0. Nothing raised, so
+ * nothing surfaced it: the line was plausible and wrong. `computeVWAP` and
+ * `compute_vwap_raw` now carry this same guard, which is what closed it.
  *
  * ⚠️ READ THE DISTINCTION THE PHASE MAKES. The ANCHOR is encoded by calendar
  * semantics resolved per instant from the IANA database — never by how big the
@@ -690,8 +714,14 @@ export const AVWAP_ANCHORS = Object.freeze([
  * for the whole series" fallback is exactly what the live defect produces, so it
  * could not be told apart from it. `hasAnyFinite` reads false, the pane is
  * dropped, and the indicator visibly does not draw.
+ *
+ * ⭐ IT IS `VWAP_MIN_INSTANT` ITSELF, NOT A COPY OF ITS VALUE, AND THAT IS
+ * LOAD-BEARING. `computeAVWAP(bars, 'session')` is documented to be
+ * `computeVWAP(bars)` bar for bar; while only one of them validated the unit
+ * that promise was FALSE on precisely the inputs that carry the defect. Two
+ * constants that happen to be equal today is how that gap reopens.
  */
-export const AVWAP_MIN_INSTANT = 631152000
+export const AVWAP_MIN_INSTANT = VWAP_MIN_INSTANT
 
 /** Named ET calendar parts, including the weekday the `week` anchor needs.
  *  `formatToParts` rather than a locale whose pattern happens to be ISO: the key

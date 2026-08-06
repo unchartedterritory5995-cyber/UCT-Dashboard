@@ -389,6 +389,43 @@ def test_the_live_lane_DOES_change_that_table_which_is_why_the_shadow_may_not(sh
         "assertion above is measuring nothing")
 
 
+def test_the_VWAP_UNIT_FIX_cannot_make_the_shadow_lane_write_MORE(shadow_env):
+    """⛔ THE SHADOW LANE IS LIVE ON PRODUCTION RIGHT NOW, SO THE FIX OWES THIS.
+
+    `run_shadow_cycle` calls `_fetch_bars_for_alert` too, against 31 armed soak
+    alerts. The VWAP unit gate can only ever turn a VALUE into `None` — never the
+    other way — and `run_shadow_cycle` `continue`s on `value is None` BEFORE
+    `shadow_record`. So the fix's effect on this lane is bounded to writing
+    strictly FEWER rows, which is asserted here rather than argued:
+
+      * a DAILY vwap alert (the encoding that carried the defect) contributes
+        ZERO shadow rows — not a row with a 1970-derived value;
+      * the intraday alerts around it still write theirs, so "zero" is a
+        statement about that alert and not about a cycle that did not run.
+
+    (The 31 rows actually armed on production are `tf="5"` —
+    `alert_soak_matrix.DEFAULT_TF` — so on real tape this fix changes nothing
+    they observe. This test covers the row that WOULD have been affected.)
+    """
+    daily_id = ias.create(user_id="u1", sym="WICK", indicator="vwap",
+                          condition="above", threshold=1.0, tf="D")
+    intraday_id = ias.create(user_id="u1", sym="WICK", indicator="vwap",
+                             condition="above", threshold=1.0, tf="5")
+    shadow.run_shadow_cycle()
+    rows = shadow.shadow_rows()
+    by_alert = {}
+    for r in rows:
+        by_alert.setdefault(r["alert_id"], []).append(r)
+
+    assert daily_id not in by_alert, (
+        "the daily vwap alert wrote a shadow row. Its bars carry YYYYMMDD `t`, "
+        "so any value it produced came from a 1970-anchored session.")
+    assert by_alert.get(intraday_id), (
+        "the INTRADAY vwap alert wrote nothing either — then 'the daily one "
+        "wrote nothing' is a statement about the fixture, not about the fix")
+    assert all(r["value"] is not None for r in by_alert[intraday_id])
+
+
 def test_the_shadow_lane_writes_ITS_OWN_store_and_it_is_not_auth_db(shadow_env):
     """The other half of "wrote nothing to the live table": it wrote SOMEWHERE."""
     assert shadow.db_path() != ias._DB_PATH
