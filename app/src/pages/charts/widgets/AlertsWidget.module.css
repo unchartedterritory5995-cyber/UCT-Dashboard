@@ -21,38 +21,28 @@
   border-bottom: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
 }
-.symWrap { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; }
-.sym {
-  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-weight: 700;
-  font-size: 0.95em;
-  letter-spacing: 0.4px;
+.titleWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
-  flex: 0 0 auto;
 }
-.filters { display: inline-flex; gap: 3px; flex: 0 0 auto; }
-.pill {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--alerts-chrome, var(--text-muted, #8b8674));
-  font-family: inherit;
-  font-size: 0.78em;
-  padding: 2px 7px;
-  border-radius: 5px;
-  cursor: pointer;
-  white-space: nowrap;
+.title {
+  font-weight: 700;
+  font-size: 0.9em;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
-.pill:hover { background: var(--alerts-row-hover, rgba(255, 255, 255, 0.05)); }
-.pillOn {
+.countBadge {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68em;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 8px;
   background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
   color: var(--alerts-accent, var(--ut-gold, #c9a84c));
-  font-weight: 600;
-}
-.count {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.72em;
-  opacity: 0.75;
-  margin-left: 2px;
 }
 .gearBtn {
   margin-left: auto;
@@ -72,15 +62,34 @@
   background: var(--alerts-row-hover, rgba(255, 255, 255, 0.06));
 }
 
-/* Quick-add — set a new alert on the linked symbol */
+/* Quick-add — any ticker, a level, above/below (wraps to 2 rows when narrow) */
 .quickAdd {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 7px 8px;
   border-bottom: 1px solid var(--alerts-row-divider, rgba(255, 255, 255, 0.05));
   flex: 0 0 auto;
 }
+.tickerInput {
+  flex: 0 0 auto;
+  width: 4.2em;
+  min-width: 0;
+  background: var(--alerts-track, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
+  border-radius: 6px;
+  color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 4px 7px;
+  outline: none;
+}
+.tickerInput::placeholder { color: var(--alerts-chrome, var(--text-muted, #8b8674)); font-weight: 500; letter-spacing: 0; }
+.tickerInput:focus { border-color: var(--alerts-accent, var(--ut-gold, #c9a84c)); }
 .dirToggle { display: inline-flex; border-radius: 6px; overflow: hidden; flex: 0 0 auto; }
 .dirBtn {
   background: var(--alerts-track, rgba(255, 255, 255, 0.06));
@@ -96,8 +105,8 @@
 .dirBtnAbove.dirBtnOn { background: color-mix(in srgb, var(--alerts-above, #1ae51a) 22%, transparent); color: var(--alerts-above, #1ae51a); }
 .dirBtnBelow.dirBtnOn { background: color-mix(in srgb, var(--alerts-below, #ff5b5b) 22%, transparent); color: var(--alerts-below, #ff5b5b); }
 .priceInput {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 4.5em;
+  min-width: 4.5em;
   background: var(--alerts-track, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
   border-radius: 6px;
@@ -182,44 +191,16 @@
 }
 .target { font-family: var(--font-mono, monospace); font-weight: 600; opacity: 1; }
 
-/* Proximity meter — a thin track whose fill grows as live price nears the target.
-   Within ~1% it glows ("Armed"); once the condition is met it reads "Hit". */
-.meterRow { display: flex; align-items: center; gap: 7px; margin-top: 4px; }
-.track {
-  position: relative;
-  flex: 1;
-  height: 4px;
-  border-radius: 3px;
-  background: var(--alerts-track, rgba(255, 255, 255, 0.07));
-  overflow: hidden;
-}
-.fill {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  border-radius: 3px;
-  transition: width 320ms ease;
-}
-.fill.above { background: linear-gradient(90deg, color-mix(in srgb, var(--alerts-above, #1ae51a) 40%, transparent), var(--alerts-above, #1ae51a)); }
-.fill.below { background: linear-gradient(90deg, color-mix(in srgb, var(--alerts-below, #ff5b5b) 40%, transparent), var(--alerts-below, #ff5b5b)); }
-.armed .fill { box-shadow: 0 0 7px 1px currentColor; animation: alertsPulse 1.3s ease-in-out infinite; }
-.armed .fill.above { color: var(--alerts-above, #1ae51a); }
-.armed .fill.below { color: var(--alerts-below, #ff5b5b); }
-@keyframes alertsPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-@media (prefers-reduced-motion: reduce) { .armed .fill { animation: none; } }
-
-.dist {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.72em;
-  font-variant-numeric: tabular-nums;
+/* Created / triggered date label under the condition line. */
+.sub {
+  margin-top: 3px;
+  font-size: 0.7em;
+  letter-spacing: 0.3px;
   color: var(--alerts-chrome, var(--text-muted, #8b8674));
-  white-space: nowrap;
-  flex: 0 0 auto;
-  min-width: 3.8em;
-  text-align: right;
+  opacity: 0.85;
 }
-.distArmed { color: var(--alerts-accent, var(--ut-gold, #c9a84c)); font-weight: 700; }
-.distHit { color: var(--alerts-above, #1ae51a); font-weight: 700; }
 
+/* Right column: live price + its position vs the alert level. */
 .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
 .live {
   font-family: var(--font-mono, monospace);
@@ -227,7 +208,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--alerts-text, var(--text-bright, #e0dac8));
 }
-.liveLbl { font-size: 0.62em; letter-spacing: 0.5px; text-transform: uppercase; color: var(--alerts-chrome, var(--text-muted, #8b8674)); opacity: 0.7; }
+.status { font-size: 0.66em; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--alerts-chrome, var(--text-muted, #8b8674)); white-space: nowrap; }
+.statusAbove { color: var(--alerts-above, #1ae51a); }
+.statusBelow { color: var(--alerts-below, #ff5b5b); }
 
 .delBtn {
   flex: 0 0 auto;
@@ -260,10 +243,9 @@
 
 /* Responsive: collapse at narrow widget widths (root = .widgetBody container) */
 @container (max-width: 300px) {
-  .liveLbl { display: none; }
   .cond { font-size: 0.76em; }
+  .live { display: none; }
 }
 @container (max-width: 230px) {
-  .filters .count { display: none; }
   .right { display: none; }
 }
