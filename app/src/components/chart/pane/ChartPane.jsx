@@ -89,7 +89,7 @@ function ChartPane({
   density = 'full',
   stored = null,
   onStore = null,
-  chartsTheme = 'default',
+  chartsTheme = null,
   stockChartProps = null,
   slots = null,
   onActivate = undefined,
@@ -183,8 +183,7 @@ function ChartPane({
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
   const {
-    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource,
-  } = useChartSurfaceSettings({
+    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
@@ -367,8 +366,8 @@ function ChartPane({
           showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           dayGainColors={{
-            up: hdrColors.dayChangeUp || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
-            down: hdrColors.dayChangeDown || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
+            up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
+            down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
           session={compact ? null : (isDWMtf
             ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel }
@@ -518,7 +517,7 @@ function ChartPane({
           volumeSeparatePane
           showRangeSelector
           showSma5
-          canvasTheme={chartsTheme === 'sunrise' ? 'sunrise' : null}
+          canvasTheme={resolvedTheme === 'sunrise' ? 'sunrise' : null}
           volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
           priceScaleTopMargin={0.12}

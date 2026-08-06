@@ -106,9 +106,17 @@ function resolveOwnChartSettingsSource(workspaceLayoutRaw, defaultWidgetIdRaw) {
 //                     null). Reads stay on `stored`/the seed; writes go to
 //                     onStore and NEVER to the global pref — that isolation is
 //                     load-bearing.
-export default function useChartSurfaceSettings({ stored = null, onStore = null, chartsTheme = 'default' } = {}) {
+export default function useChartSurfaceSettings({ stored = null, onStore = null, chartsTheme = null } = {}) {
   const { prefs, setPref } = usePreferences()
   const isOwnChartSurface = stored === null && !onStore
+  // The workspace's light/dark chart theme is a SEPARATE mechanism from
+  // chart_settings: it lives in the `charts_theme` pref and ChartsWorkspace hands
+  // it to its widgets through context. A popup is not inside that context, so it
+  // used to fall back to 'default' (dark) and render dark even when the user's
+  // /charts is on sunrise — the single most visible property on the chart, and
+  // exactly why the owner reported "literally no difference". An explicit
+  // chartsTheme from a host still wins; null means "resolve it like my settings".
+  const theme = chartsTheme ?? (prefs.charts_theme || 'default')
   // The RAW, unmerged blob that won the own-chart resolution (the widget's or
   // a tab's settings) — or null when it fell back to the chart_settings seed
   // (in which case StockChart's own base, read from that same seed, is already
@@ -139,10 +147,10 @@ export default function useChartSurfaceSettings({ stored = null, onStore = null,
     write({ ...cs, header: { ...cs.header, ...patch }, preset: 'custom' })
   }, [cs, write])
 
-  const menuCanvasColor = chartsTheme === 'sunrise'
+  const menuCanvasColor = theme === 'sunrise'
     ? '#eaf3fb'
     : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
-  const menuGradient = (chartsTheme !== 'sunrise' && cs.bgMode === 'gradient' && cs.bgGradient)
+  const menuGradient = (theme !== 'sunrise' && cs.bgMode === 'gradient' && cs.bgGradient)
     ? { top: cs.bgGradient.top, bottom: cs.bgGradient.bottom }
     : null
   const menuVars = useMemo(
@@ -152,6 +160,9 @@ export default function useChartSurfaceSettings({ stored = null, onStore = null,
 
   return {
     cs, menuVars, write, patchHeader,
+    // Resolved workspace chart theme — the host's value if it passed one, else
+    // the `charts_theme` pref. ChartPane feeds this to StockChart's canvasTheme.
+    theme,
     // The raw resolved own-chart source (or null) — see the doc comment above
     // `ownChartSource`. Consumed by ChartPane as StockChart's `settingsOverride`
     // so the ACTUAL CHART (candles/MAs/background/watermark), not just the

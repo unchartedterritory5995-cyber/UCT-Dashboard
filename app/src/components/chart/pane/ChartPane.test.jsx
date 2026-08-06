@@ -263,3 +263,30 @@ test('/charts widget surface (stored + onStore): StockChart still receives the s
   const lastCall = stockChartSpy.mock.calls.at(-1)[0]
   expect(lastCall.settingsOverride).toBe(storedBlob)
 })
+
+// The workspace's light/dark chart theme is a SEPARATE mechanism from
+// chart_settings: it lives in the `charts_theme` pref and ChartsWorkspace hands it
+// to its widgets through context. A popup is not inside that context, so ChartPane
+// fell back to 'default' (dark) and rendered dark even when the user's /charts is
+// on sunrise. That is the most visually dominant property on a chart, and it is
+// exactly why the owner reported "literally no difference" after the settings fix.
+test('a popup with no chartsTheme prop follows the charts_theme pref', () => {
+  mockPrefs = { charts_theme: 'sunrise' }
+  render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} />)
+  const last = stockChartSpy.mock.calls.at(-1)[0]
+  expect(last.canvasTheme).toBe('sunrise')
+})
+
+test('an explicit chartsTheme from the host still beats the pref', () => {
+  mockPrefs = { charts_theme: 'sunrise' }
+  render(<ChartPane sym="NVDA" tf="D" chartsTheme="default" onTfChange={() => {}} />)
+  const last = stockChartSpy.mock.calls.at(-1)[0]
+  expect(last.canvasTheme).toBeNull()
+})
+
+test('no charts_theme pref and no prop leaves the canvas on the dark default', () => {
+  mockPrefs = {}
+  render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} />)
+  const last = stockChartSpy.mock.calls.at(-1)[0]
+  expect(last.canvasTheme).toBeNull()
+})
