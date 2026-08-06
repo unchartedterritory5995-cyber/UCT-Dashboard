@@ -29,6 +29,38 @@ opportunistically backfills session + fiscal identity for TODAY's rows via a
 narrow, single-day Finnhub lookup (`_finnhub_today_enrichment`) that has a
 real chance of landing even on a night the wide 14-day Finnhub call is itself
 rate-limited.
+
+── Fiscal key NULL on the primary path (2026-08-05, Task 4) ─────────────────
+The above enrichment ONLY ever ran for rows dated TODAY. But the normal T-1
+capture's rows are dated today+1 (the default `IMPLIED_CAPTURE_WINDOW_DAYS`
+is 1, and a today-dated row without a confirmed "amc" session is skipped
+anyway) — so the one path that mattered most never got backfilled at all,
+and the majority of permanent snapshots were being written with
+`fiscal_year = NULL, fiscal_quarter = NULL`. That NULL key is exactly what
+breaks Task 8b's pairing (implied-vs-realized RICH/CHEAP chip): 8b pairs a
+snapshot to its history row by the PROVIDER'S fiscal identity, not by
+`report_date` string equality, precisely because `report_date` here is an
+ANNOUNCEMENT date while the history model carries the fiscal PERIOD END —
+two different calendars that often disagree by weeks. A NULL-keyed snapshot
+can never join to anything, silently resurrecting the exact failure 8b
+fixed.
+
+`_finnhub_today_enrichment` / `_merge_today_enrichment` are now
+`_finnhub_day_enrichment` / `_merge_day_enrichment` — same bodies, but
+`run_nightly_capture` calls them once per DISTINCT report_date represented
+in the capture window (capped at `window_days + 1` calls by construction),
+not just for today. A third, bounded per-symbol leg
+(`_fmp_fiscal_repair` / `_nearest_fiscal_identity` / `_apply_fiscal_repair`,
+FMP `earning-call-transcript-dates`, capped at `_FISCAL_REPAIR_MAX_SYMBOLS`
+symbols/night) covers whatever the day-scoped Finnhub leg still misses. A
+row that STILL has no fiscal key after all three legs is never written —
+counted in `summary["skipped_no_fiscal"]` instead — because this store is
+append-only and a permanently-unpairable row is worse than an absent one.
+See `run_nightly_capture`'s docstring for the full three-leg chain, and
+`repair_null_fiscal_keys` / `tools/implied_fiscal_backfill.py` for the
+one-shot, idempotent repair of rows already written before this fix
+shipped (safe only while the underlying reports are still unreported —
+Finnhub/FMP still list them as upcoming).
 """
 from __future__ import annotations
 
@@ -585,11 +617,18 @@ def _dedupe_reporters(reporters: list[dict]) -> tuple[list[dict], list[dict]]:
     return list(best.values()), collisions
 
 
-def _finnhub_today_enrichment(day_iso: str) -> dict[str, dict]:
+def _finnhub_day_enrichment(day_iso: str) -> dict[str, dict]:
     """Best-effort Finnhub `/calendar/earnings` lookup scoped to ONE calendar
-    day — used ONLY to backfill the bmo/amc `hour` (and fiscal_year/quarter,
-    since the same payload carries them) for TODAY's rows when the PRIMARY
-    reporter-list source (FMP) left them unknown (see `_fmp_reporters`).
+    day — used to backfill the bmo/amc `hour` and fiscal_year/quarter for
+    rows dated `day_iso` when the PRIMARY reporter-list source (FMP) left
+    them unknown (see `_fmp_reporters`).
+
+    Renamed from `_finnhub_today_enrichment` (Task 4, 2026-08-05) — the
+    body is unchanged (it was already day-scoped), but the OLD caller only
+    ever invoked it for `today`, so the normal T-1 capture (rows dated
+    today+1 under the default 1-day window) never got this backfill at
+    all. See `run_nightly_capture`, which now calls this once per distinct
+    `report_date` still missing a fiscal key or session, not just today's.
 
     A single-day ask is far cheaper than the full 14-day reporter list — it
     has a real chance of landing even on a night the wide Finnhub calendar
@@ -617,19 +656,32 @@ def _finnhub_today_enrichment(day_iso: str) -> dict[str, dict]:
     return out
 
 
-def _merge_today_enrichment(in_window: list[dict], today_iso: str, hints: dict[str, dict]) -> list[dict]:
-    """Pure merge: fills `hour`/`fiscal_year`/`fiscal_quarter` on today-dated
-    rows whose PRIMARY source left them unknown, from `hints` (see
-    `_finnhub_today_enrichment`) — NEVER overwrites a value the primary
-    source already supplied, and never mutates the input dicts in place
-    (`in_window` entries may be objects shared with the `_REPORTERS_CACHE`
-    TTL cache via `upcoming_reporters` — mutating them would corrupt what
-    every other caller inside the same 6h TTL window sees)."""
-    if not hints:
+def _merge_day_enrichment(in_window: list[dict], hints_by_day: dict[str, dict[str, dict]]) -> list[dict]:
+    """Pure merge: fills `hour`/`fiscal_year`/`fiscal_quarter` on rows whose
+    PRIMARY source left them unknown, from `hints_by_day` — a
+    `{report_date: {sym: hint}}` map covering every day `run_nightly_capture`
+    chose to enrich (see `_finnhub_day_enrichment`).
+
+    Generalized from `_merge_today_enrichment` (Task 4, 2026-08-05): a
+    single `today_iso` + flat `hints` map could only ever backfill rows
+    dated today, but the normal T-1 capture's rows are dated today+1 —
+    exactly the ones that never got enriched before this fix, leaving the
+    majority of permanent snapshots with a NULL fiscal pairing key. Each
+    row is matched ONLY against `hints_by_day[row['report_date']]` — a hint
+    computed for one day is never applied to a row dated a different day,
+    even for the same symbol.
+
+    NEVER overwrites a value the primary source already supplied, and never
+    mutates the input dicts in place (`in_window` entries may be objects
+    shared with the `_REPORTERS_CACHE` TTL cache via `upcoming_reporters` —
+    mutating them would corrupt what every other caller inside the same 6h
+    TTL window sees)."""
+    if not hints_by_day:
         return in_window
     out = []
     for r in in_window:
-        hint = hints.get(r.get("sym")) if r.get("report_date") == today_iso else None
+        day_hints = hints_by_day.get(r.get("report_date"))
+        hint = day_hints.get(r.get("sym")) if day_hints else None
         if not hint:
             out.append(r)
             continue
@@ -644,6 +696,104 @@ def _merge_today_enrichment(in_window: list[dict], today_iso: str, hints: dict[s
     return out
 
 
+# ── Leg 3 — bounded per-symbol fiscal repair (Task 4, 2026-08-05) ───────────
+# Leg 2 (_finnhub_day_enrichment) resolves the fiscal key for the large
+# majority of rows (Finnhub carries quarter/year on 100% of its own
+# /calendar/earnings rows), but a night Finnhub itself is rate-limited or
+# silent can still leave a row unresolved. FMP's
+# `stable/earning-call-transcript-dates` is a viable PER-SYMBOL fallback —
+# it returns the correct fiscal identity (`{"quarter","fiscalYear","date"}`)
+# but is one call per symbol, so it can never back a bulk calendar sweep
+# (see the plan's "What cannot be fixed" §D2) — only a bounded per-symbol
+# repair for the handful of rows that still need it after Leg 2.
+_FISCAL_REPAIR_MAX_SYMBOLS = 20
+_FMP_TRANSCRIPT_DATES_TIMEOUT_SECS = 8
+
+
+def _fmp_fiscal_repair(sym: str) -> list[dict] | None:
+    """One FMP `stable/earning-call-transcript-dates?symbol=` call for
+    `sym` — returns the raw list of `{"quarter","fiscalYear","date"}`
+    entries (FMP's documented shape), or `None` on any failure (missing
+    key, HTTP error, network error, or a non-list body). The caller
+    (`_nearest_fiscal_identity`) picks the entry closest to the row's
+    report_date. Exactly one HTTP call per invocation — the per-night cap
+    lives in the caller (`run_nightly_capture` / `repair_null_fiscal_keys`),
+    not here, so this stays a simple, testable single-call unit."""
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return None
+    import requests
+    try:
+        resp = requests.get(
+            "https://financialmodelingprep.com/stable/earning-call-transcript-dates",
+            params={"symbol": sym, "apikey": key},
+            timeout=_FMP_TRANSCRIPT_DATES_TIMEOUT_SECS,
+        )
+        if not resp.ok:
+            _log.warning("fiscal repair: FMP HTTP %d for %s", resp.status_code, sym)
+            return None
+        data = resp.json()
+    except Exception as e:  # noqa: BLE001 — one symbol's failure must never crash the batch
+        _log.warning("fiscal repair: FMP transcript-dates fetch failed for %s: %s", sym, e)
+        return None
+    return data if isinstance(data, list) else None
+
+
+def _nearest_fiscal_identity(entries: list[dict], report_date: str) -> tuple:
+    """Picks the entry in `entries` (FMP's `earning-call-transcript-dates`
+    shape) whose `date` is nearest `report_date` and returns its
+    `(fiscalYear, quarter)` as `(int|None, int|None)`. A malformed or
+    missing `date` on an entry is skipped, never crashes the match; an
+    empty or all-malformed `entries` (or an unparseable `report_date`)
+    returns `(None, None)` — an honest absence, never a guessed identity.
+    Never derived from `report_date`'s own calendar month — that
+    calendar-fiscal assumption is exactly what Task 8b disproved on AAPL,
+    whose fiscal Q1 ends in December."""
+    try:
+        target = dt.date.fromisoformat(report_date or "")
+    except ValueError:
+        return None, None
+    best_entry = None
+    best_delta = None
+    for e in entries or []:
+        try:
+            ed = dt.date.fromisoformat(e.get("date") or "")
+        except (ValueError, AttributeError):
+            continue
+        delta = abs((ed - target).days)
+        if best_delta is None or delta < best_delta:
+            best_delta = delta
+            best_entry = e
+    if best_entry is None:
+        return None, None
+    return _int_or_none(best_entry.get("fiscalYear")), _int_or_none(best_entry.get("quarter"))
+
+
+def _apply_fiscal_repair(in_window: list[dict], repaired_by_sym: dict[str, tuple]) -> list[dict]:
+    """Pure merge: fills a STILL-missing `fiscal_year`/`fiscal_quarter` from
+    Leg 3's per-symbol repair (`repaired_by_sym`: `{sym: (fiscal_year,
+    fiscal_quarter)}`) — same never-overwrite, never-mutate-in-place
+    contract as `_merge_day_enrichment`. A `(None, None)` repair result
+    (the symbol's FMP lookup succeeded but no entry was close enough to be
+    useful) is a legitimate no-op, not an error."""
+    if not repaired_by_sym:
+        return in_window
+    out = []
+    for r in in_window:
+        fix = repaired_by_sym.get(r.get("sym"))
+        if not fix or (r.get("fiscal_year") is not None and r.get("fiscal_quarter") is not None):
+            out.append(r)
+            continue
+        fy, fq = fix
+        merged = dict(r)
+        if merged.get("fiscal_year") is None and fy is not None:
+            merged["fiscal_year"] = fy
+        if merged.get("fiscal_quarter") is None and fq is not None:
+            merged["fiscal_quarter"] = fq
+        out.append(merged)
+    return out
+
+
 def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     """Post-close T-1 capture: only reporters whose report_date falls within
     [today, today+WINDOW] (env IMPLIED_CAPTURE_WINDOW_DAYS, default 1) are even
@@ -654,10 +804,43 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
     source, FMP, carries no session field at all — see `_fmp_reporters`).
     Either way, a post-report capture would store IV-crushed values instead
     of the honest pre-report implied, and a missing snapshot is the honest
-    outcome when the session can't be confirmed. Before that decision,
-    TODAY's rows get one opportunistic single-day Finnhub backfill attempt
-    (`_finnhub_today_enrichment` / `_merge_today_enrichment`) so the skip
-    only bites when BOTH providers are silent on the session.
+    outcome when the session can't be confirmed.
+
+    ── Fiscal-key resolution (Task 4, 2026-08-05) ───────────────────────────
+    FMP (the primary reporter-list source) carries no `quarter`/`year` at
+    all, so every FMP-sourced row starts with `fiscal_year`/`fiscal_quarter`
+    = None — and Task 8b's pairing key needs that identity to ever match a
+    history row. Before the per-row capture decision, up to THREE legs try
+    to resolve it, cheapest first:
+      Leg 1 — the PRIMARY source itself (Finnhub fallback rows already
+              carry it; nothing to do).
+      Leg 2 — one Finnhub `/calendar/earnings` call PER DISTINCT report_date
+              still represented in `in_window` that has at least one row
+              missing `fiscal_year`, `fiscal_quarter`, OR `hour`
+              (`_finnhub_day_enrichment` / `_merge_day_enrichment`). Capped
+              at `window_days + 1` calls by construction — that's the most
+              distinct dates `[today, window_end]` can ever contain.
+              (Generalized from the old `_finnhub_today_enrichment`, which
+              only ever enriched rows dated today — the normal T-1
+              capture's rows are dated today+1, so they never got this
+              backfill at all before this fix.)
+      Leg 3 — for whatever Leg 2 still left without BOTH fields, one bounded
+              per-symbol FMP `earning-call-transcript-dates` lookup each
+              (`_fmp_fiscal_repair` / `_nearest_fiscal_identity` /
+              `_apply_fiscal_repair`), hard-capped at
+              `_FISCAL_REPAIR_MAX_SYMBOLS` (20) per night and skipped
+              entirely when Leg 2 already resolved everything.
+    A row that STILL has `fiscal_year is None or fiscal_quarter is None`
+    after all three legs is refused — never written, counted in
+    `summary["skipped_no_fiscal"]`, and logged. This store is append-only:
+    a permanent row that can never pair with a history row by fiscal
+    identity is worse than an absent one (Task 8b's whole point was that
+    `report_date` pairing is unreliable — writing a NULL-keyed row would
+    just resurrect that exact failure mode). Neither field is ever guessed
+    or derived from the report_date's calendar month (the calendar-fiscal
+    assumption Task 8b disproved on AAPL, whose fiscal Q1 ends in
+    December).
+
     Never stores a failure; existing (sym, report_date) rows are kept
     (first-write-wins — with the narrow window the first write IS the
     T-1/T-0-pre-report write).
@@ -685,15 +868,50 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
         if today <= rd <= window_end:
             in_window.append(rep)
 
-    # Opportunistic same-day session/fiscal backfill — see
-    # _finnhub_today_enrichment. Only attempted when at least one in-window
-    # row is dated today AND its session is still unknown, so a healthy
-    # night (Finnhub-primary, or FMP rows already resolved) never spends the
-    # extra call.
-    if any(r.get("report_date") == today_iso and not (r.get("hour") or "").strip()
-           for r in in_window):
-        in_window = _merge_today_enrichment(
-            in_window, today_iso, _finnhub_today_enrichment(today_iso))
+    # Leg 2 — opportunistic day-scoped session/fiscal backfill, one call per
+    # DISTINCT report_date still represented that needs it (see
+    # _finnhub_day_enrichment). Naturally capped at window_days + 1 calls —
+    # that's the most distinct dates [today, window_end] can ever contain. A
+    # healthy night (Finnhub-primary, or every FMP row already resolved)
+    # spends nothing.
+    enrichment_days = sorted({
+        r.get("report_date") for r in in_window
+        if r.get("fiscal_year") is None or r.get("fiscal_quarter") is None
+        or not (r.get("hour") or "").strip()
+    })
+    if enrichment_days:
+        hints_by_day = {day_iso: _finnhub_day_enrichment(day_iso) for day_iso in enrichment_days}
+        in_window = _merge_day_enrichment(in_window, hints_by_day)
+
+    # Leg 3 — bounded per-symbol FMP repair for whatever Leg 2 still left
+    # without a full fiscal key. Skipped entirely when nothing needs it (the
+    # common case once Leg 2 has run). A row that is going to be SKIPPED
+    # regardless of its fiscal key (today-dated, session not confirmed
+    # "amc" even after Leg 2's backfill) is excluded from this budget — no
+    # sense spending one of the scarce 20 per-symbol calls resolving a
+    # fiscal identity for a row that will never be captured tonight anyway.
+    still_missing_syms: list[str] = []
+    seen_syms: set[str] = set()
+    for r in in_window:
+        if r.get("report_date") == today_iso and (r.get("hour") or "").strip().lower() != "amc":
+            continue
+        if r.get("fiscal_year") is None or r.get("fiscal_quarter") is None:
+            sym = r.get("sym")
+            if sym and sym not in seen_syms:
+                seen_syms.add(sym)
+                still_missing_syms.append(sym)
+    if still_missing_syms:
+        repaired_by_sym: dict[str, tuple] = {}
+        for sym in still_missing_syms[:_FISCAL_REPAIR_MAX_SYMBOLS]:
+            entries = _fmp_fiscal_repair(sym)
+            if not entries:
+                continue
+            rd_for_sym = next((r.get("report_date") for r in in_window if r.get("sym") == sym), None)
+            if rd_for_sym is None:
+                continue
+            repaired_by_sym[sym] = _nearest_fiscal_identity(entries, rd_for_sym)
+        if repaired_by_sym:
+            in_window = _apply_fiscal_repair(in_window, repaired_by_sym)
 
     # Review round 2, IMPORTANT #2 — the WARNING is scoped tighter than the
     # summary total: only a collision that (a) actually lands in TONIGHT'S
@@ -714,7 +932,8 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
             len(noisy), ", ".join(f"{c['sym']}/{c['report_date']}" for c in noisy),
         )
 
-    summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": len(collisions)}
+    summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": len(collisions),
+               "skipped_no_fiscal": 0}
     captured_at = now.isoformat(timespec="seconds")
     for rep in in_window:
         sym = rep.get("sym")
@@ -732,6 +951,19 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
             if _has_snapshot(sym, report_date):
                 summary["skipped"] += 1
                 continue
+            # Refuse to write an unpaired permanent row (Task 4) — a
+            # snapshot with no fiscal identity can never be matched to a
+            # history row by Task 8b's pairing key, and this store is
+            # append-only: a permanently-unpairable row is worse than an
+            # absent one. Never guessed/defaulted (Number(null)===0 class).
+            if rep.get("fiscal_year") is None or rep.get("fiscal_quarter") is None:
+                summary["skipped_no_fiscal"] += 1
+                _log.warning(
+                    "[implied-store] %s/%s: fiscal identity unresolved after all "
+                    "enrichment legs -- refusing to write an unpairable snapshot",
+                    sym, report_date,
+                )
+                continue
             payload = implied_move.get_expected_move(sym, report_date)
             if payload is None:
                 summary["failed"] += 1
@@ -745,3 +977,107 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
             summary["failed"] += 1
     _log.info("[implied-store] nightly capture: %s", summary)
     return summary
+
+
+def repair_null_fiscal_keys(limit: int = 200, dry_run: bool = False) -> dict:
+    """One-shot, IDEMPOTENT repair for existing `implied_snapshots` rows
+    written with a NULL `fiscal_year`/`fiscal_quarter` before Task 4
+    (2026-08-05) widened `run_nightly_capture`'s own enrichment to close the
+    gap going forward. See `tools/implied_fiscal_backfill.py` for the CLI
+    wrapper.
+
+    ── Why this is safely recoverable NOW, and not later ────────────────────
+    The module docstring's "unreconstructable" warning is about the IMPLIED
+    MOVE value itself — options quotes settle at ~4:15pm ET the day before a
+    report, so there is no way to compute what they WERE after the fact.
+    The FISCAL IDENTITY is a different fact: a property of the report
+    itself, not of a market snapshot. For a report that has NOT happened
+    yet, Finnhub/FMP still list it as UPCOMING with its quarter/year
+    attached — so a null-fiscal row stays repairable right up until the
+    report actually prints. Run this BEFORE the affected reports happen;
+    once a report has printed, it falls out of both providers' "upcoming"
+    calendars and this function can no longer recover it (the implied-move
+    VALUE is already correctly captured — it would just stay permanently
+    unpaired).
+
+    ── Safety ────────────────────────────────────────────────────────────
+    Every write is `UPDATE ... WHERE fiscal_year IS NULL` (mirrored for
+    fiscal_quarter) — a row that already carries a value, from this
+    function or a normal nightly capture, is NEVER touched. Re-running this
+    function (e.g. after raising `limit`, or on a later night) only ever
+    narrows the null-row set further; it can never regress a row that a
+    prior run (or the nightly job) already resolved.
+
+    Reuses the EXACT SAME Leg 2 (day-scoped Finnhub enrichment) and Leg 3
+    (per-symbol FMP transcript-dates) resolution as `run_nightly_capture` —
+    this function cannot drift from the logic the nightly job itself uses.
+
+    `limit` bounds how many distinct symbols spend the per-symbol FMP
+    repair leg (Leg 3) in ONE call — the day-scoped Finnhub leg (Leg 2) has
+    no such cap; it is naturally bounded by the number of distinct
+    report_date values still needing repair. Re-run (optionally raising
+    `limit`) to continue past the cap.
+
+    `dry_run=True` computes everything but writes nothing — the returned
+    `written` count is always 0 in that case.
+
+    Returns `{"total_null": N, "resolved": N, "written": N}` — `resolved`
+    is how many rows got AT LEAST ONE field filled in memory (dry_run-safe
+    to compute), `written` is how many of those were actually persisted."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT sym, report_date FROM implied_snapshots "
+            "WHERE fiscal_year IS NULL OR fiscal_quarter IS NULL"
+        ).fetchall()
+    rows = [dict(r) for r in rows]
+    result = {"total_null": len(rows), "resolved": 0, "written": 0}
+    if not rows:
+        return result
+
+    # Reshape each DB row into the same "rep" dict shape run_nightly_capture
+    # operates on, so the SAME pure merge functions apply unmodified.
+    reps = [{"sym": r["sym"], "report_date": r["report_date"], "hour": "",
+             "fiscal_year": None, "fiscal_quarter": None} for r in rows]
+
+    days = sorted({r["report_date"] for r in reps})
+    hints_by_day = {day_iso: _finnhub_day_enrichment(day_iso) for day_iso in days}
+    reps = _merge_day_enrichment(reps, hints_by_day)
+
+    missing_syms: list[str] = []
+    seen_syms: set[str] = set()
+    for r in reps:
+        if (r["fiscal_year"] is None or r["fiscal_quarter"] is None) and r["sym"] not in seen_syms:
+            seen_syms.add(r["sym"])
+            missing_syms.append(r["sym"])
+    for sym in missing_syms[:limit]:
+        entries = _fmp_fiscal_repair(sym)
+        if not entries:
+            continue
+        rd_for_sym = next((r["report_date"] for r in reps if r["sym"] == sym), None)
+        if rd_for_sym is None:
+            continue
+        fy, fq = _nearest_fiscal_identity(entries, rd_for_sym)
+        reps = _apply_fiscal_repair(reps, {sym: (fy, fq)})
+
+    for r in reps:
+        if r["fiscal_year"] is None and r["fiscal_quarter"] is None:
+            continue  # still fully unresolved -- leave the row NULL, never guess
+        result["resolved"] += 1
+        if dry_run:
+            continue
+        with closing(_connect()) as c, c:
+            if r["fiscal_year"] is not None:
+                c.execute(
+                    "UPDATE implied_snapshots SET fiscal_year = ? "
+                    "WHERE sym = ? AND report_date = ? AND fiscal_year IS NULL",
+                    (r["fiscal_year"], r["sym"], r["report_date"]),
+                )
+            if r["fiscal_quarter"] is not None:
+                c.execute(
+                    "UPDATE implied_snapshots SET fiscal_quarter = ? "
+                    "WHERE sym = ? AND report_date = ? AND fiscal_quarter IS NULL",
+                    (r["fiscal_quarter"], r["sym"], r["report_date"]),
+                )
+        result["written"] += 1
+    return result

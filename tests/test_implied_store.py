@@ -46,8 +46,10 @@ def test_grade_snapshots_roundtrip(store):
 def test_run_nightly_capture_stores_only_successes(store):
     # now = 2026-08-03T16:40 -> today = 2026-08-03; window default = 1 day, so
     # 2026-08-04 (tomorrow) is in-window.
-    reporters = [{"sym": "GOOD", "report_date": "2026-08-04", "hour": "amc"},
-                 {"sym": "BAD", "report_date": "2026-08-04", "hour": "amc"}]
+    reporters = [{"sym": "GOOD", "report_date": "2026-08-04", "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3},
+                 {"sym": "BAD", "report_date": "2026-08-04", "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3}]
     def fake_move(sym, report_date=None):
         return _payload() if sym == "GOOD" else None
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
@@ -61,13 +63,17 @@ def test_run_nightly_capture_stores_only_successes(store):
 def test_run_nightly_capture_noop_when_no_reporters(store):
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
-    assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0}
+    assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0,
+                        "skipped_no_fiscal": 0}
 
 
 def test_run_nightly_capture_isolates_a_raising_reporter(store):
-    reporters = [{"sym": "OK1", "report_date": "2026-08-04", "hour": "amc"},
-                 {"sym": "BOOM", "report_date": "2026-08-04", "hour": "amc"},
-                 {"sym": "OK2", "report_date": "2026-08-04", "hour": "amc"}]
+    reporters = [{"sym": "OK1", "report_date": "2026-08-04", "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3},
+                 {"sym": "BOOM", "report_date": "2026-08-04", "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3},
+                 {"sym": "OK2", "report_date": "2026-08-04", "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3}]
     def fake_move(sym, report_date=None):
         if sym == "BOOM":
             raise RuntimeError("chain exploded")
@@ -75,7 +81,8 @@ def test_run_nightly_capture_isolates_a_raising_reporter(store):
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", side_effect=fake_move):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
-    assert summary == {"captured": 2, "skipped": 0, "failed": 1, "collisions": 0}
+    assert summary == {"captured": 2, "skipped": 0, "failed": 1, "collisions": 0,
+                        "skipped_no_fiscal": 0}
     assert store.get_implied_history("OK2"), "reporters after the raiser must still capture"
 
 
@@ -89,8 +96,10 @@ def test_run_nightly_capture_window_and_bmo_today_skip(store):
     reporters = [
         {"sym": "PAST", "report_date": "2026-08-02", "hour": "amc"},
         {"sym": "BMOTODAY", "report_date": "2026-08-03", "hour": "bmo"},
-        {"sym": "AMCTODAY", "report_date": "2026-08-03", "hour": "amc"},
-        {"sym": "TOMORROW", "report_date": "2026-08-04", "hour": "bmo"},
+        {"sym": "AMCTODAY", "report_date": "2026-08-03", "hour": "amc",
+         "fiscal_year": 2026, "fiscal_quarter": 2},
+        {"sym": "TOMORROW", "report_date": "2026-08-04", "hour": "bmo",
+         "fiscal_year": 2026, "fiscal_quarter": 2},
     ]
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", side_effect=lambda sym, report_date=None: _payload()):
@@ -111,7 +120,8 @@ def test_run_nightly_capture_defaults_now_to_et_with_tz_aware_captured_at(store,
     stored captured_at must be tz-aware — not silently untested because every
     other test injects a naive `now`."""
     report_date = dt.datetime.now(store._ET).date().isoformat()  # today, amc -> in-window, not the bmo-today skip
-    reporters = [{"sym": "DEFNOW", "report_date": report_date, "hour": "amc"}]
+    reporters = [{"sym": "DEFNOW", "report_date": report_date, "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3}]
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture()
@@ -380,7 +390,8 @@ def test_run_nightly_capture_hour_collision_resolves_identically_both_orders(sto
         with patch.object(store, "upcoming_reporters", return_value=list(order)), \
              patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
             summary = store.run_nightly_capture(now=now)
-        assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1}, order_name
+        assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1,
+                            "skipped_no_fiscal": 0}, order_name
         assert not store.get_implied_history("DUPH"), \
             f"{order_name}: bmo must win deterministically -> skipped, never stored"
 
@@ -443,7 +454,8 @@ def test_run_nightly_capture_hour_collision_case_insensitive_both_orders(store):
         with patch.object(store, "upcoming_reporters", return_value=list(order)), \
              patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
             summary = store.run_nightly_capture(now=now)
-        assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1}, order_name
+        assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1,
+                            "skipped_no_fiscal": 0}, order_name
         assert not store.get_implied_history("DUPH"), order_name
 
 
@@ -657,7 +669,8 @@ def test_catchup_capture_is_idempotent_against_a_second_run_same_night(store):
     FULL run_nightly_capture passes for the same night, not just two raw
     record_implied calls."""
     now = dt.datetime(2026, 8, 5, 16, 36, tzinfo=store._ET)
-    reporters = [{"sym": "NVDA", "report_date": "2026-08-06", "hour": "amc"}]
+    reporters = [{"sym": "NVDA", "report_date": "2026-08-06", "hour": "amc",
+                  "fiscal_year": 2027, "fiscal_quarter": 2}]
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload(6.8)):
         first = store.run_nightly_capture(now=now)
@@ -679,7 +692,8 @@ def test_capture_due_by_true_on_a_holiday_is_a_harmless_noop_via_empty_reporters
     assert store.capture_due_by(now) is True
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=now)
-    assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0}
+    assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0,
+                        "skipped_no_fiscal": 0}
 
 
 # ── Reporter-list resilience (2026-08-05 incident #2) ───────────────────────
@@ -911,23 +925,34 @@ def test_run_nightly_capture_recovers_from_finnhub_unavailability_via_fmp(store,
     must recover a non-zero `captured` when Finnhub's calendar call yields
     nothing and FMP has the data. FAILS against the pre-fix code (summary ==
     {'captured': 0, 'skipped': 0, 'failed': 0, 'collisions': 0}, matching the
-    verified incident log exactly); PASSES after."""
+    verified incident log exactly); PASSES after.
+
+    Also doubles as end-to-end coverage of Task 4's Leg 3: since Finnhub
+    (Leg 2) is entirely unavailable here too, the ONLY way this row's
+    fiscal key resolves is the per-symbol FMP transcript-dates fallback --
+    the mock discriminates by URL so the earnings-calendar endpoint (no
+    fiscal fields, per FMP's real shape) and the transcript-dates endpoint
+    (has them) return their own realistic shapes."""
     monkeypatch.setenv("FMP_API_KEY", "test-fmp-key")
     # today = 2026-08-05; tomorrow (08-06) is in-window regardless of session,
     # so this isolates the RESILIENCE fix from the separate session-backfill
     # behavior exercised by the tests below.
     now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
 
-    class _FmpResp:
-        ok = True
-        status_code = 200
+    def _fake_get(url, params=None, timeout=None, **kw):
+        class _Resp:
+            ok = True
+            status_code = 200
 
-        def json(self):
-            return [{"symbol": "NVDA", "date": "2026-08-06", "epsActual": None,
-                      "epsEstimated": 0.85, "revenueActual": None,
-                      "revenueEstimated": 5_000_000_000, "lastUpdated": "2026-08-05"}]
+            def json(self_inner):
+                if "earning-call-transcript-dates" in url:
+                    return [{"quarter": 3, "fiscalYear": 2026, "date": "2026-08-06"}]
+                return [{"symbol": "NVDA", "date": "2026-08-06", "epsActual": None,
+                          "epsEstimated": 0.85, "revenueActual": None,
+                          "revenueEstimated": 5_000_000_000, "lastUpdated": "2026-08-05"}]
+        return _Resp()
 
-    with patch("requests.get", return_value=_FmpResp()), \
+    with patch("requests.get", side_effect=_fake_get), \
          patch("api.services.finnhub_client.fh_get", return_value=None), \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
@@ -937,12 +962,22 @@ def test_run_nightly_capture_recovers_from_finnhub_unavailability_via_fmp(store,
         "even though Finnhub returned nothing, exactly like the verified "
         "2026-08-05 production incident"
     )
-    assert store.get_implied_history("NVDA")
+    rows = store.get_implied_history("NVDA")
+    assert rows
+    assert rows[0]["fiscal_year"] == 2026 and rows[0]["fiscal_quarter"] == 3, (
+        "the per-symbol FMP repair leg must resolve the fiscal key even when "
+        "Finnhub (Leg 2) is entirely unavailable"
+    )
 
 
-# ── Same-day session backfill (FMP carries no bmo/amc field at all) ────────
+# ── Day-scoped session/fiscal backfill (FMP carries neither field at all) ──
+# Renamed from "Same-day session backfill" (Task 4, 2026-08-05): the old
+# `_finnhub_today_enrichment`/`_merge_today_enrichment` only ever backfilled
+# rows dated TODAY, but the normal T-1 capture's rows are dated today+1 --
+# exactly the ones that never got this backfill. `_finnhub_day_enrichment`/
+# `_merge_day_enrichment` generalize it to any day in the capture window.
 
-def test_finnhub_today_enrichment_normalizes_rows(store, monkeypatch):
+def test_finnhub_day_enrichment_normalizes_rows(store, monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-fh-key")
 
     class _Resp:
@@ -957,73 +992,94 @@ def test_finnhub_today_enrichment_normalizes_rows(store, monkeypatch):
             ]}
 
     with patch("requests.get", return_value=_Resp()):
-        hints = store._finnhub_today_enrichment("2026-08-05")
+        hints = store._finnhub_day_enrichment("2026-08-05")
     assert hints == {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
 
 
-def test_finnhub_today_enrichment_empty_on_failure(store):
+def test_finnhub_day_enrichment_empty_on_failure(store):
     with patch("api.services.finnhub_client.fh_get", return_value=None):
-        assert store._finnhub_today_enrichment("2026-08-05") == {}
+        assert store._finnhub_day_enrichment("2026-08-05") == {}
 
 
-def test_merge_today_enrichment_fills_blank_hour_and_fiscal_key(store):
+def test_merge_day_enrichment_fills_blank_hour_and_fiscal_key(store):
     in_window = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
                   "fiscal_year": None, "fiscal_quarter": None}]
-    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
-    out = store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    hints_by_day = {"2026-08-05": {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}}
+    out = store._merge_day_enrichment(in_window, hints_by_day)
     assert out[0]["hour"] == "amc"
     assert out[0]["fiscal_year"] == 2026
     assert out[0]["fiscal_quarter"] == 3
 
 
-def test_merge_today_enrichment_never_overwrites_a_known_hour(store):
+def test_merge_day_enrichment_never_overwrites_a_known_hour(store):
     in_window = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "bmo",
                   "fiscal_year": None, "fiscal_quarter": None}]
-    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
-    out = store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    hints_by_day = {"2026-08-05": {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}}
+    out = store._merge_day_enrichment(in_window, hints_by_day)
     assert out[0]["hour"] == "bmo", "the primary source's known session must win, never be overridden"
 
 
-def test_merge_today_enrichment_ignores_rows_not_dated_today(store):
+def test_merge_day_enrichment_ignores_rows_for_a_different_day_than_the_hints_cover(store):
+    """A hint computed for 2026-08-05 must never apply to a same-symbol row
+    dated a DIFFERENT day, even if that day isn't in hints_by_day at all."""
     in_window = [{"sym": "TOMORROW", "report_date": "2026-08-06", "hour": "",
                   "fiscal_year": None, "fiscal_quarter": None}]
-    hints = {"TOMORROW": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
-    out = store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    hints_by_day = {"2026-08-05": {"TOMORROW": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}}
+    out = store._merge_day_enrichment(in_window, hints_by_day)
     assert out[0]["hour"] == ""
 
 
-def test_merge_today_enrichment_never_mutates_input_dicts(store):
+def test_merge_day_enrichment_scopes_a_hint_to_its_own_day_even_for_the_same_symbol(store):
+    """The SAME symbol reporting on two different days in the window must
+    only pick up the hint keyed to ITS OWN report_date."""
+    in_window = [{"sym": "DUALQ", "report_date": "2026-08-05", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None},
+                 {"sym": "DUALQ", "report_date": "2026-08-06", "hour": "",
+                  "fiscal_year": None, "fiscal_quarter": None}]
+    hints_by_day = {
+        "2026-08-05": {"DUALQ": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 2}},
+        "2026-08-06": {"DUALQ": {"hour": "bmo", "fiscal_year": 2026, "fiscal_quarter": 3}},
+    }
+    out = store._merge_day_enrichment(in_window, hints_by_day)
+    by_date = {r["report_date"]: r for r in out}
+    assert by_date["2026-08-05"]["fiscal_quarter"] == 2
+    assert by_date["2026-08-06"]["fiscal_quarter"] == 3
+
+
+def test_merge_day_enrichment_never_mutates_input_dicts(store):
     """in_window entries can be objects shared with the _REPORTERS_CACHE TTL
     cache (via upcoming_reporters) -- mutating them in place would corrupt
     what a later call inside the same 6h TTL window sees."""
     original = {"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
                 "fiscal_year": None, "fiscal_quarter": None}
     in_window = [original]
-    hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
-    store._merge_today_enrichment(in_window, "2026-08-05", hints)
+    hints_by_day = {"2026-08-05": {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}}
+    store._merge_day_enrichment(in_window, hints_by_day)
     assert original["hour"] == "", "the ORIGINAL dict must be untouched"
     assert original["fiscal_year"] is None
 
 
-def test_merge_today_enrichment_noop_when_hints_empty(store):
+def test_merge_day_enrichment_noop_when_hints_empty(store):
     in_window = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": ""}]
-    out = store._merge_today_enrichment(in_window, "2026-08-05", {})
+    out = store._merge_day_enrichment(in_window, {})
     assert out is in_window
 
 
 def test_run_nightly_capture_skips_today_row_when_session_unknown_and_backfill_fails(store):
     """FMP-primary rows carry hour="" (no session field at all). If the
-    opportunistic same-day Finnhub backfill ALSO fails, a today-dated row
+    opportunistic day-scoped Finnhub backfill ALSO fails, a today-dated row
     must SKIP rather than guess -- capturing on an unconfirmed session risks
     silently storing an IV-crushed value forever."""
     now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
     reporters = [{"sym": "TODAYX", "report_date": "2026-08-05", "hour": "",
                   "fiscal_year": None, "fiscal_quarter": None}]
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
-         patch.object(store, "_finnhub_today_enrichment", return_value={}), \
+         patch.object(store, "_finnhub_day_enrichment", return_value={}), \
+         patch.object(store, "_fmp_fiscal_repair", return_value=None), \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
-    assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0}
+    assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0,
+                        "skipped_no_fiscal": 0}
     assert not store.get_implied_history("TODAYX")
 
 
@@ -1033,7 +1089,7 @@ def test_run_nightly_capture_backfills_session_from_finnhub_and_captures(store):
                   "fiscal_year": None, "fiscal_quarter": None}]
     hints = {"TODAYX": {"hour": "amc", "fiscal_year": 2026, "fiscal_quarter": 3}}
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
-         patch.object(store, "_finnhub_today_enrichment", return_value=hints) as enrich, \
+         patch.object(store, "_finnhub_day_enrichment", return_value=hints) as enrich, \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
     enrich.assert_called_once_with("2026-08-05")
@@ -1048,28 +1104,29 @@ def test_run_nightly_capture_backfill_revealing_bmo_still_skips(store):
                   "fiscal_year": None, "fiscal_quarter": None}]
     hints = {"TODAYX": {"hour": "bmo", "fiscal_year": 2026, "fiscal_quarter": 3}}
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
-         patch.object(store, "_finnhub_today_enrichment", return_value=hints), \
+         patch.object(store, "_finnhub_day_enrichment", return_value=hints), \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
-    assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0}
+    assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0,
+                        "skipped_no_fiscal": 0}
     assert not store.get_implied_history("TODAYX")
 
 
 def test_run_nightly_capture_skips_the_backfill_call_when_no_row_needs_it(store):
-    """A healthy night (session already known for every today-dated row, or
-    no reporter is dated today at all) must never spend the extra Finnhub
-    call -- also proves a report_date != today with an unknown hour still
-    captures normally (only TODAY's rows are session-gated)."""
+    """A healthy night (session AND fiscal identity already known for every
+    in-window row) must never spend the extra Finnhub enrichment call."""
     now = dt.datetime(2026, 8, 5, 16, 40, tzinfo=store._ET)
     reporters = [{"sym": "AMCTODAY", "report_date": "2026-08-05", "hour": "amc",
-                  "fiscal_year": None, "fiscal_quarter": None},
-                 {"sym": "TOMORROW", "report_date": "2026-08-06", "hour": "",
-                  "fiscal_year": None, "fiscal_quarter": None}]
+                  "fiscal_year": 2026, "fiscal_quarter": 2},
+                 {"sym": "TOMORROW", "report_date": "2026-08-06", "hour": "amc",
+                  "fiscal_year": 2026, "fiscal_quarter": 3}]
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
-         patch.object(store, "_finnhub_today_enrichment") as enrich, \
+         patch.object(store, "_finnhub_day_enrichment") as enrich, \
+         patch.object(store, "_fmp_fiscal_repair") as repair, \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
     enrich.assert_not_called()
+    repair.assert_not_called()
     assert summary["captured"] == 2
     assert store.get_implied_history("AMCTODAY")
     assert store.get_implied_history("TOMORROW")
