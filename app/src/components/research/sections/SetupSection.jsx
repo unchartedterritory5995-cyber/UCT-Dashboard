@@ -40,14 +40,14 @@ export const money = (v) => {
   return n == null ? '—' : `$${n.toFixed(2)}`
 }
 
-/** Compact market cap: `$3.10T` / `$820M` / `$0` (a genuine zero still prints). */
+/** Market cap: pass-through, NOT a numeric formatter. `/api/fundamentals/{sym}`
+ *  always sends `market_cap` already formatted (`"$1.23T"` / `"$820M"` / `"$0"`)
+ *  or `null` — see api/routers/fundamentals.py's own comment on the field.
+ *  A prior version ran this through `Number()` expecting a raw dollar amount;
+ *  `Number("$138.79B")` is `NaN`, which silently fell back to the em dash and
+ *  rendered "Mkt cap —" for every ticker (live-verified against UBER). */
 export function compactCap(v) {
-  const n = num(v)
-  if (n == null) return '—'
-  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`
-  return `$${n.toFixed(0)}`
+  return typeof v === 'string' && v.length > 0 ? v : '—'
 }
 
 /** Compact average volume: `245.0M` / `0K` — the same null/zero split as above. */

@@ -12,7 +12,14 @@ const FUNDAMENTALS = {
   // used 0.0002 (a FRACTION), which matched divYieldText's now-fixed ×100
   // bug and is exactly why no test caught it: the fixture encoded the same
   // wrong provider contract as the code under test.
-  market_cap: 3.1e12, forward_pe: 38.4, beta: 1.72,
+  //
+  // market_cap is an ALREADY-FORMATTED STRING, never a raw number — verified
+  // live against /api/fundamentals/UBER -> "$138.79B" and pinned by
+  // api/routers/fundamentals.py's own comment ("formatted string e.g.
+  // '$1.23T'"). A prior version of this fixture used 3.1e12 (a raw number),
+  // which matched compactCap's now-fixed Number()-based bug and is exactly
+  // why no test caught it: Mkt cap rendered an em dash for every ticker live.
+  market_cap: '$3.10T', forward_pe: 38.4, beta: 1.72,
   week52_high: 210, week52_low: 86.6, avg_vol: 245_000_000, div_yield: 2.81,
 }
 // A controllable mock (not a fixed factory return) — mirrors
@@ -102,6 +109,17 @@ describe('SetupSection', () => {
     expect(stats.querySelector('.t-num')).toBeTruthy()
   })
 
+  // Live-browser-verified regression (paid-member audit): /api/fundamentals/
+  // UBER returned market_cap: "$138.79B" but the modal showed "Mkt cap —"
+  // for every ticker — compactCap ran the already-formatted string through
+  // Number(), got NaN, and silently fell back to the em dash.
+  it('renders the real formatted Mkt cap string, never an em dash', () => {
+    renderSetup()
+    const stats = screen.getByTestId('setup-stats')
+    expect(stats.textContent).toMatch(/Mkt cap/i)
+    expect(stats.textContent).toContain('$3.10T')
+  })
+
   it('shows the consensus DRIFT, never the word "whisper"', () => {
     renderSetup()
     const drift = screen.getByTestId('setup-drift')
@@ -140,9 +158,16 @@ describe('money — phantom zero', () => {
   })
 })
 
-describe('compactCap — phantom zero', () => {
-  it('renders $0 for a genuine zero market cap', () => { expect(compactCap(0)).toBe('$0') })
+// compactCap does NOT format a raw number — /api/fundamentals/{sym} always
+// returns market_cap as an already-formatted string (e.g. "$1.23T") or
+// null (api/routers/fundamentals.py). Passing that string through Number()
+// yields NaN, which used to silently render "Mkt cap —" for every ticker
+// (live-verified: /api/fundamentals/UBER -> "$138.79B", modal showed "—").
+describe('compactCap — string pass-through, phantom zero', () => {
+  it('renders the already-formatted string as-is', () => { expect(compactCap('$3.10T')).toBe('$3.10T') })
+  it('renders a genuine zero-cap string as-is', () => { expect(compactCap('$0')).toBe('$0') })
   it('renders an em dash for a missing market cap', () => { expect(compactCap(null)).toBe('—') })
+  it('renders an em dash for an empty string', () => { expect(compactCap('')).toBe('—') })
 })
 
 describe('compactVol — phantom zero', () => {
@@ -243,7 +268,9 @@ describe('driftText — pinned to the Current Qtr row, never a different period'
 describe('SetupSection — key stats, phantom zero at the component level', () => {
   it('renders every stat live when every fundamental is a genuine zero (no em dashes)', () => {
     mockUseFundamentals.mockReturnValueOnce({ data: {
-      market_cap: 0, forward_pe: 0, beta: 0, avg_vol: 0, div_yield: 0,
+      // market_cap is the STRING contract's zero, "$0" — never a raw 0
+      // (api/routers/fundamentals.py never sends a bare number).
+      market_cap: '$0', forward_pe: 0, beta: 0, avg_vol: 0, div_yield: 0,
       week52_high: 210, week52_low: 86.6,
     } })
     renderSetup()
