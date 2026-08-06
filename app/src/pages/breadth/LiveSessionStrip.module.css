@@ -95,8 +95,11 @@
   }
   .items {
     width: 100%;
-    gap: 10px;
-    justify-content: space-between;
+    /* NOT space-between: with two readings it puts the whitespace BETWEEN them,
+       which splits one group into two disconnected clusters. Grouped left, the
+       pair reads as a single line and the slack falls harmlessly at the end. */
+    gap: 18px;
+    justify-content: flex-start;
   }
   .item { gap: 5px; }
   .item:nth-child(n + 3) { display: none; }
