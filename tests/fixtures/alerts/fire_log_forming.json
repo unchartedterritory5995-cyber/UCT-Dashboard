@@ -1,6 +1,6 @@
 {
  "note": "THE FROZEN FIRE LOG. Recorded from api/services/indicator_alert_evaluator as it stood BEFORE any Phase C behaviour change, walking the committed REAL bar fixtures in tests/fixtures/alerts/replay_bars.json bar by bar, through the same 200-bar window _fetch_bars_for_alert hands the live cycle. Every fire is (alert_key, bar_index, bar_time, value, triggered); bar_time is a pure function of bar_index over a FROZEN series and triggered is True by definition of 'a fire', so the stored row is (bar_index, sample, repr(value)) and the compared key is the full five-tuple fire_key() builds. `value` is IN the key deliberately: a changed NUMBER must not be able to read as no change, which is why it is inside the hashed text too. `digest` is sha256 over the whole ordered sequence; `per_alert` localises a failure to one alert; wick_that_unwinds carries its rows VERBATIM. THE GATE IS `python tools/alert_replay.py --check` AND ITS EXIT CODE. \u26a0\ufe0f 691,195 fires is not a grid that is too wide \u2014 THIS EVALUATOR HAS NO FIRE-ONCE. record_trigger leaves active=1, so an `above` condition re-delivers bell+email+Discord every 60-second cycle for as long as it holds. The log records that faithfully rather than deduping it away.",
- "recorded_at_head": "bb089bf2f5ab1d15ab74a048745bfb041e31e01c",
+ "recorded_at_head": "295699468df40e479dd7e50f8ddd7f7756acb1b6",
  "prod_bar_window": 200,
  "ks": [
   1,
@@ -3107,7 +3107,7 @@
   },
   "spy_daily": {
    "bar_count": 400,
-   "alert_count": 317,
+   "alert_count": 305,
    "ladders": {
     "rsi": [
      45.73,
@@ -3179,11 +3179,7 @@
      76.44,
      92.39
     ],
-    "vwap": [
-     580.0334,
-     600.9686,
-     664.526
-    ],
+    "vwap": [],
     "atr": [
      5.9434,
      7.6861,
@@ -3399,18 +3395,6 @@
     "spy_daily|stoch.d|cross_below|41.06",
     "spy_daily|stoch.d|cross_below|76.44",
     "spy_daily|stoch.d|cross_below|92.39",
-    "spy_daily|vwap|above|580.0334",
-    "spy_daily|vwap|above|600.9686",
-    "spy_daily|vwap|above|664.526",
-    "spy_daily|vwap|below|580.0334",
-    "spy_daily|vwap|below|600.9686",
-    "spy_daily|vwap|below|664.526",
-    "spy_daily|vwap|cross_above|580.0334",
-    "spy_daily|vwap|cross_above|600.9686",
-    "spy_daily|vwap|cross_above|664.526",
-    "spy_daily|vwap|cross_below|580.0334",
-    "spy_daily|vwap|cross_below|600.9686",
-    "spy_daily|vwap|cross_below|664.526",
     "spy_daily|atr|above|5.9434",
     "spy_daily|atr|above|7.6861",
     "spy_daily|atr|above|9.6729",
@@ -3571,21 +3555,9 @@
    ],
    "fires": {
     "1": {
-     "count": 30578,
-     "digest": "1b5e5b1bc42f763e67e382013c57202f8d1bb9042c3f39e778b91e7fbedd003c",
+     "count": 29377,
+     "digest": "09e57a15c01a11c93168c5899410729b1226e3dd2827d68602d741d10340f5db",
      "per_alert": {
-      "spy_daily|vwap|above|580.0334": [
-       319,
-       "105789928653714411ceeeeaabc8addad45487123f1feb18c3732e577383f8bc"
-      ],
-      "spy_daily|vwap|below|600.9686": [
-       200,
-       "522494ce14564f0a6ea7ad4873c1a5381237a728dbc6635cd1c6eaafdea3f63d"
-      ],
-      "spy_daily|vwap|below|664.526": [
-       319,
-       "f336a6f2010e51a28516522a4554889ee7147bdda86b3c6e69e8f61a9b93bf76"
-      ],
       "spy_daily|obv|below|31206200.0": [
        80,
        "1a8bc17d5a449f28523e31c78779ff2f891aa24eea2f9182c9ea937bee8fa4fb"
@@ -4358,14 +4330,6 @@
        1,
        "4a58d55e5b27cce4360be49b7b3d18a33c42fe6cb1705af81290d8012a6734f2"
       ],
-      "spy_daily|vwap|below|580.0334": [
-       80,
-       "7b3d5a5173b79cc87162bfdff3d7ee76e5ee35665454901163ec29ff5a4f740c"
-      ],
-      "spy_daily|vwap|cross_below|580.0334": [
-       1,
-       "f4bd24d3783cb68537e3398fb09b80c18e34838622dc3d60a9340e7af9efb8a7"
-      ],
       "spy_daily|price_vs_ma|above|-4.4846": [
        280,
        "de6fa7e808d579da26eb4cb4f60a9db9f7815ac61b4a6e426b74be047ffa00e3"
@@ -4518,10 +4482,6 @@
        13,
        "28101422d0f0ac7234e07f316b703fc464929d25739efb1757841b0c14e8e2b8"
       ],
-      "spy_daily|vwap|cross_above|580.0334": [
-       1,
-       "ca80a3d25c79f8bf71a03074f423f6bd7bec448fd0e05ad9d496c1a349ac2a2b"
-      ],
       "spy_daily|bb.lower|above|644.432": [
        190,
        "b0e1fd2b44c0e80547ce8ebcbdad4e8ffad0fb92029fd657ff853eee6a8442dc"
@@ -4585,14 +4545,6 @@
       "spy_daily|ichimoku.tenkan|cross_below|667.335": [
        3,
        "9cb79a8f6e475c10bfcdd17b99f5137d634863b84e9f67fdeba80c6cdae856a2"
-      ],
-      "spy_daily|vwap|above|600.9686": [
-       199,
-       "cc61a9f330488d1cde1cf271499b58b199df230b7c9d034648c86f00687e733c"
-      ],
-      "spy_daily|vwap|cross_above|600.9686": [
-       1,
-       "a91b4b3edac570aa5999b63b7939f369f68b5861e668cd0bf907a97ff4d7d1ee"
       ],
       "spy_daily|donchian.upper|above|683.36": [
        188,
@@ -4750,14 +4702,6 @@
        1,
        "5f0344212d4008b81036b0a54ba8d6caedb2263943ad503bd73787c13b4ef496"
       ],
-      "spy_daily|vwap|above|664.526": [
-       80,
-       "2f3877857c637c2e7b5ae1949e455c1efbdd75ed36b0ea6e55956d4ba4198303"
-      ],
-      "spy_daily|vwap|cross_above|664.526": [
-       1,
-       "f4407aa469978bfbdba88a143b3443920ecfca308dc720c1fdefd81bda46c586"
-      ],
       "spy_daily|ichimoku.spanB|cross_below|663.56": [
        1,
        "9b2a9c09cdcdd3cbbfe9fa81bb57d3e0f95ceefc7c342aeb37ff0fc0704e49b0"
@@ -4807,21 +4751,6 @@
       [
        0,
        0,
-       "588.1233"
-      ],
-      [
-       0,
-       0,
-       "588.1233"
-      ],
-      [
-       0,
-       0,
-       "588.1233"
-      ],
-      [
-       0,
-       0,
        "0.0"
       ],
       [
@@ -4833,21 +4762,6 @@
        0,
        0,
        "0.0"
-      ],
-      [
-       1,
-       0,
-       "587.5828"
-      ],
-      [
-       1,
-       0,
-       "587.5828"
-      ],
-      [
-       1,
-       0,
-       "587.5828"
       ],
       [
        1,
@@ -4872,31 +4786,49 @@
       [
        2,
        0,
-       "586.921"
+       "-107256700.0"
       ],
       [
        2,
        0,
-       "586.921"
+       "-107256700.0"
+      ],
+      [
+       2,
+       0,
+       "-107256700.0"
+      ],
+      [
+       3,
+       0,
+       "-69368200.0"
+      ],
+      [
+       3,
+       0,
+       "-69368200.0"
+      ],
+      [
+       3,
+       0,
+       "-69368200.0"
+      ],
+      [
+       4,
+       0,
+       "-21688800.0"
+      ],
+      [
+       4,
+       0,
+       "-21688800.0"
       ]
      ]
     },
     "4": {
-     "count": 119646,
-     "digest": "097e9cd826acaac5284bcad44cded6a04193bcbb45f9692a0b7464513a0bdbe6",
+     "count": 114845,
+     "digest": "1a750d0af9290f42353079b212ba7cf6a4dc1f4c409dcdac11f370b71404c20d",
      "per_alert": {
-      "spy_daily|vwap|above|580.0334": [
-       1277,
-       "a2bab3aae48b2f013751170af105919e7a04b15cd2970ebbeb4005b4eac4b92e"
-      ],
-      "spy_daily|vwap|below|600.9686": [
-       803,
-       "6098a5e53db383f71ae3556a2e8281fed28b82846dd60cbe9928addf6db9df90"
-      ],
-      "spy_daily|vwap|below|664.526": [
-       1279,
-       "635dea31fd41a5a20c2edb3cbece60cf2530b41908118c1a6ee08dcf9be29a78"
-      ],
       "spy_daily|obv|below|31206200.0": [
        323,
        "bc3d6359595ca1e54f790cd357259c7dac3324af3bd6a95db88d091e22dd58dc"
@@ -5693,14 +5625,6 @@
        1,
        "8b62f4511d137664c4527b5f728edffb7473a4525004c1a8c6db25c1c74f03dd"
       ],
-      "spy_daily|vwap|below|580.0334": [
-       322,
-       "8de4fe4fced30f04381712009d1815bddf8ed68cbd16a31c8d3a349e07d3332f"
-      ],
-      "spy_daily|vwap|cross_below|580.0334": [
-       1,
-       "740d24de967c1e3eaced9f81782493d92c5b217b55eff477bdd1b62bd3358a80"
-      ],
       "spy_daily|price_vs_ma|above|-4.4846": [
        1117,
        "b038bfd8798e1280b922248bc6ea3ab91902f8333a489a042925436fea8ff686"
@@ -5837,10 +5761,6 @@
        25,
        "fef27b1089c6c2166776898a6b77c6da8657cab2576229ca4d0e72cf39edb99c"
       ],
-      "spy_daily|vwap|cross_above|580.0334": [
-       1,
-       "155fc1229dcef24026d96f0d42189951bc4b0131edb13c89729839fc0ade8cdc"
-      ],
       "spy_daily|bb.lower|above|644.432": [
        764,
        "51ab06a05b151c1329232f0d7b4a1a4180035ef3ddc9abccb8fd98ffa8b8f201"
@@ -5900,14 +5820,6 @@
       "spy_daily|ichimoku.tenkan|cross_below|667.335": [
        3,
        "6e7e2ccb9a3637e2669cb756d5e0095decf25484acf0f1b1900c77ea5e58cfda"
-      ],
-      "spy_daily|vwap|above|600.9686": [
-       796,
-       "20737a6031575817da723a87a47266b6bc8316c24fb4bc5d5e3df3cbe7f7348a"
-      ],
-      "spy_daily|vwap|cross_above|600.9686": [
-       1,
-       "917c274e3fad65ba919e4fd1c7c3c07b4be1ce265d03787b858ed1853b50e7af"
       ],
       "spy_daily|ichimoku.spanA|above|668.7375": [
        696,
@@ -6065,14 +5977,6 @@
        1,
        "5f0344212d4008b81036b0a54ba8d6caedb2263943ad503bd73787c13b4ef496"
       ],
-      "spy_daily|vwap|above|664.526": [
-       320,
-       "937bcecb45b06aa9cc9180973b6eff9a26adc53314abff74e8c16124a2975009"
-      ],
-      "spy_daily|vwap|cross_above|664.526": [
-       1,
-       "ca634ff9eab53f587c885535cdb93378afdd2755be855595d9f784ec77cd70bd"
-      ],
       "spy_daily|ichimoku.spanB|cross_below|663.56": [
        1,
        "9b2a9c09cdcdd3cbbfe9fa81bb57d3e0f95ceefc7c342aeb37ff0fc0704e49b0"
@@ -6126,21 +6030,6 @@
       [
        0,
        0,
-       "586.15"
-      ],
-      [
-       0,
-       0,
-       "586.15"
-      ],
-      [
-       0,
-       0,
-       "586.15"
-      ],
-      [
-       0,
-       0,
        "0.0"
       ],
       [
@@ -6152,21 +6041,6 @@
        0,
        0,
        "0.0"
-      ],
-      [
-       0,
-       1,
-       "586.8533"
-      ],
-      [
-       0,
-       1,
-       "586.8533"
-      ],
-      [
-       0,
-       1,
-       "586.8533"
       ],
       [
        0,
@@ -6186,17 +6060,47 @@
       [
        0,
        2,
-       "589.0033"
+       "0.0"
       ],
       [
        0,
        2,
-       "589.0033"
+       "0.0"
       ],
       [
        0,
        2,
-       "589.0033"
+       "0.0"
+      ],
+      [
+       0,
+       3,
+       "0.0"
+      ],
+      [
+       0,
+       3,
+       "0.0"
+      ],
+      [
+       0,
+       3,
+       "0.0"
+      ],
+      [
+       1,
+       0,
+       "14263175.0"
+      ],
+      [
+       1,
+       0,
+       "14263175.0"
+      ],
+      [
+       1,
+       0,
+       "14263175.0"
       ]
      ]
     }
@@ -82175,9 +82079,9 @@
   }
  },
  "summary": {
-  "fires": 691195,
-  "slots": 1166562,
-  "grid_alerts": 1244,
+  "fires": 685193,
+  "slots": 1156962,
+  "grid_alerts": 1232,
   "per_address_fires": {
    "adx.adx": 26103,
    "adx.minusDI": 26630,
@@ -82205,7 +82109,7 @@
    "rsi": 28449,
    "stoch": 29698,
    "stoch.d": 28303,
-   "vwap": 26213,
+   "vwap": 20211,
    "williams_r": 29698
   }
  }
