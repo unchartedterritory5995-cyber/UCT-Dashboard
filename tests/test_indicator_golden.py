@@ -548,6 +548,30 @@ def test_raw_core_is_not_rounded():
         (lambda c, b: ic.compute_cci(b, 20), 2),
         (lambda c, b: ic.compute_mfi(b, 14), 2),
         (lambda c, b: ic.compute_stoch(b, 14, 3)[0], 2),
+        # ── B5: the new wrappers are held to the same rule ──
+        # ⚠️ NOT DECORATION. `indicator_alert_evaluator` reads these — a NEW
+        # address that skipped the delivery layer would compare a user's
+        # threshold against a different number from every other alert on the
+        # same chart, and nothing else in the suite would notice.
+        (lambda c, b: ic.compute_atr(b, 14), 4),
+        (lambda c, b: ic.compute_adx(b, 14)[0], 2),
+        (lambda c, b: ic.compute_adx(b, 14)[1], 2),
+        (lambda c, b: ic.compute_adx(b, 14)[2], 2),
+        # `compute_obv` is NOT in this grid: these bars carry whole-share
+        # volumes, so OBV's values are whole numbers and `v == round(v, 2)`
+        # holds whether or not the wrapper rounds at all. A row that passes
+        # under its own mutation is worse than no row — it gets its own test
+        # below, on a volume that can actually show the rounding.
+        (lambda c, b: ic.compute_donchian(b, 20)[0], 4),
+        (lambda c, b: ic.compute_donchian(b, 20)[1], 4),
+        (lambda c, b: ic.compute_donchian(b, 20)[2], 4),
+        (lambda c, b: ic.compute_ichimoku(b, 9, 26, 52)[0], 4),
+        (lambda c, b: ic.compute_ichimoku(b, 9, 26, 52)[1], 4),
+        (lambda c, b: ic.compute_ichimoku(b, 9, 26, 52)[2], 4),
+        (lambda c, b: ic.compute_ichimoku(b, 9, 26, 52)[3], 4),
+        (lambda c, b: ic.compute_ichimoku(b, 9, 26, 52)[4], 4),
+        (lambda c, b: ic.compute_sar(b, 0.02, 0.2)[0], 4),
+        (lambda c, b: ic.compute_vwap(b), 4),
     ],
 )
 def test_delivery_wrappers_still_round(getter, ndigits):
@@ -567,6 +591,27 @@ def test_delivery_wrappers_still_round(getter, ndigits):
     values = [v for v in series if v is not None]
     assert values, "nothing computed"
     assert all(v == round(v, ndigits) for v in values)
+
+
+def test_obv_delivery_wrapper_rounds_on_a_volume_that_can_show_it():
+    """OBV's rounding, made observable.
+
+    Whole-share volumes make `round(v, 2)` an identity, so the parametrized grid
+    above deliberately excludes OBV. A fractional volume is the only input where
+    "does the delivery wrapper round?" has a visible answer — and the raw core
+    must NOT round, or the 1e-9 fixtures become unreachable for it.
+    """
+    bars = [
+        {"c": 10, "v": 100.0},
+        {"c": 11, "v": 200.123456},
+        {"c": 9, "v": 50.987654},
+    ]
+    raw = ic.compute_obv_raw(bars)
+    delivered = ic.compute_obv(bars)
+    assert raw[1] == pytest.approx(200.123456, rel=1e-12)
+    assert delivered[1] == 200.12
+    # The raw core is genuinely unrounded — otherwise this pair proves nothing.
+    assert raw[1] != delivered[1]
 
 
 def test_compute_case_rejects_an_unknown_kind():
