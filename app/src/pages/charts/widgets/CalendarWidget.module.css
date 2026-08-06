@@ -167,7 +167,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--cal-chrome, var(--text-muted, #8b8674));
   flex: 0 0 auto;
-  min-width: 4.4em;
+  /* FIXED width (fits the widest boxed time) so a high-impact time box never widens
+     the column — every event name starts at the same x. */
+  width: 6em;
 }
 .econMain { min-width: 0; flex: 1; }
 .econName { font-size: 0.86em; color: var(--cal-text, var(--text-bright, #e0dac8)); }

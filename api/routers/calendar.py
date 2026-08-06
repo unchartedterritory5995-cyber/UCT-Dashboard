@@ -1602,20 +1602,29 @@ def _weekly_payload_is_good(payload: dict | None) -> bool:
     return any(d.get("bmo") or d.get("amc") or d.get("tbd") for d in days)
 
 
-def _ff_full_econ_cached(week_start: str, week_end: str) -> dict:
-    """Full-impact ForexFactory econ for the week (ALL impacts incl. Low, each with an
-    `impact` level), cached briefly. Only this/next week are covered by FF; other weeks
-    return {} (the caller keeps its curated econ there)."""
-    ck = f"ff_econ_full::{week_start}"
+def _full_econ_cached(week_start: str, week_end: str) -> dict:
+    """Full-impact econ for the week (ALL impacts + ACTUAL prints), for the widget's
+    star filter. FMP is primary — it carries actuals + all impacts and covers any week;
+    ForexFactory include_low is a no-actuals fallback. EMPTY results are NOT cached, so a
+    transient provider hiccup can't 'stick' the widget on the curated set for 10 min."""
+    ck = f"econ_full::{week_start}"
     cached = cache.get(ck)
-    if cached is not None:
+    if cached:
         return cached
+    data = {}
     try:
-        data = _fetch_ff_events(week_start, week_end, include_low=True)
+        from api.services import econ_calendar_fmp
+        data = econ_calendar_fmp.fetch_us_econ_week_full(week_start, week_end) or {}
     except Exception as exc:
-        _logger.warning("Calendar: full-impact FF fetch failed: %s", exc)
-        data = {}
-    cache.set(ck, data, ttl=600)
+        _logger.warning("Calendar: FMP full econ failed: %s", exc)
+    if not data:
+        try:
+            data = _fetch_ff_events(week_start, week_end, include_low=True) or {}
+        except Exception as exc:
+            _logger.warning("Calendar: FF full econ fallback failed: %s", exc)
+            data = {}
+    if data:
+        cache.set(ck, data, ttl=300)
     return data
 
 
@@ -1627,7 +1636,7 @@ def _overlay_full_impact_econ(payload: dict) -> dict:
     ws, we = payload.get("week_start"), payload.get("week_end")
     if not days or not ws or not we:
         return payload
-    ff = _ff_full_econ_cached(ws, we)
+    ff = _full_econ_cached(ws, we)
     if not ff:
         return payload
     new_days = {}
