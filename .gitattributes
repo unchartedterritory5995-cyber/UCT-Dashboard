@@ -1,0 +1,17 @@
+# ⛔ THIS BOX HAS `core.autocrlf=true` AND THIS REPO HAD NO ATTRIBUTES FILE, so
+# git decided text-vs-binary by SNIFFING every blob. A font that ever sniffed as
+# text would have every 0x0A rewritten to 0x0D 0x0A on checkout — a corrupt
+# .woff2 that @font-face rejects SILENTLY, leaving the chart axis in a fallback
+# face. That is the exact failure self-hosting the font was adopted to remove, so
+# it is not left to a heuristic.
+#
+# (Sniffing does get it right today — `git diff --cached --numstat` reports `- -`
+# for all four and the stored blobs are byte-identical to disk. This is here so
+# that stays true for a font whose first 8 kB happens to contain no NUL.)
+#
+# The self-consistency rail is in tests/test_chart_parity_harness.py: a woff2
+# header declares its own total length, and CRLF conversion breaks that equality.
+*.woff2 binary
+*.woff  binary
+*.ttf   binary
+*.otf   binary

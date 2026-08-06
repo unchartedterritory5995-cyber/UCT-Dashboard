@@ -34,6 +34,23 @@ describe('mergeSettingsOverride', () => {
     expect(out.indicators.macd).toEqual(base.indicators.macd)
   })
 
+  it('merges indicatorInstances by instanceId, never positionally', () => {
+    const base = mergeChartSettings(JSON.stringify({
+      indicatorInstances: [
+        { instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } },
+        { instanceId: 'b2', defId: 'macd', inputs: {} },
+      ],
+    }))
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'b2', defId: 'macd', inputs: { fastPeriod: 8 } }],
+    })
+    // the override patches b2 and LEAVES a1 alone — a wholesale array replace
+    // would silently delete the user's other indicators in that grid cell
+    expect(out.indicatorInstances).toHaveLength(2)
+    expect(out.indicatorInstances.find(i => i.instanceId === 'a1').inputs.period).toBe(14)
+    expect(out.indicatorInstances.find(i => i.instanceId === 'b2').inputs.fastPeriod).toBe(8)
+  })
+
   it('arrays replace wholesale', () => {
     const out = mergeSettingsOverride(base, { comparisonSymbols: ['QQQ'] })
     expect(out.comparisonSymbols).toEqual(['QQQ'])
@@ -51,6 +68,12 @@ describe('mergeSettingsOverride', () => {
   // markers, positionCalc all arrived over time) but not to that list, a
   // section override would silently DROP the user's sibling sub-settings. This
   // walks every object section generically so the lists can never drift apart.
+  //
+  // ARRAY sections are out of scope for this guard, deliberately — "merge one
+  // level" is not their contract. An array-valued section needs its OWN targeted
+  // case naming its identity key (see the indicatorInstances by-id test above);
+  // this loop cannot infer that key, and guessing one would make the guard pass
+  // vacuously. Skipping is honest here, NOT a weakening.
   it('every object-valued CHART_DEFAULTS section merges one level, never replaces', () => {
     const full = mergeChartSettings(null)
     for (const [key, val] of Object.entries(CHART_DEFAULTS)) {
@@ -63,5 +86,77 @@ describe('mergeSettingsOverride', () => {
         expect(out[key][sk], `${key}.${sk} dropped — add '${key}' to the override section list`).toEqual(full[key][sk])
       }
     }
+  })
+})
+
+// ─── Removing an instance ────────────────────────────────────────────────────
+//
+// Union-by-id can ADD and EDIT but has no way to say "this one is gone": a patch
+// that simply OMITS an instance is indistinguishable from a patch written by a
+// cell that never heard of it, and omission-means-delete is precisely the bug the
+// id-merge exists to prevent. So a removal has to be something the patch SAYS.
+//
+// A tombstone — `{instanceId, deleted: true}` — says it, and survives the merge,
+// which is the part that matters: a stale whole-blob writer holding a pre-delete
+// snapshot names that instance IN FULL on its next write, and anything short of a
+// persisted marker lets that write resurrect it.
+
+describe('mergeSettingsOverride — instance removal (tombstones)', () => {
+  const withInstances = (...instances) =>
+    mergeChartSettings(JSON.stringify({ indicatorInstances: instances }))
+
+  const find = (out, id) => out.indicatorInstances.find(i => i.instanceId === id)
+
+  it('a tombstone patch REMOVES the instance from the live set', () => {
+    const base = withInstances(
+      { instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } },
+      { instanceId: 'b2', defId: 'macd', inputs: {} },
+    )
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'a1', deleted: true }],
+    })
+
+    expect(find(out, 'a1')).toEqual({ instanceId: 'a1', deleted: true })
+    expect(find(out, 'b2').defId, 'the sibling is untouched').toBe('macd')
+  })
+
+  it('the tombstone is MINIMAL — a delete does not keep the old settings around', () => {
+    const base = withInstances({ instanceId: 'a1', defId: 'rsi', inputs: { period: 14, color: '#fff' } })
+    const out = mergeSettingsOverride(base, {
+      indicatorInstances: [{ instanceId: 'a1', deleted: true }],
+    })
+    expect(Object.keys(find(out, 'a1')).sort()).toEqual(['deleted', 'instanceId'])
+  })
+
+  it('a STALE whole-blob writer cannot resurrect a tombstoned instance', () => {
+    // THE case this exists for. The deleter and the stale writer are different
+    // grid cells; the stale one still has the full instance in its snapshot.
+    const tombstoned = mergeSettingsOverride(
+      withInstances({ instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } }),
+      { indicatorInstances: [{ instanceId: 'a1', deleted: true }] },
+    )
+    const out = mergeSettingsOverride(tombstoned, {
+      indicatorInstances: [{ instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } }],
+    })
+    expect(find(out, 'a1')).toEqual({ instanceId: 'a1', deleted: true })
+  })
+
+  it('an EXPLICIT re-add clears the tombstone — deletion is reversible on purpose', () => {
+    const tombstoned = mergeSettingsOverride(
+      withInstances({ instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } }),
+      { indicatorInstances: [{ instanceId: 'a1', deleted: true }] },
+    )
+    const out = mergeSettingsOverride(tombstoned, {
+      indicatorInstances: [{ instanceId: 'a1', defId: 'rsi', inputs: { period: 9 }, deleted: false }],
+    })
+    expect(find(out, 'a1')).toEqual({ instanceId: 'a1', defId: 'rsi', inputs: { period: 9 } })
+  })
+
+  it('OMITTING an instance still does not delete it — omission is not a removal', () => {
+    // Unchanged, and load-bearing: every existing caller writes a whole blob it
+    // may have read before another cell's add.
+    const base = withInstances({ instanceId: 'a1', defId: 'rsi', inputs: { period: 14 } })
+    const out = mergeSettingsOverride(base, { indicatorInstances: [] })
+    expect(find(out, 'a1').defId).toBe('rsi')
   })
 })

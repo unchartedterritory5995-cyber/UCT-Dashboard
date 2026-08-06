@@ -1,0 +1,22 @@
+{
+  "chartType": "candles",
+  "background": "#0e0f0d",
+  "textColor": "#706b5e",
+  "overlays": [
+    { "enabled": true, "type": "EMA", "period": 9, "color": "#4ade80" },
+    { "enabled": true, "type": "EMA", "period": 20, "color": "#f472b6" },
+    { "enabled": true, "type": "SMA", "period": 50, "color": "#60a5fa" },
+    { "enabled": true, "type": "SMA", "period": 200, "color": "#fb923c" }
+  ],
+  "volume": { "visible": true, "upColor": "#1ae51a", "downColor": "#c41f2d", "hvcEnabled": true },
+  "indicators": {
+    "rsi": { "enabled": true, "period": 7 },
+    "macd": { "enabled": false, "fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9 },
+    "vwap": { "enabled": true, "color": "#26C6DA", "showBands": true },
+    "volumeProfile": { "enabled": true, "bins": 48, "color": "rgba(120,160,100,0.25)", "pocColor": "rgba(200,160,40,0.65)" }
+  },
+  "heikinAshi": false,
+  "logScale": false,
+  "theme": "dark",
+  "preset": "custom"
+}

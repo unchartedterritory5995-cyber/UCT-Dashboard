@@ -1,0 +1,233 @@
+{
+  "chartType": "candles",
+  "candles": {
+    "upColor": "#1ae51a",
+    "downColor": "#c41f2d",
+    "upBorder": "#1ae51a",
+    "downBorder": "#c41f2d",
+    "upWick": "#1ae51a",
+    "downWick": "#c41f2d",
+    "oneColor": "#1ae51a"
+  },
+  "candleColorMode": "netchange",
+  "background": "#0f0f0f",
+  "bgMode": "solid",
+  "bgGradient": {
+    "top": "#001e5a",
+    "bottom": "#ffffff"
+  },
+  "textColor": "#cfcfcf",
+  "textSize": 11,
+  "grid": {
+    "color": "#ffffff08",
+    "visible": true
+  },
+  "crosshair": {
+    "color": "#9a9a9a",
+    "style": 1,
+    "width": 1,
+    "magnet": false
+  },
+  "header": {
+    "titleMode": "both",
+    "showChange": true,
+    "timeframes": [
+      "5",
+      "15",
+      "30",
+      "D",
+      "W",
+      "1",
+      "M",
+      "60"
+    ],
+    "customTimeframes": [],
+    "showMarketCap": true,
+    "showNextEarnings": true,
+    "showUctRating": true,
+    "showLegend": true,
+    "colors": {
+      "dayChange": "#1ae51a",
+      "legend": "#cfcfcf",
+      "dayChangeUp": "#1ae51a",
+      "dayChangeDown": "#c41f2d",
+      "marketCap": "#c9a84c",
+      "nextEarnings": "#6dc9c0",
+      "uctRating": "#1ae51a"
+    }
+  },
+  "overlays": [
+    {
+      "enabled": true,
+      "type": "EMA",
+      "period": 9,
+      "color": "#4ade80"
+    },
+    {
+      "enabled": true,
+      "type": "EMA",
+      "period": 20,
+      "color": "#f472b6"
+    },
+    {
+      "enabled": true,
+      "type": "SMA",
+      "period": 50,
+      "color": "#60a5fa"
+    },
+    {
+      "enabled": true,
+      "type": "SMA",
+      "period": 200,
+      "color": "#fb923c"
+    }
+  ],
+  "volume": {
+    "visible": true,
+    "upColor": "#1ae51a",
+    "downColor": "#c41f2d",
+    "hvcEnabled": true,
+    "separatePane": false,
+    "paneHeightPct": 22
+  },
+  "watermark": {
+    "visible": true,
+    "opacity": 0.5176470588235295,
+    "color": "#ffffff",
+    "sizeScale": 1,
+    "lines": {
+      "ticker": true,
+      "company": true,
+      "sector": true,
+      "industry": true,
+      "theme": true
+    },
+    "x": 0.5,
+    "y": 0.5
+  },
+  "drawingDefaults": {
+    "color": "#c9a84c",
+    "width": 1
+  },
+  "indicators": {
+    "rsi": {
+      "enabled": false,
+      "period": 14,
+      "color": "#7b68ee"
+    },
+    "macd": {
+      "enabled": false,
+      "fastPeriod": 12,
+      "slowPeriod": 26,
+      "signalPeriod": 9,
+      "macdColor": "#2196F3",
+      "signalColor": "#FF9800"
+    },
+    "bb": {
+      "enabled": false,
+      "period": 20,
+      "stdDev": 2,
+      "color": "rgba(156,39,176,0.85)"
+    },
+    "vwap": {
+      "enabled": false,
+      "color": "#26C6DA"
+    },
+    "stoch": {
+      "enabled": false,
+      "kPeriod": 14,
+      "dPeriod": 3,
+      "kColor": "#FF6B6B",
+      "dColor": "#4ECDC4"
+    },
+    "atr": {
+      "enabled": false,
+      "period": 14,
+      "color": "#FFA726"
+    },
+    "sar": {
+      "enabled": false,
+      "step": 0.02,
+      "maxStep": 0.2,
+      "color": "#ffeb3b"
+    },
+    "ichimoku": {
+      "enabled": false,
+      "tenkanColor": "#26C6DA",
+      "kijunColor": "#EF5350",
+      "spanAColor": "rgba(76,175,80,0.2)",
+      "spanBColor": "rgba(239,83,80,0.2)",
+      "chikouColor": "rgba(255,235,59,0.7)"
+    },
+    "volumeProfile": {
+      "enabled": false,
+      "bins": 24,
+      "color": "rgba(120,160,100,0.25)",
+      "pocColor": "rgba(200,160,40,0.65)"
+    },
+    "mfi": {
+      "enabled": false,
+      "period": 14,
+      "color": "#c084fc"
+    },
+    "cci": {
+      "enabled": false,
+      "period": 20,
+      "color": "#fbbf24"
+    },
+    "williamsR": {
+      "enabled": false,
+      "period": 14,
+      "color": "#60a5fa"
+    },
+    "adx": {
+      "enabled": false,
+      "period": 14,
+      "adxColor": "#e5e7eb",
+      "plusDIColor": "#22c55e",
+      "minusDIColor": "#ef4444"
+    },
+    "obv": {
+      "enabled": false,
+      "color": "#9ca3af"
+    },
+    "donchian": {
+      "enabled": false,
+      "period": 20,
+      "color": "rgba(96,165,250,0.5)"
+    }
+  },
+  "swingLabels": {
+    "enabled": true,
+    "sensitivity": "low",
+    "color": "#000000",
+    "tintByType": true,
+    "upColor": "#cfcfcf",
+    "downColor": "#cfcfcf",
+    "bgEnabled": false,
+    "bg": "#ffffff"
+  },
+  "heikinAshi": false,
+  "logScale": false,
+  "percentScale": false,
+  "comparisonSymbols": [],
+  "markers": {
+    "earnings": true,
+    "splits": false,
+    "dividends": false,
+    "news": false,
+    "earningsBeat": "#1ae51a",
+    "earningsMiss": "#c41f2d"
+  },
+  "countdown": false,
+  "showPatterns": false,
+  "hideDrawings": false,
+  "extendedHoursShading": false,
+  "volumeOverlayIndicators": [],
+  "theme": "dark",
+  "positionCalc": {
+    "accountSize": 50000,
+    "riskPct": 1
+  },
+  "preset": "custom"
+}

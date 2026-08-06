@@ -4,6 +4,7 @@ import useRealtimeSession from '../../hooks/useRealtimeSession'
 import useWakeWord from '../../hooks/useWakeWord'
 import usePushToTalkHotkey from '../../hooks/usePushToTalkHotkey'
 import useProactiveVoice from '../../hooks/useProactiveVoice'
+import useChartIndicatorBus from '../../hooks/useChartIndicatorBus'
 import AudioPlayerBar from './AudioPlayerBar'
 import FloatingOrb from './FloatingOrb'
 import TranscriptBubble from './TranscriptBubble'
@@ -25,6 +26,13 @@ function VoiceMounts() {
   // (Compass Settings → "Compass can speak proactive alerts"). The hook
   // is a no-op when the toggle is off; backend gates the unspoken queue.
   useProactiveVoice()
+  // ⭐ THE OTHER HALF OF THE CHART BUS. `chartBus.addIndicator()` has emitted
+  // `uct:chart:add-indicator` since the voice tool shipped and NOTHING has ever
+  // listened — `subscribeAll` had no call site in `app/src` — while the server
+  // already answered "Adding atr." So Compass reported success and the chart did
+  // not move. This is the listener; see `useChartIndicatorBus` for why it is
+  // mounted here, once, instead of once per chart.
+  useChartIndicatorBus()
   // Batch 10a: when an agent emits route_to_agent, start a fresh session
   // in the target agent's context.
   useEffect(() => {

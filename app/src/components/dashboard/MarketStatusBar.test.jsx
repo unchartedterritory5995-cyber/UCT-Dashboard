@@ -31,7 +31,16 @@ describe('MarketStatusBar', () => {
     render(<MarketStatusBar />)
     expect(screen.getByText('MARKET OPEN')).toBeInTheDocument()
     expect(screen.getByText(/· \d{1,2}:\d{2}.*ET/)).toBeInTheDocument()
-    expect(screen.getByText(/—/)).toBeInTheDocument()   // quote author line
+    // ⚠️ A DATE BOMB, FIRED FOR REAL on 2026-08-04. This was `getByText(/—/)`
+    // — "some element contains an em dash" — and the quote is DATE-SEEDED
+    // (`seed * 97 % 392` over a 392-entry library, so it changes every day).
+    // The day it rotated onto Henry Ford's "…you think you can't — you're
+    // right." there were TWO matching elements and `getByText` threw
+    // "Found multiple elements". Nothing changed in the component; the calendar
+    // did. Anchored on the author line's own shape instead: `— <name>` at the
+    // START of the element, which the quote TEXT can never satisfy because it is
+    // wrapped in typographic quotes.
+    expect(screen.getByText(/^\s*—\s+\S/)).toBeInTheDocument()   // quote author line
   })
 
   it('renders index chips from the snapshot feed (BTC from futures)', () => {

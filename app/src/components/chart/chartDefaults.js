@@ -1,4 +1,15 @@
 // app/src/components/chart/chartDefaults.js — Chart settings schema, defaults, presets
+//
+// ⭐ B5 TASK 9 — THE IMPORT BELOW USED TO BE A CYCLE AND IS NOT ANY MORE.
+// `engine/instances.js` imported `instanceTombstone` / `isInstanceTombstone`
+// back out of this file, which made the two mutually dependent the moment this
+// file imported the migrator. It was SAFE (both sides are hoisted
+// `export function` declarations and neither calls the other at module scope) —
+// but safe by accident, and a `const` added to either side at the wrong moment
+// is a TDZ crash inside the merge every chart is on. Both helpers moved to
+// `./instanceShape`, which imports nothing; this file re-exports them.
+import { migrateLegacyToInstances, normalizeInstances } from './engine/instances'
+import * as engineRegistry from './engine/nativeRegistry'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -123,34 +134,22 @@ export const CHART_DEFAULTS = {
 
   drawingDefaults: { color: '#c9a84c', width: 1, style: 'solid', fontSize: 13 },
 
+  // ⭐⭐ B5 TASK 9 — THIS SECTION USED TO ENUMERATE FIFTEEN INDICATORS, AND IT IS
+  // DOWN TO ONE. Ledger site #1, retired.
+  //
+  // The other fourteen are DEFINITIONS now (`engine/nativeRegistry`), and what a
+  // chart has one of is an INSTANCE (`indicatorInstances`), not a section here
+  // with an `enabled` flag. `mergeChartSettings` folds any v1 blob's fourteen
+  // into instances on the next READ — see the migration at the bottom of this
+  // file — so nothing is lost and nobody has to do anything.
+  //
+  // ⛔ `volumeProfile` IS NOT A LEFTOVER. It has no definition and never will:
+  // it is a 2D canvas overlay, not an `addSeries` call, so no `plots[]` style can
+  // express it and no flip touches it (`nativeRegistry.CARVED_OUT_INDICATOR_KEYS`
+  // carries the decision and its expiry condition). Its surviving alone is what
+  // makes this a RETIREMENT of the enumeration rather than a rename of it.
   indicators: {
-    rsi:  { enabled: false, period: 14, color: '#7b68ee' },
-    macd: {
-      enabled: false, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
-      macdColor: '#2196F3', signalColor: '#FF9800',
-    },
-    bb:   { enabled: false, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' },
-    // opacity is a percent (5-100), composed with `color` into an rgba() at apply
-    // time — see VWAP_FIELDS in indicatorRegistry.js for why it isn't alpha-in-hex.
-    vwap: { enabled: false, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 },
-    stoch: { enabled: false, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' },
-    atr:   { enabled: false, period: 14, color: '#FFA726' },
-    sar:   { enabled: false, step: 0.02, maxStep: 0.2, color: '#ffeb3b' },
-    ichimoku: {
-      enabled: false,
-      tenkanColor: '#26C6DA',
-      kijunColor: '#EF5350',
-      spanAColor: 'rgba(76,175,80,0.2)',
-      spanBColor: 'rgba(239,83,80,0.2)',
-      chikouColor: 'rgba(255,235,59,0.7)',
-    },
     volumeProfile: { enabled: false, bins: 24, color: 'rgba(120,160,100,0.25)', pocColor: 'rgba(200,160,40,0.65)' },
-    mfi:       { enabled: false, period: 14, color: '#c084fc' },
-    cci:       { enabled: false, period: 20, color: '#fbbf24' },
-    williamsR: { enabled: false, period: 14, color: '#60a5fa' },
-    adx:       { enabled: false, period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' },
-    obv:       { enabled: false, color: '#9ca3af' },
-    donchian:  { enabled: false, period: 20, color: 'rgba(96,165,250,0.5)' },
   },
   // MarketSurge-style swing high/low price labels (rendered by swingLabelsPrimitive)
   swingLabels: {
@@ -190,6 +189,29 @@ export const CHART_DEFAULTS = {
   // flow signals). All OFF by default — they are opt-in, so an existing user's
   // chart is unchanged until they turn one on.
   signature: { darkPoolLevels: false, gexWalls: false, flowSignals: false },
+  // Engine state (Phase B). Nothing writes these yet -- they exist first so a
+  // read-merge-write cycle from an un-migrated surface can never destroy engine
+  // data. mergeChartSettings' return is an explicit allow-list: a key absent
+  // from it is silently dropped on EVERY read.
+  //
+  // ⭐ VERSION 2 (B5 Task 9): the blob stops enumerating indicators. A stored
+  // blob BELOW 2 gets its `indicators.<id>` folded into `indicatorInstances`
+  // once, at read time. See `mergeChartSettings`.
+  settingsVersion: 2,
+  indicatorInstances: [],
+  // ⭐ B5 TASK 4 — `engineEnabled` STOOD HERE, AND IT IS DELETED, NOT FLIPPED.
+  // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
+  //
+  // It said "THE ENGINE LANDS DARK", and it never did that job: `mergeChartSettings`
+  // answered the flag from the STORED BLOB, never from this declaration, so this
+  // line was consulted by nothing and flipping it to `true` would have healed
+  // nobody. Its one remaining job was to tell a MIGRATED-but-UN-FLIPPED definition
+  // from a FLIPPED one — a state that exists only inside a migration and that B5
+  // never creates, because every migration in this phase flips in the same commit.
+  //
+  // ⛔ Left `?? true` it would have read as live logic: a guard on a key nothing
+  // writes, taking the OFF branch forever, next to a comment claiming it decides
+  // whether a whole render path runs.
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
   sessionView: 'regular',      // D/W/M "Regular Hours" vs "Include pre/post-market" preview candle — PERSISTED so the user's choice sticks across refreshes/sessions
@@ -332,7 +354,17 @@ export function mergeChartSettings(userSettings) {
   if (_norm(_volume.upColor) === 'rgba(0,200,83,0.3)') _volume.upColor = _candles.upColor
   if (_norm(_volume.downColor) === 'rgba(255,23,68,0.3)') _volume.downColor = _candles.downColor
 
-  return {
+  // The STORED legacy section, captured before the allow-list below destroys it.
+  // A non-object (`null`, an array, a string) is not a section — treated as
+  // absent rather than as data, so a malformed blob folds to nothing instead of
+  // throwing on the read path every chart is on.
+  const _legacyIndicators = (parsed.indicators && typeof parsed.indicators === 'object'
+    && !Array.isArray(parsed.indicators)) ? parsed.indicators : null
+  // The version the blob CLAIMS. Read once, here, because `out.settingsVersion`
+  // is unconditionally 2 — the read heals.
+  const _storedVersion = Number.isFinite(parsed.settingsVersion) ? parsed.settingsVersion : 1
+
+  const out = {
     chartType: parsed.chartType || CHART_DEFAULTS.chartType,
     invertScale: parsed.invertScale ?? CHART_DEFAULTS.invertScale,
     candles: _candles,
@@ -367,22 +399,23 @@ export function mergeChartSettings(userSettings) {
       lines: { ...CHART_DEFAULTS.watermark.lines, ...((parsed.watermark || {}).lines || {}) },
     },
     drawingDefaults: { ...CHART_DEFAULTS.drawingDefaults, ...(parsed.drawingDefaults || {}) },
+    // ⭐⭐ B5 TASK 9 — FIFTEEN LINES, NOW ONE. Ledger site #2, retired.
+    //
+    // ⛔ THIS IS A HARD ALLOW-LIST AND THAT IS THE MECHANISM, not a side effect:
+    // a key absent from this return is DESTROYED on every read. So the fourteen
+    // legacy sections are not "no longer merged", they are DELETED from every
+    // blob the moment it is read — which is why the claim is asserted by what it
+    // destroys (`settingsBlobMigration.test.js` → *the allow-list, asserted by
+    // what it DESTROYS*) rather than by the text of this line. A source-text
+    // guard cannot tell a deleted line from a renamed one, and this is the same
+    // allow-list that nearly destroyed `indicatorInstances` in B1.
+    //
+    // ⚠️ THE FOLD BELOW READS `parsed.indicators`, NOT THIS. Reading this object
+    // would fold `{volumeProfile}` — i.e. nothing — and stamp `settingsVersion: 2`
+    // on the way out, so every user would silently lose every indicator with no
+    // way to retry. `settingsBlobMigration.test.js` pins that ordering by name.
     indicators: {
-      rsi:  { ...CHART_DEFAULTS.indicators.rsi,  ...(parsed.indicators?.rsi  || {}) },
-      macd: { ...CHART_DEFAULTS.indicators.macd, ...(parsed.indicators?.macd || {}) },
-      bb:   { ...CHART_DEFAULTS.indicators.bb,   ...(parsed.indicators?.bb   || {}) },
-      vwap: { ...CHART_DEFAULTS.indicators.vwap, ...(parsed.indicators?.vwap || {}) },
-      stoch: { ...CHART_DEFAULTS.indicators.stoch, ...(parsed.indicators?.stoch || {}) },
-      atr:   { ...CHART_DEFAULTS.indicators.atr,   ...(parsed.indicators?.atr   || {}) },
-      sar:           { ...CHART_DEFAULTS.indicators.sar,           ...(parsed.indicators?.sar           || {}) },
-      ichimoku:      { ...CHART_DEFAULTS.indicators.ichimoku,      ...(parsed.indicators?.ichimoku      || {}) },
-      volumeProfile: { ...CHART_DEFAULTS.indicators.volumeProfile, ...(parsed.indicators?.volumeProfile || {}) },
-      mfi:           { ...CHART_DEFAULTS.indicators.mfi,           ...(parsed.indicators?.mfi           || {}) },
-      cci:           { ...CHART_DEFAULTS.indicators.cci,           ...(parsed.indicators?.cci           || {}) },
-      williamsR:     { ...CHART_DEFAULTS.indicators.williamsR,     ...(parsed.indicators?.williamsR     || {}) },
-      adx:           { ...CHART_DEFAULTS.indicators.adx,           ...(parsed.indicators?.adx           || {}) },
-      obv:           { ...CHART_DEFAULTS.indicators.obv,           ...(parsed.indicators?.obv           || {}) },
-      donchian:      { ...CHART_DEFAULTS.indicators.donchian,      ...(parsed.indicators?.donchian      || {}) },
+      volumeProfile: { ...CHART_DEFAULTS.indicators.volumeProfile, ...(_legacyIndicators?.volumeProfile || {}) },
     },
     swingLabels: { ...CHART_DEFAULTS.swingLabels, ...(parsed.swingLabels || {}) },
     heikinAshi: parsed.heikinAshi ?? CHART_DEFAULTS.heikinAshi,
@@ -400,6 +433,28 @@ export function mergeChartSettings(userSettings) {
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
+    // ⭐ ALWAYS 2 — the read heals, so what comes OUT is always the current
+    // version whatever went in. `parsed.settingsVersion` is read once, above the
+    // return, to decide whether the fold runs; echoing it here would make a
+    // preset that writes `1` re-run the migration forever (record §6 R2) and
+    // re-seed instances the user has since deleted.
+    settingsVersion: 2,
+    indicatorInstances: Array.isArray(parsed.indicatorInstances) ? parsed.indicatorInstances : [],
+    // ⭐⭐ B5 TASK 4 — `engineEnabled: parsed.engineEnabled === true` STOOD HERE.
+    //
+    // 🔑 THIS LINE, NOT THE DECLARATION, WAS THE FLAG. It read the STORED BLOB,
+    // so an absent key and an explicit `false` were the SAME ANSWER and every
+    // `chart_settings` row in production — all of which predate the engine —
+    // merged to `false`. That is why "flip the default" was the trap and not the
+    // fix, and why the resolution is DELETION: this allow-list is hard, so with
+    // the line gone the key is not emitted at all, and a stored `engineEnabled`
+    // (`true`, `false`, or a `"1"` from a URL param) is destroyed on the next read
+    // exactly like any other key nobody declared.
+    //
+    // ⚠️ THE READER THAT NEEDS TO KNOW IS `enumerationSites.test.js`, and it reads
+    // this file COMMENT-STRIPPED on purpose — the biconditional it asserts (*the
+    // record says OPEN ⟺ this line exists*) would otherwise read this tombstone as
+    // the flag and stay green forever.
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
     sessionView: parsed.sessionView === 'extended' ? 'extended' : CHART_DEFAULTS.sessionView,
@@ -410,6 +465,71 @@ export function mergeChartSettings(userSettings) {
     positionCalc: { ...CHART_DEFAULTS.positionCalc, ...(parsed.positionCalc || {}) },
     preset: parsed.preset || 'classic',
   }
+
+  // ─── v1 → v2: the blob stops enumerating indicators ────────────────────────
+  //
+  // A read-time, versioned migration (record §6 R1a). It heals on the next READ,
+  // writes nothing by itself, and is a pure function — which is what makes it
+  // testable against real blob STRINGS, the shape a fixture built as an object
+  // skips.
+  //
+  // ⛔ IT RUNS ONLY BELOW THE NEW VERSION. A v2 blob is authoritative even when
+  // it carries a stale `indicators` mirror: a user who removed RSI must not get
+  // it back on every load, and R2's re-migration loop (a preset writing v1
+  // forever) cannot exist if the rule is unconditional on version alone.
+  //
+  // ⛔ AND IT READS `_legacyIndicators` — the STORED section — not `out.indicators`,
+  // which by this point is `{volumeProfile}`. Folding the wrong one loses every
+  // indicator for every user and stamps version 2 so it can never be retried.
+  //
+  // `normalizeInstances` is what a stored TOMBSTONE survives through: the
+  // migrator reserves its id (so a still-true legacy toggle cannot resurrect it)
+  // and the normaliser routes it to `removed`, so it is re-attached below rather
+  // than dropped — a tombstone that did not survive this fold would resurrect
+  // the indicator on the next page load, which is far harder to notice than on
+  // the next paint.
+  if (_storedVersion < 2) {
+    const stored = out.indicatorInstances
+    // 🐛 A DEFINITION THE BLOB ALREADY DRAWS IS NOT SEEDED AGAIN, and this is the
+    // §6.1 double-draw in its most permanent form. `migrateLegacyToInstances`
+    // reserves ids PER INSTANCE ID (`legacy:rsi`), which is right for its own
+    // contract — two instances of one definition are legal. But a legacy TOGGLE
+    // is per DEFINITION and is a compatibility shim for a blob that has no
+    // instance for that definition at all. A blob holding
+    // `{instanceId: 'grid-cell-3:rsi', defId: 'rsi'}` plus `indicators.rsi.enabled`
+    // would otherwise seed a SECOND `legacy:rsi` — two RSI lines, and unlike the
+    // render-time version of this bug the answer would be WRITTEN BACK at v2 and
+    // never re-migrated. `StockChart`'s `updateChart` applies the same rule to the
+    // read-time projection; this is the write-shaped half of it.
+    //
+    // ⚠️ HIDDEN COUNTS, A TOMBSTONE DOES NOT. `normalizeInstances` keeps a hidden
+    // instance and routes a tombstone to `removed`, which is exactly the line
+    // "does this definition EXIST in the blob" needs — a tombstone's whole job is
+    // to let "off" survive a still-true toggle, and it blocks the projection by
+    // its id anyway inside the migrator's own `taken` set.
+    const storedIds = new Set(
+      stored.map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
+    )
+    const liveStoredDefIds = new Set(
+      normalizeInstances(stored, engineRegistry).kept.map(i => i.defId),
+    )
+    const seeded = migrateLegacyToInstances(
+      { indicatorInstances: stored,
+        indicators: _legacyIndicators,
+        volumeOverlayIndicators: out.volumeOverlayIndicators },
+      engineRegistry,
+    ).filter(i => (storedIds.has(i && i.instanceId)
+      ? true                                        // stored: always
+      : !liveStoredDefIds.has(i && i.defId)))       // seeded: not already drawn
+    const { kept, removed } = normalizeInstances(seeded, engineRegistry)
+    // ORDER: `migrateLegacyToInstances` returns existing instances first and then
+    // the newly-seeded ones in `SHIPPED_STACK_ORDER`; `normalizeInstances`
+    // preserves that order in `kept`. Tombstones come back on the end — they draw
+    // nothing and reserve nothing, so their position carries no meaning, and
+    // keeping them is what makes "off" survive the migration.
+    out.indicatorInstances = removed.length ? [...kept, ...removed] : kept
+  }
+  return out
 }
 
 // Canonical per-cell chart style options (multi-chart grid): [value, label].
@@ -421,34 +541,21 @@ export const CHART_TYPE_OPTIONS = [
   ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],
 ]
 
-// ─── Per-instance settings override (multi-chart grid cells) ─────────────────
-// Deep-merges a PARTIAL settings blob over an already-merged base (the user's
-// global chart_settings). Primitives replace; the section objects
-// mergeChartSettings treats as objects merge one level (watermark.lines and
-// per-indicator two); arrays replace wholesale. Precedence: CHART_DEFAULTS <
-// global blob < override. Callers must pass a STABLE object (useMemo) — it is
-// a memo dependency inside StockChart.
-const _OVERRIDE_SECTION_KEYS = [
-  'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
-  'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
-  'signature', 'prevDayLevels',
-]
-export function mergeSettingsOverride(base, partial) {
-  if (!partial) return base
-  const out = { ...base }
-  for (const [k, v] of Object.entries(partial)) {
-    if (v === undefined) continue
-    if (k === 'watermark' && v && typeof v === 'object') {
-      out.watermark = { ...base.watermark, ...v, lines: { ...base.watermark?.lines, ...(v.lines || {}) } }
-    } else if (k === 'indicators' && v && typeof v === 'object') {
-      const ind = { ...base.indicators }
-      for (const [ik, iv] of Object.entries(v)) ind[ik] = { ...(base.indicators?.[ik] || {}), ...(iv || {}) }
-      out.indicators = ind
-    } else if (_OVERRIDE_SECTION_KEYS.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {
-      out[k] = { ...(base[k] || {}), ...v }
-    } else {
-      out[k] = v
-    }
-  }
-  return out
-}
+// ─── the instance shape and the override merge live in ONE module ────────────
+//
+// ⭐ B5 TASK 9 SPLIT THEM OUT — see `chart/instanceShape.js` for the measured
+// reason (an eager-chunk regression, and an import cycle this file's new
+// `engine/instances` import would otherwise create). They are RE-EXPORTED here,
+// so every existing `from '.../chartDefaults'` keeps working and this is a move
+// rather than a rename.
+//
+// ⚠️ MASTER'S `_OVERRIDE_SECTION_KEYS` ENTRY WENT WITH IT. The prev-day H/L/C
+// lines (`93655d6a`) added `'prevDayLevels'` to that list while it still stood
+// here; the list is the SECOND of this file's two hard allow-lists, so the entry
+// had to move to `instanceShape.js` with the function or a per-cell override of
+// `prevDayLevels` would have REPLACED the whole section instead of merging it.
+export {
+  instanceTombstone,
+  isInstanceTombstone,
+  mergeSettingsOverride,
+} from './instanceShape'

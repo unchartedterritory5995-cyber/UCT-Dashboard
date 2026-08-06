@@ -5,14 +5,21 @@ Covers:
      Step 1 — six cases).
   2. Two end-to-end ``_evaluate_one`` tests with mocked bars that exercise the
      RSI compute → condition match path.
+  3. The served catalog (B4 Task 9) and, since B5, the PLOT ADDRESSING scheme
+     plus the recorded proof that the eight pre-B5 addresses did not move.
 """
 
 from __future__ import annotations
+
+import json
+import pathlib
 
 import pytest
 
 from api.services import indicator_alert_evaluator as evaluator
 from api.services.indicator_alert_evaluator import check_condition
+
+_FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 
 
 # ─── pure condition tests (plan Task 3 Step 1) ───────────────────────────────
@@ -86,6 +93,34 @@ def _falling_bars(n: int, start: float = 100.0, step: float = 1.0) -> list[dict]
             "l": c - 0.2,
             "c": c,
             "v": 1000 + i,
+        })
+    return bars
+
+
+def _intraday_bars(n: int, start: float = 100.0) -> list[dict]:
+    """5-minute bars with REAL unix-second timestamps, spanning two ET sessions.
+
+    VWAP is the reason this exists: it buckets on the ET calendar day resolved
+    per instant, so the `t` of a bar has to be a genuine instant rather than the
+    `0, 1, 2 …` counter `_ramp_bars` uses. Anchored at 2026-06-10 09:30 ET
+    (13:30 UTC, EDT) and running past ET midnight, so the session boundary is
+    actually crossed and the accumulator's reset is exercised rather than
+    assumed. Prices oscillate so the bands and oscillators all have range to
+    work with.
+    """
+    import math
+
+    t0 = 1781184600  # 2026-06-10 13:30:00 UTC == 09:30 ET (EDT)
+    bars = []
+    for i in range(n):
+        c = start + math.sin(i / 7.0) * 6.0 + i * 0.05
+        bars.append({
+            "t": t0 + i * 300,
+            "o": c - 0.15,
+            "h": c + 0.45,
+            "l": c - 0.45,
+            "c": c,
+            "v": 10_000 + (i % 13) * 900,
         })
     return bars
 
@@ -187,3 +222,599 @@ def test_evaluate_one_empty_bars_returns_none():
     value, triggered = evaluator._evaluate_one(alert, bars=[])
     assert value is None
     assert triggered is False
+
+
+# ─── THE CATALOG — the dropdown's twin, collapsed (B4 Task 9) ────────────────
+#
+# `IndicatorAlertPopover.jsx` used to hand-write INDICATORS (8 entries) and
+# CONDITIONS (a per-indicator map). They were a TWIN of `INDICATOR_FUNCS` and
+# they already disagreed with reality: the create path validates nothing at any
+# of its three layers (the router types `indicator` as a bare `str`, the service
+# inserts it verbatim, the DDL is `TEXT NOT NULL` with no CHECK), so a `vwap`
+# alert can be STORED and can never FIRE — `_evaluate_one` returns (None, False)
+# on an `INDICATOR_FUNCS` miss, and no surface reports it.
+#
+# Deriving the catalog from the dict is what makes the OFFER unrepresentable.
+# It does not, and is not meant to, validate the create path: spec §8 rebuilds
+# this evaluator in Phase C and §9.5 forbids an eager port, so `INDICATOR_FUNCS`
+# stays hand-written and is fated 'C' in the enumeration ledger.
+
+
+def _implemented_conditions() -> set[str]:
+    """Which condition strings `check_condition` can actually answer YES to.
+
+    ⚠️ DERIVED BY PROBE, NEVER HAND-WRITTEN. A literal list here would be a
+    third copy of the same vocabulary — exactly the twin this task retires —
+    and it would agree with `ALERT_CONDITIONS` by construction instead of by
+    evidence. `check_condition` returns False for an unknown condition, so a
+    condition that fires for SOME input is one the evaluator implements.
+    """
+    probes = [
+        # (current, prev, threshold)
+        (10.0, None, 5.0),    # above, touch_upper
+        (1.0, None, 5.0),     # below, touch_lower
+        (10.0, 1.0, 5.0),     # cross_above
+        (1.0, 10.0, 5.0),     # cross_below
+        (1.0, -1.0, None),    # cross_zero (up)
+        (-1.0, 1.0, None),    # cross_zero (down)
+    ]
+
+    def fires(cond: str) -> bool:
+        return any(check_condition(cond, c, p, t) for c, p, t in probes)
+
+    offered = {
+        c["value"]
+        for e in evaluator.alert_catalog()
+        for p in e["plots"]
+        for c in p["conditions"]
+    }
+    return {c for c in offered if fires(c)}
+
+
+def _catalog_addresses() -> list[str]:
+    """Every PLOT ADDRESS the catalog can produce, in served order.
+
+    ⚠️ `entry["indicator"]` IS NOT AN ADDRESS for a grouped indicator — `adx`,
+    `donchian` and `ichimoku` are group names with no value function behind
+    them. Reading the group id as the thing to store is the exact mistake that
+    would create an alert which can never fire, so the tests below go through
+    `plots[].value` and never through `indicator`.
+    """
+    return [p["value"] for e in evaluator.alert_catalog() for p in e["plots"]]
+
+
+def test_catalog_offers_exactly_what_can_be_evaluated():
+    from api.services.indicator_alert_evaluator import INDICATOR_FUNCS
+
+    addresses = _catalog_addresses()
+    assert set(addresses) == set(INDICATOR_FUNCS)
+    # …and no address is served twice, which a grouping bug could do silently.
+    assert len(addresses) == len(set(addresses))
+
+
+def test_a_group_name_is_never_mistaken_for_an_address():
+    """The three grouped indicators expose no value function under the bare base.
+
+    This is the shape of the original defect turned inward: if `adx` (the group)
+    were storable, the popover could submit it and the alert would be accepted
+    and never fire — which is precisely the class B5 exists to close, re-opened
+    inside the fix.
+    """
+    grouped = [e for e in evaluator.alert_catalog() if len(e["plots"]) > 1]
+    assert grouped, "nothing is grouped — the plot selector pins nothing"
+    for entry in grouped:
+        if entry["indicator"] in evaluator.INDICATOR_FUNCS:
+            # A legacy base like `macd` IS an address; then it must be plots[0],
+            # never some other plot, or the bare spelling changed meaning.
+            assert entry["plots"][0]["value"] == entry["indicator"], (
+                f'{entry["indicator"]}: the bare address is no longer its first plot'
+            )
+        else:
+            assert entry["indicator"] in evaluator.ALERT_BASE_LABELS, (
+                f'{entry["indicator"]} is neither an address nor a declared group name'
+            )
+
+
+def test_every_catalog_condition_is_one_the_evaluator_implements():
+    implemented = _implemented_conditions()
+    for entry in evaluator.alert_catalog():
+        for plot in entry["plots"]:
+            for cond in plot["conditions"]:
+                assert cond["value"] in implemented, (
+                    f'{plot["value"]}/{cond["value"]} is offered and not implemented'
+                )
+
+
+def test_the_implemented_probe_is_not_vacuous():
+    """A probe grid that fires for everything would make the test above pass on
+    a condition the evaluator has never heard of."""
+    assert _implemented_conditions(), "the probe found nothing — the grid is broken"
+    assert not any(
+        check_condition("no_such_condition", c, p, t)
+        for c, p, t in [(10.0, 1.0, 5.0), (1.0, 10.0, 5.0), (1.0, -1.0, None)]
+    )
+
+
+def test_catalog_labels_are_not_ids():
+    """A dropdown showing `williams_r`, or `adx.plusDI`, leaked a key."""
+    for e in evaluator.alert_catalog():
+        assert e["label"] != e["indicator"]
+        assert e["label"].strip()
+        for p in e["plots"]:
+            assert p["label"] != p["value"], f'{p["value"]} renders its own address'
+            assert p["label"].strip()
+
+
+def test_every_catalog_entry_offers_at_least_one_condition():
+    """An indicator with no conditions renders an empty second dropdown and an
+    un-submittable form."""
+    for e in evaluator.alert_catalog():
+        assert e["conditions"], f'{e["indicator"]} offers no condition'
+        assert e["plots"], f'{e["indicator"]} offers no plot'
+        for p in e["plots"]:
+            assert p["conditions"], f'{p["value"]} offers no condition'
+
+
+def test_the_entry_level_fields_mirror_the_first_plot():
+    """The back-compat contract, asserted rather than trusted.
+
+    A client written before B5 reads `conditions` / `default_threshold` off the
+    ENTRY and never looks at `plots`. For all eight pre-B5 indicators `plots[0]`
+    IS the legacy address, so that client must still read exactly what it read
+    before — which only holds while these mirror.
+    """
+    for e in evaluator.alert_catalog():
+        assert e["conditions"] == e["plots"][0]["conditions"]
+        assert e["default_threshold"] == e["plots"][0]["default_threshold"]
+        # …and it is a COPY, not the same list object: five addresses share one
+        # condition list, so a consumer that mutated what it was handed would
+        # otherwise edit every entry that shares it.
+        assert e["conditions"] is not e["plots"][0]["conditions"]
+
+
+def test_shared_condition_lists_are_handed_out_as_copies():
+    a, b = evaluator.alert_catalog(), evaluator.alert_catalog()
+    for ea, eb in zip(a, b):
+        for pa, pb in zip(ea["plots"], eb["plots"]):
+            assert pa["conditions"] == pb["conditions"]
+            assert pa["conditions"] is not pb["conditions"]
+
+
+def test_adding_a_value_function_without_a_condition_list_fails_loudly():
+    """A ninth indicator with no conditions has to fail HERE, at the catalog,
+    not in a second dropdown that renders empty."""
+    assert set(evaluator.INDICATOR_FUNCS) <= set(evaluator.ALERT_CONDITIONS)
+    assert set(evaluator.ALERT_CONDITIONS) <= set(evaluator.INDICATOR_FUNCS)
+
+
+def test_needs_threshold_is_declared_per_condition_not_guessed():
+    """The popover used to keep its own THRESHOLD_CONDITIONS set. The served
+    entry carries the flag, and a threshold-taking condition must declare it."""
+    threshold_taking = {"above", "below", "cross_above", "cross_below"}
+    for e in evaluator.alert_catalog():
+        for p in e["plots"]:
+            for c in p["conditions"]:
+                assert isinstance(c["needs_threshold"], bool)
+                assert c["needs_threshold"] is (c["value"] in threshold_taking), (
+                    f'{p["value"]}/{c["value"]} declares the wrong threshold need'
+                )
+
+
+# ─── B5: THE SEVEN THAT COULD NOT BE ALERTED ON ──────────────────────────────
+
+def test_a_vwap_alert_can_now_actually_fire():
+    """⭐ THE HEADLINE GATE, AS BEHAVIOUR.
+
+    `vwap` was the named example of the defect: creatable through the API,
+    accepted by the DDL, offered by nothing, and — the part a dropdown change
+    could not fix — impossible to evaluate, because this lane runs in PYTHON and
+    `indicator_compute` had no `compute_vwap`. It has one now.
+
+    Asserted in BOTH directions: the alert is offered, and an armed one produces
+    a real number and TRIGGERS. A test that only checked "it appears in the
+    catalog" would pass on a catalog entry with no working value function behind
+    it, which is the same class of lie.
+    """
+    assert "vwap" in _catalog_addresses()
+
+    bars = _intraday_bars(120)
+    alert = {
+        "id": 99, "user_id": 1, "sym": "TEST", "indicator": "vwap",
+        "condition": "above", "threshold": 1.0, "tf": "5",
+        "params_json": None, "last_value": None,
+    }
+    value, triggered = evaluator._evaluate_one(alert, bars=bars)
+    assert value is not None, "vwap still computes nothing — the gap is not closed"
+    assert triggered is True
+    # …and the number is the VWAP of those bars, not some other column that
+    # happens to be non-None: it sits inside the traded range.
+    assert min(b["l"] for b in bars) <= value <= max(b["h"] for b in bars)
+
+    # The other direction, so "always fires" cannot be what makes this green.
+    alert["threshold"] = 1e9
+    _, triggered_high = evaluator._evaluate_one(alert, bars=bars)
+    assert triggered_high is False
+
+
+def test_all_seven_previously_unalertable_definitions_are_reachable():
+    """The gap, closed and counted.
+
+    Six of the seven get addresses; `sar` deliberately does not — see the test
+    below, which asserts the reason is still written down.
+    """
+    addresses = set(_catalog_addresses())
+    bases = {evaluator.plot_base(a) for a in addresses}
+    for definition in ("vwap", "atr", "adx", "obv", "donchian", "ichimoku"):
+        assert definition in bases, f"{definition} still cannot be alerted on"
+    assert "sar" not in bases
+
+
+@pytest.mark.parametrize("address", [
+    "vwap", "atr", "obv",
+    "adx.adx", "adx.plusDI", "adx.minusDI",
+    "donchian.upper", "donchian.middle", "donchian.lower",
+    "ichimoku.tenkan", "ichimoku.kijun", "ichimoku.spanA", "ichimoku.spanB",
+    "ichimoku.chikou",
+    "macd.signal", "macd.histogram", "stoch.d",
+    "bb.upper", "bb.middle", "bb.lower",
+])
+def test_every_new_address_produces_a_number(address):
+    """No new address may be an offer that cannot fire — the original defect."""
+    value, _ = evaluator._evaluate_one(
+        {
+            "id": 1, "user_id": 1, "sym": "TEST", "indicator": address,
+            "condition": "above", "threshold": -1e12, "tf": "5",
+            "params_json": None, "last_value": None,
+        },
+        bars=_intraday_bars(160),
+    )
+    assert value is not None, f"{address} is offered and computes nothing"
+
+
+def test_every_plot_address_resolves_to_the_column_it_names():
+    """⛔ THE OFF-BY-ONE GATE.
+
+    The new value functions select a column by INDEX out of a multi-output
+    compute. A swapped index still returns a real, plausible number, so no
+    "did it compute something" test can see it — including the one directly
+    above. These are ordering invariants a swap has to violate.
+    """
+    bars = _intraday_bars(160)
+
+    def val(address, params=None):
+        v, _ = evaluator._evaluate_one(
+            {
+                "id": 1, "user_id": 1, "sym": "TEST", "indicator": address,
+                "condition": "above", "threshold": -1e12, "tf": "5",
+                "params_json": None if params is None else json.dumps(params),
+                "last_value": None,
+            },
+            bars=bars,
+        )
+        assert v is not None, f"{address} computed nothing"
+        return v
+
+    # Bands: upper >= middle >= lower, by construction. Swap any two and it breaks.
+    assert val("donchian.upper") >= val("donchian.middle") >= val("donchian.lower")
+    assert val("bb.upper") >= val("bb.middle") >= val("bb.lower")
+
+    # A pure uptrend makes -DM zero on every bar ⇒ -DI is exactly 0 while +DI is
+    # not, and ADX saturates at 100. Three distinct values, so no pair can swap.
+    rising = _ramp_bars(80)
+
+    def rising_val(address):
+        v, _ = evaluator._evaluate_one(
+            {
+                "id": 1, "user_id": 1, "sym": "TEST", "indicator": address,
+                "condition": "above", "threshold": -1e12, "tf": "D",
+                "params_json": None, "last_value": None,
+            },
+            bars=rising,
+        )
+        return v
+
+    assert rising_val("adx.minusDI") == 0.0
+    assert rising_val("adx.plusDI") > 0.0
+    assert rising_val("adx.adx") == pytest.approx(100.0, abs=1e-6)
+
+    # On a monotonic rise the 9-bar mid sits above the 26-bar mid, which sits
+    # above the 52-bar mid — so tenkan > kijun > spanB, and spanA is their mean.
+    t = rising_val("ichimoku.tenkan")
+    k = rising_val("ichimoku.kijun")
+    b = rising_val("ichimoku.spanB")
+    a = rising_val("ichimoku.spanA")
+    assert t > k > b
+    assert a == pytest.approx((t + k) / 2, abs=1e-6)
+    # Chikou is a close from 26 bars ahead of where it is plotted, so on a rising
+    # series its LAST published value is above every one of those three.
+    assert rising_val("ichimoku.chikou") > t
+
+    # MACD's histogram is the line minus the signal (to the delivery rounding).
+    assert val("macd.histogram") == pytest.approx(
+        val("macd") - val("macd.signal"), abs=1e-4,
+    )
+
+
+def test_a_camelcase_plot_address_survives_the_evaluator_s_case_folding():
+    """⛔ THE BUG THIS TASK ALMOST SHIPPED INTO ITS OWN FIX.
+
+    `_evaluate_one` has always lowercased the stored `indicator`. On the eight
+    legacy keys that is a no-op, so it was invisible for the life of the module.
+    The engine spells its plots `plusDI` / `spanA`, and `"adx.plusDI".lower()` is
+    not a key — so four brand-new addresses were OFFERED AND COULD NEVER FIRE,
+    which is verbatim the defect B5 exists to close.
+
+    Both directions: the canonical spelling works, and so does a mangled-case
+    version of it, because the create path validates nothing and will store
+    whatever it is handed.
+    """
+    bars = _intraday_bars(160)
+
+    def value_for(stored):
+        v, _ = evaluator._evaluate_one(
+            {
+                "id": 1, "user_id": 1, "sym": "TEST", "indicator": stored,
+                "condition": "above", "threshold": -1e12, "tf": "5",
+                "params_json": None, "last_value": None,
+            },
+            bars=bars,
+        )
+        return v
+
+    canonical = value_for("adx.plusDI")
+    assert canonical is not None, "the camelCase address does not resolve"
+    assert value_for("ADX.PLUSDI") == canonical
+    assert value_for("adx.plusdi") == canonical
+    # …and it is genuinely +DI, not -DI arriving via a fold collision.
+    assert value_for("adx.minusDI") != canonical
+
+
+def test_no_two_addresses_collide_when_case_is_folded():
+    """Resolution folds case, so two addresses differing only in case would make
+    one of them permanently unreachable — silently, and in favour of whichever
+    was declared last."""
+    lowered = [a.lower() for a in evaluator.INDICATOR_FUNCS]
+    assert len(lowered) == len(set(lowered)), (
+        f"two plot addresses collide once lowercased: "
+        f"{[a for a in lowered if lowered.count(a) > 1]}"
+    )
+    # …and the map really covers every address, so none falls through to the
+    # raw-lowercase branch and misses.
+    for address in evaluator.INDICATOR_FUNCS:
+        assert evaluator.resolve_address(address) == address
+
+
+def test_sar_is_deliberately_not_offered_and_says_why():
+    """`sar` IS ported — it just is not a threshold question.
+
+    ⚠️ THE REASON IS PART OF THE ASSERTION. An indicator missing from a dict
+    explains nothing, and the next person to notice the asymmetry would simply
+    add it. So: the compute exists (the gap is not being hidden), no address
+    names it, and the written reason is still in the module.
+    """
+    from api.services import indicator_compute
+
+    # The compute is really there — this is a naming decision, not a gap.
+    sar, trend = indicator_compute.compute_sar(_ramp_bars(40))
+    assert any(v is not None for v in sar)
+    assert set(v for v in trend if v is not None) <= {1.0, -1.0}
+
+    assert not [a for a in _catalog_addresses() if evaluator.plot_base(a) == "sar"]
+    assert "markers" in evaluator._SAR_IS_NOT_OFFERED
+    assert "Phase C" in evaluator._SAR_IS_NOT_OFFERED
+
+
+def test_an_unknown_address_is_still_accepted_and_still_never_fires():
+    """The create path is STILL not validated, and that is unchanged by B5.
+
+    Both halves matter: an address the dict has never heard of is a silent no-op
+    (so an existing bad row behaves exactly as before), and the popover reports
+    such a row as "cannot fire". Closing the create hole is Phase C's.
+    """
+    value, triggered = evaluator._evaluate_one(
+        {
+            "id": 99, "user_id": 1, "sym": "TEST", "indicator": "not_an_indicator",
+            "condition": "above", "threshold": 1.0, "tf": "D",
+            "params_json": None, "last_value": None,
+        },
+        bars=_ramp_bars(60),
+    )
+    assert (value, triggered) == (None, False)
+    # …and a BASE that is only a group name behaves the same way, so the popover
+    # submitting `entry.indicator` by mistake would be inert, not wrong.
+    value, triggered = evaluator._evaluate_one(
+        {
+            "id": 98, "user_id": 1, "sym": "TEST", "indicator": "ichimoku",
+            "condition": "above", "threshold": 1.0, "tf": "D",
+            "params_json": None, "last_value": None,
+        },
+        bars=_ramp_bars(60),
+    )
+    assert (value, triggered) == (None, False)
+
+
+# ─── the served route (B4 Task 9) ────────────────────────────────────────────
+
+def test_catalog_route_is_registered_and_auth_gated():
+    """A route that is not mounted answers 200 SPA HTML, not 404, so 'the
+    endpoint works' has to be checked against the ROUTE TABLE, not a request.
+
+    ⚠️ INTROSPECTED, NEVER PROBED. `lesson_never_probe_a_mutating_endpoint_to_test_auth`:
+    the dependency is read off `route.dependant` rather than by issuing a request.
+    """
+    from api.routers import indicator_alerts as router_mod
+    from api.middleware.auth_middleware import get_current_user
+
+    routes = [
+        r for r in router_mod.router.routes
+        if getattr(r, "path", None) == "/api/indicator-alerts/catalog"
+    ]
+    assert len(routes) == 1, "the catalog route is not mounted exactly once"
+    route = routes[0]
+    assert "GET" in route.methods
+    deps = [d.call for d in route.dependant.dependencies]
+    assert get_current_user in deps, "the catalog is an enumeration of internals — gate it"
+    assert route.endpoint() == {"catalog": evaluator.alert_catalog()}
+
+
+def test_the_catalog_route_is_declared_before_any_id_route_that_could_swallow_it():
+    """`/catalog` would be parsed as an `alert_id` by a `GET /{alert_id}`
+    declared above it. There is no such route today; this fails if one is added
+    in front of it rather than after."""
+    from api.routers import indicator_alerts as router_mod
+
+    paths = [getattr(r, "path", "") for r in router_mod.router.routes]
+    catalog_at = paths.index("/api/indicator-alerts/catalog")
+    for i, r in enumerate(router_mod.router.routes):
+        path = getattr(r, "path", "")
+        if i < catalog_at and "{alert_id}" in path and "GET" in getattr(r, "methods", set()):
+            raise AssertionError(f"{path} is declared before /catalog and will swallow it")
+
+
+def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
+    """The catalog's order IS the order of the `<select>`.
+
+    Pinned against the order the RETIRED `IndicatorAlertPopover.INDICATORS`
+    literal shipped, so collapsing the twin moved nothing a user sees. It is
+    also the only observable difference between `INDICATOR_FUNCS` and
+    `ALERT_CONDITIONS` — their key SETS are asserted equal above, so a catalog
+    built by iterating the wrong dict is invisible to every set comparison and
+    visible only here.
+
+    ⭐ B5 APPENDS, IT DOES NOT REORDER. The first eight entries are still the
+    eight that shipped, in the order they shipped, so an existing user's dropdown
+    opens on the same option it always did and every option they already knew is
+    where it was. The six new groups follow.
+    """
+    served = [e["indicator"] for e in evaluator.alert_catalog()]
+    assert served[:8] == [
+        "rsi", "macd", "bb", "stoch", "williams_r", "cci", "mfi", "price_vs_ma",
+    ]
+    assert served[8:] == ["vwap", "atr", "adx", "obv", "donchian", "ichimoku"]
+    # …and the three legacy multi-plot bases still open on their legacy address,
+    # so the pre-selected plot is the one the bare spelling has always meant.
+    by_base = {e["indicator"]: e for e in evaluator.alert_catalog()}
+    for base in ("macd", "bb", "stoch"):
+        assert by_base[base]["plots"][0]["value"] == base
+    assert list(evaluator.ALERT_CONDITIONS) != list(evaluator.INDICATOR_FUNCS), (
+        "the two dicts fell into the same order — 'which one is iterated' just "
+        "became unobservable, and the mutation that swaps them is now equivalent"
+    )
+
+
+# ─── B5: THE EIGHT PRE-B5 ADDRESSES DID NOT MOVE ─────────────────────────────
+#
+# B5 widened `INDICATOR_FUNCS` from 8 keys to a set of PLOT ADDRESSES so the
+# seven engine definitions that could never be alerted on (vwap, atr, sar,
+# ichimoku, adx, obv, donchian) became reachable. The gate on that work is that
+# an alert a user armed BEFORE the change fires exactly when it fired before.
+#
+# ⛔ AN IDENTITY CHECK IS NOT THAT PROOF. `INDICATOR_FUNCS['rsi'] is _value_rsi`
+# stays green through a change to `indicator_compute`'s delivery rounding, to a
+# helper both lanes share, or to `_evaluate_one`'s threshold plumbing — all of
+# which move the NUMBER a user's threshold is compared against. So the numbers
+# themselves are the oracle: `tests/fixtures/indicator_alert_baseline.json` was
+# recorded by `tests/fixtures/_gen_alert_baseline.py` from the tree as it stood
+# BEFORE the change, and this replays every row.
+#
+# ⚠️ EXACT EQUALITY, NEVER approx. Half a unit in the last place is precisely
+# what flips a comparison at a boundary, which is the regression this exists to
+# catch; a tolerance here would wave through the one defect it is aimed at.
+
+def _load_alert_baseline() -> dict:
+    path = _FIXTURES / "indicator_alert_baseline.json"
+    assert path.exists(), (
+        "the pre-B5 alert baseline is missing. It cannot be regenerated from the "
+        "current tree — that would re-record whatever the code now does."
+    )
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_the_eight_legacy_addresses_evaluate_identically():
+    """Every recorded (value, triggered) reproduces, bit for bit."""
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    mismatches = []
+    for i, row in enumerate(doc["rows"]):
+        alert = {
+            "id": 1, "user_id": "u", "sym": "TEST", "tf": "D",
+            "indicator": row["indicator"],
+            "condition": row["condition"],
+            "threshold": row["threshold"],
+            "params_json": None if row["params"] is None else json.dumps(row["params"]),
+            "last_value": row["prev"],
+        }
+        value, triggered = evaluator._evaluate_one(alert, bars=bars)
+        if value != row["value"] or triggered != row["triggered"]:
+            mismatches.append(
+                f"row {i} {row['indicator']}/{row['condition']} thr={row['threshold']} "
+                f"prev={row['prev']} params={row['params']}: "
+                f"got ({value!r}, {triggered!r}) want ({row['value']!r}, {row['triggered']!r})"
+            )
+    assert not mismatches, (
+        f"{len(mismatches)} of {len(doc['rows'])} recorded evaluations changed. An alert a "
+        f"user already armed would fire differently.\n" + "\n".join(mismatches[:12])
+    )
+
+
+def test_the_baseline_grid_can_actually_detect_a_change():
+    """A recorded grid that never fires, or always fires, pins nothing.
+
+    ⚠️ THE NON-VACUITY HALF. The replay above compares a stored answer to a
+    computed one; if every stored answer were `(None, False)` — the shape an
+    `INDICATOR_FUNCS` miss produces — it would pass while proving that all eight
+    addresses had been DELETED. So: every row computed a value, and the fired /
+    not-fired split is genuinely mixed.
+    """
+    doc = _load_alert_baseline()
+    rows = doc["rows"]
+    assert len(rows) > 1000, "the grid is too small to cover the condition branches"
+    assert all(r["value"] is not None for r in rows), (
+        "a recorded row computed no value — an address that stopped resolving would "
+        "reproduce that `None` exactly and the replay would call it identical"
+    )
+    fired = sum(1 for r in rows if r["triggered"])
+    assert 0 < fired < len(rows), f"the grid is saturated ({fired}/{len(rows)} fired)"
+    # …and it covers all eight, every condition each of them offers.
+    assert {r["indicator"] for r in rows} == set(doc["indicators"])
+    assert len(doc["indicators"]) == 8
+
+
+def test_the_replay_fails_when_an_address_is_repointed():
+    """The replay's own control: break one address, and it must go RED.
+
+    Without this, "the replay is green" is compatible with a replay that cannot
+    fail — the exact `lesson_gate_that_cannot_fail` shape. `rsi` is re-pointed at
+    `mfi`'s value function (a real, computable, DIFFERENT number, not a stub that
+    returns None) and the replay must report it.
+    """
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    rsi_rows = [r for r in doc["rows"] if r["indicator"] == "rsi"]
+    assert rsi_rows, "no rsi rows to break"
+
+    original = evaluator.INDICATOR_FUNCS["rsi"]
+    evaluator.INDICATOR_FUNCS["rsi"] = evaluator.INDICATOR_FUNCS["mfi"]
+    try:
+        changed = 0
+        for row in rsi_rows:
+            alert = {
+                "id": 1, "user_id": "u", "sym": "TEST", "tf": "D",
+                "indicator": "rsi", "condition": row["condition"],
+                "threshold": row["threshold"],
+                "params_json": None if row["params"] is None else json.dumps(row["params"]),
+                "last_value": row["prev"],
+            }
+            value, triggered = evaluator._evaluate_one(alert, bars=bars)
+            if value != row["value"] or triggered != row["triggered"]:
+                changed += 1
+    finally:
+        evaluator.INDICATOR_FUNCS["rsi"] = original
+
+    assert changed > 0, (
+        "re-pointing `rsi` at another indicator changed NOTHING the replay reads — "
+        "the replay cannot fail and proves nothing"
+    )
+    # …and the restore really restored it, or every later test in this file is
+    # running against a corrupted dict.
+    assert evaluator.INDICATOR_FUNCS["rsi"] is original

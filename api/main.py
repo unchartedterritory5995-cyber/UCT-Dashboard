@@ -4120,6 +4120,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path.startswith("/assets/")
+        or path.startswith("/fonts/")   # .woff2 is already compressed
     )
 
 
@@ -6371,6 +6372,21 @@ class _ImmutableStaticFiles(StaticFiles):
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+
+    # ── The brand + CHART AXIS font, self-hosted (app/public/fonts → dist/fonts).
+    # 🔴 THIS MOUNT IS LOAD-BEARING, NOT A NICETY. The SPA catch-all at the bottom
+    # of this block answers ANY unmatched path with index.html, so without a route
+    # here the browser is handed HTML for a `.woff2`, every @font-face in
+    # app/index.html fails, and lightweight-charts BAKES A FALLBACK FACE into
+    # every chart axis it draws — including the headless Morning Wire → Substack
+    # renderer. That is precisely the failure mode self-hosting was adopted to
+    # remove, so deleting this mount would re-create it in a worse form (a font
+    # that can never load, rather than one that sometimes loads late).
+    # `immutable` is safe because the filename carries the UPSTREAM version
+    # (`-v4-`): a font update lands under a NEW filename, never over this one.
+    _FONTS_DIR = os.path.join(DIST, "fonts")
+    if os.path.exists(_FONTS_DIR):
+        app.mount("/fonts", _ImmutableStaticFiles(directory=_FONTS_DIR), name="fonts")
 
     @app.get("/manifest.json", include_in_schema=False)
     def _serve_manifest():

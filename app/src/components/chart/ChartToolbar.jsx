@@ -1,12 +1,17 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
 import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
-import ColorPicker from './ColorPicker'
+import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
+import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
+import { ENGINE_OWNED } from './engine/flipState'
+import { isIndicatorEnabled } from './engine/instanceControls'
+import * as engineRegistry from './engine/nativeRegistry'
+import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import styles from './ChartToolbar.module.css'
@@ -113,10 +118,33 @@ const CROSSHAIR_STYLES = [
 // which win over the saved prefs). StockChart derives it from those very props, so
 // the two can't drift. Non-null ⇒ the two volume-pane controls render inert with the
 // reason instead of writing a pref this chart will ignore.
-function ChartSettingsPanel({ chartSettings, onUpdateSettings, volumePaneFixed = null }) {
+function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLibrary, volumePaneFixed = null }) {
   const cs = chartSettings
   const isPaid = useIsPaid()
 
+  // ── B4 TASK 8: THE ROWS THAT NEEDED THE HONESTY TREATMENT ARE GONE ────────
+  //
+  // What stood here was `engineInputs` / `engineDrawn` / `engineInert` /
+  // `shownInput` / `inertTitle`: the machinery that kept fifteen per-indicator
+  // rows from lying about what the engine was drawing. Spec §6 turned those rows
+  // into one launcher, so the predicate has no subject and no reader, and an
+  // inert helper reads as live logic. `ChartToolbar.engineInert.test.jsx` is
+  // RETARGETED rather than deleted: what stays failable is that no per-indicator
+  // writer comes back to this surface.
+  //
+  // `isOn` survives because the volume-overlay strip and the launcher's count
+  // both need it, and it is the ONE reader — a count off the raw mirror reports
+  // a tombstoned indicator as on.
+  /**
+   * Is this indicator on? Through `instanceControls` for a FLIPPED id — after
+   * Flip B a tombstone can say "off" while the legacy toggle still says "on",
+   * and a checkbox reading the wrong one of those re-checks itself on the next
+   * render. For every other id this is the expression that has always been in
+   * the `checked` attribute, character for character.
+   */
+  const isOn = useCallback((key) => (ENGINE_OWNED.has(key)
+    ? isIndicatorEnabled(cs, key, ENGINE_OWNED)
+    : (cs.indicators?.[key]?.enabled ?? false)), [cs])
   const update = useCallback((path, value) => {
     const next = { ...cs }
     const parts = path.split('.')
@@ -142,21 +170,10 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, volumePaneFixed =
     onUpdateSettings(next)
   }, [cs, onUpdateSettings])
 
-  const updateIndicator = useCallback((key, field, value) => {
-    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev', 'kPeriod', 'dPeriod', 'step', 'maxStep'])
-    const next = { ...cs }
-    next.indicators = {
-      ...next.indicators,
-      [key]: {
-        ...next.indicators[key],
-        [field]: numFields.has(field)
-          ? (['stdDev', 'step', 'maxStep'].includes(field) ? (parseFloat(value) || next.indicators[key][field]) : (parseInt(value) || next.indicators[key][field]))
-          : value,
-      },
-    }
-    next.preset = 'custom'
-    onUpdateSettings(next)
-  }, [cs, onUpdateSettings])
+  /** How many indicators are on, THROUGH `isOn`. `catalogRows()` is definitions
+   *  ∪ the carved-out sections, so `volumeProfile` counts — it has a row in the
+   *  library like everything else. */
+  const activeCount = useMemo(() => catalogRows().filter((r) => isOn(r.id)).length, [isOn])
 
   const applyPreset = useCallback((key) => {
     const preset = PRESETS[key]
@@ -384,19 +401,25 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, volumePaneFixed =
           </div>
         )}
         {(() => {
-          // Move enabled oscillators into the volume pane (left axis).
-          const OSC = [['rsi', 'RSI'], ['macd', 'MACD'], ['stoch', 'Stoch'], ['atr', 'ATR'], ['mfi', 'MFI'], ['cci', 'CCI'], ['williamsR', 'W%R'], ['adx', 'ADX'], ['obv', 'OBV']]
-          const enabled = OSC.filter(([k]) => cs.indicators?.[k]?.enabled)
+          // Move enabled oscillators into the volume pane (left axis) — the same
+          // derivation the right-click menu uses, so the two strips cannot drift.
+          // This was a second copy of `StockChart`'s `OSC_OPTS`, in another file,
+          // spelling `williamsR` a third way again (`W%R` here, `Williams %R`
+          // there, `Williams %R` in `chartRegion`).
+          // …through `isOn`, the same reader the checkboxes use. For a FLIPPED id
+          // the legacy toggle is the MIRROR, not the switch — a deleted RSI must
+          // not still offer "overlay it on the volume pane".
+          const enabled = oscillatorIds().filter((k) => isOn(k))
           if (!cs.volume.visible || enabled.length === 0) return null
           const cur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
           return (
             <div className={styles.sRow} style={{ marginTop: 6, flexWrap: 'wrap' }}>
               <span style={{ width: '100%', marginBottom: 2, fontSize: 11, opacity: 0.7 }}>Overlay on volume pane:</span>
-              {enabled.map(([k, label]) => (
-                <label key={k} className={styles.sCheck} title={`Render ${label} inside the volume pane`}>
+              {enabled.map((k) => (
+                <label key={k} className={styles.sCheck} title={`Render ${labelFor(k)} inside the volume pane`}>
                   <input type="checkbox" checked={cur.includes(k)}
                     onChange={() => update('volumeOverlayIndicators', cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k])} />
-                  {label}
+                  {labelFor(k)}
                 </label>
               ))}
             </div>
@@ -404,226 +427,34 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, volumePaneFixed =
         })()}
       </div>
 
-      {/* Technical Indicators */}
+      {/* Indicators — spec §6: the gear panel's checkbox rows become a
+          LAUNCHER. Every control they carried is on the generated dialog, and
+          the dialog reaches inputs this surface never could: `sar.maxStep`, six
+          of `ichimoku`'s eight, MACD's two colours and VWAP's opacity / line
+          style / line width. Fifteen rows that duplicated a surface which now
+          covers them is the enumeration this phase exists to end.
+
+          ⚠️ `updateIndicator`, `engineInert`, `inertTitle` and `shownInput`
+          retire WITH the rows. `engineInert` existed to say "this control is
+          drawn by the engine and this field is not what sets it"; with no
+          controls left there is nothing to tell the truth about, and an inert
+          helper reads as live logic. `isOn` and `update` stay — the volume
+          overlay strip and the rest of the panel use them. */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Indicators</span>
-
-        {/* RSI */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.rsi?.enabled ?? false}
-            onChange={e => updateIndicator('rsi', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>RSI</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.rsi?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('rsi', 'period', e.target.value)} title="Period" />
-          <ColorPicker value={cs.indicators?.rsi?.color ?? '#7b68ee'}
-            onChange={v => updateIndicator('rsi', 'color', v)} />
-        </div>
-
-        {/* MACD */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.macd?.enabled ?? false}
-            onChange={e => updateIndicator('macd', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>MACD</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.macd?.fastPeriod ?? 12} min={1} max={100}
-              onChange={e => updateIndicator('macd', 'fastPeriod', e.target.value)} title="Fast" />
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.macd?.slowPeriod ?? 26} min={1} max={200}
-              onChange={e => updateIndicator('macd', 'slowPeriod', e.target.value)} title="Slow" />
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.macd?.signalPeriod ?? 9} min={1} max={50}
-              onChange={e => updateIndicator('macd', 'signalPeriod', e.target.value)} title="Signal" />
-          </div>
-        </div>
-
-        {/* Bollinger Bands */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.bb?.enabled ?? false}
-            onChange={e => updateIndicator('bb', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>BB</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.bb?.period ?? 20} min={2} max={200}
-            onChange={e => updateIndicator('bb', 'period', e.target.value)} title="Period" />
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.bb?.stdDev ?? 2} min={0.5} max={5} step={0.5}
-            onChange={e => updateIndicator('bb', 'stdDev', e.target.value)} title="Std Dev" />
-          <ColorPicker value={cs.indicators?.bb?.color ?? 'rgba(156,39,176,0.85)'}
-            onChange={v => updateIndicator('bb', 'color', v)} />
-        </div>
-
-        {/* VWAP */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.vwap?.enabled ?? false}
-            onChange={e => updateIndicator('vwap', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>VWAP</span>
-          <span className={styles.sIndicatorNote}>(intraday only)</span>
-          <ColorPicker value={cs.indicators?.vwap?.color ?? '#26C6DA'}
-            onChange={v => updateIndicator('vwap', 'color', v)} />
-        </div>
-
-        {/* Stochastic */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.stoch?.enabled ?? false}
-            onChange={e => updateIndicator('stoch', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Stoch</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.stoch?.kPeriod ?? 14} min={1} max={100}
-              onChange={e => updateIndicator('stoch', 'kPeriod', e.target.value)} title="%K Period" />
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.stoch?.dPeriod ?? 3} min={1} max={20}
-              onChange={e => updateIndicator('stoch', 'dPeriod', e.target.value)} title="%D Period" />
-          </div>
-          <ColorPicker value={cs.indicators?.stoch?.kColor ?? '#FF6B6B'}
-            onChange={v => updateIndicator('stoch', 'kColor', v)} />
-          <ColorPicker value={cs.indicators?.stoch?.dColor ?? '#4ECDC4'}
-            onChange={v => updateIndicator('stoch', 'dColor', v)} />
-        </div>
-
-        {/* ATR */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.atr?.enabled ?? false}
-            onChange={e => updateIndicator('atr', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>ATR</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.atr?.period ?? 14} min={1} max={100}
-            onChange={e => updateIndicator('atr', 'period', e.target.value)} title="Period" />
-          <ColorPicker value={cs.indicators?.atr?.color ?? '#FFA726'}
-            onChange={v => updateIndicator('atr', 'color', v)} />
-        </div>
-
-        {/* Parabolic SAR */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.sar?.enabled ?? false}
-            onChange={e => updateIndicator('sar', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>SAR</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <input type="number" className={styles.sPeriodInput}
-              value={cs.indicators?.sar?.step ?? 0.02} min={0.001} max={0.1} step={0.001}
-              onChange={e => updateIndicator('sar', 'step', parseFloat(e.target.value) || 0.02)}
-              title="Step (acceleration factor)" />
-          </div>
-          <ColorPicker value={cs.indicators?.sar?.color ?? '#ffeb3b'}
-            onChange={v => updateIndicator('sar', 'color', v)} />
-        </div>
-
-        {/* Ichimoku Cloud */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.ichimoku?.enabled ?? false}
-            onChange={e => updateIndicator('ichimoku', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Ichimoku</span>
-          <div className={styles.sMiniPeriodGroup}>
-            <ColorPicker value={cs.indicators?.ichimoku?.tenkanColor ?? '#26C6DA'}
-              onChange={v => updateIndicator('ichimoku', 'tenkanColor', v)} title="Tenkan" />
-            <ColorPicker value={cs.indicators?.ichimoku?.kijunColor ?? '#EF5350'}
-              onChange={v => updateIndicator('ichimoku', 'kijunColor', v)} title="Kijun" />
-          </div>
-        </div>
-
-        {/* Volume Profile */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.volumeProfile?.enabled ?? false}
-            onChange={e => updateIndicator('volumeProfile', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Vol Profile</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.volumeProfile?.bins ?? 24} min={8} max={50}
-            onChange={e => updateIndicator('volumeProfile', 'bins', e.target.value)}
-            title="Number of price bins" />
-          <ColorPicker value={cs.indicators?.volumeProfile?.color ?? 'rgba(120,160,100,0.25)'}
-            onChange={v => updateIndicator('volumeProfile', 'color', v)} />
-        </div>
-
-        {/* MFI — Money Flow Index */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.mfi?.enabled ?? false}
-            onChange={e => updateIndicator('mfi', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>MFI</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.mfi?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('mfi', 'period', e.target.value)} title="Period" />
-          <ColorPicker value={cs.indicators?.mfi?.color ?? '#c084fc'}
-            onChange={v => updateIndicator('mfi', 'color', v)} />
-        </div>
-
-        {/* CCI — Commodity Channel Index */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.cci?.enabled ?? false}
-            onChange={e => updateIndicator('cci', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>CCI</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.cci?.period ?? 20} min={2} max={200}
-            onChange={e => updateIndicator('cci', 'period', e.target.value)} title="Period" />
-          <ColorPicker value={cs.indicators?.cci?.color ?? '#fbbf24'}
-            onChange={v => updateIndicator('cci', 'color', v)} />
-        </div>
-
-        {/* Williams %R */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.williamsR?.enabled ?? false}
-            onChange={e => updateIndicator('williamsR', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Williams %R</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.williamsR?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('williamsR', 'period', e.target.value)} title="Period" />
-          <ColorPicker value={cs.indicators?.williamsR?.color ?? '#60a5fa'}
-            onChange={v => updateIndicator('williamsR', 'color', v)} />
-        </div>
-
-        {/* ADX / DMI */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.adx?.enabled ?? false}
-            onChange={e => updateIndicator('adx', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>ADX</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.adx?.period ?? 14} min={2} max={100}
-            onChange={e => updateIndicator('adx', 'period', e.target.value)} title="Period" />
-          <div className={styles.sMiniPeriodGroup}>
-            <ColorPicker value={cs.indicators?.adx?.adxColor ?? '#e5e7eb'}
-              onChange={v => updateIndicator('adx', 'adxColor', v)} title="ADX" />
-            <ColorPicker value={cs.indicators?.adx?.plusDIColor ?? '#22c55e'}
-              onChange={v => updateIndicator('adx', 'plusDIColor', v)} title="+DI" />
-            <ColorPicker value={cs.indicators?.adx?.minusDIColor ?? '#ef4444'}
-              onChange={v => updateIndicator('adx', 'minusDIColor', v)} title="-DI" />
-          </div>
-        </div>
-
-        {/* OBV — On-Balance Volume */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.obv?.enabled ?? false}
-            onChange={e => updateIndicator('obv', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>OBV</span>
-          <ColorPicker value={cs.indicators?.obv?.color ?? '#9ca3af'}
-            onChange={v => updateIndicator('obv', 'color', v)} />
-        </div>
-
-        {/* Donchian Channels */}
-        <div className={styles.sOverlayRow}>
-          <input type="checkbox"
-            checked={cs.indicators?.donchian?.enabled ?? false}
-            onChange={e => updateIndicator('donchian', 'enabled', e.target.checked)} />
-          <span className={styles.sIndicatorLabel}>Donchian</span>
-          <input type="number" className={styles.sPeriodInput}
-            value={cs.indicators?.donchian?.period ?? 20} min={2} max={200}
-            onChange={e => updateIndicator('donchian', 'period', e.target.value)} title="Period" />
-          <ColorPicker value={cs.indicators?.donchian?.color ?? 'rgba(96,165,250,0.5)'}
-            onChange={v => updateIndicator('donchian', 'color', v)} />
-        </div>
+        <button
+          type="button"
+          className={styles.sLauncher}
+          onClick={() => onOpenIndicatorLibrary?.()}
+        >
+          <span>Manage indicators</span>
+          {/* ⛔ COUNTED THROUGH `isOn`, the reader every other control on this
+              surface uses. A count read off `cs.indicators[id].enabled` says 2
+              for a TOMBSTONED indicator as well — a number over a chart that
+              is not drawing it. */}
+          <span className={styles.sLauncherCount}>{activeCount}</span>
+          <span aria-hidden="true">→</span>
+        </button>
       </div>
 
       {/* Display Options */}
@@ -864,6 +695,15 @@ function ChartToolbar({
   const [showWidths, setShowWidths] = useState(false)
   const [showFonts, setShowFonts] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  // ── THE INDICATOR LIBRARY (spec §6) ───────────────────────────────────────
+  //
+  // Held HERE rather than in `StockChart`, for one reason that is also the
+  // read-only mount-site rule: this component already renders the settings panel
+  // behind `chartSettings && onUpdateSettings`, and a chart mounted read-only
+  // passes no `onUpdateSettings`. Gating the library on the SAME pair means a
+  // read-only chart cannot sprout an add-dialog, without a second prop that
+  // could disagree with the first (spec §5 "mount-site scoping").
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   const colorRef = useRef(null)
@@ -873,14 +713,24 @@ function ChartToolbar({
   const compareRef = useRef(null)
   const alertRef = useRef(null)
 
-  // Imperative API: lets the chart's right-click menu open the settings panel.
+  // Imperative API: lets the chart's right-click menu open the settings panel,
+  // and lets `Alt+Shift+A` open the indicator library. ⚠️ `openIndicatorLibrary`
+  // is a NO-OP on a read-only mount site — it checks the same pair the button
+  // does, so the chord and the button cannot disagree about where the library is
+  // available. `StockChart` calls it; it does not own the state.
+  const canManageIndicators = !!(chartSettings && onUpdateSettings)
   useImperativeHandle(ref, () => ({
     openSettings: () => {
       setShowColors(false)
       setShowWidths(false)
       setShowSettings(true)
     },
-  }), [])
+    openIndicatorLibrary: () => {
+      if (!canManageIndicators) return false
+      setLibraryOpen(true)
+      return true
+    },
+  }), [canManageIndicators])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -932,9 +782,26 @@ function ChartToolbar({
     return () => clearInterval(id)
   }, [periodSec])
 
-  // Close popups on outside click
+  // Close popups on outside click.
+  //
+  // 🐛 …where "outside" means outside the UI, NOT outside the subtree. A PORTALED
+  // child (`ColorPicker`'s popup goes to `document.body`) is outside every ref
+  // here by construction, so the unqualified `contains()` test closed the settings
+  // panel on the mousedown of the very click that was choosing a colour — the
+  // button unmounted before `click` fired and `pick()` never ran. **Every colour
+  // swatch in the inline settings panel was unusable in production**, and it read
+  // as a dead palette rather than as a closing panel because OPENING the picker
+  // (the swatch is a real child) always worked.
+  //
+  // `PORTAL_POPUP_ATTR` is the contract: an element that carries it is logically
+  // inside whatever opened it. One `closest()` covers every popup in the panel —
+  // present and future — which is the property a per-popup ref threaded through
+  // `ChartSettingsPanel` would not have had.
   useEffect(() => {
     const handler = (e) => {
+      // `closest` needs an Element; a mousedown can target a text node in jsdom.
+      const node = e.target instanceof Element ? e.target : e.target?.parentElement
+      if (node && node.closest(`[${PORTAL_POPUP_ATTR}]`)) return
       if (showColors && colorRef.current && !colorRef.current.contains(e.target)) setShowColors(false)
       if (showWidths && widthRef.current && !widthRef.current.contains(e.target)) setShowWidths(false)
       if (showFonts && fontRef.current && !fontRef.current.contains(e.target)) setShowFonts(false)
@@ -1127,6 +994,26 @@ function ChartToolbar({
           )}
         </div>
 
+        {/* Indicators — spec §6 asks for a LABELLED button, "not icon-only in
+            v1": the add-flow is the thing users are hunting for and a glyph is a
+            guess. Gated on the same pair as the settings panel, so a read-only
+            mount site (which passes no `onUpdateSettings`) gets neither.
+
+            ⚠️ NOT gated on `hideSettingsButton`. That flag retires the LEGACY V1
+            gear on surfaces that have the new modal; the library launcher is the
+            add-flow itself and has no equivalent in the modal, so hiding it with
+            the gear would leave the charts workspace with no way to add one. */}
+        {canManageIndicators && (
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.indicatorsBtn} ${libraryOpen ? styles.active : ''}`}
+            onClick={() => { setLibraryOpen(true); closeOthers(null) }}
+            title="Indicators — browse and add"
+          >
+            <UIcon name="breadth" size={14} /> Indicators
+          </button>
+        )}
+
         {/* Chart settings — legacy V1 inline panel. Hidden on surfaces that have
             the new ChartSettingsModal (charts workspace); still the settings entry
             point on every other surface. */}
@@ -1140,9 +1027,30 @@ function ChartToolbar({
               {ICONS.settings}
             </button>
             {showSettings && (
-              <ChartSettingsPanel chartSettings={chartSettings} onUpdateSettings={onUpdateSettings} volumePaneFixed={volumePaneFixed} />
+              <ChartSettingsPanel
+                chartSettings={chartSettings}
+                onUpdateSettings={onUpdateSettings}
+                onOpenIndicatorLibrary={() => setLibraryOpen(true)}
+                volumePaneFixed={volumePaneFixed}
+              />
+
             )}
           </div>
+        )}
+
+        {/* ⛔ MOUNTED AT TOOLBAR LEVEL, NOT INSIDE THE SETTINGS PANEL. The panel
+            closes on outside mousedown, and `Sheet` portals to `document.body` —
+            a dialog rendered as the panel's child would be unmounted by the very
+            click that opened it. It also has to outlive the panel: Task 8's
+            launcher opens it FROM the panel. */}
+        {canManageIndicators && (
+          <IndicatorLibraryDialog
+            open={libraryOpen}
+            onClose={() => setLibraryOpen(false)}
+            settings={cs}
+            onChange={onUpdateSettings}
+            registry={engineRegistry}
+          />
         )}
 
         <div className={styles.sep} />

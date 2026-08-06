@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 // Settings supply the tag vocab; mock the hook so the pickers are deterministic
 // (and so we don't drag in the account/settings SWR fetch chain).
@@ -41,6 +41,33 @@ beforeEach(() => {
   patchCalls = []
 })
 
+// Wait for the flow to be INTERACTIVE, not merely painted.
+//
+// `findBy*` resolves out of a MutationObserver callback — a microtask — and RTL
+// deliberately turns the act environment OFF for the duration of a `waitFor`.
+// So when it returns, React has committed the render that put the symbol on
+// screen but its PASSIVE effects are still sitting on the scheduler queue. One
+// of those is RapidTagFlow's picker seed:
+//
+//     useEffect(() => { setMistakeSel(current?.mistakeTags ?? []); ... },
+//               [current?.id])
+//
+// Click a tag chip inside that window and the ordering inverts: the click sets
+// `mistakeSel` to ['FOMO'], then `fireEvent`'s own act-exit drains the pending
+// seed, which resets it to []. The trade then PATCHes `mistakeTags: []` and the
+// test fails with `expected [] to include 'FOMO'` — reproduced 1-in-27 runs
+// under CPU load, invisible on an idle machine. A real user can never hit it:
+// the window is one macrotask wide.
+//
+// The empty act scope drains those pending effects first, so every interaction
+// below starts from the settled state a user would actually see. Do NOT replace
+// this with a bare `findBy*` — that is exactly the bug.
+async function openedOn(symbol) {
+  const el = await screen.findByText(symbol)
+  await act(async () => {})
+  return el
+}
+
 describe('RapidTagFlow', () => {
   it('opens on the first closed trade with both tag pickers + progress', async () => {
     global.fetch = makeFetch(TRADES)
@@ -57,7 +84,7 @@ describe('RapidTagFlow', () => {
   it('selecting a mistake + Save PATCHes /api/j2/trades/{id} with the tag and advances', async () => {
     global.fetch = makeFetch(TRADES)
     render(<RapidTagFlow open onClose={vi.fn()} onComplete={vi.fn()} />)
-    await screen.findByText('NVDA')
+    await openedOn('NVDA')
 
     fireEvent.click(screen.getByRole('button', { name: 'FOMO' }))
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
@@ -77,10 +104,10 @@ describe('RapidTagFlow', () => {
     const onComplete = vi.fn()
     global.fetch = makeFetch(TRADES)
     render(<RapidTagFlow open onClose={vi.fn()} onComplete={onComplete} />)
-    await screen.findByText('NVDA')
+    await openedOn('NVDA')
 
     fireEvent.click(screen.getByRole('button', { name: /save/i }))   // t1 → advance
-    await screen.findByText('TSLA')
+    await openedOn('TSLA')
     fireEvent.click(screen.getByRole('button', { name: /save/i }))   // t2 (last) → finish
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1))
@@ -90,7 +117,7 @@ describe('RapidTagFlow', () => {
   it('Skip advances without a PATCH', async () => {
     global.fetch = makeFetch(TRADES)
     render(<RapidTagFlow open onClose={vi.fn()} onComplete={vi.fn()} />)
-    await screen.findByText('NVDA')
+    await openedOn('NVDA')
 
     fireEvent.click(screen.getByRole('button', { name: /^skip$/i }))
     expect(await screen.findByText('TSLA')).toBeInTheDocument()

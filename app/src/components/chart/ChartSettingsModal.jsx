@@ -2,7 +2,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
-import { listIndicators, readEnabled, patchFor } from './indicatorRegistry'
+import { listAllIndicators, readEnabled, applyRowPatch } from './indicatorRegistry'
+// The engine's definitions, so the Indicators tab can GENERATE the rows for the
+// indicators the engine owns instead of carrying a second hand-written copy of
+// their fields. See `indicatorRegistry.js`'s header — this import is what
+// "superseded, not absorbed" looks like at the consumer.
+import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import styles from './ChartSettingsModal.module.css'
 
@@ -314,7 +319,7 @@ export default function ChartSettingsModal({
     if (typeof target === 'string' && target.startsWith('ind:')) {
       const [, rowId, field] = target.split(':')
       const row = indRowById(rowId)
-      if (row) setSetting(patchFor(row, { [field]: hex }, settings))
+      if (row) setRow(row, { [field]: hex })
       return
     }
     // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
@@ -332,8 +337,24 @@ export default function ChartSettingsModal({
     next.preset = 'custom'
     onChange?.(next)
   }
-  const indRows = listIndicators(settings, { volumePaneFixed })
+  // Hand-written rows (MA overlays + the volume pane, which the engine cannot own)
+  // followed by the rows GENERATED from the engine definitions. Neither this file
+  // nor the registry names an engine indicator's fields.
+  //
+  // ⚠️ `volumePaneFixed` STILL HAS TO REACH THE VOLUME ROW. It used to be passed
+  // to `listIndicators` here; `listAllIndicators` forwards the same options object
+  // to it, so master's inert-toggle reason (`f3d9daba`) survives B4's switch to
+  // generated rows.
+  const indRows = listAllIndicators(settings, engineRegistry, { volumePaneFixed })
   const indRowById = (id) => indRows.find((r) => r.id === id)
+  /** One writer for every row: `patchFor` for the hand-written ones, and
+   *  `instanceControls` for the engine-owned ones — the same writer the toolbar
+   *  checkbox, both right-click doors and the four keyboard shortcuts share. A
+   *  refused write returns the settings unchanged by identity, so nothing persists. */
+  const setRow = (row, patch) => {
+    const next = applyRowPatch(row, patch, settings, engineRegistry)
+    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+  }
 
   const targetValue = (t) => {
     // Registry-driven indicator fields carry their path in the target string, so the
@@ -650,9 +671,16 @@ export default function ChartSettingsModal({
           </section>
           </>)}
           {activeTab === 'indicators' && (<>
-          {/* Rendered ENTIRELY from indicatorRegistry — no per-indicator JSX. Adding an
-              indicator later is a descriptor, not another block down here. */}
-          {['Moving averages', 'Volume', 'VWAP'].map((group) => {
+          {/* Rendered ENTIRELY from the rows — no per-indicator JSX, and no
+              hardcoded section list either. The groups come from the rows in row
+              order, so a definition added to `nativeRegistry` brings its own
+              section with it (B4 Task 6 deleted `ENGINE_ROW_DEF_IDS`, the list
+              of which definitions got a generated row; every one of them does
+              now). The three group names used to be an array literal here, and
+              it was an enumeration site of its own: a row in a group nobody had
+              listed rendered NOTHING, silently, until someone remembered to add
+              it. `enumerationSites.test.js` fails if it returns. */}
+          {[...new Set(indRows.map((r) => r.group))].map((group) => {
             const rows = indRows.filter((r) => r.group === group)
             if (!rows.length) return null
             return (
@@ -661,7 +689,7 @@ export default function ChartSettingsModal({
                 {rows.map((row) => {
                   const on = readEnabled(row)
                   const enabledKey = row.enabledKey || 'enabled'
-                  const set = (patch) => setSetting(patchFor(row, patch, settings))
+                  const set = (patch) => setRow(row, patch)
                   return (
                     <div key={row.id} className={styles.indBlock}>
                       <div className={styles.indHead}>

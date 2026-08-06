@@ -1,5 +1,38 @@
 // app/src/components/chart/keyboardShortcuts.js
 
+import { labelFor } from './indicatorCatalog';
+
+/**
+ * ⭐ THE FOUR INDICATOR CHORDS, DECLARED ONCE.
+ *
+ * B3's ledger called this "two shortcuts, one file", then three, then FOUR
+ * across FOUR regions in TWO files — the `SHORTCUTS` row, the matcher below,
+ * `StockChart`'s `toggle:` switch and its `e.altKey` block. Two of those regions
+ * are where a command is DECLARED and two are where it is CONSUMED, and `Alt+U`
+ * spent a whole phase declared-in-one-place-and-handled-in-another because
+ * `matchShortcut` rejects Alt.
+ *
+ * ⛔ `modifier: 'alt'` IS NOT MATCHED HERE. Alt is rejected on the first line of
+ * `matchShortcut` so browser Alt shortcuts keep working; `StockChart`'s own
+ * `e.altKey` block is the live handler and reads THIS TABLE for its `code`. If
+ * the matcher ever answered for an Alt chord, both handlers would fire.
+ *
+ * ⚠️ IT NAMES FOUR INDICATOR IDS, WHICH IS WHY IT IS ON THE ENUMERATION LEDGER
+ * (`enumerationSites.test.js`, fate `keep`). A key binding is irreducibly a
+ * (key, indicator) pair — there is nothing in a definition that says "Ctrl+I" —
+ * so this list legitimately lists things, the way `RAW_DEFS` does. What it is
+ * NOT is a region a new indicator has to be edited into: an indicator without a
+ * chord simply has no chord, and adding one is a deliberate act in ONE place.
+ *
+ * `keys` is the help-sheet label, `code` the layout-independent physical key.
+ */
+export const INDICATOR_CHORDS = Object.freeze([
+  Object.freeze({ defId: 'rsi', keys: 'Ctrl+I', code: 'KeyI', modifier: 'ctrl' }),
+  Object.freeze({ defId: 'macd', keys: 'Ctrl+O', code: 'KeyO', modifier: 'ctrl' }),
+  Object.freeze({ defId: 'bb', keys: 'Ctrl+B', code: 'KeyB', modifier: 'ctrl' }),
+  Object.freeze({ defId: 'vwap', keys: 'Alt+U', code: 'KeyU', modifier: 'alt' }),
+]);
+
 /**
  * The timeframe ladder, in time order. Single source of truth — the ChartWidget
  * timeframe bar and the repeat-press cycle both read it.
@@ -90,15 +123,26 @@ export const SHORTCUTS = [
   { keys: 'Shift+L', command: 'toggle:log', description: 'Toggle log scale' },
   { keys: 'Shift+T', command: 'toggle:theme', description: 'Toggle light/dark theme' },
   { keys: 'Shift+C', command: 'toggle:countdown', description: 'Toggle bar-close countdown' },
-  { keys: 'Alt+U', command: 'toggle:vwap', description: 'Toggle session VWAP' },
   { keys: 'Alt+Shift+W', command: 'toggle:watermark', description: 'Toggle symbol watermark' },
   { keys: 'Alt+I', command: 'toggle:invert', description: 'Invert price scale' },
   { keys: 'Alt+Shift+I', command: 'toggle:hideindicators', description: 'Hide all indicators' },
 
-  // Indicator toggles (Ctrl/Cmd held)
-  { keys: 'Ctrl+I', command: 'toggle:rsi', description: 'Toggle RSI' },
-  { keys: 'Ctrl+O', command: 'toggle:macd', description: 'Toggle MACD' },
-  { keys: 'Ctrl+B', command: 'toggle:bb', description: 'Toggle Bollinger Bands' },
+  // Indicator toggles — GENERATED from INDICATOR_CHORDS, labelled by the catalog.
+  //
+  // ⚠️ `Alt+U` IS IN HERE, not up with the display toggles where it used to sit:
+  // the help sheet is where a user looks for a chord, and grouping it by MODIFIER
+  // rather than by what it does is what let it read as a display toggle for a
+  // phase. It is still matched by StockChart, never by `matchShortcut`.
+  //
+  // ⚠️ TWO VISIBLE RELABELS, both argued for in `indicatorCatalog.test.js`'s
+  // `BEYOND_A7` table: `Toggle Bollinger Bands` → `Toggle BB` and `Toggle session
+  // VWAP` → `Toggle VWAP`. The `?` overlay shows these strings.
+  ...INDICATOR_CHORDS.map(c => ({
+    keys: c.keys, command: 'toggle:' + c.defId, description: 'Toggle ' + labelFor(c.defId),
+  })),
+  // ⛔ NOT CHORDS. `ma` toggles the four MA overlay slots and `volume` a pane;
+  // neither is a definition, so neither has a catalog row to be labelled from and
+  // neither routes at `setIndicatorEnabled`. They stay hand-written.
   { keys: 'Ctrl+M', command: 'toggle:ma', description: 'Toggle moving averages' },
   { keys: 'Ctrl+V', command: 'toggle:volume', description: 'Toggle volume' },
 
@@ -136,6 +180,28 @@ const SHIFT_CODE_TF = {
 const BARE_DIGIT_TF = { '1': 'tf:D', '5': 'tf:W', '9': 'tf:M' };
 
 /**
+ * The Ctrl/Cmd letter map — DERIVED from `INDICATOR_CHORDS` for the indicators,
+ * hand-written for the two commands that are not indicators.
+ *
+ * ⛔ THE `modifier === 'ctrl'` FILTER IS LOAD-BEARING. `Alt+U`'s code is `KeyU`,
+ * so without it this map would bind **Ctrl+U** to VWAP — a chord nobody declared,
+ * taking a browser combo, and INVISIBLE to any test that only checks Alt is
+ * rejected (Alt is rejected on the first line of `matchShortcut`, before this map
+ * is consulted). `keyboardShortcuts.test.js` asserts `Ctrl+U` is null for exactly
+ * that reason.
+ *
+ * Null-prototype so a `key` that happens to spell an `Object.prototype` member
+ * ('constructor', 'toString') cannot resolve to a function instead of a command.
+ */
+const CTRL_KEY_TO_COMMAND = Object.freeze(Object.assign(Object.create(null), {
+  ...Object.fromEntries(INDICATOR_CHORDS
+    .filter(c => c.modifier === 'ctrl')
+    .map(c => [c.code.slice(3).toLowerCase(), 'toggle:' + c.defId])),
+  m: 'toggle:ma',
+  v: 'toggle:volume',
+}));
+
+/**
  * Match a KeyboardEvent to a command id. Returns null on no match.
  * Ignores events with ctrl/meta held (so browser shortcuts like Ctrl+F work).
  */
@@ -150,13 +216,7 @@ export function matchShortcut(event) {
   //  Ctrl+F / Ctrl+R / Ctrl+T keep working.)
   if (ctrl) {
     if (shift) return null;
-    const k = key.toLowerCase();
-    if (k === 'i') return 'toggle:rsi';
-    if (k === 'o') return 'toggle:macd';
-    if (k === 'b') return 'toggle:bb';
-    if (k === 'm') return 'toggle:ma';
-    if (k === 'v') return 'toggle:volume';
-    return null;
+    return CTRL_KEY_TO_COMMAND[String(key || '').toLowerCase()] || null;
   }
 
   // Direct key match

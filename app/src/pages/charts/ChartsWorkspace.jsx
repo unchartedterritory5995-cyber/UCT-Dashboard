@@ -11,7 +11,7 @@ import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
-import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -94,7 +94,73 @@ const UCT_DEFAULT_LAYOUT = {
 // owner's live workspace). JSON.parse keeps it byte-faithful; it's the full blob
 // so applying it fully defines the chart look (header shows ticker + company via
 // titleMode 'both'). Parsed fresh so the frozen source is never mutated in place.
-const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"rsi":{"enabled":false,"period":14,"color":"#7b68ee"},"macd":{"enabled":false,"fastPeriod":12,"slowPeriod":26,"signalPeriod":9,"macdColor":"#2196F3","signalColor":"#FF9800"},"bb":{"enabled":false,"period":20,"stdDev":2,"color":"rgba(156,39,176,0.85)"},"vwap":{"enabled":false,"color":"#26C6DA"},"stoch":{"enabled":false,"kPeriod":14,"dPeriod":3,"kColor":"#FF6B6B","dColor":"#4ECDC4"},"atr":{"enabled":false,"period":14,"color":"#FFA726"},"sar":{"enabled":false,"step":0.02,"maxStep":0.2,"color":"#ffeb3b"},"ichimoku":{"enabled":false,"tenkanColor":"#26C6DA","kijunColor":"#EF5350","spanAColor":"rgba(76,175,80,0.2)","spanBColor":"rgba(239,83,80,0.2)","chikouColor":"rgba(255,235,59,0.7)"},"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"},"mfi":{"enabled":false,"period":14,"color":"#c084fc"},"cci":{"enabled":false,"period":20,"color":"#fbbf24"},"williamsR":{"enabled":false,"period":14,"color":"#60a5fa"},"adx":{"enabled":false,"period":14,"adxColor":"#e5e7eb","plusDIColor":"#22c55e","minusDIColor":"#ef4444"},"obv":{"enabled":false,"color":"#9ca3af"},"donchian":{"enabled":false,"period":20,"color":"rgba(96,165,250,0.5)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+//
+// ⭐⭐ B5 TASK 9 RETIRED ENUMERATION SITE #22 (ledger row 14). This literal used
+// to hand-list all FIFTEEN indicator sections — a third copy of ledger sites #1
+// and #2, in a page component, and the one no chart-module walk had opened. All
+// fourteen legacy sections are DELETED from it; `volumeProfile` alone survives,
+// because it is the one key `mergeChartSettings` still emits.
+//
+// ⛔ THE DELETION IS BEHAVIOUR-NEUTRAL AND THAT WAS MEASURED, NOT ASSUMED: every
+// one of the fourteen said `"enabled":false` in this capture, so the v1→v2 fold
+// produced zero instances from them before the deletion and produces zero after.
+// What changes is that the blob this writes stops being a fifteen-section list
+// somebody has to remember to edit.
+//
+// Never write this to `chart_settings` directly: go through
+// `uctDefaultChartSettings()` below, which stamps the engine keys the capture
+// predates. See the comment there for why that is a ship-blocker and not a
+// tidy-up.
+const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+
+// ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
+//
+// `UCT_DEFAULT_CHART_SETTINGS_JSON` was captured from the owner's live workspace
+// in July, so it contains no engine keys at all — the engine did not exist yet.
+// Three first-class actions write this blob verbatim into the `chart_settings`
+// preference: **Open Layout → UCT Default**, **New Layout**, and `applyTemplate`'s
+// prebuilt fallback. So whatever this function does NOT stamp from the live
+// default is pinned, forever, for everyone who clicks a menu item.
+//
+// `indicatorInstances` is therefore stamped from `CHART_DEFAULTS` at write time
+// rather than frozen alongside the palette. It resets to the default empty list on
+// purpose — this IS the immutable restore point, and a restore that left the
+// previous board's instances behind would not be one.
+//
+// ⭐ B5 TASK 4 — THE SECOND STAMP IS GONE, AND SO IS THE SHIP-BLOCKER IT ANSWERED.
+//
+// A line `parsed.engineEnabled = CHART_DEFAULTS.engineEnabled` stood beside this
+// one, and the paragraph above it explained a real Flip-B hazard: because
+// `mergeChartSettings` read the flag from the PARSED BLOB and not from the
+// default, an absent key and an explicit `false` were the same answer, so a user
+// who clicked **UCT Default** landed on a workspace where the flag was pinned off,
+// no legacy block drew, and RSI / MACD / BB / VWAP were undrawable.
+//
+// The flag is DELETED (`docs/decisions/2026-08-04-engine-enabled-deleted.md`), so
+// there is nothing to stamp and nothing to pin. ⚠️ THE DELETION HAD TO BE THIS —
+// removing the line, not assigning `undefined` to it. `JSON.stringify` DROPS an
+// `undefined` value, so `parsed.engineEnabled = CHART_DEFAULTS.engineEnabled` with
+// the key gone would have produced a byte-identical string and passed every test
+// that reads the OUTPUT. Only a source scan can see the difference, which is why
+// `engineEnabledMigration.test.js` runs one.
+//
+// ⭐⭐ B5 TASK 9 — `settingsVersion` IS STAMPED FOR THE SAME REASON, and it is the
+// reason the fourteen sections could be deleted from the capture rather than
+// merely ignored. The capture is v1 shaped (it predates versioning), so without
+// a stamp every click of **UCT Default** would write a blob the read-time fold
+// re-runs on — harmless while the capture's indicators are all off, and a
+// resurrection machine the moment anybody edits the literal. Stamping the
+// CURRENT version says "this blob is already in the new shape", which is true:
+// it carries `indicators: {volumeProfile}` and an empty instance list, which is
+// exactly what `mergeChartSettings` emits.
+export function uctDefaultChartSettings() {
+  const parsed = JSON.parse(UCT_DEFAULT_CHART_SETTINGS_JSON)
+  parsed.indicatorInstances = Array.isArray(CHART_DEFAULTS.indicatorInstances)
+    ? [...CHART_DEFAULTS.indicatorInstances]
+    : []
+  parsed.settingsVersion = CHART_DEFAULTS.settingsVersion
+  return JSON.stringify(parsed)
+}
 
 // Widths/minW are in 24-col units (2 units = one old column). themes minW is 2
 // so the widget can still go narrow, but the reachable middle size (3 units = 1.5
@@ -640,7 +706,7 @@ export default function ChartsWorkspace() {
     if (chartSettings) {
       setPref('chart_settings', chartSettings)
     } else if (isPrebuilt) {
-      setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+      setPref('chart_settings', uctDefaultChartSettings())
     }
     if (isPrebuilt) {
       // Wipe the standalone per-user overrides so a prebuilt layout always opens
@@ -670,7 +736,7 @@ export default function ChartsWorkspace() {
     setPref('charts_workspace_layout', JSON.stringify(normalized))
     // Restore the exact chart settings baked into the default (parsed fresh each
     // apply so the frozen constant is never mutated).
-    setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    setPref('chart_settings', uctDefaultChartSettings())
     // Watchlist / Theme Tracker / Fundamentals appearance are part of the frozen
     // default too → reset them, so no personal widget styling leaks onto the
     // locked UCT Default.
@@ -729,7 +795,7 @@ export default function ChartsWorkspace() {
     // personal styling (chart colors/volume, watchlist appearance + columns, theme).
     // Layout stays blank; a freshly-added watchlist widget mounts and re-reads the
     // reset column config from localStorage.
-    setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    setPref('chart_settings', uctDefaultChartSettings())
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
     setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))

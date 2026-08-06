@@ -1,10 +1,32 @@
 // app/src/components/chart/IndicatorAlertPopover.jsx
-// Popover for managing chart indicator alerts on the current symbol.
+//
+// ─── THIS POPOVER NO LONGER NAMES AN INDICATOR ──────────────────────────────
+//
+// It used to hand-write INDICATORS (8 entries), OSCILLATOR_CONDITIONS,
+// CONDITIONS (a per-indicator map), THRESHOLD_CONDITIONS and INDICATOR_LABELS.
+// All five were a TWIN of `api/services/indicator_alert_evaluator.INDICATOR_FUNCS`
+// — the dict that decides what can actually be EVALUATED — and the twin had
+// already drifted: nothing validates `indicator` at any of the create path's
+// three layers, so a `vwap` alert can be STORED and can never FIRE, and no
+// surface reported it.
+//
+// The module that evaluates is now the module that names, and this asks it:
+// `GET /api/indicator-alerts/catalog`.
+//
+// ⛔ THERE IS NO FALLBACK LIST, AND THAT IS THE WHOLE SAFETY ARGUMENT. A
+// hardcoded eight kept "just in case the fetch fails" would restore the twin AND
+// hide it, because a fallback is only ever seen when the fetch fails — i.e.
+// exactly when nobody is looking. So: while the catalog is loading this offers
+// NOTHING and cannot be submitted; if it cannot be fetched it SAYS SO. Both
+// directions are asserted in `IndicatorAlertPopover.test.jsx`, plus a source
+// probe, because the absence of a literal is not behaviourally observable.
+//
 // Pattern mirrors ComparisonPicker.jsx (top:40px, right:8px, position absolute inside the chart wrapper).
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import styles from './IndicatorAlertPopover.module.css'
 import {
   useIndicatorAlerts,
+  useIndicatorAlertCatalog,
   createIndicatorAlert,
   deleteIndicatorAlert,
   toggleIndicatorAlert,
@@ -12,46 +34,8 @@ import {
 import { formatET } from '../../utils/timeAgo'
 import UIcon from '../ui/UIcon'
 
-const INDICATORS = [
-  { value: 'rsi', label: 'RSI' },
-  { value: 'macd', label: 'MACD' },
-  { value: 'bb', label: 'Bollinger Bands' },
-  { value: 'stoch', label: 'Stochastic' },
-  { value: 'williams_r', label: 'Williams %R' },
-  { value: 'cci', label: 'CCI' },
-  { value: 'mfi', label: 'MFI' },
-  { value: 'price_vs_ma', label: 'Price vs MA' },
-]
-
-// Oscillator-style conditions reused for several indicators.
-const OSCILLATOR_CONDITIONS = [
-  { value: 'above', label: 'Above threshold' },
-  { value: 'below', label: 'Below threshold' },
-  { value: 'cross_above', label: 'Crosses above' },
-  { value: 'cross_below', label: 'Crosses below' },
-]
-
-const CONDITIONS = {
-  rsi: OSCILLATOR_CONDITIONS,
-  stoch: OSCILLATOR_CONDITIONS,
-  williams_r: OSCILLATOR_CONDITIONS,
-  cci: OSCILLATOR_CONDITIONS,
-  mfi: OSCILLATOR_CONDITIONS,
-  macd: [
-    { value: 'cross_above', label: 'Crosses above signal' },
-    { value: 'cross_below', label: 'Crosses below signal' },
-    { value: 'cross_zero', label: 'Crosses zero line' },
-  ],
-  bb: [
-    { value: 'touch_upper', label: 'Price touches upper band' },
-    { value: 'touch_lower', label: 'Price touches lower band' },
-  ],
-  price_vs_ma: [
-    { value: 'above', label: 'Price above MA' },
-    { value: 'below', label: 'Price below MA' },
-  ],
-}
-
+// Timeframes are NOT an indicator list — they are the bar sizes the evaluator
+// reads from `bars_sqlite`, and no definition declares one. They stay here.
 const TFS = [
   { value: '5', label: '5m' },
   { value: '15', label: '15m' },
@@ -60,16 +44,32 @@ const TFS = [
   { value: 'D', label: 'Daily' },
 ]
 
-// Conditions that read a numeric threshold from the input.
-const THRESHOLD_CONDITIONS = new Set(['above', 'below', 'cross_above', 'cross_below'])
-
-const INDICATOR_LABELS = Object.fromEntries(INDICATORS.map((i) => [i.value, i.label]))
-
-function conditionLabel(indicator, condition) {
-  const list = CONDITIONS[indicator] || []
-  const found = list.find((c) => c.value === condition)
-  return found ? found.label : condition
-}
+// ─── PICKING A PLOT (B5) ────────────────────────────────────────────────────
+//
+// "Alert me on Ichimoku" names FIVE different series; adx and donchian name
+// three, macd three, bb three, stoch two. So an alert stores a PLOT ADDRESS
+// (`ichimoku.tenkan`, `adx.plusDI`) and the served entry carries the plots it
+// can be addressed by.
+//
+// ⛔ THE ADDRESS TO SUBMIT IS ALWAYS `plot.value`, NEVER `entry.indicator`. For
+// `adx`, `donchian` and `ichimoku` the entry id is a GROUP NAME with no value
+// function behind it — submitting it would store an alert the evaluator cannot
+// evaluate, which is the precise defect this whole task exists to close.
+//
+// Normalising here (rather than branching at four call sites) also keeps the
+// component working against an entry that carries no `plots` at all: the served
+// shape is backward-compatible on purpose, and so is this.
+const plotsOf = (entry) =>
+  entry?.plots?.length
+    ? entry.plots
+    : entry
+      ? [{
+          value: entry.indicator,
+          label: entry.label,
+          conditions: entry.conditions,
+          default_threshold: entry.default_threshold,
+        }]
+      : []
 
 function fmtTriggeredAt(epochSec) {
   if (!epochSec) return null
@@ -79,10 +79,12 @@ function fmtTriggeredAt(epochSec) {
 export default function IndicatorAlertPopover({ sym, onClose }) {
   const ownSym = sym ? String(sym).toUpperCase() : ''
   const { alerts } = useIndicatorAlerts()
+  const { catalog, isLoading: catalogLoading, error: catalogError } = useIndicatorAlertCatalog()
 
-  const [indicator, setIndicator] = useState('rsi')
-  const [condition, setCondition] = useState('above')
-  const [threshold, setThreshold] = useState('70')
+  const [indicator, setIndicator] = useState('')
+  const [plot, setPlot] = useState('')
+  const [condition, setCondition] = useState('')
+  const [threshold, setThreshold] = useState('')
   const [tf, setTf] = useState('D')
   const [submitting, setSubmitting] = useState(false)
   const firstFieldRef = useRef(null)
@@ -91,22 +93,77 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
     firstFieldRef.current?.focus()
   }, [])
 
-  // When the indicator changes, reset to a sensible default condition for it.
-  useEffect(() => {
-    const list = CONDITIONS[indicator] || []
-    if (!list.find((c) => c.value === condition)) {
-      setCondition(list[0]?.value || '')
-    }
-    // sensible default thresholds per indicator
-    if (indicator === 'rsi' || indicator === 'mfi') setThreshold('70')
-    else if (indicator === 'williams_r') setThreshold('-20')
-    else if (indicator === 'cci') setThreshold('100')
-    else if (indicator === 'stoch') setThreshold('80')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [indicator])
+  const byIndicator = useMemo(
+    () => new Map(catalog.map((e) => [e.indicator, e])),
+    [catalog],
+  )
 
-  const needsThreshold = THRESHOLD_CONDITIONS.has(condition)
-  const conditionOptions = CONDITIONS[indicator] || []
+  /** Every ADDRESS the catalog can produce → its plot descriptor.
+   *
+   *  Keyed on the address, not on `entry.indicator`, because that is what a
+   *  stored alert holds. Keying on the entry id would report every grouped
+   *  alert (`adx.plusDI`, `ichimoku.tenkan`) as un-evaluatable. */
+  const byAddress = useMemo(() => {
+    const m = new Map()
+    for (const e of catalog) for (const p of plotsOf(e)) m.set(p.value, p)
+    return m
+  }, [catalog])
+
+  const entry = byIndicator.get(indicator) || null
+  const plotOptions = useMemo(() => plotsOf(entry), [entry])
+  const plotEntry = plotOptions.find((p) => p.value === plot) || null
+  const conditionOptions = plotEntry ? plotEntry.conditions || [] : []
+
+  /** Adopt a served PLOT: its first condition and its declared default
+   *  threshold. Both come from the CATALOG, not from a per-indicator `if` ladder
+   *  in this file — that ladder was a sixth hand-written list. */
+  const selectPlot = useCallback((p) => {
+    if (!p) return
+    setPlot(p.value)
+    setCondition(p.conditions?.[0]?.value || '')
+    setThreshold(
+      p.default_threshold === null || p.default_threshold === undefined
+        ? ''
+        : String(p.default_threshold),
+    )
+  }, [])
+
+  /** Adopt a served entry, then its FIRST plot. `plots[0]` is the legacy address
+   *  for every indicator that had one, so an existing user's dropdown opens on
+   *  exactly the alert the bare id has always meant. */
+  const selectEntry = useCallback((e) => {
+    if (!e) return
+    setIndicator(e.indicator)
+    selectPlot(plotsOf(e)[0])
+  }, [selectPlot])
+
+  // Seed (and re-seed) from whatever the server actually offers. While the
+  // catalog is empty — loading, or failed — `indicator` stays '' and the form
+  // has nothing to submit, which is the intended state, not a bug to paper over.
+  useEffect(() => {
+    if (!catalog.length) return
+    if (byIndicator.has(indicator)) return
+    selectEntry(catalog[0])
+  }, [catalog, byIndicator, indicator, selectEntry])
+
+  const conditionEntry = conditionOptions.find((c) => c.value === condition) || null
+  const needsThreshold = !!conditionEntry?.needs_threshold
+  const catalogReady = !catalogLoading && !catalogError && catalog.length > 0
+
+  /** A stored alert's display label, from the served catalog. An alert naming
+   *  something the evaluator cannot evaluate gets its raw id back AND is flagged
+   *  below — that class of row exists (see the module header) and used to render
+   *  indistinguishably from a live one. */
+  const labelForAlert = useCallback(
+    (a) => byAddress.get(a.indicator)?.label || a.indicator,
+    [byAddress],
+  )
+  const conditionLabelForAlert = useCallback(
+    (a) =>
+      byAddress.get(a.indicator)?.conditions?.find((c) => c.value === a.condition)?.label ||
+      a.condition,
+    [byAddress],
+  )
 
   // Alerts filtered to this symbol; most-recently created first.
   const symAlerts = useMemo(() => {
@@ -118,9 +175,12 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
   async function handleAdd(e) {
     e?.preventDefault?.()
     if (!ownSym || submitting) return
+    // ⛔ `plot`, NEVER `indicator`. See `plotsOf` — for a grouped indicator the
+    // entry id has no value function behind it.
+    if (!plot) return
     const payload = {
       sym: ownSym,
-      indicator,
+      indicator: plot,
       condition,
       tf,
     }
@@ -150,27 +210,61 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
       </div>
 
       <form className={styles.form} onSubmit={handleAdd}>
+        {catalogError && (
+          <div className={styles.catalogError} role="alert">
+            Alert types are unavailable right now — try again in a moment.
+          </div>
+        )}
+
         <div className={styles.row}>
-          <span className={styles.label}>Indicator</span>
+          <span className={styles.label} id="ia-indicator-label">Indicator</span>
           <select
             ref={firstFieldRef}
             className={styles.select}
+            aria-label="Indicator"
             value={indicator}
-            onChange={(e) => setIndicator(e.target.value)}
+            disabled={!catalogReady}
+            onChange={(e) => selectEntry(byIndicator.get(e.target.value))}
           >
-            {INDICATORS.map((i) => (
-              <option key={i.value} value={i.value}>
+            {catalog.map((i) => (
+              <option key={i.indicator} value={i.indicator}>
                 {i.label}
               </option>
             ))}
           </select>
         </div>
 
+        {/* Only when there is a choice to make. A single-plot indicator showing
+            a one-option "Plot" dropdown is noise, and every pre-B5 indicator
+            except macd/bb/stoch has exactly one. */}
+        {plotOptions.length > 1 && (
+          <div className={styles.row}>
+            <span className={styles.label}>Plot</span>
+            <select
+              className={styles.select}
+              aria-label="Plot"
+              value={plot}
+              disabled={!catalogReady}
+              onChange={(e) =>
+                selectPlot(plotOptions.find((p) => p.value === e.target.value))
+              }
+            >
+              {plotOptions.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className={styles.row}>
           <span className={styles.label}>Condition</span>
           <select
             className={styles.select}
+            aria-label="Condition"
             value={condition}
+            disabled={!catalogReady}
             onChange={(e) => setCondition(e.target.value)}
           >
             {conditionOptions.map((c) => (
@@ -188,6 +282,7 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
               className={styles.input}
               type="number"
               step="any"
+              aria-label="Threshold"
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
               placeholder="e.g. 70"
@@ -197,7 +292,12 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
 
         <div className={styles.row}>
           <span className={styles.label}>Timeframe</span>
-          <select className={styles.select} value={tf} onChange={(e) => setTf(e.target.value)}>
+          <select
+            className={styles.select}
+            aria-label="Timeframe"
+            value={tf}
+            onChange={(e) => setTf(e.target.value)}
+          >
             {TFS.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
@@ -209,7 +309,7 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
         <button
           type="submit"
           className={styles.addBtn}
-          disabled={!ownSym || submitting || (needsThreshold && !threshold)}
+          disabled={!ownSym || submitting || !catalogReady || !plot || (needsThreshold && !threshold)}
         >
           {submitting ? 'Adding…' : 'Add Alert'}
         </button>
@@ -227,10 +327,15 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
         ) : (
           symAlerts.map((a) => {
             const trigAt = fmtTriggeredAt(a.triggered_at)
-            const indLbl = INDICATOR_LABELS[a.indicator] || a.indicator
-            const condLbl = conditionLabel(a.indicator, a.condition)
+            const indLbl = labelForAlert(a)
+            const condLbl = conditionLabelForAlert(a)
             const thrTxt =
               a.threshold !== null && a.threshold !== undefined ? ` @ ${a.threshold}` : ''
+            // ⭐ THE ROW NOTHING USED TO REPORT. A stored alert naming something
+            // the evaluator has no value function for is accepted by the API and
+            // silently never fires. Only assertable once the catalog has
+            // ACTUALLY arrived — while it is loading every row would look dead.
+            const cannotFire = catalogReady && !byAddress.has(a.indicator)
             return (
               <div
                 key={a.id}
@@ -244,6 +349,11 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
                     {thrTxt} · {a.tf}
                   </div>
                   <div className={styles.alertSub}>
+                    {cannotFire && (
+                      <span className={styles.cannotFire}>
+                        Cannot fire — this alert type is no longer evaluated
+                      </span>
+                    )}
                     {trigAt && (
                       <>
                         <span className={styles.trigCheck}><UIcon name="check" size={13} /></span>

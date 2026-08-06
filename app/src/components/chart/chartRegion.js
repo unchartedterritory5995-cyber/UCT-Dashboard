@@ -64,15 +64,89 @@ export function resolveChartRegion(p) {
   return { type: 'price' }
 }
 
-// Indicator key → human label for menu titles.
-export const INDICATOR_LABELS = {
-  rsi: 'RSI',
-  macd: 'MACD',
-  stoch: 'Stochastic',
-  atr: 'ATR',
-  cci: 'CCI',
-  williamsR: 'Williams %R',
-  mfi: 'MFI',
-  adx: 'ADX',
-  obv: 'OBV',
+/**
+ * FLIP C. The same question against REAL PANES instead of bands.
+ *
+ * Under `paneMode() === 'panes'` an oscillator is not a slice of pane 0 any more,
+ * so "which band contains this y" stops meaning anything and "which PANE contains
+ * this y" starts. The caller reads the rectangles off the renderer
+ * (`chart.panes()`) rather than re-deriving them, which is the whole point: the
+ * bands resolver above computes geometry a SECOND time and can therefore be
+ * right about a chart that does not exist. This one cannot — if the renderer put
+ * the pane somewhere else, this resolver says where the renderer put it.
+ *
+ * Still plain numbers, still no lightweight-charts import. `panes` is an ordered
+ * list of `{key, height}`: `key` is `null` for a pane the engine does not own
+ * (the candles' pane 0, a separate volume pane), and a definition id for an
+ * oscillator's own pane.
+ *
+ * Pane 0 keeps its BANDS, because two things still live inside it: the price area
+ * and — when volume is in overlay mode — the volume band. `pane0Bands` is that
+ * much of `computePaneMargins`' output (or `paneLayout`'s `pane0.volumeMargins`),
+ * and it is read for pane 0 ONLY.
+ *
+ * @param {object} p
+ * @param {number} p.x            click X relative to the chart container (px)
+ * @param {number} p.y            click Y relative to the chart container (px)
+ * @param {number} p.width        container width (px)
+ * @param {number} p.height       container height (px)
+ * @param {number} p.axisWidth    right price-axis width (px)
+ * @param {number} p.timeAxisHeight bottom time-axis height (px)
+ * @param {{key: string|null, height: number}[]} p.panes the renderer's panes, in order
+ * @param {object} [p.pane0Bands] `{volume?: {top,bottom}}` as fractions of pane 0
+ * @param {number} [p.separatorHeight=1] pane divider thickness (px)
+ * @param {string} [p.volumePaneKey='volume'] the key a separate volume pane carries
+ * @returns {{type:'priceAxis'|'timeAxis'|'volume'|'indicator'|'price', key?:string}}
+ */
+export function resolveChartRegionFromPanes(p) {
+  const {
+    x, y, width, height,
+    axisWidth = 0,
+    timeAxisHeight = 0,
+    panes = [],
+    pane0Bands = {},
+    separatorHeight = 1,
+    volumePaneKey = 'volume',
+  } = p
+
+  const plotBottom = height - timeAxisHeight
+  if (y >= plotBottom) return { type: 'timeAxis' }
+  if (axisWidth > 0 && x >= width - axisWidth) return { type: 'priceAxis' }
+
+  let top = 0
+  for (let i = 0; i < panes.length; i++) {
+    const pane = panes[i] || {}
+    const h = Number.isFinite(pane.height) ? pane.height : 0
+    const bottom = top + h
+    // The divider's own pixels are attributed to the pane ABOVE it, so this
+    // returns exactly the same five region types the bands resolver does. A
+    // sixth type would be a new branch every consumer has to learn for a
+    // one-pixel strip, and the menu it would open does not exist yet.
+    if (y < bottom + separatorHeight || i === panes.length - 1) {
+      if (i === 0) {
+        // Pane 0 still holds bands: the overlay-mode volume row is inside it.
+        const band = pane0Bands && pane0Bands.volume
+        if (band && h > 0) {
+          const bandTop = band.top * h
+          const bandBot = (1 - band.bottom) * h
+          if (y >= bandTop && y <= bandBot) return { type: 'volume' }
+        }
+        return { type: 'price' }
+      }
+      if (!pane.key) return { type: 'volume' }
+      if (pane.key === volumePaneKey) return { type: 'volume' }
+      return { type: 'indicator', key: pane.key }
+    }
+    top = bottom + separatorHeight
+  }
+  return { type: 'price' }
 }
+
+// ⛔ NO LABEL TABLE HERE. `INDICATOR_LABELS` used to live on this line — nine
+// hand-written names in a module whose header says it is "kept free of
+// Lightweight-Charts / DOM objects so it can be unit-tested with plain numbers",
+// i.e. a module whose whole point is not knowing what an indicator is. It was
+// also the THIRD spelling of `Williams %R` in the tree. The resolver returns a
+// KEY; `indicatorCatalog.labelFor(key)` names it, at the one call site that
+// renders a title. `chartRegion.test.js` asserts this file exports the resolver
+// and nothing else, so the table cannot quietly come back.

@@ -134,3 +134,82 @@ describe('signature indicator toggles', () => {
     }
   })
 })
+
+describe('engine settings passthrough (settingsVersion + indicatorInstances)', () => {
+  // Same allow-list hazard as `signature` above, landed BEFORE any writer
+  // exists: mergeChartSettings' return is an explicit key list, so a key it
+  // does not name is silently destroyed on every read-merge-write cycle. These
+  // pin the merge lines, not just the defaults.
+  it('settingsVersion and indicatorInstances survive a merge round-trip', () => {
+    const merged = mergeChartSettings(JSON.stringify({
+      settingsVersion: 2,
+      indicatorInstances: [{ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } }],
+    }))
+    expect(merged.settingsVersion).toBe(2)
+    expect(merged.indicatorInstances).toHaveLength(1)
+    expect(merged.indicatorInstances[0]).toEqual({ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } })
+  })
+
+  it('defaults them when absent — engine state starts empty, not undefined', () => {
+    const merged = mergeChartSettings(null)
+    // ⭐ B5 TASK 9: version 2. The blob stops enumerating indicators, and the
+    // READ is what heals — so what comes out is the current version whatever
+    // went in, and a fresh blob starts there.
+    expect(merged.settingsVersion).toBe(2)
+    expect(merged.indicatorInstances).toEqual([])
+  })
+
+  it('⭐ …and the version is what comes OUT, not what went in — the read heals', () => {
+    // The R2 hazard, asserted directly: a preset (or an older tab) writing
+    // `settingsVersion: 1` must not make the fold re-run on every load and
+    // re-seed instances the user has since deleted. Whatever the blob claims,
+    // the answer is the current version.
+    for (const stored of [undefined, 0, 1, 2, 99, 'two', null]) {
+      const merged = mergeChartSettings(JSON.stringify({ settingsVersion: stored }))
+      expect(merged.settingsVersion, `stored settingsVersion: ${JSON.stringify(stored)}`).toBe(2)
+    }
+  })
+
+  it('a non-array indicatorInstances is coerced, never trusted', () => {
+    const merged = mergeChartSettings(JSON.stringify({ indicatorInstances: { nope: true } }))
+    expect(merged.indicatorInstances).toEqual([])
+  })
+
+  // ─── engineEnabled — DELETED AT B5 TASK 4, AND THE CASES ARE INVERTED ──────
+  //
+  // ⭐ THREE CASES STOOD HERE AND THEY ASSERTED THE MERGE RULE ITSELF: *defaults
+  // OFF — the engine lands dark*, *survives the merge when explicitly true*, and
+  // *only a boolean true enables it*. The record's §9 named them as three of the
+  // six things that would go red the day the flag moved, and they did.
+  //
+  // They are inverted rather than deleted, because "the tests are gone" and "the
+  // key is gone" look identical in a green suite. `mergeChartSettings`' return is
+  // a hard ALLOW-LIST, so the whole of the old behaviour collapses into one
+  // sentence: whatever the blob says, the key is not emitted.
+  //
+  // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
+  it('engineEnabled is not declared — a default flip is not even available', () => {
+    expect(Object.prototype.hasOwnProperty.call(CHART_DEFAULTS, 'engineEnabled')).toBe(false)
+    expect('engineEnabled' in mergeChartSettings(null)).toBe(false)
+  })
+
+  it('engineEnabled does NOT survive the merge, even when explicitly true', () => {
+    const merged = mergeChartSettings(JSON.stringify({ engineEnabled: true }))
+    expect('engineEnabled' in merged).toBe(false)
+    // …and the surrounding blob is otherwise intact, so this is the allow-list
+    // dropping ONE key and not the merge failing.
+    expect(merged.settingsVersion).toBe(2)
+    expect(merged.indicatorInstances).toEqual([])
+  })
+
+  it('every stored value of it is destroyed alike — true, false and the impostors', () => {
+    // The old rule distinguished a boolean `true` from "a `1` out of a URL param,
+    // a leftover string, a stray object", because the flag decided whether a whole
+    // second render path ran. There is no path and no flag: the allow-list treats
+    // all of these the way it treats any key nobody declared.
+    for (const value of [true, false, '1', 1, 'true', 'false', {}, [], 'yes']) {
+      const merged = mergeChartSettings(JSON.stringify({ engineEnabled: value }))
+      expect('engineEnabled' in merged, `engineEnabled: ${JSON.stringify(value)}`).toBe(false)
+    }
+  })
+})

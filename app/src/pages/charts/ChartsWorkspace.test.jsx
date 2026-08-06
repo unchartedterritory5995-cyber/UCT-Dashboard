@@ -1,6 +1,11 @@
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 // Mock the widget host + heavy children so we don't bring in real widget
 // internals. WidgetHost surfaces the widget type so tests can assert which
@@ -67,7 +72,8 @@ vi.mock('../../hooks/useChartLayouts', () => ({
   }),
 }))
 
-import ChartsWorkspace from './ChartsWorkspace'
+import ChartsWorkspace, { uctDefaultChartSettings } from './ChartsWorkspace'
+import { CHART_DEFAULTS, mergeChartSettings } from '../../components/chart/chartDefaults'
 
 function renderWS() {
   return render(
@@ -124,6 +130,149 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
   )
   expect(chartSettingsSave).toBeTruthy()
+})
+
+// ── ENUMERATION SITE #22 — the Flip-B landmine in two menu items ────────────
+//
+// `UCT_DEFAULT_CHART_SETTINGS_JSON` is a frozen July capture that hand-lists all
+// fifteen indicator sections and carries NO engine keys at all (the engine did
+// not exist when it was taken). Three first-class actions write it verbatim into
+// `chart_settings`, so whatever `uctDefaultChartSettings()` does not stamp from
+// the LIVE default is pinned forever for everyone who clicks a menu item.
+//
+// ⭐⭐ B5 TASK 4 REMOVED HALF OF THIS DEFECT BY REMOVING ITS SUBJECT.
+//
+// What stood here described a two-key hazard: the capture carried neither
+// `engineEnabled` nor `indicatorInstances`, and because `mergeChartSettings` read
+// `parsed.engineEnabled === true` — the PARSED BLOB, not the default — an absent
+// key and an explicit `false` were the same answer, so clicking "UCT Default"
+// after Flip B landed a user on a board where RSI / MACD / BB / VWAP were
+// undrawable. **The flag is deleted**, so there is nothing to pin and nothing to
+// stamp; `indicatorInstances` is the one key still stamped, and the hazard it
+// answers is unchanged.
+//
+// 🔑 THE ASSERTION THAT MATTERS IS STILL KEY PRESENCE, NOT THE VALUE — the
+// `indicatorInstances` half was always the one a value check could not carry
+// (`[]` deep-equals `[]` whichever side it came from), which is why the reference
+// identity and the presence check are what kill the "route the write back through
+// the raw literal" mutation.
+//
+// ⚠️ AND THE FLAG'S HALF CANNOT BE ASSERTED BY READING THE OUTPUT AT ALL. A
+// half-deletion that left `parsed.engineEnabled = CHART_DEFAULTS.engineEnabled` in
+// place would assign `undefined`, and **`JSON.stringify` DROPS an `undefined`
+// value** — so the persisted string is byte-identical either way and every test in
+// this file passes on the un-deleted code. The source scan in
+// `engineEnabledMigration.test.js` is what covers it; this comment is here so the
+// next reader does not try to add a check that cannot work.
+function persistedChartSettings() {
+  const call = setPref.mock.calls.find(([k]) => k === 'chart_settings')
+  expect(call, 'no chart_settings write happened at all').toBeTruthy()
+  expect(typeof call[1], 'chart_settings is persisted as a JSON string').toBe('string')
+  return JSON.parse(call[1])
+}
+
+function expectEngineKeysFollowTheDefault(parsed) {
+  expect(
+    Object.prototype.hasOwnProperty.call(parsed, 'indicatorInstances'),
+    'the persisted blob must carry indicatorInstances EXPLICITLY — the frozen capture predates '
+    + 'the engine, so an absent key here pins the pre-engine value for every menu click',
+  ).toBe(true)
+  expect(Array.isArray(parsed.indicatorInstances)).toBe(true)
+  expect(parsed.indicatorInstances).toEqual(CHART_DEFAULTS.indicatorInstances)
+  // …and the deleted flag is not resurrected on the way out.
+  expect(Object.prototype.hasOwnProperty.call(parsed, 'engineEnabled'),
+    'the write stamped a key that no longer exists').toBe(false)
+  // …and read back through the real merge, which is what StockChart sees.
+  expect(mergeChartSettings(JSON.stringify(parsed)).indicatorInstances).toEqual([])
+}
+
+test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  const parsed = persistedChartSettings()
+  // Still the frozen capture in every respect it was actually a capture of.
+  expect(parsed.header.titleMode).toBe('both')
+  expectEngineKeysFollowTheDefault(parsed)
+})
+
+test('site #22: "New Layout" persists the same engine keys (it writes the same blob)', () => {
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /new layout/i }).click() })
+  expectEngineKeysFollowTheDefault(persistedChartSettings())
+})
+
+test('site #22: the written blob follows the default when the default MOVES', () => {
+  // The tests above can only assert key PRESENCE, because `[]` deep-equals `[]`
+  // whichever side it came from. This is the assertion that actually pins "follows
+  // the default", by moving the default and watching the write follow.
+  //
+  // ⚠️ IT USED TO DRIVE `CHART_DEFAULTS.engineEnabled` (Flip B was exactly that
+  // line changing). B5 Task 4 deleted the flag, so the probe is re-pointed at the
+  // OTHER stamped key — which is the one that survives into Task 9 and beyond, and
+  // which the deletion left behind on purpose.
+  const restore = CHART_DEFAULTS.indicatorInstances
+  const moved = [{ instanceId: 'probe:rsi', defId: 'rsi', inputs: {} }]
+  try {
+    CHART_DEFAULTS.indicatorInstances = moved
+    const parsed = JSON.parse(uctDefaultChartSettings())
+    expect(parsed.indicatorInstances,
+      'the frozen capture is still pinning the pre-engine instance list').toEqual(moved)
+    expect(mergeChartSettings(uctDefaultChartSettings()).indicatorInstances).toEqual(moved)
+  } finally {
+    CHART_DEFAULTS.indicatorInstances = restore
+  }
+  // …and back to the shipped default, so nothing leaks into another test.
+  expect(JSON.parse(uctDefaultChartSettings()).indicatorInstances).toEqual(restore)
+})
+
+test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and names no engine key', () => {
+  // Read from the shipping source, not from a hand-copy. Asserting this against
+  // `uctDefaultChartSettings()` would be circular — that function is the fix.
+  // The two tests above are only non-vacuous if the raw literal they route
+  // around genuinely lacks the keys, and this is where that is established.
+  const src = fs.readFileSync(path.join(HERE, 'ChartsWorkspace.jsx'), 'utf8')
+  // Greedy `.*` is safe and CRLF-proof: `.` never matches a newline, the literal
+  // is one line, and the JSON inside it quotes with `"` only.
+  const m = src.match(/const UCT_DEFAULT_CHART_SETTINGS_JSON = '(\{.*\})'/)
+  expect(m, 'the frozen chart-settings literal moved — this rail no longer reads it').toBeTruthy()
+  const frozen = JSON.parse(m[1])
+
+  // ⭐⭐ B5 TASK 9 RETIRED LEDGER ROW 14 (site #22). The literal used to hand-list
+  // FIFTEEN indicator sections — a third copy of ledger sites #1 and #2 — and it
+  // now carries the ONE key `mergeChartSettings` still emits. The claim is
+  // INVERTED rather than deleted, because "the capture stopped enumerating" and
+  // "the assertion was removed" are the same green suite otherwise.
+  expect(Object.keys(frozen.indicators),
+    'the frozen capture is enumerating indicators again').toEqual(['volumeProfile'])
+
+  // …and no engine key is in it, which is the whole defect. (It named TWO until
+  // B5 Task 4; `engineEnabled` is asserted absent from BOTH sides now, and that
+  // is not redundant — a resurrected flag in the frozen literal would be the
+  // pre-migration value pinned for every menu click, which is the exact shape
+  // this site exists to refuse.)
+  expect(Object.prototype.hasOwnProperty.call(frozen, 'engineEnabled')).toBe(false)
+  expect(Object.prototype.hasOwnProperty.call(frozen, 'indicatorInstances')).toBe(false)
+
+  // The wrapper ADDS exactly TWO engine keys and changes nothing else — the
+  // frozen capture stays byte-faithful about everything it was a capture of.
+  // ⭐ B5 TASK 9 added the second: `settingsVersion`. The capture predates
+  // versioning, so without the stamp every click of **UCT Default** would write a
+  // v1-shaped blob the read-time fold re-runs on — record §6's R2 loop.
+  const wrapped = JSON.parse(uctDefaultChartSettings())
+  expect(Object.prototype.hasOwnProperty.call(wrapped, 'engineEnabled'),
+    'the wrapper stamped a key that no longer exists').toBe(false)
+  expect(wrapped.settingsVersion, 'the template writes a pre-v2 blob').toBe(2)
+  delete wrapped.indicatorInstances
+  delete wrapped.settingsVersion
+  expect(wrapped).toEqual(frozen)
+
+  // Nothing may write the raw literal to `chart_settings` — the fix is the
+  // wrapper, and a fourth writer added later must go through it too.
+  const rawWrites = src.match(/setPref\('chart_settings',\s*UCT_DEFAULT_CHART_SETTINGS_JSON\)/g)
+  expect(rawWrites, 'a chart_settings write bypasses uctDefaultChartSettings()').toBeNull()
+  expect(src.match(/setPref\('chart_settings',\s*uctDefaultChartSettings\(\)\)/g)).toHaveLength(3)
 })
 
 test('Save-as-template captures the current chart settings into the saved template', () => {
