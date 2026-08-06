@@ -79,6 +79,16 @@ _EARNINGS_AI_MAX_TOKENS         = 1800     # post-earnings: rich narrative + 5 s
 _EARNINGS_PREVIEW_AI_MAX_TOKENS = 1800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
+# `enrich_earnings_response` (earnings_enrichment.py) ALWAYS returns a dict
+# with all six of these keys present (value or None) -- it never raises.
+# Fewer than six keys means the 25s deadline in the fan-out cut it off before
+# every leg resolved (a shed partial), and zero keys means the outer
+# try/except here caught a total failure. Either way that's a fan-out
+# failure, distinct from an individual leg being legitimately None (a stock
+# with no options, no recent quotes, etc. — normal and NOT a reason to
+# refetch). See _generate_earnings_analysis / _generate_earnings_preview.
+_ENRICHMENT_LEG_KEYS = ("pre_earnings", "hist_moves", "revisions",
+                        "beat_surprises", "implied_move", "key_quotes")
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
 _EARNINGS_AI_MODEL          = os.environ.get("EARNINGS_AI_MODEL", "claude-sonnet-5")  # Haiku→Sonnet 4.6 (2026-05-27)→Sonnet 5 (2026-07-12, richer previews; now generate-once + disk-persisted so the better model is affordable). Env-overridable.
 
@@ -444,7 +454,12 @@ def get_themes(period: str = "1W") -> dict:
                 # handle a missing Today value.
                 synthetic[ticker] = {**data, "Today": None}
             else:
-                synthetic[ticker] = {**data, "Today": snap.get(ticker, 0.0)}
+                # `Number(null) === 0` in Python form: defaulting a missing
+                # snapshot to 0.0 rendered EVERY theme at exactly +0.00% on a
+                # Massive outage/miss, indistinguishable from a real flat
+                # print. The curated-only branch two lines up already gets
+                # this right (`"Today": None`) — match it here.
+                synthetic[ticker] = {**data, "Today": snap.get(ticker)}
 
         result = _normalize_themes(synthetic, "Today")
         cache.set(cache_key, result, ttl=30)
@@ -472,8 +487,14 @@ def get_themes(period: str = "1W") -> dict:
             import morning_wire_engine as eng
             raw = eng.fetch_theme_tracker()
         except Exception as e:
+            # This branch only fires when the direct `morning_wire_engine`
+            # import succeeds at all (local-dev fallback only — production
+            # reaches themes via wire_data/`/api/push`) but the fetch itself
+            # raises: always a failure, never a legitimate empty result. A 1h
+            # TTL on an error placeholder used to outlive most local-dev
+            # sessions; retry in a few minutes instead.
             result = {"leaders": [], "laggards": [], "period": period, "error": str(e)}
-            cache.set(cache_key, result, ttl=3600)
+            cache.set(cache_key, result, ttl=300)
             return result
 
     result = _normalize_themes(raw, period)
@@ -495,7 +516,14 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
     for ticker, data in raw.items():
         if not isinstance(data, dict):
             continue
-        pct_val = data.get(period, 0) or 0
+        # `data.get(period, 0) or 0` used to collapse an EXPLICIT None (the
+        # "Today" branch's honest "no snapshot" value, see get_themes) right
+        # back into a fabricated 0 -- `.get(key, default)` only substitutes
+        # the default when the KEY is absent, not when its value is None, so
+        # the `or 0` was doing that collapsing instead. Every theme rendered
+        # at exactly +0.00% on a snapshot miss, indistinguishable from a
+        # genuinely flat print.
+        pct_val = data.get(period)
         pct_str = f"{pct_val:+.2f}%" if isinstance(pct_val, (int, float)) else str(pct_val)
         bar = min(100, max(0, abs(pct_val) * 8)) if isinstance(pct_val, (int, float)) else 50
 
@@ -519,7 +547,10 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
             "intl_count": intl_count,
         })
 
-    items.sort(key=lambda x: x["pct_val"], reverse=True)
+    # None-valued items sink to the end deterministically (tuple compares
+    # the "is missing" flag first) instead of raising `TypeError: '>=' not
+    # supported between instances of 'NoneType' and 'int'`.
+    items.sort(key=lambda x: (x["pct_val"] is None, x["pct_val"] or 0), reverse=True)
 
     def clean(item):
         return {
@@ -532,8 +563,11 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
             "intl_count": item["intl_count"],
         }
 
-    leaders  = [clean(i) for i in items if i["pct_val"] >= 0]
-    laggards = [clean(i) for i in reversed(items) if i["pct_val"] < 0]
+    # A theme whose period value is honestly absent is excluded from the
+    # ranked leaders/laggards split rather than fabricated into either
+    # bucket at a fake 0.00% — absent renders as absent.
+    leaders  = [clean(i) for i in items if i["pct_val"] is not None and i["pct_val"] >= 0]
+    laggards = [clean(i) for i in reversed(items) if i["pct_val"] is not None and i["pct_val"] < 0]
 
     return {"leaders": leaders, "laggards": laggards, "period": period}
 
@@ -1251,11 +1285,21 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
         "key_quotes":        enrichment.get("key_quotes"),
         "signals_hash":      _sig,   # inputs fingerprint for skip-if-stable
     }
-    # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
-    ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS
+    # TTL/persist decided on the AI leg alone used to let a total enrichment
+    # fan-out failure (pre_earnings/hist_moves/revisions/beat_surprises/
+    # implied_move/key_quotes ALL missing) get the full 12h TTL and a
+    # PERMANENT disk write as long as Claude itself produced text. Since
+    # `signals_hash` is derived only from `row` (deliberately, to avoid
+    # re-billing Claude every cycle over churning fetch data — see
+    # `_earnings_signals_hash`), a disk-persisted partial would satisfy the
+    # skip-if-stable reuse check forever and never get a chance to re-fetch
+    # the missing legs.
+    enrichment_complete = all(k in enrichment for k in _ENRICHMENT_LEG_KEYS)
+    complete = analysis is not None and enrichment_complete
+    ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
-    if analysis is not None:
-        _ai_store.put("analysis", sym, result)   # persist only real output
+    if complete:
+        _ai_store.put("analysis", sym, result)   # persist only real, complete output
     return result
 
 
@@ -1611,10 +1655,16 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         "key_quotes":      enrichment.get("key_quotes"),
         "signals_hash":    _sig,   # inputs fingerprint for skip-if-stable
     }
-    ttl = _EARNINGS_CACHE_TTL_HIT if preview_text else _EARNINGS_CACHE_TTL_MISS
+    # Same extension as _generate_earnings_analysis: a real preview_text with
+    # a totally-failed enrichment fan-out must not get the 12h TTL or the
+    # permanent disk write (see that function's comment for why signals_hash
+    # can't catch this on its own).
+    enrichment_complete = all(k in enrichment for k in _ENRICHMENT_LEG_KEYS)
+    complete = bool(preview_text) and enrichment_complete
+    ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
-    # Persist only real output — a miss stays lazy so it retries.
-    if preview_text:
+    # Persist only real, complete output — a miss/partial stays lazy so it retries.
+    if complete:
         _ai_store.put("preview", sym, result)
     return result
 
@@ -1808,12 +1858,23 @@ _news_refresh_lock = _threading.Lock()
 _news_refreshing = False
 
 
-def _store_news(result: list, ttl: float) -> None:
-    """Write the fresh-cache entry and (if it's a real payload) the stale copy."""
+def _store_news(result: list, ttl: float, healthy: bool | None = None) -> None:
+    """Write the fresh-cache entry and (if it's a real, healthy payload) the
+    stale copy.
+
+    `healthy` lets a caller that knows WHICH source produced `result`
+    distinguish "the primary source (AV) actually succeeded" from "merely no
+    explicit `error` key" — an RSS-only fallback payload has neither an
+    `error` key nor a healthy primary source, so the old truthiness-only
+    check couldn't tell them apart. Defaults to that weaker check for callers
+    that don't know the difference.
+    """
     cache.set("news", result, ttl=ttl)
+    ok = healthy if healthy is not None else bool(result and not result[0].get("error"))
     # Only keep a successful payload as the stale fallback — never let an error
-    # placeholder become the value served to every user for the next window.
-    if result and not result[0].get("error"):
+    # placeholder (or, now, an unhealthy-source payload) become the value
+    # served to every user for the next window.
+    if ok:
         _news_stale["value"] = result
 
 
@@ -2074,9 +2135,17 @@ def _compute_news() -> list:
                    "time": "", "category": "GENERAL", "sentiment": "neutral",
                    "tickers": [], "change_pct": None, "error": str(e)}]
 
-    # Use longer TTL when AV worked (preserve quota); shorter when RSS fallback used
-    _ttl = 1800 if (result and not result[0].get("error")) else 600
-    _store_news(result, ttl=_ttl)
+    # `result[0].get("error")` is never set on an RSS-only fallback payload
+    # (RSS items carry no "error" key), so this used to give an AV-rate-
+    # limited, RSS-only result the SAME full 30-min success TTL as a healthy
+    # AV pull — and the same eternal "last good" stale slot below. RSS only
+    # ever fires when AV was empty/rate-limited (see the `if _av_rate_limited
+    # or not av_filtered` gate above), so "AV actually contributed" is the
+    # honest source-health signal, not "no error key happened to be present."
+    _av_ok = bool(av_filtered) and not _av_rate_limited
+    _healthy = bool(result and not result[0].get("error") and _av_ok)
+    _ttl = 1800 if _healthy else 600
+    _store_news(result, ttl=_ttl, healthy=_healthy)
     return result
 
 

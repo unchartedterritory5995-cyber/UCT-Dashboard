@@ -11,11 +11,13 @@ from datetime import date, timedelta
 _logger = logging.getLogger(__name__)
 
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services.massive import get_agg_bars
 from api.services.theme_performance import _compute_returns_with_refs
 
 _MAX_WORKERS = 2  # Conservative for Railway 512MB — prevents thread explosion
 _CACHE_TTL = 300  # 5 minutes
+_CACHE_TTL_PARTIAL = 30  # any per-ticker fetch failure in the batch — retry in 30s, not 5 min
 
 # Periods for which we surface the REFERENCE close price so the client can recompute
 # the % against a live intraday price, tick-by-tick (like the daily change column).
@@ -48,6 +50,7 @@ def get_batch_returns(tickers: list[str]) -> dict:
         return cached
 
     results = {}
+    any_failed = False
     with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
         futures = {pool.submit(_fetch_ticker_returns, t): t for t in deduped}
         for future in futures:
@@ -56,9 +59,16 @@ def get_batch_returns(tickers: list[str]) -> dict:
                 results[ticker] = future.result(timeout=15)
             except Exception as e:
                 _logger.warning("Failed to fetch returns for %s: %s", ticker, e)
+                any_failed = True
                 results[ticker] = {"1d": None, "1w": None, "1m": None, "3m": None, "ytd": None,
                                    "5d": None, "30d": None, "60d": None, "90d": None,
                                    "refs": {k: None for k in _REF_PERIODS}}
 
-    cache.set(cache_key, results, _CACHE_TTL)
+    # A per-ticker failure writes an all-None row into the SAME batch dict
+    # that healthy tickers share — caching the whole batch at the full 5-min
+    # TTL pinned that failed ticker's row blank for 5 min even though its
+    # peers in the same request succeeded. `any_failed` tracks whether every
+    # future in this batch actually completed.
+    set_by_completeness(cache_key, results, complete=not any_failed,
+                         ttl_ok=_CACHE_TTL, ttl_partial=_CACHE_TTL_PARTIAL)
     return results
