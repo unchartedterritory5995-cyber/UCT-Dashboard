@@ -65,6 +65,10 @@ _STRIKES_AROUND_SPOT = 4
 # that actually printed.
 _QUOTE_CUTOFF_UTC = "T21:00:00Z"
 
+# Largest tolerated gap between the chosen ATM strike and spot. See the
+# refusal in historical_expected_move.
+_MAX_ATM_DEVIATION = 0.20
+
 
 def _prior_session_close(sym: str, report_date: str) -> tuple[str, float] | None:
     """(date, close) of the last session with a print strictly BEFORE the
@@ -79,7 +83,15 @@ def _prior_session_close(sym: str, report_date: str) -> tuple[str, float] | None
     try:
         data = polygon_options._safe_get(
             f"{polygon_options._BASE}/v2/aggs/ticker/{to_polygon_symbol(sym.upper())}/range/1/day/{start}/{end}",
-            {"adjusted": "true", "sort": "desc", "limit": 10},
+            # adjusted=FALSE on purpose. Split-adjusted closes are restated
+            # into TODAY's share terms, but `as_of` contract discovery returns
+            # the strikes that were listed THEN, unadjusted. For any symbol
+            # that split between the report and now, the two would be on
+            # different scales — and the ATM pick would silently land on a
+            # far-from-the-money strike rather than fail, producing a
+            # confident wrong number. The raw close is the one that matches
+            # the contemporaneous strike ladder.
+            {"adjusted": "false", "sort": "desc", "limit": 10},
         )
     except Exception as exc:
         _log.warning("implied_backfill: spot fetch failed for %s: %s", sym, exc)
@@ -200,6 +212,20 @@ def historical_expected_move(sym: str, report_date: str) -> dict | None:
     straddle = straddle_from_rows(calls, puts, spot)
     if straddle is None:
         _log.debug("implied_backfill %s %s: no usable ATM straddle", sym, report_date)
+        return None
+
+    # Backstop for a spot/strike SCALE mismatch (an unhandled split, a
+    # symbol reused by a different company, a ladder that does not reach
+    # the money). `straddle_from_rows` picks the NEAREST strike, so it
+    # cannot detect this on its own — with a mismatch it happily returns a
+    # straddle on a deep-OTM pair and the implied move comes out enormous
+    # but well-formed. A real ATM strike sits within a few percent of spot;
+    # 20% is loose enough for a wide ladder on an illiquid name and tight
+    # enough that a scale error cannot pass.
+    if abs(straddle["strike"] - spot) / spot > _MAX_ATM_DEVIATION:
+        _log.warning("implied_backfill %s %s: ATM strike %.2f is %.0f%% from spot %.2f "
+                     "— refusing (scale mismatch?)", sym, report_date,
+                     straddle["strike"], abs(straddle["strike"] - spot) / spot * 100, spot)
         return None
 
     return {

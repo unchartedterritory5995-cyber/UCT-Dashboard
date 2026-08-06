@@ -226,6 +226,20 @@ def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def all_symbols() -> list[str]:
+    """Every symbol with at least one snapshot, ascending.
+
+    Drives `tools/implied_backfill_run.py --from-store`: the names the nightly
+    capture already tracks are exactly the ones worth reconstructing history
+    for, since a backfilled quarter is only useful next to the live ones."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT DISTINCT sym FROM implied_snapshots ORDER BY sym"
+        ).fetchall()
+    return [r["sym"] for r in rows]
+
+
 def get_earliest_report_date(sym: str) -> str | None:
     """MIN(report_date) for a symbol — drives the router's `history_since`
     without drifting once more than `limit` snapshots exist for a name."""

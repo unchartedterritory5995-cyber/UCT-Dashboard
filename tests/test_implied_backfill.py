@@ -209,8 +209,12 @@ class TestStoreCompatibility:
         row must win over a backfilled one no matter which order they arrive,
         because the live capture is the real observation."""
         from api.services import implied_store as store
-        monkeypatch.setattr(store, "_DB_PATH", str(tmp_path / "implied.db"), raising=False)
-        monkeypatch.setattr(store, "_INITIALIZED", set(), raising=False)
+        # DB_PATH, not _DB_PATH: patching a name the module does not have
+        # (with raising=False) silently creates a dead attribute and the test
+        # writes to the REAL data dir. raising defaults to True here ON
+        # PURPOSE so a future rename fails loudly instead of leaking again.
+        monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "implied.db"))
+        monkeypatch.setattr(store, "_INITIALIZED", set())
 
         live = {"pct": 6.0, "dollar": 11.0, "expiry": "2025-11-21", "strike": 182.5,
                 "spot": SPOT, "iv_atm": 0.6, "source": "massive-chain"}
@@ -332,3 +336,48 @@ class TestFiscalJoin:
         monkeypatch.setattr(ee_mod, "_fh_get",
                             lambda p, q: [{"period": "2023-03-31", "year": 2023, "quarter": 1}])
         assert run.past_reports("NVDA", 4) == []
+
+
+def test_all_symbols_returns_distinct_syms(tmp_path, monkeypatch):
+    """--from-store depends on this; an earlier version of the tool guarded it
+    with hasattr and would have silently exited 2 instead of backfilling."""
+    from api.services import implied_store as store
+    monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "i.db"))
+    monkeypatch.setattr(store, "_INITIALIZED", set())
+    assert store.all_symbols() == []
+    p = {"pct": 5.0, "dollar": 9.0, "expiry": "2025-11-21", "strike": 1.0,
+         "spot": 1.0, "iv_atm": None, "source": "massive-backfill"}
+    store.record_implied("NVDA", "2025-11-19", p, "2025-11-18T21:00:00Z")
+    store.record_implied("NVDA", "2025-08-27", p, "2025-08-26T21:00:00Z")
+    store.record_implied("AAPL", "2025-10-30", p, "2025-10-29T21:00:00Z")
+    assert store.all_symbols() == ["AAPL", "NVDA"]
+
+
+class TestScaleMismatch:
+    """A split between the report and now puts spot and strikes on different
+    scales. `straddle_from_rows` picks the NEAREST strike, so it cannot detect
+    this — it returns a well-formed straddle on a deep-OTM pair and the implied
+    move comes out enormous but confident. That is the exact failure mode this
+    whole module is written to avoid, so it gets an explicit backstop.
+    """
+
+    def test_spot_is_requested_UNADJUSTED(self, api):
+        """Split-adjusted closes are restated into today's share terms;
+        `as_of` strikes are the ones listed then. They must match."""
+        ib.historical_expected_move("NVDA", REPORT)
+        aggs = [p for (u, p) in api.calls if "/v2/aggs/" in u]
+        assert aggs, "no spot fetch"
+        for p in aggs:
+            assert p["adjusted"] == "false", p
+
+    def test_far_from_the_money_atm_is_refused(self, monkeypatch):
+        # Spot restated 10:1 lower than the strikes that existed then: the
+        # nearest strike (175) is ~10x spot.
+        fake = FakeApi(agg_results=[{"c": 18.14, "t": PRIOR_MS}])
+        monkeypatch.setattr(polygon_options, "_safe_get", fake)
+        assert ib.historical_expected_move("NVDA", REPORT) is None
+
+    def test_a_normal_atm_pick_still_passes(self, api):
+        out = ib.historical_expected_move("NVDA", REPORT)
+        assert out is not None
+        assert abs(out["strike"] - out["spot"]) / out["spot"] <= 0.20
