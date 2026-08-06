@@ -17,10 +17,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
-import os
 from typing import Optional
-
-import requests as _req
 
 _logger = logging.getLogger(__name__)
 
@@ -68,24 +65,46 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
                      `reportTime` "post-market"/"pre-market", etc.)
 
     Returns: {avg_abs_move_pct, moves_pct[], n_quarters} or None.
+
+    `moves_pct` is POSITIONALLY ALIGNED with `av_quarters[:8]` — index i is
+    ALWAYS that quarter's own reaction, never a neighbour's. A quarter whose
+    reaction cannot be computed (no date, no matching trading day in the
+    price frame, or — the common case on PRINT NIGHT itself — the newest
+    quarter's report date IS the last bar in the frame, so there is no
+    next-day close yet) emits `None` at that index rather than being
+    silently dropped. Dropping it would COMPACT the list, shifting every
+    quarter after it up by one position and re-pairing it to the wrong
+    quarter's reaction (P2 T9 review round 2, CRITICAL) — the identical
+    off-by-one class as `calendar.py`'s since-fixed `reversed()` bug, one
+    layer below it: `earningsHistoryModel.js` index-zips this array onto its
+    own newest-first quarter list by RECENCY RANK, so a slot that can't be
+    computed must stay a gap at that rank, never silently become the
+    NEIGHBOURING quarter's number.
+    `avg_abs_move_pct`/`n_quarters` are computed over the non-null entries
+    only — averaging in a gap, or counting it, would misstate both.
     """
     if not av_quarters:
         return None
     try:
         import yfinance as _yf
+        quarters = av_quarters[:8]
+
+        # Positionally aligned with `quarters`: `dates[i]`/`report_times[i]`
+        # describe `quarters[i]`. A missing/unparseable date degrades ONLY
+        # that slot (`dates[i] = None`) instead of compacting the list.
         dates = []
         report_times = []
-        for q in av_quarters[:8]:
+        for q in quarters:
             d_str = q.get("reportedDate") or q.get("fiscalDateEnding")
-            if not d_str:
-                continue
-            try:
-                d = _dt.datetime.strptime(d_str, "%Y-%m-%d").date()
-                dates.append(d)
-                report_times.append(q.get("reportTime") or "")
-            except (ValueError, TypeError):
-                continue
-        if not dates:
+            d = None
+            if d_str:
+                try:
+                    d = _dt.datetime.strptime(d_str, "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    d = None
+            dates.append(d)
+            report_times.append(q.get("reportTime") or "")
+        if not any(dates):
             return None
 
         df = _yf.Ticker(sym.upper()).history(period="2y", interval="1d", auto_adjust=False)
@@ -97,20 +116,31 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
         opens  = df["Open"].astype(float).tolist()
         closes = df["Close"].astype(float).tolist()
 
-        moves = []
+        moves = []   # positionally aligned with `quarters`/`dates` — see docstring
         for ed, rtime in zip(dates, report_times):
+            if ed is None:
+                moves.append(None)
+                continue
             # Find idx of the report date or nearest trading day
             report_idx = None
             for i in range(len(idx_dates) - 1, -1, -1):
                 if idx_dates[i] <= ed:
                     report_idx = i
                     break
+            # `report_idx` is None (date predates the price window), IS the
+            # very first bar (no prior close to gap from), or IS the very
+            # LAST bar (no next-day close YET — print night for the newest
+            # quarter) — every one of these means "not knowable yet", never
+            # "drop the slot". Every `continue` below emits an explicit
+            # `None` first so the index this quarter occupies is preserved.
             if report_idx is None or report_idx == 0 or report_idx >= len(closes) - 1:
+                moves.append(None)
                 continue
             prev_close  = closes[report_idx - 1]
             report_open = opens[report_idx]
             next_open   = opens[report_idx + 1] if report_idx + 1 < len(opens) else None
             if prev_close <= 0:
+                moves.append(None)
                 continue
             # Pre-market report: gap from prev close to report-day open
             # Post-market report: gap from report-day close to next-day open
@@ -118,6 +148,7 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
                 move = (report_open - prev_close) / prev_close * 100
             elif "post" in (rtime or "").lower():
                 if next_open is None:
+                    moves.append(None)
                     continue
                 report_close = closes[report_idx]
                 move = (next_open - report_close) / report_close * 100
@@ -132,13 +163,14 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
                 move = bmo if amc_move is None or abs(bmo) >= abs(amc_move) else amc_move
             moves.append(move)
 
-        if not moves:
+        computed = [m for m in moves if m is not None]
+        if not computed:
             return None
-        avg_abs = sum(abs(m) for m in moves) / len(moves)
+        avg_abs = sum(abs(m) for m in computed) / len(computed)
         return {
             "avg_abs_move_pct": round(avg_abs, 1),
-            "moves_pct":        [round(m, 1) for m in moves],
-            "n_quarters":       len(moves),
+            "moves_pct":        [round(m, 1) if m is not None else None for m in moves],
+            "n_quarters":       len(computed),
         }
     except Exception as e:
         _logger.warning("get_historical_earnings_moves failed for %s: %s", sym, e)
@@ -153,12 +185,13 @@ def get_estimate_revisions(sym: str) -> Optional[dict]:
     Uses Finnhub /stock/recommendation. Returns net change in (strongBuy+buy)
     minus (sell+strongSell) over 30d and 90d.
     """
-    fh_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not fh_key:
-        return None
     try:
-        url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={sym.upper()}&token={fh_key}"
-        resp = _req.get(url, timeout=8).json()
+        # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
+        # call shares the process-wide token bucket / 429 cooldown with every
+        # other Finnhub caller instead of spending the same account budget
+        # uncoordinated.
+        from api.services.finnhub_client import fh_get
+        resp = fh_get("/stock/recommendation", {"symbol": sym.upper()}, timeout=8)
         if not isinstance(resp, list) or not resp:
             return None
         resp.sort(key=lambda x: x.get("period", ""), reverse=True)

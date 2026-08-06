@@ -104,6 +104,15 @@ async def _lifespan(app):
         massive_stream.start()
     except Exception as e:  # noqa: BLE001
         log.exception("massive_stream tailer start failed (non-fatal): %s", e)
+    try:
+        # Curated-tape SSE tailer (self-gated on MASSIVE_CURATED_STREAM_ENABLED):
+        # broadcasts newly-CURATED alerts to /api/live/massive/curated-stream so
+        # the curated feed surfaces instantly instead of on the 20s poll. Same
+        # running-loop requirement as massive_stream above.
+        from api import massive_curated_stream
+        massive_curated_stream.start()
+    except Exception as e:  # noqa: BLE001
+        log.exception("massive_curated_stream tailer start failed (non-fatal): %s", e)
     yield
     # Clean OPRA slot release on SIGTERM (the P1 contract) so the next process's
     # consumer doesn't hit max_connections. Bounded, idempotent, defensive.
@@ -407,7 +416,8 @@ def _start_flow_schedulers():
             # ("No changes to watched files") and the worker keeps the old code.
             # Edits to alpha_gold_eod.py must PIGGYBACK on a watched file (this one
             # / live_massive_router.py) or add it to the worker's watch paths.
-            # (alpha_gold_eod.py edits piggyback here until it's in the watch paths.)
+            # (alpha_gold_eod.py + weekly_flow.py edits piggyback on this file until
+            # those two are added to the flow-worker's Railway watch paths.)
             if os.getenv("ALPHA_GOLD_EOD_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _AGCron
                 from api import alpha_gold_eod as _age
@@ -422,6 +432,32 @@ def _start_flow_schedulers():
                 log.info("[startup] Alpha Gold EOD summary disabled (ALPHA_GOLD_EOD_ENABLED != 1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
+
+        try:
+            # Weekly Conviction Flow → Discord (P2). Fri 16:15 ET; posts one card
+            # per cap in WEEKLY_FLOW_CRON_CAPS (default all + mid_small). Dark
+            # until armed. Runs HERE (flow.db + OI snapshots). Explicit-ET trigger.
+            # ⚠ Same watch-path caveat as alpha_gold_eod: weekly_flow.py rides
+            # this file's builds until it's added to the worker watch paths.
+            # Merged "Open Flow" card (Weekly Conviction + Open Flow unified 8/2):
+            # the Friday push now posts run_standing_cron (Open Flow, net, all +
+            # mid-small). Either arm flag works so an existing WEEKLY_FLOW_ENABLED
+            # setup keeps firing without re-arming.
+            if (os.getenv("WEEKLY_FLOW_ENABLED", "0") == "1"
+                    or os.getenv("STANDING_FLOW_ENABLED", "0") == "1"):
+                from apscheduler.triggers.cron import CronTrigger as _WFCron
+                from api import weekly_flow as _wf
+                sched.add_job(_wf.run_standing_cron,
+                              trigger=_WFCron(day_of_week="fri", hour=16, minute=15,
+                                              timezone=ZoneInfo("America/New_York")),
+                              id="open_flow_push", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] Open Flow cron registered (Fri 16:15 ET)")
+            else:
+                log.info("[startup] Open Flow push disabled (set STANDING_FLOW_ENABLED=1)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Weekly Flow scheduling failed: %s", e)
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "

@@ -1955,6 +1955,16 @@ _recent_fill_sem = threading.Semaphore(
 _RECENT_SELFHEAL = os.environ.get("MASSIVE_RECENT_SELFHEAL", "1") == "1"
 _RECENT_FILL_LEASE_SEC = float(os.environ.get("MASSIVE_RECENT_FILL_LEASE_SEC", "45"))
 _RECENT_SEM_WAIT_SEC = float(os.environ.get("MASSIVE_RECENT_SEM_WAIT_SEC", "20"))
+# GIL breathing room for the WS keepalive (2026-08-05). The _row_to_alert classify
+# loop in _compute_recent is a ~70s CPU pin that, on the flow-worker, runs in a
+# daemon thread (the "recent-warmer" / "massive-recent-fill" threads) and starves
+# the async Massive WS keepalive on the main loop thread -> 1011 ping-timeout ->
+# reconnect gap -> lost prints (NVDA 6750-lot sweep lost in the 10:36 ET reconnect).
+# A tiny sleep every N classified rows releases the GIL so the event-loop thread
+# can answer the ping mid-scan. ~40 yields over an 80k scan ≈ 20ms total; the
+# classification result is unchanged. Kill-switch: MASSIVE_FILL_YIELD_ROWS=0.
+_FILL_YIELD_ROWS = int(os.environ.get("MASSIVE_FILL_YIELD_ROWS", "1500"))  # 0 disables
+_FILL_YIELD_SEC = float(os.environ.get("MASSIVE_FILL_YIELD_SEC", "0.0005"))
 # ck -> (owning_lock, unix ts that lock was acquired). The LOCK OBJECT is the
 # fill's identity token: a steal swaps in a FRESH lock, so a stolen-from thread
 # can tell (by identity) that the lease no longer belongs to it. See _release_fill.
@@ -2490,7 +2500,9 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     # were built above while the flow.db connection was open; a contaminated
     # bid-sell is demoted to Not-Clean below, BEFORE the grade/tier filters so it
     # is filtered on its new "size"/Not-Clean tier, not its original Bear.
-    for r in rows:
+    for _i, r in enumerate(rows):
+        if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
+            time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
         a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
         if a is None:
             skipped_unclassified += 1
@@ -3217,7 +3229,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # `lookback_days` trading days present in the data (default 1 = today).
     # Same-strike/same-exp repeats across days are the strongest accumulation
     # signal — someone building a position with conviction.
-    lookback_days = max(1, min(int(lookback_days or 1), 5))
+    lookback_days = max(1, min(int(lookback_days or 1), 31))   # range picker: up to 31 (was 5)
     if lookback_days <= 1:
         target_dates = [today]
     else:
@@ -3246,21 +3258,28 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         try:
             conn.row_factory = sqlite3.Row
             subqueries, params = [], []
-            date_ph = ",".join("?" for _ in target_dates)
             _tk_clause = " AND Symbol = ? " if only_ticker else " "
+            # Per-DAY cap (not one global newest-N LIMIT): a global cap let the
+            # busiest recent days eat the whole budget, so a 20-day lookback only
+            # reached ~3 days back (max days_active=3). Capping per (source, date)
+            # guarantees every day in the window is represented → true multi-day
+            # accumulation. Same total row budget → no extra _row_to_alert cost /
+            # no timeout regression.
+            per_day = max(2000, cap // max(1, len(target_dates)))
             for s in sources:
-                subqueries.append(
-                    f"SELECT * FROM ({select_cols} FROM flow "
-                    f"WHERE source = ? AND CreatedDate IN ({date_ph}) AND {color_gate}"
-                    f"{_tk_clause}"
-                    f"ORDER BY id DESC LIMIT ?)"
-                )
-                params.append(s)
-                params.extend(target_dates)
-                params.append(override_sql_floor)
-                if only_ticker:
-                    params.append(only_ticker.strip().upper())
-                params.append(cap)
+                for dt in target_dates:
+                    subqueries.append(
+                        f"SELECT * FROM ({select_cols} FROM flow "
+                        f"WHERE source = ? AND CreatedDate = ? AND {color_gate}"
+                        f"{_tk_clause}"
+                        f"ORDER BY id DESC LIMIT ?)"
+                    )
+                    params.append(s)
+                    params.append(dt)
+                    params.append(override_sql_floor)
+                    if only_ticker:
+                        params.append(only_ticker.strip().upper())
+                    params.append(per_day)
             cur = conn.execute(" UNION ALL ".join(subqueries), params)
             rows = cur.fetchall()
         finally:
@@ -3295,6 +3314,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 "types": set(), "grades": [], "max_oi": 0,
                 "first_ts": None, "last_ts": None, "prints": [],
                 "dates": {},  # M/D/YYYY -> hit count, for multi-day accumulation
+                "tier_prem": {},  # _tierKey -> summed premium (for the tier filter)
             }
             contracts[ckey] = g
         rdate = r["CreatedDate"] if "CreatedDate" in r.keys() else None
@@ -3304,6 +3324,8 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         vol = a.get("tradeSize") or 0
         g["total_premium"] += prem
         g["total_volume"] += vol
+        _tk = a.get("_tierKey") or "algo"     # which tier chip this print belongs to
+        g["tier_prem"][_tk] = g["tier_prem"].get(_tk, 0.0) + prem
         d = a.get("_direction")
         if d == "Bull":
             g["bull_premium"] += prem
@@ -3458,6 +3480,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 shape=accumulation_shape, sided_pct=sided_pct, cum_voi=voi,
             )[0],
             "dormant": dormant, "score": score,
+            # Tiers present in this contract's prints, premium-desc (primary first) —
+            # lets the Alpha Gold / Size / etc. chips filter the By-Contract view.
+            "tiers": [t for t, _ in sorted(g["tier_prem"].items(), key=lambda kv: -kv[1])],
             "first_ts": g["first_ts"], "last_ts": g["last_ts"],
             "prints": sorted(g["prints"], key=lambda p: p["timestamp"] or 0, reverse=True),
         })
@@ -3475,7 +3500,7 @@ def by_contract(
     stock_etf: str = Query(default="all", description="'stocks' | 'etfs' | 'all' — same partition as the feed."),
     min_hits: int = Query(default=3, ge=1, le=20, description="Min qualifying prints (>= cap-scaled floor) for a contract to appear."),
     exclude_algo: bool = Query(default=True),
-    lookback_days: int = Query(default=1, ge=1, le=5, description="Aggregate a contract's hits across the last N trading days (multi-day accumulation). 1 = today only."),
+    lookback_days: int = Query(default=1, ge=1, le=31, description="Aggregate a contract's hits across the last N trading days ending at target_date (multi-day range). 1 = that day only; up to 31 for the range picker."),
 ):
     """One row per contract (ticker+cp+strike+exp) for the day, for contracts
     that were hit >= min_hits times by prints clearing the cap-scaled floor.
@@ -4626,6 +4651,76 @@ def alpha_gold_eod_trigger(
                     headers={"X-Alpha-Gold-Count": str(res.get("count", 0))})
 
 
+@router.post("/weekly-flow")
+def weekly_flow_trigger(
+    post: int = Query(0, description="1 = post to Discord; 0 = return the rendered PNG preview"),
+    days: int = Query(None, description="window in trading days (default env WEEKLY_FLOW_DAYS / 5)"),
+    cap: str = Query("all", description="cap band: all | mega | large | mid_small"),
+    sort_bull: str = Query(None, description="override bull sort: net | premium | pct"),
+    sort_bear: str = Query(None, description="override bear sort: net | premium | pct"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manual trigger for the Weekly Conviction Flow card (top-10 bull/bear
+    still-open flow over N days, DTE-filtered; bulls + bears by Net by default).
+    ?cap=mid_small for the mid-small-cap variant; ?sort_bear=premium etc. to
+    preview a different sort. ?post=0 (default) returns the PNG preview; ?post=1 posts.
+    Bypasses WEEKLY_FLOW_ENABLED. Runs on the flow-worker (flow.db + OI snapshots)."""
+    from api import weekly_flow as wf
+    kw = dict(days=days, cap=cap, sort_bull=sort_bull, sort_bear=sort_bear)
+    if post:
+        return wf.run_weekly(force=True, post=True, **kw)
+    res = wf.run_weekly(force=True, post=False, **kw)
+    png = res.get("png")
+    if not png:
+        return res
+    from fastapi import Response
+    return Response(content=png, media_type="image/png",
+                    headers={"X-Weekly-Names": str(res.get("names", 0))})
+
+
+@router.post("/standing-flow")
+def standing_flow_trigger(
+    post: int = Query(0, description="1 = post to Discord; 0 = return the rendered PNG preview"),
+    days: int = Query(None, description="rolling window in trading days (default env STANDING_FLOW_DAYS / 60)"),
+    cap: str = Query("all", description="cap band: all | mega | large | mid_small | etf"),
+    top_n: int = Query(None, description="names per side (default env STANDING_FLOW_TOP_N / 10)"),
+    sort: str = Query(None, description="net (default) | premium | pct"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manual trigger for the **Open Flow** card (the single merged still-open
+    board — Weekly Conviction + Open Flow unified). Rolling still-open, top-N
+    board; ?sort=net|premium is the one real knob, ?days= the window, ?cap= the
+    band. ?post=0 (default) returns the PNG; ?post=1 posts. Bypasses the enable
+    gate. Runs on the flow-worker (flow.db + OI snapshots)."""
+    from api import weekly_flow as wf
+    kw = dict(days=days, cap=cap, top_n=top_n, sort=sort)
+    if post:
+        return wf.run_standing(force=True, post=True, **kw)
+    res = wf.run_standing(force=True, post=False, **kw)
+    png = res.get("png")
+    if not png:
+        return res
+    from fastapi import Response
+    return Response(content=png, media_type="image/png",
+                    headers={"X-Standing-Names": str(res.get("names", 0))})
+
+
+@router.get("/flow-board")
+def flow_board(
+    days: int = Query(60, description="rolling window in trading days"),
+    cap: str = Query("all", description="cap band: all | mega | large | mid_small"),
+    limit: int = Query(300, description="max names returned"),
+    _auth: dict = Depends(require_flow_user),
+):
+    """JSON still-open directional board for the searchable Open Flow tab — every
+    directional name (not the top-N split), each with bull/bear/net/bullPct + top
+    contract + since + since-open perf. Same engine as the Open Flow card. Runs on
+    the flow-worker (flow.db + OI snapshots). Any logged-in user (require_flow_user)
+    so the tab is a public product feature, not admin-only."""
+    from api import weekly_flow as wf
+    return wf.board_data(days=days, cap=cap, limit=limit)
+
+
 @router.get("/pushed")
 def get_pushed(alert_date: str = Query(None, description="alert_date to filter (defaults to all recent)")):
     """Read-only list of alerts pushed to Discord (manual + auto). Feeds the
@@ -5494,8 +5589,14 @@ async def enrich_oi(
     matched_variant_examples: list[str] = []
     unmatched_count = 0
 
+    # contract_oi_snapshots was migrated OUT of flow.db into the dedicated OI DB
+    # (api/oi_snapshots.OI_DB_PATH). Querying DB_PATH here hit an empty/absent
+    # table → matched=0 for every contract ("no settled OI yet"), i.e. Check OI
+    # silently did nothing. Connect to the OI DB directly — this endpoint only
+    # reads contract_oi_snapshots (no flow.db joins).
+    from api import oi_snapshots as _oisnap
     try:
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        with sqlite3.connect(_oisnap.OI_DB_PATH, timeout=10) as conn:
             # ── Step 1: Detect stored key format from a small probe set.
             # Reuses confirmation-map's proven approach — try up to 20 probe
             # contracts, use the first variant that hits, then commit to that

@@ -29,6 +29,10 @@ _TIMEOUT = 6  # seconds per Finnhub request
 import json as _json
 
 _MARKERS_REFRESH_SECONDS = 24 * 3600
+# Bump when the marker BUILD logic changes so stale disk copies are rebuilt instead
+# of served forever. v2 = splits/dividends sourced from yfinance (were empty under
+# Finnhub's premium-gated endpoints).
+_MARKERS_DISK_VERSION = 2
 _MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
 _markers_refresh_inflight: set[str] = set()
 _markers_refresh_lock = threading.Lock()
@@ -43,6 +47,10 @@ def _markers_disk_read(ticker: str):
     try:
         with open(_markers_disk_path(ticker)) as f:
             blob = _json.load(f)
+        # Version gate: a pre-v2 blob has empty splits/dividends (old Finnhub
+        # source) — ignore it so get_chart_markers rebuilds from yfinance.
+        if int(blob.get("v") or 0) != _MARKERS_DISK_VERSION:
+            return None
         data = blob.get("data")
         if isinstance(data, dict) and "earnings" in data:
             return data, float(blob.get("saved_at") or 0)
@@ -57,7 +65,7 @@ def _markers_disk_write(ticker: str, data: dict) -> None:
         path = _markers_disk_path(ticker)
         tmp = path + ".tmp"
         with open(tmp, "w") as f:
-            _json.dump({"data": data, "saved_at": _time.time()}, f)
+            _json.dump({"v": _MARKERS_DISK_VERSION, "data": data, "saved_at": _time.time()}, f)
         os.replace(tmp, path)  # atomic
     except OSError as e:
         _logger.warning("chart_markers disk write failed for %s: %s", ticker, e)
@@ -89,82 +97,49 @@ def _schedule_markers_refresh(ticker: str) -> None:
     threading.Thread(target=_run, daemon=True, name=f"markers-refresh-{ticker}").start()
 
 
-# Finnhub free tier = 60 calls/min. When a 429 lands, EVERY caller funneling
-# through _fh_get backs off together for this long — without a shared cooldown
-# each enrichment/markers/next-report burst keeps hammering an already-exhausted
-# minute bucket, and because failures used to be uncached the storm re-fired on
-# every recompute (the 2026-07-15 all-dash Beats column).
-_FH_COOLDOWN_SECONDS = 20.0
-_fh_cooldown_until = 0.0
-_fh_cooldown_lock = threading.Lock()
-
-# Endpoints the current Finnhub plan rejects outright (403) — e.g.
-# /stock/price-target moved to premium. Re-probed daily via the cache TTL.
-_FH_FORBIDDEN_TTL = 86_400
+# ── Shared Finnhub REST coordination (moved 2026-08-05) ─────────────────────
+# The token bucket + reactive 429 cooldown + forbidden-endpoint cache that
+# used to live here were promoted to api/services/finnhub_client.py so every
+# Finnhub caller in the codebase — not just this file's own three legs —
+# shares ONE process-wide budget (~15 other files called finnhub.io directly,
+# bypassing this module's bucket entirely; see finnhub_client.py's module
+# docstring for the full incident writeup). The names below are re-exported
+# for backward compatibility: engine.py imports `_fh_get` from here
+# (`from api.services.earnings_estimates import _fh_get as _fh_budgeted`),
+# and this module's own three Finnhub legs (below) still call `_fh_get`
+# unchanged, relying on the shared client's default timeout (6s), which
+# matches this module's original `_TIMEOUT` exactly — so behavior here is
+# byte-for-byte unchanged by the move.
+from api.services.finnhub_client import (
+    fh_get as _fh_get,
+    fh_budget_denied_total,
+    _junk_symbol,
+)
 
 # Distinguishes "cached total failure" from a cache miss (both read back as
 # None through TTLCache.get otherwise). Identity-compared, never mutated.
 _INTEL_FAIL_SENTINEL = {"_intel_failed": True}
 
 
-def _junk_symbol(sym) -> bool:
-    """Symbols Finnhub can never resolve (index/synthetic notations like
-    $IDX:SEMICONDUCTORS or ^VIX). Calling for them burns rate budget on
-    guaranteed failures, every single time."""
-    s = str(sym or "")
-    return (not s) or any(c in s for c in ("$", "^", ":", "/"))
-
-
-def _fh_get(path: str, params: dict, timeout: int | None = None) -> dict | list | None:
-    """Fire a Finnhub GET request. Returns parsed JSON or None on failure.
-
-    Budget guards (all return None without a network call):
-      • symbols Finnhub can't resolve ($/^/:-style) are skipped
-      • a shared 20s cooldown engages after any 429
-      • endpoints that 403'd (plan-forbidden) are skipped for 24h
-    """
-    global _fh_cooldown_until
-    api_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not api_key:
-        _logger.warning("FINNHUB_API_KEY not set — earnings intel unavailable")
-        return None
-    if "symbol" in params and _junk_symbol(params.get("symbol")):
-        return None
-    if cache.get(f"fh_forbidden_{path}"):
-        return None
-    with _fh_cooldown_lock:
-        if _time.monotonic() < _fh_cooldown_until:
-            return None
-    params["token"] = api_key
-    try:
-        resp = requests.get(
-            f"https://finnhub.io/api/v1{path}",
-            params=params,
-            timeout=timeout or _TIMEOUT,
-        )
-        if resp.status_code == 429:
-            with _fh_cooldown_lock:
-                _fh_cooldown_until = _time.monotonic() + _FH_COOLDOWN_SECONDS
-            _logger.warning("Finnhub 429 on %s — cooling down %ss", path, _FH_COOLDOWN_SECONDS)
-            return None
-        if resp.status_code == 403:
-            cache.set(f"fh_forbidden_{path}", True, ttl=_FH_FORBIDDEN_TTL)
-            _logger.warning("Finnhub 403 on %s — plan-forbidden, skipping for 24h", path)
-            return None
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as exc:
-        _logger.warning("Finnhub %s failed for %s: %s", path, params.get("symbol", "?"), exc)
-        return None
-
-
 def get_earnings_intel(ticker: str) -> dict | None:
     """Return earnings intelligence dict for *ticker*, or None on total failure.
 
     Keys returned:
-        beat_history  – list of last 4 quarters [{period, actual, estimate, beat}]
+        beat_history  – list of last 4 quarters
+                         [{period, actual, estimate, beat, surprise, quarter, year}]
+                         `quarter`/`year` are Finnhub's own fiscal identifiers
+                         (present on /stock/earnings) — the fiscal-quarter
+                         pairing key for the implied-vs-realized hero (P2 T8b).
+                         None when Finnhub omits them, never a phantom 0.
         consensus     – {buy, hold, sell, strongBuy, strongSell, period}
         price_target  – {targetHigh, targetLow, targetMean, targetMedian, lastUpdated}
+                         Finnhub primary; falls back to FMP's
+                         stable/price-target-consensus when Finnhub's
+                         /stock/price-target 403s plan-forbidden (not
+                         transient — simply unavailable on this account's
+                         tier). FMP has no analog for targetMean/lastUpdated,
+                         so those stay None on the fallback path rather than
+                         being fabricated from a different-named FMP field.
     """
     ticker = ticker.upper()
     cache_key = f"earnings_intel_{ticker}"
@@ -188,6 +163,13 @@ def get_earnings_intel(ticker: str) -> dict | None:
                 "estimate": estimate,
                 "beat": beat,
                 "surprise": q.get("surprisePercent"),
+                # Purely additive — carried through so the client can pair a
+                # PAST quarter's history row against implied_store's snapshot
+                # (keyed on the announcement date, not this period end) by
+                # fiscal identity instead of by date. `_int_or_none` keeps an
+                # absent value None rather than coercing it to 0.
+                "quarter": _int_or_none(q.get("quarter")),
+                "year": _int_or_none(q.get("year")),
             })
 
     # ── 2. Analyst recommendation consensus ──────────────────────────────────
@@ -215,6 +197,18 @@ def get_earnings_intel(ticker: str) -> dict | None:
             "targetMedian": pt_raw.get("targetMedian"),
             "lastUpdated": pt_raw.get("lastUpdated", ""),
         }
+    if price_target is None:
+        # Finnhub stays primary above — this only fires when it yielded
+        # nothing. /stock/price-target 403s plan-forbidden on this account
+        # (cached via _FH_FORBIDDEN_TTL, see _fh_get) — not a transient
+        # failure, that endpoint is simply not on the current tier. FMP's
+        # stable/price-target-consensus IS live on this plan (analyst_grades.py
+        # already calls it for a different surface) and covers the same range
+        # data. A DIFFERENT provider budget: never touches _fh_take_token or
+        # _fh_cooldown_until, and carries its own bounded timeout (never an
+        # unbounded external call on the shared request-path threadpool — the
+        # documented 524-outage class here).
+        price_target = _fmp_price_target_fallback(ticker)
 
     # If all three failed, negative-cache briefly. Uncached failures made every
     # 5-min enrichment recompute retry the whole day's reporters × 3 calls —
@@ -228,8 +222,56 @@ def get_earnings_intel(ticker: str) -> dict | None:
         "consensus": consensus,
         "price_target": price_target,
     }
-    cache.set(cache_key, result, ttl=_CACHE_TTL)
+    # ⛔ NEVER CACHE A FAILED FETCH AS A VALUE — for 6 hours, at least.
+    #
+    # The negative cache above is correctly conservative: it only fires when
+    # ALL THREE legs failed. But a PARTIAL failure used to land here and be
+    # stored for the full `_CACHE_TTL` (6h) as though it were complete, so one
+    # transient miss on the Finnhub /stock/earnings leg (while recommendation
+    # and price-target both answered) pinned `beat_history: []` on that symbol
+    # for six hours. Downstream that is not a blank stat — it is the earnings
+    # modal's whole Earnings History section rendering "No reported quarters
+    # yet" for a company that has plainly reported.
+    #
+    # Observed live 2026-08-04: /api/calendar/enrichment-batch returned CAT
+    # with 4 quarters, then the SAME call returned 0 minutes later, while a
+    # direct Finnhub /stock/earnings?symbol=CAT was HTTP 200 with 4 rows — the
+    # provider was healthy the whole time and the cache was serving an empty
+    # list it should never have stored. (Same class as the market-cap poison
+    # already documented in this repo: a failure must not be cached as a value.)
+    #
+    # A partial result is still worth SERVING — dropping it would throw away
+    # good consensus/price-target data — so it is returned, but it is cached
+    # only for the short failure TTL so the missing leg self-heals in minutes
+    # instead of hours.
+    partial = (not beat_history) or consensus is None or price_target is None
+    cache.set(cache_key, result, ttl=_INTEL_FAIL_TTL if partial else _CACHE_TTL)
     return result
+
+
+def _int_or_none(v):
+    """int(v) preserving None. A bare `int(v or 0)` would turn an absent
+    quarter/year into a phantom 0 — this keeps absent distinct from a
+    genuine (if implausible) 0 in both directions."""
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _float_or_none(v):
+    """float(v) preserving None. Mirrors _int_or_none — a bare `float(v or 0)`
+    would turn an absent FMP price-target field into a phantom 0.0, and a
+    genuine 0.0 target must not collapse to None either. Used by the FMP
+    price-target fallback below."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _surprise_pct(actual, estimate):
@@ -258,6 +300,45 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
     except Exception as exc:
         _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
         return None
+
+
+def _fmp_price_target_fallback(ticker: str) -> dict | None:
+    """FMP `stable/price-target-consensus` fallback for get_earnings_intel's
+    price_target leg, used ONLY when Finnhub yielded nothing (see call site).
+
+    Maps ONLY the fields FMP actually supplies, under the SAME output shape as
+    the Finnhub leg (targetHigh/targetLow/targetMean/targetMedian/lastUpdated)
+    so downstream consumers (research Overview tab, voice market tools) need
+    no change. targetHigh/targetLow/targetMedian have direct FMP analogs.
+    FMP has NO analog for targetMean — its `targetConsensus` field is a
+    separately-computed statistic, not documented as a plain mean — so
+    targetMean stays None rather than being fabricated under the wrong name.
+    `lastUpdated` is likewise absent from this endpoint and stays None too.
+
+    `_fmp_get` already bounds the call (4s timeout, own try/except, never
+    raises) and is a different provider entirely — it never touches the
+    Finnhub token bucket (`_fh_take_token`) or cooldown (`_fh_cooldown_until`)
+    above, so a busy Finnhub minute can't starve this fallback and vice versa.
+
+    Returns None (never an all-None dict) when FMP has nothing usable, so the
+    caller's `partial` calculation still treats the leg as genuinely missing.
+    """
+    data = _fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4)
+    row = data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
+    if not row:
+        return None
+    high = _float_or_none(row.get("targetHigh"))
+    low = _float_or_none(row.get("targetLow"))
+    median = _float_or_none(row.get("targetMedian"))
+    if high is None and low is None and median is None:
+        return None
+    return {
+        "targetHigh": high,
+        "targetLow": low,
+        "targetMean": None,
+        "targetMedian": median,
+        "lastUpdated": None,
+    }
 
 
 def _fiscal_q_from_report(date_str: str):
@@ -672,6 +753,36 @@ def get_chart_markers(ticker: str) -> dict:
     return result
 
 
+def _ts_date(ts) -> str | None:
+    """A pandas Timestamp / date → 'YYYY-MM-DD' (None on failure)."""
+    try:
+        if hasattr(ts, "date"):
+            return ts.date().strftime("%Y-%m-%d")
+        return str(ts)[:10]
+    except Exception:
+        return None
+
+
+def _yf_corporate_actions(ticker: str):
+    """Return (splits, dividends) as lists of (YYYY-MM-DD, value) tuples from
+    yfinance's corporate-action series — split ratio float / dividend amount.
+    Network-bound: call via yf_util.bounded_call. Returns ([], []) if empty."""
+    import yfinance as yf
+    t = yf.Ticker(ticker)
+
+    def _pairs(series):
+        out = []
+        if series is None or getattr(series, "empty", True):
+            return out
+        for ts, val in series.items():
+            ds = _ts_date(ts)
+            if ds is not None:
+                out.append((ds, val))
+        return out
+
+    return _pairs(t.splits), _pairs(t.dividends)
+
+
 def _build_chart_markers(ticker: str) -> dict:
     """Fetch + assemble the markers blob (earnings history + fiscal-quarter join +
     splits + dividends). Wrapped by get_chart_markers' memory + disk cache layers.
@@ -803,46 +914,53 @@ def _build_chart_markers(ticker: str) -> dict:
         except Exception as exc:
             _logger.warning("get_chart_markers quarter-join failed for %s: %s", ticker, exc)
 
-    # ── Stock splits (deep — since-inception chart annotation) ────────────────
+    # ── Stock splits + dividends (yfinance corporate actions) ─────────────────
+    # Finnhub's /stock/split + /stock/dividend are premium and return empty on
+    # this tier, so the toggles rendered nothing. yfinance's actions series carry
+    # full split-adjusted history and cost nothing — the same source
+    # dividends_calendar.py uses. One bounded fetch feeds both.
     try:
-        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": splits_from_date, "to": to_date})
-        if isinstance(splits_raw, list):
-            for s in splits_raw:
-                date_str = s.get("date")
-                from_f   = s.get("fromFactor", 1)
-                to_f     = s.get("toFactor", 1)
-                if date_str:
-                    result["splits"].append({
-                        "date": str(date_str)[:10],
-                        "ratio": f"{from_f}:{to_f}",
-                        "from_factor": from_f,
-                        "to_factor": to_f,
-                    })
-    except Exception as exc:
-        _logger.warning("get_chart_markers splits failed for %s: %s", ticker, exc)
+        from api.services.yf_util import bounded_call
+        yf_splits, yf_divs = bounded_call(lambda: _yf_corporate_actions(ticker), ([], []), timeout=12.0)
 
-    # ── Dividends (last 5 years) ─────────────────────────────────────────────
-    try:
-        div_raw = _fh_get(
-            "/stock/dividend",
-            {"symbol": ticker, "from": from_date, "to": to_date},
-        )
-        if isinstance(div_raw, list):
-            for d in div_raw:
-                # Finnhub returns ex-date in "date" and amount in "amount".
-                date_str = d.get("date") or d.get("payDate") or d.get("recordDate")
-                amount   = d.get("amount") or d.get("dividend")
-                if date_str is None or amount is None:
-                    continue
-                try:
-                    amount_f = float(amount)
-                except (TypeError, ValueError):
-                    continue
-                result["dividends"].append({
-                    "date": str(date_str)[:10],
-                    "amount": amount_f,
-                })
+        # Splits — deep lookback (rare + highly relevant on a since-inception chart).
+        for date_str, ratio_val in yf_splits:
+            if not date_str or date_str < splits_from_date:
+                continue
+            try:
+                r = float(ratio_val)
+            except (TypeError, ValueError):
+                continue
+            if r <= 0:
+                continue
+            # yfinance ratio is a float: 4.0 = 4-for-1, 0.5 = 1-for-2 reverse.
+            if r >= 1:
+                ratio_str = f"{int(r)}:1" if r == int(r) else f"{round(r, 2)}:1"
+            else:
+                inv = 1.0 / r
+                ratio_str = f"1:{int(inv)}" if inv == int(inv) else f"1:{round(inv, 2)}"
+            result["splits"].append({
+                "date": date_str,
+                "ratio": ratio_str,
+                "from_factor": 1,
+                "to_factor": r,
+            })
+
+        # Dividends — 5-year lookback (a full history would clutter with 100+ ex-dates).
+        for date_str, amount in yf_divs:
+            if not date_str or date_str < from_date:
+                continue
+            try:
+                amount_f = float(amount)
+            except (TypeError, ValueError):
+                continue
+            if amount_f <= 0:
+                continue
+            result["dividends"].append({
+                "date": date_str,
+                "amount": amount_f,
+            })
     except Exception as exc:
-        _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
+        _logger.warning("get_chart_markers splits/dividends failed for %s: %s", ticker, exc)
 
     return result

@@ -40,11 +40,15 @@ import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
+import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
+// ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
+// B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
+import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
@@ -811,21 +815,20 @@ function _layoutMainMargins(layout) {
   return paneMode() === 'panes' ? layout.pane0.mainMargins : layout.bands.main
 }
 
-// Where the sub-pane stack STARTS, as a fraction of the whole plot area — the
-// price-scale toggle sits just above it.
+// ⛔ `_subPaneTopFrac` STOOD HERE AND IS DELETED BY THE MASTER MERGE, not by a
+// Flip-C decision. It answered "where does the sub-pane stack START, as a
+// fraction of the whole plot area" for exactly ONE caller: the price-scale
+// (A/L/%) toggle's CSS `bottom`. Master's `ee1de33e` docked that toggle at the
+// date axis (`bottom: '3px'`) and stopped tracking the stack, so the function
+// lost its only reader. Phase B's version of that line was a mechanical rewrite
+// of the retired `computePaneMargins(…)` call — no intent to preserve.
 //
-// ⭐ FLIP C. In `'bands'` mode that is `bands.main.bottom`, because pane 0 IS the
-// plot area. Under `'panes'` pane 0 is only the top of it, so the same edge has
-// to be converted back out of pane-0 fractions into whole-plot fractions before
-// the CSS `calc()` can use it — the chrome must sit on the candles' bottom edge,
-// and that edge is at the same absolute pixel in both modes by construction.
-function _subPaneTopFrac(layout) {
-  if (!layout) return 0
-  if (paneMode() !== 'panes') return layout.bands.main.bottom
-  if (!(layout.chartHeight > 0)) return 0
-  const bottomPx = layout.pane0.heightPx * (1 - layout.pane0.mainMargins.bottom)
-  return 1 - (bottomPx / layout.chartHeight)
-}
+// If a future piece of chrome needs the candles' bottom edge again, note the
+// Flip-C subtlety it encoded: in `'bands'` mode the edge is `bands.main.bottom`
+// because pane 0 IS the plot area, but under `'panes'` pane 0 is only the top of
+// it, so a pane-0 fraction has to be converted back to a whole-plot fraction
+// (`1 - pane0.heightPx * (1 - pane0.mainMargins.bottom) / chartHeight`). The
+// edge is the same absolute pixel in both modes by construction.
 
 // Smoothly animate the chart's visible logical range from wherever it is now to
 // `target` ({from,to} in bar-index space) over `duration` ms.
@@ -1302,7 +1305,7 @@ export default function StockChart({
         : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
     const rgb = parseColor(labelBg)
     const light = rgb ? luminance(rgb) > 0.5 : false
-    return { labelBg, ink: light ? '#1f2937' : '#ffffff' }
+    return { labelBg, ink: light ? '#1f2937' : '#ffffff', light }
   }, [userCanvas, boldCandles, cs.bgMode, cs.background, cs.bgGradient?.bottom, canvasTheme])
 
   const panelVars = useMemo(() => {
@@ -1531,38 +1534,10 @@ export default function StockChart({
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!markersData || !isDailyWeekly) return []
-    const eventMarkers = []
-    // Earnings are NOT LWC markers anymore — they're drawn as a slick "E" badge by
-    // earningsBadgePrimitive (see earningsEvents below). Splits/dividends stay LWC.
-    if (cs.markers?.splits && Array.isArray(markersData.splits)) {
-      for (const s of markersData.splits) {
-        if (!s.date) continue
-        eventMarkers.push({
-          time: s.date,
-          position: 'aboveBar',
-          color: '#f59e0b',
-          shape: 'square',
-          text: s.ratio ? `S ${s.ratio}` : 'S',
-          size: 1,
-        })
-      }
-    }
-    if (cs.markers?.dividends && Array.isArray(markersData.dividends)) {
-      for (const d of markersData.dividends) {
-        if (!d.date || d.amount == null) continue
-        const amt = Number(d.amount)
-        if (!Number.isFinite(amt)) continue
-        eventMarkers.push({
-          time: d.date,
-          position: 'belowBar',
-          color: '#3b82f6',
-          shape: 'arrowUp',
-          text: `D $${amt.toFixed(2)}`,
-          size: 1,
-        })
-      }
-    }
-    return eventMarkers
+    // Earnings, splits, and dividends are all drawn as bottom-row "E"/"S"/"D"
+    // badges by the badge primitives (see earningsEvents/splitEvents/dividendEvents
+    // below), NOT as LWC candle markers. Nothing to emit here for them.
+    return []
   }, [markersData, cs.markers, resolvedTf])
 
   // { data, x, y } while an earnings popover is open (null = closed).
@@ -1621,6 +1596,16 @@ export default function StockChart({
   const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
   // Volume in its own pane (no bottom band reserved on the price scale).
   const volInSeparatePane = volumeSeparatePane || !!cs.volume?.separatePane
+  // When the SURFACE passes these props they WIN over the saved prefs — the OR
+  // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
+  // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
+  // its price-scale margins for a separate pane, and sets the height by dragging the
+  // separator), so tell the settings panel to render those two controls inert rather
+  // than leaving them looking live. DERIVED from the props that do the forcing, so it
+  // can never drift from the actual behavior.
+  const volumePaneFixed = (volumeSeparatePane || volumePaneHeightPct != null)
+    ? VOLUME_PANE_SURFACE_FIXED
+    : null
   const resolvedOverlays = useMemo(
     () => {
       const base = overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled)
@@ -1644,16 +1629,25 @@ export default function StockChart({
   const containerRef = useRef(null)
   const wmCtrlRef = useRef(null)        // watermark primitive controller
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
-  const sessionShadeRef = useRef(null)      // extended-hours shading primitive
+  const sessionShadeRef = useRef(null)      // extended-hours shading primitive (price pane)
   const sessionShadeAttachedRef = useRef(false)
+  const sessionShadeVolRef = useRef(null)   // second instance for the separate VOLUME pane
+  const sessionShadeVolAttachedRef = useRef(false)
+  const lastShadeBandsVolRef = useRef(null)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const swingPointsRef = useRef([])       // latest swing pivots — redrawn into the PNG screenshot
   const zonesCtlRef = useRef(null)        // dark-pool level-zones series primitive controller
   const zonesAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const lastDpZonesRef = useRef(undefined) // identity guard — see the setZones call
+  const pdlCtlRef = useRef(null)          // previous-day H/L/C lines series primitive controller
+  const pdlAttachedRef = useRef(false)    // guard: re-attach on candle-series swap
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const splitBadgeRef = useRef(null)      // splits "S" badge primitive controller
+  const splitBadgeAttachedRef = useRef(false)
+  const divBadgeRef = useRef(null)        // dividends "D" badge primitive controller
+  const divBadgeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
@@ -1943,6 +1937,11 @@ export default function StockChart({
   //   • Writer C — realtimeCandle registry     (~L5785):  if (barsPushActiveRef.current) return
   //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
   const barsPushActiveRef = useRef(false)
+  // When true, the on-screen bars are a PROVISIONAL stale-intraday cache paint
+  // (instant sym-switch, forced full refetch in flight). All four live-bar writers
+  // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
+  // tail before authoritative bars swap in. Set in the `bars` selector each render.
+  const provisionalStaleRef = useRef(false)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
   // Session preview owns the D/W/M developing bar during pre/post market on the
   // workspace (synthetic pre-market candle / frozen-at-4pm regular candle) — a
@@ -3139,6 +3138,16 @@ export default function StockChart({
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
+  // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
+  // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
+  // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
+  // showing a 2-3s spinner while the forced full refetch lands, when Daily paints its
+  // cache instantly. So we DO paint them, but only as the LAST-RESORT layer (real
+  // net/mem/agg bars always win above it) AND we FREEZE the live-bar writers while
+  // this layer is the one on screen (provisionalStaleRef below), so no phantom
+  // developing candle can grow on the stale tail before authoritative bars swap in.
+  const _idbProvisional = (idbStaleIntraday && idbBars?.length
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
   // A2/A1: synchronous in-memory hit for THIS exact sym+tf. Used only as the
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
@@ -3176,7 +3185,19 @@ export default function StockChart({
                     ? data.bars
                     : (_memBars?.length
                         ? _memBars
-                        : (_aggBars?.length ? _aggBars : null))))))
+                        : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
+  // True only while the on-screen bars ARE the provisional stale-intraday layer
+  // (no net/mem/agg data resolved yet for this key). The live-bar writers consult
+  // this to freeze until the forced full refetch replaces the data — BUT only when
+  // the stale tail is from a PRIOR session (>8h old: overnight / weekend / multi-day),
+  // which is the "fuse a live spike onto old history" danger this gate exists for.
+  // A SAME-SESSION tail that's merely >15min stale is safely EXTENDED by a live tick
+  // (isSaneLivePrice already rejects a wrong price), so freezing there just left the
+  // price permanently stuck with the feed connected until a timeframe flip (owner
+  // report: 5m loads only to 3:15pm, LIVE badge green but price frozen). Same-session
+  // → paint provisionally AND keep ticking so the developing candle advances.
+  const _provStaleSecs = (typeof idbSinceRef.current === 'number') ? (Date.now() / 1000 - idbSinceRef.current) : 0
+  provisionalStaleRef.current = !!_idbProvisional && bars === _idbProvisional && !_netMatches && _provStaleSecs > 8 * 3600
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -3294,6 +3315,33 @@ export default function StockChart({
       if (val != null && Number.isFinite(val)) {
         try { series[i].update({ time: tSec, value: val }) } catch { /* time regressed / disposed */ }
       }
+    }
+    // VWAP rides the same live-extend (it's a session cumulative, not in overlaySeriesRefs):
+    // hold its newest value to the developing bar so the line reaches the current candle
+    // exactly like the MAs, instead of stopping a bar short between SWR refreshes.
+    //
+    // ⭐ MASTER'S `a2dc2f07` (item 2) SHIPPED THIS AGAINST `vwapSeriesRef` +
+    // `lastVwapValueRef`, AND BOTH ARE GONE — B3 Task 11 flipped VWAP onto the
+    // engine, so the series belongs to the binder's pool and a component-held ref
+    // would be a stale second handle to something the pool re-purposes. The BINDING
+    // is the replacement for both: it carries the `series` and, in `lastValue`, the
+    // newest point of the very array the binder just applied — which is exactly
+    // what the retired ref cached, sourced one step closer to the data.
+    //
+    // ⚠️ `lastValue` CAN BE `undefined`: `toPoints` emits WHITESPACE for bars
+    // before the session starts, and `lastPointValue` reads `last.value` off
+    // whatever the tail is. `Number.isFinite` is the same guard master wrote, kept
+    // for the same reason — `Number(undefined)` is `NaN`, but `Number(null)` is 0,
+    // and a 0 written here would drag the VWAP line to the axis floor.
+    const _engine = engineRef.current
+    if (_engine) {
+      try {
+        for (const b of _engine.binder.bindings()) {
+          if (b.defId !== 'vwap' || !b.series) continue
+          if (!Number.isFinite(b.lastValue)) continue
+          try { b.series.update({ time: tSec, value: b.lastValue }) } catch { /* time regressed / disposed */ }
+        }
+      } catch { /* binder disposed mid-tick */ }
     }
   }, [adjustTime])
 
@@ -3521,6 +3569,54 @@ export default function StockChart({
     }
     return out
   }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
+
+  // Splits + dividends: snap each event date to its containing bar (same bucketing
+  // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
+  const _bucketEventDate = useCallback((dstr, tf) => {
+    const s = String(dstr).slice(0, 10)
+    if (tf === 'W') {
+      const dt = new Date(`${s}T00:00:00Z`)
+      if (isNaN(dt.getTime())) return s
+      dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
+      return dt.toISOString().slice(0, 10)
+    }
+    if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
+    return s
+  }, [])
+
+  const splitEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.splits || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
+    const barByBucket = new Map()
+    for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
+    const out = []
+    const seen = new Set()
+    for (const s of markersData.splits) {
+      if (!s.date) continue
+      const bar = barByBucket.get(_bucketEventDate(s.date, resolvedTf))
+      if (!bar || seen.has(bar.t)) continue
+      seen.add(bar.t)
+      out.push({ date: bar.t, low: +bar.l, ratio: s.ratio })
+    }
+    return out
+  }, [markersData, cs.markers?.splits, resolvedTf, filteredBars, _bucketEventDate])
+
+  const dividendEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.dividends || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
+    const barByBucket = new Map()
+    for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
+    const out = []
+    const seen = new Set()
+    for (const d of markersData.dividends) {
+      if (!d.date || d.amount == null) continue
+      const bar = barByBucket.get(_bucketEventDate(d.date, resolvedTf))
+      if (!bar || seen.has(bar.t)) continue
+      seen.add(bar.t)
+      out.push({ date: bar.t, low: +bar.l, amount: Number(d.amount) })
+    }
+    return out
+  }, [markersData, cs.markers?.dividends, resolvedTf, filteredBars, _bucketEventDate])
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -3962,14 +4058,23 @@ export default function StockChart({
           }
         }
       }
-      // Paint the pre-market preview candle (the appended last bar) muted white.
+      // Paint the pre-market preview candle (the appended last bar) in the user's
+      // chosen up/down candle color (owner ask — was a muted white). "Up" = the
+      // pre-market price sits above the prior RTH close (net-change basis, what a
+      // trader means by up/down in pre-market), falling back to open/close.
       if (sessionPreviewLastBar && arr.length) {
         const i = arr.length - 1
-        arr[i] = { ...arr[i], color: SESSION_PREVIEW_COLOR, borderColor: SESSION_PREVIEW_COLOR, wickColor: SESSION_PREVIEW_COLOR }
+        const c = arr[i]
+        const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
+        const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+        const prevC = i > 0 ? arr[i - 1].close : c.open
+        const isUp = (c.close != null && prevC != null) ? c.close >= prevC : (c.close >= c.open)
+        const col = isUp ? effUp : effDown
+        arr[i] = { ...c, color: col, borderColor: col, wickColor: col }
       }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme]
+    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, cs.candles.upColor, cs.candles.downColor]
   )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
@@ -4480,6 +4585,9 @@ export default function StockChart({
     // a stale value there would repaint an old developing bar over the fresh push bar = the
     // 30s seam the plan review flagged).
     if (barsPushActiveRef.current) return
+    // Freeze while a provisional stale-intraday cache is on screen — no live tick
+    // may grow a phantom candle on the old tail before the full refetch swaps in.
+    if (provisionalStaleRef.current) return
     // NOTE: the D/W/M "defer the candle write to Writer E" early-return USED to sit
     // here — above the latestLiveRef update below. That stranded latestLiveRef at the
     // mount-time price on D/W/M (Writer A returned before ever updating it once Writer
@@ -4683,6 +4791,8 @@ export default function StockChart({
     // bar (jitter on thin tickers). delivering is tracked independently by the pool, so this is a
     // clean one-bar handoff — Finnhub covers the transition bar, then B takes over.
     if (!barsPushActiveRef.current) return
+    // Freeze while the provisional stale-intraday cache is on screen (see Writer A).
+    if (provisionalStaleRef.current) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
     // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
@@ -5316,7 +5426,10 @@ export default function StockChart({
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
       swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
       earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
+      splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
+      divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
       zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
+      pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
     }
 
     if (!candleSeriesRef.current) {
@@ -5649,9 +5762,14 @@ export default function StockChart({
       }
     }
 
+    // Writer D freeze: while a provisional stale-intraday cache is on screen, apply NO
+    // live developing bar over the old tail — null the Finnhub re-top and skip the push
+    // branch below. The forced full refetch swaps in fresh bars, then writers resume.
+    if (provisionalStaleRef.current) _retopLive = null
+
     // Re-apply the live developing bar immediately after setData() to prevent snap-back —
     // setData() overwrites with API data (stale by seconds/minutes).
-    if (barsPushActiveRef.current) {
+    if (barsPushActiveRef.current && !provisionalStaleRef.current) {
       // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
       // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
       // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
@@ -6241,6 +6359,23 @@ export default function StockChart({
         volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
       _applyData(volumeSeriesRef.current, volData)
+      // Re-top the developing VOLUME bar to the live bucket, mirroring the candle
+      // re-top above. On a settings change updateChart re-runs and this setData reverts
+      // the volume series to volData; when a bucket has rolled LIVE but SWR hasn't
+      // refetched yet, volData's last bar is the PREVIOUS (full, often HVC-gold) bucket,
+      // so it renders as the current bar — the reported "volume bar shoots up then
+      // reverts" spike. Only fires during that roll-gap (live bar strictly newer than
+      // volData's last). Push tracks liveBarRef.volume; the Finnhub/REST path has no live
+      // volume, so it paints ~0 until the next fetch fills it (Writer A's new-bar default).
+      {
+        const _lb = liveBarRef.current
+        const _vLast = volData.length ? volData[volData.length - 1] : null
+        if (_lb?.time != null && _vLast && _lb.time > _vLast.time) {
+          const _vUpN = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vVal = Number.isFinite(_lb.volume) ? _lb.volume : 0
+          try { volumeSeriesRef.current.update({ time: _lb.time, value: _vVal, color: _vUpN }) } catch { /* time regressed / disposed */ }
+        }
+      }
 
       // Subtle smooth volume MA line on the same pane/scale as the bars.
       if (volMaPeriodEff && volMaData.length) {
@@ -6263,8 +6398,14 @@ export default function StockChart({
           // formatter so the axis abbreviates no matter which source wins.
           priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
         }
+        const _vmColor = cs.volume?.maColor || VOL_MA_COLOR
+        const _vmWidth = Number(cs.volume?.maLineWidth) || 1
         if (!volMaSeriesRef.current) {
-          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: cs.volume?.maColor || VOL_MA_COLOR, lineWidth: Number(cs.volume?.maLineWidth) || 1, ..._vmOpts }, _vmPane)
+          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: _vmColor, lineWidth: _vmWidth, ..._vmOpts }, _vmPane)
+        } else {
+          // Was set only at creation → changing the Volume MA color/width in settings
+          // had no effect until remount. Re-apply on every settings change.
+          try { volMaSeriesRef.current.applyOptions({ color: _vmColor, lineWidth: _vmWidth }) } catch { /* disposed */ }
         }
         _applyData(volMaSeriesRef.current, baseVM)
         if (_vmFade) {
@@ -6289,6 +6430,31 @@ export default function StockChart({
       volumeSeriesRef.current = null
       if (volMaSeriesRef.current) { try { chart.removeSeries(volMaSeriesRef.current) } catch {}; volMaSeriesRef.current = null }
       if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
+    }
+
+    // ── Extended-hours shading in the VOLUME pane ──
+    // The price-pane shading primitive (attached to pane 0 above) fills only its own
+    // pane, so with volume in a SEPARATE pane the pre/post bands stopped at the volume
+    // divider. Attach a SECOND shading instance to the volume pane so the bands extend
+    // straight down through it too (owner ask). Only while that pane exists.
+    {
+      const _volPane = (volSeparatePane && showVolume && volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
+      if (_volPane) {
+        if (!sessionShadeVolRef.current) sessionShadeVolRef.current = createSessionShadingPrimitive({})
+        if (!sessionShadeVolAttachedRef.current) {
+          try { _volPane.attachPrimitive(sessionShadeVolRef.current.primitive); sessionShadeVolAttachedRef.current = true } catch { /* older pane API */ }
+        }
+        if (sessionShadeVolAttachedRef.current && lastShadeBandsVolRef.current !== sessionShadeBands) {
+          lastShadeBandsVolRef.current = sessionShadeBands
+          sessionShadeVolRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
+        }
+      } else if (sessionShadeVolRef.current && sessionShadeVolAttachedRef.current) {
+        // Volume pane gone (overlay mode / hidden) — the primitive detached with the
+        // pane; drop the flag so it re-attaches if the pane returns, and clear its bands.
+        sessionShadeVolAttachedRef.current = false
+        lastShadeBandsVolRef.current = null
+        try { sessionShadeVolRef.current.setOptions({ enabled: false, bands: EMPTY_BANDS }) } catch {}
+      }
     }
 
     // ── Overlay lines — reuse series where possible ──
@@ -6805,6 +6971,29 @@ export default function StockChart({
       }
     }
 
+    // ── Previous-day High / Low / Close lines (custom v5 series primitive) ──
+    // INTRADAY only: each line anchors at the candle that made that level and
+    // extends to the current candle (redrawn every frame → grows as bars form).
+    // Off (empty draw-list) on D/W/M or when all three are disabled.
+    if (candleSeriesRef.current) {
+      if (!pdlCtlRef.current) pdlCtlRef.current = createPrevDayLevelsPrimitive()
+      if (!pdlAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(pdlCtlRef.current.primitive)
+          pdlAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const pdl = cs.prevDayLevels
+      const pdlIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
+      const pdlOn = pdlIntraday && pdl && (pdl.high?.enabled || pdl.low?.enabled || pdl.close?.enabled)
+      if (pdlOn) {
+        const lv = computePrevDayLevels(ohlcData)
+        pdlCtlRef.current.setLines(buildPrevDayLines(lv, pdl), lv?.endTime)
+      } else {
+        pdlCtlRef.current.setLines([], null)
+      }
+    }
+
     // ── Earnings "E" badge (custom v5 series primitive) ──
     if (candleSeriesRef.current) {
       if (!earnBadgeRef.current) earnBadgeRef.current = createEarningsBadgePrimitive({})
@@ -6824,6 +7013,29 @@ export default function StockChart({
         missColor: mk.earningsMiss || '#c41f2d',
       })
       earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat })))
+    }
+
+    // ── Splits "S" + Dividends "D" badges (same bottom-row primitive as earnings) ──
+    if (candleSeriesRef.current) {
+      if (!splitBadgeRef.current) splitBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'S', color: '#f59e0b' })
+      if (!splitBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(splitBadgeRef.current.primitive)
+          splitBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      splitBadgeRef.current.setOptions({ enabled: splitEvents.length > 0, glyphColor: canvasSample.top })
+      splitBadgeRef.current.setPoints(splitEvents.map(s => ({ time: s.date, price: s.low })))
+
+      if (!divBadgeRef.current) divBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'D', color: '#3b82f6' })
+      if (!divBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(divBadgeRef.current.primitive)
+          divBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      divBadgeRef.current.setOptions({ enabled: dividendEvents.length > 0, glyphColor: canvasSample.top })
+      divBadgeRef.current.setPoints(dividendEvents.map(d => ({ time: d.date, price: d.low })))
     }
 
     // View handling on initial load / timeframe change / ticker switch.
@@ -8799,12 +9011,14 @@ export default function StockChart({
       const ctx = c.getContext('2d'); if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      const _measC = canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)'
+      // Match the chart crosshair's color so the drag line reads as part of the
+      // same crosshair (falls back to the old theme default if the crosshair
+      // color is unset/inherited from the LWC default).
+      const _measC = themeColors.crosshairColor || (canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)')
       ctx.strokeStyle = _measC; ctx.lineWidth = 1; ctx.setLineDash([5, 4])
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-      ctx.setLineDash([]); ctx.fillStyle = canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.98)' : 'rgba(224,218,200,0.95)'
-      ctx.beginPath(); ctx.arc(x1, y1, 2.5, 0, 6.283); ctx.fill()
-      ctx.beginPath(); ctx.arc(x2, y2, 2.5, 0, 6.283); ctx.fill()
+      ctx.setLineDash([])
+      // (No endpoint dots — just the bare dashed line, matching the crosshair.)
     }
     const onMove = (e) => {
       const st = dragMeasureStateRef.current; if (!st) return
@@ -8857,7 +9071,7 @@ export default function StockChart({
     }
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
-  }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme])
+  }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme, themeColors.crosshairColor])
 
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
@@ -9548,6 +9762,8 @@ export default function StockChart({
         prevChartTypeRef.current = null
         wmAttachedRef.current = false
         sessionShadeAttachedRef.current = false
+        sessionShadeVolAttachedRef.current = false
+        lastShadeBandsVolRef.current = null
         zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
         lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
         lastCfgSigRef.current = null
@@ -9609,6 +9825,8 @@ export default function StockChart({
       // Finnhub-fed registry is suppressed when the Massive push feed is the authoritative
       // developing-bar writer (onRealtimeBar owns it).
       if (barsPushActiveRef.current) return
+      // Freeze while the provisional stale-intraday cache is on screen (see Writer A).
+      if (provisionalStaleRef.current) return
       const candle = realtimeCandle.getCandle(sym, '1')
       if (!candle) return
       const price = candle.c
@@ -10000,7 +10218,15 @@ export default function StockChart({
       {!showFatalError && chartReady && (
         <div
           className={styles.scaleToggle}
-          style={{ bottom: boldCandles ? '3px' : `calc(26px + (100% - 26px) * ${_subPaneTopFrac(paneLayoutRef.current)})` }}
+          /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
+             it just clear of the SE corner resize handle).
+             ⭐ MASTER'S `ee1de33e` DECIDED THIS AND THE MERGE KEEPS IT. Phase B's
+             side of this line only swapped the retired `computePaneMargins(…)`
+             call for `_subPaneTopFrac(paneLayoutRef.current)` — a mechanical
+             rewrite of the branch `ee1de33e` deleted, carrying no intent of its
+             own. The toggle no longer tracks the sub-pane stack at all, so the
+             helper went with it. */
+          style={{ bottom: '3px' }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button
@@ -10234,22 +10460,20 @@ export default function StockChart({
             : 'translate(12px, 12px)',
           pointerEvents: 'none', zIndex: 6, whiteSpace: 'nowrap',
           fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12, lineHeight: 1.35,
-          /* No box — float the data on the canvas; dark text-shadow keeps it legible over candles. */
-          textShadow: canvasTheme === 'sunrise'
-            ? '0 1px 2px rgba(255,255,255,0.95), 0 0 2px rgba(255,255,255,0.9)'
-            : '0 1px 3px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)',
+          /* Plain text on the canvas — no chip, no glow — so it reads like every
+             other on-chart readout. Legibility comes from the colors themselves
+             (the secondary line darkens on a light canvas, below). */
         }}>
           {/* Follows the chart's up/down candle colors (measureColors) — the
               readout is a measurement OF the candles, so a custom candle palette
-              must carry through instead of a hardcoded green/red. The text-shadow
-              above is what keeps a light candle color legible on a light canvas. */}
+              carries through instead of a hardcoded green/red. */}
           <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? measureColors.up : measureColors.down }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
             <span style={{ marginLeft: 8 }}>
               ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)
             </span>
           </div>
-          <div style={{ color: canvasTheme === 'sunrise' ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
+          <div style={{ color: axisAuto.light ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </div>
         </div>
@@ -10330,6 +10554,7 @@ export default function StockChart({
             color={drawColor}
             lineWidth={drawWidth}
             lineStyle={cs.drawingDefaults?.style || 'solid'}
+            fontSize={cs.drawingDefaults?.fontSize ?? 13}
             magnet={magnet}
             drawings={cs.hideDrawings ? [] : drawings}
             addDrawing={addDrawing}
@@ -10368,7 +10593,12 @@ export default function StockChart({
             magnet={magnet}
             setMagnet={setMagnet}
             chartSettings={cs}
+            volumePaneFixed={volumePaneFixed}
             onUpdateSettings={handleUpdateChartSettings}
+            /* Charts workspace has the new settings modal (onOpenSettings) — drop
+               the legacy V1 toolbar gear + its inline panel there. Other surfaces
+               (no modal) keep it as their only settings entry point. */
+            hideSettingsButton={!!onOpenSettings}
             showExtended={isIntraday && !hideExtHoursToolbarToggle ? showExtended : null}
             onToggleExtended={isIntraday && !hideExtHoursToolbarToggle ? handleToggleExtended : null}
             onScreenshot={() => setScreenshotPopoverOpen(true)}
@@ -10498,7 +10728,9 @@ export default function StockChart({
               repeatMode={repeatMode}
               setRepeatMode={handleSetRepeatMode}
               chartSettings={cs}
+              volumePaneFixed={volumePaneFixed}
               onUpdateSettings={handleUpdateChartSettings}
+              hideSettingsButton={!!onOpenSettings}
               lineStyle={drawLineStyle}
               setLineStyle={setAnnLineStyle}
               fontSize={drawFontSize}
@@ -10586,7 +10818,9 @@ export default function StockChart({
               repeatMode={repeatMode}
               setRepeatMode={handleSetRepeatMode}
               chartSettings={cs}
+              volumePaneFixed={volumePaneFixed}
               onUpdateSettings={handleUpdateChartSettings}
+              hideSettingsButton={!!onOpenSettings}
               magnet={magnet}
               setMagnet={setMagnet}
               toolFilter={['cursor', 'advance']}

@@ -40,4 +40,13 @@ def test_all_constants_match_owner_spec():
     for k, v in expected.items():
         got = getattr(r, k)
         assert got == v and type(got) is type(v), f"{k}: {got!r} != {v!r}"
-    assert r.VERSIONS == {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1"}
+    # `dpc-v1` added by 0f63afb7 ("dark-pool reclaim confluence — prototype
+    # endpoints") and NOT reflected here, so this owner-spec gate has been RED
+    # on master ever since — meaning it could no longer flag the NEXT drift.
+    # Acknowledged rather than deleted: `dpc` is not leftover prototype code.
+    # Unlike dpl/fcb/gxw it owns no route of its own; it is the engine behind
+    # the live `/confluence` and `/confluence-scan` endpoints
+    # (api/routers/signature.py:503-535), so it is a shipped rule and belongs
+    # in the sanctioned set. Adding it re-arms the tripwire.
+    assert r.VERSIONS == {"dpl": "dpl-v1", "fcb": "fcb-v2", "gxw": "gxw-v1",
+                          "dpc": "dpc-v1"}

@@ -42,6 +42,15 @@ const _ANNOTATION_REMAP = {
 function brightenAnnotationColor(color) {
   return (color && _ANNOTATION_REMAP[color.toLowerCase()]) || color
 }
+// Line tools whose right-click menu offers "Set level" (type an exact price) and,
+// for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
+const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
+const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
+// Trim a price to a tidy prefill string (max 4 decimals, no trailing zeros).
+function fmtLevel(v) {
+  if (v == null || !Number.isFinite(+v)) return ''
+  return String(+(+v).toFixed(4))
+}
 // Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
 const _COARSE_POINTER = typeof window !== 'undefined'
   && !!window.matchMedia?.('(pointer: coarse)')?.matches
@@ -484,22 +493,38 @@ function renderMeasure(ctx, pts, drawing, pctOnly = false) {
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
     const type = drawing.type
     ctx.font = 'bold 11px "Instrument Sans", sans-serif'
-    ctx.fillStyle = ctx.strokeStyle
     ctx.textAlign = 'center'
+    // Legibility chip: the measure color is tuned bright for the dark canvas and
+    // washes out as plain text on a LIGHT canvas (the readability complaint).
+    // Back each line with the same neutral dark chip the crosshair legend uses —
+    // it disappears into a dark canvas (so that look is unchanged) but gives the
+    // colored text solid contrast on a light one.
+    const labelColor = ctx.strokeStyle
+    const putLabel = (t, x, y) => {
+      if (!t) return
+      const tw = ctx.measureText(t).width
+      const padX = 5
+      ctx.fillStyle = 'rgba(20, 22, 18, 0.82)'
+      ctx.beginPath()
+      ctx.roundRect(x - tw / 2 - padX, y - 11, tw + padX * 2, 15, 3)
+      ctx.fill()
+      ctx.fillStyle = labelColor
+      ctx.fillText(t, x, y)
+    }
     if (pctOnly) {
       // Just the % move — for marking the size of an index correction.
-      ctx.fillText(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
+      putLabel(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
     } else if (type === 'priceRange') {
       // Price delta only: $ move + %.
-      ctx.fillText(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
+      putLabel(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
     } else if (type === 'dateRange') {
       // Horizontal span only: bar count.
-      ctx.fillText(bars ? `${bars} bars` : '', cx, cy + 4)
+      putLabel(bars ? `${bars} bars` : '', cx, cy + 4)
     } else {
       const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
       const line2 = bars ? `${bars} bars` : ''
-      ctx.fillText(line1, cx, cy - 4)
-      if (line2) ctx.fillText(line2, cx, cy + 12)
+      putLabel(line1, cx, cy - 4)
+      putLabel(line2, cx, cy + 12)
     }
     ctx.textAlign = 'start'
   }
@@ -629,12 +654,9 @@ function renderCrosshair(ctx, x, y, price, w, h) {
   ctx.moveTo(0, y); ctx.lineTo(w, y)
   ctx.stroke()
   ctx.setLineDash([])
-  // Price label
-  if (price != null) {
-    ctx.font = '10px "Instrument Sans", sans-serif'
-    ctx.fillStyle = '#c9a84c'
-    ctx.fillText(`$${price.toFixed(2)}`, x + 8, y - 6)
-  }
+  // No floating "$price" label at the cursor while a tool is armed — it read as
+  // clutter next to the crosshair; the price scale's own crosshair label already
+  // shows it. (`price` kept in the signature for the existing call site.)
   ctx.restore()
 }
 
@@ -741,6 +763,199 @@ function offsetPoints(points) {
       ? { paneRelY: Math.min(1, p.paneRelY + 0.03) }
       : (p.price != null ? { price: p.price * 0.995 } : {})),
   }))
+}
+
+// 'YYYY-MM-DD' in America/New_York for a unix-seconds bar time. Formatter built
+// once (Intl construction is the expensive part).
+const _etDateFmt = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+  : null
+function etDateStr(tSeconds) {
+  if (!_etDateFmt) return null
+  try { return _etDateFmt.format(new Date(tSeconds * 1000)) } catch { return null }
+}
+
+// Resolve a catalyst's anchor to a bar index. A catalyst carries only a DATE
+// ('YYYY-MM-DD'). On a DAILY/WEEKLY chart that maps straight to a bar via
+// nearestIndex. On an INTRADAY chart the bars are numeric epochs, so the date
+// would fail nearestIndex's type check (returning null → the callout never
+// places). Instead we snap to the candle where the news actually broke: the FIRST
+// high-volume candle of that ET session (fallback: the day's max-volume candle).
+// Binary-searched to a mid-day seed so it's cheap even when the day isn't loaded.
+export function resolveCatalystAnchor(anchorTime, bars, nearestIndex) {
+  if (!bars?.length) return null
+  const intraday = typeof bars[0].t === 'number'
+  const isDate = typeof anchorTime === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(anchorTime)
+  if (!intraday || !isDate) return nearestIndex(anchorTime)
+  const day = anchorTime.slice(0, 10)
+  const approx = Math.floor(Date.parse(`${day}T16:30:00Z`) / 1000)   // ~12:30 ET seed
+  if (!Number.isFinite(approx)) return nearestIndex(anchorTime)
+  let lo = 0, hi = bars.length - 1, seed = 0
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (bars[m].t <= approx) { seed = m; lo = m + 1 } else hi = m - 1 }
+  const idxs = []
+  for (let i = seed; i >= 0; i--) { if (etDateStr(bars[i].t) === day) idxs.unshift(i); else break }
+  for (let i = seed + 1; i < bars.length; i++) { if (etDateStr(bars[i].t) === day) idxs.push(i); else break }
+  if (!idxs.length) return null   // day not loaded → defer (don't fall back to a wrong bar)
+  const volOf = (i) => Number(bars[i].v ?? bars[i].volume ?? 0)
+  const rngOf = (i) => {
+    const h = bars[i].h ?? bars[i].high, l = bars[i].l ?? bars[i].low
+    return (h != null && l != null) ? Math.abs(h - l) : 0
+  }
+  // Session averages to measure EXPANSION against.
+  let sumV = 0, sumR = 0, n = 0
+  for (const i of idxs) { sumV += volOf(i); sumR += rngOf(i); n++ }
+  const avgV = n ? sumV / n : 0
+  const avgR = n ? sumR / n : 0
+  // Where the news broke = the day's single biggest RANGE × VOLUME expansion — the
+  // classic catalyst breakout/breakdown bar. Using the MAX (not the first candle to
+  // cross a threshold) means an unrelated early-session spike (the 9:30 open) never
+  // wins over the real news candle (owner: "first large range + volume expansion
+  // candle... where the news broke" = the dominant move, e.g. the 12pm drop).
+  if (avgV > 0 && avgR > 0) {
+    let best = idxs[0], bestScore = -1
+    for (const i of idxs) {
+      const s = (volOf(i) / avgV) * (rngOf(i) / avgR)
+      if (s > bestScore) { bestScore = s; best = i }
+    }
+    return best
+  }
+  // Last resort (no usable volume/range): first candle ≥50% of peak volume, else peak.
+  let maxV = 0
+  for (const i of idxs) maxV = Math.max(maxV, volOf(i))
+  let target = maxV > 0 ? idxs.find(i => volOf(i) >= maxV * 0.5) : null
+  if (target == null) { target = idxs[0]; for (const i of idxs) if (volOf(i) > volOf(target)) target = i }
+  return target
+}
+
+// ─── Catalyst callout auto-placement (News widget) ───────────────────────────
+// A News-widget catalyst is TWO linked drawings — a `text` label + a `trendline`
+// leader — each independently editable. Both arrive with points:[] + a shared
+// calloutId; the label carries calloutAnchorTime + calloutAutoPlace. This picks a
+// blank spot near the anchor candle (same idea as the Model Book callout overlay:
+// dodge every visible candle AND any callouts already placed) and returns the label
+// box + the anchor pixel; the overlay converts those to chart points for BOTH
+// drawings. Returns null when the anchor candle isn't on screen (placement is
+// deferred until it scrolls in). PIXELS only — the caller does the pixel→chart map.
+function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorTime, text, fontSize, plotRight, h, vRange }) {
+  if (!bars?.length) return null
+  const ai = nearestIndex(anchorTime)
+  if (ai == null || !bars[ai]) return null
+  const b0 = bars[ai]
+  const hi = b0.h ?? b0.high ?? b0.c
+  const aHi = toPixel(b0.t, hi)
+  if (!aHi || !Number.isFinite(aHi.x) || !Number.isFinite(aHi.y)) return null   // candle off-screen → defer
+  const anchorX = aHi.x, anchorHiY = aHi.y
+  // The leader connects at the candle's HIGH (top) for BOTH up and down catalysts, so
+  // the headline floats UP into the blank space above the move (owner ask, matches the
+  // reference). Anchoring a big down-breakdown at its LOW pushed the blank-space search
+  // far to the right and dragged the leader off-screen — the reported bug.
+  const anchorY = anchorHiY
+
+  ctx.save()
+  ctx.font = `${fontSize}px "Instrument Sans", sans-serif`
+  // Multi-line labels (earnings: headline + EPS/REV lines): box = widest line ×
+  // line count, so placement + the leader endpoint account for the full block.
+  const tlines = String(text || '').split('\n')
+  let tw = 24
+  for (const ln of tlines) tw = Math.max(tw, ctx.measureText(ln).width)
+  const firstLineW = tlines.length ? ctx.measureText(tlines[0]).width : tw   // headline width
+  const boxW = tw + 2                                     // tight to the text
+  const boxH = Math.max(1, tlines.length) * fontSize * 1.4
+  // Visible candle high/low segments (pixels) so the label + line dodge candles.
+  let from = 0, to = bars.length - 1
+  if (vRange) { from = Math.max(0, Math.floor(vRange.from) - 1); to = Math.min(bars.length - 1, Math.ceil(vRange.to) + 1) }
+  const segs = []
+  for (let i = from; i <= to; i++) {
+    const b = bars[i]; if (!b) continue
+    const pH = toPixel(b.t, b.h ?? b.high ?? b.c)
+    const pL = toPixel(b.t, b.l ?? b.low ?? b.c)
+    if (!pH || !pL || !Number.isFinite(pH.x)) continue
+    segs.push({ x: pH.x, top: Math.min(pH.y, pL.y), bottom: Math.max(pH.y, pL.y) })
+  }
+  // Callouts already on the chart → obstacle boxes so a 2nd catalyst doesn't stack.
+  const obstacles = []
+  for (const d of drawings) {
+    if (d.type !== 'text' || !d.points?.length || d.calloutAnchorTime == null) continue
+    const p = toPixel(d.points[0].time, d.points[0].price)
+    if (!p || !Number.isFinite(p.x)) continue
+    const olines = String(d.text || '').split('\n')
+    let ow = 24
+    for (const ln of olines) ow = Math.max(ow, ctx.measureText(ln).width)
+    obstacles.push({ x: p.x, y: p.y, w: ow + 2, h: Math.max(1, olines.length) * (d.fontSize || 13) * 1.4 })
+  }
+  ctx.restore()
+
+  const plotLeft = 4
+  const pRight = Number.isFinite(plotRight) ? plotRight : 100000
+  const priceBottom = h * 0.82   // keep labels in the price pane, above volume
+  const hitsCandles = (x, y, bw, bh) => {
+    for (const s of segs) {
+      if (s.x < x - 2 || s.x > x + bw + 2) continue
+      if (s.bottom < y || s.top > y + bh) continue
+      return true
+    }
+    return false
+  }
+  const lineHitsCandles = (x0, y0, x1, y1) => {
+    const minx = Math.min(x0, x1), maxx = Math.max(x0, x1)
+    for (const s of segs) {
+      if (Math.abs(s.x - anchorX) < 3) continue          // its own candle — ok to touch
+      if (s.x < minx - 0.5 || s.x > maxx + 0.5) continue
+      const t = (x1 === x0) ? 0 : (s.x - x0) / (x1 - x0)
+      const y = y0 + t * (y1 - y0)
+      if (y >= s.top - 1 && y <= s.bottom + 1) return true
+    }
+    return false
+  }
+  const overlapsObstacle = (x, y, bw, bh) =>
+    obstacles.some(o => !(x + bw < o.x - 6 || o.x + o.w < x - 6 || y + bh < o.y - 4 || o.y + o.h < y - 4))
+
+  // Build a SMOOTH ~45° leader (owner ask): put the headline attach point on a 45°
+  // ray from the candle open, then derive the box from it. `right` = the box sits
+  // Place the headline near the anchor candle. DETERMINISTIC candidate set (not a
+  // scored search): try a small set of fixed offsets around the candle, prefer the
+  // first that sits FULLY on-screen and clears the candles/other labels, else the
+  // first fully on-screen one, else a hard-clamped on-screen box. This can NEVER
+  // degenerate into the off-screen "line streaks off the left with no headline" bug
+  // the old scored search produced (it happily picked a blocked, edge-clamped spot).
+  const fs = fontSize
+  const G = 44                                   // leader length / gap from the candle
+  const roomRight = anchorX < pRight - (boxW + G + 8)
+  // Offsets are (attachDX, headDY, right?) where right? = box sits LEFT of the attach
+  // point (leader meets its right edge). Prefer up-right blank space, then up-left,
+  // then the down variants. When there's no room right, only the left variants apply.
+  const CANDS = roomRight
+    ? [{ dx: G, dy: -G, right: false }, { dx: -G, dy: -G, right: true }, { dx: G, dy: G, right: false }, { dx: -G, dy: G, right: true }]
+    : [{ dx: -G, dy: -G, right: true }, { dx: -G, dy: G, right: true }]
+  const boxFor = (c) => {
+    const x = c.right ? (anchorX + c.dx - firstLineW) : (anchorX + c.dx)
+    const y = anchorY + c.dy - fs * 0.9
+    return { x, y, ax: c.right ? x + firstLineW : x, hy: y + fs * 0.9 }
+  }
+  const onScreen = (b) => b.x >= plotLeft && b.x <= pRight - boxW && b.y >= 6 && b.y <= priceBottom - boxH
+  let best = null, firstOnScreen = null
+  for (const c of CANDS) {
+    const b = boxFor(c)
+    if (!onScreen(b)) continue
+    if (!firstOnScreen) firstOnScreen = b
+    if (!hitsCandles(b.x, b.y, boxW, boxH) && !lineHitsCandles(anchorX, anchorY, b.ax, b.hy) && !overlapsObstacle(b.x, b.y, boxW, boxH)) {
+      best = b; break
+    }
+  }
+  if (!best) best = firstOnScreen
+  if (!best) {
+    // Anchor jammed in a corner (every candidate off-screen) → clamp a box on-screen,
+    // preferring up-right; drop below the anchor if there's no vertical room above.
+    let x = Math.max(plotLeft, Math.min(pRight - boxW, anchorX + (roomRight ? G : -G - boxW)))
+    let y = Math.max(6, Math.min(priceBottom - boxH, anchorY - G - boxH))
+    if (y <= 7 && anchorY + G + boxH < priceBottom) y = anchorY + G
+    best = { x, y }
+  }
+  return {
+    rect: { x: best.x, y: best.y, w: boxW, h: boxH },
+    anchorPx: { x: anchorX, y: anchorY },   // leader anchors at the candle's high
+    firstLineW,
+  }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -1213,6 +1428,77 @@ export default function ChartDrawingOverlay({
       return p?.y
     }
 
+    // ── Callout auto-placement (News-widget catalysts) ──
+    // A catalyst is TWO linked drawings the News widget drops (shared calloutId):
+    // a `text` LABEL (calloutRole 'label' + calloutAnchorTime + calloutAutoPlace)
+    // and a `trendline` LINE ('line'), both with empty points. The label drives ONE
+    // blank-space placement (dodging candles); we then fill BOTH — the label's box
+    // point and the line from the anchor candle to a point that stops a small GAP
+    // short of the text — via updateDrawing (idempotent by id, so N same-symbol
+    // charts can't duplicate). After that they're two ordinary, separately editable/
+    // deletable/colorable drawings. Only on the user-drawings overlay (real updateDrawing).
+    if (typeof updateDrawing === 'function' && typeof toChart === 'function') {
+      let vRange = null
+      try { vRange = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.() } catch { /* none */ }
+      const asPoint = (p) => p && ({
+        time: p.time, price: p.price,
+        ...(p.futureBars != null ? { futureBars: p.futureBars } : {}),
+        ...(p.paneRelY != null ? { paneRelY: p.paneRelY } : {}),
+      })
+      for (const d of drawings) {
+        if (d.type !== 'text' || d.calloutRole !== 'label' || !d.calloutAutoPlace || d.calloutAnchorTime == null) continue
+        if (d.points && d.points.length) continue
+        // Size the placed callout from the chart's current drawing default (the
+        // overlay's `fontSize` prop = cs.drawingDefaults.fontSize) unless this
+        // drawing already carries its own size.
+        const calloutFs = d.fontSize || fontSize
+        // Resolve the anchor to a real candle FIRST — on an intraday chart a
+        // catalyst's date snaps to the session's big-volume candle (where the news
+        // broke); daily/weekly stay on the daily bar. Everything downstream anchors
+        // to that candle's EXACT time so placeCalloutPoint + the leader line agree.
+        const ai = resolveCatalystAnchor(d.calloutAnchorTime, bars, nearestIndex)
+        const b = ai != null ? bars[ai] : null
+        if (!b) continue
+        const res = placeCalloutPoint({
+          ctx, bars, toPixel, nearestIndex, drawings,
+          anchorTime: b.t, text: d.text, fontSize: calloutFs,
+          plotRight, h, vRange,
+        })
+        if (!res) continue
+        // Leader connects at the candle's HIGH for both directions (matches
+        // placeCalloutPoint's anchor) so the headline floats up into blank space.
+        const anchorPrice = (b.h ?? b.high ?? b.c)
+        const { rect, anchorPx } = res
+        const fs = calloutFs
+        const labelPt = asPoint(toChart(rect.x, rect.y))
+        if (!labelPt) continue
+        // Attach the leader to the HEADLINE (first line) — near its right end when the
+        // candle sits to the right, else its left — at the first line's height, a small
+        // GAP off the text. (Owner ask: the line meets the right of the headline, not
+        // the bottom-right of the whole multi-line block.) Measured from where the
+        // label ACTUALLY renders (its point re-snapped to a bar), not the search rect.
+        const lp = toPixel(labelPt.time, labelPt.price)
+        const bx = (lp && Number.isFinite(lp.x)) ? lp.x : rect.x
+        const by = (lp && Number.isFinite(lp.y)) ? lp.y : rect.y
+        const flw = Number.isFinite(res.firstLineW) ? res.firstLineW : rect.w
+        const headY = by + fs * 0.9                          // ~vertical center of the headline
+        const attachX = anchorPx.x >= bx + flw / 2 ? bx + flw : bx   // side facing the candle
+        const ddx = anchorPx.x - attachX, ddy = anchorPx.y - headY
+        const dlen = Math.hypot(ddx, ddy) || 1
+        const GAP = 8
+        const ex = attachX + (ddx / dlen) * GAP
+        const ey = headY + (ddy / dlen) * GAP
+        const endPt = asPoint(toChart(ex, ey))
+        if (!endPt) continue
+        // Stamp THIS chart's current drawing default (color + width) so a placed
+        // catalyst matches whatever the user last "Saved as default" for drawings —
+        // then each is a normal, independently-recolorable drawing.
+        updateDrawing(d.id, { points: [labelPt], color, fontSize: fs, calloutAutoPlace: false }, { record: false })
+        const line = drawings.find(x => x.calloutRole === 'line' && x.calloutId === d.calloutId)
+        if (line) updateDrawing(line.id, { points: [{ time: b.t, price: anchorPrice }, endPt], color, lineWidth, calloutAutoPlace: false }, { record: false })
+      }
+    }
+
     // Draw completed drawings
     for (const d of drawings) {
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
@@ -1267,7 +1553,10 @@ export default function ChartDrawingOverlay({
             const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
             if (bx != null) hrayRight = Math.max(pts[0].x ?? 0, Math.min(w, bx))
           }
-          renderHRay(ctx, pts, hrayRight, !hidePriceLabels)
+          // No price label on a horizontal ray — the bare line is what the user
+          // wants; the price is already read from the axis/crosshair. (The
+          // full-width horizontal line keeps its right-edge label.)
+          renderHRay(ctx, pts, hrayRight, false)
           break
         }
         case 'vertical': renderVertical(ctx, pts, h); break
@@ -1384,7 +1673,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1717,9 +2006,21 @@ export default function ChartDrawingOverlay({
       const d = drawings.find(d => d.id === drag.drawingId)
       if (!d || !drag.startCoords) return
 
-      // Compute delta in chart coordinates
+      // Compute delta in chart coordinates. In the empty right-pad, toChart clamps
+      // `time` to the last candle and stashes the real offset in `futureBars`, so
+      // the delta MUST add futureBars — otherwise it saturates at the last bar and
+      // an endpoint can't be dragged past the current candle into the future.
+      const effLogical = (c) => {
+        // nearestIndex (NOT exact timeToIndex.get) — on a live intraday chart a
+        // stored point time can drift off an exact bar key (bars get re-bucketed /
+        // sanitized), and an exact miss `?? 0` would resolve to index 0 → the point
+        // snaps horizontally to the far-left first bar. nearestIndex snaps to the
+        // containing bar instead, matching how the line is RENDERED.
+        const base = c?.time != null ? (nearestIndex(c.time) ?? 0) : 0
+        return base + (Number.isFinite(c?.futureBars) ? c.futureBars : 0)
+      }
       const timeDelta = coords.time && drag.startCoords.time
-        ? (timeToIndex.get(coords.time) || 0) - (timeToIndex.get(drag.startCoords.time) || 0)
+        ? effLogical(coords) - effLogical(drag.startCoords)
         : 0
       const priceDelta = (coords.price || 0) - (drag.startCoords.price || 0)
       // Vertical anchor handling. Price-pane points keep the existing (log-safe)
@@ -1757,7 +2058,7 @@ export default function ChartDrawingOverlay({
       const moveX = (p) => {
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : (timeToIndex.get(p.time) ?? 0)
+          : (nearestIndex(p.time) ?? 0)   // nearest, not exact — see effLogical note
         const rawIdx = origIdx + timeDelta
         if (rawIdx > _lastIdx) {
           return { time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
@@ -1795,7 +2096,7 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
+  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
@@ -1912,10 +2213,21 @@ export default function ChartDrawingOverlay({
     const newPoints = sel.points.map(p => {
       const np = { ...p }
       if (dBars && p.time != null) {
-        const i = timeToIndex.get(p.time)
-        if (i != null) {
-          const ni = Math.max(0, Math.min(bars.length - 1, i + dBars))
-          np.time = bars[ni]?.t ?? p.time
+        // Mirror the drag's moveX: honor FUTURE points (past the last candle) so a
+        // nudge can push an endpoint into the right-pad instead of clamping at it.
+        const _lastIdx = bars.length - 1
+        const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
+          ? _lastIdx + p.futureBars
+          : nearestIndex(p.time)   // nearest, not exact — mirrors the drag's moveX
+        if (origIdx != null) {
+          const rawIdx = origIdx + dBars
+          if (rawIdx > _lastIdx) {
+            np.time = bars[_lastIdx].t
+            np.futureBars = Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx)
+          } else {
+            np.time = bars[Math.max(0, rawIdx)]?.t ?? p.time
+            delete np.futureBars
+          }
         }
       }
       if (dPx) {
@@ -2142,15 +2454,50 @@ export default function ChartDrawingOverlay({
       {ctxMenu && (() => {
         const d = drawings.find(dd => dd.id === ctxMenu.drawingId)
         if (!d) return null
+        // On-screen x of a point (later bar index = further right); futureBars
+        // pushes a point into the empty right-pad, so it counts toward x.
+        const effIdx = (p) => {
+          let idx = timeToIndex.get(p.time)
+          if (idx == null) idx = nearestIndex(p.time)
+          if (idx == null) idx = 0
+          return idx + (Number.isFinite(p.futureBars) ? p.futureBars : 0)
+        }
+        // Index of the left-most (starting) point — the anchor both "Make
+        // horizontal" and the "Set level" prefill reference.
+        const leftIndexOf = (pts) => {
+          let li = 0, lx = Infinity
+          pts.forEach((p, i) => { const x = effIdx(p); if (x < lx) { lx = x; li = i } })
+          return li
+        }
+        const pts = d.points || []
+        const leftLevel = pts.length ? pts[leftIndexOf(pts)]?.price ?? null : null
         return (
           <DrawingContextMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
             sheet={_COARSE_POINTER}
             drawing={d}
+            levelSupported={LEVEL_LINE_TYPES.has(d.type)}
+            horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
+            currentLevel={leftLevel}
+            onSetLevel={(price) => {
+              // Flatten the whole line onto the typed price — a clean horizontal
+              // level at exactly the value you want. Clear paneRelY so points
+              // re-anchor to the price scale (not a below-pane fraction).
+              if (!pts.length) return
+              updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price, paneRelY: null })) })
+              setCtxMenu(null)
+            }}
+            onMakeHorizontal={() => {
+              // Snap every point to the left/starting point's current price.
+              if (pts.length < 2 || leftLevel == null) return
+              updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price: leftLevel, paneRelY: null })) })
+              setCtxMenu(null)
+            }}
             onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
+            onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             canReorder={!!reorderDrawing && drawings.length > 1}
             onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
@@ -2241,31 +2588,41 @@ const numToDrawStyle = (n) => (n === 0 ? 'solid' : 'dashed')
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
-  const base = danger ? '#ef5350' : 'var(--menu-text, #ededed)'
-  const hover = danger ? 'rgba(239,83,80,0.14)' : 'var(--menu-hover, rgba(255,255,255,0.06))'
-  const sz = big ? 16 : 13
+  // Match the chart right-click menu (ChartsWorkspace .chartCtx*): GOLD icons,
+  // white label text, gold-tinted hover that also golds the label. Destructive
+  // rows stay red (icon + text) as the one deliberate exception.
+  const GOLD = 'var(--menu-accent, var(--ut-gold, #c9a84c))'
+  const textBase = danger ? 'var(--color-danger, #ef5350)' : 'var(--menu-text, #ededed)'
+  const iconColor = danger ? 'var(--color-danger, #ef5350)' : GOLD
+  const hoverBg = danger ? 'rgba(239,83,80,0.14)' : 'var(--menu-accent-bg, rgba(201,168,76,0.12))'
+  const sz = big ? 18 : 14
   return (
     <button
       onClick={onClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: big ? 12 : 8, width: '100%',
-        padding: big ? '12px 18px' : '6px 12px', minHeight: big ? 44 : undefined,
-        background: 'none', border: 'none', color: base,
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: big ? 15 : 'inherit', textAlign: 'left',
+        display: 'flex', alignItems: 'center', gap: big ? 12 : 10, width: '100%',
+        padding: big ? '12px 18px' : '9px 11px', minHeight: big ? 44 : undefined, borderRadius: big ? 0 : 6,
+        background: 'none', border: 'none', color: textBase,
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: big ? 15 : 13, textAlign: 'left',
+        transition: 'background 0.1s ease, color 0.1s ease',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = hover }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = hoverBg; if (!danger) e.currentTarget.style.color = GOLD }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = textBase }}
     >
-      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke={iconColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor, flexShrink: 0 }}>{icon}</svg>
       {label}
     </button>
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose }) {
+function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
+  const [levelOpen, setLevelOpen] = useState(false)
+  const [levelVal, setLevelVal] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)  // brief "Saved ✓" confirmation
+  const openLevel = () => { setLevelVal(fmtLevel(currentLevel)); setLevelOpen(o => !o) }
+  const submitLevel = () => { const n = parseFloat(levelVal); if (Number.isFinite(n)) onSetLevel?.(n) }
   // Clamp to the viewport so the menu always lands right next to the cursor —
   // flips to the cursor's left/up edge when it would overflow (drawings near the
   // right edge of a full-width chart otherwise pushed it off-screen). Measured
@@ -2295,10 +2652,13 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   const curColor = drawing?.color || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
   const dashed = drawing?.lineStyle === 'dashed'
+  const isText = drawing?.type === 'text'
+  const curFontSize = Math.round(drawing?.fontSize || 13)
+  const bumpFont = (delta) => onSetFontSize?.(Math.max(8, Math.min(64, curFontSize + delta)))
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
-  const menuW = sheet ? window.innerWidth : 190
+  const menuW = sheet ? window.innerWidth : 210
   const panelLeft = sheet
     ? Math.max(8, (window.innerWidth - panelW) / 2)
     : (pos.left + menuW + panelW + 8 > window.innerWidth ? Math.max(8, pos.left - panelW - 6) : pos.left + menuW)
@@ -2307,8 +2667,10 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   // Touch bottom-sheet gets roomier rows + bigger tap targets than the anchored menu.
   const rowStyle = sheet
     ? { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', minHeight: 44 }
-    : { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }
-  const labelStyle = { fontSize: sheet ? 11 : 9, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--menu-text-dim, #8a8a8f)', minWidth: sheet ? 52 : 40 }
+    : { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px' }
+  // "Color" reads like the other item labels (white, 13px) instead of a tiny dim
+  // section caption, matching the chart right-click menu.
+  const labelStyle = { fontSize: sheet ? 15 : 13, color: 'var(--menu-text, #ededed)', fontWeight: 500 }
   const sw = sheet ? 26 : 15         // color swatch size
   const wBtn = sheet ? 34 : 24       // width-button size
 
@@ -2326,10 +2688,10 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
     : {
         position: 'fixed', left: pos.left, top: pos.top,
         visibility: pos.ready ? 'visible' : 'hidden', zIndex: 21,
-        minWidth: 182, background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', border: '1px solid var(--menu-border, #242426)',
-        borderRadius: 10, boxShadow: '0 12px 40px var(--menu-shadow, rgba(0,0,0,0.6))', padding: '5px 0',
+        minWidth: 210, background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', border: '1px solid var(--menu-border, #242426)',
+        borderRadius: 10, boxShadow: '0 12px 40px var(--menu-shadow, rgba(0,0,0,0.6))', padding: '5px',
         color: 'var(--menu-text, #ededed)',
-        fontFamily: "'Instrument Sans', sans-serif", fontSize: 11, userSelect: 'none',
+        fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
       }
 
   const inner = (
@@ -2348,11 +2710,11 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
       <button
         onClick={() => setColorOpen(o => !o)}
         style={{
-          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer',
+          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
           fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-          background: colorOpen ? 'var(--menu-accent-bg, rgba(240,178,58,0.12))' : 'none',
+          background: colorOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
         }}
-        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-hover, rgba(255,255,255,0.06))' }}
+        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
         onMouseLeave={(e) => { if (!colorOpen) e.currentTarget.style.background = 'none' }}
       >
         <span style={labelStyle}>Color</span>
@@ -2364,6 +2726,95 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
       </button>
 
       <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+
+      {/* Text size — text annotations only. Steps the selected label's font size;
+          "Save as default" (below) then persists it as the size for NEW text. */}
+      {isText && onSetFontSize && (
+        <>
+          <div style={{ ...rowStyle }}>
+            <span style={labelStyle}>Text size</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => bumpFont(-1)}
+                title="Smaller"
+                aria-label="Smaller text"
+                style={{
+                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
+                }}
+              >A−</button>
+              <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
+              <button
+                onClick={() => bumpFont(1)}
+                title="Bigger"
+                aria-label="Bigger text"
+                style={{
+                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
+                }}
+              >A+</button>
+            </span>
+          </div>
+          <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+        </>
+      )}
+
+      {levelSupported && (
+        <>
+          <MenuAction
+            label="Set level…"
+            onClick={openLevel}
+            big={sheet}
+            icon={<><line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 2" /><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none" /></>}
+          />
+          {levelOpen && (
+            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                autoFocus
+                value={levelVal}
+                onChange={(e) => setLevelVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); submitLevel() }
+                  else if (e.key === 'Escape') { e.preventDefault(); setLevelOpen(false) }
+                  e.stopPropagation()
+                }}
+                placeholder="Price…"
+                style={{
+                  flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
+                  background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
+                  borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
+                  fontSize: sheet ? 14 : 12, outline: 'none',
+                }}
+              />
+              <button
+                onClick={submitLevel}
+                style={{
+                  padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
+                  background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
+                  borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
+                }}
+              >Set</button>
+            </div>
+          )}
+        </>
+      )}
+      {horizontalSupported && (
+        <MenuAction
+          label="Make horizontal"
+          onClick={onMakeHorizontal}
+          big={sheet}
+          icon={<><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>}
+        />
+      )}
+      {(levelSupported || horizontalSupported) && (
+        <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+      )}
 
       <MenuAction
         label="Duplicate"
@@ -2383,7 +2834,7 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
         <MenuAction
           label={savedFlash ? 'Saved as default ✓' : 'Save as default'}
           onClick={() => {
-            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid' })
+            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid', ...(isText ? { fontSize: curFontSize } : {}) })
             setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
           }}
           big={sheet}

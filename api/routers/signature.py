@@ -464,3 +464,76 @@ def gex_walls(sym: str = Query(...), _user: dict = Depends(require_paid)):
     # paying its own ~20s timeout.
     return _GXW_STALE.serve(s, fresh=lambda: _gxw_fresh(s),
                             build=lambda: _gxw_build(s), good=_gxw_good)
+
+
+# ── Dark-Pool Reclaim Confluence (dpc-v1) ───────────────────────────────────
+_DPC_TTL_S = 300
+
+
+def _dpc_build(sym: str) -> dict:
+    """Dark-pool levels + daily bars + flow → reclaim-confluence signals.
+    Never raises (rule 1): a failed build returns an envelope, never poisons a
+    cache and never 500s a request."""
+    try:
+        from api.services.signature import confluence
+        levels = fetch_dp_levels(sym).get("levels", [])
+        bars = _fetch_bars(sym, 60)
+        cutoff = _bar_date_iso(bars[0]["t"]) if bars else ""
+        by_date = _fetch_flow_by_date(sym, cutoff) or {}
+        signals = confluence.evaluate(levels, bars, by_date)
+        return {"ok": True, "sym": sym, "signals": signals, "levels": levels,
+                "close": (bars[-1]["c"] if bars else None),
+                "asOf": time.time(), "version": rules.VERSIONS["dpc"]}
+    except Exception:                                  # noqa: BLE001
+        logger.exception("signature: confluence build failed for %s", sym)
+        return {"ok": False, "sym": sym, "signals": [], "error": "build failed"}
+
+
+def _dpc_cached(s: str) -> dict:
+    ck = f"sig:dpc:{s}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    payload = _dpc_build(s)
+    if payload.get("ok"):
+        cache.set(ck, payload, ttl=_DPC_TTL_S)
+    return payload
+
+
+@router.get("/confluence")
+def confluence_signal(sym: str = Query(...), _user: dict = Depends(require_paid)):
+    """Dark-Pool Reclaim Confluence for ONE symbol: does price reclaim (bull) /
+    lose (bear) a dark-pool level on a daily CLOSE and HOLD, with confirming
+    call/put flow, within the proximity band. 300s TTL-cached. Runs on WEB
+    (dark-pool DB local + flow via proxy + bars local)."""
+    s = _sym_or_422(sym)
+    return _dpc_cached(s)
+
+
+@router.get("/confluence-scan")
+def confluence_scan(
+    syms: str = Query(..., description="comma-separated tickers to scan (<=40)"),
+    _user: dict = Depends(require_paid),
+):
+    """Batch the reclaim-confluence over a provided ticker list — returns ONLY
+    names with a live signal, ranked by score. First scan of uncached names is
+    slow (one flow read each). PROTOTYPE: pass your unusual-DP watchlist; the
+    auto-universe (DP-unusual ∩ notable-flow) scanner is the follow-up."""
+    raw, seen = [], set()
+    for t in (syms or "").split(","):
+        u = t.strip().upper()
+        if u and u not in seen:
+            seen.add(u)
+            raw.append(u)
+    raw = raw[:40]
+    hits = []
+    for u in raw:
+        try:
+            s = _sym_or_422(u)
+        except HTTPException:
+            continue
+        for sig in (_dpc_cached(s).get("signals") or []):
+            hits.append({"sym": s, **sig})
+    hits.sort(key=lambda h: h["score"], reverse=True)
+    return {"ok": True, "scanned": len(raw), "count": len(hits),
+            "signals": hits, "asOf": time.time()}

@@ -1547,3 +1547,75 @@ tbody tr { cursor: pointer; }
   70%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ── Provisional intraday row ─────────────────────────────────────────────────
+   The live row sits ABOVE today's history and must never be mistaken for a
+   settled one. It reads as "in progress": a live stamp instead of a date, a
+   gold rail down the left edge, and a faint sheen that stops entirely under
+   prefers-reduced-motion. The 4:15 PM collector replaces it with the
+   authoritative row, at which point the backend stops serving it at all. */
+
+/* NO background on the data cells. `.liveRow td` outranks the `.bgG3`/`.bgR1`
+   tier classes (0,1,1 vs 0,1,0), so a wash here silently flattens the heat map
+   — which is the entire language of this table. Caught in the browser: the live
+   row rendered every cell neutral while the row below it was fully coloured.
+   Liveness is carried by the date cell and a hairline instead. */
+.liveRow td {
+  border-top: 1px solid rgba(201, 168, 76, 0.30);
+  border-bottom-color: rgba(201, 168, 76, 0.22);
+}
+.liveRow .dateCell {
+  background: rgba(201, 168, 76, 0.09);
+  box-shadow: inset 2px 0 0 var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+.table tbody tr.liveRow:hover .dateCell {
+  background: rgba(201, 168, 76, 0.14);
+}
+
+.liveStamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.livePulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold, #c9a84c);
+  box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.55);
+  animation: liveBeat 2.4s ease-out infinite;
+  flex: none;
+}
+
+@keyframes liveBeat {
+  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+}
+
+/* A value carried from last night is NOT a live reading. Same treatment as a
+   stale AAII survey, because it is the same fact about the number. */
+.liveRow .liveCarried {
+  opacity: 0.42;
+  font-style: italic;
+}
+
+/* Reconciles to roughly 10% rather than to a point — small counts sitting on a
+   hard threshold against a 252-day extreme. Directionally right, not a number
+   to trade a single name off. */
+.liveRow .liveApprox::after {
+  content: '≈';
+  margin-left: 3px;
+  font-size: 9px;
+  opacity: 0.5;
+  vertical-align: super;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livePulse { animation: none; }
+}

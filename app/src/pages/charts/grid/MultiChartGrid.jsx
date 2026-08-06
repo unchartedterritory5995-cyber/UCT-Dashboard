@@ -21,6 +21,7 @@ import { useAuth } from '../../../context/AuthContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
+import { VOLUME_PANE_SURFACE_FIXED } from '../../../components/chart/indicatorRegistry'
 import GridChartCell from './GridChartCell'
 import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId, LAYOUTS } from './gridLayouts'
@@ -494,6 +495,9 @@ export default function MultiChartGrid({ mc }) {
         onChange={updateChartSettings}
         savedColors={savedColors}
         onSaveColor={saveColor}
+        /* Cells pass volumeSeparatePane + volumePaneHeightPct (GridChartCell), which
+           win over the saved prefs — so the separate-pane toggle is inert here too. */
+        volumePaneFixed={VOLUME_PANE_SURFACE_FIXED}
       />
     </div>
   )

@@ -410,3 +410,48 @@ def test_get_earnings_table_shape(monkeypatch, tmp_path):
     assert out["ticker"] == "ZZTBL"
     assert out["annual"] and out["quarterly"]
     assert "_sources" in out
+
+
+def _ttl_for(monkeypatch, tmp_path, annual, quarterly):
+    """Run _build_and_cache with a stubbed _build and report the TTL it cached with."""
+    et = _mod(monkeypatch, tmp_path)
+    seen = {}
+    monkeypatch.setattr(et, "_build",
+                        lambda t, now: ({"annual": annual, "quarterly": quarterly}, False))
+    monkeypatch.setattr(et.cache, "set",
+                        lambda k, v, ttl=None, **kw: seen.__setitem__("ttl", ttl))
+    monkeypatch.setattr(et.snap_store, "put",
+                        lambda *a, **kw: seen.__setitem__("persisted", True))
+    et._build_and_cache("TSTQ", 0.0)
+    return et, seen
+
+
+def test_a_partial_earnings_table_is_not_cached_as_complete(monkeypatch, tmp_path):
+    """One leg failing must NOT pin a half-populated table for hours.
+
+    This guard used to read `not annual AND not quarterly`, so only a TOTALLY
+    empty payload got the short retry TTL — a single failed leg fell through and
+    was cached for up to _SLOW_TTL (6h) AND persisted to the snapshot store,
+    where a stale-served partial outlives the outage that caused it. Same class
+    as the `get_earnings_intel` partial-cache bug: never cache a failed fetch as
+    a value. Found by the 2026-08-05 data-coverage audit.
+    """
+    # quarterly resolved, annual did not
+    et, seen = _ttl_for(monkeypatch, tmp_path, annual=[], quarterly=[{"label": "Q2 26"}])
+    assert seen["ttl"] == et._EMPTY_TTL
+    assert "persisted" not in seen, "a partial must not reach the snapshot store"
+
+    # ...and the mirror case: annual resolved, quarterly did not
+    et, seen = _ttl_for(monkeypatch, tmp_path, annual=[{"label": "FY25"}], quarterly=[])
+    assert seen["ttl"] == et._EMPTY_TTL
+    assert "persisted" not in seen
+
+
+def test_a_complete_earnings_table_still_gets_the_full_ttl(monkeypatch, tmp_path):
+    """The other direction — a genuinely complete payload must NOT be punished
+    with the 2-minute retry TTL, which would re-fetch every visit."""
+    et, seen = _ttl_for(monkeypatch, tmp_path,
+                        annual=[{"label": "FY25"}], quarterly=[{"label": "Q2 26"}])
+    assert seen["ttl"] in (et._FAST_TTL, et._SLOW_TTL)
+    assert seen["ttl"] != et._EMPTY_TTL
+    assert seen.get("persisted") is True

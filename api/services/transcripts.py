@@ -27,30 +27,21 @@ _TAIL_CHARS                = 4_000    # analyst Q&A section
 def _fetch_latest_transcript(symbol: str) -> dict | None:
     """Fetch the most recent earnings call transcript from Finnhub.
 
+    Both legs route through the shared api.services.finnhub_client.fh_get
+    (2026-08-05) so they share the process-wide token bucket / 429 cooldown
+    with every other Finnhub caller instead of spending the same account
+    budget uncoordinated.
+
     Returns {text, quarter, year, title} or None if unavailable.
     """
-    import requests
-
-    fh_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not fh_key:
-        return None
+    from api.services.finnhub_client import fh_get
 
     # Step 1: list available transcripts
-    try:
-        list_url = (
-            f"https://finnhub.io/api/v1/stock/transcripts/list"
-            f"?symbol={symbol}&token={fh_key}"
-        )
-        resp = requests.get(list_url, timeout=10)
-        if not resp.ok:
-            _logger.warning("Transcript list HTTP %d for %s", resp.status_code, symbol)
-            return None
-        data = resp.json()
-        transcripts = data.get("transcripts", [])
-        if not transcripts:
-            return None
-    except Exception as exc:
-        _logger.warning("Transcript list fetch failed for %s: %s", symbol, exc)
+    data = fh_get("/stock/transcripts/list", {"symbol": symbol}, timeout=10)
+    if not isinstance(data, dict):
+        return None
+    transcripts = data.get("transcripts", [])
+    if not transcripts:
         return None
 
     # Pick the most recent transcript
@@ -60,18 +51,8 @@ def _fetch_latest_transcript(symbol: str) -> dict | None:
         return None
 
     # Step 2: fetch full transcript
-    try:
-        detail_url = (
-            f"https://finnhub.io/api/v1/stock/transcripts"
-            f"?id={transcript_id}&token={fh_key}"
-        )
-        resp = requests.get(detail_url, timeout=15)
-        if not resp.ok:
-            _logger.warning("Transcript detail HTTP %d for %s", resp.status_code, symbol)
-            return None
-        detail = resp.json()
-    except Exception as exc:
-        _logger.warning("Transcript detail fetch failed for %s: %s", symbol, exc)
+    detail = fh_get("/stock/transcripts", {"id": transcript_id}, timeout=15)
+    if not isinstance(detail, dict):
         return None
 
     # Concatenate all speech entries

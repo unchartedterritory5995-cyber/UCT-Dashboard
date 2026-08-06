@@ -1,0 +1,293 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* Default canvas/text follow the app theme (--bg/--text: OLED-black, light, dim)
+     until the user picks an explicit per-widget canvas. */
+  background: var(--prof-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-sans);
+}
+
+
+/* Header bar: symbol + gear */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.symWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.sym {
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.4px;
+  flex: 0 0 auto;
+  /* "Header color" setting colors the ticker + company name. */
+  color: var(--prof-header-text, var(--prof-chrome-strong, var(--prof-text, var(--text-bright, #e0dac8))));
+}
+.company {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--prof-header-text, var(--prof-chrome, var(--text-muted, #8b8674)));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.gearBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+.gearBtn:hover, .gearBtnActive { color: var(--prof-accent, var(--ut-gold, #c9a84c)); background: var(--prof-row-hover, rgba(255, 255, 255, 0.06)); }
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ── Top row: three YTD stats, side by side ── */
+.statRow {
+  display: flex;
+  gap: 10px;
+  padding: 12px 12px 13px;
+  border-bottom: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
+.stat { flex: 1 1 0; min-width: 0; text-align: center; }
+/* Every value sits centered directly beneath its own label. */
+.statLabel {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.statValue {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+}
+
+/* ── Earnings table ── */
+.earnWrap {
+  padding: 12px 12px 6px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
+.sectionLabel {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  margin-bottom: 7px;
+}
+.earnTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.earnTable th {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  padding: 0 0 6px;
+}
+.earnTable td {
+  padding: 5px 0;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.05));
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+}
+.thLeft, .tdLeft { text-align: left; }
+.thNum, .tdNum { text-align: right; padding-left: 8px; }
+.tdLeft { color: var(--prof-chrome, var(--text-muted, #9b9482)); }
+
+/* Up / down / neutral coloring for the performance stat values.
+   Fallback MUST equal PROFILE_WIDGET_DEFAULTS.upColor (#1ae51a): the style var is
+   emitted only when the picked color differs from the default, so a fallback of a
+   DIFFERENT green (--ut-green-bright #3cb868) made a picked-default value not match
+   the settings swatch. */
+.up { color: var(--prof-up, #1ae51a); }
+.down { color: var(--prof-down, #ff5b5b); }
+.neutral { color: var(--prof-text, var(--text-bright, #e0dac8)); }
+/* Earnings-surprise cells — separately configurable (default: blue up / red down,
+   matching the chart's earnings-marker popup). Scoped to `.earnTable td` so they
+   out-specify the base `.earnTable td { color }` rule (otherwise the cell color
+   never changed). */
+.earnTable td.surpUp { color: var(--prof-surp-up, #6a7bff); }
+.earnTable td.surpDown { color: var(--prof-surp-down, #ff5b5b); }
+
+/* ── Company description + thematic narrative ── */
+.prose {
+  padding: 12px 12px 14px;
+}
+.desc {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+}
+.story {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  /* Readable body text (was the dim muted chrome — hard to see on a dark canvas). */
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+  opacity: 0.9;
+}
+
+/* ── Key stats ── */
+.keyWrap {
+  padding: 12px 12px 16px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
+.keyGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 18px;
+}
+.keyItem {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.05));
+  padding-bottom: 5px;
+}
+.keyLabel {
+  font-size: 10.5px;
+  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  white-space: nowrap;
+}
+.keyVal {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--prof-text, var(--text-bright, #e0dac8));
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Single-column when the widget is narrow so values don't clip */
+@container (max-width: 300px) {
+  .keyGrid { grid-template-columns: 1fr; }
+}
+
+/* Company profile (website / HQ / CEO / employees) — full-width rows below the
+   four key metrics. */
+.infoList {
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.infoRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.link {
+  color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
+/* ── Sympathy stocks — clickable ticker chips ── */
+.sympWrap {
+  padding: 12px 12px 16px;
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--prof-chrome-strong, var(--prof-text, #e0dac8));
+  background: var(--prof-row-hover, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.10));
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.chip:hover {
+  color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  border-color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  background: var(--prof-row-hover, rgba(255, 255, 255, 0.10));
+}
+
+/* States */
+.empty {
+  padding: 16px 12px;
+  font-size: 11.5px;
+  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  line-height: 1.5;
+}
+.generating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 11.5px;
+  color: var(--prof-accent, var(--ut-gold, #c9a84c));
+  border-top: 1px solid var(--prof-row-divider, rgba(255, 255, 255, 0.06));
+}
+.spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: pwspin 0.7s linear infinite;
+}
+@keyframes pwspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Narrow widget: shrink the stat values a touch so three fit */
+@container (max-width: 300px) {
+  .statValue { font-size: 15px; }
+  .statRow { gap: 7px; }
+}
+@container (max-width: 230px) {
+  .statValue { font-size: 13px; }
+  .statLabel { font-size: 9px; letter-spacing: 0.3px; }
+}

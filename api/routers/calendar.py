@@ -420,28 +420,24 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
         return
 
     try:
-        import time as _t
-
-        import requests
-        r = requests.get(
-            "https://finnhub.io/api/v1/calendar/earnings",
-            params={"from": past_dates[0], "to": today_str, "token": fh_key},
-            timeout=10,
-        )
-        if r.status_code == 429:
-            # This ONE range call fills every actual on the board — worth a
-            # single short retry when it lands mid rate-limit burst.
-            _t.sleep(2)
-            r = requests.get(
-                "https://finnhub.io/api/v1/calendar/earnings",
-                params={"from": past_dates[0], "to": today_str, "token": fh_key},
-                timeout=10,
-            )
-        if not r.ok:
+        # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
+        # call shares the process-wide token bucket / 429 cooldown with every
+        # other Finnhub caller in the codebase — a raw requests.get here spent
+        # the SAME account budget with no coordination. This also drops the
+        # old manual "sleep(2) then retry once" on a 429: `_patch_today_actuals`
+        # runs on the request path (GET /api/calendar), so a blocking sleep
+        # here held an anyio threadpool worker for 2s at exactly the moment —
+        # mid rate-limit burst — when threads are scarcest. fh_get degrades
+        # instead: None immediately, no wait; the next 10-min rebuild picks it
+        # up (the sticky-actuals ledger below means a miss here never regresses
+        # an actual that already printed).
+        from api.services.finnhub_client import fh_get
+        data = fh_get("/calendar/earnings", {"from": past_dates[0], "to": today_str}, timeout=10)
+        if not isinstance(data, dict):
             return
         fh_map = {
             e["symbol"]: e
-            for e in r.json().get("earningsCalendar", [])
+            for e in data.get("earningsCalendar", [])
             if e.get("symbol") in pending_by_sym and e.get("epsActual") is not None
         }
         patched = 0
@@ -560,27 +556,15 @@ def _load_cap_universe() -> set[str]:
 def _fh_get_month(from_date: str, to_date: str) -> dict | None:
     """Fetch Finnhub /calendar/earnings for a full date range.
 
-    Mirrors the _fh_get pattern from earnings_estimates.py.
-    Returns the raw JSON dict or None on failure.
+    Routed through the shared api.services.finnhub_client.fh_get — every
+    Finnhub caller in the codebase shares ONE process-wide token bucket / 429
+    cooldown (2026-08-05; see finnhub_client.py's module docstring). Returns
+    the raw JSON dict, or None on failure/budget-shed (fh_get logs the reason
+    itself — 429/403/missing key/etc. — so no duplicate logging here).
     """
-    fh_key = os.environ.get("FINNHUB_API_KEY")
-    if not fh_key:
-        _logger.warning("Calendar month: FINNHUB_API_KEY not set")
-        return None
-    try:
-        import requests
-        r = requests.get(
-            "https://finnhub.io/api/v1/calendar/earnings",
-            params={"from": from_date, "to": to_date, "token": fh_key},
-            timeout=15,
-        )
-        if not r.ok:
-            _logger.warning("Calendar month: Finnhub HTTP %d", r.status_code)
-            return None
-        return r.json()
-    except Exception as exc:
-        _logger.warning("Calendar month: Finnhub fetch failed: %s", exc)
-        return None
+    from api.services.finnhub_client import fh_get
+    data = fh_get("/calendar/earnings", {"from": from_date, "to": to_date}, timeout=15)
+    return data if isinstance(data, dict) else None
 
 
 # ── Past-day backfill (current week only) ─────────────────────────────────────
@@ -1976,6 +1960,29 @@ _ENRICH_ACQUIRE_TIMEOUT = 8.0
 _ENRICH_EM_POOL = _TPE(max_workers=4, thread_name_prefix="cal-em")
 
 
+def _cutover_on() -> bool:
+    """spec §6: the calendar's expected-move switches off the delayed yfinance
+    straddle onto the in-house Massive chain. Read at CALL time so the flag can
+    be flipped (and tested) without a module reload. Default OFF."""
+    return os.environ.get("IMPLIED_ENRICHMENT_CUTOVER") == "1"
+
+
+def _inhouse_move(sym: str, target: str) -> dict | None:
+    """In-house straddle mapped into the calendar-enrichment shape.
+
+    ROUNDING IS LOAD-BEARING: the outgoing yfinance builder rounded pct to 1dp
+    and `pages/calendar/CalendarDayTable.jsx:87` prints `±${pct}%` with no
+    formatter, so an unrounded float renders ±6.234567891%. FE readers of
+    `expected_move` were swept — only `.pct` is consumed anywhere, so the
+    call_mark→call_mid field rename rides along harmlessly.
+    """
+    from api.services import implied_move as _im
+    out = _im.get_expected_move(sym, target)
+    if not out:
+        return None
+    return {**out, "pct": round(out["pct"], 1), "dollar": round(out["dollar"], 2)}
+
+
 def _bounded_em(fn, timeout: float = 15.0):
     """Run an implied-move callable with a hard timeout on the dedicated pool.
     Returns None on timeout or any exception (the calling thread is freed)."""
@@ -2071,7 +2078,7 @@ def _build_enrichment_for_date(target: str) -> dict:
            else _ENRICH_TTL_FUTURE_WEEK)
 
     from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
-    from api.services.earnings_estimates import get_earnings_intel
+    from api.services.earnings_estimates import get_earnings_intel, fh_budget_denied_total
 
     def _compute_hist_stats(sym: str) -> dict | None:
         """Return compact hist_stats from get_historical_earnings_moves.
@@ -2087,13 +2094,28 @@ def _build_enrichment_for_date(target: str) -> dict:
             if not raw:
                 return None
             moves = raw.get("moves_pct") or []
-            n = raw.get("n_quarters") or len(moves)
-            up = sum(1 for m in moves if m > 0)
+            # `moves` can now contain `None` (P2 T9 review round 2, CRITICAL:
+            # get_historical_earnings_moves emits an explicit null for a
+            # quarter it can't compute yet — e.g. print night, no next-day
+            # close — rather than dropping the slot and shifting the rest).
+            # `None > 0` raises in Python 3; both counts below must skip gaps
+            # rather than crash or silently miscount them as reports.
+            n = raw.get("n_quarters") or sum(1 for m in moves if m is not None)
+            up = sum(1 for m in moves if m is not None and m > 0)
             return {
                 "avg_abs_move": raw.get("avg_abs_move_pct"),
                 "up_count":     up,
                 "total":        n,
-                "last_n":       list(reversed(moves[:8])),   # newest first, capped 8
+                # `moves` is ALREADY newest-first — it is a verbatim passthrough
+                # of `_fetch_quarterly_history`'s GUARANTEED newest-first order
+                # (see that function's docstring). A `reversed()` used to sit
+                # here, written for a since-superseded AV-only/oldest-first
+                # world; left in place after FMP became primary, it silently
+                # flipped every emitted `last_n` to oldest-first — the opposite
+                # of this line's own comment (P2 T9 review, CRITICAL: every
+                # per-quarter reaction pairing downstream was reading the WRONG
+                # quarter's move). Do not reintroduce it.
+                "last_n":       moves[:8],   # newest first, capped 8; may hold nulls
             }
         except Exception:
             return None
@@ -2103,10 +2125,13 @@ def _build_enrichment_for_date(target: str) -> dict:
         hist = None
         hist_stats = None
         if not is_past:
-            # _bounded_em: a hung yfinance option-chain call frees this worker
-            # after the timeout instead of pinning it (524-outage class), on a
-            # pool ISOLATED from yf_util's shared one.
-            move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
+            # _bounded_em: a hung chain call frees this worker after the timeout
+            # instead of pinning it (524-outage class), on a pool ISOLATED from
+            # yf_util's shared one. BOTH branches ride it.
+            if _cutover_on():
+                move = _bounded_em(lambda s=sym: _inhouse_move(s, target))
+            else:
+                move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None
@@ -2123,6 +2148,16 @@ def _build_enrichment_for_date(target: str) -> dict:
     # someone else's compute; SWR's next poll picks up the winner's cache.
     if not _ENRICH_SEMAPHORE.acquire(timeout=_ENRICH_ACQUIRE_TIMEOUT):
         return cache.get(ck) or {}
+    # Snapshot the process-wide Finnhub token-bucket denial counter before the
+    # fan-out. A heavy day (80+ symbols × 3 Finnhub calls each) can exceed the
+    # provider's ~60/min budget within this one build — the bucket sheds the
+    # excess (Task 13) instead of storming into 429s, but the symbols it shed
+    # come back with no beat_history, not because they lack one but because
+    # this pass never got to them. `throttled` (below) tells those two cases
+    # apart so a THROTTLED build doesn't lock in that partial coverage for
+    # `_ENRICH_TTL_PAST` (12h) / `_ENRICH_TTL_FUTURE_WEEK` (4h) — see the ttl
+    # override after the fan-out.
+    denied_before = fh_budget_denied_total()
     out: dict = {}
     try:
         # Re-check under the semaphore — a queued duplicate request for the
@@ -2136,11 +2171,25 @@ def _build_enrichment_for_date(target: str) -> dict:
     finally:
         _ENRICH_SEMAPHORE.release()
 
+    # Any denial during the window this build ran in means SOME Finnhub call
+    # here (or from concurrent Finnhub activity elsewhere in the process —
+    # the bucket is process-wide, same scope as the existing 429 cooldown)
+    # was shed for budget, not because the data doesn't exist. Caching that
+    # as if it were a complete, stable result would starve those symbols of
+    # `beat_history` for hours. Erring toward "recheck sooner than strictly
+    # necessary" is the safe direction; erring the other way is the bug this
+    # task exists to fix.
+    throttled = fh_budget_denied_total() > denied_before
+    if throttled:
+        ttl = _ENRICH_TTL
+
     _ENRICH_STATS[target] = {
         "total":     len(syms),
         "with_em":   sum(1 for v in out.values() if v.get("expected_move")),
         "with_hist": sum(1 for v in out.values() if v.get("hist_stats")),
+        "with_beats": sum(1 for v in out.values() if v.get("beat_history")),
         "past":      is_past,
+        "throttled": throttled,
         "computed_at": datetime.now(_ET).isoformat(timespec="seconds"),
     }
     # Bound the telemetry dict (it would otherwise grow one key per browsed day)

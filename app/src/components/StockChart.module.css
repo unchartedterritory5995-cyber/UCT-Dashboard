@@ -312,26 +312,37 @@
   align-items: flex-start;
   flex-wrap: nowrap;
   gap: 3px;
-  top: 44px;
+  top: 34px;           /* tuck just under the drawing toolbar (its bottom ≈ 30px) */
+  left: 4px;           /* align the value strip's left edge with the toolbar's (left: 4px) */
   right: 8px;          /* let the value row use the full chart width before wrapping */
   background: none;
   padding: 0;
   border-radius: 0;
   box-shadow: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);   /* legibility without a box, over candles */
+  /* No text-shadow: the panel lives on .flRow (below) so the horizontal legend
+     reads exactly like the vertical one — the old shadow glowed on a light
+     canvas and made the text look like it didn't belong. */
 }
 :global([data-charts-theme='sunrise']) .legendFlat {
   background: none;
   box-shadow: none;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
 }
-/* The value strip. Wraps only when it genuinely runs out of chart width. */
+/* The value strip. Wraps only when it genuinely runs out of chart width. Carries
+   the SAME subtle panel as the vertical legend (.legendVertical) — content-sized
+   because .legendFlat doesn't stretch its child (align-items: flex-start) — so the
+   two layouts look identical, one just runs horizontally. */
 .flRow {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 3px 11px;
   font-variant-numeric: tabular-nums;
+  background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+:global([data-charts-theme='sunrise']) .flRow {
+  background: rgba(255, 255, 255, 0.55);
 }
 
 /* ── Multi-symbol comparison legend (top-left overlay) ──
@@ -481,16 +492,19 @@
 
 /* Price-scale mode toggle (A/L) — anchored to the right price axis, resting
    just above the volume pane. `bottom` is set inline from the pane geometry. */
+/* Matches the 3M/6M/YTD range bar: same canvas-following panel + button tokens,
+   so it changes with the chosen chart canvas instead of the old fixed slate. */
 .scaleToggle {
   position: absolute;
-  right: 2px;
+  right: 12px;
   z-index: 45;
   display: flex;
   gap: 1px;
-  padding: 1px;
-  border-radius: 4px;
-  background: rgba(20, 24, 32, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 2px;
+  border-radius: 5px;
+  background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.72));
+  border: 1px solid var(--chart-panel-border-low, rgba(255, 255, 255, 0.06));
+  backdrop-filter: blur(2px);
   opacity: 0.5;
   transition: opacity 0.15s ease;
   pointer-events: auto;
@@ -504,25 +518,38 @@
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--color-text-muted, #8b95a5);
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  opacity: 0.82;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   line-height: 1;
-  padding: 2px 5px;
+  padding: 1px 5px;
   border-radius: 3px;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease, opacity 0.12s ease;
 }
 
 .scaleToggleBtn:hover {
-  color: #e2e8f0;
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  opacity: 1;
+  background: var(--chart-panel-hover-low, rgba(255, 255, 255, 0.07));
 }
 
-.scaleToggleActive {
-  background: rgba(201, 168, 76, 0.22);
-  color: #c9a84c;
+/* Selected scale — gold highlight, theme-aware (darker gold on the light theme). */
+.scaleToggleActive,
+.scaleToggleActive:hover {
+  opacity: 1;
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.2));
+  color: var(--accent, #c9a84c);
 }
+
+:global([data-charts-theme='sunrise']) .scaleToggle {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(20, 45, 75, 0.16);
+}
+:global([data-charts-theme='sunrise']) .scaleToggleBtn { color: #47525f; }
 
 @media (max-width: 900px) and (orientation: landscape) {
   .container {

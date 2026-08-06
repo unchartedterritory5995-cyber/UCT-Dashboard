@@ -98,21 +98,18 @@ def _get_reporters_for_date(market_date: str) -> set[str]:
     except Exception as e:
         _logger.debug("[cal-alerts] cache path failed: %s", e)
 
-    # Fallback: Finnhub direct fetch
+    # Fallback: Finnhub direct fetch — routed through the shared
+    # finnhub_client.fh_get (2026-08-05) so it shares the process-wide token
+    # bucket / 429 cooldown with every other Finnhub caller instead of
+    # spending the same account budget uncoordinated.
     try:
-        import requests
-        fh_key = os.environ.get("FINNHUB_API_KEY", "")
-        if fh_key:
-            r = requests.get(
-                "https://finnhub.io/api/v1/calendar/earnings",
-                params={"from": market_date, "to": market_date, "token": fh_key},
-                timeout=10,
-            )
-            if r.ok:
-                for row in r.json().get("earningsCalendar", []):
-                    sym = (row.get("symbol") or "").strip().upper()
-                    if sym:
-                        result.add(sym)
+        from api.services.finnhub_client import fh_get
+        data = fh_get("/calendar/earnings", {"from": market_date, "to": market_date}, timeout=10)
+        if isinstance(data, dict):
+            for row in data.get("earningsCalendar", []):
+                sym = (row.get("symbol") or "").strip().upper()
+                if sym:
+                    result.add(sym)
     except Exception as e:
         _logger.debug("[cal-alerts] Finnhub fallback failed: %s", e)
 

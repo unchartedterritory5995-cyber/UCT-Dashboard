@@ -1,0 +1,73 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.svg {
+  width: 100%;
+  overflow: visible;
+}
+
+.baseline {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* EXPECTATION — hollow, always (§3.3). Never filled, never green/red. */
+.implied {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+/* The current quarter reads brighter, NOT gold: the RICH/CHEAP chip is this
+   canvas's single gold element (§3.1). */
+.impliedNow {
+  fill: none;
+  stroke: var(--text-bright);
+  stroke-width: 1.4;
+}
+
+/* REALIZED — solid and signed. */
+.realizedUp {
+  fill: var(--gain);
+  opacity: 0.85;
+}
+.realizedDown {
+  fill: var(--loss);
+  opacity: 0.85;
+}
+
+.now {
+  fill: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: var(--ls-label);
+}
+
+.qlabel {
+  fill: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 8px;
+}
+
+.cold {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .wrap {
+    gap: 2px;
+  }
+  .qlabel {
+    font-size: 7px;
+  }
+}

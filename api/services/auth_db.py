@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS watchlists (
     description     TEXT DEFAULT '',
     is_public       INTEGER DEFAULT 0,
     is_flagged_list INTEGER DEFAULT 0,
+    is_prebuilt     INTEGER DEFAULT 0,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -540,6 +541,12 @@ def init_db():
             conn.execute("ALTER TABLE watchlists ADD COLUMN is_flagged_list INTEGER DEFAULT 0")
             conn.commit()
             print("[auth] Migrated: added is_flagged_list column to watchlists")
+
+        # Migration: add is_prebuilt column (admin-curated UCT watchlists) if missing
+        if "is_prebuilt" not in wl_cols:
+            conn.execute("ALTER TABLE watchlists ADD COLUMN is_prebuilt INTEGER DEFAULT 0")
+            conn.commit()
+            print("[auth] Migrated: added is_prebuilt column to watchlists")
 
         # Ticker tags table (color tags per user per ticker)
         conn.execute("""

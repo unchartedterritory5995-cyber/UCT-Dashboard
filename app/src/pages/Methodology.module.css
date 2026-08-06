@@ -1,0 +1,20 @@
+.page { max-width: 860px; margin: 0 auto; padding: var(--space-xl) var(--space-lg) 64px; }
+.title { font-size: var(--text-display); color: var(--text-heading); margin: 0 0 var(--space-md); letter-spacing: var(--ls-normal); }
+.lede { font-size: var(--text-base); color: var(--text); line-height: var(--lh-snug); margin: 0 0 var(--space-xl); }
+.section { border-top: 1px solid var(--glass-border-neutral); padding-top: var(--space-lg); margin-bottom: var(--space-xl); }
+.h2 { font-size: var(--text-xl); color: var(--text-heading); margin: 0 0 var(--space-md); }
+.body { font-size: var(--text-sm); color: var(--text); line-height: var(--lh-snug); margin: 0 0 var(--space-md); }
+.table { width: 100%; border-collapse: collapse; margin: 0 0 var(--space-lg); font-size: var(--text-sm); }
+.table th { text-align: left; font-size: var(--text-xs); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--text-muted); font-weight: 600; padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--glass-border-neutral); }
+.table td { padding: var(--space-sm); color: var(--text); border-bottom: 1px solid var(--glass-border-neutral); vertical-align: top; }
+.ladder { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-xs); margin: 0 0 var(--space-lg); }
+.ladderRow { display: flex; justify-content: space-between; gap: var(--space-sm); background: var(--glass-surface); border: 1px solid var(--glass-border-neutral); border-radius: var(--radius-sm); padding: var(--space-xs) var(--space-sm); }
+.ladderLetter { color: var(--text-bright); font-weight: 600; font-size: var(--text-sm); }
+.ladderRange { color: var(--text-muted); font-size: var(--text-xs); }
+.notAdvice { font-size: var(--text-xs); color: var(--text-muted); border-top: 1px solid var(--glass-border-neutral); padding-top: var(--space-md); margin: var(--space-xl) 0 0; }
+
+@media (max-width: 640px) {
+  .page { padding: var(--space-lg) var(--space-md) 48px; }
+  .title { font-size: var(--text-xl); }
+  .table { display: block; overflow-x: auto; }
+}

@@ -1,0 +1,67 @@
+.row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--glass-border-neutral);
+}
+.row:last-child {
+  border-bottom: none;
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pass .glyph { color: var(--gain); }
+.fail .glyph { color: var(--loss); }
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text-bright);
+  min-width: 0;
+}
+
+.value {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-bright);
+  text-align: right;
+}
+
+.threshold {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* Visually hidden, still announced — the outcome must not be icon-only for a
+   screen reader. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* PHONE — the threshold wraps under the value rather than squeezing the label. */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+  }
+  .threshold {
+    grid-column: 2 / -1;
+  }
+}

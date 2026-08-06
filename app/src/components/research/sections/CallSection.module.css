@@ -1,0 +1,4 @@
+.wrap { display: flex; flex-direction: column; gap: var(--space-md); }
+.listen { align-self: flex-start; min-height: var(--tap-min); display: inline-flex; align-items: center; padding: 0 var(--space-md); border-radius: var(--radius-md); border: 1px solid var(--glass-border-neutral); background: var(--glass-surface); color: var(--text-bright); font-size: var(--text-sm); text-decoration: none; }
+.listen:focus-visible { outline: var(--focus-ring); }
+.provenance { font-size: var(--text-xs); color: var(--text-muted); }

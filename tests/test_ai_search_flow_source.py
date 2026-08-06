@@ -72,7 +72,7 @@ def flow_source_server(monkeypatch):
     races the next connect (WinError 10054 on Windows). Content-Length is still
     sent, so the client never infers body length from the close.
     """
-    state = {"rows": {}, "status": 200}
+    state = {"rows": {}, "status": 200, "fail_source": None}
     seen = []
 
     class _H(BaseHTTPRequestHandler):
@@ -85,7 +85,8 @@ def flow_source_server(monkeypatch):
             source = (qs.get("source") or ["stocks"])[0]
             seen.append((sym, source))
 
-            if state["status"] != 200:
+            failing = state["fail_source"] in (None, source)
+            if state["status"] != 200 and failing:
                 body = b"nope"
                 self.send_response(state["status"])
                 self.send_header("Content-Type", "text/plain")
@@ -136,8 +137,17 @@ def flow_source_server(monkeypatch):
             state["rows"][(source, sym.upper())] = rows
 
         @staticmethod
-        def fail(status=500):
+        def fail(status=500, source=None):
+            """Break the surface. `source=None` breaks both; naming one breaks
+            only that source, which is how a PARTIAL outage is reproduced."""
             state["status"] = status
+            state["fail_source"] = source
+
+        @staticmethod
+        def heal():
+            """End the outage — the surface answers 200 again."""
+            state["status"] = 200
+            state["fail_source"] = None
 
     try:
         yield _Ctl
@@ -188,3 +198,83 @@ def test_a_failed_read_is_not_retried_as_if_it_were_zero_rows(flow_source_server
 
     assert ai_search._ctx_flow_ticker("SPY") == ""
     assert flow_source_server.requests == [("SPY", "stocks")]
+
+
+# ── The 60s memo must not cache an outage ────────────────────────────────
+#
+# `lesson_market_cap_cache_poison`: never cache a failed fetch AS A VALUE. The
+# read above correctly refuses to re-ask the other source after a failure, but
+# it still wrote the resulting "" into the 60s memo — so one 500 pinned "no flow
+# on SPY" for a full minute of questions AFTER the outage had already cleared,
+# and every one of those answers was ungrounded with nothing to alert on. The
+# distinction the memo has to preserve is the same one `_read_flow_rows` returns
+# None to express: an outage is not a quiet tape.
+
+def test_a_failed_read_is_not_memoized_and_the_next_question_retries(flow_source_server):
+    """The poison, end to end: outage, then recovery INSIDE the memo window.
+
+    The second call is what matters. If the failure was memoized it answers ""
+    from cache and never touches the wire — the request log stays at one entry
+    and SPY reads as quiet for 60s despite the surface being healthy again.
+    """
+    flow_source_server.fail(500)
+    assert ai_search._ctx_flow_ticker("SPY") == ""
+    assert flow_source_server.requests == [("SPY", "stocks")]
+
+    # Outage clears. No time has passed, so the 60s memo is still in window.
+    flow_source_server.heal()
+    flow_source_server.seed("indexes", "SPY", _prints("SPY"))
+
+    text = ai_search._ctx_flow_ticker("SPY")
+
+    assert text.startswith("SPY options flow"), text
+    assert "$1.2M premium" in text, text
+    assert flow_source_server.requests == [
+        ("SPY", "stocks"), ("SPY", "stocks"), ("SPY", "indexes")]
+
+
+def test_a_failed_second_source_read_is_not_memoized_as_a_quiet_tape(flow_source_server):
+    """The partial outage — stocks answers empty, `indexes` is the one that fails.
+
+    This is the poison in its worst form. An empty `stocks` read for an index
+    symbol carries NO information (that is the whole premise of this file); the
+    answer lives in the source that just failed. Memoizing "" off that pins
+    'no flow on SPY' for 60s having never once succeeded at reading SPY.
+    """
+    flow_source_server.fail(500, source="indexes")
+
+    assert ai_search._ctx_flow_ticker("SPY") == ""
+    assert flow_source_server.requests == [("SPY", "stocks"), ("SPY", "indexes")]
+
+    flow_source_server.heal()
+    flow_source_server.seed("indexes", "SPY", _prints("SPY"))
+
+    assert ai_search._ctx_flow_ticker("SPY").startswith("SPY options flow")
+
+
+def test_a_genuinely_quiet_tape_IS_memoized(flow_source_server):
+    """The other direction — and the reason this is not just 'stop memoizing "".
+
+    Both sources answered, both were empty: that is a real result and the memo
+    must keep it, or every quiet symbol pays two HTTP hops on a 2.5s budget for
+    every question. A fix that skipped the write whenever the text was empty
+    would pass the tests above and silently regress this.
+    """
+    assert ai_search._ctx_flow_ticker("ZZZZ") == ""
+    assert flow_source_server.requests == [("ZZZZ", "stocks"), ("ZZZZ", "indexes")]
+
+    # Second question inside the window is served from the memo — no new request.
+    assert ai_search._ctx_flow_ticker("ZZZZ") == ""
+    assert flow_source_server.requests == [("ZZZZ", "stocks"), ("ZZZZ", "indexes")]
+
+
+def test_a_successful_read_IS_memoized(flow_source_server):
+    """A hit is cached too — the memo's actual job."""
+    flow_source_server.seed("stocks", "NVDA", _prints("NVDA"))
+
+    first = ai_search._ctx_flow_ticker("NVDA")
+    second = ai_search._ctx_flow_ticker("NVDA")
+
+    assert first == second
+    assert first.startswith("NVDA options flow")
+    assert flow_source_server.requests == [("NVDA", "stocks")]

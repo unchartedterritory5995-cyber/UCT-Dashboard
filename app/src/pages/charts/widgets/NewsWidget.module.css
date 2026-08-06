@@ -1,0 +1,230 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* Default canvas/text follow the app theme (--bg/--text: OLED-black, light, dim)
+     until the user picks an explicit per-widget canvas. */
+  background: var(--news-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--news-text, var(--text-bright, #e0dac8));
+  font-family: var(--font-sans);
+}
+
+
+/* Header bar: symbol + up/down filter pills + gear */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border-bottom: 1px solid var(--news-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.symWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+.sym {
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.4px;
+  flex: 0 0 auto;
+  /* "Header color" setting colors the ticker + company name. */
+  color: var(--news-header-text, var(--news-chrome-strong, var(--news-text, var(--text-bright, #e0dac8))));
+}
+.company {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--news-header-text, var(--news-chrome, var(--text-muted, #8b8674)));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.filters { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+.pill {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill:hover { background: var(--news-row-hover, rgba(255, 255, 255, 0.05)); }
+.pillOn {
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+  font-weight: 600;
+}
+.gearBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+.gearBtn:hover, .gearBtnActive { color: var(--news-accent, var(--ut-gold, #c9a84c)); background: var(--news-row-hover, rgba(255, 255, 255, 0.06)); }
+
+/* Feed list */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.row {
+  display: flex;
+  gap: 9px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--news-row-divider, rgba(255, 255, 255, 0.05));
+}
+.icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  display: inline-flex;
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+}
+.icon.up { color: var(--news-up, #1ae51a); }
+.icon.down { color: var(--news-down, #ff5b5b); }
+.icon.neutral { color: var(--news-accent, var(--ut-gold, #c9a84c)); }
+
+.main { min-width: 0; flex: 1; }
+
+/* "Place on chart" — top-right of each row. A one-time action (not a toggle): dim
+   until hovered, then a brief gold ✓ flash (.pinBtnOn) confirms placement. Sits
+   outside .main so it never wraps the text. */
+.pinBtn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: -1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.row:hover .pinBtn { opacity: 0.9; }
+.pinBtn:hover { color: var(--news-accent, var(--ut-gold, #c9a84c)); background: var(--news-row-hover, rgba(255, 255, 255, 0.06)); }
+.pinBtnOn, .pinBtnOn:hover { opacity: 1; color: var(--news-accent, var(--ut-gold, #c9a84c)); }
+.title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--news-text, var(--text-bright, #e0dac8));
+  text-decoration: none;
+}
+a.title:hover { text-decoration: underline; }
+/* A very long item (e.g. a multi-headline wire tweet) is clamped so one entry
+   can't swallow the whole feed; the "Show more" toggle reveals the rest. */
+.titleClamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+  overflow: hidden;
+}
+.moreToggle {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+  cursor: pointer;
+  opacity: 0.85;
+}
+.moreToggle:hover { opacity: 1; text-decoration: underline; }
+.desc {
+  font-size: 11px;
+  line-height: 1.4;
+  /* Readable body text (was the dim muted chrome — hard to see on a dark canvas). */
+  color: var(--news-text, var(--text-bright, #e0dac8));
+  opacity: 0.9;
+  margin-top: 2px;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.date { color: var(--news-chrome, var(--text-muted, #8b8674)); }
+.move { font-weight: 700; }
+.move.up { color: var(--news-up, #1ae51a); }
+.move.down { color: var(--news-down, #ff5b5b); }
+.move.neutral { color: var(--news-chrome, var(--text-muted, #8b8674)); }
+.source {
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  opacity: 0.85;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* States */
+.empty, .generating {
+  padding: 16px 12px;
+  font-size: 11.5px;
+  color: var(--news-chrome, var(--text-muted, #8b8674));
+  line-height: 1.5;
+}
+.generating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--news-accent, var(--ut-gold, #c9a84c));
+  border-bottom: 1px solid var(--news-row-divider, rgba(255, 255, 255, 0.05));
+}
+.spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: nwspin 0.7s linear infinite;
+}
+@keyframes nwspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Very-thin widget only: the row becomes click-to-reveal. The revealed content is
+   the SAME inline .desc (plain text, no box) — just toggled into view. */
+.rowClickable { cursor: pointer; }
+.rowClickable:hover { background: var(--news-row-hover, rgba(255, 255, 255, 0.03)); }
+a.source { text-decoration: none; }
+a.source:hover { text-decoration: underline; color: var(--news-accent, var(--ut-gold, #c9a84c)); }
+
+/* ── Responsive: collapse at narrow widget widths (root = .widgetBody container) ── */
+@container (max-width: 300px) {
+  .filters .pill { padding: 2px 5px; font-size: 10px; }
+  .source { display: none; }
+}
+@container (max-width: 220px) {
+  .filters { display: none; }
+  .title { font-size: 11.5px; }
+}

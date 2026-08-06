@@ -1,0 +1,69 @@
+.wrap { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+/* F-1 (P2 T9 review round 1, IMPORTANT): LollipopChart draws inside an
+   ECharts grid inset `left:44 right:14` (echartsCore.js GRID_BASE) — FIXED
+   pixels, not a percentage, regardless of container width. ReactionBars' own
+   viewBox (0..320) has NO such margin — its bars/baseline span edge-to-edge —
+   so without a matching inset the two quarter axes read ~124px apart on a
+   real canvas (measured on a ~726px-wide section) despite sharing the exact
+   same `quarters` array. Insetting ReactionBars' own SVG by the SAME 44/14
+   makes its rendered content box land in the identical pixel span as
+   LollipopChart's ECharts grid, so index i's quarter sits under index i's
+   lollipop on both charts.
+
+   The inset targets `[data-testid="rk-reaction"]` — ReactionBars' own root
+   SVG, an ATTRIBUTE selector, not a class — rather than a bare `svg` element
+   selector or the wrapper `<div>`'s `padding`. Two reasons, both found in
+   round 2 review:
+     1. `padding` on the wrapper div insets EVERYTHING inside it, including
+        ReactionBars' own `EyebrowLabel` — which then sat 44px right of
+        LollipopChart's label, visibly misaligning the two section headers
+        that are supposed to read as a matched pair. Margin on the SVG alone
+        leaves the label exactly where LollipopChart's is.
+     2. A bare `svg` selector (still scoped via the hashed `.reactionWrap`
+        ancestor, so it can't leak page-wide) also matches ReactionBars'
+        OWN nested icons (its EyebrowLabel's InfoTip glyph, its EmptyState
+        icon when there's nothing to plot) — harmless today (both are 24×24
+        `UIcon`s, so `height:auto` resolves 1:1 and nothing distorts) but
+        needless. The testid is the exact, single element this fix is for.
+
+   `height: auto` needs `!important`: ReactionBars sets the SVG's height via
+   an inline `style={{ height }}` (ReactionBars.jsx SIZE default 132px), and
+   an inline style attribute always outranks an external stylesheet rule of
+   equal importance — `height: auto` alone would be a silent no-op. With the
+   fixed 132px height gone, the SVG's own `viewBox`+
+   `preserveAspectRatio="xMidYMid meet"` sizes it to the CONTAINER's width at
+   its true 320:132 (≈0.41×width) aspect ratio instead of letterboxing inside
+   a too-short fixed box.
+
+   SIZE-CONTRACT NOTE (round 2 fold-in): `ReactionBars.SIZE`/`REACTION_BARS_SIZE`
+   (the kit's `{width:'100%', height:132}` skeleton-reservation contract, §3.4)
+   no longer describes this component's RENDERED box in this composition —
+   at a ~726px section width the strip now renders ≈275px tall (0.41×width),
+   not the fixed 132px `SIZE.height` — because `height:auto` above overrides
+   it. This section has no loading/skeleton state to reconcile against today
+   (it is zero-fetch and synchronous — `quarters` is derived from props
+   already in hand, so ReactionBars never renders while "loading" here), so
+   there is no layout-shift consequence in practice. If a FUTURE change adds
+   a skeleton for this exact composition, it must NOT reserve
+   `REACTION_BARS_SIZE.height` verbatim for the strip — it needs a
+   width-aware ~0.41-aspect-ratio reservation instead, or it will under-
+   reserve and reintroduce the CLS this contract exists to prevent. */
+.reactionWrap [data-testid="rk-reaction"] {
+  height: auto !important;
+  width: calc(100% - 58px);
+  margin: 0 14px 0 44px;
+}
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-sm); }
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.table th { text-align: left; font-size: var(--text-xs); letter-spacing: var(--ls-label); color: var(--text-muted); font-weight: 600; padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--glass-border-neutral); white-space: nowrap; }
+.table td { padding: var(--space-xs) var(--space-sm); color: var(--text); border-bottom: 1px solid var(--glass-border-neutral); white-space: nowrap; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+.basis { font-size: var(--text-xs); color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}

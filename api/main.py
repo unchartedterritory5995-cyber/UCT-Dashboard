@@ -90,6 +90,8 @@ from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
+from api.routers import news_catalysts as news_catalysts_router
+from api.routers import stock_brief as stock_brief_router
 from api.routers import charts_layouts as charts_layouts_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
@@ -100,6 +102,7 @@ from api.routers import fundamentals as fundamentals_router
 from api.routers import analyst as analyst_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
+from api.routers import expected_move as expected_move_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
@@ -201,6 +204,39 @@ def _cot_catchup_background():
         print(f"[startup] COT catch-up refresh complete -- {n} records upserted")
     except Exception as e:
         print(f"[startup] COT catch-up refresh failed: {e}")
+
+
+def _implied_capture_catchup_background():
+    """Startup catch-up for implied_store.run_nightly_capture — fired when a
+    fresh process boots past the 16:35 ET trigger with nothing captured yet
+    tonight (see the IMPLIED_STORE_ENABLED startup block below and
+    implied_store.py's "startup catch-up" section for the full incident
+    writeup — 2026-08-05, a redeploy landing right after the trigger silently
+    lost the whole night since a memory jobstore has no record of a missed
+    fire time). Safe to race the 16:35 ET scheduled job if it also fires:
+    record_implied is first-write-wins per (sym, report_date) and
+    run_nightly_capture skips any (sym, report_date) already captured."""
+    try:
+        from api.services import implied_store
+        n = implied_store.run_nightly_capture()
+        print(f"[startup] implied-move catch-up capture complete -- {n}")
+    except Exception as e:
+        print(f"[startup] implied-move catch-up capture failed: {e}")
+
+
+def _grade_snapshot_catchup_background():
+    """Startup catch-up for setup_grade.run_daily_grade_snapshot — same
+    incident/shape as _implied_capture_catchup_background, 5 minutes later
+    (16:40 ET trigger). record_grade is INSERT OR REPLACE keyed on
+    (sym, date, surface), so re-running (or racing the 16:40 ET scheduled
+    job) is idempotent — same-day rows just get overwritten with an
+    equivalent/fresher grade, never duplicated."""
+    try:
+        from api.services import setup_grade
+        n = setup_grade.run_daily_grade_snapshot()
+        print(f"[startup] setup-grade catch-up snapshot complete -- {n}")
+    except Exception as e:
+        print(f"[startup] setup-grade catch-up snapshot failed: {e}")
 
 
 # -- Pattern engine learning-loop jobs (Phase 6) -----------------------------
@@ -694,9 +730,39 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.breadth_monitor import get_breadth_history
             get_breadth_history(days=90)
 
+        def _breadth_live():
+            # Intraday breadth compares one market snapshot against reference
+            # levels derived from ~1M daily bars. That derivation is seconds of
+            # blocking SQLite + numpy; warming it here keeps it off a request
+            # (and off one of the pod's bounded threadpool workers).
+            from api.services.breadth_live import warm
+            log.info("[dashboard-warm] breadth-live %s", warm())
+
         def _calendar():
             from api.routers.calendar import get_calendar
             get_calendar()
+
+        def _enrichment():
+            # `_calendar()` above warms the base week payload, but its
+            # enrichment OVERLAY (beat_history/hist_stats/expected_move —
+            # what the earnings modal's Earnings History section reads via
+            # useWeekEnrichment) is a SEPARATE cold path:
+            # /api/calendar/enrichment-batch fans out per reporter to
+            # Finnhub/FMP, and since _backfill_past_days can put 100-200+
+            # symbols on a single past day, a cold compute for the current
+            # week's 5 days was measured taking 60-100+ SECONDS (see
+            # calendar.py::_build_enrichment_for_date). Without this warm,
+            # the first user to open the calendar after every deploy pays
+            # that cost synchronously inside the earnings modal's own
+            # fetch — long enough that the request is still in flight when
+            # anyone inspects it, and long enough that no real browser
+            # session waits it out (P2 Task 12: this, not a frontend bug,
+            # is why a freshly-reported symbol's Earnings History rendered
+            # "No reported quarters yet" against a just-restarted stack —
+            # useWeekEnrichment's fetch had genuinely not resolved yet).
+            from api.routers.calendar import get_enrichment_batch, _week_dates
+            dates = ",".join(d.isoformat() for d in _week_dates())
+            get_enrichment_batch(dates=dates)
 
         def _earnings_previews():
             # Warm the AI preview for the week's reporters (ranked by who users
@@ -748,7 +814,9 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
+            _warm("breadth-live", _breadth_live)
             _warm("calendar", _calendar)
+            _warm("enrichment", _enrichment)  # after calendar (it reads the week's day-list)
             _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
             _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
 
@@ -1227,6 +1295,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
 
+    # News & Catalysts widget cache DB (independent of modelbook init above).
+    try:
+        from api.services.news_catalysts import store as _nc_store
+        _nc_store._init_db()
+        print("[startup] news_catalysts.db initialized")
+    except Exception as e:
+        print(f"[startup] news_catalysts init failed (non-fatal): {e}")
+
+    # Stock Profile widget cache DB (AI company description + YTD narrative).
+    try:
+        from api.services.stock_brief import store as _sb_store
+        _sb_store._init_db()
+        print("[startup] stock_brief.db initialized")
+    except Exception as e:
+        print(f"[startup] stock_brief init failed (non-fatal): {e}")
+
     # Initialize charts_layouts.db schema unconditionally (same pattern). The
     # Charts workspace fires /api/charts/layouts on load; without a schema the
     # read endpoint would 500 on "no such table".
@@ -1484,6 +1568,18 @@ async def lifespan(app: FastAPI):
         massive_stream.start()
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] massive_stream start failed: %s", e)
+
+    # Curated-tape SSE tailer (2026-08-03) — the curated twin of the above.
+    # Pushes newly-CURATED alerts to /api/live/massive/curated-stream so the
+    # curated feed surfaces instantly instead of on the 20s poll. Inert unless
+    # MASSIVE_CURATED_STREAM_ENABLED=1 (dark by default). Started on both pods
+    # for parity with massive_stream; when flow reads are proxied the curated
+    # SSE forwards to flow-worker, so web's tailer stays idle (no subscribers).
+    try:
+        from api import massive_curated_stream
+        massive_curated_stream.start()
+    except Exception as e:
+        logging.getLogger(__name__).exception("[startup] massive_curated_stream start failed: %s", e)
 
     # Live Flow worker -- RE-ENABLED 2026-06-17 with thread isolation (Option 2).
     # Previously disabled because the in-process SSE consumer was starving
@@ -2418,6 +2514,51 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
+    # -- Implied-move nightly capture + §12 grade snapshot: startup catch-up --
+    # Same shape as the COT catch-up above (2026-08-05 incident): a Railway
+    # redeploy landing at/after a job's trigger time causes the freshly
+    # re-created APScheduler MemoryJobStore to schedule that job's next run
+    # for the trigger's NEXT occurrence — tomorrow — silently skipping
+    # tonight with nothing in the logs but "Added job". Unlike COT (which can
+    # always re-download the same historical data), a missed implied-move
+    # capture is UNRECONSTRUCTABLE once the report happens — see
+    # implied_store.py's module docstring and its "startup catch-up" section
+    # for the full write-up. All local SQLite reads here (`latest_capture_date`
+    # / `latest_grade_date`) — only the actual capture/snapshot (network-bound)
+    # is deferred to a background thread, exactly like the COT catch-up.
+    if os.environ.get("IMPLIED_STORE_ENABLED") == "1":
+        try:
+            from api.services import implied_store as _implied_store_boot
+            from api.services import setup_grade as _setup_grade_boot
+            now_et = datetime.now(ZoneInfo("America/New_York"))
+            today_iso = now_et.date().isoformat()
+
+            if _implied_store_boot.capture_due_by(now_et):
+                latest_capture = _implied_store_boot.latest_capture_date()
+                if latest_capture != today_iso:
+                    print(
+                        f"[startup] implied-move capture stale -- latest={latest_capture} "
+                        f"today={today_iso} -- running catch-up capture..."
+                    )
+                    threading.Thread(target=_implied_capture_catchup_background, daemon=True,
+                                      name="implied-capture-catchup").start()
+                else:
+                    print(f"[startup] implied-move capture already ran today ({today_iso}).")
+
+            if _setup_grade_boot.grade_snapshot_due_by(now_et):
+                latest_grade = _implied_store_boot.latest_grade_date(_setup_grade_boot.SURFACE)
+                if latest_grade != today_iso:
+                    print(
+                        f"[startup] setup-grade snapshot stale -- latest={latest_grade} "
+                        f"today={today_iso} -- running catch-up snapshot..."
+                    )
+                    threading.Thread(target=_grade_snapshot_catchup_background, daemon=True,
+                                      name="grade-snapshot-catchup").start()
+                else:
+                    print(f"[startup] setup-grade snapshot already ran today ({today_iso}).")
+        except Exception as e:
+            print(f"[startup] implied-store catch-up init error (non-fatal): {e}")
+
     # -- Ratings percentile (Phase 2): startup catch-up if distributions stale --
     # Gated off by default; when enabled, warms the universe percentile DB in the
     # background so /research ratings show true 1-99 ranks. Never blocks boot.
@@ -2611,6 +2752,53 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
+        # Implied-move nightly capture (post-close, pre-report snapshot for the
+        # history hero). Gated -- ONLY the scheduler job; the read endpoint is
+        # always mounted. 16:35 ET = post options settle (~16:15), pre any
+        # evening maintenance; weekday-only; a holiday yields zero reporters
+        # -> natural no-op. Trigger hour/minute reference implied_store's own
+        # constants (not hardcoded here a second time) so the startup
+        # catch-up block above can never drift out of sync with this cron.
+        # misfire_grace_time=3600: confirmed against the installed
+        # apscheduler (3.11.2) that this genuinely matters here -- the
+        # scheduler's job_defaults default misfire_grace_time to 1 SECOND
+        # (schedulers/base.py `_configure`), and executors/base.py skips
+        # (EVENT_JOB_MISSED, job.func never called) any due run whose trigger
+        # time is more than misfire_grace_time behind "now" when the
+        # scheduler's check loop gets to it -- a live process whose check
+        # loop is delayed by more than a second (GIL/thread contention) would
+        # otherwise silently drop the run. This does NOT cover the restart
+        # case above (a fresh MemoryJobStore never has a past-due
+        # next_run_time to begin with -- see the startup catch-up docstring
+        # in implied_store.py) -- it only widens the grace window for an
+        # already-running process.
+        if os.environ.get("IMPLIED_STORE_ENABLED") == "1":
+            from api.services import implied_store as _implied_store
+            _scheduler.add_job(
+                _implied_store.run_nightly_capture,
+                trigger=CronTrigger(hour=_implied_store.CAPTURE_HOUR_ET,
+                                     minute=_implied_store.CAPTURE_MINUTE_ET,
+                                     day_of_week="mon-fri", timezone=_ET),
+                id="implied_move_nightly", max_instances=1, coalesce=True, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+
+            # §12 accountability record: one persisted Setup Grade per upcoming
+            # reporter per day. 16:40 ET = 5 min after the implied capture, so
+            # the grade is scored against that evening's freshly-stored implied.
+            # SAME flag as the capture on purpose — they write the same store in
+            # the same nightly window; a second flag would let the accountability
+            # record silently diverge from the data it grades.
+            from api.services import setup_grade as _setup_grade
+            _scheduler.add_job(
+                _setup_grade.run_daily_grade_snapshot,
+                trigger=CronTrigger(hour=_setup_grade.GRADE_SNAPSHOT_HOUR_ET,
+                                     minute=_setup_grade.GRADE_SNAPSHOT_MINUTE_ET,
+                                     day_of_week="mon-fri", timezone=_ET),
+                id="setup_grade_daily", max_instances=1, coalesce=True, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
         # (ticker_types table) fresh so the flow write path classifies new ETFs
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
@@ -2627,6 +2815,40 @@ async def lifespan(app: FastAPI):
                     logging.getLogger(__name__).warning("[ticker_types] daily sync failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
+
+        # Breadth live -- rebuild the day's reference levels BEFORE the open.
+        #
+        # Levels are cached per session day, keyed on the last completed
+        # session. The boot warm covers a deploy, but the pod does not reboot
+        # overnight, so at 09:30 the key rolls to yesterday's date and the cache
+        # misses. Deriving levels reads ~1M daily bars -- seconds of blocking
+        # SQLite and numpy -- and without this the FIRST person to open Breadth
+        # after the bell pays it, at the busiest moment of the day. The
+        # herd-collapse lock means the rest queue behind them rather than each
+        # paying it, which is better and still not good.
+        #
+        # 09:05 ET: after the prior session is settled in bars.db, comfortably
+        # before the open. Mirrors the RS-rankings warmer, which re-warms under
+        # its own TTL for the same reason.
+        try:
+            def _breadth_live_daily_warm():
+                try:
+                    from api.services.breadth_live import warm
+                    logging.getLogger(__name__).info(
+                        "[breadth-live] pre-open warm %s", warm())
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[breadth-live] pre-open warm failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_live_daily_warm,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=_ET),
+                id="breadth_live_preopen_warm", max_instances=1, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth-live pre-open warm scheduled (weekdays 9:05 ET)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth-live pre-open warm")
 
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the
@@ -4085,6 +4307,8 @@ app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
+app.include_router(news_catalysts_router.router)
+app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
@@ -4095,6 +4319,7 @@ app.include_router(fundamentals_router.router)
 app.include_router(analyst_router.router)
 app.include_router(filings_router.router)
 app.include_router(research_router.router)
+app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*

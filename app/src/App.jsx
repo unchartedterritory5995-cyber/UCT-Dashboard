@@ -91,6 +91,7 @@ const LandingAnalytics = lazy(() => import('./pages/admin/LandingAnalytics'))
 const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
+const Methodology = lazy(() => import('./pages/Methodology'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
@@ -225,6 +226,7 @@ export default function App() {
             <Route path="/verify-pending" element={<VerifyPending />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/methodology" element={<Methodology />} />
             {/* Public marketing comparison page (UCT vs. TradeZella/TraderSync/
                 Tradervue). Not in FREE_PAGES — that gates logged-in nav; this is
                 a fully public page reachable while logged out or in. */}

@@ -113,7 +113,12 @@ const CROSSHAIR_STYLES = [
 
 // ─── Settings Panel (inline in chart) ────────────────────────────────────────
 
-function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLibrary }) {
+// `volumePaneFixed` = a reason string when the SURFACE hosting this chart owns the
+// volume layout (it passes StockChart's volumeSeparatePane / volumePaneHeightPct,
+// which win over the saved prefs). StockChart derives it from those very props, so
+// the two can't drift. Non-null ⇒ the two volume-pane controls render inert with the
+// reason instead of writing a pref this chart will ignore.
+function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLibrary, volumePaneFixed = null }) {
   const cs = chartSettings
   const isPaid = useIsPaid()
 
@@ -364,18 +369,31 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLi
             <input type="checkbox" checked={cs.volume.hvcEnabled} onChange={e => update('volume.hvcEnabled', e.target.checked)} />
             HVC
           </label>
-          <label className={styles.sCheck} title="Show volume in its own pane below price instead of overlaid on the chart">
-            <input type="checkbox" checked={!!cs.volume.separatePane} onChange={e => update('volume.separatePane', e.target.checked)} />
+          <label
+            className={styles.sCheck}
+            style={volumePaneFixed ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+            title={volumePaneFixed || 'Show volume in its own pane below price instead of overlaid on the chart'}
+          >
+            <input type="checkbox" disabled={!!volumePaneFixed}
+              checked={!!cs.volume.separatePane} onChange={e => update('volume.separatePane', e.target.checked)} />
             Separate pane
           </label>
           <ColorPicker label="Up" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
           <ColorPicker label="Dn" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
         </div>
-        {cs.volume.separatePane && (
+        {/* Shown whenever volume actually renders in a pane — which on a
+            volumePaneFixed surface is ALWAYS, regardless of the saved toggle.
+            Hiding it there would leave the user hunting for a control that the
+            chart simply doesn't take its height from; showing it inert says so. */}
+        {(cs.volume.separatePane || volumePaneFixed) && (
           <div className={styles.sRow} style={{ marginTop: 6 }}>
-            <label className={styles.sCheck} style={{ gap: 6 }} title="Height of the separate volume pane (% of chart)">
+            <label
+              className={styles.sCheck}
+              style={volumePaneFixed ? { gap: 6, opacity: 0.45, cursor: 'not-allowed' } : { gap: 6 }}
+              title={volumePaneFixed || 'Height of the separate volume pane (% of chart)'}
+            >
               Pane height
-              <input type="range" min={8} max={45} step={1}
+              <input type="range" min={8} max={45} step={1} disabled={!!volumePaneFixed}
                 value={cs.volume.paneHeightPct ?? 22}
                 onChange={e => update('volume.paneHeightPct', parseInt(e.target.value))} />
               <span style={{ minWidth: 28, textAlign: 'right' }}>{cs.volume.paneHeightPct ?? 22}%</span>
@@ -566,6 +584,34 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLi
         </div>
       </div>
 
+      {/* Previous-day High / Low / Close reference lines (intraday only) */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Prev-day levels · intraday</span>
+        {[['high', 'Prev high', '#3cb868'], ['low', 'Prev low', '#e74c3c'], ['close', 'Prev close', '#9aa0a6']].map(([key, label, def]) => {
+          const c = cs.prevDayLevels?.[key] || {}
+          const setPdl = (patch) => onUpdateSettings({ ...cs, prevDayLevels: { ...cs.prevDayLevels, [key]: { ...c, ...patch } }, preset: 'custom' })
+          return (
+            <div className={styles.sRow} key={key}>
+              <label className={styles.sCheck}>
+                <input type="checkbox" checked={!!c.enabled} onChange={e => setPdl({ enabled: e.target.checked })} />
+                {label}
+              </label>
+              {c.enabled && (<>
+                <ColorPicker value={c.color || def} onChange={v => setPdl({ color: v })} />
+                <select className={styles.sMiniSelect} value={c.style || 'dashed'} onChange={e => setPdl({ style: e.target.value })}>
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                </select>
+                <select className={styles.sMiniSelect} value={c.width || 1} onChange={e => setPdl({ width: Number(e.target.value) })}>
+                  {[1, 2, 3, 4].map(w => <option key={w} value={w}>{w}px</option>)}
+                </select>
+              </>)}
+            </div>
+          )
+        })}
+      </div>
+
       {/* Crosshair */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Crosshair</span>
@@ -632,6 +678,9 @@ function ChartToolbar({
   hidePatterns = false,
   hideCompare = false,
   hideCountdown = false,
+  // Reason string when this chart's SURFACE fixes the volume pane (see
+  // ChartSettingsPanel). null on surfaces where the saved prefs actually apply.
+  volumePaneFixed = null,
   lineStyle = 'solid',           // 'solid' | 'dashed' — current line style (Model Book annotations)
   setLineStyle = null,           // when provided, shows a Solid/Dashed control
   fontSize = 13,                 // current text-annotation font size
@@ -640,6 +689,7 @@ function ChartToolbar({
   magnet = false,                // snap drawings to nearest O/H/L/C
   setMagnet = null,              // when provided, shows the magnet toggle
   toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
+  hideSettingsButton = false,    // charts workspace has the new ChartSettingsModal — drop the legacy V1 gear + inline panel there
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -947,7 +997,12 @@ function ChartToolbar({
         {/* Indicators — spec §6 asks for a LABELLED button, "not icon-only in
             v1": the add-flow is the thing users are hunting for and a glyph is a
             guess. Gated on the same pair as the settings panel, so a read-only
-            mount site (which passes no `onUpdateSettings`) gets neither. */}
+            mount site (which passes no `onUpdateSettings`) gets neither.
+
+            ⚠️ NOT gated on `hideSettingsButton`. That flag retires the LEGACY V1
+            gear on surfaces that have the new modal; the library launcher is the
+            add-flow itself and has no equivalent in the modal, so hiding it with
+            the gear would leave the charts workspace with no way to add one. */}
         {canManageIndicators && (
           <button
             type="button"
@@ -959,8 +1014,10 @@ function ChartToolbar({
           </button>
         )}
 
-        {/* Chart settings */}
-        {chartSettings && onUpdateSettings && (
+        {/* Chart settings — legacy V1 inline panel. Hidden on surfaces that have
+            the new ChartSettingsModal (charts workspace); still the settings entry
+            point on every other surface. */}
+        {chartSettings && onUpdateSettings && !hideSettingsButton && (
           <div ref={settingsRef} className={styles.pickerWrap}>
             <button
               className={`${styles.btn} ${showSettings ? styles.active : ''}`}
@@ -974,7 +1031,9 @@ function ChartToolbar({
                 chartSettings={chartSettings}
                 onUpdateSettings={onUpdateSettings}
                 onOpenIndicatorLibrary={() => setLibraryOpen(true)}
+                volumePaneFixed={volumePaneFixed}
               />
+
             )}
           </div>
         )}

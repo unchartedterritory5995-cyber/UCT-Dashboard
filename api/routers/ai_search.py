@@ -756,22 +756,38 @@ def _ctx_flow_ticker(sym: str) -> str:
     user-facing answer.
 
     A FAILED read short-circuits: a 500 is not an empty tape, so it is never
-    re-asked against the other source nor reported as a quiet one.
+    re-asked against the other source nor reported as a quiet one — and it is
+    never MEMOIZED either (`lesson_market_cap_cache_poison`: never cache a
+    failed fetch as a value). `rows is not None` is exactly the "we reached a
+    conclusion" test, because that is the distinction `_read_flow_rows` returns
+    None to express. Caching "" off a failure would pin 'no flow on SPY' for a
+    full minute of questions after the outage cleared, each one ungrounded with
+    nothing anywhere to alert on. A genuinely quiet tape — both sources
+    answered, both empty — still caches, or every quiet symbol pays two HTTP
+    hops per question on a 2.5s budget.
     """
     import time as _time
     hit = _flow_ctx_memo.get(sym)
     if hit and _time.time() - hit[0] < 60:
         return hit[1]
     text = ""
+    conclusive = False
     try:
         rows = _read_flow_rows(sym, "stocks")
         if rows is not None and not rows:
             rows = _read_flow_rows(sym, "indexes")
+        # None here means the LAST read attempted failed — either the `stocks`
+        # read (nothing else was tried) or, for an index symbol whose empty
+        # `stocks` result carries no information, the `indexes` read that was
+        # supposed to answer it.
+        conclusive = rows is not None
         if rows:
             text = _summarize_flow_rows(sym, rows, _et_day_mdyyyy())
     except Exception:
         text = ""
-    _flow_ctx_memo[sym] = (_time.time(), text)
+        conclusive = False
+    if conclusive:
+        _flow_ctx_memo[sym] = (_time.time(), text)
     return text
 
 

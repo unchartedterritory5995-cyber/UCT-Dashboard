@@ -440,10 +440,25 @@ def _build_and_cache(ticker, now=None):
     result, fresh = _build(ticker, now)
     ckey = f"earnings_table::{ticker}"
     ttl = _FAST_TTL if fresh else _SLOW_TTL
-    if not result["annual"] and not result["quarterly"]:
-        # Never pin a blank widget for hours on a transient source outage — the
-        # sub-services deliberately don't cache empties; keep that retry behavior.
-        # Empties are never persisted either: a stale-served blank would stick.
+    # ⛔ NEVER CACHE A PARTIAL RESULT AS IF IT WERE COMPLETE.
+    #
+    # This used to read `not annual AND not quarterly` — i.e. only a TOTALLY
+    # empty payload got the short retry TTL. If just ONE leg failed (annual
+    # resolved, quarterly didn't, or vice versa) the half-answer fell through
+    # to the branch below and was pinned for up to 6h in cache AND persisted to
+    # the snapshot store, where a stale-served blank sticks even longer. The
+    # user sees a half-populated earnings table and no retry until it expires.
+    #
+    # Same bug class already fixed once in `earnings_estimates.get_earnings_
+    # intel` (a partial intel fetch pinned `beat_history: []` for 6h while the
+    # provider was healthy) and documented in this repo as "never cache a
+    # failed fetch as a value". Found again here by the 2026-08-05 data-coverage
+    # audit. A partial is still SERVED — dropping it would discard the leg that
+    # did work — it just expires fast so the missing leg self-heals in minutes.
+    partial = not result["annual"] or not result["quarterly"]
+    if partial:
+        # Not persisted to the snapshot store either: a stale-served partial
+        # would outlive the outage that caused it.
         cache.set(ckey, result, _EMPTY_TTL)
         return result
     cache.set(ckey, result, ttl)

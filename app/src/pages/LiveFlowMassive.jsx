@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
+import TickerPopup from "../components/TickerPopup";
+import useLongPress from "../components/mobile/useLongPress";
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -52,6 +54,21 @@ const STREAM_ENABLED = (() => {
     // localStorage.setItem('uct.massiveStream','1') in DevTools.
     if (typeof localStorage !== "undefined" && localStorage.getItem("uct.massiveStream") === "1") return true;
     if (typeof location !== "undefined" && new URLSearchParams(location.search).has("stream")) return true;
+  } catch { /* ignore */ }
+  return false;
+})();
+// SSE curated-tape (dark, VITE_MASSIVE_CURATED_STREAM=1). Independent of the raw
+// STREAM_ENABLED above so the curated stream can be armed alone. When on AND in
+// curated mode, new CURATED alerts arrive via EventSource the instant the server
+// tailer classifies them (instead of waiting up to POLL_INTERVAL_MS); the 20s poll
+// stays as the authoritative reconcile. When off (default), curated is unchanged.
+const CURATED_STREAM_ENABLED = (() => {
+  try {
+    if (import.meta.env.VITE_MASSIVE_CURATED_STREAM === "1") return true; // global rollout
+    // dark-test escapes: ?curatedstream in the URL, or
+    // localStorage.setItem('uct.massiveCuratedStream','1') in DevTools.
+    if (typeof localStorage !== "undefined" && localStorage.getItem("uct.massiveCuratedStream") === "1") return true;
+    if (typeof location !== "undefined" && new URLSearchParams(location.search).has("curatedstream")) return true;
   } catch { /* ignore */ }
   return false;
 })();
@@ -1071,13 +1088,24 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, isAdmin, onPush, pushState }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, onOpenChart, isAdmin, onPush, pushState }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
   const dirIsBear = alert._direction === "Bear";
   const isAlpha = tier === "alpha";
   const isSize = tier === "size";
+
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `alert.ticker` — do NOT read the ticker from the event, since
+  // the long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    if (onOpenChart) onOpenChart(alert.ticker);
+  });
 
   // Direction palette — brighter than P.bu / P.be so non-alpha rows still
   // have visual weight. Non-directional tiers (algo) keep neutral coloring.
@@ -1146,6 +1174,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
           onClick={() => onClickTicker(alert.ticker)}
+          {...chartLongPress}
           title={`Filter to ${alert.ticker}`}
         >
           {alert.ticker}
@@ -1399,10 +1428,12 @@ function _dateToMDY(d) {
   return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
-function DateRail({ targetDate, onDateChange }) {
+function DateRail({ targetDate, onDateChange, onRange, rangeDays }) {
   const [dates, setDates] = useState(null);      // ascending M/D/YYYY, null = loading/failed
   const [calOpen, setCalOpen] = useState(false);
   const [calMonth, setCalMonth] = useState(null); // {y, m} shown in the popover
+  const [rangeMode, setRangeMode] = useState(false);   // custom range: click start→end
+  const [rangeStart, setRangeStart] = useState(null);  // mdy of the first range click
   const railRef = useRef(null);
 
   useEffect(() => {
@@ -1434,6 +1465,34 @@ function DateRail({ targetDate, onDateChange }) {
   const hist = (dates || []).filter(d => d !== today);
   const histSet = new Set(hist);
   const isLive = !targetDate;
+
+  // ── Multi-day range: end date + N-day span, aggregated By-Contract ────────
+  const allDays = dates || [];                       // ascending, includes today if data
+  const latestDay = allDays[allDays.length - 1];     // most recent data day
+  const rc = (on) => ({
+    background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+    border: `1px solid ${on ? P.ac : P.bd}`, borderRadius: 3, padding: "2px 7px",
+    fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+  });
+  const _countDays = (aMdy, bMdy) => {
+    const a = _mdyToDate(aMdy), b = _mdyToDate(bMdy);
+    if (!a || !b) return 1;
+    const lo = a <= b ? a : b, hi = a <= b ? b : a;
+    return allDays.filter(x => { const d = _mdyToDate(x); return d && d >= lo && d <= hi; }).length || 1;
+  };
+  const applyRangePreset = (n) => {
+    if (!onRange || !latestDay) return;
+    onRange(latestDay === today ? null : latestDay, n);
+    setCalOpen(false); setRangeMode(false); setRangeStart(null);
+  };
+  const applyMTD = () => {
+    if (!onRange || !latestDay) return;
+    const ld = _mdyToDate(latestDay);
+    const ms = new Date(ld.getFullYear(), ld.getMonth(), 1);
+    const n = allDays.filter(x => { const d = _mdyToDate(x); return d && d >= ms && d <= ld; }).length || 1;
+    onRange(latestDay === today ? null : latestDay, n);
+    setCalOpen(false); setRangeMode(false); setRangeStart(null);
+  };
 
   const openCal = () => {
     const base = _mdyToDate(targetDate) || _mdyToDate(hist[hist.length - 1]) || new Date();
@@ -1528,6 +1587,16 @@ function DateRail({ targetDate, onDateChange }) {
           <button style={navBtn(canNextMonth)} disabled={!canNextMonth} title="Next month"
             onClick={() => canNextMonth && setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>›</button>
         </div>
+        <div style={{ display: "flex", gap: 3, marginBottom: 7, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ color: P.mt, fontSize: 9, letterSpacing: 1, marginRight: 1 }}>RANGE</span>
+          <button onClick={() => applyRangePreset(5)} style={rc(false)} title="Last 5 trading days, aggregated By-Contract">5d</button>
+          <button onClick={() => applyRangePreset(20)} style={rc(false)} title="Last 20 trading days">20d</button>
+          <button onClick={applyMTD} style={rc(false)} title="Month-to-date">MTD</button>
+          <button onClick={() => { setRangeMode(m => !m); setRangeStart(null); }} style={rc(rangeMode)}
+            title="Custom range: click a start day then an end day">
+            {rangeMode ? (rangeStart ? "pick end" : "pick start") : "Custom"}
+          </button>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
           {["S","M","T","W","T","F","S"].map((c, i) => (
             <span key={i} style={{ color: P.mt, fontSize: 9, textAlign: "center", letterSpacing: 1 }}>{c}</span>
@@ -1540,20 +1609,30 @@ function DateRail({ targetDate, onDateChange }) {
             const isToday = mdy === today;
             const hasData = histSet.has(mdy);
             const isSel = !isLive && targetDate === mdy;
+            const inRangeStart = rangeMode && rangeStart === mdy;
             const clickable = hasData || isToday;
             return (
               <button
                 key={i}
                 disabled={!clickable}
                 onClick={() => {
+                  if (rangeMode && onRange) {
+                    if (!rangeStart) { setRangeStart(mdy); return; }  // 1st click = start
+                    const days = _countDays(rangeStart, mdy);
+                    const a = _mdyToDate(rangeStart), b = _mdyToDate(mdy);
+                    const end = (b >= a) ? mdy : rangeStart;
+                    onRange(end === today ? null : end, days);
+                    setRangeStart(null); setRangeMode(false); setCalOpen(false);
+                    return;
+                  }
                   if (isToday) onDateChange(null);
                   else if (hasData) onDateChange(mdy);
                   setCalOpen(false);
                 }}
                 title={isToday ? "Today — live view" : hasData ? `View flow for ${mdy}` : "No flow data"}
                 style={{
-                  background: isSel ? P.ac : "transparent",
-                  color: isSel ? P.bg : isToday ? P.ac : clickable ? P.wh : P.mt,
+                  background: isSel || inRangeStart ? P.ac : "transparent",
+                  color: isSel || inRangeStart ? P.bg : isToday ? P.ac : clickable ? P.wh : P.mt,
                   border: isToday && !isSel ? `1px solid ${P.ac}` : "1px solid transparent",
                   borderRadius: 3, padding: "4px 0", fontSize: 11,
                   fontFamily: "inherit", cursor: clickable ? "pointer" : "default",
@@ -1574,7 +1653,9 @@ function DateRail({ targetDate, onDateChange }) {
           })}
         </div>
         <div style={{ color: P.mt, fontSize: 9, marginTop: 8, letterSpacing: 0.5 }}>
-          <span style={{ color: P.ac }}>●</span> = flow data available · {hist.length} days archived
+          {rangeMode
+            ? (rangeStart ? "→ click the END day of the range" : "→ click the START day of the range")
+            : <><span style={{ color: P.ac }}>●</span> = flow data · {hist.length} days · RANGE → By-Contract still-open</>}
         </div>
       </div>
     );
@@ -1609,7 +1690,13 @@ function DateRail({ targetDate, onDateChange }) {
         }}
       >
         {selDate
-          ? `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()}/${selDate.getFullYear()} ▾`
+          ? (rangeDays > 1
+              ? `${(() => {   // multi-day range: show start → end · Nd
+                  const idx = allDays.indexOf(targetDate);
+                  const sd = idx >= 0 ? _mdyToDate(allDays[Math.max(0, idx - (rangeDays - 1))]) : null;
+                  return sd ? `${sd.getMonth() + 1}/${sd.getDate()}` : `${rangeDays}d`;
+                })()} → ${selDate.getMonth() + 1}/${selDate.getDate()} · ${rangeDays}d ▾`
+              : `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()}/${selDate.getFullYear()} ▾`)
           : "📅 HISTORY ▾"}
       </button>
 
@@ -1626,7 +1713,7 @@ function Header({ status, loadPending, warming, workerLive,
                   hideNoSide, onHideNoSideChange,
                   curated, onCuratedChange,
                   tickerFilter, contractFilter, onClearFilters,
-                  targetDate, onDateChange, onOiFetch, oiFetchState,
+                  targetDate, onDateChange, onRange, rangeDays, onOiFetch, oiFetchState,
                   nullOICount }) {
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
@@ -1667,7 +1754,7 @@ function Header({ status, loadPending, warming, workerLive,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
-        <DateRail targetDate={targetDate} onDateChange={onDateChange} />
+        <DateRail targetDate={targetDate} onDateChange={onDateChange} onRange={onRange} rangeDays={rangeDays} />
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
@@ -1962,6 +2049,47 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
     try { localStorage.setItem("uct_massive_tune_collapsed", nv ? "1" : "0"); } catch {}
     return nv;
   });
+  // Weekly Conviction manual controls (lookback + cap) — rendered in the AUTO-PUSH box.
+  const [sfSort, setSfSort] = useState("net");   // Open Flow card sort: net | premium
+  // Standing Conviction (rolling still-open) manual controls — own lookback + cap.
+  const [sfDays, setSfDays] = useState(60);
+  const [sfCap, setSfCap] = useState("all");
+  // Preview/Push run a heavy multi-week flow.db scan (seconds) — track which
+  // button is in flight so it shows progress + disables instead of reading dead.
+  const [busy, setBusy] = useState("");
+  const doPreview = async (url, key) => {
+    setBusy(key);
+    try {
+      const r = await fetch(url, { method: "POST" });
+      if (!r.ok) {
+        window.alert("Preview failed: HTTP " + r.status + (r.status === 502
+          ? " — the scan ran past the 120s limit; retry (the cache warms) or pick a smaller window."
+          : ""));
+        return;
+      }
+      const b = await r.blob();
+      if (b.type.startsWith("image")) window.open(URL.createObjectURL(b));
+      else window.alert("No image — " + (await b.text()));
+    } catch (e) { window.alert("Preview failed: " + e); }
+    finally { setBusy(""); }
+  };
+  const doPush = async (url, label, key) => {
+    if (!window.confirm(`Post the ${label} to Discord?`)) return;
+    setBusy(key);
+    try {
+      const r = await fetch(url, { method: "POST" });
+      const j = await r.json();
+      window.alert(j.posted ? `Posted ✓ — ${j.names} names`
+        : `Not posted — ${j.reason || j.detail || "unknown"}`);
+    } catch (e) { window.alert("Push failed: " + e); }
+    finally { setBusy(""); }
+  };
+  const btnStyle = (key, primary) => ({
+    padding: "3px 10px", fontSize: 10, fontWeight: 700, borderRadius: 3,
+    cursor: busy ? "wait" : "pointer", opacity: busy && busy !== key ? 0.5 : 1,
+    background: primary ? P.ac : "transparent", color: primary ? P.bg : P.wh,
+    border: primary ? "none" : `1px solid ${P.bd}`,
+  });
   if (!thresholds) {
     return (
       <div style={{
@@ -2122,6 +2250,49 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <span style={{ fontSize: 10, color: P.dm, marginLeft: 10 }}>
               posts the whole day's list as one image
             </span>
+          </div>
+          {/* OPEN FLOW — the single merged still-open board (Weekly Conviction +
+              Open Flow unified 8/2). Window + cap + Net/Premium sort. Hits POST
+              /standing-flow. */}
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${P.dm}`,
+            display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: P.mt, marginRight: 2 }}>OPEN FLOW</span>
+            {[5, 20, 60, 90].map(dd => {
+              const on = sfDays === dd;
+              return (
+                <button key={dd} onClick={() => setSfDays(dd)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{dd}d</button>
+              );
+            })}
+            <span style={{ width: 6 }} />
+            {[["all", "All"], ["mega", "Mega"], ["large", "Large"], ["mid_small", "Mid-Small"], ["etf", "ETFs"]].map(([c, lbl]) => {
+              const on = sfCap === c;
+              return (
+                <button key={c} onClick={() => setSfCap(c)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
+              );
+            })}
+            <span style={{ width: 6 }} />
+            <span style={{ fontSize: 9, color: P.mt }}>sort:</span>
+            {[["net", "Net"], ["premium", "Premium"]].map(([s, lbl]) => {
+              const on = sfSort === s;
+              return (
+                <button key={s} onClick={() => setSfSort(s)} style={{
+                  padding: "3px 8px", fontSize: 10, fontWeight: 700, borderRadius: 3, cursor: "pointer",
+                  background: on ? P.ac : "transparent", color: on ? P.bg : P.wh,
+                  border: `1px solid ${on ? P.ac : P.bd}` }}>{lbl}</button>
+              );
+            })}
+            <button disabled={!!busy} style={btnStyle("sfp", false)}
+              onClick={() => doPreview(`/api/live/massive/standing-flow?post=0&days=${sfDays}&cap=${sfCap}&sort=${sfSort}`, "sfp")}>
+              {busy === "sfp" ? "Previewing…" : "👁 Preview"}</button>
+            <button disabled={!!busy} style={btnStyle("sfx", true)}
+              onClick={() => doPush(`/api/live/massive/standing-flow?post=1&days=${sfDays}&cap=${sfCap}&sort=${sfSort}`, `Open Flow card (${sfDays}d · ${sfCap} · ${sfSort})`, "sfx")}>
+              {busy === "sfx" ? "Posting…" : "★ Push → Discord"}</button>
           </div>
         </div>
       )}
@@ -2608,7 +2779,33 @@ function fmtClock(ts) {
   } catch { return "—"; }
 }
 
-function ContractColumnHeaders({ isAdmin }) {
+// Month/day in ET — for the multi-day SPAN range (matches fmtClock's timezone so
+// the date can't drift to browser-local).
+function fmtDay(ts) {
+  if (!ts) return "—";
+  try {
+    return new Date(ts * 1000)
+      .toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" });
+  } catch { return "—"; }
+}
+
+// Click-to-sort key per By-Contract column. A label missing here isn't sortable.
+const _expTs = (e) => { const d = e && _mdyToDate(e); return d ? d.getTime() : 0; };
+const _gradeRank = (g) => ({ "A+": 6, "A": 5, "B": 4, "C": 3, "D": 2 }[(g || "").toUpperCase()] || 1);
+const CONTRACT_SORT_KEYS = {
+  "SPAN": c => c.last_ts || 0,
+  "TICKER": c => (c.ticker || "").toUpperCase(),
+  "SPOT": c => c.spot || 0,
+  "STRIKE": c => c.strike || 0,
+  "EXP": c => _expTs(c.exp),
+  "%ITM/OTM": c => (c.moneynessPct == null ? -1e9 : c.moneynessPct),
+  "V/OI": c => (c.cum_voi == null ? -1 : c.cum_voi),
+  "PREMIUM": c => c.total_premium || 0,
+  "GRADE": c => _gradeRank(c.accumulation_grade),
+  "SIGNAL": c => c.accumulation_score || 0,
+};
+
+function ContractColumnHeaders({ isAdmin, sortCol, sortDir, onSort }) {
   const cols = ["SPAN", "TICKER", "SPOT", "STRIKE", "C/P", "EXP", "%ITM/OTM",
                 "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
   return (
@@ -2617,16 +2814,39 @@ function ContractColumnHeaders({ isAdmin }) {
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
-      {cols.map((c, i) => (
-        <span key={c} style={{ textAlign: i === cols.length - 1 ? "left" : "center", paddingLeft: i === cols.length - 1 ? 4 : 0 }}>{c}</span>
-      ))}
+      {cols.map((c, i) => {
+        const sortable = !!CONTRACT_SORT_KEYS[c];
+        const active = sortCol === c;
+        return (
+          <span key={c}
+            onClick={sortable && onSort ? () => onSort(c) : undefined}
+            title={sortable ? "Sort by " + c : undefined}
+            style={{
+              textAlign: i === cols.length - 1 ? "left" : "center",
+              paddingLeft: i === cols.length - 1 ? 4 : 0,
+              cursor: sortable ? "pointer" : "default",
+              color: active ? P.ac : undefined, userSelect: "none",
+            }}>{c}{active ? (sortDir === "desc" ? " ▾" : " ▴") : ""}</span>
+        );
+      })}
       {isAdmin && <span style={{ textAlign: "center" }}>PUSH</span>}
     </div>
   );
 }
 
-function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) {
+function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState, oiCheck, expired }) {
   const [open, setOpen] = useState(false);
+
+  // Right-click (desktop) / long-press (touch, incl. iOS Safari — which does
+  // not reliably fire `contextmenu` on touch-hold) both open the full chart.
+  // Closes over `c.ticker` — do NOT read the ticker from the event, since the
+  // long-press branch fires from a setTimeout after React dispatch has
+  // finished, when `e.currentTarget` is already null.
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    onOpenChart && onOpenChart(c.ticker);
+  });
   const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
   const isBull = c.direction === "Bull";
   const isBear = c.direction === "Bear";
@@ -2690,14 +2910,26 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
           background: c.dormant ? `${P.bl}10` : dirTint,
           borderLeft: `4px solid ${c.dormant ? P.bl : dirColor}`,
         }}
-        title={`${c.hit_count} prints · ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)} · conviction score ${c.score?.toLocaleString?.() || c.score}`}
+        title={`${c.hit_count} prints${c.is_multiday
+          ? ` across ${_daysN} days (${fmtDay(c.first_ts)}–${fmtDay(c.last_ts)}, ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)})`
+          : ` · ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)}`} · conviction score ${c.score?.toLocaleString?.() || c.score}`}
       >
         <span style={{ color: rowColor, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <i style={{ color: rowColor, fontSize: 11 }}>{open ? "▾" : "▸"}</i>
-          {fmtClock(c.first_ts)}–{fmtClock(c.last_ts)}
+          {c.is_multiday ? (
+            <>
+              {fmtDay(c.first_ts)} → {fmtDay(c.last_ts)}
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+                background: P.ac + "30", color: P.ac, flexShrink: 0 }}
+                title={`${_daysN} distinct trading days with prints in this window`}>{_daysN}d</span>
+            </>
+          ) : (
+            `${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)}`
+          )}
         </span>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
           <span onClick={(e) => { e.stopPropagation(); onClickTicker && onClickTicker(c.ticker); }}
+                {...chartLongPress}
                 style={{ color: rowColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
             {c.ticker}
           </span>
@@ -2713,7 +2945,10 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
         <span style={{ color: rowColor, fontSize: 12, textAlign: "center" }}>{fmtSpot(c.spot)}</span>
         <span style={{ color: rowColor, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap" }}>{fmtStrike(c.strike)}</span>
         <span style={{ color: rowColor, fontWeight: 700, textAlign: "center" }}>{c.cp || "—"}</span>
-        <span style={{ color: rowColor, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{c.exp || "—"}</span>
+        <span style={{ fontSize: 12, textAlign: "center", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+          <span style={{ color: expired ? P.mt : rowColor, textDecoration: expired ? "line-through" : undefined }}>{c.exp || "—"}</span>
+          {expired && <span style={{ fontSize: 8, fontWeight: 700, padding: "0 3px", borderRadius: 2, background: `${DIR_BEAR}30`, color: DIR_BEAR, flexShrink: 0 }} title="Contract already expired">EXP'D</span>}
+        </span>
         <span style={{ color: rowColor, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{fmtMoneyness(c.moneynessPct, c.moneynessLabel)}</span>
         <span style={{ color: rowColor, fontWeight: c.cum_voi && c.cum_voi >= 3 ? 600 : 400, textAlign: "center" }}>
           {c.cum_voi != null ? `${c.cum_voi}x` : "—"}
@@ -2874,15 +3109,40 @@ export default function LiveFlowMassive() {
   // silently hides the tape on reload).
   const [search, setSearch] = useState("");
   // By Print (live tape) vs By Contract (accumulation rollup). Persisted.
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem(LS_KEY_VIEWMODE) || "print");
+  const [viewMode, setViewMode] = useState(() => {
+    // "openflow" (the removed searchable board) falls back to print so a stale
+    // persisted value can't leave the page on a view that no longer renders.
+    const v = localStorage.getItem(LS_KEY_VIEWMODE);
+    return v === "contract" ? "contract" : "print";
+  });
   const [byContract, setByContract] = useState(null);
   // Accumulation lookback window (multi-day). Default 3 so multi-day builds show
   // by default; tunable 1/3/5 from the By-Contract view. Persisted.
   const [lookbackDays, setLookbackDays] = useState(() => {
     const v = parseInt(localStorage.getItem("uct_massive_lookback_days") || "3", 10);
-    return [1, 3, 5].includes(v) ? v : 3;
+    return v >= 1 && v <= 31 ? v : 3;   // range picker sets arbitrary N up to 31
   });
   const setLookback = (n) => { setLookbackDays(n); try { localStorage.setItem("uct_massive_lookback_days", String(n)); } catch {} };
+  // Multi-day range: a range = end date (targetDate) + N-day span (lookbackDays),
+  // aggregated in the By-Contract rollup. applyRange wires the calendar range /
+  // presets to that and flips to the contract view. "Still open only" hides
+  // contracts whose fetched OI says closed (exited) — a live still-open filter.
+  const [stillOpenOnly, setStillOpenOnly] = useState(false);
+  const [cSortCol, setCSortCol] = useState(null);   // By-Contract column click-sort
+  const [cSortDir, setCSortDir] = useState("desc");
+  const onContractSort = (col) => {
+    if (cSortCol === col) setCSortDir(d => (d === "desc" ? "asc" : "desc"));
+    else { setCSortCol(col); setCSortDir(col === "TICKER" || col === "EXP" ? "asc" : "desc"); }
+  };
+  // Min prints for a contract to appear in By-Contract. Default 3 = accumulation
+  // focus; set to 1 to see EVERY contract (single big Alpha Gold prints, held or
+  // not — "doesn't have to be accumulating").
+  const [minHits, setMinHits] = useState(3);
+  const applyRange = (endMdy, days) => {
+    setViewMode("contract");
+    setLookback(Math.max(1, Math.min(31, days || 1)));
+    setTargetDate(endMdy || null);
+  };
   // Per-column table sort. Defaults to time/desc, which is identical to the
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
@@ -2977,6 +3237,7 @@ export default function LiveFlowMassive() {
   const _ckey = (t, cp, k, e) => `${String(t).toUpperCase()}|${String(cp).toUpperCase()[0]}|${parseFloat(k)}|${String(e).trim()}`;
   const [oiCheck, setOiCheck] = useState({});   // ckey -> { oi, delta, status }
   const [oiChecking, setOiChecking] = useState(false);
+  const [oiSummary, setOiSummary] = useState("");   // result line after Check OI
   const handleCheckOI = async () => {
     const contracts = (byContract?.contracts || []);
     if (!contracts.length) return;
@@ -3009,7 +3270,13 @@ export default function LiveFlowMassive() {
         out[k] = { oi: settled, delta, status };
       });
       setOiCheck(out);
-    } catch (e) { console.error("[check OI]", e); }
+      const tally = {};
+      Object.values(out).forEach(v => { tally[v.status] = (tally[v.status] || 0) + 1; });
+      const openN = (tally.confirmed || 0) + (tally.held || 0) + (tally.trimmed || 0);
+      setOiSummary(`✓ OI checked on ${Object.keys(out).length} · ${openN} still open `
+        + `(${tally.confirmed || 0} adding, ${tally.held || 0} held, ${tally.trimmed || 0} trimmed) · `
+        + `${tally.closed || 0} closed · ${tally["no-data"] || 0} no settled OI yet`);
+    } catch (e) { console.error("[check OI]", e); setOiSummary("✗ OI check failed — retry"); }
     finally { setOiChecking(false); }
   };
   // Thresholds loaded from /api/live/massive/thresholds. Local edits in the
@@ -3041,6 +3308,10 @@ export default function LiveFlowMassive() {
   };
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
+  // Right-click (long-press on touch) a ticker cell → open the full chart via
+  // TickerPopup in controlled mode. Independent of tickerFilter/contractFilter
+  // above — one popup rendered at page level, never per-row.
+  const [chartSym, setChartSym] = useState(null);
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
   const [oiFetchState, setOiFetchState] = useState({ loading: false, result: null });
   // Current spot quotes for P/L column. Updated every 30s in a separate
@@ -3383,6 +3654,90 @@ export default function LiveFlowMassive() {
     };
   }, [curated, minGrade, sortBy, filters, sseNonce]);
 
+  // ── Live CURATED SSE stream (dark, VITE_MASSIVE_CURATED_STREAM=1) ──────────
+  // The curated twin of the effect above. Only runs in CURATED mode (mutually
+  // exclusive with the raw stream, which is disabled when curated). The server
+  // tailer already applied the exact curated gate, so this just PREPENDS each
+  // new curated alert instantly — killing the ~20s poll surfacing lag. The 20s
+  // poll stays as the authoritative reconcile (dedupe/demotions/full set); on a
+  // disconnect the data STAYS PUT and the poll keeps it fresh, so a stream
+  // failure degrades to exactly the pre-stream 20s behavior, never a blank feed.
+  useEffect(() => {
+    if (!curated || !CURATED_STREAM_ENABLED) return;
+    const isolatedTier = (() => {
+      const ons = TIER_ORDER.filter((t) => filters[t]);
+      return ons.length === 1 ? ons[0] : null;
+    })();
+    const minRank = _GRADE_NUMERIC_FE[minGrade] ?? 0;
+    let es;
+    try {
+      es = new EventSource("/api/live/massive/curated-stream");
+    } catch {
+      return;
+    }
+    lastSseContactRef.current = Date.now();
+    const touch = () => { lastSseContactRef.current = Date.now(); };
+    // Unlike the raw effect we do NOT force a reconcile poll on 'connected' —
+    // the curated /recent build is heavy (~34K rows) and a flapping stream would
+    // stack heavy builds; the 20s poll catches any gap within one cycle anyway.
+    es.addEventListener("connected", touch);
+    es.addEventListener("heartbeat", touch);  // 15s healthy-idle signal
+    es.onmessage = (ev) => {
+      touch();
+      let incoming;
+      try {
+        incoming = JSON.parse(ev.data).alerts || [];
+      } catch {
+        return;
+      }
+      if (!incoming.length) return;
+      // apply the user's VIEW filters (grade + isolated tier) — the server
+      // already applied CURATION, these just match the current on-screen slice
+      const fresh = incoming.filter(
+        (a) =>
+          (_GRADE_NUMERIC_FE[a.grade] ?? 0) >= minRank &&
+          (!isolatedTier || (a._tierKey || "algo") === isolatedTier)
+      );
+      if (!fresh.length) return;
+      setDataArrived(true);
+      setWarming(false);
+      setAlerts((prev) => {
+        const seen = new Set(prev.map((a) => a.id));
+        const add = fresh.filter((a) => !seen.has(a.id));
+        if (!add.length) return prev;
+        newIdsRef.current = new Set(add.map((a) => a.id)); // flash the new batch
+        let merged = [...add, ...prev];
+        if (sortBy === "premium")
+          merged.sort((x, y) => (y.alertPremium || 0) - (x.alertPremium || 0));
+        else if (sortBy === "conviction")
+          merged.sort((x, y) => (y.convictionScore || 0) - (x.convictionScore || 0));
+        else merged.sort((x, y) => (y.id || 0) - (x.id || 0)); // recent
+        if (merged[0]) lastIdRef.current = merged[0].id;
+        return applyOiEnrichment(merged.slice(0, 4000));
+      });
+    };
+    es.onerror = () => {
+      /* keep rendered data; browser EventSource auto-reconnects */
+    };
+    // Same half-dead-stream watchdog as the raw effect. Reuses sseNonce so the
+    // return-to-tab catch-up reconnects the curated stream too (the effects are
+    // mutually exclusive on `curated`, so sharing the nonce is safe).
+    const wd = setInterval(() => {
+      if (Date.now() - lastSseContactRef.current > SSE_STALL_MS) {
+        lastSseContactRef.current = Date.now();
+        setSseNonce((n) => n + 1);
+      }
+    }, 10000);
+    return () => {
+      clearInterval(wd);
+      try {
+        es.close();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [curated, minGrade, sortBy, filters, sseNonce]);
+
   // ── Return-to-tab catch-up (2026-07-20) ───────────────────────────────────
   // Browsers throttle/freeze setInterval+setTimeout in a hidden/backgrounded
   // tab, so the 20s poll, the 30s SSE reconcile, AND the 40s half-dead-stream
@@ -3532,7 +3887,7 @@ export default function LiveFlowMassive() {
     let cancelled = false, timer;
     async function pull() {
       try {
-        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: "3", lookback_days: String(lookbackDays) });
+        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: String(minHits), lookback_days: String(lookbackDays) });
         if (targetDate) params.set("target_date", targetDate);
         const r = await fetch(`/api/live/massive/by-contract?${params.toString()}`);
         if (r.ok) { const d = await r.json(); if (!cancelled) setByContract(d); }
@@ -3541,7 +3896,7 @@ export default function LiveFlowMassive() {
     }
     pull();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [viewMode, targetDate, stockEtfFilter, lookbackDays]);
+  }, [viewMode, targetDate, stockEtfFilter, lookbackDays, minHits]);
 
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the
@@ -3674,16 +4029,37 @@ export default function LiveFlowMassive() {
 
   // By-Contract rollups, filtered by the same search / ticker-isolation the
   // print feed uses (partition + algo already applied server-side).
-  const visibleContracts = (byContract?.contracts || []).filter(c => {
+  const _allTiersOn = TIER_ORDER.every(t => filters[t]);
+  const _todayTs = _mdyToDate(_etTodayMDY())?.getTime() || 0;   // start of today (ET)
+  const _isExpired = (c) => { const t = _expTs(c.exp); return t > 0 && t < _todayTs; };
+  let visibleContracts = (byContract?.contracts || []).filter(c => {
     if (searchQ && !(c.ticker || "").toUpperCase().includes(searchQ)) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(c.ticker)) return false;
+    // Tier chips (Alpha Gold / Size / Bullish / …) now filter By-Contract too:
+    // keep a contract only if one of its prints belongs to a currently-ON tier.
+    // So "Alpha Gold" (or Size) shows which of THOSE contracts are still open/adding.
+    if (!_allTiersOn && !((c.tiers || []).some(t => filters[t]))) return false;
+    // Still-open only: an expired contract can't be open, and a settled OI that
+    // says CLOSED (exited) means it's gone — hide both.
+    if (stillOpenOnly && (_isExpired(c) || oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]?.status === "closed")) return false;
     return true;
   });
+  if (cSortCol && CONTRACT_SORT_KEYS[cSortCol]) {
+    const keyer = CONTRACT_SORT_KEYS[cSortCol];
+    visibleContracts = [...visibleContracts].sort((a, b) => {
+      const av = keyer(a), bv = keyer(b);
+      const cmp = typeof av === "string" ? av.localeCompare(bv) : (av - bv);
+      return cSortDir === "desc" ? -cmp : cmp;
+    });
+  }
 
-  // Per-tier counts (for filter chip badges). Built from ALL alerts that
-  // pass the ticker/contract filter — independent of which tiers are toggled
-  // on — so the badges always show "if you turned this on, here's how many
-  // alerts you'd see".
+  // Per-tier counts (for filter chip badges). Independent of which TIERS are
+  // toggled on — so a badge shows "if you turned this on, here's how many you'd
+  // see" — but it MUST honor the same ORTHOGONAL filters the display applies
+  // (Stocks/ETFs partition, Not-Clean hidden, Algo hide) and the ticker/contract
+  // filter. Otherwise a badge over-counts vs the rows: e.g. on the ETFs partition
+  // "Alpha Gold 14" but only the 2 ETF alpha golds render, the 12 stock ones
+  // "disappear" (2026-08-04).
   const tierCounts = {};
   for (const t of TIER_ORDER) tierCounts[t] = 0;
   for (const a of alerts) {
@@ -3694,6 +4070,14 @@ export default function LiveFlowMassive() {
       if (!contractFilter.has(k)) continue;
     }
     const t = _tierOf(a);
+    // Mirror visibleAlerts' orthogonal filters (everything EXCEPT the tier toggle).
+    if (hideAlgo && t === "algo") continue;
+    if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase().includes("not clean"))) continue;
+    if (stockEtfFilter !== "all") {
+      const isEtf = a.source ? a.source === "indexes" : KNOWN_ETFS_INDEXES.has(a.ticker);
+      if (stockEtfFilter === "stocks" && isEtf) continue;
+      if (stockEtfFilter === "etfs" && !isEtf) continue;
+    }
     if (tierCounts[t] !== undefined) tierCounts[t]++;
   }
 
@@ -3931,6 +4315,8 @@ export default function LiveFlowMassive() {
         onClearFilters={handleClearFilters}
         targetDate={targetDate}
         onDateChange={setTargetDate}
+        onRange={applyRange}
+        rangeDays={viewMode === "contract" ? lookbackDays : 1}
         onOiFetch={handleOiFetch}
         oiFetchState={oiFetchState}
         nullOICount={alerts.filter(a => a.priorOI == null).length}
@@ -3941,7 +4327,9 @@ export default function LiveFlowMassive() {
           padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
           border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
         }}>
-          📅 Historical view: {targetDate} (remove ?date param to return to live)
+          📅 {viewMode === "contract" && lookbackDays > 1
+            ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
+            : `Historical view: ${targetDate}`} (remove ?date param to return to live)
         </div>
       )}
 
@@ -4000,7 +4388,7 @@ export default function LiveFlowMassive() {
 
         {viewMode === "contract" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontSize: 11, color: P.mt }}>
-            <span style={{ fontWeight: 600 }}>Accumulation lookback:</span>
+            <span style={{ fontWeight: 600 }}>Lookback ({lookbackDays}d):</span>
             {[1, 3, 5].map(n => (
               <button key={n} onClick={() => setLookback(n)} style={{
                 padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700,
@@ -4010,26 +4398,55 @@ export default function LiveFlowMassive() {
                 color: lookbackDays === n ? P.ac : P.mt,
               }}>{n}d</button>
             ))}
-            <span style={{ color: P.dm, fontStyle: "italic", marginLeft: 4 }}>
-              🔥 accelerating multi-day builds surface first
-            </span>
+            <span style={{ color: P.bd }}>·</span>
+            <span style={{ fontWeight: 600 }}>Min hits:</span>
+            {[1, 3, 5].map(n => (
+              <button key={"mh" + n} onClick={() => setMinHits(n)} style={{
+                padding: "3px 9px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                border: `1px solid ${minHits === n ? P.ac : P.bd}`,
+                background: minHits === n ? P.ac + "22" : "transparent",
+                color: minHits === n ? P.ac : P.mt,
+              }} title={n === 1
+                ? "Show EVERY contract — single big prints too, not just accumulation"
+                : `Only contracts hit ≥${n}× (accumulation)`}>{n}×</button>
+            ))}
+            <label
+              title="Hide contracts whose settled OI shows they CLOSED (exited). Runs Check OI if not yet fetched."
+              style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 10, fontWeight: 700, color: stillOpenOnly ? P.ac : P.mt, cursor: "pointer" }}>
+              <input type="checkbox" checked={stillOpenOnly}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setStillOpenOnly(on);
+                  if (on && Object.keys(oiCheck).length === 0) handleCheckOI();
+                }}
+                style={{ accentColor: P.ac, cursor: "pointer" }} />
+              Still open only
+            </label>
             <button
               onClick={handleCheckOI}
               disabled={oiChecking}
               title="Fetch latest settled OI per contract and confirm whether positions held overnight (OI grew) or closed (OI fell)"
               style={{
-                marginLeft: "auto", padding: "3px 12px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+                padding: "3px 12px", borderRadius: 12, fontSize: 10, fontWeight: 700,
                 border: `1px solid ${P.ac}`, background: "transparent", color: P.ac,
                 cursor: oiChecking ? "wait" : "pointer", fontFamily: "inherit", opacity: oiChecking ? 0.6 : 1,
               }}>
               {oiChecking ? "checking…" : "↻ Check OI"}
             </button>
+            {(oiChecking || oiSummary) && (
+              <span style={{ flexBasis: "100%", marginTop: 4, fontSize: 10,
+                color: oiSummary.startsWith("✗") ? "#C26A6A" : P.dm }}>
+                {oiChecking ? "Fetching settled OI for every contract in view…" : oiSummary}
+              </span>
+            )}
           </div>
         )}
 
         {viewMode === "print"
           ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />
-          : <ContractColumnHeaders isAdmin={isTuneMode} />}
+          : <ContractColumnHeaders isAdmin={isTuneMode} sortCol={cSortCol} sortDir={cSortDir} onSort={onContractSort} />}
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -4090,6 +4507,7 @@ export default function LiveFlowMassive() {
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
             onClickTier={handleClickTier}
+            onOpenChart={setChartSym}
             isAdmin={isTuneMode}
             onPush={handlePush}
             pushState={pushStates[a.id]}
@@ -4131,10 +4549,12 @@ export default function LiveFlowMassive() {
             key={`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`}
             c={c}
             onClickTicker={handleClickTicker}
+            onOpenChart={setChartSym}
             isAdmin={isTuneMode}
             onPush={handlePushContract}
             pushState={contractPushStates[`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`]}
             oiCheck={oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]}
+            expired={_isExpired(c)}
           />
         ))}
         {visibleContracts.length === 0 && !error && (
@@ -4152,7 +4572,7 @@ export default function LiveFlowMassive() {
             padding: 10, color: P.dm, fontSize: 11, textAlign: "right",
             borderTop: `1px solid ${P.bd}`, marginTop: 8,
           }}>
-            {visibleContracts.length} contracts accumulating · sorted by latest activity · click a row to expand prints
+            {visibleContracts.length} contracts{minHits > 1 ? ` accumulating (≥${minHits}×)` : " (all, min 1×)"} · sorted by {cSortCol ? `${cSortCol.toLowerCase()} ${cSortDir}` : "latest activity"} · click a row to expand prints
           </div>
         )}
       </>)}
@@ -4161,8 +4581,13 @@ export default function LiveFlowMassive() {
         marginTop: 30, padding: 12, color: P.mt, fontSize: 10,
         textAlign: "center", borderTop: `1px solid ${P.bd}`,
       }}>
-        Live Flow ・ Real-time options tape ・ {STREAM_ENABLED && !curated ? "Live stream (SSE)" : `Refreshing every ${POLL_INTERVAL_MS/1000}s`}
+        Live Flow ・ Real-time options tape ・ {((STREAM_ENABLED && !curated) || (CURATED_STREAM_ENABLED && curated)) ? "Live stream (SSE)" : `Refreshing every ${POLL_INTERVAL_MS/1000}s`}
       </div>
+
+      {/* Right-click-to-chart popup — one instance for the whole page, never
+          per-row. Controlled mode: TickerPopup renders no trigger, just the
+          full ChartPane modal, opened/closed by chartSym. */}
+      {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
     </div>
       );
 }

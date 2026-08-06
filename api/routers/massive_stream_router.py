@@ -19,6 +19,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from api import massive_stream
+from api import massive_curated_stream
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -65,6 +66,49 @@ async def massive_stream_sse(request: Request):
             massive_stream.unsubscribe(q)
 
     return StreamingResponse(gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.get("/api/live/massive/curated-stream")
+async def massive_curated_stream_sse(request: Request):
+    """Live push of NEW curated alerts (the curated twin of /stream). Same
+    StreamingResponse/heartbeat/finally-unsubscribe contract; the tailer only
+    broadcasts alerts that pass the exact server-side curated gate. Dark unless
+    MASSIVE_CURATED_STREAM_ENABLED=1 — the client falls back to the 20s poll."""
+    if not massive_curated_stream.ENABLED:
+        return JSONResponse({"enabled": False}, status_code=503)
+
+    q = massive_curated_stream.subscribe()
+    if q is None:  # subscriber cap reached — client should poll
+        return JSONResponse({"enabled": True, "reason": "at_capacity"}, status_code=503)
+
+    async def gen():
+        try:
+            yield "event: connected\ndata: {}\n\n"
+            last_hb = time.time()
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    alerts = await asyncio.wait_for(q.get(), timeout=5.0)
+                    yield f"data: {json.dumps({'alerts': alerts}, default=str)}\n\n"
+                except asyncio.TimeoutError:
+                    pass  # fall through to heartbeat / disconnect check
+                if time.time() - last_hb > _HEARTBEAT_SEC:
+                    yield "event: heartbeat\ndata: {}\n\n"
+                    last_hb = time.time()
+        except asyncio.CancelledError:
+            raise
+        finally:
+            massive_curated_stream.unsubscribe(q)
+
+    return StreamingResponse(gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.get("/api/live/massive/curated-stream-status")
+def massive_curated_stream_status():
+    """Observability for the curated stream — armed? subscribers? advancing +
+    broadcasting? (flat broadcasts_total while subscribers>0 during RTH = stalled)."""
+    return massive_curated_stream.stats()
 
 
 @router.post("/api/live/massive/stream-test")

@@ -1,99 +1,38 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import useSWR from 'swr'
+import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import UIcon from '../components/ui/UIcon'
 import ErrorState from '../components/ErrorState'
+import usePreferences, { parsePref } from '../hooks/usePreferences'
+import {
+  CHART_GROUPS, LABEL_MAP, CHART_PRESETS,
+  UNIT, UNIT_LABEL, unitOf, resolveAxes, matchPreset, axisForUnit,
+} from './breadth/chartMetrics'
 import styles from './BreadthCharts.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-const CHART_GROUPS = [
-  {
-    group: 'Score',
-    metrics: [
-      { key: 'breadth_score', label: 'Health Score' },
-      { key: 'uct_exposure',  label: 'UCT Exposure' },
-    ],
-  },
-  {
-    group: 'Primary Breadth',
-    metrics: [
-      { key: 'up_4pct_today',       label: 'Up 4%+' },
-      { key: 'down_4pct_today',     label: 'Dn 4%+' },
-      { key: 'ratio_5day',          label: '5D Ratio' },
-      { key: 'ratio_10day',         label: '10D Ratio' },
-      { key: 'up_20pct_5d',         label: 'Up 20%/5d' },
-      { key: 'down_20pct_5d',       label: 'Dn 20%/5d' },
-      { key: 'up_25pct_quarter',    label: 'Up 25%/Qtr' },
-      { key: 'down_25pct_quarter',  label: 'Dn 25%/Qtr' },
-      { key: 'up_25pct_month',      label: 'Up 25%/Mo' },
-      { key: 'down_25pct_month',    label: 'Dn 25%/Mo' },
-      { key: 'up_50pct_month',      label: 'Up 50%/Mo' },
-      { key: 'down_50pct_month',    label: 'Dn 50%/Mo' },
-      { key: 'magna_up',            label: 'Up 13%/34d' },
-      { key: 'magna_down',          label: 'Dn 13%/34d' },
-      { key: 'universe_count',      label: 'Universe Count' },
-    ],
-  },
-  {
-    group: 'MA Breadth',
-    metrics: [
-      { key: 'pct_above_5sma',   label: '% Above 5SMA' },
-      { key: 'pct_above_10sma',  label: '% Above 10SMA' },
-      { key: 'pct_above_20ema',  label: '% Above 20EMA' },
-      { key: 'pct_above_40sma',  label: '% Above 40SMA' },
-      { key: 'pct_above_50sma',  label: '% Above 50SMA' },
-      { key: 'pct_above_100sma', label: '% Above 100SMA' },
-      { key: 'pct_above_200sma', label: '% Above 200SMA' },
-    ],
-  },
-  {
-    group: 'Regime',
-    metrics: [
-      { key: 'sp500_close',   label: 'S&P 500' },
-      { key: 'qqq_close',     label: 'QQQ' },
-      { key: 'vix',           label: 'VIX' },
-      { key: 'mcclellan_osc', label: 'McClellan Osc' },
-      { key: 'stage2_count',  label: 'Stage 2 Count' },
-      { key: 'stage4_count',  label: 'Stage 4 Count' },
-    ],
-  },
-  {
-    group: 'Highs / Lows',
-    metrics: [
-      { key: 'new_52w_highs', label: '52W Highs' },
-      { key: 'new_52w_lows',  label: '52W Lows' },
-      { key: 'new_20d_highs', label: '20D Highs' },
-      { key: 'new_20d_lows',  label: '20D Lows' },
-      { key: 'new_ath',       label: 'ATH Count' },
-      { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
-      { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
-    ],
-  },
-  {
-    group: 'Sentiment',
-    metrics: [
-      { key: 'cnn_fear_greed', label: 'CNN Fear/Greed' },
-      { key: 'aaii_bulls',     label: 'AAII Bulls' },
-      { key: 'aaii_neutral',   label: 'AAII Neutral' },
-      { key: 'aaii_bears',     label: 'AAII Bears' },
-      { key: 'aaii_spread',    label: 'Bull-Bear Spread' },
-      { key: 'naaim',          label: 'NAAIM' },
-      { key: 'cboe_putcall',   label: 'CBOE P/C' },
-    ],
-  },
-]
-
-const ALL_METRICS = CHART_GROUPS.flatMap(g => g.metrics)
-const LABEL_MAP = Object.fromEntries(ALL_METRICS.map(m => [m.key, m.label]))
-const PRICE_KEYS = new Set(['sp500_close', 'qqq_close'])
+const PREF_KEY = 'breadth_charts_state'
+const DEFAULT_SELECTED = ['breadth_score', 'pct_above_50sma']
+// Stable reference so the chart's useMemo doesn't rerun on every render.
+const NO_EXTREMES = {}
 
 const PALETTE = [
   '#60a5fa', '#34d399', '#f59e0b', '#f87171',
   '#a78bfa', '#fb923c', '#38bdf8', '#4ade80',
   '#e879f9', '#fbbf24',
 ]
+
+// ECharts sizes a value axis from its SERIES alone. Participation tops out near
+// 70, so the axis ended around 80 and the 90 reference line silently never drew.
+// Widen only the axis the band sits on, and only far enough to contain it —
+// genuine outliers (uct_exposure 102, aaii_spread −22) still expand it normally.
+const EXTREMES_BAND = {
+  min: v => Math.min(0, v.min),
+  max: v => Math.max(100, v.max),
+}
 
 // MA Breadth reference lines — red overbought (70/80/90), green oversold (20/15/10/5)
 const MA_EXTREME_LINES = [
@@ -114,23 +53,80 @@ function offsetDate(days) {
 
 export default function BreadthCharts() {
   const { data, isLoading, error, mutate } = useSWR('/api/breadth-monitor?days=365', fetcher)
+  const live = useLiveBreadth()
+  const { prefs, setPref } = usePreferences()
 
-  const [selected, setSelected] = useState(['breadth_score', 'pct_above_50sma'])
   const [expanded, setExpanded] = useState({})
-  const [notableExtremes, setNotableExtremes] = useState({})
   const [fromDate, setFromDate] = useState(() => offsetDate(-90))
   const [toDate, setToDate]     = useState(() => offsetDate(0))
 
+  // The stored selection is DERIVED from prefs rather than copied into state by
+  // an effect — SWR resolves after mount, so an effect would mean a cascading
+  // render and a default-then-swap flash. Once the user touches anything, the
+  // override wins and prefs stop mattering.
+  const [selectedOverride, setSelectedOverride] = useState(null)
+  const [extremesOverride, setExtremesOverride] = useState(null)
+  const saveTimerRef = useRef(null)
+
+  const storedRaw = prefs[PREF_KEY]
+  const stored = useMemo(() => {
+    const saved = parsePref(storedRaw, null)
+    if (!saved) return null
+    // Drop any metric that no longer exists so a renamed key can't blank the chart.
+    const keys = Array.isArray(saved.selected)
+      ? saved.selected.filter(k => k in LABEL_MAP)
+      : []
+    return {
+      selected: keys.length ? keys : null,
+      extremes: saved.extremes && typeof saved.extremes === 'object' ? saved.extremes : null,
+    }
+  }, [storedRaw])
+
+  const selected = selectedOverride ?? stored?.selected ?? DEFAULT_SELECTED
+  const notableExtremes = extremesOverride ?? stored?.extremes ?? NO_EXTREMES
+
+  // Persist only what the user actually changed — a page load must never write
+  // its own restored state back to the server.
+  useEffect(() => {
+    if (selectedOverride === null && extremesOverride === null) return
+    clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      setPref(PREF_KEY, { selected, extremes: notableExtremes })
+    }, 600)
+    return () => clearTimeout(saveTimerRef.current)
+  }, [selectedOverride, extremesOverride, selected, notableExtremes, setPref])
+
+  // The provisional row extends every line to NOW. It is appended, never
+  // substituted: the backend withholds it the moment the 4:15 collector writes
+  // the day, so a stored point and an estimate of that same point can't both
+  // appear. The date filter still applies — scrolling back in time drops it.
   const rows = useMemo(() => {
     if (!data?.rows) return []
-    return data.rows
+    const all = live.row ? [...data.rows, live.row] : data.rows
+    return all
       .filter(r => r.date >= fromDate && r.date <= toDate)
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [data, fromDate, toDate])
+  }, [data, live.row, fromDate, toDate])
+
+  const liveIndex = useMemo(
+    () => (live.row ? rows.findIndex(r => r._live) : -1),
+    [rows, live.row],
+  )
+
+  const activePreset = useMemo(() => matchPreset(selected), [selected])
+
+  function applyPreset(preset) {
+    setSelectedOverride(preset.metrics)
+    // Replace rather than merge — a previous preset's reference lines left on
+    // would draw MA washout levels over, say, a VIX axis.
+    setExtremesOverride(
+      Object.fromEntries((preset.extremes ?? []).map(g => [g, true]))
+    )
+  }
 
   function toggleMetric(key) {
-    setSelected(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    setSelectedOverride(
+      selected.includes(key) ? selected.filter(k => k !== key) : [...selected, key]
     )
   }
 
@@ -139,28 +135,75 @@ export default function BreadthCharts() {
   }
 
   function toggleExtremes(group) {
-    setNotableExtremes(prev => ({ ...prev, [group]: !prev[group] }))
+    setExtremesOverride({ ...notableExtremes, [group]: !notableExtremes[group] })
   }
 
   const option = useMemo(() => {
+    const { axisByKey, hasRight, leftUnit, rightUnits } = resolveAxes(selected)
+
     const series = selected.map((key, i) => ({
       name: LABEL_MAP[key] ?? key,
       type: 'line',
       data: rows.map(r => [r.date, r[key] ?? null]),
-      yAxisIndex: PRICE_KEYS.has(key) ? 1 : 0,
-      symbol: 'none',
+      yAxisIndex: axisByKey[key] ?? 0,
+      // Every line is dotless EXCEPT its provisional tip, so the eye can tell
+      // where measured history stops and the intraday estimate begins.
+      symbol: liveIndex >= 0
+        ? (v, prm) => (prm.dataIndex === liveIndex ? 'circle' : 'none')
+        : 'none',
+      symbolSize: 7,
       smooth: 0.35,
       lineStyle: { width: 2 },
       itemStyle: { color: PALETTE[i % PALETTE.length] },
       connectNulls: false,
     }))
 
-    if (notableExtremes['MA Breadth']) {
+    if (liveIndex >= 0) {
+      series.push({
+        name: '__live_now__',
+        type: 'line',
+        data: [],
+        yAxisIndex: 0,
+        silent: true,
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          animation: false,
+          label: {
+            formatter: `LIVE ${live.clock ?? ''}`.trim(),
+            position: 'insideEndTop',
+            // ECharts rotates a markLine label to follow its line, which on a
+            // VERTICAL line means 90° — the stamp rendered sideways and clipped
+            // against the right edge. Unrotate it and grow it leftward into the
+            // plot so it stays readable and inside.
+            rotate: 0,
+            align: 'right',
+            distance: [4, 2],
+            color: '#c9a84c',
+            fontSize: 10,
+            fontWeight: 600,
+            backgroundColor: 'rgba(8,11,16,0.78)',
+            padding: [2, 5],
+            borderRadius: 3,
+          },
+          lineStyle: { color: '#c9a84c', type: 'dashed', width: 1, opacity: 0.65 },
+          data: [{ xAxis: rows[liveIndex].date }],
+        },
+      })
+    }
+
+    // The 5–90 levels only mean anything against a percentage axis, so draw
+    // them on whichever axis the pct family landed on — and not at all when no
+    // percentage metric is plotted.
+    const hasPct = selected.some(k => unitOf(k) === UNIT.PCT)
+    const showExtremes = Boolean(notableExtremes['MA Breadth']) && hasPct
+    const extremesAxis = showExtremes ? axisForUnit(selected, UNIT.PCT, axisByKey) : null
+    if (showExtremes) {
       series.push({
         name: '__ma_extremes__',
         type: 'line',
         data: [],
-        yAxisIndex: 0,
+        yAxisIndex: extremesAxis,
         silent: true,
         markLine: {
           silent: true,
@@ -182,6 +225,8 @@ export default function BreadthCharts() {
         },
       })
     }
+
+    const axisNameStyle = { color: '#706b5e', fontSize: 10, padding: [0, 0, 4, 0] }
 
     return {
       backgroundColor: 'transparent',
@@ -215,7 +260,7 @@ export default function BreadthCharts() {
           return `<div style="font-size:11px;color:#706b5e;margin-bottom:4px">${date}</div>` + lines.join('<br/>')
         },
       },
-      grid: { left: 64, right: 64, top: 48, bottom: 56 },
+      grid: { left: 64, right: hasRight ? 64 : 24, top: 56, bottom: 56 },
       xAxis: {
         type: 'category',
         boundaryGap: false,
@@ -231,6 +276,9 @@ export default function BreadthCharts() {
       yAxis: [
         {
           type: 'value',
+          name: leftUnit ? UNIT_LABEL[leftUnit] : '',
+          nameTextStyle: axisNameStyle,
+          ...(extremesAxis === 0 ? EXTREMES_BAND : {}),
           axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
           axisLabel: { color: '#706b5e', fontSize: 11 },
@@ -238,6 +286,10 @@ export default function BreadthCharts() {
         },
         {
           type: 'value',
+          show: hasRight,
+          name: rightUnits.map(u => UNIT_LABEL[u]).join(' / '),
+          nameTextStyle: axisNameStyle,
+          ...(extremesAxis === 1 ? EXTREMES_BAND : {}),
           axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
           axisLabel: { color: '#706b5e', fontSize: 11 },
@@ -258,12 +310,28 @@ export default function BreadthCharts() {
       ],
       series,
     }
-  }, [selected, rows, notableExtremes])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock])
 
   return (
     <div className={styles.container}>
       {/* ── Controls ─────────────────────────────────────────────────── */}
       <div className={styles.controls}>
+        <div className={styles.presetRow}>
+          <span className={styles.presetLabel}>Presets</span>
+          {CHART_PRESETS.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              title={p.hint}
+              aria-pressed={activePreset === p.id}
+              className={`${styles.presetBtn} ${activePreset === p.id ? styles.presetBtnActive : ''}`}
+              onClick={() => applyPreset(p)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
         <div className={styles.metricPanel}>
           <div className={styles.groupRow}>
             {CHART_GROUPS.map(g => {
@@ -345,7 +413,7 @@ export default function BreadthCharts() {
           <div className={styles.placeholder}>No data in selected range.</div>
         )}
         {!isLoading && rows.length > 0 && selected.length === 0 && (
-          <div className={styles.placeholder}>Select metrics above to plot.</div>
+          <div className={styles.placeholder}>Pick a preset above, or check individual metrics.</div>
         )}
         {!isLoading && rows.length > 0 && selected.length > 0 && (
           <ReactECharts

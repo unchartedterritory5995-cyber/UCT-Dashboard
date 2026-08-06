@@ -31,8 +31,13 @@ vi.mock('./useCalendarData', () => ({
       days: {
         '2026-06-02': {
           bmo: [
-            { sym: 'AAPL', date: '2026-06-02', eps_est: 1.5, eps_act: null },
-            { sym: 'TINY', date: '2026-06-02', eps_est: 0.1, eps_act: null },
+            // `date` deliberately WRONG (not '2026-06-02', the day key) — the
+            // real backend API never puts a `.date` field on a per-reporter
+            // entry at all (T11 review round 1, I4); a coincidentally-correct
+            // fixture value here would make the reportDate regression test
+            // below pass whether the component reads `.date` or `._ds`.
+            { sym: 'AAPL', date: '1999-01-01', eps_est: 1.5, eps_act: null },
+            { sym: 'TINY', date: '1999-01-01', eps_est: 0.1, eps_act: null },
           ],
           amc: [],
         },
@@ -104,10 +109,12 @@ vi.mock('../../components/calendar/CallRecapSection', () => ({
   default: ({ recap }) => <div data-testid="call-recap">{recap?.headline}</div>,
 }))
 
-// Mock EarningsModal — assert it opens on card click with the right sym + label
-vi.mock('../../components/tiles/EarningsModal', () => ({
-  default: ({ row, label, onClose }) => (
-    <div data-testid="earnings-modal" data-sym={row?.sym} data-label={label}>
+// Mock EarningsResearchModal — assert it opens on card click with the right
+// sym + label + reportDate (T11 review round 1, I4: reportDate is exposed so
+// its regression test can assert it's no longer permanently null).
+vi.mock('../../components/research/EarningsResearchModal', () => ({
+  default: ({ row, label, reportDate, onClose }) => (
+    <div data-testid="earnings-modal" data-sym={row?.sym} data-label={label} data-report-date={reportDate ?? ''}>
       <button onClick={onClose}>close</button>
     </div>
   ),
@@ -245,6 +252,22 @@ describe('MyStocksHub', () => {
     const modal = screen.getByTestId('earnings-modal')
     expect(modal.getAttribute('data-sym')).toBe('AAPL')
     expect(modal.getAttribute('data-label')).toBe('BEFORE MARKET OPEN')
+  })
+
+  // T11 review round 1, I4 (CRITICAL): the API never puts `.date` on a
+  // per-reporter entry — reading it left `reportDate` permanently null, so
+  // computeLifecycle() could never leave 'PRE' and the §4.5 report-night
+  // poll (onPollActuals) was dead wiring on this mount. `_ds`, stamped from
+  // the day key the entry was actually found under, fixes it.
+  it('Earnings tab: the opened modal carries a real reportDate, not permanently null', () => {
+    renderHub()
+    const aapl = screen
+      .getAllByTestId('earnings-card')
+      .find(c => c.getAttribute('data-sym') === 'AAPL')
+    fireEvent.click(aapl)
+    const modal = screen.getByTestId('earnings-modal')
+    // The mocked useCalendar fixture keys AAPL's day at '2026-06-02'.
+    expect(modal.getAttribute('data-report-date')).toBe('2026-06-02')
   })
 
   it('renders the hub title', () => {

@@ -17,11 +17,17 @@ const PAD_Y = 3        // px vertical padding
 const GLYPH = '#0c0c0e' // near-black, matching the default dark canvas
 
 // Factory → { primitive, setPoints, setOptions }.
-// opts: { enabled, points:[{time,price,beat}], beatColor, missColor, unknownColor, fontPx }
+// opts: { enabled, points:[{time,price,beat}], glyph, color, beatColor, missColor,
+//         unknownColor, fontPx }
+// `glyph` is the letter drawn in the pill ('E' earnings, 'S' split, 'D' dividend).
+// `color` (when set) is a FIXED pill color — used for splits/dividends. Earnings
+// leaves it null and colors per-point via beat/miss.
 export function createEarningsBadgePrimitive(initial) {
   let opts = {
     enabled: false,
     points: [],
+    glyph: 'E',
+    color: null,        // fixed pill color; null → per-point beat/miss below
     beatColor: '#1ae51a',
     missColor: '#c41f2d',
     unknownColor: '#94a3b8',
@@ -39,6 +45,7 @@ export function createEarningsBadgePrimitive(initial) {
   let lastHitRects = []
 
   function colorFor(beat) {
+    if (opts.color) return opts.color       // fixed color (splits / dividends)
     if (beat === true) return opts.beatColor
     if (beat === false) return opts.missColor
     return opts.unknownColor
@@ -62,7 +69,8 @@ export function createEarningsBadgePrimitive(initial) {
           ctx.font = `700 ${opts.fontPx}px ${FONT_FAMILY}`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          const gw = ctx.measureText('E').width
+          const glyph = opts.glyph || 'E'
+          const gw = ctx.measureText(glyph).width
           const w = gw + PAD_X * 2
           const h = opts.fontPx + PAD_Y * 2
           const r = Math.min(4, h / 2)
@@ -89,7 +97,7 @@ export function createEarningsBadgePrimitive(initial) {
             ctx.fill()
             // Glyph
             ctx.fillStyle = opts.glyphColor || GLYPH
-            ctx.fillText('E', x, rect.y + rect.h / 2 + 0.5)
+            ctx.fillText(glyph, x, rect.y + rect.h / 2 + 0.5)
           }
           lastHitRects = hits
           ctx.restore()

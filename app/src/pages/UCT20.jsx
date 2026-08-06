@@ -351,6 +351,9 @@ export default function UCT20() {
     : Array.isArray(rows?.stocks) ? rows.stocks : []
   const leadershipStatus = (rows && !Array.isArray(rows)) ? rows.status : null
   const leadershipUpdated = (rows && !Array.isArray(rows)) ? rows.last_updated : null
+  // A held list's true vintage is when it was last VERIFIED (engine meta), not
+  // the wire push date — labeling Friday's held list "from Monday" misleads.
+  const heldSince = ((rows && !Array.isArray(rows)) ? rows.meta?.held_since : null) || leadershipUpdated
   const stocks = rawStocks.slice(0, 20)
 
   const allTickers = useMemo(() =>
@@ -500,7 +503,7 @@ export default function UCT20() {
       {leadershipStatus === 'held' && stocks.length > 0 && (
         <div className={styles.staleBanner}>
           This morning&rsquo;s rebuild didn&rsquo;t pass its quality checks, so you&rsquo;re seeing the
-          last verified list{leadershipUpdated ? ` (from ${leadershipUpdated})` : ''}. The team has
+          last verified list{heldSince ? ` (verified ${heldSince})` : ''}. The team has
           been alerted — it will refresh automatically once a clean run completes.
         </div>
       )}

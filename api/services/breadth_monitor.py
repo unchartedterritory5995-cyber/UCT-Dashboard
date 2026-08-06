@@ -22,6 +22,14 @@ from typing import Optional
 # ── DB path ───────────────────────────────────────────────────────────────────
 
 def _db_path() -> str:
+    # Override exists so a local stack can point at a scratch copy instead of
+    # the real volume — the same escape hatch TWEET_DB_PATH and
+    # BREADTH_INTRADAY_DB provide. On this dev box `/data` resolves to C:\data,
+    # which is shared with running services, so without it there is no way to
+    # seed a throwaway history for a browser pass.
+    override = os.environ.get("BREADTH_MONITOR_DB")
+    if override:
+        return override
     if os.path.exists("/data"):
         return "/data/breadth_monitor.db"
     # Local dev: project root / data /
@@ -247,6 +255,47 @@ def get_history(days: int = 90) -> list:
     out = list(reversed(result_asc))
     cache.set(ck, out, ttl=300)
     return out
+
+
+def derive_live_row(metrics: dict, recent: list) -> dict:
+    """Give a provisional intraday row the derived fields `get_history` adds.
+
+    `recent` is stored history, newest first. The rolling ratios, the hi/lo
+    ratios, the day-change percentages and the composite score are computed
+    here by the SAME functions the stored rows go through — a live breadth
+    score produced by a second implementation would be a different score
+    wearing the same name, which is the whole failure this design exists to
+    avoid.
+
+    `is_ftd` is deliberately never set true intraday: a Follow-Through Day is a
+    statement about a finished session's close and volume, so calling one at
+    11 AM would be a guess dressed as a signal.
+    """
+    row = dict(metrics)
+    asc = list(reversed(recent))                    # oldest first
+    row["ratio_5day"] = _ratio(asc[-4:] + [row], "up_4pct_today", "down_4pct_today")
+    row["ratio_10day"] = _ratio(asc[-9:] + [row], "up_4pct_today", "down_4pct_today")
+    # The put/call print is an EOD number, so today's 10-day average is still
+    # the one the last stored row carries — not a window with a value repeated.
+    row["avg_10d_cpc"] = recent[0].get("avg_10d_cpc") if recent else None
+
+    uni = row.get("universe_count")
+    for src, dst in (("new_52w_highs", "hi_ratio"), ("new_52w_lows", "lo_ratio")):
+        n = row.get(src)
+        row[dst] = round(n / uni * 100, 2) if n is not None and uni else None
+
+    prev = recent[0] if recent else {}
+    for sym in ("qqq", "spy"):
+        curr_c, prev_c = row.get(f"{sym}_close"), prev.get(f"{sym}_close")
+        row[f"{sym}_day_pct"] = (round((curr_c - prev_c) / prev_c * 100, 2)
+                                 if curr_c and prev_c else None)
+
+    ad, cum = row.get("adv_decline"), prev.get("adv_decline_cum")
+    row["adv_decline_cum"] = (cum + ad) if ad is not None and cum is not None else None
+
+    row["is_ftd"] = False
+    row["breadth_score"] = _compute_breadth_score(row)
+    return row
 
 
 def _rolling_avg(window: list, key: str, decimals: int = 1) -> Optional[float]:

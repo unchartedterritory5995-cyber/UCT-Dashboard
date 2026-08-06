@@ -71,7 +71,7 @@ export function isInstanceTombstone(inst) {
 const _OVERRIDE_SECTION_KEYS = [
   'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
   'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
-  'signature',
+  'signature', 'prevDayLevels',
 ]
 export function mergeSettingsOverride(base, partial) {
   if (!partial) return base

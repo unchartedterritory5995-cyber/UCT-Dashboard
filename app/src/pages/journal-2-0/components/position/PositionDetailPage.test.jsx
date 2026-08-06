@@ -3,12 +3,19 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi } from 'vitest'
 import PositionDetailPage, { combinePositions } from './PositionDetailPage'
 
+// The page now mounts ChartPane (the same chart /charts renders) instead of a
+// bare StockChart. ChartPane is lazy + imports the very same StockChart module,
+// so stubbing it here still covers the pane's inner chart.
 vi.mock('../../../../components/StockChart', () => ({
   default: ({ sym, tf }) => <div data-testid="chart">{sym}:{tf}</div>,
 }))
 vi.mock('../../../../components/CompanyLogo', () => ({
   default: ({ sym }) => <span data-testid={`logo-${sym}`} />,
 }))
+// ChartPane calls useFlagged() (Shift+F flag toast, flag button state), which
+// reads useAuth() — stub it logged-out so that call doesn't throw "useAuth
+// must be used within AuthProvider" (this file renders without an AuthProvider).
+vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../../../hooks/useFundamentalSnapshot', () => ({
   default: () => ({
     data: {
@@ -114,12 +121,15 @@ describe('combinePositions', () => {
 })
 
 describe('PositionDetailPage', () => {
-  it('renders header, chart, and every RH section for the symbol', () => {
+  it('renders header, chart, and every RH section for the symbol', async () => {
     renderPage()
     expect(screen.getByRole('heading', { name: 'AAPL' })).toBeInTheDocument()
     expect(screen.getByText('Apple Inc.')).toBeInTheDocument()
     expect(screen.getByText('$110.00')).toBeInTheDocument()
-    expect(screen.getByTestId('chart')).toHaveTextContent('AAPL:D')
+    // ChartPane is a lazy chunk, heavier than bare StockChart was — under
+    // full-suite parallel load the Suspense fallback can still be up when the
+    // default 1000ms findBy timeout fires, so give it real headroom.
+    expect(await screen.findByTestId('chart', {}, { timeout: 8000 })).toHaveTextContent('AAPL:D')
     expect(screen.getByText('Your Position')).toBeInTheDocument()
     expect(screen.getByText('About')).toBeInTheDocument()
     expect(screen.getByText('Stats')).toBeInTheDocument()

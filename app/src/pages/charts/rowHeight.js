@@ -20,14 +20,20 @@ export function gridHeightFor(rowHeight, gridGap, rows = FIXED_ROWS) {
 /**
  * Row height that fits FIXED_ROWS rows inside a body of `clientHeight` px.
  *
- * FLOOR, always. 20 rows rarely tile an arbitrary pixel height evenly, so ~≤19px of
- * remainder has to go somewhere. Unmerged it hides in the dark inter-widget margins.
- * Merged (no margins, no padding) this used to round UP so the board reached the
- * bottom edge — but the body is `overflow:hidden`, so those extra pixels were simply
- * CUT off the bottom-most widget, which is exactly where a chart's date/time axis
- * lives. Reported 2026-07-30: a merged board's time scale disappearing behind the
- * Windows taskbar. Flooring trades a thin strip of workspace under the board for
- * never clipping content, which is the right way round.
+ * EXACT, not rounded. 20 rows rarely tile an arbitrary pixel height as whole numbers,
+ * and rounding forces a choice between two bugs: FLOOR leaves up to ~19px of remainder
+ * that piles up as an oversized gap under the bottom row (the board sits above the
+ * taskbar with a fat dark strip); CEIL overshoots and, since the body is overflow:clip,
+ * shears that strip off the bottom-most widget — exactly where a chart's date/time axis
+ * lives (the 2026-07-30 "time scale behind the Windows taskbar" report).
+ *
+ * A FRACTIONAL row height dissolves the dilemma. Feed the exact quotient to RGL and the
+ * rendered grid height telescopes back to the body's inner height to the pixel (see
+ * gridHeightFor: the FIXED_ROWS*rowHeight term cancels the /FIXED_ROWS below), so the
+ * board fills its body with NO leftover gap and NO overflow — every margin (top, bottom,
+ * left, right) is just the padding, and merged mode reaches flush to the taskbar. RGL
+ * positions items at sub-pixel transforms without complaint, and the body's overflow:clip
+ * absorbs any ≤1px float rounding. Only the degenerate <12px/row clamp stays integer-ish.
  *
  * @param clientHeight measured body height INCLUDING its padding (an element's
  *   clientHeight), matching what the callers read off the DOM.
@@ -40,10 +46,8 @@ export function computeRowHeight(clientHeight, merged) {
   const available = (clientHeight - bodyPad * 2)
     - gridGap * (FIXED_ROWS - 1)
     // RGL's containerPadding, which defaults to `margin` when the prop is omitted —
-    // and it is omitted here. The old math never subtracted it, so an UNMERGED board
-    // also rendered gridGap*2 = 12px taller than its body and clipped the bottom
-    // row by 12px. Same defect as the merged ceil, just quieter (nobody noticed 12px
-    // until the merged case took the whole axis). Zero when merged (gap is 0).
+    // and it is omitted here. Subtract it so the exact fill accounts for the top+bottom
+    // container padding too; zero when merged (gap is 0).
     - gridGap * 2
-  return Math.max(12, Math.floor(available / FIXED_ROWS))
+  return Math.max(12, available / FIXED_ROWS)
 }

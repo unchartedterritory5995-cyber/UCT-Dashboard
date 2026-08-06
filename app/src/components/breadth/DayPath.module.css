@@ -1,0 +1,26 @@
+/* The session path sits beside a number, never instead of one — so it stays
+   quiet: no axes, no grid, no fill. The only emphasis is the last point, which
+   is the reading printed next to it. */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.delta {
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+}
+
+.up   { color: var(--gain); }
+.down { color: var(--loss); }
+.flat { color: var(--text-muted); }

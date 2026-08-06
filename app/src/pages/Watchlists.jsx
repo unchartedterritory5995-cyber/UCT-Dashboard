@@ -26,7 +26,7 @@
 //     you chose yourself will happily exercise code no user can reach — that
 //     mistake already cost one design rework (2026-07-31).
 //
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -41,8 +41,6 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import StockChart from '../components/StockChart'
-import SymbolSearch from '../components/chart/SymbolSearch'
 import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -50,13 +48,17 @@ import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
-import AddSymbolBar from './watchlist/AddSymbolBar'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
-import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
+import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
 const fetcher = url => fetch(url).then(r => r.json())
-const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
+
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 // Configurable columns (right-click a header to hide/show, drag a gridline to resize).
 // Flag + Sym are fixed (star + identity). Persisted per-user in localStorage.
 const OPTIONAL_COLS = [  // hideable via right-click
@@ -180,7 +182,8 @@ function ratingColor(r) {
   if (r >= 40) return '#c9a84c'
   return '#ff3b47'
 }
-const WL_COLS_LS = 'uct.watchlist.cols'
+// WL_COLS_LS is imported from ./watchlist/watchlistTemplates (single source of truth,
+// shared with the create-from-template flow in the picker).
 const COL_PRESETS = {
   'Price View': new Set(),
   'Performance': new Set(['1d', '1w', '1m', '3m', 'ytd']),
@@ -258,8 +261,8 @@ const WatchRow = React.memo(function WatchRow({
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null,
   sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null,
-  isOwner, itemId, notes, wlId, noteOpen, alertOn,
-  onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
+  isOwner, wlId,
+  onSelect, onToggleFlag, onIntent, onCtx,
 }) {
   // Signed % cell (green/red text + day-direction tint flash) — shared by the
   // %-from-open/high/low columns so they read like the % Change column.
@@ -334,31 +337,14 @@ const WatchRow = React.memo(function WatchRow({
       onFocus={() => onIntent(sym)}
     >
       {orderedKeys.map(cellFor)}
-      {isOwner && (
-        <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
-          <button
-            className={`${styles.noteBtn}${noteOpen ? ' ' + styles.noteBtnActive : ''}`}
-            onClick={() => onToggleNote(itemId, notes)}
-            title="Notes"
-          ><UIcon name="edit" size={12} /></button>
-          <button
-            className={`${styles.alertBtn}${alertOn ? ' ' + styles.alertBtnActive : ''}`}
-            onClick={e => onSetAlert(sym, e)}
-            title="Set price alert"
-          ><UIcon name="bell" size={12} /></button>
-          {onRemove && (
-            <button className={styles.removeBtn} onClick={e => onRemove(e, wlId, itemId)} title="Remove from this list">×</button>
-          )}
-        </div>
-      )}
     </div>
   )
 })
 
-// NOTE: the old `AddItemRow` (a bare "+ Ticker" input pinned to the BOTTOM of an
-// expanded list, no autocomplete) was replaced by two surfaces that both use the
-// predictive TickerCombobox: the pinned AddSymbolBar at the top of the panel, and
-// the per-list "+" that drops an add row in under a list's own header.
+// NOTE: adding a symbol is a single predictive `TickerCombobox` inline row, opened
+// from a "+" button: the per-list "+" in each list header (standalone page) and the
+// "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
+// — they aren't yours to write to.
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null }) {
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
@@ -372,10 +358,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // widget's canvas/colors never touches another. Absent (the standalone page)
   // → the shared global `watchlist_settings` pref, exactly as before. A widget
   // that hasn't diverged yet inherits the global blob as its seed.
-  const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
-    [settingsOverride, prefs],
-  )
+  // An uncustomized watchlist uses the DEFAULTS FOR THE CURRENT APP THEME (light →
+  // white canvas + dark text), so the ⚙ swatches and the surface both follow the
+  // site theme. In WIDGET context (onSettingsPersist set) the legacy GLOBAL pref is
+  // ignored — exactly like News/Profile — so a stale saved dark blob can't force the
+  // widget dark on the light theme; the standalone page still reads the global.
+  const wlSettings = useMemo(() => {
+    const themeDefault = watchlistDefaultsForTheme(prefs?.theme)
+    const base = settingsOverride
+      ?? (onSettingsPersist ? themeDefault : (parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? themeDefault))
+    return mergeWatchlistSettings(base)
+  }, [settingsOverride, onSettingsPersist, prefs])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const patchSettings = useCallback((patch) => {
@@ -384,9 +377,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(next))
   }, [wlSettings, setPref, onSettingsPersist])
   const resetSettings = useCallback(() => {
-    if (onSettingsPersist) onSettingsPersist({ ...WATCHLIST_DEFAULTS })
-    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
-  }, [setPref, onSettingsPersist])
+    // Clear back to the theme-following default (null override for a widget; the
+    // theme default blob for the standalone page).
+    if (onSettingsPersist) onSettingsPersist(null)
+    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(prefs?.theme)))
+  }, [setPref, onSettingsPersist, prefs])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
   // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
   // canvas, dark on a dark one) — same mechanism as the chart popup menus.
@@ -451,7 +446,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [sortDir, setSortDir] = useState('desc')
   const [filterText, setFilterText] = useState('')
   const [addingToList, setAddingToList] = useState(null)  // list id whose inline "+" row is open
-  const addBarRef = useRef(null)                          // imperative focus() for the hotkey
+  const [addErr, setAddErr] = useState(null)              // { listId, msg } — last failed add
 
   function toggleStar(listId, sym) {
     const key = `${listId}:${sym}`
@@ -611,7 +606,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
   const { tagColors: TAG_COLORS, tagByKey: TAG_BY_KEY } = useTagColors()
   const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
-  const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
+  const { createAlert, deleteAlert, getAlertsForSym } = useWatchlistAlerts()
   const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
   const [alertPrice, setAlertPrice] = useState('')
   const [alertDir, setAlertDir] = useState('above')
@@ -949,6 +944,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     mutateCommunity()
   }
 
+  // Admin-only: publish/unpublish a list to the picker's Prebuilt (curated UCT) tab.
+  async function handleTogglePrebuilt(wl) {
+    await fetch(`/api/watchlists/${wl.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_prebuilt: !wl.is_prebuilt }),
+    })
+    mutateMine()
+    mutateCommunity()
+  }
+
   // Returns the created/existing item so callers can tell an add from a no-op
   // re-add (the server dedupes per (list, sym) and flags it with `duplicate`).
   // 'flagged' is not a real watchlist row — it routes through useFlagged, whose
@@ -972,53 +978,54 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return item
   }
 
-  // Create a list from the add-bar picker (name only) and hand back the new row
-  // so the caller can retarget to it immediately.
-  async function handleCreateListInline(name) {
-    const trimmed = String(name || '').trim()
-    if (!trimmed) return null
-    const res = await fetch('/api/watchlists', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: trimmed, description: '', is_public: false }),
-    })
-    if (!res.ok) return null
-    const created = await res.json().catch(() => null)
-    if (!created?.id) return null
-    mutateMine()
-    mutateCommunity()
-    // Open it so the symbol about to land is visible.
-    setExpandedLists(prev => new Set(prev).add(created.id))
-    return created
+  // `handleAddItem` THROWS on a non-ok POST. Every inline add row goes through this
+  // wrapper so that throw always has a catcher and the failure is spoken out loud —
+  // the pinned AddSymbolBar used to own that job (try/catch → aria-live "Could not
+  // add NVDA"), and it was deleted without the duty being handed over. Without this,
+  // a 500 is an unhandled rejection: the combobox clears, the ticker never appears,
+  // and nothing on screen ever says why.
+  async function addSymbolTo(listId, sym) {
+    const clean = String(sym || '').trim().toUpperCase()
+    setAddErr(null)
+    try {
+      return await handleAddItem(listId, clean)
+    } catch {
+      setAddErr({ listId, msg: `Could not add ${clean}` })
+      return null
+    }
   }
-
-  // Targets for the pinned add bar: Flagged first, then the user's own lists.
-  // `syms` powers duplicate detection (quick-add disables, suggestions annotate).
-  const addTargets = useMemo(() => {
-    const out = [{
-      id: 'flagged',
-      name: flaggedName || 'Flagged',
-      syms: new Set(flagged.map(s => String(s).toUpperCase())),
-    }]
-    for (const wl of myLists || []) {
-      out.push({
-        id: wl.id,
-        name: wl.name,
-        syms: new Set((wl.items || []).map(i => String(i.sym).toUpperCase())),
-      })
-    }
-    // Pick mode scopes the widget to one list — only offer that list as a target.
-    if (pickList) {
-      const scoped = out.filter(t =>
-        pickList === 'flagged' ? t.id === 'flagged' : pickList === `user:${t.id}`)
-      if (scoped.length) return scoped
-    }
-    return out
-  }, [flagged, flaggedName, myLists, pickList])
 
   async function handleRemoveItem(listId, itemId) {
     await fetch(`/api/watchlists/${listId}/items/${itemId}`, { method: 'DELETE' })
     mutateMine()
+  }
+
+  // Remove a symbol from a list BY TICKER (the right-click "Remove from watchlist"
+  // path, which only has the sym). Flagged → unflag; a real list → look up the item
+  // id then delete. Never touches community lists (guarded at the call site).
+  async function handleRemoveSym(listId, sym) {
+    const clean = String(sym || '').trim().toUpperCase()
+    if (!clean) return
+    if (listId === 'flagged') {
+      if (isFlagged(clean)) toggleFlag(clean)
+      return
+    }
+    const wl = (myLists || []).find(w => w.id === listId)
+    const item = (wl?.items || []).find(i => String(i.sym).toUpperCase() === clean)
+    if (item) await handleRemoveItem(listId, item.id)
+  }
+
+  // Open (or re-close) the per-symbol note editor BY TICKER — same shape as
+  // `handleRemoveSym`, because the row menu only ever carries the sym. A note is a
+  // column on a watchlist ITEM, so Flagged — which isn't a real list — has none.
+  // Community rows never open a row menu at all, which is what keeps a shared
+  // list's notes read-only (the note row's own `isOwner` branch is the backstop).
+  function toggleNoteSym(listId, sym) {
+    const clean = String(sym || '').trim().toUpperCase()
+    if (!clean || listId === 'flagged') return
+    const wl = (myLists || []).find(w => w.id === listId)
+    const item = (wl?.items || []).find(i => String(i.sym).toUpperCase() === clean)
+    if (item) toggleNote(item.id, item.notes)
   }
 
   const currentLists = activeTab === 'mine' ? myLists : communityLists
@@ -1035,6 +1042,29 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const dragColRef = useRef(null)                      // key of the header column being drag-reordered
   const colHidden = colCfg.hidden || {}
   const colSort = colCfg.sort || null                  // {key, dir} | null
+
+  // ── Watchlist "look" templates (appearance + columns; NO symbols) ──
+  // Managed from the ⚙ Watchlist Settings panel. Applying a template sets THIS
+  // widget's appearance (patchSettings) and the shared column layout (saveColCfg);
+  // saving captures the current look.
+  const { templates: wlTemplates, saveTemplate: saveWlTemplate, removeTemplate: removeWlTemplate } = useWatchlistTemplates()
+  const applyWlTemplate = useCallback((tpl) => {
+    if (!tpl) return
+    if (tpl.settings) patchSettings(tpl.settings)   // replaces every appearance key
+    if (tpl.cols) {
+      const next = { ...(colCfg || {}) }
+      if (Array.isArray(tpl.cols.order)) next.order = tpl.cols.order
+      if (tpl.cols.hidden) next.hidden = tpl.cols.hidden
+      if (tpl.cols.widths) next.widths = tpl.cols.widths
+      saveColCfg(next)
+    }
+  }, [patchSettings, colCfg, saveColCfg])
+
+  // Which list this single-list widget scopes to, IF it's one the user owns
+  // (community lists aren't yours to add to). Drives the header "+" add button.
+  const pickOwnedId = pickList === 'flagged'
+    ? 'flagged'
+    : (pickList?.startsWith('user:') ? pickList.slice(5) : null)
 
   // ── Sort-order freeze ──────────────────────────────────────────────────────
   // When sorting by a live column (% Chg / Price / Volume) the rows would jump
@@ -1287,23 +1317,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Handlers that read mutable render state reach it through a ref, so the callback identity
   // never changes even as the underlying value does. ──
   const rowStateRef = useRef({})
-  rowStateRef.current = { setHubSym, toggleFlag, toggleNote, hasAlert, handleRemoveItem, setCtxMenu, myLists, communityLists }
+  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists }
   const onRowSelect = useCallback((sym) => { setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
   const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
-  const onRowNote = useCallback((itemId, notes) => rowStateRef.current.toggleNote(itemId, notes), [])
-  const onRowAlert = useCallback((sym, e) => { setAlertPopover({ sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }, [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
     e.preventDefault(); e.stopPropagation()
-    const wl = (rowStateRef.current.myLists || []).find(l => l.id === wlId)
-      || (rowStateRef.current.communityLists || []).find(l => l.id === wlId)
-    rowStateRef.current.setCtxMenu({ x: e.clientX, y: e.clientY, id: wlId, isOwner, symbols: (wl?.items || []).map(i => i.sym), sym })
+    // Community lists aren't yours — no add/remove/notes, so no row menu at all.
+    if (!isOwner) return
+    rowStateRef.current.setCtxMenu({ x: e.clientX, y: e.clientY, id: wlId, isOwner, sym })
   }, [])
-  const onRowRemove = useCallback((e, wlId, itemId) => { e.stopPropagation(); rowStateRef.current.handleRemoveItem(wlId, itemId) }, [])
 
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
-  // `wlId` (owner watchlist rows only) enables the right-click context menu + remove button.
-  function renderTickerRow({ sym, name = null, isOwner = false, itemId = null, notes = null, wlId = null }) {
+  // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
+  // where notes / price alerts / remove all live.
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null }) {
     const q = prices[sym]
     // N-day % change, computed LIVE from the current price vs the reference close N
     // trading days ago (backend `refs`), so these columns tick/flash/tint with every
@@ -1345,18 +1373,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
         isOwner={isOwner}
-        itemId={itemId}
-        notes={notes}
         wlId={wlId}
-        noteOpen={isOwner && expandedNote === itemId}
-        alertOn={isOwner && hasAlert(sym)}
         onSelect={onRowSelect}
         onToggleFlag={onRowFlag}
         onIntent={onRowIntent}
-        onToggleNote={onRowNote}
-        onSetAlert={onRowAlert}
         onCtx={onRowCtx}
-        onRemove={isOwner ? onRowRemove : null}
       />
     )
   }
@@ -1406,6 +1427,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 title={`Add a symbol to ${wl.name}`}
                 aria-label={`Add a symbol to ${wl.name}`}
               ><UIcon name="plus" size={13} /></button>}
+              {user?.role === 'admin' && (
+                <button
+                  className={`${styles.wlActionBtn}${wl.is_prebuilt ? ' ' + styles.wlActionBtnActive : ''}`}
+                  onClick={() => handleTogglePrebuilt(wl)}
+                  title={wl.is_prebuilt ? 'Unpublish from Prebuilt (UCT)' : 'Publish to Prebuilt (UCT)'}
+                ><UIcon name="star" size={13} /></button>
+              )}
               <button
                 className={`${styles.wlActionBtn}${wl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => handleTogglePublic(wl)}
@@ -1437,8 +1465,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <TickerCombobox
                   compact
                   autoFocus
-                  onPick={sym => handleAddItem(wl.id, sym)}
+                  onPick={sym => addSymbolTo(wl.id, sym)}
                   onEscape={() => setAddingToList(null)}
+                  onDismiss={() => setAddingToList(null)}
                   existingSyms={new Set(items.map(i => String(i.sym).toUpperCase()))}
                   targetLabel={wl.name}
                   placeholder={`Add to ${wl.name}…`}
@@ -1449,6 +1478,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   title="Done adding"
                   aria-label="Done adding"
                 ><UIcon name="x" size={11} /></button>
+                {addErr?.listId === wl.id && (
+                  <span className={styles.inlineAddErr} role="status">{addErr.msg}</span>
+                )}
               </div>
             )}
             {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
@@ -1463,10 +1495,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     sym: item.sym,
                     name: item.name,
                     isOwner,
-                    itemId: item.id,
-                    notes: item.notes,
                     wlId: wl.id,
                   })}
+                  {/* Note editor, opened from the row menu's "Notes" entry (and
+                      closed by picking it again). Editable on YOUR lists only —
+                      a shared list's notes are read-only. */}
                   {expandedNote === item.id && (
                     <div className={styles.noteRow}>
                       {isOwner ? (
@@ -1519,7 +1552,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               className={styles.wlName}
               onContextMenu={e => handleContextMenu(e, 'flagged', true, [...flagged])}
               {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: 'flagged', isOwner: true, symbols: [...flagged] }))}
-            >{flaggedName || `Flagged (${user?.display_name || 'You'})`}</span>
+            >{flaggedName || 'Flagged'}</span>
           )}
           <span className={styles.wlCount}>{flagged.length}</span>
           {isShared && <span className={styles.pubBadge}>PUB</span>}
@@ -1551,8 +1584,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <TickerCombobox
                   compact
                   autoFocus
-                  onPick={sym => handleAddItem('flagged', sym)}
+                  onPick={sym => addSymbolTo('flagged', sym)}
                   onEscape={() => setAddingToList(null)}
+                  onDismiss={() => setAddingToList(null)}
                   existingSyms={new Set(flagged.map(s => String(s).toUpperCase()))}
                   targetLabel="Flagged"
                   placeholder="Add to Flagged…"
@@ -1563,6 +1597,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   title="Done adding"
                   aria-label="Done adding"
                 ><UIcon name="x" size={11} /></button>
+                {addErr?.listId === 'flagged' && (
+                  <span className={styles.inlineAddErr} role="status">{addErr.msg}</span>
+                )}
               </div>
             )}
             {flagged.length === 0 ? (
@@ -1581,16 +1618,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       style={wlStyle}
       onPointerDown={markActiveWidget}
       onFocusCapture={markActiveWidget}
-      // "a" focuses the add bar. Deliberately a CONTAINER handler, not a window
-      // one: it only fires when focus is already inside this panel, so a second
-      // Watchlist/Chart widget on the /charts workspace can never swallow it.
+      // "a" opens the inline add-symbol row on the scoped list (widget pick mode).
+      // Deliberately a CONTAINER handler, not a window one: it only fires when focus
+      // is already inside this panel, so a second Watchlist/Chart widget on the
+      // /charts workspace can never swallow it.
       onKeyDown={e => {
         if (e.key !== 'a' && e.key !== 'A') return
         if (e.metaKey || e.ctrlKey || e.altKey) return
         const t = e.target
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+        if (!pickOwnedId) return
         e.preventDefault()
-        addBarRef.current?.focus()
+        setExpandedLists(prev => new Set(prev).add(pickOwnedId))
+        setAddingToList(pickOwnedId)
       }}
     >
       {settingsOpen && (
@@ -1602,6 +1642,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           gearEl={settingsBtnRef.current}
           hostEl={pageRef.current}
           themeVars={wlMenuVars}
+          templates={wlTemplates}
+          onApplyTemplate={applyWlTemplate}
+          onSaveTemplate={(name) => saveWlTemplate({ name, settings: wlSettings, cols: colCfg })}
+          onDeleteTemplate={removeWlTemplate}
         />
       )}
 
@@ -1614,14 +1658,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.pickHeader}>
             <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">‹ Lists</button>
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
-            {/* ⚙ Watchlist settings (replaced the share/lock toggle here for now). */}
-            <button
-              ref={settingsBtnRef}
-              className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
-              style={{ marginLeft: 'auto' }}
-              onClick={() => setSettingsOpen(o => !o)}
-              title="Watchlist settings"
-            ><UIcon name="gear" size={14} /></button>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              {/* Add a symbol — only on lists you own (community lists aren't yours).
+                  Opens the same predictive inline add row used everywhere else. */}
+              {pickOwnedId && (
+                <button
+                  className={`${styles.wlActionBtn}${addingToList === pickOwnedId ? ' ' + styles.wlActionBtnActive : ''}`}
+                  onClick={() => {
+                    setExpandedLists(prev => new Set(prev).add(pickOwnedId))
+                    setAddingToList(cur => (cur === pickOwnedId ? null : pickOwnedId))
+                  }}
+                  title="Add a symbol"
+                  aria-label="Add a symbol"
+                ><UIcon name="plus" size={15} /></button>
+              )}
+              {/* ⚙ Watchlist settings (canvas/colors + Templates). */}
+              <button
+                ref={settingsBtnRef}
+                className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
+                onClick={() => setSettingsOpen(o => !o)}
+                title="Watchlist settings"
+              ><UIcon name="gear" size={14} /></button>
+            </div>
           </div>
         ) : (
           <div className={styles.tabBar}>
@@ -1634,21 +1692,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               onClick={() => setActiveTab('community')}
             >Community</button>
           </div>
-        )}
-
-        {/* Pinned add bar — the primary "put a ticker on a list" surface. Sits
-            above the scrolling body so it never scrolls away. Community lists
-            aren't yours to write to, so it's My-Lists-only. */}
-        {activeTab === 'mine' && user && (
-          <AddSymbolBar
-            ref={addBarRef}
-            targets={addTargets}
-            selectedSym={selectedSym}
-            onAdd={handleAddItem}
-            onCreateList={handleCreateListInline}
-            // Scoped to one list (a Charts widget) → nothing to pick between.
-            showPicker={!pickList}
-          />
         )}
 
         {/* Sub-header (hidden in single-list pick mode) */}
@@ -1792,7 +1835,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {selectedSym ? (
             <>
               <div className={styles.chartHeader}>
-                <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
                     <UIcon name="flag" size={12} style={{verticalAlign:'-1px',marginRight:3}} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
@@ -1803,17 +1845,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 ><UIcon name="flag" size={13} style={{verticalAlign:'-2px',marginRight:4}} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
-                <div className={styles.chartPeriodTabs}>
-                  {PERIODS.map(([p, label]) => (
-                    <button
-                      key={p}
-                      className={`${styles.chartPeriodBtn}${chartPeriod === p ? ' ' + styles.chartPeriodBtnActive : ''}`}
-                      onClick={() => setChartPeriod(p)}
-                    >{label}</button>
-                  ))}
-                </div>
               </div>
-              <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
+              {/* ChartPane owns the identity row (ticker search + company name +
+                  session toggle + clock) and the timeframe bar now — the page's
+                  own SymbolSearch + period-tabs row used to sit here and would
+                  just duplicate ChartPane's canonical ones, so both are retired. */}
+              <Suspense fallback={<div className={styles.chartEmpty}>Loading chart…</div>}>
+                <ChartPane
+                  sym={selectedSym}
+                  tf={chartPeriod}
+                  onSymbolChange={setSelectedSym}
+                  onTfChange={setChartPeriod}
+                  stored={null}
+                />
+              </Suspense>
             </>
           ) : (
             <div className={styles.chartEmpty}>
@@ -1972,12 +2017,41 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
       {/* ── Context menu ── */}
       {ctxMenu && (() => {
-        const ctxBody = (
+        const ctxBody = ctxMenu.sym ? (
+          // Right-click on a ROW → the per-symbol actions. Only ever opened for owned
+          // lists (community rows skip the menu entirely), so a shared list's notes
+          // stay read-only exactly as they were when these lived on hover buttons.
+          // 75729b1a retired those buttons and carried ONLY × over to this menu,
+          // orphaning notes + alerts app-wide; owner decision 2026-08-01 restored
+          // them HERE rather than re-cluttering the row.
+          <>
+            {ctxMenu.id !== 'flagged' && (
+              <button
+                className={styles.ctxItem}
+                onClick={() => { toggleNoteSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
+              >Notes</button>
+            )}
+            <button
+              className={styles.ctxItem}
+              onClick={() => {
+                setAlertPopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
+                setAlertPrice('')
+                setAlertDir('above')
+                setCtxMenu(null)
+              }}
+            >Set price alert</button>
+            <button
+              className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
+              onClick={() => { handleRemoveSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
+            >Remove from watchlist</button>
+          </>
+        ) : (
+          // Right-click on a LIST HEADER → list-level actions (unchanged).
           <>
             {ctxMenu.isOwner && (
               <button className={styles.ctxItem} onClick={() => {
                 if (ctxMenu.id === 'flagged') {
-                  setRenameValue(flaggedName || `Flagged (${user?.display_name || 'You'})`)
+                  setRenameValue(flaggedName || 'Flagged')
                 } else {
                   const wl = myLists?.find(w => w.id === ctxMenu.id)
                   setRenameValue(wl?.name || '')
@@ -2006,26 +2080,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
                 Remove starred ({getStarredSyms(ctxMenu.id).length})
               </button>
-            )}
-            {ctxMenu.sym && (
-              <div className={styles.ctxTagSection}>
-                <span className={styles.ctxTagLabel}>Tag {ctxMenu.sym}</span>
-                <div className={styles.tagSwatches}>
-                  {TAG_COLORS.map(tc => (
-                    <button
-                      key={tc.key}
-                      className={`${styles.tagSwatch}${getTag(ctxMenu.sym) === tc.key ? ' ' + styles.tagSwatchActive : ''}`}
-                      style={{ background: tc.hex }}
-                      title={tc.label}
-                      onClick={() => {
-                        if (getTag(ctxMenu.sym) === tc.key) removeTag(ctxMenu.sym)
-                        else setTag(ctxMenu.sym, tc.key)
-                        setCtxMenu(null)
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
             )}
           </>
         )

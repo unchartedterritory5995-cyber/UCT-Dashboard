@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
-import StockChart from "../components/StockChart";
+import ChartPane from "../components/chart/pane/ChartPane";
+import TickerPopup from "../components/TickerPopup";
 import DarkPool from "./DarkPool";
+import useLongPress from "../components/mobile/useLongPress";
+import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
 import {
   P,
@@ -197,6 +200,27 @@ function Tag({ c, children }) {
       color:c, backgroundColor:c+"15", border:"1px solid "+c+"30",
       cursor: tip ? "help" : "default"
     }}>{children}</span>
+  );
+}
+
+// Ticker cell for a table row that must open the chart on right-click
+// (desktop) OR long-press (touch, incl. iOS Safari — which does not
+// reliably fire `contextmenu` on touch-hold). The two call sites below live
+// inside `.map()` callbacks, not components, so a hook can't be called
+// there directly — this tiny wrapper is the component that owns the hook.
+// Closes over `sym` via its own props — do NOT read the ticker from the
+// event; the long-press branch fires from a setTimeout after React
+// dispatch has finished, when `e.currentTarget` is already null.
+function ChartHoldCell({ sym, onOpen, children, ...rest }) {
+  const chartLongPress = useLongPress((e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    onOpen(sym);
+  });
+  return (
+    <td {...rest} {...chartLongPress}>
+      {children}
+    </td>
   );
 }
 
@@ -449,6 +473,8 @@ function expToISO(expStr) {
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";  // gates the Discord push controls
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
@@ -503,6 +529,11 @@ export default function OptionsFlowDashboard() {
   // different ticker without closing the modal. Submit on Enter.
   const [chartModalSearch, setChartModalSearch] = useState("");
   const [hdrSearch, setHdrSearch] = useState("");  // header ticker search -> opens chart modal from any tab
+  // Right-click (long-press on touch) a ticker cell in the Top Flow / Leaderboard
+  // tables -> open the full /charts-quality chart via TickerPopup in controlled
+  // mode. Separate from the bespoke chartModal above (left-click paths); one
+  // popup rendered at page level, never per-row.
+  const [chartSym, setChartSym] = useState(null);
   // Dark pool overlay toggle — global setting persisted to localStorage so it
   // survives reloads. Applies to the main chart modal (which all ticker-click
   // entry points across tabs feed into). Default ON since dark pool zones are
@@ -1366,6 +1397,106 @@ export default function OptionsFlowDashboard() {
     }
   };
 
+  // Preview-first path: render the watchlist as branded Discord cards SERVER-SIDE
+  // (api/watchlist_card.py — the Top Flow design system) and show BOTH the desktop
+  // and mobile card in the modal before anything posts. The modal's push posts the
+  // exact previewed images. Replaces the old html2canvas capture of the editing DOM
+  // — the server render is crisp, brand-consistent, and carries no app chrome. The
+  // "Top N" dropdown caps how many picks per side (by conviction).
+  const previewWatchlistImages = async () => {
+    setWlPreviewBusy(true);
+    try {
+      const limitN = discordCount >= 99 ? Infinity : discordCount;
+      const isHeavy = (it) => {
+        const conv = FD?.CONV?.find(c => c.sym === it.sym && c.cp === it.cp
+          && String(c.K) === String(it.strike) && c.exp === it.exp);
+        return (conv?.patterns || []).some(p => p.type === "HEAVY");
+      };
+      const cardItem = (it) => ({
+        sym: it.sym, cp: it.cp, strike: it.strike, exp: it.exp, prem: it.prem,
+        vol: it.volume, oi: it.oi, voi: it.volOI, grade: it.grade,
+        er: !!it.er, heavy: isHeavy(it),
+      });
+      const topN = (arr) => [...arr]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))   // top conviction picks
+        .slice(0, limitN)
+        .map(cardItem);
+      const bull = topN(wlBull), bear = topN(wlBear);
+      if (!bull.length && !bear.length) {
+        setStatus("⚠️ No watchlist items to render");
+        setTimeout(() => setStatus(""), 3000);
+        return;
+      }
+      const dateRange = FD ? FD.dateRange || "" : "";
+      const resp = await fetch("/api/discord/watchlist-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bull, bear, dateRange, label: discordLabel }),
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        setStatus(`❌ Render failed: ${data.error || ("HTTP " + resp.status)}`);
+        setTimeout(() => setStatus(""), 4000);
+        return;
+      }
+      const b64ToBlob = (b64) => {
+        const bin = atob(b64), arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return new Blob([arr], { type: "image/png" });
+      };
+      // Single clean card (the mobile layout) is what posts — reads well on
+      // desktop and phone alike, so we send just the one image per push.
+      const imgs = [];
+      if (data.mobile) {
+        const blob = b64ToBlob(data.mobile);
+        imgs.push({ side: "Card", url: URL.createObjectURL(blob), blob,
+          filename: `UCT_Watchlist_${wlDate}.png`, label: discordLabel });
+      }
+      setWlPreview({ imgs, dateRange, pushing: false });
+    } catch (e) {
+      setStatus(`❌ Preview error: ${e.message}`);
+    } finally {
+      setWlPreviewBusy(false);
+    }
+  };
+
+  const closeWlPreview = () => {
+    setWlPreview(prev => {
+      if (prev) prev.imgs.forEach(i => { try { URL.revokeObjectURL(i.url); } catch { /* noop */ } });
+      return null;
+    });
+  };
+
+  const pushPreviewToDiscord = async () => {
+    if (!wlPreview || wlPreview.pushing) return;
+    setWlPreview(prev => prev ? { ...prev, pushing: true } : prev);
+    const results = [];
+    for (const img of wlPreview.imgs) {
+      const fd = new FormData();
+      fd.append("file", img.blob, img.filename);
+      fd.append("label", img.label);
+      fd.append("date_range", wlPreview.dateRange || "");
+      try {
+        const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
+        const data = await resp.json();
+        results.push({ side: img.side, ok: data.ok, kb: data.size_kb, error: data.error });
+      } catch (e) {
+        results.push({ side: img.side, ok: false, error: e.message });
+      }
+      await new Promise(r => setTimeout(r, 600));  // Discord rate-limit spacing
+    }
+    const ok = results.filter(r => r.ok);
+    const fail = results.filter(r => !r.ok);
+    if (ok.length && !fail.length) {
+      const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
+      setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
+    } else {
+      setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
+    }
+    setTimeout(() => setStatus(""), 4000);
+    closeWlPreview();
+  };
+
   const screenshotPushDiscord = async () => {
     setDiscordImgPushing(true);
     try {
@@ -2094,6 +2225,12 @@ export default function OptionsFlowDashboard() {
   // ─── Discord Push ───────────────────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
   const [discordImgPushing, setDiscordImgPushing] = useState(false);
+  // Preview-before-push: {imgs:[{side,url,blob,filename,label}], dateRange, pushing} | null
+  const [wlPreview, setWlPreview] = useState(null);
+  const [wlPreviewBusy, setWlPreviewBusy] = useState(false);
+  // Top-N cap applied to the Bull/Bear columns DURING image capture only (null =
+  // show all). Mirrors the Discord "Top N" dropdown so the image matches the text push.
+  const [wlCaptureLimit, setWlCaptureLimit] = useState(null);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
   const [discordCount, setDiscordCount] = useState(10);
 
@@ -2488,18 +2625,28 @@ export default function OptionsFlowDashboard() {
               </button>
             </div>
             <div style={{ flex:1, minHeight:0 }}>
-              <StockChart
+              {/* The user's OWN chart: stored={null} + no onStore = the global
+                  chart_settings blob, so this popup renders whatever they set up
+                  on /charts. density="compact" because this column is only 320px
+                  tall (see the height:320 parent above) — the full shell would
+                  spend most of it on chrome. The symbol is the contract's, so
+                  onSymbolChange is omitted and the identity row is a static label. */}
+              <ChartPane
                 sym={sym}
                 tf={contractChartTf}
-                height="100%"
-                liveUpdates={true}
-                showDrawingTools={true}
                 onTfChange={setContractChartTf}
-                darkPoolBars={selectedDetailDarkPoolBars}
-                hideReplay
-                hidePatterns
-                hideCompare
-                hideCountdown
+                stored={null}
+                density="compact"
+                stockChartProps={{
+                  height: "100%",
+                  liveUpdates: true,
+                  showDrawingTools: true,
+                  darkPoolBars: selectedDetailDarkPoolBars,
+                  hideReplay: true,
+                  hidePatterns: true,
+                  hideCompare: true,
+                  hideCountdown: true,
+                }}
               />
             </div>
           </div>
@@ -3536,18 +3683,24 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }}>
-                      <StockChart
+                      {/* 500px tall, so the full shell fits. gexPriceLines carries
+                          the gamma walls and MUST reach StockChart — it goes through
+                          stockChartProps, which is spread last. */}
+                      <ChartPane
                         sym={gexData.ticker}
                         tf={gexChartTf}
-                        height={500}
-                        liveUpdates={true}
-                        showDrawingTools={true}
-                        priceLines={gexPriceLines}
                         onTfChange={setGexChartTf}
-                        hideReplay
-                        hidePatterns
-                        hideCompare
-                        hideCountdown
+                        stored={null}
+                        stockChartProps={{
+                          height: 500,
+                          liveUpdates: true,
+                          showDrawingTools: true,
+                          priceLines: gexPriceLines,
+                          hideReplay: true,
+                          hidePatterns: true,
+                          hideCompare: true,
+                          hideCountdown: true,
+                        }}
                       />
                     </div>
                   </div>
@@ -5616,19 +5769,25 @@ export default function OptionsFlowDashboard() {
                       </button>
                     </div>
                     <div style={{ flex:1, minHeight:0 }}>
-                      <StockChart
+                      {/* The big chart modal — min(720px, 92vh) tall, so the full
+                          shell has room. darkPoolBars carries the print overlay and
+                          MUST survive: it rides stockChartProps, spread last. */}
+                      <ChartPane
                         sym={sym}
                         tf={chartInterval}
-                        height="100%"
-                        liveUpdates={true}
-                        showDrawingTools={true}
-                        showVolume={true}
                         onTfChange={setChartInterval}
-                        darkPoolBars={chartModalDarkPoolBars}
-                        hideReplay
-                        hidePatterns
-                        hideCompare
-                        hideCountdown
+                        stored={null}
+                        stockChartProps={{
+                          height: "100%",
+                          liveUpdates: true,
+                          showDrawingTools: true,
+                          showVolume: true,
+                          darkPoolBars: chartModalDarkPoolBars,
+                          hideReplay: true,
+                          hidePatterns: true,
+                          hideCompare: true,
+                          hideCountdown: true,
+                        }}
                       />
                     </div>
                   </div>
@@ -5903,12 +6062,13 @@ export default function OptionsFlowDashboard() {
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
                 onClick={()=>{ setCExp(isExp ? null : tk.sym); }}>
-                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
+                <ChartHoldCell sym={tk.sym} onOpen={setChartSym}
+                  style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
                   {tk.sym}
-                  
+
                   {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
                   {tk.isNew && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:P.ac+"22", color:P.ac }}>NEW</span>}
-                </td>
+                </ChartHoldCell>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu }}>{fmt(tk.bull)}</td>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.be }}>{fmt(tk.bear)}</td>
                 <td style={{ padding:"6px 5px", width:60 }}>
@@ -6507,7 +6667,8 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=r._rank<=3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:r._rank<=3?P.ac:P.dm, fontSize:12 }}>{r._rank}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
+                        <ChartHoldCell sym={r.sym} onOpen={setChartSym}
+                          style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</ChartHoldCell>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
@@ -8361,8 +8522,8 @@ export default function OptionsFlowDashboard() {
                     {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
                   </div>
                   <div style={{ display:"flex", gap:8, marginTop:3, fontSize:9 }}>
-                    {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
                     {item.volume>0 && <span style={{ color:P.dm }}>Vol: <span style={{ color:P.wh, fontWeight:700 }}>{item.volume.toLocaleString()}</span></span>}
+                    {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
                     {item.volOI>0 && <span style={{ color:item.volOI>=3?P.bu:item.volOI>=1?P.ye:P.dm, fontWeight:700 }}>{item.volOI.toFixed(1)}x</span>}
                     {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span></span>}
                   </div>
@@ -8477,35 +8638,69 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
-                  <button onClick={wlSave}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
-                    💾 Save Watchlist
-                  </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     🗑 Clear All
                   </button>
-                  <div style={{ display:"flex", alignItems:"center", gap:2 }}>
-                    <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
-                      style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
-                      {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
-                    </select>
-                    <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
-                      style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
-                      {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
-                      <option value={99}>All</option>
-                    </select>
-                    <button onClick={()=>wlPushDiscord("watchlist")} disabled={discordPushing}
-                      style={{ padding:"5px 10px", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
-                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "…" : "📤 Watchlist"}
-                    </button>
-                    <button onClick={()=>wlPushDiscord("unusual")} disabled={discordPushing}
-                      style={{ padding:"5px 10px", borderRadius:"0 5px 5px 0", border:"none", background:discordPushing?"#c9a84c66":"#c9a84c", color:P.bg,
-                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "…" : "⚡ Unusual"}
-                    </button>
-                  </div>
+                  {/* Discord push — admin-only. Preview Images is the single push
+                      path (renders the branded card, previews, then posts). The old
+                      text-push Watchlist/Unusual buttons were retired. */}
+                  {isAdmin && (
+                    <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+                      <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
+                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
+                        {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
+                      </select>
+                      <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
+                        style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
+                        {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
+                        <option value={99}>All</option>
+                      </select>
+                      <button onClick={previewWatchlistImages} disabled={wlPreviewBusy}
+                        title="Render the Bull + Bear watchlist as a branded image and preview it before pushing to Discord"
+                        style={{ padding:"5px 12px", borderRadius:"0 5px 5px 0", border:"none", background:wlPreviewBusy?"#5865F266":"#5865F2",
+                          color:"#fff", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                        {wlPreviewBusy ? "📸 Rendering…" : "📸 Preview Images"}
+                      </button>
+                    </div>
+                  )}
+                  {wlPreview && (
+                    <div onClick={closeWlPreview}
+                      style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+                      <div onClick={e=>e.stopPropagation()}
+                        style={{ background:P.bg, border:"1px solid "+P.bl, borderRadius:10, padding:16, maxWidth:"95vw", maxHeight:"92vh", overflow:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.6)" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, marginBottom:12, flexWrap:"wrap" }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:P.wh, fontFamily:"inherit" }}>
+                            📸 Discord Preview — {discordLabel} <span style={{ color:P.dm, fontWeight:600 }}>· exactly what will post</span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <button onClick={pushPreviewToDiscord} disabled={wlPreview.pushing}
+                              style={{ padding:"6px 16px", borderRadius:5, border:"none", background:wlPreview.pushing?"#5865F266":"#5865F2", color:"#fff", fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                              {wlPreview.pushing ? "Pushing…" : "📤 Push to Discord"}
+                            </button>
+                            <button onClick={closeWlPreview} disabled={wlPreview.pushing}
+                              style={{ padding:"6px 14px", borderRadius:5, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", gap:12, alignItems:"flex-start", flexWrap:"wrap", justifyContent:"center" }}>
+                          {wlPreview.imgs.map(img => (
+                            <div key={img.side} style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"center" }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:P.ac, fontFamily:"inherit" }}>{img.label}</div>
+                              <img src={img.url} alt={img.side+" watchlist preview"}
+                                style={{ maxWidth:"44vw", maxHeight:"74vh", borderRadius:6, border:"1px solid "+P.bl, display:"block" }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {wlPreviewBusy && !wlPreview && (
+                    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", color:P.wh, fontSize:13, fontWeight:700, fontFamily:"inherit" }}>
+                      📸 Rendering preview…
+                    </div>
+                  )}
                   <button onClick={wlFetchOI} disabled={wlOILoading}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
@@ -8571,6 +8766,9 @@ export default function OptionsFlowDashboard() {
               const filtBear = wlBear.filter(dteOk);
               const sortedBullIdx = filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0));
               const sortedBearIdx = filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0));
+              // During image capture, cap the rendered rows to the Discord "Top N" dropdown.
+              const capBullIdx = wlCaptureLimit ? sortedBullIdx.slice(0, wlCaptureLimit) : sortedBullIdx;
+              const capBearIdx = wlCaptureLimit ? sortedBearIdx.slice(0, wlCaptureLimit) : sortedBearIdx;
               const splitHalf = (sorted) => {
                 const mid = Math.ceil(sorted.length / 2); return [sorted.slice(0, mid), sorted.slice(mid)];
               };
@@ -8589,10 +8787,10 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
+                    <span style={{ fontSize:9, color:P.dm }}>{capBullIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {filtBull.length>0 ? sortedBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
+                    {filtBull.length>0 ? capBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -8610,10 +8808,10 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
+                    <span style={{ fontSize:9, color:P.dm }}>{capBearIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {filtBear.length>0 ? sortedBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
+                    {filtBear.length>0 ? capBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -8786,6 +8984,11 @@ export default function OptionsFlowDashboard() {
           <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
         </div>
         </>)}
+
+        {/* Right-click-to-chart popup — one instance for the whole page, never
+            per-row. Controlled mode: TickerPopup renders no trigger, just the
+            full ChartPane modal, opened/closed by chartSym. */}
+        {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
       </div>
     </div>
   );

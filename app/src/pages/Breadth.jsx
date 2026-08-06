@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
@@ -6,12 +6,13 @@ import BreadthCharts from './BreadthCharts'
 import TickerPopup from '../components/TickerPopup'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
-import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
+import { useLiveBreadth } from '../hooks/useLiveBreadth'
+import LiveSessionStrip from './breadth/LiveSessionStrip'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import {
@@ -33,6 +34,12 @@ import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
 import GroupControls from './breadth/grouping/GroupControls'
 import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 import UIcon from '../components/ui/UIcon'
+
+// The SAME chart the /charts workspace renders — identity row, session
+// toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
+// settings gear and drawing tools. Lazy, so none of it lands in the eager
+// entry chunk.
+const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -617,21 +624,33 @@ function DrillModal({ drill, latestDate, onClose }) {
                   onClick={() => { const willFlag = !isFlagged(selected.t); toggleFlag(selected.t); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selected.t) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
-                <div className={styles.drillChartTabs}>
-                  {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
-                    <button
-                      key={p}
-                      className={`${styles.drillChartTab} ${chartPeriod === p ? styles.drillChartTabActive : ''}`}
-                      onClick={() => setChartPeriod(p)}
-                    >{label}</button>
-                  ))}
-                </div>
+                {/* The period tab row used to live here. Retired: ChartPane
+                    (below) renders the canonical timeframe bar now.
+                    `chartPeriod`/`setChartPeriod` stay — the prefetch effect
+                    above still reads chartPeriod, and ChartPane's onTfChange
+                    keeps it in sync with whatever the user picks. */}
                 <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
               </div>
               <div className={styles.drillChartFrame}>
-                <StockChart sym={selected.t} tf={chartPeriod}
-                  highlightBarTime={chartPeriod === 'D' ? highlightDay : null}
-                  highlightColor="#ffffff" />
+                {/* The SAME chart the /charts workspace renders — identity
+                    row, session toggle, market clock, timeframe bar,
+                    market-cap/earnings/UCT-rating meta, settings gear and
+                    drawing tools. `onSymbolChange` is deliberately omitted:
+                    the symbol comes from the drill-list row the user
+                    selected, so the identity row is a static label, not a
+                    search box. */}
+                <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted, #777)', fontSize: 12 }}>Loading chart…</div>}>
+                  <ChartPane
+                    sym={selected.t}
+                    tf={chartPeriod}
+                    onTfChange={setChartPeriod}
+                    stored={null}
+                    stockChartProps={{
+                      highlightBarTime: chartPeriod === 'D' ? highlightDay : null,
+                      highlightColor: '#ffffff',
+                    }}
+                  />
+                </Suspense>
               </div>
             </div>
           )}
@@ -901,10 +920,26 @@ export default function Breadth() {
 
   const AAII_KEYS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread'])
 
-  const rows = data?.rows ?? []
-  const lastUpdated = rows[0]?._created_at
-    ? formatETFull(rows[0]._created_at + 'Z')
+  const storedRows = data?.rows ?? []
+
+  // Intraday breadth sits ON TOP of the stored history, never in place of it.
+  // The backend withholds the live read the moment the 4:15 collector writes
+  // today's row, so an estimate never sits beside the number it estimated.
+  const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' })
+  const rows = useMemo(
+    () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
+    [liveBreadth.row, storedRows],
+  )
+
+  const lastUpdated = storedRows[0]?._created_at
+    ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
+
+  const liveClock = liveBreadth.clock ?? 'LIVE'
+  const liveTitle = liveBreadth.row
+    ? `Provisional — computed ${liveClock} ET across ${liveBreadth.measured ?? '—'} names. `
+      + `The 4:15 PM collector writes the day's authoritative row.`
+    : undefined
   const visibleCols = useMemo(
     () => COLS.filter(col => !collapsed.has(col.group) && !customize.hidden.has(col.key)),
     [collapsed, customize.hidden],
@@ -1063,7 +1098,7 @@ export default function Breadth() {
 
 
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthViews rows={rows} onDrill={openDrill} />
+        <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock} />
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
@@ -1086,6 +1121,11 @@ export default function Breadth() {
           }
         </div>
       )}
+
+      {/* Every row below describes a finished day. None of them can say what
+          today is doing, because today isn't a row yet — this is that answer,
+          and it disappears the moment the 4:15 collector makes it one. */}
+      {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap}>
@@ -1145,8 +1185,17 @@ export default function Breadth() {
             </thead>
             <tbody>
               {rows.map((row, ri) => (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)}`}>
-                  <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
+                  <td className={`${styles.td} ${styles.dateCell}`}>
+                    {row._live
+                      ? (
+                        <span className={styles.liveStamp} title={liveTitle}>
+                          <span className={styles.livePulse} aria-hidden="true" />
+                          {liveClock}
+                        </span>
+                      )
+                      : row.date}
+                  </td>
                   {groupSpans.flatMap(gs => {
                     if (collapsed.has(gs.group)) {
                       // Placeholder cell to match the colSpan=1 rowSpan=2 header cell
@@ -1215,12 +1264,30 @@ export default function Breadth() {
                       const isStaleAaii = AAII_KEYS.has(col.key) &&
                         row.aaii_survey_date &&
                         row.aaii_survey_date !== row.date
-                      const isDrillable = !!col.drillKey
+                      // Intraday there are no per-metric stock lists to open —
+                      // the collector builds those with the row at 4:15.
+                      const isDrillable = !!col.drillKey && !row._live
+                      // A number carried from last night is not a live reading,
+                      // and one that reconciles to ~8% should not look like one
+                      // that reconciles to a point.
+                      const liveGrade = row._live
+                        ? (liveBreadth.carried?.has(col.key) ? 'carried'
+                          : liveBreadth.accuracy?.[col.key] ?? null)
+                        : null
                       return (
                         <td
                           key={col.key}
-                          className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''}`}
-                          title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : isDrillable ? `Click to see stocks` : undefined}
+                          className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
+                          title={
+                            liveGrade === 'carried'
+                              ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
+                              : liveGrade === 'approximate'
+                                ? 'Provisional, reconciles to roughly 10%'
+                                : liveBreadth.partial?.has(col.key) && row._live
+                                  ? 'Builds through the session — only complete at the close'
+                                  : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
+                                    : isDrillable ? 'Click to see stocks' : undefined
+                          }
                           onClick={isDrillable ? () => openDrill(row.date, col) : undefined}
                         >
                           {fmtCell(col, val)}

@@ -82,6 +82,9 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
     onRemove: (id) => setWidgets(prev => prev.filter(w => w.id !== id)),
     onColorChange: (id, color) => setWidgets(prev => prev.map(w => (w.id === id ? { ...w, color } : w))),
     onOptsChange: (id, opts) => setWidgets(prev => prev.map(w => (w.id === id ? { ...w, opts } : w))),
+    // Widget-level tab edits take the reducer's widget wholesale (so a cleared
+    // wtabs key is actually dropped) while keeping this board's live geometry.
+    onReplaceWidget: (id, nextWidget) => setWidgets(prev => prev.map(w => (w.id === id ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w))),
     // Popping a single widget out of an already-popped board would need a third
     // owner for that widget's state; the window itself is already the unit of
     // "move this to another monitor", so the control is left off in here.

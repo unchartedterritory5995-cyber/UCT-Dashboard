@@ -132,7 +132,7 @@ export const CHART_DEFAULTS = {
     y: 0.5,
   },
 
-  drawingDefaults: { color: '#c9a84c', width: 1, style: 'solid' },
+  drawingDefaults: { color: '#c9a84c', width: 1, style: 'solid', fontSize: 13 },
 
   // ⭐⭐ B5 TASK 9 — THIS SECTION USED TO ENUMERATE FIFTEEN INDICATORS, AND IT IS
   // DOWN TO ONE. Ledger site #1, retired.
@@ -172,6 +172,16 @@ export const CHART_DEFAULTS = {
   markers: {
     earnings: false, splits: false, dividends: false, news: false,
     earningsBeat: '#1ae51a', earningsMiss: '#c41f2d',
+  },
+  // Previous-day High / Low / Close reference lines (TC2000-style), INTRADAY charts
+  // only. Each line anchors at the candle that MADE that level (high candle / low
+  // candle / the session's last candle for close) and extends to the current candle
+  // as new bars form. Per-line: enabled, color, style ('solid'|'dashed'|'dotted'),
+  // width (1-4). Default ON with the TC2000 palette (green high, red low, grey close).
+  prevDayLevels: {
+    high:  { enabled: true, color: '#3cb868', style: 'dashed', width: 1 },
+    low:   { enabled: true, color: '#e74c3c', style: 'dashed', width: 1 },
+    close: { enabled: true, color: '#9aa0a6', style: 'dotted', width: 1 },
   },
   countdown: false,
   showPatterns: false,
@@ -414,6 +424,11 @@ export function mergeChartSettings(userSettings) {
       ? parsed.comparisonSymbols
       : CHART_DEFAULTS.comparisonSymbols,
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
+    prevDayLevels: {
+      high:  { ...CHART_DEFAULTS.prevDayLevels.high,  ...(parsed.prevDayLevels?.high || {}) },
+      low:   { ...CHART_DEFAULTS.prevDayLevels.low,   ...(parsed.prevDayLevels?.low || {}) },
+      close: { ...CHART_DEFAULTS.prevDayLevels.close, ...(parsed.prevDayLevels?.close || {}) },
+    },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
@@ -531,6 +546,12 @@ export const CHART_TYPE_OPTIONS = [
 // `engine/instances` import would otherwise create). They are RE-EXPORTED here,
 // so every existing `from '.../chartDefaults'` keeps working and this is a move
 // rather than a rename.
+//
+// ⚠️ MASTER'S `_OVERRIDE_SECTION_KEYS` ENTRY WENT WITH IT. The prev-day H/L/C
+// lines (`93655d6a`) added `'prevDayLevels'` to that list while it still stood
+// here; the list is the SECOND of this file's two hard allow-lists, so the entry
+// had to move to `instanceShape.js` with the function or a per-cell override of
+// `prevDayLevels` would have REPLACED the whole section instead of merging it.
 export {
   instanceTombstone,
   isInstanceTombstone,

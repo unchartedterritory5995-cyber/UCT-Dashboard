@@ -145,7 +145,13 @@ const LEGEND_LAYOUTS = [
   { val: 'horizontal', label: 'Horizontal' },
 ]
 
-export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null }) {
+export default function ChartSettingsModal({
+  open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // Reason string when the SURFACE that opened this modal fixes the volume pane
+  // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
+  // Renders the separate-pane toggle inert rather than letting it look live.
+  volumePaneFixed = null,
+}) {
   const panelRef = useRef(null)
   const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
@@ -304,6 +310,10 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     // Earnings beat/miss badge colors (also color the popover surprise rows).
     earnBeat: ['markers', 'earningsBeat'],
     earnMiss: ['markers', 'earningsMiss'],
+    // Previous-day H/L/C line colors (Markers tab).
+    pdlHighColor: ['prevDayLevels', 'high', 'color'],
+    pdlLowColor: ['prevDayLevels', 'low', 'color'],
+    pdlCloseColor: ['prevDayLevels', 'close', 'color'],
   }
   const setColorTarget = (target, hex) => {
     if (typeof target === 'string' && target.startsWith('ind:')) {
@@ -330,7 +340,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   // Hand-written rows (MA overlays + the volume pane, which the engine cannot own)
   // followed by the rows GENERATED from the engine definitions. Neither this file
   // nor the registry names an engine indicator's fields.
-  const indRows = listAllIndicators(settings, engineRegistry)
+  //
+  // ⚠️ `volumePaneFixed` STILL HAS TO REACH THE VOLUME ROW. It used to be passed
+  // to `listIndicators` here; `listAllIndicators` forwards the same options object
+  // to it, so master's inert-toggle reason (`f3d9daba`) survives B4's switch to
+  // generated rows.
+  const indRows = listAllIndicators(settings, engineRegistry, { volumePaneFixed })
   const indRowById = (id) => indRows.find((r) => r.id === id)
   /** One writer for every row: `patchFor` for the hand-written ones, and
    *  `instanceControls` for the engine-owned ones — the same writer the toolbar
@@ -379,6 +394,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'swingBg': return swing.bg || settings.background || '#0e0f0d'
       case 'earnBeat': return evtMarkers.earningsBeat || '#1ae51a'
       case 'earnMiss': return evtMarkers.earningsMiss || '#c41f2d'
+      case 'pdlHighColor': return settings.prevDayLevels?.high?.color || '#3cb868'
+      case 'pdlLowColor': return settings.prevDayLevels?.low?.color || '#e74c3c'
+      case 'pdlCloseColor': return settings.prevDayLevels?.close?.color || '#9aa0a6'
       default: return '#1ae51a'
     }
   }
@@ -401,6 +419,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setSwing = (patch) => setSetting({ swingLabels: { ...swing, ...patch } })
   const evtMarkers = settings?.markers || {}
   const setMarker = (key, v) => setSetting({ markers: { ...evtMarkers, [key]: v } })
+  // Previous-day H/L/C reference lines (Markers tab).
+  const pdl = settings?.prevDayLevels || {}
+  const setPrevDay = (key, patch) => setSetting({ prevDayLevels: { ...pdl, [key]: { ...(pdl[key] || {}), ...patch } } })
+  const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]
+  const PDL_COLOR_TARGET = { high: 'pdlHighColor', low: 'pdlLowColor', close: 'pdlCloseColor' }
+  const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
   const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
   const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News']]
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
@@ -685,9 +709,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                             <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
                             {f.type === 'color' && colorSwatch(`ind:${row.id}:${f.key}`, f.label, val)}
                             {f.type === 'toggle' && (
+                              /* `disabled` is load-bearing, not decoration: a disabled
+                                 <button> fires no click, so an inert field can't write
+                                 a pref the surface will ignore. The number/select
+                                 branches below already honored f.disabled — the toggle
+                                 didn't, which is how a "not applicable here" field
+                                 could still look (and act) live. */
                               <button
                                 type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
-                                className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''}`}
+                                disabled={dis} title={f.disabled || undefined}
+                                className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
                                 onClick={() => set({ [f.key]: val === false })}
                               ><span className={styles.toggleKnob} /></button>
                             )}
@@ -869,6 +900,46 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Prev-day levels — intraday</div>
+            <div className={styles.card}>
+              {PDL_LINES.map(([key, label]) => {
+                const c = pdl[key] || {}
+                return (
+                  <div className={styles.field} key={key}>
+                    <span className={styles.fieldLabel}>{label}</span>
+                    <div className={styles.hdrRowCtl}>
+                      {c.enabled && (<>
+                        <select
+                          className={styles.sizeSelect}
+                          aria-label={`${label} line style`}
+                          value={c.style || 'dashed'}
+                          onChange={(e) => setPrevDay(key, { style: e.target.value })}
+                        >
+                          {LINE_STYLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <select
+                          className={styles.sizeSelect}
+                          aria-label={`${label} line width`}
+                          value={c.width || 1}
+                          onChange={(e) => setPrevDay(key, { width: Number(e.target.value) })}
+                        >
+                          {[1, 2, 3, 4].map((w) => <option key={w} value={w}>{w}px</option>)}
+                        </select>
+                        {colorSwatch(PDL_COLOR_TARGET[key], `${label} color`)}
+                      </>)}
+                      <button
+                        type="button" role="switch" aria-checked={!!c.enabled} aria-label={label}
+                        className={`${styles.toggle} ${c.enabled ? styles.toggleOn : ''}`}
+                        onClick={() => setPrevDay(key, { enabled: !c.enabled })}
+                      ><span className={styles.toggleKnob} /></button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </section>
 

@@ -9,8 +9,11 @@
 
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { mergeWatchlistSettings } from '../watchlist/watchlistSettings'
+import { mergeNewsWidgetSettings } from './widgets/newsWidgetSettings'
+import { mergeProfileWidgetSettings } from './widgets/profileWidgetSettings'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { sanitizeChartTabs } from './chartTabs'
+import { resolveActiveTab } from './widgetTabs'
 
 // The chrome-variable bundle derived from a single canvas color.
 export function canvasEntry(canvas) {
@@ -43,6 +46,17 @@ function chartActiveCanvas(widget, chartsTheme) {
   return { canvas: cs.background, canvasBottom: null }
 }
 
+// The canvas of a simple solid/gradient settings blob (News / Profile widgets):
+// their own opts.settings, or null if it hasn't diverged from the global default.
+function simpleOwnCanvas(settings, mergeFn) {
+  if (!settings) return null
+  const s = mergeFn(settings)
+  const gradient = s.bgMode === 'gradient'
+  const canvas = gradient ? (s.bgGradient?.top || s.bg) : s.bg
+  const canvasBottom = gradient ? (s.bgGradient?.bottom || null) : null
+  return { canvas, canvasBottom }
+}
+
 // The canvas color of a WATCHLIST widget's own settings, or null if it hasn't
 // diverged. Also returns the gradient bottom stop + the explicit gridline override
 // so the caller can mirror watchlistStyleVars' divider override (keep in sync).
@@ -61,8 +75,13 @@ function watchlistOwnCanvas(widget) {
 // watchlist gridline override so the widget chrome matches the list surface.
 export function widgetOwnChrome(widget, chartsTheme) {
   if (!widget || !widget.type) return null
-  if (widget.type === 'chart') {
-    const own = chartActiveCanvas(widget, chartsTheme)
+  // Follow the ACTIVE tab: a slot showing a chart tab paints the chart's canvas,
+  // one showing a watchlist tab paints the watchlist's. Build a surrogate widget
+  // carrying the active tab's type + opts so the per-type logic below is unchanged.
+  const active = resolveActiveTab(widget)
+  const surrogate = { type: active.type, opts: active.opts }
+  if (surrogate.type === 'chart') {
+    const own = chartActiveCanvas(surrogate, chartsTheme)
     if (!own) return null
     const entry = canvasEntry(own.canvas)
     // A header docked at the widget's BOTTOM (when another widget sits above it)
@@ -70,8 +89,16 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (widget.type === 'watchlist') {
-    const own = watchlistOwnCanvas(widget)
+  if (surrogate.type === 'news' || surrogate.type === 'profile') {
+    const mergeFn = surrogate.type === 'news' ? mergeNewsWidgetSettings : mergeProfileWidgetSettings
+    const own = simpleOwnCanvas(surrogate.opts?.settings, mergeFn)
+    if (!own) return null
+    const entry = canvasEntry(own.canvas)
+    if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
+    return entry
+  }
+  if (surrogate.type === 'watchlist') {
+    const own = watchlistOwnCanvas(surrogate)
     if (!own) return null
     const entry = canvasEntry(own.canvas)
     if (own.gridColor) { entry.divider = own.gridColor; entry.dividerStrong = own.gridColor }

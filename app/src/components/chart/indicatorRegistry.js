@@ -110,6 +110,18 @@ export const PLOT_STYLES = [['line', 'Line'], ['histogram', 'Histogram'], ['area
 
 const NOT_WIRED = 'Coming soon — needs renderer support'
 
+/** Reason shown on the volume-pane controls when the SURFACE owns that layout.
+ *  The charts workspace + the multi-chart grid hand StockChart `volumeSeparatePane`
+ *  and `volumePaneHeightPct`, and those props WIN: StockChart ORs the flag
+ *  (`volumeSeparatePane || cs.volume.separatePane`) and prefers the prop for the
+ *  height (`volumePaneHeightPct ?? cs.volume.paneHeightPct`). The forcing is
+ *  deliberate — the workspace's price-scale margins are tuned for a chart whose
+ *  volume sits in its own pane, and its height is set by DRAGGING the separator
+ *  (persisted to the `charts_vol_pane_pct` pref), not by this slider. So the saved
+ *  prefs are inert there, and the UI says so. Same honesty rule as NOT_WIRED
+ *  above: showing a control inert beats showing it live doing nothing. */
+export const VOLUME_PANE_SURFACE_FIXED = "Fixed by this chart's layout"
+
 /** Fields for one moving-average overlay. */
 export const MA_FIELDS = [
   { key: 'type',      label: 'Average type', type: 'select', options: MA_TYPES },
@@ -318,8 +330,13 @@ export function listEngineIndicators(settings, registry) {
  *    { kind: 'indicator', key }    → settings.indicators[key]
  *
  *  ⛔ NOTHING THE ENGINE OWNS. See the rail in this file's header.
+ *
+ *  `opts.volumePaneFixed` — a reason string when the calling SURFACE fixes the
+ *  volume layout itself (see VOLUME_PANE_SURFACE_FIXED). It marks the separate-pane
+ *  toggle inert instead of letting it look live. VOLUME_FIELDS is a shared module
+ *  constant, so the flag is applied to a COPY, never mutated in place.
  */
-export function listIndicators(settings) {
+export function listIndicators(settings, opts = {}) {
   const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
   const rows = overlays.map((ov, index) => ({
     id: `overlay-${index}`,
@@ -335,7 +352,9 @@ export function listIndicators(settings) {
     id: 'volume',
     label: 'Volume',
     group: 'Volume',
-    fields: VOLUME_FIELDS,
+    fields: opts.volumePaneFixed
+      ? VOLUME_FIELDS.map(f => (f.key === 'separatePane' ? { ...f, disabled: opts.volumePaneFixed } : f))
+      : VOLUME_FIELDS,
     path: { kind: 'section', key: 'volume' },
     values: settings?.volume || {},
     canToggle: true,
@@ -373,10 +392,18 @@ function listCarvedOutIndicators(settings) {
  *  cannot be derived (MA overlays, the volume pane), then ONE PER DEFINITION,
  *  then the carved-out sections. The modal derives its SECTION LIST from this,
  *  so adding a definition to `nativeRegistry` brings its own section with it and
- *  there is no group array to forget to edit. */
-export function listAllIndicators(settings, registry) {
+ *  there is no group array to forget to edit.
+ *
+ *  ⚠️ `opts` IS FORWARDED TO `listIndicators` AND THAT IS LOAD-BEARING, not
+ *  tidiness. B4 replaced the modal's `listIndicators(settings, opts)` call with
+ *  this one; master's `volumePaneFixed` (`f3d9daba`) reaches the volume row
+ *  through that argument, so dropping it here would leave the separate-pane
+ *  toggle looking live on the two surfaces that fix the volume layout
+ *  themselves — a control that does nothing and says nothing, which is the
+ *  exact class `VOLUME_PANE_SURFACE_FIXED` exists to end. */
+export function listAllIndicators(settings, registry, opts = {}) {
   return [
-    ...listIndicators(settings),
+    ...listIndicators(settings, opts),
     ...listEngineIndicators(settings, registry),
     ...listCarvedOutIndicators(settings),
   ]

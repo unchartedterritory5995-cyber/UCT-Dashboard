@@ -13,11 +13,10 @@
  * Mirrors PositionDetailPage's structure, hooks, skeleton + CSS conventions.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { Link, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import ShareToFloor from '../../../../components/community/ShareToFloor'
 import useSWR from 'swr'
-import StockChart from '../../../../components/StockChart'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import useJ2Trades from '../../hooks/useJ2Trades'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
@@ -38,6 +37,11 @@ import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import styles from './TradeDetailPage.module.css'
+
+// The SAME chart the /charts workspace renders — identity row, session toggle,
+// market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
+// gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
+const ChartPane = lazy(() => import('../../../../components/chart/pane/ChartPane'))
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
 // (kept for the "not yet computed" state + shown in the chart footer then).
@@ -60,13 +64,10 @@ function barResLabel(excursion) {
   return byCode[excursion?.barResolution] || byTier[excursion?.dataQuality] || null
 }
 
-const TF_TABS = [
-  { code: '5', label: '5m' },
-  { code: '30', label: '30m' },
-  { code: '60', label: '1h' },
-  { code: 'D', label: 'D' },
-  { code: 'W', label: 'W' },
-]
+// Journal is NOT Daily/Weekly-only (that CLAUDE.md note is stale) — these are
+// the five codes the page has always supported, now handed to ChartPane's
+// canonical timeframe bar instead of a bespoke local row.
+const TF_CODES = ['5', '30', '60', 'D', 'W']
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -486,36 +487,35 @@ export default function TradeDetailPage() {
 
       {/* ── 2. Chart card ─────────────────────────────────────────────── */}
       <div className={styles.chartCard}>
-        <div className={styles.tfBar} role="tablist" aria-label="Chart timeframe">
-          {TF_TABS.map((t) => (
-            <button
-              key={t.code}
-              type="button"
-              role="tab"
-              aria-selected={tf === t.code}
-              className={tf === t.code ? styles.tfBtnActive : styles.tfBtn}
-              onClick={() => setTf(t.code)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
         <div className={styles.chartWrap}>
-          {/* hideJournalOverlay: this page draws ITS trade's markers via the
+          {/* ChartPane is the SAME chart /charts renders — identity row, session
+              toggle, clock, canonical timeframe bar, settings gear. `tfCodes`
+              locks the bar to this page's five codes (matches the retired
+              TF_TABS row); `onSymbolChange` is omitted so the identity row is a
+              static label, not a search box — this chart is THIS trade's symbol.
+              `stored={null}` with no `onStore` = the user's own chart everywhere.
+              hideJournalOverlay: this page draws ITS trade's markers via the
               markers/priceLines props; the auto j2 overlay (every trade on the
               symbol) would otherwise duplicate this trade + add unrelated ones. */}
-          <StockChart
-            sym={trade.symbol}
-            tf={tf}
-            height="100%"
-            markers={chart.markers}
-            priceLines={chart.priceLines}
-            entryDate={trade.entryDate}
-            exitDate={trade.exitDate}
-            liveUpdates={false}
-            showDrawingTools={false}
-            hideJournalOverlay
-          />
+          <Suspense fallback={<div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted, #8a8a8a)' }}>Loading chart…</div>}>
+            <ChartPane
+              sym={trade.symbol}
+              tf={tf}
+              onTfChange={setTf}
+              stored={null}
+              tfCodes={TF_CODES}
+              stockChartProps={{
+                height: '100%',
+                markers: chart.markers,
+                priceLines: chart.priceLines,
+                entryDate: trade.entryDate,
+                exitDate: trade.exitDate,
+                liveUpdates: false,
+                showDrawingTools: false,
+                hideJournalOverlay: true,
+              }}
+            />
+          </Suspense>
         </div>
         <div className={styles.chartFoot}>
           <span className={styles.legendHint} title={legendHint.title}>{legendHint.text}</span>

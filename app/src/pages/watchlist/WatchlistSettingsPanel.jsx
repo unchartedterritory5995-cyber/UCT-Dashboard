@@ -7,6 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
+import useSavedColors from '../../hooks/useSavedColors'
 import UIcon from '../../components/ui/UIcon'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
@@ -39,11 +40,26 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function WatchlistSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
+export default function WatchlistSettingsPanel({
+  settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null,
+  templates = [], onApplyTemplate, onSaveTemplate, onDeleteTemplate,
+}) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)               // settings-menu position (left of the watchlist)
   const [activeTarget, setActiveTarget] = useState(null)  // { target, label } — which color is being edited
   const [colorPos, setColorPos] = useState(null)     // ColorPanel position (right of the menu)
+  const { savedColors, saveColor, deleteColor } = useSavedColors()  // global saved colors (shared w/ chart)
+  const [tplName, setTplName] = useState('')         // "save current look" name field
+  const [tplMenuOpen, setTplMenuOpen] = useState(false)   // Templates ▾ dropdown showing
+  const [savingTpl, setSavingTpl] = useState(false)       // inline "name your look" row showing
+
+  const saveTpl = () => {
+    const name = tplName.trim()
+    if (!name) return
+    onSaveTemplate?.(name)
+    setTplName('')
+    setSavingTpl(false)
+  }
 
   // Place the settings menu to the LEFT of the watchlist (flip to the right if there's
   // no room), portaled so the watchlist's overflow can't clip it.
@@ -83,15 +99,22 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
+      // A click anywhere that isn't the Templates control closes its dropdown.
+      if (!e.target.closest?.('[data-tpl-wrap]')) setTplMenuOpen(false)
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()
     }
-    const onKey = (e) => { if (e.key === 'Escape') { if (activeTarget) setActiveTarget(null); else onClose?.() } }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (activeTarget) setActiveTarget(null)
+      else if (tplMenuOpen || savingTpl) { setTplMenuOpen(false); setSavingTpl(false) }
+      else onClose?.()
+    }
     document.addEventListener('mousedown', onDown, true)
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDown, true); document.removeEventListener('keydown', onKey) }
-  }, [onClose, gearEl, activeTarget])
+  }, [onClose, gearEl, activeTarget, tplMenuOpen, savingTpl])
 
   const set = (patch) => onChange(patch)
 
@@ -138,6 +161,70 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
             <button className={styles.resetBtn} onClick={onReset} title="Restore watchlist settings to defaults">↺ Reset</button>
             <button className={styles.close} onClick={onClose} title="Close">✕</button>
           </div>
+        </div>
+
+        {/* Template bar — save the whole watchlist look (canvas/colors + columns; NO
+            symbols) and reapply it to any list later. Mirrors the Chart Settings bar. */}
+        <div className={styles.tplBar}>
+          <div className={styles.tplMenuWrap} data-tpl-wrap>
+            <button
+              type="button"
+              className={styles.tplBtn}
+              onClick={() => { setTplMenuOpen(o => !o); setSavingTpl(false) }}
+              aria-haspopup="listbox"
+              aria-expanded={tplMenuOpen}
+              title="Open a saved watchlist look"
+            >⌸ Templates{templates.length ? ` (${templates.length})` : ''} ▾</button>
+            {tplMenuOpen && (
+              <div className={styles.tplMenu} role="listbox">
+                {templates.length === 0 && (
+                  <div className={styles.tplEmpty}>No saved looks yet. Style this watchlist, then “Save as Template”.</div>
+                )}
+                {templates.map(t => (
+                  <div key={t.id} className={styles.tplRow}>
+                    <button
+                      type="button"
+                      className={styles.tplApply}
+                      title={`Apply “${t.name}”`}
+                      onClick={() => { onApplyTemplate?.(t); setTplMenuOpen(false) }}
+                    >{t.name}</button>
+                    <button
+                      type="button"
+                      className={styles.tplDel}
+                      title="Delete template"
+                      aria-label={`Delete template ${t.name}`}
+                      onClick={() => onDeleteTemplate?.(t.id)}
+                    ><UIcon name="trash" size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {savingTpl ? (
+            <div className={styles.tplSaveRow} data-tpl-wrap>
+              <input
+                autoFocus
+                className={styles.tplInput}
+                placeholder="Template name"
+                value={tplName}
+                maxLength={60}
+                onChange={e => setTplName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); saveTpl() }
+                  else if (e.key === 'Escape') { e.preventDefault(); setSavingTpl(false); setTplName('') }
+                }}
+              />
+              <button type="button" className={styles.tplSaveBtn} disabled={!tplName.trim()} onClick={saveTpl}>Save</button>
+              <button type="button" className={styles.tplCancelBtn} onClick={() => { setSavingTpl(false); setTplName('') }}>Cancel</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.tplBtn}
+              onClick={() => { setSavingTpl(true); setTplMenuOpen(false) }}
+              title="Save the current watchlist look as a reusable template"
+            >＋ Save as Template</button>
+          )}
         </div>
 
         <div className={styles.body}>
@@ -218,6 +305,9 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
             value={targetValue(activeTarget.target)}
             onChange={(hex) => setColorTarget(activeTarget.target, hex)}
             onClose={() => setActiveTarget(null)}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
           />
         </div>
       )}
