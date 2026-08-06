@@ -257,10 +257,10 @@ def get_or_create_flagged_list(user_id: str) -> dict:
         display_name = _get_display_name(conn, user_id)
         conn.execute(
             "INSERT INTO watchlists (id, user_id, name, description, is_public, is_flagged_list, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            (wl_id, user_id, f"Flagged ({display_name})", "", 0, 1, now, now),
+            (wl_id, user_id, "Flagged", "", 0, 1, now, now),
         )
         conn.commit()
-        return {"id": wl_id, "user_id": user_id, "name": f"Flagged ({display_name})", "description": "",
+        return {"id": wl_id, "user_id": user_id, "name": "Flagged", "description": "",
                 "is_public": 0, "is_flagged_list": 1, "created_at": now, "updated_at": now,
                 "items": [], "owner_name": display_name}
     finally:

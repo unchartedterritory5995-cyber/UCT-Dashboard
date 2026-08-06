@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from api.services import earnings_estimates as ee
+from api.services import finnhub_client as fhc
 from api.services.cache import cache
 
 
@@ -30,9 +31,9 @@ class _Resp:
 @pytest.fixture(autouse=True)
 def _reset_state(monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
-    ee._fh_cooldown_until = 0.0
+    fhc._fh_cooldown_until = 0.0
     yield
-    ee._fh_cooldown_until = 0.0
+    fhc._fh_cooldown_until = 0.0
     cache.invalidate("earnings_intel_FISCALQ")
 
 

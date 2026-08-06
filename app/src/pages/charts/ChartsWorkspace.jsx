@@ -7,12 +7,10 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
-import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchlistSettings'
-import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
-import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
-import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
-import { NEWS_WIDGET_DEFAULTS, mergeNewsWidgetSettings } from './widgets/newsWidgetSettings'
-import { PROFILE_WIDGET_DEFAULTS, mergeProfileWidgetSettings } from './widgets/profileWidgetSettings'
+import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
+import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
+import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
+import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
@@ -331,6 +329,25 @@ export default function ChartsWorkspace() {
     })
   }, [setPref])
 
+  // If prefs arrive AFTER initial render (the SWR fetch usually resolves a beat after
+  // mount), pick up the saved group syms — otherwise the useState seed above ran while
+  // prefs was still undefined, left every group null, and the chart widget fell back to
+  // SPY on every refresh (owner report: "charts revert to SPY"). Mirrors the layout
+  // re-hydration above; one-shot so it never clobbers a live in-session ticker change.
+  const groupsLoadedFromPrefsRef = useRef(false)
+  useEffect(() => {
+    if (groupsLoadedFromPrefsRef.current) return
+    const raw = prefs?.charts_workspace_groups
+    if (raw == null) return
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (parsed && typeof parsed === 'object') {
+        setGroupSymsState({ A: null, B: null, C: null, D: null, ...parsed })
+        groupsLoadedFromPrefsRef.current = true
+      }
+    } catch { /* malformed pref → keep current */ }
+  }, [prefs?.charts_workspace_groups])
+
   // Crosshair sync bus: a stable pub/sub so a hovered chart can broadcast its
   // crosshair to same-color-group siblings WITHOUT re-rendering the grid at
   // mouse-move rate (only the receiving widgets re-render via local state).
@@ -388,51 +405,32 @@ export default function ChartsWorkspace() {
     const chart = chartsTheme === 'sunrise'
       ? '#eaf1fa'
       : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
-    const wl = mergeWatchlistSettings(parsePref(prefs.watchlist_settings, null))
-    const watchlist = wl.bgMode === 'gradient' ? (wl.bgGradient?.top || wl.bg) : wl.bg
-    const tt = mergeThemeTrackerSettings(parsePref(prefs.theme_tracker_settings, null))
+    const tt = mergeThemeTrackerSettings(parsePref(prefs.theme_tracker_settings, null) ?? themeTrackerDefaultsForTheme(prefs.theme))
     const themes = tt.bgMode === 'gradient' ? (tt.bgGradient?.top || tt.bg) : tt.bg
-    const fw = mergeFundamentalsSettings(parsePref(prefs.fundamentals_settings, null))
+    const fw = mergeFundamentalsSettings(parsePref(prefs.fundamentals_settings, null) ?? fundamentalsDefaultsForTheme(prefs.theme))
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
-    const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null))
+    const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null) ?? breadthDefaultsForTheme(prefs.theme))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
-    const nw = mergeNewsWidgetSettings(parsePref(prefs.news_widget_settings, null))
-    const news = nw.bgMode === 'gradient' ? (nw.bgGradient?.top || nw.bg) : nw.bg
-    const pw = mergeProfileWidgetSettings(parsePref(prefs.profile_widget_settings, null))
-    const profile = pw.bgMode === 'gradient' ? (pw.bgGradient?.top || pw.bg) : pw.bg
-    // Theme Tracker / Fundamentals / Breadth publish ONLY when the user actually
-    // customized their canvas (their settings model is emit-when-off-default): the
-    // drag bar + panel then follow the chosen canvas, while an untouched widget
-    // keeps the default chrome tokens byte-identical.
+    // News / Profile / WATCHLIST are NOT here: their appearance is fully per-widget
+    // (opts.settings, resolved via widgetCanvasById); an uncustomized one has no
+    // type-level canvas so it falls through to the app-theme --bg (OLED-black /
+    // light), which is the whole point. Theme Tracker / Fundamentals / Breadth
+    // publish ONLY when the user actually customized their canvas.
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
     const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
-    const nwCustom = nw.bgMode === 'gradient' || String(nw.bg).toLowerCase() !== NEWS_WIDGET_DEFAULTS.bg
-    const pwCustom = pw.bgMode === 'gradient' || String(pw.bg).toLowerCase() !== PROFILE_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
     })
-    // The watchlist's explicit gridline color (Watchlist Settings → Gridlines)
-    // must override the canvas-derived divider HERE too — inside the workspace
-    // the widget CSS reads --widget-divider* before --wl-divider* (keep in sync
-    // with watchlistStyleVars' identical override).
-    const watchlistEntry = entry(watchlist)
-    if (wl.gridColor) {
-      watchlistEntry.divider = wl.gridColor
-      watchlistEntry.dividerStrong = wl.gridColor
-    }
     return {
       chart: entry(chart),
-      watchlist: watchlistEntry,
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
-      ...(nwCustom ? { news: entry(news) } : {}),
-      ...(pwCustom ? { profile: entry(profile) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.news_widget_settings, prefs.profile_widget_settings])
+  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,
@@ -531,6 +529,25 @@ export default function ChartsWorkspace() {
   const handleOptsChange = useCallback((id, opts) => {
     setLayout(prev => {
       const next = { ...prev, widgets: prev.widgets.map(w => w.id === id ? { ...w, opts } : w) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
+  // Replace a whole widget object in place — used by the widget-level tab system,
+  // which routes every tab add/close/select and per-active-tab color/opts edit
+  // through one atomic swap (the reducer already computed the next widget). Keeps
+  // the widget's grid position (x/y/w/h) since those live on the same object.
+  const handleReplaceWidget = useCallback((id, nextWidget) => {
+    setLayout(prev => {
+      // Take the reducer's widget WHOLESALE (so closing the last tab, which drops
+      // the wtabs/activeWtab keys entirely, actually clears them) but keep the LIVE
+      // grid geometry from `prev` — the reducer computed from a render-time snapshot
+      // that could be stale if a drag/resize landed in between.
+      const widgets = prev.widgets.map(w => (
+        w.id === id ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w
+      ))
+      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
       scheduleSave(next)
       return next
     })
@@ -971,6 +988,7 @@ export default function ChartsWorkspace() {
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
+              onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
             />
           </div>
@@ -985,6 +1003,7 @@ export default function ChartsWorkspace() {
     onRemove: handleRemoveWidget,
     onColorChange: handleColorChange,
     onOptsChange: handleOptsChange,
+    onReplaceWidget: handleReplaceWidget,
     onPopOut: handlePopOutWidget,
   }
 
@@ -1231,6 +1250,7 @@ export default function ChartsWorkspace() {
                 onRemove={() => handleRemovePoppedWidget(w.id)}
                 onColorChange={(c) => handleColorChange(w.id, c)}
                 onOptsChange={(opts) => handleOptsChange(w.id, opts)}
+                onReplaceWidget={handleReplaceWidget}
               />
             </PopoutShell>
           </PopoutWindow>

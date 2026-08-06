@@ -1,17 +1,38 @@
 .root {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  /* Match the Watchlist widget's row background (--bg-surface) so the AI Search
-     panel reads the same as the other list widgets. */
-  background: var(--bg-surface, #1a1c17);
+  /* A custom canvas (⚙) paints the whole widget; otherwise it matches the Watchlist
+     widget's row background (--bg-surface) so it reads like the other list widgets. */
+  background: var(--basic-canvas, var(--bg-surface, #1a1c17));
   color: var(--text, #e5e7eb);
   /* Match the chart's vivid green/red so ± percentages in AI answers (colored by
      HighlightThesis via --gain/--loss) read the same as the candles. */
   --gain: #1ae51a;
   --loss: #c41f2d;
 }
+/* Floating ⚙ — top-right, fades in on hover so it doesn't crowd the answers. */
+.gearBtn {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #8b8674);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s ease, color 0.12s ease, background 0.12s ease;
+}
+.root:hover .gearBtn { opacity: 0.85; }
+.gearBtn:hover { opacity: 1; color: var(--accent, #c9a84c); background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
 
 /* ── Ask row (pinned at the bottom, chat-style) ── */
 .searchRow {

@@ -97,140 +97,28 @@ def _schedule_markers_refresh(ticker: str) -> None:
     threading.Thread(target=_run, daemon=True, name=f"markers-refresh-{ticker}").start()
 
 
-# Finnhub free tier = 60 calls/min. When a 429 lands, EVERY caller funneling
-# through _fh_get backs off together for this long — without a shared cooldown
-# each enrichment/markers/next-report burst keeps hammering an already-exhausted
-# minute bucket, and because failures used to be uncached the storm re-fired on
-# every recompute (the 2026-07-15 all-dash Beats column).
-_FH_COOLDOWN_SECONDS = 20.0
-_fh_cooldown_until = 0.0
-_fh_cooldown_lock = threading.Lock()
-
-# Endpoints the current Finnhub plan rejects outright (403) — e.g.
-# /stock/price-target moved to premium. Re-probed daily via the cache TTL.
-_FH_FORBIDDEN_TTL = 86_400
-
-# ── Proactive rate limiting (Task 13, 2026-08-04) ────────────────────────────
-# The cooldown above is REACTIVE — it only engages AFTER a 429 comes back. A
-# burst fan-out (calendar enrichment: a heavy earnings day can be 80+ symbols
-# × 3 calls each = 240+ calls, fired by a 6-worker pool in a couple of
-# seconds) blows through the whole minute's 60-call budget before the FIRST
-# 429 even lands, and by the time the cooldown engages it has already spent
-# the reactive backoff by then punishing calls that would have fit inside
-# budget: everyone funneling through _fh_get is zeroed for the next 20s, not
-# just the caller who tripped it. A token bucket enforces the budget
-# proactively — most bursts on a heavy day now degrade to "N symbols get
-# fresh intel this pass, the rest come back None" instead of "429 storm →
-# 20s of universe-wide silence, repeated."
-#
-# `_FH_RATE_LIMIT_PER_MIN` sits a hair under Finnhub's advertised 60/min —
-# headroom for clock/measurement slop, not a magic number.
-#
-# `_fh_take_token()` NEVER blocks or sleeps: it returns True (proceed) or
-# False (shed) immediately. This endpoint runs on the shared anyio
-# threadpool — sleeping here to "wait for a slot" would just move the
-# 524-outage surface from "burst of 429s" to "burst of hung request
-# threads," and a request that must pace 240 calls to a 60/min budget would
-# take ~4 minutes, which is not a request, it's a hang. A denied call
-# degrades exactly like any other Finnhub failure: `_fh_get` returns None,
-# never a fabricated value — see get_earnings_intel's None-propagation.
-_FH_RATE_LIMIT_PER_MIN = 55.0
-_fh_bucket_tokens = _FH_RATE_LIMIT_PER_MIN
-_fh_bucket_updated = _time.monotonic()
-_fh_bucket_lock = threading.Lock()
-# Process-lifetime count of calls shed by the bucket (never resets). Calendar
-# enrichment snapshots this before/after a day's fan-out to tell "genuinely
-# no data" apart from "throttled — try again soon" (see
-# calendar.py::_build_enrichment_for_date) without threading a flag through
-# every intermediate return value.
-_fh_bucket_denied_total = 0
-
-
-def _fh_take_token() -> bool:
-    """Non-blocking token-bucket check. True = a call may proceed now and one
-    token was consumed; False = the process-wide Finnhub budget for this
-    rolling minute is spent, proceed with nothing (no network call, no wait)."""
-    global _fh_bucket_tokens, _fh_bucket_updated, _fh_bucket_denied_total
-    with _fh_bucket_lock:
-        now = _time.monotonic()
-        elapsed = max(0.0, now - _fh_bucket_updated)
-        _fh_bucket_updated = now
-        _fh_bucket_tokens = min(
-            _FH_RATE_LIMIT_PER_MIN,
-            _fh_bucket_tokens + elapsed * (_FH_RATE_LIMIT_PER_MIN / 60.0),
-        )
-        if _fh_bucket_tokens >= 1.0:
-            _fh_bucket_tokens -= 1.0
-            return True
-        _fh_bucket_denied_total += 1
-        return False
-
-
-def fh_budget_denied_total() -> int:
-    """Cumulative (process-lifetime) count of Finnhub calls shed by the
-    proactive token bucket. Monotonically increasing — callers compare two
-    snapshots to detect whether budget-shedding happened during a window,
-    never read it as an absolute count of "current" anything."""
-    return _fh_bucket_denied_total
+# ── Shared Finnhub REST coordination (moved 2026-08-05) ─────────────────────
+# The token bucket + reactive 429 cooldown + forbidden-endpoint cache that
+# used to live here were promoted to api/services/finnhub_client.py so every
+# Finnhub caller in the codebase — not just this file's own three legs —
+# shares ONE process-wide budget (~15 other files called finnhub.io directly,
+# bypassing this module's bucket entirely; see finnhub_client.py's module
+# docstring for the full incident writeup). The names below are re-exported
+# for backward compatibility: engine.py imports `_fh_get` from here
+# (`from api.services.earnings_estimates import _fh_get as _fh_budgeted`),
+# and this module's own three Finnhub legs (below) still call `_fh_get`
+# unchanged, relying on the shared client's default timeout (6s), which
+# matches this module's original `_TIMEOUT` exactly — so behavior here is
+# byte-for-byte unchanged by the move.
+from api.services.finnhub_client import (
+    fh_get as _fh_get,
+    fh_budget_denied_total,
+    _junk_symbol,
+)
 
 # Distinguishes "cached total failure" from a cache miss (both read back as
 # None through TTLCache.get otherwise). Identity-compared, never mutated.
 _INTEL_FAIL_SENTINEL = {"_intel_failed": True}
-
-
-def _junk_symbol(sym) -> bool:
-    """Symbols Finnhub can never resolve (index/synthetic notations like
-    $IDX:SEMICONDUCTORS or ^VIX). Calling for them burns rate budget on
-    guaranteed failures, every single time."""
-    s = str(sym or "")
-    return (not s) or any(c in s for c in ("$", "^", ":", "/"))
-
-
-def _fh_get(path: str, params: dict, timeout: int | None = None) -> dict | list | None:
-    """Fire a Finnhub GET request. Returns parsed JSON or None on failure.
-
-    Budget guards (all return None without a network call):
-      • symbols Finnhub can't resolve ($/^/:-style) are skipped
-      • a proactive token bucket sheds calls once ~55/min is spent
-      • a shared 20s cooldown engages after any 429 (backstop for whatever
-        slips past the bucket — clock slop, other processes, etc.)
-      • endpoints that 403'd (plan-forbidden) are skipped for 24h
-    """
-    global _fh_cooldown_until
-    api_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not api_key:
-        _logger.warning("FINNHUB_API_KEY not set — earnings intel unavailable")
-        return None
-    if "symbol" in params and _junk_symbol(params.get("symbol")):
-        return None
-    if cache.get(f"fh_forbidden_{path}"):
-        return None
-    with _fh_cooldown_lock:
-        if _time.monotonic() < _fh_cooldown_until:
-            return None
-    if not _fh_take_token():
-        return None
-    params["token"] = api_key
-    try:
-        resp = requests.get(
-            f"https://finnhub.io/api/v1{path}",
-            params=params,
-            timeout=timeout or _TIMEOUT,
-        )
-        if resp.status_code == 429:
-            with _fh_cooldown_lock:
-                _fh_cooldown_until = _time.monotonic() + _FH_COOLDOWN_SECONDS
-            _logger.warning("Finnhub 429 on %s — cooling down %ss", path, _FH_COOLDOWN_SECONDS)
-            return None
-        if resp.status_code == 403:
-            cache.set(f"fh_forbidden_{path}", True, ttl=_FH_FORBIDDEN_TTL)
-            _logger.warning("Finnhub 403 on %s — plan-forbidden, skipping for 24h", path)
-            return None
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as exc:
-        _logger.warning("Finnhub %s failed for %s: %s", path, params.get("symbol", "?"), exc)
-        return None
 
 
 def get_earnings_intel(ticker: str) -> dict | None:
@@ -245,6 +133,13 @@ def get_earnings_intel(ticker: str) -> dict | None:
                          None when Finnhub omits them, never a phantom 0.
         consensus     – {buy, hold, sell, strongBuy, strongSell, period}
         price_target  – {targetHigh, targetLow, targetMean, targetMedian, lastUpdated}
+                         Finnhub primary; falls back to FMP's
+                         stable/price-target-consensus when Finnhub's
+                         /stock/price-target 403s plan-forbidden (not
+                         transient — simply unavailable on this account's
+                         tier). FMP has no analog for targetMean/lastUpdated,
+                         so those stay None on the fallback path rather than
+                         being fabricated from a different-named FMP field.
     """
     ticker = ticker.upper()
     cache_key = f"earnings_intel_{ticker}"
@@ -302,6 +197,18 @@ def get_earnings_intel(ticker: str) -> dict | None:
             "targetMedian": pt_raw.get("targetMedian"),
             "lastUpdated": pt_raw.get("lastUpdated", ""),
         }
+    if price_target is None:
+        # Finnhub stays primary above — this only fires when it yielded
+        # nothing. /stock/price-target 403s plan-forbidden on this account
+        # (cached via _FH_FORBIDDEN_TTL, see _fh_get) — not a transient
+        # failure, that endpoint is simply not on the current tier. FMP's
+        # stable/price-target-consensus IS live on this plan (analyst_grades.py
+        # already calls it for a different surface) and covers the same range
+        # data. A DIFFERENT provider budget: never touches _fh_take_token or
+        # _fh_cooldown_until, and carries its own bounded timeout (never an
+        # unbounded external call on the shared request-path threadpool — the
+        # documented 524-outage class here).
+        price_target = _fmp_price_target_fallback(ticker)
 
     # If all three failed, negative-cache briefly. Uncached failures made every
     # 5-min enrichment recompute retry the whole day's reporters × 3 calls —
@@ -354,6 +261,19 @@ def _int_or_none(v):
         return None
 
 
+def _float_or_none(v):
+    """float(v) preserving None. Mirrors _int_or_none — a bare `float(v or 0)`
+    would turn an absent FMP price-target field into a phantom 0.0, and a
+    genuine 0.0 target must not collapse to None either. Used by the FMP
+    price-target fallback below."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _surprise_pct(actual, estimate):
     """% surprise of actual vs estimate = (actual - estimate) / |estimate| * 100.
     None when either side is missing or the estimate is zero."""
@@ -380,6 +300,45 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
     except Exception as exc:
         _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
         return None
+
+
+def _fmp_price_target_fallback(ticker: str) -> dict | None:
+    """FMP `stable/price-target-consensus` fallback for get_earnings_intel's
+    price_target leg, used ONLY when Finnhub yielded nothing (see call site).
+
+    Maps ONLY the fields FMP actually supplies, under the SAME output shape as
+    the Finnhub leg (targetHigh/targetLow/targetMean/targetMedian/lastUpdated)
+    so downstream consumers (research Overview tab, voice market tools) need
+    no change. targetHigh/targetLow/targetMedian have direct FMP analogs.
+    FMP has NO analog for targetMean — its `targetConsensus` field is a
+    separately-computed statistic, not documented as a plain mean — so
+    targetMean stays None rather than being fabricated under the wrong name.
+    `lastUpdated` is likewise absent from this endpoint and stays None too.
+
+    `_fmp_get` already bounds the call (4s timeout, own try/except, never
+    raises) and is a different provider entirely — it never touches the
+    Finnhub token bucket (`_fh_take_token`) or cooldown (`_fh_cooldown_until`)
+    above, so a busy Finnhub minute can't starve this fallback and vice versa.
+
+    Returns None (never an all-None dict) when FMP has nothing usable, so the
+    caller's `partial` calculation still treats the leg as genuinely missing.
+    """
+    data = _fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4)
+    row = data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
+    if not row:
+        return None
+    high = _float_or_none(row.get("targetHigh"))
+    low = _float_or_none(row.get("targetLow"))
+    median = _float_or_none(row.get("targetMedian"))
+    if high is None and low is None and median is None:
+        return None
+    return {
+        "targetHigh": high,
+        "targetLow": low,
+        "targetMean": None,
+        "targetMedian": median,
+        "lastUpdated": None,
+    }
 
 
 def _fiscal_q_from_report(date_str: str):

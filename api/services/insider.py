@@ -7,48 +7,35 @@ Feed: aggregate notable insider buys across UCT20 + broad market watchlist.
 from __future__ import annotations
 
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
-import requests
-
 from api.services.cache import cache
+from api.services.finnhub_client import fh_get
 
 _logger = logging.getLogger(__name__)
 
-_FINNHUB_BASE = "https://finnhub.io/api/v1"
 _PER_TICKER_TTL = 4 * 3600  # 4 hours
 _FEED_TTL = 3600             # 1 hour
 
 
-def _fh_key() -> str:
-    return os.environ.get("FINNHUB_API_KEY", "")
-
-
 def get_insider_activity(ticker: str) -> list[dict]:
-    """Return recent insider transactions for a single ticker (cached 4h)."""
+    """Return recent insider transactions for a single ticker (cached 4h).
+
+    Routed through the shared api.services.finnhub_client.fh_get (2026-08-05)
+    so this call shares the process-wide token bucket / 429 cooldown with
+    every other Finnhub caller instead of spending the same account budget
+    uncoordinated.
+    """
     cache_key = f"insider_{ticker}"
     hit = cache.get(cache_key)
     if hit is not None:
         return hit
 
-    key = _fh_key()
-    if not key:
-        _logger.warning("FINNHUB_API_KEY not set — insider activity unavailable")
+    data = fh_get("/stock/insider-transactions", {"symbol": ticker.upper()}, timeout=15)
+    if not isinstance(data, dict):
         return []
-
-    try:
-        resp = requests.get(
-            f"{_FINNHUB_BASE}/stock/insider-transactions",
-            params={"symbol": ticker.upper(), "token": key},
-            timeout=15,
-        )
-        resp.raise_for_status()
-        raw = resp.json().get("data", [])
-    except Exception as e:
-        _logger.error("Finnhub insider fetch failed for %s: %s", ticker, e)
-        return []
+    raw = data.get("data", [])
 
     # Normalize to a clean shape, most recent first
     txns = []

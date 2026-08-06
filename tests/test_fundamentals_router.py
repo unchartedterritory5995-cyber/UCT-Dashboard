@@ -147,3 +147,44 @@ class TestFundamentalsEndpoint:
             r = client.get("/api/fundamentals/%20")
         assert r.status_code == 200
         assert r.json() == {}
+
+    def test_market_cap_falls_back_to_finnhub_when_yfinance_omits_it(self, client):
+        """Real gap observed live 2026-08-05: yfinance's `.info` sometimes lacks
+        `marketCap` entirely for a mega-cap (confirmed for AMD and JPM against
+        the live provider) while Finnhub's /stock/metric — ALREADY fetched by
+        this same function for avg_vol/52-week range — carries
+        `marketCapitalization` (in millions) for the same ticker. The endpoint
+        must fall back to it instead of surfacing a blank market_cap for a
+        stock that unambiguously has one."""
+        fund = dict(_SAMPLE_FUND)
+        del fund["market_cap"]  # yfinance omitted the field entirely
+        fh = dict(_SAMPLE_FH)
+        fh["marketCapitalization"] = 860_125.5  # millions -> $860.13B
+        p1, p2, p3, p4 = _patch_services(fund=fund, fh=fh)
+        with p1, p2, p3, p4:
+            r = client.get("/api/fundamentals/AMD")
+        data = r.json()
+        assert data["market_cap"] == "$860.13B"
+
+    def test_market_cap_prefers_yfinance_when_present(self, client):
+        """yfinance stays primary — Finnhub is a fallback only, never overrides
+        a value yfinance already resolved."""
+        fund = dict(_SAMPLE_FUND)  # market_cap = "$3.00T"
+        fh = dict(_SAMPLE_FH)
+        fh["marketCapitalization"] = 1.0  # would format very differently
+        p1, p2, p3, p4 = _patch_services(fund=fund, fh=fh)
+        with p1, p2, p3, p4:
+            r = client.get("/api/fundamentals/AAPL")
+        data = r.json()
+        assert data["market_cap"] == "$3.00T"
+
+    def test_market_cap_stays_null_when_both_sources_lack_it(self, client):
+        """No fabricated fallback when neither source has a market cap — stays
+        an honest null rather than inventing a number."""
+        fund = dict(_SAMPLE_FUND)
+        del fund["market_cap"]
+        p1, p2, p3, p4 = _patch_services(fund=fund, fh={})  # no marketCapitalization key
+        with p1, p2, p3, p4:
+            r = client.get("/api/fundamentals/AMD")
+        data = r.json()
+        assert data["market_cap"] is None

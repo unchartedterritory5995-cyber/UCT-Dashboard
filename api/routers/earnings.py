@@ -189,13 +189,19 @@ def debug_earnings_sources(sym: str):
             except Exception as e:
                 out[name] = f"exception: {e}"
 
-    # Test Finnhub transcript availability
+    # Test Finnhub transcript availability — routed through the shared
+    # finnhub_client.fh_get (2026-08-05) so this diagnostic probe shares the
+    # process-wide token bucket / 429 cooldown instead of spending the same
+    # account budget uncoordinated.
     if fh_key:
         try:
-            r = requests.get(f"https://finnhub.io/api/v1/stock/transcripts/list?symbol={sym}&token={fh_key}", timeout=8)
-            data = r.json()
-            tr_count = len(data.get("transcripts", []))
-            out["finnhub_transcripts"] = f"OK count={tr_count}" if tr_count else f"empty: {str(data)[:200]}"
+            from api.services.finnhub_client import fh_get
+            data = fh_get("/stock/transcripts/list", {"symbol": sym}, timeout=8)
+            if isinstance(data, dict):
+                tr_count = len(data.get("transcripts", []))
+                out["finnhub_transcripts"] = f"OK count={tr_count}" if tr_count else f"empty: {str(data)[:200]}"
+            else:
+                out["finnhub_transcripts"] = "budget-shed or failed (see logs)"
         except Exception as e:
             out["finnhub_transcripts"] = f"exception: {e}"
 

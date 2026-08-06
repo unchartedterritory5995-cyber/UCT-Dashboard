@@ -13,6 +13,25 @@ export const NEWS_WIDGET_DEFAULTS = {
   textColor: '#e0dac8',                             // event title / ticker text color
   upColor: '#1ae51a',                               // up % / up-direction accent
   downColor: '#ff5b5b',                             // down % / down-direction accent
+  headerColor: '#e0dac8',                           // ticker + company NAME text color (default = text-bright)
+  headerShow: 'both',                               // 'both' | 'ticker' | 'company'
+}
+
+// Seed values for an UNCUSTOMIZED widget on the LIGHT app theme: white canvas +
+// near-black text/accents, so the settings swatches AND the rendered widget both
+// follow the site theme until the user picks explicit colors.
+export const NEWS_WIDGET_LIGHT_OVERRIDES = {
+  bg: '#ffffff',
+  textColor: '#1f2328',
+  headerColor: '#1f2328',
+  upColor: '#0a5c22',
+  downColor: '#7d1620',
+}
+/** The default settings blob for the current app theme ('light' → white canvas). */
+export function newsDefaultsForTheme(theme) {
+  return theme === 'light'
+    ? { ...NEWS_WIDGET_DEFAULTS, ...NEWS_WIDGET_LIGHT_OVERRIDES }
+    : NEWS_WIDGET_DEFAULTS
 }
 
 /** Deep-merge saved settings over defaults (tolerates partial/older blobs). */
@@ -38,6 +57,7 @@ export function newsWidgetStyleVars(s) {
   const vars = {}
 
   if (s.textColor && s.textColor !== D.textColor) vars['--news-text'] = s.textColor
+  if (s.headerColor && s.headerColor !== D.headerColor) vars['--news-header-text'] = s.headerColor
   if (s.upColor && s.upColor !== D.upColor) vars['--news-up'] = s.upColor
   if (s.downColor && s.downColor !== D.downColor) vars['--news-down'] = s.downColor
 

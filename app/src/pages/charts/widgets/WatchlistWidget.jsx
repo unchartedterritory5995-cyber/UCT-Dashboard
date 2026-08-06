@@ -44,7 +44,13 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // No list chosen yet (freshly added) → show the picker menu instead of the
   // full list view. Once a list is picked, the widget scopes to that single list.
   if (!watchKey) {
-    return <WatchlistPicker onPick={pick} />
+    return (
+      <WatchlistPicker
+        onPick={pick}
+        settingsOverride={wlSettingsOverride}
+        onSettingsPersist={persistWlSettings}
+      />
+    )
   }
 
   return (

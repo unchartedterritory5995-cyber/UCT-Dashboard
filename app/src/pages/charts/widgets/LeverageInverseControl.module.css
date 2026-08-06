@@ -63,22 +63,17 @@
   text-align: center;
 }
 
-/* Active seat. STOCK takes the standard gold active treatment (mirrors
-   .sessionBtnActive); the leveraged seats carry a subtle directional tint. */
+/* Active seat — STOCK / leveraged-long / leveraged-short all take the SAME gold
+   highlight + strong (near-black on a light canvas) text as the widget tab chips
+   and the session toggle, following the widget canvas. */
 .segStockActive,
-.segStockActive:hover:not(:disabled) {
-  color: var(--widget-accent, var(--accent, #c9a84c));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.12));
-}
+.segStockActive:hover:not(:disabled),
 .segLongActive,
-.segLongActive:hover:not(:disabled) {
-  color: var(--li-up);
-  background: var(--li-up-bg);
-}
+.segLongActive:hover:not(:disabled),
 .segShortActive,
 .segShortActive:hover:not(:disabled) {
-  color: var(--li-down);
-  background: var(--li-down-bg);
+  color: var(--widget-text-strong, var(--text-bright, #e5e7eb));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
 }
 
 .caretBtn {
@@ -137,7 +132,9 @@
      chart popups; the hardcoded values are the dark defaults kept as fallbacks so
      an unparseable/absent canvas renders unchanged. --menu-surface carries the
      translucent gradient on a gradient canvas. */
-  background: var(--menu-surface, var(--menu-bg, #0c0c0e));
+  /* Near-black solid to match the other context menus (drop the translucent surface
+     gradient — it read a touch grey). */
+  background: var(--menu-bg, #0c0c0e);
   border: 1px solid var(--menu-border, #26262a);
   border-radius: 10px;
   box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
@@ -196,7 +193,8 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: var(--menu-accent, #c9a84c);
+  /* White tickers (matches the other menus), not the gold accent. */
+  color: var(--menu-text, #e6e6e8);
 }
 .rowName {
   flex: 1;
@@ -205,7 +203,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  color: var(--menu-text-dim, #8f8f96);
+  /* Readable grey (was too dim) — derived from the menu text so it reads on black. */
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.62;
 }
 .rowFactor {
   flex-shrink: 0;
@@ -216,8 +216,10 @@
   border-radius: 3px;
   border: 1px solid var(--menu-border, #2b2b2d);
 }
-.rowFactorLong { color: #6fbf82; }
-.rowFactorShort { color: #d07a83; }
+/* Long/short factor badges follow the chart's candle up/down colors (--li-up/-down
+   set from the canvas), so the menu matches (e.g. blue up / pink down). */
+.rowFactorLong { color: var(--li-up, #6fbf82); }
+.rowFactorShort { color: var(--li-down, #d07a83); }
 .rowFactorStock { color: #c9a84c; }
 .rowVol {
   flex-shrink: 0;
@@ -225,7 +227,8 @@
   text-align: right;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--menu-text-dim, #9a9aa0);
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.55;
 }
 .rowBest {
   flex-shrink: 0;

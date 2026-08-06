@@ -18,11 +18,10 @@ import os
 import time
 from typing import Optional
 
-import requests
+from api.services.finnhub_client import fh_get
 
 logger = logging.getLogger(__name__)
 
-_FH_BASE = "https://finnhub.io/api/v1"
 _TIMEOUT = 8
 
 
@@ -73,21 +72,16 @@ def get_analyst_candidates() -> dict[str, dict]:
 
 def finnhub_recent_action(ticker: str, within_hours: int = 36) -> Optional[dict]:
     """Most-recent Finnhub upgrade/downgrade for one ticker, if within the
-    window. Already-paid FINNHUB_API_KEY. Returns analyst_meta or None."""
-    key = os.environ.get("FINNHUB_API_KEY", "").strip()
-    if not key or not ticker:
+    window. Returns analyst_meta or None.
+
+    Routed through the shared api.services.finnhub_client.fh_get (2026-08-05)
+    so this call shares the process-wide token bucket / 429 cooldown with
+    every other Finnhub caller instead of spending the same account budget
+    uncoordinated.
+    """
+    if not ticker:
         return None
-    try:
-        r = requests.get(
-            f"{_FH_BASE}/stock/upgrade-downgrade",
-            params={"symbol": ticker.upper(), "token": key},
-            timeout=_TIMEOUT,
-        )
-        r.raise_for_status()
-        rows = r.json() or []
-    except Exception as e:
-        logger.debug("[catalyst-analyst] finnhub failed for %s: %s", ticker, e)
-        return None
+    rows = fh_get("/stock/upgrade-downgrade", {"symbol": ticker.upper()}, timeout=_TIMEOUT)
     if not isinstance(rows, list) or not rows:
         return None
     rows.sort(key=lambda x: x.get("gradeTime", 0), reverse=True)

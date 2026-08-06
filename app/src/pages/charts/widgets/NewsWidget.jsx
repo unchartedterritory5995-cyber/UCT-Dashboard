@@ -11,15 +11,16 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePreferences from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
+import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import UIcon from '../../../components/ui/UIcon'
+import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
-  NEWS_WIDGET_SETTINGS_KEY, NEWS_WIDGET_DEFAULTS,
-  mergeNewsWidgetSettings, newsWidgetStyleVars,
+  mergeNewsWidgetSettings, newsWidgetStyleVars, newsDefaultsForTheme,
 } from './newsWidgetSettings'
 import styles from './NewsWidget.module.css'
 
@@ -86,9 +87,11 @@ function chartText(e) {
 export default function NewsWidget({ color, opts, onOptsChange }) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
+  // Company name for the header (⚙ "Show" = ticker / company / both) + logo hint.
+  // Lightweight, localStorage-seeded, shared with the chart watermark.
+  const { name: company } = useTickerMeta(sym)
 
   // ── Appearance settings (⚙) — mirrors the other widget settings ──
-  const { prefs, setPref } = usePreferences()
 
   // ── "Place on chart" — one-time action, NOT a toggle ──
   // Drops the catalyst onto the linked chart as TWO ordinary, separately editable
@@ -134,20 +137,25 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     if (placedTimerRef.current) clearTimeout(placedTimerRef.current)
     placedTimerRef.current = setTimeout(() => setPlacedKey(null), 1400)
   }, [sym])
+  // Appearance is PER-WIDGET (opts.settings) so changing one News widget never touches
+  // another — or the same widget in a different layout. A widget with NO explicit look
+  // uses the DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text), so
+  // both the ⚙ swatches AND the rendered widget follow the site theme until edited.
+  const { prefs } = usePreferences()
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(parsePref(prefs?.[NEWS_WIDGET_SETTINGS_KEY], null)),
-    [prefs],
+    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(prefs.theme)),
+    [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback(
-    (patch) => setPref(NEWS_WIDGET_SETTINGS_KEY, JSON.stringify({ ...settings, ...patch })),
-    [settings, setPref],
+    (patch) => onOptsChange?.({ ...(opts || {}), settings: { ...settings, ...patch } }),
+    [opts, settings, onOptsChange],
   )
   const resetSettings = useCallback(
-    () => setPref(NEWS_WIDGET_SETTINGS_KEY, JSON.stringify(NEWS_WIDGET_DEFAULTS)),
-    [setPref],
+    () => onOptsChange?.({ ...(opts || {}), settings: null }),
+    [opts, onOptsChange],
   )
   const rootStyle = useMemo(() => newsWidgetStyleVars(settings), [settings])
   const menuVars = useMemo(() => {
@@ -203,6 +211,18 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
+          title="News & Catalysts Settings"
+          extraSections={[{
+            label: 'Header',
+            rows: [
+              { key: 'headerColor', label: 'Header color', hint: 'ticker & name' },
+              { key: 'headerShow', label: 'Show', type: 'segmented', options: [
+                { key: 'both', label: 'Both' },
+                { key: 'ticker', label: 'Ticker' },
+                { key: 'company', label: 'Company' },
+              ] },
+            ],
+          }]}
           settings={settings}
           onChange={patchSettings}
           onReset={resetSettings}
@@ -213,9 +233,16 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
         />
       )}
 
-      {/* Header: symbol chip + up/down filter pills + gear */}
+      {/* Header: logo + ticker/company + up/down filter pills + gear.
+          `headerShow` (⚙) chooses ticker / company / both. */}
       <div className={styles.bar}>
-        <span className={styles.sym}>{sym || '—'}</span>
+        <span className={styles.symWrap}>
+          {sym && <CompanyLogo sym={sym} size={18} name={company} round />}
+          {settings.headerShow !== 'company' && <span className={styles.sym}>{sym || '—'}</span>}
+          {sym && company && settings.headerShow === 'both' && <span className={styles.company}>({company})</span>}
+          {sym && company && settings.headerShow === 'company' && <span className={styles.sym}>{company}</span>}
+          {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
+        </span>
         <div className={styles.filters}>
           {FILTERS.map(f => (
             <button

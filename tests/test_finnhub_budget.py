@@ -10,7 +10,19 @@ import json
 import pytest
 
 from api.services import earnings_estimates as ee
+from api.services import finnhub_client as fhc
 from api.services.cache import cache
+
+# NOTE (2026-08-05): the token bucket / reactive cooldown this file exercises
+# were promoted from earnings_estimates.py into api/services/finnhub_client.py
+# so every Finnhub caller in the codebase shares ONE budget, not just this
+# module's three legs (see finnhub_client.py's module docstring). `ee._fh_get`
+# is still the right thing for these tests to CALL (it's the real re-exported
+# `finnhub_client.fh_get`, and engine.py imports it the same way) — but the
+# underlying STATE (`_fh_cooldown_until`/`_fh_bucket_tokens`/
+# `_fh_bucket_updated`/`_FH_RATE_LIMIT_PER_MIN`) now lives on `fhc`, not `ee` —
+# poking `ee._fh_cooldown_until` etc. directly would silently write to a dead
+# module-level name that `_fh_get` never reads.
 
 
 class _Resp:
@@ -30,15 +42,15 @@ class _Resp:
 @pytest.fixture(autouse=True)
 def _reset_state(monkeypatch):
     monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
-    ee._fh_cooldown_until = 0.0
-    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_cooldown_until = 0.0
+    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
+    fhc._fh_bucket_updated = ee._time.monotonic()
     for path in ("/stock/earnings", "/stock/recommendation", "/stock/price-target"):
         cache.invalidate(f"fh_forbidden_{path}")
     yield
-    ee._fh_cooldown_until = 0.0
-    ee._fh_bucket_tokens = ee._FH_RATE_LIMIT_PER_MIN
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_cooldown_until = 0.0
+    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
+    fhc._fh_bucket_updated = ee._time.monotonic()
 
 
 def _count_calls(monkeypatch, response):
@@ -70,7 +82,7 @@ def test_429_engages_shared_cooldown(monkeypatch):
 
 def test_cooldown_expires(monkeypatch):
     calls = _count_calls(monkeypatch, _Resp(200, [{"actual": 1.0}]))
-    ee._fh_cooldown_until = 0.0  # already expired
+    fhc._fh_cooldown_until = 0.0  # already expired
     assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) == [{"actual": 1.0}]
     assert calls["n"] == 1
 
@@ -123,8 +135,8 @@ def test_intel_success_still_cached_normally(monkeypatch):
 
 def test_token_bucket_sheds_once_budget_spent(monkeypatch):
     calls = _count_calls(monkeypatch, _Resp(200, [{"actual": 1.0}]))
-    ee._fh_bucket_tokens = 3.0
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_bucket_tokens = 3.0
+    fhc._fh_bucket_updated = ee._time.monotonic()
     for _ in range(3):
         assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) == [{"actual": 1.0}]
     assert calls["n"] == 3
@@ -135,8 +147,8 @@ def test_token_bucket_sheds_once_budget_spent(monkeypatch):
 
 def test_token_bucket_refills_over_time(monkeypatch):
     calls = _count_calls(monkeypatch, _Resp(200, [{"actual": 1.0}]))
-    ee._fh_bucket_tokens = 0.0
-    ee._fh_bucket_updated = ee._time.monotonic() - 60.0  # pretend a full minute elapsed
+    fhc._fh_bucket_tokens = 0.0
+    fhc._fh_bucket_updated = ee._time.monotonic() - 60.0  # pretend a full minute elapsed
     assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) == [{"actual": 1.0}]
     assert calls["n"] == 1
 
@@ -146,11 +158,11 @@ def test_token_bucket_denial_never_touches_the_network_or_the_cooldown(monkeypat
     never having been made — it must NOT engage the reactive 429 cooldown
     (that would incorrectly zero every OTHER caller too)."""
     calls = _count_calls(monkeypatch, _Resp(200, []))
-    ee._fh_bucket_tokens = 0.0
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_bucket_tokens = 0.0
+    fhc._fh_bucket_updated = ee._time.monotonic()
     assert ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4}) is None
     assert calls["n"] == 0
-    assert ee._fh_cooldown_until == 0.0
+    assert fhc._fh_cooldown_until == 0.0
 
 
 def test_junk_symbol_skip_is_not_counted_against_the_budget(monkeypatch):
@@ -165,8 +177,8 @@ def test_junk_symbol_skip_is_not_counted_against_the_budget(monkeypatch):
 
 def test_fh_budget_denied_total_counts_shed_calls(monkeypatch):
     _count_calls(monkeypatch, _Resp(200, []))
-    ee._fh_bucket_tokens = 0.0
-    ee._fh_bucket_updated = ee._time.monotonic()
+    fhc._fh_bucket_tokens = 0.0
+    fhc._fh_bucket_updated = ee._time.monotonic()
     before = ee.fh_budget_denied_total()
     ee._fh_get("/stock/earnings", {"symbol": "AAPL", "limit": 4})
     ee._fh_get("/stock/recommendation", {"symbol": "AAPL"})
@@ -251,9 +263,9 @@ def test_the_budget_stays_under_finnhubs_published_limit():
     entirely (a known, documented gap).
     """
     FINNHUB_PUBLISHED_LIMIT = 60.0
-    assert ee._FH_RATE_LIMIT_PER_MIN < FINNHUB_PUBLISHED_LIMIT, (
+    assert fhc._FH_RATE_LIMIT_PER_MIN < FINNHUB_PUBLISHED_LIMIT, (
         "the token budget must stay under Finnhub's 60/min or it cannot "
         "prevent the 429 storm it was written for"
     )
     # ...and not so far under that a normal day is throttled for no reason.
-    assert ee._FH_RATE_LIMIT_PER_MIN >= 30.0
+    assert fhc._FH_RATE_LIMIT_PER_MIN >= 30.0

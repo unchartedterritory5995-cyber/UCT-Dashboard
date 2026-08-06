@@ -206,6 +206,39 @@ def _cot_catchup_background():
         print(f"[startup] COT catch-up refresh failed: {e}")
 
 
+def _implied_capture_catchup_background():
+    """Startup catch-up for implied_store.run_nightly_capture — fired when a
+    fresh process boots past the 16:35 ET trigger with nothing captured yet
+    tonight (see the IMPLIED_STORE_ENABLED startup block below and
+    implied_store.py's "startup catch-up" section for the full incident
+    writeup — 2026-08-05, a redeploy landing right after the trigger silently
+    lost the whole night since a memory jobstore has no record of a missed
+    fire time). Safe to race the 16:35 ET scheduled job if it also fires:
+    record_implied is first-write-wins per (sym, report_date) and
+    run_nightly_capture skips any (sym, report_date) already captured."""
+    try:
+        from api.services import implied_store
+        n = implied_store.run_nightly_capture()
+        print(f"[startup] implied-move catch-up capture complete -- {n}")
+    except Exception as e:
+        print(f"[startup] implied-move catch-up capture failed: {e}")
+
+
+def _grade_snapshot_catchup_background():
+    """Startup catch-up for setup_grade.run_daily_grade_snapshot — same
+    incident/shape as _implied_capture_catchup_background, 5 minutes later
+    (16:40 ET trigger). record_grade is INSERT OR REPLACE keyed on
+    (sym, date, surface), so re-running (or racing the 16:40 ET scheduled
+    job) is idempotent — same-day rows just get overwritten with an
+    equivalent/fresher grade, never duplicated."""
+    try:
+        from api.services import setup_grade
+        n = setup_grade.run_daily_grade_snapshot()
+        print(f"[startup] setup-grade catch-up snapshot complete -- {n}")
+    except Exception as e:
+        print(f"[startup] setup-grade catch-up snapshot failed: {e}")
+
+
 # -- Pattern engine learning-loop jobs (Phase 6) -----------------------------
 # Scheduled by APScheduler alongside the existing COT scheduler. All three
 # wrappers catch every exception and log/print -- a failed pattern job must
@@ -697,6 +730,14 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.breadth_monitor import get_breadth_history
             get_breadth_history(days=90)
 
+        def _breadth_live():
+            # Intraday breadth compares one market snapshot against reference
+            # levels derived from ~1M daily bars. That derivation is seconds of
+            # blocking SQLite + numpy; warming it here keeps it off a request
+            # (and off one of the pod's bounded threadpool workers).
+            from api.services.breadth_live import warm
+            log.info("[dashboard-warm] breadth-live %s", warm())
+
         def _calendar():
             from api.routers.calendar import get_calendar
             get_calendar()
@@ -773,6 +814,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
+            _warm("breadth-live", _breadth_live)
             _warm("calendar", _calendar)
             _warm("enrichment", _enrichment)  # after calendar (it reads the week's day-list)
             _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
@@ -2472,6 +2514,51 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
+    # -- Implied-move nightly capture + §12 grade snapshot: startup catch-up --
+    # Same shape as the COT catch-up above (2026-08-05 incident): a Railway
+    # redeploy landing at/after a job's trigger time causes the freshly
+    # re-created APScheduler MemoryJobStore to schedule that job's next run
+    # for the trigger's NEXT occurrence — tomorrow — silently skipping
+    # tonight with nothing in the logs but "Added job". Unlike COT (which can
+    # always re-download the same historical data), a missed implied-move
+    # capture is UNRECONSTRUCTABLE once the report happens — see
+    # implied_store.py's module docstring and its "startup catch-up" section
+    # for the full write-up. All local SQLite reads here (`latest_capture_date`
+    # / `latest_grade_date`) — only the actual capture/snapshot (network-bound)
+    # is deferred to a background thread, exactly like the COT catch-up.
+    if os.environ.get("IMPLIED_STORE_ENABLED") == "1":
+        try:
+            from api.services import implied_store as _implied_store_boot
+            from api.services import setup_grade as _setup_grade_boot
+            now_et = datetime.now(ZoneInfo("America/New_York"))
+            today_iso = now_et.date().isoformat()
+
+            if _implied_store_boot.capture_due_by(now_et):
+                latest_capture = _implied_store_boot.latest_capture_date()
+                if latest_capture != today_iso:
+                    print(
+                        f"[startup] implied-move capture stale -- latest={latest_capture} "
+                        f"today={today_iso} -- running catch-up capture..."
+                    )
+                    threading.Thread(target=_implied_capture_catchup_background, daemon=True,
+                                      name="implied-capture-catchup").start()
+                else:
+                    print(f"[startup] implied-move capture already ran today ({today_iso}).")
+
+            if _setup_grade_boot.grade_snapshot_due_by(now_et):
+                latest_grade = _implied_store_boot.latest_grade_date(_setup_grade_boot.SURFACE)
+                if latest_grade != today_iso:
+                    print(
+                        f"[startup] setup-grade snapshot stale -- latest={latest_grade} "
+                        f"today={today_iso} -- running catch-up snapshot..."
+                    )
+                    threading.Thread(target=_grade_snapshot_catchup_background, daemon=True,
+                                      name="grade-snapshot-catchup").start()
+                else:
+                    print(f"[startup] setup-grade snapshot already ran today ({today_iso}).")
+        except Exception as e:
+            print(f"[startup] implied-store catch-up init error (non-fatal): {e}")
+
     # -- Ratings percentile (Phase 2): startup catch-up if distributions stale --
     # Gated off by default; when enabled, warms the universe percentile DB in the
     # background so /research ratings show true 1-99 ranks. Never blocks boot.
@@ -2669,13 +2756,31 @@ async def lifespan(app: FastAPI):
         # history hero). Gated -- ONLY the scheduler job; the read endpoint is
         # always mounted. 16:35 ET = post options settle (~16:15), pre any
         # evening maintenance; weekday-only; a holiday yields zero reporters
-        # -> natural no-op.
+        # -> natural no-op. Trigger hour/minute reference implied_store's own
+        # constants (not hardcoded here a second time) so the startup
+        # catch-up block above can never drift out of sync with this cron.
+        # misfire_grace_time=3600: confirmed against the installed
+        # apscheduler (3.11.2) that this genuinely matters here -- the
+        # scheduler's job_defaults default misfire_grace_time to 1 SECOND
+        # (schedulers/base.py `_configure`), and executors/base.py skips
+        # (EVENT_JOB_MISSED, job.func never called) any due run whose trigger
+        # time is more than misfire_grace_time behind "now" when the
+        # scheduler's check loop gets to it -- a live process whose check
+        # loop is delayed by more than a second (GIL/thread contention) would
+        # otherwise silently drop the run. This does NOT cover the restart
+        # case above (a fresh MemoryJobStore never has a past-due
+        # next_run_time to begin with -- see the startup catch-up docstring
+        # in implied_store.py) -- it only widens the grace window for an
+        # already-running process.
         if os.environ.get("IMPLIED_STORE_ENABLED") == "1":
             from api.services import implied_store as _implied_store
             _scheduler.add_job(
                 _implied_store.run_nightly_capture,
-                trigger=CronTrigger(hour=16, minute=35, day_of_week="mon-fri", timezone=_ET),
+                trigger=CronTrigger(hour=_implied_store.CAPTURE_HOUR_ET,
+                                     minute=_implied_store.CAPTURE_MINUTE_ET,
+                                     day_of_week="mon-fri", timezone=_ET),
                 id="implied_move_nightly", max_instances=1, coalesce=True, replace_existing=True,
+                misfire_grace_time=3600,
             )
 
             # §12 accountability record: one persisted Setup Grade per upcoming
@@ -2687,8 +2792,11 @@ async def lifespan(app: FastAPI):
             from api.services import setup_grade as _setup_grade
             _scheduler.add_job(
                 _setup_grade.run_daily_grade_snapshot,
-                trigger=CronTrigger(hour=16, minute=40, day_of_week="mon-fri", timezone=_ET),
+                trigger=CronTrigger(hour=_setup_grade.GRADE_SNAPSHOT_HOUR_ET,
+                                     minute=_setup_grade.GRADE_SNAPSHOT_MINUTE_ET,
+                                     day_of_week="mon-fri", timezone=_ET),
                 id="setup_grade_daily", max_instances=1, coalesce=True, replace_existing=True,
+                misfire_grace_time=3600,
             )
 
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference

@@ -4,21 +4,45 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--bg-elevated, #0d1218);
+  /* Match the widget's own watchlist canvas (--wl-bg from watchlistStyleVars),
+     falling back to the workspace widget canvas, then the default. */
+  background: var(--wl-bg, var(--widget-canvas, var(--bg-elevated, #0d1218)));
   font-family: var(--font-sans);
 }
 
 .header {
   flex-shrink: 0;
   padding: 10px 12px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--wl-divider, rgba(255, 255, 255, 0.05));
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 .title {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--ut-gold, #c9a84c);   /* match the gold used in Theme Tracker */
-  margin-bottom: 8px;
+  color: var(--wl-accent, var(--ut-gold, #c9a84c));   /* match the gold used in Theme Tracker */
+}
+.gearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--wl-text, var(--text-muted, #8b8674));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+}
+.gearBtn:hover, .gearBtnActive {
+  color: var(--wl-accent, var(--ut-gold, #c9a84c));
+  background: var(--wl-row-hover, rgba(255, 255, 255, 0.06));
 }
 
 /* Segmented tab control — Prebuilt · Community · My Lists */
@@ -121,8 +145,8 @@
   transition: background 0.1s, border-color 0.1s;
 }
 .row:hover {
-  background: var(--bg-hover, #1f2937);
-  border-left-color: var(--ut-gold, #c9a84c);
+  background: var(--wl-row-hover, var(--bg-hover, #1f2937));
+  border-left-color: var(--wl-accent, var(--ut-gold, #c9a84c));
 }
 .rowIcon {
   display: inline-flex;
@@ -137,7 +161,7 @@
   min-width: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--ut-gold, #c9a84c);   /* watchlist names in Theme-Tracker gold */
+  color: var(--wl-accent, var(--ut-gold, #c9a84c));   /* watchlist names in Theme-Tracker gold */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

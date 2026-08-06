@@ -17,10 +17,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
-import os
 from typing import Optional
-
-import requests as _req
 
 _logger = logging.getLogger(__name__)
 
@@ -188,12 +185,13 @@ def get_estimate_revisions(sym: str) -> Optional[dict]:
     Uses Finnhub /stock/recommendation. Returns net change in (strongBuy+buy)
     minus (sell+strongSell) over 30d and 90d.
     """
-    fh_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not fh_key:
-        return None
     try:
-        url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={sym.upper()}&token={fh_key}"
-        resp = _req.get(url, timeout=8).json()
+        # Routed through the shared finnhub_client.fh_get (2026-08-05) so this
+        # call shares the process-wide token bucket / 429 cooldown with every
+        # other Finnhub caller instead of spending the same account budget
+        # uncoordinated.
+        from api.services.finnhub_client import fh_get
+        resp = fh_get("/stock/recommendation", {"symbol": sym.upper()}, timeout=8)
         if not isinstance(resp, list) or not resp:
             return None
         resp.sort(key=lambda x: x.get("period", ""), reverse=True)

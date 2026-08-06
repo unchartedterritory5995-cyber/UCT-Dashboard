@@ -1,3 +1,6 @@
+/* Colors follow the SURROUNDING watchlist's --wl-* vars (so the add box matches a
+   custom / light-theme watchlist canvas), falling back to the app theme tokens when
+   used outside a watchlist. */
 .wrap {
   position: relative;
   display: flex;
@@ -6,13 +9,13 @@
   flex: 1;
   min-width: 0;
   padding: 0 7px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--wl-bg-solid, var(--bg));
+  border: 1px solid var(--wl-divider, var(--border));
   border-radius: 4px;
   transition: border-color 0.15s ease;
 }
 .wrap:focus-within {
-  border-color: var(--ut-gold);
+  border-color: var(--wl-accent, var(--ut-gold));
 }
 
 .icon {
@@ -29,14 +32,14 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--text-bright);
+  color: var(--wl-text-strong, var(--wl-sym, var(--text-bright)));
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.5px;
   outline: none;
 }
 .input::placeholder {
-  color: var(--text-muted);
+  color: var(--wl-text, var(--text-muted));
   letter-spacing: 0.3px;
 }
 
@@ -54,8 +57,8 @@
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--wl-bg-solid, var(--bg-elevated));
+  border: 1px solid var(--wl-divider, var(--border));
   border-radius: 5px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
 }
@@ -70,20 +73,20 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.optActive { background: rgba(201, 168, 76, 0.14); }
+.optActive { background: var(--wl-accent-bg, rgba(201, 168, 76, 0.14)); }
 
 .optSym {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--ut-gold);
+  color: var(--wl-accent, var(--ut-gold));
   flex-shrink: 0;
 }
 
 .optName {
   font-size: 10.5px;
-  color: var(--text-muted);
+  color: var(--wl-text, var(--text-muted));
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
@@ -98,14 +101,14 @@
   flex-shrink: 0;
   font-size: 9.5px;
   letter-spacing: 0.3px;
-  color: var(--text-muted);
+  color: var(--wl-text, var(--text-muted));
   text-transform: uppercase;
 }
 
 .optEmpty {
   padding: 7px;
   font-size: 10.5px;
-  color: var(--text-muted);
+  color: var(--wl-text, var(--text-muted));
   text-align: center;
 }
 

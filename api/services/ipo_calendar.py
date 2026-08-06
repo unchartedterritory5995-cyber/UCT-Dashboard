@@ -8,41 +8,26 @@ Cached 6 hours.  Never raises — returns [] on any failure.
 
 from __future__ import annotations
 import logging
-import os
-
-import requests
 
 from api.services.cache import cache
+from api.services.finnhub_client import fh_get
 
 _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 21_600   # 6 hours
 _TIMEOUT   = 10       # seconds
 
-_FH_BASE = "https://finnhub.io/api/v1"
-
 
 def _fh_ipo_get(from_date: str, to_date: str) -> list | None:
     """Call Finnhub /calendar/ipo for the given range.
 
-    Returns the raw ipoCalendar list, or None on failure.
+    Routed through the shared finnhub_client.fh_get (2026-08-05) so this call
+    shares the process-wide token bucket / 429 cooldown with every other
+    Finnhub caller instead of spending the same account budget uncoordinated.
+    Returns the raw ipoCalendar list, or None on failure/budget-shed.
     """
-    api_key = os.environ.get("FINNHUB_API_KEY", "")
-    if not api_key:
-        _logger.warning("ipo_calendar: FINNHUB_API_KEY not set")
-        return None
-    try:
-        r = requests.get(
-            f"{_FH_BASE}/calendar/ipo",
-            params={"from": from_date, "to": to_date, "token": api_key},
-            timeout=_TIMEOUT,
-        )
-        r.raise_for_status()
-        data = r.json()
-        return data.get("ipoCalendar") if isinstance(data, dict) else None
-    except Exception as exc:
-        _logger.warning("ipo_calendar: Finnhub fetch failed: %s", exc)
-        return None
+    data = fh_get("/calendar/ipo", {"from": from_date, "to": to_date}, timeout=_TIMEOUT)
+    return data.get("ipoCalendar") if isinstance(data, dict) else None
 
 
 def _normalize_row(row: dict) -> dict:

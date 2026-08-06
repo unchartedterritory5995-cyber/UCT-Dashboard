@@ -136,7 +136,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // the leverage picker are rendered outside the pane and must match the chart
   // canvas). Both calls memoize off the same identities, so the duplicate costs
   // nothing per render.
-  const { menuVars } = useChartSurfaceSettings({
+  // `cs` is pulled out alongside menuVars for the leverage menu's candle colors
+  // (master fec7c5e4). ChartWidget lost its own `chartCs` when settings
+  // resolution moved into ChartPane, so it reads them back through the same hook
+  // rather than reaching into the pane.
+  const { menuVars, cs: chartCs } = useChartSurfaceSettings({
     stored: activeStoredSettings,
     onStore: persistActiveSettings,
     chartsTheme,
@@ -275,6 +279,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
                   sym={sym}
                   onSelect={(s) => paneRef.current?.changeSymbol(s)}
                   themeVars={menuVars}
+                  /* From master fec7c5e4: the LONG/SHORT headers + factor badges
+                     follow the chart's candle up/down colors. Carried across the
+                     ChartPane extraction by hand — the merge could not do it, since
+                     master added this prop to the pre-extraction inline render. */
+                  candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
                 />
               )}
               {/* Add-tab entry point — only when the strip isn't showing yet (0
@@ -298,7 +307,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
         }}
       />
-
       {/* ── Chart right-click menu ── */}
       {ctxMenu && (
         <>

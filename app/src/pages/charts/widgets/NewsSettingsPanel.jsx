@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
+import useSavedColors from '../../../hooks/useSavedColors'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './NewsSettingsPanel.module.css'
 
@@ -26,11 +27,12 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [] }) {
+export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [], showPerf = true }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
   const [colorPos, setColorPos] = useState(null)
+  const { savedColors, saveColor, deleteColor } = useSavedColors()
 
   // Place the menu on the side of the widget facing the middle of the layout.
   useLayoutEffect(() => {
@@ -149,16 +151,32 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
           <Row label="Text color" hint="titles & tickers">{swatch('textColor', 'Text')}</Row>
 
           {/* Performance / % Change */}
-          <div className={styles.sectionLabel}>{perfLabel}</div>
-          <Row label="Up">{swatch('upColor', 'Up %')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down %')}</Row>
+          {showPerf && (
+            <>
+              <div className={styles.sectionLabel}>{perfLabel}</div>
+              <Row label="Up">{swatch('upColor', 'Up %')}</Row>
+              <Row label="Down">{swatch('downColor', 'Down %')}</Row>
+            </>
+          )}
 
-          {/* Optional extra color sections (e.g. earnings Surprise up/down) */}
+          {/* Optional extra sections — color swatches (default) or a segmented
+             * pick control (row.type === 'segmented', e.g. Header shows Ticker/
+             * Company/Both). */}
           {extraSections.map(sec => (
             <div key={sec.label}>
               <div className={styles.sectionLabel}>{sec.label}</div>
               {sec.rows.map(r => (
-                <Row key={r.key} label={r.label} hint={r.hint}>{swatch(r.key, r.label)}</Row>
+                <Row key={r.key} label={r.label} hint={r.hint}>
+                  {r.type === 'segmented' ? (
+                    <div className={styles.seg}>
+                      {r.options.map(o => (
+                        <button key={o.key}
+                          className={`${styles.segBtn}${s[r.key] === o.key ? ' ' + styles.segBtnOn : ''}`}
+                          onClick={() => set({ [r.key]: o.key })}>{o.label}</button>
+                      ))}
+                    </div>
+                  ) : swatch(r.key, r.label)}
+                </Row>
               ))}
             </div>
           ))}
@@ -172,6 +190,9 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
             value={targetValue(activeTarget.target)}
             onChange={(hex) => setColorTarget(activeTarget.target, hex)}
             onClose={() => setActiveTarget(null)}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
           />
         </div>
       )}

@@ -50,6 +50,83 @@ def get_breadth_analogues():
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/breadth-monitor/live")
+def get_breadth_live(force: bool = False):
+    """Breadth as of right now — provisional, never stored.
+
+    Returns the live-computable metrics plus `carried`: the fields the daily
+    row holds that cannot be derived intraday (sentiment surveys, the EOD
+    put/call print, UCT exposure), taken verbatim from the newest stored row
+    and stamped with that row's date. Keeping them in a separate bag is the
+    point — a carried-forward number must never read as a live one.
+    """
+    from api.services import breadth_live as live
+
+    try:
+        payload = live.compute_live(force=force)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if not payload.get("ok"):
+        raise HTTPException(status_code=503, detail=payload.get("reason", "unavailable"))
+
+    recent = svc.get_history(11)
+    latest = recent[0] if recent else {}
+    carried = {k: latest[k] for k in live.NOT_LIVE if latest.get(k) is not None}
+    payload["carried"] = carried
+    payload["carried_from"] = latest.get("date")
+
+    # Once the collector has written today's row there is nothing provisional
+    # left to say — the authoritative number replaces the estimate rather than
+    # sitting beside it.
+    payload["superseded"] = bool(latest.get("date")
+                                 and latest["date"] >= payload["session_date"])
+
+    # The row a surface renders: live metrics + carried fields, run through the
+    # same derivation every stored row gets.
+    payload["row"] = svc.derive_live_row({**carried, **payload["metrics"],
+                                          "date": payload["session_date"]}, recent)
+
+    # Record the session's shape HERE rather than inside compute_live, because
+    # `breadth_score` and the rolling ratios only exist once the row has been
+    # derived — recording the raw metrics would leave the headline number with
+    # no path at all. Sitting outside the compute cache is fine: `record()`
+    # enforces its own minimum interval, so a cache hit costs one cheap guard.
+    #
+    # Only a live, anchored, non-degraded, not-yet-superseded sample is kept. A
+    # degraded reading measured a different population; one taken after the
+    # collector has written describes a day that already has an authoritative
+    # answer; and requiring `anchored` means every sample in a path shares one
+    # basis, so the line cannot step when coverage drifts mid-session.
+    try:
+        from api.services import breadth_intraday
+        if (payload.get("session_live") and payload.get("anchored")
+                and not payload.get("degraded") and not payload["superseded"]):
+            breadth_intraday.record(payload["session_date"], payload["row"])
+        payload["path"] = breadth_intraday.session_path(payload["session_date"])
+        payload["open"] = breadth_intraday.session_open(payload["session_date"])
+    except Exception as e:
+        # A store that cannot write must still let the live read through.
+        print(f"[breadth_monitor] intraday store unavailable: {e}")
+        payload["path"], payload["open"] = {}, {}
+
+    return payload
+
+
+@router.get("/api/breadth-monitor/live/reconcile")
+def reconcile_breadth_live(date: str, request: Request):
+    """Replay the live path for a past session and diff it against the stored row.
+
+    This is the gate: no live value goes on screen until it passes.
+    """
+    _check_auth(request)
+    from api.services import breadth_live as live
+
+    try:
+        return live.reconcile(date)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/api/breadth-monitor/latest")
 def get_breadth_latest():
     row = svc.get_latest()

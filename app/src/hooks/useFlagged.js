@@ -72,8 +72,11 @@ export function useFlagged() {
     _flaggedGetInflight.then(data => {
       if (!data || !mountedRef.current) return
       setIsShared(!!data.is_public)
-      const defaultPrefix = `Flagged (${user.display_name || 'You'})`
-      if (data.name && data.name !== defaultPrefix) {
+      // Auto-generated names (the plain "Flagged", or the legacy "Flagged (Name)"
+      // some accounts still have stored) are treated as "no custom name" → the UI
+      // shows a clean "Flagged". Only a genuinely user-chosen name is surfaced.
+      const autoNames = ['Flagged', `Flagged (${user.display_name || 'You'})`]
+      if (data.name && !autoNames.includes(data.name)) {
         setFlaggedName(data.name)
       }
     })
