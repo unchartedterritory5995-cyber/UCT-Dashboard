@@ -33,12 +33,26 @@ import argparse
 import datetime as _dt
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.services import earnings_estimates as ee          # noqa: E402
 from api.services import implied_store as store            # noqa: E402
 from api.services.implied_backfill import historical_expected_move  # noqa: E402
+
+# Seconds between Finnhub calls. The bucket allows ~55/min and is SHARED with
+# live member traffic, so this job deliberately takes a small slice (~20/min)
+# and leaves the rest to the app. Overridable with --fh-pace.
+_FH_PACE_SECONDS = 3.0
+# Finnhub's shared cooldown on a 429 is 20s; wait past it before retrying.
+_FH_COOLDOWN_WAIT = 22.0
+_FH_ATTEMPTS = 3
+
+# Finnhub /stock/earnings returns at most 4 quarters on this plan regardless of
+# `limit` (measured 2026-08-06), and it is the only fiscal-identity source, so
+# no amount of --quarters can exceed that.
+_MAX_BACKFILLABLE_QUARTERS = 4
 
 
 def past_reports(sym: str, limit: int) -> list[dict]:
@@ -87,8 +101,30 @@ def past_reports(sym: str, limit: int) -> list[dict]:
         if date and date < today:          # exclude future / today's unreported
             announcements.append(date)
 
-    fh = ee._fh_get("/stock/earnings", {"symbol": sym.upper(),
-                                        "limit": max(limit * 2, 16)})
+    if not announcements:
+        return []
+
+    # Finnhub is the ONLY source of fiscal identity here, and its budget is a
+    # process-wide token bucket SHARED WITH THE LIVE APP. Unpaced, a 739-symbol
+    # sweep 429s on its very first call, engages a 20s shared cooldown, and
+    # then races through every remaining symbol getting empty responses — the
+    # whole run "succeeds" in seconds having written almost nothing. Worse, it
+    # would be starving members' requests for the same budget.
+    #
+    # So: pace every call, and RETRY through a cooldown instead of treating an
+    # empty response as "this company has no earnings history". Only retry
+    # when FMP already confirmed the symbol is real (above), so a genuinely
+    # uncovered ticker still costs at most one extra wait.
+    fh = None
+    for attempt in range(_FH_ATTEMPTS):
+        if _FH_PACE_SECONDS:
+            time.sleep(_FH_PACE_SECONDS)
+        fh = ee._fh_get("/stock/earnings", {"symbol": sym.upper(),
+                                            "limit": max(limit * 2, 16)})
+        if fh:
+            break
+        if attempt < _FH_ATTEMPTS - 1:
+            time.sleep(_FH_COOLDOWN_WAIT)
     periods = []
     for q in fh or []:
         if not isinstance(q, dict):
@@ -128,17 +164,31 @@ def past_reports(sym: str, limit: int) -> list[dict]:
 
 
 def main() -> int:
+    # Declared here, before argparse reads it as a flag default — Python
+    # requires `global` to precede every use of the name in this scope.
+    global _FH_PACE_SECONDS
+
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--syms", help="comma-separated tickers")
     src.add_argument("--from-store", action="store_true",
                      help="every ticker that already has a snapshot")
-    ap.add_argument("--quarters", type=int, default=8,
-                    help="past quarters per ticker (default 8)")
+    ap.add_argument("--quarters", type=int, default=_MAX_BACKFILLABLE_QUARTERS,
+                    help=f"past quarters per ticker (default/max {_MAX_BACKFILLABLE_QUARTERS} "
+                         "— Finnhub caps fiscal history at 4 on this plan)")
+    ap.add_argument("--fh-pace", type=float, default=_FH_PACE_SECONDS,
+                    help=f"seconds between Finnhub calls (default {_FH_PACE_SECONDS}); "
+                         "the budget is SHARED with live member traffic")
     ap.add_argument("--dry-run", action="store_true",
                     help="print what would be written; touch no database")
     args = ap.parse_args()
+
+    _FH_PACE_SECONDS = max(0.0, args.fh_pace)
+    if args.quarters > _MAX_BACKFILLABLE_QUARTERS:
+        print(f"note: --quarters {args.quarters} exceeds what Finnhub can label "
+              f"({_MAX_BACKFILLABLE_QUARTERS}); the extra quarters cannot be paired "
+              "and will be skipped, not guessed.", file=sys.stderr)
 
     if args.from_store:
         syms = store.all_symbols()

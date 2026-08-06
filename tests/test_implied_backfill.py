@@ -269,6 +269,7 @@ class TestFiscalJoin:
 
         monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp)
         monkeypatch.setattr(ee_mod, "_fh_get", fake_fh)
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)   # no real sleeping in tests
         return run
 
     def test_off_calendar_filer_gets_the_right_quarter(self, providers):
@@ -381,3 +382,84 @@ class TestScaleMismatch:
         out = ib.historical_expected_move("NVDA", REPORT)
         assert out is not None
         assert abs(out["strike"] - out["spot"]) / out["spot"] <= 0.20
+
+
+class TestFinnhubPacing:
+    """Finnhub is the only fiscal-identity source and its budget is a
+    process-wide bucket SHARED WITH LIVE MEMBER TRAFFIC. Unpaced, the 739-symbol
+    sweep 429'd on its FIRST call, engaged a 20s shared cooldown, then raced
+    through every remaining symbol getting empty responses — and reported
+    success having written almost nothing. Measured on production 2026-08-06:
+    25 symbols, 25 empty, 1.5 seconds.
+    """
+
+    def test_an_empty_finnhub_response_is_retried_not_accepted(self, monkeypatch):
+        """The bug: a cooldown-induced empty read was indistinguishable from
+        'this company has no earnings history', so the symbol was dropped."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(run, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        calls = {"n": 0}
+
+        def flaky(path, params):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return []                     # the 429 cooldown window
+            return [{"period": "2025-12-31", "year": 2026, "quarter": 3}]
+
+        monkeypatch.setattr(ee_mod, "_fh_get", flaky)
+        rows = run.past_reports("NVDA", 4)
+        assert calls["n"] == 2, "should have retried through the cooldown"
+        assert rows and (rows[0]["fiscal_year"], rows[0]["fiscal_quarter"]) == (2026, 3)
+
+    def test_gives_up_after_the_attempt_budget(self, monkeypatch):
+        """A ticker Finnhub genuinely does not cover must not retry forever."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(run, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        calls = {"n": 0}
+
+        def always_empty(path, params):
+            calls["n"] += 1
+            return []
+
+        monkeypatch.setattr(ee_mod, "_fh_get", always_empty)
+        assert run.past_reports("NVDA", 4) == []
+        assert calls["n"] == run._FH_ATTEMPTS
+
+    def test_no_finnhub_call_at_all_when_fmp_has_nothing(self, monkeypatch):
+        """Don't spend the shared budget on a symbol we already know we cannot
+        place — FMP supplies the announcement dates the labels attach to."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [])
+        called = {"n": 0}
+
+        def spy(path, params):
+            called["n"] += 1
+            return []
+
+        monkeypatch.setattr(ee_mod, "_fh_get", spy)
+        assert run.past_reports("NVDA", 4) == []
+        assert called["n"] == 0
+
+    def test_every_finnhub_call_is_actually_paced(self, monkeypatch):
+        """Pacing is the whole reason this job stops starving live traffic, so
+        assert the sleep really happens at the configured interval rather than
+        trusting that the line is present. (Other tests set the pace to 0, so a
+        mutation deleting the sleep is invisible to them.)"""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 2.5)
+        slept = []
+        monkeypatch.setattr(run.time, "sleep", lambda s: slept.append(s))
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fh_get",
+                            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+        run.past_reports("NVDA", 4)
+        assert 2.5 in slept, f"no pacing sleep observed: {slept}"
