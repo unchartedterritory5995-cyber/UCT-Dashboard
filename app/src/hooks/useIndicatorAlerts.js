@@ -1,6 +1,14 @@
 // app/src/hooks/useIndicatorAlerts.js
-// SWR hook + helpers for chart indicator alerts (RSI / MACD / BB / Stoch / Williams%R / CCI / MFI / Price-vs-MA).
+// SWR hook + helpers for chart indicator alerts.
 // Talks to /api/indicator-alerts (see api/routers/indicator_alerts.py).
+//
+// ⛔ WHICH INDICATORS THOSE ARE IS NOT WRITTEN DOWN HERE. This line used to read
+// "(RSI / MACD / BB / Stoch / Williams%R / CCI / MFI / Price-vs-MA)" and it went
+// stale the moment B5 made the other six definitions alertable — a comment that
+// enumerates is a twin like any other, it just cannot be tested. The catalog is
+// served: `GET /api/indicator-alerts/catalog`, derived from the module that
+// evaluates. An alert now names a PLOT ADDRESS (`adx.plusDI`, `ichimoku.tenkan`),
+// with the bare form kept for the eight that shipped before it.
 import useSWR, { mutate } from 'swr'
 import { useAuth } from '../context/AuthContext'
 

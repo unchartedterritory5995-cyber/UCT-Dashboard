@@ -162,6 +162,116 @@ describe('IndicatorAlertPopover — the dropdown is served, not written down', (
   })
 })
 
+// ─── PICKING A PLOT (B5) ────────────────────────────────────────────────────
+//
+// "Alert me on Ichimoku" names five different series. The served entry now
+// carries `plots`, each with its own address, conditions and default threshold,
+// and the popover has to submit the ADDRESS — `entry.indicator` is a group name
+// with no value function behind it for adx / donchian / ichimoku, so storing it
+// would create an alert that can never fire: this task's own defect, re-opened
+// inside the fix.
+
+const LEVEL = [
+  { value: 'above', label: 'Above threshold', needs_threshold: true },
+  { value: 'cross_below', label: 'Crosses below', needs_threshold: true },
+]
+
+/** A grouped indicator whose id is NOT one of its addresses — the shape that
+ *  makes "submit entry.indicator" a storable, never-firing alert. */
+const ADX_GROUPED = {
+  indicator: 'adx',
+  label: 'ADX / DMI',
+  conditions: LEVEL,
+  default_threshold: 25,
+  plots: [
+    { value: 'adx.adx', label: 'ADX', conditions: LEVEL, default_threshold: 25 },
+    { value: 'adx.plusDI', label: '+DI', conditions: LEVEL, default_threshold: null },
+    {
+      value: 'adx.minusDI',
+      label: '−DI',
+      conditions: [{ value: 'cross_zero', label: 'Crosses zero line', needs_threshold: false }],
+      default_threshold: null,
+    },
+  ],
+}
+
+describe('IndicatorAlertPopover — naming a PLOT, not just an indicator', () => {
+  it('offers the served plots, and only when there is a choice to make', () => {
+    mockCatalog([...RSI_ONLY, ADX_GROUPED])
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    // RSI is single-plot: a one-option "Plot" dropdown would be pure noise.
+    expect(screen.queryByLabelText('Plot')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'adx' } })
+    expect(optionValues('Plot')).toEqual(['adx.adx', 'adx.plusDI', 'adx.minusDI'])
+  })
+
+  it('⭐ submits the PLOT ADDRESS, never the group id that cannot be evaluated', async () => {
+    mockCatalog([...RSI_ONLY, ADX_GROUPED])
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'adx' } })
+    fireEvent.change(screen.getByLabelText('Plot'), { target: { value: 'adx.plusDI' } })
+    fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0]).toEqual({
+      sym: 'AAPL', indicator: 'adx.plusDI', condition: 'above', tf: 'D', threshold: 30,
+    })
+    // …and NOT the group id, which the evaluator has no value function for.
+    expect(H.created[0].indicator).not.toBe('adx')
+  })
+
+  it('a grouped indicator opens on its FIRST plot, and switching indicator re-seeds it', async () => {
+    mockCatalog([...RSI_ONLY, ADX_GROUPED])
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'adx' } })
+    expect(screen.getByLabelText('Plot').value).toBe('adx.adx')
+    // Move off plots[0], then leave and come back: the stale plot must not
+    // survive, or the form would submit an address from another indicator.
+    fireEvent.change(screen.getByLabelText('Plot'), { target: { value: 'adx.minusDI' } })
+    fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'rsi' } })
+    expect(screen.queryByLabelText('Plot')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0].indicator).toBe('rsi')
+  })
+
+  it('conditions and the default threshold come from the SELECTED PLOT, not the entry', () => {
+    mockCatalog([ADX_GROUPED])
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    // plots[0] declares 25 — deliberately also the entry-level default, so this
+    // half alone cannot tell the two apart…
+    expect(screen.getByLabelText('Threshold').value).toBe('25')
+    expect(optionValues('Condition')).toEqual(['above', 'cross_below'])
+
+    // …which is what the next plot is for: a DIFFERENT default and a DIFFERENT
+    // condition list. Reading the entry would leave both stale.
+    fireEvent.change(screen.getByLabelText('Plot'), { target: { value: 'adx.plusDI' } })
+    expect(screen.getByLabelText('Threshold').value).toBe('')
+
+    fireEvent.change(screen.getByLabelText('Plot'), { target: { value: 'adx.minusDI' } })
+    expect(optionValues('Condition')).toEqual(['cross_zero'])
+    // cross_zero takes no threshold, so the field goes away entirely.
+    expect(screen.queryByLabelText('Threshold')).toBeNull()
+  })
+
+  it('⭐ a stored PLOT-ADDRESS alert is labelled from its plot and is NOT flagged dead', () => {
+    // The regression that a naive lookup makes: keying the "can this fire?"
+    // check on `entry.indicator` reports every grouped alert as un-evaluatable,
+    // because `adx.plusDI` is not `adx`.
+    mockCatalog([...RSI_ONLY, ADX_GROUPED])
+    H.alerts = [
+      { id: 1, sym: 'AAPL', indicator: 'adx.plusDI', condition: 'above', threshold: 30, tf: 'D', active: 1, trigger_count: 0 },
+      { id: 2, sym: 'AAPL', indicator: 'sar', condition: 'above', threshold: 1, tf: 'D', active: 1, trigger_count: 0 },
+    ]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect(screen.getByText(/^\+DI Above threshold/)).toBeTruthy()
+    // Exactly one row is dead — `sar`, which is deliberately not offered.
+    expect(screen.getAllByText(/cannot fire/i)).toHaveLength(1)
+    expect(screen.getByText(/^sar above/)).toBeTruthy()
+  })
+})
+
 // ─── THE SOURCE PROBE ───────────────────────────────────────────────────────
 //
 // Absence is not behaviourally observable: a hardcoded fallback list would sit
