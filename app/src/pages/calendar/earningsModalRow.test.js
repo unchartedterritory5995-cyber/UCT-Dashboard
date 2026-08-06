@@ -96,3 +96,39 @@ describe('timingLabel', () => {
     expect(timingLabel('')).toBe('TIME TBD')
   })
 })
+
+describe('history_unresolved survives BOTH allow-lists', () => {
+  // There are two hand-maintained projections between the enrichment API and
+  // the Earnings History section — mergeEnrichment() and toModalRow() — and a
+  // field missing from either is dropped silently. That is not hypothetical:
+  // the note in earningsModalRow.js records `beat_history` itself being lost
+  // this way, passing tests that hand-authored a row while the real row never
+  // carried it. These walk the actual chain instead.
+  const apiEnrichment = {
+    JAZZ: { expected_move: null, beat_history: null, hist_stats: null,
+            history_unresolved: true },
+  }
+
+  it('carries the flag from the API payload all the way to the modal row', () => {
+    const entry = { sym: 'JAZZ', eps_est: 6.3, eps_act: 5.71 }
+    const merged = mergeEnrichment(entry, apiEnrichment)
+    expect(merged.history_unresolved).toBe(true)      // survived allow-list #1
+    const modalRow = toModalRow(merged)
+    expect(modalRow.history_unresolved).toBe(true)    // survived allow-list #2
+  })
+
+  it('defaults to false when the server did answer, so real empties stay honest', () => {
+    const merged = mergeEnrichment(
+      { sym: 'NEWCO' },
+      { NEWCO: { expected_move: null, beat_history: [], hist_stats: null } },
+    )
+    expect(merged.history_unresolved).toBe(false)
+    expect(toModalRow(merged).history_unresolved).toBe(false)
+  })
+
+  it('defaults to false for an entry with no enrichment at all', () => {
+    // `enrichReady` owns that case upstream; defaulting to unresolved here
+    // would paint "unavailable" across every row before the batch lands.
+    expect(toModalRow({ sym: 'ZZZ' }).history_unresolved).toBe(false)
+  })
+})

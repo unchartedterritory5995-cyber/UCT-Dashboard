@@ -47,6 +47,17 @@ export function toModalRow(entry) {
     beat_history:     entry.beat_history ?? null,
     hist_stats:       entry.hist_stats ?? null,
     expected_move:    entry.expected_move ?? null,
+    // This projection is an ALLOW-LIST, so a new enrichment field is invisible
+    // to the modal until it is named here — the exact reason the note above
+    // exists. `history_unresolved` says the provider never answered for this
+    // ticker, and without this line the section would fall through to "No
+    // reported quarters yet" forever: green tests (which hand it a row
+    // directly) and a lying modal in production.
+    //
+    // Default FALSE, not null: an entry with no enrichment at all is handled
+    // upstream by `enrichReady`, and defaulting to "unresolved" would show
+    // "unavailable" on every un-enriched row.
+    history_unresolved: entry.history_unresolved ?? false,
   }
 }
 

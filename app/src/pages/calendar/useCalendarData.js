@@ -25,6 +25,12 @@ export function mergeEnrichment(entry, enrichment) {
     expected_move: e.expected_move,
     beat_history:  e.beat_history,
     hist_stats:    e.hist_stats ?? null,
+    // Second of TWO allow-lists between the API and the modal (the other is
+    // `toModalRow`) — a new enrichment field has to be named in BOTH or it is
+    // silently dropped here. `history_unresolved` says the provider never
+    // answered for this ticker, which is what stops the Earnings History
+    // section from stating "No reported quarters yet" as a fact.
+    history_unresolved: e.history_unresolved ?? false,
   }
 }
 

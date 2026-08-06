@@ -334,3 +334,42 @@ describe('pending vs genuinely-empty history', () => {
     expect(screen.getByText(/No reported quarters yet/i)).toBeTruthy()
   })
 })
+
+describe('EarningsHistorySection — an unanswered provider must not become a claim', () => {
+  // Live defect 2026-08-06: JAZZ ($17B, modal header "$5.71 vs $6.30 est") was
+  // told it had "No reported quarters yet" while Finnhub returned four real
+  // quarters on a direct call seconds later. The enrichment fan-out had shed
+  // that ticker's history call for rate budget, and the UI stated the gap as a
+  // fact about the company.
+  const emptyRow = { sym: 'JAZZ', eps_estimate: 6.3, reported_eps: 5.71,
+                     beat_history: null, hist_stats: null }
+
+  it('says the history is UNAVAILABLE, not that the company never reported', () => {
+    renderSection({ row: { ...emptyRow, history_unresolved: true }, enrichReady: true })
+    expect(screen.getByText(/history unavailable/i)).toBeTruthy()
+    expect(screen.queryByText(/no reported quarters yet/i)).toBeNull()
+  })
+
+  it('still says "no reported quarters" when the provider genuinely answered empty', () => {
+    // The signal must stay meaningful: a real pre-IPO/never-reported name has
+    // to keep its honest empty state, or this fix just trades one lie for another.
+    renderSection({ row: { ...emptyRow, history_unresolved: false }, enrichReady: true })
+    expect(screen.getByText(/no reported quarters yet/i)).toBeTruthy()
+    expect(screen.queryByText(/history unavailable/i)).toBeNull()
+  })
+
+  it('prefers the loading state while the batch is still in flight', () => {
+    // enrichReady=false must win: before the batch lands we know nothing at
+    // all, and "unavailable" would be as premature as the old claim was.
+    renderSection({ row: { ...emptyRow, history_unresolved: true }, enrichReady: false })
+    expect(screen.getByText(/loading earnings history/i)).toBeTruthy()
+    expect(screen.queryByText(/history unavailable/i)).toBeNull()
+  })
+
+  it('does not hijack a row that actually HAS quarters', () => {
+    // A stale/odd flag must never blank out real data the user can see.
+    renderSection({ row: { ...row, history_unresolved: true }, enrichReady: true })
+    expect(screen.queryByText(/history unavailable/i)).toBeNull()
+    expect(screen.getByTestId('echart')).toBeTruthy()
+  })
+})
