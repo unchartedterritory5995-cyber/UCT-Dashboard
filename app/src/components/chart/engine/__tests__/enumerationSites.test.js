@@ -290,6 +290,34 @@ const LEDGER = [
   // alert that cannot fire, and this becomes the ONE naming authority.
   { file: 'api/services/indicator_alert_evaluator.py', region: "INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority",
     anchor: 'INDICATOR_FUNCS: dict[str,', fate: 'C' },
+  // ⭐⭐ PHASE C TASK 5 — THE PYTHON SCAN CAUGHT THIS ROW BEFORE A HUMAN DID, AND
+  // IT CAUGHT IT ON THE COMMIT THAT CREATED IT. `alert_series.SERIES_FUNCS` is
+  // the closed-bar lane's `address → FULL aligned column` table: the same 30
+  // addresses as `INDICATOR_FUNCS` + `EVENT_FUNCS`, differing only in returning
+  // the whole column instead of `_last_non_none(...)` of it. That contract change
+  // is what makes `prev` the PREVIOUS BAR rather than the previous 60-second
+  // poll, i.e. it is the mechanism Phase C exists for — but it is unarguably a
+  // SECOND hand-listing of the same enumeration, so it belongs here.
+  //
+  // Fate `C`, THE SAME AS ITS TWIN, because the two retire together or not at
+  // all: both are hand-written Python closures that cannot be derived from a JS
+  // definition (B4 adjudication A4, verbatim), and the day the Python alert lane
+  // reads the engine registry instead, it stops hand-listing addresses in BOTH
+  // places in one edit.
+  //
+  // ⚠️ AND THAT FATE IS NOW A PREDICTION AT RISK, SAID OUT LOUD RATHER THAN LEFT
+  // TO ROT. `C` means "Phase C retires it". Phase C's evaluator rebuild is THIS
+  // TASK, and it did not retire `INDICATOR_FUNCS` — it added a twin beside it,
+  // deliberately (the eight legacy closures and the delivery wrappers are pinned
+  // by 5,040 recorded rows, and re-deriving them is a change to what an armed
+  // alert computes, which is exactly what this task is forbidden to do). So both
+  // `C` rows now describe a retirement no remaining Phase C task has claimed. A
+  // fate nobody owns is the shape this ledger exists to catch; it is recorded
+  // here and handed forward rather than quietly re-fated to `keep`, which would
+  // ALSO disarm the Python scan's non-vacuity floor two rows down.
+  { file: 'api/services/alert_series.py',
+    region: 'SERIES_FUNCS — address → the full aligned column, the closed-bar lane',
+    anchor: 'SERIES_FUNCS: dict[str,', fate: 'C' },
   // ⭐ THE SIXTH SITE THE JS DISCOVERY SCAN STRUCTURALLY CANNOT SEE, found by the
   // wave that fixed the voice bus and added here by this file's one writer. The
   // JS scan walks `app/src/**/*.jsx?` only, so a Python enumeration was invisible
@@ -733,8 +761,21 @@ const RETIRED_BY_B4_ALERTS = [
  *  ⚠️ THE PREDICTION AND THE MEASUREMENT AGREED, WHICH IS NOT WHY THE NUMBER IS
  *  7. The plan predicted `SITE_COUNT` 6→7 and `{C: 2, keep: 5}`; the scan was run
  *  first and the assertion written from what it FOUND. Had it named a fourth
- *  file, the fourth file would be on this list and this number would be 8. */
-const SITE_COUNT = 7
+ *  file, the fourth file would be on this list and this number would be 8.
+ *
+ *  ⭐⭐ 7 → 8 AT PHASE C TASK 5, AND AGAIN IT IS AN ADDITION WITH NO RETIREMENT.
+ *  `{C: 3, keep: 5}`. The new row is `alert_series.SERIES_FUNCS` — the closed-bar
+ *  lane's address→column table — and it did not arrive by somebody remembering
+ *  to write it down: the Python discovery scan Task 1 built flagged the file on
+ *  the FIRST full-suite run after it was created, naming it in the failure
+ *  message, which is precisely the job the scan was added to do. The rule the
+ *  ledger keeps proving: an enumeration nobody's scan can reach is how seven
+ *  sites became thirty-two.
+ *
+ *  ⚠️ AND THE `C` BUCKET IS NOW THREE ROWS THAT NO REMAINING PHASE C TASK HAS
+ *  CLAIMED — see the comment on the new row. The number went up, the fates did
+ *  not move, and the prediction underneath them is older than it looks. */
+const SITE_COUNT = 8
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -822,7 +863,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // re-derived at B5 Task 12 — would collapse to `[]` and rot GREEN if this
     // row were fated `C` instead. Re-fating it is a two-character edit that
     // silently disarms a scan, which is why the test below asserts it BY NAME.
-    expect(counts).toEqual({ C: 2, keep: 5 })
+    //
+    // ⭐⭐ `C` 2 → 3 AT PHASE C TASK 5, AND `keep` DID NOT MOVE — WHICH IS THE
+    // HALF THAT MATTERS. The added row is `alert_series.py`'s `SERIES_FUNCS`,
+    // the closed-bar lane's twin of `INDICATOR_FUNCS`, fated `C` with it. The
+    // floor above is derived from `keep`, so a third `C` row cannot disarm the
+    // Python scan — but it does mean the `C` bucket now holds THREE retirements
+    // this phase has not scheduled. Named on the row itself.
+    expect(counts).toEqual({ C: 3, keep: 5 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -880,6 +928,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'If a fate really moved, regenerate this literal from LEDGER rather than editing a row by ' +
       'hand, and move the histogram in the same commit.',
     ).toEqual([
+      ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, the closed-bar lane", "C"],
       ["api/services/indicator_alert_evaluator.py::INDICATOR_FUNCS — the evaluator, and after B4 the alert catalog's ONE authority", "C"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch", "keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map", "C"],

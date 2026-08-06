@@ -49,10 +49,27 @@ def check_condition(
 ) -> bool:
     """Does an alert fire given current + previous indicator values?
 
-    ``current`` is the latest indicator value (last computed bar). ``prev``
-    is the value persisted from the previous evaluation cycle — used only by
-    cross-* conditions. ``threshold`` is the user-supplied trigger level for
-    above / below / cross_above / cross_below.
+    ``current`` is the indicator value at the bar being judged and ``prev`` is
+    the one before it — used only by cross-* conditions. ``threshold`` is the
+    trigger level for above / below / cross_above / cross_below: the number the
+    user typed, unless ``THRESHOLD_OPERAND`` declares an operand for
+    (address, condition).
+
+    ⚠️ "THE ONE BEFORE IT" MEANS SOMETHING DIFFERENT IN EACH LANE, AND THIS
+    FUNCTION CANNOT TELL. It is pure, and that is the point — Phase C changes
+    only WHO SUPPLIES ``prev``:
+
+      * ``ALERT_EVAL_MODE == "forming"`` (live today) — ``prev`` is
+        ``alert["last_value"]``, the number the PREVIOUS 60-SECOND POLL stored.
+        So a crossing is measured between two CYCLES, and whether one is seen at
+        all depends on when the loop happened to look.
+      * ``ALERT_EVAL_MODE == "closed"`` (spec §8, dark) — ``prev`` is
+        ``series[i-1]``, the previous BAR. The answer no longer depends on the
+        poll interval, and ``last_value`` is demoted to delivery-dedup.
+
+    This docstring used to say only "the value persisted from the previous
+    evaluation cycle", which was true of the only lane that existed and became
+    half-false the moment the second one landed.
 
     Returns ``False`` for unknown conditions, missing values, or any case
     where the condition is well-defined but not met. Pure function — no

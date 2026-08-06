@@ -50,8 +50,17 @@ LEGACY_EIGHT = ["rsi", "macd", "bb", "stoch", "williams_r", "cci", "mfi", "price
 # above the values these indicators produce, plus 0 for the sign-sensitive ones.
 THRESHOLDS = [-100.0, -80.0, -20.0, 0.0, 0.5, 20.0, 30.0, 50.0, 70.0, 80.0, 100.0, 150.0]
 
-# `prev` is the previous cycle's `last_value` — the only input the cross_* and
-# cross_zero branches read. None (first evaluation) is included deliberately.
+# `prev` is a SUPPLIED value — the only input the cross_* and cross_zero
+# branches read. None (first evaluation) is included deliberately.
+#
+# ⚠️ WHEN THIS WAS RECORDED, "supplied" MEANT "the previous CYCLE's `last_value`",
+# because the forming lane was the only lane. Phase C Task 5 changed where the
+# LIVE code gets `prev` from (`series[i-1]` on the closed lane) and split the
+# replay accordingly — see the block above
+# `test_the_eight_legacy_addresses_evaluate_identically`. These rows are a grid
+# of hand-picked `prev` values fed straight into `check_condition`, which is a
+# statement about a PURE FUNCTION and is therefore true under both lanes. This
+# file is not regenerated, ever.
 PREVS = [None, -50.0, -1.0, 0.0, 1.0, 50.0, 99.0]
 
 # Per-indicator param variants, so a change to a default or to param parsing shows.

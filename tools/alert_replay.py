@@ -237,24 +237,136 @@ def make_forming_evaluate() -> Callable[[dict, list[dict]], tuple]:
 
         condition = alert.get("condition") or ""
         threshold = alert.get("threshold")
-        if address == "bb":
-            bkey = (pkey, condition, wkey)
-            if bkey in band_memo:
-                dyn = band_memo[bkey]
-            else:
-                # NOT wrapped: `_evaluate_one` does not wrap it either, so a raise
-                # here has to propagate or the adapter would be more forgiving
-                # than the lane it claims to reproduce.
-                dyn = ev._bb_threshold_override(seen, params, condition)
-                band_memo[bkey] = dyn
-            if dyn is not None:
-                threshold = dyn
+        # ⚰️ `ev._bb_threshold_override` USED TO BE CALLED HERE, AND THIS LINE IS
+        # WHY IT STILL EXISTED. Task 3 retired the band arithmetic into
+        # `THRESHOLD_OPERAND` but left the symbol as a delegation, because
+        # deleting it would have broken the `--check` being used to prove that
+        # commit safe. Task 5 owns this file, so the binding is re-pointed at the
+        # general grammar and the symbol is gone. The lookup is by (address,
+        # condition) rather than `if address == "bb"`, which reaches the same two
+        # declared rows on this grid — the grid is generated from
+        # `INDICATOR_FUNCS`, and the only other declared operands belong to the
+        # two `EVENT_FUNCS` addresses, which are not in it. `--check` reproduces
+        # all 691,195 frozen fires digest for digest, which is the proof.
+        bkey = (address, pkey, condition, wkey)
+        if bkey in band_memo:
+            dyn = band_memo[bkey]
+        else:
+            # NOT wrapped: `_evaluate_one` does not wrap it either, so a raise
+            # here has to propagate or the adapter would be more forgiving
+            # than the lane it claims to reproduce.
+            dyn = ev.threshold_operand_value(address, condition, seen, params)
+            band_memo[bkey] = dyn
+        if dyn is not None:
+            threshold = dyn
 
         triggered = ev.check_condition(condition, value, alert.get("last_value"),
                                        threshold)
         return value, triggered
 
     return evaluate
+
+
+# ─── the evaluator adapter (THE CLOSED LANE) ─────────────────────────────────
+
+def make_closed_evaluate() -> Callable[[dict, list[dict]], tuple]:
+    """An `evaluate` bound to the SHIPPED closed lane, `ev._evaluate_one_closed`.
+
+    ⭐ IT CALLS THE REAL FUNCTION. `tests/test_alert_replay.py::_closed_bar_evaluate`
+    is a HYPOTHETICAL closed evaluator written in Task 2, before any of this
+    existed, purely to prove the oracle could read zero. It stays exactly as it
+    was — an oracle that predates its implementation is worth more than a tidy
+    one — and this adapter is the separate thing: the production lane, driven
+    through the same harness.
+
+    ⚠️ WHERE `now_epoch` COMES FROM, AND WHY IT IS DERIVED PER WINDOW. `replay`
+    hands every evaluator `bars[lo:i] + [partial]`, so the LAST element is by
+    construction the bar that is still forming. Production asks `time.time()`;
+    the replay asks "one second before this bar can close", which puts the loop
+    at the same point in the bar's life that a live 60-second poll is at. The
+    closed lane then resolves the newest CLOSED bar itself, through
+    `closed_bar_index` — the same three-reason rule production runs, not a
+    `seen[:-1]` shortcut that would make the harness measure a different
+    evaluator from the one that ships.
+
+    ⛔ THE MEMO KEYS ON THE FULL WINDOW, INCLUDING THE FORMING PARTIAL, AND THAT
+    IS LOAD-BEARING. Keying it on the closed prefix instead would be faster AND
+    WOULD MANUFACTURE THE ANSWER: every k would return a memo hit from k=1 and
+    the repaint oracle would read zero no matter what the code did — a gate that
+    cannot fail. The key is byte-for-byte the forming adapter's `_window_key`,
+    so the zero is a property of the evaluator. (The memo is dropped whenever the
+    window changes rather than accumulating: this one caches whole 200-element
+    COLUMNS, and `replay` walks every alert of one window before moving on, so a
+    per-window memo is the whole win and an unbounded one is gigabytes.)
+    """
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+
+    state: dict = {"wkey": None, "series": {}}
+
+    def _window_key(seen: list[dict]) -> tuple:
+        tail = seen[-1]
+        return (len(seen), seen[0]["t"], tail["t"], tail["o"], tail["h"],
+                tail["l"], tail["c"], tail["v"])
+
+    def evaluate(alert: dict, seen: list[dict]) -> tuple:
+        if not seen:
+            return None, False
+        address = ev.resolve_address(alert.get("indicator"))
+        if alert_series.series_function(address) is None:
+            return None, False
+
+        tf = alert.get("tf") or ""
+        close_at = ev.bar_close_epoch(seen[-1].get("t"), tf)
+        if close_at is None:
+            return None, False
+        now_epoch = close_at - 1
+
+        i = ev.closed_bar_index(seen, tf, now_epoch)
+        if i < 1:
+            return None, False
+
+        params = ev._parse_params(alert)
+        pkey = json.dumps(params, sort_keys=True)
+        wkey = _window_key(seen)
+        if state["wkey"] != wkey:
+            state["wkey"] = wkey
+            state["series"] = {}
+        skey = (address, pkey)
+        if skey in state["series"]:
+            series = state["series"][skey]
+        else:
+            try:
+                series = alert_series.series_for(address, seen, params)
+            except AssertionError:
+                raise
+            except Exception:
+                series = None
+            state["series"][skey] = series
+        if series is None:
+            return None, False
+
+        current, prev = series[i], series[i - 1]
+        if current is None:
+            return None, False
+
+        condition = alert.get("condition") or ""
+        threshold = alert.get("threshold")
+        dyn = ev._closed_threshold_operand_value(address, condition, seen,
+                                                 params, i)
+        if dyn is not None:
+            threshold = dyn
+        return current, ev.check_condition(condition, current, prev, threshold)
+
+    return evaluate
+
+
+# The two lanes, by name, so `--mode` cannot name one that does not exist and a
+# third lane cannot be added without appearing here.
+EVALUATE_FACTORIES: dict[str, Callable[[], Callable[[dict, list[dict]], tuple]]] = {
+    "forming": make_forming_evaluate,
+    "closed": make_closed_evaluate,
+}
 
 
 # ─── Step 5: THE REPAINT ORACLE ──────────────────────────────────────────────
@@ -769,45 +881,87 @@ def cmd_check(args) -> int:
 
 def cmd_repaint(args) -> int:
     ks = args.k or list(REPAINT_KS)
-    print(f"=== REPAINT ORACLE (ks={ks}, window={PROD_BAR_WINDOW}) ===")
-    evaluate = make_forming_evaluate()
+    mode = args.mode or "forming"
+    if mode not in EVALUATE_FACTORIES:
+        raise SystemExit(f"--mode must be one of {sorted(EVALUATE_FACTORIES)}, "
+                         f"got {mode!r}")
+    print(f"=== REPAINT ORACLE (mode={mode}, ks={ks}, window={PROD_BAR_WINDOW}) ===")
+
+    # ⭐ THE GRID IS BUILT FROM THE FORMING LANE IN BOTH MODES, ON PURPOSE. The
+    # threshold ladder is three quantiles of the address's own closed-bar series,
+    # so building it per-mode would hand the two modes DIFFERENT alerts and the
+    # two numbers would not be comparable — the closed lane could read zero
+    # because it was measured on an easier grid. Same bars, same grid, same k
+    # ladder; only the evaluator changes. That is exactly what Task 2's own
+    # control did.
+    grid_evaluate = make_forming_evaluate()
+    evaluate = grid_evaluate if mode == "forming" else EVALUATE_FACTORIES[mode]()
     names = args.only or fixture_names()
-    totals = {"keyed": 0, "identity": 0}
+    totals = {"keyed": 0, "identity": 0, "fires": 0}
     per_fixture = {}
     for name in names:
         fx = load_fixture(name)
         bars = fx["bars"]
-        alerts, _ = build_alert_grid(name, bars, fx.get("tf", "?"), evaluate)
+        alerts, _ = build_alert_grid(name, bars, fx.get("tf", "?"), grid_evaluate)
         print(f"  {name:20} ({len(bars)} bars x {len(alerts)} alerts) …", flush=True)
         res = repaint_disagreement(bars, alerts, ks, evaluate)
         res.pop("_per_k")
         per_fixture[name] = res
         totals["keyed"] += res["keyed_disagreement"]
         totals["identity"] += res["identity_disagreement"]
+        totals["fires"] += sum(res["fires_per_k"].values())
         print(f"      fires/k={res['fires_per_k']}")
         print(f"      keyed diff vs k=1: {res['keyed_diff_vs_k1']}")
         print(f"      identity diff vs k=1: {res['identity_diff_vs_k1']}")
 
     print("\n=== THE NUMBER ===")
+    print(f"  mode                  : {mode}")
+    print(f"  total fires (all k)   : {totals['fires']}")
     print(f"  keyed disagreement    : {totals['keyed']}")
     print(f"  identity disagreement : {totals['identity']}")
 
-    # 🔴 THE VACUITY REFUSAL.
-    if not totals["keyed"] or not totals["identity"]:
-        print(json.dumps(per_fixture, indent=1, default=str))
-        raise SystemExit(
-            "REPAINT DISAGREEMENT IS ZERO ON TODAY'S TREE — ABORTING AS VACUOUS.\n"
-            "Today's evaluator scores the FORMING bar with cycle-granularity "
-            "crossings (`last_value` from the prior 60-second poll, not the prior "
-            "bar), so it MUST disagree across k. A zero here means this harness is "
-            "not driving the forming bar at all, and every 'no repaints' this tool "
-            "reports afterwards would be a gate that cannot fail. Fix the ORACLE, "
-            "not the number."
-        )
+    # 🔴 THE VACUITY REFUSAL — AND IT POINTS THE OPPOSITE WAY IN EACH MODE,
+    # BECAUSE THE VACUOUS ANSWER IS A DIFFERENT NUMBER IN EACH.
+    #
+    #   forming: a ZERO is vacuous. Today's lane MUST disagree across k, so a
+    #            zero means the harness is not driving the forming bar at all.
+    #   closed : a zero is the RESULT — but a lane that never fires reads zero
+    #            too, and that is the same gate-that-cannot-fail wearing the
+    #            other hat. So the closed mode refuses on NO FIRES, and it
+    #            refuses on a NON-zero disagreement.
+    if mode == "forming":
+        if not totals["keyed"] or not totals["identity"]:
+            print(json.dumps(per_fixture, indent=1, default=str))
+            raise SystemExit(
+                "REPAINT DISAGREEMENT IS ZERO ON TODAY'S TREE — ABORTING AS VACUOUS.\n"
+                "Today's evaluator scores the FORMING bar with cycle-granularity "
+                "crossings (`last_value` from the prior 60-second poll, not the prior "
+                "bar), so it MUST disagree across k. A zero here means this harness is "
+                "not driving the forming bar at all, and every 'no repaints' this tool "
+                "reports afterwards would be a gate that cannot fail. Fix the ORACLE, "
+                "not the number."
+            )
+    else:
+        if not totals["fires"]:
+            raise SystemExit(
+                "THE CLOSED LANE FIRED NOTHING — ABORTING AS VACUOUS.\n"
+                "A lane that never fires reports 0 repaints, so the fire count is "
+                "part of the measurement, not a footnote beside it."
+            )
+        if totals["keyed"] or totals["identity"]:
+            print(json.dumps(per_fixture, indent=1, default=str))
+            raise SystemExit(
+                f"THE CLOSED LANE REPAINTS: keyed={totals['keyed']} "
+                f"identity={totals['identity']}.\n"
+                "Its fire set depends on WHEN YOU LOOKED, which is the defect this "
+                "phase exists to remove. Something in the lane is still reading the "
+                "forming bar — the threshold operand and the bar index are the two "
+                "places it hides."
+            )
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
-            json.dump({"ks": ks, "totals": totals, "per_fixture": per_fixture},
-                      fh, indent=1, default=str)
+            json.dump({"mode": mode, "ks": ks, "totals": totals,
+                       "per_fixture": per_fixture}, fh, indent=1, default=str)
             fh.write("\n")
         print(f"  wrote {args.out}")
     return 0
@@ -947,6 +1101,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--repaint", action="store_true")
     ap.add_argument("--k", nargs="*", type=int)
+    # ⚠️ `--mode` APPLIES TO `--repaint` ONLY. `--check` is the FORMING log's
+    # gate by definition: `fire_log_forming.json` was recorded from the forming
+    # lane on the unmodified tree, and a `--check --mode closed` would compare
+    # the new lane against the old lane's frozen answers and report the intended
+    # change as a failure. There is no closed fire log and there must not be one
+    # until the cutover.
+    ap.add_argument("--mode", choices=("forming", "closed"), default=None,
+                    help="which evaluation lane --repaint measures")
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--out")
     ap.add_argument("--force", action="store_true")

@@ -797,25 +797,56 @@ def test_the_dynamic_threshold_is_a_table_lookup_and_not_a_bb_branch():
     assert not re.search(r'indicator\s*==\s*"bb"', code)
     assert "threshold_operand_value(" in code
 
-    # …and the only surviving DEFINITION of the retired name is a delegation.
-    # ⚠️ READ AS AN AST, NOT AS TEXT. A line count would be measuring the
-    # tombstone's prose, and prose is exactly what is supposed to be long here.
-    # The claim is that the executable body is one `return` of one call.
+def test_the_retired_override_is_gone_from_every_lane_that_bound_it():
+    """⚰️ PHASE C TASK 5: THE RETIREMENT IS FINISHED, AND THIS IS THE RAIL.
+
+    Task 3 moved the band arithmetic into `THRESHOLD_OPERAND` but kept
+    `_bb_threshold_override` alive as a two-line delegation, because two files
+    outside the evaluator bound the NAME directly — `tools/alert_replay.py` and
+    `tests/test_alert_replay.py`, both of them the frozen fire log's own
+    instrument — and deleting it in that commit would have broken the `--check`
+    being used to prove that commit safe. This task owns `alert_replay.py`, so
+    both binders were re-pointed and the symbol was deleted.
+
+    ⚠️ AST, NOT TEXT, AND WITH A CONTROL. The tombstone PROSE deliberately still
+    names it (a deleted mechanism nobody can find the reason for gets rebuilt),
+    so a raw `in` probe would report the retirement incomplete forever. The
+    claim is that no CODE anywhere defines it, calls it, or reads it as an
+    attribute.
+    """
     import ast
 
-    tree = ast.parse(src)
-    tombs = [n for n in ast.walk(tree)
-             if isinstance(n, ast.FunctionDef) and n.name == "_bb_threshold_override"]
-    assert len(tombs) == 1, "the retired name is defined more than once"
-    stmts = [n for n in tombs[0].body
-             if not (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant))]
-    assert len(stmts) == 1 and isinstance(stmts[0], ast.Return), (
-        "the retired override still has a body — it is meant to be a delegation")
-    call = stmts[0].value
-    assert isinstance(call, ast.Call) and call.func.id == "threshold_operand_value"
-    # …and no band arithmetic survives anywhere in it.
-    assert not [n for n in ast.walk(tombs[0])
-                if isinstance(n, ast.Name) and "compute" in n.id]
+    roots = [pathlib.Path(evaluator.__file__).parent.parent,          # api/
+             pathlib.Path(__file__).parent,                           # tests/
+             pathlib.Path(__file__).parent.parent / "tools"]
+    scanned = 0
+    prose_hits = 0
+    offenders: list[str] = []
+    for root in roots:
+        for path in sorted(root.rglob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            if "_bb_threshold_override" not in text:
+                continue
+            prose_hits += 1
+            scanned += 1
+            tree = ast.parse(text)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and node.name == "_bb_threshold_override":
+                    offenders.append(f"{path}: still DEFINES it")
+                if isinstance(node, ast.Attribute) and node.attr == "_bb_threshold_override":
+                    offenders.append(f"{path}:{node.lineno} still READS it")
+                if isinstance(node, ast.Name) and node.id == "_bb_threshold_override":
+                    offenders.append(f"{path}:{node.lineno} still NAMES it")
+    assert not offenders, (
+        "`_bb_threshold_override` survives in CODE, not just in prose:\n"
+        + "\n".join(offenders))
+    # The control: the name IS still present as text somewhere, so this test is
+    # measuring the code/prose difference rather than passing on a tree where
+    # every mention — tombstone included — was scrubbed and nothing recorded why.
+    assert prose_hits > 0, (
+        "the retired name appears nowhere at all, not even in a tombstone. That "
+        "makes this scan vacuous AND loses the reason the mechanism was removed.")
+    assert scanned > 0
 
 
 def test_the_operand_table_is_the_only_place_a_relation_is_declared():
@@ -962,8 +993,59 @@ def _load_alert_baseline() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+# ⭐ PHASE C TASK 5: THE BASELINE IS SPLIT — DOWN A LEVEL, NEVER WEAKENED.
+#
+# The recorded row is `(indicator, params, condition, threshold, prev) →
+# (value, triggered)`, and the composition it measures is
+#
+#     value  ∘  prev-supply  ∘  condition
+#
+# Phase C changes exactly ONE of those three: WHO SUPPLIES `prev`. The forming
+# lane takes it from the alert row (`last_value`, written by the previous poll);
+# the closed lane takes it from `series[i-1]`. So the premise of the middle
+# factor is about to go — and a test whose premise is gone is deleted or
+# weakened, which is how a 5,040-row oracle quietly stops being one.
+#
+# It is split into its two PURE halves instead, and the split is STRICTER, not
+# looser, for four reasons that are each checkable:
+#
+#   1. The two unchanged factors are now asserted SEPARATELY. A composition can
+#      hide compensating errors — a value that moved up and a condition that got
+#      looser reproduce the same `triggered`; two separate equalities cannot.
+#      The composed form asserts 5,040 `triggered` booleans and 5,040 values;
+#      the split form asserts the same 5,040 values plus 5,040 condition
+#      decisions taken against the RECORDED value, which is a strictly finer
+#      partition of the same evidence.
+#   2. The value half now measures `value_function(address)` DIRECTLY, which is
+#      the function BOTH lanes compute through. The composed form only ever
+#      reached it via `_evaluate_one`, i.e. only ever covered the forming lane.
+#      The same rows now guard the closed lane too.
+#   3. The condition half calls `check_condition` directly with the recorded
+#      `prev`, so it survives the cutover unchanged and keeps pinning the exact
+#      function Task 3's M5 found a hole in. That hole (`cross_above`'s `>` → `>=`)
+#      is measure-zero on these rows by construction — a computed float landing
+#      exactly on a round threshold — which is why it is pinned AT equality in
+#      `tests/test_alert_conditions.py::test_every_comparison_in_check_condition_is_pinned_AT_the_boundary`
+#      and NOT here. The split does not touch that test and does not pretend to
+#      replace it.
+#   4. The composed form is KEPT as well, and pinned to the forming lane
+#      EXPLICITLY (`mode="forming"`) rather than to whatever the global constant
+#      happens to say. Before this task it would have silently started measuring
+#      the closed lane the day Task 8 flips `ALERT_EVAL_MODE`; now it measures
+#      the forming lane forever, and Task 8 cannot make it vacuous by accident.
+#
+# Net: every assertion that existed still runs, two more halves run beside it,
+# and one of them was previously mode-dependent and now is not.
+
 def test_the_eight_legacy_addresses_evaluate_identically():
-    """Every recorded (value, triggered) reproduces, bit for bit."""
+    """Every recorded (value, triggered) reproduces, bit for bit — FORMING lane.
+
+    ⚠️ `mode="forming"` IS EXPLICIT AND THAT IS THE POINT. This row's `prev` is a
+    SUPPLIED `last_value`, which is the forming lane's mechanism and only the
+    forming lane's. Reading the mode from the global would make this test change
+    meaning underneath itself at the cutover; naming it keeps this an exact,
+    permanent statement about the lane it was recorded from.
+    """
     doc = _load_alert_baseline()
     bars = doc["bars"]
     mismatches = []
@@ -976,7 +1058,7 @@ def test_the_eight_legacy_addresses_evaluate_identically():
             "params_json": None if row["params"] is None else json.dumps(row["params"]),
             "last_value": row["prev"],
         }
-        value, triggered = evaluator._evaluate_one(alert, bars=bars)
+        value, triggered = evaluator._evaluate_one(alert, bars=bars, mode="forming")
         if value != row["value"] or triggered != row["triggered"]:
             mismatches.append(
                 f"row {i} {row['indicator']}/{row['condition']} thr={row['threshold']} "
@@ -987,6 +1069,126 @@ def test_the_eight_legacy_addresses_evaluate_identically():
         f"{len(mismatches)} of {len(doc['rows'])} recorded evaluations changed. An alert a "
         f"user already armed would fire differently.\n" + "\n".join(mismatches[:12])
     )
+
+
+def test_the_eight_legacy_addresses_still_compute_identical_VALUES():
+    """Half one: `value` is a pure function of (bars, params, address) and must
+    NEVER move. 5,040 rows, exact equality, no `approx`.
+
+    ⚠️ EXACT, NEVER approx — half a unit in the last place is precisely what
+    flips a comparison at a boundary, which is the regression this exists to
+    catch, so a tolerance here would wave through the one defect it is aimed at.
+
+    This is the half that outlives the mode. `value_function(address)` is what
+    both lanes compute through, so these 5,040 numbers now guard the closed lane
+    as well as the forming one — which the composed form never did.
+    """
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    mismatches = []
+    for i, row in enumerate(doc["rows"]):
+        address = evaluator.resolve_address(row["indicator"])
+        fn = evaluator.value_function(address)
+        assert fn is not None, f"row {i}: address {address!r} no longer resolves"
+        value = fn(bars, row["params"] or {})
+        if value != row["value"]:
+            mismatches.append(
+                f"row {i} {row['indicator']} params={row['params']}: "
+                f"got {value!r} want {row['value']!r}"
+            )
+    assert not mismatches, (
+        f"{len(mismatches)} of {len(doc['rows'])} recorded VALUES changed. Every "
+        f"armed alert on these eight addresses is now compared against a "
+        f"different number.\n" + "\n".join(mismatches[:12])
+    )
+
+
+def test_the_eight_legacy_CONDITIONS_still_decide_identically():
+    """Half two: `check_condition(condition, value, prev, threshold)` is pure and
+    is called DIRECTLY with the recorded `prev`. Also exact, also forever.
+
+    ⛔ THE SPLIT IS NOT A WEAKENING AND THE ARGUMENT IS THE BLOCK ABOVE. The
+    original test was `value` ∘ `prev-supply` ∘ `condition`. Two of those three
+    are unchanged and are asserted at full strength — separately, so neither can
+    mask the other. The third — WHO SUPPLIES `prev` — is the only thing this
+    phase changes, and it is measured by the repaint oracle, which is a STRICTER
+    instrument than a grid of hand-picked `prev` values because it derives `prev`
+    from the bars themselves and then asks whether the answer depended on when
+    you looked.
+
+    ⚠️ THE DECLARED OPERAND IS RESOLVED HERE TOO, or the two `bb` touch
+    conditions would be compared against `None` and 630 rows would agree
+    vacuously (`check_condition` returns False for a `None` threshold, and the
+    recorded `triggered` for a non-firing row is also False).
+    """
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    mismatches = []
+    dynamic_rows = 0
+    for i, row in enumerate(doc["rows"]):
+        address = evaluator.resolve_address(row["indicator"])
+        params = row["params"] or {}
+        threshold = row["threshold"]
+        dyn = evaluator.threshold_operand_value(address, row["condition"], bars, params)
+        if dyn is not None:
+            threshold = dyn
+            dynamic_rows += 1
+        triggered = evaluator.check_condition(
+            row["condition"], row["value"], row["prev"], threshold)
+        if triggered != row["triggered"]:
+            mismatches.append(
+                f"row {i} {row['indicator']}/{row['condition']} thr={threshold!r} "
+                f"value={row['value']!r} prev={row['prev']!r}: "
+                f"got {triggered!r} want {row['triggered']!r}"
+            )
+    assert not mismatches, (
+        f"{len(mismatches)} of {len(doc['rows'])} recorded DECISIONS changed.\n"
+        + "\n".join(mismatches[:12])
+    )
+    # …and the declared-operand path was genuinely exercised, so the `bb` rows
+    # are not passing because everything resolved to the same `None`.
+    assert dynamic_rows > 0, (
+        "no row resolved a declared operand — the two `bb` touch conditions were "
+        "compared against a None threshold and agreed vacuously"
+    )
+
+
+def test_both_halves_of_the_split_baseline_can_actually_fail():
+    """⛔ THE SPLIT'S OWN CONTROL. Two halves that cannot fail are not a split,
+    they are a deletion with extra steps.
+
+    The value half is broken by re-pointing an address (the same control the
+    composed form has always had, applied to the half that replaced it); the
+    condition half is broken by flipping the recorded `prev`, which is the input
+    the crosses are entirely about.
+    """
+    doc = _load_alert_baseline()
+    bars = doc["bars"]
+    rsi_rows = [r for r in doc["rows"] if r["indicator"] == "rsi"]
+    assert rsi_rows
+
+    original = evaluator.INDICATOR_FUNCS["rsi"]
+    evaluator.INDICATOR_FUNCS["rsi"] = evaluator.INDICATOR_FUNCS["mfi"]
+    try:
+        moved = sum(1 for r in rsi_rows
+                    if evaluator.value_function("rsi")(bars, r["params"] or {})
+                    != r["value"])
+    finally:
+        evaluator.INDICATOR_FUNCS["rsi"] = original
+    assert evaluator.INDICATOR_FUNCS["rsi"] is original
+    assert moved > 0, "the VALUE half cannot detect a re-pointed address"
+
+    cross_rows = [r for r in doc["rows"]
+                  if r["condition"] in ("cross_above", "cross_below", "cross_zero")
+                  and r["prev"] is not None]
+    assert cross_rows, "no cross rows carry a prev — the condition half is thin"
+    flipped = sum(
+        1 for r in cross_rows
+        if evaluator.check_condition(r["condition"], r["value"], -(r["prev"]),
+                                     r["threshold"]) != r["triggered"])
+    assert flipped > 0, (
+        "negating every recorded `prev` changed NO decision — the condition half "
+        "is not actually reading `prev` and the crosses are unpinned")
 
 
 def test_the_baseline_grid_can_actually_detect_a_change():

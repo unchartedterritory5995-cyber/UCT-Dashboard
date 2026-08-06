@@ -8,13 +8,38 @@ Every 60s (configurable):
   4. On trigger: record + dispatch delivery via the existing
      ``watchlist_alert_service.deliver_alert_payload`` hook (bell + email +
      Discord). On non-trigger but successful evaluation, persist the last
-     value so the next cycle has a ``prev`` for cross-* conditions.
+     value so the next cycle has a ``prev`` for cross-* conditions — which is
+     true of the FORMING lane, the one that is live. See the two-lane note at
+     the bottom of this docstring: the closed lane takes ``prev`` from the
+     series and does not read that column at all.
 
 The evaluator runs in a single daemon thread. Each cycle is error-isolated
 per alert so a single bad ticker does not block the rest. Bars are read
 directly from the persistent SQLite store (``bars_sqlite.get_bars``); the
 universe pre-warmer + background fetchers keep that store fresh, so we
 never block on a remote API from this loop.
+
+⭐ THERE ARE NOW TWO LANES, AND ONLY ONE OF THEM IS LIVE.
+
+``ALERT_EVAL_MODE`` selects between them and it is ``"forming"``. Step 3 above
+describes the forming lane exactly: it judges the bar that is still being built,
+and ``prev`` is whatever the PREVIOUS 60-SECOND POLL happened to store in
+``last_value`` — so "RSI crossed above 70" can fire on a wick that unwinds before
+the bar closes, and whether it fires at all depends on when the loop happened to
+look. Task 2 measured that as 636,205 keyed / 17,295 identity disagreements
+across intra-bar granularities on frozen real bars.
+
+The CLOSED lane (``_evaluate_one_closed``) judges the newest bar that has
+actually closed, and takes ``prev`` from ``series[i-1]`` — the bar before it —
+so a crossing is a comparison of two BARS rather than two CYCLES. Through the
+same oracle, the same bars and the same grid it reads 0 / 0 at every k.
+
+⛔ NOTHING SWITCHES THE LANE IN THIS COMMIT. ``ALERT_EVAL_MODE`` is ``"forming"``,
+which is byte for byte what an armed alert did yesterday. The cutover is one
+constant in its own commit, after the shadow-mode soak — spec §8. Until then the
+closed lane is reachable only by asking for it explicitly (``mode="closed"``),
+which is what the tests do, and no fire it produces may enter the Signature
+receipts ledger.
 """
 
 from __future__ import annotations
@@ -41,6 +66,31 @@ from api.services.alert_conditions import (  # noqa: F401  (re-exported)
 _logger = logging.getLogger(__name__)
 _running = threading.Event()
 _thread: Optional[threading.Thread] = None
+
+
+# ─── THE MODE, AND THE ONE FUNCTION THAT READS IT ────────────────────────────
+#
+# ⛔ THE MODE IS READ THROUGH ONE FUNCTION AND A SOURCE SCAN ENFORCES IT.
+# `eval_mode()` is the only reader of `ALERT_EVAL_MODE`; a consumer comparing the
+# constant directly is a reader the seam cannot reach, which is a branch no test
+# can drive. B5 Task 10 shipped exactly this rule for `PANE_MODE` and it is why
+# `flipCGeometry` could exercise a path production never took.
+#
+# ⚠️ B5 Task 10 ALSO MEASURED THE TRAP ON THE OTHER SIDE: the JS minifier folded
+# `paneMode()` so hard that the panes branch was ABSENT from the shipped bundle —
+# "landed dark" was not "the branch is not taken", it was "the branch is not
+# present". Python is not minified, so the branch is genuinely here; it is
+# asserted by IMPORTING this module and CALLING the closed lane directly
+# (`tests/test_alert_closed_bar.py`), which is the evidence the JS side could not
+# produce.
+ALERT_EVAL_MODE = "forming"        # "forming" | "closed"
+
+EVAL_MODES: tuple[str, ...] = ("forming", "closed")
+
+
+def eval_mode() -> str:
+    """Which lane an unqualified `_evaluate_one` runs. THE ONLY READER."""
+    return ALERT_EVAL_MODE
 
 
 # ─── indicator dispatch ──────────────────────────────────────────────────────
@@ -348,26 +398,20 @@ def threshold_operand_value(address: str, condition: str, bars: list[dict],
     return resolve_operand(spec, bars, params, address_value)
 
 
-def _bb_threshold_override(bars: list[dict], params: dict,
-                           condition: str) -> Optional[float]:
-    """⚰️ TOMBSTONE. The module's ONE relational primitive, retired into the
-    grammar — this is now a two-line delegation with no band arithmetic in it.
-
-    ⚠️ THE NAME SURVIVES BECAUSE TWO FILES OUTSIDE THIS LANE BIND IT DIRECTLY:
-    `tools/alert_replay.py::make_forming_evaluate` and
-    `tests/test_alert_replay.py::_closed_bar_evaluate`. Both are the frozen fire
-    log's own instrument, both were written in Task 2, and re-pointing them at
-    `threshold_operand_value` belongs to the task that rebuilds the harness for
-    the closed lane — not to the task whose gate is that the instrument's reading
-    did not move. Deleting the symbol here would have broken the measurement
-    being used to prove the change was safe.
-
-    It is not a shim that hides a fork: `test_the_harness_agrees_with_the_evaluators_own_evaluate_one`
-    drives BOTH this function's callers and `_evaluate_one` over every address ×
-    condition × threshold × prev on the wick fixture and demands exact equality,
-    so a divergence between the two lanes is red before any replay number moves.
-    """
-    return threshold_operand_value("bb", condition, bars, params)
+# ⚰️ `_bb_threshold_override` IS GONE, AND TASK 5 IS WHERE ITS NAME COULD FINALLY
+# GO. Task 3 moved the band arithmetic into `THRESHOLD_OPERAND` but kept the
+# symbol as a two-line delegation, because two files outside this lane bound it
+# directly — `tools/alert_replay.py::make_forming_evaluate` and
+# `tests/test_alert_replay.py::_closed_bar_evaluate` — and both are the frozen
+# fire log's own instrument. Deleting the name in the same commit would have
+# broken the measurement being used to prove that commit was safe.
+#
+# Task 5 owns `alert_replay.py`, so both binders were re-pointed at
+# `threshold_operand_value` here, and the proof is unchanged and unmoved:
+# `python tools/alert_replay.py --check` still reproduces all 691,195 frozen
+# fires, digest for digest, and the 5,040-row baseline still replays exactly. A
+# delegation nobody calls is a twin waiting to drift, which is the thing this
+# programme retires.
 
 
 # ⛔ WHY `sar` IS ALERTABLE BY EVENT AND STILL HAS NO FIXED-THRESHOLD ADDRESS.
@@ -782,7 +826,9 @@ def _parse_params(alert: dict) -> dict:
         return {}
 
 
-def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None) -> tuple[Optional[float], bool]:
+def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
+                  mode: Optional[str] = None,
+                  now_epoch: Optional[float] = None) -> tuple[Optional[float], bool]:
     """Compute the indicator value for one alert and return (value, triggered).
 
     ``bars`` may be passed in pre-fetched (so a (sym, tf) group of alerts
@@ -790,7 +836,22 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None) -> tuple[Optio
     least a handful of bars to compute most indicators — the indicator
     funcs themselves return None for short inputs, in which case we report
     (None, False) so the cycle records nothing and moves on.
+
+    ⭐ ``mode`` IS AN OVERRIDE, NOT A SECOND READER OF THE CONSTANT. Left
+    ``None`` it asks `eval_mode()`, which is the module's only reader; passing it
+    explicitly is how a test drives ONE lane without touching global state (and
+    without a `monkeypatch` whose failure mode is a leaked module attribute —
+    `lesson_cleanup_must_verify_ownership`). Two tests deliberately call this with
+    NO ``mode`` at all on an input where the two lanes DISAGREE, which is what
+    makes "`eval_mode()` secretly returns closed" a mutation that dies rather
+    than one every explicit-mode test rides straight past.
     """
+    resolved_mode = mode if mode is not None else eval_mode()
+    if resolved_mode == "closed":
+        value, triggered, _bar_index = _evaluate_one_closed(
+            alert, bars, now_epoch=now_epoch)
+        return value, triggered
+
     # Case-folded to the canonical plot address. This used to be a bare
     # `.lower()`, which is a no-op on the eight lowercase legacy keys and DROPS
     # every camelCase plot address (`adx.plusDI`, `ichimoku.spanA`). See
@@ -840,9 +901,252 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None) -> tuple[Optio
     if dyn is not None:
         threshold = dyn
 
+    # ⚠️ THE FORMING LANE'S `prev` IS THE PREVIOUS 60-SECOND POLL'S NUMBER, NOT
+    # THE PREVIOUS BAR'S. That is the defect Phase C exists to close, and it is
+    # named here rather than left as a variable called `prev_value`: `last_value`
+    # is written by `record_evaluation` / `record_trigger` at the end of whatever
+    # cycle last ran, so "crossed above 70" means "crossed since the last time we
+    # happened to look". The closed lane below takes `prev` from `series[i-1]`.
     prev_value = alert.get("last_value")
     triggered = check_condition(condition, value, prev_value, threshold)
     return value, triggered
+
+
+# ─── THE CLOSED-BAR LANE (spec §8) ───────────────────────────────────────────
+#
+# Everything below is reachable today only by asking for it (`mode="closed"`).
+# `ALERT_EVAL_MODE` is `"forming"`, so no armed alert reaches any of it.
+
+# Minutes per intraday timeframe code. `D`/`W`/`M` are NOT here: their bars are
+# stored as YYYYMMDD calendar keys and a month is not a fixed number of seconds,
+# so they are resolved through the ET calendar in `bar_close_epoch`.
+_TF_MINUTES: dict[str, int] = {"1": 1, "5": 5, "15": 15, "30": 30, "60": 60}
+
+_CALENDAR_TFS: tuple[str, ...] = ("D", "W", "M")
+
+
+def _bar_calendar_date(t) -> Optional["object"]:
+    """A daily/weekly/monthly bar's `t` → its calendar date, or ``None``.
+
+    ⛔ `bars_sqlite` STORES DAILY TIMESTAMPS AS YYYYMMDD INTS. 20260805 read as
+    unix seconds is 1970-08-23 — that is not hypothetical, it is the live
+    `_fetch_bars_for_alert` → `compute_vwap` defect Task 2 measured and pinned
+    (400 trading days landing 11,130 seconds apart, i.e. one "session"). The
+    ledger's own `_normalize_bar_time` exists for the same reason. So the
+    encoding is decided by the TIMEFRAME, never by the magnitude of the number.
+    """
+    import datetime as _dt
+    if isinstance(t, str):
+        text = t.strip().replace("-", "")
+    elif isinstance(t, bool) or not isinstance(t, (int, float)):
+        return None
+    else:
+        text = str(int(t))
+    if len(text) != 8 or not text.isdigit():
+        return None
+    try:
+        return _dt.date(int(text[:4]), int(text[4:6]), int(text[6:8]))
+    except ValueError:
+        return None
+
+
+def _et_midnight_epoch(day) -> float:
+    """Unix seconds at 00:00 ET on ``day``.
+
+    ⛔ RESOLVED PER INSTANT FROM THE IANA DATABASE, THROUGH THE SAME ZONE
+    `compute_vwap` USES (`indicator_compute._et_zone()`) — never `_ET_OFFSET`-style
+    module-load constant arithmetic, which is correct for half the year and
+    silently an hour wrong for the other half depending on when the process
+    started (`docs/decisions/2026-08-02-vwap-utc-day-bucketing.md` §7). ET
+    midnight is also the boundary that decision settled on as the session
+    anchor, so this lane and the VWAP column cut the day in the same place.
+    """
+    import datetime as _dt
+    from api.services import indicator_compute
+    zone = indicator_compute._et_zone()
+    return _dt.datetime(day.year, day.month, day.day, tzinfo=zone).timestamp()
+
+
+def bar_close_epoch(t, tf: str) -> Optional[float]:
+    """The instant a bar STOPS BEING ABLE TO CHANGE, or ``None`` if unknowable.
+
+    ⭐ "CLOSED" MEANS "THE STORE CAN NO LONGER MOVE THIS ROW", WHICH IS NOT THE
+    SAME AS "THE REGULAR SESSION ENDED", AND THE DIFFERENCE IS THE WHOLE POINT OF
+    THIS PHASE. A daily bar is an ET calendar day and US equity extended hours
+    run to 20:00 ET, so a post-market print at 18:30 still updates today's daily
+    row. Calling it closed at 16:00 would hand the closed lane a row that then
+    CHANGED — repaint, reintroduced from a new direction, in the lane built to
+    remove it. So the daily boundary is the next ET midnight, the same boundary
+    `compute_vwap` anchors its session on.
+
+    Intraday bars carry a unix-second START and close a timeframe later.
+    Weekly closes seven ET days on. Monthly closes at the next month's ET
+    midnight — deliberately a CALENDAR step and not `+30 days`, which is wrong
+    for eleven months of twelve.
+
+    ``None`` for a timeframe or an encoding this lane does not understand, which
+    `closed_bar_index` treats as "cannot claim this bar has closed" — the safe
+    direction, because the alternative is firing on a bar that is still moving.
+    """
+    import datetime as _dt
+    code = str(tf or "").strip().upper()
+    minutes = _TF_MINUTES.get(code)
+    if minutes is not None:
+        if isinstance(t, bool) or not isinstance(t, (int, float)):
+            return None
+        return float(t) + minutes * 60
+    if code not in _CALENDAR_TFS:
+        return None
+    day = _bar_calendar_date(t)
+    if day is None:
+        return None
+    if code == "D":
+        return _et_midnight_epoch(day + _dt.timedelta(days=1))
+    if code == "W":
+        return _et_midnight_epoch(day + _dt.timedelta(days=7))
+    nxt = _dt.date(day.year + (day.month == 12), (day.month % 12) + 1, 1)
+    return _et_midnight_epoch(nxt)
+
+
+def closed_bar_index(bars: list[dict], tf: str, now_epoch: float) -> int:
+    """Index of the newest bar that has CLOSED, or -1.
+
+    ⛔ THIS IS NOT `len(bars) - 2`. Three reasons, each measured:
+      1. Outside RTH the store's newest bar is already closed, so blanket
+         last-minus-one drops a whole real bar and every alert fires one bar late,
+         forever, in exactly the hours a swing trader looks.
+      2. `bars_sqlite` daily/weekly/monthly ts are YYYYMMDD ints; intraday ts are
+         unix seconds. Comparing a YYYYMMDD to `now_epoch` is a type confusion the
+         ledger's own `_normalize_bar_time` exists because of.
+      3. A gap (holiday, halt, thin ticker) means the newest bar can be days old
+         and unambiguously closed.
+
+    So: a bar is closed iff `now_epoch >= bar_close_epoch(...)`, and the search
+    walks BACKWARDS from the newest — which is what makes (1) and (3) fall out
+    of one rule instead of two special cases. A bar whose encoding cannot be
+    resolved is skipped rather than assumed closed.
+    """
+    for i in range(len(bars) - 1, -1, -1):
+        close_at = bar_close_epoch(bars[i].get("t"), tf)
+        if close_at is None:
+            continue
+        if now_epoch >= close_at:
+            return i
+    return -1
+
+
+def _closed_address_value(address: str, bars: list[dict],
+                          params: dict) -> Optional[float]:
+    """The resolver the closed lane hands `resolve_operand` for an `address`.
+
+    The counterpart of `address_value`, and it differs in exactly one way that
+    matters: it reads the column's LAST ELEMENT rather than its last non-None
+    one. On the closed lane "the last bar of the window I was given" is the bar
+    being judged, and a column with a trailing pad (`ichimoku.chikou`) has no
+    value THERE — reaching backwards for one would answer a question about a
+    different bar. Callers truncate `bars` so that "the last bar" is the bar
+    being judged.
+
+    Returns ``None`` for an address the table has never heard of, matching
+    `address_value`: the create path validates nothing, so a stored typo stays
+    the silent no-op it has always been.
+    """
+    from api.services import alert_series
+    fn = alert_series.series_function(resolve_address(address))
+    if fn is None or not bars:
+        return None
+    series = alert_series.series_for(resolve_address(address), bars, params)
+    return series[-1] if series else None
+
+
+def _closed_threshold_operand_value(address: str, condition: str,
+                                    bars: list[dict], params: dict,
+                                    index: int) -> Optional[float]:
+    """The DECLARED right-hand side for (address, condition) AT bar ``index``.
+
+    ⛔ AT THE CLOSED BAR, NOT AT THE NEWEST ONE. `bb touch_upper` compares the
+    close against the upper band, and reading the band off the FORMING bar while
+    reading the close off the closed one is a repaint hiding on the right-hand
+    side of the comparison — the fire set would depend on when you looked even
+    though the value did not. `bars[:index + 1]` makes "the last bar" the bar
+    being judged, so the SAME `resolve_operand` grammar Task 3 built resolves it
+    with no new branch and no second table.
+    """
+    spec = THRESHOLD_OPERAND.get((address, condition))
+    if spec is None:
+        return None
+    return resolve_operand(spec, bars[:index + 1], params, _closed_address_value)
+
+
+def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
+                         now_epoch: Optional[float] = None,
+                         ) -> tuple[Optional[float], bool, Optional[int]]:
+    """(value, triggered, bar_index) at the newest CLOSED bar.
+
+    ⭐ `prev` COMES FROM THE SERIES, NOT FROM THE ROW. `alert["last_value"]` is
+    DEMOTED to delivery-dedup and is not read here at all — spec §8, and the
+    reason Task 2's repaint number is what it is. Two consequences worth naming:
+    a fresh alert can fire on its very first evaluation (the forming lane needed
+    a poll to happen first), and the answer no longer depends on how often the
+    loop runs.
+
+    ⭐ AND `bar_index` IS RETURNED, WHICH IS WHAT MAKES FIRE-ONCE POSSIBLE. The
+    old lane could only ask "did it fire this cycle"; this one can ask "did it
+    fire for THIS BAR", which is the same question the signal ledger's UNIQUE key
+    asks and the reason a closed-bar fire is ledger-grade at all. Nothing
+    consumes it yet — fire-once / re-arm is Task 11's and the ledger door is
+    Task 9's — but the number the door needs is produced here rather than
+    reconstructed later from a timestamp.
+
+    ⚠️ `i < 1` IS NOT AN OFF-BY-ONE, IT IS THE `prev` REQUIREMENT. `series[i-1]`
+    has to exist, and at `i == 0` there is no previous bar to have crossed from.
+    """
+    from api.services import alert_series
+
+    address = resolve_address(alert.get("indicator"))
+    if alert_series.series_function(address) is None:
+        return None, False, None
+
+    if bars is None:
+        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"], 200)
+    if not bars:
+        return None, False, None
+
+    if now_epoch is None:
+        now_epoch = time.time()
+
+    i = closed_bar_index(bars, alert.get("tf") or "", now_epoch)
+    if i < 1:
+        return None, False, None
+
+    params = _parse_params(alert)
+    try:
+        series = alert_series.series_for(address, bars, params)
+    except AssertionError:
+        # A misaligned column is a BUG in a series function, not a quiet bar.
+        raise
+    except Exception:
+        _logger.exception(
+            "[alert-eval] closed compute failed for alert %s (%s/%s/%s)",
+            alert.get("id"), alert.get("sym"), address, alert.get("tf"),
+        )
+        return None, False, i
+
+    current, prev = series[i], series[i - 1]
+    if current is None:
+        return None, False, i
+
+    condition = alert.get("condition") or ""
+    threshold = alert.get("threshold")
+    # ⛔ OUTSIDE THE try/except ABOVE, for the reason `_evaluate_one` states:
+    # `resolve_operand` RAISES on an operand kind nobody implements, and
+    # swallowing that would turn a bug in a declaration into an alert that is
+    # offered and never fires.
+    dyn = _closed_threshold_operand_value(address, condition, bars, params, i)
+    if dyn is not None:
+        threshold = dyn
+
+    return current, check_condition(condition, current, prev, threshold), i
 
 
 # ─── cycle + delivery ────────────────────────────────────────────────────────

@@ -161,9 +161,15 @@ def test_the_retired_bb_override_and_the_grammar_agree(params, condition):
     want = _pre_phase_c_bb_threshold_override(bars, params, condition)
     got = ev.threshold_operand_value("bb", condition, bars, params)
     assert got == want, (condition, params, got, want)
-    # …and the surviving tombstone (which two files outside this lane still bind)
-    # is the same delegation, not a third implementation.
-    assert ev._bb_threshold_override(bars, params, condition) == want
+    # ⚰️ `ev._bb_threshold_override` was asserted here too, as the surviving
+    # delegation. Phase C Task 5 deleted the symbol once it owned the last two
+    # files that bound it; `test_the_retired_override_is_gone_from_every_lane_that_bound_it`
+    # is the rail on the deletion. The equality above is unchanged and is still
+    # measured against the verbatim pre-Phase-C body, which is the claim that
+    # matters: the ARITHMETIC did not move, whatever the name did.
+    assert not hasattr(ev, "_bb_threshold_override"), (
+        "the retired override came back — a delegation nobody calls is a twin "
+        "waiting to drift")
 
 
 def test_the_bb_equivalence_grid_is_not_vacuous():

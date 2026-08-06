@@ -292,10 +292,15 @@ def _closed_bar_evaluate(alert: dict, seen: list[dict]):
         return None, False
     condition = alert.get("condition") or ""
     threshold = alert.get("threshold")
-    if address == "bb":
-        dyn = ev._bb_threshold_override(closed, params, condition)
-        if dyn is not None:
-            threshold = dyn
+    # ⚰️ Was `ev._bb_threshold_override(closed, params, condition)` — this
+    # binding is one of the two that kept the retired name alive through Task 3.
+    # Task 5 re-pointed both at the general grammar and deleted the symbol. The
+    # LOGIC of this control is otherwise untouched: it is still the hypothetical
+    # closed-bar evaluator written in Task 2, before any implementation existed,
+    # which is what makes it worth more than a tidier one.
+    dyn = ev.threshold_operand_value(address, condition, closed, params)
+    if dyn is not None:
+        threshold = dyn
     return value, ev.check_condition(condition, value, prev, threshold)
 
 

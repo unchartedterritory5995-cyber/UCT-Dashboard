@@ -149,7 +149,22 @@ def delete(alert_id: int) -> None:
 
 
 def record_evaluation(alert_id: int, last_value: float) -> None:
-    """Record that an alert was evaluated but did not trigger."""
+    """Record that an alert was evaluated but did not trigger.
+
+    ⚠️ WHAT `last_value` IS FOR DEPENDS ON `indicator_alert_evaluator.eval_mode()`,
+    AND THIS IS THE LOAD-BEARING SITE. It has always been described as "the
+    previous evaluation cycle's value, used by cross-* conditions", and under
+    `ALERT_EVAL_MODE == "forming"` — which is what is live — that is exactly
+    right: this column IS the `prev` a crossing is measured against, so this
+    write is part of the alert's decision, not bookkeeping beside it. Which also
+    means the decision depends on the poll interval, and that is the defect
+    Phase C closes.
+
+    Under the closed lane (`ALERT_EVAL_MODE == "closed"`, spec §8, dark today)
+    `prev` comes from `series[i-1]` and this column is read by NOTHING in the
+    decision — it is demoted to delivery-dedup and display. Do not delete it on
+    that day: the fired-log / re-arm surface (Task 11) is the consumer it becomes.
+    """
     with _conn() as db:
         db.execute(
             "UPDATE indicator_alerts SET last_value=?, last_evaluated_at=? WHERE id=?",
