@@ -1,16 +1,33 @@
-"""Fundamentals router — wraps fundamentals.get_fundamentals + Finnhub /stock/metric.
+"""Fundamentals router — wraps fundamentals.get_fundamentals + FMP metrics
+trio (primary) + Finnhub /stock/metric (fallback).
 
 GET /api/fundamentals/{ticker}
 Returns: {market_cap, forward_pe, beta, week52_high, week52_low, avg_vol, div_yield}
 
 All fields are null-safe; never raises on missing data.
+
+── Task 9 migration (2026-08-05) ───────────────────────────────────────────
+Finnhub's `/stock/metric?metric=all` used to be the SOLE source of 52-week
+range / avg volume / the market-cap fallback. It is now migrated to FMP's
+`stable/quote` + `stable/key-metrics-ttm` + `stable/ratios-ttm` trio
+(`_fmp_metrics_get`) as PRIMARY, with Finnhub kept as a genuine fallback
+(`_fh_metric_get` — unchanged, still called every request) rather than
+deleted, because `/stock/metric` is not known-403 and because exactly one
+field (`avg_vol`, a 10-day average volume) has **no FMP equivalent** in this
+trio — verified live 2026-08-05 against `stable/quote`, whose only volume
+field is a single day's `volume`, not an average. `avg_vol` therefore stays
+Finnhub-sourced permanently; `week52_high`/`week52_low`/the `market_cap`
+fallback are now FMP-primary, Finnhub-fallback.
 """
 from __future__ import annotations
 
 import logging
+import os
 import threading
+from concurrent.futures import ThreadPoolExecutor, wait as _futures_wait
 from typing import Any
 
+import requests
 from fastapi import APIRouter, Depends, Query
 
 from api.services.fundamentals import get_fundamentals, _fmt_billions
@@ -29,6 +46,22 @@ _FUND_FAIL_TTL = 300   # 5 min -- an all-null build self-heals fast instead of
 _TIMEOUT = 10
 _SNAP_KIND = "fund_snapshot_v3"       # /api/fundamentals/{ticker} payloads (v3: +inception/inst-own)
 _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snapshot
+
+# ── FMP metrics trio (Task 9) ───────────────────────────────────────────────
+# A SEPARATE, OWN timeout budget from Finnhub's `_TIMEOUT` above — FMP is a
+# different provider entirely and must never share finnhub_client's token
+# bucket / budget. `_FMP_TOTAL_TIMEOUT` is the HARD wall-clock cap on the
+# whole 3-way fan-out (the 524-outage class named in the plan's Global
+# Constraints: an unbounded/slow external call on the request path pins a
+# worker in the ONE shared anyio threadpool). `_FMP_POOL_WORKERS` bounds the
+# pool to exactly one worker per endpoint — it never grows with request
+# volume, mirroring the fixed-width pools already in this codebase
+# (`insider.get_recent_insider_buys` = 10-wide, `fundamentals.compare_fundamentals`
+# = <=6-wide).
+_FMP_ENDPOINTS = ("quote", "key-metrics-ttm", "ratios-ttm")
+_FMP_PER_CALL_TIMEOUT = 6      # seconds, per individual FMP leg
+_FMP_TOTAL_TIMEOUT = 7         # seconds, hard cap for the whole fan-out
+_FMP_POOL_WORKERS = 3          # exactly len(_FMP_ENDPOINTS) -- bounded, fixed
 
 
 def _fh_metric_get(ticker: str) -> dict[str, Any]:
@@ -49,6 +82,94 @@ def _fh_metric_get(ticker: str) -> dict[str, Any]:
     result = data.get("metric") or {}
     cache.set(ck, result, _FH_METRIC_TTL)
     return result
+
+
+def _fmp_get(path: str, params: dict, timeout: int) -> Any:
+    """Fire one FMP `stable/*` GET. Returns parsed JSON (list or dict) or
+    None on any failure (missing key, network error, non-2xx). Own timeout
+    budget, own try/except — never raises, never touches finnhub_client."""
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return None
+    try:
+        r = requests.get(
+            f"https://financialmodelingprep.com/stable/{path}",
+            params={**params, "apikey": key},
+            timeout=timeout,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception as exc:
+        _log.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
+        return None
+
+
+def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
+    """FMP replacement for Finnhub's `/stock/metric?metric=all` — fans out to
+    `stable/quote` + `stable/key-metrics-ttm` + `stable/ratios-ttm` (three
+    calls where Finnhub had one) with a BOUNDED pool (exactly
+    `_FMP_POOL_WORKERS` workers, one per endpoint, never grows) and a HARD
+    TOTAL wall-clock timeout (`_FMP_TOTAL_TIMEOUT`) — a slow/hanging FMP leg
+    cannot pin the shared anyio threadpool past that budget: any leg still
+    running when the budget expires is ABANDONED (not waited on) via
+    `shutdown(wait=False, cancel_futures=True)`.
+
+    Returns one flat MERGED dict (mirrors `_fh_metric_get`'s flat shape so
+    downstream extraction is provider-agnostic) — quote's `yearHigh`/
+    `yearLow`/`marketCap`/... + key-metrics-ttm's EV multiples/current ratio/
+    Graham number + ratios-ttm's margins. Only quote's fields currently feed
+    the compact `/api/fundamentals` response (see Task 9 report — the other
+    two endpoints' fields have no consumer yet per the Step-1 frontend
+    enumeration); all three are still fetched, merged, and tested per-field
+    so the fan-out/bound behavior is exercised and future consumers can read
+    the extra keys without another provider migration.
+    """
+    ck = f"fmp_metrics::{ticker.upper()}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+
+    sym = ticker.upper()
+
+    def _one(path: str):
+        return path, _fmp_get(path, {"symbol": sym}, timeout=_FMP_PER_CALL_TIMEOUT)
+
+    merged: dict[str, Any] = {}
+    ex = ThreadPoolExecutor(max_workers=_FMP_POOL_WORKERS)
+    try:
+        futures = {ex.submit(_one, path): path for path in _FMP_ENDPOINTS}
+        done, not_done = _futures_wait(futures, timeout=_FMP_TOTAL_TIMEOUT)
+        for fut in done:
+            try:
+                _path, data = fut.result()
+            except Exception as exc:
+                _log.warning("FMP leg failed for %s: %s", sym, exc)
+                continue
+            row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
+            if isinstance(row, dict):
+                merged.update(row)
+        if not_done:
+            _log.warning(
+                "FMP metrics fan-out exceeded %ss total budget for %s (%d leg(s) abandoned)",
+                _FMP_TOTAL_TIMEOUT, sym, len(not_done),
+            )
+    finally:
+        # wait=False: the calling (request-path) thread does NOT block on any
+        # leg still running past the total budget -- that is what makes
+        # _FMP_TOTAL_TIMEOUT a genuinely HARD cap instead of degrading to
+        # "sum of per-call timeouts". cancel_futures=True (3.9+) drops any
+        # not-yet-started work; already-running threads finish in the
+        # background (each still bounded by its own _FMP_PER_CALL_TIMEOUT)
+        # and are discarded on completion.
+        ex.shutdown(wait=False, cancel_futures=True)
+
+    # Honest-degradation: a complete miss self-heals in 5 min (matches
+    # _FUND_FAIL_TTL), not a full hour -- mirrors the negative-cache pattern
+    # already used for the whole-response cache write below, applied here at
+    # the provider-leg level too so a transient FMP blip doesn't pin a blank
+    # for an hour.
+    cache.set(ck, merged, _FH_METRIC_TTL if merged else _FUND_FAIL_TTL)
+    return merged
 
 
 @router.get("/api/fundamentals/earnings-table")
@@ -116,7 +237,15 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         _log.debug("fundamentals error for %s: %s", sym, base.get("error"))
         base = {}
 
-    # Finnhub /stock/metric for avg vol and 52-week range (more reliable than yfinance)
+    # FMP metrics trio (primary, Task 9) + Finnhub /stock/metric (fallback —
+    # kept, not deleted, both because /stock/metric is not known-403 and
+    # because avg_vol has no FMP equivalent in the trio, see module docstring).
+    fmp = {}
+    try:
+        fmp = _fmp_metrics_get(sym)
+    except Exception as e:
+        _log.debug("FMP metrics failed for %s: %s", sym, e)
+
     fh = {}
     try:
         fh = _fh_metric_get(sym)
@@ -129,7 +258,14 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         except (TypeError, ValueError):
             return None
 
-    # avg_vol: prefer Finnhub 10-week avg daily volume, fall back to yfinance averageVolume
+    # avg_vol: Finnhub-only. Verified live 2026-08-05 against stable/quote +
+    # stable/key-metrics-ttm + stable/ratios-ttm — none of the three carries a
+    # 10-day/52-week AVERAGE volume field (`quote.volume` is a single day's
+    # volume, a different statistic entirely; substituting it here would be
+    # exactly the "substituted stat" the honest-degradation law forbids). This
+    # field therefore has no FMP leg to prefer — it renders from Finnhub or
+    # not at all, same fallback-of-last-resort role Finnhub now plays for the
+    # other two fields below.
     #
     # ⚠️ UNIT: Finnhub's volume metrics come back in MILLIONS of shares, NOT shares
     # — empirically verified 2026-08-04 against /stock/metric: AMD 29.65728,
@@ -153,23 +289,42 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
     if avg_vol_fh is not None:
         avg_vol_fh *= _FH_VOL_MILLIONS
 
-    # 52-week range: prefer Finnhub annual highs
-    w52_high_fh = _safe_float(fh.get("52WeekHigh"))
-    w52_low_fh = _safe_float(fh.get("52WeekLow"))
+    # 52-week range: FMP `stable/quote`'s `yearHigh`/`yearLow` are now
+    # PRIMARY — verified live 2026-08-05 (AAPL yearHigh=344.57/yearLow=205.59)
+    # to be plain dollar prices, the SAME unit Finnhub's `52WeekHigh`/
+    # `52WeekLow` always were, so no conversion is needed switching providers
+    # here (unlike market_cap below). Finnhub is the fallback when FMP's
+    # fetch failed or came back empty.
+    w52_high = _safe_float(fmp.get("yearHigh"))
+    if w52_high is None:
+        w52_high = _safe_float(fh.get("52WeekHigh"))
+    w52_low = _safe_float(fmp.get("yearLow"))
+    if w52_low is None:
+        w52_low = _safe_float(fh.get("52WeekLow"))
 
     # market_cap: yfinance is primary (right in the overwhelming majority of
     # cases) but its `.info` payload sometimes omits `marketCap` ENTIRELY for
     # an unremarkable mega-cap — confirmed live 2026-08-05 for AMD and JPM,
-    # both of which resolved every other field cleanly. Finnhub's
-    # `marketCapitalization` (already fetched by `_fh_metric_get` above for
-    # avg_vol/52-week range — no new API call) covers exactly this gap, so it
-    # is used as a fallback ONLY when yfinance has nothing, never overriding a
-    # value yfinance already resolved. Finnhub reports it in MILLIONS of
-    # dollars (same unit family as the avg_vol millions quirk documented
-    # above), so it is scaled to dollars before going through the same
-    # T/B/M formatter yfinance's figure already uses, so both sources render
-    # identically on the widget.
+    # both of which resolved every other field cleanly. FMP `stable/quote`'s
+    # `marketCap` (already fetched by `_fmp_metrics_get` above for the
+    # 52-week range — no new API call) is now the first fallback used ONLY
+    # when yfinance has nothing, never overriding a value yfinance already
+    # resolved. Finnhub's `marketCapitalization` is the final fallback below
+    # that, kept for when FMP's fetch also comes back empty.
+    #
+    # ⚠️ UNIT: FMP's `quote.marketCap` is RAW DOLLARS — verified live
+    # 2026-08-05 (AAPL 4,567,767,716,000 ≈ $4.57T, matches reality) — a
+    # DIFFERENT unit than Finnhub's `marketCapitalization`, which is MILLIONS
+    # of dollars (same millions-family quirk as the avg_vol unit documented
+    # above). Do NOT apply Finnhub's `* 1e6` scale to the FMP value — that
+    # would inflate it a million-fold. Each leg is scaled to dollars in its
+    # OWN unit before going through the shared T/B/M formatter so every
+    # source renders identically on the widget.
     market_cap = base.get("market_cap")
+    if market_cap is None:
+        cap_fmp = _safe_float(fmp.get("marketCap"))
+        if cap_fmp is not None:
+            market_cap = _fmt_billions(cap_fmp)
     if market_cap is None:
         cap_millions_fh = _safe_float(fh.get("marketCapitalization"))
         if cap_millions_fh is not None:
@@ -181,8 +336,8 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         "market_cap": market_cap,                       # formatted string e.g. "$1.23T"
         "forward_pe": base.get("pe_forward"),           # float or None
         "beta": base.get("beta"),                       # float or None
-        "week52_high": w52_high_fh or base.get("fifty_two_week_high"),
-        "week52_low": w52_low_fh or base.get("fifty_two_week_low"),
+        "week52_high": w52_high if w52_high is not None else base.get("fifty_two_week_high"),
+        "week52_low": w52_low if w52_low is not None else base.get("fifty_two_week_low"),
         "avg_vol": avg_vol_fh,                          # 10-day avg daily vol (shares)
         "div_yield": base.get("dividend_yield_pct"),    # pct e.g. 1.5
         # Stock Profile widget "More Info": key metrics + company profile
