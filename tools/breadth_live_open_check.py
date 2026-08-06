@@ -117,6 +117,36 @@ def check(phase: str) -> tuple[list[str], list[str]]:
     else:
         notes.append("PUSH_SECRET not found — skipped the store self-test")
 
+    # ── dividend price basis (activated 2026-08-06) ──────────────────────────
+    # The failure this exists to catch is SILENT: the correction lives behind an
+    # env var, so a redeploy that loses `BREADTH_DIVIDEND_BASIS` reverts every
+    # long-lookback level to the uncorrected split-only basis and nothing errors
+    # — the numbers just quietly go back to being ~9 names wrong on 52w highs
+    # and ~50 on stage2. Reconcile would catch it; nobody runs reconcile daily.
+    try:
+        div = _get("/api/breadth-monitor/live/dividends")
+        notes.append(f"dividend basis={div.get('basis_enabled')} "
+                     f"rows={div.get('stored_rows')} tickers={div.get('stored_tickers')} "
+                     f"truncated={div.get('truncated')}")
+        if not div.get("basis_enabled"):
+            problems.append(
+                "DIVIDEND BASIS IS OFF — live levels have reverted to the "
+                "uncorrected split-only basis (52w highs ~9 names low, stage2 "
+                "~50 off). Set BREADTH_DIVIDEND_BASIS=1 on the web service.")
+        if div.get("truncated"):
+            problems.append("dividend sweep TRUNCATED — it ran out of pages, not "
+                            "data, so older 52-week windows are under-adjusted")
+        rows = div.get("stored_rows") or 0
+        if rows and rows < 100_000:
+            problems.append(f"dividend store holds only {rows} rows — a full "
+                            f"market sweep is ~440k; levels will under-adjust")
+        # NOT checked: `refreshed_at`. It is in-process state that resets to
+        # None on every container swap, so it reads "never swept" after any
+        # deploy while the store on /data is perfectly fine. Row count is the
+        # honest durable signal.
+    except Exception as e:
+        notes.append(f"dividend status unavailable: {e}")
+
     if phase == "preopen":
         if not live.get("superseded"):
             notes.append("already un-superseded before the bell — early session start?")
