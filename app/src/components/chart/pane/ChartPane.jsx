@@ -182,7 +182,9 @@ function ChartPane({
   // come straight from the host: a workspace widget/tab passes both (writes stay
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
-  const { cs: chartCs, menuVars, write: writeActiveSettings, patchHeader } = useChartSurfaceSettings({
+  const {
+    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource,
+  } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
@@ -451,8 +453,19 @@ function ChartPane({
              blob (null = inherit the global default). onSettingsPersist routes
              ALL of StockChart's internal settings writes to the same sink the
              pane writes through, so a workspace widget never touches the shared
-             global pref → editing one chart never changes another. */
-          settingsOverride={stored || null}
+             global pref → editing one chart never changes another.
+             A /charts widget/tab wins with its own `stored` blob; otherwise, on
+             an own-chart surface (stored=null, no onStore — every popup), the
+             resolved `ownChartSource` from useChartSurfaceSettings hands the
+             SAME widget/tab blob the chrome above already reads down to
+             StockChart too — without this the chrome (identity/meta colors)
+             would show the owner's settings while the actual chart (candles,
+             MAs, background, watermark) kept rendering the untouched seed.
+             `ownChartSource` is null when nothing distinctive was found (already
+             fell back to the seed), so StockChart's own base — which reads that
+             same seed — is already correct and gets no override. Both operands
+             are memoized upstream, so this stays identity-stable. */
+          settingsOverride={stored || ownChartSource || null}
           onSettingsPersist={writeActiveSettings}
           onSymbolChange={onSymbolChange ? handleSymbolChange : undefined}
           onTfChange={onTfChange}
