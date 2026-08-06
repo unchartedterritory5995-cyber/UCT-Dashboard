@@ -347,3 +347,112 @@ describe('ownChartSource — the raw blob handed to StockChart as settingsOverri
     expect(result.current.ownChartSource).toBe(first)
   })
 })
+
+// ── Fix (default-profile): the resolution is DETERMINISTIC, not positional ──
+// The old rule took the FIRST chart widget on the board regardless of whether
+// it had settings — a board where the customized chart sits third silently
+// resolved to the untouched seed. `charts_default_chart_widget` can also name
+// an explicit winner that beats position outright.
+describe('own-chart surface — deterministic resolution (charts_default_chart_widget + scan-all)', () => {
+  test('scans past widgets with no settings to the THIRD chart widget that actually has them (the positional bug)', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: {
+        widgets: [
+          { id: 'w1', type: 'chart', opts: {} },
+          { id: 'w2', type: 'chart', opts: {} },
+          { id: 'w3', type: 'chart', opts: { settings: { background: '#thirdwidget' } } },
+        ],
+      },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.ownChartSource).toEqual({ background: '#thirdwidget' })
+  })
+
+  test('charts_default_chart_widget names a widget that beats position', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_default_chart_widget: 'w2',
+      charts_workspace_layout: {
+        widgets: [
+          { id: 'w1', type: 'chart', opts: { settings: { background: '#first' } } },
+          { id: 'w2', type: 'chart', opts: { settings: { background: '#namedwinner' } } },
+        ],
+      },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.ownChartSource).toEqual({ background: '#namedwinner' })
+  })
+
+  test('a widget whose settings is {} or null is skipped, not treated as a winner', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: {
+        widgets: [
+          { id: 'w1', type: 'chart', opts: { settings: {} } },
+          { id: 'w2', type: 'chart', opts: { settings: null } },
+          { id: 'w3', type: 'chart', opts: { settings: { background: '#w3' } } },
+        ],
+      },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.ownChartSource).toEqual({ background: '#w3' })
+  })
+
+  test('charts_default_chart_widget names a widget with NO settings — falls through to the scan rather than forcing an empty win', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_default_chart_widget: 'w1',
+      charts_workspace_layout: {
+        widgets: [
+          { id: 'w1', type: 'chart', opts: {} },
+          { id: 'w2', type: 'chart', opts: { settings: { background: '#w2wins' } } },
+        ],
+      },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.ownChartSource).toEqual({ background: '#w2wins' })
+  })
+
+  test('charts_default_chart_widget names an id that matches no chart widget — falls through to the scan', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_default_chart_widget: 'does-not-exist',
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#w1wins' } } }],
+      },
+    }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(result.current.ownChartSource).toEqual({ background: '#w1wins' })
+  })
+
+  test('defensive: charts_default_chart_widget of an unexpected type falls through to the scan without throwing', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_default_chart_widget: 12345,
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#fallback' } } }],
+      },
+    }
+    let result
+    expect(() => { ({ result } = renderHook(() => useChartSurfaceSettings({ stored: null }))) }).not.toThrow()
+    expect(result.current.ownChartSource).toEqual({ background: '#fallback' })
+  })
+
+  // A /charts widget/tab (onStore present) must stay unaffected by the new
+  // pref too — the explicit-winner mechanism is only for "your one chart"
+  // surfaces, never for a workspace widget reading itself.
+  test('a surface with onStore is unaffected by charts_default_chart_widget', () => {
+    mockPrefs = {
+      chart_settings: { background: '#111' },
+      charts_default_chart_widget: 'w-chart',
+      charts_workspace_layout: {
+        widgets: [{ id: 'w-chart', type: 'chart', opts: { settings: { background: '#zzzzzz' } } }],
+      },
+    }
+    const onStore = vi.fn()
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: null, onStore }))
+    expect(result.current.cs.background).toBe('#111')
+    expect(result.current.ownChartSource).toBeNull()
+  })
+})
