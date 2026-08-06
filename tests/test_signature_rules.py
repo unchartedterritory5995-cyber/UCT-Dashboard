@@ -36,10 +36,38 @@ def test_all_constants_match_owner_spec():
                 "FCB_LOOKBACK": 20, "FCB_VOL_MULT": 1.5,
                 "FCB_MIN_CALL_PREM": 500_000.0, "FCB_DOMINANCE": 1.75,
                 "GXW_DTE": "week", "GXW_MAX_DIST_PCT": 0.15,
-                "GXW_TTL_S": 600, "GXW_MAX_AGE_S": 1800}
+                "GXW_TTL_S": 600, "GXW_MAX_AGE_S": 1800,
+                # dpc-v1's four, added 2026-08-06. They shipped with
+                # `0f63afb7` and rode UNPINNED for the rule's whole life: the
+                # VERSIONS re-arm below acknowledged the SET but never the
+                # NUMBERS, so all four could be retuned silently. Measured, not
+                # assumed — mutating DPC_LOOKBACK 10 -> 999 left this file
+                # `5 passed, rc=0` while the same mutation of FCB_VOL_MULT
+                # exits 1.
+                "DPC_LOOKBACK": 10, "DPC_PROX_PCT": 0.03,
+                "DPC_HOLD_MIN": 1, "DPC_FLOW_WINDOW": 5}
     for k, v in expected.items():
         got = getattr(r, k)
         assert got == v and type(got) is type(v), f"{k}: {got!r} != {v!r}"
+
+    # TOTALITY — the half that makes this a rail rather than a list.
+    #
+    # Pinning by hand is why dpc drifted out of cover: the constants moved and
+    # the dict did not, and nothing said so. So the gate now derives the set it
+    # OUGHT to cover from the module itself. A future `DPX_*` tuning knob lands
+    # unpinned exactly once, and this fails naming it.
+    #
+    # `VERSIONS` is asserted separately below (it is a dict, not a scalar);
+    # `_SUFFIX` is private by the leading underscore. Everything else public and
+    # SCREAMING_CASE is a tunable that changes output, and must be pinned.
+    public = {n for n in dir(r)
+              if n.isupper() and not n.startswith("_")
+              and not isinstance(getattr(r, n), dict)}
+    unpinned = public - set(expected)
+    assert unpinned == set(), (
+        f"unpinned owner-spec constant(s): {sorted(unpinned)} — add them to "
+        "`expected` with the owner's value, or this gate silently stops "
+        "covering them the way it stopped covering dpc")
     # `dpc-v1` added by 0f63afb7 ("dark-pool reclaim confluence — prototype
     # endpoints") and NOT reflected here, so this owner-spec gate has been RED
     # on master ever since — meaning it could no longer flag the NEXT drift.
