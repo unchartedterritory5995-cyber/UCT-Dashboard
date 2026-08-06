@@ -79,20 +79,18 @@ _EARNINGS_AI_MAX_TOKENS         = 1800     # post-earnings: rich narrative + 5 s
 _EARNINGS_PREVIEW_AI_MAX_TOKENS = 1800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
-_AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
-_AV_RATE_INTERVAL_SECS      = 13.0     # ≥13s between AV calls → ≤4.6/min (free tier: 5/min)
 _EARNINGS_AI_MODEL          = os.environ.get("EARNINGS_AI_MODEL", "claude-sonnet-5")  # Haiku→Sonnet 4.6 (2026-05-27)→Sonnet 5 (2026-07-12, richer previews; now generate-once + disk-persisted so the better model is affordable). Env-overridable.
 
-# Alpha Vantage free tier: 5 calls/min. Serialize all AV calls with ≥13s spacing.
-_av_lock = _threading.Lock()
-_av_last_call: list[float] = [0.0]  # mutable so inner scope can write
 _anthropic_lock = _threading.Lock()
 
 from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 
-# Bounded pool for pre-warm work. Max 4 workers: respects AV rate limiter
-# (4 concurrent threads → at most 4 AV calls queued, serialized by _av_lock).
+# Bounded pool for pre-warm work (earnings preview/analysis background
+# generation). max_workers=4 is just a general-purpose concurrency cap now —
+# it used to also double as an AlphaVantage rate-limit guard (removed
+# 2026-08-05, Phase 3 Task 12: AV's EARNINGS fallback and its 13s-sleep
+# _av_get were deleted, FMP is the sole quarterly-history source).
 _prewarm_executor = _ThreadPoolExecutor(max_workers=4, thread_name_prefix="prewarm")
 
 
@@ -169,27 +167,24 @@ def _parse_json_block(raw: str) -> dict:
         raise
 
 
-def _av_get(req_module, url: str, timeout: int = _AV_TIMEOUT_SECS) -> dict:
-    """Rate-limited Alpha Vantage GET. Enforces ≥13s between calls (≤4.6/min)."""
-    with _av_lock:
-        wait = _AV_RATE_INTERVAL_SECS - (_time.monotonic() - _av_last_call[0])
-        if wait > 0:
-            _time.sleep(wait)
-        _av_last_call[0] = _time.monotonic()
-    data = req_module.get(url, timeout=timeout).json()
-    if "Note" in data or "Information" in data:
-        # AV returned a rate-limit or info message instead of actual data
-        raise RuntimeError(f"AV rate limit hit for {url!r}: {data.get('Note') or data.get('Information')}")
-    return data
-
-
 def _fetch_quarterly_history(sym: str) -> list:
-    """Fetch up to 12 quarters of EPS history. FMP first, AV fallback.
+    """Fetch up to 12 quarters of EPS history from FMP `stable/earnings`.
 
-    Returns a list normalized to AV's quarterlyEarnings shape so existing
-    code (yoy_eps_growth, beat_streak, beat_history computation) keeps
-    working unchanged. Each item: {reportedDate, fiscalDateEnding,
-    reportedEPS, estimatedEPS, surprise, surprisePercentage, reportTime}.
+    AlphaVantage's EARNINGS fallback was removed 2026-08-05 (data-
+    dependability migration plan, Phase 3 Task 12): AV's free tier is
+    capped at 25 requests/DAY (exhausted on every observation), it is
+    strictly EPS-only where FMP also carries revenue, and it was the sole
+    caller of `_av_get`'s 13s-sleep-under-`_av_lock` — a blocking sleep on
+    the shared anyio threadpool, reachable from `GET
+    /api/earnings-analysis/{sym}` on the request path (the documented
+    524-outage class here). FMP was already the primary leg and answers on
+    every live-probed large cap; a genuine FMP miss now returns [] rather
+    than trading a 13s stall for a 25/day-exhausted second source.
+
+    Returns a list normalized to a stable shape so existing code
+    (yoy_eps_growth, beat_streak, beat_history computation) keeps working
+    unchanged. Each item: {reportedDate, fiscalDateEnding, reportedEPS,
+    estimatedEPS, surprise, surprisePercentage, reportTime}.
 
     GUARANTEED newest-first (sorted by reportedDate/fiscalDateEnding
     descending) — regardless of source. Every consumer treats index 0 as
@@ -202,9 +197,9 @@ def _fetch_quarterly_history(sym: str) -> list:
     `reversed()` (written for a since-superseded AV-only, oldest-first world)
     silently flipped `last_n` to oldest-first end-to-end, mispairing every
     reaction to the wrong quarter (P2 T9 review, CRITICAL). Sorting HERE — the
-    one place every consumer's input funnels through — makes the contract
-    true for both the FMP and the AV-fallback path, instead of true only when
-    FMP happens to answer.
+    one place every consumer's input funnels through — keeps the contract
+    true even for a raw/shuffled FMP response order (the AV fallback this
+    docstring used to also cover was removed 2026-08-05, Phase 3 Task 12).
     """
     def _newest_first(rows: list) -> list:
         # ISO 'YYYY-MM-DD' strings sort correctly as plain strings. A blank/
@@ -270,30 +265,14 @@ def _fetch_quarterly_history(sym: str) -> list:
         except Exception as e:
             _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
 
-    # AV fallback
-    av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-    if av_key:
-        try:
-            av_url = (
-                f"https://www.alphavantage.co/query"
-                f"?function=EARNINGS&symbol={sym}&apikey={av_key}"
-            )
-            av_resp = _av_get(_r, av_url, timeout=_AV_TIMEOUT_SECS)
-            quarters = av_resp.get("quarterlyEarnings", [])
-            if quarters:
-                return _newest_first(quarters)
-        except Exception as e:
-            _logger.warning("AV quarterly history failed for %s: %s", sym, e)
-
     return []
 
 
 def _with_retry(fn, retries: int = 1, delay: float = 2.0):
     """Call fn(); on requests.Timeout or ConnectionError, retry up to `retries` times.
 
-    Note: AV calls go through _av_get() which has its own rate-limit serialization
-    via _av_lock. Adding _with_retry there would conflict with the lock's timing
-    guarantees, so only Finnhub calls are wrapped here.
+    Only Finnhub calls are wrapped here (AlphaVantage's own retry/rate-limit
+    path, `_av_get`, was removed 2026-08-05, Phase 3 Task 12).
     """
     import requests as _r
     for attempt in range(retries + 1):
@@ -972,9 +951,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     import datetime as _dt
     import requests as _req
 
-    av_key  = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-
-    # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
+    # ── Step 1: Quarterly EPS history (FMP; see _fetch_quarterly_history) ────
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []       # visual pattern e.g. ["✗","✓","✓","✓"] oldest→newest
@@ -1009,7 +986,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
                 else:
                     beat_history.append("—")
     except Exception as _e:
-        _logger.warning("AV history fetch failed for %s: %s", sym, _e)
+        _logger.warning("Quarterly history processing failed for %s: %s", sym, _e)
 
     # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ────────────
     news_items = []
@@ -1325,9 +1302,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
 
     import datetime as _dt
     import requests as _req
-    av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
 
-    # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
+    # ── Step 1: Quarterly EPS history (FMP; see _fetch_quarterly_history) ────
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []
@@ -1361,7 +1337,7 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
                 else:
                     beat_history.append("—")
     except Exception as _e:
-        _logger.warning("AV history fetch failed for %s (preview): %s", sym, _e)
+        _logger.warning("Quarterly history processing failed for %s (preview): %s", sym, _e)
 
     # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ─────────────
     news_items = []
