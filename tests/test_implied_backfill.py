@@ -450,7 +450,7 @@ class TestFmpIsThePrimaryFiscalSource:
         """The tests above stub `fmp_beat_history`. This one drives the actual
         function through faked HTTP so a broken import or a renamed key can't
         pass silently."""
-        from api.services import earnings_history_fmp as fmp_mod
+        from api.services import earnings_estimates as ee_mod
 
         def fake_fmp(path, params):
             if "income-statement" in path:
@@ -458,11 +458,11 @@ class TestFmpIsThePrimaryFiscalSource:
                          "fiscalYear": "2026", "acceptedDate": "2026-08-03 16:05:00"}]
             return [{"date": "2026-08-03", "epsActual": 5.71, "epsEstimated": 6.18}]
 
-        # NOTE the patch target: `earnings_history_fmp` does
-        # `from ...earnings_estimates import _fmp_get`, which binds its OWN
-        # reference at import. Patching `earnings_estimates._fmp_get` does not
-        # reach it — it would leave this test making real HTTP calls.
-        monkeypatch.setattr(fmp_mod, "_fmp_get", fake_fmp)
+        # Patching the OWNING module is the whole point: `earnings_history_fmp`
+        # resolves `_fmp_get` through `earnings_estimates` at call time rather
+        # than binding its own copy, so it cannot escape the guards (or the
+        # stubs) that every other caller goes through.
+        monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp)
         got = ib.past_reports("JAZZ", 4)
         assert got == [{"report_date": "2026-08-03",
                         "fiscal_year": 2026, "fiscal_quarter": 2}]

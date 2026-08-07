@@ -56,7 +56,17 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 
-from api.services.earnings_estimates import _fmp_get
+# Imported as a MODULE, and `_fmp_get` is resolved through it at CALL time.
+#
+# `from ...earnings_estimates import _fmp_get` binds this module's own name at
+# import, which quietly severs it from the owning module: patching
+# `earnings_estimates._fmp_get` -- the way every other caller is guarded and
+# every existing test stubs the provider -- would not reach here, so this
+# module would keep issuing real HTTP while the rest of the process believed
+# the provider was stubbed or shed. That is not hypothetical: it fired a live
+# `/stable/earnings` request straight through an ACTIVE Finnhub-cooldown test
+# that asserts no HTTP escapes.
+from api.services import earnings_estimates as _ee
 
 _log = logging.getLogger(__name__)
 
@@ -109,12 +119,12 @@ def fmp_beat_history(ticker: str, limit: int = 8) -> list[dict] | None:
 
     # Ask for more than `limit`: forward (not-yet-reported) rows are filtered
     # out below, and they sit at the TOP of a newest-first list.
-    earnings = _fmp_get("/stable/earnings", {"symbol": sym, "limit": max(limit * 2, 16)})
+    earnings = _ee._fmp_get("/stable/earnings", {"symbol": sym, "limit": max(limit * 2, 16)})
     if not isinstance(earnings, list):
         return None                      # a shrug, not an answer
 
-    income = _fmp_get("/stable/income-statement",
-                      {"symbol": sym, "period": "quarter", "limit": max(limit * 2, 16)})
+    income = _ee._fmp_get("/stable/income-statement",
+                          {"symbol": sym, "period": "quarter", "limit": max(limit * 2, 16)})
     # A missing income statement costs fiscal identity, NOT the whole history.
     # Rows still carry EPS + revenue; the client falls back to deriving a label
     # from the period date. Degrade, don't disappear.
