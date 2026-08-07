@@ -132,3 +132,31 @@
   line-height: 1.45;
   color: var(--text-muted);
 }
+
+/* "+ Add another" — chart-UX-walls Task 6. Sits at the END of a row that is
+   already on, so the checkmark and the name keep their positions and nothing
+   moves when a row is toggled. `margin-left: auto` pushes it to the trailing
+   edge; the row itself is the toggle, so this button stops propagation in JS.
+   `min-height: var(--tap-min)` because every control on a touch surface is a
+   44px target (spec §7 / tokens.css) and this one sits inside a `Sheet` that is
+   a bottom sheet on a phone. */
+.addAnother {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: center;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.addAnother:hover, .addAnother:focus-visible {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+  outline: none;
+}

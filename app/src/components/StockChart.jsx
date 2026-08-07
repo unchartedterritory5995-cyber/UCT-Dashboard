@@ -73,9 +73,12 @@ import {
 // strip is its second caller after `IndicatorSettingsDialog`;
 // `engine/__tests__/controlDoorCensus.test.js` ledgers this file BY NAME with the
 // reason, and went red the moment the names appeared.
+// ⭐ chart-UX-walls TASK 6 — `addInstance` joins them, for the chip menu's
+// Duplicate row. It shipped at Task 1 with ZERO call sites and the census
+// asserted that zero rather than assuming it; this is the caller it was built for.
 import {
   setIndicatorEnabled, isIndicatorEnabled, findInstance,
-  setInstanceHidden, removeInstance, withInstances,
+  setInstanceHidden, removeInstance, withInstances, addInstance,
 } from './chart/engine/instanceControls'
 // ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
 // walks BINDINGS and `planBindings` drops a hidden instance, so a hidden
@@ -2397,6 +2400,22 @@ export default function StockChart({
   // instance.
   const handleChipRemove = useCallback((instanceId) => {
     writeInstance(removeInstance(cs, instanceId, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⭐ chart-UX-walls TASK 6 — DUPLICATE. The first caller `addInstance` has ever
+  // had, and the reason `handleChipRemove` above can finally be told apart from
+  // `setIndicatorEnabled(defId, false)`: until a user could produce two instances
+  // of one definition, the two were byte-identical.
+  //
+  // ⛔ THE DEF ID IS RESOLVED FROM THE INSTANCE, NOT TAKEN FROM THE CHIP. The chip
+  // carries a `defId` and it would work today, but the instance is what has to
+  // still EXIST for a duplicate to mean anything: `findInstance` refuses a dead or
+  // tombstoned id, and without it a stale menu (a chip whose × another surface
+  // already fired) would silently mint a fresh RSI the user never asked for.
+  const handleChipDuplicate = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    writeInstance(addInstance(cs, inst.defId, engineRegistry))
   }, [cs, writeInstance])
 
   // ⛔ NO RAW `{...cs, indicatorInstances}` HERE. `withInstances` is the writer's
@@ -10527,6 +10546,7 @@ export default function StockChart({
             onSettings: (id) => { close(); setSettingsInstanceId(id) },
             onToggleHidden: (id) => { close(); handleChipHidden(id) },
             onMove: (id, t) => { close(); handleChipMove(id, t) },
+            onDuplicate: (id) => { close(); handleChipDuplicate(id) },
             onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
             onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
             onRemove: (id) => { close(); handleChipRemove(id) },

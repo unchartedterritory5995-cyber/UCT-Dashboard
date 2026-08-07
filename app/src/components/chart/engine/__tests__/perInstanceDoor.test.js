@@ -145,6 +145,52 @@ describe('the per-INSTANCE door', () => {
     expect(off.indicatorInstances.every(i => i.deleted === true || i.defId !== 'rsi')).toBe(true)
     expect(off.indicators.rsi.enabled).toBe(false)
   })
+
+  // ⭐⭐ chart-UX-walls TASK 6 — WHY TASK 4's M5 WAS UNKILLABLE, AS AN EQUALITY
+  // AND AN INEQUALITY.
+  //
+  // Task 4 mutated `handleChipRemove` to call `setIndicatorEnabled(defId, false)`
+  // instead of `removeInstance(instanceId)` and it SURVIVED the whole suite —
+  // correctly, and its report said so rather than fabricating a fixture: with at
+  // most ONE instance per definition the two doors produce the same blob, so no
+  // test of a product that could not make a second instance could ever tell them
+  // apart. This case pins BOTH halves, so the day someone "simplifies" one door
+  // into the other the reason is on the page rather than in a report.
+  //
+  // ⛔ THE BEHAVIOURAL KILL IS NOT HERE, AND CANNOT BE. M5 mutates a handler in
+  // `StockChart.jsx`; this file imports no component. It lives in
+  // `legendFromDefinitions.test.jsx` (`× on ONE of TWO RSIs leaves the OTHER
+  // drawing`), which drives a real chip on a real chart. A case here claiming
+  // that kill would be a gate that cannot fail on the mutation it names.
+  it('⭐ removeInstance and setIndicatorEnabled(false) DIVERGE the moment TWO instances exist', () => {
+    const stable = (cs) => JSON.stringify({
+      live: (cs.indicatorInstances || []).filter(i => i && i.deleted !== true).map(i => i.instanceId),
+      mirror: cs.indicators && cs.indicators.rsi ? cs.indicators.rsi.enabled : undefined,
+    })
+
+    // ── ONE instance: byte-identical, which is the whole reason M5 survived ──
+    const one = csWith([TWO()[0]], { rsi: { enabled: true } })
+    expect(stable(removeInstance(one, 'legacy:rsi', engineRegistry)),
+      'with ONE instance the two doors already disagree — Task 4\'s survivor had a killer all '
+      + 'along and its report was wrong about why')
+      .toBe(stable(setIndicatorEnabled(one, 'rsi', false, engineRegistry)))
+
+    // ── TWO instances: they must NOT agree ──
+    const two = csWith(TWO(), { rsi: { enabled: true } })
+    const removed = removeInstance(two, 'inst:rsi:1', engineRegistry)
+    const disabled = setIndicatorEnabled(two, 'rsi', false, engineRegistry)
+    expect(stable(removed),
+      'the per-instance remove and the per-definition toggle STILL produce the same blob on a '
+      + 'two-instance chart. `removeInstance` must take the one instance it names; if these are '
+      + 'equal, × on one of two RSIs deletes both.')
+      .not.toBe(stable(disabled))
+    // …and named, so "they differ" cannot be satisfied by differing wrongly.
+    expect(removed.indicatorInstances.filter(i => i.deleted !== true).map(i => i.instanceId))
+      .toEqual(['legacy:rsi'])
+    expect(disabled.indicatorInstances.filter(i => i.deleted !== true)).toEqual([])
+    expect(isIndicatorEnabled(removed, 'rsi', { has: () => true })).toBe(true)
+    expect(isIndicatorEnabled(disabled, 'rsi', { has: () => true })).toBe(false)
+  })
 })
 
 /** A stable digest of a settings object. `JSON.stringify` with SORTED keys, so

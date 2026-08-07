@@ -96,7 +96,13 @@
 
 import { isInstanceTombstone } from './chartDefaults'
 import { ENGINE_OWNED } from './engine/flipState'
-import { isIndicatorEnabled, setIndicatorEnabled, setIndicatorInput } from './engine/instanceControls'
+import {
+  isIndicatorEnabled, setIndicatorEnabled, setIndicatorInput, setInstanceInput,
+} from './engine/instanceControls'
+// ⚠️ THE ONE MINTER, IMPORTED — never the literal `legacy:`. `USER_ID_PREFIX` and
+// `LEGACY_ID_PREFIX` live in `engine/instances.js` and a typed copy here would be
+// the twin this phase retires, in the file whose header is about retiring them.
+import { legacyInstanceId } from './engine/instances'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
 // because a predicate — or a field table — copied into two files is precisely
@@ -336,13 +342,23 @@ export function fieldsForInstance(def, instance) {
   }
 }
 
-/** The live (non-tombstoned) instance of a definition, if the blob stores one. */
-function liveInstanceFor(defId, settings) {
+/** EVERY live (non-tombstoned) instance of a definition, in STORED ORDER.
+ *
+ * ⭐ chart-UX-walls TASK 6 — THIS WAS `liveInstanceFor`, WHICH TOOK THE FIRST
+ * MATCH. That was honest while at most one instance per definition could exist:
+ * the write door was keyed to `legacyInstanceId(defId)` and there was never a
+ * second one to lose. Task 1 opened the per-instance write door and this task
+ * gives it two callers, so "the first match" silently became "whichever RSI the
+ * v1→v2 fold happened to seed" — a settings row editing a line the user did not
+ * point at. Stored order is the order `withInstances` sorted the list into, which
+ * is the order the panes and the legend already read.
+ */
+function liveInstancesFor(defId, settings) {
   const list = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
-  return list.find((i) => {
+  return list.filter((i) => {
     if (!i || typeof i !== 'object' || i.defId !== defId) return false
     try { return !isInstanceTombstone(i) } catch { return false }
-  }) || null
+  })
 }
 
 /**
@@ -364,6 +380,11 @@ function liveInstanceFor(defId, settings) {
  * The declared default IS what the chart would draw the moment the box is
  * ticked, which is the property this function is named for.
  *
+ * ⭐ chart-UX-walls TASK 6 — `live` IS NOW A PARAMETER, not a lookup. A definition
+ * with two instances produces two rows, and each one has to show ITS OWN numbers;
+ * a function that re-found "the first live instance" internally would print RSI(14)'s
+ * period on RSI(7)'s row while the chart drew 7. `null` is the no-instance branch.
+ *
  * ⚠️ THE SECTION IS STILL READ, and it is not vestigial: `mergeSettingsOverride`
  * is NOT an allow-list, so a grid cell's per-cell override and the `?indicators=`
  * render route can still put one on the blob — and `setIndicatorInput` writes it
@@ -371,9 +392,8 @@ function liveInstanceFor(defId, settings) {
  * must not add the indicator to the chart). It sits BELOW the instance and ABOVE
  * the declared default, which is the precedence every other reader uses.
  */
-function drawnValues(def, settings) {
+function drawnValues(def, settings, live) {
   const section = (settings && settings.indicators && settings.indicators[def.id]) || {}
-  const live = liveInstanceFor(def.id, settings)
   const inputs = (live && live.inputs && typeof live.inputs === 'object') ? live.inputs : null
   const out = {}
   for (const declared of (Array.isArray(def.inputs) ? def.inputs : [])) {
@@ -396,7 +416,29 @@ function drawnValues(def, settings) {
 }
 
 /**
- * The engine-owned rows — GENERATED, never hand-written, ONE PER DEFINITION.
+ * The engine-owned rows — GENERATED, never hand-written, ONE PER LIVE INSTANCE.
+ *
+ * ⭐⭐ chart-UX-walls TASK 6 — IT WAS "ONE PER DEFINITION", AND THAT WAS THE LAST
+ * PLACE IN THE PLATFORM THAT COULD NOT SAY WHICH RSI YOU MEANT.
+ * `setIndicatorEnabled`'s own docstring blamed the per-definition tombstone on
+ * *"a settings row is per-DEFINITION at v1"* — this is that v1 ending. A
+ * definition with N live instances emits N rows; a definition with none emits ONE
+ * row keyed by the defId, which is the "turn it on" control every fresh chart
+ * shows and the only row a user can reach before an instance exists.
+ *
+ * ⛔ THE ROW `id` IS THE `instanceId` WHENEVER THERE IS ONE, AND THAT IS A
+ * CONTRACT, not a cosmetic. `ChartSettingsModal` looks a row up with
+ * `indRowById(rowId)` and builds every colour-swatch target as
+ * `ind:${row.id}:${field}` — so two rows sharing `id: 'rsi'` would send the
+ * SECOND row's colour edit to the FIRST instance, silently. (An instanceId
+ * contains a `:`, which is why that modal splits on the FIRST and LAST colon
+ * rather than on every one.)
+ *
+ * ⛔ `enabled` STAYS PER-DEFINITION ON EVERY ROW. "RSI: off" means no RSI —
+ * `setIndicatorEnabled` tombstones every live instance, deliberately — and the
+ * per-instance verb is `removeInstance`, which belongs to the chip's Remove and
+ * not to a definition toggle. Two rows of one definition therefore read the same
+ * `enabled`, by construction.
  *
  * `registry` is the module namespace of `engine/nativeRegistry` (or anything
  * with `listDefinitions`), passed in rather than imported so this file does not
@@ -434,23 +476,37 @@ export function listEngineIndicators(settings, registry) {
     // is what stops a daily chart looking broken when it is on. The next session
     // indicator gets the note without anyone editing this file.
     const sessionOnly = Array.isArray(meta.timeframes) && !meta.timeframes.includes('D')
-    rows.push({
-      id: def.id,
-      defId: def.id,
-      engineOwned: true,
-      label: `${meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
-      // The GROUP is the definition's short name, which is what the shipped tab
-      // showed ("VWAP") — and it keeps the modal's section list derived from the
-      // rows rather than hardcoded.
-      group: meta.shortName || def.id,
-      fields,
-      path: { kind: 'indicator', key: def.id },
-      values: drawnValues(def, settings),
-      canToggle: true,
-      // Read through the ONE reader every other control door uses, so a
-      // tombstone cannot leave this toggle ticked over a chart with no line.
-      enabled: isIndicatorEnabled(settings, def.id, ENGINE_OWNED),
-    })
+    // ⛔ `[null]` IS THE NO-INSTANCE BRANCH, WRITTEN AS ONE LOOP RATHER THAN TWO
+    // BRANCHES. Two branches is two row shapes to keep in step, and the row a
+    // fresh chart shows — the "turn it on" control — is the one every earlier
+    // regression in this function landed on (B5 Task 9's blank Period box).
+    const live = liveInstancesFor(def.id, settings)
+    // Read through the ONE reader every other control door uses, so a
+    // tombstone cannot leave this toggle ticked over a chart with no line. It is
+    // per DEFINITION and therefore shared by every row of one definition.
+    const enabled = isIndicatorEnabled(settings, def.id, ENGINE_OWNED)
+    for (const instance of (live.length ? live : [null])) {
+      rows.push({
+        id: instance ? instance.instanceId : def.id,
+        defId: def.id,
+        // Present ONLY on an instance row. `applyRowPatch` routes on exactly this
+        // field, so an undefined here is the difference between "write THIS RSI"
+        // and "write the definition's mirror + its seeded instance".
+        ...(instance ? { instanceId: instance.instanceId } : {}),
+        engineOwned: true,
+        label: `${meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
+        // The GROUP is the definition's short name, which is what the shipped tab
+        // showed ("VWAP") — and it keeps the modal's section list derived from the
+        // rows rather than hardcoded. Two instances share ONE section, which is
+        // the same answer `orderedPaneKeys` gives them on the chart.
+        group: meta.shortName || def.id,
+        fields,
+        path: { kind: 'indicator', key: def.id },
+        values: drawnValues(def, settings, instance),
+        canToggle: true,
+        enabled,
+      })
+    }
   }
   return rows
 }
@@ -541,6 +597,48 @@ export function listAllIndicators(settings, registry, opts = {}) {
   ]
 }
 
+// ─── THE COLOUR-SWATCH TARGET: ONE ENCODER, ONE DECODER, ONE FILE ───────────
+//
+// 🔴 chart-UX-walls TASK 6 — THIS PAIR EXISTS BECAUSE ITS TWO HALVES USED TO LIVE
+// IN DIFFERENT FILES AND DISAGREED. `ChartSettingsModal` built every indicator
+// colour target as `` `ind:${row.id}:${f.key}` `` and read it back with
+// `t.split(':')` destructured as `[, rowId, field]`. That worked for exactly as
+// long as a row id could not contain a colon. Task 6 keys a generated row by its
+// INSTANCE id — `legacy:<defId>` or `inst:<defId>:<n>` — so `ind:legacy:rsi:color`
+// parsed as `rowId: 'legacy'`, `field: 'rsi'`, matched no row, and the swatch
+// silently wrote NOTHING while looking perfectly live.
+//
+// ⛔ SO THE FORMAT AND ITS PARSER NOW SIT BESIDE THE THING THAT MINTS THE ID, and
+// the modal imports both rather than owning half. A format written in one file
+// and read in another is the contract-between-components defect this phase keeps
+// finding; the cheapest permanent fix is to stop having two files.
+//
+// ⛔ AND THE FIX IS THE PARSE, NOT THE ID. Renaming instance ids to avoid a colon
+// would move `legacyInstanceId`, `newInstanceId`, `USER_ID_PREFIX`, every stored
+// blob and every tombstone — for the convenience of one string split. FIRST colon
+// ends the `ind` marker; LAST colon begins the field, because a field key is a
+// declared input key and `defSchema` validates those as identifiers; everything
+// between the two is the row id, colons and all.
+
+/** `('legacy:rsi', 'color')` → `'ind:legacy:rsi:color'`. */
+export function indTarget(rowId, field) {
+  return `ind:${rowId}:${field}`
+}
+
+/** `'ind:legacy:rsi:color'` → `{rowId: 'legacy:rsi', field: 'color'}`. */
+export function splitIndTarget(target) {
+  const rest = String(target).slice(String(target).indexOf(':') + 1)
+  const last = rest.lastIndexOf(':')
+  return last < 0
+    ? { rowId: rest, field: '' }
+    : { rowId: rest.slice(0, last), field: rest.slice(last + 1) }
+}
+
+/** Is this a swatch target for a generated indicator row? */
+export function isIndTarget(target) {
+  return typeof target === 'string' && target.startsWith('ind:')
+}
+
 /** Read/write helper so the tab never hardcodes a settings path. */
 export function readEnabled(row) {
   if (typeof row?.enabled === 'boolean') return row.enabled
@@ -579,9 +677,14 @@ export function patchFor(row, patch, settings) {
  *     instance and mirrors the legacy flag. Writing the flag alone ticks a box
  *     over a chart that disagrees, and a tombstone puts the line straight back
  *     on the next paint;
- *   · anything else → `setIndicatorInput`, which validates against the declared
- *     input and REFUSES a value the definition would reject rather than storing
- *     an instance `normalizeInstances` then drops.
+ *   · anything else → `setInstanceInput` when the row names a USER-ADDED instance
+ *     (chart-UX-walls Task 6), else `setIndicatorInput`. Both validate against
+ *     the declared input and REFUSE a value the definition would reject rather
+ *     than storing an instance `normalizeInstances` then drops. The defId form is
+ *     still the right one for a row with NO instance (it writes the mirror WITHOUT
+ *     switching the indicator on — "type a period beside an unchecked box") and
+ *     for the FOLD's instance (the mirror is that instance's mirror; see the
+ *     comment at the branch).
  *
  * A refused write returns `settings` unchanged, by identity — the caller can
  * skip persisting.
@@ -592,9 +695,45 @@ export function applyRowPatch(row, patch, settings, registry) {
 
   let next = settings
   for (const [key, value] of Object.entries(patch)) {
-    next = key === 'enabled'
-      ? setIndicatorEnabled(next, row.defId, value === true, registry)
-      : setIndicatorInput(next, row.defId, key, value, registry)
+    if (key === 'enabled') {
+      // ⛔ THE ENABLED TOGGLE STAYS PER-DEFINITION EVEN ON AN INSTANCE ROW, and
+      // that is the shipped MEANING of the control: "RSI: off" means no RSI, so
+      // `setIndicatorEnabled` tombstones every live instance. `removeInstance` is
+      // the per-instance verb and it belongs to the chip's Remove and to the
+      // dialog's own delete affordance, not to a definition toggle — a switch
+      // labelled with the definition's name that took away only one of two lines
+      // would leave the box unticked over a chart that still draws.
+      next = setIndicatorEnabled(next, row.defId, value === true, registry)
+    } else if (row.instanceId && row.instanceId !== legacyInstanceId(row.defId)) {
+      // A USER-ADDED instance (`inst:<defId>:<n>`): the per-instance door, which
+      // deliberately does NOT touch the mirror. See below for why that is right
+      // here and wrong for the fold's instance.
+      next = setInstanceInput(next, row.instanceId, key, value, registry)
+    } else {
+      // ⭐ THE FOLD'S INSTANCE — `legacy:<defId>` — AND A ROW WITH NO INSTANCE AT
+      // ALL BOTH TAKE THE defId DOOR, AND THAT IS A DEVIATION FROM THE BRIEF WITH
+      // A MEASUREMENT BEHIND IT.
+      //
+      // The brief routed EVERY instance row at `setInstanceInput`. That door does
+      // not write `cs.indicators.<defId>` — correctly, because the mirror is per
+      // DEFINITION and cannot carry two instances' periods. But the mirror is not
+      // arbitrary: `migrateLegacyToInstances` projects `cs.indicators[defId]` into
+      // exactly ONE id, `legacyInstanceId(defId)`, and `setIndicatorInput` writes
+      // exactly that id. So the mirror IS the fold instance's mirror — and routing
+      // it away from `setIndicatorInput` would leave `cs.indicators.rsi.period`
+      // stale beside a `legacy:rsi` that has moved, for every user on the planet,
+      // since almost nobody has a second instance. That is the "mirror always
+      // agrees with the instance" invariant `instanceControls.js`'s header names
+      // as the ONE thing the mirror actually buys, and it was measured, not
+      // predicted: the brief's form reddens seven assertions across
+      // `ChartToolbar.flipB.test.jsx` and `ChartSettingsModal.indicators.test.jsx`
+      // — all of them on `legacy:*` fixtures, none of them about two instances.
+      //
+      // ⛔ AND IT IS A ROUTING CHOICE BETWEEN TWO SHIPPED DOORS, NOT A SECOND COPY
+      // OF THE MIRROR RULE. Nothing here writes `cs.indicators` by hand; the
+      // control-door census's raw-write scan is what would catch it if it did.
+      next = setIndicatorInput(next, row.defId, key, value, registry)
+    }
   }
   return next
 }

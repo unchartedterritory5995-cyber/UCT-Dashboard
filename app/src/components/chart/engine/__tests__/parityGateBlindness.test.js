@@ -89,14 +89,30 @@ describe('the pixel gate cannot see the legend — asserted, not assumed', () =>
       .toContain('id="chart-export"')
   })
 
-  it('…over 46 LIVE cases — the number a future 0 would be reported against', () => {
+  it('…over 47 LIVE cases — the number a future 0 would be reported against', () => {
     // DERIVED from the corpus, never typed: the report of a "0 px" run names a
     // case count, and that count has to come from the same file the run reads.
+    //
+    // ⭐ 46 → 47 AT chart-UX-walls TASK 6, AND THE EXPECTATION MOVED WHILE THE
+    // CLAIM DID NOT. The new case is `engine_two_rsi_instances`, the phase's ONE
+    // pixel-moving case — and it moves pixels because it draws a SECOND SERIES,
+    // not because anything in the legend became visible. Every word of the
+    // blindness claim above still holds over it: its chip, the chip's controls,
+    // the Duplicate row and the settings dialog are all inside the element the
+    // export CSS hides, and a total regression of Tasks 2-5 would still report 0
+    // on all 47. What changed is the size of the corpus that 0 would be reported
+    // against, which is the only thing this case ever asserted.
     const cases = JSON.parse(read('tools', 'chart_parity_cases.json')).cases
     const live = cases.filter(c => c.status !== 'placeholder')
     expect(live.length, 'the live parity corpus changed size — re-derive the claim')
-      .toBe(46)
+      .toBe(47)
     expect(cases.length).toBeGreaterThan(live.length)   // the placeholders are real
+    // ⛔ AND THE NEW CASE IS SUBJECT TO THE SAME BLINDNESS, asserted rather than
+    // assumed: it renders through the SAME hidden-legend route as the other 46.
+    // A case that somehow escaped that route would make the paragraph above false
+    // for a case this file counts.
+    expect(live.some(c => c.name === 'engine_two_rsi_instances'),
+      'the phase\'s one pixel-moving case is not in the live corpus').toBe(true)
   })
 })
 

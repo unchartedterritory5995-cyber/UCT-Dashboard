@@ -488,7 +488,34 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'withInstances. A chip IS an instance — the readout has been keyed by instanceId ' +
        'since before this phase — so "hide the RSI you right-clicked" cannot be said ' +
        'through any of doors 1-7, every one of which takes legacyInstanceId(defId) and ' +
-       'therefore always means the first copy'],
+       'therefore always means the first copy. ⭐ TASK 6 ADDS addInstance, for the chip ' +
+       'menu\'s Duplicate row: it resolves the clicked instanceId to its defId through ' +
+       'findInstance FIRST, so a chip whose instance has already gone is refused rather ' +
+       'than minting a sibling for something no longer on the chart'],
+      ['app/src/components/chart/IndicatorLibraryDialog.jsx',
+       '⭐ NEW AT chart-UX-walls TASK 6 — "+ Add another" on a row that is already on. ' +
+       'It is a SECOND USE of door eight and not a second writer, but it is a genuinely ' +
+       'new surface and it belongs here because the checkmark beside it CANNOT do this ' +
+       'job: setIndicatorEnabled REVIVES legacy:<id> when it is already there, so ' +
+       'clicking a ticked row twice turns the indicator off and back on and can never ' +
+       'produce two lines. addInstance is the only door that means "another". This file ' +
+       'therefore calls BOTH doors — setIndicatorEnabled for the toggle (the call-site ' +
+       'census above) and addInstance for the add — and it excludes volumeProfile from ' +
+       'the second, because a carved-out row has no definition and addInstance returns ' +
+       'the settings BY IDENTITY for it'],
+      ['app/src/components/chart/indicatorRegistry.js',
+       '⭐ NEW AT chart-UX-walls TASK 6 — applyRowPatch routes a settings row that names ' +
+       'a USER-ADDED instance at setInstanceInput. Before Task 6 a generated row was per ' +
+       'DEFINITION and liveInstanceFor took the FIRST match, so the second of two RSIs ' +
+       'had no reachable form at all; the rows are one-per-live-instance now and the ' +
+       'write has to address the one the user is looking at. ⛔ TWO HALVES OF THE SAME ' +
+       'PATCH DELIBERATELY DO NOT GO THROUGH DOOR EIGHT. (1) `enabled` stays at ' +
+       'setIndicatorEnabled: a switch labelled with the definition\'s name means the ' +
+       'definition, and removeInstance is the per-instance verb that belongs to the ' +
+       'chip\'s ×. (2) The FOLD\'s instance — legacyInstanceId(defId) — keeps ' +
+       'setIndicatorInput, because cs.indicators.<defId> is the mirror the migrator ' +
+       'projects into exactly that id, so routing it away would leave the mirror stale ' +
+       'beside a live instance that moved, for every user who has only one copy'],
     ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')

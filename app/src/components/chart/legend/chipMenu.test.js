@@ -14,17 +14,39 @@ const chip = (over = {}) => ({
   text: 'RSI(14) 54.3', ...over,
 })
 const handlers = () => ({
-  onSettings: vi.fn(), onToggleHidden: vi.fn(), onMove: vi.fn(),
+  onSettings: vi.fn(), onToggleHidden: vi.fn(), onMove: vi.fn(), onDuplicate: vi.fn(),
   onAlerts: vi.fn(), onAbout: vi.fn(), onRemove: vi.fn(),
 })
 const rows = (c, id = 'rsi', h = handlers()) =>
   chipMenuItems(c, engineRegistry.getDefinition(id), h)
 
-describe('chipMenuItems — spec §6\'s six rows, from ONE source', () => {
-  it('offers exactly the six actions, in the declared order', () => {
+describe('chipMenuItems — spec §6\'s rows, from ONE source', () => {
+  it('offers exactly the declared actions, in the declared order', () => {
+    // ⭐ THE EXPECTATION MOVED, THE ASSERTION DID NOT (chart-UX-walls Task 6).
+    // `duplicate` is the seventh row and it sits between Move and Alerts:
+    // everything above the separator changes what is drawn, and a row that ADDS
+    // a line does not belong on the destructive side of it.
     const items = rows(chip()).filter(i => !i.separator)
     expect(items.map(i => i.key))
-      .toEqual(['settings', 'hidden', 'move', 'alerts', 'about', 'remove'])
+      .toEqual(['settings', 'hidden', 'move', 'duplicate', 'alerts', 'about', 'remove'])
+  })
+
+  it('⭐ Duplicate names the DEFINITION and hands back the INSTANCE id', () => {
+    // The row is per DEFINITION in what it says ("another RSI") and per INSTANCE
+    // in what it passes, because the caller has to prove the instance still
+    // exists before minting a sibling for it — a chip whose × already fired
+    // would otherwise add an indicator the user never asked for.
+    const h = handlers()
+    const dup = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
+      .find(i => i.key === 'duplicate')
+    expect(dup.label).toBe(`Duplicate ${engineRegistry.getDefinition('rsi').meta.name}`)
+    expect(dup.disabled, 'Duplicate is refused — nothing here can refuse it').toBeUndefined()
+    dup.onClick()
+    expect(h.onDuplicate).toHaveBeenCalledWith('legacy:rsi')
+    // …and it falls back to the defId rather than printing `undefined`, exactly
+    // as About does, for a chip whose definition the registry cannot resolve.
+    expect(chipMenuItems(chip({ defId: 'ghost' }), null, handlers())
+      .find(i => i.key === 'duplicate').label).toBe('Duplicate ghost')
   })
 
   it('the Hide row states which way it goes — a toggle labelled "Hide" on a hidden chip is a lie', () => {
@@ -86,7 +108,7 @@ describe('chipMenuItems — spec §6\'s six rows, from ONE source', () => {
     expect(dest.length, 'no live destination to fire — this half is vacuous').toBeGreaterThan(0)
     for (const s of dest) s.onClick()
 
-    for (const fn of [h.onSettings, h.onToggleHidden, h.onAlerts, h.onAbout, h.onRemove]) {
+    for (const fn of [h.onSettings, h.onToggleHidden, h.onDuplicate, h.onAlerts, h.onAbout, h.onRemove]) {
       expect(fn).toHaveBeenCalledWith('legacy:rsi')
     }
     for (const call of h.onMove.mock.calls) expect(call[0]).toBe('legacy:rsi')

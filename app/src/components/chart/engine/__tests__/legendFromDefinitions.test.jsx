@@ -205,6 +205,7 @@ const { default: StockChart } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
 const { mergeChartSettings } = await import('../../chartDefaults')
 const { ENGINE_OWNED } = await import('../flipState')
+const { isIndicatorEnabled } = await import('../instanceControls')
 const { computePaneLayout } = await import('../paneLayout')
 const { stackRank } = await import('../instances')
 
@@ -1535,6 +1536,157 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     fireEvent.contextMenu(chips[0], { clientX: 10, clientY: 10 })
     expect(document.body.querySelector('[role="menu"]'),
       'a read-only chart opened a chip menu').toBeNull()
+    view.unmount()
+  })
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // ⭐⭐ chart-UX-walls TASK 6 — TWO RSIs, AND THE KILL TASK 4 DEFERRED
+  //
+  // Task 4's M5 — `handleChipRemove` calling `setIndicatorEnabled(defId, false)`
+  // instead of `removeInstance(instanceId)` — SURVIVED its whole suite, 796/796,
+  // and its report refused to dress that up: the two are **byte-identical while
+  // at most one instance per definition exists**, because `setIndicatorEnabled`
+  // tombstones EVERY live instance of the definition. It declined to fabricate a
+  // two-instance blob to kill it, on the grounds that a mutation killed by a
+  // fixture the product cannot produce proves nothing about the product.
+  //
+  // ⭐ THIS TASK MAKES THE FIXTURE REAL — the chip menu's Duplicate and the
+  // library's "+ Add another" both mint a second instance — so the kill is owed
+  // here, and it is a kill of the SHIPPED behaviour rather than of a hypothetical.
+  //
+  // ⛔ IT COULD NOT LIVE IN `perInstanceDoor.test.js`. That file is pure-module;
+  // M5 mutates `StockChart.jsx`'s handler, which no pure-module case can reach —
+  // a case there would be a gate that cannot fail on the mutation it names.
+  // ═════════════════════════════════════════════════════════════════════════
+  const TWO_RSI = () => {
+    const cs = mergeChartSettings({ indicators: { rsi: { enabled: true } } })
+    const seeded = cs.indicatorInstances.find(i => i.defId === 'rsi')
+    expect(seeded, 'the fold seeded no rsi instance — this fixture builds on it').toBeTruthy()
+    return {
+      ...cs,
+      indicatorInstances: [
+        { ...seeded, inputs: { ...(seeded.inputs || {}), period: 14 } },
+        { instanceId: 'inst:rsi:1', defId: 'rsi', defVersion: seeded.defVersion,
+          inputs: { ...(seeded.inputs || {}), period: 7 },
+          placement: seeded.placement, hidden: false },
+      ],
+    }
+  }
+  /** The distinct pane indices the renderer actually asked `addSeries` for. */
+  const paneIndices = () => new Set(H.addSeriesCalls.map(c => c.paneIndex ?? 0))
+  /** The always-on legend, polled to non-empty. No crosshair: `seriesByChip`
+   *  resolves a chip by its declared COLOUR and two instances of one definition
+   *  wear the same one, so it would throw rather than measure. */
+  const offCursorChips = async (view) => {
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise(r => setTimeout(r, 20)) })
+      const o = [...view.container.querySelectorAll('span')].find(s => /^O\s/.test(s.textContent || ''))
+      if (o) { const t = chipTexts(view); if (t.length) return t }
+    }
+    return []
+  }
+
+  it('⭐ TWO RSIs at different periods draw TWO lines, in ONE pane, with TWO chips', async () => {
+    const two = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
+      settingsOverride={TWO_RSI()} alwaysShowLegend />)
+    const labels = (await offCursorChips(two)).map(t => t.split(' ')[0])
+    expect(labels, 'the second instance printed no chip of its own')
+      .toEqual(['RSI(14)', 'RSI(7)'])
+    // ⛔ TWO LINES, NOT ONE DRAWN TWICE. Both instances wear the definition's
+    // declared colour, so the count is what discriminates — a binder that keyed
+    // on defId would bind once and the chips above would still both print.
+    const rsiColor = registry.getDefinition('rsi').inputs.find(i => i.key === 'color').default
+    const twoLines = H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor)
+    expect(twoLines, 'the second instance was never bound — one line, two chips')
+      .toHaveLength(2)
+    const twoPanes = paneIndices()
+    two.unmount(); cleanup(); H.reset()
+
+    // ⛔ ONE PANE, NOT TWO — `orderedPaneKeys` dedupes by `def.id`, so both land
+    // on the pane keyed 'rsi' and share its 0..100 scale. That is the v1 ruling
+    // and it is the display a fast/slow RSI trader wants; a pane-count change
+    // here is a regression, not a feature, because the pane manifest is what the
+    // pixel gate diffs.
+    const one = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
+      settingsOverride={mergeChartSettings({ indicators: { rsi: { enabled: true } } })}
+      alwaysShowLegend />)
+    expect((await offCursorChips(one)).length, 'the one-RSI control drew nothing').toBe(1)
+    expect(H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor),
+      'the control drew more than one RSI line').toHaveLength(1)
+    expect(twoPanes, 'the duplicate created a SECOND pane. `orderedPaneKeys` dedupes by defId '
+      + '(paneLayout) and `resolvePlacement` resolves `const key = def.id`, so if this is now '
+      + 'two panes the v1 premise moved and every pane-manifest expectation in '
+      + '`tools/chart_parity_cases.json` has to be re-derived — STOP and report.')
+      .toEqual(paneIndices())
+    expect(twoPanes.size, 'the fixture drew into a single pane — "one pane, not two" is vacuous')
+      .toBeGreaterThan(1)
+    one.unmount()
+  })
+
+  it('⭐ DUPLICATE on a chip mints a SECOND instance of that definition', async () => {
+    const persist = vi.fn()
+    const view = drawObserved(FOUR(), persist)
+    await settledLegend(view, crosshairWith({}))
+    fireEvent.contextMenu(chipFor(view, 'RSI'), { clientX: 120, clientY: 60 })
+    const dup = menuRows().find(b => (b.textContent || '').startsWith('Duplicate'))
+    expect(dup, 'no Duplicate row on the chip menu').toBeTruthy()
+    expect(dup.disabled, 'Duplicate is refused on a live chip').toBe(false)
+    await act(async () => { dup.click() })
+
+    expect(persist, 'Duplicate wrote nothing — the row is decorative').toHaveBeenCalledTimes(1)
+    const next = persist.mock.calls[0][0]
+    const live = (next.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted)
+    expect(live.map(i => i.instanceId),
+      'Duplicate produced ONE instance. `addInstance` must mint a NEW id — reusing '
+      + '`legacyInstanceId(defId)` overwrites the instance it was asked to copy.')
+      .toHaveLength(2)
+    expect(new Set(live.map(i => i.instanceId)).size, 'the two instances share an id').toBe(2)
+    // …and the siblings are untouched, so Duplicate is additive and nothing else.
+    for (const other of ['stoch', 'atr']) {
+      expect((next.indicatorInstances || []).some(i => i && i.defId === other && !i.deleted),
+        `duplicating RSI disturbed ${other}`).toBe(true)
+    }
+    view.unmount()
+  })
+
+  it('⭐⭐ × on ONE of TWO RSIs leaves the OTHER drawing — Task 4\'s M5, killed', async () => {
+    // 🔴 THE ASSERTION THAT COULD NOT EXIST UNTIL NOW. With one instance,
+    // `setIndicatorEnabled(defId, false)` and `removeInstance(instanceId)` produce
+    // the same blob; with two, the first takes BOTH lines off the chart and the
+    // second takes the one the user pointed at.
+    const persist = vi.fn()
+    // `alwaysShowLegend` rather than a crosshair: `crosshairWith`/`seriesByChip`
+    // resolve a chip by its declared COLOUR, and two instances of one definition
+    // wear the same one — the resolver throws by name rather than measure.
+    const view = drawObserved(TWO_RSI(), persist, { alwaysShowLegend: true })
+    const before = await offCursorChips(view)
+    expect(before.map(t => t.split(' ')[0]), 'the fixture did not draw two RSIs')
+      .toEqual(['RSI(14)', 'RSI(7)'])
+
+    const chip = chipEls(view).find(e => (e.textContent || '').startsWith('RSI(7)'))
+    expect(chip, 'no RSI(7) chip to remove').toBeTruthy()
+    const id = chip.getAttribute('data-instance-id')
+    await act(async () => { chip.querySelector('[aria-label^="Remove "]').click() })
+
+    expect(persist, '× wrote nothing').toHaveBeenCalledTimes(1)
+    const next = persist.mock.calls[0][0]
+    const live = (next.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted)
+    expect(live.map(i => i.instanceId),
+      'removing ONE chip took the whole definition with it. `setIndicatorEnabled(defId, false)` '
+      + 'tombstones EVERY live instance — the substitution Task 4 measured as a survivor, which '
+      + 'is only distinguishable once a second instance can exist.')
+      .toEqual(['legacy:rsi'])
+    expect(live[0].instanceId, 'the SURVIVING instance is the one the user clicked')
+      .not.toBe(id)
+    // …and every reader still says RSI is ON, because one is still drawing.
+    // `removeInstance` clears the mirror only when the LAST live instance goes;
+    // a definition-wide tombstone would have cleared it here and left the
+    // checkbox unticked over a chart that still draws a line.
+    expect(next.indicators?.rsi?.enabled,
+      'the mirror was cleared while a sibling instance is still drawing').not.toBe(false)
+    expect(isIndicatorEnabled(next, 'rsi', ENGINE_OWNED),
+      'the ONE reader every control surface shares says RSI is off while a line is on the chart')
+      .toBe(true)
     view.unmount()
   })
 })

@@ -823,3 +823,23 @@ python tools/flipc_record_tables.py --cutover tools/chart_parity_out_cut/report.
 ⚠️ **Fresh ports, every time** — a stale `spa_server` listener produced a clean,
 plausible, fictional `0 px, 20/20, exit 0` on this branch once already, and
 `--dist-a`/`--dist-b` (served == disk, byte-verified) is what closes it.
+
+---
+
+## 9b. Cases added AFTER this record, and why they carry no cutover number
+
+⚠️ **`flipCRecord.test.js` demands a number for every LIVE parity case, "or says
+why not".** This section is the "why not", and it exists because the live corpus
+is allowed to grow after a decision record closes — the alternative is a record
+that gets edited by whoever adds a case, which is how a decision record stops
+being a record.
+
+| case | added by | why this record carries no number for it |
+|---|---|---|
+| `engine_two_rsi_instances` | chart-UX-walls **Task 6** (2026-08-06) | **It is not a cutover measurement and cannot be one.** Every number above is a `bands` build against a `panes` build; this case is an ENGINE REHEARSAL on ONE build — side A draws one RSI(14) from the legacy mirror, side B draws RSI(14) + RSI(7) from `instancesB`. Its number belongs to the task that created the second instance, and it is **11,169 px, 5/5 runs, zero variance**, with the fail-proof and the pixel classification recorded in the case's own `why` and in `.superpowers/sdd/2026-08-06-chart-ux-walls/task-6-report.md`. |
+
+⭐ **It also does not disturb the 46.** Task 6 re-ran the whole pre-existing set
+**A = `16086afe` (this record's tree; its parent `289a3ff6` plus one commit that touches only a TEST file and is therefore not in the bundle) vs B = the same tree + Task 6**, and every
+one of the 46 read **0 changed pixels** — so every number in §3 above is still
+the number for the build that ships. That run is what makes "the corpus grew"
+safe to write here rather than a reason to re-measure §3.

@@ -111,13 +111,28 @@ export function moveSubmenu(chip, def, onMove) {
 }
 
 /**
- * Spec §6's six rows, in the declared order, from ONE source.
+ * Spec §6's rows, in the declared order, from ONE source.
  *
- * Settings · Hide/Show · Move · Alerts · About · ——— · Remove
+ * Settings · Hide/Show · Move · Duplicate · Alerts · About · ——— · Remove
+ *
+ * ⭐ chart-UX-walls TASK 6 ADDED **Duplicate**, AND IT IS THE ONLY ROW HERE THAT
+ * TAKES AN INSTANCE ID TO MEAN "the definition behind it". That is deliberate and
+ * it is why the handler still takes `chip.instanceId`: the caller resolves the
+ * instance to its `defId` through `findInstance`, so a chip whose instance has
+ * already gone gets a refusal by identity instead of minting a copy of something
+ * that is no longer on the chart. `addInstance` gives the new instance the
+ * DECLARED defaults rather than a copy of this one's inputs — "another RSI" that
+ * arrives identical draws a second line exactly on top of the first, which reads
+ * as nothing having happened.
+ *
+ * ⛔ IT IS PLACED BETWEEN MOVE AND ALERTS, NOT BESIDE REMOVE. Everything above the
+ * separator changes what is drawn; the separator exists to keep the one
+ * destructive row away from the rest, and a row that ADDS a line does not belong
+ * on the far side of it.
  *
  * @param {object} chip a `readout.legendChips` row (+ optional `placementTarget`)
  * @param {object} def  its definition, or null
- * @param {object} h    `{onSettings, onToggleHidden, onMove, onAlerts, onAbout, onRemove}`
+ * @param {object} h    `{onSettings, onToggleHidden, onMove, onDuplicate, onAlerts, onAbout, onRemove}`
  * @param {object} [caps] surface capabilities the CALLER knows and this file
  *   cannot: `{alertsRefusal}` — a sentence when the mount cannot open the alert
  *   popover at all (no symbol, no toolbar). Same rule as everything else here: a
@@ -154,6 +169,12 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       disabled: movable ? undefined : 'this indicator draws on the candles’ scale and has '
         + 'nowhere else it can be placed',
       submenu,
+    },
+    {
+      key: 'duplicate',
+      label: `Duplicate ${name}`,
+      icon: 'copy',
+      onClick: () => h.onDuplicate(chip.instanceId),
     },
     {
       key: 'alerts',

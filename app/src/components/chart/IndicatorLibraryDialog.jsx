@@ -33,7 +33,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { catalogRows } from './indicatorCatalog'
-import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
+import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
 
@@ -90,6 +90,24 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     // the caller must be able to skip persisting. Calling `onChange`
     // unconditionally would persist a no-op and mark the preset custom for a
     // click that changed nothing.
+    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+  }, [settings, onChange, registry])
+
+  /** ⭐ chart-UX-walls TASK 6 — "+ Add another", on a row that is already ON.
+   *
+   * ⛔ IT IS THE SAME DOOR THE CHIP MENU'S DUPLICATE USES, and it is `addInstance`
+   * rather than a second `setIndicatorEnabled` call: the toggle above REVIVES
+   * `legacy:<id>` when it is already there, so clicking a ticked row twice can
+   * never produce two lines. That asymmetry is the whole reason this control has
+   * to exist separately from the checkmark.
+   *
+   * ⛔ `stopPropagation` IS NOT TIDINESS. The whole `<li>` is the toggle, so
+   * without it every Add-another click would ALSO fire `toggle(row)` and turn the
+   * indicator off in the same gesture — a control that does the opposite of what
+   * it says. */
+  const addAnother = useCallback((row, e) => {
+    e.stopPropagation()
+    const next = addInstance(settings, row.id, registry)
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
   }, [settings, onChange, registry])
 
@@ -150,6 +168,21 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                       </span>
                       {row.description && <span className={styles.blurb}>{row.description}</span>}
                     </span>
+                    {/* ⛔ ONLY ON A ROW THAT IS ON, AND NEVER ON THE CARVED-OUT ONE.
+                        `volumeProfile` has no definition, so `addInstance` returns
+                        the settings BY IDENTITY for it and the button would be a
+                        live control that writes nowhere — the exact defect this
+                        phase retires. A second volume profile is not a thing the
+                        canvas overlay can draw anyway. */}
+                    {on && !row.carvedOut && (
+                      <button
+                        type="button"
+                        className={styles.addAnother}
+                        aria-label={`Add another ${row.name}`}
+                        title={`Add a second ${row.shortName} with the default settings`}
+                        onClick={(e) => addAnother(row, e)}
+                      >+ Add another</button>
+                    )}
                   </li>
                 )
               })}
