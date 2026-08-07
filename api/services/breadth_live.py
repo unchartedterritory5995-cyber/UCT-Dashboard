@@ -624,8 +624,27 @@ def _pct(above: np.ndarray, valid: np.ndarray) -> Optional[float]:
     return round(float((above & valid).sum() / total * 100), 1)
 
 
+# Metrics whose cell opens a drill list. Mirrors the `drillKey` set the Monitor
+# declares, MINUS anything in NOT_LIVE: a carried number's names belong to the
+# session it came from, not to today.
+DRILLABLE = frozenset({
+    "universe_count",
+    "up_4pct_today", "down_4pct_today",
+    "up_20pct_5d", "down_20pct_5d",
+    "up_25pct_quarter", "down_25pct_quarter",
+    "up_25pct_month", "down_25pct_month",
+    "up_50pct_month", "down_50pct_month",
+    "magna_up", "magna_down",
+    "stage2_count", "stage4_count",
+    "new_52w_highs", "new_52w_lows",
+    "new_20d_highs", "new_20d_lows",
+    "new_ath", "hvc_52w",
+})
+
+
 def compute_metrics(levels: dict, prices: dict[str, float],
-                    volumes: Optional[dict[str, float]] = None) -> dict:
+                    volumes: Optional[dict[str, float]] = None,
+                    members: Optional[dict] = None) -> dict:
     """Breadth for one instant: `prices` is today's price per ticker.
 
     Every definition mirrors `breadth_collector`. Where the collector's rolling
@@ -648,8 +667,18 @@ def compute_metrics(levels: dict, prices: dict[str, float],
             if v is not None and v > 0:
                 vol[i] = v
 
+    # A drill list MUST come off the same mask as its count. Deriving it a
+    # second way lets the two drift the moment a definition moves, and the
+    # drift is silent: the cell says 47 and the modal lists 45.
+    _tk = np.asarray(tickers)
+
+    def _keep(key: str, mask) -> None:
+        if members is not None and key in DRILLABLE:
+            members[key] = _tk[mask].tolist()
+
     m: dict = {}
     m["universe_count"] = int(have.sum())
+    _keep("universe_count", have)
 
     # ── pct above moving averages ────────────────────────────────────────────
     for w, key in ((5, "pct_above_5sma"), (10, "pct_above_10sma"),
@@ -686,30 +715,43 @@ def compute_metrics(levels: dict, prices: dict[str, float],
             safe = np.where(past == 0, np.nan, past)
             ret = (px - past) / safe
         valid = ~np.isnan(ret)
-        m[up_key] = int((ret[valid] >= thresh).sum())
-        m[dn_key] = int((ret[valid] <= -thresh).sum())
+        with np.errstate(invalid="ignore"):
+            up_mask = valid & (ret >= thresh)
+            dn_mask = valid & (ret <= -thresh)
+        m[up_key] = int(up_mask.sum())
+        m[dn_key] = int(dn_mask.sum())
+        _keep(up_key, up_mask)
+        _keep(dn_key, dn_mask)
 
     # ── new highs / lows ─────────────────────────────────────────────────────
     # rolling(n).max() INCLUDES today, so "curr >= rolling_max * 0.999" reduces
     # exactly to "curr >= prior_max * 0.999": when today IS the max the test is
     # trivially true, and it is also true against the smaller prior max.
-    def _hi(level_key: str, ok_key: str) -> int:
+    # Each returns the FULL-LENGTH mask, not a count over the compressed
+    # `px[valid]` slice — a compressed boolean cannot index the ticker array, so
+    # the list and the count would have to be built differently, which is the
+    # drift this whole design exists to prevent.
+    def _hi(key: str, level_key: str, ok_key: str) -> int:
         lvl, ok = levels[level_key], levels[ok_key]
         valid = have & ok & ~np.isnan(lvl)
         with np.errstate(invalid="ignore"):
-            return int((px[valid] >= lvl[valid] * 0.999).sum())
+            mask = valid & (px >= lvl * 0.999)
+        _keep(key, mask)
+        return int(mask.sum())
 
-    def _lo(level_key: str, ok_key: str) -> int:
+    def _lo(key: str, level_key: str, ok_key: str) -> int:
         lvl, ok = levels[level_key], levels[ok_key]
         valid = have & ok & ~np.isnan(lvl)
         with np.errstate(invalid="ignore"):
-            return int((px[valid] <= lvl[valid] * 1.001).sum())
+            mask = valid & (px <= lvl * 1.001)
+        _keep(key, mask)
+        return int(mask.sum())
 
-    m["new_52w_highs"] = _hi("max52", "max52_ok")
-    m["new_52w_lows"] = _lo("min52", "min52_ok")
-    m["new_20d_highs"] = _hi("max20", "max20_ok")
-    m["new_20d_lows"] = _lo("min20", "min20_ok")
-    m["new_ath"] = _hi("maxath", "maxath_ok")
+    m["new_52w_highs"] = _hi("new_52w_highs", "max52", "max52_ok")
+    m["new_52w_lows"] = _lo("new_52w_lows", "min52", "min52_ok")
+    m["new_20d_highs"] = _hi("new_20d_highs", "max20", "max20_ok")
+    m["new_20d_lows"] = _lo("new_20d_lows", "min20", "min20_ok")
+    m["new_ath"] = _hi("new_ath", "maxath", "maxath_ok")
 
     # near_52w_high: distance from the 52-week high, which includes today.
     hi52, ok52 = levels["max52"], levels["max52_ok"]
@@ -727,7 +769,9 @@ def compute_metrics(levels: dict, prices: dict[str, float],
         valid = (have & ~np.isnan(vol) & ~np.isnan(vmax) & (vmax > 0)
                  & levels["sma_ok"][10] & ~np.isnan(sma10))
         with np.errstate(invalid="ignore"):
-            m["hvc_52w"] = int(((vol >= vmax) & (px > sma10) & valid).sum())
+            hvc_mask = (vol >= vmax) & (px > sma10) & valid
+        m["hvc_52w"] = int(hvc_mask.sum())
+        _keep("hvc_52w", hvc_mask)
     else:
         m["hvc_52w"] = None
 
@@ -740,10 +784,14 @@ def compute_metrics(levels: dict, prices: dict[str, float],
         valid = (have & levels["sma_ok"][50] & levels["sma_ok"][150]
                  & levels["sma_ok"][200] & ~np.isnan(s200p))
         with np.errstate(invalid="ignore"):
-            m["stage2_count"] = int(((px > s50) & (s50 > s150) & (s150 > s200)
-                                     & (s200 >= s200p) & valid).sum())
-            m["stage4_count"] = int(((px < s50) & (s50 < s150) & (s150 < s200)
-                                     & (s200 <= s200p) & valid).sum())
+            s2_mask = ((px > s50) & (s50 > s150) & (s150 > s200)
+                       & (s200 >= s200p) & valid)
+            s4_mask = ((px < s50) & (s50 < s150) & (s150 < s200)
+                       & (s200 <= s200p) & valid)
+        m["stage2_count"] = int(s2_mask.sum())
+        m["stage4_count"] = int(s4_mask.sum())
+        _keep("stage2_count", s2_mask)
+        _keep("stage4_count", s4_mask)
     else:
         m["stage2_count"] = m["stage4_count"] = None
 

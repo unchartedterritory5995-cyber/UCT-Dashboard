@@ -796,3 +796,62 @@ def test_the_session_is_sampled_on_a_clock_not_on_traffic():
     # rather than firing a burst of identical computations.
     assert "coalesce=True" in block
     assert "misfire_grace_time" in block
+
+
+# ── drill membership ────────────────────────────────────────────────────────
+#
+# ⛔ THE INVARIANT. A list that disagrees with its own cell is the failure this
+# guards: the cell says 47, the modal lists 45, and nothing reports a problem.
+# The only way that cannot happen is for both to come off the SAME boolean
+# mask, so these assert the identity rather than re-deriving membership a
+# second way — a second derivation is exactly what drifts.
+
+def test_every_drillable_metric_reports_members_matching_its_count():
+    cdf, vdf = _frame(seed=5, n_tickers=80, n_dates=300, short_names=6, zero_names=3)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    m = bl.compute_metrics(levels, prices, vols, members=members)
+
+    assert bl.DRILLABLE, "no metric is declared drillable"
+    checked = 0
+    for key in bl.DRILLABLE:
+        if m.get(key) is None:
+            continue
+        assert key in members, f"{key} is drillable but reported no members"
+        assert len(members[key]) == m[key], (
+            f"{key}: cell says {m[key]}, list has {len(members[key])}"
+        )
+        checked += 1
+    assert checked >= 15, f"only {checked} drillable metrics exercised"
+
+
+def test_members_are_real_universe_tickers_with_no_duplicates():
+    cdf, vdf = _frame(seed=6, n_tickers=60, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    universe = set(levels["tickers"])
+    for key, names in members.items():
+        assert len(set(names)) == len(names), f"{key} lists a ticker twice"
+        assert set(names) <= universe, f"{key} lists a ticker outside the universe"
+
+
+# atr_ext_7 needs intraday high/low, so it is in NOT_LIVE and the payload
+# carries the PRIOR day's value. Emitting members for it would caption
+# yesterday's names as today's.
+def test_carried_metrics_never_report_members():
+    cdf, vdf = _frame(seed=7)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    for key in bl.NOT_LIVE:
+        assert key not in members, f"{key} is NOT_LIVE but reported members"
+    assert "atr_ext_7" not in bl.DRILLABLE
+
+
+def test_members_is_optional_and_changes_nothing_when_omitted():
+    cdf, vdf = _frame(seed=8)
+    levels, prices, vols = _split(cdf, vdf)
+    a = bl.compute_metrics(levels, prices, vols)
+    b = bl.compute_metrics(levels, prices, vols, members={})
+    assert a == b, "passing members changed the metrics"
