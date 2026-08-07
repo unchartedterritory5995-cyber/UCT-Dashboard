@@ -127,6 +127,7 @@ DEFAULT_THRESHOLDS = {
     # by default; flip live in the ?tune=1 panel. See _incr_classify.
     "incremental_scan": False,
     "autopush_incremental": False,
+    "scan_offload": False,
     # Clean-directional gate (DARK). When on, a bid-side SELL on a MIXED contract
     # — total session ASK-buying >= this print's size * close_min_long_frac — is
     # two-way flow, not clean bearish conviction → dropped from directional
@@ -2367,9 +2368,13 @@ def _incr_classify(r):
     return dict(fresh) if fresh is not None else None
 
 
-def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
-    """Heavy scan + classify for /recent, split out so the endpoint can cache
-    the result. All params already resolved (today = concrete M/D/YYYY).
+def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
+    """PURE heavy scan + classify + curate for /recent — the offloadable core.
+    Returns (all_alerts, meta) where meta carries the scan counters. Does NO
+    side-effects (no Discord, no pushed.db, no _apply_auto_push, no worker-status
+    read) so it can run byte-identically in a subprocess (Phase 2b). The wrapper
+    `_compute_recent` (MAIN process) runs _apply_auto_push + packaging on the result.
+    All params already resolved (today = concrete M/D/YYYY).
 
     only_symbols (2026-08-06): restrict the ENTIRE pipeline to these underlyings by
     adding `AND Symbol IN (...)` to the flow.db scan. The incremental auto-push
@@ -2650,31 +2655,141 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbol
     _demote_multileg_structures(all_alerts)
     _demote_two_way_flow(all_alerts)
 
+    # PURE core ends here: return the fully classified/curated/demoted set + scan
+    # meta. Side-effects (auto-push mark+fire) and payload packaging happen in the
+    # _compute_recent wrapper (MAIN process) so this stays offloadable to a subprocess.
+    return all_alerts, {
+        "rows_scanned": len(rows),
+        "skipped_unclassified_side": skipped_unclassified,
+        "skipped_below_min_grade": skipped_low_grade,
+        "skipped_off_tier": skipped_off_tier,
+        "skipped_curated": skipped_curated,
+    }
+
+
+# ─── Scan offload (Phase 2b, 2026-08-07) ─────────────────────────────────────
+# _compute_recent_core (the ~80K-row classify) is a multi-second GIL pin on the
+# flow-worker. Run it in a SEPARATE process so the main proc (Massive WS keepalive
+# + the 60s auto-push scan) never competes for the GIL — kills both the dashboard
+# wedge AND the auto-push coalesce-lag. The core is PURE (flow.db read + classify,
+# no Discord/dedup/worker-status), so the child has no side effects; the push +
+# packaging stay in _compute_recent below (MAIN proc). Dark by default; flip live
+# via the `scan_offload` threshold. Any pool failure falls back in-process, so a
+# broken pool degrades to today's behavior and can never break /recent.
+# SAFE with spawn: flow_worker_main starts the WS only under `if __name__ ==
+# "__main__"`, so a spawned child re-importing it never opens a 2nd WS connection.
+_SCAN_OFFLOAD_HARD = os.environ.get("MASSIVE_SCAN_OFFLOAD_HARD", "1") == "1"
+_SCAN_OFFLOAD_TIMEOUT = float(os.environ.get("MASSIVE_SCAN_OFFLOAD_TIMEOUT", "180"))
+_scan_pool = None
+_scan_pool_lock = threading.Lock()
+_scan_pool_broken = False
+
+
+def _core_worker(args):
+    """Top-level (picklable) subprocess entry. Runs in the SPAWNED child, which
+    re-imports live_massive_router (side-effect-free — startup is guarded in
+    flow_worker_main). The child is persistent, so its _alert_cache persists across
+    calls. Its _thresholds_cache is separate from the main process, so force a
+    fresh read each call (a ?tune save in main doesn't reach the child) and bust the
+    row-classify cache when thresholds changed — mirroring _save_thresholds."""
+    import json as _json, hashlib as _hl
+    from api import live_massive_router as lmr
+    lmr._thresholds_cache = None                     # force fresh read of the shared file
+    thr = lmr._load_thresholds()
+    try:
+        h = _hl.md5(_json.dumps(thr, sort_keys=True, default=str).encode()).hexdigest()
+    except Exception:
+        h = None
+    if getattr(lmr, "_child_last_thr_hash", None) != h:
+        lmr._incr_alert_cache_clear()                # thresholds changed -> re-classify
+        lmr._child_last_thr_hash = h
+    return lmr._compute_recent_core(*args)
+
+
+def _get_scan_pool():
+    """Lazy 1-worker spawn pool. Returns None (→ in-process) when disabled or broken."""
+    global _scan_pool, _scan_pool_broken
+    if not _SCAN_OFFLOAD_HARD or _scan_pool_broken:
+        return None
+    if _scan_pool is not None:
+        return _scan_pool
+    with _scan_pool_lock:
+        if _scan_pool is None and not _scan_pool_broken:
+            try:
+                import concurrent.futures as _cf
+                import multiprocessing as _mp
+                _scan_pool = _cf.ProcessPoolExecutor(
+                    max_workers=1, mp_context=_mp.get_context("spawn"))
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "[massive] scan pool init failed — staying in-process")
+                _scan_pool_broken = True
+                _scan_pool = None
+        return _scan_pool
+
+
+def _offload_enabled_for(curated, only_symbols) -> bool:
+    """Offload ONLY the heavy dashboard scans (curated, full-symbol). The scoped
+    auto-push scan (only_symbols) stays in-process — small, and now unblocked."""
+    if only_symbols or not curated:
+        return False
+    try:
+        return bool(_load_thresholds().get("scan_offload", False))
+    except Exception:
+        return False
+
+
+def _run_core(today, limit, min_grade, sort_by, tier, curated, only_symbols):
+    """Run _compute_recent_core in the subprocess when offload is on + the pool is
+    healthy; otherwise (or on ANY failure) in-process. Never raises past fallback."""
+    if _offload_enabled_for(curated, only_symbols):
+        pool = _get_scan_pool()
+        if pool is not None:
+            try:
+                fut = pool.submit(
+                    _core_worker,
+                    (today, limit, min_grade, sort_by, tier, curated, only_symbols))
+                return fut.result(timeout=_SCAN_OFFLOAD_TIMEOUT)
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    "[massive] scan offload failed (%s) — in-process fallback", e)
+                global _scan_pool
+                with _scan_pool_lock:                # drop a dead/hung pool; rebuild next call
+                    try:
+                        if _scan_pool is not None:
+                            _scan_pool.shutdown(wait=False, cancel_futures=True)
+                    except Exception:
+                        pass
+                    _scan_pool = None
+    return _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_symbols)
+
+
+def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
+    """/recent fill: run the (offloadable) core scan, then the MAIN-process
+    side-effects — auto-push mark+fire + payload packaging. Byte-identical to the
+    pre-2b single-function behavior when scan_offload is off."""
+    all_alerts, meta = _run_core(today, limit, min_grade, sort_by, tier, curated, only_symbols)
+
     # Auto-push scan: mark already-pushed alerts (POSTED persists) and, when the
-    # master switch is on, claim + fire newly-qualifying ones. On the FULL set so
-    # no client's tier/limit filter hides a qualifier; dedup via the log.
-    # live=... so browsing a historical date MARKS ONLY and never fires (see
-    # _apply_auto_push docstring).
+    # master switch is on, claim + fire newly-qualifying ones. On the FULL set so no
+    # client's tier/limit filter hides a qualifier; dedup via the log. live=... so a
+    # historical date MARKS ONLY and never fires. ALWAYS in the MAIN process (Discord
+    # + pushed.db dedup) regardless of where the scan ran.
     _apply_auto_push(all_alerts, live=(today == _today_mdyyyy()))
 
     alerts = all_alerts[:limit]
-
     status = _get_worker_status()
     status["query_date"] = today
     status["sort_by"] = sort_by
     status["tier_filter"] = tier
     status["curated"] = curated
-    status["rows_scanned"] = len(rows)
-    status["skipped_unclassified_side"] = skipped_unclassified
-    status["skipped_below_min_grade"] = skipped_low_grade
-    status["skipped_off_tier"] = skipped_off_tier
-    status["skipped_curated"] = skipped_curated
+    status["rows_scanned"] = meta.get("rows_scanned", 0)
+    status["skipped_unclassified_side"] = meta.get("skipped_unclassified_side", 0)
+    status["skipped_below_min_grade"] = meta.get("skipped_below_min_grade", 0)
+    status["skipped_off_tier"] = meta.get("skipped_off_tier", 0)
+    status["skipped_curated"] = meta.get("skipped_curated", 0)
     status["returned"] = len(alerts)
-
-    return {
-        "status": status,
-        "alerts": alerts,
-    }
+    return {"status": status, "alerts": alerts}
 
 
 _diagnostic_cache: dict = {}          # date -> (ts, payload)
@@ -4903,6 +5018,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
         "autopush_incremental",      # perf: 60s auto-push scans only new-activity symbols (dark)
+        "scan_offload",              # perf: run the heavy dashboard scan in a subprocess (dark)
         "close_detector_enabled",    # clean-directional gate: drop contaminated bid-sells (dark)
         "close_min_long_frac",       # ask-vol multiple of print size that flags a mixed sell
         "close_net_frac",            # DEPRECATED (renamed -> close_min_long_frac). Kept in the
