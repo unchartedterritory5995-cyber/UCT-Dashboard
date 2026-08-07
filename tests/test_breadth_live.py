@@ -855,3 +855,23 @@ def test_members_is_optional_and_changes_nothing_when_omitted():
     a = bl.compute_metrics(levels, prices, vols)
     b = bl.compute_metrics(levels, prices, vols, members={})
     assert a == b, "passing members changed the metrics"
+
+
+# The drill modal's volume column is today's volume over the prior 20 sessions'
+# average — the collector's `volumes.iloc[-21:-1].mean()`. Levels are built from
+# COMPLETED sessions only, so its last 20 columns ARE that window; getting the
+# slice wrong by one shifts every ratio on screen.
+def test_vol_avg20_is_the_prior_twenty_completed_sessions():
+    cdf, vdf = _frame(seed=11, n_tickers=12, n_dates=120)
+    levels, _, _ = _split(cdf, vdf)
+    prior_v = vdf.iloc[:-1]                      # what _split fed build_levels
+    expected = prior_v.iloc[-20:].mean().to_numpy(dtype=float)
+    got = levels["vol_avg20"]
+    assert got.shape == (len(levels["tickers"]),)
+    np.testing.assert_allclose(got, expected, rtol=1e-9)
+
+
+def test_vol_avg20_is_nan_when_there_is_not_a_full_window():
+    cdf, vdf = _frame(seed=12, n_tickers=5, n_dates=8)
+    levels, _, _ = _split(cdf, vdf)
+    assert np.isnan(levels["vol_avg20"]).all()

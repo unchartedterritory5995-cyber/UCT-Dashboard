@@ -574,6 +574,15 @@ def build_levels(tickers: list[str], closes: np.ndarray, volumes: np.ndarray,
     vmax, _ = _rolling_tail(volumes, n52 - 1, _tail_max)
     lv["vol_max52"] = vmax
 
+    # Today's volume over the prior 20 sessions' average — the collector's
+    # `volumes.iloc[-21:-1].mean()`. This frame holds COMPLETED sessions only,
+    # so its last 20 columns are exactly that window; there is no today column
+    # here to exclude.
+    if n_dates >= 20:
+        lv["vol_avg20"] = np.nanmean(volumes[:, -20:], axis=1)
+    else:
+        lv["vol_avg20"] = np.full(len(tickers), np.nan)
+
     net_adv = _net_advance_series(closes)
     e19 = e39 = None
     for v in net_adv:
