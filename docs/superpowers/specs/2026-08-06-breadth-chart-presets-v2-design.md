@@ -6,16 +6,26 @@ nine presets and the unit-family axis rule as `441684b8`.
 Owner ask: "I like what you did with the presets, but think we can add more and
 some better ones as well."
 
-Three changes, in dependency order:
+Changes, in dependency order:
 
-1. **Catalog** — expose 12 metrics the collector already writes but the picker
-   never showed, and add three unit families so they cannot crush their
+1. **Catalog** (§1–2) — expose 12 metrics the collector already writes but the
+   picker never showed, and add three unit families so they cannot crush their
    neighbours.
-2. **Axis framing** — auto-frame the families whose value is read as a *shape*;
-   keep the zero anchor for the families read as a *magnitude*. Without this,
-   three of the new presets render as flat lines.
-3. **Presets** — seven new, two revised, and a `More` menu so sixteen presets
-   still occupy one chrome band.
+2. **Axis framing** (§3) — auto-frame the families whose value is read as a
+   *shape*; keep the zero anchor for the families read as a *magnitude*.
+   Without this, three of the new presets render as flat lines.
+3. **Presets** (§4–5) — seven new, two revised, and a `More` menu so sixteen
+   presets still occupy one chrome band.
+4. **Readability** (§6–7) — colour by metric polarity instead of series order,
+   and per-preset reference lines. §6 fixes a shipped defect; §7 is what makes
+   the new presets judgeable rather than decorative.
+5. **Context** (§8–10) — follow-through-day markers, a widening-only minimum
+   window for the A/D line, and a value + percentile readout replacing the
+   legend.
+
+§1–5 are one dependency chain and must land in order. §6–10 are independent of
+each other and of nothing but §1–4, so they can be built and reviewed in
+parallel once the catalog exists.
 
 No backend changes. Every metric below is already in the
 `/api/breadth-monitor` payload.
@@ -228,7 +238,138 @@ Behaviour:
 renders pills for presets without a group and the popover renders the rest, so
 promoting a preset between tiers is a one-line change.
 
-## 6. Testing
+## 6. Series colour by polarity
+
+`BreadthCharts.jsx:156` assigns colour positionally — `PALETTE[i % PALETTE.length]`,
+where `PALETTE[0]` is blue and `PALETTE[1]` is green. Every shipped crossover
+preset therefore draws its **deterioration line in green**: `new_52w_lows` in
+New Highs vs Lows, `stage4_count` in Trend Regime, `down_4pct_today` in Breadth
+Thrust. The proposed `highs-lows-pct` and `setup-supply` would inherit it.
+
+Bind colour to a `METRIC_TONE` map instead: `bull` → green ramp, `bear` → red
+ramp, `neutral` → the existing blue/amber/violet palette.
+
+**Tone is assigned only to metrics that exist as an opposed pair** —
+`up_4pct_today`/`down_4pct_today`, `new_52w_highs`/`new_52w_lows`,
+`hi_ratio`/`lo_ratio`, `stage2_count`/`stage4_count`, the `magna` and
+`up/down_Npct` families, `aaii_bulls`/`aaii_bears`. Everything else is
+`neutral`, including `vix`/`vxn` and the MA stack.
+
+That restriction is deliberate. A "rising VIX is bearish" rule would paint all
+three series in `vol-complex` red and make them harder to tell apart, and
+`setup-supply` would draw `near_52w_high` and `new_52w_highs` as two greens.
+The semantic win belongs on crossover charts; everywhere else, distinguishability
+wins. Checked against all sixteen presets: the largest single-tone group is
+`participation` with four neutrals, against six available neutral hues.
+
+Red/green carries a colourblindness cost. It is accepted here because the app
+already uses this convention throughout and because every paired series is also
+labelled in words ("Up 4%+" / "Dn 4%+") in the legend, tooltip, and the readout
+in §10.
+
+## 7. Reference lines
+
+`extremes` today is one hardcoded group — MA Breadth's 70/80/90 and 20/15/10/5.
+Nothing else has levels, so on the new presets "up/down volume is 1.3" cannot be
+judged from the chart.
+
+Add an optional per-preset `lines` array, resolved by unit family so it reuses
+the existing `axisForUnit` helper to find the axis its family landed on:
+
+```js
+lines: [{ unit: UNIT.RATIO, at: 1.0, label: 'parity' }]
+```
+
+Levels are canonical constants, not tuned values:
+
+| preset | lines |
+|---|---|
+| `thrust` | `RATIO` at 1.0 (parity), 2.0 (thrust) |
+| `volume-thrust` | `RATIO` at 1.0 (parity), `NET` at 0 |
+| `volatility` | `RATIO` at 1.0 |
+| `sentiment` | `PCT` at 25 (fear), 75 (greed) |
+| `ad-line` | `CUM` at 0 |
+| `vol-complex` | `VIX` at 20 |
+
+`extremes` is left in place rather than folded in: it carries the `EXTREMES_BAND`
+axis-widening behaviour that `lines` deliberately does not, and rewriting it
+would risk the MA band for no gain. The two coexist.
+
+A line whose family is absent from the preset's metrics would draw on an axis
+with no series. A test forbids it.
+
+**A reference line must not be able to undo §3.** ECharts expands an axis to
+contain a `markLine`, so `ad-line`'s zero line on a window starting at 5,781
+would drag the auto-framed `CUM` axis back to 0–13,981 and restore exactly the
+wasted plot that §3 exists to remove. The rule follows the family's framing:
+
+- **Anchored families** (`PCT`, `COUNT`, `NET`, `RATIO`) — the line always
+  draws and may extend the axis. This is what `EXTREMES_BAND` already does for
+  MA Breadth, and it is wanted: `sentiment`'s greed line at 75 should stay
+  visible while Fear/Greed sits at 8.7, because the distance to it is the
+  information.
+- **Auto-framed families** (`INDEX`, `VIX`, `OSC`, `CUM`, `SPREAD`) — the line
+  draws only when its value falls inside the visible data range, and is
+  suppressed otherwise. A suppressed line is silent, not an error: it means the
+  level is simply not in view.
+
+So `ad-line`'s zero line shows on the 365-day window §9 gives it and disappears
+if the reader narrows past the April trough, and `vol-complex`'s VIX 20 line
+drops out of a window where volatility never approached it.
+
+## 8. Follow-through-day markers
+
+`is_ftd` is boolean, 100 % filled, and charted nowhere. It is true on 8 of 151
+sessions: seven between 2026-04-08 and 2026-04-24, dating the April bottom, and
+one on **2026-08-04**.
+
+Render as vertical `markLine`s on a silent series — the same construction as the
+existing `LIVE` marker at `BreadthCharts.jsx:166`. A checkbox beside the extremes
+controls toggles them, persisted in `breadth_charts_state`, **default off** so no
+existing view changes shape without being asked.
+
+Clustering is the one real hazard: seven markers inside three weeks would stack
+their labels into mush. **Label only the first marker of a cluster**, where a
+cluster ends after a gap of 5 or more sessions. All lines still draw; only the
+labels thin out. On the measured data that yields two labels, not eight.
+
+## 9. Preset minimum window
+
+Round one decided presets never touch the date range, and that holds for fifteen
+of sixteen. `ad-line` is the exception, and it is measured rather than asserted:
+over the default 90-day window `adv_decline_cum` retains only **55 %** of its
+full-history travel, climbing monotonically from 5,781 with the April trough at
+−995 off-screen. The divergence the preset exists to show is not in the frame.
+
+By contrast `iwm_qqq_ratio` keeps 97 % of its travel in the same window and
+`rsp_spy_ratio` 86 %, so Narrow Leadership and Risk Appetite need nothing.
+
+Add an optional `minWindowDays`. On apply, if the current window is narrower,
+`fromDate` moves back to `toDate - minWindowDays`. **It only ever widens** — a
+preset can never narrow what the user framed, and `toDate` is never touched.
+Only `ad-line` declares it, at 365. The fetch is already `days=365`, so it
+clamps naturally to available history.
+
+## 10. Metric readout
+
+Each selected metric gets its latest value and that value's percentile over the
+**visible window**, so "60.0" becomes "60.0 · 58th". Percentile is the share of
+non-null observations in the window at or below the latest value.
+
+This replaces the ECharts legend rather than sitting beside it. Set
+`legend: { show: false }` — keeping the component alive but hidden preserves its
+selection state, so a readout row can stay clickable by dispatching
+`legendToggleSelect`, and series toggling survives the change. A hidden series
+renders its row dimmed. Reclaiming the legend strip lets `grid.top` drop from 56
+to about 24.
+
+Each row is a colour swatch, the label, the value, and the percentile with a
+small 0–100 track. Edge cases: fewer than two non-null points shows `—` rather
+than a fabricated percentile; when the latest point is the provisional live row
+the percentile is computed from it but the row carries the same live treatment
+the chart tip already uses, so an estimate is never presented as a close.
+
+## 11. Testing
 
 Extends `chartMetrics.test.js` (45 tests today). The existing invariants all
 still hold and must keep passing unchanged — in particular *"spans at most two
@@ -269,6 +410,30 @@ New coverage:
    `Escape`; the trigger shows the active label when the selection lives inside.
 9. **Axis layout per preset** — the existing per-preset layout table extended to
    all sixteen, asserting the intended left/right split.
+10. **Tone coverage** — every catalog metric has a tone; every paired metric and
+    its opposite carry opposing tones, so a pair can never both read bullish.
+11. **Colour collision** — for every preset, no two selected metrics resolve to
+    the same colour. This is the gate on §6: it fails today for
+    `highs-lows`, `trend-regime`, and `thrust`, where the bearish series is
+    green, and it is written to fail against the current positional palette
+    before the tone map exists.
+12. **Reference lines** — every line's unit family appears in its preset's
+    metrics, so no line can draw on an axis carrying no series; no preset
+    declares both a `lines` entry and an `extremes` group for the same family;
+    and the visibility rule holds both ways — a line on an anchored family
+    always draws, a line on an auto-framed family is suppressed when it falls
+    outside the visible range. The `ad-line` zero line on a 90-day window is the
+    named case, since letting it through would silently undo §3.
+13. **FTD clustering** — the label-thinning rule returns one label per run and
+    reopens after a 5-session gap; on the measured 8-hit series it yields 2
+    labels. Asserts the label list, not just a count of markers.
+14. **Minimum window** — applying `ad-line` to a 90-day window widens it to 365;
+    applying it to a 400-day window leaves it untouched; no other preset moves
+    either date. The never-narrows property is asserted directly.
+15. **Percentile** — a known series gives a known percentile; a single non-null
+    point and an all-null selection both yield `—` rather than 0 or `NaN`; the
+    window filter is respected, so a value extreme in full history but ordinary
+    in the visible window reads as ordinary.
 
 ### Live-surface pass
 
@@ -278,8 +443,17 @@ rows once from the public endpoint, serve them from a stub API on `:8000`
 (vite already proxies `/api` there), mount via a temporary `preview-breadth`
 entry to skip `AuthGuard`, and delete the temp entry before commit.
 
-Two things to look at specifically, both flagged above: `setup-supply` for
-compression and `risk-appetite` for two bands on one auto-framed axis.
+Five things to look at specifically:
+
+- `setup-supply` for compression, and `risk-appetite` for two bands on one
+  auto-framed axis — the two tightest layouts in §4.
+- The colour change on `highs-lows`, `trend-regime`, and `thrust`, since the
+  point is that the bearish line now reads as bearish.
+- FTD labels in a window containing the April cluster, which is where the
+  thinning rule earns its place. Pick a `from` date before 2026-04-08.
+- The readout's live row during market hours, when the provisional tip exists.
+  Outside the session `live.row` is null and that path never runs, which is
+  exactly how a defect here would escape an evening check.
 
 Read the actual port from the vite log — another vite instance commonly holds
 `:5173`. Allow ~20 s for ECharts' line animation in a background tab before
@@ -289,6 +463,10 @@ judging a partially drawn line as a data bug.
 
 - The `new_ath` collector defect.
 - Custom user-defined presets — still no, unchanged from round one.
-- Presets touching the date range — still no; a framed window is intentional.
+- Presets touching the date range, beyond the one widening exception in §9.
+- Colourblind-safe palettes. §6 keeps the app's existing red/green convention;
+  changing it is a dashboard-wide decision, not a Breadth one.
+- Divergence detection or any automatic callout on the readout. It reports
+  where a metric sits; interpreting that stays with the reader.
 - The `PCT`-family span hazard and the `COUNT`-family `universe_count` hazard
   for hand-picked selections.
