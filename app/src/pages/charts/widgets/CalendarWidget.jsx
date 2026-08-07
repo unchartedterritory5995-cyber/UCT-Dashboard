@@ -87,7 +87,13 @@ function surpriseCell(act, est, fmtVal) {
   }
   return { text: fmtVal(act), up: null }
 }
-const mcapDesc = (a, b) => (Number.isFinite(b.mc_b) ? b.mc_b : -1) - (Number.isFinite(a.mc_b) ? a.mc_b : -1)
+// A reporter's market cap ($B) from the day-metrics map (the /api/calendar earnings
+// entries carry no mc_b), falling back to any mc_b on the entry; missing sinks last.
+function mcapOf(mcapMap, c) {
+  const v = mcapMap?.[c?.sym]
+  if (Number.isFinite(v)) return v
+  return Number.isFinite(c?.mc_b) ? c.mc_b : -1
+}
 const TOP_EARNINGS = 10   // largest 10 by market cap; the rest behind "Show all"
 // Sort key for the EPS / REV columns = the % surprise, and ONLY for stocks that have
 // actually reported with a usable estimate base. Anything without a real surprise
@@ -136,13 +142,19 @@ const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
 // An earnings section: top 10 by market cap (default), a "Show all N" expander, and
 // clickable EPS/REV headers to sort by surprise (click again reverses); the title
 // re-sorts by market cap. Column labels get "(est)" when the section is all estimates.
-function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selectedSym }) {
+function EarningsSection({ title, iconName, cls, items, imMap, mcapMap, onSelect, selectedSym }) {
   const [showAll, setShowAll] = useState(false)
+  // Default order: market cap, biggest first. Clicking the section title reverses it.
   const [sort, setSort] = useState({ by: 'mcap', dir: 'desc' })
   const est = useMemo(() => !items.some(c => c.eps_act != null || c.rev_act != null), [items])
   const sorted = useMemo(() => {
     const arr = [...items]
-    if (sort.by === 'mcap') return arr.sort(mcapDesc)
+    if (sort.by === 'mcap') {
+      return arr.sort((a, b) => {
+        const d = mcapOf(mcapMap, b) - mcapOf(mcapMap, a)
+        return sort.dir === 'desc' ? d : -d
+      })
+    }
     const keyFn = sort.by === 'eps' ? epsSurpKey
       : sort.by === 'im' ? (c => imLookup(imMap, c.sym))
         : revSurpKey
@@ -153,7 +165,7 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
       if (kb == null) return -1
       return sort.dir === 'desc' ? kb - ka : ka - kb
     })
-  }, [items, sort, imMap])
+  }, [items, sort, imMap, mcapMap])
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
   const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
   const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
@@ -161,9 +173,9 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
   return (
     <div className={styles.section}>
       <div className={`${styles.sectionHead} ${cls}`}>
-        <button type="button" className={styles.headTitle} onClick={() => setSort({ by: 'mcap', dir: 'desc' })} title="Sort by market cap">
+        <button type="button" className={styles.headTitle} onClick={() => clickCol('mcap')} title="Sorted by market cap — click to reverse">
           <span className={styles.headIcon}><UIcon name={iconName} size={13} /></span>
-          {title}<span className={styles.titleCount}>({items.length})</span>
+          {title}<span className={styles.titleCount}>({items.length})</span>{caret('mcap')}
         </button>
         <span className={styles.valCols}>
           <button
@@ -282,6 +294,23 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   })
   const imMap = imData && typeof imData === 'object' ? imData : null
 
+  // ── Per-ticker market cap ($B) for the selected day, used ONLY to order the
+  // earnings lists (largest first) — the values themselves are never shown. The
+  // /api/calendar earnings entries carry no market cap, so this comes from the
+  // same day-metrics feed the main /calendar page uses. ──
+  const { data: metricsData } = useSWR(`/api/calendar/day-metrics-batch?dates=${selected}`, fetcher, {
+    refreshInterval: 300000, dedupingInterval: 60000,
+  })
+  const mcapMap = useMemo(() => {
+    const dayM = metricsData?.[selected]
+    if (!dayM || typeof dayM !== 'object') return null
+    const out = {}
+    for (const [sym, v] of Object.entries(dayM)) {
+      if (v && Number.isFinite(v.mc_b)) out[sym] = v.mc_b
+    }
+    return out
+  }, [metricsData, selected])
+
   const hasAnyEcon = (day?.econ?.length || 0) + (day?.fed?.length || 0) > 0
   const econItems = useMemo(() => {
     if (!day) return []
@@ -294,7 +323,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   }, [day, econStars])
   const bmo = day?.bmo || []
   const amc = day?.amc || []
-  const tbd = useMemo(() => [...(day?.tbd || [])].sort(mcapDesc), [day])
+  const tbd = useMemo(() => [...(day?.tbd || [])].sort((a, b) => mcapOf(mcapMap, b) - mcapOf(mcapMap, a)), [day, mcapMap])
   const nothing = !isLoading && day && !hasAnyEcon && bmo.length === 0 && amc.length === 0 && tbd.length === 0
 
   return (
@@ -399,11 +428,11 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         )}
 
         {bmo.length > 0 && (
-          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} imMap={imMap} onSelect={onRowSelect} selectedSym={selectedSym} />
+          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} imMap={imMap} mcapMap={mcapMap} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {amc.length > 0 && (
-          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} imMap={imMap} onSelect={onRowSelect} selectedSym={selectedSym} />
+          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} imMap={imMap} mcapMap={mcapMap} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {tbd.length > 0 && (
