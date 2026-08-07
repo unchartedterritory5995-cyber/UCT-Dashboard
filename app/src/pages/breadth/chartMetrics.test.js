@@ -4,6 +4,7 @@ import {
   ALL_METRICS, LABEL_MAP, METRIC_UNITS, UNIT, UNIT_LABEL, CHART_GROUPS,
   CHART_PRESETS, unitOf, matchPreset, resolveAxes, axisForUnit,
   SCALED_UNITS, scaleForUnit, TONE, toneOf, resolveColors,
+  PRESET_GROUP_ORDER, resolveLines,
 } from './chartMetrics'
 
 describe('unit coverage', () => {
@@ -279,6 +280,181 @@ describe('resolveAxes', () => {
   })
 })
 
+describe('preset set v2', () => {
+  const byId = id => CHART_PRESETS.find(p => p.id === id)
+
+  it('adds the seven new presets', () => {
+    for (const id of ['ad-line', 'narrow-leadership', 'risk-appetite',
+                      'volume-thrust', 'highs-lows-pct', 'vol-complex', 'setup-supply']) {
+      expect(byId(id), `${id} is missing`).toBeTruthy()
+    }
+    expect(CHART_PRESETS).toHaveLength(16)
+  })
+
+  it('revises volatility and thrust', () => {
+    // The daily put/call is noise across 39 distinct values in 151 sessions;
+    // the 10-day average is the tradeable extreme, and they share a scale.
+    expect(byId('volatility').metrics).toContain('avg_10d_cpc')
+    // Counts and ratios with no volume cannot tell a thrust from a bounce.
+    expect(byId('thrust').metrics).toContain('up_vol_ratio')
+  })
+
+  it('never references a metric that is excluded on purpose', () => {
+    const banned = ['naaim', 'new_ath', 'spy_dist_days', 'qqq_dist_days', 'iwm_close']
+    for (const preset of CHART_PRESETS) {
+      for (const key of preset.metrics) {
+        expect(banned, `${preset.label} uses ${key}`).not.toContain(key)
+      }
+    }
+  })
+
+  // new_ath is count_nd_highs(closes, min(252, len-1)) — a 252-day high, so it
+  // duplicates new_52w_highs on 139 of 151 sessions. It is labelled "ATH Count"
+  // in the picker, so a future author will reach for it. This is the sign.
+  it('keeps new_ath out, because it is a 52-week high wearing another name', () => {
+    for (const preset of CHART_PRESETS) {
+      expect(preset.metrics).not.toContain('new_ath')
+    }
+  })
+
+  // Round one's lesson as a gate: a shared family is necessary but not
+  // sufficient, because a family can span an order of magnitude. Thresholded at
+  // 6x, which every preset clears with froth closest at 4.8x, and which both
+  // round-one defects fail: S&P 7737 vs QQQ 746 = 10.4x, and up_25pct_month 385
+  // vs atr_ext_7 34 = 11.3x.
+  const MAX_ABS = {
+    breadth_score: 98.1, uct_exposure: 102, up_4pct_today: 956, down_4pct_today: 762,
+    ratio_5day: 4.83, ratio_10day: 3.32, up_20pct_5d: 183, down_20pct_5d: 171,
+    up_25pct_quarter: 1131, down_25pct_quarter: 505, up_25pct_month: 385,
+    down_25pct_month: 274, up_50pct_month: 128, down_50pct_month: 15,
+    magna_up: 1307, magna_down: 1103, universe_count: 3736,
+    pct_above_5sma: 81.6, pct_above_10sma: 83.6, pct_above_20ema: 82.8,
+    pct_above_40sma: 75.8, pct_above_50sma: 73.5, pct_above_100sma: 70.1,
+    pct_above_200sma: 72.8, sp500_close: 7736.52, qqq_close: 746.16,
+    vix: 31.05, mcclellan_osc: 223.9, stage2_count: 1244, stage4_count: 594,
+    new_52w_highs: 555, new_52w_lows: 234, new_20d_highs: 1412, new_20d_lows: 1228,
+    hvc_52w: 163, atr_ext_7: 34, cnn_fear_greed: 69.9, aaii_bulls: 49,
+    aaii_neutral: 35, aaii_bears: 52, aaii_spread: 22, cboe_putcall: 1.12,
+    adv_decline: 2142, adv_decline_cum: 13981, up_vol_ratio: 5.73,
+    hi_ratio: 18.61, lo_ratio: 8.57, near_52w_high: 1177,
+    rsp_spy_ratio: 0.2996, iwm_qqq_ratio: 0.4377, vxn: 33.54,
+    avg_10d_vix: 26.87, avg_10d_vxn: 29.31, avg_10d_cpc: 1.01,
+  }
+
+  it('keeps same-family metrics within 6x so none is pinned to the floor', () => {
+    for (const preset of CHART_PRESETS) {
+      const byFamily = {}
+      for (const key of preset.metrics) {
+        expect(MAX_ABS[key], `${key} missing from the measured range table`).toBeGreaterThan(0)
+        ;(byFamily[unitOf(key)] ??= []).push(key)
+      }
+      for (const [family, keys] of Object.entries(byFamily)) {
+        if (keys.length < 2) continue
+        const mags = keys.map(k => MAX_ABS[k])
+        const ratio = Math.max(...mags) / Math.min(...mags)
+        expect(ratio, `${preset.label}/${family} spans ${ratio.toFixed(1)}x`).toBeLessThanOrEqual(6)
+      }
+    }
+  })
+
+  it('would have failed on both round-one defects', () => {
+    const spread = (a, b) => Math.max(MAX_ABS[a], MAX_ABS[b]) / Math.min(MAX_ABS[a], MAX_ABS[b])
+    expect(spread('sp500_close', 'qqq_close')).toBeGreaterThan(6)
+    expect(spread('up_25pct_month', 'atr_ext_7')).toBeGreaterThan(6)
+  })
+
+  it('partitions cleanly into core pills and grouped popover entries', () => {
+    const core = CHART_PRESETS.filter(p => !p.group)
+    const grouped = CHART_PRESETS.filter(p => p.group)
+    expect(core).toHaveLength(7)
+    expect(grouped).toHaveLength(9)
+    for (const p of grouped) {
+      expect(PRESET_GROUP_ORDER, `${p.label} has an unlisted group`).toContain(p.group)
+    }
+    for (const g of PRESET_GROUP_ORDER) {
+      expect(grouped.some(p => p.group === g), `${g} has no presets`).toBe(true)
+    }
+  })
+
+  it('declares a widening window only where the data needs it', () => {
+    // adv_decline_cum keeps 55% of its travel at the 90-day default and the
+    // April trough at -995 falls off-screen. iwm_qqq_ratio keeps 97% and
+    // rsp_spy_ratio 86%, so their presets need nothing.
+    expect(byId('ad-line').minWindowDays).toBe(365)
+    for (const p of CHART_PRESETS.filter(p => p.id !== 'ad-line')) {
+      expect(p.minWindowDays, `${p.label} should not move the window`).toBeUndefined()
+    }
+  })
+})
+
+describe('resolveLines', () => {
+  const always = () => [-1e9, 1e9]
+
+  it('drops a line whose family has no series on the chart', () => {
+    const lines = [{ unit: UNIT.RATIO, at: 1, label: 'parity' }]
+    expect(resolveLines(['up_4pct_today'], lines, always)).toEqual([])
+  })
+
+  it('puts the line on the axis its family resolved to', () => {
+    // two counts, one ratio: counts take the left axis, ratio goes right
+    const out = resolveLines(
+      ['up_4pct_today', 'down_4pct_today', 'ratio_5day'],
+      [{ unit: UNIT.RATIO, at: 1, label: 'parity' }],
+      always,
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].axis).toBe(1)
+  })
+
+  // An anchored axis already includes 0, so letting a line extend it is
+  // harmless and wanted: sentiment's greed line at 75 must stay visible while
+  // Fear/Greed sits at 8.7, because the distance to it is the information.
+  it('always draws on an anchored family, even outside the data', () => {
+    const out = resolveLines(
+      ['cnn_fear_greed'],
+      [{ unit: UNIT.PCT, at: 75, label: 'greed' }],
+      () => [8.7, 12.0],
+    )
+    expect(out).toHaveLength(1)
+  })
+
+  // ECharts expands an axis to contain a markLine, so a zero line on a window
+  // starting at 5,781 would drag the auto-framed CUM axis back to 0-13,981 and
+  // restore exactly the wasted plot the framing rule removes.
+  it('suppresses a line that would expand an auto-framed axis', () => {
+    const lines = [{ unit: UNIT.CUM, at: 0, label: 'flat' }]
+    expect(resolveLines(['adv_decline_cum'], lines, () => [5781, 13981])).toEqual([])
+    expect(resolveLines(['adv_decline_cum'], lines, () => [-995, 13981])).toHaveLength(1)
+  })
+
+  it('suppresses when the extent is unknown rather than guessing', () => {
+    expect(resolveLines(['adv_decline_cum'], [{ unit: UNIT.CUM, at: 0, label: 'flat' }], () => null)).toEqual([])
+  })
+
+  it('every declared line has a series to sit beside', () => {
+    for (const preset of CHART_PRESETS) {
+      for (const line of preset.lines ?? []) {
+        const present = preset.metrics.some(k => unitOf(k) === line.unit)
+        expect(present, `${preset.label}: no ${line.unit} series for its ${line.at} line`).toBe(true)
+      }
+    }
+  })
+
+  it('never declares a line and an extremes group for the same family', () => {
+    for (const preset of CHART_PRESETS) {
+      const lineUnits = new Set((preset.lines ?? []).map(l => l.unit))
+      for (const group of preset.extremes ?? []) {
+        const units = new Set(
+          CHART_GROUPS.find(g => g.group === group).metrics.map(m => unitOf(m.key)),
+        )
+        for (const u of units) {
+          expect(lineUnits, `${preset.label} double-marks ${u}`).not.toContain(u)
+        }
+      }
+    }
+  })
+})
+
 describe('preset axis layout', () => {
   // Each preset's intended left/right split, verified through the real rule
   // rather than restated as data — this is what catches a reordered preset.
@@ -286,12 +462,22 @@ describe('preset axis layout', () => {
     health:             { left: ['breadth_score', 'uct_exposure', 'pct_above_50sma'], right: [] },
     'breadth-vs-price': { left: ['pct_above_50sma', 'pct_above_200sma'], right: ['sp500_close'] },
     participation:      { left: ['pct_above_10sma', 'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma'], right: [] },
-    thrust:             { left: ['up_4pct_today', 'down_4pct_today'], right: ['ratio_5day', 'ratio_10day'] },
+    // Adding up_vol_ratio makes ratios the majority family 3-2, so they take
+    // the left axis and the counts move right. Wanted: the parity and thrust
+    // reference lines sit on the ratio family, and they belong on the primary.
+    thrust:             { left: ['ratio_5day', 'ratio_10day', 'up_vol_ratio'], right: ['up_4pct_today', 'down_4pct_today'] },
     'highs-lows':       { left: ['new_52w_highs', 'new_52w_lows'], right: [] },
     'trend-regime':     { left: ['stage2_count', 'stage4_count'], right: [] },
     froth:              { left: ['hvc_52w', 'up_50pct_month', 'atr_ext_7'], right: [] },
-    volatility:         { left: ['vix'], right: ['cboe_putcall'] },
+    volatility:         { left: ['cboe_putcall', 'avg_10d_cpc'], right: ['vix'] },
     sentiment:          { left: ['cnn_fear_greed', 'aaii_spread'], right: [] },
+    'ad-line':          { left: ['adv_decline_cum'], right: ['sp500_close'] },
+    'narrow-leadership':{ left: ['rsp_spy_ratio'], right: ['sp500_close'] },
+    'risk-appetite':    { left: ['iwm_qqq_ratio', 'rsp_spy_ratio'], right: [] },
+    'volume-thrust':    { left: ['up_vol_ratio'], right: ['adv_decline'] },
+    'highs-lows-pct':   { left: ['hi_ratio', 'lo_ratio'], right: [] },
+    'vol-complex':      { left: ['vix', 'vxn', 'avg_10d_vix'], right: [] },
+    'setup-supply':     { left: ['near_52w_high', 'new_52w_highs'], right: [] },
   }
 
   it('covers every preset', () => {

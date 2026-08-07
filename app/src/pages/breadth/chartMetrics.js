@@ -295,6 +295,11 @@ export function resolveColors(selected) {
 // feed left runs a ~3-month delay. So the most recent weeks are routinely
 // missing and backfill later. Fine to select deliberately; a poor default.
 
+// Popover section order. A preset without `group` is a core one-click pill.
+export const PRESET_GROUP_ORDER = [
+  'Structure', 'Leadership', 'Momentum', 'Volatility & Sentiment',
+]
+
 export const CHART_PRESETS = [
   {
     id: 'health',
@@ -321,24 +326,33 @@ export const CHART_PRESETS = [
   {
     id: 'thrust',
     label: 'Breadth Thrust',
-    hint: 'Daily 4% movers against the 5- and 10-day ratios — ignition and follow-through.',
-    metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day'],
+    hint: 'Daily 4% movers, the 5- and 10-day ratios, and up/down volume — ignition, follow-through, and conviction.',
+    // Volume is what separates a thrust from a bounce; the preset had counts
+    // and ratios but nothing measuring what was behind them.
+    metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'up_vol_ratio'],
+    lines: [
+      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
+      { unit: UNIT.RATIO, at: 2.0, label: 'thrust' },
+    ],
   },
   {
     id: 'highs-lows',
     label: 'New Highs vs Lows',
+    group: 'Structure',
     hint: '52-week highs against 52-week lows — the crossover marks regime turns.',
     metrics: ['new_52w_highs', 'new_52w_lows'],
   },
   {
     id: 'trend-regime',
     label: 'Trend Regime',
+    group: 'Structure',
     hint: 'Stage 2 against Stage 4 counts — how much of the market is actually in an uptrend.',
     metrics: ['stage2_count', 'stage4_count'],
   },
   {
     id: 'froth',
     label: 'Froth & Extension',
+    group: 'Momentum',
     hint: 'Monthly 50% movers, volume climaxes, and ATR extension — the late-move heat tells.',
     // `up_25pct_month` (66–385) is deliberately left out. It shares the counts
     // axis with these and dominates it, pinning ATR extension (2–34) and HVC
@@ -348,14 +362,83 @@ export const CHART_PRESETS = [
   {
     id: 'volatility',
     label: 'Volatility & Fear',
-    hint: 'VIX on the left, CBOE put/call on the right.',
-    metrics: ['vix', 'cboe_putcall'],
+    hint: 'Put/call raw and smoothed against VIX — the 10-day average is the tradeable extreme.',
+    // The daily put/call takes 39 distinct values over 151 sessions and reads
+    // as noise. On a shared axis the 10-day average is the spine of it.
+    metrics: ['vix', 'cboe_putcall', 'avg_10d_cpc'],
+    lines: [{ unit: UNIT.RATIO, at: 1.0, label: 'parity' }],
   },
   {
     id: 'sentiment',
     label: 'Sentiment Extremes',
+    group: 'Volatility & Sentiment',
     hint: 'CNN Fear/Greed and the AAII bull-bear spread — contrarian positioning.',
     metrics: ['cnn_fear_greed', 'aaii_spread'],
+    lines: [
+      { unit: UNIT.PCT, at: 25, label: 'fear' },
+      { unit: UNIT.PCT, at: 75, label: 'greed' },
+    ],
+  },
+  {
+    id: 'ad-line',
+    label: 'A/D Line',
+    hint: 'The cumulative advance-decline line against the index — price highs the line will not confirm.',
+    metrics: ['adv_decline_cum', 'sp500_close'],
+    lines: [{ unit: UNIT.CUM, at: 0, label: 'flat' }],
+    // adv_decline_cum keeps only 55% of its travel in the default 90-day
+    // window, climbing monotonically from 5,781 with the April trough at -995
+    // off-screen — the divergence this preset exists to show is not in frame.
+    minWindowDays: 365,
+  },
+  {
+    id: 'narrow-leadership',
+    label: 'Narrow Leadership',
+    group: 'Leadership',
+    hint: 'Equal-weight against cap-weight, with the index — a falling ratio into a rising index is a mega-cap-only rally.',
+    metrics: ['rsp_spy_ratio', 'sp500_close'],
+  },
+  {
+    id: 'risk-appetite',
+    label: 'Risk Appetite',
+    group: 'Leadership',
+    hint: 'Small-cap and equal-weight participation together — who is being bought beyond the megacaps.',
+    metrics: ['iwm_qqq_ratio', 'rsp_spy_ratio'],
+  },
+  {
+    id: 'volume-thrust',
+    label: 'Volume Thrust',
+    group: 'Momentum',
+    hint: 'Up versus down volume against net advancers — conviction behind the advance, not just its width.',
+    metrics: ['up_vol_ratio', 'adv_decline'],
+    lines: [
+      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
+      { unit: UNIT.NET, at: 0, label: 'flat' },
+    ],
+  },
+  {
+    id: 'highs-lows-pct',
+    label: 'Highs/Lows %',
+    hint: 'The same crossover as New Highs vs Lows, as a share of the universe.',
+    // universe_count swings 2,637 to 3,736 across the recorded history — a 42%
+    // change — so raw high/low counts are not comparable across the window and
+    // the percentage is. Both presets exist because the raw crossover is what a
+    // reader recognises and this one is what is actually true.
+    metrics: ['hi_ratio', 'lo_ratio'],
+  },
+  {
+    id: 'vol-complex',
+    label: 'Vol Complex',
+    group: 'Volatility & Sentiment',
+    hint: 'Nasdaq against broad volatility, with the 10-day trend.',
+    metrics: ['vix', 'vxn', 'avg_10d_vix'],
+    lines: [{ unit: UNIT.VIX, at: 20, label: '20' }],
+  },
+  {
+    id: 'setup-supply',
+    label: 'Setup Supply',
+    group: 'Structure',
+    hint: 'Stocks coiled within 5% of a 52-week high against those actually breaking out.',
+    metrics: ['near_52w_high', 'new_52w_highs'],
   },
 ]
 
@@ -417,4 +500,33 @@ export function resolveAxes(selected) {
 export function axisForUnit(selected, unit, axisByKey) {
   const key = selected?.find(k => unitOf(k) === unit)
   return key ? (axisByKey[key] ?? 0) : 0
+}
+
+/**
+ * Reference lines that should actually draw, with the axis each belongs to.
+ *
+ * Two things are filtered out. A line whose family has no series would sit on
+ * an axis with nothing on it. And on an auto-framed family a line outside the
+ * data would expand the axis to reach it — ECharts grows an axis to contain a
+ * markLine — undoing the framing in scaleForUnit. Anchored families already
+ * include zero, so there the line draws regardless and may extend the top,
+ * which is what EXTREMES_BAND already does for MA Breadth.
+ *
+ * @param selected  metric keys currently plotted
+ * @param lines     the preset's `lines`, or []
+ * @param extentOf  (unit) => [min, max] over visible rows, or null when unknown
+ */
+export function resolveLines(selected, lines, extentOf) {
+  if (!selected?.length || !lines?.length) return []
+  const { axisByKey } = resolveAxes(selected)
+  const out = []
+  for (const line of lines) {
+    if (!selected.some(k => unitOf(k) === line.unit)) continue
+    if (scaleForUnit(line.unit)) {
+      const extent = extentOf(line.unit)
+      if (!extent || line.at < extent[0] || line.at > extent[1]) continue
+    }
+    out.push({ ...line, axis: axisForUnit(selected, line.unit, axisByKey) })
+  }
+  return out
 }
