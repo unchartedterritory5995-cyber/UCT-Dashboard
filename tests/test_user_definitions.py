@@ -874,7 +874,14 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: test hand-listed THREE paths while the router had FIVE, so two paid endpoints
 #: rode with no coverage and deleting a `Depends(require_paid)` passed every
 #: test. Update this DELIBERATELY — it exists so a sixth route cannot ride in.
-EXPECTED_ROUTE_COUNT = 5
+#:
+#: 2026-08-07, Phase D Task 13: the sixth route arrived — `POST /propose`, the
+#: NL→AST concierge — and this is the deliberate update. The rail worked exactly
+#: as written: adding the route turned BOTH halves red (the structural count and
+#: the behavioural 402 sweep's `seen`) until this line moved, so the new route
+#: could not ride in uncovered. Its own gate is checked by the same two halves
+#: below, plus `tests/test_definition_concierge.py`'s route cases.
+EXPECTED_ROUTE_COUNT = 6
 
 
 def _routes():

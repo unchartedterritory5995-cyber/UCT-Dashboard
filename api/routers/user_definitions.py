@@ -2,6 +2,7 @@
 
   GET    /api/user-definitions            → every live definition (newest version)
   POST   /api/user-definitions            → create; the server mints the `u_<12 hex>` id
+  POST   /api/user-definitions/propose    → English in, a canonical tree out (the concierge)
   GET    /api/user-definitions/{def_id}   → one definition; `?version=N` serves a PIN
   PUT    /api/user-definitions/{def_id}   → save an edit (appends a version)
   DELETE /api/user-definitions/{def_id}   → soft delete (appends a tombstone version)
@@ -51,6 +52,24 @@ class DefinitionIn(BaseModel):
     definition: dict
 
 
+class ProposeIn(BaseModel):
+    """The English, and the bars the chart is already holding.
+
+    The bars come from the CLIENT because the chart already has them and the
+    concierge's compute stage has to run on the same window the user is looking
+    at — a formula that computes nothing on the bars in view is refused there.
+    """
+
+    prompt: str
+    bars: Optional[list] = None
+
+
+#: A body cap, because an unbounded array is an unbounded request. The chart caps
+#: at 5,000 bars on every timeframe (`/api/bars` and `StockChart` both), so this
+#: is that number rather than a new one.
+MAX_PROPOSE_BARS = 5000
+
+
 def _save_or_400(user_id, def_id: str, definition: dict) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
@@ -81,6 +100,36 @@ def create_definition(body: DefinitionIn, user: dict = Depends(require_paid)):
     definition = dict(body.definition or {})
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition)
+
+
+@router.post("/propose")
+def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
+    """THE AI DOOR. English in, a canonical tree out — or a refusal.
+
+    ⛔ IT STORES NOTHING. A proposal is a suggestion the user has not confirmed;
+    persisting it would make an unconfirmed, model-authored formula a definition
+    the alert lane could bind to. The client shows the read-back, the user
+    accepts, and the ordinary `POST ""` / `PUT /{def_id}` doors do the writing —
+    through the same validation everything else goes through.
+
+    ⛔ AND A REFUSAL IS A 200 WITH `ok: False`, NOT A 4xx. That is
+    `brain_service`'s shape and this is the same kind of answer: "I could not turn
+    that into a formula" is a legitimate reply, not a transport failure, and the
+    caller renders `reason` next to the box the user typed in. `gate` names the
+    door that decided so a support question has an answer.
+
+    ⚠️ DECLARED PER HANDLER, like every other route on this router. See the module
+    docstring: `main.py` mounts this router with no router-level dependency, so a
+    route that omits its own is reachable by anybody.
+    """
+    bars = body.bars or []
+    if not isinstance(bars, list) or len(bars) > MAX_PROPOSE_BARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got "
+                   f"{len(bars) if isinstance(bars, list) else type(bars).__name__}")
+    from api.services import definition_concierge
+    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars)
 
 
 @router.get("/{def_id}")
