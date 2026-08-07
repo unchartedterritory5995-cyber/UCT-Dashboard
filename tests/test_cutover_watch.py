@@ -764,14 +764,19 @@ def test_the_report_names_the_EFFECTIVE_lane_and_the_lever_that_set_it(
     environment.
     """
     store.arm("rsi", "above", -1e9)
-    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    # ⚠️ THE OVERRIDE IS `"forming"` SINCE THE CUTOVER, AND IT HAS TO BE. The
+    # committed constant is now `"closed"`, so overriding to `"closed"` would
+    # agree with it and this test could not tell the header's two answers apart —
+    # exactly the vacuous shape it exists to refuse. `"forming"` is also the only
+    # override an operator will ever actually type now: it is the rollback.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     mode = _run(store)["mode"]
     assert mode["lever_known"] is True
-    assert mode["effective"] == "closed" == mode["eval_mode()"]
+    assert mode["effective"] == "forming" == mode["eval_mode()"]
     assert mode["override_applied"] is True
-    assert mode["ALERT_EVAL_MODE"] == "forming", (
-        "the committed constant is Task 8's to change, and the override must "
-        "not have edited it")
+    assert mode["ALERT_EVAL_MODE"] == "closed", (
+        "the committed constant reads something other than the value Task 8's "
+        "cutover commit left, or the override edited it")
 
 
 def test_the_lever_refuses_the_flip_in_all_THREE_of_its_broken_states():

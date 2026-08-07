@@ -31,6 +31,7 @@ import ast
 import datetime as dt
 import re
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
@@ -586,7 +587,17 @@ def test_naming_the_bar_moves_a_CROSS_conditions_key_from_the_EPISODE_to_the_BAR
     correct and it is strictly QUIETER: two genuine crossings inside ONE bar used
     to be two emails (the first fire re-arms on the intervening false cycle, so
     the episode key moves) and are now one. A LEVEL condition is untouched.
+
+    ⛔ THE LANE IS PINNED TO `"forming"` AND THAT IS NOT A WEAKENING — IT IS THE
+    ONLY LANE IN WHICH THIS SCENARIO EXISTS. "Two crossings inside one bar"
+    requires `prev` to come from the previous POLL, so that swapping the series
+    under a fixed newest bar manufactures a second crossing on it. The closed
+    lane takes `prev` from `series[i-1]`, judges each bar exactly once, and
+    therefore cannot produce the input at all — which is the cutover working, not
+    a gap in coverage. The property under test (`fire_key`'s vocabulary) is
+    lane-independent and is asserted directly in `tests/test_alert_fired_log.py`.
     """
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     holder = {"bars": _RISING}
     monkeypatch.setattr(ev, "_fetch_bars_for_alert",
                         lambda sym, tf, count=200: [dict(b) for b in holder["bars"]])
@@ -627,7 +638,15 @@ def test_a_bar_whose_timestamp_cannot_be_keyed_does_not_cost_the_alert(
     """⛔ `fire_key` RAISES on a `t` it cannot normalise, and that exception
     would propagate through `record_trigger` into the cycle's per-alert handler:
     the member loses the alert because one bar carried a bad timestamp.
-    `_fire_bar_time` asks the log's own normaliser first."""
+    `_fire_bar_time` asks the log's own normaliser first.
+
+    ⛔ THE LANE IS PINNED TO `"forming"` BECAUSE THAT IS THE ONE THAT JUDGES THE
+    CORRUPT BAR. `closed_bar_index` cannot resolve a `t` `bar_close_epoch` will
+    not read, so the closed lane skips it and judges the last GOOD bar — a
+    strictly better outcome, asserted below rather than assumed, and it would
+    make this test vacuous if the lane were left to the default.
+    """
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     bars = [dict(b) for b in _RISING]
     bars[-1]["t"] = "not-a-timestamp"
     monkeypatch.setattr(ev, "_fetch_bars_for_alert",
@@ -643,6 +662,13 @@ def test_a_bar_whose_timestamp_cannot_be_keyed_does_not_cost_the_alert(
     rows = _fires(tmp_db)
     assert len(rows) == 1 and rows[0][2] is None, rows
     assert sent and " at " not in sent[0]["message"]
+
+    # …and the SHIPPED lane routes around the same bar instead of losing its
+    # receipt: it judges the newest bar whose `t` it can read.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    assert ev.closed_bar_index(bars, "5", time.time()) == len(bars) - 2
+    assert ev._evaluate_for_cycle(_alert(), bars)[2] == len(bars) - 2
+    assert ev._fire_bar_time(bars, len(bars) - 2) == bars[-2]["t"]
 
 
 def test_the_cycle_names_the_bar_at_the_seam_TASK_8_will_move(tmp_db):
@@ -672,13 +698,20 @@ def test_the_cycle_names_the_bar_at_the_seam_TASK_8_will_move(tmp_db):
         "the scan is reading more than the cycle's own body")
 
 
-def test_ALERT_EVAL_MODE_is_still_forming_so_the_named_bar_is_the_NEWEST_one():
-    """The premise every bar assertion in this file rests on.
+def test_the_named_bar_is_the_JUDGED_bar_which_on_these_FROZEN_fixtures_is_the_last():
+    """The premise every bar assertion in this file rests on, AFTER the cutover.
 
-    Task 8 flips this constant. When it does, `bars[-1]` stops being the judged
-    bar and this test names the file that has to move with it — deliberately,
-    because a stamp that silently kept naming the forming bar after the cutover
-    would be a WRONG receipt rather than a missing one.
+    ⚠️ THE FIXTURES ARE FROZEN IN 2025, SO EVERY BAR IN THEM HAS CLOSED. On such
+    a window `closed_bar_index` IS `len(bars) - 1` and the two lanes name the
+    same bar — which is why the assertions above kept passing across the flip and
+    why they are NOT evidence that the cycle names the judged bar. That evidence
+    needs a window whose newest bar is still OPEN and it lives in
+    `tests/test_alert_closed_bar.py::test_the_cycle_NAMES_THE_BAR_IT_JUDGED_in_
+    whichever_lane_is_running`. This test exists to say so out loud rather than
+    let a frozen fixture read as a proof it cannot give.
     """
-    assert ev.eval_mode() == "forming"
-    assert ev.ALERT_EVAL_MODE == "forming"
+    assert ev.eval_mode() == "closed"
+    assert ev.ALERT_EVAL_MODE == "closed"
+    assert ev.closed_bar_index(_RISING, "5", time.time()) == len(_RISING) - 1, (
+        "a fixture bar is no longer closed on this box's clock — the bar "
+        "assertions in this file would start measuring the other lane")

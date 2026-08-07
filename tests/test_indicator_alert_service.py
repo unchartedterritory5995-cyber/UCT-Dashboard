@@ -1031,26 +1031,58 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     assert out["addresses_covered"] == out["addresses_expected"] == 31
 
 
-def test_the_validation_accepts_every_row_the_soak_matrix_arms(client):
+def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
+                                                                monkeypatch):
     """The same 31 specs, pushed through the REAL create path this time.
 
     `arm()` calls `ias.create` directly, so the test above proves the tool is
     unbroken but says nothing about the gate. This runs the matrix's own
     `catalog_addresses()` — its condition and threshold choices, at its own
-    `DEFAULT_TF` — through the HTTP route, which is where all five refusals
-    live. A 400 here would mean the gate had made the catalog unarmable.
+    `DEFAULT_TF` — through the HTTP route, which is where every refusal lives.
+
+    🔴 AND SINCE THE CLOSED-BAR CUTOVER THE HONEST ANSWER IS 30, NOT 31, WHICH IS
+    A REAL CONSEQUENCE AND NOT A TEST BEING RELAXED. `ichimoku.chikou` is
+    displaced 26 bars, so the lane that now ships can never produce a value for
+    it, and the create path refuses a NEW one. The soak matrix's `arm()` is
+    deliberately NOT gated (it writes through `create`), so the 31 armed rows on
+    production are untouched — the gate is the API surface, not the writer, and
+    this test now pins BOTH halves of that split.
+
+    ⛔ THE REFUSED SET IS DERIVED FROM THE MEASUREMENT, not listed here, so a
+    future address with the same shape is covered on the day it lands.
     """
     from tools import alert_soak_matrix as soak
+    from api.services import indicator_alert_evaluator as _ev
 
     specs = soak.catalog_addresses()
     assert len(specs) == 31
+
+    monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "closed")
+    refused_addresses = set(ias.closed_lane_dead_addresses())
+    assert refused_addresses == {"ichimoku.chikou"}, refused_addresses
+
+    refused = []
     for spec in specs:
         r = client.post("/api/indicator-alerts", json={
             "sym": soak.DEFAULT_SYM, "indicator": spec["address"],
             "condition": spec["condition"], "threshold": spec["threshold"],
             "tf": soak.DEFAULT_TF})
-        assert r.status_code == 200, (spec, r.text)
-    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
+        if spec["address"] in refused_addresses:
+            assert r.status_code == 400, (spec, r.text)
+            assert ias.CLOSED_LANE_TRAILING_PAD in r.text
+            refused.append(spec["address"])
+        else:
+            assert r.status_code == 200, (spec, r.text)
+    assert sorted(refused) == sorted(refused_addresses)
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 30
+
+    # …and on the ROLLBACK lane the whole catalog is armable again, with no
+    # deploy and no code change. The gate reads `eval_mode()`, so this is one
+    # environment variable rather than a revert.
+    monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "forming")
+    for spec in specs:
+        assert ias.refusal_for(spec["address"], spec["condition"],
+                               soak.DEFAULT_TF, spec["threshold"]) is None, spec
 
 
 # ─── THE SNOOZE IS A WINDOW, NOT A LABEL ─────────────────────────────────────

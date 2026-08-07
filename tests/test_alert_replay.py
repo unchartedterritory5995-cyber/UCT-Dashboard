@@ -235,6 +235,15 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
     which consults both — so `sar.priceCrossedSar` evaluated to `(None, False)` in
     the harness and fired 39 times in the shipped lane. A rail that iterates the
     same list the code under test does can only ever see what that list contains.
+
+    ⛔ `mode="forming"` IS PASSED EXPLICITLY SINCE THE CUTOVER, AND IT IS NOT A
+    WEAKENING. `make_forming_evaluate` is the FORMING adapter; comparing it
+    against an unqualified `_evaluate_one` after `ALERT_EVAL_MODE` became
+    `"closed"` would compare two different lanes and report the cutover as a
+    harness fork. The closed adapter has its own equality rail
+    (`test_alert_closed_bar.py::test_the_closed_adapter_agrees_with_the_
+    evaluators_own_evaluate_one_closed`, 1,000+ combinations), so both adapters
+    are still pinned to the function they re-express.
     """
     window = wick[-ar.PROD_BAR_WINDOW:]
     prevs = [None, -50.0, 0.0, 1.0, 50.0, 69.0, 70.0, 101.0]
@@ -248,7 +257,8 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
                              "indicator": address, "condition": cond["value"],
                              "threshold": thr, "params_json": None,
                              "last_value": prev, "alert_key": "k"}
-                    want = ev._evaluate_one(dict(alert), bars=window)
+                    want = ev._evaluate_one(dict(alert), bars=window,
+                                            mode="forming")
                     got = forming(dict(alert), window)
                     assert got == want, (address, cond["value"], thr, prev, got, want)
                     compared += 1

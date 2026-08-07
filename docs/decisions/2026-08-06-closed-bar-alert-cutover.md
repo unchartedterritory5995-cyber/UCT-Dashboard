@@ -1,8 +1,10 @@
 # Decision: the indicator alert evaluator is rebuilt closed-bar
 
-**Status:** 🟡 **OPEN — the evaluator reads the FORMING bar with cycle-granularity crossings, and its fires may not enter the Signature ledger.**
+**Status:** ✅ **ACCEPTED — the evaluator judges the newest CLOSED bar; `ALERT_EVAL_MODE = "closed"`, and a closed-bar fire is the only kind the Signature ledger may ever admit.**
 
-**Date opened:** 2026-08-06 · **Phase:** C · **Applied:** — · **Record of the measurement:** §3
+**Date opened:** 2026-08-06 · **Phase:** C · **Applied:** 2026-08-07 (`ALERT_EVAL_MODE` flipped, one line, its own commit) · **Record of the measurement:** §3 · **What it cost, per lane and per address:** §5
+
+⛔ **THIS HEADER IS A RAIL, NOT A LABEL.** `tests/test_alert_closed_bar.py::test_the_record_and_the_code_agree_about_which_bar_is_judged` reads THIS LINE — isolated, and asserted to be the only `**Status:**` line in the file — and requires `"ACCEPTED" in it` to be exactly `eval_mode() == "closed"`. It fires in both directions: flipping the mode without resolving the record, and resolving the record without flipping the mode.
 
 ## 1. The fact
 
@@ -247,6 +249,244 @@ all 1,244 keys × 8 pairs **exactly 20 moved and every one was a `spy_daily|vwap
 address, non-VWAP = 0**; and `per_address_fires` moved for **exactly 1 of 28** addresses.
 The claim this paragraph makes — *"it moved nothing else"* — is about **`build_alert_grid`
 being untouched**, and that claim is checked by the digest equality, not by the total.
+
+## 5. What the cutover cost, priced before it was taken
+
+Re-measured on the tree that flipped the constant:
+`python tools/alert_replay.py --diff --mode-a forming --mode-b closed`, exit 0,
+**EVERY DIFFERENCE IS DECLARED**, 61 rows, 0 undeclared / 0 over-budget.
+`--check` is **exit 0, FIRE LOG MATCHES, 22 (fixture, k) blocks, 1,153,245 fires,
+digest for digest identical to the run before the flip** — the flip changes which
+lane an ARMED alert takes; it changes nothing the replay records, and that
+equality is the proof.
+
+### 5.1 Total fires per lane
+
+Over the four fixtures the declaration was measured on (`intraday5m`,
+`spy_daily`, `nvda_5m_extended`, `wick_that_unwinds`), k=4, 200-bar window:
+
+| | fires | distinct keys |
+|---|---:|---:|
+| forming lane | **569,830** | 435,259 |
+| closed lane | **555,332** | 138,833 |
+| GAINED (closed only) | **109,355** | identity 6,859 |
+| LOST (forming only) | **405,781** | identity 29,869 |
+
+**Read the KEY column, not the fire column.** The two lanes fire a similar
+NUMBER of times, and that is the least interesting row here: 435,259 distinct
+forming keys collapse to 138,833 closed ones, because a key carries the value,
+and the forming lane produces a different value for the same alert on the same
+bar every time it looks. That 3.1× is the repaint, stated as a count.
+
+Shapes: lost `value_moved` 338,376 · `vanished` 39,335 · `shifted_later` 28,070.
+Gained `value_moved` 102,496 · `shifted_later` 6,750 · `appeared` 109.
+
+### 5.2 Gained / lost per address
+
+⚠️ **THE DECLARED REASON FOR EVERY ROW LIVES IN
+`tests/fixtures/alerts/fire_diff_declared.json`, NOT HERE, AND THAT IS
+DELIBERATE.** Sixty-one prose reasons copied into this file would be sixty-one
+sentences no gate reads — this record has already had a number rot green twice
+(§3.5). The tool compares its measurement against that file every run and exits
+1 on an undeclared or over-budget group, so the reasons below are *summarised*
+by shape and the authoritative text is the artefact the gate checks.
+
+| address | gained | lost | shapes LOST | shapes GAINED |
+|---|---:|---:|---|---|
+| `adx.adx` | 5119 | 10966 | value_moved 10388, shifted_later 452, vanished 126 | value_moved 4904, shifted_later 215 |
+| `adx.minusDI` | 5271 | 15319 | value_moved 13920, shifted_later 1172, vanished 227 | value_moved 4858, shifted_later 412, appeared 1 |
+| `adx.plusDI` | 5338 | 15556 | value_moved 14175, shifted_later 1156, vanished 225 | value_moved 4915, shifted_later 423 |
+| `atr` | 5440 | 16501 | value_moved 14529, vanished 1215, shifted_later 757 | value_moved 5144, shifted_later 296 |
+| `bb` | 215 | 834 | value_moved 438, shifted_later 235, vanished 161 | value_moved 175, shifted_later 40 |
+| `bb.lower` | 5150 | 20611 | value_moved 19775, shifted_later 495, vanished 341 | value_moved 5077, shifted_later 73 |
+| `bb.middle` | 5164 | 20669 | value_moved 20001, shifted_later 390, vanished 278 | value_moved 5107, shifted_later 57 |
+| `bb.upper` | 5142 | 20638 | value_moved 19724, shifted_later 510, vanished 404 | value_moved 5069, shifted_later 73 |
+| `cci` | 5799 | 22143 | value_moved 18860, shifted_later 2110, vanished 1173 | value_moved 5175, shifted_later 624 |
+| `close` | 5258 | 21774 | value_moved 19682, shifted_later 1402, vanished 690 | value_moved 5121, shifted_later 137 |
+| `donchian.lower` | 1044 | 1583 | value_moved 1106, vanished 391, shifted_later 86 | value_moved 990, shifted_later 43, appeared 11 |
+| `donchian.middle` | 1623 | 3576 | value_moved 2463, vanished 756, shifted_later 357 | value_moved 1568, shifted_later 48, appeared 7 |
+| `donchian.upper` | 718 | 2139 | value_moved 1014, vanished 912, shifted_later 213 | value_moved 664, shifted_later 42, appeared 12 |
+| **`ichimoku.chikou`** | **0** | **19574** | **vanished 19574** | **—** |
+| `ichimoku.kijun` | 1387 | 3031 | value_moved 2112, vanished 622, shifted_later 297 | value_moved 1335, shifted_later 42, appeared 10 |
+| `ichimoku.spanA` | 2822 | 5362 | value_moved 4332, vanished 528, shifted_later 502 | value_moved 2744, shifted_later 69, appeared 9 |
+| `ichimoku.spanB` | 937 | 2225 | value_moved 1321, vanished 698, shifted_later 206 | value_moved 893, shifted_later 35, appeared 9 |
+| `ichimoku.tenkan` | 2291 | 4828 | value_moved 3535, vanished 749, shifted_later 544 | value_moved 2207, shifted_later 72, appeared 12 |
+| `macd` | 196 | 525 | vanished 305, shifted_later 194, value_moved 26 | shifted_later 169, value_moved 25, appeared 2 |
+| `macd.histogram` | 5524 | 21266 | value_moved 18920, shifted_later 1332, vanished 1014 | value_moved 5054, shifted_later 470 |
+| `macd.signal` | 5218 | 20271 | value_moved 19663, shifted_later 483, vanished 125 | value_moved 5042, shifted_later 176 |
+| `mfi` | 4455 | 16900 | value_moved 14897, shifted_later 1378, vanished 625 | value_moved 4000, shifted_later 449, appeared 6 |
+| `obv` | 4309 | 17365 | value_moved 15725, shifted_later 1146, vanished 494 | value_moved 4128, shifted_later 162, appeared 19 |
+| `price_vs_ma` | 4931 | 19394 | value_moved 18279, shifted_later 787, vanished 328 | value_moved 4895, shifted_later 36 |
+| `rsi` | 5397 | 21933 | value_moved 18211, shifted_later 2339, vanished 1383 | value_moved 5053, shifted_later 344 |
+| `sar.priceCrossedSar` | 136 | 139 | shifted_later 131, vanished 8 | shifted_later 131, appeared 5 |
+| `sar.trendFlipped` | 136 | 137 | shifted_later 130, vanished 7 | shifted_later 130, appeared 6 |
+| `stoch` | 5814 | 22929 | value_moved 17433, shifted_later 3314, vanished 2182 | value_moved 5160, shifted_later 654 |
+| `stoch.d` | 5671 | 22003 | value_moved 18657, shifted_later 2301, vanished 1045 | value_moved 5036, shifted_later 635 |
+| `vwap` | 3036 | 12661 | value_moved 11757, vanished 567, shifted_later 337 | value_moved 2997, shifted_later 39 |
+| `williams_r` | 5814 | 22929 | value_moved 17433, shifted_later 3314, vanished 2182 | value_moved 5160, shifted_later 654 |
+
+**All 31 addresses are driven and all 31 change.** `ichimoku.chikou` is the only
+row that gains nothing, and the only one whose losses are 100% `vanished`.
+
+### 5.3 The `above`/`below` cadence, as a count — and the correction nobody had made
+
+Split by condition family (from `per_condition` in the same run):
+
+| condition family | gained | lost | share of all lost |
+|---|---:|---:|---:|
+| **LEVEL (`above`/`below`)** | 103,208 | **390,253** | **96.2%** |
+| CROSS (`cross_*`) | 5,932 | 14,694 | 3.6% |
+| BAND touch (`touch_upper`/`touch_lower`) | 215 | 834 | 0.2% |
+
+So **96.2% of everything the flip removes is a level condition re-answering
+itself.** At the evaluator level, an `above` alert that held for a whole
+390-minute 5-minute session was TRUE at all **390** sixty-second polls and the
+replay records **390** fires; after the flip the same alert is judged once per
+CLOSED bar and records **78**. That is the 5× the fixtures are measuring.
+
+⛔ **AND THAT IS NOT WHAT A MEMBER SEES TODAY, WHICH THIS RECORD HAD NEVER
+STATED.** The replay predates fire-once. Live, an alert delivers **iff
+`alert_fired_log.record_fire` lands a new row**, and a LEVEL condition keys on
+its ARMED EPISODE — so both 390 and 78 collapse to **exactly ONE delivery**
+until the condition goes false and the alert re-arms. Task 11 measured that
+directly through the real cycle: *12 cycles above 70 → evaluator asked 12×,
+member told 1×.*
+
+**The user-visible change for `above`/`below` is therefore not the COUNT, it is
+WHEN and WHETHER the one delivery happens:**
+
+* it now lands at a bar close rather than mid-bar (§5.4 prices the wait), and
+* an episode that existed only on a wick never starts at all — `vanished`
+  39,335 across all conditions, of which `close` alone is 690: *"my price alert
+  fired and the candle closed nowhere near it"*, deleted.
+
+A member with a level alert should expect **the same number of emails, arriving
+up to one bar later, and fewer of them wrong.**
+
+### 5.4 Worst-case latency per timeframe
+
+Closed-bar evaluation on a 60-second cycle means the notification cannot arrive
+before the bar closes, and the poll that notices it can be up to a full cycle
+later. Read straight off the shipped handler
+(`GET /api/indicator-alerts/latency`, which computes it from the EFFECTIVE lane,
+so a rollback moves these numbers with it):
+
+| tf | worst case | | tf | worst case |
+|---|---:|---|---|---:|
+| 1m | 120 s | | 1h | 3,660 s |
+| 5m | **360 s** | | 1D | 86,460 s |
+| 15m | 960 s | | 1W | 604,860 s |
+| 30m | 1,860 s | | 1M | 2,678,460 s |
+
+On the forming lane every one of these is **60 s** — the cycle alone. The second
+term is the honest price of not repainting. Spec §8 requires it stated in the
+UI; Task 11 put it on the surface, and this row is where the number is fixed.
+
+⚠️ **A 5m alert arriving up to 60 s after its bar closes is the headline
+number the owner accepted.** The 360 s in the table is worst case measured from
+the EVENT (an intra-bar print at the very start of a 5m bar), not from the bar
+close; from the close it is ≤ 60 s.
+
+### 5.5 The casualty, confirmed five independent ways
+
+`ichimoku.chikou` **loses 19,574 fires and gains none, 100% `vanished`** (§3.3
+explains the mechanism). It was predicted offline from the column shape,
+quantified offline by the declared diff, and then confirmed on real production
+tape by an instrument with no knowledge of the prediction:
+
+1. Task 5's closed-bar analysis — the 26-bar trailing pad makes `series[i]`
+   always `None`;
+2. Task 6's declared diff — lost 19,574 / gained 0, all `vanished`;
+3. the live production shadow lane — **30 of 31 distinct addresses observed
+   across a full session; the one absentee was `id 29 · SPY · tf 5 ·
+   ichimoku.chikou`**;
+4. the closed-lane corpus on seven NEW real-tape fixtures — gained 0 / lost
+   10,995, again 100% `vanished`;
+5. `cutover_watch` §3 on three separate live runs — `closed-lane silence: 1
+   address, unexpected: 0`.
+
+**What was decided, and implemented in the commit before the flip:**
+
+* the rows **stay `active=1`** — deleting or deactivating a member's alert as a
+  side effect of an engine change is not a thing this product does;
+* they surface as **`needs_attention` with a `state_detail`** naming the
+  displacement and offering the sibling plots that DO resolve at a closed bar.
+  The pad (26) and the offer (`ichimoku.kijun`, …) are both MEASURED from the
+  columns, never typed;
+* **no `i-26` shim.** Reaching backwards is the forming lane's defect
+  reintroduced in one column, and it would be a fourth definition of that plot's
+  value;
+* the create path **refuses a NEW chikou alert while the closed lane is
+  running** — and reads `eval_mode()` to decide, so pulling the rollback lever
+  makes it accept them again with no deploy.
+
+A member waiting on a signal that can never arrive is the worst available
+outcome. A flagged alert is honest.
+
+### 5.6 What this record does NOT claim
+
+* **The offline corpus cannot price the CLOCK.** `make_closed_evaluate` derives
+  `now_epoch` from `bar_close_epoch` itself, so every replay number is blind to
+  that function being wrong about *when* a bar stops changing. That is how the
+  60-minute grid defect went unseen until a next-bar equality found it (fixed in
+  `a5207048`, before the flip rather than after).
+* **`cutover_watch` NO-GOs on a developer box** — `[cannot-read-store]`,
+  `[no-armed-alerts]` — because `C:\data\auth.db` is not production. A local
+  NO-GO is neither a reason to stop nor a pass; the GO/NO-GO that counts is the
+  one taken against the pod.
+* **Nothing here says the live tape has been observed disagreeing.** Three
+  `cutover_watch` runs on 2026-08-07 reported `groups with a FORMING (open)
+  newest bar: 0 of 1` all session, because the alert lane's bar store was
+  28-108 minutes stale; 9,570 shadow rows were collected and every one compared
+  a bar to ITSELF. The bars-freshness fix (`bba00796` + `9c6d851c`, measured
+  67.4 → 2.5 min on real prod state) is what makes the first honest live
+  observation possible, and it must be deployed for that observation to mean
+  anything.
+
+### 5.7 Still open after the flip, named rather than assumed done
+
+* **`ALERT_SHADOW_ENABLED` is still 1 on production** and `alert_shadow_fires`
+  grows ~30 rows/minute, 24/7, with no retention and no market-hours gate. The
+  soak's purpose is served; turning it off is an operational step.
+* **The 31 soak rows are still armed and snoozed.** `--disarm` at the cutover is
+  task #56; `verify()` exits 1 seven days before the muzzle expires.
+* **The ledger door stays shut.** `admit_alert_fire` has one definition and zero
+  call sites (AST — `git grep -c` says 3 and all three are prose). Its mode gate
+  is now satisfied, which is exactly why wiring it is a separate decision.
+
+### 5.8 Three consequences the pricing had not predicted, found by running it
+
+The flip reddened **11 tests in four files** that nothing in §3 or §5.1–5.5
+anticipated. None was a defect in the cutover; each is a claim that was true of
+the forming lane and had never been asked of the closed one. They are recorded
+here because *"a difference that appears only now is a difference the shadow run
+should have shown"*, and these could not have come from the shadow run — they
+came from running the suite.
+
+1. **The `compute.rev` migration's suppression loses its premise.**
+   `suppress_first_cycle` exists because a rev-1 `last_value` can become a rev-2
+   `prev` and *the migration itself* invents a crossing. The closed lane takes
+   `prev` from `series[i-1]`, so both sides of every comparison come from one
+   call to one revision's column and the cross-revision comparison is **not a
+   reachable state** rather than a suppressed one. Measured: the crossing
+   binding now fires on the second post-migration cycle and it is a real rev-2
+   crossing, not a late lie. **The suppression is NOT deleted** — it is what the
+   rollback lane needs, and the rollback is one variable away. Both lanes are
+   now tested by name (`test_alert_rev_migration.py`).
+
+2. **`tools/alert_soak_matrix.py --arm` still arms 31 while the API now offers
+   30.** That is the create-path split working exactly as designed —
+   `refusal_for` is the API surface, `create()` is the writer and is deliberately
+   ungated so the 31 production soak rows stay idempotent — but nothing had ever
+   stated the consequence: the tool and the route now disagree about
+   `ichimoku.chikou`, on purpose, and a future reader who found that by accident
+   would reasonably file it as a bug.
+
+3. **Six value-arithmetic tests were riding an unqualified `_evaluate_one`.**
+   Their fixtures number `t` as a counter (`0, 1, 2 …`), which is not a bar
+   clock, so `bar_close_epoch` cannot resolve it and the closed lane declines
+   the whole window — the safe direction, and invisible until the default lane
+   moved. They now say `mode="forming"`, which is what they always meant.
 
 ## 10. Baseline, by command
 

@@ -1143,8 +1143,9 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
 
 # ─── THE CLOSED-BAR LANE (spec §8) ───────────────────────────────────────────
 #
-# Everything below is reachable today only by asking for it (`mode="closed"`).
-# `ALERT_EVAL_MODE` is `"forming"`, so no armed alert reaches any of it.
+# Everything below IS the shipped lane as of the cutover: `ALERT_EVAL_MODE` is
+# `"closed"`, so every armed alert reaches it. The forming lane above is now the
+# one reachable only by asking (`mode="forming"`, or the rollback variable).
 
 # Minutes per intraday timeframe code. `D`/`W`/`M` are NOT here: their bars are
 # stored as YYYYMMDD calendar keys and a month is not a fixed number of seconds,
@@ -1535,10 +1536,14 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 # fire-once cannot survive"*. A refusal that returned False would be that lie,
 # and it would be indistinguishable from the steady state.
 #
-# ⛔ NOTHING CALLS THIS YET, AND THAT IS DELIBERATE. `_run_one_cycle` is the live
-# lane; while `ALERT_EVAL_MODE` is `"forming"` a call from there would raise on
-# every fire. Wiring belongs AFTER the cutover, never as part of it — spec §8 and
-# the phase plan both say the door opens after the flip, not with it.
+# ⛔ NOTHING CALLS THIS YET, AND THAT IS STILL DELIBERATE AFTER THE CUTOVER.
+# Spec §8 and the phase plan both say the ledger door opens AFTER the flip and
+# never as part of it: the cutover is one revertible line, and a commit that also
+# started writing append-only rows into the Signature ledger would not be. The
+# mode gate below is now satisfied, which is exactly why the wiring is a separate
+# decision with its own evidence — `admit_alert_fire` has one definition and zero
+# call sites, asserted by AST because a grep here has lied three times (it counts
+# the prose in this very comment).
 
 # The ledger's `version` column exists so a rule whose ARITHMETIC changed
 # produces a distinguishable row rather than silently reusing a key

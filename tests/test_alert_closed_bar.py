@@ -137,14 +137,15 @@ def test_the_closed_lane_and_the_forming_lane_DISAGREE_on_this_fixture(wick, for
         "that the whole phase is named after is not separating the two lanes")
 
 
-# ─── THE MODE: LANDED DARK, AND THE BRANCH IS GENUINELY PRESENT ──────────────
+# ─── THE MODE: SHIPPED, AND THE BRANCH IS GENUINELY THE ONE THAT RUNS ────────
 
-def test_the_shipped_mode_is_forming():
-    """⛔ THE CUTOVER IS TASK 8's, AND ONLY TASK 8's.
+def test_the_shipped_mode_is_closed():
+    """⛔ THE CUTOVER. One constant, its own commit, after the shadow soak.
 
-    One constant, its own commit, after three live sessions of shadow soak. Any
-    earlier task flipping it has to be caught here — but a constant equality is a
-    weak rail on its own, so the behavioural half is the next test.
+    Read off the AST rather than off the imported value, because a module that
+    assigned the constant twice would import with the second value and an
+    equality check would happily agree with it. A constant equality is a weak
+    rail on its own, so the behavioural half is the next test.
     """
     src = pathlib.Path(ev.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
@@ -152,15 +153,17 @@ def test_the_shipped_mode_is_forming():
                 if isinstance(n, ast.Assign)
                 and any(getattr(t, "id", None) == "ALERT_EVAL_MODE" for t in n.targets)]
     assert len(assigned) == 1, "ALERT_EVAL_MODE is assigned more than once"
-    assert assigned[0].value.value == "forming"
-    assert ev.ALERT_EVAL_MODE == "forming"
-    assert ev.eval_mode() == "forming"
-    # The control: the raw source DOES still name "closed" (in prose and in the
-    # branch), so this is measuring the VALUE and not the absence of the word.
-    assert '"closed"' in src
+    assert assigned[0].value.value == "closed"
+    assert ev.ALERT_EVAL_MODE == "closed"
+    assert ev.eval_mode() == "closed"
+    # The control: the raw source DOES still name "forming" (in prose and in the
+    # branch), so this is measuring the VALUE and not the absence of the word —
+    # and the forming lane has to still BE there, because it is the rollback.
+    assert '"forming"' in src
+    assert "forming" in ev.EVAL_MODES
 
 
-def test_an_unqualified_evaluate_one_runs_the_FORMING_lane(wick):
+def test_an_unqualified_evaluate_one_runs_the_CLOSED_lane(wick):
     """🔴 THE MUTATION RAIL FOR THE MODE ITSELF — behavioural, not textual.
 
     Every other closed-lane test in this file passes `mode="closed"` explicitly,
@@ -169,9 +172,11 @@ def test_an_unqualified_evaluate_one_runs_the_FORMING_lane(wick):
     the two lanes disagree: the wick bar's forming partial fires `cross_above 70`
     and its closed predecessor cannot.
 
-    Kill list: `eval_mode()` returning "closed"; `ALERT_EVAL_MODE = "closed"`;
+    Kill list: `eval_mode()` returning "forming"; `ALERT_EVAL_MODE = "forming"`;
     inverting the `resolved_mode == "closed"` comparison; defaulting `mode` to
-    "closed".
+    "forming"; and — the one this branch was written against — a TOMBSTONE that
+    reports the flip as done while the constant still says otherwise, which this
+    test cannot be fooled by because it never reads either.
 
     ⚠️ THE DISCRIMINATOR IS `prev`'s SOURCE, NOT THE BAR INDEX, AND THE FIRST
     DRAFT OF THIS TEST GOT THAT WRONG. An unqualified call passes no `now_epoch`
@@ -189,27 +194,28 @@ def test_an_unqualified_evaluate_one_runs_the_FORMING_lane(wick):
     seen = wick[lo:ar.WICK_INDEX] + [partial]
 
     # The prior poll already saw RSI above the threshold — so there is nothing
-    # left to cross, as far as the forming lane is concerned.
+    # left to cross, as far as the FORMING lane is concerned. The shipped lane
+    # does not consult it at all, and that difference is the measurement.
     alert = _alert("rsi", "cross_above", 70.0, tf="5", last_value=75.0)
 
     value, triggered = ev._evaluate_one(dict(alert), bars=seen)
     assert value > 70.0
-    assert triggered is False, (
-        "the default lane fired despite `last_value` already being above the "
-        "threshold — it is not reading `prev` from the alert row, i.e. "
-        "`eval_mode()` is not returning 'forming'")
+    assert triggered is True, (
+        "the default lane refused the cross because `last_value` was already "
+        "above the threshold — it is reading `prev` from the alert row, i.e. "
+        "`eval_mode()` is not returning 'closed'")
 
-    closed_answer = ev._evaluate_one(dict(alert), bars=seen, mode="closed")
-    assert closed_answer[1] is True, (
-        "the closed lane did not fire — then this test separates nothing and the "
+    forming_answer = ev._evaluate_one(dict(alert), bars=seen, mode="forming")
+    assert forming_answer[1] is False, (
+        "the forming lane fired too — then this test separates nothing and the "
         "mode mutation would survive it")
-    assert (value, triggered) != closed_answer
+    assert (value, triggered) != forming_answer
 
-    # …and the OTHER direction of the same seam: with a `last_value` below the
-    # threshold the forming lane fires on a partial whose CLOSE never crosses,
-    # which is the defect this phase is named after.
+    # …and the OTHER direction of the same seam, which is the defect this phase
+    # is named after: with a `last_value` below the threshold the FORMING lane
+    # fires on a partial whose CLOSE never crosses. The shipped lane does not.
     wick_alert = _alert("rsi", "cross_above", 70.0, tf="5", last_value=67.0)
-    assert ev._evaluate_one(dict(wick_alert), bars=seen)[1] is True
+    assert ev._evaluate_one(dict(wick_alert), bars=seen, mode="forming")[1] is True
     now = ev.bar_close_epoch(seen[-1]["t"], "5") - 1
     assert ev._evaluate_one_closed(dict(wick_alert), seen, now_epoch=now)[1] is False
 
@@ -658,6 +664,52 @@ def test_the_record_and_the_code_agree_about_which_bar_is_judged():
         "the record and the evaluator disagree about which bar is judged: the "
         "header says {!r} and eval_mode() says {!r}".format(status,
                                                             ev.eval_mode()))
+
+
+def test_the_reported_mode_CANNOT_disagree_with_the_effective_one():
+    """🔴 THE ANTI-TOMBSTONE RAIL, STRUCTURAL — *impossible*, not merely absent.
+
+    Task 8's mandated mutation is a tombstone: `eval_mode()` hardcoded `"closed"`
+    while `ALERT_EVAL_MODE` still reads `"forming"`. The behavioural rails in
+    `test_alert_eval_mode_override.py` compare the readback against the lane the
+    evaluator TOOK on a fixture, which kills any tombstone that changes what
+    runs. This is the other half: it reads `eval_mode_report`'s own AST and
+    requires `effective` to BE the return of `eval_mode()` — not a second
+    reading of the environment, not a comparison, not a constant. A report that
+    re-derives agrees with the lane on every input EXCEPT an unrecognised one,
+    which is exactly the input an operator reads it on mid-rollback.
+    """
+    tree = ast.parse(pathlib.Path(ev.__file__).read_text(encoding="utf-8"))
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    report = fns["eval_mode_report"]
+
+    assigns = [n for n in ast.walk(report)
+               if isinstance(n, ast.Assign)
+               and any(getattr(t, "id", None) == "effective" for t in n.targets)]
+    assert len(assigns) == 1, "`effective` is assigned {} times".format(
+        len(assigns))
+    call = assigns[0].value
+    assert isinstance(call, ast.Call) and getattr(call.func, "id", None) == \
+        "eval_mode" and not call.args, (
+        "`effective` is not `eval_mode()` itself but {!r} — the readback can now "
+        "name a lane the evaluator is not running".format(ast.unparse(call)))
+
+    returns = [n for n in ast.walk(report) if isinstance(n, ast.Return)]
+    assert len(returns) == 1 and isinstance(returns[0].value, ast.Dict)
+    body = returns[0].value
+    keys = [getattr(k, "value", None) for k in body.keys]
+    assert "effective" in keys
+    value = body.values[keys.index("effective")]
+    assert isinstance(value, ast.Name) and value.id == "effective", (
+        "the reported `effective` is computed in the literal rather than read "
+        "from the one resolution: {!r}".format(ast.unparse(value)))
+
+    # …and the constant still has exactly one reader, so there is no third place
+    # for the two answers to come apart. Matched as a NAME node, not as text:
+    # `ALERT_EVAL_MODE_ENV` legitimately appears here and a substring check
+    # would fail on it — a rail that cries wolf gets deleted.
+    assert [n for n in ast.walk(report)
+            if isinstance(n, ast.Name) and n.id == "ALERT_EVAL_MODE"] == []
 
 
 def test_the_cycle_NAMES_THE_BAR_IT_JUDGED_in_whichever_lane_is_running(

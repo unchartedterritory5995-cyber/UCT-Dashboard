@@ -98,6 +98,25 @@ def env(tmp_path, monkeypatch):
         sent.append(kwargs)
 
     monkeypatch.setattr(wls, "deliver_alert_payload", _deliver)
+
+    # ⛔ THE LANE IS PINNED TO `"forming"` FOR THIS WHOLE FILE, AND THAT IS THE
+    # FINDING RATHER THAN A CONVENIENCE.
+    #
+    # The defect this file exists to prove — a rev-1 `last_value` becoming a
+    # rev-2 `prev`, so the migration itself fabricates a crossing — is a property
+    # of the FORMING lane and ONLY of it. The closed lane takes `prev` from
+    # `series[i-1]`, i.e. from the same revision's own column, so a cross-revision
+    # comparison is not a state it can reach. Measured at Task 8's cutover: with
+    # the shipped constant now `"closed"`, the crossing binding fires on the
+    # second post-migration cycle and it is NOT a lie — both sides of the
+    # comparison are rev 2.
+    #
+    # So `suppress_first_cycle` is now belt-and-braces on the shipped lane and
+    # load-bearing on the ROLLBACK lane. It stays, it is still tested, and the
+    # test says which lane it is testing instead of silently becoming a test of
+    # the other one. `test_the_CLOSED_lane_cannot_fabricate_a_cross_revision_
+    # crossing_at_all` below is the other half.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     return {"db": db, "bars": bars, "sent": sent, "state": state}
 
 
@@ -213,6 +232,57 @@ def test_the_first_cycle_after_a_rev_bump_CANNOT_fire(env):
         "the CROSSING binding fired on the second cycle. The reset exists so a "
         "rev-1 number can never be a rev-2 `prev`; a late crossing is the same "
         "lie, one cycle later")
+
+
+def test_the_CLOSED_lane_cannot_fabricate_a_cross_revision_crossing_at_all(
+        env, monkeypatch):
+    """⭐ WHAT THE CUTOVER DID TO THIS DEFECT: it removed the mechanism.
+
+    The test above is the forming lane's failure mode — `prev` is whatever the
+    previous 60-second POLL stored, so a rev-1 number can meet a rev-2 number and
+    invent a crossing out of the migration itself. The closed lane takes `prev`
+    from `series[i - 1]`: both sides of every comparison come from ONE call to
+    ONE revision's column, so the cross-revision comparison is not a reachable
+    state rather than a suppressed one.
+
+    ⚠️ MEASURED, NOT ARGUED, AND THE CROSSING THAT FIRES HERE IS REAL. On the
+    shipped lane the crossing binding DOES deliver on the second post-migration
+    cycle — and that is correct: it is a rev-2 crossing judged against a rev-2
+    `prev`, on a bar where rev 2's own column crosses. The forming lane's second
+    cycle would be a lie; this one is an answer.
+
+    ⛔ AND `suppress_first_cycle` IS NOT DELETED. It is what the ROLLBACK lane
+    needs, and the rollback is one Railway variable away with no deploy. This
+    test states which lane owes it and which does not.
+    """
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    assert rev.migrate_bindings_to_rev(
+        "vwap", 2, notify=lambda p: None, now=now - 3600)["migrated"] == 2
+    env["sent"].clear()
+
+    # The suppression still eats the first cycle — it is lane-independent.
+    ev._run_one_cycle()
+    assert _fires(env["sent"]) == []
+
+    env["sent"].clear()
+    ev._run_one_cycle()
+    fired = sorted(s["extra_data"]["alert_id"] for s in _fires(env["sent"]))
+    assert fired == sorted([cross, level]), (
+        "the closed lane did not deliver the crossing — then this test says "
+        "nothing about `prev`'s source and the forming-lane rail above is "
+        "measuring both lanes by accident")
+
+    # …and the reason it is not a fabricated crossing: the lane never read the
+    # row's `last_value` at all. Both sides came out of one column.
+    row = _row(cross)
+    assert ev._evaluate_one(dict(row), bars=env["state"]["bars"],
+                            mode="closed")[1] is True
+    assert ev._evaluate_one(dict(row, last_value=1e9), bars=env["state"]["bars"],
+                            mode="closed")[1] is True, (
+        "a wildly different `last_value` changed the closed lane's answer — it "
+        "IS reading the row, and the claim above is false")
 
 
 def test_last_value_is_NULL_BETWEEN_the_migration_and_the_first_cycle(env):
