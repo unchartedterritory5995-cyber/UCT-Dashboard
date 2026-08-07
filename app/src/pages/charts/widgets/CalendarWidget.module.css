@@ -209,8 +209,8 @@
   flex: 0 0 auto;
   padding-left: 10px;
   font-family: var(--font-mono, monospace);
-  font-size: 0.8em;
-  font-weight: 700;
+  font-size: 0.82em;
+  font-weight: 400;   /* same weight as the event titles — not bold */
   font-variant-numeric: tabular-nums;
   color: var(--cal-text, var(--text-bright, #e0dac8));
   white-space: nowrap;

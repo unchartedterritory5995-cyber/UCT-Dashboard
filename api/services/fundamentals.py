@@ -208,6 +208,35 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         # Inception (first-trade date) — powers the "Age" metric
         "inception": _inception_iso(info),
     }
+
+    # ── earnings-growth backfill ─────────────────────────────────────────────
+    # yfinance leaves `earningsGrowth` blank often enough to matter: 8 of 40
+    # liquid names sampled 2026-08-06 had no EPS rating as a direct result, and
+    # EPS is 25% of the UCT Composite. FMP can compute it from the income
+    # statement for the genuinely-missing ones (PANW -167.5%, COIN -125.2%),
+    # using the SAME statistic yfinance reports (most recent quarter vs the
+    # year-ago quarter) so backfilled values stay commensurable in the
+    # percentile ranking -- TTM-over-TTM was measured and rejected.
+    #
+    # ONLY on a miss, deliberately: yfinance's figure stays authoritative where
+    # it exists, so this can never silently re-baseline the 80% that were fine,
+    # and the extra request is not paid on the common path.
+    #
+    # It does NOT fill every hole, and must not: a growth percentage from a
+    # non-positive prior base (JAZZ, CRWD, SNOW, ZS, TEAM) is undefined rather
+    # than missing, and `earnings_growth_pct` refuses those. Those stay
+    # blank and the composite's coverage note explains why.
+    if result.get("earnings_growth_pct") is None:
+        try:
+            from api.services.earnings_growth_fmp import earnings_growth_pct as _fmp_eg
+            backfilled = _fmp_eg(sym)
+            if backfilled is not None:
+                result["earnings_growth_pct"] = backfilled
+                result["earnings_growth_source"] = "fmp"
+        except Exception as exc:                    # noqa: BLE001
+            # A backfill must never be able to break the primary payload.
+            _log.warning("FMP earnings-growth backfill failed for %s: %s", sym, exc)
+
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result
 
