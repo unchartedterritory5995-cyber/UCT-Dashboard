@@ -468,9 +468,19 @@ const LEDGER = [
   // way to green it is to drop `pending` — at which point `"functions"` must
   // appear exactly once, in the shape a manifest actually has. **Task 3 owes
   // the first match.** The anchor is armed; it has simply never fired.
+  //
+  // ⭐⭐⭐ 2026-08-07 — IT FIRED, AND IT FIRED BY NAME. Task 3 wrote the
+  // manifest and this case went red with the row's own sentence in the failure:
+  // *"the row is marked pending:'D3' but the FILE NOW EXISTS."* Not a stack
+  // trace, not a missing-module error somewhere downstream — the ledger row
+  // told the task what it owed. The marker is dropped here and `"functions"`
+  // now matches exactly once (measured: `series` 5, `operators` 15, and the
+  // functions section 11 = the 31 names the AST corpus already uses, which is
+  // why `tools/ast_conformance.py --coverage` went from exit 3 to exit 0 on its
+  // first run against a real manifest). **The first match is paid.**
   { file: 'app/src/components/chart/engine/ast/closedTable.json',
     region: 'the closed table — every name a user formula may call',
-    anchor: '"functions"', fate: 'keep', pending: 'D3' },
+    anchor: '"functions"', fate: 'keep' },
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
   // ⛔⭐⭐ ADDED BY B5 TASK 12, AND ADDING IT IS THE HONEST HALF OF A RETIREMENT.
@@ -962,9 +972,21 @@ const RETIRED_BY_B4_ALERTS = [
  *  that rots green, so the pending SET is asserted by name and must hold exactly
  *  one member.
  *
+ *  ⭐⭐⭐ **THE COUNT DID NOT MOVE AT PHASE D TASK 3, AND THAT IS THE WHOLE POINT
+ *  OF HAVING WRITTEN THE ROW A DAY EARLY.** `closedTable.json` arrived, the fuse
+ *  fired by name, the marker came off, and `SITE_COUNT` stayed 9 — because the
+ *  site was counted when it was DECIDED rather than when it was typed. Had the
+ *  row not been here, the manifest would have landed with nobody's count moving,
+ *  which is the "unledgered site" failure this file exists to produce, and
+ *  neither discovery scan could have caught it (`.json` is invisible to both).
+ *  The `pending` COLUMN survives with zero users: it is a fuse anyone may arm
+ *  again, and the empty set below is what stops a second one being armed quietly.
+ *
  *  ⛔ NEITHER DISCOVERY SCAN'S FOUND-SET MOVES ON THIS TASK, and both are
  *  asserted as whole-set literals below rather than left to a subset check. This
- *  task adds a ledger ROW; it changes nothing either scan can see. */
+ *  task adds a ledger ROW; it changes nothing either scan can see. (Re-measured
+ *  at Task 3: `engine/ast/parse.js` names no indicator id, so the JS scan's
+ *  three-file set is unchanged by the new directory.) */
 const SITE_COUNT = 9
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
@@ -1019,12 +1041,21 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // two different defects, one red line, and no way to tell them apart from the
   // failure. Split, they are: deleting the row fails HERE and nowhere else that
   // a re-fate or a miscount does.
-  it('exempts exactly one row from the anchor check, and names it', () => {
+  // ⭐⭐⭐ THE SET IS NOW EMPTY, AND EMPTY IS STRICTLY STRONGER THAN ONE.
+  // Phase D Task 3 created `closedTable.json`, the fuse fired by name, and the
+  // marker came off — so the only row that ever carried an exemption no longer
+  // needs one and its anchor is checked like every other row's. The literal
+  // stays a NAMED SET rather than becoming a count, because `[]` is what makes
+  // a SECOND pending row fail here first: `.toHaveLength(0)` and
+  // `.toEqual([])` read the same today and diverge the moment somebody adds one
+  // with a plausible-looking justification.
+  it('exempts NO row from the anchor check — the one fuse has fired', () => {
     expect(LEDGER.filter(s => s.pending).map(s => `${s.file}::${s.pending}`),
-      'the set of rows exempted from the anchor check changed. A `pending` row is a site whose ' +
-      'subject does not exist yet — it is the ONLY reason a ledger row may skip its anchor, and ' +
-      'every one of them has to be named here.',
-    ).toEqual(['app/src/components/chart/engine/ast/closedTable.json::D3'])
+      'a row is exempted from the anchor check. A `pending` row is a site whose subject does ' +
+      'not exist yet — it is the ONLY reason a ledger row may skip its anchor, it is a FUSE ' +
+      'rather than an exemption, and every one of them has to be named here. The last one ' +
+      '(closedTable.json::D3) fired on 2026-08-07 and was converted, not renewed.',
+    ).toEqual([])
   })
 
   // ⭐ WHO RETIRES WHAT, AS A NUMBER. The B3 plan said "~4 sites hand off to

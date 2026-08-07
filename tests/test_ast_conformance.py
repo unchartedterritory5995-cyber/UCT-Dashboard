@@ -443,13 +443,42 @@ def test_a_guarded_leak_and_an_absent_guard_have_DIFFERENT_exit_codes():
 def test_the_census_today_is_wide_open_and_that_is_recorded_not_hidden():
     """The pinned baseline. If a future change makes this go DOWN, that is
     progress and this number moves with it deliberately; if it goes UP, the
-    corpus grew. Either way nobody may quietly arrive at zero."""
+    corpus grew. Either way nobody may quietly arrive at zero.
+
+    MOVED DELIBERATELY BY PHASE D TASK 3, 2026-08-07, AND THE DOCSTRING ABOVE IS
+    THE AUTHORISATION. This asserted `escaped == len(cases)` -- 16 -- which was
+    right while every case was DECLARED `parses: true`. Task 3 configured the
+    real parser and MEASURED that declaration: jsep 1.4.0's core grammar has no
+    assignment operator, so `x = 1` is PARSER_REFUSED and was never offered to
+    the walker at all. 16 -> 15 is a CORRECTION.
+
+    The assertion is re-derived rather than re-numbered, and it is stronger than
+    the one it replaces:
+
+      * `escaped == parsed` is the CONTROL PROPERTY -- nothing refuses anything
+        today -- and it holds whatever the corpus size is, so it cannot rot the
+        way a literal 16 just did.
+      * `parser_refused` is pinned BY NAME, not by count. A second case quietly
+        becoming unparseable would shrink the census with every arithmetic
+        invariant still holding; naming the set makes that a decision.
+      * the floor stays explicit, because `escaped == parsed` is satisfied by
+        `0 == 0` and a census over nothing reports safety forever.
+    """
     res = ac.escape_census(unguarded=True)
     assert ac.guard_state() == "absent" or len(res["escaped"]) >= 0
-    assert len(res["escaped"]) == len(ac.load_escapes()["cases"]), (
-        "every case in the must-refuse corpus escapes an unguarded walker today. "
-        "If that stops being true without a guard existing, the walker started "
-        "refusing something and it is no longer the control.")
+    assert len(res["escaped"]) == res["parsed"], (
+        "every case the unguarded walker was OFFERED escapes it today. If that "
+        "stops being true without a guard existing, the walker started refusing "
+        "something and it is no longer the control.")
+    assert res["parser_refused"] == ["assignment"], (
+        f"the set of cases the PARSER refuses changed: {res['parser_refused']}. "
+        "A case the parser rejects is never offered to the walker, so it leaves "
+        "the escape total without anything having been made safe -- that is a "
+        "measurement to record, never a number to absorb.")
+    assert res["parsed"] + len(res["parser_refused"]) == len(ac.load_escapes()["cases"])
+    assert res["parsed"] >= 15, (
+        "the escape corpus shrank. `escaped == parsed` is satisfied by 0 == 0, "
+        "and a census over nothing reports safety forever.")
 
 
 # --------------------------------------------------------------------------- #

@@ -1,0 +1,47 @@
+{
+  "_": "THE CLOSED TABLE. Every name a user-authored formula may call, and there is no other list. DATA, not code, because BOTH lanes read it -- app/src/components/chart/engine/ast/parse.js configures the parser from it and api/services/ast_interpret.py walks the tree it produces. A hand-copy in either lane would be a second grammar, and this repo has already measured what two vocabularies cost: `williams_r` here is `williamsR` in the chart registry, which is why `_CASE_COLUMNS` exists at all.",
+  "_shape": "Three sections. `series` maps a bar-field name to the key it reads. `operators` maps an operator name to its arity -- the canonical tree spells unary minus `u-` and the ternary `?:`, and those names ARE the operator names, not a rendering of them. The functions section maps a name to its argument kinds, its lookback declaration and its read-back sentence.",
+  "_canonical": "The parse->canonical boundary is where this table closes. The persisted tree has FOUR node types -- num, series, op, call -- with keys drawn from {type, name, value, args} and nothing else, so a Python walker has four cases and a surface small enough to prove closed. Anything jsep can produce that has no canonical form (a member read, an array, `this`, a compound, a call of a call) is refused BY NAME at that boundary.",
+  "_no_offset": "THERE IS NO `ref`, NO `offset` AND NO BACKWARD-INDEX FORM IN v1, AND THAT IS A DECISION RATHER THAN AN OMISSION. A general `close[n]` turns the repaint linter from a lookback SUM into a dataflow analysis, and it makes a FORWARD reference expressible in the first place -- the exact construction (`chikou[j] === close[j+26]`) that the repaint record already names as the thing the linter has to be able to decide. The linter must be simple enough to be obviously right on the day it decides the brand's central claim. Every function below therefore declares its lookback as a constant or as a named argument, so maxLookback(ast) is a tree sum.",
+  "_no_offset_reopened_by": "Re-opening this is a SPEC decision, not an implementation one: it belongs to the owner of the repaint claim (spec section 4, the phase's repaint-linter task) plus the owner of this manifest, together, because it changes what the linter can decide and what both lane walkers must implement. It is not a v2 feature request that any later task may grant on its own.",
+  "_sentence": "The read-back sentence lives HERE so that the chip's plain-English phrasing and the interpreter's dispatch come from ONE declaration. A read-back with its own phrase table is a second vocabulary in the same sense the note above describes. `{0}` and `{1}` are argument positions.",
+  "_booleans": "There is no boolean node type, and the operators section is what forces that: it declares `!`, `&&`, `||` and `?:` over a table whose only literal is a number. A condition is therefore a 0/1 column, and the parser's `true`/`false` literals canonicalise to num 1 and num 0. Both lane walkers must agree on that, and it is asserted in parse.test.js rather than left to each lane to assume.",
+  "tableVersion": 1,
+  "series": {
+    "open":   { "field": "o", "doc": "the bar's open" },
+    "high":   { "field": "h", "doc": "the bar's high" },
+    "low":    { "field": "l", "doc": "the bar's low" },
+    "close":  { "field": "c", "doc": "the bar's close" },
+    "volume": { "field": "v", "doc": "the bar's volume" }
+  },
+  "operators": {
+    "+":  { "arity": 2 },
+    "-":  { "arity": 2 },
+    "*":  { "arity": 2 },
+    "/":  { "arity": 2 },
+    ">":  { "arity": 2 },
+    "<":  { "arity": 2 },
+    ">=": { "arity": 2 },
+    "<=": { "arity": 2 },
+    "==": { "arity": 2 },
+    "!=": { "arity": 2 },
+    "&&": { "arity": 2 },
+    "||": { "arity": 2 },
+    "u-": { "arity": 1 },
+    "!":  { "arity": 1 },
+    "?:": { "arity": 3 }
+  },
+  "functions": {
+    "sma":        { "args": ["series", "int"],    "lookback": "arg1", "sentence": "the {1}-bar average of {0}" },
+    "ema":        { "args": ["series", "int"],    "lookback": "arg1", "sentence": "the {1}-bar exponential average of {0}" },
+    "highest":    { "args": ["series", "int"],    "lookback": "arg1", "sentence": "the highest {0} of the last {1} bars" },
+    "lowest":     { "args": ["series", "int"],    "lookback": "arg1", "sentence": "the lowest {0} of the last {1} bars" },
+    "stdev":      { "args": ["series", "int"],    "lookback": "arg1", "sentence": "the {1}-bar standard deviation of {0}" },
+    "change":     { "args": ["series"],           "lookback": 1,      "sentence": "the bar-over-bar change in {0}" },
+    "abs":        { "args": ["series"],           "lookback": 0,      "sentence": "the absolute value of {0}" },
+    "min":        { "args": ["series", "series"], "lookback": 0,      "sentence": "the smaller of {0} and {1}" },
+    "max":        { "args": ["series", "series"], "lookback": 0,      "sentence": "the larger of {0} and {1}" },
+    "crossOver":  { "args": ["series", "series"], "lookback": 1,      "sentence": "{0} crossing above {1}" },
+    "crossUnder": { "args": ["series", "series"], "lookback": 1,      "sentence": "{0} crossing below {1}" }
+  }
+}

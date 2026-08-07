@@ -129,8 +129,8 @@
       "guard": "canonicalise:assignment",
       "refuse": "a formula produces a column; it does not bind a name",
       "why": "assignment introduces STATE, and a stateful formula's value at bar i can depend on the order the walker visited bars -- which is the property the repaint linter's whole analysis assumes away",
-      "note": "jsep's CORE grammar has no assignment operator (it ships as a plugin), so Task 3's configured parser will most likely report this PARSER_REFUSED. It is declared `parses: true` on purpose: over-counting an escape is the conservative direction, and Task 3 owes the measurement that moves it.",
-      "parses": true,
+      "note": "MEASURED BY TASK 3, 2026-08-07, AND THE DECLARATION MOVED: jsep 1.4.0's core grammar has no assignment operator (it ships as a plugin), and `jsep('x = 1')` throws `Unexpected \"=\" at character 2`. So this case is PARSER_REFUSED and `parses` is now `false`. The escape census therefore reads 15 of 16, not 16 of 16 -- Task 2 declared `parses: true` as the conservative direction (over-counting an escape is the safe way to be wrong) and wrote that a case moving to PARSER_REFUSED makes the total go DOWN. It went down. That is a CORRECTION, not a regression, and Task 6 still owes the first zero. The `guard` and `ast` below are kept: the day an assignment plugin is loaded the case must be a canonicalise refusal, and `parse.js` implements that guard and exercises it directly.",
+      "parses": false,
       "jsepRoot": "AssignmentExpression",
       "ast": {
         "type": "AssignmentExpression",
