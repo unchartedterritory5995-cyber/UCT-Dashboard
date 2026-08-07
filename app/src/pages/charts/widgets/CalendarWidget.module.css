@@ -255,7 +255,7 @@
    line up identically. Reported rows show a % surprise (colored up/down); pending
    rows show the estimate (regular text color). */
 .valCols { display: flex; align-items: baseline; gap: 16px; flex: 0 0 auto; margin-left: auto; }
-.epsCol, .revCol {
+.epsCol, .revCol, .imCol {
   flex: 0 0 auto;
   width: 5em;
   /* font-size fixed off the widget's --cal-fs (NOT the parent) so the header labels
@@ -266,13 +266,16 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.sectionHead .epsCol, .sectionHead .revCol {
+/* Implied move ("IM") is narrower than the EPS/REV surprise columns. */
+.imCol { width: 3.6em; }
+.sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;
   color: var(--cal-chrome, var(--text-muted, #8b8674));
 }
 .estTag { font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
-.earnRow .epsCol, .earnRow .revCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
+/* IM values always ride the settings text color (never the up/down surprise colors). */
+.earnRow .epsCol, .earnRow .revCol, .earnRow .imCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
 .earnRow .epsCol.pos, .earnRow .revCol.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }
 .earnRow .epsCol.neg, .earnRow .revCol.neg { color: var(--cal-neg, var(--ut-red-bright, #ff5b5b)); }
 
@@ -344,7 +347,7 @@
    column only drops on a very thin widget (root = .widgetBody container). */
 @container (max-width: 340px) { .earnCompany { display: none; } }
 @container (max-width: 220px) {
-  .revCol { display: none; }
+  .revCol, .imCol { display: none; }
   .valCols { gap: 0; }
   .econStats { gap: 7px; }
 }
