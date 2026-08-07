@@ -1387,6 +1387,38 @@ def admit_alert_fire(alert: dict, value: Optional[float],
 
 # ─── cycle + delivery ────────────────────────────────────────────────────────
 
+def _delivery_failed(outcome: Any) -> bool:
+    """Did the delivery hook report that NOTHING reached the member?
+
+    ⚠️ TODAY THIS IS ALWAYS FALSE ON THE RETURN VALUE, AND THAT IS THE POINT OF
+    WRITING IT DOWN. `watchlist_alert_service.deliver_alert_payload` wraps each
+    channel in its own `try/except … _logger.warning` and returns ``None``
+    whether every channel succeeded or every channel raised — so from here a
+    Resend 429 and a clean send are byte-identical. That file belongs to another
+    agent this session, so the seam is built on THIS side and consumes a
+    structured outcome the moment one is returned: a mapping whose
+    ``delivered`` / ``channels_ok`` / ``ok`` says zero channels landed is a
+    failure, and the lease is handed back.
+
+    ⛔ AN UNRECOGNISED RETURN VALUE IS NOT A FAILURE. `None` today, and anything
+    this function does not understand, means *"no report"* — and a lane that
+    treated "no report" as failure would release and retry EVERY delivery,
+    which is the double-send this whole design exists to make impossible.
+    """
+    if not isinstance(outcome, dict):
+        return False
+    for key in ("channels_ok", "delivered", "ok"):
+        if key in outcome:
+            v = outcome[key]
+            if isinstance(v, bool):
+                return not v
+            if isinstance(v, (int, float)):
+                return v <= 0
+            if isinstance(v, (list, tuple, set, dict)):
+                return len(v) == 0
+    return False
+
+
 def _dispatch_delivery(alert: dict, value: float) -> None:
     """Send the alert through the multi-channel watchlist delivery hook.
 
@@ -1394,7 +1426,30 @@ def _dispatch_delivery(alert: dict, value: float) -> None:
     public function alongside the original watchlist-price delivery so
     indicator alerts reuse the identical AlertBell + email + Discord
     pipeline without re-implementing any of the channel-specific code.
+
+    ⭐ AND IT IS THE TRANSACTION FRAME FOR THE DELIVERY LEASE. `deliver_alert_
+    payload` claims the newest undelivered fire (via `ias.claim_delivery`)
+    BEFORE it touches a channel, and that claim used to be one-way — so a
+    delivery that failed was permanently recorded as a delivery that happened.
+    This frame reads the fire id the claim is ABOUT to take, and on failure hands
+    the lease back through `alert_fired_log.release_delivery`, which is an
+    inverse compare-and-set bounded by `MAX_DELIVERY_ATTEMPTS`.
+
+    ⛔ THE CLAIM IS NOT MOVED AFTER THE CHANNELS. That would be a smaller diff
+    and it trades a silent drop for a silent DUPLICATE — two cycles would both
+    find the row unclaimed and both send. Releasing is safe for the exact reason
+    moving is not: it happens only when nothing was sent, so a retry can only
+    re-send something the member never received.
     """
+    fire_id = None
+    try:
+        from api.services import alert_fired_log as _afl
+        fire_id = _afl.pending_fire_id(alert["id"])
+    except Exception:
+        # The lease bookkeeping must never be what stops a delivery.
+        _logger.exception("[alert-eval] could not read the pending fire for %s",
+                          alert.get("id"))
+
     try:
         from api.services import watchlist_alert_service as wls
         sym = alert.get("sym", "")
@@ -1407,7 +1462,7 @@ def _dispatch_delivery(alert: dict, value: float) -> None:
         message = (
             f"{sym} {indicator} {condition} {thr_str} (now: {val_str}) on {alert.get('tf', '')}"
         )
-        wls.deliver_alert_payload(
+        outcome = wls.deliver_alert_payload(
             user_id=alert["user_id"],
             sym=sym,
             title=title,
@@ -1422,8 +1477,51 @@ def _dispatch_delivery(alert: dict, value: float) -> None:
                 "alert_id": alert.get("id"),
             },
         )
-    except Exception:
+        if _delivery_failed(outcome):
+            _release_failed_delivery(
+                alert, fire_id, "every channel refused the delivery")
+    except Exception as exc:
         _logger.exception("[alert-eval] dispatch failed for alert %s", alert.get("id"))
+        _release_failed_delivery(alert, fire_id, f"{type(exc).__name__}: {exc}")
+
+
+def _release_failed_delivery(alert: dict, fire_id: Optional[int],
+                             error: str) -> None:
+    """Hand the lease back — or, at the ceiling, latch it shut and say so.
+
+    ⚠️ LOGGED AT **ERROR**, NOT WARNING, AND IT NAMES THE MEMBER'S ALERT. The
+    old behaviour's only trace was one `_logger.warning` per channel while the
+    row said `delivered`; a member who never received an alert the history calls
+    delivered is the failure nobody can report, so the loud half is deliberate.
+    """
+    if fire_id is None:
+        _logger.error(
+            "[alert-eval] delivery FAILED for alert %s and no fire row could be "
+            "identified to release: %s", alert.get("id"), error)
+        return
+    try:
+        from api.services import alert_fired_log as _afl
+        out = _afl.release_delivery(fire_id, error=error)
+    except Exception:
+        _logger.exception(
+            "[alert-eval] could not release the delivery lease for alert %s "
+            "(fire %s) — the row may read as delivered", alert.get("id"), fire_id)
+        return
+    if out.get("terminal"):
+        _logger.error(
+            "[alert-eval] delivery for alert %s (fire %s) GAVE UP after %d "
+            "attempt(s) — the member was never told. Recorded as a delivery "
+            "failure, not as a delivery: %s",
+            alert.get("id"), fire_id, out.get("attempts"), error)
+    elif out.get("released"):
+        _logger.error(
+            "[alert-eval] delivery for alert %s (fire %s) failed on attempt %d "
+            "and the claim was RELEASED for retry: %s",
+            alert.get("id"), fire_id, out.get("attempts"), error)
+    else:
+        _logger.error(
+            "[alert-eval] delivery for alert %s (fire %s) failed and the claim "
+            "was not held by this dispatch: %s", alert.get("id"), fire_id, error)
 
 
 def _run_one_cycle() -> dict[str, Any]:
