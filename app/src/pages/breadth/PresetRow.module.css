@@ -105,3 +105,28 @@
 .itemLabel { display: block; font-size: 12px; color: var(--text-bright); }
 .itemHint  { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .itemActive .itemLabel { color: var(--ut-gold); font-weight: 600; }
+
+@media (max-width: 640px) {
+  /* The desktop row already refuses to wrap; on a phone it also needs to
+     scroll, since even seven pills exceed the width. */
+  .row {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .row::-webkit-scrollbar { display: none; }
+
+  .label { display: none; }
+
+  .btn { min-height: var(--tap-min); }
+
+  /* margin-left:auto collapses in a scroll container — the trigger must stay
+     at the end of the pills, not float to a viewport edge. */
+  .more { margin-left: 0; }
+
+  .panel {
+    right: auto;
+    left: 0;
+    min-width: 240px;
+  }
+}
