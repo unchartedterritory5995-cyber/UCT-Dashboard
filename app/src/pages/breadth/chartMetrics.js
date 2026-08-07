@@ -35,6 +35,9 @@ export const CHART_GROUPS = [
       { key: 'magna_up',            label: 'Up 13%/34d' },
       { key: 'magna_down',          label: 'Dn 13%/34d' },
       { key: 'universe_count',      label: 'Universe Count' },
+      { key: 'adv_decline',         label: 'Net Advancers' },
+      { key: 'adv_decline_cum',     label: 'A/D Line' },
+      { key: 'up_vol_ratio',        label: 'Up/Down Volume' },
     ],
   },
   {
@@ -58,6 +61,11 @@ export const CHART_GROUPS = [
       { key: 'mcclellan_osc', label: 'McClellan Osc' },
       { key: 'stage2_count',  label: 'Stage 2 Count' },
       { key: 'stage4_count',  label: 'Stage 4 Count' },
+      { key: 'rsp_spy_ratio', label: 'RSP/SPY (Equal-Wt)' },
+      { key: 'iwm_qqq_ratio', label: 'IWM/QQQ (Small-Cap)' },
+      { key: 'vxn',           label: 'VXN (Nasdaq)' },
+      { key: 'avg_10d_vix',   label: 'VIX 10D Avg' },
+      { key: 'avg_10d_vxn',   label: 'VXN 10D Avg' },
     ],
   },
   {
@@ -70,6 +78,9 @@ export const CHART_GROUPS = [
       { key: 'new_ath',       label: 'ATH Count' },
       { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
       { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
+      { key: 'hi_ratio',      label: '% at 52W Highs' },
+      { key: 'lo_ratio',      label: '% at 52W Lows' },
+      { key: 'near_52w_high', label: 'Within 5% of High' },
     ],
   },
   {
@@ -82,6 +93,7 @@ export const CHART_GROUPS = [
       { key: 'aaii_spread',    label: 'Bull-Bear Spread' },
       { key: 'naaim',          label: 'NAAIM' },
       { key: 'cboe_putcall',   label: 'CBOE P/C' },
+      { key: 'avg_10d_cpc',    label: 'P/C 10D Avg' },
     ],
   },
 ]
@@ -94,21 +106,27 @@ export const LABEL_MAP = Object.fromEntries(ALL_METRICS.map(m => [m.key, m.label
 // mixing a 0–5 ratio with a 0–1000 count renders the ratio flat on the floor.
 
 export const UNIT = {
-  PCT:   'pct',    // 0–150 bounded percentages and composite scores
-  COUNT: 'count',  // number of stocks
-  RATIO: 'ratio',  // unitless ~0–5
-  INDEX: 'index',  // index / ETF price level
-  VIX:   'vix',    // volatility points
-  OSC:   'osc',    // oscillator, roughly -100..+100
+  PCT:    'pct',    // 0–150 bounded percentages and composite scores
+  COUNT:  'count',  // number of stocks
+  RATIO:  'ratio',  // unitless ~0–5
+  INDEX:  'index',  // index / ETF price level
+  VIX:    'vix',    // volatility points
+  OSC:    'osc',    // oscillator, roughly -100..+100
+  CUM:    'cum',    // running cumulative total, thousands
+  NET:    'net',    // signed daily net, ±2,000
+  SPREAD: 'spread', // intermarket price ratio, 0.27–0.44
 }
 
 export const UNIT_LABEL = {
-  [UNIT.PCT]:   '%',
-  [UNIT.COUNT]: 'stocks',
-  [UNIT.RATIO]: 'ratio',
-  [UNIT.INDEX]: 'index',
-  [UNIT.VIX]:   'VIX',
-  [UNIT.OSC]:   'osc',
+  [UNIT.PCT]:    '%',
+  [UNIT.COUNT]:  'stocks',
+  [UNIT.RATIO]:  'ratio',
+  [UNIT.INDEX]:  'index',
+  [UNIT.VIX]:    'VIX',
+  [UNIT.OSC]:    'osc',
+  [UNIT.CUM]:    'A/D line',
+  [UNIT.NET]:    'net',
+  [UNIT.SPREAD]: 'spread',
 }
 
 export const METRIC_UNITS = {
@@ -132,6 +150,9 @@ export const METRIC_UNITS = {
   magna_up:           UNIT.COUNT,
   magna_down:         UNIT.COUNT,
   universe_count:     UNIT.COUNT,
+  adv_decline:        UNIT.NET,
+  adv_decline_cum:    UNIT.CUM,
+  up_vol_ratio:       UNIT.RATIO,
 
   // MA Breadth
   pct_above_5sma:   UNIT.PCT,
@@ -149,6 +170,11 @@ export const METRIC_UNITS = {
   mcclellan_osc: UNIT.OSC,
   stage2_count:  UNIT.COUNT,
   stage4_count:  UNIT.COUNT,
+  rsp_spy_ratio: UNIT.SPREAD,
+  iwm_qqq_ratio: UNIT.SPREAD,
+  vxn:           UNIT.VIX,
+  avg_10d_vix:   UNIT.VIX,
+  avg_10d_vxn:   UNIT.VIX,
 
   // Highs / Lows
   new_52w_highs: UNIT.COUNT,
@@ -158,6 +184,11 @@ export const METRIC_UNITS = {
   new_ath:       UNIT.COUNT,
   hvc_52w:       UNIT.COUNT,
   atr_ext_7:     UNIT.COUNT,
+  // hi/lo_ratio are nh/uni*100 (breadth_monitor.py:169) — percentages of the
+  // universe, not ratios, so the axis must read '%'.
+  hi_ratio:      UNIT.PCT,
+  lo_ratio:      UNIT.PCT,
+  near_52w_high: UNIT.COUNT,
 
   // Sentiment
   cnn_fear_greed: UNIT.PCT,
@@ -167,6 +198,7 @@ export const METRIC_UNITS = {
   aaii_spread:    UNIT.PCT,
   naaim:          UNIT.PCT,
   cboe_putcall:   UNIT.RATIO,
+  avg_10d_cpc:    UNIT.RATIO,
 }
 
 /** Unit family for a metric key. Unmapped keys fall back to COUNT — the

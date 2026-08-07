@@ -1,7 +1,7 @@
 // app/src/pages/breadth/chartMetrics.test.js
 import { describe, it, expect } from 'vitest'
 import {
-  ALL_METRICS, LABEL_MAP, METRIC_UNITS, UNIT, UNIT_LABEL,
+  ALL_METRICS, LABEL_MAP, METRIC_UNITS, UNIT, UNIT_LABEL, CHART_GROUPS,
   CHART_PRESETS, unitOf, matchPreset, resolveAxes, axisForUnit,
 } from './chartMetrics'
 
@@ -25,6 +25,41 @@ describe('unit coverage', () => {
     for (const [key, unit] of Object.entries(METRIC_UNITS)) {
       expect(families, `${key} has an undeclared unit`).toContain(unit)
       expect(UNIT_LABEL[unit], `${unit} has no axis label`).toBeTruthy()
+    }
+  })
+})
+
+describe('catalog v2 additions', () => {
+  const NEW_KEYS = [
+    'adv_decline', 'adv_decline_cum', 'up_vol_ratio',
+    'hi_ratio', 'lo_ratio', 'near_52w_high',
+    'rsp_spy_ratio', 'iwm_qqq_ratio',
+    'vxn', 'avg_10d_vix', 'avg_10d_vxn', 'avg_10d_cpc',
+  ]
+
+  it('exposes every metric the collector already writes', () => {
+    const known = new Set(ALL_METRICS.map(m => m.key))
+    expect(NEW_KEYS.filter(k => !known.has(k))).toEqual([])
+  })
+
+  it('gives the high/low ratios the percent family, since they are % of universe', () => {
+    expect(unitOf('hi_ratio')).toBe(UNIT.PCT)
+    expect(unitOf('lo_ratio')).toBe(UNIT.PCT)
+  })
+
+  // Each of these exists because its range would flatten a neighbour inside an
+  // existing family: 13,981 against a 234 count, a signed +/-2,000, and a
+  // 0.028-wide spread against ratio_5day's 4.4.
+  it('isolates the cumulative, signed, and spread metrics in their own families', () => {
+    expect(unitOf('adv_decline_cum')).toBe(UNIT.CUM)
+    expect(unitOf('adv_decline')).toBe(UNIT.NET)
+    expect(unitOf('rsp_spy_ratio')).toBe(UNIT.SPREAD)
+    expect(unitOf('iwm_qqq_ratio')).toBe(UNIT.SPREAD)
+  })
+
+  it('gives every new family an axis label', () => {
+    for (const u of [UNIT.CUM, UNIT.NET, UNIT.SPREAD]) {
+      expect(UNIT_LABEL[u], `${u} has no axis label`).toBeTruthy()
     }
   })
 })
