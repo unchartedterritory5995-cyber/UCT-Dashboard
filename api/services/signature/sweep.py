@@ -24,6 +24,24 @@ Five shapes here are deliberate:
 3. **The receipt distinguishes the ways a pass can be empty.** `recorded: 0`
    means "quiet night" OR "every store was behind" OR "everything was refused";
    `symbols`/`scanned`/`errors`/`stale` make those different numbers.
+3b. **And the COVERAGE RECEIPT distinguishes the ways a SYMBOL can be empty.**
+   Counting a pass is not the same as certifying a symbol. `signals: []` for
+   AAPL and `signals: []` for a name this sweep has never walked are the same
+   bytes, so a reader cannot serve either as an answer. Each symbol that
+   completes therefore also writes `ledger.record_coverage(...)` — "evaluated
+   `sym` on `1D` from bar X through bar Y at time T under fcb-v2" — and that
+   receipt is what lets a reader say "evaluated, nothing found" out loud.
+   Three things it is NOT allowed to be:
+     * it is NOT the fetched window. `detect_breakouts` never looks at the
+       first `FCB_LOOKBACK` bars, so certifying `bars[0]` would claim 20 bars
+       of coverage that does not exist. The window comes from
+       `flow_breakout.evaluated_window`, which is pinned to the detector.
+     * it is NOT written when a signal was REFUSED. A refused row is a signal
+       this pass found and the store dropped; certifying that window would tell
+       a reader the absence of that row means "nothing there".
+     * it is NOT version-free. The ledger's uniqueness key includes the rule
+       version, so a receipt that ignored it would certify fcb-v3 coverage on
+       the strength of an fcb-v2 night.
 4. **A failed flow READ is an error, never an empty tape.** Handing `{}` to the
    compute would score an outage as "scanned, no signals"
    (`lesson_market_cap_cache_poison`: never remember a failed fetch as a value).
@@ -45,9 +63,9 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from api.services.signature import ledger
+from api.services.signature import ledger, rules
 from api.services.signature.flow_breakout import (
-    FLOW_COLS, _bar_date_iso, fcb_signals, flow_by_date,
+    FLOW_COLS, _bar_date_iso, evaluated_window, fcb_signals, flow_by_date,
 )
 
 log = logging.getLogger("signature.sweep")
@@ -55,6 +73,15 @@ log = logging.getLogger("signature.sweep")
 _ET = ZoneInfo("America/New_York")
 
 _DEFAULT_SYMBOLS = "SPY,QQQ,NVDA,TSLA,AAPL,MSFT,AMD,META,AMZN,GOOGL"
+
+# The ledger vocabulary this sweep writes under. ONE definition, used by BOTH
+# the signal rows and the coverage receipt — a receipt keyed to a different
+# indicator or timeframe than the signals it certifies certifies nothing, and
+# NOTHING WOULD FAIL: the reader's containment query would simply never match,
+# and the coverage feature would be silently dead. Two literals in two calls is
+# how that happens.
+_LEDGER_INDICATOR = "fcb"
+_LEDGER_TF = "1D"
 
 # Generous because this streams a whole symbol history on a scheduler thread,
 # not a chart read on an anyio worker. The request path's 15s stays 15s.
@@ -149,14 +176,22 @@ def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
       scanned  — how many reached the compute (a symbol whose fetch raised did not)
       recorded — NEW ledger rows only (`record_signal` returns False for one
                  already recorded, which is the normal steady state on a re-run)
-      errors   — everything that did not land: a symbol whose fetch raised, and
-                 any signal the ledger refused
+      errors   — everything that did not land: a symbol whose fetch raised, any
+                 signal the ledger refused, and any coverage receipt it refused
       stale    — symbols whose newest bar was not the expected session, i.e.
                  whose last bar was deliberately NOT evaluated
+      covered  — symbols that reached the compute AND were certified: a
+                 coverage receipt was written (or was already there from an
+                 earlier run of the same window)
+      uncovered— symbols that reached the compute and were NOT certified,
+                 because they evaluated no bar or because a signal of theirs
+                 was refused. `scanned - covered` is not the same question:
+                 a symbol can be scanned and still certify nothing.
     """
     expected_iso = _bar_date_iso(_expected_session())
     symbols = list(symbols)
-    scanned = recorded = errors = stale = 0
+    scanned = recorded = errors = stale = covered = uncovered = 0
+    want_version = rules.VERSIONS[_LEDGER_INDICATOR]
 
     for sym in symbols:
         fresh_last = False
@@ -184,10 +219,11 @@ def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
             log.warning("signature sweep: %s bars store is behind the expected session "
                         "%s — its last bar was NOT evaluated", sym, expected_iso)
 
+        incomplete = 0
         for s in signals:
             try:
-                if ledger.record_signal("fcb", s["version"], sym, "1D", s["direction"],
-                                        s["barTime"], s["close"],
+                if ledger.record_signal(_LEDGER_INDICATOR, s["version"], sym, _LEDGER_TF,
+                                        s["direction"], s["barTime"], s["close"],
                                         meta={"callPrem": s["callPrem"],
                                               "putPrem": s["putPrem"], "sweep": now_iso}):
                     recorded += 1
@@ -195,9 +231,53 @@ def run_sweep(symbols, *, fetch_bars, fetch_flow, now_iso: str) -> dict:
                 log.exception("signature sweep: ledger refused %s bar=%r — signal LOST",
                               sym, s.get("barTime"))
                 errors += 1
+                incomplete += 1
+            else:
+                # A signal written under a version the receipt will not name is
+                # invisible to every reader that trusts the receipt. It cannot
+                # happen through `fcb_signals` (which stamps VERSIONS["fcb"]),
+                # and that is exactly why it must be CHECKED rather than assumed
+                # — an assumption that can only be broken by a future edit is
+                # the kind that breaks silently.
+                if s.get("version") != want_version:
+                    log.error("signature sweep: %s bar=%r recorded under version %r "
+                              "but this pass certifies %r — WITHHOLDING the coverage "
+                              "receipt rather than certifying a window whose signals "
+                              "a reader cannot see", sym, s.get("barTime"),
+                              s.get("version"), want_version)
+                    incomplete += 1
+
+        # ── the coverage receipt ────────────────────────────────────────────
+        # Written for a QUIET symbol too — that is the entire point. A symbol
+        # with no signals and a receipt says "evaluated, nothing found"; a
+        # symbol with no signals and no receipt says "never looked", and the
+        # two must never be the same answer.
+        window = evaluated_window(bars, include_last=fresh_last)
+        if window is None:
+            uncovered += 1
+            log.warning("signature sweep: %s evaluated NO bar (%d bars, include_last=%s) "
+                        "— no coverage receipt, because there is nothing to certify",
+                        sym, len(bars), fresh_last)
+        elif incomplete:
+            uncovered += 1
+            log.warning("signature sweep: %s had %d signal(s) the ledger did not accept "
+                        "— WITHHOLDING its coverage receipt. Certifying this window "
+                        "would tell a reader that the missing rows mean 'nothing "
+                        "there'", sym, incomplete)
+        else:
+            try:
+                ledger.record_coverage(_LEDGER_INDICATOR, want_version, sym, _LEDGER_TF,
+                                       window[0], window[1], at=None)
+                covered += 1
+            except Exception:                          # noqa: BLE001
+                log.exception("signature sweep: coverage receipt refused for %s "
+                              "window=%r — this symbol stays UNCERTIFIED", sym, window)
+                errors += 1
+                uncovered += 1
 
     return {"symbols": len(symbols), "scanned": scanned, "recorded": recorded,
-            "errors": errors, "stale": stale}
+            "errors": errors, "stale": stale,
+            "covered": covered, "uncovered": uncovered}
 
 
 def sweep_job() -> None:

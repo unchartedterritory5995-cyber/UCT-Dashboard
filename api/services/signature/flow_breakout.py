@@ -101,6 +101,37 @@ def detect_breakouts(bars, *, lookback=None, vol_mult=None, include_last=False):
     return out
 
 
+def evaluated_window(bars, *, include_last=False, lookback=None):
+    """The (first, last) bar TIMES `detect_breakouts` actually EVALUATES — or None.
+
+    ⭐ THE COVERAGE QUESTION, AND THE ANSWER IS NOT `bars[0]` TO `bars[-1]`.
+    `detect_breakouts` iterates `range(lookback, last_evaluable)`, so the first
+    `lookback` bars are a WARM-UP window it never looks at, and the newest bar
+    is looked at only when `include_last` says so. A coverage receipt written
+    over the whole fetched range would certify up to `lookback + 1` bars that
+    were never evaluated — which is exactly the failure a receipt exists to
+    make impossible: claiming coverage it does not have.
+
+    **None is not an empty window.** It means this pass evaluated NO bar at all
+    (too little history for the lookback, or one bar with `include_last` off),
+    so there is nothing to certify and no receipt may be written. Returning an
+    empty-ish tuple instead would let a containment test succeed vacuously.
+
+    The `last_evaluable` expression is duplicated from `detect_breakouts`
+    deliberately — the alternative is a signature change on a function the
+    replay grid drives — and the duplication is pinned by
+    `test_the_coverage_window_is_exactly_what_detect_breakouts_evaluates`,
+    which runs the REAL detector over an all-breakout fixture and compares the
+    two boundaries. Two lines that must agree, with a test that reddens the
+    moment they stop.
+    """
+    lookback = rules.FCB_LOOKBACK if lookback is None else lookback
+    last_evaluable = len(bars) if include_last else len(bars) - 1
+    if last_evaluable <= lookback:
+        return None
+    return bars[lookback]["t"], bars[last_evaluable - 1]["t"]
+
+
 def flow_confirms(flow_rows, direction, *, min_prem=None, dominance=None):
     min_prem = rules.FCB_MIN_CALL_PREM if min_prem is None else min_prem
     dominance = rules.FCB_DOMINANCE if dominance is None else dominance

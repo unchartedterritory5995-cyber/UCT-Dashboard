@@ -23,6 +23,30 @@ Invariants (enforced HERE, not in callers — wire/store.py precedent):
   would hand over by simply passing the field it already had. A key that spells
   one timeframe two ways breaks fire-once exactly the way an unnormalized
   `bar_time` does, and orphans every row written the other way.
+
+⚠️ A SECOND TABLE LANDED HERE (2026-08-06) AND IT OWES A JUSTIFICATION
+----------------------------------------------------------------------
+`signature_signals` IS UNCHANGED — not a column, not an index, not the UNIQUE
+key, not one line of `record_signal`. What was added is a separate,
+also-append-only `signature_coverage` table answering the one question the
+signal table structurally CANNOT: **was this symbol evaluated at all?**
+
+A signal row is evidence that something happened. Its ABSENCE is evidence of
+nothing: a genuinely quiet tape and a symbol the nightly sweep never walked
+produce the byte-identical empty result. Any consumer that wants to serve "no
+signal" as an ANSWER rather than as a shrug has to tell those apart, and no
+arrangement of the signal table can, because the fact it needs is about a night
+on which nothing was written.
+
+It lives in THIS database, beside the rows it certifies, deliberately. A
+receipt in a second file could outlive a signal write that failed, and would
+then certify a window whose signals were lost — a confident empty answer, which
+is worse than a slow one. One file, one schema init, one backup.
+
+And it is append-only like everything else here: one row per (indicator,
+version, sym, tf, evaluated window). Coverage is READ as a containment query
+over those rows, never written as an UPDATE. There is still no rewrite path in
+this module.
 """
 from __future__ import annotations
 
@@ -80,6 +104,30 @@ CREATE INDEX IF NOT EXISTS idx_sig_sym_seen ON signature_signals(sym, first_seen
 CREATE INDEX IF NOT EXISTS idx_sig_seen ON signature_signals(first_seen_at DESC);
 """
 
+# The coverage receipt. See the ⚠️ block in the module docstring for why it is
+# a second table in this file rather than a second file, and why nothing above
+# this line changed to make room for it.
+#
+# `first_bar_time`/`through_bar_time` are the INCLUSIVE ends of the window the
+# rule actually EVALUATED — not the window someone fetched. They go through
+# `_normalize_bar_time`, the same collapse the signal key uses, so a receipt and
+# the signals it certifies can never be keyed in two different encodings.
+_COVERAGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS signature_coverage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  indicator TEXT NOT NULL,
+  version TEXT NOT NULL,
+  sym TEXT NOT NULL,
+  tf TEXT NOT NULL,
+  first_bar_time INTEGER NOT NULL,
+  through_bar_time INTEGER NOT NULL,
+  swept_at REAL NOT NULL,
+  UNIQUE(indicator, version, sym, tf, first_bar_time, through_bar_time)
+);
+CREATE INDEX IF NOT EXISTS idx_sig_cov_lookup ON signature_coverage(
+  indicator, version, sym, tf, through_bar_time DESC);
+"""
+
 
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH, timeout=10.0)
@@ -103,7 +151,11 @@ def _ensure_init() -> None:
             return
         os.makedirs(os.path.dirname(_DB_PATH) or ".", exist_ok=True)
         with contextlib.closing(_connect()) as c:
-            c.executescript(_SCHEMA)
+            # Both scripts, one init. `CREATE TABLE IF NOT EXISTS` is why a pod
+            # holding months of signals gains the coverage table on its next
+            # ledger touch with no migration step and no separate flag — and
+            # why an old build reading this file is unaffected by its presence.
+            c.executescript(_SCHEMA + _COVERAGE_SCHEMA)
             c.commit()
         _INITED = True
 
@@ -238,3 +290,140 @@ def get_signals(sym: str | None = None, limit: int = 200) -> list[dict]:
     args.append(int(limit))
     with contextlib.closing(_connect()) as c:
         return [dict(r) for r in c.execute(q, args).fetchall()]
+
+
+# ── coverage receipts: "swept through bar X at time T under rule-version V" ──
+
+_COVERAGE_KEY_FIELDS = ("indicator", "version", "sym", "tf")
+
+
+def _coverage_key(indicator, version, sym, tf) -> tuple[str, str, str, str]:
+    """Validate + canonicalize a receipt key, or raise.
+
+    Deliberately NOT a call into `record_signal`'s validation, and deliberately
+    NOT sharing its wording. Two gates that share a phrase are how a
+    `pytest.raises(match=...)` keeps passing after the OTHER one is deleted —
+    it happened on this branch already (Task 9's M1). Every refusal below says
+    something no other refusal in this module says.
+    """
+    for name, val in zip(_COVERAGE_KEY_FIELDS, (indicator, version, sym, tf)):
+        if not isinstance(val, str) or not val:
+            raise ValueError(
+                f"a coverage receipt needs a non-empty str for its {name} slot, got {val!r}")
+    if tf not in _PRODUCT_TIMEFRAMES:
+        hint = _BARS_STORE_TF_KEYS.get(tf)
+        raise ValueError(
+            f"coverage receipt refused: {tf!r} would certify a timeframe no signal "
+            f"is keyed under; expected one of {sorted(_PRODUCT_TIMEFRAMES)}"
+            + (f" — {tf!r} is the bars-store code for {hint!r}" if hint else ""))
+    return indicator, version, sym.upper(), tf
+
+
+def record_coverage(indicator: str, version: str, sym: str, tf: str,
+                    first_bar_time, through_bar_time,
+                    *, at: float | None = None) -> bool:
+    """Certify that `(indicator, version)` EVALUATED `sym` on `tf` across the
+    inclusive bar window `[first_bar_time, through_bar_time]`, at time `at`.
+
+    True if a NEW receipt landed; False if this exact window was already
+    certified (so a re-run is free, exactly like `record_signal`). Every refusal
+    raises ValueError, and for a sharper reason than the signal table's: a
+    reader treats a receipt as PROOF and will serve an empty answer on the
+    strength of it, so a receipt this store cannot key is worse than none.
+
+    ⛔ THE VERSION IS IN THE KEY AND IT IS THE WHOLE POINT. `VERSIONS["fcb"]` is
+    "fcb-v2" today, and the signal table's UNIQUE key already carries it, so a
+    retune to fcb-v3 deliberately orphans every existing signal row. A receipt
+    that ignored the version would go on certifying "evaluated, nothing found"
+    for a rule that never ran — coverage claimed for work never done.
+
+    ⛔ AN INVERTED WINDOW IS REFUSED. `through < first` certifies nothing, and
+    a containment test (`first_bar_time <= ? AND through_bar_time >= ?`) is
+    satisfied by an inverted row for ANY probe between the two — a receipt that
+    covers everything by covering nothing.
+    """
+    indicator, version, sym, tf = _coverage_key(indicator, version, sym, tf)
+    first_key = _normalize_bar_time(first_bar_time)
+    through_key = _normalize_bar_time(through_bar_time)
+    if through_key < first_key:
+        raise ValueError(
+            f"coverage receipt refused: its window runs backwards "
+            f"({first_bar_time!r} .. {through_bar_time!r})")
+    stamped = time.time() if at is None else float(at)
+    if not math.isfinite(stamped):
+        raise ValueError(f"coverage receipt refused: unusable sweep time {at!r}")
+
+    _ensure_init()
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        try:
+            c.execute(
+                "INSERT INTO signature_coverage"
+                " (indicator, version, sym, tf, first_bar_time, through_bar_time, swept_at)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (indicator, version, sym, tf, first_key, through_key, stamped),
+            )
+            c.commit()
+            return True
+        except sqlite3.IntegrityError as exc:
+            # Same rule as record_signal: ONLY the dedup collision may become
+            # False. Anything else is a dropped receipt, and a dropped receipt
+            # reported as "already certified" is a claim of coverage that was
+            # never written.
+            if "UNIQUE constraint failed" not in str(exc):
+                raise
+            return False
+
+
+def coverage_covers(indicator: str, version: str, sym: str, tf: str,
+                    *, first_bar_time, through_bar_time) -> bool:
+    """Does a receipt PROVE `[first_bar_time, through_bar_time]` was evaluated?
+
+    ⭐ THIS IS THE FUNCTION THAT TURNS AN EMPTY ANSWER INTO AN ANSWER. Without
+    it, "no signal" and "never looked" are the same empty list, and serving
+    that list is `lesson_market_cap_cache_poison` with a confident face on.
+
+    Containment, not overlap: a receipt qualifies only when it starts no later
+    than the probe's first bar AND runs no earlier than the probe's last. A
+    sweep that ran three nights ago has a `through` older than tonight's newest
+    closed bar, so it stops certifying by itself — the staleness needs no clock
+    and no TTL.
+
+    False is the answer to every doubt: never evaluated, evaluated under a
+    different rule VERSION, evaluated on a different timeframe, or evaluated
+    over a window that does not contain this one.
+    """
+    indicator, version, sym, tf = _coverage_key(indicator, version, sym, tf)
+    first_key = _normalize_bar_time(first_bar_time)
+    through_key = _normalize_bar_time(through_bar_time)
+    if through_key < first_key:
+        return False
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT 1 FROM signature_coverage"
+            " WHERE indicator = ? AND version = ? AND sym = ? AND tf = ?"
+            "   AND first_bar_time <= ? AND through_bar_time >= ? LIMIT 1",
+            (indicator, version, sym, tf, first_key, through_key),
+        ).fetchone()
+    return row is not None
+
+
+def latest_coverage(indicator: str, version: str, sym: str, tf: str) -> dict | None:
+    """The newest receipt for this key, or **None meaning NEVER EVALUATED**.
+
+    The diagnostic half of the pair. `coverage_covers` answers "is THIS window
+    proven"; this answers "has this rule ever run here at all", which is what a
+    human debugging an empty chart actually wants to know — and it is the only
+    way to tell "the sweep does not walk this symbol" from "the sweep is three
+    days behind".
+    """
+    indicator, version, sym, tf = _coverage_key(indicator, version, sym, tf)
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT * FROM signature_coverage"
+            " WHERE indicator = ? AND version = ? AND sym = ? AND tf = ?"
+            " ORDER BY through_bar_time DESC, id DESC LIMIT 1",
+            (indicator, version, sym, tf),
+        ).fetchone()
+    return dict(row) if row is not None else None
