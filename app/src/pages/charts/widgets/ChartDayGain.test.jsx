@@ -32,19 +32,19 @@ describe('ChartDayGain', () => {
     expect(screen.getByText(/\+9\.66 \(\+11\.63%\)/)).toBeInTheDocument()
   })
 
-  it('pre-market: regular number shows the last regular session change (change_pct); a Pre box shows the pre-market move', () => {
-    // In pre-market the feed's change_pct ALREADY holds the last completed regular
-    // session's change (day_close vs prev_close) — so the regular readout shows it
-    // directly (prev_change_pct arrives as a broken 0.0 and is no longer consulted).
-    // Ext box = ext_price (250) vs prev_close (200) = +25%.
+  it('pre-market: regular number FREEZES at the last session change, ignoring the live pre-market move', () => {
+    // change_pct here is the LIVE pre-market move (Massive's day aggregate has rolled
+    // to the new date) — the regular readout must IGNORE it and show prev_change_pct,
+    // the last completed regular session's change. Ext box = ext_price (250) vs
+    // prev_close (200) = +25%.
     useRealtimePrices.mockReturnValue({
       prices: { DDOG: {
         price: 200, prev_close: 200, ext_price: 250, ext_session: 'pre_market',
-        change_pct: -2.2, change: -4.5, prev_change_pct: 0,
+        change_pct: 5.0, prev_change: -4.5, prev_change_pct: -2.2,
       } },
     })
     render(<ChartDayGain sym="DDOG" />)
-    expect(screen.getByText(/-4\.50 \(-2\.20%\)/)).toBeInTheDocument()   // regular = last session
+    expect(screen.getByText(/-4\.50 \(-2\.20%\)/)).toBeInTheDocument()   // last session, NOT +5%
     expect(screen.getByText('Pre')).toBeInTheDocument()
     expect(screen.getByText(/\+50\.00 \(\+25\.00%\)/)).toBeInTheDocument() // ext box
   })

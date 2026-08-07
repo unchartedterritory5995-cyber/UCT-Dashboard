@@ -37,14 +37,22 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
   const livePx = pickFreshPrice(barHdr[sym], q)
 
   // ── Regular-hours readout (the original number) ──
-  // The feed's SERVER-computed `change_pct` IS the last completed regular session's
-  // change: it's derived from day_close vs prev_close, so in pre/post/overnight it
-  // already holds the last 4pm close's move (and updates live during RTH). It is
-  // NOT the (live − prevClose) subtraction that shows a spurious 0.00% after hours.
-  // (`prev_change_pct` was a redundant pre-market special-case that arrives as a
-  // broken 0.0 and, taken first, made the readout flash 0.00% — dropped.)
+  // The regular number must stay FROZEN at the last completed regular session's
+  // change and never move with pre/post trading — only the shaded ext box does.
+  //   • Pre-market: once Massive's `day` aggregate rolls to the new date, its
+  //     change_pct tracks the LIVE pre-market move (QQQ read +0.93% pre-open). The
+  //     honest last-session number is `prev_change_pct` (prevDay close vs the close
+  //     before it), so pre-market uses that.
+  //   • Post-market / overnight: the session hasn't rolled, so change_pct still IS
+  //     the just-closed regular session's change — use it (and it updates live in
+  //     RTH). This is NOT the (live − prevClose) subtraction that reads 0.00% after
+  //     hours; change_pct is the server-computed day-close-vs-prev-close move.
   let regAbs = null, regPct = null
-  if (q.change_pct != null && Number.isFinite(q.change_pct)) {
+  if (isPre && q.prev_change_pct != null && Number.isFinite(q.prev_change_pct)) {
+    regPct = q.prev_change_pct
+    regAbs = (q.prev_change != null && Number.isFinite(q.prev_change)) ? q.prev_change
+      : (prevClose != null && prevClose !== 0 ? (prevClose * regPct) / 100 : null)
+  } else if (q.change_pct != null && Number.isFinite(q.change_pct)) {
     regPct = q.change_pct
     regAbs = (q.change != null && Number.isFinite(q.change)) ? q.change
       : (prevClose != null && prevClose !== 0 ? (prevClose * regPct) / 100 : null)
