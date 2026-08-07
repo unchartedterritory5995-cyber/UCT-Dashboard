@@ -309,6 +309,86 @@ def test_a_successful_refresh_suppresses_a_second_call_inside_the_interval(
     assert len(rec.calls) == 1, "the second caller must not reach the network"
 
 
+def test_two_simultaneous_callers_make_exactly_one_upstream_call(store, monkeypatch):
+    """The success gate is SEQUENTIAL — this covers what it cannot.
+
+    `test_a_successful_refresh_suppresses_a_second_call_inside_the_interval`
+    proves the SECOND caller is suppressed once the first has FINISHED. Two
+    callers that arrive at the same instant both pass that gate, and with the
+    scheduler job and the evaluator thread deriving the same armed set on the
+    same 60-second cadence, simultaneous is a coin-flip away rather than a
+    theoretical. Without the in-flight guard this fetches SPY/5 twice.
+
+    ⚠️ THE OVERLAP IS CONSTRUCTED, NOT HOPED FOR. Two threads released from a
+    barrier would only *usually* overlap; under a loaded box the second can be
+    descheduled past the first's completion, find the success clock stamped, and
+    report `skipped-recent` — which looks identical to a pass and would let a
+    mutation that deletes the guard survive. So the second caller is not started
+    until the first has provably entered the fetch and is sitting inside it.
+    """
+    _seed_stale_spy(store)
+    _fake_active(monkeypatch, [("SPY", "5")])
+    _always_stale(monkeypatch)
+
+    calls: list[tuple[str, str]] = []
+    call_lock = threading.Lock()
+    inside_fetch = threading.Event()
+
+    def _slow_fetch(sym, tf, last_ts):
+        with call_lock:
+            calls.append((sym, tf))
+        inside_fetch.set()
+        time.sleep(1.5)  # the window the second caller provably arrives inside
+        return _five_min_bars(_STALE_BAR_TS + 600, 2)
+
+    from api.services import bars_fetch as bf
+    monkeypatch.setattr(bf, "_delta_intraday", _slow_fetch)
+
+    first: list[dict] = []
+    second: list[dict] = []
+
+    def _sweep(bucket):
+        bucket.append(abf.refresh_armed_groups(min_gap=0.0))
+
+    t1 = threading.Thread(target=_sweep, args=(first,))
+    t1.start()
+    assert inside_fetch.wait(timeout=15), "the first caller never reached the fetch"
+    t2 = threading.Thread(target=_sweep, args=(second,))
+    t2.start()
+    t1.join(timeout=30)
+    t2.join(timeout=30)
+
+    assert len(first) == 1 and len(second) == 1
+    assert len(calls) == 1, (
+        f"two simultaneous callers made {len(calls)} upstream calls for one group")
+    assert first[0]["refreshed"] == 1
+    assert second[0]["skipped_inflight"] == 1
+    assert second[0]["refreshed"] == 0
+    # The loser cost the store nothing, and the bars still landed — once.
+    assert _ts_set(store, "SPY", "5") >= {_STALE_BAR_TS + 300, _STALE_BAR_TS + 600}
+    # The guard released itself — a leaked marker would stall every later sweep.
+    assert abf._INFLIGHT == {}
+
+
+def test_the_inflight_marker_is_released_even_when_the_fetch_raises(store, monkeypatch):
+    """A guard that leaks its marker converts one bad fetch into a permanently
+    silent group — strictly worse than the staleness this module exists to fix."""
+    _seed_stale_spy(store)
+    _fake_active(monkeypatch, [("SPY", "5")])
+    _always_stale(monkeypatch)
+    _patch_delta(monkeypatch, _Recorder(raises=RuntimeError("boom")))
+
+    out = abf.refresh_armed_groups(min_gap=0.0, attempts=1)
+    assert out["errors"] == 1
+    assert abf._INFLIGHT == {}, "the in-flight marker must not survive a failure"
+
+    # And the group is immediately refreshable again.
+    rec = _patch_delta(monkeypatch, _Recorder(
+        produce=lambda s, t, l: _five_min_bars(_STALE_BAR_TS + 600, 2)))
+    again = abf.refresh_armed_groups(min_gap=0.0)
+    assert again["refreshed"] == 1 and len(rec.calls) == 1
+
+
 def test_an_already_fresh_group_costs_no_network_call(store, monkeypatch):
     """The gate is `bars_fetch._needs_fresh` — the chart lane's own predicate.
 

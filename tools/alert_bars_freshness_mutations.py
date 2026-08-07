@@ -98,6 +98,28 @@ MUTATIONS = [
         "            time.sleep(wait_s)",
         "        break  # MUTANT: never retries",
     ),
+    (
+        "M6_inflight_guard_removed",
+        "Two callers arriving at the same instant BOTH fetch the same group. "
+        "The sequential success gate cannot see them; only the in-flight guard "
+        "can.",
+        "    if not owned:\n"
+        "        waiter.wait(timeout=INFLIGHT_WAIT_SECONDS)\n"
+        "        return {\"sym\": sym_up, \"tf\": tf, \"status\": \"skipped-inflight\", \"rows\": 0}",
+        "    if not owned:\n"
+        "        pass  # MUTANT: the loser fetches too",
+    ),
+    (
+        "M7_inflight_marker_leaks",
+        "The in-flight marker is never cleared, so one fetch turns the group "
+        "permanently un-refreshable -- strictly worse than the staleness this "
+        "module exists to fix.",
+        "        with _STATE_LOCK:\n"
+        "            if _INFLIGHT.get(key) is waiter:\n"
+        "                del _INFLIGHT[key]\n"
+        "        waiter.set()",
+        "        pass  # MUTANT: leaks the marker",
+    ),
 ]
 
 # The test each mutation is EXPECTED to be caught by. Used only for control B --
@@ -110,6 +132,10 @@ EXPECTED_KILLER = {
         "test_an_empty_fetch_is_not_cached_as_a_value_and_the_group_is_retried",
     "M5_no_retry_through_a_cooldown":
         "test_upstream_down_leaves_the_store_intact_and_alerts_still_evaluate",
+    "M6_inflight_guard_removed":
+        "test_two_simultaneous_callers_make_exactly_one_upstream_call",
+    "M7_inflight_marker_leaks":
+        "test_the_inflight_marker_is_released_even_when_the_fetch_raises",
 }
 
 

@@ -64,6 +64,10 @@ it finds a running event loop in the calling thread
                         skipped WITHOUT a network call. This is what lets the
                         scheduler job and the evaluator call site coexist
                         without doubling the budget.
+  · the IN-FLIGHT guard — that interval is SEQUENTIAL, so two callers arriving
+                        at the same instant would both pass it. `_INFLIGHT`
+                        makes it absolute: one upstream fetch per group at a
+                        time, no matter who asks or when.
 
 Worst case at the defaults, with the cap full: 24 requests spread over ≥8.4 s,
 never more than 2 in flight, inside a 20 s ceiling, once a minute. Today, with
@@ -143,6 +147,9 @@ MIN_REFRESH_INTERVAL_SECONDS = _env_float(
     "ALERT_BARS_REFRESH_MIN_INTERVAL_SECONDS", 25.0)
 ATTEMPTS = _env_int("ALERT_BARS_REFRESH_ATTEMPTS", 2)
 RETRY_BACKOFF_SECONDS = _env_float("ALERT_BARS_REFRESH_RETRY_BACKOFF_SECONDS", 1.0)
+# How long a second caller waits for the caller already fetching that group.
+# Bounded on purpose: a wedged fetch must never pin a scheduler worker behind it.
+INFLIGHT_WAIT_SECONDS = _env_float("ALERT_BARS_REFRESH_INFLIGHT_WAIT_SECONDS", 5.0)
 
 
 def is_enabled() -> bool:
@@ -160,6 +167,11 @@ def is_enabled() -> bool:
 # for the length of the interval — the exact shape of the bug that reported
 # success over a 20-second cooldown.
 _LAST_OK: dict[tuple[str, str], float] = {}
+
+# The group a caller is fetching RIGHT NOW → an Event the losers wait on. Guards
+# the one thing the sequential success clock above cannot: two callers arriving
+# at the same instant. Same lock, because the two dicts are read together.
+_INFLIGHT: dict[tuple[str, str], threading.Event] = {}
 _STATE_LOCK = threading.Lock()
 
 
@@ -175,10 +187,14 @@ def _seconds_since_ok(key: tuple[str, str]) -> Optional[float]:
 
 
 def reset_state() -> None:
-    """Forget every group's success clock. Tests only — module-level state
-    shared across tests is how one test passes because of another."""
+    """Forget every group's success clock and in-flight marker. Tests only —
+    module-level state shared across tests is how one test passes because of
+    another."""
     with _STATE_LOCK:
         _LAST_OK.clear()
+        for ev in _INFLIGHT.values():
+            ev.set()  # never leave a waiter blocked on a torn-down run
+        _INFLIGHT.clear()
 
 
 # ─── the armed set ───────────────────────────────────────────────────────────
@@ -365,13 +381,11 @@ def refresh_one(sym: str, tf: str, *,
                        point: the alert lane and the chart lane now disagree
                        about freshness in exactly zero cases.
       skipped-recent — a successful refresh happened < `min_interval` ago.
+      skipped-inflight — another caller is fetching this exact group right now.
       empty          — the fetch returned nothing. NOT a success, NOT written,
                        NOT stamped; the next sweep retries this group.
       error          — the fetch or the write raised. Same treatment as empty.
     """
-    from api.services import bars_fetch as _bf
-    from api.services import bars_sqlite as _sqlite
-
     key = (str(sym).upper(), str(tf))
     sym_up, tf = key
     n_attempts = ATTEMPTS if attempts is None else int(attempts)
@@ -384,6 +398,53 @@ def refresh_one(sym: str, tf: str, *,
         if since is not None and since < gate:
             return {"sym": sym_up, "tf": tf, "status": "skipped-recent",
                     "rows": 0, "seconds_since_ok": round(since, 1)}
+
+    # ⛔ ONE UPSTREAM FETCH PER GROUP AT A TIME, ACROSS EVERY CALLER.
+    #
+    # The success gate above is SEQUENTIAL: it stops a caller that arrives AFTER
+    # a refresh has finished and stamped the clock. Two callers arriving at the
+    # same instant both pass it — and with the `api/main.py` scheduler job and
+    # the evaluator's own thread deriving the same armed set on the same 60s
+    # cadence, simultaneous is a coin-flip away, not a theoretical. Without this
+    # the claim "the two call sites cannot double the upstream budget" is only
+    # true when they happen not to overlap.
+    #
+    # The loser does NOT fetch. It waits, bounded, for the winner to finish and
+    # returns; by then the store is written and the next sweep sees a fresh
+    # group. Bounded because a wedged fetch must never pin a scheduler worker
+    # behind it — a timed-out wait just reports and moves on.
+    with _STATE_LOCK:
+        waiter = _INFLIGHT.get(key)
+        owned = waiter is None
+        if owned:
+            waiter = threading.Event()
+            _INFLIGHT[key] = waiter
+    if not owned:
+        waiter.wait(timeout=INFLIGHT_WAIT_SECONDS)
+        return {"sym": sym_up, "tf": tf, "status": "skipped-inflight", "rows": 0}
+
+    try:
+        return _refresh_one_owned(sym_up, tf, key, n_attempts, wait_s, force)
+    finally:
+        # ⚠️ CLEAR ONLY WHAT WE STILL OWN. A `finally` that clears SHARED state
+        # unconditionally can delete a LATER owner's entry if this one somehow
+        # ran twice — [[lesson_cleanup_must_verify_ownership]]. Identity check,
+        # then release the waiters either way.
+        with _STATE_LOCK:
+            if _INFLIGHT.get(key) is waiter:
+                del _INFLIGHT[key]
+        waiter.set()
+
+
+def _refresh_one_owned(sym_up: str, tf: str, key: tuple[str, str],
+                       n_attempts: int, wait_s: float, force: bool) -> dict:
+    """The body of `refresh_one`, run by the ONE caller holding this group.
+
+    Split out so the in-flight guard can wrap it without re-indenting a line of
+    the fetch/write logic. Never raises.
+    """
+    from api.services import bars_fetch as _bf
+    from api.services import bars_sqlite as _sqlite
 
     try:
         last_ts = _sqlite.get_last_ts(sym_up, tf)
@@ -474,7 +535,8 @@ def refresh_armed_groups(groups: Optional[Iterable[tuple[str, str]]] = None, *,
     summary: dict[str, Any] = {
         "status": "ok", "groups_armed": 0, "groups_selected": 0,
         "groups_capped": 0, "refreshed": 0, "rows_written": 0,
-        "already_fresh": 0, "skipped_recent": 0, "empty": 0, "errors": 0,
+        "already_fresh": 0, "skipped_recent": 0, "skipped_inflight": 0,
+        "empty": 0, "errors": 0,
         "deadline_hit": 0, "elapsed_s": 0.0,
         "results": [], "before": [], "after": [],
     }
@@ -570,6 +632,8 @@ def refresh_armed_groups(groups: Optional[Iterable[tuple[str, str]]] = None, *,
             summary["already_fresh"] += 1
         elif st == "skipped-recent":
             summary["skipped_recent"] += 1
+        elif st == "skipped-inflight":
+            summary["skipped_inflight"] += 1
         elif st == "empty":
             summary["empty"] += 1
         elif st == "deadline":
