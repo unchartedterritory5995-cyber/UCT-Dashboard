@@ -29,11 +29,21 @@ def test_ref_max_vol_needs_min_prior_sessions(monkeypatch):
 
 def test_scan_reports_computing_until_reference_ready(monkeypatch):
     _reset()
-    monkeypatch.setattr(sv, "_universe", lambda: [])  # trivial background build
+    monkeypatch.setattr(sv, "_universe", lambda: [])
+    monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", lambda *a, **k: {})
     out = sv.get_highest_volume_1y()
     assert out["status"] == "computing"
     assert out["results"] == []
     _reset()
+
+
+def test_build_reference_uses_sql_and_intersects_universe(monkeypatch):
+    # The whole 1-year reference comes from ONE aggregate query; restrict to the
+    # cap universe so OTC/index noise never surfaces.
+    monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range",
+                        lambda *a, **k: {"AAA": 1000, "BBB": 2000, "ZZZ": 50})
+    ref = sv._build_reference({"AAA", "BBB"})   # ZZZ is outside the universe → dropped
+    assert ref == {"AAA": 1000, "BBB": 2000}
 
 
 def test_scan_returns_only_qualifiers_sorted_by_ratio(monkeypatch):

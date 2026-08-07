@@ -241,7 +241,9 @@
 /* Vertical gridlines on the RIGHT of every column (so the LAST column gets one too),
    full-height (align-items:stretch) → they connect to the horizontal lines = one grid.
    Data cells get text padding; the flag column gets none so its star centers cleanly. */
-.symCell, .priceCell, .volCell, .changeCell, .metaCell, .textCell { border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11))); padding: 0 7px; }
+/* Data rows have NO vertical gridlines — only the horizontal row separators. The
+   column separators live ONLY on the header (.gridHead > span). */
+.symCell, .priceCell, .volCell, .changeCell, .metaCell, .textCell { padding: 0 7px; }
 /* Market Cap / Next Earnings / UCT Rating cells — same layout as Price/Volume. */
 .metaCell {
   display: flex; align-items: center; justify-content: center;
@@ -266,8 +268,7 @@
   width: 100%;
   min-width: 0;
   background: transparent;
-  border: none;
-  border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));   /* flag|sym gridline */
+  border: none;   /* no flag|sym vertical gridline on data rows (header keeps it) */
   cursor: pointer;
   color: rgba(255, 255, 255, 0.22);
   padding: 0;

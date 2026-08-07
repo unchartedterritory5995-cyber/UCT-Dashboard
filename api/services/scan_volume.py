@@ -17,7 +17,7 @@ import json
 import os
 import threading
 import time as _time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     import zoneinfo
@@ -89,19 +89,31 @@ def _ref_max_vol(ticker: str) -> int | None:
     return max(vols)
 
 
-def _build_reference(universe: list[str]) -> dict:
-    out = {}
-    for t in universe:
-        mv = _ref_max_vol(t)
-        if mv:
-            out[t] = mv
-    return out
+def _build_reference(universe_set: set | None = None) -> dict:
+    """{TICKER: max trailing-1-year daily volume} for the cap universe.
+
+    One indexed GROUP BY over bars.db daily bars (from_ymd = today - 365d, exclusive
+    of today) — near-instant, vs the old thousands of per-ticker reads. Restricted to
+    the $300M+ cap universe so OTC/index/delisted noise never surfaces.
+    """
+    now = _now_et()
+    to_ymd = int(now.strftime("%Y%m%d"))                       # exclude today's partial
+    from_ymd = int((now - timedelta(days=365)).strftime("%Y%m%d"))
+    try:
+        m = _sqlite.max_daily_volume_in_range(from_ymd, to_ymd, _MIN_PRIOR)
+    except Exception:
+        return {}
+    uni = universe_set if universe_set is not None else set(_universe())
+    if uni:
+        m = {t: v for t, v in m.items() if t in uni}
+    return m
 
 
 def _ensure_reference() -> dict | None:
     """Return today's reference map, kicking a background build if it's stale.
 
     Returns None while a build is in flight (the scan then reports 'computing').
+    The build is a single SQL aggregate, so this window is ~instant.
     """
     date = _session_date()
     with _ref_lock:
@@ -112,14 +124,14 @@ def _ensure_reference() -> dict | None:
         _ref_state["building"] = True
 
     def _job():
-        universe = _universe()
+        uni = set(_universe())
         try:
-            m = _build_reference(universe)
+            m = _build_reference(uni)
         except Exception:
             m = {}
         with _ref_lock:
             _ref_state.update(date=date, map=m, built_at=_time.time(),
-                              building=False, universe=len(universe))
+                              building=False, universe=len(uni))
 
     threading.Thread(target=_job, daemon=True, name="volscan-ref").start()
     return None

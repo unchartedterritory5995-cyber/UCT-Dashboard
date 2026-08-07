@@ -17,6 +17,12 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? 
 // The scanner keeps its OWN column layout, independent of the watchlist widgets
 // (which share the global WL_COLS_LS key).
 const SCANNER_COLS_KEY = `${WL_COLS_LS}.scanner`
+// First-run defaults for the scanner: RVOL shown + the list sorted by RVOL desc.
+// Applied only until the user edits columns (then their saved layout wins).
+const SCANNER_DEFAULT_COLS = {
+  order: ['flag', 'sym', 'price', 'vol', 'chg', 'rvol'],
+  sort: { key: 'rvol', dir: 'desc' },
+}
 
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
 const SCAN_ENDPOINTS = {
@@ -47,6 +53,12 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // the whole table (the scan endpoint returns a fresh object each poll).
   const symKey = (data?.results || []).map(r => r.sym).join(',')
   const symbols = useMemo(() => (symKey ? symKey.split(',') : []), [symKey])
+  // Distinguish "still building the reference" from "genuinely no qualifiers".
+  const scanEmptyText = !data
+    ? 'Loading…'
+    : data.status === 'computing'
+      ? 'Building the 1-year volume baseline…'
+      : 'No stocks at a 1-year volume high yet today.'
 
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
@@ -61,6 +73,8 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         onSettingsPersist={onSettingsPersist}
         widgetKey={widgetId}
         colStorageKey={SCANNER_COLS_KEY}
+        scanEmptyText={scanEmptyText}
+        defaultColCfg={SCANNER_DEFAULT_COLS}
       />
     </ChartsSymContext.Provider>
   )

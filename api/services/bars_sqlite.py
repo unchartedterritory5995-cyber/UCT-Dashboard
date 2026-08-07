@@ -342,6 +342,50 @@ def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
     ).fetchall()
 
 
+def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2) -> dict:
+    """{TICKER: max daily volume} over DAILY bars with from_ymd <= ts < to_ymd,
+    for tickers having >= min_sessions bars in that window.
+
+    Daily bars store `ts` as a YYYYMMDD int, so the range is a plain int compare.
+    One indexed GROUP BY builds the volume-scan's 1-year reference in a single
+    query instead of thousands of per-ticker reads."""
+    rows = _conn().execute(
+        """SELECT ticker, MAX(v) AS mv, COUNT(*) AS n FROM ohlcv
+           WHERE tf='D' AND ts>=? AND ts<?
+           GROUP BY ticker HAVING n>=? AND mv>0""",
+        (int(from_ymd), int(to_ymd), int(min_sessions)),
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
+def avg_daily_volume(tickers, sessions: int = 20, before_ymd: int | None = None) -> dict:
+    """{TICKER: average daily volume over its last `sessions` COMPLETED daily bars}.
+
+    Excludes today's evolving bar when `before_ymd` (a YYYYMMDD int) is given. The
+    last-N-per-ticker window can't be a single GROUP BY, so this runs one small
+    indexed query per ticker — callers pass a bounded batch (the watchlist meta
+    batch caps at 100). Powers the RVOL column (live volume / this average)."""
+    conn = _conn()
+    upper = int(before_ymd) if before_ymd is not None else 99999999
+    out: dict = {}
+    for t in tickers or []:
+        tu = str(t).upper()
+        try:
+            row = conn.execute(
+                """SELECT AVG(v) FROM (
+                       SELECT v FROM ohlcv
+                       WHERE ticker=? AND tf='D' AND v>0 AND ts<?
+                       ORDER BY ts DESC LIMIT ?
+                   )""",
+                (tu, upper, int(sessions)),
+            ).fetchone()
+        except Exception:
+            continue
+        if row and row[0]:
+            out[tu] = int(round(row[0]))
+    return out
+
+
 def get_all_tickers() -> list[tuple]:
     """Return all (ticker, tf) pairs that have at least one row stored, ordered by ticker."""
     return _conn().execute(

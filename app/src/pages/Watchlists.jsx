@@ -73,6 +73,7 @@ const COL_META = {
   flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 },
   vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 },
   // Optional data columns (added via the + button).
+  rvol: { def: 64, min: 46 },
   mcap: { def: 82, min: 56 }, earn: { def: 92, min: 62 }, rating: { def: 78, min: 54 },
   // Intraday quote-derived columns (computed client-side from the live quote).
   dchg: { def: 70, min: 50 }, fromopen: { def: 76, min: 54 }, fromhigh: { def: 76, min: 54 },
@@ -85,6 +86,7 @@ const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderabl
 // [full label, abbreviation] + the min column width to still show the full word.
 const COL_LABELS = {
   flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
+  rvol: ['RVOL', 'RVOL'],
   mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
   dchg: ['$ Change', '$ Chg'], fromopen: ['% from Open', '% Open'], fromhigh: ['% from High', '% High'],
   fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'],
@@ -92,12 +94,13 @@ const COL_LABELS = {
   perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
 }
 const COL_FULL_MINW = {
-  sym: 62, price: 46, vol: 60, chg: 80, mcap: 78, earn: 108, rating: 82,
+  sym: 62, price: 46, vol: 60, chg: 80, rvol: 52, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40,
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
+  { key: 'rvol', label: 'RVOL' },
   { key: 'mcap', label: 'Market Cap' },
   { key: 'earn', label: 'Next Earnings' },
   { key: 'rating', label: 'UCT Rating' },
@@ -118,7 +121,7 @@ const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
 // meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
 // quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
-const META_KEYS = new Set(['mcap', 'earn', 'rating', 'sector', 'industry'])
+const META_KEYS = new Set(['rvol', 'mcap', 'earn', 'rating', 'sector', 'industry'])
 // Text columns — sorted alphabetically, not numerically.
 const TEXT_COLS = new Set(['sector', 'industry', 'theme'])
 // N-day performance columns → their key in perfData (from /api/watchlist-performance).
@@ -261,7 +264,7 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
-  dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null,
+  dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, rvol = null,
   sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null,
   isOwner, wlId,
@@ -320,6 +323,10 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'dcr') return (
       <span key="dcr" className={styles.metaCell}>{dcr != null ? `${dcr.toFixed(0)}%` : '—'}</span>
     )
+    // Relative volume: today's live volume vs the 20-session average, as a % (200% = 2x).
+    if (key === 'rvol') return (
+      <span key="rvol" className={styles.metaCell}>{rvol != null ? `${Math.round(rvol)}%` : '—'}</span>
+    )
     // Fundamentals text columns (left-aligned, ellipsized, full value on hover).
     if (key === 'sector') return <span key="sector" className={styles.textCell} title={sector || ''}>{sector || '—'}</span>
     if (key === 'industry') return <span key="industry" className={styles.textCell} title={industry || ''}>{industry || '—'}</span>
@@ -349,7 +356,7 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -686,7 +693,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Column config (persisted per-user in localStorage) — declared HERE, above the
   // perf/theme fetches, so those can gate on which columns are shown.
   const [colCfg, setColCfg] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(_colKey)) || {} } catch { return {} }
+    // Saved config wins; otherwise the caller's default (the scanner seeds RVOL on +
+    // RVOL-sorted). Once the user edits columns, saveColCfg persists over this.
+    try { const s = JSON.parse(localStorage.getItem(_colKey)); if (s && typeof s === 'object') return s } catch { /* ignore */ }
+    return defaultColCfg || {}
   })
   const _colKeys = Array.isArray(colCfg.order) ? colCfg.order : []
   // Perf batch: fetched when a legacy perf pill OR an N-day column is active.
@@ -1248,6 +1258,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         return perfData?.[s]?.[period] ?? null
       }
       const m = metaData?.[s]
+      if (key === 'rvol') {
+        const av = m?.avg_vol_20d, v = q?.volume
+        return (Number.isFinite(av) && av > 0 && Number.isFinite(v)) ? (v / av) * 100 : null
+      }
       if (key === 'mcap') return parseMcap(m?.market_cap)
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
@@ -1362,6 +1376,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (Number.isFinite(ref) && ref > 0 && Number.isFinite(p)) return ((p - ref) / ref) * 100
       return perfData[sym]?.[period] ?? null
     }
+    // RVOL: today's LIVE volume vs the 20-session average (from the meta batch), as a %.
+    // Live-updates because q.volume ticks; null until the average has loaded.
+    const _avg20 = metaData[sym]?.avg_vol_20d
+    const rvolVal = (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
+      ? (q.volume / _avg20) * 100
+      : null
     return (
       <WatchRow
         key={sym}
@@ -1375,6 +1395,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         fromHigh={colDerived.fromhigh(q)}
         fromLow={colDerived.fromlow(q)}
         dcr={colDerived.dcr(q)}
+        rvol={rvolVal}
         sector={metaData[sym]?.sector ?? null}
         industry={metaData[sym]?.industry ?? null}
         theme={themeData[sym] ?? null}
@@ -1764,7 +1785,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             return (
               <div className={styles.wlItems}>
                 {sortedItems.length === 0
-                  ? <div className={styles.wlEmpty}>{items.length === 0 ? 'No matches yet.' : 'No matches.'}</div>
+                  ? <div className={styles.wlEmpty}>{items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}</div>
                   : sortedItems.map(item => (
                     <React.Fragment key={item.id}>
                       {renderTickerRow({ sym: item.sym, name: item.name, isOwner: false, wlId: null })}
