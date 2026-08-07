@@ -11,7 +11,6 @@ def _reset():
 
 def test_ipo_scan_reports_computing_before_set(monkeypatch):
     _reset()
-    monkeypatch.setattr(si, "_universe", lambda: [])
     monkeypatch.setattr(si._sqlite, "recent_first_trade", lambda since: {})
     out = si.get_ipo_last_1y()
     assert out["status"] == "computing"
@@ -19,11 +18,30 @@ def test_ipo_scan_reports_computing_before_set(monkeypatch):
     _reset()
 
 
-def test_build_ipo_set_intersects_universe(monkeypatch):
+def test_build_ipo_set_returns_recent_first_trades(monkeypatch):
+    # No cap-universe restriction — recent IPOs (e.g. CBRS) aren't in that static list.
     monkeypatch.setattr(si._sqlite, "recent_first_trade",
-                        lambda since: {"AAA": 20260101, "ZZZ": 20260201})
-    s = si._build_ipo_set({"AAA"})   # ZZZ outside the universe → dropped
-    assert s == {"AAA": 20260101}
+                        lambda since: {"AAA": 20260101, "CBRS": 20260528})
+    assert si._build_ipo_set() == {"AAA": 20260101, "CBRS": 20260528}
+
+
+def test_ipo_scan_skips_names_not_in_snapshot(monkeypatch):
+    # The market snapshot is the currently-trading filter: a set member absent from
+    # it (delisted / not a real equity) is dropped; recent IPOs present in it stay.
+    _reset()
+    with si._LOCK:
+        si._state.update(date=si._session_date(),
+                         map={"CBRS": 20260528, "GONE": 20260201}, building=False)
+    snap = {"CBRS": {"last_price": 226.0, "prev_close": 211.0}}  # GONE absent → skipped
+
+    class _Client:
+        def get_full_market_snapshot(self):
+            return snap
+
+    monkeypatch.setattr(si.massive, "_get_client", lambda: _Client())
+    out = si.get_ipo_last_1y()
+    assert [r["sym"] for r in out["results"]] == ["CBRS"]
+    _reset()
 
 
 def test_ipo_scan_returns_recent_ipos_newest_first(monkeypatch):

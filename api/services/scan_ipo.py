@@ -16,8 +16,8 @@ from datetime import timedelta
 from api.services import bars_sqlite as _sqlite
 from api.services import massive
 from api.services.cache import cache
-# Reuse the shared scan helpers (ET clock, cap universe, provider symbology).
-from api.services.scan_volume import _now_et, _universe, _snap_lookup
+# Reuse the shared scan helpers (ET clock, provider symbology).
+from api.services.scan_volume import _now_et, _snap_lookup
 
 _LOCK = threading.Lock()
 _state = {"date": None, "map": None, "building": False, "built_at": 0.0}
@@ -30,19 +30,21 @@ def _session_date() -> str:
     return _now_et().strftime("%Y-%m-%d")
 
 
-def _build_ipo_set(universe_set: set | None = None) -> dict:
-    """{TICKER: first-daily-bar YYYYMMDD} for cap-universe stocks first traded in the
-    last _LOOKBACK_DAYS."""
+def _build_ipo_set() -> dict:
+    """{TICKER: first-daily-bar YYYYMMDD} for stocks first traded in the last
+    _LOOKBACK_DAYS (from bars.db).
+
+    NOT restricted to the static cap universe — recent IPOs (the whole point of this
+    scan) aren't in that file yet (e.g. CBRS). The live pass filters to currently-
+    trading names via the market snapshot instead, which naturally includes recent
+    IPOs and drops delisted/non-equity noise.
+    """
     now = _now_et()
     since = int((now - timedelta(days=_LOOKBACK_DAYS)).strftime("%Y%m%d"))
     try:
-        m = _sqlite.recent_first_trade(since)
+        return _sqlite.recent_first_trade(since)
     except Exception:
         return {}
-    uni = universe_set if universe_set is not None else set(_universe())
-    if uni:
-        m = {t: v for t, v in m.items() if t in uni}
-    return m
 
 
 def _ensure_ipo_set() -> dict | None:
@@ -56,9 +58,8 @@ def _ensure_ipo_set() -> dict | None:
         _state["building"] = True
 
     def _job():
-        uni = set(_universe())
         try:
-            m = _build_ipo_set(uni)
+            m = _build_ipo_set()
         except Exception:
             m = {}
         with _LOCK:
@@ -89,6 +90,12 @@ def get_ipo_last_1y() -> dict:
     results = []
     for sym, first_ts in ipos.items():
         s = _snap_lookup(snap, sym) if snap else None
+        # When the snapshot is present, require the ticker to be in it — that's the
+        # "currently trading US equity" filter that replaces the cap-universe gate
+        # (keeps recent IPOs, drops delisted/non-equity). If the snapshot is empty
+        # (transient/off-market), fall back to showing the set with no price.
+        if snap and not s:
+            continue
         price = s.get("last_price") if s else None
         prev = s.get("prev_close") if s else None
         change_pct = None
