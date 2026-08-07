@@ -1256,13 +1256,43 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       d => d.plots.filter(p => p.style !== 'hlines' && p.legend && p.legend.hide !== true)
         .map(p => `${d.id}::${p.key}`)).sort()
     expect(declared, 'a chip-bearing plot lost its `legend` declaration — a user\'s chip ' +
-      'disappears the moment one of these ten loses it, on EITHER lane').toEqual([
-      'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
+      'disappears the moment one of these twenty loses it, on EITHER lane').toEqual([
+      // ⭐⭐ TWENTY AT TASK 2 (`43efeff6`), AND IT IS STILL AN EQUALITY. The ten
+      // below the divider are the ten definitions that declared NO chip at all:
+      // a user who switched on MFI or OBV got a line with no label at any time,
+      // hovering or not. Widening this literal is the ONLY honest way to keep the
+      // equality — a tolerance ("the nine plus anything") would stop seeing the
+      // regression this row exists for, which is a chip DISAPPEARING.
+      'adx::adx',
+      'atr::atr',
+      'atrBands::middle',
+      'avwap::avwap',
+      'bb::middle',
+      'cci::cci',
+      'donchian::middle',
+      'ichimoku::kijun', 'ichimoku::tenkan',
+      'macd::macd', 'macd::signal',
+      'mfi::mfi',
+      'obv::obv',
       // TEN AT PHASE C TASK 13. `rsLine` takes its own PANE, and a pane whose
       // crosshair prints nothing is a value you cannot read. Kept an EQUALITY, so a
       // DROP among the others still fails.
       'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+      'vwap::vwap',
+      'williamsR::williams_r',
     ])
+    // ⛔ AND ONE PER DEFINITION IS ITSELF THE CLAIM, because the risk Task 2
+    // creates is the OPPOSITE of a lost chip: the engine lane emits a chip for
+    // every plot that declares one, so a `legend: {}` added in passing to BB's
+    // edges or ADX's directional lines puts extra chips in the box. Sixteen of
+    // the seventeen definitions carry exactly ONE chip; `macd` and `stoch` and
+    // `ichimoku` carry the two they shipped with.
+    const perDef = {}
+    for (const k of declared) perDef[k.split('::')[0]] = (perDef[k.split('::')[0]] || 0) + 1
+    expect(Object.entries(perDef).filter(([, n]) => n > 1).sort(),
+      'a definition grew a SECOND chip — three numbers for one indicator is the '
+      + 'readout regression MACD\'s histogram and BB\'s edges are hidden for')
+      .toEqual([['ichimoku', 2], ['macd', 2], ['stoch', 2]])
     // ⭐ AND THE SPLIT BETWEEN THE TWO LANES, WHICH IS WHAT B5 MOVES. This loop
     // used to read *"for `stoch`, `atr`, `sar`, `ichimoku`: NOT migrated — B4
     // ships ZERO migrations"* and it went RED at B5 Task 5, which is the correct
@@ -1276,7 +1306,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // and the empty list is now itself a claim: it is what licensed deleting the
     // registrar, and re-populating it without also re-adding a producer is a chip
     // drawn by nobody.
-    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine']
+    // ⭐ SEVENTEEN AT TASK 2. The partition is unchanged in KIND — the legacy
+    // half is still empty and still asserted empty — but the engine half is now
+    // every definition there is, because every definition declares a chip.
+    const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine',
+      'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -1932,7 +1966,10 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // a string that IS one, and a regex whose `//` used to eat the rest of its line.
   it('⭐ the scan reads CODE, not prose — and still reads code', () => {
     const PROSE = [
-      "// the legend's nine chips: stoch::k, stoch::d, atr, sar and ichimoku's two",
+      // ⚠️ "twenty", not "nine": Task 2 (`43efeff6`) gave the ten silent
+      // definitions a chip. The fixture's JOB is only to name ≥4 indicator ids
+      // inside a comment, but a fixture that states a stale fact reads as one.
+      "// the legend's twenty chips: stoch::k, stoch::d, atr, sar, adx, obv and ichimoku's two",
       '/* rsi: 14, macd: 26, bb: 20, vwap: session — the shape this used to be */',
     ].join('\n')
     const CODE = "const LIST = { rsi: 1, macd: 2, bb: 3, vwap: 4, stoch: 5 }"

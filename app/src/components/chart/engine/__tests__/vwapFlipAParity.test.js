@@ -193,12 +193,24 @@ describe('VWAP Flip A — one line on the candles\' scale, intraday only', () =>
     expect(at(566), 'Tue 19:00 EST').toBe(109.4466)
   })
 
-  it('draws no guides and produces no legend chip', () => {
+  it('draws no guides, and its ONE plot declares the chip Task 2 gave it', () => {
+    // 🔴 THIS READ *"draws no guides and produces no legend chip"* and asserted
+    // `plots[0].legend.hide === true`. The guide half is unchanged; the chip half
+    // was the DEFECT — a dollar line on the candles' own scale with no label at
+    // any time. Task 2 (`43efeff6`) replaced `{ hide: true }` with
+    // `{ decimals: 2 }`, the same precision `ichimoku`'s TK/KJ print.
+    //
+    // ⛔ THE DECLARATION IS ASSERTED WHOLE (`toEqual`), NOT PROBED. `hide`
+    // returning to `true` fails it, a precision change fails it, and a
+    // `legendParams` appearing fails the line below — VWAP's four inputs are
+    // colour/opacity/style/width and not one of them changes WHAT IS MEASURED,
+    // so `VWAP(100)` would be a bracket that means nothing.
     const { F } = sync()
     expect(F.count('createPriceLine')).toBe(0)
     const def = engineRegistry.getDefinition('vwap')
     expect(def.plots).toHaveLength(1)
-    expect(def.plots[0].legend.hide).toBe(true)
+    expect(def.plots[0].legend, 'VWAP\'s chip declaration moved').toEqual({ decimals: 2 })
+    expect(def.meta.legendParams, 'a cosmetic input reached the chip').toBeUndefined()
   })
 
   it('a POOLED series is re-fed, never destroyed and recreated (#2049)', () => {
