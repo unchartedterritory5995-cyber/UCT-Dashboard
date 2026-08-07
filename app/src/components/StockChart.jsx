@@ -2066,6 +2066,13 @@ export default function StockChart({
   // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
   // tail before authoritative bars swap in. Set in the `bars` selector each render.
   const provisionalStaleRef = useRef(false)
+  // Self-heal throttle: when a live push bar arrives >1 interval ahead of the frozen
+  // series tail (the steady-state SWR delta poll stalled — e.g. a deploy dropped the
+  // SSE + the visibility-gated refresh paused), the contiguity guard forces an SWR
+  // revalidation to pull the missing bars. Throttled so it fires at most once per
+  // window instead of on every push tick while the chart is catching up.
+  const gapHealAtRef = useRef(0)
+  const barsMutateRef = useRef(null)  // latest SWR mutate() for the bars key (stale-closure-safe)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
   // Session preview owns the D/W/M developing bar during pre/post market on the
   // workspace (synthetic pre-market candle / frozen-at-4pm regular candle) — a
@@ -3335,6 +3342,11 @@ export default function StockChart({
       onErrorRetry: barsSwrOnErrorRetry,
     }
   )
+  // Expose the latest mutate() to the live-bar writers (stale-closure-safe) so the
+  // contiguity-guard self-heal can force an immediate revalidation. mutate() fires
+  // even when refreshInterval polling is paused (hidden/popped-out window), which is
+  // exactly the stall it recovers from.
+  barsMutateRef.current = mutate
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -5081,7 +5093,21 @@ export default function StockChart({
     const barTime = decision.time != null ? decision.time : last.time
 
     try {
-      if (decision.kind === 'skip') return
+      if (decision.kind === 'skip') {
+        // Intraday 'skip' from classifyLiveBar means the tick's bucket is PAST the
+        // tail (its contiguity / REST-floor behind-guard fired) → the series has
+        // stalled behind live (the stalled-SWR-poll freeze; same class Writer B
+        // self-heals). Force a throttled SWR revalidation to pull the missing bars.
+        // D/W/M 'skip' is an unconfirmed-session case (not a gap) — don't heal there.
+        if (isIntradayTf) {
+          const _nowMs = Date.now()
+          if (_nowMs - gapHealAtRef.current > 4000) {
+            gapHealAtRef.current = _nowMs
+            try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+          }
+        }
+        return
+      }
       if (decision.kind === 'new') {
         // ── NEW CANDLE ──
         const isDailyWeekly = !isIntradayTf
@@ -5233,6 +5259,21 @@ export default function StockChart({
       const _pbTail = lastBarRef.current
       const _periodB = PERIOD_SECONDS[resolvedTf] || 300
       if (_pbTail && Number.isFinite(_pbTail.time) && tSec - _pbTail.time > _periodB) {
+        // Behind: the series tail lags this live push bar by >1 interval, so the
+        // steady-state advance (the 30s SWR delta poll) has STALLED — e.g. a deploy
+        // dropped every SSE and the visibility-gated refreshInterval never resumed,
+        // freezing the chart at its load point (reported: half a watchlist stuck at
+        // the same minute, tick not moving, across TSLA/NVDA/MU). Skipping alone
+        // would keep it frozen forever (every push bar stays ahead of the stale
+        // tail). Self-heal: force an immediate SWR revalidation (throttled) — mutate()
+        // fires even while interval polling is paused, and the backend is
+        // authoritative + proven fresh, so the refetch replaces/merges the missing
+        // closed bars; once the tail catches up, push bars plant contiguously again.
+        const _nowMs = Date.now()
+        if (_nowMs - gapHealAtRef.current > 4000) {
+          gapHealAtRef.current = _nowMs
+          try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+        }
         return
       }
     }
