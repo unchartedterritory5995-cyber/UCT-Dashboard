@@ -209,3 +209,164 @@ class TestTheBackfillIsWiredIntoFundamentals:
         out = f.get_fundamentals("PANW")
         assert out["revenue_growth_pct"] == 31.0        # payload survived
         assert out["earnings_growth_pct"] is None
+
+
+class TestARetiredSymbolIsRefused:
+    """FMP keeps answering for a symbol that no longer trades.
+
+    Block renamed SQ -> XYZ. yfinance returns nothing for SQ, so the backfill
+    fired and handed SQ a confident EPS rating built on filings made under a
+    dead symbol -- turning "no rating" into "a wrong-looking rating".
+
+    A staleness check does NOT catch this, which is why the guard asks FMP
+    directly. Measured 2026-08-06: SQ and XYZ both report latest period
+    2026-06-30 accepted 2026-08-05 -- the SAME current filings -- and differ
+    only in `isActivelyTrading` (False vs True).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear(self):
+        # NOTE `fmp_profile::` — one cached profile now serves every flag, so
+        # the old `fmp_active::` keys no longer exist. Missing this would let a
+        # profile cached by one test decide the verdict in the next.
+        for sym in ("DEAD", "LIVE", "UNK", "FUND"):
+            for pre in ("fmp_eg::", "fmp_profile::"):
+                cache.invalidate(pre + sym)
+        yield
+
+    def _provider(self, monkeypatch, *, active, rows=None):
+        rows = rows if rows is not None else _rows(200, 150, 120, 110, 100)
+        calls = []
+
+        def stub(path, params, timeout=10):
+            calls.append(path)
+            if "profile" in path:
+                if active is None:
+                    return []
+                return [{"isActivelyTrading": active, "isEtf": False, "isFund": False}]
+            return rows
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        return calls
+
+    def test_a_retired_symbol_gets_no_figure(self, monkeypatch):
+        self._provider(monkeypatch, active=False)
+        assert eg.earnings_growth_pct("DEAD") is None
+
+    def test_it_does_not_even_fetch_the_income_statement(self, monkeypatch):
+        """Refusing after paying for the data would still be correct, but the
+        point is that the symbol is disqualified before it is priced."""
+        calls = self._provider(monkeypatch, active=False)
+        eg.earnings_growth_pct("DEAD")
+        assert not any("income-statement" in c for c in calls), calls
+
+    def test_a_live_symbol_is_unaffected(self, monkeypatch):
+        self._provider(monkeypatch, active=True)
+        assert eg.earnings_growth_pct("LIVE") == 100.0
+
+    def test_an_UNKNOWN_active_flag_fails_OPEN(self, monkeypatch):
+        """None is not False. A profile outage must not silently delete
+        earnings-growth coverage for the whole universe -- the guard exists
+        for a provider that positively says 'retired', nothing weaker."""
+        self._provider(monkeypatch, active=None)
+        assert eg.earnings_growth_pct("UNK") == 100.0
+
+    def test_the_flag_itself_distinguishes_all_three_states(self, monkeypatch):
+        self._provider(monkeypatch, active=True)
+        assert eg.is_actively_trading("LIVE") is True
+        cache.invalidate("fmp_active::DEAD")
+        self._provider(monkeypatch, active=False)
+        assert eg.is_actively_trading("DEAD") is False
+        cache.invalidate("fmp_active::UNK")
+        self._provider(monkeypatch, active=None)
+        assert eg.is_actively_trading("UNK") is None
+
+    def test_a_non_boolean_flag_is_treated_as_unknown_not_falsy(self, monkeypatch):
+        """A provider returning "" or 0 must not be read as 'retired' — that
+        would silently disqualify live symbols."""
+        def stub(path, params, timeout=10):
+            if "profile" in path:
+                return [{"isActivelyTrading": ""}]
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        assert eg.is_actively_trading("UNK") is None
+        assert eg.earnings_growth_pct("UNK") == 100.0
+
+    def test_a_profile_exception_never_escapes(self, monkeypatch):
+        def boom(path, params, timeout=10):
+            if "profile" in path:
+                raise RuntimeError("profile down")
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", boom)
+        assert eg.earnings_growth_pct("UNK") == 100.0    # fails open
+
+
+class TestAFundIsNotAnOperatingCompany:
+    """FB was Facebook; the symbol now resolves to a ProShares ETF.
+
+    `isActivelyTrading` is True — the SYMBOL really does trade, just not as the
+    company anyone means by "FB" — so the retired-symbol guard passes it
+    through. Only the fund check refuses it.
+
+    A cross-provider NAME check was the obvious guard and measuring killed it:
+    on 2026-08-06 yfinance and FMP agreed on the company name for every symbol
+    tested INCLUDING FB (both say ProShares). There is no disagreement to
+    detect; `isEtf`/`isFund` is the real signal, and it rides the same cached
+    profile fetch so it costs no extra request.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear(self):
+        for sym in ("FUND", "OPCO", "UNK"):
+            for pre in ("fmp_eg::", "fmp_profile::"):
+                cache.invalidate(pre + sym)
+        yield
+
+    def _provider(self, monkeypatch, profile):
+        def stub(path, params, timeout=10):
+            if "profile" in path:
+                return [profile] if profile is not None else []
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+
+    def test_an_etf_gets_no_earnings_growth(self, monkeypatch):
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": True, "isFund": False})
+        assert eg.earnings_growth_pct("FUND") is None
+
+    def test_a_fund_gets_no_earnings_growth(self, monkeypatch):
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": False, "isFund": True})
+        assert eg.earnings_growth_pct("FUND") is None
+
+    def test_an_operating_company_is_unaffected(self, monkeypatch):
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": False, "isFund": False})
+        assert eg.earnings_growth_pct("OPCO") == 100.0
+
+    def test_the_retired_guard_alone_would_NOT_have_caught_it(self, monkeypatch):
+        """Pins why this check has to exist separately: an ETF is actively
+        trading, so `is_actively_trading` says True and lets it past."""
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": True, "isFund": False})
+        assert eg.is_actively_trading("FUND") is True
+        assert eg.is_fund("FUND") is True
+
+    def test_missing_fund_flags_are_UNKNOWN_and_fail_OPEN(self, monkeypatch):
+        """A profile without the flags must not delete coverage."""
+        self._provider(monkeypatch, {"isActivelyTrading": True})
+        assert eg.is_fund("UNK") is None
+        assert eg.earnings_growth_pct("UNK") == 100.0
+
+    def test_one_profile_fetch_serves_every_flag(self, monkeypatch):
+        """Adding a check must not add a request."""
+        calls = []
+
+        def stub(path, params, timeout=10):
+            calls.append(path)
+            if "profile" in path:
+                return [{"isActivelyTrading": True, "isEtf": False, "isFund": False}]
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        eg.earnings_growth_pct("OPCO")
+        assert sum(1 for c in calls if "profile" in c) == 1, calls

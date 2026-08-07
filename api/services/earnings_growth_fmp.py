@@ -57,9 +57,36 @@ COST matches neither and is left as a known outlier (a fiscal-calendar
 mismatch is the likely cause); one name in nine, and it only ever applies when
 yfinance returned nothing anyway.
 
-⚠️ Renamed tickers: FMP keeps serving the OLD symbol with stale figures (SQ
-returned -132.2% while the live XYZ rows give -87.9%). This module cannot
-detect that; it is a symbol-resolution problem, tracked separately.
+RENAMED AND REUSED TICKERS
+--------------------------
+FMP keeps answering for a RETIRED symbol. Block renamed SQ -> XYZ, and yfinance
+returns nothing for SQ, so the backfill above fired and handed SQ a confident
+EPS rating built on figures filed under a symbol that no longer trades. That
+turned "no rating" into "a wrong-looking rating", which is the wrong direction.
+
+A staleness check does NOT catch it, and that was measured rather than assumed:
+
+    SQ    latest period 2026-06-30, accepted 2026-08-05, isActivelyTrading=False
+    XYZ   latest period 2026-06-30, accepted 2026-08-05, isActivelyTrading=True
+
+FMP serves the SAME current filings under both symbols, so nothing about the
+dates distinguishes them. `isActivelyTrading` does, and it is authoritative:
+TWTR also reports False (its profile name even ends "(delisted)").
+
+So `is_actively_trading` gates the backfill. It fails CLOSED on an explicit
+False and OPEN on an unknown -- a profile outage should cost nothing, but a
+provider that positively says "this symbol is retired" is believed.
+
+⚠️ Not covered, deliberately: a REUSED ticker. FB now resolves to a ProShares
+ETF -- `isActivelyTrading` is True because the SYMBOL trades, just not as the
+company you meant. The `len(ni) <= _YEAR_AGO` guard already refuses it (an ETF
+has no quarterly income statement), but a reused OPERATING company would slip
+through. That needs real symbol resolution, not a flag.
+
+⚠️ This guard is deliberately scoped to the BACKFILL, not to
+`get_fundamentals` at large: Model Book intentionally curates renamed and
+delisted tickers (SQ, WTW, WWE), and refusing them wholesale would break it.
+The narrow risk here is a stale number silently entering a PERCENTILE ranking.
 """
 from __future__ import annotations
 
@@ -84,6 +111,9 @@ _YEAR_AGO = 4
 _CACHE_TTL = 6 * 3600      # fundamentals move quarterly; 6h is generous
 _MISS_TTL = 900            # never cache a failed fetch as a durable value
 _SENTINEL = "__none__"     # distinguishes "asked, no answer" from a cache miss
+# A symbol stops trading roughly once, forever — no reason to re-ask hourly,
+# and the extra profile call rides only the already-rare backfill path.
+_ACTIVE_TTL = 24 * 3600
 
 
 def _num(v):
@@ -94,13 +124,91 @@ def _num(v):
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
+def _profile(sym: str):
+    """FMP's company profile, cached. None when the provider had nothing.
+
+    ONE fetch serves every flag below, so adding a check costs no extra
+    request — and the profile only ever rides the already-rare backfill path.
+    """
+    sym = (sym or "").upper().strip()
+    if not sym:
+        return None
+
+    ck = f"fmp_profile::{sym}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return None if hit == _SENTINEL else hit
+
+    try:
+        rows = _ee._fmp_get("/stable/profile", {"symbol": sym})
+    except Exception as exc:                           # noqa: BLE001
+        _log.warning("FMP profile failed for %s: %s", sym, exc)
+        rows = None
+
+    out = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else None
+    cache.set(ck, _SENTINEL if out is None else out,
+              _MISS_TTL if out is None else _ACTIVE_TTL)
+    return out
+
+
+def _flag(ticker: str, field: str) -> bool | None:
+    """One profile field as a STRICT tri-state.
+
+    A non-boolean ("" or 0) is UNKNOWN, not False. Reading it as falsy would
+    silently disqualify live symbols on a sloppy provider response.
+    """
+    prof = _profile(ticker)
+    if not isinstance(prof, dict):
+        return None
+    v = prof.get(field)
+    return v if isinstance(v, bool) else None
+
+
+def is_actively_trading(ticker: str) -> bool | None:
+    """FMP's own verdict on whether this SYMBOL still trades.
+
+    True / False / None, and the three are distinct on purpose: None means we
+    could not ask, which callers must not treat as False. Verified 2026-08-06 —
+    SQ False vs XYZ True for the same company, TWTR False.
+    """
+    return _flag(ticker, "isActivelyTrading")
+
+
+def is_fund(ticker: str) -> bool | None:
+    """True when the symbol is an ETF or fund rather than an operating company.
+
+    This is the REUSED-ticker case, and it turned out narrower than it looked.
+    FB was Facebook and now resolves to "ProShares S&P 500 Dynamic Buffer ETF":
+    `isActivelyTrading` is True, because the SYMBOL genuinely trades — just not
+    as the company anyone means by "FB".
+
+    A cross-provider NAME check was the obvious guard, and measuring killed it:
+    on 2026-08-06 yfinance and FMP agreed on the company name for every symbol
+    tested INCLUDING FB (both say ProShares). Both providers had correctly
+    re-pointed the symbol, so there is no disagreement to detect.
+
+    `isEtf`/`isFund` is the real signal, and it is free — same cached profile.
+
+    ⚠️ The case this deliberately does NOT chase: a ticker freed by one
+    OPERATING company and taken by another. Both providers agree on the current
+    company and its financials are CORRECT for it. That is a question of which
+    company the CALLER meant, not a data-integrity defect, and it is not
+    solvable at this layer.
+    """
+    etf, fund = _flag(ticker, "isEtf"), _flag(ticker, "isFund")
+    if etf is None and fund is None:
+        return None
+    return bool(etf) or bool(fund)
+
+
 def earnings_growth_pct(ticker: str) -> float | None:
     """Quarter-over-year-ago-quarter net-income growth %, or None.
 
-    None covers BOTH "FMP had nothing" and "the prior-year base was <= 0, so
-    the percentage is undefined". The caller cannot act differently on those
-    two anyway -- in both cases there is no honest figure to show -- and
-    collapsing them keeps this from implying a precision it does not have.
+    None covers "FMP had nothing", "the prior-year base was <= 0 so the
+    percentage is undefined", and "this symbol no longer trades". The caller
+    cannot act differently on any of them -- in every case there is no honest
+    figure to show -- and collapsing them keeps this from implying a precision
+    it does not have.
     """
     sym = (ticker or "").upper().strip()
     if not sym:
@@ -110,6 +218,24 @@ def earnings_growth_pct(ticker: str) -> float | None:
     hit = cache.get(ck)
     if hit is not None:
         return None if hit == _SENTINEL else hit
+
+    # A RETIRED symbol still gets served current filings by FMP (SQ carries
+    # Block's 2026-08-05 numbers exactly as XYZ does), so this must be asked
+    # explicitly -- no property of the figures themselves reveals it. Fails
+    # CLOSED only on a definite False; an unknown must not cost coverage.
+    if is_actively_trading(sym) is False:
+        _log.info("earnings-growth backfill declined for %s: symbol is not "
+                  "actively trading (renamed or delisted)", sym)
+        cache.set(ck, _SENTINEL, _ACTIVE_TTL)
+        return None
+
+    # An ETF/fund has no earnings to grow. FB trades actively — as a ProShares
+    # ETF — so the previous check passes it through; only this one refuses it.
+    if is_fund(sym) is True:
+        _log.info("earnings-growth backfill declined for %s: symbol is a "
+                  "fund/ETF, not an operating company", sym)
+        cache.set(ck, _SENTINEL, _ACTIVE_TTL)
+        return None
 
     try:
         rows = _ee._fmp_get("/stable/income-statement",
