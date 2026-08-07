@@ -1491,7 +1491,17 @@ def test_EVERY_live_case_declares_an_exact_expect_after_Flip_C():
     assert unregioned == [], f"cases with an unpriced region: {unregioned}"
     # ⛔ NON-VACUITY, TWICE. A loop that visited nothing satisfies both `== []`
     # above, and a `case_entry` that returned a constant would too.
-    assert live == 46, f"the live case list is {live}, not 46 — this rail lost its subject"
+    #
+    # ⭐ 46 → 47 AT chart-UX-walls TASK 6, AND THIS RAIL WAS THE HALF THAT DID NOT
+    # GET BUMPED. Task 6 added `engine_two_rsi_instances`, updated the two JS
+    # counters that guard the same corpus (`parityGateBlindness.test.js` and
+    # `flipCRecord.test.js`, both 46 → 47), and left this one at 46 — where it was
+    # INVISIBLE, because the `unregioned` assertion above fired first on the very
+    # same case and stopped the test before it got here. One declaration gap
+    # presenting as one failure was two. Bumping the number is the whole fix: the
+    # corpus really did grow by one, and an equality is what makes a corpus that
+    # grows silently impossible.
+    assert live == 47, f"the live case list is {live}, not 47 — this rail lost its subject"
     probe = cp.case_entry({**defaults, "name": "probe"}, tolerance=0, expect=None)
     assert probe["expect"] is None, "case_entry invents an expect — the check above is vacuous"
 

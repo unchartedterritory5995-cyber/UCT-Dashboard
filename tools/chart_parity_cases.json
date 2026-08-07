@@ -4086,7 +4086,60 @@
     },
     {
       "name": "engine_two_rsi_instances",
-      "why": "THE DUPLICATE, MEASURED. Side A draws ONE RSI(14) from the legacy mirror; side B draws RSI(14) AND RSI(7) from `instancesB`, one build apart, so the diff is the second line and nothing else. It is the ONLY case in the chart-UX-walls phase that moves a pixel -- the chip, its controls, the Duplicate row and the settings dialog are ALL invisible here, because ChartRender injects `#chart-export [class*=\"legend\" i]{display:none !important}` into the only route this harness photographs (see app/src/components/chart/engine/__tests__/parityGateBlindness.test.js, which derives that claim from THIS file and goes red if the export CSS ever moves). !! ONE PANE, NOT TWO: `orderedPaneKeys` dedupes by defId (paneLayout.js) and `resolvePlacement` resolves `const key = def.id` (placement.js), so both instances land on the pane keyed 'rsi' and share its 0..100 scale. MEASURED: the manifest reads THREE panes on BOTH sides (candles 352 px, volume 117 px, rsi 61 px) and every height is identical -- a pane-count or pane-height change here is a regression, not a feature, and `legendFromDefinitions.test.jsx` asserts the same premise from the renderer's side with the one-RSI chart as its control. !! THE FAIL-PROOF IS THE SECOND PERIOD, NOT A COLOUR: re-run with --perturb-b-instances '{\"period\": 14}' so both instances draw the SAME line. A colour probe would move pixels even if the second instance were never bound, and would therefore prove nothing about the duplicate. !!! MEASURED, AND THE BRIEF'S PREDICTION OF 0 IS WRONG -- IT FALLS TO 3,661 (3/3 runs, zero variance), AND THE RESIDUE IS ANTI-ALIASING, NOT A LINE. Classifying every changed pixel against the pane background settles it: on the MAIN run 43.2% is ink where side A had BACKGROUND (the RSI(7) line lands where nothing was) and 42.2% is ink that DISAPPEARED (RSI(7)'s wider excursions widen the pane's autoscale range, so the RSI(14) line itself moves) -- a genuinely different picture. On the FAIL-PROOF run 99.3% of the residue is pixels that were ALREADY ink on both sides and merely got more saturated, 0.7% (27 px) is outermost-fringe ink, and ZERO ink disappeared. Nothing moved: lightweight-charts strokes the identical path twice and the semi-transparent anti-aliased fringe composites toward the line's own colour. So the DISCRIMINATION is 11,169 -> 3,661, a 67.2% fall, with the manifest still showing `inst:rsi:1::rsi` bound on the perturbed run -- which is what proves the fall is 'two identical lines' and not 'the second instance vanished'. A future runner who gets 0 here should suspect the renderer stopped drawing the second instance, not that the fail-proof got better. !! THE MANIFEST SAYS THE SAME THING WITHOUT COSTING A PIXEL, and it is worth reading on every run: the geometry half of the diff is EXACTLY ONE line -- `panes[2].series[1]: None -> {type: Line, scaleId: right, key: 'inst:rsi:1::rsi'}`. A second SERIES in the pane the first instance already owns, on the same right scale, and nothing else. It is also what makes the fail-proof discriminating: with both instances at period 14 the pixel count collapses while THIS line is still present, so the fall is provably 'two identical lines' and not 'the second instance never bound'. !! IT IS DELIBERATELY *NOT* DECLARED AS `expectManifestChange`. Declaring it would make this case's OWN determinism controls (--instances-side none / both) exit 1 while measuring exactly the 0 they exist to measure, because neither mode can produce a second series -- a control nobody can read green is a control nobody re-runs. The failure mode it would have guarded (a build where the second instance stops binding) is already caught by the `expect` equality, which that build would miss with a 0. !! AND A 0 ON THE MAIN RUN IS A FAILURE, NOT A PASS: `expect` is an equality on EVERY run, so a build where the second instance never bound reports 0 and exits 1. That is the anti-vacuous-green rule -- `rs_line_spy_only` set the precedent by REFUSING to record an expect it could only have measured as 0.",
+      "why": "THE DUPLICATE, MEASURED. Side A draws ONE RSI(14) from the legacy mirror; side B draws RSI(14) AND RSI(7) from `instancesB`, one build apart, so the diff is the second line and nothing else. It is the ONLY case in the chart-UX-walls phase that moves a pixel -- the chip, its controls, the Duplicate row and the settings dialog are ALL invisible here, because ChartRender injects `#chart-export [class*=\"legend\" i]{display:none !important}` into the only route this harness photographs (see app/src/components/chart/engine/__tests__/parityGateBlindness.test.js, which derives that claim from THIS file and goes red if the export CSS ever moves). !! ONE PANE, NOT TWO: `orderedPaneKeys` dedupes by defId (paneLayout.js) and `resolvePlacement` resolves `const key = def.id` (placement.js), so both instances land on the pane keyed 'rsi' and share its 0..100 scale. MEASURED: the manifest reads THREE panes on BOTH sides (candles 352 px, volume 117 px, rsi 61 px) and every height is identical -- a pane-count or pane-height change here is a regression, not a feature, and `legendFromDefinitions.test.jsx` asserts the same premise from the renderer's side with the one-RSI chart as its control. !! THE FAIL-PROOF IS THE SECOND PERIOD, NOT A COLOUR: re-run with --perturb-b-instances '{\"period\": 14}' so both instances draw the SAME line. A colour probe would move pixels even if the second instance were never bound, and would therefore prove nothing about the duplicate. !!! MEASURED, AND THE BRIEF'S PREDICTION OF 0 IS WRONG -- IT FALLS TO 3,661 (3/3 runs, zero variance), AND THE RESIDUE IS ANTI-ALIASING, NOT A LINE. Classifying every changed pixel against the pane background settles it: on the MAIN run 43.2% is ink where side A had BACKGROUND (the RSI(7) line lands where nothing was) and 42.2% is ink that DISAPPEARED (RSI(7)'s wider excursions widen the pane's autoscale range, so the RSI(14) line itself moves) -- a genuinely different picture. On the FAIL-PROOF run 99.3% of the residue is pixels that were ALREADY ink on both sides and merely got more saturated, 0.7% (27 px) is outermost-fringe ink, and ZERO ink disappeared. Nothing moved: lightweight-charts strokes the identical path twice and the semi-transparent anti-aliased fringe composites toward the line's own colour. So the DISCRIMINATION is 11,169 -> 3,661, a 67.2% fall, with the manifest still showing `inst:rsi:1::rsi` bound on the perturbed run -- which is what proves the fall is 'two identical lines' and not 'the second instance vanished'. A future runner who gets 0 here should suspect the renderer stopped drawing the second instance, not that the fail-proof got better. !! THE MANIFEST SAYS THE SAME THING WITHOUT COSTING A PIXEL, and it is worth reading on every run: the geometry half of the diff is EXACTLY ONE line -- `panes[2].series[1]: None -> {type: Line, scaleId: right, key: 'inst:rsi:1::rsi'}`. A second SERIES in the pane the first instance already owns, on the same right scale, and nothing else. It is also what makes the fail-proof discriminating: with both instances at period 14 the pixel count collapses while THIS line is still present, so the fall is provably 'two identical lines' and not 'the second instance never bound'. !! IT IS DELIBERATELY *NOT* DECLARED AS `expectManifestChange`. Declaring it would make this case's OWN determinism controls (--instances-side none / both) exit 1 while measuring exactly the 0 they exist to measure, because neither mode can produce a second series -- a control nobody can read green is a control nobody re-runs. The failure mode it would have guarded (a build where the second instance stops binding) is already caught by the `expect` equality, which that build would miss with a 0. !! AND A 0 ON THE MAIN RUN IS A FAILURE, NOT A PASS: `expect` is an equality on EVERY run, so a build where the second instance never bound reports 0 and exits 1. That is the anti-vacuous-green rule -- `rs_line_spy_only` set the precedent by REFUSING to record an expect it could only have measured as 0. !! THE REGIONS WERE PRICED SEPARATELY, AND ALL 11,169 PIXELS ARE IN ONE BAND. Task 6 measured the case-level `expect` and left the per-region ones undeclared, which `test_EVERY_live_case_declares_an_exact_expect_after_Flip_C` reads as an unpriced case. Measured on build `29d3d39aa247` served to BOTH sides (the engine rehearsal is ONE build), `--repeat 5`, no `--tolerance`: the distinct set is a SINGLE value per region on all five runs -- export_header 0, price_plot 0, mid_panes 0, osc_strip 11169, time_axis 0, and the computed `rest` 0. The boxes themselves are NOT hand-drawn and not copied from `rsi_only`: they are `tools/gen_parity_regions.py`'s own output, derived from a bands/panes PAIR (`_regionsFrom` stamps both identities and both sides' pane heights), which is the only form `test_every_region_block_records_the_TWO_BUILDS_it_was_derived_from` accepts -- a one-build box is a box nobody can reproduce. Under `--instances-side none` this case IS `rsi_only`'s geometry by construction (same fixture, same preset, same period; only the line COLOUR differs, which cannot move a boundary), so the deriver returns the same five rectangles and that agreement is a check, not a coincidence. An independent bounding box over the raw A/B captures agrees -- the changed-pixel bbox is exactly (0, 511, 1164, 572) and NOT ONE changed pixel lies outside the RSI pane. That is the pixel-side confirmation of the manifest's 'three panes, every height identical': the RSI(7) line AND the RSI(14) line that the widened autoscale moves both live inside the pane the two instances share, so a pixel in `price_plot` or `mid_panes` would mean a pane height had moved. !! THE COST, STATED RATHER THAN DISCOVERED: the two determinism controls above now need `--expect 0` AND STILL EXIT 1, on the `osc_strip` row (0 vs 11,169), because a region `expect` is bound to the configuration it was measured in and neither control can draw a second line. Their MEASUREMENT is unchanged and still green -- `changed=0` on every run, zero variance, measured 3/3 each -- so for those two read the `changed` column, NOT the exit code. This is the same structural artifact as the 102-per-run region-expect failures the 46 pre-existing cases report whenever both sides are the same kind of build (x5 runs = the 510 Phase C Task 15 recorded), and none of them is a changed pixel.",
+      "_regionsFrom": "gen_parity_regions.py -- bands a05c314d8ca0 panes 29d3d39aa247: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "regions": [
+        {
+          "name": "export_header",
+          "box": [
+            0,
+            0,
+            1200,
+            40
+          ],
+          "expect": 0
+        },
+        {
+          "name": "price_plot",
+          "box": [
+            0,
+            40,
+            1200,
+            392
+          ],
+          "expect": 0
+        },
+        {
+          "name": "mid_panes",
+          "box": [
+            0,
+            392,
+            1200,
+            511
+          ],
+          "expect": 0
+        },
+        {
+          "name": "osc_strip",
+          "box": [
+            0,
+            511,
+            1200,
+            572
+          ],
+          "expect": 11169
+        },
+        {
+          "name": "time_axis",
+          "box": [
+            0,
+            572,
+            1200,
+            620
+          ],
+          "expect": 0
+        }
+      ],
       "_fixedbarsReason": "NO `fixedbars` KEY ON PURPOSE. `load_cases` merges `defaults` under every case, so this inherits exactly what `rsi_only` inherits -- the same fixture, by construction rather than by a copied string that can drift when the default moves.",
       "_priceLineReason": "Same class as every case that creates an oscillator pane: the candles' dashed last-price line lands on a different scanline when pane 0's height changes, and Chromium rasterises its dash boundaries two ways at some of those rows. Side A and side B here have the SAME pane geometry, but the flag is free and the class is measured (see engine_rsi_vs_legacy's `_priceLineReason`), so it stays off.",
       "tf": "D",
