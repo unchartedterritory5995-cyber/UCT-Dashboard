@@ -6,6 +6,7 @@ import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
+import BuilderSheet from './builder/BuilderSheet'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
@@ -118,7 +119,10 @@ const CROSSHAIR_STYLES = [
 // which win over the saved prefs). StockChart derives it from those very props, so
 // the two can't drift. Non-null ⇒ the two volume-pane controls render inert with the
 // reason instead of writing a pref this chart will ignore.
-function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLibrary, volumePaneFixed = null }) {
+function ChartSettingsPanel({
+  chartSettings, onUpdateSettings, onOpenIndicatorLibrary,
+  onOpenFormulaBuilder, volumePaneFixed = null,
+}) {
   const cs = chartSettings
   const isPaid = useIsPaid()
 
@@ -455,6 +459,22 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLi
           <span className={styles.sLauncherCount}>{activeCount}</span>
           <span aria-hidden="true">→</span>
         </button>
+        {/* ⭐ PHASE D TASK 11 — THE BUILDER'S **ONE** ENTRY POINT.
+            It sits beside "Manage indicators" because it is the same act one
+            step further out: that launcher browses definitions somebody else
+            authored, this one authors a definition. Both live on the settings
+            panel, which renders only behind `chartSettings && onUpdateSettings`
+            — spec §5's mount-site scoping, and the reason a read-only chart
+            cannot sprout an author surface without a second prop that could
+            disagree with the first. */}
+        <button
+          type="button"
+          className={styles.sLauncher}
+          onClick={() => onOpenFormulaBuilder?.()}
+        >
+          <span>New formula</span>
+          <span aria-hidden="true">→</span>
+        </button>
       </div>
 
       {/* Display Options */}
@@ -710,6 +730,12 @@ function ChartToolbar({
   // read-only chart cannot sprout an add-dialog, without a second prop that
   // could disagree with the first (spec §5 "mount-site scoping").
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // ⭐ PHASE D TASK 11 — the formula builder, held here for the SAME reason the
+  // library is: it is opened from the settings panel, `Sheet` portals to
+  // `document.body`, and the panel closes on outside mousedown — so a dialog
+  // rendered as the panel's child would be unmounted by the very click that
+  // opened it.
+  const [builderOpen, setBuilderOpen] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1057,6 +1083,7 @@ function ChartToolbar({
                 chartSettings={chartSettings}
                 onUpdateSettings={onUpdateSettings}
                 onOpenIndicatorLibrary={() => setLibraryOpen(true)}
+                onOpenFormulaBuilder={() => setBuilderOpen(true)}
                 volumePaneFixed={volumePaneFixed}
               />
 
@@ -1076,6 +1103,15 @@ function ChartToolbar({
             settings={cs}
             onChange={onUpdateSettings}
             registry={engineRegistry}
+          />
+        )}
+
+        {/* Mounted at toolbar level for the same reason the library is — see the
+            comment above it and `builderOpen`'s declaration. */}
+        {canManageIndicators && (
+          <BuilderSheet
+            open={builderOpen}
+            onClose={() => setBuilderOpen(false)}
           />
         )}
 

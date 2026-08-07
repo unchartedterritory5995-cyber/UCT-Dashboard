@@ -137,6 +137,15 @@ describe('the Flip-C decision record', () => {
     // `expect` this branch has not measured on two builds is a number pretending
     // to be a gate. The live count above is what Flip C priced, and it is exactly
     // what must not change when a definition is added.
-    expect(JSON.parse(read(CASES)).cases).toHaveLength(51)
+    // ⭐ 51 -> 52 AT PHASE D TASK 11, AND THE LIVE 47 ABOVE DID NOT MOVE — which
+    // is this pair of numbers working exactly as the comment above describes.
+    // `ast_user_formula_sma20` is the fifth PLACEHOLDER: the first case for a
+    // USER-AUTHORED indicator, measured at 0 changed pixels on 5 of 5 runs with
+    // its fail-proof reading 0 IDENTICALLY, so it carries no `expect` and is not
+    // live. Its `why` records the manifest (two panes on BOTH sides — the
+    // instance never reaches the renderer at all) and the attribution probe that
+    // separates that zero from a working case: swapping ONLY the `defId` to
+    // `rsi` moves 143,540 px, 2/2 runs, zero variance.
+    expect(JSON.parse(read(CASES)).cases).toHaveLength(52)
   })
 })

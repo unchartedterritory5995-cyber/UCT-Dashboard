@@ -4179,6 +4179,27 @@
       ],
       "priceLine": false,
       "expect": 11169
+    },
+    {
+      "name": "ast_user_formula_sma20",
+      "status": "placeholder",
+      "why": "PHASE D TASK 11 -- MEASURED, AND IT **REFUSES TO REPORT A NUMBER**. This is the first case for a USER-AUTHORED indicator: `sma(close, 20)` typed into the builder, parsed by `engine/ast/parse.js`, stored as an `ast`-lane definition under a minted `u_<12 hex>` id, and instantiated here exactly as `engine_two_rsi_instances` instantiates a native. [!] IT READS 0 CHANGED PIXELS ON 5 OF 5 RUNS -- AND SO DOES ITS FAIL-PROOF. Measured on build `cad35fd228b7` (a `vite` dev server on this branch, `engine source: present`), served to BOTH sides (--same-build), --repeat 5, no --tolerance: main run 0/0/0/0/0, and `--perturb-b-instances '{\"color\": \"#ff00ff\", \"lineWidth\": 4}'` -> 0/0/0/0/0, IDENTICALLY. A case that cannot report a difference has measured nothing, so it stays a placeholder and carries no `expect`. `rs_line_spy_only` set that precedent; this is the second time it has been applied, and the zero is NOT a pass. [RED] THE MANIFEST SAYS WHY WITHOUT COSTING A PIXEL, and it is the whole finding: side A and side B are BOTH `panes=[(0, 414, [candles]), (1, 117, [volume x2])]` -- TWO panes, no third, and no series for the instance. The instance is not merely unpainted; it never reaches the renderer at all. `StockChart.jsx` hands the binder `registry: engineRegistry` and filters with `normalizeInstances(source, engineRegistry).kept` (~:6443); `engineRegistry`'s `_byId` is built ONCE at import from `[...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS]` and `AST_DEFS` is deliberately `[]`. `registerUserDefinitions` VALIDATES a user definition and returns it; nothing in the product installs it into that index. So `getDefinition('u_5ea7c0de1234')` is null, `validateInstance` fails, and the instance is dropped before layout -- which is a DIFFERENT failure from `rs_line_spy_only`'s `PaneLayoutAlertError` (there the definition EXISTS, so a pane is requested and cannot be filled; here no pane is even asked for). [!] THE ATTRIBUTION IS A MEASUREMENT, NOT AN ARGUMENT. Re-run with the SINGLE character-level change of `defId` from `u_5ea7c0de1234` to `rsi` -- same case, same settings, same fixture, same build, same URL shape -- and the number goes from 0 (5/5) to **143,540 changed pixels on 2 of 2 runs, zero variance**, with the manifest gaining `panes[2] = {height 61, series [inst:rsi:probe::rsi]}` and `panes[0].height 414 -> 352`. The defId is the only variable, so the 0 above is caused by the missing DEFINITION and by nothing else. (The probe was applied and reverted byte-identically; sha256 of this file before and after the probe both `fa1b78c44b4b...`.) [STOP] AND `?instances=` CANNOT BE MADE TO CARRY ONE. The parity URL's parameters are sym/tf/w/h/fixedbars/indicators/instances/bars/ext/priceline/company/token; `?instances=` decodes an ARRAY OF INSTANCES and `?indicators=` a partial `chart_settings` blob whose allow-list destroys any key it does not name. There is no definitions parameter, and `?fixedbars=` installs the hermetic fetch patch, so `/api/user-definitions` answers 503 on this route -- a fetch-based install could not run here either. [STOP] WHOEVER FILLS THIS IN OWES, IN THIS ORDER: (a) a seam that puts a USER definition into the registry the binder reads -- an edit to `StockChart.jsx` and/or `nativeRegistry.js`, which Task 11 does not own; (b) a way for the parity route to carry it (a `?definitions=` parameter, or an `AST_DEFS` fixture registered under `?fixedbars=`); (c) the manifest showing a THIRD pane with a bound series BEFORE any pixel number is trusted -- a 0 with two panes is this same vacuous green; (d) an `expect` measured on two builds, since `test_EVERY_live_case_declares_an_exact_expect_after_Flip_C` requires a case-level `expect` AND a priced `expect` on every region, and `live == 47` moves in the same commit. [!] A NOTE FOR (d): a user definition exists in NO committed base, so its A/B number can never be a Flip-C delta. It will have to be measured `--same-build` with the instance on side B only, exactly as `engine_two_rsi_instances` is.",
+      "settings": {},
+      "instancesB": [
+        {
+          "instanceId": "inst:u_5ea7c0de1234:0",
+          "defId": "u_5ea7c0de1234",
+          "defVersion": 1,
+          "inputs": {
+            "color": "#c9a84c",
+            "lineWidth": 1
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ]
     }
   ]
 }
