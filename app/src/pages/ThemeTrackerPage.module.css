@@ -439,7 +439,7 @@
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: calc(11px * var(--tt-font-scale, 1));
-  font-weight: 400;   /* only the % change is thin; symbols stay 600 */
+  font-weight: 600;   /* match the symbol/other columns; a tick shows only the tint, not a bold pulse */
   text-align: right;
   white-space: nowrap;
 }
