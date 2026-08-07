@@ -35,6 +35,10 @@ import {
   AVWAP_ANCHORS,
   AVWAP_MIN_INSTANT,
 } from './indicators'
+// ⚠️ A TEST IMPORTER, NOT A PRODUCTION ONE. `interpret.js` still has zero
+// production importers — it is wired to no surface — and this file is the second
+// test that reads it, after `engine/ast/interpret.test.js`.
+import { interpret as interpretAst } from './engine/ast/interpret.js'
 
 // vitest is normally run from `app/`, but the same suite has to resolve when it
 // is driven from the repo root. Probe both rather than assuming a cwd, and fail
@@ -571,6 +575,128 @@ describe('golden fixtures — shared with the Python lane', () => {
     const got = col(computeMFI(bars, c.params.period))
     expectSomeValues(c.expected.mfi, 'intraday5m_sessions.mfi')
     alignedClose(got, c.expected.mfi, c.relTol, 'intraday5m_sessions.mfi')
+  })
+
+  // ─── Phase D: a formula a USER wrote, walked by BOTH lanes ────────────────
+  //
+  // ⭐ THE FIRST FIXTURES WHOSE SUBJECT IS NOT AN INDICATOR THIS REPO SHIPPED.
+  // Every case above pins math somebody here wrote twice. These pin math a USER
+  // writes once, in a text box — and the claim is that
+  // `engine/ast/interpret.js` and `api/services/ast_interpret.py` produce the
+  // same column from the same CANONICAL TREE at 1e-9.
+  //
+  // ⭐⭐ ONE PARSER, TWO WALKERS. The `ast` in each fixture is the PERSISTED
+  // ARTIFACT: this lane parses (`parse.js` → `canonicalise`), the Python lane
+  // never parses at all. So these files carry a tree and not a source string,
+  // and the source rides alongside for reading only.
+  //
+  // ⚠️ THE `expected` COLUMNS WERE PRODUCED BY THE PYTHON LANE, WHICH IS WHY
+  // ASSERTING THEM *HERE* IS THE CLAIM. Asserted only in the lane that made
+  // them they would be a snapshot; asserted here they are a cross-language
+  // agreement, in exactly the direction B5's port proof used.
+
+  const astCases = ['ast_sma_20', 'ast_nan_propagation', 'ast_crossover']
+
+  /** The one column an AST case declares, plus this lane's own answer. */
+  const astCol = (name) => {
+    const c = loadCase(name)
+    const bars = caseBars(c)
+    const keys = Object.keys(c.expected)
+    expect(keys.length, `${name}: an AST case produces exactly one column`).toBe(1)
+    return { c, bars, key: keys[0], got: Array.from(interpretAst(c.ast, bars)) }
+  }
+
+  it.each(astCases)('%s — the JS walker reproduces the Python lane at 1e-9', (name) => {
+    const { c, bars, key, got } = astCol(name)
+    expect(got.length, `${name}.${key}: not aligned to bars`).toBe(bars.length)
+    expectSomeValues(c.expected[key], `${name}.${key}`)
+    alignedClose(got, c.expected[key], c.relTol, `${name}.${key}`)
+  })
+
+  it.each(astCases)('%s — reads the SHARED parity series, not a copy', (name) => {
+    // ⭐ The same 579 bars `tools/chart_parity.py` renders through `?fixedbars=`
+    // and `replay_bars.json#intraday5m` resolves. Regenerate that file and these
+    // columns go red in both lanes — which is what should happen, because every
+    // number measured against those bars has just expired.
+    const { c, bars } = astCol(name)
+    expect(c.bars, `${name} grew its own bars`).toBeUndefined()
+    expect(c.barsFrom).toBe('app/src/pages/parityBars/intraday5m.json')
+    expect(c.kind).toBe('ast')
+    expect(bars.length).toBe(579)
+  })
+
+  it('ast_nan_propagation — the holes are IN THE MIDDLE, which a truncating lane passes', () => {
+    // 🔴 THE CROSS-LANE TRAP THIS CASE EXISTS FOR: `x / 0` is `Infinity` here and
+    // a `ZeroDivisionError` in Python. Both lanes must answer the SAME hole, and
+    // a head-only pad would be satisfied by any lane that merely starts late.
+    const { c, bars, got } = astCol('ast_nan_propagation')
+    const exp = c.expected.value
+    const first = exp.findIndex(v => v !== null)
+    expect(first).toBe(1)
+    const holes = exp.map((v, i) => (v === null && i > first ? i : -1)).filter(i => i > 0)
+    expect(holes.length, 'the mid-column holes changed').toBe(21)
+    holes.forEach((i) => {
+      expect(bars[i].c, `bar ${i} is a hole but the tape is not flat there`).toBe(bars[i - 1].c)
+      expect(Number.isNaN(got[i]), `this lane filled hole ${i} with ${got[i]}`).toBe(true)
+    })
+    // …and this lane really does produce ±Infinity there before the boundary
+    // normalises it, so the equality above is not an accident of both lanes
+    // happening to be short.
+    expect(got.filter(Number.isFinite).length).toBe(exp.filter(v => v !== null).length)
+  })
+
+  it('ast_crossover — the {0,1,NaN} domain, and it FIRES', () => {
+    const { c, got } = astCol('ast_crossover')
+    const exp = c.expected.event
+    exp.forEach((v, i) => {
+      expect(v === null || v === 0 || v === 1, `event[${i}] = ${v}`).toBe(true)
+    })
+    got.forEach((v, i) => {
+      expect(v === 0 || v === 1 || Number.isNaN(v), `got[${i}] = ${v}`).toBe(true)
+      // ⚠️ TYPE, NOT ONLY VALUE. A `Float64Array` cannot hold a boolean, so this
+      // lane gets the domain for free and the Python lane has to assert it — see
+      // `test_the_crossover_fixture_is_0_1_or_None_BY_TYPE_and_actually_FIRES`.
+      // Pinned here anyway so the two lanes state the same rule.
+      expect(typeof v).toBe('number')
+    })
+    expect(exp.filter(v => v === 1).length, 'the crossover stopped firing').toBe(38)
+    expect(got.slice(0, 20).every(Number.isNaN)).toBe(true)
+    expect(Number.isNaN(got[20])).toBe(false)
+  })
+
+  it.each(astCases)('%s — a 1e-6 perturbation turns THIS lane red (the tolerance, measured)', (name) => {
+    // 🔴 A tolerance nobody has ever seen fail is a tolerance nobody knows the
+    // value of. One number is moved by 1e-6 — a THOUSAND times the 1e-9 bar —
+    // and `alignedClose`'s comparison must reject it. Applied to a COPY, so no
+    // fixture file is touched.
+    const { c, key, got } = astCol(name)
+    const exp = c.expected[key]
+    const i = exp.findIndex(v => v !== null && v !== 0)
+    const moved = exp[i] * (1 + 1e-6)
+    expect(moved).not.toBe(exp[i])
+    const ok = (g, e) => Math.abs(g - e) <= c.relTol * Math.max(1, Math.abs(e))
+    expect(ok(got[i], moved), `a 1e-6 move still compares EQUAL at ${c.relTol}`).toBe(false)
+    expect(ok(got[i], exp[i]), 'the UNPERTURBED value must still pass').toBe(true)
+  })
+
+  it('the AST fixtures carry a CANONICAL tree — four node types, four keys', () => {
+    // The wire format, asserted on the persisted artifact itself. A fifth node
+    // type or a fifth key means the two lanes disagree about the wire shape, and
+    // a walker that guessed would be running a tree nobody authored.
+    const types = new Set(); const keys = new Set()
+    for (const name of astCases) {
+      const stack = [loadCase(name).ast]
+      while (stack.length) {
+        const n = stack.pop()
+        if (Array.isArray(n)) { stack.push(...n); continue }
+        if (!n || typeof n !== 'object') continue
+        types.add(n.type)
+        Object.keys(n).forEach(k => keys.add(k))
+        Object.values(n).forEach(v => { if (v && typeof v === 'object') stack.push(v) })
+      }
+    }
+    expect([...types].sort()).toEqual(['call', 'num', 'op', 'series'])
+    expect([...keys].sort()).toEqual(['args', 'name', 'type', 'value'])
   })
 })
 

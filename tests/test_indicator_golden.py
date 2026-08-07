@@ -70,6 +70,32 @@ VWAP_CASES = ["vwap_extended_hours_utc_midnight", "vwap_dst_transition"]
 # lie about its own shape at exactly one row.
 RS_LINE_CASES = ["rs_line_spy"]
 
+# ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
+# STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
+# `RS_LINE_CASES` directly above, for a different constraint.
+#
+#   1. THEY ARE NOT DISPATCHABLE THROUGH `compute_case`. Its signature is
+#      `compute_case(kind, bars, params)`: a fixture names an indicator and hands
+#      it a params OBJECT. A user formula's "params" is a TREE, and the function
+#      that walks it is `ast_interpret.interpret(ast, bars, inputs)` — a different
+#      arity carrying a different kind of thing. Giving `_CASE_COLUMNS` an `ast`
+#      row would mean smuggling the tree through `params`, and the dispatch would
+#      be lying about its own shape at exactly those rows. `rs_line` has no row
+#      for precisely this reason and says so in `indicator_compute.py`; this is
+#      that ruling applied to the second case that meets it. (`_CASE_COLUMNS` is
+#      therefore UNTOUCHED and its ledger anchor still matches exactly once.)
+#
+#   2. `test_columns_are_null_padded_then_continuous` WOULD HAVE TO BE WEAKENED,
+#      and weakening it is the defect this phase keeps re-finding. That test
+#      forbids a hole after the first value, which is right for every NATIVE
+#      indicator — they pad at the head and then compute forever. A user formula
+#      can go non-computable on ANY bar: `close / change(close)` divides by zero
+#      wherever the tape is flat, and `ast_nan_propagation` has 21 such holes, in
+#      the middle, on purpose. Adding these to `CASES` would have forced that rail
+#      to allow holes for everybody — extending a control's scope without
+#      re-deriving its floor is how a floor quietly stops being one.
+AST_CASES = ["ast_sma_20", "ast_nan_propagation", "ast_crossover"]
+
 # Cases whose bars live in another file. The indirection is the point — see
 # `_generate.py::_write_referenced` — so it gets its own list rather than being
 # inferred, and `test_a_referenced_case_really_is_referenced` guards it.
@@ -210,7 +236,7 @@ def test_obv_has_no_pad_at_all_because_bar_zero_is_seeded_with_zero():
 def test_every_fixture_file_is_covered_by_a_test():
     """A fixture nobody reads is a fixture nobody maintains."""
     on_disk = {p.stem for p in FIX.glob("*.json")}
-    listed = set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES)
+    listed = set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(AST_CASES)
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )
@@ -1202,6 +1228,163 @@ def test_compute_case_has_NO_rs_line_row_because_it_carries_ONE_bars():
         ic.compute_case("rs_line", load_case("rs_line_spy")["bars"], {"benchmark": "SPY"})
     assert ic.case_columns("avwap") == ("avwap",)
     assert ic.case_columns("atr_bands") == ("upper", "middle", "lower")
+
+
+# ─── the AST lane: a formula a USER wrote, read by both lanes ────────────────
+#
+# ⭐ THESE ARE THE FIRST FIXTURES WHOSE SUBJECT IS NOT AN INDICATOR THIS REPO
+# SHIPPED. Every case above pins math somebody here wrote twice; these pin math a
+# USER writes once, in a text box, and which two independent walkers must agree
+# about at 1e-9 — `app/src/components/chart/engine/ast/interpret.js` and
+# `api/services/ast_interpret.py`, over the SAME canonical tree, which is the
+# persisted artifact. Neither walker was derived from the other.
+#
+# ⚠️ EXACTLY THREE FILES, AND THAT IS STRUCTURAL RATHER THAN TIDY.
+# `test_every_fixture_file_is_covered_by_a_test` globs this directory and demands
+# the stem set equal the explicit lists, so a per-user fixture is impossible to
+# add without editing a list — which is the right shape. A user's formula is
+# covered by the TABLE being covered, not by a file per user.
+
+def _ast_col(case):
+    """The one column an AST case declares, by name and by value."""
+    from api.services import ast_interpret
+
+    assert len(case["expected"]) == 1, "an AST case produces exactly one column"
+    (name, exp), = case["expected"].items()
+    got = ast_interpret.interpret(case["ast"], case_bars(case))
+    return name, got, exp
+
+
+@pytest.mark.parametrize("name", AST_CASES)
+def test_the_python_ast_lane_matches_the_golden_column(name):
+    case = load_case(name)
+    bars = case_bars(case)
+    col, got, exp = _ast_col(case)
+    assert len(got) == len(bars), f"{name}.{col} not aligned to bars"
+    assert len(exp) == len(bars), f"{name}.{col} fixture not aligned to bars"
+    assert any(v is not None for v in exp), f"{name}.{col} is entirely null"
+    for i, (g, e) in enumerate(zip(got, exp)):
+        assert _close(g, e, case["relTol"]), f"{name}.{col}[{i}]: {g!r} != {e!r}"
+
+
+@pytest.mark.parametrize("name", AST_CASES)
+def test_every_ast_fixture_reads_the_SHARED_parity_series(name):
+    """⭐ ONE SERIES, NOT A COPY. `barsFrom` points at the file
+    `tools/chart_parity.py` renders through `?fixedbars=` and the file
+    `tests/fixtures/alerts/replay_bars.json#intraday5m` resolves — so the compute
+    oracle, the rendered picture, the alert replay and the AST conformance log
+    are provably ONE series. Regenerating it turns these columns red in both
+    lanes, which is exactly what should happen: every number measured against
+    those bars has just expired.
+    """
+    case = load_case(name)
+    assert "bars" not in case, f"{name} grew its own bars"
+    assert case["barsFrom"] == "app/src/pages/parityBars/intraday5m.json"
+    assert case["kind"] == "ast"
+    assert len(case_bars(case)) == 579
+    # …and the tree really is CANONICAL — four node types, and the union of keys
+    # over the whole tree is exactly the four the wire format allows.
+    types, keys, stack = set(), set(), [case["ast"]]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+            continue
+        if not isinstance(node, dict):
+            continue
+        types.add(node.get("type"))
+        keys |= set(node)
+        for v in node.values():
+            if isinstance(v, (dict, list)):
+                stack.append(v)
+    assert types <= {"num", "series", "op", "call"}, types
+    assert keys <= {"type", "name", "value", "args"}, keys
+
+
+def test_the_nan_fixture_has_holes_IN_THE_MIDDLE_which_is_the_whole_point():
+    """⛔ THE CASE A TRUNCATING LANE PASSES.
+
+    A head-only pad is satisfied by any lane that simply starts late. This column
+    is `close / change(close)`: bar 0 is the head pad, and every bar whose close
+    equals the previous close divides by zero and is a hole in the MIDDLE. A lane
+    that mapped its non-computable value to 0 — or that dropped the rows — would
+    be caught here and nowhere else in this directory.
+
+    ⚠️ It is also the sharpest cross-lane trap in the table: `x / 0` is
+    `Infinity` in JS and a `ZeroDivisionError` in Python. Both lanes answer the
+    same hole.
+    """
+    case = load_case("ast_nan_propagation")
+    exp = case["expected"]["value"]
+    first = next(i for i, v in enumerate(exp) if v is not None)
+    assert first == 0 + 1, "the head pad moved"
+    holes = [i for i, v in enumerate(exp) if v is None and i > first]
+    assert len(holes) == 21, f"the mid-column holes changed: {holes}"
+    assert min(holes) > 40 and max(holes) > 400, "the holes clustered at one end"
+    bars = case_bars(case)
+    for i in holes:
+        assert bars[i]["c"] == bars[i - 1]["c"], (
+            f"bar {i} is a hole but the tape is not flat there — the fixture and "
+            "its own bars disagree about why the hole exists")
+
+
+def test_the_crossover_fixture_is_0_1_or_None_BY_TYPE_and_actually_FIRES():
+    """⛔ BY TYPE, BECAUSE NO VALUE CHECK CAN CATCH A BOOL ON THIS LANE.
+
+    `True == 1.0`, `True in (0.0, 1.0)` and `isinstance(True, int)` are all true
+    in Python, so a boolean rides through every value-level check and JSON-encodes
+    as `true` where the JS lane emits `1`. The JS lane gets this for free — a
+    `Float64Array` cannot hold a boolean, which is why Task 4 measured its own
+    "return true/false" mutation as a semantic no-op. This lane has to say it.
+    """
+    exp = load_case("ast_crossover")["expected"]["event"]
+    for i, v in enumerate(exp):
+        assert v is None or type(v) is float, f"event[{i}] is a {type(v).__name__}"
+        assert v is None or v in (0.0, 1.0), f"event[{i}] = {v!r}"
+    assert exp.count(1.0) == 38, "the crossover stopped firing — the case pins nothing"
+    assert exp[:20] == [None] * 20 and exp[20] is not None
+
+
+@pytest.mark.parametrize("name", AST_CASES)
+def test_a_1e_6_PERTURBATION_of_each_ast_fixture_turns_this_lane_RED(name):
+    """🔴 THE TOLERANCE IS MEASURED, NOT ASSERTED — once per fixture.
+
+    A tolerance nobody has ever seen fail is a tolerance nobody knows the value
+    of. One number in each column is moved by 1e-6 — a THOUSAND times the 1e-9
+    bar — and the comparison the test above performs must reject it. The
+    perturbation is applied to a COPY of the loaded fixture, so no file is
+    touched and no `--force` regeneration can hide behind it.
+    """
+    case = load_case(name)
+    col, got, exp = _ast_col(case)
+    i = next(i for i, v in enumerate(exp) if v is not None and v != 0.0)
+    moved = list(exp)
+    moved[i] = moved[i] * (1 + 1e-6)
+    assert moved[i] != exp[i]
+    assert not _close(got[i], moved[i], case["relTol"]), (
+        f"{name}.{col}[{i}]: a 1e-6 move ({exp[i]!r} -> {moved[i]!r}) still "
+        f"compares EQUAL at relTol {case['relTol']} — the gate cannot fail"
+    )
+    # …and the unperturbed value still passes, so the control is two-sided.
+    assert _close(got[i], exp[i], case["relTol"])
+
+
+def test_compute_case_has_NO_ast_row_because_a_FORMULA_IS_A_TREE_not_params():
+    """⛔ THE STRUCTURAL HALF OF THE SAME CLAIM `rs_line` MAKES.
+
+    `compute_case(kind, bars, params)` maps an indicator NAME onto a precise core
+    and names its columns. A user formula has no indicator name and no params
+    object — it has a canonical tree, and the thing that walks it is
+    `ast_interpret.interpret(ast, bars, inputs)`. A row here would have to smuggle
+    the tree through `params`, and `indicator_compute` would have acquired a
+    second grammar and a reason to grow a parser, which decision D-A1 forbids
+    outright. So there is no row, and this is the assertion that keeps it that way.
+    """
+    assert ic.case_columns("ast") == ()
+    with pytest.raises(KeyError):
+        ic.compute_case("ast", load_case("ast_sma_20")["ast"], {})
+    # …and `indicator_compute` still has no idea what an AST is.
+    assert not hasattr(ic, "interpret")
 
 
 @pytest.mark.parametrize(

@@ -338,6 +338,36 @@ def ast_digest(ast_id: str, rows: Iterable[Iterable[Any]]) -> str:
 # the two lanes
 # --------------------------------------------------------------------------- #
 
+#: ⭐ THE JSON-IMPORT SHIM, AND IT EXISTS SO NO OTHER TASK'S FILE HAS TO CHANGE.
+#:
+#: `interpret.js` imports `parse.js`, which does
+#: `import TABLE_JSON from './closedTable.json'`. Under Node >= 22 that is a hard
+#: `TypeError: needs an import attribute of "type: json"` — vite resolves it, a
+#: bare `node` does not, and this driver is a bare `node`. The fix everybody
+#: reaches for first is `with { type: 'json' }` in `parse.js`; that file is owned
+#: by the parser task and the manifest is owned by nobody in this phase, so the
+#: shim lives HERE instead, where it is the harness's own problem.
+#:
+#: It is a module customisation hook: a `.json` URL is loaded as an ES module
+#: whose default export is the parsed document, which is byte-for-byte what the
+#: attribute form would have produced. `shortCircuit: true` skips Node's default
+#: loader, which is where the attribute check lives.
+#:
+#: ⚠️ IT IS SCOPED TO `.json` AND NOTHING ELSE. A hook that rewrote arbitrary
+#: sources would make this lane run something other than the shipped file, and the
+#: whole point of the lane is that it runs the shipped file.
+_JS_JSON_HOOK = r"""
+import { readFile } from 'node:fs/promises'
+
+export async function load(url, context, nextLoad) {
+  if (url.endsWith('.json')) {
+    const source = await readFile(new URL(url), 'utf8')
+    return { format: 'module', shortCircuit: true, source: `export default ${source}\n` }
+  }
+  return nextLoad(url, context)
+}
+"""
+
 _JS_DRIVER = r"""
 // ONE process for the whole corpus. Seven cases would be seven node boots for
 // no reason, and each boot is ~40 ms of nothing.
@@ -346,7 +376,12 @@ _JS_DRIVER = r"""
 // double quote SPLIT under cmd.exe and selected TEN tests on this branch, and a
 // single-quoted one selected NOTHING and reported passed=None. Every case in
 // this corpus is a formula, so every case is exactly the input that trap eats.
+import { register } from 'node:module'
 import { pathToFileURL } from 'node:url'
+
+// The JSON shim, registered BEFORE the interpreter is imported. See
+// `_JS_JSON_HOOK` for why it is here rather than in `parse.js`.
+register('./jsonhook.mjs', import.meta.url)
 
 let raw = ''
 process.stdin.setEncoding('utf8')
@@ -363,9 +398,19 @@ if (typeof interpret !== 'function') {
   process.exit(3)
 }
 
+// ⛔ `Array.from`, NEVER `col.map`. `interpret` returns a `Float64Array`, and
+// TWO separate things go wrong with `.map` on one:
+//   1. `Float64Array.prototype.map` builds ANOTHER Float64Array, so the `null`
+//      this callback returns for a warmup bar is COERCED TO 0 — the pad becomes
+//      a fabricated zero, which is a number a user can arm an alert on, and the
+//      Python lane's `None` would then read as a real disagreement;
+//   2. `JSON.stringify` of a TypedArray emits an OBJECT (`{"0":…,"1":…}`), not an
+//      array, so `compare_lanes` would be handed a shape it cannot compare.
+// `Array.from(col, fn)` produces a plain Array and keeps the null.
 const out = {}
 for (const c of payload.cases) {
-  out[c.id] = interpret(c.ast, payload.bars).map(
+  out[c.id] = Array.from(
+    interpret(c.ast, payload.bars),
     (v) => (v === null || v === undefined || Number.isNaN(v) ? null : v))
 }
 process.stdout.write(JSON.stringify({ ok: true, columns: out }))
@@ -407,17 +452,24 @@ def run_js(cases: list[dict], bars: list[dict]) -> dict:
                "cases": [{"id": c["id"], "ast": c["ast"]} for c in cases]}
     tmpdir = tempfile.mkdtemp(prefix="ast_conformance_")
     driver = os.path.join(tmpdir, "driver.mjs")
+    hook = os.path.join(tmpdir, "jsonhook.mjs")
     try:
         # BYTES, and newline='' -- a python patch script on this repo that writes
         # text silently converts a whole file CRLF->LF.
+        with io.open(hook, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(_JS_JSON_HOOK)
         with io.open(driver, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(_JS_DRIVER)
         proc = subprocess.run(
             [_node(), driver], cwd=ROOT, input=json.dumps(payload),
             capture_output=True, text=True, encoding="utf-8", errors="replace")
     finally:
+        for path in (driver, hook):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
         try:
-            os.remove(driver)
             os.rmdir(tmpdir)
         except OSError:
             pass
@@ -801,7 +853,14 @@ def _guarded_eval(node: Any, bars: list[dict]) -> Any:
     try:
         return getattr(mod, "interpret")(node, bars)
     except refusal as exc:
-        raise TableRefusal(str(exc)) from exc
+        # ⭐ THE GUARD THAT FIRED RIDES ALONG, and `escape_census` reconciles it
+        # against the guard the CASE DECLARES. Without it a refusal is a boolean
+        # and the census cannot tell "refused by the door this case is about" from
+        # "refused by some other door first" -- which is exactly the state the
+        # budget cases are in today. See `_reconcile_guards`.
+        out = TableRefusal(str(exc))
+        out.guard = getattr(exc, "guard", None)
+        raise out from exc
 
 
 def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
@@ -844,6 +903,7 @@ def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
     parser_refused: list = []
     reached_a_value: list = []
     errored_incidentally: list = []
+    refusal_guards: list = []
 
     for case in cases:
         cid = case["id"]
@@ -861,8 +921,10 @@ def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
                 value = _unguarded_eval(ast, dict(scope))
             else:
                 value = _guarded_eval(ast, bars)
-        except TableRefusal:
+        except TableRefusal as exc:
             refused += 1
+            refusal_guards.append({"id": cid, "declared": case.get("guard"),
+                                   "fired": getattr(exc, "guard", None)})
             continue
         except RecursionError as exc:
             escaped.append(cid)
@@ -894,9 +956,45 @@ def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
         "parser_refused": parser_refused,
         "reached_a_value": reached_a_value,
         "errored_incidentally": errored_incidentally,
+        "refusal_guards": refusal_guards,
+        "wrong_door": _reconcile_guards(refusal_guards),
         "lane_native_reached": (_lane_native_reached(dict(scope)) if unguarded
                                 else {"names": [], "gadget": None}),
     }
+
+
+def _family(guard: Optional[str]) -> Optional[str]:
+    """`budget:nodes` -> `budget`. The DOOR, not the individual latch."""
+    if not guard:
+        return None
+    return guard.split(":", 1)[0]
+
+
+def _reconcile_guards(rows: list) -> list:
+    """Cases refused by a DIFFERENT DOOR from the one they are about.
+
+    🔴 THE REASON THIS EXISTS, MEASURED 2026-08-07 AND HANDED FORWARD BY NAME.
+    `escape_census` offers each case's JSEP tree straight to `interpret`, skipping
+    the parse->canonical door entirely. The Python lane deliberately has NO
+    parser, so EVERY jsep-shaped tree is refused by its canonical-shape check
+    (`interpret:node`) at the ROOT -- before any name, arity, window or budget is
+    ever consulted.
+
+    That refusal is honest and correct FOR THIS LANE. What it is not is evidence
+    for the claim each case makes. `too_many_nodes`, `lookback_too_deep` and
+    `nested_lookback` declare `budget:*` guards; today they are refused because
+    their nodes are the wrong SHAPE, and they would be refused by that same check
+    with no budget in the product at all. A verdict of CLOSED that did not say so
+    would hand the budget task a green that started green -- the exact vacuous
+    shape this whole census exists to refuse.
+
+    So the reconciliation is REPORTED rather than folded into the exit code: the
+    four codes are a contract the budget task reads its own baseline from, and a
+    fifth (or a re-pointed first) would break it. The number to fix is here, in
+    the open, with the cases named.
+    """
+    return [r for r in rows
+            if r.get("declared") and _family(r["declared"]) != _family(r["fired"])]
 
 
 #: `escape_verdict` exit codes. Distinct on purpose: "there is no guard yet" and
@@ -943,6 +1041,19 @@ def escape_verdict(guarded: dict, control: dict) -> tuple:
         return EXIT_ESCAPES, lines
     lines.append("  VERDICT: CLOSED -- zero escapes, and the control proves the "
                  "corpus could have reported one.")
+    wrong = guarded.get("wrong_door") or []
+    if wrong:
+        lines.append(
+            f"  ⚠ AND THE ZERO IS NARROWER THAN IT LOOKS: {len(wrong)} of the "
+            f"{guarded['refused']} refusals came from a DIFFERENT DOOR than the "
+            "case declares")
+        lines.append(
+            f"    {[r['id'] for r in wrong]} -- each declares "
+            f"{sorted({r['declared'] for r in wrong})} and each was refused by "
+            f"{sorted({r['fired'] for r in wrong})}.")
+        lines.append(
+            "    Those claims are NOT tested by this run, and would read the same "
+            "with no budget in the product at all.")
     return EXIT_CLOSED, lines
 
 
@@ -999,6 +1110,14 @@ def _print_census(res: dict) -> None:
     print(f"    incidental error : {len(res['errored_incidentally'])}")
     for row in res["errored_incidentally"]:
         print(f"      {row['id']}: {row['error']}")
+    wrong = res.get("wrong_door") or []
+    if wrong:
+        print(f"  ⚠ REFUSED BY A DIFFERENT DOOR : {len(wrong)}")
+        print("    (refused, yes -- but NOT by the guard the case is about, so the")
+        print("     case's own claim is UNTESTED by this run. See _reconcile_guards.)")
+        for row in wrong:
+            print(f"      {row['id']}: declares {row['declared']}, "
+                  f"fired {row['fired']}")
     native = res.get("lane_native_reached") or {}
     if native.get("names") or native.get("gadget"):
         print("  LANE-NATIVE CONTROL (an incidental error above is the WRONG")
@@ -1034,6 +1153,33 @@ def _cmd_record(force: bool) -> int:
               "A conformance log recorded over a disagreement freezes the "
               "disagreement.")
         return 1
+    # ─── the recorder asserts its own NON-VACUITY, BEFORE it writes ──────────
+    #
+    # The `_gen_alert_baseline.py` shape. A log recorded over a corpus that
+    # produced nothing is a digest of nothing, and it would be cited as an
+    # agreement forever -- `--check` would keep matching it, exactly, at zero
+    # cost, for the whole life of the product.
+    per_case_finite = {c["id"]: sum(1 for v in py[c["id"]] if v is not None)
+                       for c in corpus["cases"]}
+    total_rows = len(corpus["cases"]) * len(bars)
+    finite_rows = sum(per_case_finite.values())
+    assert finite_rows, "no case produced a finite value -- the log pins nothing"
+    assert finite_rows < total_rows, (
+        "every row is finite -- no case exercises a warmup pad, so the NaN "
+        "convention (the two lanes' most likely silent disagreement, `None` here "
+        "and `NaN` there) is untested by this log")
+    blind = [c for c, n in per_case_finite.items() if not n]
+    assert not blind, (
+        f"a case produced ZERO finite values across the whole series: {blind} -- "
+        "its digest is a digest of nothing")
+    # ARMED AT TASK 2, FIRST ENFORCED AT THE RECORD. Every manifest entry must be
+    # exercised by the corpus, DERIVED from the manifest and never hand-listed.
+    manifest = load_manifest()
+    assert manifest is not None, "the manifest must exist before a log is frozen"
+    covered = assert_corpus_covers_the_table(manifest, corpus)
+    print(f"non-vacuity : {finite_rows} finite of {total_rows} rows, "
+          f"every case non-empty, {len(covered)} table entries covered")
+
     digests = {c["id"]: ast_digest(
         c["id"], [(i, repr(js[c["id"]][i]), repr(py[c["id"]][i]))
                   for i in range(len(bars))]) for c in corpus["cases"]}
