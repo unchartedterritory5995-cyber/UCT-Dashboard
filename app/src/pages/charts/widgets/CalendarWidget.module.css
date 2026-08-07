@@ -266,8 +266,9 @@
   white-space: nowrap;
   overflow: hidden;
 }
-/* Implied move — wide enough for the "Impl. Move" header (values are short, e.g. "3.4%"). */
-.imCol { width: 6.4em; }
+/* Implied move — wide enough for the "Impl. Move" header (values are short, e.g. "14%").
+   Center-aligned so the values sit directly under the middle of the header. */
+.imCol { width: 6.4em; text-align: center; }
 .sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;
@@ -275,7 +276,8 @@
 }
 /* The longer "Impl. Move" label drops the header letter-spacing so it never clips. */
 .sectionHead .imCol { letter-spacing: 0; }
-.estTag { font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
+/* "(est)" sits on its own line directly under the EPS / REV header label. */
+.estTag { display: block; margin-top: 1px; font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
 /* IM values always ride the settings text color (never the up/down surprise colors). */
 .earnRow .epsCol, .earnRow .revCol, .earnRow .imCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
 .earnRow .epsCol.pos, .earnRow .revCol.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }
