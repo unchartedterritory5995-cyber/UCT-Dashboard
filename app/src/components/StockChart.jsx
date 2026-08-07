@@ -5383,6 +5383,16 @@ export default function StockChart({
   }, [cs.chartType, sym, resolvedTf, replayMode, _extendOverlaysLive])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
+    // On ANY (re)connect of the bars stream, ALSO revalidate the closed-bar SWR poll.
+    // The `since` backfill below only patches the DEVELOPING candle (via onRealtimeBar);
+    // the CLOSED bars come from the /api/bars SWR poll, which uses refreshWhenHidden:false
+    // and does NOT auto-revalidate on an SSE reconnect (SWR's revalidateOnReconnect fires
+    // only on navigator.onLine). So a backend restart — every deploy drops all SSE at once
+    // — leaves the closed-bar series frozen at its load point until something kicks it (the
+    // "frozen after deploy" class). mutate() fires even while interval polling is paused.
+    // This is what makes a reconnect invisible for the chart, the way the price feed's 2s
+    // poll already makes reconnects invisible for the header/watchlist price.
+    try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
     // `since` filters with strict > (see _get_bars_since_response). Subtract 1ms
     // so the bar at lastBarT is INCLUDED — covers the case where a bar updated
@@ -5403,6 +5413,27 @@ export default function StockChart({
         if (e?.message) console.warn('[StockChart] gap-backfill failed:', e.message)
       })
   }, [sym, resolvedTf, onRealtimeBar])
+
+  // Revalidate the closed-bar poll when the tab/window becomes visible or refocuses.
+  // The bars SWR uses refreshWhenHidden:false + revalidateOnFocus:false, so a backgrounded
+  // tab silently pauses the 30s poll and never resumes on refocus — freezing the closed
+  // bars while the live-price feed keeps updating (price moves in the header, chart stuck).
+  // Force a revalidation on visibility/focus so the chart catches up the instant the user
+  // looks at it (pro-tool behavior), independent of the 8s watchdog. Intraday only — D/W/M
+  // evolve slowly and their 5-min poll is fine.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !isIntraday) return
+    const revalidate = () => {
+      if (document.hidden) return
+      try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+    }
+    document.addEventListener('visibilitychange', revalidate)
+    window.addEventListener('focus', revalidate)
+    return () => {
+      document.removeEventListener('visibilitychange', revalidate)
+      window.removeEventListener('focus', revalidate)
+    }
+  }, [isIntraday])
 
   // Reactivity for the canary flag: setting/clearing localStorage 'uct.barsPush.enabled'
   // takes effect on the next render with NO page reload (the plan's instant runtime
