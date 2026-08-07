@@ -40,6 +40,15 @@ constant in its own commit, after the shadow-mode soak — spec §8. Until then 
 closed lane is reachable only by asking for it explicitly (``mode="closed"``),
 which is what the tests do.
 
+⭐ AND THE LANE NOW HAS A ROLLBACK LEVER: the ``ALERT_EVAL_MODE`` **environment
+variable** overrides the constant, so the mode can be reverted from the Railway
+dashboard without a git push — the only mitigation that exists inside the
+09:15-16:20 ET push freeze. It ships INERT (no such variable is set on the web
+service) and it is read in exactly one place, inside ``eval_mode()``. The full
+argument, including why an unrecognised value is REFUSED rather than guessed at,
+is at the constant itself; the operator procedure is
+``docs/runbooks/cutover-watch.md`` §6.
+
 ⭐ AND THERE IS NOW A DOOR TO THE SIGNATURE RECEIPTS LEDGER, WITH A LOCK ON IT.
 ``admit_alert_fire`` is the only way a fire from this module reaches
 ``signature.ledger``, and it REFUSES — by raising, never by returning False —
@@ -52,6 +61,7 @@ control the moment it stops being true, so it names the gate instead, and
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from collections import defaultdict
@@ -111,10 +121,124 @@ ALERT_EVAL_MODE = "forming"        # "forming" | "closed"
 
 EVAL_MODES: tuple[str, ...] = ("forming", "closed")
 
+# ─── THE ROLLBACK LEVER: ONE ENVIRONMENT VARIABLE, NO DEPLOY ─────────────────
+#
+# ⭐ THE CONSTANT ABOVE IS THE COMMITTED DEFAULT; THIS VARIABLE OVERRIDES IT.
+# Until this existed, changing the lane was a code edit + a push + a Railway
+# build — ~10 minutes — and the pre-push hook BLOCKS pushes 09:15-16:20 ET,
+# which is precisely the window a rollback would be wanted in. The owner flips
+# the constant after Friday's close; a closed-lane defect surfaces Monday DURING
+# the session; without a lever that is a full trading session of wrong alert
+# behaviour with no mitigation. `railway variables --set ALERT_EVAL_MODE=forming`
+# is now the whole rollback, and Railway redeploys on the variable change by
+# itself.
+#
+# ⛔ THIS IS THE ROLLBACK LEVER, NOT THE CUTOVER. Task 8 flips the CONSTANT, in
+# its own commit, after the soak — setting this variable to "closed" ahead of it
+# would move production from a dashboard with no commit, no review and no test
+# run. `tools/cutover_watch.py` refuses GO while ANY override is in play, which
+# is the rail against exactly that.
+#
+# ⚠️ AN UNRECOGNISED VALUE IS REFUSED, LOUDLY, AND THE COMMITTED DEFAULT STANDS.
+# `ALERT_EVAL_MODE=closd` names no lane. The three candidate behaviours:
+#   * silently pick a lane  — how a rollback becomes a NO-OP at the worst
+#     possible moment. Rejected outright; it is one of the mutations this seam
+#     is tested against.
+#   * fail startup          — Railway then keeps serving the LAST SUCCESSFUL
+#     deploy, which still carries the OLD environment, so the mode does not
+#     change either AND the deploy is broken. Loud but doubly ineffective.
+#   * REFUSE the override, keep the committed default, and make the refusal
+#     READABLE — chosen. The operator's very next step (the readback in
+#     `docs/runbooks/cutover-watch.md` §6) says in one line that the override was
+#     refused and which lane is actually running.
+#
+# ⚠️ AND IT MUST NOT BECOME A SECOND WAY FOR THE REPORTED MODE AND THE EFFECTIVE
+# MODE TO DISAGREE. Task 8's mandated mutation is a tombstone — `eval_mode()`
+# hardcoded "closed" while the constant still reads "forming" — so this lever,
+# which legitimately makes the constant differ from the running lane, has to be
+# EXPLAINABLE rather than merely different. `eval_mode_report()` answers that in
+# one object, and its `effective` field IS `eval_mode()` itself, not a
+# re-derivation that could drift from the lane that runs.
+ALERT_EVAL_MODE_ENV = "ALERT_EVAL_MODE"
+
+#: Refusals keyed by the RAW value, so the ERROR line is logged ONCE per distinct
+#: typo while the count keeps growing. `eval_mode()` is called once per armed
+#: alert per 60 s cycle; a lever that floods 31 identical lines a minute is a
+#: lever whose one important line cannot be found. The count is exposed by
+#: `eval_mode_report()`, so the evidence survives the log window.
+_EVAL_MODE_REFUSALS: dict[str, int] = {}
+
+
+def _override_raw() -> Optional[str]:
+    """THE ONE `os.environ` READ FOR THE LANE — read at CALL time, never cached.
+
+    Cached at import, `railway variables --set` would need a process restart to
+    take effect, and a rollback that needs a second deploy is not a rollback.
+    `alert_shadow_log.enabled()` reads its flag the same way and says so for the
+    same reason. Kept as its own function so the env lookup has ONE site, the way
+    the constant has one reader — a scattered `os.environ.get` is a branch no
+    test can drive, which is the defect the one-reader rule exists against.
+    """
+    return os.environ.get(ALERT_EVAL_MODE_ENV)
+
 
 def eval_mode() -> str:
-    """Which lane an unqualified `_evaluate_one` runs. THE ONLY READER."""
+    """Which lane an unqualified `_evaluate_one` runs. THE ONLY READER.
+
+    The environment wins when it names a lane; the committed constant stands in
+    every other case — unset, blank, or unrecognised. Blank is NOT a typo: a
+    Railway variable emptied rather than deleted is how an operator un-does the
+    override, and treating "" as a refusal would log an ERROR and report a
+    refusal at exactly the moment the lever was correctly stood down.
+    """
+    raw = _override_raw()
+    candidate = (raw or "").strip().lower()
+    if not candidate:
+        return ALERT_EVAL_MODE
+    if candidate in EVAL_MODES:
+        return candidate
+    _EVAL_MODE_REFUSALS[raw] = _EVAL_MODE_REFUSALS.get(raw, 0) + 1
+    if _EVAL_MODE_REFUSALS[raw] == 1:
+        # ⚠️ ASCII ONLY IN THE MESSAGE ITSELF. cp1252 has killed a process's own
+        # stdout on this box twice; a refusal that raises while being logged is a
+        # refusal nobody reads.
+        _logger.error(
+            "[alert-eval] REFUSED %s=%r -- it names no lane (%s). The evaluation "
+            "lane is UNCHANGED and is running %r. IF THIS WAS A ROLLBACK, IT HAS "
+            "NOT TAKEN: fix the value and let Railway redeploy.",
+            ALERT_EVAL_MODE_ENV, raw, "|".join(EVAL_MODES), ALERT_EVAL_MODE)
     return ALERT_EVAL_MODE
+
+
+def eval_mode_report() -> dict:
+    """The EFFECTIVE lane and everything that decided it — the operator readback.
+
+    ⭐ `effective` IS `eval_mode()`, THE SAME CALL PRODUCTION MAKES. A report that
+    re-derived the answer from the environment could say one thing while the
+    evaluator ran another, which is the tombstone class this phase mutates for.
+    Whatever mutates the lane mutates this report with it, by construction.
+
+    Deliberately does NOT carry the committed constant: naming it here would be a
+    second reader of `ALERT_EVAL_MODE` and `test_eval_mode_is_the_ONLY_reader_of_
+    the_constant` would (correctly) go red. `tools/cutover_watch.py` prints the
+    constant beside this — through a dynamic `getattr`, for display, never as a
+    branch — so an operator sees BOTH numbers and, when they differ, the reason.
+    """
+    effective = eval_mode()
+    raw = _override_raw()
+    candidate = (raw or "").strip().lower()
+    present = bool(candidate)
+    recognised = candidate in EVAL_MODES
+    return {
+        "effective": effective,
+        "env_var": ALERT_EVAL_MODE_ENV,
+        "env_value": raw,
+        "override_present": present,
+        "override_applied": present and recognised,
+        "override_refused": present and not recognised,
+        "refusals": sum(_EVAL_MODE_REFUSALS.values()),
+        "modes": list(EVAL_MODES),
+    }
 
 
 # ─── indicator dispatch ──────────────────────────────────────────────────────

@@ -80,9 +80,20 @@ during this tool's own bring-up and the file vanished; re-upload if
 
 ### Header
 
-* **`ALERT_EVAL_MODE` / `eval_mode()`** — the constant and its only reader. If they
-  ever disagree, something has hard-coded the lane; that is Task 8's M4 tombstone
-  class and it means the flip is not what it appears to be.
+* **`ALERT_EVAL_MODE` / `eval_mode()`** — the committed constant and its only reader.
+* **`lever :`** — the line under it, and the reason the two above can now legitimately
+  differ. `ALERT_EVAL_MODE` is also an **environment variable** (§6), and when it is
+  set it sits *above* the constant. The line reads one of four ways:
+  * `… unset — EFFECTIVE LANE 'forming' is the committed constant` — the normal state.
+  * `… APPLIED — EFFECTIVE LANE 'x', overriding the constant 'y'` — an override is in
+    play. **NO-GO**, deliberately: flipping the constant while a variable pins the lane
+    changes nothing a member can see.
+  * `… REFUSED (names no lane)` — the variable is a typo. **NO-GO**, and note the
+    wording: *a rollback set this way has not taken.*
+  * `UNAVAILABLE on this pod` — deployed code older than the lever.
+* **the constant ≠ the effective lane with NO override to explain it** — that is
+  Task 8's M4 tombstone class (something has hard-coded the lane) and it refuses as
+  `eval-mode-lever-misconfigured` with the word `HARD-CODED` in the message.
 * **`deploy : N of M required accessor(s) present`** — the pod's code is checked
   against everything this tool calls, *before* anything is measured. A miss here is
   reported as `pod-code-too-old`, not as a crash. It fired on the first real run:
@@ -192,6 +203,7 @@ Every reason is **collected**, not just the first, each with a distinct code:
 | `unexpected-closed-lane-silence` | an address goes silent that nobody has accepted |
 | `deliverable-now` | an armed alert is outside its snooze window and can mail the owner |
 | `soak-muzzle-expiring` | the muzzle runs out within 7 days |
+| `eval-mode-lever-misconfigured` | the `ALERT_EVAL_MODE` **variable** is refused (a typo), or is applied and pinning the lane above the constant, or the constant and the effective lane disagree with nothing to explain it |
 
 Real output, production, 2026-08-06 22:03 ET, `BARE_EXIT=1`:
 
@@ -215,22 +227,143 @@ railway ssh --service web 'cd /app; PYTHONDONTWRITEBYTECODE=1 /opt/venv/bin/pyth
 It forces **every** code in `NOGO_REASONS` through the real `main()` against throwaway
 databases, reads the real exit code each time, and then compares what it forced
 against `NOGO_REASONS` — so a branch added without a case fails. Two **green
-controls** run alongside, because eleven cases that all expect exit 1 would also be
+controls** run alongside, because twelve cases that all expect exit 1 would also be
 passed by a tool that returns 1 unconditionally. `SELF-TEST PASSED` / exit 0 is the
 only acceptable result.
+
+The run **prints one `[alert-eval] REFUSED ALERT_EVAL_MODE='closd' …` line to stderr**
+— that is the lever case forcing a real refusal through the real evaluator, not a
+fault. The self-test also **clears `ALERT_EVAL_MODE` for every case** (restoring it
+afterwards only if it still owns the slot), so a variable exported in your shell
+cannot turn the two green controls red.
 
 ---
 
 ## 6. Rollback
 
-**The flip is one constant.** `api/services/indicator_alert_evaluator.py`, line 110:
+**There are two rollbacks and you almost always want the first one.**
+
+| | how | needs a push? | works 09:15–16:20 ET? |
+|---|---|---|---|
+| **A — the lever** | a Railway **variable** | no | **yes** |
+| **B — the constant** | edit + commit + push + build | yes | no (pre-push hook) |
+
+### A. The lever — one variable, no deploy of yours
+
+`ALERT_EVAL_MODE` is a committed constant **and** an environment variable, and the
+variable wins. `eval_mode()` is still the only reader of either.
+
+```sh
+# From the Railway-linked directory (C:\Users\Patrick\uct-dashboard):
+railway variables --service web --set "ALERT_EVAL_MODE=forming"
+```
+
+…or, identically, **Railway dashboard → web → Variables → New Variable**
+`ALERT_EVAL_MODE` = `forming`. That is the whole rollback. Nothing is committed,
+nothing is pushed, and the pre-push hook is not involved.
+
+⚠️ **Confirm a deployment actually started.** `railway variables --set` has been
+observed *both* auto-redeploying and merely staging on this project, at different CLI
+versions. Look at the service's Deployments list; if no new deployment appeared within
+about a minute, force it:
+
+```sh
+railway redeploy --service web --yes
+```
+
+⚠️ **An unrecognised value is REFUSED, not guessed.** `ALERT_EVAL_MODE=closd` names no
+lane, so the committed default keeps running, the pod logs
+`[alert-eval] REFUSED ALERT_EVAL_MODE='closd' … IF THIS WAS A ROLLBACK, IT HAS NOT
+TAKEN`, and the readback below says `override_refused: true`. **A rollback typed wrong
+does not silently half-happen — but it also does not happen, so read it back.** Only
+`forming` and `closed` are lanes (case and surrounding whitespace are forgiven; an
+*empty* value means "no override", which is how you stand the lever back down).
+
+#### How long it takes, end to end
+
+| step | time |
+|---|---|
+| set the variable (CLI or dashboard) | ~10 s |
+| Railway redeploy of `web` (build layers are already cached; this is a restart of the same code with new env, not a fresh `npm run build` of your changes) | **~2–5 min**, budget 5 |
+| old container drain (`drainingSeconds: 30`) | ~30 s |
+| next evaluator cycle picks up the new lane | ≤ 60 s (`_CYCLE_SECONDS`) |
+| **total, variable set → next evaluation runs the other lane** | **budget 6 minutes** |
+
+Railway keeps serving the last successful deploy throughout, so the site does not go
+down; `/api/*` blips for roughly a minute at the swap. **No options-tape gap** — the
+flow worker is a separate service and is not touched by a web deploy.
+
+The value is compared to the environment **on every call**, never cached at import, so
+no extra restart is needed beyond the one Railway performs for the variable change.
+
+#### How to confirm it took effect ON THE POD
+
+**Do not infer it from an alert that did or did not arrive.** Three readbacks, cheapest
+first:
+
+1. **From a signed-in browser** (no `railway ssh`, works from a phone):
+   `https://uctintelligence.com/api/indicator-alerts/latency`
+
+   ```json
+   { "mode": "forming",
+     "eval_mode": { "effective": "forming", "env_var": "ALERT_EVAL_MODE",
+                    "env_value": "forming", "override_present": true,
+                    "override_applied": true, "override_refused": false,
+                    "refusals": 0 } }
+   ```
+
+   `mode` and `eval_mode.effective` are the **same resolution**, not two calls — the
+   endpoint cannot report one lane while the evaluator runs another. `override_applied:
+   true` is the proof the variable reached *this pod*; `override_refused: true` is the
+   proof it did not.
+
+2. **`cutover_watch` header** — the `lever :` line names the effective lane and why
+   (§2). After a rollback it reads `… APPLIED — EFFECTIVE LANE 'forming', overriding
+   the constant 'closed'`, and the verdict is a deliberate **NO-GO**
+   (`eval-mode-lever-misconfigured`): you should not be re-taking the cutover while a
+   rollback is pinned.
+
+3. **On the pod, from PowerShell** (`railway ssh` mangles this under Git Bash):
+
+   ```sh
+   railway ssh --service web 'cd /app; PYTHONDONTWRITEBYTECODE=1 /opt/venv/bin/python -c "from api.services import indicator_alert_evaluator as e; print(e.eval_mode_report())" > /tmp/m.txt 2>&1; echo BARE_EXIT=$?; cat /tmp/m.txt'
+   ```
+
+#### What the rollback does NOT undo
+
+It changes **which lane the next evaluation runs**. It is not a time machine, and
+nothing below is reversed by it:
+
+* **Fires already recorded.** Rows in `indicator_alert_fires` written while the closed
+  lane ran stay exactly as they are, including their `bar_time`.
+* **Anything already delivered.** AlertBell entries, Resend emails and Discord posts
+  are gone out the door. There is no recall.
+* **Snooze / dedup state.** A fire that muzzled an alert muzzles it for its full window
+  (`SNOOZE_MAX_MINUTES` caps at 30 days). Rolling back does not re-arm it; that is
+  `tools/alert_soak_matrix.py --arm` or a per-row `snooze`.
+* **`last_value`.** Every cycle writes it, on **either** lane — so after a rollback the
+  forming lane's first cycle measures its crossing against a `prev` the *closed* lane
+  produced. Expect one cycle of that, per alert, and do not read a single odd
+  first-cycle result as evidence the rollback failed.
+* **The signature-receipts ledger, if Task 8 wired the door.** `admit_alert_fire`
+  refuses unless the lane is `closed`, so the rollback shuts the door for **future**
+  fires only; rows already admitted to `signature.ledger` remain admitted. Removing
+  them is a separate, deliberate operation.
+* **The variable itself.** It persists across redeploys and outlives the incident.
+  Clearing it (empty value, or delete it) is a second deliberate step — and until you
+  take it, `cutover_watch` will keep saying NO-GO, which is the point.
+
+### B. The constant — the permanent revert
+
+Use this when the decision is *"the closed lane is not shipping this quarter"*, not as
+an incident lever. `api/services/indicator_alert_evaluator.py`:
 
 ```python
 ALERT_EVAL_MODE = "forming"        # "forming" | "closed"
 ```
 
-Reverting is that line back to `"forming"`, one commit, one push to `master`, one
-Railway redeploy of the **web** service. Verify afterwards with the AST probe (a grep
+That line back to `"forming"`, one commit, one push to `master`, one Railway redeploy
+of the **web** service. Verify afterwards with the AST probe (a grep
 has lied about this file before — `git grep -c admit_alert_fire` once counted two
 comments):
 
@@ -247,7 +380,7 @@ PY
 …and then re-run `cutover_watch` on the pod: the header must read
 `ALERT_EVAL_MODE = 'forming'`.
 
-### How long it takes
+#### How long **B** takes
 
 | step | time |
 |---|---|
@@ -257,27 +390,22 @@ PY
 | old container drain (`drainingSeconds: 30`) | ~30 s |
 | **total, push → new behaviour live** | **budget 10 minutes** |
 
-Railway keeps serving the **last successful** deploy throughout, so the site does not
-go down; `/api/*` blips for roughly a minute at the swap. **No options-tape gap** — the
-flow worker is a separate service and is not touched by a web deploy.
+⚠️ **A committed revert does not beat a set variable.** If the lever is still set, B
+lands and the lane does not move — the variable is above the constant. Clear the
+variable in the same operation, and read back `override_present: false`.
 
-### ⚠️ Two things that will bite you mid-session
+### ⚠️ The thing that will bite you mid-session
 
-1. **There is no environment kill-switch.** `ALERT_EVAL_MODE` is a module constant, not
-   an env var, so rollback is a code change plus a deploy. Nothing can be undone from
-   the Railway dashboard. (Making it env-driven is a production change and is
-   deliberately not part of this read-only tool — see the report.)
-2. **The pre-push hook blocks pushes 09:15–16:20 ET.** That is the window in which you
-   would want to roll back. Decide *before* flipping which of these you are taking:
-   * flip late in the session so a rollback lands after 16:20 ET; **or**
-   * pre-authorise `UCT_PUSH_OVERRIDE` for the rollback push only (the ledger records
-     one prior misuse of it costing eight tape gaps — this is not that: the flow
-     worker is now a separate service and a web deploy costs a ~1-minute `/api/*`
-     blip, not a tape gap); **or**
-   * accept that the rollback waits until 16:20 ET.
+**The pre-push hook blocks pushes 09:15–16:20 ET** — precisely the window in which a
+rollback would be wanted. **That is what lever A is for, and it is why you take A and
+not B during a session.** A still requires nothing from `git` at all.
 
-   There is **no** no-deploy mitigation that restores forming-bar behaviour for real
-   members. `tools/alert_soak_matrix.py --disarm` only removes the 31 soak rows.
+If for some reason you must take **B** inside the freeze, the options are unchanged:
+pre-authorise `UCT_PUSH_OVERRIDE` for that one push (the ledger records one prior
+misuse of it costing eight tape gaps — this is not that: the flow worker is now a
+separate service and a web deploy costs a ~1-minute `/api/*` blip, not a tape gap), or
+wait for 16:20 ET. `tools/alert_soak_matrix.py --disarm` is **not** a mitigation — it
+only removes the 31 soak rows and does nothing for real members.
 
 ---
 
@@ -288,5 +416,6 @@ flow worker is a separate service and is not touched by a web deploy.
 | ~09:35 ET | first run. Expect `no-rth-shadow-rows` to have cleared within a few minutes of the open; if it has not, the shadow cron is not running. |
 | ~10:00 ET | first meaningful read — a bar is forming, so the per-address diff is real. **This is the reading the flip decision rests on.** |
 | every ~30 min | re-run. Watch `undeclared`, `unexpected` silence, and `deliverable_now`. |
-| immediately after the flip | re-run. Header must show `ALERT_EVAL_MODE = 'closed'`, and the diff should now read the *same* two lanes (the tool passes `mode=` explicitly, so it does not start comparing closed against closed). |
+| immediately after the flip | re-run. Header must show `ALERT_EVAL_MODE = 'closed'`, `lever : ALERT_EVAL_MODE unset — EFFECTIVE LANE 'closed'`, and the diff should now read the *same* two lanes (the tool passes `mode=` explicitly, so it does not start comparing closed against closed). |
 | ~15:50 ET | last read of the session. |
+| the Monday after | if the closed lane misbehaves, take **lever A** (§6). It is one variable, it works inside the push freeze, and the readback is a URL. |

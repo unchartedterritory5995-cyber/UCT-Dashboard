@@ -228,6 +228,7 @@ NOGO_REASONS: tuple[str, ...] = (
     "unexpected-closed-lane-silence",
     "deliverable-now",
     "soak-muzzle-expiring",
+    "eval-mode-lever-misconfigured",
 )
 
 
@@ -320,6 +321,7 @@ REQUIRED_ACCESSORS: tuple = (
     ("indicator_alert_service", "db_path"),
     ("indicator_alert_evaluator", "ALERT_EVAL_MODE"),
     ("indicator_alert_evaluator", "eval_mode"),
+    ("indicator_alert_evaluator", "eval_mode_report"),
     ("indicator_alert_evaluator", "all_addresses"),
     ("indicator_alert_evaluator", "resolve_address"),
     ("indicator_alert_evaluator", "_parse_params"),
@@ -359,7 +361,7 @@ REPORT_PATH_FUNCTIONS: tuple = (
     "build_report", "read_active_alerts", "read_shadow_rows", "shadow_report",
     "session_bucket", "lane_report", "_lane_pair", "declaration_check",
     "silence_shape", "silence_report", "delivery_report", "verdict", "render",
-    "module_alert_columns", "missing_accessors", "main",
+    "module_alert_columns", "missing_accessors", "lever_report", "main",
 )
 
 
@@ -367,6 +369,37 @@ def missing_accessors() -> list:
     """Names this tool calls that the DEPLOYED modules do not have."""
     return ["{}.{}".format(mod, attr) for mod, attr in REQUIRED_ACCESSORS
             if not hasattr(_MODULES[mod], attr)]
+
+
+def lever_report() -> dict:
+    """The ROLLBACK LEVER's state: is an environment override deciding the lane?
+
+    `ALERT_EVAL_MODE` can be overridden from the Railway dashboard without a
+    deploy, which is the only mitigation that exists inside the 09:15-16:20 ET
+    push freeze. That makes "the constant" and "the lane that is running" two
+    different questions for the first time, so this tool has to report BOTH and
+    say which one an operator is looking at.
+
+    ⚠️ IT ASKS THE EVALUATOR, IT DOES NOT RE-DERIVE THE ANSWER. A tool that read
+    the environment itself and applied its own rules would report the lane it
+    THINKS is running -- and on a pod whose code predates the lever that answer
+    would be confidently wrong. `eval_mode_report()["effective"]` IS
+    `eval_mode()`, the same call the evaluator makes.
+
+    Read through `getattr` (like `ALERT_EVAL_MODE` above) so a pod running code
+    older than this instrument produces `lever_known: False` and a
+    `pod-code-too-old` refusal, rather than an AttributeError that reads like a
+    broken instrument.
+    """
+    fn = getattr(ev, "eval_mode_report", None)
+    if fn is None:
+        return {"lever_known": False,
+                "note": ("this deployment predates the environment override, so "
+                         "the lane is the committed constant and there is no "
+                         "no-deploy rollback on this pod")}
+    out = dict(fn())
+    out["lever_known"] = True
+    return out
 
 
 def read_active_alerts(auth_db: str) -> list:
@@ -1032,6 +1065,41 @@ def verdict(report: dict, *, min_rth_rows: int = MIN_RTH_ROWS,
                 delivery["deliverable_ids"],
                 delivery["clock_vs_state_disagreements"]))
 
+    # ─── the rollback lever, and the three ways it makes the flip a lie ──────
+    #
+    # THE FLIP THIS TOOL GATES IS A CHANGE TO A CONSTANT. An environment
+    # override sits ABOVE that constant, so every state below means the flip
+    # would not do what the person taking it believes it does.
+    mode = report.get("mode") or {}
+    if mode.get("override_refused"):
+        add("eval-mode-lever-misconfigured",
+            "the environment sets {}={!r}, which names no lane ({}), so it was "
+            "REFUSED and the committed default is still running (eval_mode() = "
+            "{!r}). IF THAT VARIABLE WAS A ROLLBACK, IT HAS NOT TAKEN -- fix "
+            "the value and let Railway redeploy; {} call(s) have been refused so "
+            "far.".format(
+                mode.get("env_var"), mode.get("env_value"),
+                "|".join(mode.get("modes") or []), mode.get("eval_mode()"),
+                mode.get("refusals")))
+    elif mode.get("override_applied"):
+        add("eval-mode-lever-misconfigured",
+            "an environment override is IN PLAY: {}={!r} pins the lane to {!r}, "
+            "above the committed constant {!r}. Flipping the constant while this "
+            "is set changes nothing a member can see -- clear the variable first "
+            "if you mean to take the cutover, and leave it exactly where it is "
+            "if it is holding a rollback.".format(
+                mode.get("env_var"), mode.get("env_value"),
+                mode.get("eval_mode()"), mode.get("ALERT_EVAL_MODE")))
+    elif (mode.get("lever_known")
+            and mode.get("ALERT_EVAL_MODE") is not None
+            and mode.get("ALERT_EVAL_MODE") != mode.get("eval_mode()")):
+        add("eval-mode-lever-misconfigured",
+            "unexplained: the constant reads {!r} while eval_mode() returns "
+            "{!r}, and no environment override accounts for it. Something has "
+            "HARD-CODED the lane -- the tombstone class this phase mutates for "
+            "-- and the flip is not what it appears to be.".format(
+                mode.get("ALERT_EVAL_MODE"), mode.get("eval_mode()")))
+
     if delivery["expiring_soon"]:
         add("soak-muzzle-expiring",
             "{} armed alert(s) lose their muzzle in {} day(s) -- the window "
@@ -1081,6 +1149,11 @@ def build_report(auth_db: str, shadow_db: str, *, now: Optional[float] = None,
             "ALERT_EVAL_MODE": getattr(ev, "ALERT_EVAL_MODE", None),
             "eval_mode()": ev.eval_mode(),
             "flip_has_happened": ev.eval_mode() == "closed",
+            # ⭐ THE EFFECTIVE LANE, AND WHY IT IS WHAT IT IS. `eval_mode()` above
+            # already answers "which lane runs" -- these fields answer "and what
+            # decided that", which is a question the constant alone stopped being
+            # able to answer the moment the environment could override it.
+            **lever_report(),
             "forming_resolver": (
                 "indicator_alert_evaluator._evaluate_one(mode='forming') -> "
                 "value_function -> alert_series (last NON-None element)"),
@@ -1164,6 +1237,27 @@ def render(report: dict, *, limit: int = 12) -> str:
         report["mode"]["ALERT_EVAL_MODE"], report["mode"]["eval_mode()"],
         "   *** THE FLIP HAS ALREADY HAPPENED ***"
         if report["mode"]["flip_has_happened"] else ""))
+    # The lever, printed on EVERY run: the constant and the running lane are two
+    # questions now, and an operator who has just pulled the Railway variable
+    # reads the answer here rather than inferring it from an alert that did or
+    # did not arrive.
+    md = report["mode"]
+    if not md.get("lever_known"):
+        w("  lever  : UNAVAILABLE on this pod -- no environment override, so a "
+          "rollback here is a code change plus a deploy")
+    elif md.get("override_refused"):
+        w("  lever  : {}={!r} REFUSED (names no lane) -- EFFECTIVE LANE {!r}. A "
+          "rollback set this way HAS NOT TAKEN.".format(
+              md.get("env_var"), md.get("env_value"), md.get("effective")))
+    elif md.get("override_applied"):
+        w("  lever  : {}={!r} APPLIED -- EFFECTIVE LANE {!r}, overriding the "
+          "constant {!r}.".format(
+              md.get("env_var"), md.get("env_value"), md.get("effective"),
+              md.get("ALERT_EVAL_MODE")))
+    else:
+        w("  lever  : {} unset -- EFFECTIVE LANE {!r} is the committed constant. "
+          "Rollback = railway variables --set {}=forming".format(
+              md.get("env_var"), md.get("effective"), md.get("env_var")))
     w("  auth   : {}  (table {})".format(
         report["stores"]["auth_db"], report["stores"]["alerts_table"]))
     w("  shadow : {}  (table {})".format(
@@ -1506,6 +1600,14 @@ def selftest_cases() -> list:
         fx.arm("rsi", "below", 1e9, snooze_minutes=60)        # 1h < 7d horizon
         return {}
 
+    def case_eval_mode_lever(fx):
+        # FORCED BY THE REAL VARIABLE, THROUGH THE REAL EVALUATOR. `closd` is
+        # the typo the whole refusal policy exists for: it names no lane, the
+        # committed default keeps running, and an operator who set it during a
+        # rollback would otherwise have no way to learn that nothing changed.
+        healthy(fx)
+        return {"env": {ev.ALERT_EVAL_MODE_ENV: "closd"}}
+
     def case_control_go(fx):
         """CONTROL: same shape as the cases above, but GREEN.
 
@@ -1542,6 +1644,8 @@ def selftest_cases() -> list:
          case_unexpected_silence),
         ("deliverable-now", "deliverable-now", case_deliverable),
         ("soak-muzzle-expiring", "soak-muzzle-expiring", case_expiring),
+        ("eval-mode-lever-misconfigured", "eval-mode-lever-misconfigured",
+         case_eval_mode_lever),
         ("CONTROL green", None, case_control_go),
         ("CONTROL chikou-accounted", None, case_control_chikou),
     ], default_bars
@@ -1576,6 +1680,18 @@ def run_self_test() -> list:
                 saved = (getattr(dropped[0], dropped[1]) if dropped else None)
                 if dropped:
                     delattr(dropped[0], dropped[1])
+                # ⚠️ THE LEVER IS CONTROLLED FOR EVERY CASE, NOT ONLY THE ONE
+                # THAT USES IT. `ALERT_EVAL_MODE` exported in the operator's
+                # shell would otherwise put all fourteen cases -- INCLUDING BOTH
+                # GREEN CONTROLS -- into an override state, and a control that
+                # goes red for an environmental reason proves nothing about the
+                # gate.
+                env_name = ev.ALERT_EVAL_MODE_ENV
+                prev_env = os.environ.get(env_name)
+                wanted_env = (opts.get("env") or {}).get(env_name)
+                os.environ.pop(env_name, None)
+                if wanted_env is not None:
+                    os.environ[env_name] = wanted_env
                 try:
                     with contextlib.redirect_stdout(buf):
                         rc = main(argv, bars_provider=_provider(bars))
@@ -1588,6 +1704,12 @@ def run_self_test() -> list:
                         setattr(dropped[0], dropped[1], saved)
                     if shadow.DECLARED_DIFF_PATH != prev_decl:
                         shadow.DECLARED_DIFF_PATH = prev_decl
+                    # RESTORED ONLY IF THE SLOT STILL HOLDS WHAT WE PUT THERE.
+                    if os.environ.get(env_name) == wanted_env:
+                        if prev_env is None:
+                            os.environ.pop(env_name, None)
+                        else:
+                            os.environ[env_name] = prev_env
                 try:
                     report = json.loads(buf.getvalue())
                     codes = report["verdict"]["codes"]

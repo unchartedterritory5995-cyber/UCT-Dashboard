@@ -647,7 +647,7 @@ def test_every_nogo_branch_fires_and_the_exit_code_follows():
     results = cw.run_self_test()
     summary = cw.self_test_summary(results)
     assert summary["never_forced"] == []
-    assert summary["forced"] == len(cw.NOGO_REASONS) == 11
+    assert summary["forced"] == len(cw.NOGO_REASONS) == 12
     assert summary["all_fired"] is True
     assert summary["all_exit_codes_follow"] is True
     assert summary["controls_green"] is True
@@ -751,6 +751,63 @@ def test_main_returns_the_verdicts_exit_code(store, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["verdict"]["go"] is False
     assert "deliverable-now" in payload["verdict"]["codes"]
+
+
+def test_the_report_names_the_EFFECTIVE_lane_and_the_lever_that_set_it(
+        store, monkeypatch):
+    """The constant and the running lane became two questions.
+
+    `ALERT_EVAL_MODE` can now be overridden from the Railway dashboard without a
+    deploy -- the only rollback that exists inside the 09:15-16:20 ET push
+    freeze. So the header has to answer BOTH, and the effective lane has to come
+    from the evaluator rather than from this tool's own reading of the
+    environment.
+    """
+    store.arm("rsi", "above", -1e9)
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    mode = _run(store)["mode"]
+    assert mode["lever_known"] is True
+    assert mode["effective"] == "closed" == mode["eval_mode()"]
+    assert mode["override_applied"] is True
+    assert mode["ALERT_EVAL_MODE"] == "forming", (
+        "the committed constant is Task 8's to change, and the override must "
+        "not have edited it")
+
+
+def test_the_lever_refuses_the_flip_in_all_THREE_of_its_broken_states():
+    """One code, three shapes, each of which makes the flip a different lie.
+
+    Driven through `verdict()` on the bare report so each shape is independently
+    forceable -- the same reason the verdict collects reasons instead of
+    returning the first.
+    """
+    def codes(**patch):
+        mode = {"lever_known": True, "ALERT_EVAL_MODE": "forming",
+                "eval_mode()": "forming", "effective": "forming",
+                "override_present": False, "override_applied": False,
+                "override_refused": False, "env_var": "ALERT_EVAL_MODE",
+                "env_value": None, "refusals": 0,
+                "modes": ["forming", "closed"]}
+        mode.update(patch)
+        report = _bare_report()
+        report["mode"] = mode
+        return [r for r in cw.verdict(report)
+                if r["code"] == "eval-mode-lever-misconfigured"]
+
+    assert codes() == [], "the healthy lever state must not refuse"
+
+    refused = codes(override_present=True, override_refused=True,
+                    env_value="closd", refusals=4)
+    assert len(refused) == 1 and "HAS NOT TAKEN" in refused[0]["message"]
+
+    applied = codes(override_present=True, override_applied=True,
+                    env_value="closed", **{"eval_mode()": "closed",
+                                           "effective": "closed"})
+    assert len(applied) == 1 and "IN PLAY" in applied[0]["message"]
+
+    # …and the tombstone: the two disagree and NOTHING explains it.
+    tombstone = codes(**{"eval_mode()": "closed", "effective": "closed"})
+    assert len(tombstone) == 1 and "HARD-CODED" in tombstone[0]["message"]
 
 
 def test_the_report_states_which_resolvers_it_used(store):

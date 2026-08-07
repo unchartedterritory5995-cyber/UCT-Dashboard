@@ -129,11 +129,26 @@ def get_alert_latency(user: dict = Depends(get_current_user)):
     own alerts. It is the evaluator's cycle interval plus, on the closed lane,
     the time a bar takes to finish — the second term is the honest price of not
     repainting, and it is zero on the lane that does.
+
+    ⭐ IT IS ALSO THE ROLLBACK READBACK. `ALERT_EVAL_MODE` can be overridden from
+    the Railway dashboard without a deploy, and an operator who has just pulled
+    that lever needs to confirm on the POD which lane is actually running —
+    without `railway ssh` (which mangles `/opt/venv/bin/python` under Git Bash)
+    and without waiting for an alert to fire or not fire. `eval_mode` here is the
+    whole provenance: the effective lane, the variable, its raw value, and
+    whether the override was applied or REFUSED.
+
+    ⚠️ ONE RESOLUTION FEEDS BOTH FIELDS. `mode` is read out of the report rather
+    than by a second `eval_mode()` call, so this body cannot report one lane in
+    `mode` and another in `eval_mode.effective` — the disagreement Task 8's
+    tombstone mutation is built out of.
     """
-    mode = indicator_alert_evaluator.eval_mode()
+    report = indicator_alert_evaluator.eval_mode_report()
+    mode = report["effective"]
     closed = mode == "closed"
     return {
         "mode": mode,
+        "eval_mode": report,
         "cycle_seconds": _CYCLE_SECONDS,
         "worst_case_seconds": {
             tf: _CYCLE_SECONDS + (secs if closed else 0)
