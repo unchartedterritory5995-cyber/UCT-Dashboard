@@ -63,12 +63,11 @@ function fmtImPct(v) {
   if (!Number.isFinite(n)) return null
   return `${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
 }
-// Pull a symbol's implied-move % out of the enrichment overlay
-// ({ SYM: {expected_move:{pct}} }), tolerating class-share dot/hyphen notation.
+// Pull a symbol's implied-move % out of the pre-report store map ({ SYM: pct }),
+// tolerating class-share dot/hyphen notation (BRK.B vs BRK-B).
 function imLookup(imMap, sym) {
   if (!imMap || !sym) return undefined
-  const e = imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
-  return e?.expected_move?.pct
+  return imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
 }
 // Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
 function fmtRev(m) {
@@ -158,7 +157,7 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
   const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
   const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
-  const estTag = est ? <span className={styles.estTag}> (est)</span> : null
+  const estTag = est ? <span className={styles.estTag}>(est)</span> : null
   return (
     <div className={styles.section}>
       <div className={`${styles.sectionHead} ${cls}`}>
@@ -178,13 +177,13 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
             className={`${styles.epsCol} ${styles.colBtn}${sort.by === 'eps' ? ' ' + styles.colActive : ''}`}
             onClick={() => clickCol('eps')}
             title="Sort by EPS surprise"
-          >EPS{estTag}{caret('eps')}</button>
+          >EPS{caret('eps')}{estTag}</button>
           <button
             type="button"
             className={`${styles.revCol} ${styles.colBtn}${sort.by === 'rev' ? ' ' + styles.colActive : ''}`}
             onClick={() => clickCol('rev')}
             title="Sort by revenue surprise"
-          >REV{estTag}{caret('rev')}</button>
+          >REV{caret('rev')}{estTag}</button>
         </span>
       </div>
       {shown.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onSelect} selected={c.sym === selectedSym} />)}
@@ -273,12 +272,12 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   })
   const day = data?.days?.[selected] || null
 
-  // ── Implied-move ("IM") per earnings ticker for the selected day — the
-  // options-implied move from the same enrichment overlay the /calendar page uses
-  // ({ SYM: {expected_move:{pct}} }). It's the correct tight-expiry earnings move;
-  // it's only available for today's + upcoming reporters (the live options chain
-  // has no expired past expiries), so past days show "—". ──
-  const { data: imData } = useSWR(`/api/calendar/enrichment?date=${selected}`, fetcher, {
+  // ── Implied move per earnings ticker for the selected day — the HONEST
+  // pre-report move from the nightly snapshot store ({ SYM: pct }). This is right
+  // even for names that already reported (whose LIVE options straddle is
+  // IV-crushed, so /enrichment reads far too low, e.g. DDOG 3.4% vs the real
+  // ~13.7%). Instant indexed read, and has past days too. ──
+  const { data: imData } = useSWR(`/api/calendar/implied-moves?date=${selected}`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
   const imMap = imData && typeof imData === 'object' ? imData : null

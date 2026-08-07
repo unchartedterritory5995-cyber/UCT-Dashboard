@@ -235,6 +235,29 @@ def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_implied_for_date(report_date: str) -> dict[str, float]:
+    """{SYM: pct} — the HONEST pre-report implied move captured for every reporter
+    on `report_date`.
+
+    This is the whole reason the store exists: a live options chain reads an
+    IV-CRUSHED straddle once a name has reported (e.g. DDOG's true ~13.7% earnings
+    move collapses to ~3.4% the morning after), so the live /enrichment
+    `expected_move` is wrong for anything that's already reported. This store
+    captured the straddle the night BEFORE (first-write-wins per (sym,
+    report_date)), so it holds the real pre-report move. Instant indexed read.
+    """
+    if not report_date:
+        return {}
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT sym, pct FROM implied_snapshots "
+            "WHERE report_date = ? AND pct IS NOT NULL",
+            (str(report_date),),
+        ).fetchall()
+    return {r["sym"]: r["pct"] for r in rows}
+
+
 def all_symbols() -> list[str]:
     """Every symbol with at least one snapshot, ascending.
 
