@@ -5215,6 +5215,28 @@ export default function StockChart({
       return
     }
 
+    // ── Contiguity guard (mirror of classifyLiveBar's intraday guard) ──
+    // Writer B plants push bars by their OWN bucket time via series.update(). If the
+    // on-screen tail (lastBarRef, seeded from the fetched series on every setData) is
+    // MORE than one interval behind this push bar, the buckets in between are missing
+    // — the REST/SWR series is stale or still loading (post-deploy cold start, a slow
+    // ticker-switch, an in-flight full refetch). Planting here drops a LONE developing
+    // candle detached from the stale tail: the reported "yesterday's full session +
+    // one giant candle up to now" and "4-5 candles missing before the live one"
+    // artifacts. classifyLiveBar already guards the Finnhub writers against exactly
+    // this, but Writer B bypasses it — so replicate the guard here. SKIP; the
+    // stale-tail full refetch (idbStaleIntraday, keyed off the same tail) fills the
+    // gap, then push bars land contiguously. Intraday only — D/W/M new-session
+    // handling differs (see classifyLiveBar). Also skips the legit overnight/weekend
+    // session jump until the refetch lands the new session's earlier bars.
+    if (!['D', 'W', 'M'].includes(resolvedTf)) {
+      const _pbTail = lastBarRef.current
+      const _periodB = PERIOD_SECONDS[resolvedTf] || 300
+      if (_pbTail && Number.isFinite(_pbTail.time) && tSec - _pbTail.time > _periodB) {
+        return
+      }
+    }
+
     // Merge, don't overwrite: a Massive WS rollup for the CURRENT bucket may have only
     // accumulated since we subscribed (fresh ticker / tf switch), so its o/h/l can be a
     // partial slice of the bucket. Preserve the true OPEN and only EXTEND high/low from
@@ -10348,6 +10370,11 @@ export default function StockChart({
           // appends a legit new bar. (The deeper single-writer fix is Phase C.)
           const _lastT = lastBarRef.current?.time
           if (typeof _lastT === 'number' && tSec < _lastT) return
+          // Forward-contiguity guard (mirror of classifyLiveBar / Writer B): don't
+          // plant a 1m bar MORE than one interval past the tail — the minutes in
+          // between are missing (stale/loading series), and a detached bar is the
+          // "gap before the live candle" artifact. Skip; the refetch fills the gap.
+          if (typeof _lastT === 'number' && tSec - _lastT > 60) return
           if (useOhlc) {
             candleSeriesRef.current.update({
               time: tSec,
