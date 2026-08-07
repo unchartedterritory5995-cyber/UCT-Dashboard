@@ -1184,7 +1184,8 @@ def compute_live(force: bool = False) -> dict:
     traded_share = traded / len(universe) if universe else 0.0
     session_live = _session_started() and traded_share >= MIN_TRADED_SHARE
 
-    metrics = compute_metrics(levels, prices, vols)
+    members: dict = {}
+    metrics = compute_metrics(levels, prices, vols, members=members)
     metrics.update(compute_index_metrics(levels.get("index") or {}, prices))
 
     basis = None
@@ -1230,7 +1231,78 @@ def compute_live(force: bool = False) -> dict:
     with _live_lock:
         _live_cache["payload"] = payload
         _live_cache["at"] = now
+        # Beside the payload, never IN it: this endpoint is polled every 60s by
+        # every user on the Dashboard against a single-process pod, and the
+        # lists are only wanted on a click.
+        _live_cache["members"] = members
+        _live_cache["prices"] = prices
+        _live_cache["vols"] = vols
+        _live_cache["levels"] = levels
     return payload
+
+
+def _name_of(ticker: str) -> Optional[str]:
+    """Company name, or None. The modal renders `item.n ?? ''`, so an unknown
+    name is a blank cell rather than a missing row."""
+    try:
+        from api.routers.ticker_search import _name_from_cache
+        return _name_from_cache(ticker)
+    except Exception:
+        return None
+
+
+def live_drill(metric_key: str) -> dict:
+    """The names behind one live cell, in the recorded drill's item shape.
+
+    `atr`/`a50` are absent by construction — they need intraday high/low the
+    market snapshot does not carry, which is why `atr_ext_7` is in NOT_LIVE.
+    The modal already renders a missing one as an em dash.
+    """
+    with _live_lock:
+        cached = dict(_live_cache)
+    payload = cached.get("payload")
+    members = cached.get("members")
+    if not payload or members is None:
+        return {"ok": False, "items": [], "reason": "no live read cached", "as_of": None}
+    if metric_key not in DRILLABLE:
+        return {"ok": False, "items": [],
+                "reason": f"{metric_key} is carried from a prior session, not measured live",
+                "as_of": payload.get("as_of")}
+
+    names = members.get(metric_key) or []
+    levels = cached.get("levels") or {}
+    prices = cached.get("prices") or {}
+    vols = cached.get("vols") or {}
+    idx = {t: i for i, t in enumerate(levels.get("tickers") or [])}
+    prev = levels.get("prev_close")
+    avg20 = levels.get("vol_avg20")
+
+    items = []
+    for t in names:
+        c = prices.get(t)
+        if c is None:
+            continue
+        item = {"t": t, "c": round(float(c), 2)}
+        i = idx.get(t)
+        if i is not None and prev is not None:
+            p = float(prev[i])
+            if p and not np.isnan(p):
+                item["pct"] = round((float(c) - p) / p * 100, 1)
+        v = vols.get(t)
+        if i is not None and avg20 is not None and v:
+            a = float(avg20[i])
+            item["vr"] = round(float(v) / a, 1) if a and not np.isnan(a) else None
+        n = _name_of(t)
+        if n:
+            item["n"] = n
+        items.append(item)
+
+    # Biggest mover first, the order the recorded drill list uses. A name whose
+    # prior close is missing has no change to sort on and sinks to the bottom
+    # rather than leading the list from a null.
+    items.sort(key=lambda x: x.get("pct") if x.get("pct") is not None else -1e9,
+               reverse=True)
+    return {"ok": True, "items": items, "reason": None, "as_of": payload.get("as_of")}
 
 
 # ── The gate ──────────────────────────────────────────────────────────────────

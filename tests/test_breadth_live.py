@@ -875,3 +875,78 @@ def test_vol_avg20_is_nan_when_there_is_not_a_full_window():
     cdf, vdf = _frame(seed=12, n_tickers=5, n_dates=8)
     levels, _, _ = _split(cdf, vdf)
     assert np.isnan(levels["vol_avg20"]).all()
+
+
+# ── live_drill: the names behind one live cell ────────────────────────────────
+
+def test_live_drill_enriches_from_the_cached_read(monkeypatch):
+    cdf, vdf = _frame(seed=21, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    m = bl.compute_metrics(levels, prices, vols, members=members)
+
+    bl._live_cache.clear()
+    bl._live_cache.update({
+        "payload": {"ok": True, "as_of": "2026-08-07T11:00:00-04:00"},
+        "at": 1e12, "members": members, "prices": prices, "vols": vols,
+        "levels": levels,
+    })
+    monkeypatch.setattr(bl, "_name_of", lambda t: None)
+
+    # universe_count, NOT a threshold metric: a 4%-mover count on a synthetic
+    # frame is often zero, and every assertion below would then pass against an
+    # empty list while testing nothing.
+    out = bl.live_drill("universe_count")
+    assert out["ok"] is True
+    assert len(out["items"]) == m["universe_count"] > 0
+    for it in out["items"]:
+        assert set(it) <= {"t", "pct", "c", "vr", "n"}
+        assert "atr" not in it and "a50" not in it   # cannot be computed intraday
+        assert it["c"] == pytest.approx(prices[it["t"]], abs=0.005)
+        assert it["pct"] == pytest.approx(
+            (prices[it["t"]] / float(levels["prev_close"][levels["tickers"].index(it["t"])]) - 1) * 100,
+            abs=0.05,
+        )
+
+
+def test_live_drill_sorts_by_day_change_like_the_collector():
+    cdf, vdf = _frame(seed=22, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    pcts = [i["pct"] for i in bl.live_drill("universe_count")["items"]]
+    assert len(pcts) > 5 and len(set(pcts)) > 1   # an empty or flat list sorts vacuously
+    assert pcts == sorted(pcts, reverse=True)
+
+
+# A dead click must not surface an error page.
+def test_live_drill_on_a_cold_cache_returns_empty_with_a_reason():
+    bl._live_cache.clear()
+    out = bl.live_drill("up_4pct_today")
+    assert out["ok"] is False and out["items"] == [] and out["reason"]
+
+
+def test_live_drill_refuses_a_metric_that_is_not_live_measured():
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": {}, "prices": {}, "vols": {}, "levels": {}})
+    out = bl.live_drill("atr_ext_7")
+    assert out["ok"] is False and out["items"] == []
+    assert "carried" in (out["reason"] or "").lower()
+
+
+def test_a_zero_average_volume_yields_no_ratio_rather_than_infinity():
+    cdf, vdf = _frame(seed=23, n_tickers=10, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    levels["vol_avg20"] = np.zeros(len(levels["tickers"]))
+    members = {"universe_count": list(levels["tickers"])}
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    for it in bl.live_drill("universe_count")["items"]:
+        assert it.get("vr") is None
