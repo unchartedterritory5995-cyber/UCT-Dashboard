@@ -27,6 +27,7 @@ import {
   hasAnyFinite,
   registerDefinitions,
   registerUserDefinitions,
+  AST_LANE_TIER,
 } from './nativeRegistry'
 import {
   validateDefinition, COMPUTE_KINDS, SUPPORTED_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES,
@@ -736,8 +737,13 @@ const astDef = (source, over = {}) => {
   return {
     schemaVersion: SCHEMA_VERSION_JS, id: 'myFormula', version: 1,
     compute: { ...compute, ...(over.compute || {}) },
+    // ⚠️ `tier` IS `AST_LANE_TIER`, NOT A CHOICE THIS FIXTURE MAKES. It read
+    // `'free'` until Phase D Task 14 added GATE 4 — `/api/user-definitions`
+    // declares `Depends(require_paid)` on every one of its handlers, so a `free`
+    // badge on this lane is refused at registration. It is read off the registry
+    // rather than retyped so the fixture cannot drift from the gate it feeds.
     meta: {
-      name: 'My formula', shortName: 'F', category: 'Custom', tier: 'free',
+      name: 'My formula', shortName: 'F', category: 'Custom', tier: AST_LANE_TIER,
       repaint: 'non-repainting', ...(over.meta || {}),
     },
     placement: { target: 'pane', pane: { height: 0.15 } },

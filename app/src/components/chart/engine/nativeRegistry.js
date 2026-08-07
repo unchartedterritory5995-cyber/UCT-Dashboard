@@ -133,10 +133,22 @@ import { serverColumnsFor } from './serverCompute'
  *  A disagreement between the linter and a shipped badge is a FINDING FOR THE
  *  OWNER (record §2). Editing it fails three separate rails on purpose.
  *
- *  ⏳ The TIER half of the original sentence is still live here and is falsified
- *  separately (the owner's "everything is paid" ruling) — that half is Task 14's
- *  and this comment is left standing for it to rewrite in the commit that does
- *  it, rather than deleted now. */
+ *  ⏳ The TIER half of the original sentence is ALSO a shared default, and Task 14
+ *  — the commit this paragraph was left standing for — DELIBERATELY DID NOT MOVE
+ *  IT. The owner's ruling of 2026-08-06 is *"everything is paid, almost nothing is
+ *  accessible for free"*, and applied here it would re-tier SIXTEEN natives in one
+ *  edit: every indicator on the chart today, for every member, on a surface that
+ *  has shipped free since B1. That is a PAYWALL decision with a blast radius, not
+ *  a Phase D implementation detail, so it goes to the owner as a finding exactly
+ *  the way the `chikou` badge above did (record §2) rather than being taken here.
+ *
+ *  ⭐ WHAT TASK 14 DID TAKE IS THE LANE IT OWNS. The `ast` lane — a user's own
+ *  formula — is served ONLY by `/api/user-definitions`, every route of which
+ *  declares `Depends(require_paid)` on its own handler, so a `free` claim on an
+ *  `ast` definition would be a badge promising data its lane refuses to hand over.
+ *  `AST_LANE_TIER` below is that reading, and `validateAstLane`'s GATE 4 refuses a
+ *  definition whose badge disagrees with it — the same shape, and the same
+ *  argument, that put `premium` on `rsLine` when its server lane landed. */
 const nativeDef = (id, fn, meta, placement, inputs, plots) => ({
   schemaVersion: SCHEMA_VERSION,
   id,
@@ -1358,12 +1370,37 @@ export function registerDefinitions(rawDefs) {
 }
 
 /**
- * The `ast` lane's REGISTRATION-TIME gates — the three questions
+ * ⭐ THE OWNER'S RULING, 2026-08-06, CARRIED AS A TIER: *"everything is paid,
+ * almost nothing is accessible for free."*
+ *
+ * ⛔ AND IT IS A READING OF A GATE, NOT A PREFERENCE. `meta.tier` is a badge in
+ * `IndicatorLibraryDialog` and gates nothing by itself — the gate is the handler.
+ * An `ast` definition is a USER's formula and the ONLY lane that serves one is
+ * `/api/user-definitions`, whose every route declares `Depends(require_paid)` on
+ * its own handler (asserted from `router.routes`, count included, in
+ * `tests/test_user_definitions_auth.py`). So `free` on this lane would be a badge
+ * promising data the lane refuses to hand over: the silently-dead indicator this
+ * phase exists to retire, wearing a price tag instead of a compute.
+ *
+ * ⭐ THE PRECEDENT IS `rsLine`, AND IT WAS CONFIRMED RATHER THAN WAIVED. Phase C
+ * Task 14 authored it `free` before the lane that serves it existed; Task 13
+ * corrected it to `premium` because `/api/signature/columns` declares the same
+ * dependency, and the owner confirmed. The `ast` lane declares the same
+ * dependency, so it carries the same tier by the same argument.
+ *
+ * ⚠️ THIS IS DELIBERATELY NOT APPLIED TO THE SIXTEEN NATIVES. See `nativeDef`'s
+ * header: their `tier: 'free'` is a shared default with a paywall blast radius,
+ * and it is a FINDING FOR THE OWNER, not this task's edit.
+ */
+export const AST_LANE_TIER = 'premium'
+
+/**
+ * The `ast` lane's REGISTRATION-TIME gates — the four questions
  * `validateDefinition` cannot answer about a formula.
  *
  * `defSchema` already asked the three it CAN (the tree is canonical, the source
  * parses back to it, the handle is the hash). Those are pure facts about one
- * definition. These three are not:
+ * definition. These four are not:
  *
  *   1. ONE FORMULA IS ONE SERIES. `interpret` returns a single column, so a
  *      definition declaring two data plots would fill one and leave the other
@@ -1387,6 +1424,16 @@ export function registerDefinitions(rawDefs) {
  *      answer — and a declaration that disagrees with the answer is refused in
  *      BOTH directions. Under-claiming (`repaints` on maths that does not) is as
  *      false as over-claiming, and a badge a user reads is a decision they make.
+ *
+ *   4. THE TIER BADGE MUST MATCH THE LANE'S GATE (Phase D Task 14). Exactly the
+ *      shape of 3, one field over: `AST_LANE_TIER` above is a reading of
+ *      `/api/user-definitions`, which declares `Depends(require_paid)` on every
+ *      one of its handlers, so a `free` badge here is a definition promising data
+ *      its own lane refuses. Required AND checked, for the same reason the badge
+ *      in 3 is: `defSchema` lets `meta.tier` be omitted (a definition need not
+ *      gate itself) and an omitted badge on a paid lane reads as free to the
+ *      library dialog — an absent claim and a false one land a user in the same
+ *      place.
  *
  * ⛔ EVERY REFUSAL NAMES THE DOOR THAT DECIDED IT. `checkBudget` can raise a
  * `TableRefusal` from ANOTHER guard (`maxLookback` resolves functions and
@@ -1461,6 +1508,28 @@ function validateAstLane(def) {
       `A badge is a truth claim a user makes decisions on; on a lane where it can be computed, a ` +
       `declaration that disagrees is refused in BOTH directions, because under-claiming is as ` +
       `false as over-claiming.`,
+    )
+  }
+  // ⚠️ SAME EM-DASH REASON AS THE TWO ABOVE, ONE FIELD OVER. These messages name
+  // `meta.tier` without a following colon so a source-text census of the badge
+  // cannot count a sentence about it as a declaration of it.
+  if (def.meta.tier === undefined) {
+    errors.push(
+      `meta.tier — required on the "ast" lane. A user's formula is served only by ` +
+      `\`/api/user-definitions\`, which declares \`Depends(require_paid)\` on every one of its ` +
+      `handlers, so this lane is ${JSON.stringify(AST_LANE_TIER)} by the owner's 2026-08-06 ruling ` +
+      `("everything is paid, almost nothing is accessible for free"). \`defSchema\` lets the badge ` +
+      `be omitted because a definition need not gate itself; on THIS lane an omitted badge reads ` +
+      `as free in the library dialog, which is the same lie as declaring it.`,
+    )
+  } else if (def.meta.tier !== AST_LANE_TIER) {
+    errors.push(
+      `meta.tier — declared ${JSON.stringify(def.meta.tier)} but this lane is ` +
+      `${JSON.stringify(AST_LANE_TIER)}: every route of \`/api/user-definitions\` declares ` +
+      `\`Depends(require_paid)\` on its own handler, so this badge would promise data the lane ` +
+      `refuses to hand over — a definition a user can see, choose and never receive. This is ` +
+      `\`rsLine\`'s correction (Phase C Task 13, confirmed by the owner rather than waived) ` +
+      `applied to the lane that declares the same dependency.`,
     )
   }
   return errors
