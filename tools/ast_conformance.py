@@ -51,8 +51,17 @@ the subject. So this file states its own inheritances up front:
      What covers that is the golden fixtures (Task 5's three), not this file.
   2. The guarded census recognises a refusal by the interpreter's OWN exception
      type. It is blind to a guard that raises the right type for the wrong reason;
-     the per-case `refuse` fragment is what narrows that, and it is armed but not
-     enforced until a guard exists.
+     what narrows that is the GUARD RECONCILIATION -- every refusal's `.guard` is
+     compared to the guard the case DECLARES, and a mismatch is a hard finding
+     rather than a footnote. It caught a real one: for a whole day every case was
+     refused by `interpret:node` and the census read a perfectly clean zero.
+  2b. THE GUARDED CENSUS NEEDS THE JS LANE, AND THAT IS A DEPENDENCY WORTH NAMING.
+     `canonicalise` is the first door a formula meets and there is exactly one
+     parser (decision D-A1), in JS. A census that skipped it would be measuring
+     half the pipeline -- which is precisely the defect above. So the guarded run
+     shells out to node, and REFUSES (`LaneUnavailable`) rather than falling back
+     when it cannot. The UNGUARDED control needs nothing but this file, so the
+     positive control stays alive when the subject is broken.
   3. The UNGUARDED walker in this file is written HERE. It is not the interpreter
      Tasks 4/5 will write. So today's non-zero proves that THE CORPUS CAN REPORT
      NON-ZERO -- it proves nothing about the future interpreter's internals. That
@@ -67,9 +76,8 @@ the subject. So this file states its own inheritances up front:
 
 Produces: `load_corpus()`, `load_escapes()`, `load_manifest()`, `names_in(ast)`,
 `assert_corpus_covers_the_table(manifest, corpus)`, `ast_digest(ast_id, rows)`,
-`run_js(cases, bars)`, `run_py(cases, bars)`, `compare_lanes(js, py)`,
-`escape_census(*, unguarded)`. The frozen `conformance_log.json` is written by
-Task 5, not here -- there is no second lane yet.
+`run_js(cases, bars)`, `run_py(cases, bars)`, `run_js_escapes(cases, bars)`,
+`compare_lanes(js, py)`, `escape_census(*, unguarded)`.
 """
 from __future__ import annotations
 
@@ -105,6 +113,11 @@ MANIFEST_PATH = os.path.join(
     ROOT, "app", "src", "components", "chart", "engine", "ast", "closedTable.json")
 JS_INTERPRET_PATH = os.path.join(
     ROOT, "app", "src", "components", "chart", "engine", "ast", "interpret.js")
+#: The ONLY parser. `canonicalise` is the first door a user's formula meets, and
+#: the Python lane deliberately has none (decision D-A1) -- so the census cannot
+#: measure the parse->canonical door without running this file.
+JS_PARSE_PATH = os.path.join(
+    ROOT, "app", "src", "components", "chart", "engine", "ast", "parse.js")
 PY_INTERPRET_MODULE = "api.services.ast_interpret"
 
 REL_TOL = 1e-9
@@ -214,6 +227,26 @@ def generate_ast(spec: str) -> dict:
             node = {"type": "BinaryExpression", "operator": "+",
                     "left": {"type": "Literal", "value": 1, "raw": "1"},
                     "right": node}
+        return node
+    if spec.startswith("gen:seriesChain(") and spec.endswith(")"):
+        # ⭐ THE NAMES COME OUT OF THE MANIFEST, NOT OUT OF THIS FILE. A corpus
+        # case that hand-typed `close` would keep generating a tree of UNKNOWN
+        # names on the day a series is renamed -- and an unknown name is refused
+        # by `resolve:name`, at a different door, which would silently convert
+        # this case's claim into somebody else's.
+        n = int(spec[len("gen:seriesChain("):-1])
+        manifest = load_manifest()
+        if manifest is None:
+            raise ValueError(
+                "gen:seriesChain needs the manifest to name its series, and "
+                f"{os.path.relpath(MANIFEST_PATH, ROOT)} does not exist.")
+        names = sorted(manifest["series"])
+        assert names, "the manifest declares no series"
+        ident = lambda i: {"type": "Identifier", "name": names[i % len(names)]}  # noqa: E731
+        node = ident(0)
+        for i in range(1, n):
+            node = {"type": "BinaryExpression", "operator": "+",
+                    "left": node, "right": ident(i)}
         return node
     raise ValueError(f"unknown AST generator spec: {spec!r}")
 
@@ -417,8 +450,194 @@ process.stdout.write(JSON.stringify({ ok: true, columns: out }))
 """
 
 
+#: ⭐ THE ESCAPE DRIVER, AND IT RUNS THE WHOLE SHIPPED PIPELINE RATHER THAN HALF
+#: OF IT. This is the fix for the defect Task 5 measured and refused to ship a
+#: green over: the census used to hand each case's JSEP tree straight to
+#: `interpret`, and the Python lane has no parser, so EVERY case was refused at
+#: the root by `interpret:node` -- including the three `budget:*` ones, which read
+#: identically with no budget in the product at all.
+#:
+#: A user's formula travels `jsep` -> `canonicalise` -> `interpret`. The corpus
+#: holds the jsep tree, so this driver picks it up at the SECOND door and carries
+#: it through the third. Each case then meets the door its claim is about:
+#: `canonicalise:*` cases die in `parse.js`, `resolve:*` and `budget:*` cases
+#: reach `interpret.js` and die there.
+#:
+#: ⚠️ IT REPORTS THE CANONICAL TREE BACK, AS A FLAT POST-ORDER ARRAY. That tree
+#: is what the Python lane interprets, so BOTH lanes walk the same artifact and
+#: their refusals can be required to agree -- the refusal-side twin of the 1e-9
+#: value equality.
+#:
+#: ⛔ FLAT, AND THAT IS MEASURED RATHER THAN TIDY. The first draft shipped the
+#: NESTED tree and node died: `RangeError: Maximum call stack size exceeded`
+#: inside `JSON.stringify`, which is recursive, on the corpus's 4,000-deep
+#: `too_many_nodes` case. Python cannot receive it nested either -- `json.loads`
+#: recurses in C and CPython's C-recursion limit is not raisable from
+#: `setrecursionlimit`. So the wire form is an array of `{t, n|v, a:[indices]}`
+#: in post-order (root LAST), built iteratively at both ends. `_rebuild_canonical`
+#: cross-checks `node_count(rebuilt) == len(flat)`, so a decoder that dropped or
+#: duplicated a node cannot pass silently.
+_JS_ESCAPE_DRIVER = r"""
+import { register } from 'node:module'
+import { pathToFileURL } from 'node:url'
+
+register('./jsonhook.mjs', import.meta.url)
+
+let raw = ''
+process.stdin.setEncoding('utf8')
+for await (const chunk of process.stdin) raw += chunk
+const payload = JSON.parse(raw)
+
+const parse = await import(pathToFileURL(payload.parser).href)
+const interp = await import(pathToFileURL(payload.interpreter).href)
+for (const [mod, name] of [[parse, 'canonicalise'], [interp, 'interpret']]) {
+  if (typeof mod[name] !== 'function') {
+    process.stdout.write(JSON.stringify({ ok: false, error: `no \`${name}\` export` }))
+    process.exit(3)
+  }
+}
+
+const describe = (e) => `${e && e.name ? e.name : 'Error'}: ${e && e.message ? e.message : String(e)}`.slice(0, 200)
+
+// ⛔ ITERATIVE POST-ORDER. `JSON.stringify` is recursive and dies on the 4,000-
+// deep corpus case; so would any recursive flattener written to replace it.
+function flatten(root) {
+  const nodes = []
+  const index = new Map()
+  const stack = [[root, false]]
+  while (stack.length) {
+    const [n, done] = stack.pop()
+    if (n.type === 'num' || n.type === 'series') {
+      index.set(n, nodes.length)
+      nodes.push(n.type === 'num' ? { t: 'num', v: n.value } : { t: 'series', n: n.name })
+      continue
+    }
+    if (!done) {
+      stack.push([n, true])
+      const args = n.args || []
+      for (let i = args.length - 1; i >= 0; i--) stack.push([args[i], false])
+      continue
+    }
+    index.set(n, nodes.length)
+    nodes.push({ t: n.type, n: n.name, a: (n.args || []).map((x) => index.get(x)) })
+  }
+  return nodes
+}
+
+const out = {}
+for (const c of payload.cases) {
+  let ast
+  try {
+    ast = parse.canonicalise(c.jsep)
+  } catch (e) {
+    // ⛔ `instanceof` ON THE MODULE'S OWN CLASS, never a name check. The census
+    // recognises a refusal BY TYPE, and a look-alike carrying `name =
+    // 'TableRefusal'` is precisely the "right type for the wrong reason"
+    // blindness this instrument declared about itself.
+    out[c.id] = (e instanceof parse.TableRefusal)
+      ? { stage: 'canonicalise', outcome: 'refused', guard: e.guard, message: String(e.message) }
+      : { stage: 'canonicalise', outcome: 'error', error: describe(e) }
+    continue
+  }
+  const flat = flatten(ast)
+  try {
+    interp.interpret(ast, payload.bars, {})
+    out[c.id] = { stage: 'interpret', outcome: 'value', flat }
+  } catch (e) {
+    out[c.id] = (e instanceof interp.TableRefusal)
+      ? { stage: 'interpret', outcome: 'refused', guard: e.guard, message: String(e.message), flat }
+      : { stage: 'interpret', outcome: 'error', error: describe(e), flat }
+  }
+}
+process.stdout.write(JSON.stringify({ ok: true, results: out }))
+"""
+
+
+def _rebuild_canonical(flat: list) -> Any:
+    """A flat post-order array back into the canonical tree. ITERATIVE.
+
+    The root is the LAST entry, and every `a` index points strictly backwards, so
+    one forward pass builds the whole tree with no recursion at either end.
+    """
+    built: list = []
+    for row in flat:
+        kind = row["t"]
+        if kind == "num":
+            built.append({"type": "num", "value": row["v"]})
+        elif kind == "series":
+            built.append({"type": "series", "name": row["n"]})
+        else:
+            built.append({"type": kind, "name": row["n"],
+                          "args": [built[i] for i in row["a"]]})
+    if not built:
+        raise LaneUnavailable("the JS lane sent an EMPTY canonical tree")
+    root = built[-1]
+    # ⭐ THE DECODER'S OWN NON-VACUITY CHECK, against the SUBJECT's counter rather
+    # than against itself. A decoder that dropped a subtree would hand this lane a
+    # SMALLER tree -- which for the budget cases is the difference between a
+    # refusal and a value, in the direction that reads as safety.
+    mod = __import__(PY_INTERPRET_MODULE, fromlist=["node_count"])
+    counted = getattr(mod, "node_count")(root)
+    if counted != len(flat):
+        raise LaneUnavailable(
+            f"the canonical tree lost nodes crossing the lane boundary: the JS "
+            f"lane sent {len(flat)} and this lane counts {counted}.")
+    return root
+
+
+def _node_run(driver_source: str, payload: dict) -> dict:
+    """Run ONE node process over `driver_source` with `payload` on STDIN.
+
+    ARGV AS A LIST, shell=False, and the payload goes in on STDIN -- never in a
+    `-e` string: a `-t` containing a double quote SPLIT under cmd.exe and
+    selected TEN tests on this branch.
+
+    The reader is pinned `encoding='utf-8', errors='replace'`: without it Python
+    decodes the child as cp1252 and one box-drawing character raises
+    UnicodeDecodeError inside the reader thread, stdout comes back None, and the
+    verdict is a TypeError rather than a result.
+    """
+    tmpdir = tempfile.mkdtemp(prefix="ast_conformance_")
+    driver = os.path.join(tmpdir, "driver.mjs")
+    hook = os.path.join(tmpdir, "jsonhook.mjs")
+    try:
+        # BYTES, and newline='' -- a python patch script on this repo that writes
+        # text silently converts a whole file CRLF->LF.
+        with io.open(hook, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(_JS_JSON_HOOK)
+        with io.open(driver, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(driver_source)
+        proc = subprocess.run(
+            [_node(), driver], cwd=ROOT, input=json.dumps(payload),
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
+    finally:
+        for path in (driver, hook):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        try:
+            os.rmdir(tmpdir)
+        except OSError:
+            pass
+
+    if proc.returncode != 0:
+        raise LaneUnavailable(
+            f"the JS lane exited {proc.returncode}: "
+            f"{(proc.stderr or proc.stdout)[-2000:]}")
+    try:
+        doc = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise LaneUnavailable(
+            f"the JS lane printed something that is not JSON: {exc}; "
+            f"stdout was {proc.stdout[:500]!r}") from exc
+    if not doc.get("ok"):
+        raise LaneUnavailable(f"the JS lane refused: {doc.get('error')}")
+    return doc
+
+
 def js_lane_available() -> bool:
-    return os.path.exists(JS_INTERPRET_PATH)
+    return os.path.exists(JS_INTERPRET_PATH) and os.path.exists(JS_PARSE_PATH)
 
 
 def py_lane_available() -> bool:
@@ -450,43 +669,40 @@ def run_js(cases: list[dict], bars: list[dict]) -> dict:
 
     payload = {"interpreter": JS_INTERPRET_PATH, "bars": bars,
                "cases": [{"id": c["id"], "ast": c["ast"]} for c in cases]}
-    tmpdir = tempfile.mkdtemp(prefix="ast_conformance_")
-    driver = os.path.join(tmpdir, "driver.mjs")
-    hook = os.path.join(tmpdir, "jsonhook.mjs")
-    try:
-        # BYTES, and newline='' -- a python patch script on this repo that writes
-        # text silently converts a whole file CRLF->LF.
-        with io.open(hook, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(_JS_JSON_HOOK)
-        with io.open(driver, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(_JS_DRIVER)
-        proc = subprocess.run(
-            [_node(), driver], cwd=ROOT, input=json.dumps(payload),
-            capture_output=True, text=True, encoding="utf-8", errors="replace")
-    finally:
-        for path in (driver, hook):
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-        try:
-            os.rmdir(tmpdir)
-        except OSError:
-            pass
+    return _node_run(_JS_DRIVER, payload)["columns"]
 
-    if proc.returncode != 0:
+
+def run_js_escapes(cases: list[dict], bars: list[dict]) -> dict:
+    """Offer every escape case to the SHIPPED PIPELINE: canonicalise, then interpret.
+
+    Returns `{id: {"stage", "outcome", "guard"?, "message"?, "error"?, "ast"?}}`.
+
+    ⭐ THIS IS THE DOOR FIX. `interpret` alone is HALF the pipeline, and offering
+    a jsep tree to it refuses everything at the root for a reason that has nothing
+    to do with what any case claims. `canonicalise` is the first door; it lives in
+    JS because there is exactly one parser (D-A1); so the census runs it.
+
+    REFUSES rather than returning `{}` when the lane does not exist -- a census
+    that quietly stopped measuring the parse door would report the same zero.
+    """
+    if not js_lane_available():
+        missing = [os.path.relpath(p, ROOT) for p in (JS_PARSE_PATH, JS_INTERPRET_PATH)
+                   if not os.path.exists(p)]
         raise LaneUnavailable(
-            f"the JS lane exited {proc.returncode}: "
-            f"{(proc.stderr or proc.stdout)[-2000:]}")
-    try:
-        doc = json.loads(proc.stdout)
-    except json.JSONDecodeError as exc:
+            f"the JS lane is incomplete: {missing} missing. The census cannot "
+            "measure the parse->canonical door without the only parser, and "
+            "falling back to offering jsep trees straight to `interpret` is the "
+            "exact wrong-door defect this pipeline exists to fix.")
+    payload = {"parser": JS_PARSE_PATH, "interpreter": JS_INTERPRET_PATH,
+               "bars": bars,
+               "cases": [{"id": c["id"], "jsep": c["ast"]} for c in cases]}
+    results = _node_run(_JS_ESCAPE_DRIVER, payload)["results"]
+    missing_ids = sorted({c["id"] for c in cases} - set(results))
+    if missing_ids:
         raise LaneUnavailable(
-            f"the JS lane printed something that is not JSON: {exc}; "
-            f"stdout was {proc.stdout[:500]!r}") from exc
-    if not doc.get("ok"):
-        raise LaneUnavailable(f"the JS lane refused: {doc.get('error')}")
-    return doc["columns"]
+            f"the JS lane returned no verdict for {missing_ids}. A case with no "
+            "verdict would silently leave the census.")
+    return results
 
 
 def run_py(cases: list[dict], bars: list[dict]) -> dict:
@@ -835,12 +1051,14 @@ def _lane_native_reached(scope: dict) -> dict:
     return {"names": names, "gadget": gadget}
 
 
-def _guarded_eval(node: Any, bars: list[dict]) -> Any:
-    """Offer one escape tree to the SHIPPED guarded pipeline.
+def _py_outcome(ast: Any, bars: list[dict]) -> dict:
+    """Interpret ONE canonical tree in the Python lane and describe what happened.
 
-    Prefers the Python lane because this file runs in it. Raises TableRefusal for
-    a refusal and anything else for a non-refusal, which is what the census keys
-    on.
+    ⛔ IT IS HANDED THE CANONICAL TREE THE JS LANE PRODUCED, never the jsep one.
+    That is the whole door fix: this lane has no parser by design, so a jsep tree
+    offered here is refused at the root by `interpret:node` before a name, an
+    arity, a window or a budget is ever consulted -- which is how the census read
+    a zero that would have read the same with no budget in the product.
     """
     mod = __import__(PY_INTERPRET_MODULE, fromlist=["interpret"])
     refusal = getattr(mod, "TableRefusal", None)
@@ -848,19 +1066,69 @@ def _guarded_eval(node: Any, bars: list[dict]) -> Any:
         raise LaneUnavailable(
             f"{PY_INTERPRET_MODULE} exists but exports no `TableRefusal`. The "
             "census recognises a refusal by TYPE; without one it cannot tell a "
-            "closed table from a walker that happened to crash. See the runbook "
-            "for the contract Tasks 4 and 5 owe this file.")
+            "closed table from a walker that happened to crash.")
     try:
-        return getattr(mod, "interpret")(node, bars)
+        getattr(mod, "interpret")(ast, bars)
     except refusal as exc:
         # ⭐ THE GUARD THAT FIRED RIDES ALONG, and `escape_census` reconciles it
         # against the guard the CASE DECLARES. Without it a refusal is a boolean
         # and the census cannot tell "refused by the door this case is about" from
-        # "refused by some other door first" -- which is exactly the state the
-        # budget cases are in today. See `_reconcile_guards`.
-        out = TableRefusal(str(exc))
-        out.guard = getattr(exc, "guard", None)
-        raise out from exc
+        # "refused by some other door first".
+        return {"outcome": "refused", "guard": getattr(exc, "guard", None),
+                "message": str(exc)}
+    except Exception as exc:  # noqa: BLE001 -- see TableRefusal's docstring
+        return {"outcome": "error", "error": f"{type(exc).__name__}: {exc}"[:200]}
+    return {"outcome": "value"}
+
+
+def _guarded_outcomes(doc: dict, bars: list[dict]) -> tuple:
+    """Every parsed case through the SHIPPED pipeline, in BOTH lanes.
+
+    Returns `(outcomes_by_id, lane_disagreements)`.
+
+    ⭐ A REFUSAL IS A CROSS-LANE CLAIM, exactly as a value is. The conformance log
+    pins the two lanes to one NUMBER at 1e-9; this pins them to one REFUSAL, by
+    GUARD, over the same canonical tree. A table that is closed in one lane and
+    open in the other is not a closed table -- and the failure would be invisible
+    to a census that only ever asked one of them, which is what this file did.
+    So a case counts as REFUSED only when BOTH lanes refuse it AND name the same
+    guard; anything else is an escape, and the disagreement is reported by name.
+
+    ⚠️ THE CANONICALISE DOOR IS SINGLE-LANE, DECLARED RATHER THAN FORGOTTEN. There
+    is exactly one parser (decision D-A1) and it is `parse.js`; the Python lane
+    never parses. A case refused at that door therefore has no second opinion to
+    agree with, and demanding one would be demanding the second grammar the whole
+    design refuses.
+    """
+    cases = [c for c in doc["cases"] if c.get("parses", True)]
+    for case in cases:
+        if case.get("ast") is None and case.get("astFrom"):
+            case["ast"] = generate_ast(case["astFrom"])
+    js = run_js_escapes(cases, bars)
+
+    outcomes: dict = {}
+    disagreements: list = []
+    for case in cases:
+        cid = case["id"]
+        row = dict(js[cid])
+        if row["stage"] == "canonicalise" or "flat" not in row:
+            row["lanes"] = "js-only (there is one parser, and it is parse.js)"
+            outcomes[cid] = row
+            continue
+        py = _py_outcome(_rebuild_canonical(row.pop("flat")), bars)
+        row["python"] = py
+        row["lanes"] = "both"
+        if (py["outcome"], py.get("guard")) != (row["outcome"], row.get("guard")):
+            disagreements.append({
+                "id": cid,
+                "js": {"outcome": row["outcome"], "guard": row.get("guard")},
+                "py": {"outcome": py["outcome"], "guard": py.get("guard")},
+            })
+            # ⛔ A DISAGREEMENT IS NOT A REFUSAL. Crediting the lane that happened
+            # to say no would let the other lane leak forever behind a green.
+            row["outcome"] = "lane-disagreement"
+        outcomes[cid] = row
+    return outcomes, disagreements
 
 
 def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
@@ -904,6 +1172,11 @@ def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
     reached_a_value: list = []
     errored_incidentally: list = []
     refusal_guards: list = []
+    lane_disagreements: list = []
+    guarded_rows: dict = {}
+
+    if not unguarded:
+        guarded_rows, lane_disagreements = _guarded_outcomes(doc, bars)
 
     for case in cases:
         cid = case["id"]
@@ -913,14 +1186,28 @@ def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
             parser_refused.append(cid)
             continue
         parsed += 1
+        if not unguarded:
+            row = guarded_rows[cid]
+            if row["outcome"] == "refused":
+                refused += 1
+                refusal_guards.append({"id": cid, "declared": case.get("guard"),
+                                       "fired": row.get("guard"),
+                                       "stage": row.get("stage")})
+                continue
+            escaped.append(cid)
+            if row["outcome"] == "value":
+                reached_a_value.append(cid)
+            else:
+                errored_incidentally.append(
+                    {"id": cid,
+                     "error": row.get("error") or f"lane disagreement {row.get('guard')}"})
+            continue
+
         ast = case.get("ast")
         if ast is None and case.get("astFrom"):
             ast = generate_ast(case["astFrom"])
         try:
-            if unguarded:
-                value = _unguarded_eval(ast, dict(scope))
-            else:
-                value = _guarded_eval(ast, bars)
+            value = _unguarded_eval(ast, dict(scope))
         except TableRefusal as exc:
             refused += 1
             refusal_guards.append({"id": cid, "declared": case.get("guard"),
@@ -958,6 +1245,7 @@ def escape_census(*, unguarded: bool, corpus: Optional[dict] = None,
         "errored_incidentally": errored_incidentally,
         "refusal_guards": refusal_guards,
         "wrong_door": _reconcile_guards(refusal_guards),
+        "lane_disagreements": lane_disagreements,
         "lane_native_reached": (_lane_native_reached(dict(scope)) if unguarded
                                 else {"names": [], "gadget": None}),
     }
@@ -973,25 +1261,25 @@ def _family(guard: Optional[str]) -> Optional[str]:
 def _reconcile_guards(rows: list) -> list:
     """Cases refused by a DIFFERENT DOOR from the one they are about.
 
-    🔴 THE REASON THIS EXISTS, MEASURED 2026-08-07 AND HANDED FORWARD BY NAME.
-    `escape_census` offers each case's JSEP tree straight to `interpret`, skipping
-    the parse->canonical door entirely. The Python lane deliberately has NO
-    parser, so EVERY jsep-shaped tree is refused by its canonical-shape check
-    (`interpret:node`) at the ROOT -- before any name, arity, window or budget is
-    ever consulted.
+    🔴 WHY THIS EXISTS, MEASURED 2026-08-07, AND WHAT CHANGED 2026-08-08.
+    `escape_census` USED TO offer each case's JSEP tree straight to `interpret`,
+    skipping the parse->canonical door entirely. The Python lane deliberately has
+    NO parser, so EVERY jsep-shaped tree was refused by its canonical-shape check
+    (`interpret:node`) at the ROOT -- before any name, arity, window or budget was
+    ever consulted. All fifteen cases read `refused`; the census read `0 escaped`;
+    and the three `budget:*` cases read EXACTLY THE SAME as they would have with
+    no budget in the product at all.
 
-    That refusal is honest and correct FOR THIS LANE. What it is not is evidence
-    for the claim each case makes. `too_many_nodes`, `lookback_too_deep` and
-    `nested_lookback` declare `budget:*` guards; today they are refused because
-    their nodes are the wrong SHAPE, and they would be refused by that same check
-    with no budget in the product at all. A verdict of CLOSED that did not say so
-    would hand the budget task a green that started green -- the exact vacuous
-    shape this whole census exists to refuse.
+    Task 5 measured that, refused to claim the zero, and wrote this function so
+    the discrepancy printed. The budget task then fixed the PIPELINE rather than
+    the report: `_guarded_outcomes` now runs `canonicalise` (the only parser) and
+    then `interpret`, so every case meets the door its claim is about.
 
-    So the reconciliation is REPORTED rather than folded into the exit code: the
-    four codes are a contract the budget task reads its own baseline from, and a
-    fifth (or a re-pointed first) would break it. The number to fix is here, in
-    the open, with the cases named.
+    ⛔ AND THE RECONCILIATION IS NOW PART OF THE VERDICT, NOT A FOOTNOTE. Task 5
+    deliberately left the four exit codes alone because the budget task read its
+    baseline from them; that baseline has been read, so a CLOSED whose refusals
+    came from the wrong doors is no longer allowed to exit 0. A zero that is not
+    ATTRIBUTABLE is not a zero anybody may cite.
     """
     return [r for r in rows
             if r.get("declared") and _family(r["declared"]) != _family(r["fired"])]
@@ -1039,21 +1327,49 @@ def escape_verdict(guarded: dict, control: dict) -> tuple:
     if guarded["escaped"]:
         lines.append(f"  VERDICT: ESCAPES -- {guarded['escaped']}")
         return EXIT_ESCAPES, lines
-    lines.append("  VERDICT: CLOSED -- zero escapes, and the control proves the "
-                 "corpus could have reported one.")
+
+    # ─── THE ZERO MUST BE ATTRIBUTABLE, AND THAT IS PART OF THE VERDICT ──────
+    #
+    # Two ways a zero can be worthless even with a live control behind it, and
+    # both have actually happened here:
+    #   * every case refused by a door that has nothing to do with its claim
+    #     (measured 2026-08-07: 15 of 15, all `interpret:node`);
+    #   * one lane refusing while the other reaches a value -- a table that is
+    #     closed in JS and open in Python is not a closed table.
+    # Neither is an "escape", so neither can be folded into the count above; both
+    # make the count meaningless, so neither may exit 0.
     wrong = guarded.get("wrong_door") or []
+    split = guarded.get("lane_disagreements") or []
+    if wrong or split:
+        lines.append("  VERDICT: NOT ATTRIBUTABLE -- the count is zero and the "
+                     "zero does not belong to the guards that are supposed to "
+                     "have earned it.")
     if wrong:
         lines.append(
-            f"  ⚠ AND THE ZERO IS NARROWER THAN IT LOOKS: {len(wrong)} of the "
-            f"{guarded['refused']} refusals came from a DIFFERENT DOOR than the "
-            "case declares")
+            f"  ⚠ {len(wrong)} of the {guarded['refused']} refusals came from a "
+            "DIFFERENT DOOR than the case declares")
         lines.append(
             f"    {[r['id'] for r in wrong]} -- each declares "
             f"{sorted({r['declared'] for r in wrong})} and each was refused by "
-            f"{sorted({r['fired'] for r in wrong})}.")
+            f"{sorted({str(r['fired']) for r in wrong})}.")
         lines.append(
             "    Those claims are NOT tested by this run, and would read the same "
-            "with no budget in the product at all.")
+            "with no guard of their own in the product at all.")
+    if split:
+        lines.append(f"  ⚠ {len(split)} case(s) where THE TWO LANES DISAGREE about "
+                     "the refusal:")
+        for row in split:
+            lines.append(f"    {row['id']}: js={row['js']} py={row['py']}")
+    if wrong or split:
+        return EXIT_ESCAPES, lines
+
+    lines.append("  VERDICT: CLOSED -- zero escapes; the control proves the "
+                 "corpus could have reported one; and every refusal came from "
+                 "the door the case declares, in both lanes.")
+    lines.append(
+        f"  guard reconciliation: declared == fired for all {guarded['refused']} "
+        f"refusals ({len(guarded.get('lane_disagreements') or [])} lane "
+        "disagreements)")
     return EXIT_CLOSED, lines
 
 
@@ -1110,6 +1426,12 @@ def _print_census(res: dict) -> None:
     print(f"    incidental error : {len(res['errored_incidentally'])}")
     for row in res["errored_incidentally"]:
         print(f"      {row['id']}: {row['error']}")
+    if res["mode"] == "guarded" and res["refusal_guards"]:
+        print("  DECLARED vs FIRED (the guard reconciliation):")
+        for row in res["refusal_guards"]:
+            mark = "  " if _family(row["declared"]) == _family(row["fired"]) else "!!"
+            print(f"    {mark} {row['id']:<20} declares {str(row['declared']):<24} "
+                  f"fired {str(row['fired']):<24} at {row.get('stage')}")
     wrong = res.get("wrong_door") or []
     if wrong:
         print(f"  ⚠ REFUSED BY A DIFFERENT DOOR : {len(wrong)}")
@@ -1118,6 +1440,11 @@ def _print_census(res: dict) -> None:
         for row in wrong:
             print(f"      {row['id']}: declares {row['declared']}, "
                   f"fired {row['fired']}")
+    split = res.get("lane_disagreements") or []
+    if split:
+        print(f"  ⚠ THE TWO LANES DISAGREE ON A REFUSAL : {len(split)}")
+        for row in split:
+            print(f"      {row['id']}: js={row['js']} py={row['py']}")
     native = res.get("lane_native_reached") or {}
     if native.get("names") or native.get("gadget"):
         print("  LANE-NATIVE CONTROL (an incidental error above is the WRONG")

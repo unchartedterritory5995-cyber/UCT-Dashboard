@@ -748,16 +748,35 @@ def test_the_measurements_are_ITERATIVE_and_survive_a_tree_that_kills_the_walker
     """⚠️ THE ASYMMETRY IS DELIBERATE. A budget guard runs BEFORE the walker and
     must not need the walker to be safe first, so `node_count` and `max_lookback`
     are iterative while `interpret` is a plain recursive walk. `parse.js` made its
-    forbidden-node scan iterative for exactly this reason."""
+    forbidden-node scan iterative for exactly this reason.
+
+    🧨 TIGHTENED 2026-08-08 BY THE BUDGET TASK, AND THE OLD ASSERTION IS RECORDED
+    RATHER THAN REMOVED. This used to end `with pytest.raises(RecursionError):
+    run(deep)` — "the recursive walker really does die on it, and that is an
+    ESCAPE". It does not die on it any more, because `interpret` now runs
+    `check_budget` FIRST and 8,001 nodes is refused against a cap of 128 before a
+    single frame of the walker is entered. That is the guard working; the line
+    would have been a gate forbidding its own fix.
+
+    ⛔ THE CLAIM THE OLD LINE CARRIED IS NOT DROPPED — IT MOVED, because it can no
+    longer be made here. A canonical tree's DEPTH never exceeds its node count, so
+    with `maxNodes` at 128 the overflow is UNREACHABLE through `interpret`: the
+    relabelling defect could be introduced and never observed. `test_ast_budget.py
+    ::test_a_stack_overflow_raises_RecursionError_and_NEVER_a_TableRefusal` lowers
+    the recursion limit to make it observable again, and
+    `::test_neither_the_budget_nor_the_interpreter_contains_a_single_try` walks
+    both modules' ASTs so the catch cannot be added quietly.
+    """
     deep = NUM(1)
     for _ in range(4000):
         deep = OP("+", NUM(1), deep)
     assert ast_interpret.node_count(deep) == 8001
     assert ast_interpret.max_lookback(deep) == 0
-    # …and the recursive walker really does die on it, as a RecursionError —
-    # which is an ESCAPE, and must NEVER be dressed up as a table refusal.
-    with pytest.raises(RecursionError):
+    # …and the walker is never entered: the BUDGET refuses first, by its own name.
+    with pytest.raises(ast_interpret.TableRefusal,
+                       match="exceeds the node budget") as exc:
         run(deep)
+    assert exc.value.guard == "budget:nodes"
 
 
 def test_a_window_must_be_a_WHOLE_NUMBER_LITERAL_of_at_least_one():
@@ -859,36 +878,57 @@ def test_the_js_driver_carries_the_WARMUP_NULL_and_never_a_fabricated_ZERO():
     assert ast_interpret.interpret(case["ast"], bars) == js
 
 
-def test_the_escape_census_ZERO_is_narrower_than_it_looks_and_says_so():
-    """🧨 A FUSE, NOT A PASS. Measured 2026-08-07; handed to the budget task.
+def test_the_escape_census_ZERO_is_ATTRIBUTABLE_and_the_reconciliation_says_so():
+    """🧨 THE FUSE FIRED, AND THIS IS THE TIGHTENING IT ASKED FOR — 2026-08-08.
 
-    `--escapes` reads CLOSED (exit 0) now that this lane exists — and that zero
-    is REAL for the pipeline it measures, but it is NOT evidence for any
-    individual case's claim. The census offers each case's JSEP tree straight to
-    `interpret`, and this lane deliberately has no parser, so every one of them is
-    refused at the ROOT by the canonical-shape check before a name, an arity, a
-    window or a budget is ever consulted.
+    WHAT IT SAID WHEN IT WAS WRITTEN (2026-08-07): `--escapes` read CLOSED, exit
+    0, and the zero was REAL for the pipeline it measured but was NOT evidence
+    for any individual case's claim. The census offered each case's JSEP tree
+    straight to `interpret`; this lane deliberately has no parser, so all fifteen
+    were refused at the ROOT by the canonical-shape check before a name, an arity,
+    a window or a budget was ever consulted. The three `budget:*` cases read
+    EXACTLY the same as they would with no budget in the product at all, and a
+    CLOSED that did not say so would have handed the budget task a green that
+    started green. Its instruction was explicit: *"when a real budget guard lands
+    and starts firing on these cases, this goes red BY NAME with the numbers in
+    hand, and the correct edit is to tighten it — not to delete it."*
 
-    ⛔ THE THREE `budget:*` CASES ARE THE ONES THAT MATTER: they read exactly the
-    same today as they would with no budget in the product at all. A CLOSED that
-    did not say so would hand the budget task a green that started green.
-
-    This test is the record. When a real budget guard lands and starts firing on
-    these cases, this goes red BY NAME with the numbers in hand, and the correct
-    edit is to tighten it — not to delete it.
+    IT WENT RED BY NAME on the commit that landed the guard. The fix was to the
+    PIPELINE, not to the report: `escape_census` now runs `canonicalise` (the one
+    parser, in the one lane that has it) and then `interpret`, so every case meets
+    the door its claim is about. What follows is the tightened assertion — the
+    same subject, the opposite expectation, and strictly more of it.
     """
     import ast_conformance
     res = ast_conformance.escape_census(unguarded=False)
     assert res["guard"] == "both", res["guard"]
     assert res["escaped"] == [], res["escaped"]
-    wrong = {r["id"]: r for r in res["wrong_door"]}
-    assert {"too_many_nodes", "lookback_too_deep", "nested_lookback"} <= set(wrong), (
-        "a budget case is no longer refused by the wrong door — if a real budget "
-        "guard landed, tighten this test to assert that; do not delete it")
-    assert {r["fired"] for r in res["wrong_door"]} == {"interpret:node"}, (
-        "more than one door is now firing; re-read the reconciliation")
-    assert len(wrong) == res["refused"] == 15, (
-        f"the reconciliation moved: {len(wrong)} of {res['refused']} refused")
+
+    # ⭐ THE HEADLINE: declared == fired, for EVERY refusal, with no exceptions.
+    assert res["wrong_door"] == [], res["wrong_door"]
+    assert res["lane_disagreements"] == [], res["lane_disagreements"]
+
+    # …and a FLOOR, because `wrong_door == []` is satisfied by `refused == 0` —
+    # exactly the way `escaped == parsed` is satisfied by `0 == 0`. Task 3 added
+    # `parsed >= 15` for that reason and this zero has the same shape.
+    assert res["refused"] == res["parsed"] >= 16, res
+
+    # …and the doors are pinned BY NAME rather than counted, so a case that
+    # quietly moved from one guard to another fails here and not silently.
+    fired = {r["id"]: (r["fired"], r["stage"]) for r in res["refusal_guards"]}
+    assert fired["too_many_nodes"] == ("budget:nodes", "interpret")
+    assert fired["lookback_too_deep"] == ("budget:lookback", "interpret")
+    assert fired["nested_lookback"] == ("budget:lookback", "interpret")
+    assert fired["too_many_series"] == ("budget:series", "interpret")
+    assert fired["global_lookup"] == ("resolve:name", "interpret")
+    assert fired["arity_wrong"] == ("resolve:arity", "interpret")
+    assert fired["member_access"] == ("canonicalise:member", "canonicalise")
+
+    # ⛔ AND THE DOORS ARE PLURAL. The whole defect was ONE door answering for
+    # every case; a fix that merely re-pointed that single door at `budget:nodes`
+    # would satisfy every equality above except this one.
+    assert len({guard for guard, _ in fired.values()}) >= 6, sorted(fired.values())
+    assert {stage for _, stage in fired.values()} == {"canonicalise", "interpret"}
 
 
 def test_the_shared_TABLE_cannot_be_edited_by_a_caller():

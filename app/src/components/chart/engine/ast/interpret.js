@@ -38,15 +38,24 @@
 // be simple enough to be obviously right.
 //
 // WHAT THIS FILE DOES **NOT** DO, NAMED SO NOBODY READS IT AS COVERED:
-//   * `budget:nodes` and `budget:lookback` are NOT implemented. There is no
-//     declared budget yet (`compute.budget` is Task 6's). What IS here is the
-//     MEASUREMENT those guards threshold — `nodeCount(ast)` and
-//     `maxLookback(ast)` — and both are ITERATIVE, so the guard Task 6 writes
-//     cannot die inside itself on the input it exists to refuse. A deep tree
-//     therefore still blows `interpret`'s stack today; that is a `RangeError`,
-//     it is an ESCAPE, and it must never be dressed up as a table refusal.
+//   * the BUDGET ITSELF lives in `budget.js`. What is here is the MEASUREMENT
+//     it thresholds — `nodeCount(ast)` and `maxLookback(ast)` — and both are
+//     ITERATIVE, so the guard cannot die inside itself on the input it exists to
+//     refuse. `interpret` below is still a plain RECURSIVE walk, and that
+//     asymmetry is the point: a tree deep enough overflows the stack, that is a
+//     `RangeError`, it is an ESCAPE, and it must never be dressed up as a table
+//     refusal. There is no `try` anywhere in this file, and `budget.test.js`
+//     asserts that structurally so the relabelling cannot be introduced quietly.
 
 import { TABLE, NODE_TYPES } from './parse.js'
+// ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
+// `nodeCount` and `TableRefusal` back out of this file, because a second copy of
+// either measurement is a second grammar (there are already two `maxLookback`s
+// in this directory and Task 7 paid for the second with an agreement rail). It
+// resolves because every cross-module use is inside a function body and
+// `export function` bindings are hoisted; `budget.js`'s header states the whole
+// contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
+import { assertBudget } from './budget.js'
 
 // --------------------------------------------------------------------------- //
 // refusals
@@ -461,18 +470,32 @@ export function nodeCount(ast) {
  *  @param {object} ast    a canonical tree (`parse.js::canonicalise`'s output)
  *  @param {Array}  bars   `[{t,o,h,l,c,v}, …]`
  *  @param {object} inputs declared instance inputs, by name; finite numbers only
+ *  @param {object} [budget] the definition's stored `compute.budget`. Resolved
+ *                  through `effectiveBudget`, so it can only ever TIGHTEN the
+ *                  default and a stored blob cannot turn off its own limit.
  *  @returns {Float64Array} exactly `bars.length` long, NaN-padded
  *
  *  Throws `TableRefusal` for anything the table refuses. Everything else — a
  *  `RangeError` from a tree deep enough to overflow the stack, say — is NOT a
  *  refusal and must never be caught and relabelled as one; see the header. */
-export function interpret(ast, bars, inputs) {
+export function interpret(ast, bars, inputs, budget) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
     // and the bars are the caller's. Conflating the two would let a wiring bug
     // read as "the formula was rejected" on a chip's tooltip.
     throw new Error(`interpret(ast, bars): bars must be an array, got ${typeof bars}`)
   }
+  // ⭐ THE COMPUTE-TIME BUDGET, AND IT IS THE SAFETY HALF. It runs BEFORE the
+  // scope is built and before a single node is walked, because the tree it
+  // exists to refuse is the one that never returns. `assertBudget`'s
+  // measurements are iterative, so this line survives the 8,001-node input that
+  // makes the recursive walker below overflow — the guard does not need the
+  // walker to be safe first.
+  //
+  // ⛔ NOT WRAPPED IN A `try`. A `RangeError` from a tree this admits must reach
+  // the caller AS a `RangeError`; relabelling it as a budget refusal is the same
+  // wrong-door defect this whole phase is about, wearing a different coat.
+  assertBudget(ast, budget)
   const length = bars.length
 
   // ⛔ NULL PROTOTYPE, DELIBERATELY, AND IT IS THE FIRST OF TWO LOCKS.

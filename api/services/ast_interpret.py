@@ -585,23 +585,48 @@ def node_count(ast: Any) -> int:
 # --------------------------------------------------------------------------- #
 
 def interpret(ast: Any, bars: List[dict],
-              inputs: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
+              inputs: Optional[Mapping[str, Any]] = None,
+              budget: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
     """Evaluate a canonical AST over bars → one aligned column of ``len(bars)``.
 
     :param ast:    a canonical tree (``parse.js::canonicalise``'s output)
     :param bars:   ``[{'t':…,'o':…,'h':…,'l':…,'c':…,'v':…}, …]``
     :param inputs: declared instance inputs, by name; finite numbers only
+    :param budget: the definition's stored ``compute.budget``. Resolved through
+                   ``effective_budget``, so it can only ever TIGHTEN the default
+                   and a stored blob cannot turn off its own limit.
     :returns:      a list exactly ``len(bars)`` long, ``None`` where not computable
 
     Raises ``TableRefusal`` for anything the table refuses. Everything else — a
     ``RecursionError`` from a tree deep enough to exhaust the stack, say — is NOT
     a refusal and must never be caught and relabelled as one.
     """
+    # ⚠️ IMPORTED HERE RATHER THAN AT MODULE LEVEL, AND IT IS THE CYCLE, NOT A
+    # STYLE. ``ast_budget`` imports THIS module's ``max_lookback`` / ``node_count``
+    # (a second copy of either would be a second grammar). Python has no live
+    # bindings, so a top-level import both ways breaks for whichever module is
+    # imported second — and the two test files import them in opposite orders.
+    # The JS lane resolves the same two edges with an ESM cycle; see
+    # ``ast_budget``'s header, which states the asymmetry so nobody reads it as
+    # two different designs.
+    from api.services.ast_budget import check_budget
+
     if not isinstance(bars, list):
         # A plain TypeError, NOT a TableRefusal: the table refuses what a USER
         # wrote, and the bars are the caller's. Conflating the two would let a
         # wiring bug read as "the formula was rejected" on a chip's tooltip.
         raise TypeError(f"interpret(ast, bars): bars must be a list, got {type(bars).__name__}")
+    # ⭐ THE COMPUTE-TIME BUDGET, AND IT IS THE SAFETY HALF. It runs BEFORE the
+    # scope is built and before a single node is walked, because the tree it
+    # exists to refuse is the one that never returns. ``check_budget``'s
+    # measurements are iterative, so this line survives the 8,001-node input that
+    # makes the recursive walker below raise ``RecursionError`` — the guard does
+    # not need the walker to be safe first.
+    #
+    # ⛔ NOT WRAPPED IN A ``try``. A ``RecursionError`` from a tree this admits
+    # must reach the caller AS a ``RecursionError``; relabelling it as a budget
+    # refusal is the same wrong-door defect this whole phase is about.
+    check_budget(ast, budget)
     length = len(bars)
 
     # ⛔ A PLAIN DICT, AND EVERY LOOKUP IS `name in scope`. Python has no prototype

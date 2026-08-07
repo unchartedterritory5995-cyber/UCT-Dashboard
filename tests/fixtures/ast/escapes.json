@@ -228,6 +228,17 @@
       }
     },
     {
+      "id": "too_many_series",
+      "source": "close + high + low + open + volume + close + high + low + open",
+      "astFrom": "gen:seriesChain(9)",
+      "guard": "budget:series",
+      "refuse": "exceeds the series-reference budget",
+      "why": "ADDED 2026-08-08 BY THE BUDGET TASK, BECAUSE A THIRD CAP WITH NO CASE IS A CAP THE CENSUS CANNOT SEE. `maxSeriesRefs` bounds base-series READS inside one definition (spec section 5 budgets a whole CHART at 8 panes), and this tree passes both other caps -- 17 nodes against 128, zero lookback against 500 -- so it is refused by that cap or by nothing. Its names are GENERATED FROM THE MANIFEST rather than typed, so a series rename cannot quietly turn this into a `resolve:name` case at a different door.",
+      "note": "The cap counts OCCURRENCES, not distinct names, and that is forced rather than stylistic: the table declares FIVE series, so a distinct-name count could never exceed 8 and `budget:series` would be a latch nothing can trip. This case therefore repeats four of the five.",
+      "parses": true,
+      "jsepRoot": "BinaryExpression"
+    },
+    {
       "id": "nested_lookback",
       "source": "sma(sma(close, 5000), 5000)",
       "guard": "budget:lookback",

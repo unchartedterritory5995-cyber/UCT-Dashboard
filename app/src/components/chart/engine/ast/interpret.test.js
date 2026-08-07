@@ -96,6 +96,34 @@ const nestSizeOf = (astFrom) => {
   return Number(m[1])
 }
 
+/** Every `tools/ast_conformance.py::generate_ast` spec, in CANONICAL shape.
+ *
+ *  ⚠️ EXTENDED 2026-08-08 AND THE EXTENSION IS THE POINT: `escapes.json` grew a
+ *  `gen:seriesChain(9)` case for the third budget cap, and the census helper
+ *  below used to call `nestSizeOf` directly — which THREW on the new spec rather
+ *  than skipping it. Throwing is the right failure (a case that silently left the
+ *  census would take its claim with it), and it is why this is a total function
+ *  over the specs rather than a lookup with a default.
+ *
+ *  ⭐ `gen:seriesChain`'s names come out of the MANIFEST, sorted, exactly as the
+ *  Python generator's do — a hand-typed `close` here would keep building a tree
+ *  of UNKNOWN names on the day a series is renamed, and an unknown name is
+ *  refused by `resolve:name`, at a different door. */
+const generatedCanonical = (astFrom) => {
+  let m = /^gen:nest\((\d+)\)$/.exec(String(astFrom))
+  if (m) return nestedSum(Number(m[1]))
+  m = /^gen:seriesChain\((\d+)\)$/.exec(String(astFrom))
+  if (m) {
+    const names = Object.keys(TABLE.series).sort()
+    let node = { type: 'series', name: names[0] }
+    for (let i = 1; i < Number(m[1]); i++) {
+      node = { type: 'op', name: '+', args: [node, { type: 'series', name: names[i % names.length] }] }
+    }
+    return node
+  }
+  throw new Error(`unknown AST generator spec: ${astFrom}`)
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // THE TWO ABOUT SAFETY, FIRST
 // ═════════════════════════════════════════════════════════════════════════════
@@ -158,7 +186,7 @@ describe('the escape census, run in the language the corpus was written for', ()
     if (c.astFrom) {
       // No usable source (`1 + (1 + (1 + ... ))` is a prose sketch), so the tree
       // is generated in canonical shape and offered straight to the walker.
-      const tree = nestedSum(nestSizeOf(c.astFrom))
+      const tree = generatedCanonical(c.astFrom)
       try {
         interpret(tree, BARS, {})
         return { id: c.id, door: 'NONE', detail: 'reached a value' }
@@ -220,8 +248,17 @@ describe('the escape census, run in the language the corpus was written for', ()
     // …and BY NAME, as a LIST rather than a count. A count survives a rename;
     // a list names the case that moved. `(d.plots || [])` answered `[]` for a
     // renamed field on this branch yesterday and voided a whole clause.
+    //
+    // ⚠️ RE-DERIVED 2026-08-08, NOT WIDENED BY HAND. This used to equal the
+    // `resolve:*` set alone, because the four `budget:*` cases ESCAPED the
+    // interpreter entirely. They no longer do — the budget refuses them at the
+    // same door — so the right-hand side is the UNION of the two guard families
+    // that live in `interpret.js`, still derived from `escapes.json` and still a
+    // list. The `canonicalise:*` cases must stay OUT of it, which is what makes
+    // this an equality rather than a superset check.
     const refusedHere = census().filter((r) => r.door === 'interpret').map((r) => r.id).sort()
-    expect(refusedHere).toEqual(ids((c) => String(c.guard).startsWith('resolve:')))
+    expect(refusedHere).toEqual(
+      ids((c) => String(c.guard).startsWith('resolve:') || String(c.guard).startsWith('budget:')))
   })
 
   it('every `canonicalise:*` case never reaches the interpreter — the parse door holds', () => {
@@ -246,36 +283,82 @@ describe('the escape census, run in the language the corpus was written for', ()
     expect(problems).toEqual([])
   })
 
-  it('what STILL escapes is exactly the budget guards — recorded, and Task 6 may shrink it', () => {
-    // ⚠️ A SUBSET, NOT AN EQUALITY, AND THAT IS DELIBERATE. An equality here
-    // would go RED the day Task 6 adds `compute.budget` and closes them — a gate
-    // that forbids the fix, which is exactly what `indicatorCatalog.test.js:573`
-    // became. A subset lets the number fall to zero and still fails by name the
-    // moment a `resolve:*` or `canonicalise:*` case leaks.
+  it('NOTHING escapes any more, and every `budget:*` case is refused by ITS OWN guard', () => {
+    // 🧨 TIGHTENED 2026-08-08 BY THE BUDGET TASK — the case this replaced said:
+    // "what STILL escapes is exactly the budget guards — recorded, and Task 6 may
+    // shrink it", and it asserted a SUBSET precisely so it could not forbid its
+    // own fix. The number has now fallen to zero, so a subset assertion would be
+    // satisfied by an empty list and would assert nothing at all. This is the
+    // tightening it left room for.
     const escaping = census().filter((r) => r.door === 'NONE').map((r) => r.id).sort()
+    expect(escaping).toEqual([])
+
+    // ⛔ AND THE FLOOR, BECAUSE `escaping === []` IS SATISFIED BY AN EMPTY CORPUS.
+    // The budget cases are named as a LIST rather than counted: a count survives
+    // a rename, a list names the case that moved.
     const budget = ids((c) => String(c.guard).startsWith('budget:'))
-    for (const id of escaping) {
-      expect(budget, `${id} ESCAPED and its guard is not a budget one — the table leaked`).toContain(id)
+    expect(budget).toEqual(['lookback_too_deep', 'nested_lookback', 'too_many_nodes', 'too_many_series'])
+
+    // …and each is refused BY THE INTERPRETER, by the guard it declares and with
+    // the fragment it declares. This is the half that makes the zero above
+    // ATTRIBUTABLE: before the budget existed these cases were refused too — at
+    // the ROOT, by `interpret:node`, exactly as they would be with no budget in
+    // the product at all.
+    const byId = Object.fromEntries(census().map((r) => [r.id, r]))
+    const problems = []
+    for (const c of ESCAPES.cases) {
+      if (!String(c.guard).startsWith('budget:')) continue
+      const r = byId[c.id]
+      if (r.door !== 'interpret') { problems.push(`${c.id}: refused by ${r.door} (${r.detail || r.guard})`); continue }
+      if (r.guard !== c.guard) { problems.push(`${c.id}: guard ${r.guard} != declared ${c.guard}`); continue }
+      if (!r.message.includes(c.refuse)) problems.push(`${c.id}: message lacks ${JSON.stringify(c.refuse)}`)
     }
-    // …and the control that keeps the subset honest: those cases must still be
-    // MEASURABLE, i.e. the numbers Task 6 thresholds are computable today.
-    expect(budget.length).toBeGreaterThanOrEqual(3)
+    expect(problems).toEqual([])
+
+    // ⛔ AND THE DOORS ARE PLURAL. The defect this replaced was ONE door answering
+    // for every case; a "fix" that merely re-pointed that single door would
+    // satisfy every equality above except this one.
+    const doors = new Set(census().map((r) => r.guard).filter(Boolean))
+    expect(doors.size).toBeGreaterThanOrEqual(6)
   })
 
   it('an incidental error is NOT a refusal, and this file never counts one as one', () => {
     // Task 2's rule, in the lane it was written for: "an `AttributeError`, a
     // `TypeError` or a `RecursionError` is the LANGUAGE declining, incidentally,
     // for this input". Here that is a `RangeError` from a tree deep enough to
-    // overflow the stack, and it must land in `NONE`, never in `interpret`.
+    // overflow the stack, and it must NEVER be reported as a refusal.
+    //
+    // 🧨 RE-DERIVED 2026-08-08, AND THE OLD FORM IS RECORDED RATHER THAN DROPPED.
+    // This used to call `interpret(nestedSum(20000), …)` and assert the outcome
+    // was not a refusal. `interpret` now runs the node budget FIRST, so that tree
+    // is refused as `budget:nodes` before a frame of the walker is entered — the
+    // old assertion would have failed on the guard working. And the claim it
+    // carried cannot be re-made here at all: a canonical tree's DEPTH never
+    // exceeds its node count, and `maxNodes` is 128, so the overflow is now
+    // UNREACHABLE through `interpret`. The relabelling defect can be INTRODUCED
+    // and never OBSERVED in this lane, which is the shape that rots green.
+    //
+    // So the claim is asserted in the two places where it still bites, and this
+    // case asserts the part that remains observable HERE: the deep tree's refusal
+    // is a BUDGET one, carrying the number the measurement read.
+    //   * `budget.test.js` walks `budget.js` and `interpret.js` with acorn and
+    //     asserts ZERO `try` statements, with a positive control proving the scan
+    //     finds a relabelling catch when one exists;
+    //   * `tests/test_ast_budget.py` lowers Python's recursion limit so the
+    //     overflow is observable again, and asserts `RecursionError` — never a
+    //     `TableRefusal` — comes back.
     const deep = nestedSum(20000)
     let outcome = 'reached a value'
+    let measured = null
     try { interpret(deep, BARS, {}) } catch (e) {
       outcome = e instanceof TableRefusal ? `REFUSAL:${e.guard}` : e.name
+      measured = e.message
     }
-    expect(outcome.startsWith('REFUSAL:'),
-      `a stack overflow was reported as a table refusal (${outcome}) — that is the ` +
-      'shape that makes a census report a closed table over a walker that crashed',
-    ).toBe(false)
+    expect(outcome).toBe('REFUSAL:budget:nodes')
+    // ⭐ THE NUMBER IS WHAT MAKES IT A MEASUREMENT RATHER THAN A CRASH WEARING A
+    // LABEL: a caught `RangeError` could not carry a truthful node count.
+    expect(nodeCount(deep)).toBe(40001)
+    expect(measured).toContain('measures 40001')
   })
 })
 
@@ -748,8 +831,21 @@ describe('the interpreter is PURE', () => {
     const tree = acorn.parse(src, { ecmaVersion: 2023, sourceType: 'module' })
     const got = scan(tree)
     expect(got.findings, 'interpret.js reached something outside pure arithmetic').toEqual([])
-    // …and the only thing it may import is the table's own parser module.
-    expect(got.imports).toEqual(['./parse.js'])
+    // …and the only things it may import are the table's own parser module and
+    // the budget.
+    //
+    // ⚠️ WIDENED 2026-08-08, AND WIDENING AN ALLOWLIST IS EXACTLY HOW A PURITY
+    // CLAIM GOES HOLLOW: this module's purity is worth nothing if it imports an
+    // impure one. So the scan is RUN OVER `budget.js` TOO rather than the entry
+    // simply being admitted — the claim is about the closure of the import graph,
+    // not about one file. `budget.js` imports only this module back (the declared
+    // cycle), so scanning the two closes it.
+    expect(got.imports.sort()).toEqual(['./budget.js', './parse.js'])
+    const budgetSrc = fs.readFileSync(path.join(path.dirname(SELF), 'budget.js'), 'utf8')
+    expect(budgetSrc.length).toBeGreaterThan(2000)
+    const budgetScan = scan(acorn.parse(budgetSrc, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(budgetScan.findings, 'budget.js reached something outside pure arithmetic').toEqual([])
+    expect(budgetScan.imports).toEqual(['./interpret.js'])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {
