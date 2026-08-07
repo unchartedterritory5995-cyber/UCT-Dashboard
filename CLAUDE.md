@@ -1146,6 +1146,45 @@ ECharts treemap rendering curated breadth metrics as color-coded tiles. Clicking
 - `POST /api/breadth-monitor/push` — store snapshot (auth required)
 - `PATCH /api/breadth-monitor/{date}/field` — surgical single-field update
 - `DELETE /api/breadth-monitor/{date}` — remove a snapshot row (auth required)
+- `GET  /api/breadth-monitor/live/drill/{metric_key}` — the names behind one cell
+  of the INTRADAY row (shipped 2026-08-07 `5bf07061`)
+
+### Live-row drill-down (2026-08-07) — LOCKED invariants
+
+The intraday row's cells drill like a recorded day. `compute_metrics` already
+built every count as a boolean mask over the aligned ticker array, so the list
+is emitted **from that same mask** via an optional `members` out-dict.
+
+- ⛔ **A drill list MUST come from the mask that produced the count** — never a
+  second pass. Two passes drift the moment a definition moves and the failure is
+  SILENT: the cell says 47, the modal lists 45, nothing reports it.
+  `test_every_drillable_metric_reports_members_matching_its_count` is the gate.
+- ⛔ **Lists are cached BESIDE the payload, never IN it** (`_live_cache["members"]`).
+  `/api/breadth-monitor/live` is polled every 60s by every Dashboard user on a
+  single-process pod. `test_the_live_payload_never_carries_drill_lists` asserts
+  the key set so nobody can quietly inline them and re-bloat the poll.
+- ⛔ **`drillKey` is NOT the metric key.** The monitor's columns send
+  `col.drillKey` — usually metric+`_list`, but `universe_list` / `stage2_list` /
+  `stage4_list` map to `universe_count` / `stage2_count` / `stage4_count`.
+  `_metric_key_of` + `_DRILL_KEY_ALIASES` resolve both forms; naive suffix
+  stripping opens an EMPTY modal beside a cell showing a number. The coverage
+  test READS every drillKey off `Breadth.jsx` rather than listing them.
+- ⛔ **Route order:** `/live/drill/{metric_key}` must be declared BEFORE
+  `/{date_str}/drill/{metric_key}` — that route matches `"live"` as a date, and
+  registered the other way round every live click 404s.
+- **TWO surfaces share one decision:** the monitor table (`Breadth.jsx`) and the
+  eight `BreadthViews` tiles both route through
+  `app/src/pages/breadth/liveDrill.js::drillTarget`. Don't reimplement it in one.
+- **A CARRIED metric drills the session it came FROM.** `atr_ext_7` needs
+  intraday high/low, so the live row shows the prior day's number; opening
+  today's list would caption a past session's names as today's. No
+  `carried_from` → the cell stays inert.
+- `atr`/`a50` are **absent by construction** on live items (need intraday
+  high/low the snapshot doesn't carry). The modal already renders a missing one
+  as an em dash — do NOT fabricate them.
+- The live row is **hidden whenever `superseded`** — once the 4:15 collector
+  writes the day, `useLiveBreadth` returns nothing by design. "No live row after
+  4:15" is not a regression.
 
 ---
 
