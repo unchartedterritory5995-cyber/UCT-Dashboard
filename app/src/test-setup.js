@@ -79,6 +79,46 @@ if (typeof globalThis !== 'undefined' && typeof globalThis.ResizeObserver === 'u
   }
 }
 
+// Canvas 2D context — jsdom has none, so `getContext('2d')` returns null and
+// any real ECharts/zrender render dies on `clearRect of null`.
+//
+// The reason this is UNCONDITIONAL matters. Several chart-engine tests assign
+// `HTMLCanvasElement.prototype.getContext` at MODULE scope and never restore
+// it, so a file that runs later in the same vitest worker inherits a foreign
+// context whose lifetime already ended. That is what made
+// Calendar.realModal's enrichment test fail only in the full run and pass 3/3
+// alone — a scheduling-dependent flake, not a timing one.
+//
+// setupFiles runs per test FILE, so assigning here hands every file a clean
+// default and undoes any pollution the previous file left behind. Files that
+// install their own fake still do so afterwards and still win inside their own
+// file, so nothing they assert changes.
+const _stubCtx2d = () => {
+  const noop = () => {}
+  return {
+    canvas: null,
+    clearRect: noop, fillRect: noop, strokeRect: noop, beginPath: noop, closePath: noop,
+    moveTo: noop, lineTo: noop, bezierCurveTo: noop, quadraticCurveTo: noop, arc: noop,
+    arcTo: noop, ellipse: noop, rect: noop, fill: noop, stroke: noop, clip: noop,
+    save: noop, restore: noop, scale: noop, rotate: noop, translate: noop,
+    transform: noop, setTransform: noop, resetTransform: noop,
+    drawImage: noop, putImageData: noop, setLineDash: noop, getLineDash: () => [],
+    fillText: noop, strokeText: noop,
+    measureText: () => ({ width: 0, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0 }),
+    createLinearGradient: () => ({ addColorStop: noop }),
+    createRadialGradient: () => ({ addColorStop: noop }),
+    createPattern: () => null,
+    getImageData: (_x, _y, w = 1, h = 1) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h }),
+    createImageData: (w = 1, h = 1) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h }),
+    isPointInPath: () => false, isPointInStroke: () => false,
+  }
+}
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = function getContext(type) {
+    return type === '2d' ? _stubCtx2d() : null
+  }
+}
+
 // ── Package mocks ──────────────────────────────────────────────────────────
 
 // Picovoice Porcupine wake-word library — its bundled exports trip the Vite
