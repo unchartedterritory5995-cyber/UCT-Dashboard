@@ -503,6 +503,18 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'census above) and addInstance for the add — and it excludes volumeProfile from ' +
        'the second, because a carved-out row has no definition and addInstance returns ' +
        'the settings BY IDENTITY for it'],
+      ['app/src/components/chart/builder/BuilderSheet.jsx',
+       '⭐ NEW AT PHASE D TASK 16 — the builder adds an instance ON SAVE, and until Task 16 ' +
+       'it deliberately did NOT. Task 11 measured why and wrote the refusal into the file: ' +
+       'nothing installed a USER definition into the registry the binder resolves through, ' +
+       'so an instance written here named a definition getDefinition answered null for and ' +
+       'normalizeInstances dropped it on the next paint — a live control that writes ' +
+       'nowhere. installUserDefinitions closes that, so the write is now honest and it ' +
+       'goes through door eight for the reason IndicatorLibraryDialog does: addInstance is ' +
+       'the only door that means "put THIS definition on the chart, as its own copy", and ' +
+       'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
+       'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
+       'instance naming the draft would be dropped exactly as before'],
       ['app/src/components/chart/indicatorRegistry.js',
        '⭐ NEW AT chart-UX-walls TASK 6 — applyRowPatch routes a settings row that names ' +
        'a USER-ADDED instance at setInstanceInput. Before Task 6 a generated row was per ' +

@@ -877,19 +877,18 @@ def test_diff_scope_is_the_declarations_own_fixture_list_and_names_the_rest():
 
 # ─── THE FINDING: the 60-minute grid is not uniform ──────────────────────────
 
-def test_bar_close_epoch_overstates_the_two_60m_open_buckets():
-    """🔴 MEASURED ON REAL TAPE, PINNED AS A FINDING, NOT FIXED HERE.
+def test_bar_close_epoch_lands_on_the_next_bar_start_in_the_60m_open_buckets():
+    """🔴 THE FINDING, AND ITS FIX, IN ONE TEST. RE-DERIVED — READ THE HISTORY.
 
     `bars_fetch.bucket_60_et_unix_seconds` gives the regular-session open its own
     bucket, so a 60-minute session runs 04:00…09:00, **09:30**, 10:00…19:00 and
     BOTH the 09:00 and the 09:30 bar span THIRTY minutes, not sixty.
-    `indicator_alert_evaluator.bar_close_epoch` answers `t + 3600` for every
-    intraday 60-minute bar, so it declares each of them closed half an hour after
-    the store has already stopped writing to it.
-
-    The consequence is a closed-lane LATENCY, not a wrong number: an alert on the
-    09:00 or the 09:30 hourly bar cannot fire until 30 minutes after that bar
-    became final — in the busiest half hour of the day.
+    `indicator_alert_evaluator.bar_close_epoch` used to answer `t + 3600` for
+    every intraday 60-minute bar, so it declared each of those two closed half an
+    hour after the store had already stopped writing to it — a closed-lane
+    LATENCY, not a wrong number: an alert on the 09:00 or the 09:30 hourly bar
+    could not fire until 30 minutes after that bar became final, in the busiest
+    half hour of the day.
 
     ⚠️ AND THE REPLAY HARNESS STRUCTURALLY CANNOT SEE IT, which is why this is
     asserted directly instead of being read off `--repaint` or `--diff`.
@@ -898,26 +897,47 @@ def test_bar_close_epoch_overstates_the_two_60m_open_buckets():
     number. Only a wall clock — or this, an equality against the NEXT BAR'S START
     on real tape — can catch it.
 
-    This test goes RED, with the paragraph above in hand, the day somebody teaches
-    `bar_close_epoch` about the open bucket. That is the intended outcome.
+    ⭐ THE ORACLE IS UNCHANGED AND IT IS STILL AN ORACLE. The left-hand side is a
+    calendar computation; the right-hand side is a frozen store artifact this
+    function never reads. What flipped is the EXPECTATION: the two open buckets
+    now close where the tape says they closed, and the assertion that used to
+    record the 1,800-second overstatement now records that the overstatement is
+    gone — stated as the delta against the nominal answer, so the number the
+    finding was written about is still in the file. It goes red again from either
+    direction: a revert to `t + 3600` breaks the equality on 20 bars, and a store
+    that stopped anchoring the open bucket breaks the shape assertion.
+
+    The full behavioural measurement — the poll sweep, the end-to-end fire, and
+    the earliness rail read off `bar_rollup.bucket_start` — lives in
+    `tests/test_alert_bar_close_60m_grid.py`.
     """
     import datetime
     import zoneinfo
 
     et = zoneinfo.ZoneInfo("America/New_York")
     bars = ar.load_fixture("hourly_open_60m")["bars"]
-    overstated: dict = {}
+    shortened: dict = {}
+    adjacent = gaps = 0
     for i in range(len(bars) - 1):
         close_at = ev.bar_close_epoch(bars[i]["t"], "60")
-        assert close_at == bars[i]["t"] + 3600
-        if bars[i + 1]["t"] < close_at:
+        assert close_at is not None
+        assert close_at <= bars[i + 1]["t"], (
+            f"the bar at {bars[i]['t']} is superseded at {bars[i + 1]['t']} "
+            f"before bar_close_epoch says it closes at {close_at}")
+        if close_at == bars[i + 1]["t"]:
+            adjacent += 1
+        else:
+            gaps += 1
+        if close_at != bars[i]["t"] + 3600:
             start = datetime.datetime.fromtimestamp(bars[i]["t"], et).strftime("%H:%M")
-            overstated.setdefault(start, []).append(close_at - bars[i + 1]["t"])
-    assert set(overstated) == {"09:00", "09:30"}, (
-        f"the 60-minute grid changed shape: {sorted(overstated)}")
-    for start, deltas in overstated.items():
+            # what the nominal answer WOULD have overstated this bar by
+            shortened.setdefault(start, []).append(bars[i]["t"] + 3600 - close_at)
+    assert set(shortened) == {"09:00", "09:30"}, (
+        f"the 60-minute grid changed shape: {sorted(shortened)}")
+    for start, deltas in shortened.items():
         assert set(deltas) == {1800}, (start, sorted(set(deltas)))
         assert len(deltas) >= 8, (start, len(deltas))
+    assert adjacent >= 180 and gaps >= 10, (adjacent, gaps)
 
 
 @pytest.mark.parametrize("name,tf,step", [("thin_illiquid_5m", "5", 300),

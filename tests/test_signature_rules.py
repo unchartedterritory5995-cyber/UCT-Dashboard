@@ -144,3 +144,70 @@ def test_the_bars_store_key_and_the_ledger_label_are_DIFFERENT_maps():
     # second, weaker opinion in front of `record_signal`'s own refusal.
     assert rd.store_tf("nonsense") == "D"
     assert rd.ledger_tf("nonsense") == "nonsense"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHASE D TASK 8 — ONE WIRE CONTRACT, TWO CONSTANTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _js_schema_version() -> int:
+    """`defSchema.SCHEMA_VERSION`, READ OUT OF THE JS SOURCE.
+
+    ⛔ READ, NEVER RE-TYPED. A Python copy of the number is a second authority
+    over the same wire contract wearing a test's name: it would agree with
+    itself forever and stop agreeing with the client the moment somebody bumped
+    the JS constant, which is exactly the failure this test exists to catch.
+
+    ⚠️ CRLF-TOLERANT AND ANCHORED TO A DECLARATION, not to a line number.
+    `core.autocrlf` is on in this checkout.
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    src = (root / "app/src/components/chart/engine/defSchema.js").read_text(
+        encoding="utf-8").replace("\r\n", "\n")
+    # Strip line comments so a number quoted in prose can never be read as the
+    # declaration. (The grep-counts-prose trap has fired on this branch twice.)
+    code = re.sub(r"(?m)^\s*//.*$", "", src)
+    code = re.sub(r"/\*.*?\*/", "", code, flags=re.S)
+    hits = re.findall(r"export\s+const\s+SCHEMA_VERSION\s*=\s*(\d+)", code)
+    assert len(hits) == 1, (
+        "defSchema.js declares SCHEMA_VERSION %d times, expected exactly 1 — the "
+        "reader below cannot say which one the client validates against." % len(hits))
+    return int(hits[0])
+
+
+def test_the_server_lane_publishes_the_SAME_schema_version_the_client_validates():
+    """⚠️ TWO SCHEMA-VERSION CONSTANTS EXIST and they can disagree.
+
+    `defSchema.SCHEMA_VERSION` is what the client validates against;
+    `api/services/signature/registry_defs.SCHEMA_VERSION` is what
+    `/api/signature/definitions` PUBLISHES. Two authorities over one wire
+    contract is how a client silently refuses every definition after a bump
+    nobody propagated — and the failure mode is the worst shape there is: the
+    server keeps serving, the client keeps starting, and every server-lane
+    indicator simply stops existing with no error anywhere.
+
+    Read the JS constant from source rather than re-typing it.
+    """
+    from api.services.signature import registry_defs
+
+    js = _js_schema_version()
+    assert registry_defs.SCHEMA_VERSION == js, (
+        "the server lane publishes schemaVersion %r and the client validates against %r. "
+        "A definition whose schemaVersion is not EXACTLY the client's is refused by "
+        "`validateDefinition` with 'this client cannot safely interpret another schema "
+        "major' — so a one-sided bump takes the whole server lane off every chart, "
+        "silently. Move both, in one commit."
+        % (registry_defs.SCHEMA_VERSION, js))
+
+    # ⛔ AND THE READER IS NOT VACUOUS. A regex that matched nothing would make
+    # `js` meaningless; a regex that matched a comment would make it wrong. This
+    # is the positive control: the number really came out of the file.
+    assert js >= 1
+    assert all(
+        d["schemaVersion"] == js for d in registry_defs.SERVER_DEFS), (
+        "a published definition carries a schemaVersion other than the module's own "
+        "constant — the two-authority problem, one level further in.")

@@ -128,7 +128,7 @@ describe('the Flip-C decision record', () => {
     // in this file asks for — "a number for every live parity case, OR SAYS WHY
     // NOT". The count is still an equality, because a corpus that can grow
     // silently is a corpus nobody re-derives against.
-    expect(live).toHaveLength(47)
+    expect(live).toHaveLength(48)
     // And the placeholder really is excluded — otherwise "live" means "all" and
     // the filter above is decoration.
     // ⭐ 47 -> 50 AT PHASE C TASK 14, AND THE 46 DID NOT MOVE. The three new
@@ -137,6 +137,29 @@ describe('the Flip-C decision record', () => {
     // `expect` this branch has not measured on two builds is a number pretending
     // to be a gate. The live count above is what Flip C priced, and it is exactly
     // what must not change when a definition is added.
-    expect(JSON.parse(read(CASES)).cases).toHaveLength(51)
+    // ⭐ 51 -> 52 AT PHASE D TASK 11, AND THE LIVE 47 ABOVE DID NOT MOVE — which
+    // was this pair of numbers working exactly as the comment above describes.
+    // `ast_user_formula_sma20` WAS the fifth PLACEHOLDER: the first case for a
+    // USER-AUTHORED indicator, measured at 0 changed pixels on 5 of 5 runs with
+    // its fail-proof reading 0 IDENTICALLY, so it carried no `expect` and was not
+    // live. Its `why` recorded the manifest (two panes on BOTH sides — the
+    // instance never reached the renderer at all) and the attribution probe that
+    // separated that zero from a working case: swapping ONLY the `defId` to
+    // `rsi` moved 143,540 px, 2/2 runs, zero variance.
+    //
+    // ⭐⭐ 47 -> 48 AT PHASE D TASK 16, AND THE TOTAL 52 DID NOT MOVE — the same
+    // pair of counters working the other way round. Nothing was ADDED; a
+    // placeholder was PROMOTED, because the thing it was waiting for arrived.
+    // `nativeRegistry.installUserDefinitions` is the door that did not exist, and
+    // with it the case reads **140,925 px, 5/5 runs, zero variance**
+    // (`price_plot:28719 mid_panes:61883 osc_strip:50323`, summing to the
+    // headline exactly), and its fail-proof MOVES: `--perturb-b-instances` ->
+    // 141,551, 5/5, with all 626 px of the difference inside `osc_strip`. §9b of
+    // the record prices it BY NAME, for the same reason it prices
+    // `engine_two_rsi_instances` by name: it is an engine rehearsal on ONE build,
+    // so there is no bands-vs-panes pair to measure, and "a number for every live
+    // parity case, OR SAYS WHY NOT" is answered with the number and the reason
+    // both.
+    expect(JSON.parse(read(CASES)).cases).toHaveLength(52)
   })
 })

@@ -89,7 +89,7 @@ describe('the pixel gate cannot see the legend — asserted, not assumed', () =>
       .toContain('id="chart-export"')
   })
 
-  it('…over 47 LIVE cases — the number a future 0 would be reported against', () => {
+  it('…over 48 LIVE cases — the number a future 0 would be reported against', () => {
     // DERIVED from the corpus, never typed: the report of a "0 px" run names a
     // case count, and that count has to come from the same file the run reads.
     //
@@ -104,8 +104,17 @@ describe('the pixel gate cannot see the legend — asserted, not assumed', () =>
     // against, which is the only thing this case ever asserted.
     const cases = JSON.parse(read('tools', 'chart_parity_cases.json')).cases
     const live = cases.filter(c => c.status !== 'placeholder')
+    // ⭐ 47 → 48 AT PHASE D TASK 16, AND THE CLAIM AGAIN DID NOT MOVE.
+    // `ast_user_formula_sma20` STOPPED being a placeholder: Task 11 measured it
+    // at 0 changed pixels with its fail-proof reading 0 identically (nothing
+    // installed a user definition into the registry the binder resolves
+    // through), and Task 16 built the install door — so it now reads 140,925 px,
+    // 5/5 runs, zero variance, with the perturbation moving it to 141,551. It is
+    // a USER'S formula rather than a shipped one, and it is blind to this legend
+    // for exactly the same reason all 47 others are: it renders through the same
+    // export CSS that hides `[class*="legend" i]`.
     expect(live.length, 'the live parity corpus changed size — re-derive the claim')
-      .toBe(47)
+      .toBe(48)
     expect(cases.length).toBeGreaterThan(live.length)   // the placeholders are real
     // ⛔ AND THE NEW CASE IS SUBJECT TO THE SAME BLINDNESS, asserted rather than
     // assumed: it renders through the SAME hidden-legend route as the other 46.
@@ -113,6 +122,14 @@ describe('the pixel gate cannot see the legend — asserted, not assumed', () =>
     // for a case this file counts.
     expect(live.some(c => c.name === 'engine_two_rsi_instances'),
       'the phase\'s one pixel-moving case is not in the live corpus').toBe(true)
+    // ⭐ …AND THE NEWEST ONE, BY NAME. `ast_user_formula_sma20` is the first live
+    // case whose indicator is a USER'S formula rather than a shipped definition,
+    // and it is blind to this legend for exactly the same reason the other 47
+    // are: it renders through the same export CSS that hides `[class*="legend"
+    // i]`. Naming it is what stops the 48 above from counting something else.
+    expect(live.some(c => c.name === 'ast_user_formula_sma20'),
+      'the user-formula case is not in the live corpus — then the count above has '
+      + 'lost its newest subject').toBe(true)
   })
 })
 

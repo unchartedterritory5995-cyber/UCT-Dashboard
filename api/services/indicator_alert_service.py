@@ -157,7 +157,36 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # cutover gate would then pass on an empty set: a gate that cannot fail. The
     # rail is `test_a_scoped_alert_is_still_visible_to_list_active`.
     ("scope", "ALTER TABLE indicator_alerts ADD COLUMN scope TEXT"),
+    # ⭐ PHASE D TASK 12 (spec §12): WHO AUTHORED THE ARITHMETIC.
+    #
+    # NULL = BUILTIN, and that is the whole migration. Every row that exists —
+    # including the 31 production soak rows — is NULL, so a nullable column with
+    # no backfill leaves every alert meaning exactly what it already meant. A
+    # NOT NULL column with a `'builtin'` default would have written a sentinel
+    # into 31 live rows to say what they already say, on a table the cutover gate
+    # is watching.
+    #
+    # ⛔ IT IS A PROVENANCE DIMENSION AND `list_active()` MUST NEVER READ IT —
+    # the identical rule `scope` above carries, for the identical reason. The
+    # evaluator, the Task 6 SHADOW lane and the Task 11 soak matrix all read
+    # `list_active()`; a filter here would shrink what the shadow lane observes
+    # and Task 8's cutover gate would pass on a smaller set. `test_the_soak_rows_
+    # stay_visible_to_list_active_after_the_def_source_column` is the rail, and
+    # it drives the REAL `alert_soak_matrix.verify()`.
+    #
+    # ⛔ AND IT DOES NOT DECIDE WHETHER A FIRE IS DELIVERED. What quiets an alert
+    # is Task 11's fired log and the snooze; what refuses a RECEIPT is
+    # `indicator_alert_evaluator.admit_alert_fire`, which reads this column as
+    # one of its TWO signals (see `_is_user_authored` — the other is structural,
+    # so a row that lost this column still cannot accrue one).
+    ("def_source", "ALTER TABLE indicator_alerts ADD COLUMN def_source TEXT"),
 )
+
+#: The two provenances. `NULL` in the column reads as `DEF_SOURCE_BUILTIN`
+#: everywhere above the store, so no consumer has to know that absence means
+#: "UCT wrote this arithmetic".
+DEF_SOURCE_BUILTIN = "builtin"
+DEF_SOURCE_USER = "user"
 
 
 def db_path() -> str:
@@ -224,6 +253,12 @@ def _row_to_dict(row: tuple) -> dict:
         # frontend's `alertSetFor` reads as "on every chart" for exactly the
         # reason the column is nullable.
         "scope": row[22],
+        # ⭐ WHO AUTHORED THE ARITHMETIC. `None` in the column is BUILTIN —
+        # resolved here so no surface, and no gate, has to know that absence
+        # means "UCT wrote it". Every existing row (all 31 soak rows included) is
+        # NULL and therefore reads `"builtin"`, which is what they have always
+        # been.
+        "def_source": row[23] or DEF_SOURCE_BUILTIN,
     }
 
 
@@ -231,7 +266,7 @@ _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at, scope"
+    "instance_id, instance_missing_at, scope, def_source"
 )
 
 
@@ -289,14 +324,33 @@ def create(
     """
     if params_json is not None and not isinstance(params_json, str):
         params_json = json.dumps(params_json)
+
+    # ⭐⭐ PHASE D TASK 12 — ARM TIME IS HERE, AND THE EQUALITY RUNS BEFORE THE
+    # INSERT. `arm_for_alert` returns `None` for every builtin address, so this
+    # line is a no-op for every alert that has ever been created and the path
+    # above is byte-identical for them (`test_the_builtin_create_path_does_not_
+    # change` drives it). For a user address it runs the three measured gates —
+    # the stored repaint verdict, the budget AT THE VERSION BEING ARMED, and the
+    # cross-lane 1e-9 equality on THIS symbol's real bars — and RAISES
+    # `alert_user_series.AdmissionRefused` naming the gate.
+    #
+    # ⛔ IT RAISES RATHER THAN RETURNING FALSE, AND IT RAISES *BEFORE* THE INSERT.
+    # A refusal after the row landed would leave an alert the user believes is
+    # watching and which is refused every cycle — the silence this lane's create
+    # path validation exists to end, reached one step later. A refusal before it
+    # means there is nothing to go quiet.
+    from api.services import alert_user_series
+    admitted = alert_user_series.arm_for_alert(user_id, indicator, sym.upper(), tf)
+    source = None if admitted is None else DEF_SOURCE_USER
+
     now = int(time.time())
     with _conn() as db:
         cur = db.execute(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id, scope) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?)",
+            "instance_id, scope, def_source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -313,6 +367,9 @@ def create(
                 # nothing to send. Stored as NULL so there is exactly ONE
                 # representation of "global" in the column.
                 _clean_scope(scope),
+                # NULL for a builtin — the same "absence means what it always
+                # meant" rule the `scope` column above is built on.
+                source,
             ),
         )
         return int(cur.lastrowid)

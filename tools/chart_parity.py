@@ -251,6 +251,23 @@ def case_url(base: str, case: dict, token: str, extra_settings: dict | None = No
     instances = case_instances(case, side, instances_mode, perturb_instances)
     if instances:
         params["instances"] = b64url(instances)
+    # ⭐ PHASE D TASK 16 — `?userdefs=`: the USER DEFINITION documents an
+    # `ast`-lane case's instances resolve against.
+    #
+    # ⛔ IT GOES TO **BOTH** SIDES, unlike `instancesB`. A definition is a
+    # CATALOGUE entry, not a thing being drawn: the difference a case measures is
+    # "the instance is present on B", and handing side A a different catalogue
+    # would make the diff report the catalogue as well. Same reason `?indicators=`
+    # is symmetric and `?instances=` is not.
+    #
+    # ⚠️ THE PARITY ROUTE NEEDS ITS OWN DOOR AT ALL because `?fixedbars=` makes
+    # the page HERMETIC — every `/api/` call answers 503 — so the product path
+    # (`useInstalledUserDefinitions` → `GET /api/user-definitions`) cannot fetch
+    # one. That is exactly why Task 11's case could not be made to draw. The
+    # documents still go through `installUserDefinitions`, the same door and the
+    # same gates the product uses, so an invalid one installs nothing here too.
+    if case.get("userDefs"):
+        params["userdefs"] = b64url(case["userDefs"])
     if case.get("bars"):
         params["bars"] = case["bars"]
     if case.get("ext") is not None:
@@ -867,6 +884,7 @@ def _capture_once(page, url: str, ready_timeout_ms: int, stable_tries: int,
                     # would describe a layout the screenshot never shows.
                     "manifest": read_manifest(page),
                     "font_probe": read_text_font_probe(page),
+                    "user_defs": read_user_definitions(page),
                     "pane_alerts": read_pane_height_alerts(page)}
         prev_png, prev_px = png, px
         page.wait_for_timeout(settle_ms)
@@ -1045,6 +1063,28 @@ def read_manifest(page):
     """
     try:
         value = page.evaluate("() => window.__paneManifest ?? null")
+    except Exception:                                     # noqa: BLE001
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def read_user_definitions(page):
+    """``window.__userDefinitions`` — ``{installed: [id], errors: [str]}``, or None.
+
+    ⛔ A NON-VACUITY READ, AND PHASE D TASK 11 IS WHY IT EXISTS. A capture that
+    installed NOTHING and a capture that installed a definition the renderer then
+    ignored produce the SAME image: two panes, no series. Task 11 measured 0
+    changed pixels for `ast_user_formula_sma20` with AND without its own
+    perturbation and refused to report it as a pass precisely because the zero had
+    no discriminator. This is the discriminator, recorded beside the pane manifest
+    so "the definition was refused" and "the definition installed and nothing drew
+    it" can never be read off one picture again.
+
+    A page that publishes nothing answers None, exactly as `read_manifest` does —
+    a case with no `userDefs` is the normal case, not an error.
+    """
+    try:
+        value = page.evaluate("() => window.__userDefinitions ?? null")
     except Exception:                                     # noqa: BLE001
         return None
     return value if isinstance(value, dict) else None
@@ -2057,6 +2097,12 @@ def main() -> int:
                             # reason: `installed: false` here means the page published
                             # no hook, which a reader must be able to tell from "clean".
                             run[f"pane_alerts_{side}"] = cap.get("pane_alerts")
+                            # ⭐ PHASE D TASK 16 — what `?userdefs=` actually
+                            # INSTALLED, beside the pixels it produced. `None` on
+                            # every case that passes none; `{installed: [], errors:
+                            # [...]}` is a REFUSED definition and a zero that means
+                            # something entirely different from a drawn one.
+                            run[f"user_defs_{side}"] = cap.get("user_defs")
                         finally:
                             ctx.close()
 

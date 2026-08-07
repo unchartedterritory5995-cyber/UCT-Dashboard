@@ -443,13 +443,42 @@ def test_a_guarded_leak_and_an_absent_guard_have_DIFFERENT_exit_codes():
 def test_the_census_today_is_wide_open_and_that_is_recorded_not_hidden():
     """The pinned baseline. If a future change makes this go DOWN, that is
     progress and this number moves with it deliberately; if it goes UP, the
-    corpus grew. Either way nobody may quietly arrive at zero."""
+    corpus grew. Either way nobody may quietly arrive at zero.
+
+    MOVED DELIBERATELY BY PHASE D TASK 3, 2026-08-07, AND THE DOCSTRING ABOVE IS
+    THE AUTHORISATION. This asserted `escaped == len(cases)` -- 16 -- which was
+    right while every case was DECLARED `parses: true`. Task 3 configured the
+    real parser and MEASURED that declaration: jsep 1.4.0's core grammar has no
+    assignment operator, so `x = 1` is PARSER_REFUSED and was never offered to
+    the walker at all. 16 -> 15 is a CORRECTION.
+
+    The assertion is re-derived rather than re-numbered, and it is stronger than
+    the one it replaces:
+
+      * `escaped == parsed` is the CONTROL PROPERTY -- nothing refuses anything
+        today -- and it holds whatever the corpus size is, so it cannot rot the
+        way a literal 16 just did.
+      * `parser_refused` is pinned BY NAME, not by count. A second case quietly
+        becoming unparseable would shrink the census with every arithmetic
+        invariant still holding; naming the set makes that a decision.
+      * the floor stays explicit, because `escaped == parsed` is satisfied by
+        `0 == 0` and a census over nothing reports safety forever.
+    """
     res = ac.escape_census(unguarded=True)
     assert ac.guard_state() == "absent" or len(res["escaped"]) >= 0
-    assert len(res["escaped"]) == len(ac.load_escapes()["cases"]), (
-        "every case in the must-refuse corpus escapes an unguarded walker today. "
-        "If that stops being true without a guard existing, the walker started "
-        "refusing something and it is no longer the control.")
+    assert len(res["escaped"]) == res["parsed"], (
+        "every case the unguarded walker was OFFERED escapes it today. If that "
+        "stops being true without a guard existing, the walker started refusing "
+        "something and it is no longer the control.")
+    assert res["parser_refused"] == ["assignment"], (
+        f"the set of cases the PARSER refuses changed: {res['parser_refused']}. "
+        "A case the parser rejects is never offered to the walker, so it leaves "
+        "the escape total without anything having been made safe -- that is a "
+        "measurement to record, never a number to absorb.")
+    assert res["parsed"] + len(res["parser_refused"]) == len(ac.load_escapes()["cases"])
+    assert res["parsed"] >= 15, (
+        "the escape corpus shrank. `escaped == parsed` is satisfied by 0 == 0, "
+        "and a census over nothing reports safety forever.")
 
 
 # --------------------------------------------------------------------------- #
@@ -595,6 +624,151 @@ def test_the_escapes_cli_reports_non_zero_and_exits_no_guard_today():
         pytest.skip("a guarded interpreter exists; Task 6 owns this exit code")
     assert ac.main(["--escapes", "--unguarded"]) == 0
     assert ac.main(["--escapes"]) == ac.EXIT_NO_GUARD
+
+
+# --------------------------------------------------------------------------- #
+# THE DOOR -- added 2026-08-08 by the budget task
+# --------------------------------------------------------------------------- #
+
+def test_the_guarded_census_offers_each_case_to_the_DOOR_ITS_CLAIM_IS_ABOUT():
+    """🔴 THE DEFECT THIS REPLACES, AND THE REASON IT IS THE FIRST TEST HERE.
+
+    The guarded census used to hand each case's JSEP tree straight to `interpret`.
+    The Python lane deliberately has no parser (decision D-A1), so EVERY case was
+    refused at the ROOT by `interpret:node` -- before a name, an arity, a window or
+    a budget was ever consulted. The census read `0 escaped` and the verdict read
+    CLOSED, and the three `budget:*` cases read EXACTLY as they would have with no
+    budget in the product at all. Fifteen refusals; fifteen wrong doors.
+
+    A user's formula travels jsep -> canonicalise -> interpret. The census now
+    travels the same path: `canonicalise` in the only lane that has it, then
+    `interpret` in BOTH. So every case meets the door its claim is about, and this
+    asserts that as an EQUALITY over the whole corpus rather than as a count.
+    """
+    res = ac.escape_census(unguarded=False)
+    assert res["escaped"] == [], res["escaped"]
+    assert res["wrong_door"] == [], res["wrong_door"]
+    assert res["lane_disagreements"] == [], res["lane_disagreements"]
+
+    # ⛔ THE FLOOR, BECAUSE `wrong_door == []` IS SATISFIED BY `refused == 0` --
+    # the same way `escaped == parsed` is satisfied by `0 == 0`, which is why Task
+    # 3 added `parsed >= 15`. This zero has the identical shape.
+    assert res["refused"] == res["parsed"] >= 16, res
+
+    by_id = {r["id"]: r for r in res["refusal_guards"]}
+    declared = {c["id"]: c["guard"] for c in ac.load_escapes()["cases"]
+                if c.get("parses", True)}
+    assert set(by_id) == set(declared)
+    for cid, guard in declared.items():
+        assert by_id[cid]["fired"] == guard, (cid, by_id[cid])
+
+    # ⛔ AND THE DOORS ARE PLURAL, IN BOTH STAGES. The whole defect was ONE door
+    # answering for every case; a "fix" that re-pointed that single door would
+    # satisfy every equality above except these two.
+    assert len({r["fired"] for r in res["refusal_guards"]}) >= 6
+    assert {r["stage"] for r in res["refusal_guards"]} == {"canonicalise", "interpret"}
+
+
+def test_a_zero_whose_refusals_came_from_the_WRONG_DOOR_cannot_exit_zero():
+    """⭐ THE VERDICT CHANGE, ASSERTED FROM OUTSIDE THE TOOL.
+
+    Task 5 deliberately left the four exit codes alone, because the budget task
+    read its baseline from them. That baseline has been read. A CLOSED whose
+    refusals came from doors that have nothing to do with the cases' claims is no
+    longer allowed to exit 0 -- a zero that is not ATTRIBUTABLE is not a zero
+    anybody may cite.
+    """
+    control = {"mode": "unguarded", "guard": "both", "total": 3, "parsed": 3,
+               "refused": 0, "escaped": ["a", "b", "c"], "parser_refused": []}
+    clean = {"mode": "guarded", "guard": "both", "total": 3, "parsed": 3,
+             "refused": 3, "escaped": [], "parser_refused": [],
+             "wrong_door": [], "lane_disagreements": []}
+    assert ac.escape_verdict(clean, control)[0] == ac.EXIT_CLOSED
+
+    wrong = dict(clean, wrong_door=[
+        {"id": "too_many_nodes", "declared": "budget:nodes", "fired": "interpret:node"}])
+    code, lines = ac.escape_verdict(wrong, control)
+    assert code != ac.EXIT_CLOSED, "a wrong-door zero exited 0"
+    assert code == ac.EXIT_ESCAPES
+    assert any("NOT ATTRIBUTABLE" in ln for ln in lines), lines
+
+
+def test_a_zero_the_two_lanes_DISAGREE_about_cannot_exit_zero():
+    """A table that is closed in JS and open in Python is not a closed table, and
+    the failure is invisible to a census that only ever asks one of them -- which
+    is what this file's subject did until the pipeline landed."""
+    control = {"mode": "unguarded", "guard": "both", "total": 3, "parsed": 3,
+               "refused": 0, "escaped": ["a", "b", "c"], "parser_refused": []}
+    split = {"mode": "guarded", "guard": "both", "total": 3, "parsed": 3,
+             "refused": 3, "escaped": [], "parser_refused": [], "wrong_door": [],
+             "lane_disagreements": [{"id": "x",
+                                     "js": {"outcome": "refused", "guard": "budget:nodes"},
+                                     "py": {"outcome": "value", "guard": None}}]}
+    code, lines = ac.escape_verdict(split, control)
+    assert code == ac.EXIT_ESCAPES
+    assert any("LANES DISAGREE" in ln for ln in lines), lines
+
+
+def test_the_guarded_census_REFUSES_when_the_only_parser_is_missing(monkeypatch):
+    """⛔ A LANE THAT CANNOT BE MEASURED REFUSES; IT NEVER REPORTS ZERO.
+
+    Falling back to offering jsep trees straight to `interpret` is exactly the
+    wrong-door defect the pipeline exists to remove -- and it would report the same
+    reassuring zero it reported for a whole day.
+    """
+    monkeypatch.setattr(ac, "JS_PARSE_PATH", str(_ROOT / "no" / "such" / "parse.js"))
+    with pytest.raises(ac.LaneUnavailable, match=r"incomplete"):
+        ac.escape_census(unguarded=False)
+    # …while the UNGUARDED control is unaffected: it is this file's own walker and
+    # needs no parser at all, which is what keeps the positive control alive when
+    # the subject is broken.
+    assert len(ac.escape_census(unguarded=True)["escaped"]) > 0
+
+
+def test_the_canonical_tree_cannot_LOSE_NODES_crossing_the_lane_boundary():
+    """The tree is carried between the lanes as a FLAT post-order array, because
+    `JSON.stringify` is recursive and died on the corpus's 4,000-deep case, and
+    because `json.loads` recurses in C where the limit is not raisable.
+
+    ⛔ A DECODER THAT DROPPED A SUBTREE WOULD HAND THE PYTHON LANE A SMALLER TREE,
+    and for the budget cases that is the difference between a refusal and a value
+    -- in the direction that reads as safety. So the decode is cross-checked
+    against the SUBJECT's own counter, and here is the proof it can fail.
+    """
+    flat = [{"t": "num", "v": 1.0}, {"t": "series", "n": "close"},
+            {"t": "op", "n": "+", "a": [0, 1]}]
+    tree = ac._rebuild_canonical(flat)
+    assert tree == {"type": "op", "name": "+",
+                    "args": [{"type": "num", "value": 1.0},
+                             {"type": "series", "name": "close"}]}
+    # the positive control: a flat array whose root does not reach every node.
+    orphaned = [{"t": "num", "v": 1.0}, {"t": "num", "v": 2.0},
+                {"t": "series", "n": "close"}, {"t": "op", "n": "+", "a": [0, 2]}]
+    with pytest.raises(ac.LaneUnavailable, match=r"lost nodes"):
+        ac._rebuild_canonical(orphaned)
+    with pytest.raises(ac.LaneUnavailable, match=r"EMPTY"):
+        ac._rebuild_canonical([])
+
+
+def test_the_series_chain_generator_reads_the_MANIFEST_rather_than_typing_names():
+    """⭐ A corpus case that hand-typed `close` would keep generating a tree of
+    UNKNOWN names on the day a series is renamed -- and an unknown name is refused
+    by `resolve:name`, at a different door, which would silently convert that
+    case's claim into somebody else's."""
+    manifest = ac.load_manifest()
+    assert manifest is not None
+    names = sorted(manifest["series"])
+    tree = ac.generate_ast("gen:seriesChain(9)")
+    found = ac.names_in(tree)
+    assert found <= set(names), found
+    assert len(found) == min(9, len(names))
+    # the source of those names is the manifest, proven by asserting this file
+    # never types one: the generator's own AST holds no string constant equal to a
+    # declared series name.
+    fn = _module_fn("generate_ast")
+    literals = {n.value for n in pyast.walk(fn)
+                if isinstance(n, pyast.Constant) and isinstance(n.value, str)}
+    assert not (literals & set(names)), sorted(literals & set(names))
 
 
 def test_the_generated_tree_is_the_size_it_claims():

@@ -66,6 +66,16 @@
 // `[[value, label]]` pairs for a `<select>`. Different modules, different
 // shapes, no import between them — import the one whose module you mean.
 
+// ⭐ THE ONE IMPORT THIS MODULE HAS, ADDED AT PHASE D TASK 8, AND IT DOES NOT
+// COST THE PURITY CLAIM ABOVE. `parseFormula` and `astHash` are pure functions
+// of a string and a tree — no clock, no network, no settings — and `parseFormula`
+// is the door that never throws. What they buy is the `ast` lane's storage rail:
+// checking that a stored `compute.source` still parses to the stored
+// `compute.ast` is not expressible without a parser, and D-A1 rules that there is
+// exactly ONE. A second comparison written here by hand would be a second
+// grammar, which is the thing that ruling exists to prevent.
+import { parseFormula, astHash } from './ast/parse'
+
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
 
@@ -99,10 +109,42 @@ export const PLOT_STYLES = Object.freeze([
  *  treatment as RESERVED_INPUT_TYPES. */
 export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor', 'fill'])
 
-/** Compute lanes (spec §3). `script` is reserved AI plumbing but is a declared
- *  kind, so it parses; the registry's `supportedKinds` filter decides what a
- *  given client will actually run. */
+/** Compute lanes (spec §3). Every kind here PARSES — a definition naming one is
+ *  well-formed and may be listed, merchandised and round-tripped by a client
+ *  that cannot run it.
+ *
+ *  ⭐ AND `SUPPORTED_KINDS` BELOW IS NOW THE FILTER THIS COMMENT USED TO PROMISE.
+ *  From B1 until Phase D Task 8 it read *"the registry's `supportedKinds` filter
+ *  decides what a given client will actually run"* — and that filter had **no
+ *  identifier anywhere in `app/src` or `api/`**. It was prose describing a
+ *  mechanism nobody wrote, sitting in the file whose job is to fail closed.
+ *  Measured 2026-08-06 (Task 3: repo-wide, zero identifiers, this comment plus
+ *  spec §3.1); made real 2026-08-07 by the constant below and its one consumer,
+ *  `nativeRegistry.validateUserDefinitions`. */
 export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script'])
+
+/**
+ * The lanes THIS CLIENT CAN EXECUTE — the `supportedKinds` filter, as an
+ * identifier rather than a sentence.
+ *
+ * ⛔ THIS IS A STRICT SUBSET OF `COMPUTE_KINDS`, AND THE TWO SAY DIFFERENT
+ * THINGS. "Declared" and "supported" are separate claims and conflating them
+ * breaks in both directions:
+ *
+ *   * collapse them INTO one list and `script` — reserved AI plumbing, spec §3 —
+ *     becomes a lane a client will try to run;
+ *   * treat "unsupported" as "invalid" and an older bundle stops LISTING the
+ *     whole server lane, which spec §3.1 (catalog fetch filters by client
+ *     `supportedKinds`) and §5 (premium entries stay listed while locked)
+ *     both forbid. A definition this client cannot run is still a definition it
+ *     must be able to describe.
+ *
+ * So `validateDefinition` accepts every member of `COMPUTE_KINDS` — a `script`
+ * definition is WELL-FORMED — and `validateUserDefinitions` is where a kind
+ * outside this list is refused, by name, with a message that says "cannot run"
+ * rather than "malformed".
+ */
+export const SUPPORTED_KINDS = Object.freeze(['native', 'server', 'ast'])
 
 /** Where the indicator draws. `volume` = the shipped left-axis overlay. */
 export const PLACEMENT_TARGETS = Object.freeze(['price', 'pane', 'volume'])
@@ -475,6 +517,10 @@ function validateCompute(compute, errors) {
   // `kind` selects the EXECUTION LANE. An unrecognised lane silently falling
   // back to `native` would run a different implementation than the author
   // declared, so it is fail-closed alongside inputs[].type and plots[].style.
+  //
+  // ⚠️ CHECKED AGAINST `COMPUTE_KINDS`, NOT `SUPPORTED_KINDS`, AND THAT IS THE
+  // WHOLE POINT OF THERE BEING TWO. A `script` definition is well-formed; it is
+  // merely unrunnable here, which is `validateUserDefinitions`' sentence to say.
   checkVocabulary(compute.kind, COMPUTE_KINDS, [], 'compute.kind', 'compute kind', errors)
 
   if (!isNonEmptyString(compute.fn)) {
@@ -485,10 +531,116 @@ function validateCompute(compute, errors) {
   if (!Number.isInteger(compute.rev) || compute.rev < 1) {
     errors.push(`compute.rev: required integer >= 1 (the math revision), got ${fmt(compute.rev)}`)
   }
-  // `budget` is reserved (op/lookback caps for ast/script kinds). Only its
-  // presence-shape is checked; the caps themselves have no meaning yet.
+  // `budget` — op/lookback/series caps for the `ast` lane.
+  //
+  // ⭐ THIS COMMENT USED TO READ *"reserved … the caps themselves have no
+  // meaning yet"*, AND TASK 6 MADE THAT MEASURABLY FALSE while leaving this file
+  // byte-identical on purpose (the correction is Task 8's, in the commit that
+  // gives the field a registration-time consumer). The caps are read by
+  // `ast/budget.js::effectiveBudget`, which resolves this object against
+  // `DEFAULT_BUDGET` so a stored blob can only ever TIGHTEN — and they are
+  // enforced twice: `checkBudget` at registration (the UX half, a message an
+  // author sees while typing) and `assertBudget` inside `interpret` (the safety
+  // half, which is the one a mutation must not be able to delete quietly).
+  //
+  // ⚠️ STILL ONLY A PRESENCE-SHAPE CHECK HERE, AND DELIBERATELY. Whether a cap
+  // is a sane integer is `effectiveBudget`'s question and it answers by falling
+  // back to the default rather than refusing — a malformed stored blob must not
+  // make a chart un-drawable. This validator's job is that the field is an
+  // object at all.
   if (compute.budget !== undefined && compute.budget !== null && !isPlainObject(compute.budget)) {
     errors.push(`compute.budget: reserved — expected null or an object, got ${fmt(compute.budget)}`)
+  }
+
+  if (compute.kind === 'ast') validateAstCompute(compute, errors)
+}
+
+/**
+ * The `ast` lane's own three rules. ⭐ D-A1's RAIL, ARRIVING FROM THE STORAGE SIDE.
+ *
+ * D-A1 ruled ONE parser: `jsep` runs once, in the browser, at author time, and
+ * `compute.ast` — the tree — is what is stored, versioned, wired and
+ * interpreted. Python never parses. That ruling has a consequence nobody can opt
+ * out of: **the tree is the implementation and the source is only a picture of
+ * it**, so a stored pair that disagree is a definition whose read-back describes
+ * maths nobody is computing. The concierge is designed against exactly that
+ * failure from the authoring side; this is the same failure arriving from the
+ * database, and the schema is the only place that can see it.
+ *
+ * 1. `compute.ast` must be a CANONICAL tree — four node types, exact key sets.
+ *    Asked through `astHash`, which calls `assertCanonical` because the hash is
+ *    taken of the PERSISTED artifact, not of something this process just built.
+ *
+ * 2. `compute.source` must PARSE BACK TO `compute.ast`. Compared by HASH rather
+ *    than by deep-equality on purpose: the hash is the stable identity that
+ *    already decides a `compute.rev` bump, so whitespace and key order cannot
+ *    make two identical formulas disagree here while agreeing there.
+ *
+ * 3. ⭐ AN `ast` DEFINITION'S `compute.fn` IS ITS `astHash`, and that is not a
+ *    formality. `fn` is the compute HANDLE; for a native it names a function in
+ *    `NATIVE_COMPUTE`, for a server def it names an endpoint's definition id.
+ *    For an AST there is no third thing to name — the tree IS the implementation
+ *    — so naming it by its own hash makes "the handle changed" and "the maths
+ *    changed" ONE event rather than two that can disagree. (`compute.fn` is
+ *    required for EVERY kind — a non-empty-string check with no kind branch —
+ *    so the alternative was not "no handle", it was "a handle that means
+ *    nothing", which is the shape a rename rots into.)
+ */
+function validateAstCompute(compute, errors) {
+  if (!isNonEmptyString(compute.source)) {
+    errors.push(
+      `compute.source: an "ast" definition must carry the SOURCE the user edits alongside the ` +
+      `tree that runs — got ${fmt(compute.source)}. Without it the formula can be computed and ` +
+      `never read back, which is a definition no author can ever correct.`,
+    )
+  }
+  if (compute.ast === undefined || compute.ast === null) {
+    errors.push(
+      `compute.ast: an "ast" definition must carry the canonical tree — got ${fmt(compute.ast)}. ` +
+      `The tree is the implementation (D-A1: one parser, at author time); a definition without ` +
+      `one names maths that does not exist.`,
+    )
+    return
+  }
+
+  let storedHash
+  try {
+    storedHash = astHash(compute.ast)
+  } catch (err) {
+    errors.push(
+      `compute.ast: not a canonical tree (${err && err.message ? err.message : String(err)}) — ` +
+      `the persisted shape is the contract with the Python lane and is deliberately smaller ` +
+      `than jsep's.`,
+    )
+    return
+  }
+
+  if (isNonEmptyString(compute.fn) && compute.fn !== storedHash) {
+    errors.push(
+      `compute.fn: an "ast" definition's compute handle IS its astHash — expected ` +
+      `${fmt(storedHash)}, got ${fmt(compute.fn)}. The tree is the implementation, so there is no ` +
+      `third thing for the handle to name; naming it by its own hash makes "the handle changed" ` +
+      `and "the maths changed" one event rather than two that can disagree.`,
+    )
+  }
+
+  if (!isNonEmptyString(compute.source)) return   // already reported above
+  const parsed = parseFormula(compute.source)
+  if (!parsed.ok) {
+    errors.push(
+      `compute.source does not parse to compute.ast — it does not parse at all ` +
+      `(${parsed.error}). The AST is what runs and the source is what the user edits; a pair ` +
+      `that disagree is a read-back describing maths nobody is computing.`,
+    )
+    return
+  }
+  if (astHash(parsed.ast) !== storedHash) {
+    errors.push(
+      `compute.source does not parse to compute.ast — ${fmt(compute.source)} parses to ` +
+      `${astHash(parsed.ast)} while the stored tree hashes to ${storedHash}. The AST is what ` +
+      `runs and the source is what the user edits; a pair that disagree is a read-back ` +
+      `describing maths nobody is computing.`,
+    )
   }
 }
 

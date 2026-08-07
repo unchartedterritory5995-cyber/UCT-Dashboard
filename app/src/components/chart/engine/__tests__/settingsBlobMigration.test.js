@@ -23,6 +23,7 @@ import { CHART_DEFAULTS, mergeChartSettings, mergeSettingsOverride } from '../..
 import { migrateLegacyToInstances, SHIPPED_STACK_ORDER } from '../instances'
 import { computePaneLayout } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
+import { REGISTRY_SIZES } from '../registrySizes'
 
 /** The repo root — same walk `enumerationSites.test.js` uses, and it THROWS BY
  *  NAME rather than returning a path that does not exist, because the Task-12
@@ -465,7 +466,9 @@ describe('the allow-list, asserted by what it DESTROYS', () => {
     expect(Object.keys(cs.indicators)).toEqual(['volumeProfile'])
     // …and the fixture really did name fourteen, so the empty answer is a
     // destruction rather than an empty input.
-    expect(Object.keys(all)).toHaveLength(17)   // 14 + avwap/atrBands + Task 13's rsLine
+    // ⭐ THE INTEGER USED TO BE TYPED HERE. `registrySizes.js` is the one place
+    // a registry count lives now — see its header for the §A5 measurement.
+    expect(Object.keys(all)).toHaveLength(REGISTRY_SIZES.total)
   })
 
   it('⛔ mergeSettingsOverride still passes a legacy section through UNTOUCHED', () => {

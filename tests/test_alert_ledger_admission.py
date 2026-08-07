@@ -479,6 +479,282 @@ def test_the_ten_pre_existing_rows_are_byte_identical_after_a_full_cycle(
     assert after[:10] == before, "a pre-existing ledger row MOVED"
 
 
+# ═══ PHASE D TASK 12 — THE DOOR STAYS SHUT FOR USER-AUTHORED FORMULAS ════════
+#
+# ⭐ SPEC §12: user publishing is out of scope *until the ledger can hold
+# publishers accountable*. Phase D lets a user's own formula reach a path that
+# can send a NOTIFICATION; it does not let one accrue a RECEIPT. The receipts
+# brand is UCT's own signals (§10), the store is append-only with no rewrite
+# path, and a user-authored signal in `signature_signals` cannot be un-published.
+
+
+def _user_alert(**over):
+    """A user-authored alert row — the shape `indicator_alert_service` returns."""
+    row = _alert(condition="above", threshold=60.0)
+    row["indicator"] = "u_0123456789ab.value"
+    row["def_source"] = "user"
+    row.update(over)
+    return row
+
+
+def _a_real_closed_bar_fire_from_a_user_definition():
+    """A fire that PASSES EVERY OTHER GATE, so only the user gate can refuse it.
+
+    ⛔ THE FIRE MUST EXIST BEFORE IT IS REFUSED. Phase C Task 9's
+    `test_the_forming_bar_fire_this_file_refuses_ACTUALLY_EXISTS` was green in
+    its own red run and that is what proved the fire predated the door; a refusal
+    test whose input produced nothing refuses nothing and passes anyway.
+
+    So the numbers here are taken from the SHIPPED closed lane on the committed
+    `wick_that_unwinds` fixture, through a BUILTIN address — a genuinely
+    ledger-eligible fire — and only the provenance is then changed. Every other
+    gate (`mode == "closed"`, the bar has closed, the timeframe has a label, the
+    value is not None) is satisfied by construction.
+    """
+    now = float(WICK[-1]["t"]) + 86_400.0
+    value, triggered, idx = ev._evaluate_one_closed(
+        _alert(condition="above", threshold=60.0), bars=WICK, now_epoch=now)
+    assert triggered is True and value is not None and idx is not None, (
+        f"the closed lane did not fire — there is nothing to refuse "
+        f"({value}, {triggered}, {idx})")
+    return {"value": value, "bar_index": idx, "now": now}
+
+
+def test_the_fire_the_user_gate_refuses_ACTUALLY_EXISTS_and_is_LEDGER_GRADE(
+        tmp_ledger, monkeypatch):
+    """The non-vacuity of every user-gate refusal below, in two halves.
+
+    Half one: the fire exists. Half two — the one that makes the refusal mean
+    something — the IDENTICAL fire from a BUILTIN definition LANDS A ROW. Without
+    that, "refused" is satisfied by an input every gate refuses.
+    """
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    fire = _a_real_closed_bar_fire_from_a_user_definition()
+    assert ev.admit_alert_fire(_alert(condition="above", threshold=60.0),
+                               fire["value"], bar_index=fire["bar_index"],
+                               bars=WICK, now_epoch=fire["now"]) is True
+    assert _rows_on_disk(tmp_ledger) == 1
+
+
+def test_a_user_definition_fire_is_REFUSED_at_the_ledger_door_and_the_refusal_RAISES(
+        tmp_ledger, monkeypatch):
+    """🔴 THE TASK-12 GATE.
+
+    ⛔ IT RAISES; it does not return False. Phase C Task 9 measured why: a boolean
+    refusal is a value a caller can ignore, `record_signal` already uses False for
+    exactly one thing ("already recorded"), and fire-once cannot survive one lie.
+    """
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    fire = _a_real_closed_bar_fire_from_a_user_definition()
+    with pytest.raises(ev.LedgerAdmissionRefused,
+                       match="user-authored definitions do not accrue receipts"):
+        ev.admit_alert_fire(_user_alert(), fire["value"],
+                            bar_index=fire["bar_index"], bars=WICK,
+                            now_epoch=fire["now"])
+    assert _rows_on_disk(tmp_ledger) == 0
+    assert ledger.get_signals() == []
+
+
+def test_the_user_refusal_is_a_RAISE_and_never_a_False(tmp_ledger, monkeypatch):
+    """`False` is spoken for and means "already recorded". A refusal that returned
+    it would be indistinguishable from a duplicate — the one lie fire-once cannot
+    survive — so the call must RAISE even where every other condition is met."""
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    fire = _a_real_closed_bar_fire_from_a_user_definition()
+    outcome = "not-called"
+    try:
+        outcome = ev.admit_alert_fire(_user_alert(), fire["value"],
+                                      bar_index=fire["bar_index"], bars=WICK,
+                                      now_epoch=fire["now"])
+    except ev.LedgerAdmissionRefused:
+        outcome = "raised"
+    assert outcome == "raised", f"the door returned {outcome!r} instead of raising"
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_NO_ROW_IS_WRITTEN_even_if_a_caller_swallows_the_refusal(
+        tmp_ledger, monkeypatch):
+    """⛔ THE PROPERTY THE APPEND-ONLY STORE ACTUALLY DEPENDS ON.
+
+    The two tests above assert the door RAISES. This asserts the store is
+    untouched even from a caller that ignores everything the door says — which is
+    a strictly different claim and the one that separates *"the gate was
+    deleted"* (a row LANDS) from *"the gate returns False"* (no row, but a lie).
+    Without it those two mutations are indistinguishable: both stop the raise,
+    both fail every `pytest.raises`, and neither has a killer the other lacks.
+    """
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    fire = _a_real_closed_bar_fire_from_a_user_definition()
+    try:
+        ev.admit_alert_fire(_user_alert(), fire["value"],
+                            bar_index=fire["bar_index"], bars=WICK,
+                            now_epoch=fire["now"])
+    except Exception:                                   # noqa: BLE001 — the point
+        pass
+    assert _rows_on_disk(tmp_ledger) == 0, (
+        "a user-authored fire reached the append-only ledger; there is no "
+        "rewrite path and no way to un-publish it")
+
+
+def test_the_COLUMN_alone_refuses_and_the_ADDRESS_alone_refuses(
+        tmp_ledger, monkeypatch):
+    """⛔ TWO SIGNALS, EACH SEPARATELY MEASURED.
+
+    This is not the accidental redundancy the `AlertBell` fix removed (a second
+    guard that made the first unkillable); it is Phase C Task 9's deliberate
+    kind, where each half answers a question the other cannot:
+
+      * the COLUMN is the durable statement, written at arm time, and it survives
+        the definition being deleted afterwards — which is exactly when the
+        address stops resolving to anything;
+      * the ADDRESS is the structural statement, and it holds for a dict a caller
+        assembled by hand. This door takes a mapping, not a row.
+
+    Each case below carries ONE of the two signals and neither carries both, so
+    deleting either half makes exactly one of these fail.
+    """
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    fire = _a_real_closed_bar_fire_from_a_user_definition()
+
+    column_only = _user_alert(indicator="rsi")            # builtin address
+    address_only = _user_alert()
+    address_only.pop("def_source")                        # no column at all
+
+    for row in (column_only, address_only):
+        with pytest.raises(ev.LedgerAdmissionRefused,
+                           match="user-authored definitions do not accrue receipts"):
+            ev.admit_alert_fire(row, fire["value"], bar_index=fire["bar_index"],
+                                bars=WICK, now_epoch=fire["now"])
+    assert _rows_on_disk(tmp_ledger) == 0
+
+    # …and the CASE-FOLDED spelling is refused too, because `resolve_address`
+    # lowercases and a fire must not become ledger-eligible by being spelled the
+    # way the resolver leaves it.
+    folded = _user_alert(indicator="u_0123456789AB.Value")
+    folded.pop("def_source")
+    with pytest.raises(ev.LedgerAdmissionRefused, match="do not accrue receipts"):
+        ev.admit_alert_fire(folded, fire["value"], bar_index=fire["bar_index"],
+                            bars=WICK, now_epoch=fire["now"])
+
+
+def test_the_user_gate_refuses_in_FORMING_MODE_TOO_and_says_so_by_name(
+        tmp_ledger, monkeypatch):
+    """⛔ THE ORDER IS LOAD-BEARING AND THIS IS WHERE IT IS MEASURED.
+
+    Every other gate in this door is a fact about the LANE or about one bar and
+    one clock — conditional, and all of them things Task 8's cutover moves.
+    Whether an ACCOUNT wrote the arithmetic is none of those: it is true in every
+    mode, on every bar. Placed after the mode gate, a user fire in `"forming"`
+    would be refused for the MODE — a true sentence about the wrong thing, which
+    is the "refused by a different door" reading this branch has measured five
+    times, and which would make this refusal disappear the day Task 8 flips the
+    constant.
+    """
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "forming")
+    with pytest.raises(ev.LedgerAdmissionRefused,
+                       match="user-authored definitions do not accrue receipts"):
+        ev.admit_alert_fire(_user_alert(), 74.31, bar_index=53, bars=WICK,
+                            now_epoch=_mid_bar_53_epoch())
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_a_BUILTIN_fire_is_untouched_by_the_user_gate(tmp_ledger, monkeypatch):
+    """The positive control. A gate that refused everything would satisfy every
+    test above; `def_source` absent, `"builtin"`, or `None` must all still land."""
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    fire = _a_real_closed_bar_fire_from_a_user_definition()
+    landed = 0
+    for i, source in enumerate((None, "builtin", "BUILTIN", "")):
+        row = _alert(condition="above", threshold=60.0, sym=f"SYM{i}")
+        if source is not None:
+            row["def_source"] = source
+        landed += bool(ev.admit_alert_fire(row, fire["value"],
+                                           bar_index=fire["bar_index"], bars=WICK,
+                                           now_epoch=fire["now"]))
+    assert landed == 4
+    assert _rows_on_disk(tmp_ledger) == 4
+
+
+# ─── the disjointness rail: no two gates may share a phrase ──────────────────
+
+def _every_ledger_refusal_message(monkeypatch) -> dict:
+    """Drive EVERY gate in `admit_alert_fire` for real and collect its message.
+
+    ⛔ DRIVEN, NEVER READ OFF A TABLE OF CONSTANTS. Phase C Task 9's M1 found two
+    gates sharing the phrase "forming-bar fires are not ledger-grade", so
+    `pytest.raises(match=…)` STILL MATCHED WITH THE MODE LOCK DELETED — the test
+    would have passed on a tree with the safety removed. Nineteenth vacuous gate
+    on this branch, and only the mutation found it. Comparing the constants to
+    each other would prove the constants are distinct and nothing about the
+    strings the code raises.
+    """
+    out: dict[str, str] = {}
+    long_after = float(WICK[-1]["t"]) + 86_400.0
+
+    def capture(key, fn):
+        with pytest.raises(RuntimeError) as caught:
+            fn()
+        out[key] = str(caught.value)
+
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    capture("user", lambda: ev.admit_alert_fire(
+        _user_alert(), 68.84, bar_index=65, bars=WICK, now_epoch=long_after))
+    capture("bar_index", lambda: ev.admit_alert_fire(
+        _alert(), 68.84, bar_index=10_000, bars=WICK, now_epoch=long_after))
+    capture("tf_label", lambda: ev.admit_alert_fire(
+        _alert(tf="4h"), 68.84, bar_index=65, bars=WICK, now_epoch=long_after))
+    capture("not_closed", lambda: ev.admit_alert_fire(
+        _alert(), 74.31, bar_index=53, bars=WICK, now_epoch=_mid_bar_53_epoch()))
+    capture("no_value", lambda: ev.admit_alert_fire(
+        _alert(), None, bar_index=65, bars=WICK, now_epoch=long_after))
+
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "forming")
+    capture("mode", lambda: ev.admit_alert_fire(
+        _alert(), 68.84, bar_index=65, bars=WICK, now_epoch=long_after))
+    return out
+
+
+#: The fragment each refusal test in this file matches on, by gate. A test that
+#: adds a `match=` without adding its fragment here is not covered by the rail.
+_LEDGER_FRAGMENTS = {
+    "user": "user-authored definitions do not accrue receipts",
+    "mode": "forming-bar fires are not ledger-grade",
+    "bar_index": "is not a position in the",
+    "tf_label": "no product timeframe label for",
+    "not_closed": "has not closed as of",
+    "no_value": "a fire with no value is not a receipt",
+}
+
+
+def test_every_ledger_refusal_fragment_names_EXACTLY_ONE_gate(tmp_ledger, monkeypatch):
+    """🔴 PHASE C TASK 9's M1, NOW A PERMANENT RAIL RATHER THAN A COMMENT."""
+    messages = _every_ledger_refusal_message(monkeypatch)
+    assert set(messages) == set(_LEDGER_FRAGMENTS), (
+        f"a gate was not driven: {sorted(set(_LEDGER_FRAGMENTS) ^ set(messages))}")
+    for gate, fragment in _LEDGER_FRAGMENTS.items():
+        hits = sorted(k for k, m in messages.items() if fragment in m)
+        assert hits == [gate], (
+            f"the fragment {fragment!r} appears in {hits} — a test matching on "
+            f"it would pass with {gate}'s safety deleted")
+    assert _rows_on_disk(tmp_ledger) == 0
+
+
+def test_every_refusal_this_door_raises_is_a_LedgerAdmissionRefused(
+        tmp_ledger, monkeypatch):
+    """The named type, and it is still a `RuntimeError` so every existing caller
+    and every existing rail catches exactly what it caught before."""
+    assert issubclass(ev.LedgerAdmissionRefused, RuntimeError)
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
+    long_after = float(WICK[-1]["t"]) + 86_400.0
+    for fn in (lambda: ev.admit_alert_fire(_user_alert(), 68.84, bar_index=65,
+                                           bars=WICK, now_epoch=long_after),
+               lambda: ev.admit_alert_fire(_alert(tf="4h"), 68.84, bar_index=65,
+                                           bars=WICK, now_epoch=long_after),
+               lambda: ev.ledger_timeframe("4h")):
+        with pytest.raises(ev.LedgerAdmissionRefused):
+            fn()
+
+
 # ─── the lock: the evaluator's only ledger write is behind the door ──────────
 
 def test_the_evaluators_only_ledger_write_is_inside_admit_alert_fire():

@@ -319,3 +319,30 @@ every filter.
 * **Derive identifiers from the system, never type them.** Five typed-name
   mistakes in one Phase C session each failed in the shape of a catastrophic
   finding.
+
+## 11. `offset` is a v2 SPEC question — recorded by Phase D Task 3
+
+`app/src/components/chart/engine/ast/closedTable.json` v1 declares **no `ref`, no
+`offset`, and no backward-index form**, and that absence is a decision rather
+than an omission.
+
+* A general `close[n]` turns the repaint linter from a **lookback sum** into a
+  **dataflow analysis**, and it makes a *forward* reference expressible in the
+  first place — the exact construction (`chikou[j] === close[j+26]`) the repaint
+  record already names as the thing the linter has to be able to decide. The
+  linter must be simple enough to be obviously right on the day it decides the
+  brand's central claim.
+* Every function in the table therefore declares its lookback as a **constant or
+  a named argument**, so `maxLookback(ast)` is a tree sum. `parse.test.js`
+  asserts that property directly rather than trusting this paragraph.
+
+**Who it would have to be re-opened by:** the owner of the repaint claim (spec
+§4 / the repaint-linter task) **and** the owner of this manifest, together. It
+changes what the linter can decide *and* what both lane walkers must implement,
+so it is not a feature request any later task may grant on its own.
+
+`sentence` lives in the manifest for the mirror-image reason: the chip's
+plain-English read-back and the interpreter's dispatch come from **one**
+declaration. A read-back with its own phrase table is a second vocabulary, and
+this repo has already measured what two vocabularies cost (`williams_r` vs
+`williamsR`, which is why `_CASE_COLUMNS` exists).
