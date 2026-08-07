@@ -989,3 +989,14 @@ def test_every_drillkey_the_monitor_declares_resolves_to_a_live_metric():
         if mk in bl.NOT_LIVE:      # carried; the frontend routes it to its own date
             continue
         assert mk in bl.DRILLABLE, f"{dk} resolves to {mk!r}, which is not live-measured"
+
+
+# np.nanmean warns once per all-NaN row, and the levels build runs over the
+# whole market. A warning storm in the log is how a real one gets missed.
+def test_vol_avg20_is_silent_for_a_name_that_never_printed(recwarn):
+    cdf, vdf = _frame(seed=13, n_tickers=6, n_dates=60)
+    vdf.iloc[:, 0] = np.nan                     # a name with no volume at all
+    levels, _, _ = _split(cdf, vdf)
+    assert np.isnan(levels["vol_avg20"][0])     # still NaN, as before
+    assert not np.isnan(levels["vol_avg20"][1:]).any()
+    assert [w for w in recwarn if issubclass(w.category, RuntimeWarning)] == []

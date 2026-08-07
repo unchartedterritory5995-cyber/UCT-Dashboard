@@ -578,8 +578,17 @@ def build_levels(tickers: list[str], closes: np.ndarray, volumes: np.ndarray,
     # `volumes.iloc[-21:-1].mean()`. This frame holds COMPLETED sessions only,
     # so its last 20 columns are exactly that window; there is no today column
     # here to exclude.
+    #
+    # Summed rather than np.nanmean'd: a name that printed no volume in any of
+    # the last 20 sessions is an all-NaN slice, and nanmean warns on every one
+    # of them. The answer is the same NaN either way, so the warning is pure
+    # noise on a path that runs once a day for the whole market.
     if n_dates >= 20:
-        lv["vol_avg20"] = np.nanmean(volumes[:, -20:], axis=1)
+        win = volumes[:, -20:]
+        seen = np.count_nonzero(~np.isnan(win), axis=1)
+        lv["vol_avg20"] = np.where(seen > 0,
+                                   np.nansum(win, axis=1) / np.maximum(seen, 1),
+                                   np.nan)
     else:
         lv["vol_avg20"] = np.full(len(tickers), np.nan)
 
