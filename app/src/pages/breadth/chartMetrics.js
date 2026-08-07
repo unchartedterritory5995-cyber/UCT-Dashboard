@@ -248,7 +248,10 @@ export const METRIC_TONE = {
   hi_ratio:           TONE.BULL,  lo_ratio:           TONE.BEAR,
   stage2_count:       TONE.BULL,  stage4_count:       TONE.BEAR,
   aaii_bulls:         TONE.BULL,  aaii_bears:         TONE.BEAR,
-  new_ath:            TONE.BULL,
+  // new_ath is deliberately NOT toned: there is no "new all-time lows" to
+  // oppose it, and the rule above is pairs-only. Toning it would put two
+  // greens beside new_52w_highs in setup-supply, which is the readability
+  // cost this rule exists to avoid.
 }
 
 export function toneOf(key) {
@@ -437,8 +440,13 @@ export const CHART_PRESETS = [
     id: 'setup-supply',
     label: 'Setup Supply',
     group: 'Structure',
-    hint: 'Stocks coiled within 5% of a 52-week high against those actually breaking out.',
-    metrics: ['near_52w_high', 'new_52w_highs'],
+    hint: 'The breakout funnel: coiled within 5% of a high, making a 52-week high, making an all-time high.',
+    // new_ath only became usable here on 2026-08-06. It used to be
+    // count_nd_highs(closes, min(252, len-1)) over a one-year frame — a
+    // 251-bar window, i.e. new_52w_highs off by one, so this preset would have
+    // drawn the same line twice. The collector now sources a real all-time
+    // high-water mark from full history.
+    metrics: ['near_52w_high', 'new_52w_highs', 'new_ath'],
   },
 ]
 

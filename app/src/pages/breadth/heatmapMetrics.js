@@ -205,7 +205,9 @@ export const HM_METRICS = [
     getTier: r => pairedDnColor(r.new_20d_highs, r.new_20d_lows),
     getFmt:  r => r.new_20d_lows ?? '—' },
   { key: 'new_ath',       label: 'ATH Count',       group: 'Highs/Lows',
-    getTier: r => { const v = r.new_ath; return v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
+    // Re-derived 2026-08-06 with the collector's all-time-high fix (~0.59x the
+    // old value); the previous 200/100/40 was calibrated on 52-week highs.
+    getTier: r => { const v = r.new_ath; return v == null ? '' : v > 120 ? 'g3' : v > 60 ? 'g2' : v > 25 ? 'g1' : '' },
     getFmt:  r => r.new_ath ?? '—' },
   { key: 'hvc_52w',      label: 'HVC (52W Vol Hi)', group: 'Highs/Lows', drillKey: 'hvc_52w_list',
     getTier: r => { const v = r.hvc_52w; return v == null ? '' : v > 100 ? 'g3' : v > 40 ? 'g2' : v > 15 ? 'g1' : '' },

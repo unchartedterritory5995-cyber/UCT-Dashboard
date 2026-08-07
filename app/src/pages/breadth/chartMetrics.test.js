@@ -300,7 +300,10 @@ describe('preset set v2', () => {
   })
 
   it('never references a metric that is excluded on purpose', () => {
-    const banned = ['naaim', 'new_ath', 'spy_dist_days', 'qqq_dist_days', 'iwm_close']
+    // new_ath came OFF this list on 2026-08-06: it was banned for duplicating
+    // new_52w_highs, and the collector fix removed that reason. The rest are
+    // excluded for DATA quality (stale feed / low fill), which still holds.
+    const banned = ['naaim', 'spy_dist_days', 'qqq_dist_days', 'iwm_close']
     for (const preset of CHART_PRESETS) {
       for (const key of preset.metrics) {
         expect(banned, `${preset.label} uses ${key}`).not.toContain(key)
@@ -308,13 +311,12 @@ describe('preset set v2', () => {
     }
   })
 
-  // new_ath is count_nd_highs(closes, min(252, len-1)) — a 252-day high, so it
-  // duplicates new_52w_highs on 139 of 151 sessions. It is labelled "ATH Count"
-  // in the picker, so a future author will reach for it. This is the sign.
-  it('keeps new_ath out, because it is a 52-week high wearing another name', () => {
-    for (const preset of CHART_PRESETS) {
-      expect(preset.metrics).not.toContain('new_ath')
-    }
+  // The reverse of the old guard. new_ath was a 251-bar window over a one-year
+  // frame, so putting it beside 52-week highs drew the same line twice. The
+  // collector now sources a real all-time high-water mark, and Setup Supply is
+  // the funnel that shows the difference: coiled -> 52w high -> all-time high.
+  it('uses the repaired all-time-high metric in the breakout funnel', () => {
+    expect(byId('setup-supply').metrics).toEqual(['near_52w_high', 'new_52w_highs', 'new_ath'])
   })
 
   // Round one's lesson as a gate: a shared family is necessary but not
@@ -333,6 +335,9 @@ describe('preset set v2', () => {
     pct_above_200sma: 72.8, sp500_close: 7736.52, qqq_close: 746.16,
     vix: 31.05, mcclellan_osc: 223.9, stage2_count: 1244, stage4_count: 594,
     new_52w_highs: 555, new_52w_lows: 234, new_20d_highs: 1412, new_20d_lows: 1228,
+    // measured after the 2026-08-06 collector fix + history repair (was 556,
+    // when it was still new_52w_highs by another name)
+    new_ath: 268,
     hvc_52w: 163, atr_ext_7: 34, cnn_fear_greed: 69.9, aaii_bulls: 49,
     aaii_neutral: 35, aaii_bears: 52, aaii_spread: 22, cboe_putcall: 1.12,
     adv_decline: 2142, adv_decline_cum: 13981, up_vol_ratio: 5.73,
@@ -477,7 +482,7 @@ describe('preset axis layout', () => {
     'volume-thrust':    { left: ['up_vol_ratio'], right: ['adv_decline'] },
     'highs-lows-pct':   { left: ['hi_ratio', 'lo_ratio'], right: [] },
     'vol-complex':      { left: ['vix', 'vxn', 'avg_10d_vix'], right: [] },
-    'setup-supply':     { left: ['near_52w_high', 'new_52w_highs'], right: [] },
+    'setup-supply':     { left: ['near_52w_high', 'new_52w_highs', 'new_ath'], right: [] },
   }
 
   it('covers every preset', () => {
