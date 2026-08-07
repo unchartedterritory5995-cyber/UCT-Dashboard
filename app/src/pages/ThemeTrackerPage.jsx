@@ -139,9 +139,11 @@ function ReturnCell({ value, baseClass, flashEnabled = true }) {
     }
     prevRef.current = r
   }, [value, flashEnabled])
+  // On a tick, flash ONLY the background tint (no bold pulse) — the return cells
+  // carry a steady weight that matches the symbol/other columns.
   const flashCls = dir ? (value >= 0 ? styles.flashUp : styles.flashDown) : ''
   return (
-    <span className={`${baseClass} ${dir ? styles.retFlash : ''} ${flashCls}`}>
+    <span className={`${baseClass} ${flashCls}`}>
       {fmtRet(value)}
     </span>
   )

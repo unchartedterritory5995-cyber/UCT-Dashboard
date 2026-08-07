@@ -296,7 +296,7 @@
 .priceCell { color: var(--wl-price, var(--text-bright)); }
 .volCell { color: var(--wl-vol, var(--text-bright)); }
 /* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
-.changeCell { font-weight: 400; }   /* only the % change is thin; everything else is 600 */
+.changeCell { font-weight: 600; }   /* match Price/Volume/DCR weight; a tick shows only the tint, not a bold pulse */
 
 /* NOTE: the per-row hover strip (`.rowActions` + its note/alert/× buttons) was
    retired by 75729b1a — notes, price alerts and remove all live in the row's

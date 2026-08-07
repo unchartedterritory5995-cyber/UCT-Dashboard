@@ -237,8 +237,11 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
     return undefined
   }, [value, flashEnabled])
   const daySign = tintSign != null ? tintSign : value
+  // Tinted change columns (% Chg / % Open / etc.) carry a STEADY weight that matches
+  // the other columns (Price/Volume/DCR); on a tick they flash ONLY the background
+  // tint, never a bold pulse. Non-tint cells (price, volume) keep the brief bold flash.
   const flash = (flashEnabled && dir)
-    ? `${styles.tickFlash}${tint ? ' ' + (daySign >= 0 ? styles.tickUp : styles.tickDown) : ''}`
+    ? (tint ? (daySign >= 0 ? styles.tickUp : styles.tickDown) : styles.tickFlash)
     : ''
   // The tint/bold ride an INNER content-sized box so the flash hugs the value
   // (like Theme Tracker), not the full-width grid cell. Outer keeps cell layout.
