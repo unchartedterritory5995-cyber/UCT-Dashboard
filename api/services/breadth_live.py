@@ -1251,6 +1251,23 @@ def _name_of(ticker: str) -> Optional[str]:
         return None
 
 
+# The monitor's columns pass a `drillKey`, not a metric key — usually the metric
+# plus "_list", but these three predate that convention. Resolving here means the
+# live endpoint takes exactly what the recorded one takes, so the frontend has
+# one URL shape instead of two and cannot get the mapping wrong per cell.
+_DRILL_KEY_ALIASES = {
+    "universe_list": "universe_count",
+    "stage2_list": "stage2_count",
+    "stage4_list": "stage4_count",
+}
+
+
+def _metric_key_of(drill_key: str) -> str:
+    if drill_key in _DRILL_KEY_ALIASES:
+        return _DRILL_KEY_ALIASES[drill_key]
+    return drill_key[:-5] if drill_key.endswith("_list") else drill_key
+
+
 def live_drill(metric_key: str) -> dict:
     """The names behind one live cell, in the recorded drill's item shape.
 
@@ -1264,12 +1281,13 @@ def live_drill(metric_key: str) -> dict:
     members = cached.get("members")
     if not payload or members is None:
         return {"ok": False, "items": [], "reason": "no live read cached", "as_of": None}
-    if metric_key not in DRILLABLE:
+    key = _metric_key_of(metric_key)
+    if key not in DRILLABLE:
         return {"ok": False, "items": [],
-                "reason": f"{metric_key} is carried from a prior session, not measured live",
+                "reason": f"{key} is carried from a prior session, not measured live",
                 "as_of": payload.get("as_of")}
 
-    names = members.get(metric_key) or []
+    names = members.get(key) or []
     levels = cached.get("levels") or {}
     prices = cached.get("prices") or {}
     vols = cached.get("vols") or {}

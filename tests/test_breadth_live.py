@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import inspect
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -950,3 +951,41 @@ def test_a_zero_average_volume_yields_no_ratio_rather_than_infinity():
                            "levels": levels})
     for it in bl.live_drill("universe_count")["items"]:
         assert it.get("vr") is None
+
+
+# The monitor's columns pass a `drillKey`, not a metric key — usually the metric
+# plus "_list", but `universe_list`/`stage2_list`/`stage4_list` predate that
+# convention. Stripping the suffix naively resolves those three to names no
+# metric has, and the endpoint would answer "not measured live" with an empty
+# modal while the cell beside it shows a number.
+def test_the_endpoint_accepts_the_drill_key_the_monitor_actually_sends():
+    cdf, vdf = _frame(seed=24, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    m = bl.compute_metrics(levels, prices, vols, members=members)
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    for drill_key, metric_key in (("universe_list", "universe_count"),
+                                  ("stage2_list", "stage2_count"),
+                                  ("stage4_list", "stage4_count"),
+                                  ("new_52w_highs_list", "new_52w_highs"),
+                                  ("new_52w_highs", "new_52w_highs")):
+        out = bl.live_drill(drill_key)
+        assert out["ok"] is True, f"{drill_key} did not resolve"
+        assert len(out["items"]) == m[metric_key], f"{drill_key} listed the wrong metric"
+
+
+# Hand-listing the columns is how a route gets missed. Read them off the source
+# the browser actually ships, so a new drillable column cannot be added without
+# this noticing.
+def test_every_drillkey_the_monitor_declares_resolves_to_a_live_metric():
+    src = Path(__file__).resolve().parents[1] / "app" / "src" / "pages" / "Breadth.jsx"
+    keys = re.findall(r"drillKey:\s*'([^']+)'", src.read_text(encoding="utf-8"))
+    assert len(keys) >= 20, f"parsed only {len(keys)} drillKeys — the pattern has drifted"
+    for dk in keys:
+        mk = bl._metric_key_of(dk)
+        if mk in bl.NOT_LIVE:      # carried; the frontend routes it to its own date
+            continue
+        assert mk in bl.DRILLABLE, f"{dk} resolves to {mk!r}, which is not live-measured"
