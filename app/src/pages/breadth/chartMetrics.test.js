@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   ALL_METRICS, LABEL_MAP, METRIC_UNITS, UNIT, UNIT_LABEL, CHART_GROUPS,
   CHART_PRESETS, unitOf, matchPreset, resolveAxes, axisForUnit,
+  SCALED_UNITS, scaleForUnit, TONE, toneOf, resolveColors,
 } from './chartMetrics'
 
 describe('unit coverage', () => {
@@ -60,6 +61,107 @@ describe('catalog v2 additions', () => {
   it('gives every new family an axis label', () => {
     for (const u of [UNIT.CUM, UNIT.NET, UNIT.SPREAD]) {
       expect(UNIT_LABEL[u], `${u} has no axis label`).toBeTruthy()
+    }
+  })
+})
+
+describe('axis framing', () => {
+  // A magnitude is read against zero; a level is read as a shape. Getting this
+  // wrong is not cosmetic: rsp_spy_ratio spans 0.272-0.300, which on a
+  // zero-anchored axis is a flat line at 93% height.
+  it('anchors magnitudes at zero and frames levels to their own data', () => {
+    expect(scaleForUnit(UNIT.PCT)).toBe(false)
+    expect(scaleForUnit(UNIT.COUNT)).toBe(false)
+    expect(scaleForUnit(UNIT.NET)).toBe(false)
+    expect(scaleForUnit(UNIT.RATIO)).toBe(false)
+
+    expect(scaleForUnit(UNIT.INDEX)).toBe(true)
+    expect(scaleForUnit(UNIT.VIX)).toBe(true)
+    expect(scaleForUnit(UNIT.OSC)).toBe(true)
+    expect(scaleForUnit(UNIT.CUM)).toBe(true)
+    expect(scaleForUnit(UNIT.SPREAD)).toBe(true)
+  })
+
+  // The gate: adding a family without deciding its framing must fail here
+  // rather than silently inherit the zero anchor.
+  it('has a decision on record for every declared family', () => {
+    const undecided = Object.values(UNIT).filter(
+      u => typeof scaleForUnit(u) !== 'boolean',
+    )
+    expect(undecided).toEqual([])
+    expect(SCALED_UNITS.size + 4).toBe(Object.values(UNIT).length)
+  })
+
+  // EXTREMES_BAND forces min<=0 and max>=100 on whichever axis carries the
+  // reference lines, which would undo auto-framing. Extremes are only offered
+  // for MA Breadth (PCT, anchored), so the two rules must never meet.
+  it('never offers an extremes group on an auto-framed family', () => {
+    for (const preset of CHART_PRESETS) {
+      for (const group of preset.extremes ?? []) {
+        const keys = CHART_GROUPS.find(g => g.group === group).metrics.map(m => m.key)
+        for (const k of keys) {
+          expect(scaleForUnit(unitOf(k)), `${group}/${k} is auto-framed`).toBe(false)
+        }
+      }
+    }
+  })
+})
+
+describe('series colour', () => {
+  // Colour was PALETTE[i], so index 1 was always green. Every crossover preset
+  // drew its deterioration line green: new_52w_lows, stage4_count,
+  // down_4pct_today. These are the three that were wrong.
+  const OPPOSED = [
+    ['up_4pct_today', 'down_4pct_today'],
+    ['up_20pct_5d', 'down_20pct_5d'],
+    ['up_25pct_quarter', 'down_25pct_quarter'],
+    ['up_25pct_month', 'down_25pct_month'],
+    ['up_50pct_month', 'down_50pct_month'],
+    ['magna_up', 'magna_down'],
+    ['new_52w_highs', 'new_52w_lows'],
+    ['new_20d_highs', 'new_20d_lows'],
+    ['hi_ratio', 'lo_ratio'],
+    ['stage2_count', 'stage4_count'],
+    ['aaii_bulls', 'aaii_bears'],
+  ]
+
+  it('gives each half of an opposed pair the opposite tone', () => {
+    for (const [up, down] of OPPOSED) {
+      expect(toneOf(up), `${up} should read bullish`).toBe(TONE.BULL)
+      expect(toneOf(down), `${down} should read bearish`).toBe(TONE.BEAR)
+    }
+  })
+
+  // Tone is deliberately confined to opposed pairs. A "rising VIX is bearish"
+  // rule would paint all three vol-complex series red and make them harder to
+  // tell apart, and setup-supply would draw two greens.
+  it('leaves unpaired metrics neutral so they stay distinguishable', () => {
+    for (const k of ['vix', 'vxn', 'avg_10d_vix', 'near_52w_high',
+                     'pct_above_50sma', 'up_vol_ratio', 'adv_decline']) {
+      expect(toneOf(k), `${k} should be neutral`).toBe(TONE.NEUTRAL)
+    }
+  })
+
+  it('assigns a tone to every metric in the catalog', () => {
+    const bad = ALL_METRICS.map(m => m.key).filter(k => !Object.values(TONE).includes(toneOf(k)))
+    expect(bad).toEqual([])
+  })
+
+  // The gate on the defect: no preset may draw two series the same colour.
+  it('never repeats a colour inside a preset', () => {
+    for (const preset of CHART_PRESETS) {
+      const colors = Object.values(resolveColors(preset.metrics))
+      expect(new Set(colors).size, `${preset.label} repeats a colour`).toBe(preset.metrics.length)
+    }
+  })
+
+  it('draws the bearish half of every crossover preset in red', () => {
+    const REDS = new Set(['#f87171', '#ef4444', '#b91c1c'])
+    for (const [id, bear] of [['highs-lows', 'new_52w_lows'],
+                              ['trend-regime', 'stage4_count'],
+                              ['thrust', 'down_4pct_today']]) {
+      const preset = CHART_PRESETS.find(p => p.id === id)
+      expect(REDS, `${id}: ${bear} is not red`).toContain(resolveColors(preset.metrics)[bear])
     }
   })
 })

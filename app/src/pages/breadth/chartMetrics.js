@@ -207,6 +207,81 @@ export function unitOf(key) {
   return METRIC_UNITS[key] ?? UNIT.COUNT
 }
 
+// ── Axis framing ──────────────────────────────────────────────────────────────
+// Families whose axis frames its own data instead of including zero. The split
+// is magnitude vs level: a count of stocks or a percent above a moving average
+// is read against 0, but an index price, a VIX level, or a 0.03-wide
+// intermarket spread is read as a shape and a zero anchor destroys it —
+// rsp_spy_ratio (0.272–0.300) renders as a flat line at 93% height.
+
+export const SCALED_UNITS = new Set([
+  UNIT.INDEX, UNIT.VIX, UNIT.OSC, UNIT.CUM, UNIT.SPREAD,
+])
+
+/** True when the axis for this family should frame its data rather than anchor at 0. */
+export function scaleForUnit(unit) {
+  return SCALED_UNITS.has(unit)
+}
+
+// ── Series colour ─────────────────────────────────────────────────────────────
+// Colour used to be PALETTE[seriesIndex], so index 1 was always green and every
+// crossover preset drew its deterioration line — new_52w_lows, stage4_count,
+// down_4pct_today — in green.
+//
+// Tone is assigned ONLY to metrics that exist as an opposed pair. Extending it
+// to "rising VIX is bearish" would paint all three vol-complex series red and
+// make them harder to tell apart, and setup-supply would draw near_52w_high and
+// new_52w_highs as two greens. On crossover charts semantics win; everywhere
+// else distinguishability does.
+
+export const TONE = { BULL: 'bull', BEAR: 'bear', NEUTRAL: 'neutral' }
+
+export const METRIC_TONE = {
+  up_4pct_today:      TONE.BULL,  down_4pct_today:    TONE.BEAR,
+  up_20pct_5d:        TONE.BULL,  down_20pct_5d:      TONE.BEAR,
+  up_25pct_quarter:   TONE.BULL,  down_25pct_quarter: TONE.BEAR,
+  up_25pct_month:     TONE.BULL,  down_25pct_month:   TONE.BEAR,
+  up_50pct_month:     TONE.BULL,  down_50pct_month:   TONE.BEAR,
+  magna_up:           TONE.BULL,  magna_down:         TONE.BEAR,
+  new_52w_highs:      TONE.BULL,  new_52w_lows:       TONE.BEAR,
+  new_20d_highs:      TONE.BULL,  new_20d_lows:       TONE.BEAR,
+  hi_ratio:           TONE.BULL,  lo_ratio:           TONE.BEAR,
+  stage2_count:       TONE.BULL,  stage4_count:       TONE.BEAR,
+  aaii_bulls:         TONE.BULL,  aaii_bears:         TONE.BEAR,
+  new_ath:            TONE.BULL,
+}
+
+export function toneOf(key) {
+  return METRIC_TONE[key] ?? TONE.NEUTRAL
+}
+
+// Six neutrals because the largest single-tone group in any preset is
+// `participation` with four.
+export const TONE_RAMP = {
+  [TONE.BULL]:    ['#34d399', '#4ade80', '#15803d'],
+  [TONE.BEAR]:    ['#f87171', '#ef4444', '#b91c1c'],
+  [TONE.NEUTRAL]: ['#60a5fa', '#f59e0b', '#a78bfa', '#38bdf8', '#fb923c', '#e879f9'],
+}
+
+/**
+ * Colour for each selected metric: its tone's ramp, advanced per tone so two
+ * bullish series never land on the same green.
+ *
+ * A hand-picked selection deeper than a ramp wraps and can repeat. Presets are
+ * the guarded path and a test holds them collision-free.
+ */
+export function resolveColors(selected) {
+  const used = { [TONE.BULL]: 0, [TONE.BEAR]: 0, [TONE.NEUTRAL]: 0 }
+  const out = {}
+  for (const key of selected ?? []) {
+    const tone = toneOf(key)
+    const ramp = TONE_RAMP[tone]
+    out[key] = ramp[used[tone] % ramp.length]
+    used[tone] += 1
+  }
+  return out
+}
+
 // ── Presets ───────────────────────────────────────────────────────────────────
 // `metrics` order matters: on a tie for most-populated family, the family of
 // the FIRST metric takes the left axis (see resolveAxes). Each preset is
