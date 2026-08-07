@@ -1100,6 +1100,110 @@ _TF_MINUTES: dict[str, int] = {"1": 1, "5": 5, "15": 15, "30": 30, "60": 60}
 
 _CALENDAR_TFS: tuple[str, ...] = ("D", "W", "M")
 
+# ⛔ AND `_TF_MINUTES["60"]` IS A LENGTH THE HOURLY GRID DOES NOT ACTUALLY HAVE.
+# `bars_fetch.bucket_60_et_unix_seconds` gives the regular-session open its OWN
+# bucket, so an hourly session runs 04:00…09:00, **09:30**, 10:00…19:00 and BOTH
+# the 09:00 and the 09:30 bar span THIRTY minutes. Answering `t + 3600` for those
+# two declared them open for half an hour after the store had stopped writing to
+# them, which under `ALERT_EVAL_MODE = "closed"` is a member waiting thirty extra
+# minutes for an alert on the busiest half hour of the day (measured at exactly
+# 1800 s on 20 real bars, `tests/test_alert_bar_close_60m_grid.py`). 1/5/15/30 are
+# a plain UTC-second floor in `bar_rollup.bucket_start`, so `t + minutes*60` is
+# right for them and only the hourly branch is resolved through the grid.
+_HOURLY_TF = "60"
+
+# The longest a 60-minute bucket can be. Normally 3600; on the DST fall-back day
+# 01:00 ET happens twice and the 01:00 bucket really is 7,200 s long. A bucket
+# longer than this is not resolved at all rather than guessed at.
+_HOURLY_MAX_BUCKET_SECONDS = 2 * 3600
+
+# Bounded memo for the boundary search below (~13 zone conversions per miss, and
+# a 60-second cycle asks about the same handful of bucket starts over and over).
+# Bounded because this module lives in a process that runs for weeks.
+_HOURLY_CLOSE_MEMO: dict[int, float] = {}
+_HOURLY_CLOSE_MEMO_MAX = 4096
+
+
+def _hourly_bucket_close_epoch(t) -> Optional[float]:
+    """When the 60-minute bucket starting at ``t`` stops being able to change.
+
+    ⭐ DERIVED FROM `bars_fetch.bucket_60_et_unix_seconds`, NEVER RE-ENCODED, and
+    that is the whole design. That function is the ONE bucketer: the REST
+    resample path (`bars_fetch._session_resample_hourly`) and the WebSocket
+    rollup path (`bar_rollup.bucket_start`) already share it precisely so a
+    second copy of the rule cannot drift and plant two candles at neighbouring
+    `ts` (the FMP-timezone failure shape). This lane is the THIRD consumer and it
+    joins by asking the same function, not by writing `if hour == 9 and minute >=
+    30` a third time. A `{"09:00": 1800}` table here would be exactly the second
+    vocabulary this module warns about everywhere else.
+
+    ⛔ SO THE ANSWER IS A SEARCH, NOT ARITHMETIC: the smallest instant strictly
+    after ``t`` that the bucketer puts in a DIFFERENT bucket. That instant is, by
+    construction, the first moment at which no further print can be routed into
+    this row — which is what "closed" means here. It cannot be EARLY unless the
+    bucketer itself is wrong, and if the bucketer is wrong the STORE is wrong in
+    the same direction at the same moment, because it is the same function.
+    `bucket_60_et_unix_seconds` is monotone non-decreasing in `t`, so the
+    boundary is unique in the window and a bisection finds it exactly.
+
+    ``None`` — meaning "fall back to the nominal length" — for three cases, all
+    of which are LATE-not-early and therefore safe:
+      * ``t`` is not a bucket start the bucketer recognises (an off-grid row; the
+        corpus found real ones, e.g. MSTR 5m at ``12:33:48``). "When does a row
+        that is not a bucket stop changing" has no answer, and the containing
+        bucket's close is at most an hour past its own start, hence at most an
+        hour past ``t``.
+      * the bucket is longer than `_HOURLY_MAX_BUCKET_SECONDS`.
+      * the boundary found is not itself a bucket start, or the import/zone
+        lookup fails. A failure here must not become `None` all the way out of
+        `bar_close_epoch`: `closed_bar_index` reads that as "cannot claim this
+        bar has closed", so an unavailable IANA database would turn into hourly
+        alerts that never fire at all. The nominal fallback is exactly the
+        behaviour shipping today.
+    """
+    if isinstance(t, bool) or not isinstance(t, (int, float)):
+        return None
+    try:
+        key = int(t)
+    except (OverflowError, ValueError):
+        return None
+    if key != t:                      # a fractional start is not a bucket start
+        return None
+    hit = _HOURLY_CLOSE_MEMO.get(key)
+    if hit is not None:
+        return hit
+    try:
+        from api.services.bars_fetch import bucket_60_et_unix_seconds as _bucket
+        bucket = _bucket(key)
+        # ⛔ THE ONE GUARD THAT REFUSES AN OFF-GRID `t`, AND IT IS THE ONLY
+        # MECHANISM DOING IT. An earlier draft compared the search against `key`
+        # instead of `bucket`, which made this line unkillable dead code: an
+        # off-grid `t` fell out as `None` anyway, so a mutation deleting the
+        # guard SURVIVED as a semantic no-op. Comparing against `bucket` states
+        # the intent ("the bucket CONTAINING t") and leaves exactly one thing to
+        # break — and breaking it now returns the containing bucket's close for a
+        # row that is not a bucket, which is EARLY.
+        if bucket != key:
+            return None
+        lo, hi = key, key + _HOURLY_MAX_BUCKET_SECONDS
+        if _bucket(hi) == bucket:
+            return None
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if _bucket(mid) == bucket:
+                lo = mid
+            else:
+                hi = mid
+        if hi <= key or _bucket(hi) != hi:
+            return None
+    except Exception:
+        return None
+    close_at = float(hi)
+    if len(_HOURLY_CLOSE_MEMO) >= _HOURLY_CLOSE_MEMO_MAX:
+        _HOURLY_CLOSE_MEMO.clear()
+    _HOURLY_CLOSE_MEMO[key] = close_at
+    return close_at
+
 
 def _bar_calendar_date(t) -> Optional["object"]:
     """A daily/weekly/monthly bar's `t` → its calendar date, or ``None``.
@@ -1164,7 +1268,15 @@ def bar_close_epoch(t, tf: str) -> Optional[float]:
     remove it. So the daily boundary is the next ET midnight, the same boundary
     `compute_vwap` anchors its session on.
 
-    Intraday bars carry a unix-second START and close a timeframe later.
+    Intraday bars carry a unix-second START. 1/5/15/30 are a plain UTC-second
+    floor, so they close a timeframe later. ⛔ 60 DOES NOT: the hourly grid gives
+    the regular-session open its own bucket, so the 09:00 and the 09:30 bars span
+    THIRTY minutes and `t + 3600` left both of them looking open for half an hour
+    after the store had stopped writing to them — measured at exactly 1800 s on
+    20 real bars. The hourly boundary is therefore DERIVED from the one canonical
+    bucketer (`_hourly_bucket_close_epoch`), with the nominal length kept only as
+    the fallback for a `t` that grid cannot resolve.
+
     Weekly closes seven ET days on. Monthly closes at the next month's ET
     midnight — deliberately a CALENDAR step and not `+30 days`, which is wrong
     for eleven months of twelve.
@@ -1179,6 +1291,10 @@ def bar_close_epoch(t, tf: str) -> Optional[float]:
     if minutes is not None:
         if isinstance(t, bool) or not isinstance(t, (int, float)):
             return None
+        if code == _HOURLY_TF:
+            grid = _hourly_bucket_close_epoch(t)
+            if grid is not None:
+                return grid
         return float(t) + minutes * 60
     if code not in _CALENDAR_TFS:
         return None
