@@ -8,10 +8,15 @@
 import { useMemo, useCallback, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
+import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+
+// The scanner keeps its OWN column layout, independent of the watchlist widgets
+// (which share the global WL_COLS_LS key).
+const SCANNER_COLS_KEY = `${WL_COLS_LS}.scanner`
 
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
 const SCAN_ENDPOINTS = {
@@ -55,6 +60,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         settingsOverride={settingsOverride}
         onSettingsPersist={onSettingsPersist}
         widgetKey={widgetId}
+        colStorageKey={SCANNER_COLS_KEY}
       />
     </ChartsSymContext.Provider>
   )

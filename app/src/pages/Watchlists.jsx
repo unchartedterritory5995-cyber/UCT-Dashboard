@@ -349,7 +349,10 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null }) {
+  // Column layout persists in localStorage. The watchlist widgets all share the
+  // global key; the scanner passes its OWN key so its columns are independent.
+  const _colKey = colStorageKey || WL_COLS_LS
   // SCANNER mode: render an externally-supplied symbol list (from a scan) as a
   // READ-ONLY single list — the full table (columns, resize-drag, right-click column
   // menu, sort, flag-star, live prices) but no add/remove/reorder/notes (membership
@@ -683,7 +686,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Column config (persisted per-user in localStorage) — declared HERE, above the
   // perf/theme fetches, so those can gate on which columns are shown.
   const [colCfg, setColCfg] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(WL_COLS_LS)) || {} } catch { return {} }
+    try { return JSON.parse(localStorage.getItem(_colKey)) || {} } catch { return {} }
   })
   const _colKeys = Array.isArray(colCfg.order) ? colCfg.order : []
   // Perf batch: fetched when a legacy perf pill OR an N-day column is active.
@@ -1050,8 +1053,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // the meta/perf/theme fetches, so those fetches can gate on which columns show.)
   const saveColCfg = useCallback((next) => {
     setColCfg(next)
-    try { localStorage.setItem(WL_COLS_LS, JSON.stringify(next)) } catch { /* ignore */ }
-  }, [])
+    try { localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
+  }, [_colKey])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
   const resizingRef = useRef(false)                    // suppress the header sort-click after a resize
