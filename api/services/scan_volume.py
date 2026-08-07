@@ -33,10 +33,19 @@ _LOOKBACK = 252        # ~1 trading year of completed sessions
 _REF_FETCH = 260       # pull a few extra daily bars so we can drop today's partial
 _SCAN_TTL = 60         # live-scan cache (seconds) — matches the snapshot's usefulness
 _MIN_PRIOR = 2         # need at least this many prior sessions to have a real high
-_SCAN_CACHE_KEY = "scan_hv1y"
 
 _ref_lock = threading.Lock()
-_ref_state = {"date": None, "map": None, "building": False, "built_at": 0.0, "universe": 0}
+# Per-scan reference state, keyed by scan id ('1y' | 'ever'). Each is
+# {date, map, building, built_at, universe}. Built lazily per ET day.
+_ref_states: dict = {}
+
+
+def _state(scan_id: str) -> dict:
+    st = _ref_states.get(scan_id)
+    if st is None:
+        st = {"date": None, "map": None, "building": False, "built_at": 0.0, "universe": 0}
+        _ref_states[scan_id] = st
+    return st
 
 
 def _now_et() -> datetime:
@@ -89,16 +98,16 @@ def _ref_max_vol(ticker: str) -> int | None:
     return max(vols)
 
 
-def _build_reference(universe_set: set | None = None) -> dict:
-    """{TICKER: max trailing-1-year daily volume} for the cap universe.
+def _build_reference(days: int | None, universe_set: set | None = None) -> dict:
+    """{TICKER: max daily volume over the lookback} for the cap universe.
 
-    One indexed GROUP BY over bars.db daily bars (from_ymd = today - 365d, exclusive
-    of today) — near-instant, vs the old thousands of per-ticker reads. Restricted to
-    the $300M+ cap universe so OTC/index/delisted noise never surfaces.
+    days=365 → trailing ~1 trading year; days=None → since inception (all-time).
+    One indexed GROUP BY over bars.db daily bars (exclusive of today) — near-instant.
+    Restricted to the $300M+ cap universe so OTC/index/delisted noise never surfaces.
     """
     now = _now_et()
     to_ymd = int(now.strftime("%Y%m%d"))                       # exclude today's partial
-    from_ymd = int((now - timedelta(days=365)).strftime("%Y%m%d"))
+    from_ymd = 0 if days is None else int((now - timedelta(days=days)).strftime("%Y%m%d"))
     try:
         m = _sqlite.max_daily_volume_in_range(from_ymd, to_ymd, _MIN_PRIOR)
     except Exception:
@@ -109,31 +118,32 @@ def _build_reference(universe_set: set | None = None) -> dict:
     return m
 
 
-def _ensure_reference() -> dict | None:
-    """Return today's reference map, kicking a background build if it's stale.
+def _ensure_reference(scan_id: str, days: int | None) -> dict | None:
+    """Return today's reference map for the scan, kicking a background build if stale.
 
     Returns None while a build is in flight (the scan then reports 'computing').
     The build is a single SQL aggregate, so this window is ~instant.
     """
     date = _session_date()
     with _ref_lock:
-        if _ref_state["date"] == date and _ref_state["map"] is not None:
-            return _ref_state["map"]
-        if _ref_state["building"]:
+        st = _state(scan_id)
+        if st["date"] == date and st["map"] is not None:
+            return st["map"]
+        if st["building"]:
             return None
-        _ref_state["building"] = True
+        st["building"] = True
 
     def _job():
         uni = set(_universe())
         try:
-            m = _build_reference(uni)
+            m = _build_reference(days, uni)
         except Exception:
             m = {}
         with _ref_lock:
-            _ref_state.update(date=date, map=m, built_at=_time.time(),
-                              building=False, universe=len(uni))
+            _state(scan_id).update(date=date, map=m, built_at=_time.time(),
+                                   building=False, universe=len(uni))
 
-    threading.Thread(target=_job, daemon=True, name="volscan-ref").start()
+    threading.Thread(target=_job, daemon=True, name=f"volscan-ref-{scan_id}").start()
     return None
 
 
@@ -148,18 +158,19 @@ def _snap_lookup(snap: dict, sym: str):
         return None
 
 
-def get_highest_volume_1y() -> dict:
-    """The scan result: tickers whose today_vol exceeds their trailing-252d max.
+def _run_scan(scan_id: str, days: int | None) -> dict:
+    """Tickers whose today_vol exceeds their `scan_id` max daily volume.
 
     Cached _SCAN_TTL seconds so it recomputes at most ~once/min during RTH.
     Shape: {status, results:[{sym,volume,ref_max,ratio,price,prev_close,change_pct}],
             count, as_of}.
     """
-    cached = cache.get(_SCAN_CACHE_KEY)
+    ck = f"scan_hv_{scan_id}"
+    cached = cache.get(ck)
     if cached is not None:
         return cached
 
-    ref = _ensure_reference()
+    ref = _ensure_reference(scan_id, days)
     if ref is None:
         return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
@@ -170,7 +181,7 @@ def get_highest_volume_1y() -> dict:
     if not snap:
         # No snapshot (off-market / transient) — nothing to compare; don't cache long.
         out = {"status": "ok", "results": [], "count": 0, "as_of": _now_et().isoformat()}
-        cache.set(_SCAN_CACHE_KEY, out, ttl=15)
+        cache.set(ck, out, ttl=15)
         return out
 
     results = []
@@ -197,21 +208,33 @@ def get_highest_volume_1y() -> dict:
             "prev_close": prev,
             "change_pct": change_pct,
         })
-    # Rank by how decisively today beat the 1-year high.
+    # Rank by how decisively today beat the historical high.
     results.sort(key=lambda r: r["ratio"], reverse=True)
     out = {"status": "ok", "results": results, "count": len(results),
            "as_of": _now_et().isoformat()}
-    cache.set(_SCAN_CACHE_KEY, out, ttl=_SCAN_TTL)
+    cache.set(ck, out, ttl=_SCAN_TTL)
     return out
 
 
-def status() -> dict:
-    """Diagnostics (no auth) — reference readiness for the scan."""
+def get_highest_volume_1y() -> dict:
+    """Today's volume > trailing ~1-year (252-session) max daily volume."""
+    return _run_scan("1y", 365)
+
+
+def get_highest_volume_ever() -> dict:
+    """Today's volume > all-time (since-inception) max daily volume."""
+    return _run_scan("ever", None)
+
+
+def status(scan_id: str = "1y") -> dict:
+    """Diagnostics (no auth) — reference readiness for a scan."""
     with _ref_lock:
+        st = _state(scan_id)
         return {
-            "reference_date": _ref_state["date"],
-            "reference_size": len(_ref_state["map"]) if _ref_state["map"] else 0,
-            "universe": _ref_state["universe"],
-            "building": _ref_state["building"],
-            "built_at": _ref_state["built_at"],
+            "scan": scan_id,
+            "reference_date": st["date"],
+            "reference_size": len(st["map"]) if st["map"] else 0,
+            "universe": st["universe"],
+            "building": st["building"],
+            "built_at": st["built_at"],
         }

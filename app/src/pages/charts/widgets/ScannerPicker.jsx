@@ -27,6 +27,11 @@ const PRESET_SCANS = [
     name: 'Highest Volume (1-Year)',
     description: 'Trading their highest volume in a year',
   },
+  {
+    key: 'highest-volume-ever',
+    name: 'Highest Volume (All-Time)',
+    description: 'Trading their highest volume ever',
+  },
 ]
 
 export default function ScannerPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {

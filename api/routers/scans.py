@@ -20,4 +20,19 @@ def highest_volume_1y():
 def highest_volume_1y_status():
     """Reference-build readiness (no auth — read-only diagnostics)."""
     from api.services import scan_volume
-    return scan_volume.status()
+    return scan_volume.status("1y")
+
+
+@router.get("/api/scans/highest-volume-ever")
+def highest_volume_ever():
+    """Stocks trading their highest volume EVER (today's volume > all-time / since-
+    inception max daily volume). Live all day; recomputed at most ~once/min."""
+    from api.services import scan_volume
+    return JSONResponse(content=scan_volume.get_highest_volume_ever())
+
+
+@router.get("/api/scans/highest-volume-ever/status")
+def highest_volume_ever_status():
+    """Reference-build readiness (no auth — read-only diagnostics)."""
+    from api.services import scan_volume
+    return scan_volume.status("ever")

@@ -1,12 +1,12 @@
-"""Tests for the Highest-Volume-in-1-Year scan (api/services/scan_volume.py)."""
+"""Tests for the volume scans (api/services/scan_volume.py) — 1-year + all-time."""
 from api.services import scan_volume as sv
 from api.services.cache import cache
 
 
 def _reset():
-    cache.delete_prefix("scan_hv1y")
+    cache.delete_prefix("scan_hv")
     with sv._ref_lock:
-        sv._ref_state.update(date=None, map=None, building=False, built_at=0.0, universe=0)
+        sv._ref_states.clear()
 
 
 def test_ref_max_vol_excludes_today_and_takes_prior_max(monkeypatch):
@@ -38,20 +38,32 @@ def test_scan_reports_computing_until_reference_ready(monkeypatch):
 
 
 def test_build_reference_uses_sql_and_intersects_universe(monkeypatch):
-    # The whole 1-year reference comes from ONE aggregate query; restrict to the
-    # cap universe so OTC/index noise never surfaces.
+    # The whole reference comes from ONE aggregate query; restrict to the cap universe.
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range",
                         lambda *a, **k: {"AAA": 1000, "BBB": 2000, "ZZZ": 50})
-    ref = sv._build_reference({"AAA", "BBB"})   # ZZZ is outside the universe → dropped
+    ref = sv._build_reference(365, {"AAA", "BBB"})   # ZZZ outside the universe → dropped
     assert ref == {"AAA": 1000, "BBB": 2000}
+
+
+def test_build_reference_all_time_queries_from_zero(monkeypatch):
+    # days=None (all-time) queries from_ymd=0 (since inception), not a trailing window.
+    seen = {}
+
+    def _fake(from_ymd, to_ymd, min_sessions):
+        seen["from_ymd"] = from_ymd
+        return {"AAA": 42}
+
+    monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", _fake)
+    sv._build_reference(None, {"AAA"})
+    assert seen["from_ymd"] == 0
 
 
 def test_scan_returns_only_qualifiers_sorted_by_ratio(monkeypatch):
     _reset()
     with sv._ref_lock:
-        sv._ref_state.update(date=sv._session_date(),
-                             map={"AAA": 1000, "BBB": 2000, "CCC": 5000},
-                             building=False)
+        sv._state("1y").update(date=sv._session_date(),
+                               map={"AAA": 1000, "BBB": 2000, "CCC": 5000},
+                               building=False)
     snap = {
         "AAA": {"today_vol": 3000, "last_price": 11.0, "prev_close": 10.0},  # 3.00x, +10%
         "BBB": {"today_vol": 2500, "last_price": 20.0, "prev_close": 20.0},  # 1.25x
@@ -73,11 +85,29 @@ def test_scan_returns_only_qualifiers_sorted_by_ratio(monkeypatch):
     _reset()
 
 
+def test_all_time_scan_uses_its_own_reference(monkeypatch):
+    _reset()
+    with sv._ref_lock:
+        sv._state("ever").update(date=sv._session_date(), map={"AAA": 1000}, building=False)
+    snap = {"AAA": {"today_vol": 4000, "last_price": 6.0, "prev_close": 5.0}}
+
+    class _Client:
+        def get_full_market_snapshot(self):
+            return snap
+
+    monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+
+    out = sv.get_highest_volume_ever()
+    assert [r["sym"] for r in out["results"]] == ["AAA"]
+    assert out["results"][0]["ratio"] == 4.0
+    _reset()
+
+
 def test_scan_maps_class_share_symbology(monkeypatch):
     """Universe is app-form (BRK-B); snapshot is provider-form (BRK.B)."""
     _reset()
     with sv._ref_lock:
-        sv._ref_state.update(date=sv._session_date(), map={"BRK-B": 100}, building=False)
+        sv._state("1y").update(date=sv._session_date(), map={"BRK-B": 100}, building=False)
     snap = {"BRK.B": {"today_vol": 250, "last_price": 4.0, "prev_close": 4.0}}
 
     class _Client:

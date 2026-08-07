@@ -48,6 +48,7 @@ try {
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
 const SCAN_ENDPOINTS = {
   'highest-volume-1y': '/api/scans/highest-volume-1y',
+  'highest-volume-ever': '/api/scans/highest-volume-ever',
 }
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
@@ -78,8 +79,8 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   const scanEmptyText = !data
     ? 'Loading…'
     : data.status === 'computing'
-      ? 'Building the 1-year volume baseline…'
-      : 'No stocks at a 1-year volume high yet today.'
+      ? 'Building the volume baseline…'
+      : 'No stocks at a volume high yet today.'
 
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
