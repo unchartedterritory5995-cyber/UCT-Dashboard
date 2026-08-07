@@ -478,6 +478,47 @@ def _rearm(alert_id: int, now_i: int, detail: Optional[str] = None) -> None:
                bump_epoch=True, clear_snooze=True)
 
 
+def snooze_active(row: Optional[dict], now: Optional[float] = None) -> bool:
+    """Is this alert INSIDE a snooze window right now? Read from the CLOCK.
+
+    🔴 THE DEFECT THIS CLOSES, AND IT WAS LIVE. The snooze used to be enforced
+    by `row["state"] == STATE_SNOOZED` — a mutable text column — and
+    `snooze_until` was consulted only once that column already said "snoozed".
+    So anything that rewrote the state cancelled the snooze silently:
+
+        snooze 30 days  →  `sweep_silent_alerts` sees one cycle with no bars  →
+        `mark_needs_attention` writes state='needs_attention' and leaves
+        `snooze_until` 29 DAYS OUT  →  the next true reading DELIVERS.
+
+    Measured on a real row: `record_trigger` returned **True** with the window
+    still 29 days from closing, and `claim_delivery` agreed. That sweep runs
+    unconditionally every 300 s from `api/main.py`, and all 31 production soak
+    rows share one `(SPY, "5")` bar group — so ONE failed bars fetch un-muzzled
+    all 31 at once.
+
+    ⛔ THE ASYMMETRY THAT MADE IT POSSIBLE IS THE REAL LESSON. Fire-once is
+    protected by `UNIQUE(alert_id, fire_key)` — a DATABASE invariant that
+    survives any state drift. The snooze had no backstop and was exactly as
+    durable as one text column that six code paths write. It is now derived from
+    the TIMESTAMP, which no state transition rewrites, so every consumer asks the
+    same question and no state can answer it for them.
+
+    ⚠️ `_rearm` STILL CLEARS `snooze_until`, AND THAT IS THE CANCEL PATH. The
+    manual re-arm button and an expired window both go through it, so "tell me
+    again now" still cancels a snooze — deliberately, because that is the one
+    place a human asked for it.
+    """
+    if not row:
+        return False
+    until = row.get("snooze_until")
+    if until is None:
+        return False
+    try:
+        return _now(now) < int(until)
+    except (TypeError, ValueError):
+        return False
+
+
 def record_evaluation(alert_id: int, last_value: float, *,
                       now: Optional[float] = None) -> bool:
     """The alert was evaluated and did NOT trigger. Returns True iff it re-armed.
@@ -501,14 +542,17 @@ def record_evaluation(alert_id: int, last_value: float, *,
     _touch_value(alert_id, last_value, now_i)
 
     state = row["state"]
-    if state == STATE_SNOOZED:
-        until = row["snooze_until"]
-        if until is not None and now_i < int(until):
-            return False
+    # ⭐ THE WINDOW, NOT THE LABEL — see `snooze_active`. Asking the clock rather
+    # than the `state` column is what makes a snooze survive `mark_needs_
+    # attention`, which rewrote the label and left the window open.
+    if snooze_active(row, now_i):
+        return False
+    if row["snooze_until"] is not None:
         # ⭐ AN EXPIRED SNOOZE RE-ARMS, EPISODE AND ALL. "Quiet for 15 minutes"
         # means the alert speaks again afterwards if it is still true — so the
         # key has to move, or the very condition the user snoozed would be the
-        # one thing that can never come back.
+        # one thing that can never come back. `_rearm` clears `snooze_until`, so
+        # this runs exactly once however the state drifted in the meantime.
         _rearm(alert_id, now_i, detail="the snooze window expired")
         return True
     if state == STATE_FIRED:
@@ -543,6 +587,12 @@ def record_trigger(alert_id: int, last_value: float, *,
     alert would then be permanently mute the moment the snooze expired — the
     user asked for fifteen minutes of quiet and got silence forever.
 
+    ⛔ AND "SNOOZED" IS NOW THE WINDOW, NOT THE `state` LABEL. It used to be the
+    label, so `mark_needs_attention` — reached from a sweep that runs every
+    300 s — cancelled a 30-day snooze by rewriting one text column. Measured:
+    this returned **True** with the window still 29 days out. See
+    `snooze_active`.
+
     ⚠️ `needs_attention` / `error` DO NOT SUPPRESS. A value arrived and the
     condition is true; whatever was wrong is over. Firing clears the state.
     """
@@ -552,10 +602,9 @@ def record_trigger(alert_id: int, last_value: float, *,
         return False
     _touch_value(alert_id, last_value, now_i)
 
-    if row["state"] == STATE_SNOOZED:
-        until = row["snooze_until"]
-        if until is not None and now_i < int(until):
-            return False
+    if snooze_active(row, now_i):
+        return False
+    if row["snooze_until"] is not None:
         _rearm(alert_id, now_i, detail="the snooze window expired")
         row = get(alert_id) or row
 
@@ -1116,15 +1165,36 @@ def claim_delivery(alert_id: Optional[Any]) -> bool:
     before a member's inbox, every channel is downstream of it, and a second
     caller of this lane inherits the guard instead of having to remember it.
 
-    ⚠️ FAILS **OPEN**, DELIBERATELY, IN BOTH DIRECTIONS. An unidentifiable
-    payload (no `alert_id`) or an unreachable store returns True, so a member
-    may see a duplicate. The other failure — suppressing an alert we could not
-    identify — is the one nobody can see and nobody can report, and this whole
-    task exists because silence is the expensive direction.
+    🔴 AND IT NOW REFUSES DURING A SNOOZE, WHICH IT DID NOT. `_run_one_cycle`
+    DISCARDS `record_trigger`'s return value and calls `_dispatch_delivery`
+    unconditionally — measured: `invoked 4 times while record_trigger returned
+    [True, False, False, False]`. So delivery was gated by *"is there an
+    undelivered fire row"* and not by the snooze, and a fire recorded BEFORE the
+    snooze began was delivered inside the window. Measured on a real row:
+    `claim_delivery` returned **True while the alert was snoozed**. That also
+    refutes `alert_fired_log`'s claim that an older undelivered row "stays NULL
+    forever rather than being delivered late" — it does not, it is claimed by the
+    next cycle that produces one.
+
+    ⛔ THE CALL SITE IS STILL WRONG AND IS NOT FIXED HERE. `indicator_alert_
+    evaluator.py` is Task 8's file; the one-line fix there is
+    `if ias.record_trigger(...): _dispatch_delivery(alert, value)`. This gate
+    closes the CONSEQUENCE at the boundary every channel is downstream of, so
+    the hole is shut either way and shutting it twice is harmless.
+
+    ⚠️ FAILS **OPEN**, DELIBERATELY, IN BOTH DIRECTIONS — EXCEPT FOR A SNOOZE,
+    WHICH IS NOT A FAILURE. An unidentifiable payload (no `alert_id`) or an
+    unreachable store returns True, so a member may see a duplicate; the other
+    failure — suppressing an alert we could not identify — is the one nobody can
+    see and nobody can report, and this whole task exists because silence is the
+    expensive direction. A live snooze window is the opposite case: the silence
+    is what the user ASKED FOR, so it is the one refusal that is safe to make.
     """
     if alert_id is None:
         return True
     try:
+        if snooze_active(get(int(alert_id))):
+            return False
         return alert_fired_log.claim_delivery(int(alert_id))
     except Exception:  # noqa: BLE001 - see FAILS OPEN above
         import logging

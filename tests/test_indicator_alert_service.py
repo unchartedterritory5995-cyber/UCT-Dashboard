@@ -1002,3 +1002,168 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client):
             "tf": soak.DEFAULT_TF})
         assert r.status_code == 200, (spec, r.text)
     assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
+
+
+# ─── THE SNOOZE IS A WINDOW, NOT A LABEL ─────────────────────────────────────
+#
+# Three defects, all reproduced on real rows before being fixed. The snooze was
+# enforced by one mutable text column while fire-once was enforced by a UNIQUE
+# constraint — and that asymmetry is the whole story: anything that rewrote the
+# state cancelled the snooze, and nothing anywhere noticed.
+
+_T0 = 1_800_000_000.0
+_DAY = 86400
+
+
+def _snoozed_alert(user_id="u1", **kw):
+    aid = ias.create(user_id=user_id, sym="SPY", indicator="rsi",
+                     condition="above", threshold=0.0, tf="5", **kw)
+    ias.snooze(aid, ias.SNOOZE_MAX_MINUTES, now=_T0)
+    return aid
+
+
+def test_a_snooze_SURVIVES_mark_needs_attention(tmp_db):
+    """🔴 P0-2, MEASURED FIRST. The sweep that rewrites the state must not
+    silence-cancel a snooze the user is still inside.
+
+    `sweep_silent_alerts` runs unconditionally every 300 s from `api/main.py`
+    and calls `mark_needs_attention` for any active alert that produced no value
+    — one failed bars fetch. It writes `state='needs_attention'` and leaves
+    `snooze_until` untouched, so an enforcement keyed on the STATE let the very
+    next true reading through. All 31 production soak rows share one `(SPY,"5")`
+    bar group, so one fetch failure un-muzzled all 31 at once.
+    """
+    aid = _snoozed_alert()
+    assert ias.record_trigger(aid, 99.0, now=_T0 + 60) is False   # baseline: quiet
+
+    ias.mark_needs_attention(aid, "bars fetch returned nothing", now=_T0 + 120)
+    row = ias.get(aid)
+    # the state really did move — the mutation this survives is real, not staged
+    assert row["state"] == ias.STATE_NEEDS_ATTENTION
+    assert row["snooze_until"] is not None
+    assert row["snooze_until"] - (_T0 + 120) > 28 * _DAY   # still deep inside it
+
+    assert ias.snooze_active(row, _T0 + 120) is True
+    assert ias.record_trigger(aid, 99.0, now=_T0 + 180) is False
+    assert ias.claim_delivery(aid) is False
+    assert ias.get(aid)["trigger_count"] == 0
+
+
+def test_a_STALE_undelivered_fire_is_not_delivered_inside_a_snooze(tmp_db):
+    """🔴 P0-3's CONSEQUENCE, closed at the delivery boundary.
+
+    `_run_one_cycle` discards `record_trigger`'s return and calls
+    `_dispatch_delivery` regardless, so delivery is gated by *"is there an
+    undelivered fire row"* rather than by the snooze. A fire recorded BEFORE the
+    snooze began was therefore claimed — and delivered — inside the window.
+
+    ⚠️ THE CALL SITE IS TASK 8's FILE AND IS DELIBERATELY UNCHANGED. This pins
+    the boundary guard, which every channel is downstream of.
+    """
+    aid = ias.create(user_id="u1", sym="SPY", indicator="rsi",
+                     condition="above", threshold=0.0, tf="5")
+    assert ias.record_trigger(aid, 99.0, now=_T0) is True   # a real, undelivered fire
+    ias.snooze(aid, 60, now=_T0 + 60)
+
+    assert ias.claim_delivery(aid) is False                 # muzzled …
+    ias.rearm(aid, now=_T0 + 120)                           # … until asked otherwise
+    assert ias.get(aid)["snooze_until"] is None
+    assert ias.claim_delivery(aid) is True
+
+
+def test_an_EXPIRED_snooze_still_re_arms_whatever_the_state_drifted_to(tmp_db):
+    """The other direction, and it is the one a fix like this usually breaks.
+
+    "Quiet for N minutes" has to end. The re-arm now keys on `snooze_until`
+    having passed rather than on the state still reading `snoozed`, so it fires
+    exactly once (`_rearm` clears the column) even if the sweep moved the state
+    in between.
+    """
+    aid = _snoozed_alert()
+    ias.mark_needs_attention(aid, "quiet", now=_T0 + 60)
+    past = _T0 + 31 * _DAY
+    assert ias.snooze_active(ias.get(aid), past) is False
+    assert ias.record_trigger(aid, 99.0, now=past) is True
+    row = ias.get(aid)
+    assert row["snooze_until"] is None and row["trigger_count"] == 1
+
+    # …and a NON-triggering evaluation re-arms an expired snooze the same way
+    other = _snoozed_alert()
+    assert ias.record_evaluation(other, 1.0, now=_T0 + 60) is False
+    assert ias.record_evaluation(other, 1.0, now=past) is True
+    assert ias.get(other)["state"] == ias.STATE_ARMED
+
+
+def test_the_manual_rearm_button_still_CANCELS_a_snooze(tmp_db, client):
+    """`_rearm` clears the window — the one place a human asked for it."""
+    aid = _snoozed_alert(user_id="user-abc")   # the id the `client` fixture owns
+    assert ias.snooze_active(ias.get(aid)) is True
+    r = client.post(f"/api/indicator-alerts/{aid}/rearm")
+    assert r.status_code == 200, r.text
+    assert ias.get(aid)["snooze_until"] is None
+    assert ias.snooze_active(ias.get(aid)) is False
+
+
+def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch):
+    """🔴 P0-1: a health check that reads green right up to the failure.
+
+    `deliverable_now` was `state != snoozed`, so it said **0** on the cycle
+    before the emails went out, and `snooze_until` appeared nowhere in the tool.
+    Both numbers now come from `ias.snooze_active` — the same predicate the
+    service enforces with — and the countdown is itself an exit-1.
+
+    Blast radius if it were left silent: 27 of the 31 catalog specs fire on the
+    first cycle past expiry.
+    """
+    from tools import alert_soak_matrix as soak
+    import time as _time
+
+    for spec in soak.catalog_addresses():
+        aid = ias.create(user_id="owner-1", sym="SPY", indicator=spec["address"],
+                         condition=spec["condition"], threshold=spec["threshold"],
+                         tf="5", params_json={soak.SOAK_KEY: soak.SOAK_TAG})
+        ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
+
+    out = soak.verify()
+    assert out["armed"] == 31 and out["deliverable_now"] == 0
+    assert out["expiring_soon"] == 0
+    assert out["muzzle_expires_in_days"] > soak.EXPIRY_WARN_DAYS
+    assert soak.main(["--verify"]) == 0
+
+    # …now stand inside the warning horizon. Nothing has been delivered yet and
+    # `state` still reads `snoozed` — the old check would have said 0 and 0.
+    late = _time.time() + (30 - 1) * _DAY
+    monkeypatch.setattr(soak.time, "time", lambda: late)
+    monkeypatch.setattr(ias.time, "time", lambda: late)
+    warned = soak.verify()
+    assert all(a["state"] == ias.STATE_SNOOZED for a in soak.soak_rows())
+    assert warned["deliverable_now"] == 0        # still muzzled …
+    assert warned["expiring_soon"] == 31         # … and it says the clock is running
+    assert soak.main(["--verify"]) == 1
+
+    # past the window: deliverable, and still red
+    gone = _time.time() + 31 * _DAY
+    monkeypatch.setattr(soak.time, "time", lambda: gone)
+    monkeypatch.setattr(ias.time, "time", lambda: gone)
+    assert soak.verify()["deliverable_now"] == 31
+    assert soak.main(["--verify"]) == 1
+
+
+def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
+    """⛔ THE CONSTRAINT THAT OUTRANKS THE FIX. Task 8's cutover gate reads
+    `list_active()`; a muzzle that hid rows from it would make that gate
+    vacuous. Muzzled and invisible are different things and must stay so.
+    """
+    from tools import alert_soak_matrix as soak
+    soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
+    ids = {a["id"] for a in soak.soak_rows()}
+    assert len(ids) == 31
+    assert ids <= {a["id"] for a in ias.list_active()}
+
+    # even after the sweep rewrites every state, they stay visible AND muzzled
+    for aid in ids:
+        ias.mark_needs_attention(aid, "no bars this cycle")
+    assert ids <= {a["id"] for a in ias.list_active()}
+    assert all(ias.snooze_active(a) for a in soak.soak_rows())
+    assert soak.verify()["deliverable_now"] == 0
+    assert all(ias.record_trigger(aid, 99.0) is False for aid in ids)
