@@ -171,7 +171,7 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
             className={`${styles.imCol} ${styles.colBtn}${sort.by === 'im' ? ' ' + styles.colActive : ''}`}
             onClick={() => clickCol('im')}
             title="Sort by implied move"
-          >Impl. Move{caret('im')}</button>
+          >Impl.<br />Move{caret('im')}</button>
           <button
             type="button"
             className={`${styles.epsCol} ${styles.colBtn}${sort.by === 'eps' ? ' ' + styles.colActive : ''}`}
