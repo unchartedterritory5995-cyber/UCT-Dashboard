@@ -681,6 +681,240 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     return False, None
 
 
+# ─── WHAT THE CREATE PATH REFUSES, AND WHY EACH REFUSAL IS MODE-HONEST ───────
+#
+# ⭐ THE GAP THIS CLOSES. `diagnose` above answers *"why is this alert silent"*
+# AFTER the alert has been armed, live, for as long as it takes somebody to
+# notice. This answers the same question one step earlier — at creation, where
+# the answer can still be a refusal instead of an explanation. The concrete case
+# that surfaced it: a `vwap` alert on `tf="D"`. `bars_sqlite` keeps daily rows
+# under a `YYYYMMDD` calendar key, `compute_vwap_raw` refuses a column whose `t`
+# is not a clock instant (`indicator_compute.VWAP_MIN_INSTANT`, the fix for the
+# 1970-anchored daily VWAP), and the chart has always declared VWAP intraday-only
+# (`eligibility.VWAP_TIMEFRAMES`). So the alert was accepted, armed, active — and
+# structurally mute forever, with nothing anywhere saying so.
+#
+# ⛔⛔ THE RULE, AND IT IS THE HARD PART: A COMBINATION IS REFUSED ONLY IF IT IS
+# DEAD IN **BOTH** EVALUATION MODES. `ALERT_EVAL_MODE` is `"forming"` today and
+# Task 8 alone flips it, so a validator that quietly judged the post-cutover
+# world would delete working features from a live surface under the cover of a
+# "fix".
+#
+#   ⚠️ THE NAMED CASE THAT PROVES THE RULE IS NOT THEORETICAL: `ichimoku.chikou`
+#   fires TODAY and stops firing at the cutover. Its 26-bar trailing pad means
+#   the CLOSED bar's `series[i]` is always `None`, so under `"closed"` it can
+#   never fire — but under `"forming"` the value lane takes the last non-None
+#   element and it fires normally. It is live in the production catalog with
+#   armed rows behind it, and Task 6's declared diff prices it at 19,574 fires
+#   lost / 0 gained. **It is deliberately NOT refused here.** What happens to it
+#   at the flip is Task 8's decision, not a side effect of input validation.
+#
+# The distinction each gate below rests on is therefore mechanical rather than
+# editorial: an ALL-None column is dead in both lanes; a TRAILING-None column is
+# alive in one of them. `instant_only_addresses()` measures exactly that
+# difference and `chikou` falls on the living side of it.
+
+#: The three refusals, as data, because the tests quote them rather than retype
+#: them and because disjointness has to be assertable.
+#:
+#: ⛔ THEY ARE DELIBERATELY DISJOINT AND THAT IS A SAFETY PROPERTY, NOT A STYLE
+#: NOTE. Task 9 shipped two gates that shared a refusal phrase, and
+#: `pytest.raises(match=…)` therefore still matched with the second safety
+#: DELETED — a test that would have passed on a tree with the guard removed.
+#: `test_the_three_refusals_are_disjoint` asserts each anchor matches its own
+#: message and no other.
+REFUSAL_UNJUDGEABLE_CONDITION = "is not a trigger rule this evaluator can judge"
+REFUSAL_INTRADAY_ONLY = "is only defined on an intraday timeframe"
+REFUSAL_NO_LEVEL = "compares against a level, and no level was given"
+
+#: How many bars the classification probe below runs on. Ichimoku needs 52 + a
+#: 26-bar displacement before it resolves at all, so a short probe would report
+#: "no value on either encoding" for it and classify nothing — which is why
+#: `test_the_probe_resolves_every_catalog_address` exists.
+_PROBE_BARS = 260
+
+
+def _probe_series() -> tuple[list[dict], list[dict]]:
+    """Two bar lists, IDENTICAL in OHLCV and differing ONLY in the `t` encoding.
+
+    The left one carries real unix seconds (what `bars_sqlite` stores for
+    1/5/15/30/60); the right one carries `YYYYMMDD` ints for the same calendar
+    days (what it stores for D/W/M). `_fetch_bars_for_alert` passes either
+    through verbatim — deliberately, because `bar_close_epoch` and
+    `closed_bar_index` READ the calendar encoding — so these two are exactly the
+    two shapes an address can be handed in production.
+
+    ⛔ THE OHLCV MUST MOVE. A flat series makes CCI's mean deviation zero and
+    ADX's directional movement zero, so several addresses would report "no
+    value" for a reason that has nothing to do with `t` and would be
+    misclassified. The sine plus drift is what keeps every one of the 31
+    resolvable — asserted, not assumed.
+    """
+    import datetime as _dt
+    import math
+    base = _dt.date(2024, 1, 2)
+    instant: list[dict] = []
+    calendar: list[dict] = []
+    for i in range(_PROBE_BARS):
+        day = base + _dt.timedelta(days=i)
+        close = 100.0 + 10.0 * math.sin(i / 9.0) + i * 0.05
+        ohlcv = {"o": close - 0.4, "h": close + 1.1, "l": close - 1.3,
+                 "c": close, "v": 1_000_000 + i * 137}
+        instant.append({"t": int(_dt.datetime(
+            day.year, day.month, day.day, 14, 30,
+            tzinfo=_dt.timezone.utc).timestamp()), **ohlcv})
+        calendar.append({"t": int(day.strftime("%Y%m%d")), **ohlcv})
+    return instant, calendar
+
+
+_INSTANT_ONLY_CACHE: Optional[frozenset] = None
+
+
+def instant_only_addresses() -> frozenset:
+    """Addresses whose column is REFUSED WHOLE on a calendar-encoded timeframe.
+
+    ⛔ MEASURED, NEVER LISTED. The obvious implementation is
+    `{"vwap"}` — and that is a literal somebody has to remember to edit, which
+    is the enumeration-site defect this programme has been retiring all phase.
+    This runs every address's own column function over the two probe series and
+    asks the only question that matters: does it produce a number on an instant
+    and NOTHING AT ALL on a calendar date? Today the answer is `{"vwap"}` and
+    `test_the_measured_instant_only_set_is_exactly_vwap_today` says so — but a
+    future address with the same dependency is covered on the day it lands.
+
+    ⛔ AN ADDRESS THAT RESOLVES ON NEITHER PROBE IS NOT CLASSIFIED. "No value on
+    either encoding" means the probe could not tell, not that the address is
+    calendar-hostile, and refusing on a measurement that did not happen is how a
+    guard starts rejecting working alerts. `test_the_probe_resolves_every_
+    catalog_address` asserts that set is EMPTY, so the safe branch is never
+    silently doing the work.
+
+    ⚠️ THE DIFFERENCE FROM `ichimoku.chikou` IS THE WHOLE DESIGN. `chikou`'s
+    column has 209 values and 26 trailing `None`s on this same probe, so
+    `any(...)` is True on BOTH encodings and it is never flagged. A trailing pad
+    is a CLOSED-lane consequence; an empty column is a both-lanes fact.
+    """
+    global _INSTANT_ONLY_CACHE
+    if _INSTANT_ONLY_CACHE is not None:
+        return _INSTANT_ONLY_CACHE
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+    instant, calendar = _probe_series()
+    flagged = set()
+    for address in ev.all_addresses():
+        column = alert_series.SERIES_FUNCS.get(address)
+        if column is None:
+            continue
+        try:
+            on_instant = column(instant, {})
+            on_calendar = column(calendar, {})
+        except Exception:  # noqa: BLE001 - a raising compute is `diagnose`'s job
+            continue
+        if any(v is not None for v in on_instant) and all(
+                v is None for v in on_calendar):
+            flagged.add(address)
+    _INSTANT_ONLY_CACHE = frozenset(flagged)
+    return _INSTANT_ONLY_CACHE
+
+
+def evaluable_conditions() -> frozenset:
+    """Every trigger rule the catalog offers, anywhere, for any address.
+
+    ⚠️ THIS IS THE SET `check_condition` HANDLES, AND THE EQUALITY IS A TEST
+    RATHER THAN A HOPE. `alert_conditions.check_condition` returns False for an
+    unknown condition, so a rule outside its branches is armed and mute forever
+    — in both lanes, since it is the sole decider of `triggered` in
+    `_evaluate_one` AND `_evaluate_one_closed`. Refusing on the CATALOG union
+    would over-refuse if `check_condition` ever grew a branch nobody offered, so
+    `test_the_offered_rules_are_exactly_the_ones_check_condition_handles`
+    derives its branches from its own AST and asserts set equality both ways.
+    """
+    from api.services import indicator_alert_evaluator as ev
+    return frozenset(
+        c["value"] for conditions in ev.ALERT_CONDITIONS.values()
+        for c in conditions
+    )
+
+
+def conditions_needing_a_level() -> frozenset:
+    """Rules that can never fire without a number on the right-hand side.
+
+    ⛔ MEASURED AGAINST `check_condition` ITSELF, not read off a list. Every
+    offered rule is asked, with `threshold=None`, whether ANY (current, prev)
+    pair in a sign-covering probe makes it answer True. `cross_zero` does
+    (`prev <= 0 < current`); the other six consult `threshold` and short-circuit
+    on `None`. A hand-written `{"above", "below", …}` set is the same literal
+    the retired dispatch dict was, and it would rot the first time a rule landed.
+
+    ⚠️ IT IS NOT THE WHOLE REFUSAL. `THRESHOLD_OPERAND` DECLARES a right-hand
+    side for four (address, condition) pairs — `bb`'s two band touches and the
+    two `sar` events — and those are supplied by the evaluator rather than typed
+    by the user. `refusal_for` subtracts them, and the result reproduces the
+    catalog's hand-declared `needs_threshold` column exactly, which is what
+    `test_the_derived_rule_reproduces_the_catalogs_needs_threshold_column`
+    measures across every offered pair.
+    """
+    from api.services.alert_conditions import check_condition
+    probe = (-2.0, -1.0, 0.0, 1.0, 2.0)
+    return frozenset(
+        condition for condition in evaluable_conditions()
+        if not any(check_condition(condition, current, prev, None)
+                   for current in probe for prev in probe)
+    )
+
+
+def refusal_for(indicator: Optional[str], condition: Optional[str],
+                tf: Optional[str], threshold: Optional[float]) -> Optional[str]:
+    """Why this alert could NEVER fire, or ``None`` if it could.
+
+    Three gates, and every one of them is true under `ALERT_EVAL_MODE ==
+    "forming"` AND under `"closed"` — see the section header for why that is the
+    binding constraint rather than a nicety.
+
+    ⚠️ IT DOES NOT DUPLICATE THE TWO REFUSALS THAT ALREADY SHIPPED. The router
+    redirects the price ALIASES to the watchlist-alert lane and refuses an
+    address with no value function before calling this; those are about the
+    alert's NAME, these are about its SHAPE, and putting a second copy of the
+    address check here would give one refusal two spellings.
+
+    ⛔ `create()` IS DELIBERATELY NOT GATED. Thirty-one soak rows are armed on
+    production and `tools/alert_soak_matrix.py --arm` must stay idempotent; a
+    guard inside the writer would change what an internal tool and every
+    existing row can do, when the gap being closed is the *API* surface. The
+    router calls this; `create` still inserts what it is handed.
+    """
+    from api.services import indicator_alert_evaluator as ev
+
+    address = ev.resolve_address((indicator or "").strip())
+    rule = (condition or "").strip()
+    code = str(tf or "").strip().upper()
+    label = ev.ALERT_LABELS.get(address, address)
+
+    if rule not in evaluable_conditions():
+        offered = ", ".join(sorted(evaluable_conditions()))
+        return (f"{condition!r} {REFUSAL_UNJUDGEABLE_CONDITION} — it matches no "
+                f"branch of check_condition, which answers no for it on every "
+                f"bar, before and after the closed-bar cutover alike. The rules "
+                f"it can judge are: {offered}.")
+
+    if address in instant_only_addresses() and code in ev._CALENDAR_TFS:
+        intraday = ", ".join(sorted(ev._TF_MINUTES))
+        return (f"{label} {REFUSAL_INTRADAY_ONLY}. A {code} bar is stored under a "
+                f"calendar date where this series needs a clock instant, so its "
+                f"whole column is withheld and no number is ever produced — on "
+                f"the live lane and on the closed one. Arm it on one of "
+                f"{intraday}.")
+
+    if (threshold is None and rule in conditions_needing_a_level()
+            and (address, rule) not in ev.THRESHOLD_OPERAND):
+        return (f"{label} with {rule!r} {REFUSAL_NO_LEVEL}. Nothing declares a "
+                f"right-hand side for this pair, so the comparison is skipped "
+                f"every cycle and neither evaluation mode can deliver anything. "
+                f"Send a threshold.")
+
+    return None
+
+
 # ─── SPEC §6/§8: THE DELETION GUARD, FROM THE OTHER SIDE ─────────────────────
 
 _INSTANCE_BLOBS: tuple[str, ...] = ("charts_workspace_layout", "chart_settings",

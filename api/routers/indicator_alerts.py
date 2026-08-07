@@ -166,6 +166,17 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
                     "evaluate, so an alert on it could never fire. See "
                     "GET /api/indicator-alerts/catalog for what is offered."),
         )
+    # ⭐ AND THE THREE THAT ARE ABOUT THE ALERT'S SHAPE, NOT ITS NAME. The two
+    # refusals above catch an indicator that does not exist; a `vwap` alert on
+    # `tf="D"` names one that does, is accepted by both of them, and is still
+    # structurally mute forever. `ias.refusal_for` is the measurement of that —
+    # and it refuses ONLY what is dead under `"forming"` AND under `"closed"`, so
+    # flipping `ALERT_EVAL_MODE` cannot retroactively make it wrong and it does
+    # not pre-judge Task 8. `ichimoku.chikou` fires today and is NOT refused.
+    refusal = ias.refusal_for(body.indicator, body.condition, body.tf,
+                              body.threshold)
+    if refusal:
+        raise HTTPException(status_code=400, detail=refusal)
     alert_id = ias.create(
         user_id=user["id"],
         sym=body.sym.upper(),
