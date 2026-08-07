@@ -3619,6 +3619,58 @@ export default function StockChart({
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
 
+  // ── Frozen-chart watchdog (independent of the live-bar writers) ──
+  // Uses the existing livePricesRef (assigned each render below) — stale-closure-safe.
+  // The live-bar writers only self-heal a stalled chart when they actually FIRE
+  // (a push/Finnhub tick arrives AND isn't suppressed). But the exact reported bug
+  // — "price keeps updating in the header + watchlist, yet the chart is frozen and
+  // the tick isn't moving" — is a state where the developing-bar writer isn't
+  // advancing the series while the live-price feed clearly IS live. The header/
+  // watchlist price rides the /api/live-prices path (livePrices here), so when that
+  // price is running MORE than ~2 intervals ahead of the chart's rendered tail, the
+  // bars SWR poll has stalled (post-deploy SSE drop + visibility-gated refresh not
+  // resuming). Force a throttled revalidation — mutate() fires even while interval
+  // polling is paused, and the backend is authoritative + proven fresh, so the tail
+  // catches up. Runs only for intraday; a same-session live price naturally sits
+  // within a bar or two of the tail, so this never fires on a healthy chart.
+  useEffect(() => {
+    if (!sym || !isIntraday) return
+    const id = setInterval(() => {
+      try {
+        const lp = livePricesRef.current?.[sym]
+        const tail = lastBarRef.current
+        if (!lp || !Number.isFinite(lp.updated_at) || !tail || !Number.isFinite(tail.time)) return
+        const period = PERIOD_SECONDS[resolvedTf] || 300
+        // tail.time is (server unix seconds + _ET_OFFSET); lp.updated_at is raw unix
+        // seconds — undo the offset to compare like-for-like.
+        const tailServerSec = tail.time - _ET_OFFSET
+        if (lp.updated_at - tailServerSec <= 2.5 * period) return
+        const nowMs = Date.now()
+        if (nowMs - gapHealAtRef.current <= 6000) return
+        gapHealAtRef.current = nowMs
+        // Fetch the fresh FULL series directly (no `since`) and INJECT it into SWR's
+        // cache via mutate(payload, {revalidate:false}). This deterministically drives
+        // the `[data]` effect's non-delta REPLACE branch → setData → the tail advances,
+        // instead of relying on mutate()'s revalidation actually re-firing the paused
+        // poll. Bounded: throttled 6s, only while the chart is demonstrably behind the
+        // live feed, and a no-op REPLACE once caught up (the price sits within 2.5
+        // intervals of the tail again → this branch stops firing).
+        const _sym = sym, _tf = resolvedTf
+        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(payload => {
+            // Guard against a ticker/tf switch mid-fetch, and against a stale payload.
+            if (!payload?.bars?.length) return
+            if (sym !== _sym || resolvedTf !== _tf) return
+            if (payload.ticker && payload.ticker !== String(_sym).toUpperCase()) return
+            barsMutateRef.current?.(payload, { revalidate: false })
+          })
+          .catch(() => { /* transient — next tick retries */ })
+      } catch { /* watchdog must never throw */ }
+    }, 8000)
+    return () => clearInterval(id)
+  }, [sym, resolvedTf, isIntraday, barCount])
+
   // Keep lastPriceRef / lastChangePctRef in sync for screenshot composition.
   // Prefers live stream values; falls back to last bar close / intra-bar change.
   useEffect(() => {
