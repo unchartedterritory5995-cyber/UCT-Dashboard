@@ -516,6 +516,66 @@ def test_a_SNOOZED_alert_records_NOTHING_and_delivers_NOTHING(tmp_db, monkeypatc
     assert len(delivered) == 1
 
 
+def test_a_released_delivery_lease_is_RETRIED_on_a_later_cycle(tmp_db,
+                                                               monkeypatch):
+    """🔴 WHY `_dispatch_delivery` IS CALLED UNCONDITIONALLY, AS A MEASUREMENT.
+
+    `record_trigger`'s docstring used to claim the cycle calls `_dispatch_
+    delivery` only when it returns True, and `claim_delivery`'s comment recorded
+    the "one-line fix" `if ias.record_trigger(...): _dispatch_delivery(...)` as
+    still owed. Task 8 RULED AGAINST IT and this is the reason, executable:
+
+      * a level condition keys on its ARMED EPISODE, so after the first fire
+        `record_trigger` returns False on every subsequent cycle;
+      * a delivery that failed hands its lease back (`release_delivery`) so the
+        row is undelivered again and a later cycle can re-send it;
+      * gating the call site would mean no later cycle ever calls the dispatch,
+        so the released lease is never picked up and the member is NEVER TOLD —
+        trading a snooze leak (already closed at `claim_delivery`, which is what
+        every channel is downstream of) for a permanent silent drop.
+
+    ⚠️ THE REAL `deliver_alert_payload` RUNS HERE — only the channels are
+    stubbed — because the claim/release contract lives inside it and a spy that
+    replaced it would assert nothing about the gate.
+    """
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert",
+                        lambda sym, tf, count=200: [dict(b) for b in _RISING])
+    delivered: list = []
+    monkeypatch.setattr(wls, "add_alert", lambda *a, **k: delivered.append(k))
+    monkeypatch.setattr(wls, "send_email", lambda *a, **k: None)
+    monkeypatch.setattr(wls, "_get_user_email", lambda uid: None)
+    import api.services.alerts as _alerts
+    monkeypatch.setattr(_alerts, "_fire_discord", lambda payload: None)
+
+    aid = ias.create(user_id="u9", sym="SPY", indicator="rsi",
+                     condition="above", threshold=70.0, tf="5")
+
+    ev._run_one_cycle()
+    first = fl.fires_for_alert(aid)
+    assert len(first) == 1 and first[0]["delivered_at"] is not None, first
+    assert len(delivered) == 1
+    fire_id = first[0]["id"]
+
+    # The provider refused: the lease is handed back, exactly as a 429 does.
+    out = fl.release_delivery(fire_id, error="429 Too Many Requests")
+    assert out["released"] is True and out["terminal"] is False, out
+    assert fl.fires_for_alert(aid)[0]["delivered_at"] is None
+
+    # ⭐ THE MEASUREMENT: on the next cycle `record_trigger` says False — there is
+    # nothing NEW — and the member is told anyway, because the undelivered row
+    # is still there.
+    assert ias.record_trigger(aid, last_value=99.0,
+                              bar_time=_RISING[-1]["t"]) is False, (
+        "the episode key moved; this test would prove nothing about the retry")
+    ev._run_one_cycle()
+
+    assert fl.count_fires(aid) == 1, "the retry recorded a SECOND fire"
+    assert fl.fires_for_alert(aid)[0]["delivered_at"] is not None, (
+        "the released lease was never picked up — a failed delivery is a "
+        "permanent silent drop")
+    assert len(delivered) == 2, delivered
+
+
 def test_naming_the_bar_moves_a_CROSS_conditions_key_from_the_EPISODE_to_the_BAR(
         tmp_db, sent, monkeypatch):
     """⚠️ THE ONE BEHAVIOURAL CONSEQUENCE OF THE STAMP, MEASURED NOT ARGUED.

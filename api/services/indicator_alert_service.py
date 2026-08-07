@@ -626,14 +626,38 @@ def record_evaluation(alert_id: int, last_value: float, *,
 def record_trigger(alert_id: int, last_value: float, *,
                    bar_time: Any = None,
                    now: Optional[float] = None) -> bool:
-    """The condition is TRUE. **Returns True to DELIVER, False to STAY QUIET.**
+    """The condition is TRUE. **Returns True when a NEW fire row landed.**
 
-    ⭐ THE RETURN VALUE IS THE FIRE-ONCE GUARD. `_run_one_cycle` calls
-    `_dispatch_delivery` only when this returns True. The decision is not made
-    here by an `if` anybody can drift — it is made by
-    `alert_fired_log.record_fire`, whose `UNIQUE(alert_id, fire_key)` either
-    lands a new row or does not. History and fire-once are the same object, so
-    "the log says one fire and the member got five" is not a reachable state.
+    ⭐ THE RETURN VALUE IS THE FIRE-ONCE GUARD. The decision is not made here by
+    an `if` anybody can drift — it is made by `alert_fired_log.record_fire`,
+    whose `UNIQUE(alert_id, fire_key)` either lands a new row or does not.
+    History and fire-once are the same object, so "the log says one fire and the
+    member got five" is not a reachable state.
+
+    🔴 THIS DOCSTRING USED TO SAY `_run_one_cycle` CALLS `_dispatch_delivery`
+    ONLY WHEN THIS RETURNS TRUE. IT DOES NOT, IT NEVER DID, AND AFTER TASK 8 IT
+    STILL DOES NOT — DELIBERATELY. Measured on the shipped tree: `invoked 4x
+    while record_trigger returned [True, False, False, False]`. The design record
+    and the code disagreed, which is the one thing this branch treats as a defect
+    in its own right, so the record is corrected to the code rather than the code
+    quietly bent to the record:
+
+      * **the guard is at the delivery boundary** — `claim_delivery`, an atomic
+        compare-and-set on `delivered_at` inside SQLite. Every channel is
+        downstream of it and a second caller of this lane inherits it, which a
+        caller-side `if` cannot offer.
+      * **and gating the call site would DELETE THE RETRY.** `_dispatch_delivery`
+        hands a failed lease back (`alert_fired_log.release_delivery`, bounded by
+        `MAX_DELIVERY_ATTEMPTS`) precisely so a 429 is re-attempted on a later
+        cycle. On a level condition the episode key does not move, so this
+        function returns False on every one of those later cycles — an `if` here
+        would mean the released lease is never picked up again and the member is
+        never told, which is the silent-drop direction the lease exists to close.
+
+    So: `record_trigger` decides whether there is anything NEW to deliver;
+    `claim_delivery` decides whether it is deliverable NOW. Two questions, two
+    places, and `test_a_released_delivery_lease_is_RETRIED_on_a_later_cycle`
+    fails the moment somebody merges them.
 
     The key is the ARMED EPISODE for a level condition and the BAR for a cross
     condition — `alert_fired_log.fire_key`, and its module docstring says why
@@ -753,19 +777,123 @@ def mark_needs_attention(alert_id: int, detail: Any, *,
             "[alert-state] failed to mark alert %s", alert_id)
 
 
+#: The refusal/diagnosis anchor for a column that resolves but never AT the bar
+#: the closed lane judges. Disjoint from the three create-path anchors below for
+#: the Task 9 reason: a shared phrase makes `match=` satisfied by a different
+#: gate, and this one has to be distinguishable from "not enough history".
+CLOSED_LANE_TRAILING_PAD = "is displaced forward and has no value on a CLOSED bar"
+
+
+def closed_lane_pad(address: str, bars: Optional[list], params: dict) -> int:
+    """How many bars of TRAILING `None` this address's column ends with here.
+
+    ⛔ MEASURED ON THE BARS IN HAND, NEVER READ OFF A CONSTANT. `ichimoku.chikou`
+    writes bar `i`'s close to index `i - 26`, so its column ends in 26 `None`s —
+    but the number is a property of the definition's own displacement, and the
+    one thing this programme has learned twenty times is that a literal somebody
+    has to remember to edit is a literal that rots. `tests/test_indicator_
+    golden.py` already declares `TRAILING_PAD = {("ichimoku_9_26_52","chikou"):
+    26}`; this derives the same number from the column and never has to agree
+    with it by hand.
+
+    ``0`` for an address with no column, an empty window, or a raising compute —
+    a pad is a positive claim and "could not tell" must not read as one.
+    """
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+    fn = alert_series.SERIES_FUNCS.get(ev.resolve_address(address))
+    if fn is None or not bars:
+        return 0
+    try:
+        column = fn(list(bars), dict(params or {}))
+    except Exception:  # noqa: BLE001 - a raising compute is diagnosed elsewhere
+        return 0
+    if not any(v is not None for v in column):
+        return 0                       # an EMPTY column is not a displaced one
+    pad = 0
+    for value in reversed(column):
+        if value is not None:
+            break
+        pad += 1
+    return pad
+
+
+def closed_lane_alternatives(address: str, bars: Optional[list],
+                             params: dict) -> list:
+    """Sibling plots of the SAME indicator that DO resolve at the closed bar.
+
+    ⛔ DERIVED, NOT LISTED. The obvious implementation is
+    `{"ichimoku.chikou": "ichimoku.kijun"}` — a hand-written suggestion table,
+    i.e. the enumeration site this programme has spent two phases retiring. This
+    asks every address sharing the prefix whether ITS column has a value at the
+    end of the same window, so the suggestion is true about the bars the member
+    actually has rather than true about the day somebody typed it.
+    """
+    from api.services import indicator_alert_evaluator as ev
+    canonical = ev.resolve_address(address)
+    group = canonical.split(".")[0]
+    if not bars:
+        return []
+    out = []
+    for other in sorted(ev.all_addresses()):
+        if other == canonical or other.split(".")[0] != group:
+            continue
+        if closed_lane_pad(other, bars, params) == 0:
+            try:
+                if ev._closed_address_value(other, bars, dict(params or {})) is not None:
+                    out.append(other)
+            except Exception:  # noqa: BLE001 - a sibling that raises is not an offer
+                continue
+    return out
+
+
+def _closed_lane_offer_text(address: str, bars: Optional[list],
+                            params: dict) -> str:
+    """The "arm this instead" sentence, or "" when nothing resolves.
+
+    Shared by the diagnosis and the create-path refusal so the member reads the
+    same offer whichever door they arrive at — two spellings of one suggestion
+    is the defect this module retired for `instance_label`.
+    """
+    offers = closed_lane_alternatives(address, bars, params)
+    if not offers:
+        return ""
+    return (" Plots of the same indicator that DO resolve on a closed bar: "
+            + ", ".join(offers) + ".")
+
+
 def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     """WHY does this alert produce no value? ``(is_fault, detail)``.
 
-    ⛔ IT CALLS THE EVALUATOR'S OWN `address_value`, NOT A COPY OF IT. A helper
-    that re-implements the dispatch would diagnose a function nobody runs — the
-    mutation-harness lesson, reached from the diagnostic side. `address_value`
-    does not swallow, which is exactly why it is the one worth calling: the
-    raising compute's own message comes back intact, verbatim.
+    ⛔ IT CALLS THE EVALUATOR'S OWN RESOLVER, NOT A COPY OF IT. A helper that
+    re-implements the dispatch would diagnose a function nobody runs — the
+    mutation-harness lesson, reached from the diagnostic side. Neither resolver
+    swallows, which is exactly why they are the ones worth calling: the raising
+    compute's own message comes back intact, verbatim.
+
+    🔴 AND IT ASKS `eval_mode()` WHICH RESOLVER THAT IS. This read
+    `address_value` — the FORMING resolver — unconditionally, in every mode. On
+    a tree where the constant says `"closed"` that made it answer a question
+    nobody asked: `ichimoku.chikou` resolves to `771.56` on the forming lane and
+    to `None` on the closed one, so the instrument built to surface a silent
+    alert reported the ONE permanently-silent address in the catalog as HEALTHY
+    (measured: `forming 219.0 / closed None / diagnose (False, None)`). It then
+    never reached `needs_attention`, so it never hit `sweep_silent_alerts`'
+    `_DIAGNOSE_EVERY_SEC` short-circuit either, and paid a 200-bar fetch plus a
+    full Ichimoku compute every five minutes, forever, for no output.
+    `lesson_health_check_reads_a_proxy_not_the_artifact`, on the artifact this
+    phase exists to make trustworthy.
 
     ⚠️ "NOT ENOUGH BARS YET" IS NOT A FAULT and is returned as `(False, text)`.
     It computes without raising and simply has no answer for this window; an
     alert that has not warmed up must not be reported to a user as broken. The
     distinction is the whole reason this returns a pair instead of a string.
+
+    ⛔ A TRAILING PAD IS THE OTHER SIDE OF THAT DISTINCTION AND IT **IS** A
+    FAULT. A warming column is all-`None` up to the judged bar and fills in on
+    its own; a displaced column has values BEFORE the judged bar and never one
+    AT it, however long you wait. Same symptom, opposite prognosis — so they are
+    separated by the measurement (`closed_lane_pad`) and not by a name.
     """
     from api.services import indicator_alert_evaluator as ev
 
@@ -777,11 +905,39 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     if not bars:
         return True, ("no bars are stored for this symbol and timeframe yet, "
                       "so nothing can be computed")
+
+    params = ev._parse_params(alert)
+    mode = ev.eval_mode()
+    judged = bars
+    if mode == "closed":
+        index = ev.closed_bar_index(bars, str(alert.get("tf") or ""),
+                                    time.time())
+        if index < 1:
+            return False, (f"no bar of this timeframe has closed yet in the "
+                           f"{len(bars)} stored — the closed-bar lane has "
+                           f"nothing to judge")
+        judged = bars[:index + 1]
+
     try:
-        value = ev.address_value(address, bars, ev._parse_params(alert))
+        if mode == "closed":
+            value = ev._closed_address_value(address, judged, params)
+        else:
+            value = ev.address_value(address, judged, params)
     except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
         return True, f"{type(exc).__name__}: {exc}"
+
     if value is None:
+        pad = closed_lane_pad(address, judged, params)
+        if mode == "closed" and pad > 0:
+            label = ev.ALERT_LABELS.get(address, address)
+            instead = _closed_lane_offer_text(address, judged, params)
+            return True, (
+                f"{label} {CLOSED_LANE_TRAILING_PAD}. Its column is written "
+                f"{pad} bars behind the bar that produced it, so the newest "
+                f"CLOSED bar — the only one this evaluator judges — never has a "
+                f"number on it and this alert can never fire again. It fired "
+                f"before the closed-bar cutover and the rows are deliberately "
+                f"left active rather than deleted.{instead}")
         return False, (f"{address} has no value on the bars stored for this "
                        "timeframe yet — not enough history")
     return False, None
@@ -801,24 +957,35 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
 # structurally mute forever, with nothing anywhere saying so.
 #
 # ⛔⛔ THE RULE, AND IT IS THE HARD PART: A COMBINATION IS REFUSED ONLY IF IT IS
-# DEAD IN **BOTH** EVALUATION MODES. `ALERT_EVAL_MODE` is `"forming"` today and
-# Task 8 alone flips it, so a validator that quietly judged the post-cutover
-# world would delete working features from a live surface under the cover of a
-# "fix".
+# DEAD IN THE LANE THAT IS ACTUALLY RUNNING. Two gates below are true in both
+# modes and never ask; the third is true only under `"closed"` and asks
+# `eval_mode()` every call.
+#
+#   ⚠️ IT ASKS AT CALL TIME, NOT AT COMMIT TIME, AND THAT IS THE WHOLE POINT.
+#   `ALERT_EVAL_MODE` is the committed DEFAULT; the Railway variable overrides it
+#   with no deploy at all (that is the rollback lever, and it exists because the
+#   pre-push hook blocks 09:15-16:20 ET). A gate wired to a lane by commit
+#   ordering would therefore be WRONG the moment an operator rolls back
+#   mid-incident — refusing, at creation, an address that had just started
+#   working again. Reading `eval_mode()` makes the disagreement impossible
+#   rather than merely unlikely.
 #
 #   ⚠️ THE NAMED CASE THAT PROVES THE RULE IS NOT THEORETICAL: `ichimoku.chikou`
-#   fires TODAY and stops firing at the cutover. Its 26-bar trailing pad means
-#   the CLOSED bar's `series[i]` is always `None`, so under `"closed"` it can
-#   never fire — but under `"forming"` the value lane takes the last non-None
+#   fired before the cutover and cannot fire after it. Its 26-bar trailing pad
+#   means the CLOSED bar's `series[i]` is always `None`, so under `"closed"` it
+#   can never fire — but under `"forming"` the value lane takes the last non-None
 #   element and it fires normally. It is live in the production catalog with
-#   armed rows behind it, and Task 6's declared diff prices it at 19,574 fires
-#   lost / 0 gained. **It is deliberately NOT refused here.** What happens to it
-#   at the flip is Task 8's decision, not a side effect of input validation.
+#   armed rows behind it, and Task 6's declared diff priced it at 19,574 fires
+#   lost / 0 gained, confirmed five more times since (the live shadow lane
+#   observed 30 of 31 addresses all session; the absentee was exactly this one).
+#   **Existing rows are NOT deleted and NOT deactivated** — they are surfaced as
+#   `needs_attention` by `diagnose` above, with the displacement named. What is
+#   refused here is arming a NEW one into a lane that can never answer it.
 #
 # The distinction each gate below rests on is therefore mechanical rather than
-# editorial: an ALL-None column is dead in both lanes; a TRAILING-None column is
-# alive in one of them. `instant_only_addresses()` measures exactly that
-# difference and `chikou` falls on the living side of it.
+# editorial: an ALL-None column is dead in both lanes (`instant_only_addresses`);
+# a TRAILING-None column is dead in exactly one (`closed_lane_dead_addresses`),
+# and which one is running is a question with a runtime answer.
 
 #: The three refusals, as data, because the tests quote them rather than retype
 #: them and because disjointness has to be assertable.
@@ -923,6 +1090,38 @@ def instant_only_addresses() -> frozenset:
     return _INSTANT_ONLY_CACHE
 
 
+_CLOSED_LANE_DEAD_CACHE: Optional[frozenset] = None
+
+
+def closed_lane_dead_addresses() -> frozenset:
+    """Addresses whose column is DISPLACED and so never has a closed-bar value.
+
+    ⛔ MEASURED, NEVER LISTED — the same rule `instant_only_addresses()` follows
+    and for the same reason. It runs every address's column over the two probe
+    series and flags the ones that end in a trailing pad on either encoding.
+    Today the answer is exactly `{"ichimoku.chikou"}`, pad 26, and
+    `test_the_measured_closed_lane_dead_set_is_exactly_chikou_today` says so.
+
+    ⚠️ IT IS NOT ITSELF A REFUSAL — `refusal_for` consults `eval_mode()` before
+    using it. That separation is deliberate and it is what makes the gate
+    survive the ROLLBACK LEVER: `ALERT_EVAL_MODE` can be overridden by a Railway
+    variable with no deploy, so a gate that baked the lane in at commit time
+    would start refusing a working address the moment an operator rolled back to
+    `"forming"` mid-session — the create path deleting a live feature during an
+    incident.
+    """
+    global _CLOSED_LANE_DEAD_CACHE
+    if _CLOSED_LANE_DEAD_CACHE is not None:
+        return _CLOSED_LANE_DEAD_CACHE
+    from api.services import indicator_alert_evaluator as ev
+    instant, calendar = _probe_series()
+    flagged = {address for address in ev.all_addresses()
+               if closed_lane_pad(address, instant, {}) > 0
+               or closed_lane_pad(address, calendar, {}) > 0}
+    _CLOSED_LANE_DEAD_CACHE = frozenset(flagged)
+    return _CLOSED_LANE_DEAD_CACHE
+
+
 def evaluable_conditions() -> frozenset:
     """Every trigger rule the catalog offers, anywhere, for any address.
 
@@ -1010,6 +1209,22 @@ def refusal_for(indicator: Optional[str], condition: Optional[str],
                 f"whole column is withheld and no number is ever produced — on "
                 f"the live lane and on the closed one. Arm it on one of "
                 f"{intraday}.")
+
+    # ⛔ GATE A's SECOND HALF, AND THE ONLY ONE THAT ASKS WHICH LANE IS RUNNING.
+    # A displaced column (`ichimoku.chikou`, pad 26) has a value on the newest
+    # bar and never on the newest CLOSED one, so it is alive under `"forming"`
+    # and structurally mute under `"closed"`. Both facts are true at once; which
+    # of them is the user's problem is decided by `eval_mode()`, at call time,
+    # because the rollback lever can move that answer with no deploy.
+    if ev.eval_mode() == "closed" and address in closed_lane_dead_addresses():
+        probe = _probe_series()[0]
+        pad = closed_lane_pad(address, probe, {})
+        instead = _closed_lane_offer_text(address, probe, {})
+        return (f"{label} {CLOSED_LANE_TRAILING_PAD}. Its column is written "
+                f"{pad} bars behind the bar that produced it, and this evaluator "
+                f"judges the newest bar that has CLOSED, so nothing would ever "
+                f"be compared and the alert would sit armed and silent "
+                f"forever.{instead}")
 
     if (threshold is None and rule in conditions_needing_a_level()
             and (address, rule) not in ev.THRESHOLD_OPERAND):
@@ -1233,11 +1448,15 @@ def claim_delivery(alert_id: Optional[Any]) -> bool:
     forever rather than being delivered late" — it does not, it is claimed by the
     next cycle that produces one.
 
-    ⛔ THE CALL SITE IS STILL WRONG AND IS NOT FIXED HERE. `indicator_alert_
-    evaluator.py` is Task 8's file; the one-line fix there is
-    `if ias.record_trigger(...): _dispatch_delivery(alert, value)`. This gate
-    closes the CONSEQUENCE at the boundary every channel is downstream of, so
-    the hole is shut either way and shutting it twice is harmless.
+    ⛔ AND TASK 8 RULED THAT THE CALL SITE STAYS UNCONDITIONAL. The one-line
+    `if ias.record_trigger(...): _dispatch_delivery(...)` was written down as the
+    fix here and is NOT the fix: on a level condition the episode key does not
+    move, so `record_trigger` returns False on every cycle after the first, and
+    an `if` would mean a delivery lease released after a 429 is never picked up
+    again — trading a snooze leak (which this gate already closes, at the
+    boundary every channel is downstream of) for a permanent silent drop. The
+    two questions stay in two places: `record_trigger` answers "is there
+    anything NEW", this answers "is it deliverable NOW".
 
     ⚠️ FAILS **OPEN**, DELIBERATELY, IN BOTH DIRECTIONS — EXCEPT FOR A SNOOZE,
     WHICH IS NOT A FAILURE. An unidentifiable payload (no `alert_id`) or an

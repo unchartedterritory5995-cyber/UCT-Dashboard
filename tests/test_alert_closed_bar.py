@@ -19,6 +19,7 @@ import json
 import pathlib
 import re
 import sys
+import time
 import zoneinfo
 
 import pytest
@@ -609,3 +610,223 @@ def test_the_closed_lane_reads_zero_on_real_daily_bars_WITH_a_fire_count(
                   ar.replay(bars, copy.deepcopy(alerts), k=k, evaluate=forming)}
               for k in (1, 4)}
     assert f_sets[4] != f_sets[1]
+
+
+# ─── TASK 8: THE CUTOVER ITSELF ─────────────────────────────────────────────
+#
+# ⭐ EVERY RAIL BELOW IS MODE-AGNOSTIC ON PURPOSE. They are written on a tree
+# whose constant still says "forming" and they have to stay honest on the tree
+# whose constant says "closed" — so each one DRIVES the lane it is about
+# (through the environment lever, which is the seam production itself uses)
+# rather than assuming which one is committed. The tests that pin the SHIPPED
+# value are separate and named as such.
+
+RECORD = _ROOT / "docs" / "decisions" / "2026-08-06-closed-bar-alert-cutover.md"
+
+
+def _status_lines(path) -> list:
+    """Every `**Status:**` line in the record — ISOLATED **and counted**."""
+    return [line for line in path.read_text(encoding="utf-8").splitlines()
+            if line.lstrip().startswith("**Status:**")]
+
+
+def _status_header_line(path) -> str:
+    lines = _status_lines(path)
+    assert lines, "the record carries no `**Status:**` line at all"
+    return lines[0]
+
+
+def test_the_record_and_the_code_agree_about_which_bar_is_judged():
+    """A BICONDITIONAL, anchored on the record's own `**Status:**` HEADER LINE.
+
+    ⛔ NOT A WHOLE-FILE REGEX. B4's review measured that one: flip the header to
+    RESOLVED, append any second `**Status:** … OPEN` line anywhere in the file,
+    and a whole-file `in` test goes GREEN. The header line is isolated AND
+    COUNTED, so a second one is itself a failure.
+
+    ⛔ AND IT FIRES BOTH WAYS. Flipping the mode without resolving the record is
+    a cutover with no decision behind it; resolving the record without flipping
+    the mode is a decision nothing implements. A `stillOpen: true` probe catches
+    only the first — B5 Task 1's M7.
+    """
+    status = _status_header_line(RECORD)
+    assert len(_status_lines(RECORD)) == 1, (
+        "the record carries {} `**Status:**` lines; the anchor is only an anchor "
+        "while there is exactly one".format(len(_status_lines(RECORD))))
+    resolved = "ACCEPTED" in status
+    assert resolved == (ev.eval_mode() == "closed"), (
+        "the record and the evaluator disagree about which bar is judged: the "
+        "header says {!r} and eval_mode() says {!r}".format(status,
+                                                            ev.eval_mode()))
+
+
+def test_the_cycle_NAMES_THE_BAR_IT_JUDGED_in_whichever_lane_is_running(
+        monkeypatch):
+    """🔴 THE RECEIPT RAIL, DRIVEN THROUGH BOTH LANES ON ONE OPEN BAR.
+
+    `_run_one_cycle` computed the judged bar as `len(bars) - 1`, which is the
+    forming lane's answer and is WRONG for the closed lane by exactly one bar
+    whenever the newest bar is still being built. A receipt naming the forming
+    bar while the value came from the closed one is a wrong receipt in the lane
+    whose entire purpose is receipts that can be trusted.
+
+    ⚠️ THE FIXTURE'S NEWEST BAR IS STILL OPEN, WHICH IS THE ONLY STATE THAT CAN
+    TELL THE TWO APART. On a frozen historical window every bar is closed,
+    `closed_bar_index` IS `len(bars) - 1`, and this test would agree with the
+    defect — the same structural zero `cutover_watch` refused three times on
+    live tape.
+    """
+    now = time.time()
+    t0 = (int(now) // 300) * 300 - 59 * 300
+    bars = [{"t": t0 + i * 300, "o": 100.0, "h": 101.0, "l": 99.0, "c": 100.0,
+             "v": 1000} for i in range(60)]
+    alert = _alert("close", "above", 1.0, tf="5")
+
+    assert ev.closed_bar_index(bars, "5", time.time()) == len(bars) - 2, (
+        "the newest bar is not open on this box's clock — the fixture cannot "
+        "separate the two lanes and every assertion below would be vacuous")
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
+    assert ev._evaluate_for_cycle(dict(alert), bars)[2] == len(bars) - 1
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    value, triggered, index = ev._evaluate_for_cycle(dict(alert), bars)
+    assert triggered is True, "the fixture stopped firing; it proves nothing"
+    assert index == len(bars) - 2, (
+        "the closed lane judged bar {} and the cycle named bar {}".format(
+            ev.closed_bar_index(bars, "5", time.time()), index))
+    assert ev._fire_bar_time(bars, index) == bars[-2]["t"]
+    assert ev._fire_bar_time(bars, index) != bars[-1]["t"]
+
+
+def test_the_cycle_asks_eval_mode_and_does_not_recompute_the_closed_index():
+    """⛔ THE INDEX IS AN OUTPUT OF THE EVALUATION, read off the AST.
+
+    Two independent `closed_bar_index` calls resolve against two clocks. They
+    agree almost always, and the almost is a fire naming the wrong bar with no
+    way to notice. `_evaluate_for_cycle` therefore RETURNS the index the closed
+    lane used, and `_run_one_cycle` must not compute one of its own.
+    """
+    src = pathlib.Path(ev.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+
+    cycle = ast.unparse(fns["_run_one_cycle"])
+    assert "_evaluate_for_cycle" in cycle
+    assert "closed_bar_index" not in cycle, (
+        "the cycle recomputes the closed index instead of reading the one the "
+        "evaluation used")
+    assert "len(bars) - 1" not in cycle, (
+        "the cycle still hard-codes the forming lane's judged bar")
+
+    seam = ast.unparse(fns["_evaluate_for_cycle"])
+    assert "eval_mode()" in seam, "the seam does not ask which lane is running"
+    assert "_evaluate_one_closed" in seam and "_evaluate_one(" in seam
+
+
+# ─── the needs-attention instrument, at the boundary it exists to guard ──────
+
+def _diag_alert(address, tf="D"):
+    return {"id": 1, "user_id": "u", "sym": "SPY", "tf": tf,
+            "indicator": address, "condition": "above", "threshold": 0.0,
+            "params_json": None, "last_value": None, "alert_key": "k"}
+
+
+def test_diagnose_READS_THE_MODE_and_calls_the_MATCHING_resolver(spy_daily,
+                                                                  monkeypatch):
+    """🔴 THE ONE THAT WOULD HAVE LIED. Measured on the shipped tree.
+
+    `diagnose` called `ev.address_value` — the FORMING resolver — in every mode.
+    So on a `"closed"` tree it read `ichimoku.chikou` as 769.79 and answered
+    `(False, None)` = HEALTHY, for the ONE address in the catalog that is
+    permanently silent there. That is a monitor reading a proxy instead of the
+    artifact, on the artifact this phase exists to make trustworthy — and a
+    permanently-GREEN monitor is as broken as a red one.
+
+    ⛔ ASSERTED AT THE BOUNDARY, WITH THE MODE FLIPPED. Checking only the healthy
+    state is what let this survive: every address answers `(False, None)` under
+    `"forming"`, including the one that is about to go silent forever.
+    """
+    from api.services import indicator_alert_service as ias
+    bars = spy_daily
+
+    # the control: the two resolvers really do disagree on this address here.
+    index = ev.closed_bar_index(bars, "D", time.time())
+    assert ev.address_value("ichimoku.chikou", bars, {}) is not None
+    assert ev._closed_address_value("ichimoku.chikou", bars[:index + 1], {}) is None
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
+    assert ias.diagnose(_diag_alert("ichimoku.chikou"), bars) == (False, None), (
+        "chikou fires on the forming lane and must NOT be reported as a fault "
+        "there — the diagnosis follows the lane, it does not pick a side")
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    is_fault, detail = ias.diagnose(_diag_alert("ichimoku.chikou"), bars)
+    assert is_fault is True, (
+        "the closed lane cannot produce a value for this address and diagnose "
+        "called it healthy")
+    assert ias.CLOSED_LANE_TRAILING_PAD in detail
+    assert "26" in detail, "the detail does not name the displacement"
+    assert "ichimoku.kijun" in detail, "the detail offers no alternative"
+
+    # …and it does not now call EVERYTHING broken.
+    assert ias.diagnose(_diag_alert("rsi"), bars) == (False, None)
+    assert ias.diagnose(_diag_alert("ichimoku.kijun"), bars) == (False, None)
+
+
+def test_a_WARMING_alert_is_still_not_a_fault_in_the_closed_lane(spy_daily,
+                                                                 monkeypatch):
+    """⛔ THE OVER-FLAGGING RAIL. Same symptom, opposite prognosis.
+
+    A column that has not warmed up is all-`None` up to the judged bar and fills
+    in on its own; a displaced column has values BEFORE the judged bar and never
+    one AT it. Both produce `value is None`. Reporting the first as a fault puts
+    every fresh alert into `needs_attention` on its first sweep.
+    """
+    from api.services import indicator_alert_service as ias
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    is_fault, detail = ias.diagnose(_diag_alert("rsi"), spy_daily[:6])
+    assert is_fault is False, detail
+    assert detail is not None and "not enough history" in detail
+    assert ias.CLOSED_LANE_TRAILING_PAD not in detail
+
+
+def test_the_create_gate_refuses_chikou_ONLY_in_the_lane_that_cannot_answer_it(
+        monkeypatch):
+    """⛔ MODE-DERIVED, BECAUSE THE ROLLBACK LEVER MOVES THE LANE WITH NO DEPLOY.
+
+    A gate wired to a lane by commit ordering starts refusing a working address
+    the moment an operator rolls back mid-session — the create path deleting a
+    live feature during an incident. Reading `eval_mode()` makes that
+    disagreement impossible rather than merely unlikely.
+    """
+    from api.services import indicator_alert_service as ias
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
+    assert ias.refusal_for("ichimoku.chikou", "above", "5", 0.0) is None
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    refusal = ias.refusal_for("ichimoku.chikou", "above", "5", 0.0)
+    assert refusal is not None and ias.CLOSED_LANE_TRAILING_PAD in refusal
+    # …and nothing else in the catalog is caught by it.
+    assert ias.refusal_for("ichimoku.kijun", "above", "5", 0.0) is None
+    assert ias.refusal_for("rsi", "above", "5", 70.0) is None
+
+
+def test_the_measured_closed_lane_dead_set_is_exactly_chikou_today():
+    """The set is DERIVED from the columns; this pins what it measures to.
+
+    ⛔ AND THE PAD IS MEASURED, NOT TYPED. `tests/test_indicator_golden.py`
+    already declares `TRAILING_PAD = {("ichimoku_9_26_52","chikou"): 26}`; this
+    reaches the same 26 from the column itself, so the two can never need to be
+    kept in step by hand.
+    """
+    from api.services import indicator_alert_service as ias
+    assert ias.closed_lane_dead_addresses() == frozenset({"ichimoku.chikou"})
+    instant, calendar = ias._probe_series()
+    assert ias.closed_lane_pad("ichimoku.chikou", instant, {}) == 26
+    assert ias.closed_lane_pad("ichimoku.chikou", calendar, {}) == 26
+    # the non-vacuity floor: the measurement EXCLUDED things, it did not pass
+    # everything through.
+    assert ias.closed_lane_pad("rsi", instant, {}) == 0
+    assert len(ev.all_addresses()) == 31
