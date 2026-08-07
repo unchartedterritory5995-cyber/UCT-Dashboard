@@ -124,18 +124,17 @@ def _num(v):
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
-def is_actively_trading(ticker: str) -> bool | None:
-    """FMP's own verdict on whether this SYMBOL still trades.
+def _profile(sym: str):
+    """FMP's company profile, cached. None when the provider had nothing.
 
-    True / False / None, and the three are distinct on purpose: None means we
-    could not ask, which callers must not treat as False. Verified 2026-08-06 —
-    SQ False vs XYZ True for the same company, TWTR False.
+    ONE fetch serves every flag below, so adding a check costs no extra
+    request — and the profile only ever rides the already-rare backfill path.
     """
-    sym = (ticker or "").upper().strip()
+    sym = (sym or "").upper().strip()
     if not sym:
         return None
 
-    ck = f"fmp_active::{sym}"
+    ck = f"fmp_profile::{sym}"
     hit = cache.get(ck)
     if hit is not None:
         return None if hit == _SENTINEL else hit
@@ -146,14 +145,60 @@ def is_actively_trading(ticker: str) -> bool | None:
         _log.warning("FMP profile failed for %s: %s", sym, exc)
         rows = None
 
-    out = None
-    if isinstance(rows, list) and rows and isinstance(rows[0], dict):
-        v = rows[0].get("isActivelyTrading")
-        if isinstance(v, bool):
-            out = v
+    out = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else None
     cache.set(ck, _SENTINEL if out is None else out,
               _MISS_TTL if out is None else _ACTIVE_TTL)
     return out
+
+
+def _flag(ticker: str, field: str) -> bool | None:
+    """One profile field as a STRICT tri-state.
+
+    A non-boolean ("" or 0) is UNKNOWN, not False. Reading it as falsy would
+    silently disqualify live symbols on a sloppy provider response.
+    """
+    prof = _profile(ticker)
+    if not isinstance(prof, dict):
+        return None
+    v = prof.get(field)
+    return v if isinstance(v, bool) else None
+
+
+def is_actively_trading(ticker: str) -> bool | None:
+    """FMP's own verdict on whether this SYMBOL still trades.
+
+    True / False / None, and the three are distinct on purpose: None means we
+    could not ask, which callers must not treat as False. Verified 2026-08-06 —
+    SQ False vs XYZ True for the same company, TWTR False.
+    """
+    return _flag(ticker, "isActivelyTrading")
+
+
+def is_fund(ticker: str) -> bool | None:
+    """True when the symbol is an ETF or fund rather than an operating company.
+
+    This is the REUSED-ticker case, and it turned out narrower than it looked.
+    FB was Facebook and now resolves to "ProShares S&P 500 Dynamic Buffer ETF":
+    `isActivelyTrading` is True, because the SYMBOL genuinely trades — just not
+    as the company anyone means by "FB".
+
+    A cross-provider NAME check was the obvious guard, and measuring killed it:
+    on 2026-08-06 yfinance and FMP agreed on the company name for every symbol
+    tested INCLUDING FB (both say ProShares). Both providers had correctly
+    re-pointed the symbol, so there is no disagreement to detect.
+
+    `isEtf`/`isFund` is the real signal, and it is free — same cached profile.
+
+    ⚠️ The case this deliberately does NOT chase: a ticker freed by one
+    OPERATING company and taken by another. Both providers agree on the current
+    company and its financials are CORRECT for it. That is a question of which
+    company the CALLER meant, not a data-integrity defect, and it is not
+    solvable at this layer.
+    """
+    etf, fund = _flag(ticker, "isEtf"), _flag(ticker, "isFund")
+    if etf is None and fund is None:
+        return None
+    return bool(etf) or bool(fund)
 
 
 def earnings_growth_pct(ticker: str) -> float | None:
@@ -181,6 +226,14 @@ def earnings_growth_pct(ticker: str) -> float | None:
     if is_actively_trading(sym) is False:
         _log.info("earnings-growth backfill declined for %s: symbol is not "
                   "actively trading (renamed or delisted)", sym)
+        cache.set(ck, _SENTINEL, _ACTIVE_TTL)
+        return None
+
+    # An ETF/fund has no earnings to grow. FB trades actively — as a ProShares
+    # ETF — so the previous check passes it through; only this one refuses it.
+    if is_fund(sym) is True:
+        _log.info("earnings-growth backfill declined for %s: symbol is a "
+                  "fund/ETF, not an operating company", sym)
         cache.set(ck, _SENTINEL, _ACTIVE_TTL)
         return None
 

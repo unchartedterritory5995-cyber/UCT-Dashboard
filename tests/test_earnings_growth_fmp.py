@@ -226,9 +226,12 @@ class TestARetiredSymbolIsRefused:
 
     @pytest.fixture(autouse=True)
     def _clear(self):
-        for k in ("fmp_eg::DEAD", "fmp_active::DEAD", "fmp_eg::LIVE",
-                  "fmp_active::LIVE", "fmp_eg::UNK", "fmp_active::UNK"):
-            cache.invalidate(k)
+        # NOTE `fmp_profile::` — one cached profile now serves every flag, so
+        # the old `fmp_active::` keys no longer exist. Missing this would let a
+        # profile cached by one test decide the verdict in the next.
+        for sym in ("DEAD", "LIVE", "UNK", "FUND"):
+            for pre in ("fmp_eg::", "fmp_profile::"):
+                cache.invalidate(pre + sym)
         yield
 
     def _provider(self, monkeypatch, *, active, rows=None):
@@ -238,7 +241,9 @@ class TestARetiredSymbolIsRefused:
         def stub(path, params, timeout=10):
             calls.append(path)
             if "profile" in path:
-                return [{"isActivelyTrading": active}] if active is not None else []
+                if active is None:
+                    return []
+                return [{"isActivelyTrading": active, "isEtf": False, "isFund": False}]
             return rows
 
         monkeypatch.setattr(ee, "_fmp_get", stub)
@@ -296,3 +301,72 @@ class TestARetiredSymbolIsRefused:
 
         monkeypatch.setattr(ee, "_fmp_get", boom)
         assert eg.earnings_growth_pct("UNK") == 100.0    # fails open
+
+
+class TestAFundIsNotAnOperatingCompany:
+    """FB was Facebook; the symbol now resolves to a ProShares ETF.
+
+    `isActivelyTrading` is True — the SYMBOL really does trade, just not as the
+    company anyone means by "FB" — so the retired-symbol guard passes it
+    through. Only the fund check refuses it.
+
+    A cross-provider NAME check was the obvious guard and measuring killed it:
+    on 2026-08-06 yfinance and FMP agreed on the company name for every symbol
+    tested INCLUDING FB (both say ProShares). There is no disagreement to
+    detect; `isEtf`/`isFund` is the real signal, and it rides the same cached
+    profile fetch so it costs no extra request.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear(self):
+        for sym in ("FUND", "OPCO", "UNK"):
+            for pre in ("fmp_eg::", "fmp_profile::"):
+                cache.invalidate(pre + sym)
+        yield
+
+    def _provider(self, monkeypatch, profile):
+        def stub(path, params, timeout=10):
+            if "profile" in path:
+                return [profile] if profile is not None else []
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+
+    def test_an_etf_gets_no_earnings_growth(self, monkeypatch):
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": True, "isFund": False})
+        assert eg.earnings_growth_pct("FUND") is None
+
+    def test_a_fund_gets_no_earnings_growth(self, monkeypatch):
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": False, "isFund": True})
+        assert eg.earnings_growth_pct("FUND") is None
+
+    def test_an_operating_company_is_unaffected(self, monkeypatch):
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": False, "isFund": False})
+        assert eg.earnings_growth_pct("OPCO") == 100.0
+
+    def test_the_retired_guard_alone_would_NOT_have_caught_it(self, monkeypatch):
+        """Pins why this check has to exist separately: an ETF is actively
+        trading, so `is_actively_trading` says True and lets it past."""
+        self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": True, "isFund": False})
+        assert eg.is_actively_trading("FUND") is True
+        assert eg.is_fund("FUND") is True
+
+    def test_missing_fund_flags_are_UNKNOWN_and_fail_OPEN(self, monkeypatch):
+        """A profile without the flags must not delete coverage."""
+        self._provider(monkeypatch, {"isActivelyTrading": True})
+        assert eg.is_fund("UNK") is None
+        assert eg.earnings_growth_pct("UNK") == 100.0
+
+    def test_one_profile_fetch_serves_every_flag(self, monkeypatch):
+        """Adding a check must not add a request."""
+        calls = []
+
+        def stub(path, params, timeout=10):
+            calls.append(path)
+            if "profile" in path:
+                return [{"isActivelyTrading": True, "isEtf": False, "isFund": False}]
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        eg.earnings_growth_pct("OPCO")
+        assert sum(1 for c in calls if "profile" in c) == 1, calls
