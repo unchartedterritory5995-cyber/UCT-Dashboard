@@ -147,18 +147,72 @@ def _sponsorship_letter(pct):
     return "E"
 
 
+# ONE weight table, read by both `_composite` and `_coverage`. Two copies would
+# drift, and the failure would be silent: the score would be computed on one
+# basis while the UI disclosed a different one.
+_COMPOSITE_WEIGHTS = (
+    ("eps", 0.25), ("rs", 0.25), ("growth", 0.20),
+    ("smr", 0.15), ("accdis", 0.10), ("value", 0.05),
+)
+
+
+def _component_inputs(eps, rs, growth, value, smr_n, accdis_letter) -> dict:
+    """The composite's inputs, keyed to `_COMPOSITE_WEIGHTS`. `accdis` is a
+    letter everywhere else, so it is converted here — once."""
+    return {"eps": eps, "rs": rs, "growth": growth, "smr": smr_n,
+            "accdis": _LETTER_NUM.get(accdis_letter), "value": value}
+
+
 def _composite(eps, rs, growth, value, smr_n, accdis_letter):
-    weighted = []
-    for score, weight in [
-        (eps, 0.25), (rs, 0.25), (growth, 0.20), (smr_n, 0.15),
-        (_LETTER_NUM.get(accdis_letter), 0.10), (value, 0.05),
-    ]:
-        if score is not None:
-            weighted.append((score, weight))
+    """Weighted mean over the components that EXIST, renormalized.
+
+    Renormalizing (rather than treating a missing component as zero) is right —
+    a company with no EPS growth figure is not a company with the worst EPS
+    growth. But it means the number is computed on a different basis per
+    ticker, which is invisible in a bare "70". `_coverage` below exists so the
+    UI can say so; see its docstring.
+    """
+    inputs = _component_inputs(eps, rs, growth, value, smr_n, accdis_letter)
+    weighted = [(inputs[k], w) for k, w in _COMPOSITE_WEIGHTS
+                if inputs[k] is not None]
     if not weighted:
         return None
     tot = sum(w for _, w in weighted)
     return round(sum(s * w for s, w in weighted) / tot)
+
+
+def _coverage(eps, rs, growth, value, smr_n, accdis_letter) -> dict:
+    """How much of the intended composite this score actually measured.
+
+    WHY THIS IS NOT COSMETIC
+        Sampled live 2026-08-06 across 40 liquid names: 8 (20%) had no EPS
+        rating at all, and EPS carries the joint-largest weight (0.25). So one
+        ticker in five renders a hero score built on 75% of the intended
+        basis, typeset identically to a fully-informed one — JAZZ's 70 and
+        MSFT's 72 look directly comparable and are not the same measurement.
+
+        The missing inputs are mostly not fetch failures, and that matters
+        because it means they cannot simply be backfilled away: 5 of those 8
+        (JAZZ, CRWD, SNOW, ZS, TEAM) had a NEGATIVE prior-year earnings base,
+        which makes a growth percentage mathematically undefined. JAZZ went
+        from -$405M to +$941M — a loss-to-profit turnaround, arguably the
+        strongest earnings signal there is, scored as "no information".
+
+        Inventing a number for those would be worse than the gap. Disclosing
+        the gap is the honest move, and it is the same principle as the
+        earnings modal's `history_unresolved`: never state as fact something
+        the inputs do not support.
+    """
+    inputs = _component_inputs(eps, rs, growth, value, smr_n, accdis_letter)
+    missing = [k for k, _ in _COMPOSITE_WEIGHTS if inputs[k] is None]
+    covered = sum(w for k, w in _COMPOSITE_WEIGHTS if inputs[k] is not None)
+    return {
+        "counted": len(_COMPOSITE_WEIGHTS) - len(missing),
+        "of": len(_COMPOSITE_WEIGHTS),
+        "missing": missing,
+        # Rounded to kill float noise (0.7000000000000001) in the payload.
+        "weight": round(covered, 4),
+    }
 
 
 def _weighted_rs_return(closes):
@@ -351,6 +405,9 @@ def get_ratings(sym):
         "checkup": _checkup(fund, rs, last_close, inst_pct),
         "method": method,
         "basis": basis,
+        # How much of the intended composite this score measured. Note this is
+        # NOT `basis` above, which is percentile-vs-absolute scoring method.
+        "coverage": _coverage(eps, rs, growth, value, smr_n, accdis),
         "universe_n": universe_n,
         "sector": sector,
         "group_rs": group_rs,          # RS percentile within sector (1-99)

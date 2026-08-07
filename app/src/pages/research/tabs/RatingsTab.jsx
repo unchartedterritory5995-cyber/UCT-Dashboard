@@ -1,6 +1,7 @@
 import useRatings from '../hooks/useRatings'
 import styles from '../ResearchPage.module.css'
 import UIcon from '../../../components/ui/UIcon'
+import { CoverageNote } from '../../../components/research-kit'
 
 const NUM_COMPONENTS = [
   ['eps', 'EPS Strength'],
@@ -56,6 +57,7 @@ export default function RatingsTab({ sym }) {
           <div>
             <div className={styles.ct} style={{ marginBottom: 2 }}>UCT Composite Rating</div>
             <div className={styles.muted} style={{ fontSize: 12 }}>0–99 · higher is stronger</div>
+            <CoverageNote coverage={r.coverage} />
           </div>
         </div>
 

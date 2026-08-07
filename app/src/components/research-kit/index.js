@@ -72,6 +72,12 @@ export {
 } from './RatingCrown'
 export { default as CheckupRow, normalizeStatus } from './CheckupRow'
 export {
+  default as CoverageNote,
+  coverageText,
+  missingText,
+  COMPONENT_LABELS,
+} from './CoverageNote'
+export {
   default as HeatGrid,
   heatTier,
   HEAT_TIERS,

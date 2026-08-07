@@ -45,6 +45,7 @@ import time
 
 from api.services import earnings_estimates as ee
 from api.services import polygon_options
+from api.services.earnings_history_fmp import fmp_beat_history
 from api.services.implied_move import select_report_expiry, straddle_from_rows
 from api.services.massive import to_polygon_symbol
 
@@ -244,30 +245,49 @@ def historical_expected_move(sym: str, report_date: str) -> dict | None:
 # Seconds between Finnhub calls. The bucket allows ~55/min and is SHARED with
 # live member traffic, so this job deliberately takes a small slice (~20/min)
 # and leaves the rest to the app. Overridable with --fh-pace.
+#
+# This pacing now applies only to the FALLBACK leg (see `past_reports`). When
+# FMP answers -- the overwhelmingly common case -- the sweep pays none of it.
+# That matters at sweep scale: 3s x 739 symbols is ~37 minutes of pure sleeping
+# in a job that has repeatedly failed to reach the end of the alphabet.
 _FH_PACE_SECONDS = 3.0
 # Finnhub's shared cooldown on a 429 is 20s; wait past it before retrying.
 _FH_COOLDOWN_WAIT = 22.0
 _FH_ATTEMPTS = 3
 
 # Finnhub /stock/earnings returns at most 4 quarters on this plan regardless of
-# `limit` (measured 2026-08-06), and it is the only fiscal-identity source, so
-# no amount of --quarters can exceed that.
+# `limit` (measured 2026-08-06). That cap bounded this constant back when
+# Finnhub was the ONLY fiscal-identity source; FMP's income statement is not
+# capped that way (9 quarters observed), so the ceiling is now the fallback's
+# limit rather than the primary's.
 _MAX_BACKFILLABLE_QUARTERS = 4
 
 
 def past_reports(sym: str, limit: int) -> list[dict]:
     """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
 
-    Neither provider has both halves, so this joins them:
+    TWO SOURCES, FMP FIRST
+    ----------------------
+    `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+    -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+    joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+    (the FILING timestamp, which is the same event as the announcement rather
+    than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+    NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+    -- no unmatched announcements at all.
 
-      * FMP `stable/earnings` has the ANNOUNCEMENT date — the day the market
-        actually repriced, which is the date an implied snapshot is keyed on —
-        but carries no fiscal year/quarter at all (verified 2026-08-06: the
-        row is {symbol, date, epsActual, epsEstimated, revenue*, lastUpdated}).
-      * Finnhub `/stock/earnings` has the real fiscal `quarter`/`year`, but
-        its `period` is the period END, not the announcement.
+    Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+    bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+    at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+    failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+    much history could ever be reconstructed. The FMP path pays neither cost.
 
-    The join rule: the fiscal row whose `period` is NEAREST the announcement.
+    Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+    -- a shrug from one provider should cost coverage on that symbol, not the
+    whole capability.
+
+    THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+    announcement.
 
     "Most recent period ending before the announcement" is the intuitive rule
     and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
@@ -291,6 +311,31 @@ def past_reports(sym: str, limit: int) -> list[dict]:
     every off-calendar filer. Unmatched announcements are dropped.
     """
     today = _dt.date.today().isoformat()
+
+    # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+    # `< today` matches the fallback's rule below: a report that has not yet
+    # happened has no prior-session straddle to reconstruct, and today's is the
+    # live capture's to own.
+    try:
+        fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+    except Exception as exc:                       # noqa: BLE001 - fall back
+        _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+        fmp_rows = None
+    if fmp_rows:
+        out = [
+            {"report_date": r["report_date"],
+             "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+            for r in fmp_rows
+            if r.get("report_date") and r["report_date"] < today
+            and r.get("year") is not None and r.get("quarter") is not None
+        ]
+        if out:
+            return out[:limit]
+    # Falls through to Finnhub on a shrug (None), an empty history, or rows
+    # that carried no fiscal identity -- never silently returns [] here, or a
+    # single bad FMP response would look exactly like "this company has never
+    # reported" and permanently skip the symbol.
+
     # Newest-first, and includes not-yet-reported rows (filtered below).
     fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)})
     announcements = []
@@ -364,16 +409,35 @@ def past_reports(sym: str, limit: int) -> list[dict]:
 
 
 # ── Nightly sweep ─────────────────────────────────────────────────────────────
-# 17:00 ET, weekdays. AFTER the close and AFTER the 16:35 ET nightly capture, on
-# purpose: the two write the same store and both need the same Finnhub budget,
-# and a backfill has no deadline while a capture does.
-SWEEP_HOUR_ET = 17
+# 21:00 ET, weekdays. AFTER the close and AFTER the 16:35 ET nightly capture, on
+# purpose: the two write the same store and a backfill has no deadline while a
+# capture does.
+#
+# NOT 17:00, which is where this sat for its first four nights and never once
+# finished. The pre-push hook opens the deploy window at 16:20 ET, so shipping
+# clusters into the hour right after the close — on 08-06 there were eight
+# deploys between 16:53 and 19:48 ET, the second of which killed the sweep 13
+# minutes in. Every restart costs the whole run, because a cron job that has
+# already fired does not re-fire when the process comes back.
+#
+# 21:00 sits after that rush and, with the ceiling below, finishes before the
+# 23:00 theme-engine job. It is a probability reduction, not a guarantee — the
+# actual protections are that the sweep is resumable (`_has_snapshot` skips
+# captured quarters) and that an interrupted run is now VISIBLE in `sweep_runs`
+# instead of silent.
+SWEEP_HOUR_ET = 21
 SWEEP_MINUTE_ET = 0
 
 # Wall-clock ceiling for one night. The sweep is INCREMENTAL — every symbol it
 # already captured is skipped on the next run — so it does not need to finish in
 # one night, and it must not still be running when the pre-market tape starts.
-_SWEEP_MAX_SECONDS = 3 * 3600
+#
+# 2h, down from 3h, and it now BOUNDS THE RUN INSIDE THE QUIET BAND: 21:00 ET +
+# 2h lands exactly on the 23:00 theme-engine job rather than running past it.
+# Affordable because the fiscal-identity leg moved to FMP — the old ceiling was
+# sized around ~37 minutes of pure Finnhub pacing that no longer happens
+# (measured 0.6-0.7s/symbol via FMP vs a 3s enforced sleep per symbol).
+_SWEEP_MAX_SECONDS = 2 * 3600
 
 
 # ── the hang guard ──────────────────────────────────────────────────────────
@@ -435,6 +499,19 @@ def _bounded(fn, timeout: int | None = None):
     return box.get("v")
 
 
+def _ledger(fn, *args, **kwargs) -> None:
+    """Write to the run ledger, swallowing anything that goes wrong.
+
+    The ledger exists to DIAGNOSE failures of this job. A ledger write that
+    could itself abort the sweep would make the instrument the outage — so a
+    locked DB or a missing volume costs visibility, never the night's work.
+    """
+    try:
+        fn(*args, **kwargs)
+    except Exception as exc:                           # noqa: BLE001
+        _log.warning("implied backfill sweep: ledger write failed: %s", exc)
+
+
 def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
                        quarters: int = _MAX_BACKFILLABLE_QUARTERS) -> str:
     """Reconstruct missing history for every symbol the store already tracks.
@@ -457,6 +534,11 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
         _log.warning("implied backfill sweep: symbol list failed: %s", exc)
         return "implied backfill sweep: could not read the symbol list"
 
+    run_id = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _ledger(store.start_sweep_run, run_id, run_id, len(syms))
+    idx = 0
+    sym = None
+
     for idx, sym in enumerate(syms):
         if time.time() - started > max_seconds:
             stopped_early = True
@@ -467,6 +549,11 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
             _log.info("implied backfill sweep: %d/%d symbols (at %s) — "
                       "wrote %d, timed out %d",
                       idx, len(syms), sym, wrote, timed_out)
+            # ...and to the DURABLE ledger, because the log line above is gone
+            # from `railway logs` within ~3 minutes.
+            _ledger(store.heartbeat_sweep_run, run_id, idx, sym,
+                    wrote=wrote, skipped=skipped, no_move=no_move,
+                    unresolved=unresolved, timed_out=timed_out)
         try:
             reports = _bounded(lambda s=sym: past_reports(s, quarters))
         except Exception as exc:
@@ -527,4 +614,14 @@ def run_backfill_sweep(max_seconds: int = _SWEEP_MAX_SECONDS,
                      "suspect the shared Finnhub budget first", summary)
     else:
         _log.info("%s", summary)
+
+    # The durable half of the same statement. Reaching this line is precisely
+    # what a killed or hung run never does, which is what makes a NULL
+    # `finished_at` diagnostic rather than merely absent.
+    _ledger(store.finish_sweep_run, run_id,
+            _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ceiling" if stopped_early else "complete",
+            idx + 1 if syms else 0, sym,
+            wrote=wrote, skipped=skipped, no_move=no_move,
+            unresolved=unresolved, timed_out=timed_out)
     return summary

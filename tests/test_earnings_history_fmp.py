@@ -7,6 +7,7 @@ tests use the real shapes measured live on 2026-08-06.
 """
 from unittest import mock
 
+from api.services import earnings_estimates as ee
 from api.services import earnings_history_fmp as fh
 
 
@@ -33,13 +34,17 @@ _JAZZ_INCOME = [
 
 
 def _run(earnings, income, limit=8):
-    def fake(path, params=None):
+    def fake(path, params=None, timeout=10):
         if path == "/stable/earnings":
             return earnings
         if path == "/stable/income-statement":
             return income
         return None
-    with mock.patch.object(fh, "_fmp_get", side_effect=fake):
+    # Patch the OWNING module, not `fh`. `earnings_history_fmp` resolves
+    # `_fmp_get` through `earnings_estimates` at call time precisely so it
+    # cannot escape the guards (or the stubs) every other caller goes through —
+    # see TestItCannotEscapeTheOwningModule below.
+    with mock.patch.object(ee, "_fmp_get", side_effect=fake):
         return fh.fmp_beat_history("JAZZ", limit=limit)
 
 
@@ -101,3 +106,46 @@ def test_a_filing_far_from_the_announcement_is_not_joined():
             "acceptedDate": "2026-01-01 16:00:00"}]
     rows = _run([_JAZZ_EARNINGS[1]], far)
     assert rows[0]["quarter"] is None
+
+
+class TestItCannotEscapeTheOwningModule:
+    """`earnings_history_fmp` must resolve `_fmp_get` THROUGH
+    `earnings_estimates`, not bind its own copy at import.
+
+    A bound copy quietly severs this module from the one that owns the
+    provider call: patching `earnings_estimates._fmp_get` -- how every other
+    caller is guarded and every existing test stubs the provider -- would not
+    reach here, so it would keep issuing real HTTP while the rest of the
+    process believed the provider was stubbed or shed.
+
+    Caught for real: after this module was wired into `past_reports`, a live
+    `/stable/earnings` request escaped straight through a test asserting that
+    an ACTIVE Finnhub cooldown lets no HTTP out. The suite passed file-by-file
+    and only failed in combination, which is exactly how a defect like this
+    survives.
+    """
+
+    def test_patching_earnings_estimates_reaches_this_module(self, monkeypatch):
+        from api.services import earnings_estimates as ee
+        from api.services import earnings_history_fmp as mod
+
+        seen = []
+
+        def stub(path, params, timeout=10):
+            seen.append(path)
+            return []
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        mod.fmp_beat_history("JAZZ", limit=4)
+        assert seen, "the stub was never reached — this module bound its own _fmp_get"
+        assert any("/stable/earnings" in p for p in seen)
+
+    def test_no_module_level_binding_of_the_provider_call(self):
+        """The structural guard. Without it, someone reintroduces
+        `from ...earnings_estimates import _fmp_get` and only a cross-file test
+        ordering reveals it."""
+        from api.services import earnings_history_fmp as mod
+        assert not hasattr(mod, "_fmp_get"), (
+            "earnings_history_fmp binds its own _fmp_get again — resolve it "
+            "through the earnings_estimates module at call time instead"
+        )

@@ -1,4 +1,5 @@
 // app/src/components/research-kit/RatingCrown.jsx
+import CoverageNote from './CoverageNote'
 import EmptyState from './EmptyState'
 import EyebrowLabel from './EyebrowLabel'
 import InfoTip from './InfoTip'
@@ -105,6 +106,7 @@ export default function RatingCrown({
   basis = 'absolute',
   universeN = null,
   method,
+  coverage = null,
   variant = 'full',
   label = 'UCT Rating',
   info,
@@ -198,6 +200,11 @@ export default function RatingCrown({
             <span>{pill.text}</span>
             <InfoTip label="About this rating basis" text={pill.info} />
           </div>
+
+          {/* How much of the intended composite this score measured. Distinct
+              from the basis pill above, which is percentile-vs-absolute
+              METHOD; this is INPUT COVERAGE. Renders nothing at full basis. */}
+          <CoverageNote coverage={coverage} />
 
           {method && (
             <div className={styles.method} data-testid="rk-crown-method">{method}</div>

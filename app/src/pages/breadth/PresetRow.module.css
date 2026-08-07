@@ -1,0 +1,144 @@
+/* No flex-wrap: sixteen presets must not silently become a second chrome band.
+   Overflow has to fail visibly instead. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The pills are their own flex track so they can scroll independently of the
+   More trigger — see the touch media query. */
+.pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.btn {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+  color: var(--text-bright);
+}
+
+/* Filled gold — deliberately louder than .groupBtnActive's dim gold so the
+   live preset reads differently from a merely-expanded metric group. */
+.btnActive {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: #000;
+  font-weight: 600;
+  box-shadow: 0 0 8px var(--ut-gold-glow);
+}
+
+/* .btn:hover is (0,2,0) — this needs the same weight to win. */
+.btnActive:hover {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: #000;
+}
+
+.more {
+  position: relative;
+  margin-left: auto;
+}
+
+.panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 288px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  list-style: none;
+  margin: 0;
+}
+
+.groupHeading {
+  padding: 8px 10px 4px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.item:hover { background: var(--bg-hover); }
+
+.itemLabel { display: block; font-size: 12px; color: var(--text-bright); }
+.itemHint  { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.itemActive .itemLabel { color: var(--ut-gold); font-weight: 600; }
+
+/* Canonical TOUCH breakpoint. Seven pills plus the trigger run about 880px, so
+   a tablet overflows too — scrolling has to start here, not at the phone
+   breakpoint, or the last pills are simply unreachable between 641 and 1024. */
+@media (max-width: 1024px) {
+  /* The PILLS scroll, never `.row` — a scrolling row would clip the popover. */
+  .pills {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .pills::-webkit-scrollbar { display: none; }
+
+  /* The trigger must stay put and keep its full width while the pills scroll
+     under it, so it is never the thing that gets squeezed away. */
+  .more {
+    margin-left: 0;
+    flex: none;
+  }
+
+  .panel { min-width: 240px; }
+}
+
+@media (max-width: 640px) {
+  .label { display: none; }
+
+  .btn { min-height: var(--tap-min); }
+}
