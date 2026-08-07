@@ -353,6 +353,57 @@ describe('follow-through days', () => {
   })
 })
 
+describe('metric readout', () => {
+  it('reports each series with its value and window percentile', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('New Highs vs Lows')
+    await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
+    // Fixture 52W highs run 100..129, so the last point is the highest.
+    expect(screen.getByRole('button', { name: '52W Highs, 129, 100th percentile' }))
+      .toBeInTheDocument()
+    // 52W lows cycle 10..16, so the last value sits mid-range, not at an extreme.
+    expect(screen.getByRole('button', { name: /^52W Lows, 11, \d+\w\w percentile$/ }))
+      .toBeInTheDocument()
+  })
+
+  // ReactECharts has notMerge, so a new option rebuilds the chart and its
+  // legend selection resets to all-visible. A stale `hidden` entry would dim a
+  // readout row for a line the chart is actually drawing.
+  it('does not keep a series dimmed after the selection changes', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('New Highs vs Lows')
+    await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
+
+    fireEvent.click(screen.getByRole('button', { name: /52W Lows/ }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /52W Lows/ }))
+      .toHaveAttribute('aria-pressed', 'false'))
+
+    clickPreset('Trend Regime')
+    await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
+    clickPreset('New Highs vs Lows')
+    await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
+
+    expect(screen.getByRole('button', { name: /52W Lows/ }))
+      .toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('clears a dimmed row when a metric is ticked by hand', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    fireEvent.click(screen.getByRole('button', { name: /Health Score/ }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Health Score/ }))
+      .toHaveAttribute('aria-pressed', 'false'))
+
+    fireEvent.click(screen.getByRole('button', { name: /^Regime/ }))
+    fireEvent.click(screen.getByLabelText('VIX'))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Health Score/ }))
+      .toHaveAttribute('aria-pressed', 'true'))
+  })
+})
+
 describe('stored selection', () => {
   it('restores a saved selection over the default', async () => {
     vi.stubGlobal('fetch', vi.fn((url, opts) => {

@@ -117,13 +117,20 @@ export default function BreadthCharts() {
   )
 
   const activePreset = useMemo(() => matchPreset(selected), [selected])
-  const preset = useMemo(
+  const activePresetDef = useMemo(
     () => CHART_PRESETS.find(p => p.id === activePreset) ?? null,
     [activePreset],
   )
 
+  // ReactECharts runs with notMerge, so any new option rebuilds the chart and
+  // its legend selection resets to all-visible. Every path that changes the
+  // selection must drop the hidden set with it, or the readout dims a row for
+  // a line the chart is drawing.
+  const NOTHING_HIDDEN = useRef(new Set())
+
   function applyPreset(preset) {
     setSelectedOverride(preset.metrics)
+    setHidden(NOTHING_HIDDEN.current)
     // Replace rather than merge — a previous preset's reference lines left on
     // would draw MA washout levels over, say, a VIX axis.
     setExtremesOverride(
@@ -142,6 +149,7 @@ export default function BreadthCharts() {
     setSelectedOverride(
       selected.includes(key) ? selected.filter(k => k !== key) : [...selected, key]
     )
+    setHidden(NOTHING_HIDDEN.current)
   }
 
   function toggleGroup(group) {
@@ -200,7 +208,7 @@ export default function BreadthCharts() {
     // Every preset declares lines for a single family, which the "line has a
     // series to sit beside" test keeps true — so one series carries them all.
     // Split this per axis if a preset ever marks two families.
-    const refLines = resolveLines(selected, preset?.lines, extentOf)
+    const refLines = resolveLines(selected, activePresetDef?.lines, extentOf)
     if (refLines.length) {
       series.push({
         name: '__ref_lines__',
@@ -406,7 +414,7 @@ export default function BreadthCharts() {
       ],
       series,
     }
-  }, [selected, rows, notableExtremes, liveIndex, live.clock, preset, showFtd])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock, activePresetDef, showFtd])
 
   return (
     <div className={styles.container}>

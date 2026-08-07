@@ -51,6 +51,18 @@ describe('MetricReadout', () => {
     expect(screen.getByRole('button', { name: /VIX/ }).getAttribute('aria-pressed')).toBe('false')
   })
 
+  // The spans sit flush in the DOM, so the computed name would otherwise run
+  // together as "VIX2075th".
+  it('spells the row out for a screen reader', () => {
+    setup()
+    expect(screen.getByRole('button', { name: 'VIX, 20, 75th percentile' })).toBeTruthy()
+  })
+
+  it('says so plainly when there is nothing to report', () => {
+    render(<MetricReadout rows={rows} selected={['naaim']} hidden={new Set()} onToggle={() => {}} />)
+    expect(screen.getByRole('button', { name: /no value, percentile unavailable/ })).toBeTruthy()
+  })
+
   it('gives each series the same colour the chart uses', () => {
     render(<MetricReadout rows={rows} selected={['pct_above_50sma', 'vix']} hidden={new Set()} onToggle={() => {}} />)
     const swatches = document.querySelectorAll('[data-swatch]')

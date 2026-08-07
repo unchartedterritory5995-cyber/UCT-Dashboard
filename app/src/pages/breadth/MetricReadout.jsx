@@ -22,11 +22,17 @@ export default function MetricReadout({ rows, selected, hidden, onToggle }) {
 
   const items = useMemo(() => selected.map(key => {
     const value = latestValue(rows, key)
+    const label = LABEL_MAP[key] ?? key
+    const pct = percentileOf(rows.map(r => r[key]), value)
     return {
       key,
-      label: LABEL_MAP[key] ?? key,
+      label,
       value,
-      pct: percentileOf(rows.map(r => r[key]), value),
+      pct,
+      // The spans sit flush in the DOM, so the computed accessible name would
+      // run together as "52W Highs129100th". Spell it out instead.
+      aria: `${label}, ${value == null ? 'no value' : format(value)}, ` +
+            `${pct == null ? 'percentile unavailable' : `${ORDINAL(pct)} percentile`}`,
     }
   }), [rows, selected])
 
@@ -36,6 +42,7 @@ export default function MetricReadout({ rows, selected, hidden, onToggle }) {
         <button
           key={item.key}
           type="button"
+          aria-label={item.aria}
           aria-pressed={!hidden.has(item.key)}
           className={`${styles.item} ${hidden.has(item.key) ? styles.hidden : ''}`}
           onClick={() => onToggle(item.key)}

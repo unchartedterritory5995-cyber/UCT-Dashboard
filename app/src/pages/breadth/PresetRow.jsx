@@ -36,18 +36,23 @@ export default function PresetRow({ presets, groupOrder, activePreset, onApply }
     <div className={styles.row}>
       <span className={styles.label}>Presets</span>
 
-      {core.map(p => (
-        <button
-          key={p.id}
-          type="button"
-          title={p.hint}
-          aria-pressed={activePreset === p.id}
-          className={`${styles.btn} ${activePreset === p.id ? styles.btnActive : ''}`}
-          onClick={() => apply(p)}
-        >
-          {p.label}
-        </button>
-      ))}
+      {/* Only the pills scroll on touch. If the row itself were the scroll
+          container, `overflow-x: auto` would compute `overflow-y` to auto as
+          well and clip the More popover that drops out of it. */}
+      <div className={styles.pills}>
+        {core.map(p => (
+          <button
+            key={p.id}
+            type="button"
+            title={p.hint}
+            aria-pressed={activePreset === p.id}
+            className={`${styles.btn} ${activePreset === p.id ? styles.btnActive : ''}`}
+            onClick={() => apply(p)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
 
       {grouped.length > 0 && (
         <div className={styles.more} ref={moreRef}>

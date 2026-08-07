@@ -71,6 +71,18 @@ describe('PresetRow', () => {
     expect(screen.getByRole('button', { name: 'More: Risk Appetite' })).toBeTruthy()
   })
 
+  // On touch the pills scroll horizontally. If the popover lived inside that
+  // scroll container, `overflow-x: auto` would compute `overflow-y` to auto too
+  // and clip the panel — so the trigger must sit OUTSIDE the scrolling track.
+  it('keeps the More trigger out of the scrolling pill track', () => {
+    setup()
+    const trigger = screen.getByRole('button', { name: /More/ })
+    const pillTrack = screen.getByRole('button', { name: 'Market Health' }).parentElement
+    expect(pillTrack.contains(trigger)).toBe(false)
+    fireEvent.click(trigger)
+    expect(pillTrack.contains(screen.getByRole('listbox'))).toBe(false)
+  })
+
   it('marks the active pill and leaves the trigger plain', () => {
     setup({ activePreset: 'health' })
     expect(screen.getByRole('button', { name: 'Market Health' }).getAttribute('aria-pressed')).toBe('true')

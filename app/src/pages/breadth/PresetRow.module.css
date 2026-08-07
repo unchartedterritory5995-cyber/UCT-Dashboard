@@ -8,6 +8,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* The pills are their own flex track so they can scroll independently of the
+   More trigger — see the touch media query. */
+.pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .label {
   font-family: var(--font-sans);
   font-size: 11px;
@@ -106,27 +115,30 @@
 .itemHint  { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .itemActive .itemLabel { color: var(--ut-gold); font-weight: 600; }
 
-@media (max-width: 640px) {
-  /* The desktop row already refuses to wrap; on a phone it also needs to
-     scroll, since even seven pills exceed the width. */
-  .row {
+/* Canonical TOUCH breakpoint. Seven pills plus the trigger run about 880px, so
+   a tablet overflows too — scrolling has to start here, not at the phone
+   breakpoint, or the last pills are simply unreachable between 641 and 1024. */
+@media (max-width: 1024px) {
+  /* The PILLS scroll, never `.row` — a scrolling row would clip the popover. */
+  .pills {
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .row::-webkit-scrollbar { display: none; }
+  .pills::-webkit-scrollbar { display: none; }
 
+  /* The trigger must stay put and keep its full width while the pills scroll
+     under it, so it is never the thing that gets squeezed away. */
+  .more {
+    margin-left: 0;
+    flex: none;
+  }
+
+  .panel { min-width: 240px; }
+}
+
+@media (max-width: 640px) {
   .label { display: none; }
 
   .btn { min-height: var(--tap-min); }
-
-  /* margin-left:auto collapses in a scroll container — the trigger must stay
-     at the end of the pills, not float to a viewport edge. */
-  .more { margin-left: 0; }
-
-  .panel {
-    right: auto;
-    left: 0;
-    min-width: 240px;
-  }
 }
