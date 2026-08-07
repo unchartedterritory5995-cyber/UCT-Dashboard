@@ -267,8 +267,9 @@
   overflow: hidden;
 }
 /* Implied move — wide enough for the "Impl. Move" header (values are short, e.g. "14%").
-   Center-aligned so the values sit directly under the middle of the header. */
-.imCol { width: 6.4em; text-align: center; }
+   Right-aligned like EPS / REV so the values hug the column's right edge and the gap
+   between every column is even (a centered value floated too far from EPS). */
+.imCol { width: 6.4em; text-align: right; }
 .sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;
