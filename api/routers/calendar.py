@@ -2882,6 +2882,35 @@ def calendar_enrichment_status():
     }
 
 
+@router.get("/api/admin/implied-sweep-status")
+def implied_sweep_status():
+    """Did the nightly backfill sweep actually finish? (read-only)
+
+    Read `finished_at` FIRST — it is the whole point of the table:
+
+      finished_at set + outcome 'complete'  -> finished the universe
+      finished_at set + outcome 'ceiling'   -> ran out of clock, resumes tonight
+      finished_at NULL on an old run        -> KILLED OR HUNG at `last_symbol`
+
+    That third state is why this exists. It cost four nights in August 2026
+    while looking exactly like the first, because the only other evidence was
+    a row count (which cannot distinguish "nothing left to do" from "died on
+    symbol 41") and a log line that `railway logs` drops within ~3 minutes.
+    """
+    from api.services import implied_backfill as _implied_backfill
+    from api.services import implied_store as _store
+    try:
+        runs = _store.recent_sweep_runs(10)
+    except Exception as exc:                          # noqa: BLE001
+        return {"error": str(exc), "runs": []}
+    return {
+        "runs": runs,
+        "unfinished": [r["run_id"] for r in runs if not r.get("finished_at")],
+        "schedule_et": f"{_implied_backfill.SWEEP_HOUR_ET:02d}:"
+                       f"{_implied_backfill.SWEEP_MINUTE_ET:02d} weekdays",
+    }
+
+
 @router.get("/api/calendar/enrichment")
 def get_enrichment(date_str: str | None = Query(None, alias="date")):
     """Single-day enrichment overlay. See _compute_enrichment_for_date."""

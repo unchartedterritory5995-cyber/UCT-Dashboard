@@ -257,6 +257,13 @@ class TestFiscalJoin:
         "AAPL": ["2026-04-30", "2026-01-29", "2025-10-30", "2025-07-31"],
     }
 
+    @pytest.fixture(autouse=True)
+    def _fallback_leg_only(self, monkeypatch):
+        """Every test in this class is about the Finnhub FALLBACK, so make the
+        FMP primary shrug DELIBERATELY. Left implicit, these tests pass only
+        because the test environment happens to have no FMP_API_KEY."""
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: None)
+
     @pytest.fixture
     def providers(self, monkeypatch):
         import tools.implied_backfill_run as run
@@ -272,6 +279,12 @@ class TestFiscalJoin:
         monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp)
         monkeypatch.setattr(ee_mod, "_fh_get", fake_fh)
         monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)   # no real sleeping in tests
+        # This class tests the FALLBACK leg, so silence the FMP primary
+        # EXPLICITLY. Without this the tests still pass — but only because the
+        # test environment has no FMP_API_KEY, so the primary shrugs by
+        # accident. On a machine that has one they would make live HTTP calls
+        # and assert against whatever the market did that day.
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: None)
         return run
 
     def test_off_calendar_filer_gets_the_right_quarter(self, providers):
@@ -341,6 +354,121 @@ class TestFiscalJoin:
         assert ib.past_reports("NVDA", 4) == []
 
 
+class TestFmpIsThePrimaryFiscalSource:
+    """FMP resolves BOTH halves, so Finnhub is a fallback rather than a leg.
+
+    This is a throughput change as much as a correctness one. The Finnhub leg
+    is paced 3s/symbol against a bucket shared with live members; across 739
+    symbols that is ~37 minutes of pure sleeping in a nightly job that has
+    repeatedly failed to reach the end of the alphabet. Every assertion below
+    about "no Finnhub call" is really an assertion about that time.
+    """
+
+    ROWS = [  # the shape `fmp_beat_history` returns, newest first
+        {"report_date": "2026-08-03", "year": 2026, "quarter": 2},
+        {"report_date": "2026-05-05", "year": 2026, "quarter": 1},
+        {"report_date": "2026-02-24", "year": 2025, "quarter": 4},
+        {"report_date": "2025-11-05", "year": 2025, "quarter": 3},
+    ]
+
+    @pytest.fixture
+    def fh_spy(self, monkeypatch):
+        """Counts Finnhub calls and makes any real sleep fail loudly."""
+        from api.services import earnings_estimates as ee_mod
+        calls = {"n": 0}
+
+        def spy(path, params):
+            calls["n"] += 1
+            return []
+
+        monkeypatch.setattr(ee_mod, "_fh_get", spy)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        return calls
+
+    def test_fmp_identity_is_used_and_finnhub_is_never_called(self, monkeypatch, fh_spy):
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: list(self.ROWS))
+        got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
+               for r in ib.past_reports("JAZZ", 4)}
+        assert got["2026-08-03"] == (2026, 2)
+        assert got["2026-02-24"] == (2025, 4)
+        assert fh_spy["n"] == 0, "the shared Finnhub budget was spent anyway"
+
+    def test_a_report_not_yet_announced_is_excluded(self, monkeypatch, fh_spy):
+        """There is no prior-session straddle to reconstruct for a report that
+        has not happened, and today's belongs to the live capture."""
+        today = _dt.date.today().isoformat()
+        future = (_dt.date.today() + _dt.timedelta(days=30)).isoformat()
+        rows = [{"report_date": future, "year": 2027, "quarter": 1},
+                {"report_date": today, "year": 2026, "quarter": 4}] + self.ROWS
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: rows)
+        dates = [r["report_date"] for r in ib.past_reports("JAZZ", 8)]
+        assert future not in dates and today not in dates
+        assert "2026-08-03" in dates
+
+    def test_limit_is_respected(self, monkeypatch, fh_spy):
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: list(self.ROWS))
+        assert len(ib.past_reports("JAZZ", 2)) == 2
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+        got = ib.past_reports("NVDA", 4)
+        assert got == [{"report_date": "2025-11-19",
+                        "fiscal_year": 2026, "fiscal_quarter": 3}], why
+
+    def test_an_exception_from_fmp_falls_back_instead_of_escaping(self, monkeypatch):
+        """`past_reports` runs inside the sweep's per-symbol try, but raising
+        here would still cost the symbol its Finnhub fallback."""
+        from api.services import earnings_estimates as ee_mod
+
+        def boom(sym, limit=8):
+            raise RuntimeError("provider exploded")
+
+        monkeypatch.setattr(ib, "fmp_beat_history", boom)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+        assert ib.past_reports("NVDA", 4)[0]["fiscal_quarter"] == 3
+
+    def test_the_real_fmp_leg_is_wired_up_end_to_end(self, monkeypatch, fh_spy):
+        """The tests above stub `fmp_beat_history`. This one drives the actual
+        function through faked HTTP so a broken import or a renamed key can't
+        pass silently."""
+        from api.services import earnings_history_fmp as fmp_mod
+
+        def fake_fmp(path, params):
+            if "income-statement" in path:
+                return [{"date": "2026-06-30", "period": "Q2",
+                         "fiscalYear": "2026", "acceptedDate": "2026-08-03 16:05:00"}]
+            return [{"date": "2026-08-03", "epsActual": 5.71, "epsEstimated": 6.18}]
+
+        # NOTE the patch target: `earnings_history_fmp` does
+        # `from ...earnings_estimates import _fmp_get`, which binds its OWN
+        # reference at import. Patching `earnings_estimates._fmp_get` does not
+        # reach it — it would leave this test making real HTTP calls.
+        monkeypatch.setattr(fmp_mod, "_fmp_get", fake_fmp)
+        got = ib.past_reports("JAZZ", 4)
+        assert got == [{"report_date": "2026-08-03",
+                        "fiscal_year": 2026, "fiscal_quarter": 2}]
+        assert fh_spy["n"] == 0
+
+
 def test_all_symbols_returns_distinct_syms(tmp_path, monkeypatch):
     """--from-store depends on this; an earlier version of the tool guarded it
     with hasattr and would have silently exited 2 instead of backfilling."""
@@ -387,13 +515,21 @@ class TestScaleMismatch:
 
 
 class TestFinnhubPacing:
-    """Finnhub is the only fiscal-identity source and its budget is a
-    process-wide bucket SHARED WITH LIVE MEMBER TRAFFIC. Unpaced, the 739-symbol
-    sweep 429'd on its FIRST call, engaged a 20s shared cooldown, then raced
-    through every remaining symbol getting empty responses — and reported
-    success having written almost nothing. Measured on production 2026-08-06:
-    25 symbols, 25 empty, 1.5 seconds.
+    """Finnhub's budget is a process-wide bucket SHARED WITH LIVE MEMBER
+    TRAFFIC. Unpaced, the 739-symbol sweep 429'd on its FIRST call, engaged a
+    20s shared cooldown, then raced through every remaining symbol getting
+    empty responses — and reported success having written almost nothing.
+    Measured on production 2026-08-06: 25 symbols, 25 empty, 1.5 seconds.
+
+    Finnhub is now the FALLBACK leg (FMP resolves both halves), so this pacing
+    is rarely paid — but it still has to be right when it is.
     """
+
+    @pytest.fixture(autouse=True)
+    def _fallback_leg_only(self, monkeypatch):
+        """Reach the Finnhub leg deliberately rather than by accident of an
+        unset FMP_API_KEY — see the note on TestFiscalJoin."""
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: None)
 
     def test_an_empty_finnhub_response_is_retried_not_accepted(self, monkeypatch):
         """The bug: a cooldown-induced empty read was indistinguishable from
@@ -529,14 +665,25 @@ class TestNightlySweep:
         assert "could not read" in out
 
     def test_it_runs_after_the_close_and_after_the_nightly_capture(self):
-        """Ordering is load-bearing: all three share ONE Finnhub budget, and
-        the capture has a deadline while this does not."""
+        """Ordering is load-bearing: the capture has a deadline and this does
+        not, so this must never run first."""
         from api.services import implied_store, setup_grade
-        assert ib.SWEEP_HOUR_ET == 17
         assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) > \
                (implied_store.CAPTURE_HOUR_ET, implied_store.CAPTURE_MINUTE_ET)
         assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) > \
                (setup_grade.GRADE_SNAPSHOT_HOUR_ET, setup_grade.GRADE_SNAPSHOT_MINUTE_ET)
+
+    def test_it_runs_clear_of_the_post_close_deploy_rush(self):
+        """The reason it never finished for four nights. `.git/hooks/pre-push`
+        opens the deploy window at 16:20 ET, so shipping piles into the hour
+        after the close; on 08-06 eight deploys landed between 16:53 and 19:48
+        and the second killed the 17:00 run 13 minutes in. A fired cron does
+        not re-fire when the process restarts, so each one cost the night."""
+        assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) >= (21, 0), \
+            "back inside the post-close deploy window"
+        # ...and still finished before the 23:00 ET theme-engine job.
+        end_hour = ib.SWEEP_HOUR_ET + (ib._SWEEP_MAX_SECONDS / 3600.0)
+        assert end_hour <= 23, f"the ceiling runs past 23:00 ET (to {end_hour:.1f})"
 
 
 class TestTheSweepIsAudible:
@@ -677,3 +824,131 @@ class TestAHangCannotEatTheNight:
 
     def test_bounded_returns_the_value_when_it_finishes(self):
         assert ib._bounded(lambda: 42, timeout=5) == 42
+
+
+class TestTheRunLedgerTellsAHangFromAFinish:
+    """A hang, a mid-run redeploy, and a clean finish left IDENTICAL evidence.
+
+    That ambiguity is what made this job so hard to fix. It failed four
+    separate nights and each time the only artifact was an unchanged row
+    count -- which a monitor read as "finished" on 2026-08-06 while the sweep
+    was actually stalled at ASLE. APScheduler discards the return value, and
+    `railway logs` retains ~500 lines (under 3 minutes of this service's
+    output), so the end-of-run line is gone long before anyone looks.
+
+    `sweep_runs` makes the three states distinguishable, permanently.
+    """
+
+    @pytest.fixture
+    def sweep_env(self, monkeypatch, tmp_path):
+        from api.services import implied_store as store
+        monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "s.db"))
+        monkeypatch.setattr(store, "_INITIALIZED", set())
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        return store
+
+    def _one_report(self, monkeypatch):
+        monkeypatch.setattr(ib, "past_reports", lambda s, q: [
+            {"report_date": REPORT, "fiscal_year": 2026, "fiscal_quarter": 3},
+        ])
+
+    def test_a_finished_run_is_recorded_as_finished(self, sweep_env, monkeypatch, api):
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        self._one_report(monkeypatch)
+        ib.run_backfill_sweep()
+
+        run = store.recent_sweep_runs(1)[0]
+        assert run["finished_at"], "a completed run left no completion mark"
+        assert run["outcome"] == "complete"
+        assert run["wrote"] == 1
+        assert run["symbols_total"] == 1
+
+    def test_a_run_stopped_by_the_ceiling_says_so_rather_than_looking_complete(
+            self, sweep_env, monkeypatch, api):
+        """'ran out of clock, will continue tomorrow' is a DIFFERENT state from
+        'finished the whole universe' — conflating them hides a growing
+        backlog behind a green-looking row."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: [f"S{i}" for i in range(20)])
+        self._one_report(monkeypatch)
+        ib.run_backfill_sweep(max_seconds=0)
+
+        run = store.recent_sweep_runs(1)[0]
+        assert run["finished_at"]
+        assert run["outcome"] == "ceiling"
+
+    def test_a_killed_run_leaves_an_OPEN_row_naming_where_it_stopped(
+            self, sweep_env, monkeypatch, api):
+        """THE test. A redeploy mid-sweep is indistinguishable from a hang and
+        from success unless the run is opened BEFORE the work and closed only
+        on the way out. Simulated by killing the process the only way a test
+        can: an exception that escapes the loop entirely."""
+        store = sweep_env
+        syms = [f"S{i}" for i in range(200)]
+        monkeypatch.setattr(store, "all_symbols", lambda: syms)
+        monkeypatch.setattr(ib, "_PROGRESS_EVERY", 10)
+
+        def die_at_S55(sym, q):
+            if sym == "S55":
+                raise KeyboardInterrupt("redeploy")     # not caught per-symbol
+            return []
+
+        monkeypatch.setattr(ib, "past_reports", die_at_S55)
+        with pytest.raises(KeyboardInterrupt):
+            ib.run_backfill_sweep()
+
+        run = store.recent_sweep_runs(1)[0]
+        assert run["finished_at"] is None, \
+            "a run that never reached the end was marked finished"
+        assert run["outcome"] is None
+        assert run["symbols_total"] == 200
+        # ...and it says WHERE, which is the part row counts can never give.
+        assert run["last_symbol"] == "S50", run
+        assert run["symbols_done"] == 50
+
+    def test_the_row_is_opened_before_any_provider_work(self, sweep_env, monkeypatch):
+        """A run that dies on its very first symbol must still leave a trace —
+        otherwise the worst failure is the most invisible one."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["FIRST", "SECOND"])
+
+        def die_immediately(sym, q):
+            raise KeyboardInterrupt("killed on symbol one")
+
+        monkeypatch.setattr(ib, "past_reports", die_immediately)
+        with pytest.raises(KeyboardInterrupt):
+            ib.run_backfill_sweep()
+
+        runs = store.recent_sweep_runs(1)
+        assert runs, "no ledger row at all for a run that had already started"
+        assert runs[0]["finished_at"] is None
+        assert runs[0]["symbols_total"] == 2
+
+    def test_a_broken_ledger_never_costs_the_night(self, sweep_env, monkeypatch, api):
+        """The ledger diagnoses this job; it must not become able to break it.
+        A locked DB should cost visibility, not the sweep."""
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        self._one_report(monkeypatch)
+
+        def boom(*a, **k):
+            raise RuntimeError("database is locked")
+
+        monkeypatch.setattr(store, "start_sweep_run", boom)
+        monkeypatch.setattr(store, "finish_sweep_run", boom)
+        monkeypatch.setattr(store, "heartbeat_sweep_run", boom)
+
+        out = ib.run_backfill_sweep()
+        assert "wrote 1" in out, out
+        assert len(store.get_implied_history("NVDA")) == 1
+
+    def test_runs_come_back_newest_first(self, sweep_env, monkeypatch, api):
+        store = sweep_env
+        monkeypatch.setattr(store, "all_symbols", lambda: ["NVDA"])
+        self._one_report(monkeypatch)
+        store.start_sweep_run("2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", 1)
+        ib.run_backfill_sweep()
+        runs = store.recent_sweep_runs(5)
+        assert len(runs) == 2
+        assert runs[0]["started_at"] > runs[1]["started_at"]

@@ -99,6 +99,15 @@ CREATE TABLE IF NOT EXISTS grade_snapshots (
   grade TEXT NOT NULL, inputs_json TEXT NOT NULL,
   PRIMARY KEY (sym, date, surface)
 );
+CREATE TABLE IF NOT EXISTS sweep_runs (
+  run_id TEXT PRIMARY KEY,
+  started_at TEXT NOT NULL,
+  finished_at TEXT,
+  symbols_total INTEGER, symbols_done INTEGER, last_symbol TEXT,
+  wrote INTEGER, skipped INTEGER, no_move INTEGER,
+  unresolved INTEGER, timed_out INTEGER,
+  outcome TEXT
+);
 """
 
 # Additive migration for a DB file created before fiscal_year/fiscal_quarter
@@ -238,6 +247,86 @@ def all_symbols() -> list[str]:
             "SELECT DISTINCT sym FROM implied_snapshots ORDER BY sym"
         ).fetchall()
     return [r["sym"] for r in rows]
+
+
+# ── sweep run ledger ─────────────────────────────────────────────────────────
+#
+# WHY A TABLE AND NOT A LOG LINE
+#     The nightly backfill sweep failed on four separate nights before anyone
+#     could say WHICH failure it was, because a hang, a mid-run redeploy, and a
+#     clean finish all leave exactly the same evidence: nothing. APScheduler
+#     discards the return value, and `railway logs` retains ~500 lines — under
+#     three minutes of this service's output — so by the time the question is
+#     asked the answer has already scrolled away.
+#
+#     These three rows make the states distinguishable, permanently:
+#
+#       finished_at set, outcome 'complete'  -> it finished
+#       finished_at set, outcome 'ceiling'   -> it ran out of clock, resumes
+#       finished_at NULL, started hours ago  -> it was KILLED or HUNG, and
+#                                               `last_symbol` says where
+#
+#     A count-based monitor cannot tell a hang from a finish (it was tried; it
+#     declared success on 15 minutes of flat row counts). This can.
+
+
+def start_sweep_run(run_id: str, started_at: str, symbols_total: int) -> None:
+    """Open a ledger row. Deliberately BEFORE any provider work, so a run that
+    dies on its very first symbol still leaves a record that it began."""
+    _ensure_init()
+    with closing(_connect()) as c, c:
+        c.execute(
+            "INSERT OR REPLACE INTO sweep_runs "
+            "(run_id, started_at, symbols_total, symbols_done, wrote, skipped, "
+            " no_move, unresolved, timed_out) "
+            "VALUES (?,?,?,0,0,0,0,0,0)",
+            (run_id, started_at, int(symbols_total)),
+        )
+
+
+def heartbeat_sweep_run(run_id: str, symbols_done: int, last_symbol: str,
+                        **counters) -> None:
+    """Record progress mid-run. This is what turns 'it stopped' into 'it
+    stopped AT ASLE, 41 symbols in' without needing the log window."""
+    _ensure_init()
+    with closing(_connect()) as c, c:
+        c.execute(
+            "UPDATE sweep_runs SET symbols_done=?, last_symbol=?, wrote=?, "
+            "skipped=?, no_move=?, unresolved=?, timed_out=? WHERE run_id=?",
+            (int(symbols_done), last_symbol,
+             int(counters.get("wrote", 0)), int(counters.get("skipped", 0)),
+             int(counters.get("no_move", 0)), int(counters.get("unresolved", 0)),
+             int(counters.get("timed_out", 0)), run_id),
+        )
+
+
+def finish_sweep_run(run_id: str, finished_at: str, outcome: str,
+                     symbols_done: int, last_symbol: str | None,
+                     **counters) -> None:
+    """Close the row. `finished_at` staying NULL is the WHOLE SIGNAL that a run
+    never got here, so nothing else may write it."""
+    _ensure_init()
+    with closing(_connect()) as c, c:
+        c.execute(
+            "UPDATE sweep_runs SET finished_at=?, outcome=?, symbols_done=?, "
+            "last_symbol=?, wrote=?, skipped=?, no_move=?, unresolved=?, "
+            "timed_out=? WHERE run_id=?",
+            (finished_at, outcome, int(symbols_done), last_symbol,
+             int(counters.get("wrote", 0)), int(counters.get("skipped", 0)),
+             int(counters.get("no_move", 0)), int(counters.get("unresolved", 0)),
+             int(counters.get("timed_out", 0)), run_id),
+        )
+
+
+def recent_sweep_runs(limit: int = 10) -> list[dict]:
+    """Newest first. The answer to 'did last night's sweep actually finish?'"""
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT * FROM sweep_runs ORDER BY started_at DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def get_earliest_report_date(sym: str) -> str | None:
