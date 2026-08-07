@@ -155,6 +155,31 @@ describe('preset axis layout', () => {
     froth:              { left: ['hvc_52w', 'up_50pct_month', 'atr_ext_7'], right: [] },
     volatility:         { left: ['vix'], right: ['cboe_putcall'] },
     sentiment:          { left: ['cnn_fear_greed', 'aaii_spread'], right: [] },
+
+    // Added 2026-08-07. Intent is declared here and checked through the real
+    // rule, so a preset whose metric ORDER changes (which decides the left axis
+    // on a family tie) fails rather than silently swapping axes.
+    washout:            { left: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema'], right: [] },
+    'ma-term-structure': { left: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema', 'pct_above_40sma', 'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'], right: [] },
+    'long-trend':       { left: ['pct_above_100sma', 'pct_above_200sma'], right: [] },
+    'highs-quality':    { left: ['new_52w_highs', 'new_ath'], right: [] },
+    'highs-lows-20d':   { left: ['new_20d_highs', 'new_20d_lows'], right: [] },
+    leadership:         { left: ['new_ath', 'up_25pct_quarter'], right: [] },
+    'stage-vs-highs':   { left: ['stage2_count', 'new_52w_highs'], right: [] },
+    // 1-1 family tie, so the FIRST metric's family takes the left axis.
+    mcclellan:          { left: ['mcclellan_osc'], right: ['breadth_score'] },
+    ratios:             { left: ['ratio_5day', 'ratio_10day'], right: [] },
+    'weekly-thrust':    { left: ['up_20pct_5d', 'down_20pct_5d'], right: [] },
+    'monthly-movers':   { left: ['up_25pct_month', 'down_25pct_month'], right: [] },
+    'quarterly-movers': { left: ['up_25pct_quarter', 'down_25pct_quarter'], right: [] },
+    magna:              { left: ['magna_up', 'magna_down'], right: [] },
+    capitulation:       { left: ['down_4pct_today', 'new_20d_lows'], right: [] },
+    'aaii-composition': { left: ['aaii_bulls', 'aaii_neutral', 'aaii_bears'], right: [] },
+    fear:               { left: ['cnn_fear_greed'], right: ['vix'] },
+    'score-vs-vix':     { left: ['breadth_score'], right: ['vix'] },
+    'exposure-vs-score': { left: ['breadth_score', 'uct_exposure'], right: [] },
+    'breadth-vs-nasdaq': { left: ['pct_above_50sma', 'pct_above_200sma'], right: ['qqq_close'] },
+    coverage:           { left: ['universe_count'], right: [] },
   }
 
   it('covers every preset', () => {

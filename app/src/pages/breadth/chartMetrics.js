@@ -250,6 +250,146 @@ export const CHART_PRESETS = [
     hint: 'CNN Fear/Greed and the AAII bull-bear spread — contrarian positioning.',
     metrics: ['cnn_fear_greed', 'aaii_spread'],
   },
+
+  // ── Added 2026-08-07 ────────────────────────────────────────────────────────
+  // 21 of the 44 pickable metrics appeared in no preset at all, so the ones a
+  // user never thought to check were effectively invisible. Every combination
+  // below was scale-checked against a YEAR of stored rows before being added,
+  // not just against its unit family — the family rule alone is what let QQQ
+  // render as a dead line, and a count that spans 5x its partner does the same
+  // thing quietly. Rejected on that evidence: an atr_ext_7 + hvc_52w pairing
+  // (4.8x, and already covered by `froth`).
+
+  {
+    id: 'washout',
+    label: 'Short-Term Washout',
+    hint: 'The three fastest MAs together — how oversold the market is right now, with the 5/10/15/20 washout lines.',
+    // `participation` starts at the 10SMA, so nothing surfaced the fast washout
+    // that marks a tradeable bounce. All three run 16-84 on one axis.
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema'],
+    extremes: ['MA Breadth'],
+  },
+  {
+    id: 'ma-term-structure',
+    label: 'Full MA Term Structure',
+    hint: 'All seven moving-average bands at once — fast on top in a rally, inverted in a decline.',
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema', 'pct_above_40sma',
+              'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'],
+    extremes: ['MA Breadth'],
+  },
+  {
+    id: 'long-trend',
+    label: 'Long-Term Trend',
+    hint: 'The 100- and 200-day bands — the slow read that ignores day-to-day noise.',
+    metrics: ['pct_above_100sma', 'pct_above_200sma'],
+    extremes: ['MA Breadth'],
+  },
+  {
+    id: 'highs-quality',
+    label: '52-Week vs All-Time Highs',
+    hint: 'How many 52-week highs are ALSO all-time highs — a widening gap means the highs are recoveries, not leadership.',
+    metrics: ['new_52w_highs', 'new_ath'],
+  },
+  {
+    id: 'highs-lows-20d',
+    label: '20-Day Highs vs Lows',
+    hint: 'The one-month crossover — the fast counterpart to the 52-week version, and it turns first.',
+    metrics: ['new_20d_highs', 'new_20d_lows'],
+  },
+  {
+    id: 'leadership',
+    label: 'Leadership Quality',
+    hint: 'All-time highs against quarterly 25% movers — whether the leaders are breaking out or just bouncing.',
+    metrics: ['new_ath', 'up_25pct_quarter'],
+  },
+  {
+    id: 'stage-vs-highs',
+    label: 'Uptrends vs New Highs',
+    hint: 'Stage 2 names against 52-week highs — a large Stage 2 base with few highs is a market going sideways in an uptrend.',
+    metrics: ['stage2_count', 'new_52w_highs'],
+  },
+  {
+    id: 'mcclellan',
+    label: 'McClellan Oscillator',
+    hint: 'The classic advance/decline oscillator against the composite score — zero is the dividing line.',
+    metrics: ['mcclellan_osc', 'breadth_score'],
+  },
+  {
+    id: 'ratios',
+    label: 'Advance/Decline Ratios',
+    hint: 'The 5- and 10-day up/down ratios on their own scale — thrust readings without the counts drowning them.',
+    metrics: ['ratio_5day', 'ratio_10day'],
+  },
+  {
+    id: 'weekly-thrust',
+    label: '5-Day Thrust',
+    hint: 'Names up or down 20% in a week — the fastest genuine momentum signal in the set.',
+    metrics: ['up_20pct_5d', 'down_20pct_5d'],
+  },
+  {
+    id: 'monthly-movers',
+    label: 'Monthly Movers',
+    hint: 'Names up or down 25% in a month — the swing-timeframe momentum balance.',
+    metrics: ['up_25pct_month', 'down_25pct_month'],
+  },
+  {
+    id: 'quarterly-movers',
+    label: 'Quarterly Movers',
+    hint: 'Names up or down 25% over a quarter — who is actually leading and lagging over a real holding period.',
+    metrics: ['up_25pct_quarter', 'down_25pct_quarter'],
+  },
+  {
+    id: 'magna',
+    label: 'Momentum Breadth (13% / 34d)',
+    hint: 'The Stockbee-style 13%-in-34-days pair — a sustained-momentum read rather than a single-day pop.',
+    metrics: ['magna_up', 'magna_down'],
+  },
+  {
+    id: 'capitulation',
+    label: 'Capitulation',
+    hint: 'Single-day 4% decliners against fresh 20-day lows — the two together mark washout days.',
+    metrics: ['down_4pct_today', 'new_20d_lows'],
+  },
+  {
+    id: 'aaii-composition',
+    label: 'AAII Composition',
+    hint: 'Bulls, bears and neutral separately — the spread alone hides whether bulls left or bears arrived.',
+    // The three sum to 100, so they share one axis by construction.
+    metrics: ['aaii_bulls', 'aaii_neutral', 'aaii_bears'],
+  },
+  {
+    id: 'fear',
+    label: 'Fear Gauges',
+    hint: 'CNN Fear/Greed against VIX — sentiment and priced volatility, which do not always agree.',
+    metrics: ['cnn_fear_greed', 'vix'],
+  },
+  {
+    id: 'score-vs-vix',
+    label: 'Score vs Volatility',
+    hint: 'The composite score against VIX — breadth holding up through a volatility spike is the divergence worth seeing.',
+    metrics: ['breadth_score', 'vix'],
+  },
+  {
+    id: 'exposure-vs-score',
+    label: 'Exposure vs Score',
+    hint: 'UCT exposure against the composite score — how the recommendation tracks the underlying breadth.',
+    metrics: ['breadth_score', 'uct_exposure'],
+  },
+  {
+    id: 'breadth-vs-nasdaq',
+    label: 'Breadth vs Nasdaq',
+    hint: 'Participation against QQQ on the right axis — the Nasdaq counterpart to Breadth vs Price.',
+    // ONE index series, for the reason documented on `breadth-vs-price`.
+    metrics: ['pct_above_50sma', 'pct_above_200sma', 'qqq_close'],
+  },
+  {
+    id: 'coverage',
+    label: 'Universe Coverage',
+    hint: 'How many names the collector measured each day — a step here explains a step in every count above.',
+    // Not an analytical view: it is the denominator behind every COUNT metric,
+    // and a coverage change reads as a breadth change if you cannot see it.
+    metrics: ['universe_count'],
+  },
 ]
 
 const _sortedKey = keys => [...keys].sort().join('|')
