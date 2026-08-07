@@ -117,7 +117,7 @@ _thread: Optional[threading.Thread] = None
 # asserted by IMPORTING this module and CALLING the closed lane directly
 # (`tests/test_alert_closed_bar.py`), which is the evidence the JS side could not
 # produce.
-ALERT_EVAL_MODE = "forming"        # "forming" | "closed"
+ALERT_EVAL_MODE = "closed"         # "forming" | "closed"
 
 EVAL_MODES: tuple[str, ...] = ("forming", "closed")
 
