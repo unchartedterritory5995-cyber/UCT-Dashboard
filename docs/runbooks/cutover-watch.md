@@ -38,6 +38,42 @@ Local / pre-merge use (the tool finds the repo root itself, and honours
 PYTHONDONTWRITEBYTECODE=1 python tools/cutover_watch.py --auth-db /path/auth.db --shadow-db /path/alert_shadow.db
 ```
 
+### If the branch has NOT shipped yet
+
+The pod only carries what is deployed. Until `feat/phase-c-alerts` reaches
+`master` and redeploys, `/app/tools/cutover_watch.py` does not exist and you must
+put the single file there yourself. gzip + base64 it in chunks (one `railway ssh`
+argument cannot hold the whole payload), from **PowerShell**:
+
+```powershell
+Set-Location C:\Users\Patrick\uct-dashboard          # the railway-linked dir
+$src = "C:\Users\Patrick\uct-worktrees\phase-b2-engine\tools\cutover_watch.py"
+$bytes = [System.IO.File]::ReadAllBytes($src)
+$ms = New-Object System.IO.MemoryStream
+$gz = New-Object System.IO.Compression.GZipStream($ms, [System.IO.Compression.CompressionMode]::Compress)
+$gz.Write($bytes, 0, $bytes.Length); $gz.Close()
+$b64 = [Convert]::ToBase64String($ms.ToArray())
+railway ssh "rm -f /tmp/cw.b64 /tmp/cutover_watch.py" | Out-Null
+for ($i = 0; $i -lt $b64.Length; $i += 6000) {
+  $c = $b64.Substring($i, [Math]::Min(6000, $b64.Length - $i))
+  railway ssh "printf %s $c >> /tmp/cw.b64" | Out-Null
+}
+railway ssh "base64 -d /tmp/cw.b64 | gunzip > /tmp/cutover_watch.py; sha256sum /tmp/cutover_watch.py"
+```
+
+**Compare that sha256 against `Get-FileHash -Algorithm SHA256 $src`** before you
+trust a reading — a truncated upload would run and report a number.
+
+Then run it with `cd /app` so it resolves `api/services` from the deployed tree:
+
+```sh
+railway ssh 'cd /app; PYTHONDONTWRITEBYTECODE=1 /opt/venv/bin/python /tmp/cutover_watch.py > /tmp/cw.txt 2>&1; echo BARE_EXIT=$?; cat /tmp/cw.txt'
+```
+
+⚠️ **`/tmp` does not survive a redeploy.** The pod restarted once mid-session
+during this tool's own bring-up and the file vanished; re-upload if
+`can't open file` comes back.
+
 ---
 
 ## 2. What each number means
