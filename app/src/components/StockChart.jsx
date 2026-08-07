@@ -68,9 +68,10 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
 } from './chart/engine/paneLayout'
-import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
+import { setIndicatorEnabled, isIndicatorEnabled, findInstance } from './chart/engine/instanceControls'
 import { engineChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
+import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useIsPaid } from '../context/AuthContext'
@@ -982,6 +983,30 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   rafRef.current = requestAnimationFrame(step)
 }
 
+/**
+ * The FIRST LIVE instance of a definition, or null.
+ *
+ * The right-click region menu is keyed by `defId` — a pane belongs to a
+ * definition, `orderedPaneKeys` dedupes by `def.id` — but the settings dialog is
+ * per INSTANCE, so the menu row has to resolve one. First-live matches what
+ * `indicatorRegistry.liveInstanceFor` already does for the generated settings
+ * rows, so the two surfaces open on the same copy.
+ *
+ * ⛔ LIVENESS IS ASKED OF `findInstance`, NEVER RE-DERIVED. A tombstone is an
+ * element of `indicatorInstances` with a matching `defId`; taking it would open
+ * the dialog on an indicator that is not on the chart. `isLiveInstance` is
+ * module-private to `instanceControls`, and `findInstance` returning null for a
+ * tombstone is exactly the same question asked through the exported door.
+ */
+function firstLiveInstanceId(cs, defId) {
+  const list = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
+  for (const i of list) {
+    if (!i || typeof i !== 'object' || i.defId !== defId) continue
+    if (findInstance(cs, i.instanceId)) return i.instanceId
+  }
+  return null
+}
+
 export default function StockChart({
   sym,
   tf,
@@ -1544,6 +1569,12 @@ export default function StockChart({
   // { data, x, y } while an earnings popover is open (null = closed).
   // (earningsEvents itself is derived AFTER filteredBars is declared — see below.)
   const [earningsPopup, setEarningsPopup] = useState(null)
+
+  // The INSTANCE whose settings dialog is open (null = closed). One instance id,
+  // never a defId: "RSI(7) settings" and "RSI(14) settings" are two different
+  // forms over one definition, and the write door has addressed instances since
+  // Task 1. Task 4's chip gear sets this too.
+  const [settingsInstanceId, setSettingsInstanceId] = useState(null)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -2429,9 +2460,24 @@ export default function StockChart({
       // Indicators submenu, the toolbar strip and the legend take. One label,
       // four surfaces, one source.
       const label = labelFor(key)
+      // ⭐ "<label> settings…" NOW OPENS THE PER-INSTANCE DIALOG, not the global
+      // five-tab modal. A menu row that named ONE indicator and opened a
+      // chart-wide surface (Price Style / Canvas / Indicators / Header / Markers)
+      // was the third of spec §6's missing containers.
+      //
+      // ⛔ THE READ-ONLY GATE IS UNCHANGED — it is `settingsLink`'s, reused: a
+      // mount with no drawing tools (Model Book, a grid cell) renders no toolbar
+      // and persists nothing, so it gets no settings row at all rather than one
+      // that writes nowhere. And with no LIVE instance to scope to (a definition
+      // drawing only through the legacy projection) the row falls back to the
+      // global surface rather than opening a dialog on nothing.
+      const instId = firstLiveInstanceId(cs, key)
+      const settingsRow = (showDrawingTools && instId)
+        ? [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }]
+        : settingsLink('i-set', `${label} settings…`)
       secs.push({ id: 'region', title: label, items: [
         { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
-        ...settingsLink('i-set', `${label} settings…`),
+        ...settingsRow,
       ] })
     } else if (region.type === 'overlay') {
       const ov = resolvedOverlays?.[region.index]
@@ -10208,6 +10254,27 @@ export default function StockChart({
               : undefined,
           ) || undefined}
           onClose={() => setEarningsPopup(null)}
+        />
+      )}
+      {/* Spec §6's settings form, scoped to ONE instance. `Sheet` portals it to
+          <body>, so its position in this tree is irrelevant to layout.
+
+          ⚠️ NO `preset: 'custom'` STAMP HERE, and that is deliberate rather than
+          an omission. Every door the dialog writes through — `setInstanceInput`,
+          `setInstanceHidden`, `withInstances` — already marks the blob custom
+          (`instanceControls.withInstances`). Re-stamping it in the mount would
+          make Cancel restore a blob that differs from the one the dialog opened
+          with by exactly that key, which is the byte-equality this task's whole
+          gate rests on. Identity, not deep equality: a REFUSED write comes back
+          as `cs` itself and must not persist. */}
+      {settingsInstanceId && (
+        <IndicatorSettingsDialog
+          open
+          instanceId={settingsInstanceId}
+          settings={cs}
+          registry={engineRegistry}
+          onChange={(next) => { if (next !== cs) handleUpdateChartSettings(next) }}
+          onClose={() => setSettingsInstanceId(null)}
         />
       )}
       {enabledComparisons.length > 0 && (

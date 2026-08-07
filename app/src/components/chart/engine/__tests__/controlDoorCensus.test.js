@@ -427,7 +427,8 @@ describe('the control-door census — how many doors, and whether an eighth exis
 
   // ─── DOOR EIGHT ────────────────────────────────────────────────────────
   //
-  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND IT HAS NO CALLER.
+  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND AS OF TASK 5 IT HAS EXACTLY ONE
+  //    CALLER — `IndicatorSettingsDialog`, spec §6's per-instance settings form.
   //
   // `setInstanceHidden` / `setInstanceInput` / `removeInstance` / `addInstance`
   // live in the SAME module as the seven above, but they are a DOOR and not a use
@@ -436,19 +437,34 @@ describe('the control-door census — how many doors, and whether an eighth exis
   // instance the v1→v2 fold seeded". These address ONE `instanceId` — which is
   // what the stored list, the binder and the readout have always been keyed by.
   //
-  // ⛔ ZERO CALL SITES IS THE ASSERTION, NOT AN ASSUMPTION. It is what makes the
-  // model change a provable no-op while at most one instance per definition
-  // exists, and it is precisely the state the duplicate-indicator surface will
-  // change — at which point this list gains a name and a reason rather than
-  // losing the case.
-  it('⭐ door EIGHT — the per-INSTANCE door exists and has NO caller yet', () => {
+  // ⛔ THE ZERO WAS AN ASSERTION, NOT AN ASSUMPTION — and this is the update it
+  // asked for, not its deletion. Its own failure message said: "UPDATE this
+  // census with the surface and its reason, do not delete the case." The list is
+  // now a DECLARED TABLE compared by equality, so the next surface to address an
+  // instance reddens here and has to say why, exactly as this one did. What the
+  // zero bought is spent: while it held, the model change was a provable no-op;
+  // the dialog is the surface that makes "RSI(7) settings" mean something
+  // different from "RSI(14) settings", which is what the door was built for.
+  //
+  // ⚠️ `StockChart.jsx` IS DELIBERATELY NOT HERE. It mounts the dialog and
+  // resolves a `defId` to an instance id through `findInstance` — a READER — and
+  // writes nothing per instance itself. A door name appearing there would mean a
+  // second writer had grown beside the one the dialog routes at.
+  it('⭐ door EIGHT — the per-INSTANCE door has exactly the callers this census names', () => {
     // ⚠️ CHECKED AGAINST THE MODULE, not merely typed here. A renamed door would
-    // otherwise narrow the scan to a name nothing has, and its empty result would
-    // mean nothing at all.
+    // otherwise narrow the scan to a name nothing has, and its result would mean
+    // nothing at all.
     const DOORS = ['setInstanceHidden', 'setInstanceInput', 'removeInstance', 'addInstance']
     expect(DOORS.filter(n => typeof theWriter[n] !== 'function'),
       'a per-instance door was renamed or removed — the caller scan below would then be ' +
-      'looking for a name nothing has, and its empty result would prove nothing').toEqual([])
+      'looking for a name nothing has, and its result would prove nothing').toEqual([])
+
+    // The ledger: file → why it addresses ONE instance.
+    const LEDGER = [
+      ['app/src/components/chart/IndicatorSettingsDialog.jsx',
+       'spec §6 settings form, per instance (Task 5): setInstanceInput on the generated ' +
+       'input rows, setInstanceHidden on the Visibility tab eye'],
+    ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')
     const callers = SHIPPED
@@ -456,22 +472,31 @@ describe('the control-door census — how many doors, and whether an eighth exis
       .map(f => f.file)
       .sort()
     expect(callers,
-      'a per-instance door gained a caller — UPDATE this census with the surface and its ' +
-      'reason, do not delete the case. A caller is the moment the write door starts ' +
-      'addressing ONE instance from a real surface, which is when "two RSIs" stops being ' +
-      'unreachable and this task stops being a no-op.',
-    ).toEqual([])
+      'the per-instance door\'s caller set moved — UPDATE this census with the surface and ' +
+      'its reason, do not delete the case. A caller is a surface that addresses ONE ' +
+      'instanceId, which is what makes "two RSIs" reachable; an unledgered one is a second ' +
+      'answer to "which copy did the user mean".',
+    ).toEqual(LEDGER.map(([f]) => f).sort())
 
-    // ⛔ THE POSITIVE CONTROL FOR AN EXPECTED ZERO. `toEqual([])` is satisfied just
-    // as well by a pattern that matches nothing anywhere, so it is run against the
-    // one module it EXCLUDES — the same shape the call-site census above uses.
+    // ⛔ THE POSITIVE CONTROL. A pattern that matches nothing anywhere satisfies an
+    // empty expectation just as well, so it is run against the one module it
+    // EXCLUDES — the same shape the call-site census above uses. It stays even now
+    // that the expectation is non-empty: it is what proves the equality above is a
+    // census and not a coincidence.
     const writerSrc = SHIPPED.find(f => f.file === THE_WRITER)
     expect(writerSrc, 'the writer module is not in the walk — the scan cannot see its own subject')
       .toBeTruthy()
     expect(perInstance.test(writerSrc.src),
       'the per-instance pattern matches nothing even in the module that DEFINES the doors — ' +
-      'it rotted, and the empty caller list above is a broken regex rather than a census')
+      'it rotted, and the caller list above is a broken regex rather than a census')
       .toBe(true)
+
+    // ⛔ AND EVERY LEDGERED FILE IS IN THE WALK. A ledger naming a path the scan
+    // never visits would be satisfied by a file that does not exist — the equality
+    // above would then be comparing two lists neither of which came from source.
+    expect(LEDGER.filter(([f]) => !SHIPPED.some(s => s.file === f)).map(([f]) => f),
+      'a ledgered caller is not in the walked file set — the equality above is comparing ' +
+      'a typed name against a scan that cannot see it').toEqual([])
   })
 })
 

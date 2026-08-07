@@ -739,7 +739,14 @@ describe('Flip B — the right-click doors route through the one reader and the 
   })
 
   it('right-click "Hide <label>" writes through the same door', () => {
-    const block = slice("{ id: 'i-hide'", "...settingsLink('i-set'")
+    // ⚠️ END MARKER MOVED BY TASK 5, AND THE RAIL IS WHAT SAID SO. The row after
+    // `i-hide` used to be `...settingsLink('i-set', …)` inline; it is now
+    // `...settingsRow`, because "<label> settings…" opens the per-INSTANCE dialog
+    // when there is a live instance to scope to and falls back to `settingsLink`
+    // when there is not. The slice is re-pointed at the new marker and NOT ONE
+    // ASSERTION BELOW IS RELAXED — this rail failing loudly rather than silently
+    // matching nothing is exactly the property its own comment claims for it.
+    const block = slice("{ id: 'i-hide'", "...settingsRow,")
     expect(block, '"Hide RSI" clears the mirror while the instance keeps drawing')
       .not.toMatch(/setCs\(`indicators\./)
     expect(block).toMatch(/setIndEnabled\(key, false\)/)

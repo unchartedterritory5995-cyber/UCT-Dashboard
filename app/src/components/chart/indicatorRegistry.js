@@ -204,6 +204,138 @@ export function fieldsFromDefinition(def) {
   return inputs.map(fieldFromInput).filter(Boolean)
 }
 
+// ─── THE PER-INSTANCE FORM MODEL (spec §6's settings dialog) ────────────────
+//
+// `listEngineIndicators` builds ONE ROW PER DEFINITION for the global modal's
+// Indicators tab. The settings DIALOG is per INSTANCE — "RSI(7) settings" and
+// "RSI(14) settings" are two different forms over one definition — so it needs
+// the same generated fields resolved against ONE instance's inputs.
+//
+// ⛔ IT IS NOT A SECOND GENERATOR. Every field below comes out of
+// `fieldFromInput`, the same call `listEngineIndicators` makes; this adds only
+// the three things a per-instance FORM needs and a per-definition ROW does not:
+// the instance's own values, the §3.1 presentation modifiers the row ignores
+// (`group` / `inline` / `tooltip` / `activeWhen`), and the Inputs/Style split.
+
+/**
+ * The input keys a definition's PLOTS substitute — i.e. the ones that change how
+ * the indicator LOOKS rather than what it computes.
+ *
+ * ⭐ DERIVED FROM `$refs`, NEVER FROM A LIST OF KEY NAMES. `defSchema.noteRef`
+ * records `plots[].$refs = {color: 'color', width: 'lineWidth', …}` for exactly
+ * the fields `SUBSTITUTABLE_PLOT_FIELDS` allows, and `pool.resolvePlotForInstance`
+ * re-applies them per instance — so this set is, by construction, the inputs that
+ * reach the renderer as STYLE. A hand-typed `['color','width','lineStyle']` would
+ * have missed `bb`'s `bandColor` and mis-sorted anything an author names
+ * differently, and it would rot the day a definition renames an input.
+ */
+export function styleInputKeys(def) {
+  const keys = new Set()
+  for (const plot of (Array.isArray(def?.plots) ? def.plots : [])) {
+    const refs = plot && plot.$refs
+    if (!refs) continue
+    for (const [field, ref] of Object.entries(refs)) {
+      if (field === 'levels') {
+        for (const k of (Array.isArray(ref) ? ref : [])) if (typeof k === 'string' && k) keys.add(k)
+      } else if (typeof ref === 'string' && ref) {
+        keys.add(ref)
+      }
+    }
+  }
+  return keys
+}
+
+/**
+ * Is this input ACTIVE, given the values the form currently holds?
+ *
+ * `activeWhen` is the JSON-expressible successor to this file's own `showIf`
+ * predicate (`defSchema:802` — a function cannot survive a definition
+ * round-trip). `defSchema` deliberately does NOT lock the operator grammar in
+ * v1; it validates only that the condition names a declared input, because a
+ * condition on a key that does not exist would hide a control forever.
+ *
+ * ⛔ SO AN OPERATOR THIS BUILD CANNOT READ MEANS ACTIVE, NOT HIDDEN. The failure
+ * direction matters: an unknown comparator returning `false` would make a future
+ * definition's control permanently inert on an older client, silently — the same
+ * class of defect the schema's own unresolvable-key check exists to prevent, one
+ * version skew away. Returning `true` leaves the control usable and the value
+ * validated, which is the recoverable half.
+ *
+ * With no comparator at all the condition is the referenced value's TRUTHINESS,
+ * which is what the shipped `showIf` predicates already mean
+ * (`(v) => Number(v.maPeriod) > 0`).
+ */
+export function evalActiveWhen(activeWhen, values) {
+  if (!activeWhen || typeof activeWhen !== 'object' || typeof activeWhen.key !== 'string') return true
+  const v = values ? values[activeWhen.key] : undefined
+  if ('equals' in activeWhen) return v === activeWhen.equals
+  if ('notEquals' in activeWhen) return v !== activeWhen.notEquals
+  if ('in' in activeWhen) return Array.isArray(activeWhen.in) && activeWhen.in.includes(v)
+  if ('gt' in activeWhen) return Number(v) > Number(activeWhen.gt)
+  if ('gte' in activeWhen) return Number(v) >= Number(activeWhen.gte)
+  if ('lt' in activeWhen) return Number(v) < Number(activeWhen.lt)
+  if ('lte' in activeWhen) return Number(v) <= Number(activeWhen.lte)
+  // An unrecognised comparator: see the header. Active, and the control still
+  // validates whatever the user types against the declared input.
+  if (Object.keys(activeWhen).some((k) => k !== 'key')) return true
+  return !!v
+}
+
+/**
+ * ONE INSTANCE's form model — the per-instance sibling of `listEngineIndicators`.
+ *
+ * @param {object} def      a REGISTERED definition (it carries resolved `$refs`)
+ * @param {object} instance one element of `settings.indicatorInstances`
+ * @returns {{defId, instanceId, values, all, inputs, style}}
+ *   `values` — declared defaults with the instance's own inputs over them, which
+ *              is the "unset means the current default" rule the migrator, the
+ *              binder and `drawnValues` all use;
+ *   `all`    — every generated field, in DECLARATION ORDER, each carrying its
+ *              §3.1 presentation modifiers and its declared `type`;
+ *   `inputs`/`style` — the same fields PARTITIONED by `styleInputKeys`, order
+ *              preserved within each half. A partition, never a filter: an input
+ *              that reached `all` reaches exactly one tab.
+ */
+export function fieldsForInstance(def, instance) {
+  const declared = Array.isArray(def?.inputs) ? def.inputs : []
+  const byKey = new Map(declared.map((i) => [i && i.key, i]))
+  const stored = (instance && instance.inputs && typeof instance.inputs === 'object') ? instance.inputs : {}
+
+  const values = {}
+  for (const d of declared) {
+    if (!d || typeof d.key !== 'string') continue
+    if (d.default !== undefined) values[d.key] = d.default
+    if (Object.prototype.hasOwnProperty.call(stored, d.key)) values[d.key] = stored[d.key]
+  }
+
+  const all = fieldsFromDefinition(def).map((f) => {
+    const d = byKey.get(f.key) || {}
+    return {
+      ...f,
+      inputType: d.type,
+      // ⚠️ `int` vs `float` decides whether a committed value is ROUNDED. `coerce`
+      // (defSchema) refuses a non-integer for an `int`, so an unrounded 7.5 is a
+      // write `setInstanceInput` silently declines — the generated field's `step`
+      // alone cannot tell the two apart once an author declares `step: 1` on a float.
+      isInt: d.type === 'int',
+      group: typeof d.group === 'string' ? d.group : null,
+      inline: typeof d.inline === 'string' ? d.inline : null,
+      tooltip: typeof d.tooltip === 'string' ? d.tooltip : null,
+      activeWhen: d.activeWhen || null,
+    }
+  })
+
+  const styleKeys = styleInputKeys(def)
+  return {
+    defId: def?.id,
+    instanceId: instance?.instanceId,
+    values,
+    all,
+    inputs: all.filter((f) => !styleKeys.has(f.key)),
+    style: all.filter((f) => styleKeys.has(f.key)),
+  }
+}
+
 /** The live (non-tombstoned) instance of a definition, if the blob stores one. */
 function liveInstanceFor(defId, settings) {
   const list = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
