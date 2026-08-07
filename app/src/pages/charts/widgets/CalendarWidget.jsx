@@ -55,19 +55,20 @@ function fmtNum(v, digits = 2) {
   if (!Number.isFinite(n)) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
-// The options-implied earnings move → "+/-3.1%" / "+/-12%" (1 decimal under 10,
-// else 0), matching the EPS/REV surprise rounding. The "+/-" reads cleaner than a
-// stacked "±" glyph. null when there's no implied-move data.
+// The options-implied earnings move as a plain magnitude → "3.1%" / "12%"
+// (1 decimal under 10, else 0), matching the EPS/REV surprise rounding. null when
+// there's no implied-move data.
 function fmtImPct(v) {
   const n = Number(v)
   if (!Number.isFinite(n)) return null
-  return `+/-${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
+  return `${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
 }
-// The implied-moves endpoint returns a flat { SYM: pct } map. Look a symbol up,
-// tolerating class-share dot/hyphen notation (BRK.B vs BRK-B).
+// Pull a symbol's implied-move % out of the enrichment overlay
+// ({ SYM: {expected_move:{pct}} }), tolerating class-share dot/hyphen notation.
 function imLookup(imMap, sym) {
   if (!imMap || !sym) return undefined
-  return imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
+  const e = imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
+  return e?.expected_move?.pct
 }
 // Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
 function fmtRev(m) {
@@ -143,15 +144,17 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
   const sorted = useMemo(() => {
     const arr = [...items]
     if (sort.by === 'mcap') return arr.sort(mcapDesc)
-    const keyFn = sort.by === 'eps' ? epsSurpKey : revSurpKey
+    const keyFn = sort.by === 'eps' ? epsSurpKey
+      : sort.by === 'im' ? (c => imLookup(imMap, c.sym))
+        : revSurpKey
     return arr.sort((a, b) => {
       const ka = keyFn(a), kb = keyFn(b)
       if (ka == null && kb == null) return 0
-      if (ka == null) return 1
+      if (ka == null) return 1     // no implied move / no surprise → sinks last
       if (kb == null) return -1
       return sort.dir === 'desc' ? kb - ka : ka - kb
     })
-  }, [items, sort])
+  }, [items, sort, imMap])
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
   const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
   const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
@@ -164,7 +167,12 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
           {title}<span className={styles.titleCount}>({items.length})</span>
         </button>
         <span className={styles.valCols}>
-          <span className={styles.imCol} title="Options-implied move">IM</span>
+          <button
+            type="button"
+            className={`${styles.imCol} ${styles.colBtn}${sort.by === 'im' ? ' ' + styles.colActive : ''}`}
+            onClick={() => clickCol('im')}
+            title="Sort by implied move"
+          >Impl. Move{caret('im')}</button>
           <button
             type="button"
             className={`${styles.epsCol} ${styles.colBtn}${sort.by === 'eps' ? ' ' + styles.colActive : ''}`}
@@ -265,11 +273,12 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   })
   const day = data?.days?.[selected] || null
 
-  // ── Implied-move ("IM") per earnings ticker for the selected day. Reads the
-  // nightly pre-report snapshot store ({ SYM: pct }): an instant indexed lookup
-  // that (unlike the live options chain) also has PAST days, so every day's
-  // implied moves load near-instantly. ──
-  const { data: imData } = useSWR(`/api/calendar/implied-moves?date=${selected}`, fetcher, {
+  // ── Implied-move ("IM") per earnings ticker for the selected day — the
+  // options-implied move from the same enrichment overlay the /calendar page uses
+  // ({ SYM: {expected_move:{pct}} }). It's the correct tight-expiry earnings move;
+  // it's only available for today's + upcoming reporters (the live options chain
+  // has no expired past expiries), so past days show "—". ──
+  const { data: imData } = useSWR(`/api/calendar/enrichment?date=${selected}`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
   const imMap = imData && typeof imData === 'object' ? imData : null

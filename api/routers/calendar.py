@@ -2921,37 +2921,6 @@ def get_enrichment(date_str: str | None = Query(None, alias="date")):
     return _compute_enrichment_for_date(target)
 
 
-@router.get("/api/calendar/implied-moves")
-def get_implied_moves(date_str: str | None = Query(None, alias="date")):
-    """{SYM: pct} — pre-report implied moves for one day, from the nightly store.
-
-    Instant (an indexed SQLite read, no provider calls) and — unlike the live
-    /enrichment `expected_move` — available for PAST days too: it serves the
-    honest pre-report value captured the night before, rather than recomputing
-    from a live options chain that only lists FUTURE expiries. Powers the
-    Calendar widget's "IM" column so every day (past + today's captured
-    reporters) loads its implied moves near-instantly.
-    """
-    import re as _re
-    if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
-        return {}
-    target = date_str or _today_et().isoformat()
-    ck = f"calendar_implied_moves_{target}"
-    hit = cache.get(ck)
-    if hit is not None:
-        return hit
-    from api.services import implied_store
-    try:
-        out = implied_store.get_implied_for_date(target)
-    except Exception:                                    # noqa: BLE001
-        return {}
-    # Past days are settled and never change; today/future can still gain
-    # reporters as the nightly capture lands, so keep their cache short.
-    is_past = target < _today_et().isoformat()
-    cache.set(ck, out, ttl=(6 * 3600) if is_past else 300)
-    return out
-
-
 @router.get("/api/calendar/enrichment-batch")
 def get_enrichment_batch(dates: str | None = None):
     """Batch enrichment for a whole week in ONE request. `dates` = comma-separated
