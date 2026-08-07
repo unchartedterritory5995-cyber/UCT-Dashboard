@@ -172,7 +172,8 @@ def test_sweep_records_final_bar_signal(tmp_ledger):
     flow = _flow_on(bars, 25)
     res = run_sweep(["NVDA"], fetch_bars=lambda s: bars,
                     fetch_flow=lambda s, c: flow, now_iso="2026-08-03")
-    assert res == {"symbols": 1, "scanned": 1, "recorded": 1, "errors": 0, "stale": 0}
+    assert res == {"symbols": 1, "scanned": 1, "recorded": 1, "errors": 0, "stale": 0,
+                   "covered": 1, "uncovered": 0}
     assert len(ledger.get_signals("NVDA")) == 1
 
 
@@ -223,7 +224,8 @@ def test_a_store_behind_the_session_never_records_off_its_last_bar(
 
     res = run_sweep(["NVDA"], **_kwargs(bars, _flow_on(bars, 25, 26)))
 
-    assert res == {"symbols": 1, "scanned": 1, "recorded": 1, "errors": 0, "stale": 1}
+    assert res == {"symbols": 1, "scanned": 1, "recorded": 1, "errors": 0, "stale": 1,
+                   "covered": 1, "uncovered": 0}
     rows = ledger.get_signals("NVDA")
     assert [r["bar_time"] for r in rows] == [_ymd(bars[25]["t"])]
     assert _ymd(bars[26]["t"]) not in {r["bar_time"] for r in rows}
@@ -237,7 +239,8 @@ def test_a_current_store_records_both_including_the_last(tmp_ledger, store_curre
 
     res = run_sweep(["NVDA"], **_kwargs(bars, _flow_on(bars, 25, 26)))
 
-    assert res == {"symbols": 1, "scanned": 1, "recorded": 2, "errors": 0, "stale": 0}
+    assert res == {"symbols": 1, "scanned": 1, "recorded": 2, "errors": 0, "stale": 0,
+                   "covered": 1, "uncovered": 0}
     assert {r["bar_time"] for r in ledger.get_signals("NVDA")} == {
         _ymd(bars[25]["t"]), _ymd(bars[26]["t"])}
 
@@ -249,13 +252,15 @@ def test_the_stale_count_separates_a_behind_store_from_a_quiet_night(
     setups — and the first one is an outage."""
     store_current_through(19000101)                     # nothing can be current
     res = run_sweep(["NVDA", "AMD"], **_kwargs())
-    assert res == {"symbols": 2, "scanned": 2, "recorded": 0, "errors": 0, "stale": 2}
+    assert res == {"symbols": 2, "scanned": 2, "recorded": 0, "errors": 0, "stale": 2,
+                   "covered": 2, "uncovered": 0}
 
 
 def test_a_symbol_with_no_bars_is_stale_not_a_crash(tmp_ledger):
     res = run_sweep(["NEW"], fetch_bars=lambda s: [],
                     fetch_flow=lambda s, c: {}, now_iso="2026-08-03")
-    assert res == {"symbols": 1, "scanned": 1, "recorded": 0, "errors": 0, "stale": 1}
+    assert res == {"symbols": 1, "scanned": 1, "recorded": 0, "errors": 0, "stale": 1,
+                   "covered": 0, "uncovered": 1}
 
 
 def test_the_expected_session_comes_from_the_bars_store_calendar(store_current_through):
@@ -286,7 +291,8 @@ def test_a_market_holiday_is_a_clean_no_op_and_needs_no_guard(tmp_ledger):
     holiday = run_sweep(["NVDA"], **kwargs)       # identical bars — nothing new closed
 
     assert first["recorded"] == 1
-    assert holiday == {"symbols": 1, "scanned": 1, "recorded": 0, "errors": 0, "stale": 0}
+    assert holiday == {"symbols": 1, "scanned": 1, "recorded": 0, "errors": 0,
+                       "stale": 0, "covered": 1, "uncovered": 0}
     assert len(ledger.get_signals("NVDA")) == 1
 
 
@@ -343,7 +349,8 @@ def test_one_refused_signal_does_not_cost_the_others(
     res = run_sweep(["NVDA"], **_kwargs(bars, _flow_on(bars, 25, 26)))
 
     assert calls["n"] == 2, "the second signal must still be attempted"
-    assert res == {"symbols": 1, "scanned": 1, "recorded": 1, "errors": 1, "stale": 0}
+    assert res == {"symbols": 1, "scanned": 1, "recorded": 1, "errors": 1, "stale": 0,
+                   "covered": 0, "uncovered": 1}
     assert len(ledger.get_signals("NVDA")) == 1
 
 
@@ -368,14 +375,16 @@ def test_a_dead_symbol_is_logged_and_the_pass_continues(tmp_ledger, caplog):
     with caplog.at_level("ERROR", logger="signature.sweep"):
         res = run_sweep(["BAD", "NVDA", "AMD"], fetch_bars=bars,
                         fetch_flow=lambda s, c: _flow_on(good, 25), now_iso="2026-08-03")
-    assert res == {"symbols": 3, "scanned": 2, "recorded": 2, "errors": 1, "stale": 0}
+    assert res == {"symbols": 3, "scanned": 2, "recorded": 2, "errors": 1, "stale": 0,
+                   "covered": 2, "uncovered": 0}
     assert any("BAD" in r.getMessage() for r in caplog.records)
 
 
 def test_a_symbol_with_no_signal_is_still_a_clean_scan(tmp_ledger):
     """Quiet tape is an ANSWER. It must not read as an error."""
     res = run_sweep(["SPY"], **_kwargs(_quiet_bars(), {}))
-    assert res == {"symbols": 1, "scanned": 1, "recorded": 0, "errors": 0, "stale": 0}
+    assert res == {"symbols": 1, "scanned": 1, "recorded": 0, "errors": 0, "stale": 0,
+                   "covered": 1, "uncovered": 0}
 
 
 # ── F2: the flow read keeps three columns, inside the window only ───────────
@@ -614,7 +623,7 @@ def test_a_failed_flow_read_is_an_error_not_an_empty_tape(monkeypatch, tmp_ledge
                         lambda symbols, **kw: seen.setdefault("res", real(symbols, **kw)))
     sweep_mod.sweep_job()
     assert seen["res"] == {"symbols": 1, "scanned": 0, "recorded": 0,
-                           "errors": 1, "stale": 0}
+                           "errors": 1, "stale": 0, "covered": 0, "uncovered": 0}
 
 
 def test_sweep_job_never_raises_into_the_scheduler(monkeypatch, caplog):

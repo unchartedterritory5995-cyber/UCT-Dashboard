@@ -66,7 +66,7 @@
 // re-add, which `mergeSettingsOverride` already understands.
 
 import { validateInputValue } from './defSchema'
-import { legacyInstanceId, stackRank } from './instances'
+import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
@@ -242,6 +242,129 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
         hidden: false,
       }
   return { ...withInstances(cs, [...rest, revived], registry), indicators }
+}
+
+/** The LIVE instance under `instanceId`, or null. A tombstone is not an
+ *  instance: every door below refuses one rather than reviving it. */
+export function findInstance(cs, instanceId) {
+  const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+  return list.find(i => isLiveInstance(i) && i.instanceId === instanceId) || null
+}
+
+/**
+ * Hide or show ONE instance.
+ *
+ * `hidden` is REMOVE-and-rebind, not park: `pool.planBindings` drops a hidden
+ * instance and the binder calls `removeSeries`, which under `paneMode() ===
+ * 'panes'` drops the pane synchronously. That is the shipped decision
+ * (`__tests__/hiddenIsRemovedNotParked.test.js`) and this door does not change it.
+ *
+ * ⛔ IT DOES NOT TOUCH THE MIRROR. `isIndicatorEnabled` counts a hidden instance
+ * as ON — `Alt+Shift+I` declutters the chart and must not uncheck every box —
+ * so writing `indicators[defId].enabled = false` here would make the checkbox
+ * disagree with the reader on the very next paint.
+ */
+export function setInstanceHidden(cs, instanceId, hidden, registry) {
+  if (!cs || typeof cs !== 'object' || typeof hidden !== 'boolean') return cs
+  if (!findInstance(cs, instanceId)) return cs
+  const next = cs.indicatorInstances.map(i =>
+    (i && i.instanceId === instanceId) ? { ...i, hidden } : i)
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Remove ONE instance, leaving its siblings drawing.
+ *
+ * ⭐ THE MIRROR IS "AT LEAST ONE LIVE INSTANCE", NOT "THE ONE I JUST DELETED".
+ * `cs.indicators.<id>.enabled` is read by the `?indicators=` render route and by
+ * `mergeSettingsOverride`, neither of which knows about instances. Clearing it
+ * while a sibling still draws would tell those two readers RSI is off while the
+ * chart draws it — the exact disagreement the write-through mirror exists to
+ * prevent.
+ */
+export function removeInstance(cs, instanceId, registry) {
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const defId = inst.defId
+  const next = cs.indicatorInstances.map(i =>
+    (i && i.instanceId === instanceId) ? instanceTombstone(instanceId) : i)
+  const indicators = { ...(cs.indicators || {}) }
+  if (!next.some(i => isLiveInstance(i) && i.defId === defId)) {
+    indicators[defId] = { ...(indicators[defId] || {}), enabled: false }
+  }
+  return { ...withInstances(cs, next, registry), indicators }
+}
+
+/**
+ * Set one input on ONE instance.
+ *
+ * Same validation as `setIndicatorInput` and for the same reason — an input the
+ * definition does not declare, or a value it would reject, produces an instance
+ * `normalizeInstances` then DROPS, i.e. an indicator that silently disappears on
+ * the next paint. Refused writes return `cs` by IDENTITY so the caller can skip
+ * persisting.
+ *
+ * ⛔ IT DOES NOT WRITE THE MIRROR. The mirror is per DEFINITION and cannot carry
+ * two instances' periods; writing one of them there would make the settings row
+ * and the `?indicators=` route show a number no line on the chart is drawn with.
+ */
+export function setInstanceInput(cs, instanceId, key, value, registry) {
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const def = resolveRegistry(registry)(inst.defId)
+  if (!def) return cs
+  const declared = declaredInputs(def).get(key)
+  if (!declared) return cs
+  const coerced = coerce(declared, value)
+  if (coerced === undefined) return cs
+  const errors = []
+  validateInputValue(declared, coerced, `inputs.${key}`, errors)
+  if (errors.length) return cs
+
+  const next = cs.indicatorInstances.map(i => (
+    i && i.instanceId === instanceId ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i
+  ))
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Add ANOTHER instance of a definition already on the chart.
+ *
+ * The new instance carries the definition's DECLARED defaults rather than a copy
+ * of a sibling's inputs: "another RSI" that arrives identical to the one already
+ * there draws a second line exactly on top of the first, which reads as nothing
+ * having happened. `stackRank` gives siblings an equal rank and
+ * `Array.prototype.sort` is stable (ES2019), so `withInstances` preserves the
+ * order they were added in.
+ *
+ * ⛔ IT ALSO SETS THE MIRROR ON. A user can reach this only for a definition that
+ * is already drawing, but the blob a grid cell hands back may not say so, and an
+ * instance list that draws while the mirror says OFF is the disagreement above in
+ * the other direction.
+ *
+ * ⭐ EXPORTED WITH NO CALLER. Nothing in `app/src` reaches this until the
+ * duplicate-indicator surface lands; `controlDoorCensus.test.js` asserts that
+ * absence rather than assuming it.
+ */
+export function addInstance(cs, defId, registry) {
+  const def = resolveRegistry(registry)(defId)
+  if (!def || !cs || typeof cs !== 'object') return cs
+  const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const inputs = {}
+  for (const [key, declared] of declaredInputs(def)) {
+    if (declared.default !== undefined) inputs[key] = declared.default
+  }
+  const added = {
+    instanceId: newInstanceId(defId, list),
+    defId,
+    ...(Number.isInteger(def.version) ? { defVersion: def.version } : {}),
+    inputs,
+    ...(placementFor(def, defId, cs) ? { placement: placementFor(def, defId, cs) } : {}),
+    hidden: false,
+  }
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[defId] = { ...(indicators[defId] || {}), enabled: true }
+  return { ...withInstances(cs, [...list, added], registry), indicators }
 }
 
 /**

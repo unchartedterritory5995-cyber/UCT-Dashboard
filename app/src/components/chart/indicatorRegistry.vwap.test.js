@@ -22,7 +22,19 @@ import { ENGINE_OWNED } from './engine/flipState'
 // what replaced it: the row's fields are DERIVED, and the row's writes go
 // through `instanceControls` like every other control door onto a flipped id.
 
-const vwapRow = (settings) => listEngineIndicators(settings, engineRegistry).find((r) => r.id === 'vwap')
+/** ⚠️ BY `defId`, NOT BY `id` — chart-UX-walls Task 6. A generated row is keyed by
+ *  the INSTANCE it edits whenever one exists (`legacy:vwap`), so `r.id === 'vwap'`
+ *  now finds a row only on a blob with NO vwap instance — which is exactly half the
+ *  fixtures below, and the other half would have read `undefined.values`. The
+ *  claim every case makes is about VWAP's row, which is what `defId` names.
+ *  A definition with two live instances has two rows; every fixture here has at
+ *  most one, and the length is asserted so a second one cannot pass unnoticed. */
+const vwapRow = (settings) => {
+  const rows = listEngineIndicators(settings, engineRegistry).filter((r) => r.defId === 'vwap')
+  if (rows.length > 1) throw new Error(`vwapRow: ${rows.length} vwap rows — this fixture has more `
+    + 'than one live instance and "the VWAP row" is ambiguous')
+  return rows[0]
+}
 const VWAP_DEF = engineRegistry.getDefinition('vwap')
 
 describe('the rail — the hand-written registry lists nothing the engine owns', () => {
@@ -170,7 +182,26 @@ describe('the row is a CONTROL DOOR — one reader, one writer', () => {
     const next = applyRowPatch(vwapRow(on), { opacity: 40 }, on, engineRegistry)
     const inst = next.indicatorInstances.find((i) => i.defId === 'vwap')
     expect(inst.inputs.opacity, 'the opacity write never reached the instance').toBe(40)
+
+    // ⭐ UNCHANGED THROUGH chart-UX-walls TASK 6, AND THAT IS THE POINT OF ITS
+    // DEVIATION. Task 6 makes a settings row per INSTANCE and routes a user-added
+    // instance's input write at `setInstanceInput`, which deliberately does NOT
+    // write the mirror. This row names `legacy:vwap` — the instance
+    // `migrateLegacyToInstances` projects the mirror INTO — so it keeps the defId
+    // door and the mirror keeps agreeing with the instance it describes. The
+    // brief's form (every instance row at `setInstanceInput`) would have left this
+    // key stale for every user who has only one VWAP, i.e. all of them.
     expect(next.indicators.vwap.opacity, 'the legacy mirror stopped being written').toBe(40)
+
+    // ⛔ AND THE CONTROL FOR THE OTHER BRANCH: a row with NO instance still writes
+    // the mirror ALONE and does NOT switch the indicator on — the "type a period
+    // beside an unchecked box" rule, unchanged.
+    const mirrorOnly = applyRowPatch(vwapRow(off), { opacity: 40 }, off, engineRegistry)
+    expect(mirrorOnly.indicators.vwap.opacity,
+      'the no-instance row stopped writing the mirror — a user typing beside an unchecked '
+      + 'box now writes nowhere at all').toBe(40)
+    expect(mirrorOnly.indicatorInstances.some((i) => i.defId === 'vwap' && !i.deleted),
+      'typing a value beside an unchecked box added the indicator to the chart').toBe(false)
   })
 
   it('shows what the CHART is drawing with, not the mirror, when the two differ', () => {

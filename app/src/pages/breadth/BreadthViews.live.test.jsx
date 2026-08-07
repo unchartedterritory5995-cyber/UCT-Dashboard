@@ -4,8 +4,9 @@
  * things must hold that nothing else enforces:
  *
  *   1. the date cursor must not present a provisional reading as a finished day
- *   2. drill-down must be off, because the per-metric stock lists are built
- *      with the row at 4:15 and a click would 404
+ *   2. drill-down must route per metric — live for what was measured live, the
+ *      carried session for what wasn't, and nothing at all when a carried
+ *      metric has no session to attribute its names to
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
@@ -45,6 +46,9 @@ function makeRows() {
   return [liveRow, stored]   // newest-first, as the API serves it
 }
 
+// What useLiveBreadth hands down: which metrics are carried, and from when.
+const LIVE_META = { carried: new Set(['atr_ext_7', 'naaim']), carriedFrom: '2026-08-04' }
+
 describe('BreadthViews with a provisional row', () => {
   it('shows a clock, not a date, while the cursor sits on the live row', () => {
     render(<BreadthViews rows={makeRows()} onDrill={vi.fn()} liveStamp="1:44 PM" />)
@@ -59,15 +63,32 @@ describe('BreadthViews with a provisional row', () => {
     expect(screen.queryByText(/LIVE ·/)).not.toBeInTheDocument()
   })
 
-  it('offers no drillable tile on the live row, and fires nothing if clicked', async () => {
-    // Every view derives clickability from `metric.drillKey` alone, so the
-    // container strips it rather than each view learning about liveness. That
-    // means the tile stops ADVERTISING a click (no button role, no "details"
-    // label) — a disabled-looking tile that still fires would be worse than one
-    // that never offered.
+  it('offers a live-measured tile on the live row and drills it', async () => {
     const onDrill = vi.fn()
+    render(<BreadthViews rows={makeRows()} onDrill={onDrill} live={LIVE_META}
+                         liveStamp="1:44 PM" />)
+    const tile = screen.queryAllByRole('button')
+      .find(b => /details$/.test(b.getAttribute('aria-label') ?? ''))
+    expect(tile, 'up_4pct_today is measured live and should offer a click').toBeTruthy()
+    await userEvent.click(tile)
+    expect(onDrill).toHaveBeenCalledWith(
+      expect.objectContaining({ _live: true }),
+      expect.objectContaining({ drillKey: expect.any(String) }),
+      LIVE_META,
+    )
+  })
+
+  // Every view derives clickability from `metric.drillKey` alone, so the
+  // container strips it rather than each view learning about liveness. A tile
+  // that looks disabled but still fires would be worse than one that never
+  // offered — so a carried metric with no session behind it must do neither.
+  it('offers nothing for a carried metric with no session to attribute it to', async () => {
+    const onDrill = vi.fn()
+    const carriedEverything = { carried: new Set(['pct_above_50sma', 'up_4pct_today']),
+                                carriedFrom: null }
     const { container } = render(
-      <BreadthViews rows={makeRows()} onDrill={onDrill} liveStamp="1:44 PM" />)
+      <BreadthViews rows={makeRows()} onDrill={onDrill} live={carriedEverything}
+                    liveStamp="1:44 PM" />)
 
     const drillable = screen.queryAllByRole('button')
       .filter(b => /details$/.test(b.getAttribute('aria-label') ?? ''))
@@ -79,17 +100,20 @@ describe('BreadthViews with a provisional row', () => {
     expect(onDrill).not.toHaveBeenCalled()
   })
 
-  it('restores drill-down on a settled day', async () => {
+  it('drills a settled day by its own row, unchanged', async () => {
     const onDrill = vi.fn()
-    render(<BreadthViews rows={makeRows()} onDrill={onDrill} liveStamp="1:44 PM" />)
+    render(<BreadthViews rows={makeRows()} onDrill={onDrill} live={LIVE_META}
+                         liveStamp="1:44 PM" />)
     await userEvent.click(screen.getByLabelText('Previous day'))
     const tile = screen.queryAllByRole('button')
       .find(b => /details$/.test(b.getAttribute('aria-label') ?? ''))
     expect(tile, 'a settled day should offer at least one drillable tile').toBeTruthy()
     await userEvent.click(tile)
-    expect(onDrill).toHaveBeenCalledWith('2026-08-04', expect.objectContaining({
-      drillKey: expect.any(String),
-    }))
+    expect(onDrill).toHaveBeenCalledWith(
+      expect.objectContaining({ date: '2026-08-04' }),
+      expect.objectContaining({ drillKey: expect.any(String) }),
+      LIVE_META,
+    )
   })
 
   it('renders unchanged when there is no live row at all', () => {

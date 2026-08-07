@@ -2350,7 +2350,22 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # Caching empty for 5s creates a "poisoned" window where every concurrent
         # client gets bars=[] even if the upstream API would now succeed.
         if result_bars:
-            cache.set(cache_key, payload, ttl=ttl)
+            # If the served intraday result is STILL cold-stale (the delta fetch
+            # returned nothing — thin ticker, transient upstream failure — so we're
+            # serving yesterday's `stored_rows`), cache it with a SHORT retry TTL,
+            # not the full 5-min TTL. Otherwise the stale payload pins Layer 1 for
+            # 300s and every 30s SWR poll re-serves it — the chart shows only the
+            # prior session until an unrelated event (ticker switch) evicts it (the
+            # SPCX "only fixes if I click another ticker" report). Mirrors the bg
+            # path's `else: ttl=15`. Fresh (current-session) results keep full TTL.
+            _serve_ttl = ttl
+            if tf in ("1", "5", "15", "30", "60"):
+                try:
+                    if _is_cold_stale_intraday(tf, int(result_bars[-1].get("t"))):
+                        _serve_ttl = 15
+                except (TypeError, ValueError, AttributeError):
+                    pass
+            cache.set(cache_key, payload, ttl=_serve_ttl)
 
     finally:
         # Always release waiters — cache is already populated above.

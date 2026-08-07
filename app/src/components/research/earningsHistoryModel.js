@@ -192,7 +192,12 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
       // announcement date for an already-reported quarter isn't in this
       // source, so report_date stays null rather than being filled with the
       // period end (that collapse is the P2 T8b bug this guards against).
-      report_date: null,
+      // The FMP history leg carries the TRUE announcement date, so this can
+      // finally be populated. That is NOT the P2 T8b bug guarded against
+      // above: that bug filled report_date with the PERIOD END (a different
+      // concept wearing the same name). A Finnhub-sourced row has no
+      // announcement date and correctly stays null.
+      report_date: dayKey(h?.report_date),
       period_end: dayKey(h?.period),
       fiscal_year: fiscalYear,
       fiscal_quarter: fiscalQuarter,
@@ -222,8 +227,22 @@ export function buildQuarters({ beatHistory, histStats, reportDate, row } = {}) 
   // current row labels and keys identically to a past row for the SAME print.
   const currentFiscalYear = num(row?.year)
   const currentFiscalQuarter = num(row?.quarter)
-  const alreadyInPast = currentFiscalYear != null && currentFiscalQuarter != null
+  const matchesByFiscal = currentFiscalYear != null && currentFiscalQuarter != null
     && past.some((p) => p.fiscal_year === currentFiscalYear && p.fiscal_quarter === currentFiscalQuarter)
+
+  // SECOND KEY — the announcement date. The fiscal check above assumes the
+  // calendar row carries Finnhub quarter/year, which it frequently does NOT:
+  // JAZZ's 2026-08-03 print arrived with both null, so the guard could not
+  // fire and the SAME print rendered twice — once as "Q2 26" from history and
+  // again as "Q3 26", that second label invented by the calendar-month
+  // fallback in quarterLabel(). Live on prod 2026-08-06, and no unit test saw
+  // it because every fixture supplied fiscal identity the real row lacks.
+  //
+  // A shared report_date is unambiguous: one company cannot announce two
+  // different quarters on one day.
+  const matchesByDate = past.some((p) => p.report_date && p.report_date === rd)
+
+  const alreadyInPast = matchesByFiscal || matchesByDate
   if (alreadyInPast) {
     // DECISION 4: the print already landed in beat_history under this exact
     // fiscal quarter — the past row above already carries its full outcome

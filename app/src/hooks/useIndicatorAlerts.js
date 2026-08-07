@@ -79,22 +79,63 @@ export function useIndicatorAlertCatalog() {
   }
 }
 
+/**
+ * Arm an alert — and say what happened.
+ *
+ * ⛔ IT USED TO SWALLOW EVERY NON-OK RESPONSE AND RETURN `null`, so the create
+ * path's carefully-written 400s — the price-alias routing message, the "not an
+ * indicator this chart can evaluate" refusal, and `refusal_for`'s three
+ * "this could never fire" gates — reached NOBODY. The user clicked Add Alert,
+ * the label flickered, and nothing appeared. Measured 2026-08-06 against a real
+ * 400: the returned value carried no part of the message and the popover
+ * rendered zero `role="alert"` nodes.
+ *
+ * That was the exact inverse of the decision one function above, where the
+ * CATALOG fetcher was deliberately made to THROW because a swallowed failure is
+ * invisible.
+ *
+ * ⛔ THE MESSAGE IS THE SERVER'S, NEVER A PARAPHRASE OF IT. A client-side
+ * restatement of a refusal is a second source of truth for one decision, and
+ * the two rot apart the first time the backend rewords a gate. The only
+ * sentences written here are the two the server cannot supply: a transport
+ * failure (it never answered) and a refusal whose body is unreadable.
+ *
+ * ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING. FastAPI answers a
+ * schema-invalid body with `detail: [{loc, msg, type}, …]`; interpolating that
+ * would show the user "[object Object]", which is worse than the silence it
+ * replaces.
+ *
+ * @returns {Promise<{ok: true, id: number|null} | {ok: false, error: string}>}
+ *          — never null, on any branch. Callers read `.ok` unconditionally.
+ */
 export async function createIndicatorAlert(payload) {
+  let r
   try {
-    const r = await fetch(KEY, {
+    r = await fetch(KEY, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (r.ok) {
-      mutate(KEY)
-      return await r.json()
-    }
   } catch {
-    // swallow; UI will reflect failure via SWR cache
+    // ⛔ A TRANSPORT FAILURE AND A REFUSAL NEED DIFFERENT WORDS. One is "try
+    // again", the other is "this alert can never fire". The same sentence for
+    // both sends the user to the wrong fix — retrying forever on a structurally
+    // mute alert, or abandoning one that would have worked on the next attempt.
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
-  return null
+  if (r.ok) {
+    mutate(KEY)
+    let id = null
+    try { id = (await r.json())?.id ?? null } catch { /* a body-less 200 is still an accepted alert */ }
+    return { ok: true, id }
+  }
+  let detail = ''
+  try {
+    const body = await r.json()
+    if (typeof body?.detail === 'string') detail = body.detail
+  } catch { /* not JSON — an HTML error page, or an empty body */ }
+  return { ok: false, error: detail || `The server refused this alert (${r.status}).` }
 }
 
 /**

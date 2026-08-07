@@ -193,6 +193,25 @@ const periodInput = (key, label, dflt, min, max) => ({
 // 2-on/2-off against the shipped 6-on/6-off, **379 changed pixels**. The
 // vocabulary now names the style, and these three say what they draw.
 
+// ⭐ TASK 2 (2026-08-06) — EVERY DEFINITION THAT BINDS A DATA PLOT DECLARES A CHIP.
+// TEN of the seventeen declared none that the readout could print — `bb`, `vwap`,
+// `mfi`, `cci`, `williamsR`, `adx`, `obv`, `donchian`, `avwap` and `atrBands` —
+// so a user who enabled MFI or OBV got a line with NO LABEL AT ANY TIME, hovering
+// or not, because `readout.chipsFrom:167` emits nothing for a plot with no
+// `legend` block. (The phase plan measured NINE and missed `atrBands`, whose three
+// plots all declared `legend: { hide: true }`; the rail in
+// `__tests__/legendFromDefinitions.test.jsx` is DERIVED from this array for
+// exactly that reason, and it named the tenth.)
+//
+// ⚠️ A `legend.label` SHORT-CIRCUITS `meta.legendParams` (`readout.chipLabel:107`),
+// so the two are never declared together below: a definition whose `shortName` is
+// already the chip's stem declares params and no label, and `donchian` — the one
+// whose stem is not — declares a label and no params. Declaring both is how a
+// control that looks live becomes inert, which is the trap `stoch`'s own comment
+// records from the other side.
+//
+// ⚠️ AND A PARAM MUST NAME A DECLARED INPUT (`defSchema:544`): `obv` takes only a
+// colour, so it declares NO `legendParams` — one there would refuse registration.
 const RAW_DEFS = [
   // ── RSI ──────────────────────────────────────────────────────────────────
   nativeDef('rsi', 'rsi',
@@ -281,6 +300,12 @@ const RAW_DEFS = [
   nativeDef('bb', 'bb',
     { name: 'Bollinger Bands', shortName: 'BB', category: 'Volatility',
       description: 'A moving average with volatility bands, so you can see when range is unusual.',
+      // ⭐ TASK 2 — the chip reads `BB(20, 2) 431.20`. `shortName` is ALREADY the
+      // stem, so the basis declares no `legend.label`: one would short-circuit
+      // these two params and leave them inert. They earn their place — a chart
+      // can hold BB(20,2) and BB(50,2) at once, and two chips reading `BB 431.20`
+      // name neither.
+      legendParams: ['period', 'stdDev'],
       tags: ['overlay', 'volatility', 'bands'] },
     onPrice,
     [
@@ -289,11 +314,23 @@ const RAW_DEFS = [
       colorInput('color', 'Color', 'rgba(156,39,176,0.85)'),
     ],
     [
-      // The shipped legend has no Bollinger chip.
+      // 🔴 THIS READ "The shipped legend has no Bollinger chip." IT WAS TRUE, AND
+      // IT WAS THE DEFECT — not a preference. Three lines on the price scale and
+      // no label at any time is an indicator a user cannot name, and no test in
+      // the tree could see it because this file's legend fixture enables only the
+      // six definitions that already had chips.
+      //
+      // The BASIS gets the chip and the two EDGES stay hidden: three numbers for
+      // one indicator is the readout regression MACD's histogram is hidden for,
+      // and the basis is the line a trader reads.
       { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
       // The middle IS the band's centre column; `edges` names the two that bound
       // it. See defSchema's validateBandEdges for why the edges stay real plots.
-      { key: 'middle', label: 'Basis', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { hide: true } },
+      //
+      // TWO decimals because it is a PRICE on the candles' own scale — the same
+      // precision `ichimoku`'s TK/KJ print, and `readout.DEFAULT_DECIMALS`' own
+      // stated reason: a chip should agree with the axis it sits above.
+      { key: 'middle', label: 'Basis', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { decimals: 2 } },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
     ]),
 
@@ -333,7 +370,13 @@ const RAW_DEFS = [
       { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
     ],
     [
-      // The shipped legend has no VWAP chip.
+      // 🔴 THIS READ "The shipped legend has no VWAP chip." Task 2 gives it one:
+      // TWO decimals, because it is a dollar price on the candles' own scale.
+      //
+      // ⚠️ NO `legendParams`, and that is a reading of the inputs rather than an
+      // omission — this definition declares colour, opacity, line style and line
+      // width, and not one of them changes WHAT IS MEASURED. A param that names a
+      // cosmetic would print `VWAP(100)` and mean nothing.
       //
       // ⚠️ `lineStyle: '$lineStyle'` IS LOAD-BEARING, and VWAP is the first
       // definition to need it. `StockChart.jsx:6004` maps the user's stored
@@ -346,7 +389,7 @@ const RAW_DEFS = [
       {
         key: 'vwap', label: 'VWAP', style: 'line',
         color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
-        role: 'primary', legend: { hide: true },
+        role: 'primary', legend: { decimals: 2 },
       },
     ]), compute: { kind: 'native', fn: 'vwap', rev: 2 } }),
 
@@ -482,6 +525,7 @@ const RAW_DEFS = [
   nativeDef('mfi', 'mfi',
     { name: 'Money Flow Index', shortName: 'MFI', category: 'Volume',
       description: 'RSI weighted by volume — momentum that only counts when size shows up.',
+      legendParams: ['period'],
       tags: ['oscillator', 'volume', 'momentum'] },
     fixedPane(0, 100, 0.15),
     [
@@ -489,7 +533,10 @@ const RAW_DEFS = [
       colorInput('color', 'Color', '#c084fc'),
     ],
     [
-      { key: 'mfi', label: 'MFI', style: 'line', color: '$color', width: 1, role: 'primary' },
+      // ⭐ TASK 2 — `MFI(14) 54.3`. ONE decimal: a 0-100 BOUNDED oscillator read
+      // against its 80/20 guides, which is `rsi`'s family and `rsi`'s precision.
+      { key: 'mfi', label: 'MFI', style: 'line', color: '$color', width: 1, role: 'primary',
+        legend: { decimals: 1 } },
       { key: 'bands', label: '80 / 20', style: 'hlines', levels: [80, 20], color: 'rgba(192,132,252,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
     ]),
 
@@ -497,6 +544,7 @@ const RAW_DEFS = [
   nativeDef('cci', 'cci',
     { name: 'Commodity Channel Index', shortName: 'CCI', category: 'Momentum',
       description: 'How far price sits from its own average, in units of its typical deviation.',
+      legendParams: ['period'],
       tags: ['oscillator', 'momentum'] },
     autoPane(0.15),
     [
@@ -504,7 +552,12 @@ const RAW_DEFS = [
       colorInput('color', 'Color', '#fbbf24'),
     ],
     [
-      { key: 'cci', label: 'CCI', style: 'line', color: '$color', width: 1, role: 'primary' },
+      // ⭐ TASK 2 — `CCI(20) 118.4`. ONE decimal: an oscillator, unbounded but read
+      // against the ±100 guides declared right below, so the tenth is the
+      // meaningful digit and the hundredth is noise — `rsi`'s convention applied
+      // to `cci`'s range rather than a second one invented for it.
+      { key: 'cci', label: 'CCI', style: 'line', color: '$color', width: 1, role: 'primary',
+        legend: { decimals: 1 } },
       { key: 'bands', label: '±100', style: 'hlines', levels: [100, -100], color: 'rgba(251,191,36,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
       { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(251,191,36,0.2)', width: 1, lineStyle: 'largeDashed', role: 'context' },
     ]),
@@ -513,6 +566,9 @@ const RAW_DEFS = [
   nativeDef('williamsR', 'williams_r',
     { name: 'Williams %R', shortName: '%R', category: 'Momentum',
       description: 'Where price closed in its recent range, on a -100 to 0 scale.',
+      // ⭐ TASK 2 — `%R(14) -18.6`. NO `legend.label`: `shortName` is already the
+      // `%R` that `stoch` has to spell out per plot, so the params stay live.
+      legendParams: ['period'],
       tags: ['oscillator', 'momentum'] },
     fixedPane(-100, 0, 0.15),
     [
@@ -522,7 +578,10 @@ const RAW_DEFS = [
     [
       // `williams_r`, not `williamsR`: _CASE_COLUMNS names it that, and the two
       // lanes assert the same fixtures. See the module docstring.
-      { key: 'williams_r', label: '%R', style: 'line', color: '$color', width: 1, role: 'primary' },
+      // ONE decimal: a -100..0 BOUNDED oscillator, the same family as `rsi` and
+      // `stoch` (whose %K/%D ship at one) and read against the -20/-80 guides.
+      { key: 'williams_r', label: '%R', style: 'line', color: '$color', width: 1, role: 'primary',
+        legend: { decimals: 1 } },
       { key: 'bands', label: '-20 / -80', style: 'hlines', levels: [-20, -80], color: 'rgba(96,165,250,0.4)', width: 1, lineStyle: 'dashed', role: 'context' },
     ]),
 
@@ -530,6 +589,7 @@ const RAW_DEFS = [
   nativeDef('adx', 'adx',
     { name: 'Average Directional Index', shortName: 'ADX', category: 'Trend',
       description: 'How strong the trend is, regardless of direction, with the two directional lines.',
+      legendParams: ['period'],
       tags: ['trend', 'strength'] },
     fixedPane(0, 100, 0.15),
     [
@@ -539,7 +599,14 @@ const RAW_DEFS = [
       colorInput('minusDIColor', '-DI', '#ef4444'),
     ],
     [
-      { key: 'adx', label: 'ADX', style: 'line', color: '$adxColor', width: 2, role: 'primary' },
+      // ⭐ TASK 2 — `ADX(14) 27.5`. ONE decimal: a 0-100 bounded oscillator read
+      // against the 25 guide below, so the tenth is where the answer changes.
+      //
+      // ⛔ AND ONLY THE ADX LINE. `plusDI`/`minusDI` stay chip-less on purpose:
+      // the ADX line is the one a trader reads a NUMBER off, and three numbers for
+      // one indicator is the readout regression the band edges are hidden for.
+      { key: 'adx', label: 'ADX', style: 'line', color: '$adxColor', width: 2, role: 'primary',
+        legend: { decimals: 1 } },
       { key: 'plusDI', label: '+DI', style: 'line', color: '$plusDIColor', width: 1, role: 'secondary' },
       { key: 'minusDI', label: '-DI', style: 'line', color: '$minusDIColor', width: 1, role: 'secondary' },
       { key: 'trend', label: '25', style: 'hlines', levels: [25], color: 'rgba(229,231,235,0.3)', width: 1, lineStyle: 'dashed', role: 'context' },
@@ -555,7 +622,17 @@ const RAW_DEFS = [
       colorInput('color', 'Color', '#9ca3af'),
     ],
     [
-      { key: 'obv', label: 'OBV', style: 'line', color: '$color', width: 1, role: 'primary' },
+      // ⭐ TASK 2, AND THE ONE PRECISION THE CONTROLLER RULED ON (2026-08-06):
+      // ZERO decimals. OBV is a CUMULATIVE SHARE COUNT — tens or hundreds of
+      // millions — so a decimal on it is two characters of noise on a number
+      // whose last six digits nobody reads.
+      //
+      // ⚠️ NO `legendParams`, and NOT as an omission: this definition declares
+      // ONE input and it is a colour. `defSchema:544` refuses a param naming no
+      // declared input, so `legendParams: ['period']` here would not print `OBV`
+      // without brackets — it would refuse to register the definition at all.
+      { key: 'obv', label: 'OBV', style: 'line', color: '$color', width: 1, role: 'primary',
+        legend: { decimals: 0 } },
     ]),
 
   // ── Donchian Channels ────────────────────────────────────────────────────
@@ -585,7 +662,19 @@ const RAW_DEFS = [
       // drawn Donchian's mid-line SOLID where `StockChart.jsx:6550` draws it
       // large-dashed. No series count, no scale assertion and no `edges` check
       // can see that; `adxObvDonchianFlipParity.test.js` asserts it directly.
-      { key: 'middle', label: 'Mid', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'largeDashed', role: 'primary' },
+      // ⭐ TASK 2 — `DC 431.20`, on the BASIS only; the channel edges stay
+      // chip-less for the same reason BB's do. TWO decimals because it is a price
+      // on the candles' own scale.
+      //
+      // ⚠️ THE ONE `legend.label` AMONG THE TEN, AND THEREFORE THE ONE WITH NO
+      // `legendParams`. `shortName` is 'Donchian', which is the right name for the
+      // library dialog and too long for a chip row that Task 3 is about to make
+      // PERMANENT — so this plot names itself 'DC'. A label short-circuits
+      // `legendParams` in `chipLabel`, so declaring params beside it would leave
+      // them inert, which is exactly the shape `stoch`'s comment warns about. The
+      // period stays readable in the settings row and the library.
+      { key: 'middle', label: 'Mid', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'largeDashed', role: 'primary',
+        legend: { label: 'DC', decimals: 2 } },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'solid', role: 'secondary' },
     ]),
 
@@ -607,6 +696,11 @@ const RAW_DEFS = [
       name: 'Anchored VWAP', shortName: 'AVWAP', category: 'Volume',
       description: 'Volume-weighted average price measured from a chosen anchor, not from the session open.',
       tags: ['overlay', 'volume', 'anchored'],
+      // ⭐ TASK 2 — `AVWAP(session) 431.20`. The ANCHOR is the only thing that
+      // distinguishes two AVWAPs on one chart, which is precisely the case Phase C
+      // Task 14 authored this definition for, so it is the param the chip carries
+      // — the same reading `rsLine` makes of its `benchmark` below.
+      legendParams: ['anchor'],
       // ⚠️ INTRADAY ONLY, AND FOR A HARDER REASON THAN VWAP'S. Session VWAP is
       // gated because a session indicator is meaningless on a daily bar. AVWAP
       // is gated because ABOVE 60m THIS REPO'S BARS DO NOT CARRY AN INSTANT: the
@@ -644,21 +738,25 @@ const RAW_DEFS = [
       { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
     ],
     [
-      // ⚠️ `legend.hide`, LIKE ITS SESSION SIBLING, AND THE REASON IS A RAIL
-      // RATHER THAN A TASTE. `readout.test.js` and `enumerationSites.test.js`
-      // pin the chip set to *the NINE the shipped legend rendered* — a frozen
-      // historical record whose job is that a user's chip cannot silently
-      // disappear. A tenth chip here would force that list to be widened, and a
-      // list widened for a new indicator stops being a record of what shipped:
-      // the next migration that DROPS a chip would land in a table that has
-      // already learnt to grow. AVWAP is read off the price scale it sits on,
-      // exactly as session VWAP is, and its anchor is named in the settings row
-      // and the library. A chip for it is a separate, declarable decision — one
-      // `legend` edit and one line in that table, taken deliberately.
+      // ⭐ THE DECISION THIS BLOCK ASKED FOR, TAKEN. It used to read: *"A chip for
+      // it is a separate, declarable decision — one `legend` edit and one line in
+      // that table, taken deliberately"*, and it hid the chip so that the frozen
+      // "the NINE the shipped legend rendered" records in `readout.test.js` and
+      // `enumerationSites.test.js` would not have to grow.
+      //
+      // ⛔ THAT TRADE INVERTED THE MOMENT IT APPLIED TO TEN DEFINITIONS RATHER
+      // THAN ONE. The record was protecting users from a chip that silently
+      // DISAPPEARS; what it was actually holding in place was ten indicators that
+      // never had one — "AVWAP is read off the price scale it sits on" is true of
+      // every price overlay and is not a reason a line should be unnameable. The
+      // records stay EQUALITIES (a drop among the shipped nine still fails); what
+      // they stop being is a cap on how many indicators may be readable.
+      //
+      // TWO decimals, like its session sibling: a price on the candles' scale.
       {
         key: 'avwap', label: 'AVWAP', style: 'line',
         color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
-        role: 'primary', legend: { hide: true },
+        role: 'primary', legend: { decimals: 2 },
       },
     ]),
 
@@ -692,7 +790,15 @@ const RAW_DEFS = [
       // The middle IS the band's centre column — the close — and `edges` names
       // the two that bound it. Same shape as BB and Donchian; see defSchema's
       // `validateBandEdges` for why the edges stay first-class plots.
-      { key: 'middle', label: 'Close', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { hide: true } },
+      // ⭐ TASK 2 — `ATR Bands(14, 2) 431.20`. THE TENTH SILENT DEFINITION, and
+      // the one the phase plan's hand-typed list of nine did not contain: all
+      // three of its plots declared `legend: { hide: true }`, so it drew an
+      // envelope nobody could name while its `meta.legendParams` sat INERT beside
+      // them — declared, and read by nothing, because a hidden plot never reaches
+      // `chipLabel`. The derived rail is what named it.
+      //
+      // TWO decimals, because the basis is the CLOSE and the close is a price.
+      { key: 'middle', label: 'Close', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { decimals: 2 } },
       { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
     ]),
 ]

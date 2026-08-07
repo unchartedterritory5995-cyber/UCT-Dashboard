@@ -123,6 +123,35 @@ export function legacyInstanceId(defId) {
   return `${LEGACY_ID_PREFIX}${defId}`
 }
 
+/** The namespace for an instance a USER added, as opposed to one the v1→v2 fold
+ *  seeded. Distinct from `LEGACY_ID_PREFIX` because "came from the fourteen
+ *  legacy toggles" is a fact the migrator and `isIndicatorEnabled` still key off. */
+export const USER_ID_PREFIX = 'inst:'
+
+/**
+ * A fresh instance id for `defId` that nothing in `list` already uses.
+ *
+ * DETERMINISTIC — a pure function of the defId and the list. No clock, no
+ * counter, no randomness, for the same reason `legacyInstanceId` is: re-running
+ * a mint against the same list must produce the same answer, or a grid cell's
+ * stale snapshot mints a SECOND copy on its next unrelated write.
+ *
+ * ⛔ IT COUNTS TOMBSTONES. Reusing `inst:rsi:2` after that id was deleted gives
+ * the new instance a corpse's id: `mergeSettingsOverride` would collapse it back
+ * to the tombstone (`instanceShape.js`) and the indicator would be added and
+ * then silently vanish.
+ */
+export function newInstanceId(defId, list) {
+  const taken = new Set()
+  for (const i of (Array.isArray(list) ? list : [])) {
+    if (i && typeof i === 'object' && isNonEmptyString(i.instanceId)) taken.add(i.instanceId)
+  }
+  for (let n = 1; ; n++) {
+    const id = `${USER_ID_PREFIX}${defId}:${n}`
+    if (!taken.has(id)) return id
+  }
+}
+
 // ─── scope: the instance-shape half of per-chart sets ────────────────────────
 
 /** The field name, in one place, so the two producers and the two readers below

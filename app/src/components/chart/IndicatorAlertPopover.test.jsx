@@ -23,12 +23,16 @@ const H = vi.hoisted(() => ({
   created: [],
   valueCalls: [],
   currentValue: null,
+  // What `createIndicatorAlert` answers. It is `{ok, id} | {ok, error}` now, not
+  // `null | {id}` — see the hook's own docstring. A test that wants the refusal
+  // path sets this; everything else runs on the accepted answer.
+  createResult: { ok: true, id: 1 },
 }))
 
 vi.mock('../../hooks/useIndicatorAlerts', () => ({
   useIndicatorAlerts: () => ({ alerts: H.alerts, isLoading: false, refresh: () => {} }),
   useIndicatorAlertCatalog: () => H.catalog,
-  createIndicatorAlert: (payload) => { H.created.push(payload); return Promise.resolve({ id: 1 }) },
+  createIndicatorAlert: (payload) => { H.created.push(payload); return Promise.resolve(H.createResult) },
   deleteIndicatorAlert: () => {},
   toggleIndicatorAlert: () => {},
   // ⭐ SPEC §8's threshold prefill. `H.currentValue` defaults to null, which is
@@ -38,6 +42,7 @@ vi.mock('../../hooks/useIndicatorAlerts', () => ({
 }))
 
 import IndicatorAlertPopover from './IndicatorAlertPopover'
+import { NATIVE_TFS, tfLabel } from './timeframes'
 
 const RSI_ONLY = [{
   indicator: 'rsi',
@@ -58,6 +63,7 @@ beforeEach(() => {
   H.created.length = 0
   H.valueCalls.length = 0
   H.currentValue = null
+  H.createResult = { ok: true, id: 1 }
 })
 afterEach(cleanup)
 
@@ -583,5 +589,250 @@ describe('IndicatorAlertPopover — which chart INSTANCE the alert names', () =>
     // …a stale `rsi-1` here would attach an ADX alert to an RSI instance, and
     // deleting that RSI would then report the ADX alert as orphaned.
     expect(Object.keys(JSON.parse(JSON.stringify(H.created[0])))).not.toContain('instance_id')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 8 — "ADD ALERT" STOPPED FAILING SILENTLY.
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// MEASURED BEFORE THE FIX (2026-08-06, the shipped createIndicatorAlert driven
+// by a real 400 inside the shipped popover):
+//
+//   createIndicatorAlert(400 with detail) -> null
+//   the message survives in the return value?  false
+//   role="alert" nodes after clicking Add Alert: 0
+//   full popover text: "…Add AlertActive alerts for SPY (0)No alerts on this
+//                       symbol yet."     ← no reason, anywhere
+//
+// The create path had THREE refusals to say (`_PRICE_ALIASES`,
+// `value_function(address) is None`, `ias.refusal_for`) and the user saw the
+// button flicker. The message quoted below is `refusal_for('vwap','above','D')`
+// VERBATIM — and `D` is a timeframe the popover already offered, so this was a
+// refusal a user could provoke on the shipped build and never read.
+
+/** The REAL refusal, quoted from `indicator_alert_service.refusal_for`
+ *  (measured 2026-08-06). It is deliberately a sentence NO client code could
+ *  invent: if the component ever paraphrases instead of quoting, the exact
+ *  equality below stops holding. */
+const SERVER_REFUSAL =
+  'VWAP is only defined on an intraday timeframe. A D bar is stored under a ' +
+  'calendar date where this series needs a clock instant, so its whole column is ' +
+  'withheld and no number is ever produced. Arm it on one of 1, 15, 30, 5, 60.'
+
+describe('Task 8 — a refused Add Alert says WHY', () => {
+  it('⭐ shows the server\'s refusal, word for word', async () => {
+    mockCatalog(RSI_ONLY)
+    H.createResult = { ok: false, error: SERVER_REFUSAL }
+    render(<IndicatorAlertPopover sym="SPY" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+
+    const box = await screen.findByRole('alert')
+    // ⛔ EQUALITY, NOT `toContain`. A client-side paraphrase beside the server's
+    // sentence would be a SECOND source of truth for one refusal, and the two
+    // rot apart the first time the backend rewords. What the server said is
+    // what the user reads.
+    expect(box.textContent).toBe(SERVER_REFUSAL)
+  })
+
+  it('⛔ CONTROL: an ACCEPTED alert shows no refusal at all', async () => {
+    mockCatalog(RSI_ONLY)
+    render(<IndicatorAlertPopover sym="SPY" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    // A banner that is always there says nothing. This is the case that makes
+    // the one above mean something.
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('a SUCCESS clears the refusal the previous attempt left on screen', async () => {
+    mockCatalog(RSI_ONLY)
+    H.createResult = { ok: false, error: SERVER_REFUSAL }
+    render(<IndicatorAlertPopover sym="SPY" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await screen.findByRole('alert')
+
+    // …the user fixes it and tries again.
+    H.createResult = { ok: true, id: 7 }
+    fireEvent.click(screen.getByRole('button', { name: /add alert/i }))
+    await waitFor(() => expect(H.created).toHaveLength(2))
+    // A stale refusal sitting over a succeeded alert is the same lie the
+    // silence was, pointing the other way.
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+  })
+})
+
+// ─── THE HOOK: WHAT THE SERVER SAID, AND WHO SAID IT ────────────────────────
+//
+// The component only renders `res.error`; WHICH sentence that is, is decided in
+// `useIndicatorAlerts.createIndicatorAlert`. These cases drive the REAL exported
+// function (`vi.importActual` — the module is mocked for everything above) with
+// a stubbed `fetch`, because a mock of the thing under test proves nothing.
+
+/** The real, unmocked module — everything above runs against the vi.mock. */
+const realHook = () => vi.importActual('../../hooks/useIndicatorAlerts')
+
+describe('createIndicatorAlert — the response reaches the caller', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  const stubFetch = (impl) => { vi.stubGlobal('fetch', vi.fn(impl)) }
+
+  it('⭐ a 400 hands back the server\'s detail, not null', async () => {
+    stubFetch(async () => ({ ok: false, status: 400, json: async () => ({ detail: SERVER_REFUSAL }) }))
+    const { createIndicatorAlert } = await realHook()
+    // ⛔ THIS IS THE SWALLOW. It used to `return null` here and the sentence
+    // above — one of three the create path writes — reached nobody.
+    expect(await createIndicatorAlert({ sym: 'SPY' }))
+      .toEqual({ ok: false, error: SERVER_REFUSAL })
+  })
+
+  /** The sentence an answer carries, or a sentinel for one that carries none.
+   *
+   *  ⚠️ DELIBERATELY TOLERANT OF A SHAPELESS ANSWER, so that the case below
+   *  asserts ONE thing: that the two failures do not read alike. Whether every
+   *  branch returns a shaped object at all is a different claim owned by its own
+   *  cases ("never null, on any branch" and "a 400 hands back the server's
+   *  detail") — and measured: without this, restoring the swallow ALSO tripped
+   *  this case, so the disjointness assertion had no failure of its own. */
+  const messageOf = (res) => (res && typeof res.error === 'string' ? res.error : '(no message)')
+
+  it('⭐ a NETWORK failure says something DIFFERENT from a refusal', async () => {
+    const { createIndicatorAlert } = await realHook()
+
+    stubFetch(async () => { throw new TypeError('Failed to fetch') })
+    const network = await createIndicatorAlert({ sym: 'SPY' })
+    expect(network.ok).toBe(false)
+    expect(network.error).toMatch(/could not reach/i)
+
+    // ⛔ THE TWO MUST NOT READ ALIKE. "try again in a moment" and "this alert
+    // can never fire" are opposite instructions; one string for both sends the
+    // user to the wrong fix — retrying forever on an alert that is structurally
+    // mute, or abandoning one that would have worked on the next attempt.
+    stubFetch(async () => ({ ok: false, status: 400, json: async () => ({ detail: SERVER_REFUSAL }) }))
+    const spoken = await createIndicatorAlert({ sym: 'SPY' })
+    expect(messageOf(network)).not.toBe(messageOf(spoken))
+
+    // …and against the OTHER refusal, the one this module writes ITSELF when the
+    // server refuses with an unreadable body. That is the pair a single generic
+    // "could not create this alert" would collapse — the detail-bearing case
+    // above cannot catch it, because the server's own words are never at risk.
+    stubFetch(async () => ({ ok: false, status: 503, json: async () => { throw new SyntaxError('not JSON') } }))
+    const mute = await createIndicatorAlert({ sym: 'SPY' })
+    expect(messageOf(network)).not.toBe(messageOf(mute))
+  })
+
+  it('a refusal with no readable body still says the server refused it', async () => {
+    stubFetch(async () => ({ ok: false, status: 503, json: async () => { throw new SyntaxError('not JSON') } }))
+    const { createIndicatorAlert } = await realHook()
+    const res = await createIndicatorAlert({ sym: 'SPY' })
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/503/)
+  })
+
+  it('⛔ a 422 whose `detail` is FastAPI\'s validation LIST never renders as [object Object]', async () => {
+    // Pydantic answers a malformed body with `detail: [{loc, msg, type}, …]`.
+    // Interpolating that into the banner shows the user "[object Object]",
+    // which is worse than the silence it replaced.
+    stubFetch(async () => ({
+      ok: false, status: 422,
+      json: async () => ({ detail: [{ loc: ['body', 'tf'], msg: 'field required' }] }),
+    }))
+    const { createIndicatorAlert } = await realHook()
+    const res = await createIndicatorAlert({ sym: 'SPY' })
+    expect(res.ok).toBe(false)
+    expect(res.error).not.toContain('object Object')
+    expect(res.error).toMatch(/422/)
+  })
+
+  it('⛔ CONTROL: an accepted alert answers ok with its id', async () => {
+    stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ id: 42 }) }))
+    const { createIndicatorAlert } = await realHook()
+    expect(await createIndicatorAlert({ sym: 'SPY' })).toEqual({ ok: true, id: 42 })
+  })
+
+  it('⛔ never null, on any branch — the caller reads `.ok` unconditionally', async () => {
+    const branches = [
+      async () => ({ ok: true, status: 200, json: async () => ({ id: 1 }) }),
+      async () => ({ ok: false, status: 400, json: async () => ({ detail: 'nope' }) }),
+      async () => ({ ok: false, status: 503, json: async () => { throw new Error('html') } }),
+      async () => { throw new TypeError('Failed to fetch') },
+    ]
+    const { createIndicatorAlert } = await realHook()
+    for (const impl of branches) {
+      stubFetch(impl)
+      const res = await createIndicatorAlert({ sym: 'SPY' })
+      expect(res, 'a branch returned null — the popover would crash on res.ok').toBeTruthy()
+      expect(typeof res.ok).toBe('boolean')
+    }
+  })
+})
+
+// ─── EVERY TIMEFRAME THE CHART OFFERS ───────────────────────────────────────
+//
+// MEASURED BEFORE THE FIX: the popover offered ["5","15","30","60","D"] while
+// the chart offered ["1","5","15","30","60","D","W","M"] — so a user on a
+// weekly chart could not set an alert on what they were looking at, and a
+// 1-minute chart likewise.
+//
+// ⛔ THE LIST IS DERIVED FROM `timeframes.NATIVE_TFS`, IN BOTH THE COMPONENT AND
+// THIS TEST. Typing ['1','5',…] here would let the two drift apart again, which
+// IS the defect.
+
+describe('Task 8 — the alert dropdown offers every timeframe the chart does', () => {
+  it('⭐ offers exactly NATIVE_TFS, in the chart\'s own order', () => {
+    mockCatalog(RSI_ONLY)
+    render(<IndicatorAlertPopover sym="SPY" onClose={() => {}} />)
+    expect(optionValues('Timeframe')).toEqual(NATIVE_TFS)
+  })
+
+  it('and labels them through the chart\'s own `tfLabel`, not a second table', () => {
+    mockCatalog(RSI_ONLY)
+    render(<IndicatorAlertPopover sym="SPY" onClose={() => {}} />)
+    const labels = [...screen.getByLabelText('Timeframe').options].map(o => o.textContent)
+    expect(labels).toEqual(NATIVE_TFS.map(tfLabel))
+    // …and that is genuinely a mapping, not identity: '60' reads '1h', 'D' reads '1D'.
+    expect(labels).not.toEqual(NATIVE_TFS)
+  })
+
+  it('the default timeframe is one the dropdown actually offers', () => {
+    mockCatalog(RSI_ONLY)
+    render(<IndicatorAlertPopover sym="SPY" onClose={() => {}} />)
+    const tf = screen.getByLabelText('Timeframe')
+    expect(NATIVE_TFS).toContain(tf.value)
+  })
+})
+
+// ─── …AND THE BACKEND KNOWS ALL EIGHT ───────────────────────────────────────
+//
+// Offering a timeframe the server refuses would turn defect 2 back into defect
+// 1 with extra steps. The evaluator's per-timeframe table is
+// `_TF_SECONDS` in `api/routers/indicator_alerts.py` — the ONLY enumeration of
+// timeframes on the alert path — and this asserts the two vocabularies are the
+// SAME SET rather than trusting a comment.
+//
+// (End-to-end, 2026-08-06: the create path's three gates were run over all 31
+// catalog addresses × all 8 codes. Refusals: ZERO on 1/5/15/30/60, and exactly
+// `vwap` on D, W and M — the intraday-only rule, which `D` already carried
+// before this task widened anything. No timeframe is refused as a timeframe.)
+
+const TF_SECONDS_KEYS = (src) => {
+  const block = src.match(/_TF_SECONDS\s*=\s*\{([\s\S]*?)\}/)
+  return block ? [...block[1].matchAll(/"([^"]+)"\s*:/g)].map(m => m[1]) : null
+}
+
+describe('the alert timeframe vocabulary is ONE vocabulary', () => {
+  it('the parser finds the keys when they ARE there — a null claim from a broken regex is worthless', () => {
+    const CONTROL = '_TF_SECONDS = {"1": 60, "5": 300,\n               "D": 86_400}\n_CYCLE_SECONDS = 60'
+    expect(TF_SECONDS_KEYS(CONTROL)).toEqual(['1', '5', 'D'])
+    expect(TF_SECONDS_KEYS('nothing here')).toBeNull()
+  })
+
+  it('⭐ every code the popover now offers is a code the alert router knows', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'api/routers/indicator_alerts.py'), 'utf8')
+    const keys = TF_SECONDS_KEYS(src)
+    expect(keys, '_TF_SECONDS could not be read from api/routers/indicator_alerts.py').toBeTruthy()
+    expect(new Set(keys), 'the chart\'s timeframes and the alert router\'s are no longer the same set — ' +
+      'offering one the server does not know is how "Add Alert" starts failing silently again')
+      .toEqual(new Set(NATIVE_TFS))
   })
 })

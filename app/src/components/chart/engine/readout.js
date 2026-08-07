@@ -140,7 +140,15 @@ function resolvePlotColor(plot, inputs, def) {
  *        with its own inputs is the seam Phase C's server lane needs. A plot with
  *        NO `legend` block emits nothing, which is how the un-declared plots stay
  *        chip-less — Ichimoku's `spanA`/`spanB`/`chikou`, every `hlines` guide,
- *        and the eight definitions with no chip at all.
+ *        `adx`'s two directional lines and Donchian's two edges.
+ *        ⚠️ THIS SENTENCE USED TO END *"…and the eight definitions with no chip
+ *        at all"*, and the count was WRONG IN BOTH DIRECTIONS IN TURN: it was
+ *        TEN when it said eight (`bb`, `vwap`, `mfi`, `cci`, `williamsR`, `adx`,
+ *        `obv`, `donchian`, `avwap`, `atrBands`), and Task 2 (`43efeff6`) made it
+ *        ZERO — every definition that binds a data plot now declares at least one
+ *        chip, a totality gated by `__tests__/legendFromDefinitions.test.jsx`.
+ *        The chip-less things left are PLOTS, not definitions, which is why they
+ *        are now named rather than counted.
  * @param {Map} seriesData `crosshairMove` param's `seriesData` map.
  * @param {object|Function} registry
  * @param {Function} inputsFor `(defId, instanceId) => inputs`. The INSTANCE's own
@@ -241,4 +249,78 @@ export function engineChips(bindings, seriesData, registry, instances) {
     return (inst && inst.inputs) || null
   }
   return chipsFrom(entries, seriesData, registry, inputsFor)
+}
+
+/**
+ * The chips the LEGEND renders — one per *(live instance, chip-declaring plot)*.
+ *
+ * ⭐ IT IS NOT `engineChips`, AND THE DIFFERENCE IS THE HIDDEN INSTANCE.
+ * `engineChips` walks BINDINGS, and `pool.planBindings` drops a hidden instance
+ * (`pool.js`, the `inst.hidden === true` continue) so the binder can call
+ * `removeSeries` and give the pane back (`__tests__/hiddenIsRemovedNotParked.test.js`).
+ * That is right for the RENDERER and wrong for the READOUT: with no chip there is
+ * no surface to un-hide from, and "Hide" becomes a one-way door reachable only
+ * from the settings modal.
+ *
+ * So this walks the INSTANCE LIST and looks the formatted chip up per instance.
+ * A bound, visible instance keeps the chip `engineChips` produced for it — value
+ * and all; a hidden one gets `value: null`, `hidden: true` and the label alone.
+ *
+ * ⛔ ONE FORMATTING PIPELINE, AND THIS DID NOT ADD A SECOND ONE. The valued half
+ * is `engineChips(…)` → `chipsFrom(…)`, called, not re-implemented — the same
+ * function `IndicatorSettingsDialog`'s read-only Style-tab precision row reads
+ * through. The label-only half cannot go through it (a chip with no series and no
+ * value is exactly what `chipsFrom` is defined to emit NOTHING for), so it uses
+ * the same two module-internal helpers `chipsFrom` uses — `chipLabel` and
+ * `resolvePlotColor` — and the same `DEFAULT_DECIMALS`. Nothing here formats a
+ * number a second way; a label-only chip formats no number at all.
+ *
+ * ⚠️ `hidden` IS TESTED BEFORE THE LOOKUP, NOT AFTER. Taking whatever binding
+ * happened to be there would make the contract *"a hidden chip carries no value"*
+ * an accident of `planBindings` dropping it, one refactor away from a hidden
+ * indicator printing a live number it is not drawing.
+ *
+ * @param {object[]} bindings `binder.bindings()`
+ * @param {Map|null} seriesData `crosshairMove`'s map, or null when off-cursor
+ * @param {object|Function} registry
+ * @param {object[]} instances the normalised instance list, in stack order
+ * @returns {{defId,plotKey,instanceId,label,color,decimals,value,hidden,text}[]}
+ */
+export function legendChips(bindings, seriesData, registry, instances) {
+  const get = resolveRegistry(registry)
+  const formatted = new Map()
+  for (const c of engineChips(bindings, seriesData, registry, instances)) {
+    formatted.set(`${c.instanceId}::${c.plotKey}`, c)
+  }
+
+  const out = []
+  for (const inst of (Array.isArray(instances) ? instances : [])) {
+    if (!inst || typeof inst !== 'object' || typeof inst.instanceId !== 'string') continue
+    // A tombstone has no defId by design; asking the registry about it would
+    // only ever produce a misleading null.
+    if (inst.deleted === true) continue
+    const def = get(inst.defId)
+    if (!def) continue
+    const isHidden = inst.hidden === true
+    const inputs = (inst.inputs && typeof inst.inputs === 'object') ? inst.inputs : {}
+
+    for (const plot of (def.plots || [])) {
+      if (!plot || !plot.legend || plot.legend.hide === true) continue
+      const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
+      if (bound) { out.push({ ...bound, hidden: false }); continue }
+      const label = chipLabel(def, plot, inputs)
+      out.push({
+        defId: def.id,
+        plotKey: plot.key,
+        instanceId: inst.instanceId,
+        label,
+        color: resolvePlotColor(plot, inputs, def),
+        decimals: Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS,
+        value: null,
+        hidden: isHidden,
+        text: label,
+      })
+    }
+  }
+  return out
 }

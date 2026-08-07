@@ -55,6 +55,20 @@ function fmtNum(v, digits = 2) {
   if (!Number.isFinite(n)) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
+// The options-implied earnings move as a plain magnitude → "3.1%" / "12%"
+// (1 decimal under 10, else 0), matching the EPS/REV surprise rounding. null when
+// there's no implied-move data.
+function fmtImPct(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return null
+  return `${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
+}
+// Pull a symbol's implied-move % out of the pre-report store map ({ SYM: pct }),
+// tolerating class-share dot/hyphen notation (BRK.B vs BRK-B).
+function imLookup(imMap, sym) {
+  if (!imMap || !sym) return undefined
+  return imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
+}
 // Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
 function fmtRev(m) {
   const n = Number(m)
@@ -73,7 +87,13 @@ function surpriseCell(act, est, fmtVal) {
   }
   return { text: fmtVal(act), up: null }
 }
-const mcapDesc = (a, b) => (Number.isFinite(b.mc_b) ? b.mc_b : -1) - (Number.isFinite(a.mc_b) ? a.mc_b : -1)
+// A reporter's market cap ($B) from the day-metrics map (the /api/calendar earnings
+// entries carry no mc_b), falling back to any mc_b on the entry; missing sinks last.
+function mcapOf(mcapMap, c) {
+  const v = mcapMap?.[c?.sym]
+  if (Number.isFinite(v)) return v
+  return Number.isFinite(c?.mc_b) ? c.mc_b : -1
+}
 const TOP_EARNINGS = 10   // largest 10 by market cap; the rest behind "Show all"
 // Sort key for the EPS / REV columns = the % surprise, and ONLY for stocks that have
 // actually reported with a usable estimate base. Anything without a real surprise
@@ -90,7 +110,7 @@ const revSurpKey = c => surpKey(c.rev_act, c.rev_est)
 // Reported → EPS% / Rev% surprise (colored up/down); pending → est EPS / est Rev (neutral).
 // memo'd + a data-earn-sym hook so keyboard arrow-nav can walk the rendered rows and
 // only the selection-changed rows re-render.
-const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
+const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
   const { name } = useTickerMeta(c.sym)
   const eps = c.eps_act != null
     ? surpriseCell(c.eps_act, c.eps_est, fmtNum)
@@ -99,6 +119,7 @@ const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
     ? surpriseCell(c.rev_act, c.rev_est, fmtRev)
     : (c.rev_est != null ? { text: fmtRev(c.rev_est), up: null, est: true } : null)
   const cls = (cell) => (!cell || cell.est || cell.up == null ? '' : (cell.up ? styles.pos : styles.neg))
+  const imText = fmtImPct(im)
   return (
     <div
       className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
@@ -110,6 +131,7 @@ const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
       <span className={styles.earnSym}>{c.sym}</span>
       {name && <span className={styles.earnCompany}>({name})</span>}
       <span className={styles.valCols}>
+        <span className={styles.imCol} title="Options-implied move">{imText ?? '—'}</span>
         <span className={`${styles.epsCol} ${cls(eps)}`}>{eps?.text ?? '—'}</span>
         <span className={`${styles.revCol} ${cls(rev)}`}>{rev?.text ?? '—'}</span>
       </span>
@@ -120,49 +142,67 @@ const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
 // An earnings section: top 10 by market cap (default), a "Show all N" expander, and
 // clickable EPS/REV headers to sort by surprise (click again reverses); the title
 // re-sorts by market cap. Column labels get "(est)" when the section is all estimates.
-function EarningsSection({ title, iconName, cls, items, onSelect, selectedSym }) {
+function EarningsSection({ title, iconName, cls, items, imMap, mcapMap, onSelect, selectedSym }) {
   const [showAll, setShowAll] = useState(false)
+  // Default order: market cap, biggest first. Clicking the section title reverses it.
   const [sort, setSort] = useState({ by: 'mcap', dir: 'desc' })
-  const est = useMemo(() => !items.some(c => c.eps_act != null || c.rev_act != null), [items])
+  // Show "(est)" whenever ANY name in the section is still estimate-only (not yet
+  // reported) — a section that's mostly pre-report but has one early actual (e.g. a
+  // pre-market list where a single name printed) is still an estimates column. Only
+  // a FULLY-reported section drops the tag.
+  const est = useMemo(() => items.some(c => c.eps_act == null && c.rev_act == null), [items])
   const sorted = useMemo(() => {
     const arr = [...items]
-    if (sort.by === 'mcap') return arr.sort(mcapDesc)
-    const keyFn = sort.by === 'eps' ? epsSurpKey : revSurpKey
+    if (sort.by === 'mcap') {
+      return arr.sort((a, b) => {
+        const d = mcapOf(mcapMap, b) - mcapOf(mcapMap, a)
+        return sort.dir === 'desc' ? d : -d
+      })
+    }
+    const keyFn = sort.by === 'eps' ? epsSurpKey
+      : sort.by === 'im' ? (c => imLookup(imMap, c.sym))
+        : revSurpKey
     return arr.sort((a, b) => {
       const ka = keyFn(a), kb = keyFn(b)
       if (ka == null && kb == null) return 0
-      if (ka == null) return 1
+      if (ka == null) return 1     // no implied move / no surprise → sinks last
       if (kb == null) return -1
       return sort.dir === 'desc' ? kb - ka : ka - kb
     })
-  }, [items, sort])
+  }, [items, sort, imMap, mcapMap])
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
   const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
   const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
-  const estTag = est ? <span className={styles.estTag}> (est)</span> : null
+  const estTag = est ? <span className={styles.estTag}>(est)</span> : null
   return (
     <div className={styles.section}>
       <div className={`${styles.sectionHead} ${cls}`}>
-        <button type="button" className={styles.headTitle} onClick={() => setSort({ by: 'mcap', dir: 'desc' })} title="Sort by market cap">
+        <button type="button" className={styles.headTitle} onClick={() => clickCol('mcap')} title="Sorted by market cap — click to reverse">
           <span className={styles.headIcon}><UIcon name={iconName} size={13} /></span>
-          {title}<span className={styles.titleCount}>({items.length})</span>
+          {title}<span className={styles.titleCount}>({items.length})</span>{caret('mcap')}
         </button>
         <span className={styles.valCols}>
+          <button
+            type="button"
+            className={`${styles.imCol} ${styles.colBtn}${sort.by === 'im' ? ' ' + styles.colActive : ''}`}
+            onClick={() => clickCol('im')}
+            title="Sort by implied move"
+          >Impl.<br />Move{caret('im')}</button>
           <button
             type="button"
             className={`${styles.epsCol} ${styles.colBtn}${sort.by === 'eps' ? ' ' + styles.colActive : ''}`}
             onClick={() => clickCol('eps')}
             title="Sort by EPS surprise"
-          >EPS{estTag}{caret('eps')}</button>
+          >EPS{caret('eps')}{estTag}</button>
           <button
             type="button"
             className={`${styles.revCol} ${styles.colBtn}${sort.by === 'rev' ? ' ' + styles.colActive : ''}`}
             onClick={() => clickCol('rev')}
             title="Sort by revenue surprise"
-          >REV{estTag}{caret('rev')}</button>
+          >REV{caret('rev')}{estTag}</button>
         </span>
       </div>
-      {shown.map(c => <EarnRow key={c.sym} c={c} onSelect={onSelect} selected={c.sym === selectedSym} />)}
+      {shown.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onSelect} selected={c.sym === selectedSym} />)}
       {sorted.length > TOP_EARNINGS && (
         <button type="button" className={`${styles.showAll}${showAll ? ' ' + styles.open : ''}`} onClick={() => setShowAll(s => !s)}>
           {showAll ? 'Show less' : `Show all ${sorted.length}`}
@@ -248,6 +288,33 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   })
   const day = data?.days?.[selected] || null
 
+  // ── Implied move per earnings ticker for the selected day — the HONEST
+  // pre-report move from the nightly snapshot store ({ SYM: pct }). This is right
+  // even for names that already reported (whose LIVE options straddle is
+  // IV-crushed, so /enrichment reads far too low, e.g. DDOG 3.4% vs the real
+  // ~13.7%). Instant indexed read, and has past days too. ──
+  const { data: imData } = useSWR(`/api/calendar/implied-moves?date=${selected}`, fetcher, {
+    refreshInterval: 300000, dedupingInterval: 60000,
+  })
+  const imMap = imData && typeof imData === 'object' ? imData : null
+
+  // ── Per-ticker market cap ($B) for the selected day, used ONLY to order the
+  // earnings lists (largest first) — the values themselves are never shown. The
+  // /api/calendar earnings entries carry no market cap, so this comes from the
+  // same day-metrics feed the main /calendar page uses. ──
+  const { data: metricsData } = useSWR(`/api/calendar/day-metrics-batch?dates=${selected}`, fetcher, {
+    refreshInterval: 300000, dedupingInterval: 60000,
+  })
+  const mcapMap = useMemo(() => {
+    const dayM = metricsData?.[selected]
+    if (!dayM || typeof dayM !== 'object') return null
+    const out = {}
+    for (const [sym, v] of Object.entries(dayM)) {
+      if (v && Number.isFinite(v.mc_b)) out[sym] = v.mc_b
+    }
+    return out
+  }, [metricsData, selected])
+
   const hasAnyEcon = (day?.econ?.length || 0) + (day?.fed?.length || 0) > 0
   const econItems = useMemo(() => {
     if (!day) return []
@@ -260,7 +327,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   }, [day, econStars])
   const bmo = day?.bmo || []
   const amc = day?.amc || []
-  const tbd = useMemo(() => [...(day?.tbd || [])].sort(mcapDesc), [day])
+  const tbd = useMemo(() => [...(day?.tbd || [])].sort((a, b) => mcapOf(mcapMap, b) - mcapOf(mcapMap, a)), [day, mcapMap])
   const nothing = !isLoading && day && !hasAnyEcon && bmo.length === 0 && amc.length === 0 && tbd.length === 0
 
   return (
@@ -365,11 +432,11 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         )}
 
         {bmo.length > 0 && (
-          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} onSelect={onRowSelect} selectedSym={selectedSym} />
+          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} imMap={imMap} mcapMap={mcapMap} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {amc.length > 0 && (
-          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} onSelect={onRowSelect} selectedSym={selectedSym} />
+          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} imMap={imMap} mcapMap={mcapMap} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {tbd.length > 0 && (
@@ -378,7 +445,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               Time TBD<span className={styles.count} style={{ marginLeft: 6 }}>{tbd.length}</span>
               <span className={styles.chev}><UIcon name="chevronRight" size={12} /></span>
             </button>
-            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
+            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
           </div>
         )}
       </div>

@@ -129,11 +129,26 @@ def get_alert_latency(user: dict = Depends(get_current_user)):
     own alerts. It is the evaluator's cycle interval plus, on the closed lane,
     the time a bar takes to finish — the second term is the honest price of not
     repainting, and it is zero on the lane that does.
+
+    ⭐ IT IS ALSO THE ROLLBACK READBACK. `ALERT_EVAL_MODE` can be overridden from
+    the Railway dashboard without a deploy, and an operator who has just pulled
+    that lever needs to confirm on the POD which lane is actually running —
+    without `railway ssh` (which mangles `/opt/venv/bin/python` under Git Bash)
+    and without waiting for an alert to fire or not fire. `eval_mode` here is the
+    whole provenance: the effective lane, the variable, its raw value, and
+    whether the override was applied or REFUSED.
+
+    ⚠️ ONE RESOLUTION FEEDS BOTH FIELDS. `mode` is read out of the report rather
+    than by a second `eval_mode()` call, so this body cannot report one lane in
+    `mode` and another in `eval_mode.effective` — the disagreement Task 8's
+    tombstone mutation is built out of.
     """
-    mode = indicator_alert_evaluator.eval_mode()
+    report = indicator_alert_evaluator.eval_mode_report()
+    mode = report["effective"]
     closed = mode == "closed"
     return {
         "mode": mode,
+        "eval_mode": report,
         "cycle_seconds": _CYCLE_SECONDS,
         "worst_case_seconds": {
             tf: _CYCLE_SECONDS + (secs if closed else 0)
@@ -166,6 +181,17 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
                     "evaluate, so an alert on it could never fire. See "
                     "GET /api/indicator-alerts/catalog for what is offered."),
         )
+    # ⭐ AND THE THREE THAT ARE ABOUT THE ALERT'S SHAPE, NOT ITS NAME. The two
+    # refusals above catch an indicator that does not exist; a `vwap` alert on
+    # `tf="D"` names one that does, is accepted by both of them, and is still
+    # structurally mute forever. `ias.refusal_for` is the measurement of that —
+    # and it refuses ONLY what is dead under `"forming"` AND under `"closed"`, so
+    # flipping `ALERT_EVAL_MODE` cannot retroactively make it wrong and it does
+    # not pre-judge Task 8. `ichimoku.chikou` fires today and is NOT refused.
+    refusal = ias.refusal_for(body.indicator, body.condition, body.tf,
+                              body.threshold)
+    if refusal:
+        raise HTTPException(status_code=400, detail=refusal)
     alert_id = ias.create(
         user_id=user["id"],
         sym=body.sym.upper(),

@@ -8,14 +8,23 @@ Invariants (enforced HERE, not in callers — `signature/ledger.py` precedent):
   records ONE fire. And the INSERT is not bookkeeping BESIDE the decision, it
   **IS** the decision: `indicator_alert_service.record_trigger` reports a
   delivery if and only if this insert landed a new row.
-- ⭐ THE ONE UPDATE IS `delivered_at`, AND IT IS THE FIRE-ONCE GUARD ITSELF, not
-  a correction to history. `claim_delivery` is a compare-and-set that can only
-  ever move NULL → a timestamp, exactly once, atomically, in the database. That
-  is what makes *"`deliver_alert_payload` reaches a member exactly once per
-  recorded fire"* a fact SQLite enforces rather than a sentence two functions
-  agree on. A history that records twice and delivers once is a reporting bug;
-  a history that records once and delivers twice is the failure that reaches
-  the user, and it is the one this column makes unreachable.
+- ⭐ THE UPDATES ARE THE DELIVERY LEASE, not corrections to history.
+  `claim_delivery` is a compare-and-set that moves `delivered_at` NULL → a
+  timestamp, exactly once, atomically, in the database. That is what makes
+  *"`deliver_alert_payload` reaches a member exactly once per recorded fire"* a
+  fact SQLite enforces rather than a sentence two functions agree on. A history
+  that records twice and delivers once is a reporting bug; a history that
+  records once and delivers twice is the failure that reaches the user, and it
+  is the one this column makes unreachable.
+- 🔴 AND THE LEASE CAN NOW BE HANDED BACK, BECAUSE IT RUNS BEFORE THE CHANNELS.
+  A one-way claim recorded a FAILED delivery as a delivery that happened —
+  measured with every channel raising: **20 fires → 20/20 rows stamped
+  `delivered_at`, zero retry, one log line**. `release_delivery` is the inverse
+  compare-and-set, reachable only from the frame that won the claim and only
+  when nothing was sent, bounded by `MAX_DELIVERY_ATTEMPTS`, and it records
+  `delivery_failed_at` so the failure is VISIBLE whether or not it is retried.
+  Moving the claim AFTER the channels would have been the smaller diff and it is
+  wrong: it trades a silent drop for a silent duplicate.
 - ``False`` means EXACTLY ONE thing: already recorded. Here that is stricter
   than in the signal ledger, not looser — False also means *do not deliver*, so
   a dropped write reported as a duplicate would not merely mis-report history,
@@ -101,6 +110,29 @@ KIND_LEVEL = "level"
 KIND_EDGE = "edge"
 
 
+# ⭐ HOW MANY TIMES ONE RECORDED FIRE MAY BE ATTEMPTED BEFORE THE LANE GIVES UP
+# LOUDLY. Bounded on purpose: an unbounded retry against a provider that is
+# refusing us is the thing that keeps us refused, and a fire whose bar is an hour
+# old is not worth sending anyway. At the ceiling the claim is NOT released, so
+# the row can never be sent again — it just stops pretending it was.
+MAX_DELIVERY_ATTEMPTS = 3
+
+# ─── RETENTION ───────────────────────────────────────────────────────────────
+# This table lives in **auth.db** — the universal request-path database, already
+# 109.8 MB on prod — at 119.4 bytes/row measured. A level condition can fire at
+# most once per two cycles, so the worst case is 30 rows/hour/alert ≈ 31 MB per
+# alert per year, and there was no prune anywhere.
+#
+# ⛔ THE SWEEP MAY NOT TOUCH THE EVIDENCE THIS TASK EXISTS TO CREATE. It deletes
+# only rows that are BOTH delivered AND carry no `delivery_failed_at`; a pending
+# (undelivered, retryable) fire and a terminal failure are both kept forever,
+# because a defect whose only record has been swept is a defect nobody can report.
+FIRE_RETENTION_DAYS = 90
+KEEP_FIRES_PER_ALERT = 50
+_FIRE_PRUNE_EVERY_SEC = 6 * 3600
+_last_fire_prune_at: float = 0.0
+_PRUNE_LOCK = threading.Lock()
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS indicator_alert_fires (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,6 +148,9 @@ CREATE TABLE IF NOT EXISTS indicator_alert_fires (
   threshold REAL,
   fired_at REAL NOT NULL,
   delivered_at REAL,
+  delivery_attempts INTEGER NOT NULL DEFAULT 0,
+  delivery_failed_at REAL,
+  delivery_error TEXT,
   UNIQUE(alert_id, fire_key)
 );
 CREATE INDEX IF NOT EXISTS idx_alert_fires_user ON indicator_alert_fires(user_id, fired_at DESC);
@@ -128,10 +163,18 @@ CREATE INDEX IF NOT EXISTS idx_alert_fires_alert ON indicator_alert_fires(alert_
 _MIGRATIONS: tuple[tuple[str, str], ...] = (
     ("delivered_at",
      "ALTER TABLE indicator_alert_fires ADD COLUMN delivered_at REAL"),
+    ("delivery_attempts",
+     "ALTER TABLE indicator_alert_fires ADD COLUMN delivery_attempts "
+     "INTEGER NOT NULL DEFAULT 0"),
+    ("delivery_failed_at",
+     "ALTER TABLE indicator_alert_fires ADD COLUMN delivery_failed_at REAL"),
+    ("delivery_error",
+     "ALTER TABLE indicator_alert_fires ADD COLUMN delivery_error TEXT"),
 )
 
 _COLS = ("id, alert_id, user_id, sym, indicator, condition, tf, fire_key, "
-         "bar_time, value, threshold, fired_at, delivered_at")
+         "bar_time, value, threshold, fired_at, delivered_at, "
+         "delivery_attempts, delivery_failed_at, delivery_error")
 
 
 def db_path() -> str:
@@ -305,31 +348,84 @@ def record_fire(alert_id: int, user_id: str, sym: str, indicator: str,
                  key, bt, v, thr, at),
             )
             c.commit()
-            return True
+            landed = True
         except sqlite3.IntegrityError as exc:
             if "UNIQUE constraint failed" not in str(exc):
                 raise
-            return False
+            landed = False
+    # Retention rides the write that causes the growth — outside `_WRITE_LOCK`,
+    # throttled to once per 6 h, and structurally unable to raise into a fire.
+    if landed:
+        _maybe_prune_fires()
+    return landed
 
 
 # ─── the reads ───────────────────────────────────────────────────────────────
 
+def pending_fire_id(alert_id: int) -> Optional[int]:
+    """The id of the fire `claim_delivery` WOULD claim next, or None.
+
+    Read BEFORE the claim by the dispatching frame, so that when the dispatch
+    fails the frame can release **the exact row it caused to be claimed** rather
+    than "whatever is newest now" — the difference between an inverse
+    compare-and-set and a guess.
+    """
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT id FROM indicator_alert_fires"
+            " WHERE alert_id=? AND delivered_at IS NULL"
+            " ORDER BY id DESC LIMIT 1",
+            (int(alert_id),),
+        ).fetchone()
+    return None if row is None else int(row[0])
+
+
 def claim_delivery(alert_id: int, *, delivered_at: Optional[float] = None) -> bool:
-    """⭐ THE EXACTLY-ONCE DELIVERY LATCH. True iff THIS call owns a delivery.
+    """⭐ THE EXACTLY-ONCE DELIVERY LEASE. True iff THIS call owns a delivery.
 
     An atomic compare-and-set on the NEWEST fire of this alert that has not been
     delivered: one `UPDATE … WHERE delivered_at IS NULL`, and the winner is
     whoever SQLite says changed a row. Two callers cannot both win, a restart
     cannot lose the fact, and there is no in-process flag anywhere that a second
     web instance would duplicate (`CLAUDE.md`'s single-process warning names
-    exactly that class of guard).
+    exactly that class of guard). **That property is unchanged and is the reason
+    nothing here can double-send.**
+
+    🔴 WHAT CHANGED, AND THE DEFECT IT CLOSES. The claim used to be ONE-WAY, and
+    it runs BEFORE the channels — so a delivery that then failed was recorded as
+    a delivery that happened. Measured with every channel raising: **20 fires →
+    20/20 rows stamped `delivered_at`, zero retry, one `_logger.warning` line.**
+    There is no rate limiter anywhere in this lane, so the first Resend or
+    Discord 429 silently converts real alerts into "delivered" rows the member
+    never received, and the alert then sits in state `fired` until the condition
+    is observed false.
+
+    ⛔ THE OBVIOUS FIX — MOVING THE CLAIM AFTER THE CHANNELS — IS WRONG AND WAS
+    NOT TAKEN. It trades a silent drop for a silent DUPLICATE: two cycles (or two
+    instances) would both find the row unclaimed and both send. The claim stays
+    exactly where it is and exactly as atomic; what it gains is an INVERSE, which
+    only the frame that won the claim may use, and only when nothing was sent.
+
+    So `delivered_at` now means *"this fire is claimed, and absent a
+    `delivery_failed_at` it was delivered"*, and there are exactly three states:
+
+      * `delivered_at IS NULL`                       — pending / released, deliverable
+      * `delivered_at` set, `delivery_failed_at` NULL — delivered
+      * both set                                     — gave up after
+                                                       `MAX_DELIVERY_ATTEMPTS`;
+                                                       latched shut forever, and
+                                                       VISIBLE as a failure
+
+    `delivery_attempts` is bumped in the SAME atomic UPDATE as the claim, so an
+    attempt is counted even if the process dies mid-delivery — the count is what
+    bounds the retries and it cannot be lost by a crash. The claim also CLEARS
+    any previous `delivery_failed_at`/`delivery_error`, so "both columns set" is
+    unambiguously the terminal state and never the residue of a retry that
+    later succeeded.
 
     ⚠️ `ORDER BY id DESC` — the NEWEST undelivered fire, which is the one
-    `record_trigger` just recorded. An older undelivered row is a fire that was
-    recorded and whose delivery then failed or crashed; it stays `NULL` forever
-    rather than being delivered late, because an alert that arrives an hour after
-    its bar is worse than one that never arrives, and the row remains visible in
-    the history as exactly what it is.
+    `record_trigger` just recorded.
 
     Returns False when this alert has no undelivered fire — which is precisely
     the case where `record_trigger` refused to record one (a duplicate for the
@@ -339,7 +435,12 @@ def claim_delivery(alert_id: int, *, delivered_at: Optional[float] = None) -> bo
     at = time.time() if delivered_at is None else float(delivered_at)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
-            "UPDATE indicator_alert_fires SET delivered_at=? WHERE id = ("
+            "UPDATE indicator_alert_fires"
+            "   SET delivered_at=?,"
+            "       delivery_attempts=delivery_attempts+1,"
+            "       delivery_failed_at=NULL,"
+            "       delivery_error=NULL"
+            " WHERE id = ("
             "  SELECT id FROM indicator_alert_fires"
             "   WHERE alert_id=? AND delivered_at IS NULL"
             "   ORDER BY id DESC LIMIT 1)",
@@ -349,12 +450,128 @@ def claim_delivery(alert_id: int, *, delivered_at: Optional[float] = None) -> bo
         return cur.rowcount == 1
 
 
+def release_delivery(fire_id: Optional[int], *, error: str = "",
+                     failed_at: Optional[float] = None) -> dict:
+    """⭐ THE INVERSE OF THE CLAIM. Hand back a lease whose delivery did NOT land.
+
+    Returns ``{"released", "terminal", "attempts", "found"}``.
+
+    ⛔ WHY THIS CANNOT DOUBLE-SEND — three independent reasons, in the order they
+    apply:
+
+    1. **It is reachable only from the frame that won the claim**, and only when
+       that frame observed the dispatch NOT complete. A retry can therefore only
+       re-send something that was never sent. `_dispatch_delivery` passes the
+       `fire_id` it read BEFORE the claim, so it can only ever release the row
+       its own dispatch caused to be claimed.
+    2. **It is itself an atomic compare-and-set**, in the other direction:
+       `WHERE id=? AND delivered_at IS NOT NULL`. A second caller finds the row
+       already released and changes nothing (`released: False`), so two frames
+       cannot manufacture two deliverable rows out of one fire.
+    3. **It is bounded.** Past `MAX_DELIVERY_ATTEMPTS` the lease is NOT handed
+       back: the row keeps `delivered_at` — so `claim_delivery` can never select
+       it again — and gains `delivery_failed_at`, which is what makes the
+       give-up visible instead of silent. A permanently-refusing provider
+       therefore costs at most `MAX_DELIVERY_ATTEMPTS` attempts per fire, and
+       never a duplicate.
+
+    An `error` string is stored verbatim (truncated) because "it failed" without
+    "how" is the same warning line this defect already had.
+    """
+    if fire_id is None:
+        return {"released": False, "terminal": False, "attempts": 0, "found": False}
+    _ensure_init()
+    at = time.time() if failed_at is None else float(failed_at)
+    msg = (str(error) or "delivery failed")[:500]
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT delivered_at, delivery_attempts FROM indicator_alert_fires"
+            " WHERE id=?", (int(fire_id),)).fetchone()
+        if row is None:
+            c.commit()
+            return {"released": False, "terminal": False, "attempts": 0,
+                    "found": False}
+        attempts = int(row[1] or 0)
+        if row[0] is None:
+            # Already released (or never claimed) — nothing to hand back, and
+            # nothing was sent. Recording the reason is still worth doing.
+            c.execute(
+                "UPDATE indicator_alert_fires"
+                "   SET delivery_failed_at=?, delivery_error=? WHERE id=?",
+                (at, msg, int(fire_id)))
+            c.commit()
+            return {"released": False, "terminal": False, "attempts": attempts,
+                    "found": True}
+        terminal = attempts >= MAX_DELIVERY_ATTEMPTS
+        if terminal:
+            cur = c.execute(
+                "UPDATE indicator_alert_fires"
+                "   SET delivery_failed_at=?, delivery_error=?"
+                " WHERE id=? AND delivered_at IS NOT NULL",
+                (at, msg, int(fire_id)))
+        else:
+            cur = c.execute(
+                "UPDATE indicator_alert_fires"
+                "   SET delivered_at=NULL, delivery_failed_at=?, delivery_error=?"
+                " WHERE id=? AND delivered_at IS NOT NULL",
+                (at, msg, int(fire_id)))
+        c.commit()
+        changed = cur.rowcount == 1
+    return {"released": bool(changed and not terminal), "terminal": terminal,
+            "attempts": attempts, "found": True}
+
+
+def delivery_failures(limit: int = 50, alert_id: Optional[int] = None) -> list[dict]:
+    """Every fire whose delivery is known to have failed, newest first.
+
+    ⭐ THE "VISIBLE" HALF. A releasable claim alone is not enough: a released row
+    is indistinguishable from one that was never claimed, so the failure would be
+    retried and — if it kept failing until the ceiling — end up latched shut with
+    nothing anywhere saying a member missed an alert. This is the read that says
+    so, and `delivery_health()` is its summary.
+    """
+    _ensure_init()
+    n = max(1, min(int(limit), 500))
+    sql = (f"SELECT {_COLS} FROM indicator_alert_fires "
+           "WHERE delivery_failed_at IS NOT NULL")
+    args: tuple = ()
+    if alert_id is not None:
+        sql += " AND alert_id=?"
+        args = (int(alert_id),)
+    sql += " ORDER BY delivery_failed_at DESC, id DESC LIMIT ?"
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(sql, args + (n,)).fetchall()
+    return [_row(r) for r in rows]
+
+
+def delivery_health(alert_id: Optional[int] = None) -> dict:
+    """Counts for the three delivery states plus the terminal give-ups."""
+    _ensure_init()
+    where = "" if alert_id is None else " WHERE alert_id=?"
+    args: tuple = () if alert_id is None else (int(alert_id),)
+    joiner = " WHERE " if alert_id is None else " AND "
+    with contextlib.closing(_connect()) as c:
+        def one(extra: str) -> int:
+            return int(c.execute(
+                "SELECT COUNT(*) FROM indicator_alert_fires" + where
+                + (joiner + extra if extra else ""), args).fetchone()[0])
+        return {
+            "fires": one(""),
+            "pending": one("delivered_at IS NULL"),
+            "delivered": one("delivered_at IS NOT NULL AND delivery_failed_at IS NULL"),
+            "failed": one("delivery_failed_at IS NOT NULL"),
+            "gave_up": one("delivered_at IS NOT NULL AND delivery_failed_at IS NOT NULL"),
+            "max_attempts": MAX_DELIVERY_ATTEMPTS,
+        }
+
+
 def _row(r: tuple) -> dict:
     return {
         "id": r[0], "alert_id": r[1], "user_id": r[2], "sym": r[3],
         "indicator": r[4], "condition": r[5], "tf": r[6], "fire_key": r[7],
         "bar_time": r[8], "value": r[9], "threshold": r[10], "fired_at": r[11],
-        "delivered_at": r[12],
+        "delivered_at": r[12], "delivery_attempts": r[13],
+        "delivery_failed_at": r[14], "delivery_error": r[15],
     }
 
 
@@ -401,15 +618,91 @@ def count_fires(alert_id: Optional[int] = None) -> int:
 
 
 def count_delivered(alert_id: Optional[int] = None) -> int:
-    """How many recorded fires actually reached a member."""
+    """How many recorded fires actually reached a member.
+
+    ⚠️ `delivery_failed_at IS NULL` IS LOAD-BEARING, NOT TIDINESS. A fire that
+    exhausted `MAX_DELIVERY_ATTEMPTS` keeps `delivered_at` set (that is what
+    latches it shut so it can never be sent again) — counting it here would
+    reproduce, in the metric, exactly the lie this task removed from the row.
+    """
     _ensure_init()
-    sql = "SELECT COUNT(*) FROM indicator_alert_fires WHERE delivered_at IS NOT NULL"
+    sql = ("SELECT COUNT(*) FROM indicator_alert_fires "
+           "WHERE delivered_at IS NOT NULL AND delivery_failed_at IS NULL")
     args: tuple = ()
     if alert_id is not None:
         sql += " AND alert_id=?"
         args = (int(alert_id),)
     with contextlib.closing(_connect()) as c:
         return int(c.execute(sql, args).fetchone()[0])
+
+
+def prune_fires(older_than_days: Optional[int] = None,
+                keep_per_alert: Optional[int] = None,
+                now: Optional[float] = None) -> dict:
+    """Age out delivered history. Returns ``{"deleted", "cutoff", "days", "keep"}``.
+
+    ⛔ FOUR THINGS THIS SWEEP MAY NOT DELETE, and each is a separate clause:
+
+      * a fire NEWER than the window;
+      * a fire that is **pending** (`delivered_at IS NULL`) — it is deliverable
+        and deleting it would silence it;
+      * a fire that carries a `delivery_failed_at` — that row IS the record that
+        a member missed an alert, and a defect whose only evidence has been
+        swept is a defect nobody can report;
+      * the newest `keep_per_alert` fires of EVERY alert, however old. A rarely
+        firing alert would otherwise lose its entire history to a date window,
+        and "my alert has never fired" and "my alert's history was pruned" look
+        identical to the person reading it.
+    """
+    _ensure_init()
+    days = FIRE_RETENTION_DAYS if older_than_days is None else int(older_than_days)
+    keep = KEEP_FIRES_PER_ALERT if keep_per_alert is None else int(keep_per_alert)
+    days = max(1, days)
+    keep = max(1, keep)
+    cutoff = (time.time() if now is None else float(now)) - days * 86400
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "DELETE FROM indicator_alert_fires"
+            " WHERE fired_at < ?"
+            "   AND delivered_at IS NOT NULL"
+            "   AND delivery_failed_at IS NULL"
+            "   AND id NOT IN ("
+            "     SELECT id FROM (SELECT id, ROW_NUMBER() OVER ("
+            "       PARTITION BY alert_id ORDER BY id DESC) AS rn"
+            "       FROM indicator_alert_fires) WHERE rn <= ?)",
+            (cutoff, keep),
+        )
+        deleted = int(cur.rowcount or 0)
+        c.commit()
+    if deleted:
+        import logging
+        logging.getLogger(__name__).info(
+            "[alert-fires] pruned %d delivered fire(s) older than %d days "
+            "(keeping the newest %d per alert)", deleted, days, keep)
+    return {"deleted": deleted, "cutoff": cutoff, "days": days, "keep": keep}
+
+
+def _maybe_prune_fires(now: Optional[float] = None) -> int:
+    """Throttled sweep, run BY the write that causes the growth. Never raises.
+
+    Wired here rather than in a scheduler this module does not own: growth only
+    happens when a fire is recorded, so the write path is exactly where the
+    sweep belongs, and a prune with no caller is the same shape as a ledger door
+    nobody opened.
+    """
+    global _last_fire_prune_at
+    t = time.time() if now is None else float(now)
+    with _PRUNE_LOCK:
+        if t - _last_fire_prune_at < _FIRE_PRUNE_EVERY_SEC:
+            return 0
+        _last_fire_prune_at = t
+    try:
+        return int(prune_fires(now=t)["deleted"])
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "[alert-fires] retention sweep failed (non-fatal)")
+        return 0
 
 
 def delete_for_alert(alert_id: int) -> None:

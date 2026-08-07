@@ -120,7 +120,15 @@ describe('the Flip-C decision record', () => {
   // ── NON-VACUITY ────────────────────────────────────────────────────────────
   it('read the whole live case list, so the assertions above are not vacuous', () => {
     const live = liveCaseNames()
-    expect(live).toHaveLength(46)
+    // ⭐ 46 → 47 AT chart-UX-walls TASK 6, AND THE RECORD PRICED IT RATHER THAN
+    // THE COUNT BEING RELAXED. `engine_two_rsi_instances` is the phase's one
+    // pixel-moving case; it is NOT a cutover measurement (it is an engine
+    // rehearsal on ONE build, so there is no bands-vs-panes pair to measure), so
+    // §9b of the record says exactly that, by name, which is what the first case
+    // in this file asks for — "a number for every live parity case, OR SAYS WHY
+    // NOT". The count is still an equality, because a corpus that can grow
+    // silently is a corpus nobody re-derives against.
+    expect(live).toHaveLength(47)
     // And the placeholder really is excluded — otherwise "live" means "all" and
     // the filter above is decoration.
     // ⭐ 47 -> 50 AT PHASE C TASK 14, AND THE 46 DID NOT MOVE. The three new
@@ -129,6 +137,6 @@ describe('the Flip-C decision record', () => {
     // `expect` this branch has not measured on two builds is a number pretending
     // to be a gate. The live count above is what Flip C priced, and it is exactly
     // what must not change when a definition is added.
-    expect(JSON.parse(read(CASES)).cases).toHaveLength(50)
+    expect(JSON.parse(read(CASES)).cases).toHaveLength(51)
   })
 })

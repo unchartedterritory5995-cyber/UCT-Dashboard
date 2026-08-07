@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
-import { listAllIndicators, readEnabled, applyRowPatch } from './indicatorRegistry'
+import {
+  listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
+} from './indicatorRegistry'
 // The engine's definitions, so the Indicators tab can GENERATE the rows for the
 // indicators the engine owns instead of carrying a second hand-written copy of
 // their fields. See `indicatorRegistry.js`'s header — this import is what
@@ -316,8 +318,8 @@ export default function ChartSettingsModal({
     pdlCloseColor: ['prevDayLevels', 'close', 'color'],
   }
   const setColorTarget = (target, hex) => {
-    if (typeof target === 'string' && target.startsWith('ind:')) {
-      const [, rowId, field] = target.split(':')
+    if (isIndTarget(target)) {
+      const { rowId, field } = splitIndTarget(target)
       const row = indRowById(rowId)
       if (row) setRow(row, { [field]: hex })
       return
@@ -359,8 +361,8 @@ export default function ChartSettingsModal({
   const targetValue = (t) => {
     // Registry-driven indicator fields carry their path in the target string, so the
     // switch below never needs a case per indicator.
-    if (typeof t === 'string' && t.startsWith('ind:')) {
-      const [, rowId, field] = t.split(':')
+    if (isIndTarget(t)) {
+      const { rowId, field } = splitIndTarget(t)
       return indRowById(rowId)?.values?.[field] || '#c9a84c'
     }
     switch (t) {
@@ -707,7 +709,7 @@ export default function ChartSettingsModal({
                         return (
                           <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
                             <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
-                            {f.type === 'color' && colorSwatch(`ind:${row.id}:${f.key}`, f.label, val)}
+                            {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
                             {f.type === 'toggle' && (
                               /* `disabled` is load-bearing, not decoration: a disabled
                                  <button> fires no click, so an inert field can't write

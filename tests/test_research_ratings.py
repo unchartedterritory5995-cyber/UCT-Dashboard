@@ -1,5 +1,8 @@
 """Tests for the research ratings service + router."""
+import pytest
+
 from api.services.research import ratings as rt
+from api.services.research import ratings
 from api.services.cache import cache
 
 
@@ -180,3 +183,69 @@ class TestRoute:
         r = self._client().get("/api/research/ratings/AAPL")
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "composite", "components", "checkup", "method"}
+
+
+class TestCompositeCoverageIsDisclosed:
+    """A composite built on 4 of 6 inputs must not read like a complete one.
+
+    `_composite` renormalizes over the components that exist, which is correct
+    maths — a company with no EPS-growth figure is not a company with the WORST
+    EPS growth. But it makes the score's BASIS vary per ticker, invisibly.
+
+    Sampled live 2026-08-06 across 40 liquid names: 8 (20%) had no EPS rating,
+    and EPS carries the joint-largest weight (0.25). So one ticker in five
+    rendered a hero number computed on 75% of the intended basis, typeset
+    identically to a fully-informed one.
+
+    Crucially the gap is mostly NOT backfillable: 5 of those 8 (JAZZ, CRWD,
+    SNOW, ZS, TEAM) had a NEGATIVE prior-year earnings base, making a growth
+    percentage undefined rather than missing. JAZZ went -$405M -> +$941M, a
+    loss-to-profit turnaround scored as "no information". Inventing a value
+    would be worse than the gap; disclosing it is the honest move.
+    """
+
+    def test_full_coverage_reports_every_input(self):
+        cov = ratings._coverage(60, 70, 80, 50, 90, "B")
+        assert cov == {"counted": 6, "of": 6, "missing": [], "weight": 1.0}
+
+    def test_a_missing_component_is_named_and_the_weight_drops(self):
+        cov = ratings._coverage(None, 83, 54, 70, 65, "B")
+        assert cov["counted"] == 5 and cov["of"] == 6
+        assert cov["missing"] == ["eps"]
+        assert cov["weight"] == pytest.approx(0.75)   # 1.00 - the 0.25 EPS weight
+
+    def test_the_jazz_shape_reports_exactly_what_it_measured(self):
+        """JAZZ on 2026-08-06: no EPS rating, everything else present. The
+        score (70) is real — the claim that it means the same thing as a
+        fully-measured 70 is what needed fixing."""
+        cov = ratings._coverage(None, 83, 54, 70, 65, "B")
+        assert ratings._composite(None, 83, 54, 70, 65, "B") is not None
+        assert "eps" in cov["missing"]
+
+    def test_no_inputs_at_all_is_reported_rather_than_crashing(self):
+        cov = ratings._coverage(None, None, None, None, None, None)
+        assert cov["counted"] == 0
+        assert cov["weight"] == 0
+        assert len(cov["missing"]) == 6
+        assert ratings._composite(None, None, None, None, None, None) is None
+
+    def test_coverage_and_composite_read_the_SAME_weight_table(self):
+        """Two copies of the weights would drift, and silently: the score
+        would be computed on one basis while the UI disclosed another."""
+        keys = [k for k, _ in ratings._COMPOSITE_WEIGHTS]
+        assert sorted(keys) == sorted(["eps", "rs", "growth", "smr", "accdis", "value"])
+        assert sum(w for _, w in ratings._COMPOSITE_WEIGHTS) == pytest.approx(1.0)
+
+    def test_weight_is_rounded_so_the_payload_carries_no_float_noise(self):
+        # 1 - 0.25 - 0.15 in binary float is 0.6000000000000001.
+        cov = ratings._coverage(None, 83, 54, 70, None, "B")
+        assert cov["weight"] == 0.6
+
+    def test_accdis_counts_as_present_only_for_a_REAL_letter(self):
+        """accdis arrives as a letter and is mapped through _LETTER_NUM. An
+        unmapped/blank letter must count as MISSING, not silently as present —
+        otherwise coverage would over-report exactly where the composite
+        already dropped the input."""
+        assert "accdis" in ratings._coverage(60, 70, 80, 50, 90, None)["missing"]
+        assert "accdis" in ratings._coverage(60, 70, 80, 50, 90, "?")["missing"]
+        assert "accdis" not in ratings._coverage(60, 70, 80, 50, 90, "B")["missing"]

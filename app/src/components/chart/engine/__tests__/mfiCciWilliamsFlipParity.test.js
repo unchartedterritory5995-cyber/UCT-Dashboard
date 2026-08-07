@@ -375,10 +375,34 @@ describe('the three single-line oscillators, transcribed', () => {
       .toEqual(legacyBandScale(WILLIAMS_BAND, { autoScale: false, minimum: -100, maximum: 0 }))
   })
 
-  it('and none of the three declares a legend block, so none adds a chip', () => {
-    for (const id of ['mfi', 'cci', 'williamsR']) {
-      expect(engineRegistry.getDefinition(id).plots.filter(p => p.legend), id).toEqual([])
-      expect(engineRegistry.getDefinition(id).meta.legendParams, id).toBeUndefined()
+  it('and each of the three declares EXACTLY ONE chip, at `rsi`\'s precision', () => {
+    // 🔴 THIS READ *"and none of the three declares a legend block, so none adds
+    // a chip"*. True of the shipped chart, and the DEFECT: three oscillators with
+    // no label at any time. Task 2 (`43efeff6`) gave each one a chip, at ONE
+    // decimal — they are `rsi`'s family (0-100, -100..0, and the ±100 guides) and
+    // they take `rsi`'s precision rather than a second convention invented here.
+    //
+    // ⛔ INVERTED, NOT RELAXED: an equality on the plot KEYS, so a `legend` block
+    // landing on a `bands`/`zero` guide fails it exactly as the old `toEqual([])`
+    // would have, and a chip that goes MISSING fails it too.
+    const DECLARED = {
+      mfi: { on: 'mfi', legend: { decimals: 1 }, silent: ['bands'] },
+      cci: { on: 'cci', legend: { decimals: 1 }, silent: ['bands', 'zero'] },
+      // `shortName` is already `%R`, so no `legend.label` — which is what keeps
+      // its `legendParams` live rather than short-circuited.
+      williamsR: { on: 'williams_r', legend: { decimals: 1 }, silent: ['bands'] },
+    }
+    for (const [id, want] of Object.entries(DECLARED)) {
+      const def = engineRegistry.getDefinition(id)
+      expect(def.plots.filter(p => p.legend).map(p => p.key), `${id}: the chip moved or multiplied`)
+        .toEqual([want.on])
+      expect(def.plots.find(p => p.key === want.on).legend, `${id}: the chip's declaration moved`)
+        .toEqual(want.legend)
+      expect(def.meta.legendParams, `${id}: the chip stopped naming its period`).toEqual(['period'])
+      for (const key of want.silent) {
+        expect(def.plots.find(p => p.key === key).legend,
+          `${id}::${key} grew a chip — a guide is not a value you read`).toBeUndefined()
+      }
     }
     // The control that this assertion CAN fail: rsi DOES declare one.
     expect(engineRegistry.getDefinition('rsi').plots.filter(p => p.legend)).toHaveLength(1)

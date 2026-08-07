@@ -877,10 +877,44 @@ describe('the last three together', () => {
     expect(engineRegistry.getDefinition('volumeProfile')).toBeNull()
   })
 
-  it('none of the three declares a legend block, so none adds a chip', () => {
-    for (const id of ['adx', 'obv', 'donchian']) {
-      expect(engineRegistry.getDefinition(id).plots.filter(p => p.legend), id).toEqual([])
-      expect(engineRegistry.getDefinition(id).meta.legendParams, id).toBeUndefined()
+  it('each of the three declares EXACTLY ONE chip, on the line a value is read off', () => {
+    // 🔴 THIS READ *"none of the three declares a legend block, so none adds a
+    // chip"* and asserted `plots.filter(p => p.legend)` was EMPTY for all three.
+    // That was true and it was the DEFECT: a user who switched on ADX, OBV or
+    // Donchian got lines with no label at any time, hovering or not. Task 2
+    // (`43efeff6`) gave each of them a chip.
+    //
+    // ⛔ INVERTED, NOT RELAXED. The old assertion could not pass with a chip
+    // present; this one cannot pass with a chip MISSING, MOVED, RENAMED or
+    // RE-PRECISIONED, and — because it is an equality on the plot KEYS — it still
+    // fails if a `legend` block lands on `plusDI`, `minusDI` or a channel edge,
+    // which is the "three numbers for one indicator" regression the old absence
+    // was incidentally holding down.
+    const DECLARED = {
+      // key that carries the chip, its exact `legend` block, its `legendParams`,
+      // and every plot that must stay chip-less.
+      adx: { on: 'adx', legend: { decimals: 1 }, params: ['period'], silent: ['plusDI', 'minusDI', 'trend'] },
+      // ZERO decimals by controller ruling — OBV is a cumulative SHARE COUNT.
+      // No `legendParams`: it declares ONE input and it is a colour, and
+      // `defSchema` refuses a param naming no declared input.
+      obv: { on: 'obv', legend: { decimals: 0 }, params: undefined, silent: [] },
+      // ⚠️ THE ONE `legend.label`, AND THEREFORE THE ONE WITH NO PARAMS. A label
+      // short-circuits `legendParams` in `readout.chipLabel`, so declaring both
+      // would leave the params INERT — the trap `stoch`'s own comment records.
+      donchian: { on: 'middle', legend: { label: 'DC', decimals: 2 }, params: undefined, silent: ['upper', 'lower'] },
+    }
+    for (const [id, want] of Object.entries(DECLARED)) {
+      const def = engineRegistry.getDefinition(id)
+      expect(def.plots.filter(p => p.legend).map(p => p.key), `${id}: the chip moved or multiplied`)
+        .toEqual([want.on])
+      expect(def.plots.find(p => p.key === want.on).legend, `${id}: the chip's declaration moved`)
+        .toEqual(want.legend)
+      if (want.params === undefined) expect(def.meta.legendParams, id).toBeUndefined()
+      else expect(def.meta.legendParams, id).toEqual(want.params)
+      for (const key of want.silent) {
+        expect(def.plots.find(p => p.key === key).legend,
+          `${id}::${key} grew a chip — a second number for one indicator`).toBeUndefined()
+      }
     }
     // The control that this assertion CAN fail: rsi DOES declare one.
     expect(engineRegistry.getDefinition('rsi').plots.filter(p => p.legend)).toHaveLength(1)

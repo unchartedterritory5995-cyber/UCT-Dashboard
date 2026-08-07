@@ -1330,21 +1330,34 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(rsiChipColor(view)).toBe('rgb(255, 0, 0)')
   })
 
-  it('a HIDDEN instance binds nothing, and NEITHER side puts a chip in the legend', async () => {
+  it('a HIDDEN instance binds nothing, and its chip prints the LABEL with no value', async () => {
+    // 🔴 THE SECOND HALF WAS `not.toContain('RSI(')` AND IT IS INVERTED
+    // (chart-UX-walls Task 3). It was the twin of the assertion in
+    // `legendFromDefinitions.test.jsx`, and it said the same wrong thing: a
+    // hidden instance had no chip, so there was no surface an un-hide could be
+    // reached from and Hide was a one-way door out of the settings modal. Spec
+    // §6 state 7 calls Hidden a CHIP STATE. `readout.legendChips` walks the
+    // INSTANCE list now, so a hidden instance keeps a dimmed, value-less chip.
+    //
     // ⚠️ WHAT EACH HALF PROVES (review M-4 corrected a report claim here). The
-    // FIRST assertion is the gate on `legend.hide`-adjacent behaviour: a hidden
-    // instance binds nothing. The SECOND does NOT prove the chip logic dropped
-    // it — `hoverLatest` finds no `rsi`-scale series, so no value was offered in
-    // the first place. What it DOES prove, and the reason it stays, is that the
-    // legacy block did not step in with a chip of its own while the engine still
-    // owns the definition. `legend.hide` itself is gated in `readout.test.js`
+    // FIRST assertion is unchanged and is the gate on `legend.hide`-adjacent
+    // behaviour: a hidden instance binds NOTHING — the renderer's contract did
+    // not move, only the readout's. The SECOND now proves BOTH directions at
+    // once, which the old absence could not: the chip is there (the un-hide
+    // surface exists) AND it carries no number (nothing stepped in with a value
+    // for a line that is not drawn — a legacy block doing so would print
+    // `RSI(14) 54.3`). `legend.hide` itself is still gated in `readout.test.js`
     // (`emits NO chip for a price overlay`), on the pure function, where a
     // mutation actually reaches it.
     const view = draw({
       ...RSI_ON, indicatorInstances: [{ ...RSI_INSTANCE, hidden: true }],
     })
     expect(H.binderApis[0].bindings(), 'a hidden instance must bind nothing').toHaveLength(0)
-    expect(await hoverLatest(view)).not.toContain('RSI(')
+    const text = await hoverLatest(view)
+    expect(text, 'the hidden instance lost its chip — Hide is a one-way door again')
+      .toContain('RSI(14)')
+    expect(text, 'a hidden chip printed a value for a line that is not drawn')
+      .not.toMatch(/RSI\(14\)\s*-?\d/)
   })
 
   // ── THE DEVELOPING BAR — the live sequence, not a synthetic one ───────────
@@ -1426,8 +1439,20 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // crosshair prints nothing is a value you cannot read — see the trade recorded
     // in `readout.test.js`. It is `ENGINE_OWNED` like every other definition, so
     // the loop below covers it unchanged.
+    // ⭐⭐ AND SEVENTEEN AT TASK 2 (`43efeff6`) — the same reading applied to the
+    // other TEN. `bb`, `vwap`, `mfi`, `cci`, `williamsR`, `adx`, `obv`,
+    // `donchian`, `avwap` and `atrBands` declared no chip at all, which is a line
+    // a user cannot put a name to. The literal is WIDENED and stays an equality:
+    // a chip-bearing definition that stops being one still fails here.
     expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
-      .toEqual(['atr', 'ichimoku', 'macd', 'rsLine', 'rsi', 'sar', 'stoch'])
+      .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
+        'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+    // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
+    // Derived, so a definition landing WITHOUT a chip fails by construction
+    // rather than by somebody remembering to widen the literal above.
+    expect(chipBearing.sort(), 'a definition binds plots and declares NO chip — that is a '
+      + 'line the user cannot put a name to, on any surface, hovering or not')
+      .toEqual(registry.listDefinitions().map(d => d.id).sort())
     for (const id of chipBearing) {
       expect(ENGINE_OWNED.has(id),
         `${id} declares a chip and is NOT migrated — with the legacy chip lane deleted, ` +
@@ -1450,36 +1475,63 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
       'the migrated set is no longer TOTAL, so "every chip-bearing definition is migrated" '
       + 'has stopped being implied and needs its own loop again')
       .toEqual(registry.listDefinitions().map(d => d.id).sort())
-    // …and the chip-bearing set is a PROPER subset of it, so the coverage claim is
-    // not the trivial one that both sides are empty.
+    // …and the coverage claim is not the trivial one that both sides are empty.
+    // 🔴 THIS ASSERTED A *PROPER* SUBSET (`chipBearing.length <
+    // ENGINE_OWNED.size`), which is a fact about the DEFECT rather than about the
+    // coverage: the strictness came from ten definitions having no chip. Task 2
+    // (`43efeff6`) closed that gap, so the two sets are now the SAME set — which
+    // is a stronger statement than the subset was, and is asserted as one.
+    // Non-vacuity is carried by the `> 0`, which is what the `<` was standing in
+    // for and is the half that can still fail.
     expect(chipBearing.length).toBeGreaterThan(0)
-    expect(chipBearing.length).toBeLessThan(ENGINE_OWNED.size)
+    expect(chipBearing.length,
+      'a definition is engine-owned and declares no chip — the two sets separated again')
+      .toBe(ENGINE_OWNED.size)
 
-    // …and the behavioural half, on a real chart. ⚠️ ITS SUBJECT MOVED TOO —
-    // `mfi` at Task 5, `obv` at Task 7, and Task 8 took `obv`. The claim was "an
-    // indicator whose definition declares no `legend` block contributes NO chip",
-    // and that is still live and still failable; what changed is that the
-    // indicator is now drawn by the ENGINE rather than by a legacy block, which
-    // makes it a STRONGER subject: the engine lane is the one that could emit a
-    // chip for any plot that declares one, so a `legend` block added to `obv` by
-    // accident would now really put "OBV" in the legend.
-    const OBV_COLOR = '#9ca3af'
-    expect(ENGINE_OWNED.has('obv'), 'obv is not engine-drawn — this half is about '
-      + 'the ENGINE lane emitting no chip for a definition that declares none').toBe(true)
+    // …and the behavioural half, on a real chart. ⚠️ ITS SUBJECT HAS MOVED FOUR
+    // TIMES — `mfi` at Task 5, `obv` at Task 7, `obv` again at Task 8 — and Task
+    // 2 (`43efeff6`) took the whole CATEGORY: every definition that binds a data
+    // plot now declares a chip, so there is no chip-less DEFINITION left to hover.
+    //
+    // ⛔ SO IT MOVES DOWN A LEVEL AGAIN, EXACTLY AS B5 TASK 6 DID WHEN IT RAN OUT
+    // OF SUBJECTS, AND THE CLAIM IS UNCHANGED: a plot that declares no `legend`
+    // block contributes NO chip. `adx` carries both halves in ONE instance — its
+    // `adx` line declares a chip and its two DIRECTIONAL lines deliberately
+    // declare none, because three numbers for one indicator is the readout
+    // regression the band edges are hidden for. That makes the absence
+    // non-vacuous by construction: an engine that had simply stopped emitting
+    // fails the presence assertion on the line above the two absences.
+    expect(ENGINE_OWNED.has('adx'), 'adx is not engine-drawn — this half is about '
+      + 'the ENGINE lane emitting no chip for a PLOT that declares none').toBe(true)
     const view = draw({
       ...RSI_ON,
       indicatorInstances: [RSI_INSTANCE, {
-        instanceId: 'legacy:obv', defId: 'obv', inputs: { color: OBV_COLOR },
+        instanceId: 'legacy:adx', defId: 'adx',
+        inputs: { period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' },
         placement: { target: 'pane' }, hidden: false,
       }],
-      indicators: { ...RSI_ON.indicators, obv: { enabled: true, color: OBV_COLOR } },
+      indicators: {
+        ...RSI_ON.indicators,
+        adx: { enabled: true, period: 14, adxColor: '#e5e7eb', plusDIColor: '#22c55e', minusDIColor: '#ef4444' },
+      },
     })
-    const obvLine = H.addSeriesCalls.filter(c => c.options && c.options.color === OBV_COLOR)
-    expect(obvLine, 'no OBV line at all — vacuous').toHaveLength(1)
-    const text = await hover(view, [[obvLine[0].series, { value: 54.3 }]])
+    const adxBound = H.binderApis[0].bindings().filter(b => b.defId === 'adx')
+    expect(adxBound, 'no ADX lines at all — vacuous').toHaveLength(3)
+    const adxPlot = (key) => adxBound.find(b => b.plotKey === key)
+    const text = await hover(view, [
+      [adxPlot('adx').series, { value: 27.5 }],
+      [adxPlot('plusDI').series, { value: 33.25 }],
+      [adxPlot('minusDI').series, { value: 12.75 }],
+    ])
     expect(text, 'the engine lane is not drawing — the RSI control chip is missing')
       .toContain('RSI(14)')
-    expect(text, 'a definition that declares no legend block produced a chip').not.toContain('OBV')
+    expect(text, 'the ADX line lost the chip Task 2 gave it — the two absences below '
+      + 'would then hold for the wrong reason').toContain('ADX(14) 27.5')
+    for (const [key, printed] of [['plusDI', '33.2'], ['minusDI', '12.7']]) {
+      expect(adxPlot(key), `${key} is not bound — its absence is vacuous`).toBeTruthy()
+      expect(text, `${key} declares no legend block and produced a chip anyway`)
+        .not.toContain(printed)
+    }
   })
 
   it('⭐ BOTH MACD chips survive the deletion of macdLineRef AND macdSignalRef', async () => {
@@ -2350,27 +2402,52 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
   })
 })
 
-describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () => {
+describe('an engine-drawn Bollinger adds EXACTLY ONE chip to the crosshair legend', () => {
   // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
   pinBandsMode()
 
-  // BB declares `legend: { hide: true }` on all three plots because the SHIPPED
-  // legend has no Bollinger chip (`StockChart.jsx:9677-9687` lists nine, none of
-  // them BB). `readout.test.js` gates the pure function; this gates the rendered
-  // legend, which is where three unwanted purple chips would actually appear.
+  // 🔴 THIS DESCRIBE READ *"adds NOTHING to the crosshair legend"*, and the note
+  // under it read *"BB declares `legend: { hide: true }` on all three plots
+  // because the SHIPPED legend has no Bollinger chip"*. Both were accurate about
+  // the shipped chart and both were the DEFECT: three purple lines on the price
+  // scale that a user could not put a name to, at any time, hovering or not.
+  // Task 2 (`43efeff6`) gave the BASIS a chip and left the two EDGES hidden.
+  //
+  // ⛔ THE PARITY EQUALITY IS UNTOUCHED, AND THAT IS THE POINT OF THIS BLOCK.
+  // What migrating BB from the toggle-projected path to a stored instance may
+  // change is still NOTHING — `expect(engine).toBe(legacy)` below is the same
+  // character-for-character comparison it always was. What changed is the
+  // SECOND claim this case made ("…and that legend contains no BB chip"), which
+  // is now false. It is replaced by the exact chip text rather than by a
+  // tolerance: an assertion that passed when the chip was MISSING would be
+  // indistinguishable from deleting the case.
   //
   // ⚠️ THE PIXEL GATE CANNOT SEE ANY OF THIS — a headless capture has no cursor,
-  // so no chip is drawn on either side whatever the bridge does.
+  // and `ChartRender.jsx:527` hides the legend container outright on the only
+  // route it photographs. A zero from it is not evidence about a chip.
   const hoverText = (view) =>
     // Every purple line carries a value at the hovered bar — the state in which a
-    // chip WOULD be emitted if anything asked for one.
+    // chip WOULD be emitted if anything asked for one. All THREE are fed, which
+    // is what makes the occurrence count below able to catch an edge chip.
     settledLegend(view, crosshairAt(BARS, purple().map(c => [c.series, { value: 123.456 }])))
+
+  /** How many times `needle` occurs in `hay` — the edges-stayed-hidden probe. */
+  const occurrences = (hay, needle) => hay.split(needle).length - 1
 
   it('the ENGINE legend is character-for-character the LEGACY legend', async () => {
     const legacyView = draw(BB_ON)
     const legacyText = await hoverText(legacyView)
     expect(legacyText, 'the legend printed nothing — vacuous').toMatch(/O\s*1/)
-    expect(legacyText, 'the shipped legend already has a BB chip?').not.toContain('123.4')
+    // ⭐ THE DECLARED DIFFERENCE, NAMED. Not "contains BB somewhere": the whole
+    // chip, label and precision together, so a lost chip, a renamed one, a
+    // dropped `legendParams` (`BB 123.46`) or a precision change all fail here.
+    expect(legacyText, 'the Bollinger chip is gone from the legend')
+      .toContain('BB(20, 2) 123.46')
+    // …and ONLY the basis. Three series were hovered with the same value, so a
+    // `legend` block on `upper` or `lower` makes this three and fails — the
+    // three-purple-chips regression the old `not.toContain` was holding down.
+    expect(occurrences(legacyText, '123.4'),
+      'a band EDGE grew a chip — three numbers for one indicator').toBe(1)
 
     cleanup(); H.reset()
     const engineView = draw({ ...BB_ON, indicatorInstances: [BB_INSTANCE] })
@@ -2378,9 +2455,13 @@ describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () =>
     expect(await hoverText(engineView)).toBe(legacyText)
   })
 
-  it('and an RSI chip alongside it is untouched — hiding BB must not hide everything', () => {
-    // The other direction of the same mistake: a bridge that dropped every chip
-    // would satisfy the case above and break the one indicator that HAS one.
+  it('and an RSI chip alongside it is untouched — BB\'s chip must not crowd it out', () => {
+    // The other direction of the same mistake. It used to read *"hiding BB must
+    // not hide everything"*: a bridge that dropped every chip would satisfy the
+    // case above and break the one indicator that HAS one. Task 2 makes the twin
+    // sharper rather than retiring it — BB now emits too, so this is the case
+    // that two indicators on one chart each print their OWN chip, and exactly one
+    // each.
     const view = draw({
       ...BB_ON, indicators: { ...BB_ON.indicators, rsi: { enabled: true, period: 14, color: '#7b68ee' } },
       indicatorInstances: [BB_INSTANCE, RSI_INSTANCE],
@@ -2393,26 +2474,42 @@ describe('an engine-drawn Bollinger adds NOTHING to the crosshair legend', () =>
         [rsi.series, { value: 54.321 }],
         ...purple().map(c => [c.series, { value: 123.456 }]),
       ]))
-      expect(text).toContain('RSI(14) 54.3')
-      expect(text, 'a Bollinger chip appeared').not.toContain('123.4')
+      expect(text, 'the RSI chip disappeared when BB gained one').toContain('RSI(14) 54.3')
+      expect(text, 'the Bollinger chip disappeared when RSI was drawn beside it')
+        .toContain('BB(20, 2) 123.46')
+      expect(occurrences(text, '123.4'), 'a band EDGE grew a chip').toBe(1)
+      expect(occurrences(text, '54.3'), 'RSI printed twice').toBe(1)
     })()
   })
 
-  it('and all three plots still DECLARE the chip hidden — the reason the above holds', () => {
-    // ⚠️ THE RENDERED CASES ABOVE CANNOT SEE THIS, AND A MUTATION PROVED IT.
-    // `emitChips` skips a plot when `!plot.legend` OR when `plot.legend.hide`
-    // is true (`readout.js:107`), so deleting `legend: { hide: true }` from a
-    // BB plot changes NOTHING that renders — the chip was already suppressed by
-    // having no `LEGACY_SLOTS` entry and no declaration. The flag is the
-    // INTENT ("deliberately no chip") as distinct from the omission ("nobody
-    // declared one yet"), and until this case existed it could be deleted with
-    // the whole suite green. VWAP has carried this assertion since Task 8; BB
-    // and MACD had not.
+  it('and the BASIS declares the chip while both EDGES stay hidden — the reason the above holds', () => {
+    // ⚠️ THE RENDERED CASES ABOVE CANNOT SEE THE DECLARATION, AND A MUTATION
+    // PROVED IT. `emitChips` skips a plot when `!plot.legend` OR when
+    // `plot.legend.hide` is true (`readout.js`), so the `hide` flag is the INTENT
+    // ("deliberately no chip") as distinct from the omission ("nobody declared one
+    // yet"), and until this case existed it could be deleted with the whole suite
+    // green.
+    //
+    // 🔴 IT USED TO ASSERT `hide === true` ON ALL THREE. Task 2 (`43efeff6`) gave
+    // the BASIS a real chip; the two EDGES keep the flag, and keeping it is a
+    // decision rather than an oversight — three numbers for one indicator is the
+    // readout regression MACD's histogram is hidden for. Stated per PLOT KEY and
+    // as a whole-object `toEqual`, so it fails in every direction that matters:
+    // the basis losing its chip, an edge gaining one, a precision change, or a
+    // `legend.label` appearing where `shortName` already IS the stem.
     const def = registry.getDefinition('bb')
-    expect(def.plots, 'upper / middle / lower').toHaveLength(3)
-    for (const p of def.plots) {
-      expect(p.legend && p.legend.hide, `${p.key} grew a legend chip the shipped chart never had`).toBe(true)
-    }
+    expect(def.plots.map(p => p.key), 'upper / middle / lower').toEqual(['upper', 'middle', 'lower'])
+    const byKey = Object.fromEntries(def.plots.map(p => [p.key, p]))
+    expect(byKey.middle.legend, 'the Bollinger BASIS lost the chip Task 2 gave it')
+      .toEqual({ decimals: 2 })
+    expect(byKey.upper.legend, 'the UPPER band grew a chip the readout must not print')
+      .toEqual({ hide: true })
+    expect(byKey.lower.legend, 'the LOWER band grew a chip the readout must not print')
+      .toEqual({ hide: true })
+    // …and the brackets, which are what make two Bollingers on one chart tellable
+    // apart. A `legend.label` here would short-circuit these and leave them inert.
+    expect(def.meta.legendParams, 'the chip stopped naming its period and stdDev')
+      .toEqual(['period', 'stdDev'])
   })
 })
 
@@ -3500,14 +3597,25 @@ describe('what pixels cannot see, for VWAP', () => {
   })
 })
 
-describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
+describe('an engine-drawn VWAP prints ONE chip, and the flip does not change it', () => {
   // ⭐ B5 TASK 12 — BANDS, PINNED. See `pinBandsMode`.
   pinBandsMode()
 
-  // `plots[0].legend.hide` is the declaration; this is what it has to MEAN.
-  // The LEGACY read is the control: the absence has to be legacy's, not a bug in
-  // the engine's chip builder, or "no chip" would be indistinguishable from "the
-  // readout is broken for price overlays".
+  // 🔴 THIS DESCRIBE READ *"adds NOTHING to the crosshair legend"* and the note
+  // under it read *"`plots[0].legend.hide` is the declaration; this is what it
+  // has to MEAN"*. Task 2 (`43efeff6`) replaced that declaration with
+  // `{ decimals: 2 }`: a dollar line on the candles' own scale had no label at
+  // any time, and "read it off the price scale" is not a reason a line should be
+  // unnameable.
+  //
+  // ⛔ THE PARITY EQUALITY IS UNCHANGED — `expect(engine).toBe(legacy)` is still
+  // a character-for-character comparison of the two entry points, and it is
+  // still the reason this block exists. Only the accompanying ABSENCE claim is
+  // inverted, into the exact chip text plus an occurrence count, so the case
+  // cannot pass with the chip missing.
+  // The LEGACY read remains the control: what the two lanes print has to agree,
+  // or a chip present on one side would be indistinguishable from "the readout
+  // is broken for price overlays".
   // ⚠️ THE LEGEND IS A CROSSHAIR-DRIVEN RENDER, NOT A STATIC ONE. A helper that
   // just read `container.textContent` after mount returned the empty string for
   // BOTH lanes, and every assertion below passed on `'' === ''`. The chips only
@@ -3531,25 +3639,37 @@ describe('an engine-drawn VWAP adds NOTHING to the crosshair legend', () => {
     return settledLegend(view, crosshairAt(INTRADAY_BARS, vwap ? [[vwap.series, { value: 101.5 }]] : []))
   }
 
-  it('LEGACY prints no VWAP chip, and the ENGINE prints the same legend', async () => {
+  it('LEGACY prints the VWAP chip, and the ENGINE prints the same legend', async () => {
     const legacy = await legendOf(VWAP_ON)
-    // Non-vacuity FIRST: the legend has to have rendered, or "contains no VWAP"
+    // Non-vacuity FIRST: the legend has to have rendered, or every claim below
     // is a statement about an empty string.
     expect(legacy, 'the legend rendered nothing — the comparison below is vacuous').toMatch(/O\s*1/)
     const engine = await legendOf({ ...VWAP_ON, indicatorInstances: [VWAP_INSTANCE] })
     expect(engine, 'the ENGINE legend rendered nothing').toMatch(/O\s*1/)
-    expect(legacy, 'the LEGACY legend grew a VWAP chip').not.toMatch(/VWAP/i)
+    // ⭐ THE DECLARED DIFFERENCE, NAMED — label and precision together. `VWAP`
+    // alone would pass with `VWAP 101.5` or `VWAP(4)`; this will not.
+    expect(legacy, 'the VWAP chip is gone from the legend').toContain('VWAP 101.50')
+    // ⛔ THE EQUALITY, UNTOUCHED. This is the whole flip-parity claim and it is
+    // still an equality over the WHOLE legend, not "equal except the chip".
     expect(engine, 'the ENGINE legend is not character-for-character the legacy one').toBe(legacy)
-    // …and the value the engine's series was hovered WITH does not appear either,
-    // which is the sharper claim: `legend.hide` suppresses the chip, it does not
-    // merely omit the label.
-    expect(engine, 'the engine printed VWAP\'s value without a label').not.toContain('101.5')
+    // …and the value never appears WITHOUT its label — the sharper half of the
+    // old claim, kept. One occurrence of `101.5` and one of `101.50` means the
+    // only place the number is printed is inside the chip above.
+    const count = (hay, needle) => hay.split(needle).length - 1
+    expect(count(engine, '101.5'), 'VWAP\'s value is printed somewhere without a label').toBe(1)
+    expect(count(engine, '101.50'), 'the chip is printed twice').toBe(1)
   })
 
-  it('and the definition still DECLARES the chip hidden — the reason the above holds', () => {
+  it('and the definition DECLARES that chip — the reason the above holds', () => {
+    // 🔴 IT ASSERTED `legend.hide === true`. Task 2 inverted the declaration; the
+    // case is inverted with it, and asserted WHOLE so a return to `{ hide: true }`
+    // or a precision change both fail.
     const def = registry.getDefinition('vwap')
     expect(def.plots).toHaveLength(1)
-    expect(def.plots[0].legend.hide, 'VWAP grew a legend chip the shipped chart never had').toBe(true)
+    expect(def.plots[0].legend, 'VWAP\'s chip declaration moved').toEqual({ decimals: 2 })
+    // No brackets: VWAP's four inputs are colour, opacity, line style and line
+    // width, and not one of them changes WHAT IS MEASURED.
+    expect(def.meta.legendParams, 'a cosmetic input reached the chip').toBeUndefined()
   })
 })
 
@@ -5191,16 +5311,23 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     expect(after[0].scaleId, 'the line did not go back to its own named scale').toBe('mfi')
   })
 
-  it('none of the three adds a legend chip, and the nine are still the nine', async () => {
-    // ⛔ THE ABSENCE IS THE ASSERTION, AND IT IS TRANSCRIBED RATHER THAN
-    // IMPROVED. None of these definitions declares a `plots[].legend` block, so
-    // none produced a chip on the legacy lane and none produces one on the engine
-    // lane — which is the shipped behaviour. The risk the flip creates is the
-    // OPPOSITE of a lost chip: the engine lane emits a chip for any plot that
-    // declares one, so a `legend: {}` added in passing would put THREE new chips
-    // in a legend that has printed nine since B4.
-    for (const id of ['mfi', 'cci', 'williamsR']) {
-      expect(registry.getDefinition(id).plots.filter(p => p.legend), id).toEqual([])
+  it('each of the three adds EXACTLY ONE chip, and the RSI control is untouched', async () => {
+    // 🔴 THIS READ *"none of the three adds a legend chip, and the nine are still
+    // the nine"*, and its note read *"THE ABSENCE IS THE ASSERTION, AND IT IS
+    // TRANSCRIBED RATHER THAN IMPROVED."* Transcribing the shipped behaviour was
+    // right for a FLIP task; Task 2 (`43efeff6`) is the task that changes it,
+    // because a user who switched MFI on got a line with no label at any time.
+    //
+    // ⛔ THE HAZARD THE OLD NOTE NAMED SURVIVES VERBATIM, and it is why this is
+    // an equality on plot KEYS rather than "declares at least one": *"the engine
+    // lane emits a chip for any plot that declares one, so a `legend: {}` added
+    // in passing would put THREE new chips in the legend"*. Each of these three
+    // declares its chip on the OSCILLATOR LINE and on nothing else — a `legend`
+    // block landing on a `bands`/`zero` guide fails the loop below by name.
+    const CHIP_ON = { mfi: ['mfi'], cci: ['cci'], williamsR: ['williams_r'] }
+    for (const [id, keys] of Object.entries(CHIP_ON)) {
+      expect(registry.getDefinition(id).plots.filter(p => p.legend).map(p => p.key), id)
+        .toEqual(keys)
     }
     const view = draw({ indicators: { ...RSI_ON.indicators, ...MFI_ON, ...CCI_ON, ...WR_ON } })
     const drawn = ['mfi', 'cci', 'williamsR'].map(id => boundFor(id)[0])
@@ -5210,9 +5337,15 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       ...drawn.map(b => [b.series, { value: 42.5 }]),
     ])
     expect(text, 'the engine lane stopped drawing — the control chip is missing').toContain('RSI(14)')
-    for (const label of ['MFI', 'CCI', '%R']) {
-      expect(text, label + ' gained a chip the shipped legend never printed').not.toContain(label)
+    // ⭐ THE DECLARED DIFFERENCE, NAMED — label, brackets and precision together,
+    // so a dropped `legendParams` (`MFI 42.5`) or a precision change fails.
+    for (const chip of ['MFI(14) 42.5', 'CCI(20) 42.5', '%R(14) 42.5']) {
+      expect(text, chip + ' is missing from the legend').toContain(chip)
     }
+    // …and ONE each: three lines were hovered with the SAME value, so a chip on
+    // a guide, or a definition emitting twice, makes this more than three.
+    expect(text.split('42.5').length - 1,
+      'more than one chip per oscillator — a guide or a sibling plot grew one').toBe(3)
   })
 
   it('none of the three has a keyboard chord, and that is UNCHANGED by the flip', () => {
@@ -5645,16 +5778,22 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     expect(guidesOn([after[0]]).map(g => g.price)).toEqual([25])
   })
 
-  it('none of the three adds a legend chip, and the nine are still the nine', async () => {
-    // ⛔ THE ABSENCE IS THE ASSERTION, AND IT IS TRANSCRIBED RATHER THAN
-    // IMPROVED. None of these definitions declares a `plots[].legend` block, so
-    // none produced a chip on the legacy lane and none produces one on the engine
-    // lane. The risk the flip creates is the OPPOSITE of a lost chip: the engine
-    // lane emits a chip for any plot that declares one, so a `legend: {}` added
-    // in passing would put SEVEN new chips in a legend that has printed nine
-    // since B4.
-    for (const id of ['adx', 'obv', 'donchian']) {
-      expect(registry.getDefinition(id).plots.filter(p => p.legend), id).toEqual([])
+  it('each of the three adds EXACTLY ONE chip — on the line a value is read off', async () => {
+    // 🔴 THIS READ *"none of the three adds a legend chip, and the nine are still
+    // the nine"*, transcribing the shipped behaviour for a FLIP task. Task 2
+    // (`43efeff6`) is the task that changes it: ADX, OBV and Donchian drew SEVEN
+    // lines between them and a user could name none of them.
+    //
+    // ⛔ AND THE HAZARD THE OLD NOTE NAMED IS EXACTLY WHAT THIS STILL GUARDS —
+    // *"a `legend: {}` added in passing would put SEVEN new chips in the
+    // legend"*. Seven series are hovered with the SAME value below and the
+    // occurrence count is THREE, so the directional lines and the channel edges
+    // staying chip-less is asserted, not assumed: the ADX line is the one a
+    // trader reads a number off, and the Donchian BASIS is Donchian's.
+    const CHIP_ON = { adx: ['adx'], obv: ['obv'], donchian: ['middle'] }
+    for (const [id, keys] of Object.entries(CHIP_ON)) {
+      expect(registry.getDefinition(id).plots.filter(p => p.legend).map(p => p.key), id)
+        .toEqual(keys)
     }
     const view = draw({
       indicators: { ...RSI_ON_HERE.indicators, ...ADX_ON, ...OBV_ON, ...DON_ON },
@@ -5666,9 +5805,25 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       ...drawn.map(b => [b.series, { value: 42.5 }]),
     ])
     expect(text, 'the engine lane stopped drawing — the control chip is missing').toContain('RSI(14)')
-    for (const label of ['ADX', '+DI', '-DI', 'OBV', 'Upper', 'Mid', 'Lower']) {
-      expect(text, label + ' gained a chip the shipped legend never printed').not.toContain(label)
+    // ⭐ THE DECLARED DIFFERENCE, NAMED. `OBV 43` is 42.5 at ZERO decimals — the
+    // controller's ruling, because OBV is a cumulative share count — and `DC` is
+    // the one `legend.label` among the ten, because `shortName` is 'Donchian'.
+    for (const chip of ['ADX(14) 42.5', 'OBV 43', 'DC 42.50']) {
+      expect(text, chip + ' is missing from the legend').toContain(chip)
     }
+    // …and the four lines that must stay chip-less really are: seven series were
+    // hovered, three chips came back.
+    for (const label of ['+DI', '-DI', 'Upper', 'Mid', 'Lower']) {
+      expect(text, label + ' gained a chip — a second number for one indicator')
+        .not.toContain(label)
+    }
+    // ⛔ TWO, NOT THREE, AND THE ARITHMETIC IS THE ASSERTION: `ADX(14) 42.5` and
+    // `DC 42.50` both contain `42.5`, and `OBV 43` does not — 42.5 at ZERO
+    // decimals is `43`. A chip on `plusDI`, `minusDI` or a channel edge is a
+    // third occurrence and fails here even if its LABEL is something this file
+    // never thought to list above.
+    expect(text.split('42.5').length - 1,
+      'a directional line or a channel edge grew a chip').toBe(2)
   })
 
   it('none of the three has a keyboard chord, and that is UNCHANGED by the flip', () => {

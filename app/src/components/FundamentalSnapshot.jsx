@@ -5,6 +5,7 @@
 // the top of the research Overview. One request via useFundamentalSnapshot.
 import useFundamentalSnapshot from '../hooks/useFundamentalSnapshot'
 import UIcon from './ui/UIcon'
+import CoverageNote from './research-kit/CoverageNote'
 import styles from './FundamentalSnapshot.module.css'
 
 function scoreColor(v) {
@@ -115,7 +116,13 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
                   title={d.basis === 'percentile'
                     ? `Ratings are percentile ranks vs a ${d.universe_n || '—'}-stock universe`
                     : 'Ratings use absolute threshold bands (universe percentile not yet warmed)'}>
-              {d.basis === 'percentile' ? `Percentile · ${d.universe_n || '—'}` : 'Absolute v1'}
+              {/* NOT "Percentile · 3743" — that reads as a percentile OF 3743
+                  on a 0-99 scale. `universe_n` is the size of the pool the
+                  stock is ranked against. Same wording as the kit's
+                  `basisPill`, which already got this right. */}
+              {d.basis === 'percentile'
+                ? `Ranked vs ${Number(d.universe_n) ? Number(d.universe_n).toLocaleString('en-US') : '—'} stocks`
+                : 'Absolute v1'}
             </span>
           )}
         </div>
@@ -127,6 +134,7 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
           <div className={styles.composite}>
             <div className={styles.compNum} style={{ color: scoreColor(d.composite) }}>{d.composite ?? dash}</div>
             <div className={styles.compLbl}>UCT Composite<span>0–99</span></div>
+            <CoverageNote coverage={d.coverage} />
           </div>
           <div className={styles.boxes}>
             {NUM_COMPONENTS.map(([k, label]) => (

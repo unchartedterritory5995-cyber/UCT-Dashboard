@@ -315,19 +315,42 @@ def _name_logo_bytes(name: str):
     return _logodev_domain_bytes(domain) or _url_bytes(f"https://logo.clearbit.com/{domain}")
 
 
+# ── Manual ticker → domain overrides ─────────────────────────────────────────
+# The automated chain misses a thin tail: recent IPOs not yet indexed by ticker,
+# ticker reuse, and cases where a provider returns an un-normalizable SVG that
+# SHORT-CIRCUITS the chain (Parqet does this for CBRS — its SVG is non-None so it
+# beats FMP + the domain sources behind it, then fails Pillow normalization, so
+# the whole resolve marks a miss and the monogram shows). For those, pin the
+# company's real domain and resolve the logo from it (logo.dev-by-domain, then
+# Clearbit-by-domain) BEFORE the automated chain. Add a line whenever a ticker
+# shows the fallback letter and its logo.dev-by-domain returns a real image.
+_DOMAIN_OVERRIDES = {
+    "CBRS": "cerebras.ai",   # Cerebras Systems — IPO'd before providers indexed CBRS
+}
+
+
+def _override_logo_bytes(sym: str):
+    """Real logo via a pinned domain, for a ticker the automated chain misses."""
+    dom = _DOMAIN_OVERRIDES.get(_safe(sym))
+    if not dom:
+        return None
+    return _logodev_domain_bytes(dom) or _url_bytes(f"https://logo.clearbit.com/{dom}")
+
+
 def _fetch_sources(sym: str):
     """Try each source in priority order; return raw image bytes or None.
 
-    CDN sources (Parqet, FMP) come first: they need no API key and tolerate
-    concurrency, which keeps the universe-wide bulk warm fast. Finnhub's
-    profile2 logo is the last resort because its free tier is rate-limited
-    (~60/min) and would throttle a bulk pass if it ran first.
-    Clearbit-by-domain is NOT included here — it's only used by run_miss_retry()
-    at low concurrency (≤2 workers) to avoid hammering yfinance in bulk passes.
+    A pinned-domain OVERRIDE (recent-IPO / broken-source tail) wins first. Then
+    CDN sources (Parqet, FMP) — they need no API key and tolerate concurrency,
+    which keeps the universe-wide bulk warm fast. Finnhub's profile2 logo is the
+    last resort because its free tier is rate-limited (~60/min) and would throttle
+    a bulk pass if it ran first. Clearbit-by-domain is NOT included here — it's
+    only used by run_miss_retry() at low concurrency (≤2 workers).
     """
     s = _safe(sym)
     return (
-        _logodev_logo_bytes(s)
+        _override_logo_bytes(s)
+        or _logodev_logo_bytes(s)
         or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
         or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
         or _finnhub_logo_bytes(s)
@@ -339,7 +362,8 @@ def _fetch_sources_with_clearbit(sym: str):
     run_miss_retry() at low concurrency."""
     s = _safe(sym)
     return (
-        _logodev_logo_bytes(s)
+        _override_logo_bytes(s)
+        or _logodev_logo_bytes(s)
         or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
         or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
         or _finnhub_logo_bytes(s)

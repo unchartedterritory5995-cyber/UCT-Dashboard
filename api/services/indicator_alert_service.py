@@ -478,6 +478,47 @@ def _rearm(alert_id: int, now_i: int, detail: Optional[str] = None) -> None:
                bump_epoch=True, clear_snooze=True)
 
 
+def snooze_active(row: Optional[dict], now: Optional[float] = None) -> bool:
+    """Is this alert INSIDE a snooze window right now? Read from the CLOCK.
+
+    🔴 THE DEFECT THIS CLOSES, AND IT WAS LIVE. The snooze used to be enforced
+    by `row["state"] == STATE_SNOOZED` — a mutable text column — and
+    `snooze_until` was consulted only once that column already said "snoozed".
+    So anything that rewrote the state cancelled the snooze silently:
+
+        snooze 30 days  →  `sweep_silent_alerts` sees one cycle with no bars  →
+        `mark_needs_attention` writes state='needs_attention' and leaves
+        `snooze_until` 29 DAYS OUT  →  the next true reading DELIVERS.
+
+    Measured on a real row: `record_trigger` returned **True** with the window
+    still 29 days from closing, and `claim_delivery` agreed. That sweep runs
+    unconditionally every 300 s from `api/main.py`, and all 31 production soak
+    rows share one `(SPY, "5")` bar group — so ONE failed bars fetch un-muzzled
+    all 31 at once.
+
+    ⛔ THE ASYMMETRY THAT MADE IT POSSIBLE IS THE REAL LESSON. Fire-once is
+    protected by `UNIQUE(alert_id, fire_key)` — a DATABASE invariant that
+    survives any state drift. The snooze had no backstop and was exactly as
+    durable as one text column that six code paths write. It is now derived from
+    the TIMESTAMP, which no state transition rewrites, so every consumer asks the
+    same question and no state can answer it for them.
+
+    ⚠️ `_rearm` STILL CLEARS `snooze_until`, AND THAT IS THE CANCEL PATH. The
+    manual re-arm button and an expired window both go through it, so "tell me
+    again now" still cancels a snooze — deliberately, because that is the one
+    place a human asked for it.
+    """
+    if not row:
+        return False
+    until = row.get("snooze_until")
+    if until is None:
+        return False
+    try:
+        return _now(now) < int(until)
+    except (TypeError, ValueError):
+        return False
+
+
 def record_evaluation(alert_id: int, last_value: float, *,
                       now: Optional[float] = None) -> bool:
     """The alert was evaluated and did NOT trigger. Returns True iff it re-armed.
@@ -501,14 +542,17 @@ def record_evaluation(alert_id: int, last_value: float, *,
     _touch_value(alert_id, last_value, now_i)
 
     state = row["state"]
-    if state == STATE_SNOOZED:
-        until = row["snooze_until"]
-        if until is not None and now_i < int(until):
-            return False
+    # ⭐ THE WINDOW, NOT THE LABEL — see `snooze_active`. Asking the clock rather
+    # than the `state` column is what makes a snooze survive `mark_needs_
+    # attention`, which rewrote the label and left the window open.
+    if snooze_active(row, now_i):
+        return False
+    if row["snooze_until"] is not None:
         # ⭐ AN EXPIRED SNOOZE RE-ARMS, EPISODE AND ALL. "Quiet for 15 minutes"
         # means the alert speaks again afterwards if it is still true — so the
         # key has to move, or the very condition the user snoozed would be the
-        # one thing that can never come back.
+        # one thing that can never come back. `_rearm` clears `snooze_until`, so
+        # this runs exactly once however the state drifted in the meantime.
         _rearm(alert_id, now_i, detail="the snooze window expired")
         return True
     if state == STATE_FIRED:
@@ -543,6 +587,12 @@ def record_trigger(alert_id: int, last_value: float, *,
     alert would then be permanently mute the moment the snooze expired — the
     user asked for fifteen minutes of quiet and got silence forever.
 
+    ⛔ AND "SNOOZED" IS NOW THE WINDOW, NOT THE `state` LABEL. It used to be the
+    label, so `mark_needs_attention` — reached from a sweep that runs every
+    300 s — cancelled a 30-day snooze by rewriting one text column. Measured:
+    this returned **True** with the window still 29 days out. See
+    `snooze_active`.
+
     ⚠️ `needs_attention` / `error` DO NOT SUPPRESS. A value arrived and the
     condition is true; whatever was wrong is over. Firing clears the state.
     """
@@ -552,10 +602,9 @@ def record_trigger(alert_id: int, last_value: float, *,
         return False
     _touch_value(alert_id, last_value, now_i)
 
-    if row["state"] == STATE_SNOOZED:
-        until = row["snooze_until"]
-        if until is not None and now_i < int(until):
-            return False
+    if snooze_active(row, now_i):
+        return False
+    if row["snooze_until"] is not None:
         _rearm(alert_id, now_i, detail="the snooze window expired")
         row = get(alert_id) or row
 
@@ -679,6 +728,240 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
         return False, (f"{address} has no value on the bars stored for this "
                        "timeframe yet — not enough history")
     return False, None
+
+
+# ─── WHAT THE CREATE PATH REFUSES, AND WHY EACH REFUSAL IS MODE-HONEST ───────
+#
+# ⭐ THE GAP THIS CLOSES. `diagnose` above answers *"why is this alert silent"*
+# AFTER the alert has been armed, live, for as long as it takes somebody to
+# notice. This answers the same question one step earlier — at creation, where
+# the answer can still be a refusal instead of an explanation. The concrete case
+# that surfaced it: a `vwap` alert on `tf="D"`. `bars_sqlite` keeps daily rows
+# under a `YYYYMMDD` calendar key, `compute_vwap_raw` refuses a column whose `t`
+# is not a clock instant (`indicator_compute.VWAP_MIN_INSTANT`, the fix for the
+# 1970-anchored daily VWAP), and the chart has always declared VWAP intraday-only
+# (`eligibility.VWAP_TIMEFRAMES`). So the alert was accepted, armed, active — and
+# structurally mute forever, with nothing anywhere saying so.
+#
+# ⛔⛔ THE RULE, AND IT IS THE HARD PART: A COMBINATION IS REFUSED ONLY IF IT IS
+# DEAD IN **BOTH** EVALUATION MODES. `ALERT_EVAL_MODE` is `"forming"` today and
+# Task 8 alone flips it, so a validator that quietly judged the post-cutover
+# world would delete working features from a live surface under the cover of a
+# "fix".
+#
+#   ⚠️ THE NAMED CASE THAT PROVES THE RULE IS NOT THEORETICAL: `ichimoku.chikou`
+#   fires TODAY and stops firing at the cutover. Its 26-bar trailing pad means
+#   the CLOSED bar's `series[i]` is always `None`, so under `"closed"` it can
+#   never fire — but under `"forming"` the value lane takes the last non-None
+#   element and it fires normally. It is live in the production catalog with
+#   armed rows behind it, and Task 6's declared diff prices it at 19,574 fires
+#   lost / 0 gained. **It is deliberately NOT refused here.** What happens to it
+#   at the flip is Task 8's decision, not a side effect of input validation.
+#
+# The distinction each gate below rests on is therefore mechanical rather than
+# editorial: an ALL-None column is dead in both lanes; a TRAILING-None column is
+# alive in one of them. `instant_only_addresses()` measures exactly that
+# difference and `chikou` falls on the living side of it.
+
+#: The three refusals, as data, because the tests quote them rather than retype
+#: them and because disjointness has to be assertable.
+#:
+#: ⛔ THEY ARE DELIBERATELY DISJOINT AND THAT IS A SAFETY PROPERTY, NOT A STYLE
+#: NOTE. Task 9 shipped two gates that shared a refusal phrase, and
+#: `pytest.raises(match=…)` therefore still matched with the second safety
+#: DELETED — a test that would have passed on a tree with the guard removed.
+#: `test_the_three_refusals_are_disjoint` asserts each anchor matches its own
+#: message and no other.
+REFUSAL_UNJUDGEABLE_CONDITION = "is not a trigger rule this evaluator can judge"
+REFUSAL_INTRADAY_ONLY = "is only defined on an intraday timeframe"
+REFUSAL_NO_LEVEL = "compares against a level, and no level was given"
+
+#: How many bars the classification probe below runs on. Ichimoku needs 52 + a
+#: 26-bar displacement before it resolves at all, so a short probe would report
+#: "no value on either encoding" for it and classify nothing — which is why
+#: `test_the_probe_resolves_every_catalog_address` exists.
+_PROBE_BARS = 260
+
+
+def _probe_series() -> tuple[list[dict], list[dict]]:
+    """Two bar lists, IDENTICAL in OHLCV and differing ONLY in the `t` encoding.
+
+    The left one carries real unix seconds (what `bars_sqlite` stores for
+    1/5/15/30/60); the right one carries `YYYYMMDD` ints for the same calendar
+    days (what it stores for D/W/M). `_fetch_bars_for_alert` passes either
+    through verbatim — deliberately, because `bar_close_epoch` and
+    `closed_bar_index` READ the calendar encoding — so these two are exactly the
+    two shapes an address can be handed in production.
+
+    ⛔ THE OHLCV MUST MOVE. A flat series makes CCI's mean deviation zero and
+    ADX's directional movement zero, so several addresses would report "no
+    value" for a reason that has nothing to do with `t` and would be
+    misclassified. The sine plus drift is what keeps every one of the 31
+    resolvable — asserted, not assumed.
+    """
+    import datetime as _dt
+    import math
+    base = _dt.date(2024, 1, 2)
+    instant: list[dict] = []
+    calendar: list[dict] = []
+    for i in range(_PROBE_BARS):
+        day = base + _dt.timedelta(days=i)
+        close = 100.0 + 10.0 * math.sin(i / 9.0) + i * 0.05
+        ohlcv = {"o": close - 0.4, "h": close + 1.1, "l": close - 1.3,
+                 "c": close, "v": 1_000_000 + i * 137}
+        instant.append({"t": int(_dt.datetime(
+            day.year, day.month, day.day, 14, 30,
+            tzinfo=_dt.timezone.utc).timestamp()), **ohlcv})
+        calendar.append({"t": int(day.strftime("%Y%m%d")), **ohlcv})
+    return instant, calendar
+
+
+_INSTANT_ONLY_CACHE: Optional[frozenset] = None
+
+
+def instant_only_addresses() -> frozenset:
+    """Addresses whose column is REFUSED WHOLE on a calendar-encoded timeframe.
+
+    ⛔ MEASURED, NEVER LISTED. The obvious implementation is
+    `{"vwap"}` — and that is a literal somebody has to remember to edit, which
+    is the enumeration-site defect this programme has been retiring all phase.
+    This runs every address's own column function over the two probe series and
+    asks the only question that matters: does it produce a number on an instant
+    and NOTHING AT ALL on a calendar date? Today the answer is `{"vwap"}` and
+    `test_the_measured_instant_only_set_is_exactly_vwap_today` says so — but a
+    future address with the same dependency is covered on the day it lands.
+
+    ⛔ AN ADDRESS THAT RESOLVES ON NEITHER PROBE IS NOT CLASSIFIED. "No value on
+    either encoding" means the probe could not tell, not that the address is
+    calendar-hostile, and refusing on a measurement that did not happen is how a
+    guard starts rejecting working alerts. `test_the_probe_resolves_every_
+    catalog_address` asserts that set is EMPTY, so the safe branch is never
+    silently doing the work.
+
+    ⚠️ THE DIFFERENCE FROM `ichimoku.chikou` IS THE WHOLE DESIGN. `chikou`'s
+    column has 209 values and 26 trailing `None`s on this same probe, so
+    `any(...)` is True on BOTH encodings and it is never flagged. A trailing pad
+    is a CLOSED-lane consequence; an empty column is a both-lanes fact.
+    """
+    global _INSTANT_ONLY_CACHE
+    if _INSTANT_ONLY_CACHE is not None:
+        return _INSTANT_ONLY_CACHE
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+    instant, calendar = _probe_series()
+    flagged = set()
+    for address in ev.all_addresses():
+        column = alert_series.SERIES_FUNCS.get(address)
+        if column is None:
+            continue
+        try:
+            on_instant = column(instant, {})
+            on_calendar = column(calendar, {})
+        except Exception:  # noqa: BLE001 - a raising compute is `diagnose`'s job
+            continue
+        if any(v is not None for v in on_instant) and all(
+                v is None for v in on_calendar):
+            flagged.add(address)
+    _INSTANT_ONLY_CACHE = frozenset(flagged)
+    return _INSTANT_ONLY_CACHE
+
+
+def evaluable_conditions() -> frozenset:
+    """Every trigger rule the catalog offers, anywhere, for any address.
+
+    ⚠️ THIS IS THE SET `check_condition` HANDLES, AND THE EQUALITY IS A TEST
+    RATHER THAN A HOPE. `alert_conditions.check_condition` returns False for an
+    unknown condition, so a rule outside its branches is armed and mute forever
+    — in both lanes, since it is the sole decider of `triggered` in
+    `_evaluate_one` AND `_evaluate_one_closed`. Refusing on the CATALOG union
+    would over-refuse if `check_condition` ever grew a branch nobody offered, so
+    `test_the_offered_rules_are_exactly_the_ones_check_condition_handles`
+    derives its branches from its own AST and asserts set equality both ways.
+    """
+    from api.services import indicator_alert_evaluator as ev
+    return frozenset(
+        c["value"] for conditions in ev.ALERT_CONDITIONS.values()
+        for c in conditions
+    )
+
+
+def conditions_needing_a_level() -> frozenset:
+    """Rules that can never fire without a number on the right-hand side.
+
+    ⛔ MEASURED AGAINST `check_condition` ITSELF, not read off a list. Every
+    offered rule is asked, with `threshold=None`, whether ANY (current, prev)
+    pair in a sign-covering probe makes it answer True. `cross_zero` does
+    (`prev <= 0 < current`); the other six consult `threshold` and short-circuit
+    on `None`. A hand-written `{"above", "below", …}` set is the same literal
+    the retired dispatch dict was, and it would rot the first time a rule landed.
+
+    ⚠️ IT IS NOT THE WHOLE REFUSAL. `THRESHOLD_OPERAND` DECLARES a right-hand
+    side for four (address, condition) pairs — `bb`'s two band touches and the
+    two `sar` events — and those are supplied by the evaluator rather than typed
+    by the user. `refusal_for` subtracts them, and the result reproduces the
+    catalog's hand-declared `needs_threshold` column exactly, which is what
+    `test_the_derived_rule_reproduces_the_catalogs_needs_threshold_column`
+    measures across every offered pair.
+    """
+    from api.services.alert_conditions import check_condition
+    probe = (-2.0, -1.0, 0.0, 1.0, 2.0)
+    return frozenset(
+        condition for condition in evaluable_conditions()
+        if not any(check_condition(condition, current, prev, None)
+                   for current in probe for prev in probe)
+    )
+
+
+def refusal_for(indicator: Optional[str], condition: Optional[str],
+                tf: Optional[str], threshold: Optional[float]) -> Optional[str]:
+    """Why this alert could NEVER fire, or ``None`` if it could.
+
+    Three gates, and every one of them is true under `ALERT_EVAL_MODE ==
+    "forming"` AND under `"closed"` — see the section header for why that is the
+    binding constraint rather than a nicety.
+
+    ⚠️ IT DOES NOT DUPLICATE THE TWO REFUSALS THAT ALREADY SHIPPED. The router
+    redirects the price ALIASES to the watchlist-alert lane and refuses an
+    address with no value function before calling this; those are about the
+    alert's NAME, these are about its SHAPE, and putting a second copy of the
+    address check here would give one refusal two spellings.
+
+    ⛔ `create()` IS DELIBERATELY NOT GATED. Thirty-one soak rows are armed on
+    production and `tools/alert_soak_matrix.py --arm` must stay idempotent; a
+    guard inside the writer would change what an internal tool and every
+    existing row can do, when the gap being closed is the *API* surface. The
+    router calls this; `create` still inserts what it is handed.
+    """
+    from api.services import indicator_alert_evaluator as ev
+
+    address = ev.resolve_address((indicator or "").strip())
+    rule = (condition or "").strip()
+    code = str(tf or "").strip().upper()
+    label = ev.ALERT_LABELS.get(address, address)
+
+    if rule not in evaluable_conditions():
+        offered = ", ".join(sorted(evaluable_conditions()))
+        return (f"{condition!r} {REFUSAL_UNJUDGEABLE_CONDITION} — it matches no "
+                f"branch of check_condition, which answers no for it on every "
+                f"bar, before and after the closed-bar cutover alike. The rules "
+                f"it can judge are: {offered}.")
+
+    if address in instant_only_addresses() and code in ev._CALENDAR_TFS:
+        intraday = ", ".join(sorted(ev._TF_MINUTES))
+        return (f"{label} {REFUSAL_INTRADAY_ONLY}. A {code} bar is stored under a "
+                f"calendar date where this series needs a clock instant, so its "
+                f"whole column is withheld and no number is ever produced — on "
+                f"the live lane and on the closed one. Arm it on one of "
+                f"{intraday}.")
+
+    if (threshold is None and rule in conditions_needing_a_level()
+            and (address, rule) not in ev.THRESHOLD_OPERAND):
+        return (f"{label} with {rule!r} {REFUSAL_NO_LEVEL}. Nothing declares a "
+                f"right-hand side for this pair, so the comparison is skipped "
+                f"every cycle and neither evaluation mode can deliver anything. "
+                f"Send a threshold.")
+
+    return None
 
 
 # ─── SPEC §6/§8: THE DELETION GUARD, FROM THE OTHER SIDE ─────────────────────
@@ -882,15 +1165,36 @@ def claim_delivery(alert_id: Optional[Any]) -> bool:
     before a member's inbox, every channel is downstream of it, and a second
     caller of this lane inherits the guard instead of having to remember it.
 
-    ⚠️ FAILS **OPEN**, DELIBERATELY, IN BOTH DIRECTIONS. An unidentifiable
-    payload (no `alert_id`) or an unreachable store returns True, so a member
-    may see a duplicate. The other failure — suppressing an alert we could not
-    identify — is the one nobody can see and nobody can report, and this whole
-    task exists because silence is the expensive direction.
+    🔴 AND IT NOW REFUSES DURING A SNOOZE, WHICH IT DID NOT. `_run_one_cycle`
+    DISCARDS `record_trigger`'s return value and calls `_dispatch_delivery`
+    unconditionally — measured: `invoked 4 times while record_trigger returned
+    [True, False, False, False]`. So delivery was gated by *"is there an
+    undelivered fire row"* and not by the snooze, and a fire recorded BEFORE the
+    snooze began was delivered inside the window. Measured on a real row:
+    `claim_delivery` returned **True while the alert was snoozed**. That also
+    refutes `alert_fired_log`'s claim that an older undelivered row "stays NULL
+    forever rather than being delivered late" — it does not, it is claimed by the
+    next cycle that produces one.
+
+    ⛔ THE CALL SITE IS STILL WRONG AND IS NOT FIXED HERE. `indicator_alert_
+    evaluator.py` is Task 8's file; the one-line fix there is
+    `if ias.record_trigger(...): _dispatch_delivery(alert, value)`. This gate
+    closes the CONSEQUENCE at the boundary every channel is downstream of, so
+    the hole is shut either way and shutting it twice is harmless.
+
+    ⚠️ FAILS **OPEN**, DELIBERATELY, IN BOTH DIRECTIONS — EXCEPT FOR A SNOOZE,
+    WHICH IS NOT A FAILURE. An unidentifiable payload (no `alert_id`) or an
+    unreachable store returns True, so a member may see a duplicate; the other
+    failure — suppressing an alert we could not identify — is the one nobody can
+    see and nobody can report, and this whole task exists because silence is the
+    expensive direction. A live snooze window is the opposite case: the silence
+    is what the user ASKED FOR, so it is the one refusal that is safe to make.
     """
     if alert_id is None:
         return True
     try:
+        if snooze_active(get(int(alert_id))):
+            return False
         return alert_fired_log.claim_delivery(int(alert_id))
     except Exception:  # noqa: BLE001 - see FAILS OPEN above
         import logging

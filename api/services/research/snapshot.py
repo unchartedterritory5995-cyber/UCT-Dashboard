@@ -128,6 +128,11 @@ def _build_snapshot(sym: str) -> dict:
     out["method"] = rat.get("method")
     out["basis"] = rat.get("basis")            # 'percentile' | 'absolute'
     out["universe_n"] = rat.get("universe_n")
+    # How much of the intended composite the score measured — NOT `basis`,
+    # which is the scoring method. Must be carried here or the snapshot
+    # surface (TickerPopup + research Overview) shows a partial composite with
+    # no disclosure while the Ratings tab discloses it. See ratings._coverage.
+    out["coverage"] = rat.get("coverage")
     out["group_rs"] = rat.get("group_rs")            # RS percentile within sector
     out["group_sector_n"] = rat.get("group_sector_n")  # # names in sector pool
 

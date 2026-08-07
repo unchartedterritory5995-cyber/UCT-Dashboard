@@ -580,6 +580,111 @@ def _merge_sticky_actuals(days: dict, today_str: str) -> None:
             _logger.warning("Calendar: sticky actuals merge failed: %s", exc)
 
 
+# ── Sticky reporters — a day's reporters must never disappear when it rolls past
+#
+# Sibling of the sticky-actuals ledger above, for the ROSTER rather than the
+# numbers. Two failure modes converge the morning after a day passes: EW drops
+# every name that reported (it's a forward SCHEDULE), and the provider range
+# backfill lags ~a day on the just-ended day — so a name like DDOG that showed in
+# Pre-Market all day is suddenly gone from "yesterday" until the providers catch
+# up. This ledger remembers each day's reporters (symbol -> session + EW rank +
+# estimates) while the day is live, and re-adds any that a degraded rebuild drops.
+_STICKY_ROSTER_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "calendar_roster.json")
+_sticky_roster_lock = threading.Lock()
+
+
+def _roster_rank(snap: dict) -> tuple:
+    """Keep-richest key: a confirmed session (bmo/amc) beats tbd, then higher EW."""
+    return (1 if snap.get("session") in ("bmo", "amc") else 0, int(snap.get("ew") or 0))
+
+
+def _load_json_dict(path: str) -> dict:
+    """Read a JSON object off disk; {} on any absence/corruption. Never raises."""
+    try:
+        import json as _json
+        with open(path, encoding="utf-8") as f:
+            d = _json.load(f)
+        return d if isinstance(d, dict) else {}
+    except (FileNotFoundError, ValueError, OSError):
+        return {}
+
+
+def _restore_sticky_reporters(days: dict, today_str: str) -> None:
+    """Harvest each day's roster while it's live, and re-add reporters a degraded
+    PAST-day rebuild dropped, to their remembered session bucket.
+
+    As a bridge for days that passed BEFORE this ledger existed, it also re-adds
+    any symbol the sticky-ACTUALS ledger already has a print for — into Time TBD,
+    since that ledger carries no session — so a just-passed day is repaired on the
+    very first run instead of only from the next day forward. Runs BEFORE
+    `_merge_sticky_actuals`, so a roster-restored name (added without actuals)
+    still gets its printed numbers filled in. Never raises."""
+    with _sticky_roster_lock:
+        try:
+            import json as _json
+            roster = _load_json_dict(_STICKY_ROSTER_PATH)
+            changed = False
+
+            # 1. Harvest today + past: remember each reporter's session/rank/estimates.
+            for ds, day in days.items():
+                if ds > today_str:
+                    continue                     # future roster isn't settled yet
+                day_map = roster.get(ds) or {}
+                for bucket in ("bmo", "amc", "tbd"):
+                    for e in day.get(bucket, []):
+                        sym = e.get("sym")
+                        if not sym:
+                            continue
+                        snap = {"session": bucket, "ew": int(e.get("ew") or 0),
+                                "eps_est": e.get("eps_est"), "rev_est": e.get("rev_est")}
+                        prev = day_map.get(sym)
+                        if prev is None or _roster_rank(snap) > _roster_rank(prev):
+                            day_map[sym] = snap
+                            changed = True
+                if day_map:
+                    roster[ds] = day_map
+
+            # 2. Restore PAST days from the roster (session-correct) + the actuals
+            #    ledger bridge (Time TBD) for names the roster doesn't have yet.
+            actuals = _load_json_dict(_STICKY_ACTUALS_PATH)
+            for ds, day in days.items():
+                if ds >= today_str:
+                    continue                     # today/future own their live roster
+                present = {e.get("sym") for e in _day_entries(day) if e.get("sym")}
+                for sym, held in (roster.get(ds) or {}).items():
+                    if sym in present:
+                        continue
+                    bucket = held.get("session") if held.get("session") in ("bmo", "amc", "tbd") else "tbd"
+                    day.setdefault(bucket, []).append({
+                        "sym": sym, "eps_est": held.get("eps_est"), "eps_act": None,
+                        "rev_est": held.get("rev_est"), "rev_act": None,
+                        "ew": int(held.get("ew") or 0), "mc_b": None, "time_et": None})
+                    present.add(sym)
+                for sym, held in (actuals.get(ds) or {}).items():
+                    if sym in present or not isinstance(held, dict):
+                        continue
+                    if held.get("eps_act") is None and held.get("rev_act") is None:
+                        continue                 # only re-add names we have a print for
+                    day.setdefault("tbd", []).append({
+                        "sym": sym, "eps_est": held.get("eps_est"), "eps_act": held.get("eps_act"),
+                        "rev_est": held.get("rev_est"), "rev_act": held.get("rev_act"),
+                        "ew": 0, "mc_b": None, "time_et": None})
+                    present.add(sym)
+
+            cutoff = (date.fromisoformat(today_str) - timedelta(days=_STICKY_KEEP_DAYS)).isoformat()
+            stale = [ds for ds in roster if ds < cutoff]
+            for ds in stale:
+                del roster[ds]
+
+            if changed or stale:
+                tmp = _STICKY_ROSTER_PATH + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    _json.dump(roster, f)
+                os.replace(tmp, _STICKY_ROSTER_PATH)
+        except Exception as exc:                 # noqa: BLE001
+            _logger.warning("Calendar: sticky reporter restore failed: %s", exc)
+
+
 # ── Month-range helpers ────────────────────────────────────────────────────────
 
 def _load_cap_universe() -> set[str]:
@@ -1793,6 +1898,10 @@ def _build_current_week() -> dict:
     # ── 4. Finnhub actuals patch for today's pending reporters ───────────────
     #    Catches companies that report BMO after the 7:35 AM wire run.
     _patch_today_actuals(days, today.isoformat())
+    # Re-add reporters a degraded past-day rebuild dropped (yesterday loses its
+    # roster when EW rolls it forward and the provider backfill lags a day) —
+    # BEFORE sticky actuals so a restored name still gets its printed numbers.
+    _restore_sticky_reporters(days, today.isoformat())
     _merge_sticky_actuals(days, today.isoformat())
 
     # ── 5. Econ events: ALWAYS from ForexFactory (real data, never AI) ────────
@@ -2182,6 +2291,7 @@ def refresh_calendar(user: dict = Depends(require_admin)):
             days[ds] = _empty_day(d, today)
 
     _patch_today_actuals(days, today.isoformat())
+    _restore_sticky_reporters(days, today.isoformat())
     _merge_sticky_actuals(days, today.isoformat())
     _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
@@ -2882,6 +2992,35 @@ def calendar_enrichment_status():
     }
 
 
+@router.get("/api/admin/implied-sweep-status")
+def implied_sweep_status():
+    """Did the nightly backfill sweep actually finish? (read-only)
+
+    Read `finished_at` FIRST — it is the whole point of the table:
+
+      finished_at set + outcome 'complete'  -> finished the universe
+      finished_at set + outcome 'ceiling'   -> ran out of clock, resumes tonight
+      finished_at NULL on an old run        -> KILLED OR HUNG at `last_symbol`
+
+    That third state is why this exists. It cost four nights in August 2026
+    while looking exactly like the first, because the only other evidence was
+    a row count (which cannot distinguish "nothing left to do" from "died on
+    symbol 41") and a log line that `railway logs` drops within ~3 minutes.
+    """
+    from api.services import implied_backfill as _implied_backfill
+    from api.services import implied_store as _store
+    try:
+        runs = _store.recent_sweep_runs(10)
+    except Exception as exc:                          # noqa: BLE001
+        return {"error": str(exc), "runs": []}
+    return {
+        "runs": runs,
+        "unfinished": [r["run_id"] for r in runs if not r.get("finished_at")],
+        "schedule_et": f"{_implied_backfill.SWEEP_HOUR_ET:02d}:"
+                       f"{_implied_backfill.SWEEP_MINUTE_ET:02d} weekdays",
+    }
+
+
 @router.get("/api/calendar/enrichment")
 def get_enrichment(date_str: str | None = Query(None, alias="date")):
     """Single-day enrichment overlay. See _compute_enrichment_for_date."""
@@ -2890,6 +3029,38 @@ def get_enrichment(date_str: str | None = Query(None, alias="date")):
         return {}
     target = date_str or _today_et().isoformat()
     return _compute_enrichment_for_date(target)
+
+
+@router.get("/api/calendar/implied-moves")
+def get_implied_moves(date_str: str | None = Query(None, alias="date")):
+    """{SYM: pct} — the HONEST pre-report implied move for each reporter on `date`.
+
+    Reads the nightly pre-report snapshot store, NOT the live options chain. That
+    matters because once a name reports, its live straddle IV-crushes and the
+    /enrichment `expected_move` reads far too low (e.g. DDOG's ~13.7% earnings
+    move collapses to ~3.4% the morning after). The store captured the straddle
+    the night before, so it holds the real move — and it's an instant indexed
+    read available for past days too (a live chain has no expired past expiries).
+    Powers the Calendar widget's "Impl. Move" column.
+    """
+    import re as _re
+    if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+        return {}
+    target = date_str or _today_et().isoformat()
+    ck = f"calendar_implied_moves_{target}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    from api.services import implied_store
+    try:
+        out = implied_store.get_implied_for_date(target)
+    except Exception:                                    # noqa: BLE001
+        return {}
+    # Past days are settled; today/future keep gaining reporters as the nightly
+    # capture lands, so cache them briefly.
+    is_past = target < _today_et().isoformat()
+    cache.set(ck, out, ttl=(6 * 3600) if is_past else 300)
+    return out
 
 
 @router.get("/api/calendar/enrichment-batch")

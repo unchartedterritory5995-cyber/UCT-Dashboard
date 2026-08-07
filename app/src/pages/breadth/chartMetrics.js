@@ -35,6 +35,9 @@ export const CHART_GROUPS = [
       { key: 'magna_up',            label: 'Up 13%/34d' },
       { key: 'magna_down',          label: 'Dn 13%/34d' },
       { key: 'universe_count',      label: 'Universe Count' },
+      { key: 'adv_decline',         label: 'Net Advancers' },
+      { key: 'adv_decline_cum',     label: 'A/D Line' },
+      { key: 'up_vol_ratio',        label: 'Up/Down Volume' },
     ],
   },
   {
@@ -58,6 +61,11 @@ export const CHART_GROUPS = [
       { key: 'mcclellan_osc', label: 'McClellan Osc' },
       { key: 'stage2_count',  label: 'Stage 2 Count' },
       { key: 'stage4_count',  label: 'Stage 4 Count' },
+      { key: 'rsp_spy_ratio', label: 'RSP/SPY (Equal-Wt)' },
+      { key: 'iwm_qqq_ratio', label: 'IWM/QQQ (Small-Cap)' },
+      { key: 'vxn',           label: 'VXN (Nasdaq)' },
+      { key: 'avg_10d_vix',   label: 'VIX 10D Avg' },
+      { key: 'avg_10d_vxn',   label: 'VXN 10D Avg' },
     ],
   },
   {
@@ -70,6 +78,9 @@ export const CHART_GROUPS = [
       { key: 'new_ath',       label: 'ATH Count' },
       { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
       { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
+      { key: 'hi_ratio',      label: '% at 52W Highs' },
+      { key: 'lo_ratio',      label: '% at 52W Lows' },
+      { key: 'near_52w_high', label: 'Within 5% of High' },
     ],
   },
   {
@@ -82,6 +93,7 @@ export const CHART_GROUPS = [
       { key: 'aaii_spread',    label: 'Bull-Bear Spread' },
       { key: 'naaim',          label: 'NAAIM' },
       { key: 'cboe_putcall',   label: 'CBOE P/C' },
+      { key: 'avg_10d_cpc',    label: 'P/C 10D Avg' },
     ],
   },
 ]
@@ -94,21 +106,27 @@ export const LABEL_MAP = Object.fromEntries(ALL_METRICS.map(m => [m.key, m.label
 // mixing a 0–5 ratio with a 0–1000 count renders the ratio flat on the floor.
 
 export const UNIT = {
-  PCT:   'pct',    // 0–150 bounded percentages and composite scores
-  COUNT: 'count',  // number of stocks
-  RATIO: 'ratio',  // unitless ~0–5
-  INDEX: 'index',  // index / ETF price level
-  VIX:   'vix',    // volatility points
-  OSC:   'osc',    // oscillator, roughly -100..+100
+  PCT:    'pct',    // 0–150 bounded percentages and composite scores
+  COUNT:  'count',  // number of stocks
+  RATIO:  'ratio',  // unitless ~0–5
+  INDEX:  'index',  // index / ETF price level
+  VIX:    'vix',    // volatility points
+  OSC:    'osc',    // oscillator, roughly -100..+100
+  CUM:    'cum',    // running cumulative total, thousands
+  NET:    'net',    // signed daily net, ±2,000
+  SPREAD: 'spread', // intermarket price ratio, 0.27–0.44
 }
 
 export const UNIT_LABEL = {
-  [UNIT.PCT]:   '%',
-  [UNIT.COUNT]: 'stocks',
-  [UNIT.RATIO]: 'ratio',
-  [UNIT.INDEX]: 'index',
-  [UNIT.VIX]:   'VIX',
-  [UNIT.OSC]:   'osc',
+  [UNIT.PCT]:    '%',
+  [UNIT.COUNT]:  'stocks',
+  [UNIT.RATIO]:  'ratio',
+  [UNIT.INDEX]:  'index',
+  [UNIT.VIX]:    'VIX',
+  [UNIT.OSC]:    'osc',
+  [UNIT.CUM]:    'A/D line',
+  [UNIT.NET]:    'net',
+  [UNIT.SPREAD]: 'spread',
 }
 
 export const METRIC_UNITS = {
@@ -132,6 +150,9 @@ export const METRIC_UNITS = {
   magna_up:           UNIT.COUNT,
   magna_down:         UNIT.COUNT,
   universe_count:     UNIT.COUNT,
+  adv_decline:        UNIT.NET,
+  adv_decline_cum:    UNIT.CUM,
+  up_vol_ratio:       UNIT.RATIO,
 
   // MA Breadth
   pct_above_5sma:   UNIT.PCT,
@@ -149,6 +170,11 @@ export const METRIC_UNITS = {
   mcclellan_osc: UNIT.OSC,
   stage2_count:  UNIT.COUNT,
   stage4_count:  UNIT.COUNT,
+  rsp_spy_ratio: UNIT.SPREAD,
+  iwm_qqq_ratio: UNIT.SPREAD,
+  vxn:           UNIT.VIX,
+  avg_10d_vix:   UNIT.VIX,
+  avg_10d_vxn:   UNIT.VIX,
 
   // Highs / Lows
   new_52w_highs: UNIT.COUNT,
@@ -158,6 +184,11 @@ export const METRIC_UNITS = {
   new_ath:       UNIT.COUNT,
   hvc_52w:       UNIT.COUNT,
   atr_ext_7:     UNIT.COUNT,
+  // hi/lo_ratio are nh/uni*100 (breadth_monitor.py:169) — percentages of the
+  // universe, not ratios, so the axis must read '%'.
+  hi_ratio:      UNIT.PCT,
+  lo_ratio:      UNIT.PCT,
+  near_52w_high: UNIT.COUNT,
 
   // Sentiment
   cnn_fear_greed: UNIT.PCT,
@@ -167,12 +198,91 @@ export const METRIC_UNITS = {
   aaii_spread:    UNIT.PCT,
   naaim:          UNIT.PCT,
   cboe_putcall:   UNIT.RATIO,
+  avg_10d_cpc:    UNIT.RATIO,
 }
 
 /** Unit family for a metric key. Unmapped keys fall back to COUNT — the
  *  `every metric has a unit` test is the gate that keeps that from happening. */
 export function unitOf(key) {
   return METRIC_UNITS[key] ?? UNIT.COUNT
+}
+
+// ── Axis framing ──────────────────────────────────────────────────────────────
+// Families whose axis frames its own data instead of including zero. The split
+// is magnitude vs level: a count of stocks or a percent above a moving average
+// is read against 0, but an index price, a VIX level, or a 0.03-wide
+// intermarket spread is read as a shape and a zero anchor destroys it —
+// rsp_spy_ratio (0.272–0.300) renders as a flat line at 93% height.
+
+export const SCALED_UNITS = new Set([
+  UNIT.INDEX, UNIT.VIX, UNIT.OSC, UNIT.CUM, UNIT.SPREAD,
+])
+
+/** True when the axis for this family should frame its data rather than anchor at 0. */
+export function scaleForUnit(unit) {
+  return SCALED_UNITS.has(unit)
+}
+
+// ── Series colour ─────────────────────────────────────────────────────────────
+// Colour used to be PALETTE[seriesIndex], so index 1 was always green and every
+// crossover preset drew its deterioration line — new_52w_lows, stage4_count,
+// down_4pct_today — in green.
+//
+// Tone is assigned ONLY to metrics that exist as an opposed pair. Extending it
+// to "rising VIX is bearish" would paint all three vol-complex series red and
+// make them harder to tell apart, and setup-supply would draw near_52w_high and
+// new_52w_highs as two greens. On crossover charts semantics win; everywhere
+// else distinguishability does.
+
+export const TONE = { BULL: 'bull', BEAR: 'bear', NEUTRAL: 'neutral' }
+
+export const METRIC_TONE = {
+  up_4pct_today:      TONE.BULL,  down_4pct_today:    TONE.BEAR,
+  up_20pct_5d:        TONE.BULL,  down_20pct_5d:      TONE.BEAR,
+  up_25pct_quarter:   TONE.BULL,  down_25pct_quarter: TONE.BEAR,
+  up_25pct_month:     TONE.BULL,  down_25pct_month:   TONE.BEAR,
+  up_50pct_month:     TONE.BULL,  down_50pct_month:   TONE.BEAR,
+  magna_up:           TONE.BULL,  magna_down:         TONE.BEAR,
+  new_52w_highs:      TONE.BULL,  new_52w_lows:       TONE.BEAR,
+  new_20d_highs:      TONE.BULL,  new_20d_lows:       TONE.BEAR,
+  hi_ratio:           TONE.BULL,  lo_ratio:           TONE.BEAR,
+  stage2_count:       TONE.BULL,  stage4_count:       TONE.BEAR,
+  aaii_bulls:         TONE.BULL,  aaii_bears:         TONE.BEAR,
+  // new_ath is deliberately NOT toned: there is no "new all-time lows" to
+  // oppose it, and the rule above is pairs-only. Toning it would put two
+  // greens beside new_52w_highs in setup-supply, which is the readability
+  // cost this rule exists to avoid.
+}
+
+export function toneOf(key) {
+  return METRIC_TONE[key] ?? TONE.NEUTRAL
+}
+
+// Six neutrals because the largest single-tone group in any preset is
+// `participation` with four.
+export const TONE_RAMP = {
+  [TONE.BULL]:    ['#34d399', '#4ade80', '#15803d'],
+  [TONE.BEAR]:    ['#f87171', '#ef4444', '#b91c1c'],
+  [TONE.NEUTRAL]: ['#60a5fa', '#f59e0b', '#a78bfa', '#38bdf8', '#fb923c', '#e879f9'],
+}
+
+/**
+ * Colour for each selected metric: its tone's ramp, advanced per tone so two
+ * bullish series never land on the same green.
+ *
+ * A hand-picked selection deeper than a ramp wraps and can repeat. Presets are
+ * the guarded path and a test holds them collision-free.
+ */
+export function resolveColors(selected) {
+  const used = { [TONE.BULL]: 0, [TONE.BEAR]: 0, [TONE.NEUTRAL]: 0 }
+  const out = {}
+  for (const key of selected ?? []) {
+    const tone = toneOf(key)
+    const ramp = TONE_RAMP[tone]
+    out[key] = ramp[used[tone] % ramp.length]
+    used[tone] += 1
+  }
+  return out
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -187,6 +297,15 @@ export function unitOf(key) {
 // moved the live index to a paid subscription on 2026-08-01, and the only free
 // feed left runs a ~3-month delay. So the most recent weeks are routinely
 // missing and backfill later. Fine to select deliberately; a poor default.
+
+// Popover section order. A preset without `group` is a core one-click pill.
+// Three sections added 2026-08-07 with the 20 new presets. Four sections would
+// have had to hold 29 entries; these split the biggest families out so a
+// section stays scannable. Order runs broad -> narrow.
+export const PRESET_GROUP_ORDER = [
+  'Structure', 'MA Breadth', 'Primary Breadth', 'Momentum',
+  'Leadership', 'Highs / Lows', 'Volatility & Sentiment',
+]
 
 export const CHART_PRESETS = [
   {
@@ -214,24 +333,33 @@ export const CHART_PRESETS = [
   {
     id: 'thrust',
     label: 'Breadth Thrust',
-    hint: 'Daily 4% movers against the 5- and 10-day ratios — ignition and follow-through.',
-    metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day'],
+    hint: 'Daily 4% movers, the 5- and 10-day ratios, and up/down volume — ignition, follow-through, and conviction.',
+    // Volume is what separates a thrust from a bounce; the preset had counts
+    // and ratios but nothing measuring what was behind them.
+    metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'up_vol_ratio'],
+    lines: [
+      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
+      { unit: UNIT.RATIO, at: 2.0, label: 'thrust' },
+    ],
   },
   {
     id: 'highs-lows',
     label: 'New Highs vs Lows',
+    group: 'Structure',
     hint: '52-week highs against 52-week lows — the crossover marks regime turns.',
     metrics: ['new_52w_highs', 'new_52w_lows'],
   },
   {
     id: 'trend-regime',
     label: 'Trend Regime',
+    group: 'Structure',
     hint: 'Stage 2 against Stage 4 counts — how much of the market is actually in an uptrend.',
     metrics: ['stage2_count', 'stage4_count'],
   },
   {
     id: 'froth',
     label: 'Froth & Extension',
+    group: 'Momentum',
     hint: 'Monthly 50% movers, volume climaxes, and ATR extension — the late-move heat tells.',
     // `up_25pct_month` (66–385) is deliberately left out. It shares the counts
     // axis with these and dominates it, pinning ATR extension (2–34) and HVC
@@ -241,14 +369,88 @@ export const CHART_PRESETS = [
   {
     id: 'volatility',
     label: 'Volatility & Fear',
-    hint: 'VIX on the left, CBOE put/call on the right.',
-    metrics: ['vix', 'cboe_putcall'],
+    hint: 'Put/call raw and smoothed against VIX — the 10-day average is the tradeable extreme.',
+    // The daily put/call takes 39 distinct values over 151 sessions and reads
+    // as noise. On a shared axis the 10-day average is the spine of it.
+    metrics: ['vix', 'cboe_putcall', 'avg_10d_cpc'],
+    lines: [{ unit: UNIT.RATIO, at: 1.0, label: 'parity' }],
   },
   {
     id: 'sentiment',
     label: 'Sentiment Extremes',
+    group: 'Volatility & Sentiment',
     hint: 'CNN Fear/Greed and the AAII bull-bear spread — contrarian positioning.',
     metrics: ['cnn_fear_greed', 'aaii_spread'],
+    lines: [
+      { unit: UNIT.PCT, at: 25, label: 'fear' },
+      { unit: UNIT.PCT, at: 75, label: 'greed' },
+    ],
+  },
+  {
+    id: 'ad-line',
+    label: 'A/D Line',
+    hint: 'The cumulative advance-decline line against the index — price highs the line will not confirm.',
+    metrics: ['adv_decline_cum', 'sp500_close'],
+    lines: [{ unit: UNIT.CUM, at: 0, label: 'flat' }],
+    // adv_decline_cum keeps only 55% of its travel in the default 90-day
+    // window, climbing monotonically from 5,781 with the April trough at -995
+    // off-screen — the divergence this preset exists to show is not in frame.
+    minWindowDays: 365,
+  },
+  {
+    id: 'narrow-leadership',
+    label: 'Narrow Leadership',
+    group: 'Leadership',
+    hint: 'Equal-weight against cap-weight, with the index — a falling ratio into a rising index is a mega-cap-only rally.',
+    metrics: ['rsp_spy_ratio', 'sp500_close'],
+  },
+  {
+    id: 'risk-appetite',
+    label: 'Risk Appetite',
+    group: 'Leadership',
+    hint: 'Small-cap and equal-weight participation together — who is being bought beyond the megacaps.',
+    metrics: ['iwm_qqq_ratio', 'rsp_spy_ratio'],
+  },
+  {
+    id: 'volume-thrust',
+    label: 'Volume Thrust',
+    group: 'Momentum',
+    hint: 'Up versus down volume against net advancers — conviction behind the advance, not just its width.',
+    metrics: ['up_vol_ratio', 'adv_decline'],
+    lines: [
+      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
+      { unit: UNIT.NET, at: 0, label: 'flat' },
+    ],
+  },
+  {
+    id: 'highs-lows-pct',
+    label: 'Highs/Lows %',
+    hint: 'The same crossover as New Highs vs Lows, as a share of the universe.',
+    // universe_count swings 2,637 to 3,736 across the recorded history — a 42%
+    // change — so raw high/low counts are not comparable across the window and
+    // the percentage is. Both presets exist because the raw crossover is what a
+    // reader recognises and this one is what is actually true.
+    metrics: ['hi_ratio', 'lo_ratio'],
+  },
+  {
+    id: 'vol-complex',
+    label: 'Vol Complex',
+    group: 'Volatility & Sentiment',
+    hint: 'Nasdaq against broad volatility, with the 10-day trend.',
+    metrics: ['vix', 'vxn', 'avg_10d_vix'],
+    lines: [{ unit: UNIT.VIX, at: 20, label: '20' }],
+  },
+  {
+    id: 'setup-supply',
+    label: 'Setup Supply',
+    group: 'Structure',
+    hint: 'The breakout funnel: coiled within 5% of a high, making a 52-week high, making an all-time high.',
+    // new_ath only became usable here on 2026-08-06. It used to be
+    // count_nd_highs(closes, min(252, len-1)) over a one-year frame — a
+    // 251-bar window, i.e. new_52w_highs off by one, so this preset would have
+    // drawn the same line twice. The collector now sources a real all-time
+    // high-water mark from full history.
+    metrics: ['near_52w_high', 'new_52w_highs', 'new_ath'],
   },
 
   // ── Added 2026-08-07 ────────────────────────────────────────────────────────
@@ -262,6 +464,7 @@ export const CHART_PRESETS = [
 
   {
     id: 'washout',
+    group: 'MA Breadth',
     label: 'Short-Term Washout',
     hint: 'The three fastest MAs together — how oversold the market is right now, with the 5/10/15/20 washout lines.',
     // `participation` starts at the 10SMA, so nothing surfaced the fast washout
@@ -271,14 +474,20 @@ export const CHART_PRESETS = [
   },
   {
     id: 'ma-term-structure',
+    group: 'MA Breadth',
     label: 'Full MA Term Structure',
-    hint: 'All seven moving-average bands at once — fast on top in a rally, inverted in a decline.',
-    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema', 'pct_above_40sma',
+    hint: 'The moving-average bands together — fast on top in a rally, inverted in a decline.',
+    // SIX bands, not all seven. Every pct_above_* is toned NEUTRAL and that
+    // ramp holds exactly six colours, so a seventh wraps and draws two bands in
+    // the SAME colour — indistinguishable on the chart. The 40SMA is dropped as
+    // the least conventional of the set; it stays one checkbox away.
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema',
               'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'],
     extremes: ['MA Breadth'],
   },
   {
     id: 'long-trend',
+    group: 'MA Breadth',
     label: 'Long-Term Trend',
     hint: 'The 100- and 200-day bands — the slow read that ignores day-to-day noise.',
     metrics: ['pct_above_100sma', 'pct_above_200sma'],
@@ -286,72 +495,84 @@ export const CHART_PRESETS = [
   },
   {
     id: 'highs-quality',
+    group: 'Highs / Lows',
     label: '52-Week vs All-Time Highs',
     hint: 'How many 52-week highs are ALSO all-time highs — a widening gap means the highs are recoveries, not leadership.',
     metrics: ['new_52w_highs', 'new_ath'],
   },
   {
     id: 'highs-lows-20d',
+    group: 'Highs / Lows',
     label: '20-Day Highs vs Lows',
     hint: 'The one-month crossover — the fast counterpart to the 52-week version, and it turns first.',
     metrics: ['new_20d_highs', 'new_20d_lows'],
   },
   {
     id: 'leadership',
+    group: 'Leadership',
     label: 'Leadership Quality',
     hint: 'All-time highs against quarterly 25% movers — whether the leaders are breaking out or just bouncing.',
     metrics: ['new_ath', 'up_25pct_quarter'],
   },
   {
     id: 'stage-vs-highs',
+    group: 'Leadership',
     label: 'Uptrends vs New Highs',
     hint: 'Stage 2 names against 52-week highs — a large Stage 2 base with few highs is a market going sideways in an uptrend.',
     metrics: ['stage2_count', 'new_52w_highs'],
   },
   {
     id: 'mcclellan',
+    group: 'Primary Breadth',
     label: 'McClellan Oscillator',
     hint: 'The classic advance/decline oscillator against the composite score — zero is the dividing line.',
     metrics: ['mcclellan_osc', 'breadth_score'],
   },
   {
     id: 'ratios',
+    group: 'Primary Breadth',
     label: 'Advance/Decline Ratios',
     hint: 'The 5- and 10-day up/down ratios on their own scale — thrust readings without the counts drowning them.',
     metrics: ['ratio_5day', 'ratio_10day'],
   },
   {
     id: 'weekly-thrust',
+    group: 'Momentum',
     label: '5-Day Thrust',
     hint: 'Names up or down 20% in a week — the fastest genuine momentum signal in the set.',
     metrics: ['up_20pct_5d', 'down_20pct_5d'],
   },
   {
     id: 'monthly-movers',
+    group: 'Momentum',
     label: 'Monthly Movers',
     hint: 'Names up or down 25% in a month — the swing-timeframe momentum balance.',
     metrics: ['up_25pct_month', 'down_25pct_month'],
   },
   {
     id: 'quarterly-movers',
+    group: 'Momentum',
     label: 'Quarterly Movers',
     hint: 'Names up or down 25% over a quarter — who is actually leading and lagging over a real holding period.',
     metrics: ['up_25pct_quarter', 'down_25pct_quarter'],
   },
   {
     id: 'magna',
+    group: 'Momentum',
     label: 'Momentum Breadth (13% / 34d)',
     hint: 'The Stockbee-style 13%-in-34-days pair — a sustained-momentum read rather than a single-day pop.',
     metrics: ['magna_up', 'magna_down'],
   },
   {
     id: 'capitulation',
+    group: 'Primary Breadth',
     label: 'Capitulation',
     hint: 'Single-day 4% decliners against fresh 20-day lows — the two together mark washout days.',
     metrics: ['down_4pct_today', 'new_20d_lows'],
   },
   {
     id: 'aaii-composition',
+    group: 'Volatility & Sentiment',
     label: 'AAII Composition',
     hint: 'Bulls, bears and neutral separately — the spread alone hides whether bulls left or bears arrived.',
     // The three sum to 100, so they share one axis by construction.
@@ -359,24 +580,28 @@ export const CHART_PRESETS = [
   },
   {
     id: 'fear',
+    group: 'Volatility & Sentiment',
     label: 'Fear Gauges',
     hint: 'CNN Fear/Greed against VIX — sentiment and priced volatility, which do not always agree.',
     metrics: ['cnn_fear_greed', 'vix'],
   },
   {
     id: 'score-vs-vix',
+    group: 'Volatility & Sentiment',
     label: 'Score vs Volatility',
     hint: 'The composite score against VIX — breadth holding up through a volatility spike is the divergence worth seeing.',
     metrics: ['breadth_score', 'vix'],
   },
   {
     id: 'exposure-vs-score',
+    group: 'Structure',
     label: 'Exposure vs Score',
     hint: 'UCT exposure against the composite score — how the recommendation tracks the underlying breadth.',
     metrics: ['breadth_score', 'uct_exposure'],
   },
   {
     id: 'breadth-vs-nasdaq',
+    group: 'Structure',
     label: 'Breadth vs Nasdaq',
     hint: 'Participation against QQQ on the right axis — the Nasdaq counterpart to Breadth vs Price.',
     // ONE index series, for the reason documented on `breadth-vs-price`.
@@ -384,6 +609,7 @@ export const CHART_PRESETS = [
   },
   {
     id: 'coverage',
+    group: 'Structure',
     label: 'Universe Coverage',
     hint: 'How many names the collector measured each day — a step here explains a step in every count above.',
     // Not an analytical view: it is the denominator behind every COUNT metric,
@@ -450,4 +676,33 @@ export function resolveAxes(selected) {
 export function axisForUnit(selected, unit, axisByKey) {
   const key = selected?.find(k => unitOf(k) === unit)
   return key ? (axisByKey[key] ?? 0) : 0
+}
+
+/**
+ * Reference lines that should actually draw, with the axis each belongs to.
+ *
+ * Two things are filtered out. A line whose family has no series would sit on
+ * an axis with nothing on it. And on an auto-framed family a line outside the
+ * data would expand the axis to reach it — ECharts grows an axis to contain a
+ * markLine — undoing the framing in scaleForUnit. Anchored families already
+ * include zero, so there the line draws regardless and may extend the top,
+ * which is what EXTREMES_BAND already does for MA Breadth.
+ *
+ * @param selected  metric keys currently plotted
+ * @param lines     the preset's `lines`, or []
+ * @param extentOf  (unit) => [min, max] over visible rows, or null when unknown
+ */
+export function resolveLines(selected, lines, extentOf) {
+  if (!selected?.length || !lines?.length) return []
+  const { axisByKey } = resolveAxes(selected)
+  const out = []
+  for (const line of lines) {
+    if (!selected.some(k => unitOf(k) === line.unit)) continue
+    if (scaleForUnit(line.unit)) {
+      const extent = extentOf(line.unit)
+      if (!extent || line.at < extent[0] || line.at > extent[1]) continue
+    }
+    out.push({ ...line, axis: axisForUnit(selected, line.unit, axisByKey) })
+  }
+  return out
 }
