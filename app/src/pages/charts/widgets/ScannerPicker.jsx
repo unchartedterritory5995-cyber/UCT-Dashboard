@@ -21,7 +21,13 @@ import sc from './ScannerPicker.module.css'
 
 // Preset scans. Each entry { key, name, description }; `key` maps to a scan
 // endpoint in ScannerResults. Picking one loads its live results.
-const PRESET_SCANS = [
+//
+// ⚠️ EXPORTED SO A TEST CAN READ A LABEL RATHER THAN RETYPE ONE. `6e974ef7`
+// renamed two of these and left `ScannerWidget.test.jsx` asserting the old
+// string, which went red on master. `name` is display copy and will be renamed
+// again; `key` is the wire contract with `/api/scans/<key>` and must NOT move
+// silently, so tests derive the name from here and keep the key typed.
+export const PRESET_SCANS = [
   {
     key: 'highest-volume-1y',
     name: 'Highest Volume In 1-Year (HV1)',
