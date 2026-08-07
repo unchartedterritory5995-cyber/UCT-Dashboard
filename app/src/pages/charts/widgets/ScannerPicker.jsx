@@ -24,13 +24,18 @@ import sc from './ScannerPicker.module.css'
 const PRESET_SCANS = [
   {
     key: 'highest-volume-1y',
-    name: 'Highest Volume (1-Year)',
+    name: 'Highest Volume In 1-Year (HV1)',
     description: 'Trading their highest volume in a year',
   },
   {
     key: 'highest-volume-ever',
-    name: 'Highest Volume (All-Time)',
+    name: 'Highest Volume Ever (HVE)',
     description: 'Trading their highest volume ever',
+  },
+  {
+    key: 'ipo-1y',
+    name: 'IPO in Last 1-Year',
+    description: 'First traded within the last year',
   },
 ]
 

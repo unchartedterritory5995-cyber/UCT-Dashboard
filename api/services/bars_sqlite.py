@@ -358,6 +358,19 @@ def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2)
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def recent_first_trade(since_ymd: int) -> dict:
+    """{TICKER: earliest daily-bar ts (YYYYMMDD)} for tickers whose FIRST daily bar is
+    on/after since_ymd — a proxy for "first traded (IPO'd) within the window", given
+    bars.db's since-inception daily coverage for the tracked universe. One indexed
+    GROUP BY; powers the IPO-in-last-year scan."""
+    rows = _conn().execute(
+        """SELECT ticker, MIN(ts) AS first_ts FROM ohlcv
+           WHERE tf='D' GROUP BY ticker HAVING first_ts>=? AND first_ts>0""",
+        (int(since_ymd),),
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
 def avg_daily_volume(tickers, sessions: int = 20, before_ymd: int | None = None) -> dict:
     """{TICKER: average daily volume over its last `sessions` COMPLETED daily bars}.
 

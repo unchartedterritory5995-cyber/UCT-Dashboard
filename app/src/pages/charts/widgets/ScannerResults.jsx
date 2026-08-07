@@ -49,6 +49,7 @@ try {
 const SCAN_ENDPOINTS = {
   'highest-volume-1y': '/api/scans/highest-volume-1y',
   'highest-volume-ever': '/api/scans/highest-volume-ever',
+  'ipo-1y': '/api/scans/ipo-1y',
 }
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {

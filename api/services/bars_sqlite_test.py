@@ -409,3 +409,7 @@ def test_volume_scan_helpers(tmp_path, monkeypatch):
     assert bs.max_daily_volume_in_range(20260101, 20260701, 2) == {"AAA": 300}
     # min_sessions gate: only 1 session in this narrower range -> excluded.
     assert bs.max_daily_volume_in_range(20260603, 20260701, 2) == {}
+    # recent_first_trade: earliest daily bar is 2026-06-01 -> in-window when the
+    # window opens before it, excluded when it opens after.
+    assert bs.recent_first_trade(20260101) == {"AAA": 20260601}
+    assert bs.recent_first_trade(20260701) == {}

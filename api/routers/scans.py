@@ -36,3 +36,18 @@ def highest_volume_ever_status():
     """Reference-build readiness (no auth — read-only diagnostics)."""
     from api.services import scan_volume
     return scan_volume.status("ever")
+
+
+@router.get("/api/scans/ipo-1y")
+def ipo_1y():
+    """Stocks that first traded within the last year (IPO'd in the trailing 365 days).
+    The only filter is that date window; live price/change attached per name."""
+    from api.services import scan_ipo
+    return JSONResponse(content=scan_ipo.get_ipo_last_1y())
+
+
+@router.get("/api/scans/ipo-1y/status")
+def ipo_1y_status():
+    """Recent-IPO set readiness (no auth — read-only diagnostics)."""
+    from api.services import scan_ipo
+    return scan_ipo.status()
