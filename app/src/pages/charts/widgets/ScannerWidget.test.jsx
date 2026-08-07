@@ -29,13 +29,13 @@ test('exposes a settings gear', () => {
   expect(screen.getByTitle('Scanner settings')).toBeInTheDocument()
 })
 
-test('lists the Highest Volume (1-Year) preset and selecting it sets scanKey', () => {
+test('lists the Highest Volume In 1-Year preset and selecting it sets scanKey', () => {
   const onOptsChange = vi.fn()
   render(<ScannerWidget opts={{}} onOptsChange={onOptsChange} />)
-  const row = screen.getByRole('button', { name: /highest volume \(1-year\)/i })
+  const row = screen.getByRole('button', { name: /highest volume in 1-year/i })
   expect(row).toBeInTheDocument()
   fireEvent.click(row)
   expect(onOptsChange).toHaveBeenCalledWith(
-    expect.objectContaining({ scanKey: 'highest-volume-1y', scanName: 'Highest Volume (1-Year)' }),
+    expect.objectContaining({ scanKey: 'highest-volume-1y', scanName: 'Highest Volume In 1-Year' }),
   )
 })

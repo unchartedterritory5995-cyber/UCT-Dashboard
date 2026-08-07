@@ -18,10 +18,10 @@ export const WATCHLIST_DEFAULTS = {
   bg: '#0e0f0d',           // solid canvas = --bg = the main chart canvas (the dark near-black); #1a1c17/#22251e read grey/green
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },  // matches CHART_DEFAULTS.bgGradient
 
-  // Column text colors (default to --text-bright #e0dac8, the current look).
-  symColor: '#e0dac8',
-  priceColor: '#e0dac8',
-  volColor: '#e0dac8',
+  // One text color for ALL row text (symbol, price, volume, and every other data
+  // column) EXCEPT the up/down % change, which keeps its own green/red below. Defaults
+  // to --text-bright #e0dac8 (the current look).
+  textColor: '#e0dac8',
 
   // % change colors (default = the current green/red).
   upColor: '#1ae51a',
@@ -72,9 +72,7 @@ const LEGACY_DEFAULT_BG = new Set(['#22251e', '#1a1c17'])
 // theme until the user picks colors.
 export const WATCHLIST_LIGHT_OVERRIDES = {
   bg: '#ffffff',
-  symColor: '#1f2328',
-  priceColor: '#1f2328',
-  volColor: '#57606a',
+  textColor: '#1f2328',
   upColor: '#0a5c22',
   downColor: '#7d1620',
   tintUp: '#0a5c2226',
@@ -97,6 +95,11 @@ export function mergeWatchlistSettings(saved) {
     s.fontSize = Math.round(Number(s.fontScale) * WATCHLIST_BASE_FONT_PX)
   }
   delete s.fontScale
+  // Text color was three separate pickers (symColor/priceColor/volColor); it's now ONE
+  // `textColor`. Migrate an older blob to its symbol color so the look is preserved, then
+  // drop the legacy keys so they don't get re-persisted.
+  if (s.textColor == null && typeof s.symColor === 'string') s.textColor = s.symColor
+  delete s.symColor; delete s.priceColor; delete s.volColor
   return {
     ...WATCHLIST_DEFAULTS,
     ...s,
@@ -107,10 +110,13 @@ export function mergeWatchlistSettings(saved) {
 /** Build the inline CSS-variable style object applied to the watchlist root.
  *  Cells/rows read these with fallbacks, so an unset var keeps today's look. */
 export function watchlistStyleVars(s) {
+  // One text color drives every row-text column (symbol/price/volume + meta/text cells
+  // all read these three vars); the % change is the only text left on its own up/down colors.
+  const text = s.textColor || WATCHLIST_DEFAULTS.textColor
   const vars = {
-    '--wl-sym': s.symColor,
-    '--wl-price': s.priceColor,
-    '--wl-vol': s.volColor,
+    '--wl-sym': text,
+    '--wl-price': text,
+    '--wl-vol': text,
     '--wl-up': s.upColor,
     '--wl-down': s.downColor,
     '--wl-tint-up': s.tintUp,

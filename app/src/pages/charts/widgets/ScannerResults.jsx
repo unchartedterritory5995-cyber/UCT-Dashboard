@@ -14,36 +14,36 @@ import { useWorkspace } from '../WorkspaceContext'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
 
-// The scanner keeps its OWN column layout, independent of the watchlist widgets
-// (which share the global WL_COLS_LS key).
-const SCANNER_COLS_KEY = `${WL_COLS_LS}.scanner`
-// First-run defaults for the scanner: RVOL shown + the list sorted by RVOL desc.
-// Applied only until the user edits columns (then their saved layout wins).
-const SCANNER_DEFAULT_COLS = {
+// The scanner keeps its OWN column layouts, independent of the watchlist widgets
+// (which share the global WL_COLS_LS key) AND independent PER SCAN — each preset
+// remembers its own columns + sort, so e.g. the volume scans stay RVOL-sorted while
+// the IPO scan stays newest-IPO-first.
+const scanColsKey = (key) => `${WL_COLS_LS}.scanner.${key}`
+
+// Per-scan first-run defaults (applied only until the user edits columns; then their
+// saved layout wins). Volume scans lead with RVOL desc; the IPO scan has no RVOL-worthy
+// ranking, so it leaves sort NULL — which preserves the backend's newest-IPO-first order.
+const VOLUME_DEFAULT_COLS = {
   order: ['flag', 'sym', 'price', 'vol', 'chg', 'rvol'],
   sort: { key: 'rvol', dir: 'desc' },
 }
+const IPO_DEFAULT_COLS = {
+  order: ['flag', 'sym', 'price', 'vol', 'chg', 'rvol'],
+  sort: null,   // null → applyColSort preserves input order (server sorts newest IPO first)
+}
+const SCAN_DEFAULT_COLS = {
+  'highest-volume-1y': VOLUME_DEFAULT_COLS,
+  'highest-volume-ever': VOLUME_DEFAULT_COLS,
+  'ipo-1y': IPO_DEFAULT_COLS,
+}
 
-// One-time migration: anyone who opened the scanner BEFORE RVOL existed has a saved
-// column layout (SCANNER_COLS_KEY) that predates it, so the RVOL default never
-// applied. Seed RVOL into their order + apply the RVOL sort ONCE (idempotent via a
-// flag), preserving any other saved column state. A later user change persists over
-// it and the flag prevents re-adding. Runs at module load — before any scanner
-// renders + reads its config.
-const _RVOL_MIGRATION_FLAG = `${SCANNER_COLS_KEY}.rvol1`
-try {
-  if (typeof localStorage !== 'undefined' && !localStorage.getItem(_RVOL_MIGRATION_FLAG)) {
-    let cfg = {}
-    try { cfg = JSON.parse(localStorage.getItem(SCANNER_COLS_KEY)) || {} } catch { cfg = {} }
-    if (!cfg || typeof cfg !== 'object') cfg = {}
-    const order = Array.isArray(cfg.order) && cfg.order.length ? cfg.order : [...SCANNER_DEFAULT_COLS.order]
-    const nextOrder = order.includes('rvol') ? order : [...order, 'rvol']
-    localStorage.setItem(SCANNER_COLS_KEY, JSON.stringify({
-      ...cfg, order: nextOrder, sort: cfg.sort || SCANNER_DEFAULT_COLS.sort,
-    }))
-    localStorage.setItem(_RVOL_MIGRATION_FLAG, '1')
-  }
-} catch { /* ignore */ }
+// Per-scan empty-state copy: distinguishes "still building the reference" from
+// "genuinely nothing qualifies yet".
+const SCAN_EMPTY_TEXT = {
+  'highest-volume-1y': { building: 'Building the volume baseline…', none: 'No stocks at a volume high yet today.' },
+  'highest-volume-ever': { building: 'Building the volume baseline…', none: 'No stocks at an all-time volume high yet today.' },
+  'ipo-1y': { building: 'Finding recent IPOs…', none: 'No recent IPOs trading yet today.' },
+}
 
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
 const SCAN_ENDPOINTS = {
@@ -77,11 +77,15 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   const symKey = (data?.results || []).map(r => r.sym).join(',')
   const symbols = useMemo(() => (symKey ? symKey.split(',') : []), [symKey])
   // Distinguish "still building the reference" from "genuinely no qualifiers".
+  const emptyCopy = SCAN_EMPTY_TEXT[scanKey] || { building: 'Building…', none: 'No matches yet today.' }
   const scanEmptyText = !data
     ? 'Loading…'
     : data.status === 'computing'
-      ? 'Building the volume baseline…'
-      : 'No stocks at a volume high yet today.'
+      ? emptyCopy.building
+      : emptyCopy.none
+  // Per-scan column layout + defaults (each preset remembers its own columns/sort).
+  const colStorageKey = scanColsKey(scanKey)
+  const defaultColCfg = SCAN_DEFAULT_COLS[scanKey] || VOLUME_DEFAULT_COLS
 
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
@@ -95,9 +99,9 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         settingsOverride={settingsOverride}
         onSettingsPersist={onSettingsPersist}
         widgetKey={widgetId}
-        colStorageKey={SCANNER_COLS_KEY}
+        colStorageKey={colStorageKey}
         scanEmptyText={scanEmptyText}
-        defaultColCfg={SCANNER_DEFAULT_COLS}
+        defaultColCfg={defaultColCfg}
       />
     </ChartsSymContext.Provider>
   )

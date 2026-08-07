@@ -44,6 +44,30 @@ def test_ipo_scan_skips_names_not_in_snapshot(monkeypatch):
     _reset()
 
 
+def test_ipo_scan_excludes_etfs(monkeypatch):
+    # ETFs/ETNs/leveraged funds (e.g. SNXX) that first traded in the window must be
+    # dropped — the scan is IPO'd STOCKS only.
+    _reset()
+    with si._LOCK:
+        si._state.update(date=si._session_date(),
+                         map={"CBRS": 20260528, "SNXX": 20260401}, building=False)
+    snap = {
+        "CBRS": {"last_price": 226.0, "prev_close": 211.0},
+        "SNXX": {"last_price": 30.0, "prev_close": 29.0},
+    }
+
+    class _Client:
+        def get_full_market_snapshot(self):
+            return snap
+
+    monkeypatch.setattr(si.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(si, "_etf_symbols", lambda: {"SNXX"})
+
+    out = si.get_ipo_last_1y()
+    assert [r["sym"] for r in out["results"]] == ["CBRS"]  # SNXX excluded as an ETF
+    _reset()
+
+
 def test_ipo_scan_returns_recent_ipos_newest_first(monkeypatch):
     _reset()
     with si._LOCK:
