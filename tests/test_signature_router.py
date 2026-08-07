@@ -36,7 +36,7 @@ def client(monkeypatch, tmp_path):
     from api.services.signature import ledger
     monkeypatch.setattr(ledger, "_DB_PATH", str(tmp_path / "ledger.db"))
     monkeypatch.setattr(ledger, "_INITED", False)
-    for slot in (sig._DPL_STALE, sig._FCB_STALE, sig._GXW_STALE):
+    for slot in (sig._DPL_STALE, sig._FCB_STALE, sig._GXW_STALE, sig._DPC_STALE):
         slot._slots.clear()
     # The negative caches are module-level too, and they now ride `fresh()` on
     # BOTH gex-walls and flow-breakout. A test that legitimately remembers an
@@ -44,6 +44,20 @@ def client(monkeypatch, tmp_path):
     # that entry — the slots were already cleared here for exactly this reason.
     sig._GXW_NEG_CACHE.clear()
     sig._FCB_NEG_CACHE.clear()
+    # ⚠️ AND THE CONFLUENCE LANE'S, WHICH IS NOT A CACHE BUT IS STILL STATE.
+    # `_FCB_INDEX_FILED` decides which flow source is asked FIRST, and the dpc
+    # lane carries a warm queue, a pace reservation and a semaphore — all
+    # module-level, all shared across tests. A leaked pace reservation makes an
+    # unrelated test sleep; a leaked warm queue makes a background thread build
+    # a symbol the next test is asserting is cold. This fixture is the only
+    # thing standing between those and a flake nobody can reproduce.
+    sig._FCB_INDEX_FILED.clear()
+    with sig._DPC_WARM_LOCK:
+        sig._DPC_WARM_QUEUE.clear()
+    sig._DPC_PACE_NEXT_AT = 0.0
+    # The TTL cache is process-wide and `sig:` is this module's whole namespace.
+    # It survived untended only because nothing here used to write a dpc entry.
+    sig.cache.delete_prefix("sig:")
     app = FastAPI()
     app.include_router(sig.router)
     return app

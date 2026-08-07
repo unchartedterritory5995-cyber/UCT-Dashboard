@@ -50,7 +50,7 @@ from api.services.serve_stale import ServeStale
 from api.services.signature import ledger, registry_defs, rules
 from api.services.signature.darkpool_levels import fetch_dp_levels
 from api.services.signature.flow_breakout import (
-    FLOW_COLS, _bar_date_iso, fcb_signals, flow_by_date,
+    FLOW_COLS, _bar_date_iso, evaluated_window, fcb_signals, flow_by_date,
 )
 from api.services.signature.gex_walls import fetch_gex_walls
 from api.services.signature.rules import parse_money
@@ -565,6 +565,41 @@ def _fcb_ledger_signals(sym: str, bars) -> list[dict]:
     return out
 
 
+def _fcb_ledger_covers(sym: str, bars) -> bool:
+    """Does a COVERAGE RECEIPT prove the sweep evaluated THIS window under THIS
+    rule version?
+
+    ⭐ THE DIFFERENCE BETWEEN "EVALUATED, NOTHING FOUND" AND "NEVER LOOKED".
+    Everything above this line treats an empty ledger read as a failure, and it
+    has to: `_fcb_ledger_signals` returning `[]` means the same thing for a
+    symbol the nightly sweep walks every night and for one it has never heard
+    of. Serving that empty list as an answer is `lesson_market_cap_cache_poison`
+    with a confident face on — `_fcb_good()` is `"signals" in p`, so it would be
+    cached for 5 minutes and remembered as the last GOOD payload for 30.
+
+    A receipt is what makes the empty list an answer, and it is checked against
+    the window THIS request would evaluate — `evaluated_window`, not the fetched
+    range, because the first `FCB_LOOKBACK` bars are warm-up that no pass ever
+    looks at. `include_last=False` mirrors `_fcb_build`: the request path never
+    evaluates the forming session, so it must not demand coverage of it either
+    (which would make every symbol uncertified during RTH).
+
+    Never raises — it runs inside `build()`, which ServeStale calls with no
+    try/except (rule 1). Every failure direction is False, i.e. "no proof",
+    which lands on the pre-existing behaviour.
+    """
+    try:
+        window = evaluated_window(bars, include_last=False)
+        if window is None:
+            return False
+        return ledger.coverage_covers(
+            "fcb", rules.VERSIONS["fcb"], sym, "1D",
+            first_bar_time=window[0], through_bar_time=window[1])
+    except Exception:                                  # noqa: BLE001 — see rule 1
+        logger.exception("signature: fcb coverage read failed for %s", sym)
+        return False
+
+
 def _fcb_build(sym: str) -> dict:
     try:
         # Bars FIRST: the flow window is derived from them. Reading flow with no
@@ -577,15 +612,34 @@ def _fcb_build(sym: str) -> dict:
             # The live read failed. Before calling it a failure, ask the ledger
             # what the nightly sweep already computed for this window.
             recorded = _fcb_ledger_signals(sym, bars)
+            covered = _fcb_ledger_covers(sym, bars)
             if recorded:
                 logger.warning("signature: fcb flow read failed for %s — serving %d "
                                "signal(s) from the nightly ledger instead", sym, len(recorded))
                 payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
-                           "signals": recorded, "source": "ledger", "asOf": time.time()}
+                           "signals": recorded, "source": "ledger",
+                           "covered": covered, "asOf": time.time()}
+            elif covered:
+                # ⭐ AN EMPTY ANSWER, ON PURPOSE, BECAUSE A RECEIPT SAYS SO.
+                # This branch is the whole reason the coverage receipt exists.
+                # The nightly sweep evaluated this exact bar window under this
+                # exact rule version and wrote nothing, so "no signal" is a
+                # measured fact rather than the shape of an outage — and it is
+                # the same answer the live read would have produced, without the
+                # multi-second read. Serving it is what turns a flow outage from
+                # "one request per symbol per minute pays the full timeout" into
+                # "answered from local sqlite".
+                logger.warning("signature: fcb flow read failed for %s — the nightly "
+                               "coverage receipt certifies this window under %s, so "
+                               "the empty result is an ANSWER, not an outage",
+                               sym, rules.VERSIONS["fcb"])
+                payload = {"sym": sym, "version": rules.VERSIONS["fcb"],
+                           "signals": [], "source": "ledger",
+                           "covered": True, "asOf": time.time()}
             else:
-                # Nothing recorded for this symbol — an UNSWEPT symbol and a
-                # genuinely signal-free one are indistinguishable from here, so
-                # this stays a failure. No "signals" key at all: good() is
+                # Nothing recorded AND nothing certified. An UNSWEPT symbol and
+                # a genuinely signal-free one are indistinguishable from here,
+                # so this stays a failure. No "signals" key at all: good() is
                 # `"signals" in p`, so the envelope is refused by the stale slot
                 # and never becomes "no signal" for the next 30 minutes
                 # (lesson_market_cap_cache_poison).
@@ -917,35 +971,275 @@ def server_columns(
 # ── Dark-Pool Reclaim Confluence (dpc-v1) ───────────────────────────────────
 _DPC_TTL_S = 300
 
+# The fourth stale slot, and the reason the other three have one: without it
+# every request that misses the TTL rebuilds, and `/confluence` costs a full
+# flow read (up to `_FLOW_READ_BUDGET_S`) on an anyio worker. Same 30 minutes as
+# dpl and fcb — dpc is a daily closed-bar rule, so nothing inside that window
+# can change its answer.
+_DPC_STALE = ServeStale("sig_dpc", max_age_seconds=1800)
+
+# ── what bounds /confluence-scan ────────────────────────────────────────────
+#
+# 🔴 IT WAS A TEN-MINUTE REQUEST. The scan looped up to 40 symbols through
+# `_dpc_cached` → `_fetch_flow_by_date`, with no serve-stale and no pacing, so a
+# fully cold list was bounded only by 40 × `_FLOW_READ_BUDGET_S` = **600 s on a
+# single anyio worker**. The web pod is ONE uvicorn process with ONE event loop
+# and ONE 64-slot threadpool shared by every user; a request that can hold a
+# worker for ten minutes is the 2026-07-01 524 class
+# (`incident_524_single_process_overload`), and it took only a handful of
+# concurrent scans to reproduce it.
+#
+# Four bounds, each doing a different job:
+#
+# 1. `_DPC_SCAN_BUDGET_S` — a WALL-CLOCK budget for the cold half of one scan.
+#    A cold build is only STARTED while the budget is unspent, and a build is
+#    itself bounded by `_FLOW_READ_BUDGET_S`, so worst-case occupancy is
+#    `_DPC_SCAN_BUDGET_S + _FLOW_READ_BUDGET_S` — 25 s, not 600.
+# 2. `_DPC_COLD_LANE` — at most this many anyio workers may be inside a cold
+#    confluence build AT ONCE, across every caller. 2 of 64 is ~3 %: a MINORITY
+#    of the shared budget, which is the correction
+#    `lesson_bulk_job_starves_a_shared_rate_budget` asks for. Acquisition is
+#    NON-BLOCKING on purpose — queueing for the slot would rebuild exactly the
+#    pile-up the semaphore exists to prevent.
+# 3. `_DPC_COLD_PACE_S` — a lane-wide minimum interval between two cold builds,
+#    so the two permitted workers cannot machine-gun the flow surface either.
+# 4. The warmer — whatever the budget did not reach is finished by ONE
+#    background thread at a slower pace, so the NEXT scan of the same list is
+#    served from the cache. That is stale-while-revalidate applied to a batch:
+#    the point is that a USER is never the one who rebuilds.
+#
+# ⛔ AND THE PART THAT IS NOT ABOUT LATENCY: a symbol the budget did not reach
+# is reported in `pending`, NEVER as a symbol with no signal. An unpaced sweep
+# on this project once raced through a rate-limit cooldown reading empty and
+# REPORTED SUCCESS; an empty read you did not make looks exactly like a quiet
+# tape. `complete` and `pending` are how this surface refuses to make that
+# mistake, and a pending symbol is retried by the next scan rather than
+# remembered.
+_DPC_SCAN_MAX_SYMS = 40
+_DPC_SCAN_BUDGET_S = 10.0
+_DPC_COLD_LANE_SLOTS = 2
+_DPC_COLD_PACE_S = 0.25
+_DPC_WARM_PACE_S = 1.0
+_DPC_WARM_MAX_QUEUE = 200
+
+_DPC_COLD_LANE = threading.BoundedSemaphore(_DPC_COLD_LANE_SLOTS)
+_DPC_PACE_LOCK = threading.Lock()
+_DPC_PACE_NEXT_AT = 0.0
+_DPC_WARM_LOCK = threading.Lock()
+_DPC_WARM_QUEUE: list[str] = []
+_DPC_WARM_RUNNING = False
+
+
+def _dpc_good(p) -> bool:
+    return bool(p and p.get("ok"))
+
+
+def _dpc_fresh(s: str) -> dict | None:
+    return cache.get(_ck("dpc", s))
+
 
 def _dpc_build(sym: str) -> dict:
     """Dark-pool levels + daily bars + flow → reclaim-confluence signals.
     Never raises (rule 1): a failed build returns an envelope, never poisons a
-    cache and never 500s a request."""
+    cache and never 500s a request.
+
+    ⛔ A FAILED FLOW READ IS NOT AN EMPTY TAPE, AND THIS IS WHERE THAT WAS
+    BEING LOST. The read used to be `_fetch_flow_by_date(...) or {}`, and
+    `_fetch_flow_by_date` returns **None** for a failure precisely so the caller
+    can tell the two apart — its whole docstring is about that. Collapsing None
+    to `{}` handed `confluence.evaluate` an empty join, which found nothing,
+    which returned `ok: True, signals: []`, which was **cached for 300 s and
+    remembered as good**. So a flow outage published "no confluence anywhere"
+    as a successful answer for five minutes — `lesson_market_cap_cache_poison`
+    exactly, and invisible, because a quiet tape looks the same.
+    """
     try:
         from api.services.signature import confluence
         levels = fetch_dp_levels(sym).get("levels", [])
         bars = _fetch_bars(sym, 60)
         cutoff = _bar_date_iso(bars[0]["t"]) if bars else ""
-        by_date = _fetch_flow_by_date(sym, cutoff) or {}
+        by_date = _fetch_flow_by_date(sym, cutoff)
+        if by_date is None:
+            logger.warning("signature: confluence flow read failed for %s — refusing to "
+                           "score it as a quiet tape", sym)
+            return {"ok": False, "sym": sym, "signals": [],
+                    "error": "flow unavailable", "asOf": time.time()}
         signals = confluence.evaluate(levels, bars, by_date)
-        return {"ok": True, "sym": sym, "signals": signals, "levels": levels,
-                "close": (bars[-1]["c"] if bars else None),
-                "asOf": time.time(), "version": rules.VERSIONS["dpc"]}
+        payload = {"ok": True, "sym": sym, "signals": signals, "levels": levels,
+                   "close": (bars[-1]["c"] if bars else None),
+                   "asOf": time.time(), "version": rules.VERSIONS["dpc"]}
     except Exception:                                  # noqa: BLE001
         logger.exception("signature: confluence build failed for %s", sym)
         return {"ok": False, "sym": sym, "signals": [], "error": "build failed"}
+    # Bookkeeping gets its own guard, the shape the other three builds use: it
+    # runs on the same cold path, so a raise HERE is a 500 just the same
+    # (rule 1).
+    try:
+        cache.set(_ck("dpc", sym), payload, ttl=_DPC_TTL_S)
+    except Exception:                                  # noqa: BLE001
+        logger.exception("signature: dpc cache write failed for %s", sym)
+    return payload
 
 
 def _dpc_cached(s: str) -> dict:
-    ck = f"sig:dpc:{s}"
-    hit = cache.get(ck)
+    """One symbol, serve-stale + single-flight — the shape the other three use.
+
+    A herd of cold callers collapses onto ONE build instead of each paying its
+    own flow read, and a caller arriving after the 300 s TTL lapses is served
+    the last good payload while the refresh happens behind it. Neither the TTL
+    nor the stale window was widened to get this: the treadmill was that there
+    was no stale slot at all.
+    """
+    return _DPC_STALE.serve(s, fresh=lambda: _dpc_fresh(s),
+                            build=lambda: _dpc_build(s), good=_dpc_good)
+
+
+def _dpc_ready(s: str) -> dict | None:
+    """The answer we ALREADY hold for this symbol, or None. **Never builds.**
+
+    This is what makes the scan's first pass free: a warm symbol costs a dict
+    lookup, so the wall-clock budget is spent only on symbols that genuinely
+    have no answer. Reads both tiers in the same order `ServeStale.serve` does —
+    the TTL cache, then a stale slot still inside its window — so a symbol the
+    scan reports as answered is exactly a symbol `/confluence` would answer
+    without building.
+    """
+    hit = _dpc_fresh(s)
     if hit is not None:
         return hit
-    payload = _dpc_build(s)
-    if payload.get("ok"):
-        cache.set(ck, payload, ttl=_DPC_TTL_S)
-    return payload
+    value, age = _DPC_STALE.peek(s)
+    if value is not None and age is not None and age <= _DPC_STALE.max_age:
+        return value
+    return None
+
+
+def _dpc_pace() -> None:
+    """Hold the lane's minimum interval between two cold builds.
+
+    Lane-wide, not per-request: two scans that know nothing about each other
+    still take turns. The next slot is RESERVED under the lock and the sleep
+    happens outside it, so N waiters serialise into N × pace rather than all
+    sleeping the same interval and firing together.
+    """
+    global _DPC_PACE_NEXT_AT
+    now = time.monotonic()
+    with _DPC_PACE_LOCK:
+        wait = max(_DPC_PACE_NEXT_AT - now, 0.0)
+        _DPC_PACE_NEXT_AT = now + wait + _DPC_COLD_PACE_S
+    if wait > 0:
+        time.sleep(wait)
+
+
+def _dpc_cold(s: str) -> dict | None:
+    """Build ONE symbol inside the lane's slot budget, or **None: not built**.
+
+    None is not a failure and is not an empty result — it is "this symbol was
+    not evaluated", which the caller must report as `pending`. Scoring it as a
+    quiet tape is the failure mode this whole lane is shaped around.
+    """
+    if not _DPC_COLD_LANE.acquire(blocking=False):
+        return None
+    try:
+        _dpc_pace()
+        return _dpc_cached(s)
+    finally:
+        _DPC_COLD_LANE.release()
+
+
+def _dpc_warm_loop() -> None:
+    global _DPC_WARM_RUNNING
+    try:
+        while True:
+            with _DPC_WARM_LOCK:
+                if not _DPC_WARM_QUEUE:
+                    return
+                sym = _DPC_WARM_QUEUE.pop(0)
+            try:
+                if _dpc_cold(sym) is None:
+                    # The lane was full. Put it back at the END so a symbol that
+                    # cannot get a slot never spins in front of the queue.
+                    with _DPC_WARM_LOCK:
+                        _DPC_WARM_QUEUE.append(sym)
+            except Exception:                          # noqa: BLE001
+                logger.exception("signature: dpc warm failed for %s", sym)
+            time.sleep(_DPC_WARM_PACE_S)
+    finally:
+        # Safe to clear unconditionally: the flag is set under the lock BEFORE
+        # this thread is started and only ever by the starter, so exactly one
+        # thread owns it at a time and that thread is this one
+        # (`lesson_cleanup_must_verify_ownership` — ownership here is
+        # structural, not assumed).
+        with _DPC_WARM_LOCK:
+            _DPC_WARM_RUNNING = False
+
+
+def _dpc_queue_warm(syms) -> None:
+    """Hand the symbols the scan could not reach to ONE background warmer.
+
+    One thread for the whole lane, however many scans ask — the alternative is
+    a thread per scan, i.e. the fan-out this module just removed, moved off the
+    request path where nothing bounds it at all.
+    """
+    global _DPC_WARM_RUNNING
+    start = False
+    with _DPC_WARM_LOCK:
+        for s in syms:
+            if s not in _DPC_WARM_QUEUE and len(_DPC_WARM_QUEUE) < _DPC_WARM_MAX_QUEUE:
+                _DPC_WARM_QUEUE.append(s)
+        if _DPC_WARM_QUEUE and not _DPC_WARM_RUNNING:
+            _DPC_WARM_RUNNING = True
+            start = True
+    if start:
+        threading.Thread(target=_dpc_warm_loop, daemon=True,
+                         name="sig-dpc-warm").start()
+
+
+def _dpc_scan(syms: list[str]) -> dict:
+    """The bounded scan. Warm symbols first, then cold ones while the budget
+    lasts, then hand the rest to the warmer and SAY SO.
+
+    Two passes rather than one loop, and the order is load-bearing: a warm
+    symbol must never lose its answer to a budget that an earlier cold symbol
+    spent. Scanning `[cold, warm]` in one pass would drop the warm one.
+    """
+    deadline = time.monotonic() + _DPC_SCAN_BUDGET_S
+    hits: list[dict] = []
+    evaluated: list[str] = []
+    cold: list[str] = []
+    pending: list[str] = []
+
+    def _take(sym: str, payload: dict) -> None:
+        evaluated.append(sym)
+        for sig in (payload.get("signals") or []):
+            hits.append({"sym": sym, **sig})
+
+    for s in syms:
+        payload = _dpc_ready(s)
+        if payload is None:
+            cold.append(s)
+        else:
+            _take(s, payload)
+
+    for s in cold:
+        if time.monotonic() >= deadline:
+            pending.append(s)
+            continue
+        payload = _dpc_cold(s)
+        if payload is None or not _dpc_good(payload):
+            pending.append(s)
+            continue
+        _take(s, payload)
+
+    if pending:
+        logger.info("signature: confluence scan answered %d/%d symbols in its %.0fs "
+                    "budget; %d handed to the warmer", len(evaluated), len(syms),
+                    _DPC_SCAN_BUDGET_S, len(pending))
+        _dpc_queue_warm(pending)
+
+    hits.sort(key=lambda h: h["score"], reverse=True)
+    return {"ok": True, "scanned": len(syms), "evaluated": len(evaluated),
+            "pending": pending, "complete": not pending,
+            "count": len(hits), "signals": hits, "asOf": time.time()}
 
 
 @router.get("/confluence")
@@ -960,28 +1254,45 @@ def confluence_signal(sym: str = Query(...), _user: dict = Depends(require_paid)
 
 @router.get("/confluence-scan")
 def confluence_scan(
-    syms: str = Query(..., description="comma-separated tickers to scan (<=40)"),
+    syms: str = Query(...,
+                      description=f"comma-separated tickers to scan "
+                                  f"(<={_DPC_SCAN_MAX_SYMS})"),
     _user: dict = Depends(require_paid),
 ):
     """Batch the reclaim-confluence over a provided ticker list — returns ONLY
-    names with a live signal, ranked by score. First scan of uncached names is
-    slow (one flow read each). PROTOTYPE: pass your unusual-DP watchlist; the
-    auto-universe (DP-unusual ∩ notable-flow) scanner is the follow-up."""
+    names with a live signal, ranked by score.
+
+    ⏱️ BOUNDED. Symbols already answered are free; the cold ones are built
+    inside `_DPC_SCAN_BUDGET_S`, two at a time across the whole pod, paced —
+    so this request can occupy a worker for at most
+    `_DPC_SCAN_BUDGET_S + _FLOW_READ_BUDGET_S`, not `40 × _FLOW_READ_BUDGET_S`.
+
+    📋 READ `pending` AND `complete`, NOT JUST `signals`. Anything the budget
+    did not reach is named in `pending` and handed to a background warmer, so
+    a second call moments later is complete and instant. An empty `signals`
+    with a non-empty `pending` means "not looked at yet" — it does NOT mean
+    "no confluence anywhere", and treating the two as one answer is the exact
+    mistake this endpoint used to make on every flow hiccup.
+
+    `scanned` is how many VALID tickers were asked for; `evaluated` is how many
+    actually produced an answer. A ticker `_SYM_RE` rejects is dropped here
+    exactly as it always was, and now it is dropped before `scanned` counts it
+    rather than after — a symbol that could never be scanned was never a scan.
+
+    PROTOTYPE: pass your unusual-DP watchlist; the auto-universe (DP-unusual ∩
+    notable-flow) scanner is the follow-up.
+    """
     raw, seen = [], set()
     for t in (syms or "").split(","):
         u = t.strip().upper()
         if u and u not in seen:
             seen.add(u)
             raw.append(u)
-    raw = raw[:40]
-    hits = []
+    raw = raw[:_DPC_SCAN_MAX_SYMS]
+    valid = []
     for u in raw:
         try:
-            s = _sym_or_422(u)
+            valid.append(_sym_or_422(u))
         except HTTPException:
             continue
-        for sig in (_dpc_cached(s).get("signals") or []):
-            hits.append({"sym": s, **sig})
-    hits.sort(key=lambda h: h["score"], reverse=True)
-    return {"ok": True, "scanned": len(raw), "count": len(hits),
-            "signals": hits, "asOf": time.time()}
+    return _dpc_scan(valid)
