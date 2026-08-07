@@ -365,17 +365,71 @@ suite before calling anything a regression. Measured today, both ways:
 | standalone, `npx vitest run src/pages/calendar/Calendar.realModal.test.jsx` | `1` | **1 failed \| 5 passed (6)** — *"a slow real enrichment-batch fetch still lands in the modal once it resolves"*, `TypeError: Cannot read properties of null (reading 'clearRect')`, plus 2 unhandled errors |
 | inside the full suite | — | **✓ 6 tests passed** |
 
-Standalone was re-run **four times** at the start of this task and once more at
-the end, after the tree had moved and the full suite had gone green — **five
-runs, five identical failures**. So this is **deterministic standalone, green in
-the full suite** — the exact inversion of the direction Phase C's record carried.
-The signature is a canvas-context teardown race (`clearRect` / `dpr` on a null
-context), i.e. a lifecycle ordering that some other suite in the full run happens
-to satisfy first.
+*(That table is the measurement **as taken at the start of this task**. It is kept
+because §11.1 is about how it was misread; the defect behind it is fixed below and
+the file is green both ways now.)*
 
-⛔ **So "Calendar.realModal is the known flake" is not a usable sentence.** The
-usable sentence is: *it is red alone and green together, measured on 2026-08-06,
-and any claim in either direction has to name which way it was run.*
+### 11.1 — the "deterministic" reading was WRONG, and then the bug was fixed
+
+⚠️ **This section originally ended here, calling the failure "deterministic
+standalone" on five-for-five runs. That was true of those five runs and FALSE as
+a description of the defect** — re-measured a few hours later on a quieter box it
+was **2 of 6**. A load-dependent race read as deterministic because every sample
+was taken under load. Recorded rather than quietly rewritten: this record's whole
+subject is a claim that outlived its measurement, and it very nearly shipped one
+of its own.
+
+**Root cause, found by reading the stack instead of the symptom:** it was never a
+Calendar bug at all. jsdom ships **no canvas implementation**, so
+`HTMLCanvasElement.getContext('2d')` returns `null`. ECharts/zrender never check
+— `Layer.initContext` does `this.ctx.dpr = …` and `doClear` does
+`ctx.clearRect(…)`, both on `null`:
+
+```
+TypeError: Cannot set properties of null (setting 'dpr')
+  ❯ Layer.initContext  zrender/lib/canvas/Layer.js:80
+  ❯ ECharts._onframe   echarts/lib/core/echarts.js:311   ← a requestAnimationFrame tick
+TypeError: Cannot read properties of null (reading 'clearRect')
+  ❯ doClear            zrender/lib/canvas/Layer.js:245
+  ❯ ECharts.dispose    echarts/lib/core/echarts.js:876   ← teardown
+```
+
+Both throws come off an **rAF loop and off `dispose()`**, so whether they land
+inside a test is pure timing — and vitest attributes an unhandled error to
+whichever test is in flight. That is why it wore a Calendar costume, why it moved
+between "deterministic" and "intermittent" with machine load, and why it was
+recorded the wrong way round on two consecutive days.
+
+**Fixed** in `app/src/test-setup.js` — a 2D-context shim in the same
+*"Browser API shims missing from jsdom"* section that already supplies
+`matchMedia`, `EventSource`, `IntersectionObserver` and `ResizeObserver`. It is
+the same class of gap, and it was simply missing.
+
+| measurement | result |
+|---|---|
+| `Calendar.realModal.test.jsx` standalone, **with** the shim | **8 / 8 green**, zero unhandled errors |
+| the same file, **shim neutered** (positive control) | **7 / 10 red**, every red carrying the canvas-null TypeError |
+| full suite, after the shim | exit `0` — **514 files / 5870 tests, all passing** |
+
+⛔ **The positive control is the part that makes this a fix rather than a
+coincidence.** "It stopped failing" is what every flake says on a quiet
+afternoon. Removing the shim and watching the same two TypeErrors come straight
+back — 7 times in 10 — is what says the shim is the cause and not the weather.
+
+⚠️ **And the first draft of the shim carried its own defect, caught by
+measuring.** It detected jsdom's missing canvas by *probing*
+(`createElement('canvas').getContext('2d')`), copying the `if (!window.matchMedia)`
+idiom above it. But the probe **is** the call jsdom complains about, so it emitted
+one `Not implemented: HTMLCanvasElement's getContext()` line **per test file** —
+exactly **514** for 514 files. The probe was removed and the precondition written
+down instead; noise went 514 → **0**, because after the shim jsdom's stub is never
+reached at all.
+
+⛔ **So "Calendar.realModal is the known flake" was never a usable sentence, and
+it is now not a true one either.** The file is green both ways. What replaces it:
+*a test that fails only sometimes, only under load, and only via an unhandled
+error is reporting somebody else's missing browser API — read the stack before
+naming the suite.*
 
 ## 12. Ownership at the time of measurement
 
