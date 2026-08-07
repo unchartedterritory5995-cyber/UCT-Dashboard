@@ -266,8 +266,8 @@
   white-space: nowrap;
   overflow: hidden;
 }
-/* Implied move ("IM") is narrower than the EPS/REV surprise columns. */
-.imCol { width: 3.6em; }
+/* Implied move ("IM") — a touch narrower than EPS/REV, but wide enough for "+/-23%". */
+.imCol { width: 4.6em; }
 .sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;

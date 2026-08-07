@@ -55,12 +55,19 @@ function fmtNum(v, digits = 2) {
   if (!Number.isFinite(n)) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
-// The options-implied earnings move → "±3.1%" / "±12%" (1 decimal under 10, else 0),
-// matching the EPS/REV surprise rounding. null when there's no expected-move data.
+// The options-implied earnings move → "+/-3.1%" / "+/-12%" (1 decimal under 10,
+// else 0), matching the EPS/REV surprise rounding. The "+/-" reads cleaner than a
+// stacked "±" glyph. null when there's no implied-move data.
 function fmtImPct(v) {
   const n = Number(v)
   if (!Number.isFinite(n)) return null
-  return `±${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
+  return `+/-${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
+}
+// The implied-moves endpoint returns a flat { SYM: pct } map. Look a symbol up,
+// tolerating class-share dot/hyphen notation (BRK.B vs BRK-B).
+function imLookup(imMap, sym) {
+  if (!imMap || !sym) return undefined
+  return imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
 }
 // Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
 function fmtRev(m) {
@@ -172,7 +179,7 @@ function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selecte
           >REV{estTag}{caret('rev')}</button>
         </span>
       </div>
-      {shown.map(c => <EarnRow key={c.sym} c={c} im={imMap?.[c.sym]?.expected_move?.pct} onSelect={onSelect} selected={c.sym === selectedSym} />)}
+      {shown.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onSelect} selected={c.sym === selectedSym} />)}
       {sorted.length > TOP_EARNINGS && (
         <button type="button" className={`${styles.showAll}${showAll ? ' ' + styles.open : ''}`} onClick={() => setShowAll(s => !s)}>
           {showAll ? 'Show less' : `Show all ${sorted.length}`}
@@ -258,12 +265,14 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   })
   const day = data?.days?.[selected] || null
 
-  // ── Enrichment overlay for the selected day → the options-implied move ("IM")
-  // per earnings ticker. Same source the /calendar page uses; { SYM: {expected_move:{pct}} }. ──
-  const { data: enrich } = useSWR(`/api/calendar/enrichment?date=${selected}`, fetcher, {
+  // ── Implied-move ("IM") per earnings ticker for the selected day. Reads the
+  // nightly pre-report snapshot store ({ SYM: pct }): an instant indexed lookup
+  // that (unlike the live options chain) also has PAST days, so every day's
+  // implied moves load near-instantly. ──
+  const { data: imData } = useSWR(`/api/calendar/implied-moves?date=${selected}`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
-  const imMap = enrich && typeof enrich === 'object' ? enrich : null
+  const imMap = imData && typeof imData === 'object' ? imData : null
 
   const hasAnyEcon = (day?.econ?.length || 0) + (day?.fed?.length || 0) > 0
   const econItems = useMemo(() => {
@@ -395,7 +404,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               Time TBD<span className={styles.count} style={{ marginLeft: 6 }}>{tbd.length}</span>
               <span className={styles.chev}><UIcon name="chevronRight" size={12} /></span>
             </button>
-            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} im={imMap?.[c.sym]?.expected_move?.pct} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
+            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
           </div>
         )}
       </div>

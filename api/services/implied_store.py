@@ -235,6 +235,29 @@ def get_implied_history(sym: str, limit: int = 8) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_implied_for_date(report_date: str) -> dict[str, float]:
+    """{SYM: pct} — the pre-report implied move captured for every reporter on
+    `report_date`.
+
+    An instant, indexed SQLite read (no provider work), and — unlike the live
+    /enrichment `expected_move` — available for PAST days: it serves the honest
+    "implied at the time" value captured the night before, whereas a live
+    options chain only lists FUTURE expiries and cannot reconstruct a past
+    implied move. First-write-wins means at most one row per (sym, report_date),
+    so each symbol maps to a single pct.
+    """
+    if not report_date:
+        return {}
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT sym, pct FROM implied_snapshots "
+            "WHERE report_date = ? AND pct IS NOT NULL",
+            (str(report_date),),
+        ).fetchall()
+    return {r["sym"]: r["pct"] for r in rows}
+
+
 def all_symbols() -> list[str]:
     """Every symbol with at least one snapshot, ascending.
 
