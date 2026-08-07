@@ -58,41 +58,70 @@ describe('engineChips — the legend an engine-drawn indicator must still produc
     expect(chips.map(c => c.plotKey)).toEqual(['macd', 'signal'])
   })
 
-  it('emits NO chip for a price overlay the legacy legend never showed', () => {
-    // BB and VWAP have no legend chip today. A migration that ADDS one is just
-    // as much a regression as one that removes it.
+  it('emits ONE chip for a price overlay — the BASIS, and never the edges', () => {
+    // 🔴 THIS READ *"emits NO chip for a price overlay the legacy legend never
+    // showed"*, and the comment under it read *"BB and VWAP have no legend chip
+    // today. A migration that ADDS one is just as much a regression as one that
+    // removes it."* It was an accurate description of the shipped chart and a
+    // wrong description of what the chart owed a user: BB and VWAP drew lines
+    // with NO LABEL AT ANY TIME, hovering or not. Task 2 (`43efeff6`) gave both a
+    // chip, so this case is INVERTED — the exact text asserted, not loosened to
+    // "at least one chip".
+    //
+    // ⛔ AND THE LENGTH IS HALF THE ASSERTION, WHICH IS WHY IT IS `toEqual` ON
+    // THE WHOLE ARRAY. All three BB bands are hovered WITH a value here, so a
+    // `legend` block landing on `upper` or `lower` makes this THREE chips and
+    // fails — the same thing the old `toEqual([])` caught, still caught.
     const bbInst = { instanceId: 'legacy:bb', defId: 'bb', inputs: {} }
     const bs = ['upper', 'middle', 'lower'].map(k => binding('bb', k))
-    expect(engineChips(bs, seriesData(bs.map(b => [b, 100])), engineRegistry, [bbInst])).toEqual([])
+    const bbChips = engineChips(bs, seriesData(bs.map(b => [b, 100])), engineRegistry, [bbInst])
+    expect(bbChips.map(c => c.text), 'the BASIS chip, and only the basis')
+      .toEqual(['BB(20, 2) 100.00'])
+    expect(bbChips.map(c => c.plotKey)).toEqual(['middle'])
 
     const vwapInst = { instanceId: 'legacy:vwap', defId: 'vwap', inputs: {} }
     const bv = binding('vwap', 'vwap')
-    expect(engineChips([bv], seriesData([[bv, 100]]), engineRegistry, [vwapInst])).toEqual([])
+    // NO brackets, and that is a reading of the inputs rather than an omission:
+    // VWAP declares colour, opacity, line style and line width, and not one of
+    // them changes WHAT IS MEASURED — so it carries no `legendParams`.
+    expect(engineChips([bv], seriesData([[bv, 100]]), engineRegistry, [vwapInst]).map(c => c.text))
+      .toEqual(['VWAP 100.00'])
   })
 
-  it('emits NO chip for a definition that declares no legend at all', () => {
-    // ⚠️ THE SUBJECT MOVED AT B4 TASK 10, AND THE MOVE IS THE POINT. This case
+  it('emits NO chip for a PLOT that declares no legend at all', () => {
+    // ⚠️ THE SUBJECT HAS MOVED TWICE, AND EACH MOVE IS THE CONTROL FIRING. It
     // used to use `atr`, whose chip was hand-written in `legChips` while its
-    // definition declared nothing. Task 10 gave `atr` (and `stoch`, `sar`,
-    // `ichimoku`'s two) a real `legend` block, so this case went RED — a control
-    // firing on a real change, not rotting green. It is re-pointed at `mfi`,
-    // which is one of the definitions that genuinely has no chip anywhere.
+    // definition declared nothing; B4 Task 10 gave `atr` a real `legend` block
+    // and this case went RED, so it was re-pointed at `mfi` — "one of the
+    // definitions that genuinely has no chip anywhere".
     //
-    // ⭐ AND B5 TASK 7 MADE ITS PREMISE STRONGER RATHER THAN FALSIFYING IT —
-    // audited, not assumed. When `mfi` was chosen it was drawn by a hand-written
-    // block, so `engineChips` could never be handed one in production and this
-    // case described a path that did not exist; `mfi` is engine-drawn now, so it
-    // describes the live one. What the case asserts is unchanged, because the
-    // claim was always about the DEFINITION declaring no `legend` block and
-    // never about which lane draws it.
-    const inst = { instanceId: 'legacy:mfi', defId: 'mfi', inputs: {} }
-    const b = binding('mfi', 'mfi')
-    expect(engineChips([b], seriesData([[b, 42.5]]), engineRegistry, [inst])).toEqual([])
+    // 🔴 TASK 2 (`43efeff6`) RETIRED THAT WHOLE CATEGORY: every definition that
+    // binds a data plot now declares at least one chip, so there is no
+    // chip-less DEFINITION left to point at — that is the totality rail in
+    // `__tests__/legendFromDefinitions.test.jsx`, and this case cannot outlive
+    // it in its old form. What the case was ever really about survives one level
+    // down: a PLOT with no `legend` block emits nothing.
+    //
+    // ⭐ RE-POINTED AT `adx`, WHICH CARRIES BOTH HALVES IN ONE INSTANCE. `adx`
+    // declares a chip; `plusDI` and `minusDI` deliberately declare none, because
+    // the ADX line is the one a trader reads a number off and three numbers for
+    // one indicator is the readout regression the band edges are hidden for. So
+    // the assertion is non-vacuous BY CONSTRUCTION — a `chipsFrom` that had
+    // simply stopped emitting would fail on the same line it passes the absence.
+    const inst = { instanceId: 'legacy:adx', defId: 'adx', inputs: {} }
+    const primary = binding('adx', 'adx')
+    const plus = binding('adx', 'plusDI')
+    const minus = binding('adx', 'minusDI')
+    const chips = engineChips([primary, plus, minus],
+      seriesData([[primary, 27.5], [plus, 30.25], [minus, 12.75]]), engineRegistry, [inst])
+    expect(chips.map(c => c.text), 'the directional lines gained a chip').toEqual(['ADX(14) 27.5'])
+    expect(chips.map(c => c.plotKey)).toEqual(['adx'])
   })
 
   it('…and ATR, which DID gain one, now emits it — the other half of that move', () => {
     // The non-vacuity control for the case above: if `chipsFrom` had simply
-    // stopped emitting chips, the `mfi` case would pass for the wrong reason.
+    // stopped emitting chips, an absence assertion would pass for the wrong
+    // reason. (Since Task 2 the `adx` case above carries its own control too.)
     const inst = { instanceId: 'legacy:atr', defId: 'atr', inputs: {} }
     const b = binding('atr', 'atr')
     const chips = engineChips([b], seriesData([[b, 2.7]]), engineRegistry, [inst])
@@ -245,8 +274,37 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
    * and a DROP among the nine still fails. What is given up is only the claim
    * "no definition anywhere declares a chip the 2026 legend did not", which was
    * never the thing being protected.
+   *
+   * ⭐⭐ TASK 2 (`43efeff6`) ADDED THE OTHER TEN, THROUGH THIS SAME DOOR AND FOR
+   * THE REASON IT WAS BUILT. `bb`, `vwap`, `mfi`, `cci`, `williamsR`, `adx`,
+   * `obv`, `donchian`, `avwap` and `atrBands` declared NO chip at all — a line
+   * with no label at any time, hovering or not — and the block in
+   * `nativeRegistry.js` that hid `avwap`'s chip said so out loud: it hid it *so
+   * that this list would not have to grow*. That trade inverted the moment it
+   * applied to ten definitions rather than one. The record was protecting users
+   * from a chip that silently DISAPPEARS; what it was holding in place was ten
+   * indicators that never had one.
+   *
+   * ⛔ THIS IS A DECLARED DIFFERENCE, NOT A TOLERANCE, AND THE THREE ASSERTIONS
+   * BELOW ARE WHAT MAKE THAT TRUE:
+   *   1. `declaredThatShipped()` is still an EQUALITY against the parsed shipped
+   *      artifact — a chip DROPPED from any of the nine still fails, and a chip
+   *      ADDED anywhere without a line here still fails.
+   *   2. every name here must be a chip that IS declared, so removing `legend`
+   *      from (say) `bb::middle` fails on *"names bb::middle, which declares no
+   *      chip"* — the positive control for all eleven exclusions.
+   *   3. every name here must NOT be in the shipped legend, so this list can
+   *      never be used to excuse a regression among the nine.
+   * The TEXT and PRECISION of these ten are asserted per-id in
+   * `__tests__/legendFromDefinitions.test.jsx`'s decided table; this list is the
+   * membership half only.
    */
-  const NOT_IN_THE_SHIPPED_LEGEND = ['rsLine::rsLine']
+  const NOT_IN_THE_SHIPPED_LEGEND = [
+    'rsLine::rsLine',
+    // ── the ten Task 2 gave a chip to, in the order the registry declares them ──
+    'bb::middle', 'vwap::vwap', 'mfi::mfi', 'cci::cci', 'williamsR::williams_r',
+    'adx::adx', 'obv::obv', 'donchian::middle', 'avwap::avwap', 'atrBands::middle',
+  ]
 
   /** Every plot in the registry that declares a VISIBLE chip. */
   const declared = () => {
@@ -264,7 +322,7 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
   /** …minus the chips that postdate the shipped legend. */
   const declaredThatShipped = () => declared().filter(k => !NOT_IN_THE_SHIPPED_LEGEND.includes(k))
 
-  it('the NINE chips the shipped legend rendered are exactly the nine declared', () => {
+  it('the NINE chips the shipped legend rendered are exactly the nine that shipped', () => {
     // ⭐ THE RAIL THAT REPLACED THE SLOT BRIDGE, and it is derived from the
     // SHIPPED SOURCE, not hand-typed. `LEGACY_SLOTS` used to police this: nine
     // hand-written `'<defId>::<plotKey>' → '<crosshairData field>'` rows, and

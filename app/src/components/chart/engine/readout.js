@@ -140,7 +140,15 @@ function resolvePlotColor(plot, inputs, def) {
  *        with its own inputs is the seam Phase C's server lane needs. A plot with
  *        NO `legend` block emits nothing, which is how the un-declared plots stay
  *        chip-less — Ichimoku's `spanA`/`spanB`/`chikou`, every `hlines` guide,
- *        and the eight definitions with no chip at all.
+ *        `adx`'s two directional lines and Donchian's two edges.
+ *        ⚠️ THIS SENTENCE USED TO END *"…and the eight definitions with no chip
+ *        at all"*, and the count was WRONG IN BOTH DIRECTIONS IN TURN: it was
+ *        TEN when it said eight (`bb`, `vwap`, `mfi`, `cci`, `williamsR`, `adx`,
+ *        `obv`, `donchian`, `avwap`, `atrBands`), and Task 2 (`43efeff6`) made it
+ *        ZERO — every definition that binds a data plot now declares at least one
+ *        chip, a totality gated by `__tests__/legendFromDefinitions.test.jsx`.
+ *        The chip-less things left are PLOTS, not definitions, which is why they
+ *        are now named rather than counted.
  * @param {Map} seriesData `crosshairMove` param's `seriesData` map.
  * @param {object|Function} registry
  * @param {Function} inputsFor `(defId, instanceId) => inputs`. The INSTANCE's own

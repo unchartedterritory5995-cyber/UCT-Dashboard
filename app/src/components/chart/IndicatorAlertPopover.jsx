@@ -34,17 +34,26 @@ import {
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
 import { instancesForAddress } from './engine/alertSets'
+import { NATIVE_TFS, tfLabel } from './timeframes'
 import UIcon from '../ui/UIcon'
 
 // Timeframes are NOT an indicator list — they are the bar sizes the evaluator
-// reads from `bars_sqlite`, and no definition declares one. They stay here.
-const TFS = [
-  { value: '5', label: '5m' },
-  { value: '15', label: '15m' },
-  { value: '30', label: '30m' },
-  { value: '60', label: '1h' },
-  { value: 'D', label: 'Daily' },
-]
+// reads from `bars_sqlite`. But they are not a list to write down HERE either.
+//
+// ⛔ THIS USED TO HAND-WRITE FIVE — 5/15/30/60/D — while the chart drew eight,
+// so a user on a WEEKLY chart could not set an alert on what they were looking
+// at, and neither could one on a 1-minute chart. A hand-typed eighth list would
+// have been a fourth place the timeframe vocabulary can drift, so both the codes
+// and their labels come from `timeframes.js`, the module the chart's own
+// timeframe bar and menu read.
+//
+// ⚠️ ONLY THE NATIVE CODES. `TF_MENU` also offers CUSTOM codes (2m, 45m, 3D…)
+// which exist only as a CLIENT-SIDE RESAMPLE of a native base — `/api/bars`
+// never serves them and `bars_sqlite` never stores them, so the evaluator would
+// read an empty column forever. `_TF_SECONDS` in `api/routers/indicator_alerts.py`
+// is the alert path's own enumeration and carries exactly these eight; the test
+// asserts the two are the same SET rather than trusting this comment.
+const TFS = NATIVE_TFS.map((value) => ({ value, label: tfLabel(value) }))
 
 // ─── PICKING A PLOT (B5) ────────────────────────────────────────────────────
 //
@@ -101,6 +110,13 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
   const [instanceId, setInstanceId] = useState('')
   const [tf, setTf] = useState('D')
   const [submitting, setSubmitting] = useState(false)
+  // ⭐ WHY THE LAST ATTEMPT WAS REFUSED — the server's own sentence, held so it
+  // can be rendered. The create path writes three of them (the price-alias
+  // routing message, "not an indicator this chart can evaluate", and
+  // `refusal_for`'s "this could never fire" gates) and until this existed every
+  // one of them was discarded by `createIndicatorAlert` and the user saw the
+  // button flicker.
+  const [submitError, setSubmitError] = useState(null)
   const firstFieldRef = useRef(null)
 
   useEffect(() => {
@@ -268,7 +284,12 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
     }
     setSubmitting(true)
     try {
-      await createIndicatorAlert(payload)
+      const res = await createIndicatorAlert(payload)
+      // ⛔ WHAT THE SERVER SAID, NOT A RESTATEMENT OF IT. Paraphrasing a refusal
+      // here would be a second source of truth for one decision, and the two rot
+      // apart the first time a gate is reworded. `createIndicatorAlert` is
+      // contracted never to answer null, so `.ok` is read unconditionally.
+      setSubmitError(res.ok ? null : res.error)
     } finally {
       setSubmitting(false)
     }
@@ -434,6 +455,18 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
             ))}
           </select>
         </div>
+
+        {/* ⭐ WHY THE LAST ATTEMPT WAS REFUSED, immediately above the button
+            that was pressed. Rendered verbatim — the create path's 400s explain
+            themselves ("a live price alert belongs to the watchlist alert
+            lane", "VWAP is only defined on an intraday timeframe… arm it on one
+            of 1, 15, 30, 5, 60") and a paraphrase would be a second, rotting
+            copy of the same refusal. */}
+        {submitError && (
+          <div className={styles.catalogError} role="alert">
+            {submitError}
+          </div>
+        )}
 
         <button
           type="submit"

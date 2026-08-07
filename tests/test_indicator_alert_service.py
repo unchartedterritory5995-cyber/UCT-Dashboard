@@ -594,3 +594,576 @@ def test_route_scope_round_trips_and_narrows_to_one_charts_ALERT_SET(client):
     assert _ids("/api/indicator-alerts?scope=chart-9") == {glob}
     # …and a blank scope is not a chart id, so it cannot narrow anything
     assert _ids("/api/indicator-alerts?scope=") == {glob, c1, c2}
+
+
+# ─── THE CREATE PATH REFUSES WHAT CAN NEVER FIRE ─────────────────────────────
+#
+# Phase C closed every hole in this lane except the first one: a user could arm
+# an alert that was structurally mute and nothing anywhere said so. These tests
+# close it — and the ORDER they are written in is the argument. The silence is
+# MEASURED first, through the shipped evaluator on both lanes; only then is it
+# refused. A validation test that constructs a request nobody would send proves
+# nothing at all.
+
+import ast          # noqa: E402
+import datetime     # noqa: E402
+import inspect      # noqa: E402
+import math         # noqa: E402
+
+from api.services import alert_series                             # noqa: E402
+from api.services import indicator_alert_evaluator as ev          # noqa: E402
+
+
+def _daily_bars(n=260):
+    """The two encodings `_fetch_bars_for_alert` really hands the evaluator.
+
+    Identical OHLCV; `t` is a `YYYYMMDD` calendar int for D/W/M and unix
+    seconds for 1/5/15/30/60. Built here rather than imported from the service
+    so the tests below are measuring the evaluator, not agreeing with the
+    module under test about what a bar looks like.
+    """
+    base = datetime.date(2024, 1, 2)
+    calendar, instant = [], []
+    for i in range(n):
+        day = base + datetime.timedelta(days=i)
+        close = 100.0 + 10.0 * math.sin(i / 9.0) + i * 0.05
+        ohlcv = {"o": close - 0.4, "h": close + 1.1, "l": close - 1.3,
+                 "c": close, "v": 1_000_000 + i * 137}
+        calendar.append({"t": int(day.strftime("%Y%m%d")), **ohlcv})
+        instant.append({"t": int(datetime.datetime(
+            day.year, day.month, day.day, 14, 30,
+            tzinfo=datetime.timezone.utc).timestamp()), **ohlcv})
+    return calendar, instant
+
+
+_FUTURE = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+
+
+def _alert(indicator, condition="above", threshold=-1e9, tf="D"):
+    return {"indicator": indicator, "condition": condition,
+            "threshold": threshold, "tf": tf, "last_value": None,
+            "params_json": None}
+
+
+def test_the_refused_combination_IS_silently_inert_first_MEASURED_both_lanes():
+    """⭐ THE NON-VACUITY PROOF, and it predates the refusal below it.
+
+    A `vwap` alert on `tf="D"` is armed, active, and produces NOTHING — through
+    the SHIPPED evaluator, on the forming lane that is live today AND on the
+    closed lane Task 8 will flip to. The threshold is -1e9, so any number at all
+    would have fired: `(None, False)` is the value lane having no answer, not
+    the condition being unmet.
+
+    THREE CONTROLS, because "returns None" is worth nothing on its own:
+      1. `rsi` on the IDENTICAL bars fires on BOTH lanes — so neither lane is
+         simply dead on this fixture.
+      2. The identical OHLCV with a real unix-second `t` makes vwap fire on the
+         forming lane — so the defect is the ENCODING, not the indicator.
+      3. The column itself: 0 of 260 values on the calendar encoding, 260 of 260
+         on the instant one.
+    """
+    calendar, instant = _daily_bars()
+
+    # 1. both lanes are alive on these bars
+    assert ev._evaluate_one(_alert("rsi"), calendar, mode="forming")[1] is True
+    assert ev._evaluate_one_closed(
+        _alert("rsi"), calendar, now_epoch=_FUTURE)[1] is True
+    assert ev.closed_bar_index(calendar, "D", _FUTURE) == len(calendar) - 1
+
+    # THE MEASUREMENT: mute in both modes.
+    assert ev._evaluate_one(_alert("vwap"), calendar, mode="forming") == (None, False)
+    assert ev._evaluate_one_closed(
+        _alert("vwap"), calendar, now_epoch=_FUTURE)[:2] == (None, False)
+
+    # 2 + 3. the encoding is the whole difference
+    on_calendar = alert_series.SERIES_FUNCS["vwap"](calendar, {})
+    on_instant = alert_series.SERIES_FUNCS["vwap"](instant, {})
+    assert sum(v is not None for v in on_calendar) == 0
+    assert sum(v is not None for v in on_instant) == len(instant)
+    value, triggered = ev._evaluate_one(_alert("vwap"), instant, mode="forming")
+    assert value is not None and triggered is True
+
+
+def test_ichimoku_chikou_FIRES_TODAY_and_is_therefore_NOT_refused(client):
+    """🔴 THE ONE THE VALIDATOR MUST NOT TOUCH, measured on both lanes.
+
+    `ichimoku.chikou` has a 26-bar trailing pad, so the CLOSED bar's value is
+    always `None` and it cannot fire after the cutover — Task 6 priced that at
+    19,574 fires lost / 0 gained and the live production shadow lane confirmed
+    it independently. But it fires NORMALLY today, it is in the live catalog,
+    and there are armed rows behind it. Refusing it here would delete a working
+    feature from a live surface under cover of a bug fix, and would decide Task
+    8's question for it.
+
+    The mechanical difference from `vwap` is asserted, not asserted-about: an
+    ALL-None column is dead in both lanes, a TRAILING-None column is alive in
+    one. That is the only thing `instant_only_addresses()` looks at.
+    """
+    calendar, _ = _daily_bars()
+    column = alert_series.SERIES_FUNCS["ichimoku.chikou"](calendar, {})
+    assert any(v is not None for v in column)          # NOT an empty column …
+    assert column[-1] is None                          # … but padded at the end
+
+    # alive on the lane that is live today
+    assert ev._evaluate_one(
+        _alert("ichimoku.chikou"), calendar, mode="forming")[1] is True
+    # dead on the lane Task 8 flips to — and that is EXACTLY what is not ours
+    assert ev._evaluate_one_closed(
+        _alert("ichimoku.chikou"), calendar, now_epoch=_FUTURE)[:2] == (None, False)
+
+    assert "ichimoku.chikou" not in ias.instant_only_addresses()
+    assert ias.refusal_for("ichimoku.chikou", "above", "D", 0.0) is None
+    r = client.post("/api/indicator-alerts", json={
+        "sym": "SPY", "indicator": "ichimoku.chikou", "condition": "above",
+        "threshold": 0.0, "tf": "D"})
+    assert r.status_code == 200, r.text
+
+
+def test_the_validator_refuses_nothing_that_is_alive_on_the_forming_lane():
+    """⛔ THE OVER-REFUSAL RAIL, over every catalog address at once.
+
+    Walks the whole catalog on daily bars with the soak matrix's own
+    (condition, threshold) choices. Any address whose column carries a value is
+    ALIVE under `ALERT_EVAL_MODE = "forming"` and must be accepted, whatever
+    happens to it at the cutover — `ichimoku.chikou` is in this set.
+
+    The last assertion is the non-vacuity floor: the loop has to have EXCLUDED
+    something, or it is a rail over an empty exception set.
+    """
+    from tools import alert_soak_matrix as soak
+    calendar, _ = _daily_bars()
+
+    mute_on_forming = set()
+    for spec in soak.catalog_addresses():
+        column = alert_series.SERIES_FUNCS[spec["address"]](calendar, {})
+        refusal = ias.refusal_for(spec["address"], spec["condition"], "D",
+                                  spec["threshold"])
+        if any(v is not None for v in column):
+            assert refusal is None, (
+                f"{spec['address']} produces a value on the live lane and was "
+                f"refused anyway: {refusal}")
+        else:
+            mute_on_forming.add(spec["address"])
+            assert refusal is not None, f"{spec['address']} is mute and accepted"
+
+    assert mute_on_forming == {"vwap"}, (
+        "the rail must have excluded something or it proves nothing")
+
+
+def test_the_probe_resolves_every_catalog_address():
+    """`instant_only_addresses()` classifies from a MEASUREMENT — so the
+    measurement has to succeed for every address, or the safe branch ("could
+    not tell") is quietly doing the work and the guard is a guard over nothing.
+    """
+    instant, calendar = ias._probe_series()
+    unresolved = [a for a in ev.all_addresses()
+                  if not any(v is not None
+                             for v in alert_series.SERIES_FUNCS[a](instant, {}))]
+    assert unresolved == []
+    assert len(ev.all_addresses()) == 31
+    assert len(instant) == len(calendar) == ias._PROBE_BARS
+    # the two probe series differ in `t` and in NOTHING else
+    assert [{k: v for k, v in b.items() if k != "t"} for b in instant] == \
+           [{k: v for k, v in b.items() if k != "t"} for b in calendar]
+
+
+def test_the_measured_instant_only_set_is_exactly_vwap_today():
+    """The set is DERIVED, and this pins what it currently measures to.
+
+    If a future address gains the same dependency it is covered on the day it
+    lands and this number moves — which is a finding to read, not a literal to
+    keep in step by hand.
+    """
+    assert ias.instant_only_addresses() == frozenset({"vwap"})
+
+
+def test_the_offered_rules_are_exactly_the_ones_check_condition_handles():
+    """⛔ EQUALITY BOTH WAYS, derived by AST from `check_condition` itself.
+
+    `evaluable_conditions()` reads the CATALOG. Refusing on it is only sound if
+    the catalog union and `check_condition`'s branches are the same set:
+
+      * a branch with no catalog row  → the gate OVER-refuses a rule that fires;
+      * a catalog row with no branch  → the dropdown offers a rule that cannot.
+
+    The branches are read off the function's own AST **by name**, never by line
+    slice — a co-worker inserting lines above it returned the wrong slice for
+    real this phase.
+    """
+    from api.services import alert_conditions
+    tree = ast.parse(inspect.getsource(alert_conditions))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "check_condition")
+    branches = {
+        node.comparators[0].value
+        for node in ast.walk(fn)
+        if isinstance(node, ast.Compare)
+        and isinstance(node.left, ast.Name) and node.left.id == "condition"
+        and len(node.ops) == 1 and isinstance(node.ops[0], ast.Eq)
+        and isinstance(node.comparators[0], ast.Constant)
+        and isinstance(node.comparators[0].value, str)
+    }
+    assert branches, "the AST scan found no branches — it is not reading the fn"
+    assert branches == set(ias.evaluable_conditions())
+
+
+def test_check_condition_is_the_SOLE_DECIDER_in_BOTH_lanes():
+    """Why every refusal here can claim "in either evaluation mode".
+
+    Each gate's argument ends at `check_condition` answering False. That is only
+    a both-modes claim if both lanes route `triggered` through it — asserted
+    structurally, on the FunctionDefs found BY NAME. (`git grep -c` counted
+    prose comments as call sites twice this phase; an AST does not.)
+    """
+    tree = ast.parse(inspect.getsource(ev))
+    for name in ("_evaluate_one", "_evaluate_one_closed"):
+        fn = next(n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == name)
+        calls = [n for n in ast.walk(fn)
+                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                 and n.func.id == "check_condition"]
+        assert len(calls) == 1, f"{name} decides `triggered` some other way"
+
+
+def test_the_derived_rule_reproduces_the_catalogs_needs_threshold_column():
+    """Two independent authorities agreeing, across every offered pair.
+
+    `needs_threshold` is hand-declared per (address, condition) in
+    `ALERT_CONDITIONS`. The gate never reads it: it measures `check_condition`
+    with `threshold=None` and subtracts the pairs `THRESHOLD_OPERAND` declares a
+    right-hand side for. If those two ever disagree, one of them is lying about
+    whether the user has to type a number.
+    """
+    needs_level = ias.conditions_needing_a_level()
+    assert needs_level == frozenset(
+        {"above", "below", "cross_above", "cross_below",
+         "touch_upper", "touch_lower"})
+    assert "cross_zero" not in needs_level      # it needs no right-hand side
+
+    checked = 0
+    for address, conditions in ev.ALERT_CONDITIONS.items():
+        for cond in conditions:
+            derived = (cond["value"] in needs_level
+                       and (address, cond["value"]) not in ev.THRESHOLD_OPERAND)
+            assert derived is cond["needs_threshold"], (
+                f"{address}/{cond['value']}: declared "
+                f"{cond['needs_threshold']}, measured {derived}")
+            checked += 1
+    assert checked >= 31, "the reconciliation walked almost nothing"
+
+
+def test_the_route_REFUSES_a_daily_vwap_alert_and_says_why(client):
+    """THE NAMED GAP. 400, a message that explains itself, and nothing stored."""
+    r = client.post("/api/indicator-alerts", json={
+        "sym": "SPY", "indicator": "vwap", "condition": "above",
+        "threshold": 400.0, "tf": "D"})
+    assert r.status_code == 400, r.text
+    detail = r.json()["detail"]
+    assert ias.REFUSAL_INTRADAY_ONLY in detail
+    assert "VWAP" in detail and "calendar date" in detail
+    assert client.get("/api/indicator-alerts").json()["alerts"] == []
+    # W and M are the same store encoding and are refused the same way …
+    for tf in ("W", "M", "d"):
+        rr = client.post("/api/indicator-alerts", json={
+            "sym": "SPY", "indicator": "vwap", "condition": "above",
+            "threshold": 400.0, "tf": tf})
+        assert rr.status_code == 400, (tf, rr.text)
+    # … while every intraday timeframe still arms, which is the point
+    for tf in sorted(ev._TF_MINUTES):
+        rr = client.post("/api/indicator-alerts", json={
+            "sym": "SPY", "indicator": "vwap", "condition": "above",
+            "threshold": 400.0, "tf": tf})
+        assert rr.status_code == 200, (tf, rr.text)
+
+
+def test_the_route_REFUSES_a_rule_the_evaluator_cannot_judge(client):
+    r = client.post("/api/indicator-alerts", json={
+        "sym": "SPY", "indicator": "rsi", "condition": "crosses_sideways",
+        "threshold": 70.0, "tf": "5"})
+    assert r.status_code == 400, r.text
+    detail = r.json()["detail"]
+    assert ias.REFUSAL_UNJUDGEABLE_CONDITION in detail
+    assert "cross_above" in detail          # it names what it WOULD accept
+    assert client.get("/api/indicator-alerts").json()["alerts"] == []
+
+
+def test_the_route_REFUSES_a_level_rule_with_no_level(client):
+    r = client.post("/api/indicator-alerts", json={
+        "sym": "SPY", "indicator": "rsi", "condition": "above", "tf": "5"})
+    assert r.status_code == 400, r.text
+    assert ias.REFUSAL_NO_LEVEL in r.json()["detail"]
+    assert client.get("/api/indicator-alerts").json()["alerts"] == []
+
+
+def test_the_route_STILL_ACCEPTS_every_combination_that_works(client):
+    """⛔ THE ACCEPTANCE HALF. Each of these would fire, and three of them carry
+    NO threshold on purpose — `THRESHOLD_OPERAND` supplies their right-hand side
+    and a gate that did not know that would refuse three shipped alert types.
+    """
+    working = [
+        {"indicator": "rsi", "condition": "above", "threshold": 70.0, "tf": "D"},
+        {"indicator": "vwap", "condition": "cross_above", "threshold": 400.0, "tf": "5"},
+        {"indicator": "bb", "condition": "touch_upper", "tf": "D"},
+        {"indicator": "sar.priceCrossedSar", "condition": "above", "tf": "5"},
+        {"indicator": "sar.trendFlipped", "condition": "above", "tf": "D"},
+        {"indicator": "macd", "condition": "cross_zero", "tf": "D"},
+        {"indicator": "obv", "condition": "cross_zero", "tf": "W"},
+        {"indicator": "close", "condition": "below", "threshold": 400.0, "tf": "M"},
+        {"indicator": "ADX.PLUSDI", "condition": "above", "threshold": 25.0, "tf": "60"},
+    ]
+    for body in working:
+        r = client.post("/api/indicator-alerts",
+                        json={"sym": "SPY", **body})
+        assert r.status_code == 200, (body, r.text)
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == len(working)
+
+
+def test_the_three_refusals_are_DISJOINT():
+    """🔑 THE TASK 9 LESSON, made mechanical.
+
+    Two gates shared a refusal phrase there, so `pytest.raises(match=…)` still
+    matched with the second safety DELETED — the test would have passed on a
+    tree with the guard gone. Each anchor must appear in ITS message and in no
+    other, so a test that anchors on one cannot be satisfied by another gate.
+    """
+    messages = {
+        "condition": ias.refusal_for("rsi", "nonsense", "5", 70.0),
+        "timeframe": ias.refusal_for("vwap", "above", "D", 400.0),
+        "level": ias.refusal_for("rsi", "above", "5", None),
+    }
+    anchors = {
+        "condition": ias.REFUSAL_UNJUDGEABLE_CONDITION,
+        "timeframe": ias.REFUSAL_INTRADAY_ONLY,
+        "level": ias.REFUSAL_NO_LEVEL,
+    }
+    assert all(messages.values()), "a gate produced no refusal at all"
+    for gate, anchor in anchors.items():
+        for other, message in messages.items():
+            assert (anchor in message) is (gate == other), (
+                f"anchor {anchor!r} matches the {other} refusal")
+    for a, b in ((x, y) for x in anchors.values() for y in anchors.values()
+                 if x is not y):
+        assert a not in b
+
+
+def test_create_ITSELF_is_not_gated_so_the_31_armed_rows_are_untouched(tmp_db):
+    """⛔ THE REFUSAL IS THE API SURFACE, NOT THE WRITER.
+
+    Thirty-one soak alerts are armed on production and internal tooling writes
+    through `create()`. Gating the writer would change what an already-shipped
+    tool can do and would make this fix a migration. `refusal_for` is the gate;
+    `create` still inserts what it is handed, and this pins the difference.
+    """
+    aid = ias.create(user_id="u1", sym="SPY", indicator="vwap",
+                     condition="above", threshold=1.0, tf="D")
+    assert ias.get(aid)["indicator"] == "vwap"
+    assert ias.refusal_for("vwap", "above", "D", 1.0) is not None
+
+
+def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
+    """⭐ THE MATRIX'S OWN LOGIC, RUN — not a re-description of it.
+
+    31 rows are armed on production right now and Task 8's cutover gate rests on
+    them. `--arm` has to keep working and keep being idempotent.
+    """
+    from tools import alert_soak_matrix as soak
+
+    first = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
+    assert len(first["created"]) == 31 and first["kept"] == []
+
+    second = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
+    assert second["created"] == [] and len(second["kept"]) == 31
+
+    out = soak.verify()
+    assert out["armed"] == 31
+    assert out["visible_to_shadow"] == 31
+    assert out["deliverable_now"] == 0
+    assert out["missing"] == []
+    assert out["addresses_covered"] == out["addresses_expected"] == 31
+
+
+def test_the_validation_accepts_every_row_the_soak_matrix_arms(client):
+    """The same 31 specs, pushed through the REAL create path this time.
+
+    `arm()` calls `ias.create` directly, so the test above proves the tool is
+    unbroken but says nothing about the gate. This runs the matrix's own
+    `catalog_addresses()` — its condition and threshold choices, at its own
+    `DEFAULT_TF` — through the HTTP route, which is where all five refusals
+    live. A 400 here would mean the gate had made the catalog unarmable.
+    """
+    from tools import alert_soak_matrix as soak
+
+    specs = soak.catalog_addresses()
+    assert len(specs) == 31
+    for spec in specs:
+        r = client.post("/api/indicator-alerts", json={
+            "sym": soak.DEFAULT_SYM, "indicator": spec["address"],
+            "condition": spec["condition"], "threshold": spec["threshold"],
+            "tf": soak.DEFAULT_TF})
+        assert r.status_code == 200, (spec, r.text)
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
+
+
+# ─── THE SNOOZE IS A WINDOW, NOT A LABEL ─────────────────────────────────────
+#
+# Three defects, all reproduced on real rows before being fixed. The snooze was
+# enforced by one mutable text column while fire-once was enforced by a UNIQUE
+# constraint — and that asymmetry is the whole story: anything that rewrote the
+# state cancelled the snooze, and nothing anywhere noticed.
+
+_T0 = 1_800_000_000.0
+_DAY = 86400
+
+
+def _snoozed_alert(user_id="u1", **kw):
+    aid = ias.create(user_id=user_id, sym="SPY", indicator="rsi",
+                     condition="above", threshold=0.0, tf="5", **kw)
+    ias.snooze(aid, ias.SNOOZE_MAX_MINUTES, now=_T0)
+    return aid
+
+
+def test_a_snooze_SURVIVES_mark_needs_attention(tmp_db):
+    """🔴 P0-2, MEASURED FIRST. The sweep that rewrites the state must not
+    silence-cancel a snooze the user is still inside.
+
+    `sweep_silent_alerts` runs unconditionally every 300 s from `api/main.py`
+    and calls `mark_needs_attention` for any active alert that produced no value
+    — one failed bars fetch. It writes `state='needs_attention'` and leaves
+    `snooze_until` untouched, so an enforcement keyed on the STATE let the very
+    next true reading through. All 31 production soak rows share one `(SPY,"5")`
+    bar group, so one fetch failure un-muzzled all 31 at once.
+    """
+    aid = _snoozed_alert()
+    assert ias.record_trigger(aid, 99.0, now=_T0 + 60) is False   # baseline: quiet
+
+    ias.mark_needs_attention(aid, "bars fetch returned nothing", now=_T0 + 120)
+    row = ias.get(aid)
+    # the state really did move — the mutation this survives is real, not staged
+    assert row["state"] == ias.STATE_NEEDS_ATTENTION
+    assert row["snooze_until"] is not None
+    assert row["snooze_until"] - (_T0 + 120) > 28 * _DAY   # still deep inside it
+
+    assert ias.snooze_active(row, _T0 + 120) is True
+    assert ias.record_trigger(aid, 99.0, now=_T0 + 180) is False
+    assert ias.claim_delivery(aid) is False
+    assert ias.get(aid)["trigger_count"] == 0
+
+
+def test_a_STALE_undelivered_fire_is_not_delivered_inside_a_snooze(tmp_db):
+    """🔴 P0-3's CONSEQUENCE, closed at the delivery boundary.
+
+    `_run_one_cycle` discards `record_trigger`'s return and calls
+    `_dispatch_delivery` regardless, so delivery is gated by *"is there an
+    undelivered fire row"* rather than by the snooze. A fire recorded BEFORE the
+    snooze began was therefore claimed — and delivered — inside the window.
+
+    ⚠️ THE CALL SITE IS TASK 8's FILE AND IS DELIBERATELY UNCHANGED. This pins
+    the boundary guard, which every channel is downstream of.
+    """
+    aid = ias.create(user_id="u1", sym="SPY", indicator="rsi",
+                     condition="above", threshold=0.0, tf="5")
+    assert ias.record_trigger(aid, 99.0, now=_T0) is True   # a real, undelivered fire
+    ias.snooze(aid, 60, now=_T0 + 60)
+
+    assert ias.claim_delivery(aid) is False                 # muzzled …
+    ias.rearm(aid, now=_T0 + 120)                           # … until asked otherwise
+    assert ias.get(aid)["snooze_until"] is None
+    assert ias.claim_delivery(aid) is True
+
+
+def test_an_EXPIRED_snooze_still_re_arms_whatever_the_state_drifted_to(tmp_db):
+    """The other direction, and it is the one a fix like this usually breaks.
+
+    "Quiet for N minutes" has to end. The re-arm now keys on `snooze_until`
+    having passed rather than on the state still reading `snoozed`, so it fires
+    exactly once (`_rearm` clears the column) even if the sweep moved the state
+    in between.
+    """
+    aid = _snoozed_alert()
+    ias.mark_needs_attention(aid, "quiet", now=_T0 + 60)
+    past = _T0 + 31 * _DAY
+    assert ias.snooze_active(ias.get(aid), past) is False
+    assert ias.record_trigger(aid, 99.0, now=past) is True
+    row = ias.get(aid)
+    assert row["snooze_until"] is None and row["trigger_count"] == 1
+
+    # …and a NON-triggering evaluation re-arms an expired snooze the same way
+    other = _snoozed_alert()
+    assert ias.record_evaluation(other, 1.0, now=_T0 + 60) is False
+    assert ias.record_evaluation(other, 1.0, now=past) is True
+    assert ias.get(other)["state"] == ias.STATE_ARMED
+
+
+def test_the_manual_rearm_button_still_CANCELS_a_snooze(tmp_db, client):
+    """`_rearm` clears the window — the one place a human asked for it."""
+    aid = _snoozed_alert(user_id="user-abc")   # the id the `client` fixture owns
+    assert ias.snooze_active(ias.get(aid)) is True
+    r = client.post(f"/api/indicator-alerts/{aid}/rearm")
+    assert r.status_code == 200, r.text
+    assert ias.get(aid)["snooze_until"] is None
+    assert ias.snooze_active(ias.get(aid)) is False
+
+
+def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch):
+    """🔴 P0-1: a health check that reads green right up to the failure.
+
+    `deliverable_now` was `state != snoozed`, so it said **0** on the cycle
+    before the emails went out, and `snooze_until` appeared nowhere in the tool.
+    Both numbers now come from `ias.snooze_active` — the same predicate the
+    service enforces with — and the countdown is itself an exit-1.
+
+    Blast radius if it were left silent: 27 of the 31 catalog specs fire on the
+    first cycle past expiry.
+    """
+    from tools import alert_soak_matrix as soak
+    import time as _time
+
+    for spec in soak.catalog_addresses():
+        aid = ias.create(user_id="owner-1", sym="SPY", indicator=spec["address"],
+                         condition=spec["condition"], threshold=spec["threshold"],
+                         tf="5", params_json={soak.SOAK_KEY: soak.SOAK_TAG})
+        ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
+
+    out = soak.verify()
+    assert out["armed"] == 31 and out["deliverable_now"] == 0
+    assert out["expiring_soon"] == 0
+    assert out["muzzle_expires_in_days"] > soak.EXPIRY_WARN_DAYS
+    assert soak.main(["--verify"]) == 0
+
+    # …now stand inside the warning horizon. Nothing has been delivered yet and
+    # `state` still reads `snoozed` — the old check would have said 0 and 0.
+    late = _time.time() + (30 - 1) * _DAY
+    monkeypatch.setattr(soak.time, "time", lambda: late)
+    monkeypatch.setattr(ias.time, "time", lambda: late)
+    warned = soak.verify()
+    assert all(a["state"] == ias.STATE_SNOOZED for a in soak.soak_rows())
+    assert warned["deliverable_now"] == 0        # still muzzled …
+    assert warned["expiring_soon"] == 31         # … and it says the clock is running
+    assert soak.main(["--verify"]) == 1
+
+    # past the window: deliverable, and still red
+    gone = _time.time() + 31 * _DAY
+    monkeypatch.setattr(soak.time, "time", lambda: gone)
+    monkeypatch.setattr(ias.time, "time", lambda: gone)
+    assert soak.verify()["deliverable_now"] == 31
+    assert soak.main(["--verify"]) == 1
+
+
+def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
+    """⛔ THE CONSTRAINT THAT OUTRANKS THE FIX. Task 8's cutover gate reads
+    `list_active()`; a muzzle that hid rows from it would make that gate
+    vacuous. Muzzled and invisible are different things and must stay so.
+    """
+    from tools import alert_soak_matrix as soak
+    soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
+    ids = {a["id"] for a in soak.soak_rows()}
+    assert len(ids) == 31
+    assert ids <= {a["id"] for a in ias.list_active()}
+
+    # even after the sweep rewrites every state, they stay visible AND muzzled
+    for aid in ids:
+        ias.mark_needs_attention(aid, "no bars this cycle")
+    assert ids <= {a["id"] for a in ias.list_active()}
+    assert all(ias.snooze_active(a) for a in soak.soak_rows())
+    assert soak.verify()["deliverable_now"] == 0
+    assert all(ias.record_trigger(aid, 99.0) is False for aid in ids)

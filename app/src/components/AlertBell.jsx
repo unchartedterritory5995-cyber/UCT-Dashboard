@@ -1,13 +1,29 @@
 // app/src/components/AlertBell.jsx — Notification bell with dropdown + sound + browser push
-import { useState, useRef, useEffect } from 'react'
+//
+// ⚠️ THIS COMPONENT MAKES THE DEVICE CHIME AND RAISES AN OS NOTIFICATION. That
+// is the user-visible face of the 2026-08-06 alert-feed leak: while /api/alerts
+// was one unauthenticated global list, any member's alert could ding any other
+// member's phone. Two things keep that impossible now:
+//   1. the server scopes the feed (see api/services/alerts.py) — the payload
+//      only ever holds the caller's own alerts plus market-wide broadcasts;
+//   2. this component keys its "what's new" bookkeeping to the SIGNED-IN
+//      IDENTITY, and does not poll at all when nobody is signed in. Without (2)
+//      a sign-out → sign-in on the same tab would carry the previous member's
+//      seen-id set into the next member's session and chime on their first poll.
+import { useState, useRef, useEffect, useContext } from 'react'
 import useSWR from 'swr'
 import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
 import usePreferences from '../hooks/usePreferences'
 import { timeAgoShort as timeAgo } from '../utils/timeAgo'
+import { AuthContext } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
 import styles from './AlertBell.module.css'
 
-const fetcher = url => fetch(url).then(r => r.ok ? r.json() : [])
+// `credentials: 'same-origin'` is the browser default, stated explicitly
+// because the session cookie is now load-bearing: without it every request is
+// a 401. A 401/403 resolves to an empty feed, never to a stale one.
+const fetcher = url =>
+  fetch(url, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : []))
 
 const TYPE_ICONS = {
   regime_change: 'refresh',
@@ -28,20 +44,57 @@ const SEV_CLASS = {
 // + EarningsModal. AlertBell keeps its original short form via timeAgoShort.
 
 export default function AlertBell() {
-  const { data: alerts, mutate } = useSWR('/api/alerts?limit=20', fetcher, { refreshInterval: 60000 })
+  // Read the context directly rather than via useAuth() so an isolated render
+  // with no AuthProvider (component tests) degrades to "signed out" instead of
+  // throwing. Signed out = no poll = no feed = no sound.
+  const auth = useContext(AuthContext)
+  const userId = auth?.user?.id ?? null
+
+  // The SWR key carries the identity. Two consequences, both deliberate:
+  // a null key means SWR does not fetch at all while signed out, and a
+  // different member gets a different cache entry rather than inheriting the
+  // previous one's rows.
+  const { data: alerts, mutate } = useSWR(
+    userId ? ['/api/alerts?limit=20', userId] : null,
+    ([url]) => fetcher(url),
+    { refreshInterval: 60000 },
+  )
   const { prefs } = usePreferences()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const prevIdsRef = useRef(new Set())
   const initialLoadRef = useRef(true)
+  const identityRef = useRef(userId)
   const soundEnabled = prefs.alert_sound !== 'off'
   const soundKey = prefs.alert_sound_type || 'chime'
 
-  const items = Array.isArray(alerts) ? alerts : []
+  const items = userId && Array.isArray(alerts) ? alerts : []
   const unreadCount = items.filter(a => !a.read).length
+
+  // A change of signed-in identity resets the "already seen" bookkeeping, so
+  // the next member's first poll is treated as a first load (silent) instead of
+  // as a burst of brand-new alerts.
+  //
+  // ⛔ THIS IS THE ONLY MECHANISM — deliberately not belt-and-braces. An
+  // earlier version also early-returned from the detector below while the
+  // identities disagreed, and that second guard made deleting THIS one a
+  // silent no-op: the component went permanently mute instead of chiming, so
+  // the mutation "identity reset removed" survived its own test. One
+  // mechanism, one gate, one thing a test can kill.
+  //
+  // React runs effects in declaration order, so this lands before the detector
+  // on the render where the identity flips.
+  useEffect(() => {
+    if (identityRef.current !== userId) {
+      identityRef.current = userId
+      prevIdsRef.current = new Set()
+      initialLoadRef.current = true
+    }
+  }, [userId])
 
   // Detect new alerts → play sound + browser notification
   useEffect(() => {
+    if (!userId) return
     if (!items.length) return
     const currentIds = new Set(items.map(a => a.id))
 
@@ -65,7 +118,7 @@ export default function AlertBell() {
         showBrowserNotification(a.title, a.message)
       })
     }
-  }, [items])
+  }, [items, userId])
 
   // Close on outside click
   useEffect(() => {
@@ -77,12 +130,12 @@ export default function AlertBell() {
   }, [open])
 
   async function markAllRead() {
-    await fetch('/api/alerts/read-all', { method: 'POST' })
+    await fetch('/api/alerts/read-all', { method: 'POST', credentials: 'same-origin' })
     mutate()
   }
 
   async function markRead(id) {
-    await fetch(`/api/alerts/${id}/read`, { method: 'POST' })
+    await fetch(`/api/alerts/${id}/read`, { method: 'POST', credentials: 'same-origin' })
     mutate()
   }
 

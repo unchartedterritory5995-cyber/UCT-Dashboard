@@ -4,6 +4,7 @@ import path from 'node:path'
 import { stripComments } from './sourceScan'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from '../instanceControls'
+import * as theWriter from '../instanceControls'
 import { applyRowPatch } from '../../indicatorRegistry'
 import { ENGINE_OWNED } from '../flipState'
 import * as engineRegistry from '../nativeRegistry'
@@ -12,7 +13,7 @@ import { migrateLegacyToInstances } from '../instances'
 // ═══════════════════════════════════════════════════════════════════════════
 // ─── THE CONTROL-DOOR CENSUS ────────────────────────────────────────────────
 //
-// ⭐ THE EIGHTH DOOR IS THE ONE THAT IS NOT WRITTEN YET.
+// ⭐ THE EIGHTH DOOR IS WRITTEN NOW — AND IT HAS NO CALLER.
 //
 // Seven ways to change an indicator's enable state were found on this branch,
 // ONE AT A TIME, and every one of the first six was found because a bug had
@@ -25,6 +26,7 @@ import { migrateLegacyToInstances } from '../instances'
 //   5. `Alt+U` — the chord `matchShortcut` can never deliver (B3 Task 11)
 //   6. the settings tab's row                   (B3; GENERATED at B4 Task 6)
 //   7. `applyPreset` ×2 + `resetToDefaults`     (B4, and of a DIFFERENT KIND)
+//   8. the per-INSTANCE door                   (chart-UX Task 1; ZERO call sites)
 //
 // Door 7 is the one that matters most here, because no ledger walk opened it and
 // no discovery scan can: it writes a WHOLE `chart_settings` blob spread from
@@ -421,6 +423,55 @@ describe('the control-door census — how many doors, and whether an eighth exis
     expect(/\bsetIndicator(?:Enabled|Input)\s*\(/.test(bus.src),
       'the voice bus calls the writer itself — a second copy of the engine-owned / carved-out ' +
       'routing rule is the twin this phase retires').toBe(false)
+  })
+
+  // ─── DOOR EIGHT ────────────────────────────────────────────────────────
+  //
+  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND IT HAS NO CALLER.
+  //
+  // `setInstanceHidden` / `setInstanceInput` / `removeInstance` / `addInstance`
+  // live in the SAME module as the seven above, but they are a DOOR and not a use
+  // of one: every earlier door addresses a `defId` and takes
+  // `legacyInstanceId(defId)` as its target, so it can only ever mean "the one
+  // instance the v1→v2 fold seeded". These address ONE `instanceId` — which is
+  // what the stored list, the binder and the readout have always been keyed by.
+  //
+  // ⛔ ZERO CALL SITES IS THE ASSERTION, NOT AN ASSUMPTION. It is what makes the
+  // model change a provable no-op while at most one instance per definition
+  // exists, and it is precisely the state the duplicate-indicator surface will
+  // change — at which point this list gains a name and a reason rather than
+  // losing the case.
+  it('⭐ door EIGHT — the per-INSTANCE door exists and has NO caller yet', () => {
+    // ⚠️ CHECKED AGAINST THE MODULE, not merely typed here. A renamed door would
+    // otherwise narrow the scan to a name nothing has, and its empty result would
+    // mean nothing at all.
+    const DOORS = ['setInstanceHidden', 'setInstanceInput', 'removeInstance', 'addInstance']
+    expect(DOORS.filter(n => typeof theWriter[n] !== 'function'),
+      'a per-instance door was renamed or removed — the caller scan below would then be ' +
+      'looking for a name nothing has, and its empty result would prove nothing').toEqual([])
+
+    const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')
+    const callers = SHIPPED
+      .filter(f => f.file !== THE_WRITER && perInstance.test(f.src))
+      .map(f => f.file)
+      .sort()
+    expect(callers,
+      'a per-instance door gained a caller — UPDATE this census with the surface and its ' +
+      'reason, do not delete the case. A caller is the moment the write door starts ' +
+      'addressing ONE instance from a real surface, which is when "two RSIs" stops being ' +
+      'unreachable and this task stops being a no-op.',
+    ).toEqual([])
+
+    // ⛔ THE POSITIVE CONTROL FOR AN EXPECTED ZERO. `toEqual([])` is satisfied just
+    // as well by a pattern that matches nothing anywhere, so it is run against the
+    // one module it EXCLUDES — the same shape the call-site census above uses.
+    const writerSrc = SHIPPED.find(f => f.file === THE_WRITER)
+    expect(writerSrc, 'the writer module is not in the walk — the scan cannot see its own subject')
+      .toBeTruthy()
+    expect(perInstance.test(writerSrc.src),
+      'the per-instance pattern matches nothing even in the module that DEFINES the doors — ' +
+      'it rotted, and the empty caller list above is a broken regex rather than a census')
+      .toBe(true)
   })
 })
 

@@ -7,9 +7,13 @@ import UIcon from '../components/ui/UIcon'
 import ErrorState from '../components/ErrorState'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import {
-  CHART_GROUPS, LABEL_MAP, CHART_PRESETS,
+  CHART_GROUPS, LABEL_MAP, CHART_PRESETS, PRESET_GROUP_ORDER,
   UNIT, UNIT_LABEL, unitOf, resolveAxes, matchPreset, axisForUnit,
+  scaleForUnit, resolveColors, resolveLines,
 } from './breadth/chartMetrics'
+import { ftdMarkers } from './breadth/ftdMarkers'
+import PresetRow from './breadth/PresetRow'
+import MetricReadout from './breadth/MetricReadout'
 import styles from './BreadthCharts.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -18,12 +22,6 @@ const PREF_KEY = 'breadth_charts_state'
 const DEFAULT_SELECTED = ['breadth_score', 'pct_above_50sma']
 // Stable reference so the chart's useMemo doesn't rerun on every render.
 const NO_EXTREMES = {}
-
-const PALETTE = [
-  '#60a5fa', '#34d399', '#f59e0b', '#f87171',
-  '#a78bfa', '#fb923c', '#38bdf8', '#4ade80',
-  '#e879f9', '#fbbf24',
-]
 
 // ECharts sizes a value axis from its SERIES alone. Participation tops out near
 // 70, so the axis ended around 80 and the 90 reference line silently never drew.
@@ -66,7 +64,10 @@ export default function BreadthCharts() {
   // override wins and prefs stop mattering.
   const [selectedOverride, setSelectedOverride] = useState(null)
   const [extremesOverride, setExtremesOverride] = useState(null)
+  const [ftdOverride, setFtdOverride] = useState(null)
   const saveTimerRef = useRef(null)
+  const chartRef = useRef(null)
+  const [hidden, setHidden] = useState(() => new Set())
 
   const storedRaw = prefs[PREF_KEY]
   const stored = useMemo(() => {
@@ -79,22 +80,24 @@ export default function BreadthCharts() {
     return {
       selected: keys.length ? keys : null,
       extremes: saved.extremes && typeof saved.extremes === 'object' ? saved.extremes : null,
+      ftd: saved.ftd === true,
     }
   }, [storedRaw])
 
   const selected = selectedOverride ?? stored?.selected ?? DEFAULT_SELECTED
   const notableExtremes = extremesOverride ?? stored?.extremes ?? NO_EXTREMES
+  const showFtd = ftdOverride ?? stored?.ftd ?? false
 
   // Persist only what the user actually changed — a page load must never write
   // its own restored state back to the server.
   useEffect(() => {
-    if (selectedOverride === null && extremesOverride === null) return
+    if (selectedOverride === null && extremesOverride === null && ftdOverride === null) return
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      setPref(PREF_KEY, { selected, extremes: notableExtremes })
+      setPref(PREF_KEY, { selected, extremes: notableExtremes, ftd: showFtd })
     }, 600)
     return () => clearTimeout(saveTimerRef.current)
-  }, [selectedOverride, extremesOverride, selected, notableExtremes, setPref])
+  }, [selectedOverride, extremesOverride, ftdOverride, selected, notableExtremes, showFtd, setPref])
 
   // The provisional row extends every line to NOW. It is appended, never
   // substituted: the backend withholds it the moment the 4:15 collector writes
@@ -114,20 +117,39 @@ export default function BreadthCharts() {
   )
 
   const activePreset = useMemo(() => matchPreset(selected), [selected])
+  const activePresetDef = useMemo(
+    () => CHART_PRESETS.find(p => p.id === activePreset) ?? null,
+    [activePreset],
+  )
+
+  // ReactECharts runs with notMerge, so any new option rebuilds the chart and
+  // its legend selection resets to all-visible. Every path that changes the
+  // selection must drop the hidden set with it, or the readout dims a row for
+  // a line the chart is drawing.
+  const NOTHING_HIDDEN = useRef(new Set())
 
   function applyPreset(preset) {
     setSelectedOverride(preset.metrics)
+    setHidden(NOTHING_HIDDEN.current)
     // Replace rather than merge — a previous preset's reference lines left on
     // would draw MA washout levels over, say, a VIX axis.
     setExtremesOverride(
       Object.fromEntries((preset.extremes ?? []).map(g => [g, true]))
     )
+    // Only ever widens, and never touches `toDate` — a preset must not narrow
+    // what the reader framed. Only ad-line asks: adv_decline_cum keeps just 55%
+    // of its travel at the 90-day default, with the April trough off-screen.
+    if (preset.minWindowDays) {
+      const earliest = offsetDate(-preset.minWindowDays)
+      setFromDate(prev => (earliest < prev ? earliest : prev))
+    }
   }
 
   function toggleMetric(key) {
     setSelectedOverride(
       selected.includes(key) ? selected.filter(k => k !== key) : [...selected, key]
     )
+    setHidden(NOTHING_HIDDEN.current)
   }
 
   function toggleGroup(group) {
@@ -138,10 +160,25 @@ export default function BreadthCharts() {
     setExtremesOverride({ ...notableExtremes, [group]: !notableExtremes[group] })
   }
 
+  // Drives the hidden legend rather than the selection, so hiding a series to
+  // read another one can't re-resolve the axes underneath it.
+  function toggleSeries(key) {
+    const name = LABEL_MAP[key] ?? key
+    chartRef.current?.getEchartsInstance().dispatchAction({ type: 'legendToggleSelect', name })
+    setHidden(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const option = useMemo(() => {
     const { axisByKey, hasRight, leftUnit, rightUnits } = resolveAxes(selected)
 
-    const series = selected.map((key, i) => ({
+    const colors = resolveColors(selected)
+
+    const series = selected.map(key => ({
       name: LABEL_MAP[key] ?? key,
       type: 'line',
       data: rows.map(r => [r.date, r[key] ?? null]),
@@ -154,9 +191,73 @@ export default function BreadthCharts() {
       symbolSize: 7,
       smooth: 0.35,
       lineStyle: { width: 2 },
-      itemStyle: { color: PALETTE[i % PALETTE.length] },
+      itemStyle: { color: colors[key] },
       connectNulls: false,
     }))
+
+    // resolveLines suppresses a line that would expand an auto-framed axis, so
+    // it needs the extent of what is actually on screen.
+    const extentOf = unit => {
+      const values = selected
+        .filter(k => unitOf(k) === unit)
+        .flatMap(k => rows.map(r => r[k]))
+        .filter(v => typeof v === 'number' && Number.isFinite(v))
+      return values.length ? [Math.min(...values), Math.max(...values)] : null
+    }
+
+    // Every preset declares lines for a single family, which the "line has a
+    // series to sit beside" test keeps true — so one series carries them all.
+    // Split this per axis if a preset ever marks two families.
+    const refLines = resolveLines(selected, activePresetDef?.lines, extentOf)
+    if (refLines.length) {
+      series.push({
+        name: '__ref_lines__',
+        type: 'line',
+        data: [],
+        yAxisIndex: refLines[0].axis,
+        silent: true,
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          animation: false,
+          label: {
+            formatter: p => p.data.label,
+            color: '#706b5e',
+            fontSize: 10,
+            position: 'insideEndTop',
+          },
+          lineStyle: { color: '#4a4d3f', type: 'dashed', width: 1 },
+          data: refLines.map(l => ({ yAxis: l.at, label: l.label })),
+        },
+      })
+    }
+
+    if (showFtd) {
+      const marks = ftdMarkers(rows)
+      if (marks.length) {
+        series.push({
+          name: '__ftd__',
+          type: 'line',
+          data: [],
+          yAxisIndex: 0,
+          silent: true,
+          markLine: {
+            silent: true,
+            symbol: ['none', 'none'],
+            animation: false,
+            lineStyle: { color: '#a78bfa', type: 'dotted', width: 1, opacity: 0.7 },
+            label: {
+              formatter: p => (p.data.showLabel ? 'FTD' : ''),
+              color: '#a78bfa',
+              fontSize: 10,
+              rotate: 0,
+              position: 'insideEndTop',
+            },
+            data: marks.map(m => ({ xAxis: m.date, showLabel: m.label })),
+          },
+        })
+      }
+    }
 
     if (liveIndex >= 0) {
       series.push({
@@ -231,13 +332,12 @@ export default function BreadthCharts() {
     return {
       backgroundColor: 'transparent',
       textStyle: { color: '#e0dac8', fontFamily: CHART_FONT_FAMILY },
+      // MetricReadout is the legend now. The component stays mounted but
+      // hidden so its selection state survives — that is what lets a readout
+      // row keep toggling a series via legendToggleSelect.
       legend: {
-        top: 8,
+        show: false,
         data: selected.map(key => LABEL_MAP[key] ?? key),
-        textStyle: { color: '#a8a290', fontSize: 12 },
-        icon: 'circle',
-        itemWidth: 8,
-        itemHeight: 8,
       },
       tooltip: {
         trigger: 'axis',
@@ -260,7 +360,7 @@ export default function BreadthCharts() {
           return `<div style="font-size:11px;color:#706b5e;margin-bottom:4px">${date}</div>` + lines.join('<br/>')
         },
       },
-      grid: { left: 64, right: hasRight ? 64 : 24, top: 56, bottom: 56 },
+      grid: { left: 64, right: hasRight ? 64 : 24, top: 24, bottom: 56 },
       xAxis: {
         type: 'category',
         boundaryGap: false,
@@ -278,6 +378,7 @@ export default function BreadthCharts() {
           type: 'value',
           name: leftUnit ? UNIT_LABEL[leftUnit] : '',
           nameTextStyle: axisNameStyle,
+          scale: scaleForUnit(leftUnit),
           ...(extremesAxis === 0 ? EXTREMES_BAND : {}),
           axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
@@ -289,6 +390,9 @@ export default function BreadthCharts() {
           show: hasRight,
           name: rightUnits.map(u => UNIT_LABEL[u]).join(' / '),
           nameTextStyle: axisNameStyle,
+          // Only frame when a single family is on it. Two families already
+          // share a compromised axis; framing to their union helps neither.
+          scale: rightUnits.length === 1 && scaleForUnit(rightUnits[0]),
           ...(extremesAxis === 1 ? EXTREMES_BAND : {}),
           axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
@@ -310,27 +414,18 @@ export default function BreadthCharts() {
       ],
       series,
     }
-  }, [selected, rows, notableExtremes, liveIndex, live.clock])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock, activePresetDef, showFtd])
 
   return (
     <div className={styles.container}>
       {/* ── Controls ─────────────────────────────────────────────────── */}
       <div className={styles.controls}>
-        <div className={styles.presetRow}>
-          <span className={styles.presetLabel}>Presets</span>
-          {CHART_PRESETS.map(p => (
-            <button
-              key={p.id}
-              type="button"
-              title={p.hint}
-              aria-pressed={activePreset === p.id}
-              className={`${styles.presetBtn} ${activePreset === p.id ? styles.presetBtnActive : ''}`}
-              onClick={() => applyPreset(p)}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <PresetRow
+          presets={CHART_PRESETS}
+          groupOrder={PRESET_GROUP_ORDER}
+          activePreset={activePreset}
+          onApply={applyPreset}
+        />
 
         <div className={styles.metricPanel}>
           <div className={styles.groupRow}>
@@ -400,6 +495,15 @@ export default function BreadthCharts() {
           {rows.length > 0 && (
             <span className={styles.rowCount}>{rows.length} days</span>
           )}
+          {/* Default off — an existing view must not change shape unasked. */}
+          <label className={styles.ftdToggle}>
+            <input
+              type="checkbox"
+              checked={showFtd}
+              onChange={e => setFtdOverride(e.target.checked)}
+            />
+            Follow-through days
+          </label>
         </div>
       </div>
 
@@ -416,12 +520,21 @@ export default function BreadthCharts() {
           <div className={styles.placeholder}>Pick a preset above, or check individual metrics.</div>
         )}
         {!isLoading && rows.length > 0 && selected.length > 0 && (
-          <ReactECharts
-            option={option}
-            style={{ height: 680, width: '100%' }}
-            notMerge
-            lazyUpdate
-          />
+          <>
+            <MetricReadout
+              rows={rows}
+              selected={selected}
+              hidden={hidden}
+              onToggle={toggleSeries}
+            />
+            <ReactECharts
+              ref={chartRef}
+              option={option}
+              style={{ height: 680, width: '100%' }}
+              notMerge
+              lazyUpdate
+            />
+          </>
         )}
       </div>
     </div>

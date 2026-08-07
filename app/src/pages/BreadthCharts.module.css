@@ -12,81 +12,6 @@
   gap: 12px;
 }
 
-/* ── Presets ───────────────────────────────────────────────────────────────── */
-.presetRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.presetLabel {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-right: 4px;
-}
-
-.presetBtn {
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
-  white-space: nowrap;
-}
-
-.presetBtn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-accent);
-  color: var(--text-bright);
-}
-
-/* Filled gold — deliberately louder than .groupBtnActive's dim gold so the
-   live preset reads differently from a merely-expanded metric group. */
-.presetBtnActive {
-  background: var(--ut-gold);
-  border-color: var(--ut-gold);
-  color: #000;
-  font-weight: 600;
-  box-shadow: 0 0 8px var(--ut-gold-glow);
-}
-
-/* .presetBtn:hover is (0,2,0) — this needs the same weight to win. */
-.presetBtnActive:hover {
-  background: var(--ut-gold);
-  border-color: var(--ut-gold);
-  color: #000;
-}
-
-@media (max-width: 640px) {
-  .presetRow {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .presetRow::-webkit-scrollbar {
-    display: none;
-  }
-
-  .presetLabel {
-    display: none;
-  }
-
-  .presetBtn {
-    min-height: var(--tap-min);
-  }
-}
-
 .metricPanel {
   display: flex;
   flex-direction: column;
@@ -236,6 +161,19 @@
   color: var(--text-muted);
   cursor: pointer;
 }
+
+.ftdToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ftdToggle input { accent-color: var(--ut-gold); cursor: pointer; }
 
 .dateInput {
   background: var(--bg-elevated);

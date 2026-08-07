@@ -34,8 +34,9 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 import time
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Sequence
 
 _logger = logging.getLogger(__name__)
 
@@ -57,6 +58,50 @@ CREATE TABLE IF NOT EXISTS alert_shadow_fires (
 CREATE INDEX IF NOT EXISTS idx_alert_shadow_alert ON alert_shadow_fires(alert_id);
 CREATE INDEX IF NOT EXISTS idx_alert_shadow_at ON alert_shadow_fires(recorded_at);
 """
+
+# ─── RETENTION ───────────────────────────────────────────────────────────────
+#
+# ⭐ THIS TABLE HAD NO PRUNE, NO TTL AND NO CAP, and the cron that fills it is a
+# bare `IntervalTrigger(seconds=60)` with no market-hours gate — so it grows 24/7
+# at exactly `60 × (alerts that produce a value)` rows/hour. Measured on the pod:
+# 53.0 bytes/row. At today's 31 armed soak alerts that is 15.4 M rows / 0.82 GB a
+# year on the SHARED `/data` volume; at 10,000 alerts it is 279 GB/yr.
+#
+# ⭐ AND THE INDEX IT NEEDS WAS ALREADY PAID FOR. `idx_alert_shadow_at` is queried
+# by nothing else in `api/`, `tools/` or `tests/` — today it is pure write
+# amplification. `DELETE … WHERE recorded_at < ?` is the one read it was shaped
+# for, and `test_alert_shadow.py` asserts the plan actually uses it rather than
+# assuming so.
+#
+# ⛔⛔ THE WINDOW MAY NOT EAT THE SOAK. Task 8's cutover gate reads THREE LIVE
+# SESSIONS of exactly this table (the soak armed 2026-08-06 ~17:00 ET, 31 rows,
+# 30 of them observed — `ichimoku.chikou` produces no value and therefore no row).
+# A sweep that deleted those rows would make the gate pass on an empty set, which
+# is [[lesson_gate_that_cannot_fail]] with the evidence deleted rather than never
+# collected. 30 days is ~10× the widest reading of "three sessions" and still
+# bounds today's volume at ~71 MB.
+#
+# ⛔ AND THE FLOOR IS NOT DECORATION. `_MIN_RETENTION_DAYS` is what a MIS-SET
+# `ALERT_SHADOW_RETENTION_DAYS=1` runs into: a configuration that could eat three
+# sessions is REFUSED and logged, never obeyed. A retention knob whose smallest
+# legal value still cannot reach the evidence is the only kind that is safe to
+# expose on a box whose gate depends on that evidence.
+DEFAULT_RETENTION_DAYS = 30
+_MIN_RETENTION_DAYS = 7
+
+# The sweep rides the cycle that causes the growth rather than a call site in a
+# file this module does not own — a prune with no caller is the same shape as the
+# ledger door nothing opened.
+_PRUNE_EVERY_SEC = 3600
+_last_prune_at: float = 0.0
+_PRUNE_LOCK = threading.Lock()
+
+_INIT_LOCK = threading.Lock()
+# ⭐ KEYED ON THE RESOLVED PATH, NEVER A BARE BOOL — `alert_fired_log._INITED`'s
+# reason applies verbatim: the tests point this store at a fresh tmp file per
+# test, and a process-wide "already initialised" flag would skip creating the
+# table in every database after the first.
+_INITED: set[str] = set()
 
 
 def db_path() -> str:
@@ -87,6 +132,38 @@ def init_schema() -> None:
         os.makedirs(parent, exist_ok=True)
     with _conn() as db:
         db.executescript(_SCHEMA)
+    with _INIT_LOCK:
+        _INITED.add(_DB_PATH)
+
+
+def _ensure_init() -> None:
+    """Create-on-first-use, memoised on the resolved path.
+
+    ⭐ THIS IS THE HOIST. `shadow_record` used to call `init_schema()` — a whole
+    `executescript` of one `CREATE TABLE IF NOT EXISTS` plus two
+    `CREATE INDEX IF NOT EXISTS`, on its own fresh connection — **once per row**,
+    on a lane that writes one row per observed alert per 60-second cycle.
+    """
+    if _DB_PATH in _INITED:
+        return
+    with _INIT_LOCK:
+        if _DB_PATH in _INITED:
+            return
+    init_schema()
+
+
+_INSERT_SQL = ("INSERT INTO alert_shadow_fires "
+               "(alert_id, bar_index, value, triggered, recorded_at) "
+               "VALUES (?, ?, ?, ?, ?)")
+
+
+def _row_tuple(alert_id: int, bar_index: Optional[int], value: Optional[float],
+               triggered: bool, recorded_at: Optional[int] = None) -> tuple:
+    return (int(alert_id),
+            None if bar_index is None else int(bar_index),
+            None if value is None else float(value),
+            1 if triggered else 0,
+            int(time.time()) if recorded_at is None else int(recorded_at))
 
 
 def shadow_record(alert_id: int, bar_index: Optional[int], value: Optional[float],
@@ -96,24 +173,42 @@ def shadow_record(alert_id: int, bar_index: Optional[int], value: Optional[float
     ⛔ NOT `record_evaluation`, NOT `record_trigger`, NOT `deliver_alert_payload`.
     This is the whole delivery surface of the shadow lane and it is one INSERT
     into a table the live lane has never heard of.
+
+    Kept as the single-row door for callers that have one row; the CYCLE goes
+    through `shadow_record_many`, which is where the cost actually was.
     """
-    init_schema()
+    shadow_record_many([_row_tuple(alert_id, bar_index, value, triggered)])
+
+
+def shadow_record_many(rows: Sequence[tuple]) -> int:
+    """ONE connection, ONE transaction, N rows. Returns how many were written.
+
+    ⭐ MEASURED, NOT ASSERTED. On this box, per row, over 300 rows:
+
+        full `shadow_record()` as shipped …………………………… 5,383.3 µs
+        with `init_schema()` hoisted only ………………………… 5,049.8 µs   (−6 %)
+        reused connection, one commit PER ROW ……………………   501.9 µs
+        reused connection, ONE executemany + ONE commit ……     3.9 µs
+
+    ⚠️ SO THE SCALE REVIEW'S ATTRIBUTION IS WRONG AND THE CORRECTION MATTERS. It
+    reads *"`shadow_record` additionally calls `init_schema()` … once per row.
+    That is the whole 5,757 µs"*, and recommends hoisting it as the cheapest
+    single fix. Hoisting it alone buys **6 %**. The cost is the **fresh SQLite
+    connection plus its two PRAGMAs** (~4,550 µs here) and then the per-row
+    `fsync`ing commit (~498 µs). Landing only the recommended one-liner would
+    have left 94 % of the bill in place while reading as done.
+    """
+    if not rows:
+        return 0
+    _ensure_init()
     with _conn() as db:
-        db.execute(
-            "INSERT INTO alert_shadow_fires "
-            "(alert_id, bar_index, value, triggered, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (int(alert_id),
-             None if bar_index is None else int(bar_index),
-             None if value is None else float(value),
-             1 if triggered else 0,
-             int(time.time())),
-        )
+        db.executemany(_INSERT_SQL, rows)
+    return len(rows)
 
 
 def shadow_rows(alert_id: Optional[int] = None, limit: int = 500) -> list[dict]:
     """Read back what the shadow lane WOULD have fired. Diagnostics only."""
-    init_schema()
+    _ensure_init()
     sql = ("SELECT id, alert_id, bar_index, value, triggered, recorded_at "
            "FROM alert_shadow_fires")
     params: tuple = ()
@@ -126,6 +221,90 @@ def shadow_rows(alert_id: Optional[int] = None, limit: int = 500) -> list[dict]:
         rows = db.execute(sql, params).fetchall()
     return [{"id": r[0], "alert_id": r[1], "bar_index": r[2], "value": r[3],
              "triggered": bool(r[4]), "recorded_at": r[5]} for r in rows]
+
+
+def retention_days() -> int:
+    """The window, resolved at CALL TIME, and never below the floor.
+
+    ⛔ A VALUE UNDER `_MIN_RETENTION_DAYS` IS REFUSED, NOT CLAMPED SILENTLY — it
+    is logged as refused and the floor is used. The distinction is the whole
+    point: a window of 1 day would delete the soak Task 8's gate reads, and the
+    gate would then pass on an empty set with nothing anywhere saying why.
+    """
+    raw = os.environ.get("ALERT_SHADOW_RETENTION_DAYS")
+    if raw is None:
+        return DEFAULT_RETENTION_DAYS
+    try:
+        n = int(str(raw).strip())
+    except (TypeError, ValueError):
+        _logger.warning("[alert-shadow] ALERT_SHADOW_RETENTION_DAYS=%r is not an "
+                        "integer — using %d", raw, DEFAULT_RETENTION_DAYS)
+        return DEFAULT_RETENTION_DAYS
+    if n < _MIN_RETENTION_DAYS:
+        _logger.warning(
+            "[alert-shadow] ALERT_SHADOW_RETENTION_DAYS=%d is below the %d-day "
+            "floor and is REFUSED. Task 8's cutover gate reads three live "
+            "sessions of alert_shadow_fires; a window that can reach them makes "
+            "that gate pass on an empty set.", n, _MIN_RETENTION_DAYS)
+        return _MIN_RETENTION_DAYS
+    return n
+
+
+def prune_shadow(older_than_days: Optional[int] = None,
+                 now: Optional[float] = None) -> dict:
+    """Delete shadow rows older than the retention window. Returns a summary.
+
+    One `DELETE … WHERE recorded_at < ?`, which is exactly the read
+    `idx_alert_shadow_at` was created for and the only thing that index has ever
+    been used by.
+    """
+    _ensure_init()
+    days = retention_days() if older_than_days is None else max(
+        _MIN_RETENTION_DAYS, int(older_than_days))
+    cutoff = int((time.time() if now is None else float(now)) - days * 86400)
+    with _conn() as db:
+        cur = db.execute("DELETE FROM alert_shadow_fires WHERE recorded_at < ?",
+                         (cutoff,))
+        deleted = int(cur.rowcount or 0)
+    if deleted:
+        _logger.info("[alert-shadow] pruned %d row(s) older than %d days",
+                     deleted, days)
+    return {"deleted": deleted, "cutoff": cutoff, "days": days}
+
+
+def _maybe_prune(now: Optional[float] = None) -> dict:
+    """Throttled prune, called BY the cycle that causes the growth.
+
+    ⚠️ NEVER RAISES INTO A CYCLE. A retention sweep that could abort the soak it
+    exists to bound would be a worse defect than the growth.
+    """
+    global _last_prune_at
+    t = time.time() if now is None else float(now)
+    with _PRUNE_LOCK:
+        if t - _last_prune_at < _PRUNE_EVERY_SEC:
+            return {"deleted": 0, "skipped": True}
+        _last_prune_at = t
+    try:
+        out = prune_shadow(now=t)
+        out["skipped"] = False
+        return out
+    except Exception:
+        _logger.exception("[alert-shadow] retention sweep failed (non-fatal)")
+        return {"deleted": 0, "skipped": False, "error": True}
+
+
+def shadow_stats() -> dict:
+    """Row count, span and retention window — growth made VISIBLE, not inferred."""
+    _ensure_init()
+    with _conn() as db:
+        rows, lo, hi = db.execute(
+            "SELECT COUNT(*), MIN(recorded_at), MAX(recorded_at) "
+            "FROM alert_shadow_fires").fetchone()
+        alerts = int(db.execute(
+            "SELECT COUNT(DISTINCT alert_id) FROM alert_shadow_fires").fetchone()[0])
+    return {"rows": int(rows or 0), "distinct_alerts": alerts,
+            "oldest_recorded_at": lo, "newest_recorded_at": hi,
+            "retention_days": retention_days(), "db_path": _DB_PATH}
 
 
 # ─── THE SHADOW CYCLE ────────────────────────────────────────────────────────
@@ -145,7 +324,7 @@ def run_shadow_cycle() -> dict[str, Any]:
     obey the same switch as the scheduled one.
     """
     summary = {"considered": 0, "evaluated": 0, "would_trigger": 0,
-               "errors": 0, "skipped": False}
+               "errors": 0, "skipped": False, "written": 0, "pruned": 0}
     if not shadow_enabled():
         summary["skipped"] = True
         return summary
@@ -168,6 +347,15 @@ def run_shadow_cycle() -> dict[str, Any]:
     for a in alerts:
         groups.setdefault((a["sym"], a["tf"]), []).append(a)
 
+    # ⭐ ONE CONNECTION AND ONE TRANSACTION PER GROUP, NOT PER ROW. The cycle used
+    # to open a fresh SQLite connection, run a full `init_schema()` executescript
+    # and commit — 5,383 µs — for EVERY observed alert on EVERY 60-second cycle.
+    # Batched it is 3.9 µs/row (see `shadow_record_many`).
+    #
+    # ⛔ ONLY THE WRITE IS BATCHED; THE EVALUATION IS STILL ISOLATED PER ALERT. A
+    # raising compute still costs exactly its own row and the group's other rows
+    # still land — that property is what let a bad ticker never abort a cycle and
+    # it is not traded away for the write.
     for (sym, tf), alerts_in_group in groups.items():
         try:
             bars = ev._fetch_bars_for_alert(sym, tf, 200)
@@ -175,6 +363,7 @@ def run_shadow_cycle() -> dict[str, Any]:
             _logger.exception("[alert-shadow] fetch failed for %s/%s", sym, tf)
             summary["errors"] += 1
             continue
+        pending: list[tuple] = []
         for alert in alerts_in_group:
             try:
                 value, triggered, bar_index = ev._evaluate_one_closed(
@@ -184,11 +373,22 @@ def run_shadow_cycle() -> dict[str, Any]:
                 summary["evaluated"] += 1
                 if triggered:
                     summary["would_trigger"] += 1
-                shadow_record(alert["id"], bar_index, value, triggered)
+                pending.append(_row_tuple(alert["id"], bar_index, value, triggered))
             except Exception:
                 _logger.exception(
                     "[alert-shadow] eval failed for alert %s", alert.get("id"))
                 summary["errors"] += 1
+        if pending:
+            try:
+                summary["written"] += shadow_record_many(pending)
+            except Exception:
+                _logger.exception(
+                    "[alert-shadow] batch write failed for %s/%s (%d row(s))",
+                    sym, tf, len(pending))
+                summary["errors"] += 1
+
+    # Retention rides the cycle that causes the growth — throttled, never fatal.
+    summary["pruned"] = int(_maybe_prune().get("deleted") or 0)
     return summary
 
 

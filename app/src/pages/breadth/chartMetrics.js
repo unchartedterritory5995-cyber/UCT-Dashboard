@@ -35,6 +35,9 @@ export const CHART_GROUPS = [
       { key: 'magna_up',            label: 'Up 13%/34d' },
       { key: 'magna_down',          label: 'Dn 13%/34d' },
       { key: 'universe_count',      label: 'Universe Count' },
+      { key: 'adv_decline',         label: 'Net Advancers' },
+      { key: 'adv_decline_cum',     label: 'A/D Line' },
+      { key: 'up_vol_ratio',        label: 'Up/Down Volume' },
     ],
   },
   {
@@ -58,6 +61,11 @@ export const CHART_GROUPS = [
       { key: 'mcclellan_osc', label: 'McClellan Osc' },
       { key: 'stage2_count',  label: 'Stage 2 Count' },
       { key: 'stage4_count',  label: 'Stage 4 Count' },
+      { key: 'rsp_spy_ratio', label: 'RSP/SPY (Equal-Wt)' },
+      { key: 'iwm_qqq_ratio', label: 'IWM/QQQ (Small-Cap)' },
+      { key: 'vxn',           label: 'VXN (Nasdaq)' },
+      { key: 'avg_10d_vix',   label: 'VIX 10D Avg' },
+      { key: 'avg_10d_vxn',   label: 'VXN 10D Avg' },
     ],
   },
   {
@@ -70,6 +78,9 @@ export const CHART_GROUPS = [
       { key: 'new_ath',       label: 'ATH Count' },
       { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
       { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
+      { key: 'hi_ratio',      label: '% at 52W Highs' },
+      { key: 'lo_ratio',      label: '% at 52W Lows' },
+      { key: 'near_52w_high', label: 'Within 5% of High' },
     ],
   },
   {
@@ -82,6 +93,7 @@ export const CHART_GROUPS = [
       { key: 'aaii_spread',    label: 'Bull-Bear Spread' },
       { key: 'naaim',          label: 'NAAIM' },
       { key: 'cboe_putcall',   label: 'CBOE P/C' },
+      { key: 'avg_10d_cpc',    label: 'P/C 10D Avg' },
     ],
   },
 ]
@@ -94,21 +106,27 @@ export const LABEL_MAP = Object.fromEntries(ALL_METRICS.map(m => [m.key, m.label
 // mixing a 0–5 ratio with a 0–1000 count renders the ratio flat on the floor.
 
 export const UNIT = {
-  PCT:   'pct',    // 0–150 bounded percentages and composite scores
-  COUNT: 'count',  // number of stocks
-  RATIO: 'ratio',  // unitless ~0–5
-  INDEX: 'index',  // index / ETF price level
-  VIX:   'vix',    // volatility points
-  OSC:   'osc',    // oscillator, roughly -100..+100
+  PCT:    'pct',    // 0–150 bounded percentages and composite scores
+  COUNT:  'count',  // number of stocks
+  RATIO:  'ratio',  // unitless ~0–5
+  INDEX:  'index',  // index / ETF price level
+  VIX:    'vix',    // volatility points
+  OSC:    'osc',    // oscillator, roughly -100..+100
+  CUM:    'cum',    // running cumulative total, thousands
+  NET:    'net',    // signed daily net, ±2,000
+  SPREAD: 'spread', // intermarket price ratio, 0.27–0.44
 }
 
 export const UNIT_LABEL = {
-  [UNIT.PCT]:   '%',
-  [UNIT.COUNT]: 'stocks',
-  [UNIT.RATIO]: 'ratio',
-  [UNIT.INDEX]: 'index',
-  [UNIT.VIX]:   'VIX',
-  [UNIT.OSC]:   'osc',
+  [UNIT.PCT]:    '%',
+  [UNIT.COUNT]:  'stocks',
+  [UNIT.RATIO]:  'ratio',
+  [UNIT.INDEX]:  'index',
+  [UNIT.VIX]:    'VIX',
+  [UNIT.OSC]:    'osc',
+  [UNIT.CUM]:    'A/D line',
+  [UNIT.NET]:    'net',
+  [UNIT.SPREAD]: 'spread',
 }
 
 export const METRIC_UNITS = {
@@ -132,6 +150,9 @@ export const METRIC_UNITS = {
   magna_up:           UNIT.COUNT,
   magna_down:         UNIT.COUNT,
   universe_count:     UNIT.COUNT,
+  adv_decline:        UNIT.NET,
+  adv_decline_cum:    UNIT.CUM,
+  up_vol_ratio:       UNIT.RATIO,
 
   // MA Breadth
   pct_above_5sma:   UNIT.PCT,
@@ -149,6 +170,11 @@ export const METRIC_UNITS = {
   mcclellan_osc: UNIT.OSC,
   stage2_count:  UNIT.COUNT,
   stage4_count:  UNIT.COUNT,
+  rsp_spy_ratio: UNIT.SPREAD,
+  iwm_qqq_ratio: UNIT.SPREAD,
+  vxn:           UNIT.VIX,
+  avg_10d_vix:   UNIT.VIX,
+  avg_10d_vxn:   UNIT.VIX,
 
   // Highs / Lows
   new_52w_highs: UNIT.COUNT,
@@ -158,6 +184,11 @@ export const METRIC_UNITS = {
   new_ath:       UNIT.COUNT,
   hvc_52w:       UNIT.COUNT,
   atr_ext_7:     UNIT.COUNT,
+  // hi/lo_ratio are nh/uni*100 (breadth_monitor.py:169) — percentages of the
+  // universe, not ratios, so the axis must read '%'.
+  hi_ratio:      UNIT.PCT,
+  lo_ratio:      UNIT.PCT,
+  near_52w_high: UNIT.COUNT,
 
   // Sentiment
   cnn_fear_greed: UNIT.PCT,
@@ -167,12 +198,88 @@ export const METRIC_UNITS = {
   aaii_spread:    UNIT.PCT,
   naaim:          UNIT.PCT,
   cboe_putcall:   UNIT.RATIO,
+  avg_10d_cpc:    UNIT.RATIO,
 }
 
 /** Unit family for a metric key. Unmapped keys fall back to COUNT — the
  *  `every metric has a unit` test is the gate that keeps that from happening. */
 export function unitOf(key) {
   return METRIC_UNITS[key] ?? UNIT.COUNT
+}
+
+// ── Axis framing ──────────────────────────────────────────────────────────────
+// Families whose axis frames its own data instead of including zero. The split
+// is magnitude vs level: a count of stocks or a percent above a moving average
+// is read against 0, but an index price, a VIX level, or a 0.03-wide
+// intermarket spread is read as a shape and a zero anchor destroys it —
+// rsp_spy_ratio (0.272–0.300) renders as a flat line at 93% height.
+
+export const SCALED_UNITS = new Set([
+  UNIT.INDEX, UNIT.VIX, UNIT.OSC, UNIT.CUM, UNIT.SPREAD,
+])
+
+/** True when the axis for this family should frame its data rather than anchor at 0. */
+export function scaleForUnit(unit) {
+  return SCALED_UNITS.has(unit)
+}
+
+// ── Series colour ─────────────────────────────────────────────────────────────
+// Colour used to be PALETTE[seriesIndex], so index 1 was always green and every
+// crossover preset drew its deterioration line — new_52w_lows, stage4_count,
+// down_4pct_today — in green.
+//
+// Tone is assigned ONLY to metrics that exist as an opposed pair. Extending it
+// to "rising VIX is bearish" would paint all three vol-complex series red and
+// make them harder to tell apart, and setup-supply would draw near_52w_high and
+// new_52w_highs as two greens. On crossover charts semantics win; everywhere
+// else distinguishability does.
+
+export const TONE = { BULL: 'bull', BEAR: 'bear', NEUTRAL: 'neutral' }
+
+export const METRIC_TONE = {
+  up_4pct_today:      TONE.BULL,  down_4pct_today:    TONE.BEAR,
+  up_20pct_5d:        TONE.BULL,  down_20pct_5d:      TONE.BEAR,
+  up_25pct_quarter:   TONE.BULL,  down_25pct_quarter: TONE.BEAR,
+  up_25pct_month:     TONE.BULL,  down_25pct_month:   TONE.BEAR,
+  up_50pct_month:     TONE.BULL,  down_50pct_month:   TONE.BEAR,
+  magna_up:           TONE.BULL,  magna_down:         TONE.BEAR,
+  new_52w_highs:      TONE.BULL,  new_52w_lows:       TONE.BEAR,
+  new_20d_highs:      TONE.BULL,  new_20d_lows:       TONE.BEAR,
+  hi_ratio:           TONE.BULL,  lo_ratio:           TONE.BEAR,
+  stage2_count:       TONE.BULL,  stage4_count:       TONE.BEAR,
+  aaii_bulls:         TONE.BULL,  aaii_bears:         TONE.BEAR,
+  new_ath:            TONE.BULL,
+}
+
+export function toneOf(key) {
+  return METRIC_TONE[key] ?? TONE.NEUTRAL
+}
+
+// Six neutrals because the largest single-tone group in any preset is
+// `participation` with four.
+export const TONE_RAMP = {
+  [TONE.BULL]:    ['#34d399', '#4ade80', '#15803d'],
+  [TONE.BEAR]:    ['#f87171', '#ef4444', '#b91c1c'],
+  [TONE.NEUTRAL]: ['#60a5fa', '#f59e0b', '#a78bfa', '#38bdf8', '#fb923c', '#e879f9'],
+}
+
+/**
+ * Colour for each selected metric: its tone's ramp, advanced per tone so two
+ * bullish series never land on the same green.
+ *
+ * A hand-picked selection deeper than a ramp wraps and can repeat. Presets are
+ * the guarded path and a test holds them collision-free.
+ */
+export function resolveColors(selected) {
+  const used = { [TONE.BULL]: 0, [TONE.BEAR]: 0, [TONE.NEUTRAL]: 0 }
+  const out = {}
+  for (const key of selected ?? []) {
+    const tone = toneOf(key)
+    const ramp = TONE_RAMP[tone]
+    out[key] = ramp[used[tone] % ramp.length]
+    used[tone] += 1
+  }
+  return out
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -187,6 +294,11 @@ export function unitOf(key) {
 // moved the live index to a paid subscription on 2026-08-01, and the only free
 // feed left runs a ~3-month delay. So the most recent weeks are routinely
 // missing and backfill later. Fine to select deliberately; a poor default.
+
+// Popover section order. A preset without `group` is a core one-click pill.
+export const PRESET_GROUP_ORDER = [
+  'Structure', 'Leadership', 'Momentum', 'Volatility & Sentiment',
+]
 
 export const CHART_PRESETS = [
   {
@@ -214,24 +326,33 @@ export const CHART_PRESETS = [
   {
     id: 'thrust',
     label: 'Breadth Thrust',
-    hint: 'Daily 4% movers against the 5- and 10-day ratios — ignition and follow-through.',
-    metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day'],
+    hint: 'Daily 4% movers, the 5- and 10-day ratios, and up/down volume — ignition, follow-through, and conviction.',
+    // Volume is what separates a thrust from a bounce; the preset had counts
+    // and ratios but nothing measuring what was behind them.
+    metrics: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'up_vol_ratio'],
+    lines: [
+      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
+      { unit: UNIT.RATIO, at: 2.0, label: 'thrust' },
+    ],
   },
   {
     id: 'highs-lows',
     label: 'New Highs vs Lows',
+    group: 'Structure',
     hint: '52-week highs against 52-week lows — the crossover marks regime turns.',
     metrics: ['new_52w_highs', 'new_52w_lows'],
   },
   {
     id: 'trend-regime',
     label: 'Trend Regime',
+    group: 'Structure',
     hint: 'Stage 2 against Stage 4 counts — how much of the market is actually in an uptrend.',
     metrics: ['stage2_count', 'stage4_count'],
   },
   {
     id: 'froth',
     label: 'Froth & Extension',
+    group: 'Momentum',
     hint: 'Monthly 50% movers, volume climaxes, and ATR extension — the late-move heat tells.',
     // `up_25pct_month` (66–385) is deliberately left out. It shares the counts
     // axis with these and dominates it, pinning ATR extension (2–34) and HVC
@@ -241,14 +362,83 @@ export const CHART_PRESETS = [
   {
     id: 'volatility',
     label: 'Volatility & Fear',
-    hint: 'VIX on the left, CBOE put/call on the right.',
-    metrics: ['vix', 'cboe_putcall'],
+    hint: 'Put/call raw and smoothed against VIX — the 10-day average is the tradeable extreme.',
+    // The daily put/call takes 39 distinct values over 151 sessions and reads
+    // as noise. On a shared axis the 10-day average is the spine of it.
+    metrics: ['vix', 'cboe_putcall', 'avg_10d_cpc'],
+    lines: [{ unit: UNIT.RATIO, at: 1.0, label: 'parity' }],
   },
   {
     id: 'sentiment',
     label: 'Sentiment Extremes',
+    group: 'Volatility & Sentiment',
     hint: 'CNN Fear/Greed and the AAII bull-bear spread — contrarian positioning.',
     metrics: ['cnn_fear_greed', 'aaii_spread'],
+    lines: [
+      { unit: UNIT.PCT, at: 25, label: 'fear' },
+      { unit: UNIT.PCT, at: 75, label: 'greed' },
+    ],
+  },
+  {
+    id: 'ad-line',
+    label: 'A/D Line',
+    hint: 'The cumulative advance-decline line against the index — price highs the line will not confirm.',
+    metrics: ['adv_decline_cum', 'sp500_close'],
+    lines: [{ unit: UNIT.CUM, at: 0, label: 'flat' }],
+    // adv_decline_cum keeps only 55% of its travel in the default 90-day
+    // window, climbing monotonically from 5,781 with the April trough at -995
+    // off-screen — the divergence this preset exists to show is not in frame.
+    minWindowDays: 365,
+  },
+  {
+    id: 'narrow-leadership',
+    label: 'Narrow Leadership',
+    group: 'Leadership',
+    hint: 'Equal-weight against cap-weight, with the index — a falling ratio into a rising index is a mega-cap-only rally.',
+    metrics: ['rsp_spy_ratio', 'sp500_close'],
+  },
+  {
+    id: 'risk-appetite',
+    label: 'Risk Appetite',
+    group: 'Leadership',
+    hint: 'Small-cap and equal-weight participation together — who is being bought beyond the megacaps.',
+    metrics: ['iwm_qqq_ratio', 'rsp_spy_ratio'],
+  },
+  {
+    id: 'volume-thrust',
+    label: 'Volume Thrust',
+    group: 'Momentum',
+    hint: 'Up versus down volume against net advancers — conviction behind the advance, not just its width.',
+    metrics: ['up_vol_ratio', 'adv_decline'],
+    lines: [
+      { unit: UNIT.RATIO, at: 1.0, label: 'parity' },
+      { unit: UNIT.NET, at: 0, label: 'flat' },
+    ],
+  },
+  {
+    id: 'highs-lows-pct',
+    label: 'Highs/Lows %',
+    hint: 'The same crossover as New Highs vs Lows, as a share of the universe.',
+    // universe_count swings 2,637 to 3,736 across the recorded history — a 42%
+    // change — so raw high/low counts are not comparable across the window and
+    // the percentage is. Both presets exist because the raw crossover is what a
+    // reader recognises and this one is what is actually true.
+    metrics: ['hi_ratio', 'lo_ratio'],
+  },
+  {
+    id: 'vol-complex',
+    label: 'Vol Complex',
+    group: 'Volatility & Sentiment',
+    hint: 'Nasdaq against broad volatility, with the 10-day trend.',
+    metrics: ['vix', 'vxn', 'avg_10d_vix'],
+    lines: [{ unit: UNIT.VIX, at: 20, label: '20' }],
+  },
+  {
+    id: 'setup-supply',
+    label: 'Setup Supply',
+    group: 'Structure',
+    hint: 'Stocks coiled within 5% of a 52-week high against those actually breaking out.',
+    metrics: ['near_52w_high', 'new_52w_highs'],
   },
 ]
 
@@ -310,4 +500,33 @@ export function resolveAxes(selected) {
 export function axisForUnit(selected, unit, axisByKey) {
   const key = selected?.find(k => unitOf(k) === unit)
   return key ? (axisByKey[key] ?? 0) : 0
+}
+
+/**
+ * Reference lines that should actually draw, with the axis each belongs to.
+ *
+ * Two things are filtered out. A line whose family has no series would sit on
+ * an axis with nothing on it. And on an auto-framed family a line outside the
+ * data would expand the axis to reach it — ECharts grows an axis to contain a
+ * markLine — undoing the framing in scaleForUnit. Anchored families already
+ * include zero, so there the line draws regardless and may extend the top,
+ * which is what EXTREMES_BAND already does for MA Breadth.
+ *
+ * @param selected  metric keys currently plotted
+ * @param lines     the preset's `lines`, or []
+ * @param extentOf  (unit) => [min, max] over visible rows, or null when unknown
+ */
+export function resolveLines(selected, lines, extentOf) {
+  if (!selected?.length || !lines?.length) return []
+  const { axisByKey } = resolveAxes(selected)
+  const out = []
+  for (const line of lines) {
+    if (!selected.some(k => unitOf(k) === line.unit)) continue
+    if (scaleForUnit(line.unit)) {
+      const extent = extentOf(line.unit)
+      if (!extent || line.at < extent[0] || line.at > extent[1]) continue
+    }
+    out.push({ ...line, axis: axisForUnit(selected, line.unit, axisByKey) })
+  }
+  return out
 }

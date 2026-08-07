@@ -152,7 +152,9 @@ def _deliver_alert(alert: dict, current_price: float):
     target = alert["target_price"]
     msg = f"{sym} {'crossed above' if direction == 'above' else 'dropped below'} ${target:.2f} (now ${current_price:.2f})"
 
-    # 1. AlertBell (in-app)
+    # 1. AlertBell (in-app) — PRIVATE to the member who set the alert.
+    # `user_id` is what keeps this out of the broadcast feed every other member
+    # reads. Without it a price alert is visible to the whole membership.
     try:
         add_alert(
             "price_alert",
@@ -160,6 +162,7 @@ def _deliver_alert(alert: dict, current_price: float):
             msg,
             severity="warning",
             data={"symbol": sym, "target_price": target, "current_price": current_price, "direction": direction},
+            user_id=alert["user_id"],
         )
     except Exception as e:
         _logger.warning("AlertBell delivery failed: %s", e)
@@ -185,18 +188,15 @@ def _deliver_alert(alert: dict, current_price: float):
     except Exception as e:
         _logger.warning("Email delivery failed: %s", e)
 
-    # 3. Discord
-    try:
-        from api.services.alerts import _fire_discord
-        _fire_discord({
-            "type": "price_alert",
-            "severity": "warning",
-            "title": f"Price Alert: {sym}",
-            "message": msg,
-            "timestamp": datetime.now(timezone.utc).isoformat()[:16],
-        })
-    except Exception as e:
-        _logger.warning("Discord delivery failed: %s", e)
+    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1.
+    #
+    # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. `add_alert` posts to the
+    # webhook itself for severity warning/critical, and step 1 passes
+    # severity="warning" — so the explicit second call that used to sit here put
+    # every single triggered alert into the admin channel TWICE (verified on
+    # production 2026-08-06). `add_alert` is the single owner of the webhook;
+    # `tests/test_alerts_privacy.py` counts real `requests.post` calls and fails
+    # at two.
 
 
 def deliver_alert_payload(
@@ -242,7 +242,12 @@ def deliver_alert_payload(
     if extra_data:
         data.update(extra_data)
 
-    # 1. AlertBell (in-app)
+    # 1. AlertBell (in-app) — PRIVATE to `user_id`.
+    #
+    # ⭐ EVERY CALLER OF THIS FUNCTION ALREADY HAS A REAL MEMBER ID — it is the
+    # first parameter, and the indicator evaluator, catalyst alerts + must-know,
+    # calendar alerts and the awareness engine all pass one. Passing it through
+    # is what makes this alert the member's instead of the whole membership's.
     try:
         add_alert(
             source,
@@ -250,6 +255,7 @@ def deliver_alert_payload(
             message,
             severity="warning",
             data=data,
+            user_id=user_id,
         )
     except Exception as e:
         _logger.warning("AlertBell delivery failed: %s", e)
@@ -269,18 +275,14 @@ def deliver_alert_payload(
     except Exception as e:
         _logger.warning("Email delivery failed: %s", e)
 
-    # 3. Discord
-    try:
-        from api.services.alerts import _fire_discord
-        _fire_discord({
-            "type": source,
-            "severity": "warning",
-            "title": title,
-            "message": message,
-            "timestamp": datetime.now(timezone.utc).isoformat()[:16],
-        })
-    except Exception as e:
-        _logger.warning("Discord delivery failed: %s", e)
+    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1.
+    #
+    # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. Step 1 passes
+    # severity="warning", which is exactly the severity `add_alert` fires the
+    # webhook on, so the explicit call that used to sit here posted a SECOND,
+    # near-identical embed for every delivered alert (same title, same message,
+    # same footer — only the footer timestamp's timezone differed). Removing it
+    # loses no information from the admin channel and halves its volume.
 
 
 def run_alert_check(price_data: dict):

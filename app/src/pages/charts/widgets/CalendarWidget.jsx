@@ -55,6 +55,21 @@ function fmtNum(v, digits = 2) {
   if (!Number.isFinite(n)) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
+// The options-implied earnings move as a plain magnitude → "3.1%" / "12%"
+// (1 decimal under 10, else 0), matching the EPS/REV surprise rounding. null when
+// there's no implied-move data.
+function fmtImPct(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return null
+  return `${n.toFixed(Math.abs(n) < 10 ? 1 : 0)}%`
+}
+// Pull a symbol's implied-move % out of the enrichment overlay
+// ({ SYM: {expected_move:{pct}} }), tolerating class-share dot/hyphen notation.
+function imLookup(imMap, sym) {
+  if (!imMap || !sym) return undefined
+  const e = imMap[sym] ?? imMap[sym.replace(/\./g, '-')]
+  return e?.expected_move?.pct
+}
 // Revenue comes in MILLIONS → "$1.2B" / "$847M" / "$3.8M".
 function fmtRev(m) {
   const n = Number(m)
@@ -90,7 +105,7 @@ const revSurpKey = c => surpKey(c.rev_act, c.rev_est)
 // Reported → EPS% / Rev% surprise (colored up/down); pending → est EPS / est Rev (neutral).
 // memo'd + a data-earn-sym hook so keyboard arrow-nav can walk the rendered rows and
 // only the selection-changed rows re-render.
-const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
+const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
   const { name } = useTickerMeta(c.sym)
   const eps = c.eps_act != null
     ? surpriseCell(c.eps_act, c.eps_est, fmtNum)
@@ -99,6 +114,7 @@ const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
     ? surpriseCell(c.rev_act, c.rev_est, fmtRev)
     : (c.rev_est != null ? { text: fmtRev(c.rev_est), up: null, est: true } : null)
   const cls = (cell) => (!cell || cell.est || cell.up == null ? '' : (cell.up ? styles.pos : styles.neg))
+  const imText = fmtImPct(im)
   return (
     <div
       className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
@@ -110,6 +126,7 @@ const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
       <span className={styles.earnSym}>{c.sym}</span>
       {name && <span className={styles.earnCompany}>({name})</span>}
       <span className={styles.valCols}>
+        <span className={styles.imCol} title="Options-implied move">{imText ?? '—'}</span>
         <span className={`${styles.epsCol} ${cls(eps)}`}>{eps?.text ?? '—'}</span>
         <span className={`${styles.revCol} ${cls(rev)}`}>{rev?.text ?? '—'}</span>
       </span>
@@ -120,22 +137,24 @@ const EarnRow = memo(function EarnRow({ c, onSelect, selected }) {
 // An earnings section: top 10 by market cap (default), a "Show all N" expander, and
 // clickable EPS/REV headers to sort by surprise (click again reverses); the title
 // re-sorts by market cap. Column labels get "(est)" when the section is all estimates.
-function EarningsSection({ title, iconName, cls, items, onSelect, selectedSym }) {
+function EarningsSection({ title, iconName, cls, items, imMap, onSelect, selectedSym }) {
   const [showAll, setShowAll] = useState(false)
   const [sort, setSort] = useState({ by: 'mcap', dir: 'desc' })
   const est = useMemo(() => !items.some(c => c.eps_act != null || c.rev_act != null), [items])
   const sorted = useMemo(() => {
     const arr = [...items]
     if (sort.by === 'mcap') return arr.sort(mcapDesc)
-    const keyFn = sort.by === 'eps' ? epsSurpKey : revSurpKey
+    const keyFn = sort.by === 'eps' ? epsSurpKey
+      : sort.by === 'im' ? (c => imLookup(imMap, c.sym))
+        : revSurpKey
     return arr.sort((a, b) => {
       const ka = keyFn(a), kb = keyFn(b)
       if (ka == null && kb == null) return 0
-      if (ka == null) return 1
+      if (ka == null) return 1     // no implied move / no surprise → sinks last
       if (kb == null) return -1
       return sort.dir === 'desc' ? kb - ka : ka - kb
     })
-  }, [items, sort])
+  }, [items, sort, imMap])
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
   const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
   const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
@@ -150,6 +169,12 @@ function EarningsSection({ title, iconName, cls, items, onSelect, selectedSym })
         <span className={styles.valCols}>
           <button
             type="button"
+            className={`${styles.imCol} ${styles.colBtn}${sort.by === 'im' ? ' ' + styles.colActive : ''}`}
+            onClick={() => clickCol('im')}
+            title="Sort by implied move"
+          >Impl. Move{caret('im')}</button>
+          <button
+            type="button"
             className={`${styles.epsCol} ${styles.colBtn}${sort.by === 'eps' ? ' ' + styles.colActive : ''}`}
             onClick={() => clickCol('eps')}
             title="Sort by EPS surprise"
@@ -162,7 +187,7 @@ function EarningsSection({ title, iconName, cls, items, onSelect, selectedSym })
           >REV{estTag}{caret('rev')}</button>
         </span>
       </div>
-      {shown.map(c => <EarnRow key={c.sym} c={c} onSelect={onSelect} selected={c.sym === selectedSym} />)}
+      {shown.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onSelect} selected={c.sym === selectedSym} />)}
       {sorted.length > TOP_EARNINGS && (
         <button type="button" className={`${styles.showAll}${showAll ? ' ' + styles.open : ''}`} onClick={() => setShowAll(s => !s)}>
           {showAll ? 'Show less' : `Show all ${sorted.length}`}
@@ -247,6 +272,16 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
   const day = data?.days?.[selected] || null
+
+  // ── Implied-move ("IM") per earnings ticker for the selected day — the
+  // options-implied move from the same enrichment overlay the /calendar page uses
+  // ({ SYM: {expected_move:{pct}} }). It's the correct tight-expiry earnings move;
+  // it's only available for today's + upcoming reporters (the live options chain
+  // has no expired past expiries), so past days show "—". ──
+  const { data: imData } = useSWR(`/api/calendar/enrichment?date=${selected}`, fetcher, {
+    refreshInterval: 300000, dedupingInterval: 60000,
+  })
+  const imMap = imData && typeof imData === 'object' ? imData : null
 
   const hasAnyEcon = (day?.econ?.length || 0) + (day?.fed?.length || 0) > 0
   const econItems = useMemo(() => {
@@ -365,11 +400,11 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
         )}
 
         {bmo.length > 0 && (
-          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} onSelect={onRowSelect} selectedSym={selectedSym} />
+          <EarningsSection title="Pre-Market Earnings" iconName="sun" cls={styles.pre} items={bmo} imMap={imMap} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {amc.length > 0 && (
-          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} onSelect={onRowSelect} selectedSym={selectedSym} />
+          <EarningsSection title="After-Hours Earnings" iconName="moon" cls={styles.post} items={amc} imMap={imMap} onSelect={onRowSelect} selectedSym={selectedSym} />
         )}
 
         {tbd.length > 0 && (
@@ -378,7 +413,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
               Time TBD<span className={styles.count} style={{ marginLeft: 6 }}>{tbd.length}</span>
               <span className={styles.chev}><UIcon name="chevronRight" size={12} /></span>
             </button>
-            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
+            {tbdOpen && tbd.map(c => <EarnRow key={c.sym} c={c} im={imLookup(imMap, c.sym)} onSelect={onRowSelect} selected={c.sym === selectedSym} />)}
           </div>
         )}
       </div>

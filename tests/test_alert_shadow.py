@@ -339,8 +339,15 @@ def shadow_env(tmp_path, monkeypatch):
         return [dict(b) for b in bars]
 
     monkeypatch.setattr(ev, "_fetch_bars_for_alert", _fetch)
-    monkeypatch.setattr(ev, "_dispatch_delivery",
-                        lambda alert, value: calls.__setitem__("deliver", calls["deliver"] + 1))
+    # ⚠️ `**_kw` IS LOAD-BEARING, NOT TIDINESS. `_dispatch_delivery` gained a
+    # keyword-only `bar_time` (chart-UX Task 7 — the notification names the bar),
+    # and a stub with the old arity raises `TypeError` INSIDE `_run_one_cycle`'s
+    # per-alert `except Exception`, which logs it and counts an error. Every
+    # assertion in this file still passed while the delivery counter silently
+    # stopped moving — measured, 2026-08-06.
+    monkeypatch.setattr(
+        ev, "_dispatch_delivery",
+        lambda alert, value, **_kw: calls.__setitem__("deliver", calls["deliver"] + 1))
 
     for address, condition, threshold in (("rsi", "above", 50.0),
                                           ("rsi", "cross_above", 70.0),

@@ -65,6 +65,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -187,23 +188,55 @@ def disarm() -> dict:
     return {"deleted": [a["indicator"] for a in rows]}
 
 
+#: How close to losing its muzzle a soak row may get before `--verify` refuses.
+#: `--arm` is idempotent and re-snoozes every row, so the remedy is one command
+#: — but only if something says the clock is running.
+EXPIRY_WARN_DAYS = 7
+
+
 def verify() -> dict:
-    """Two numbers, and the second one is the guarantee.
+    """Two numbers, and the second one is the guarantee — plus the CLOCK.
 
     `visible_to_shadow` must be the full matrix — a soak that observes nothing
     passes its gate vacuously. `deliverable_now` must be ZERO — that is the
-    promise that arming 30 instruments on the owner's account cannot mail him.
+    promise that arming 31 instruments on the owner's account cannot mail him.
+
+    🔴 IT USED TO BE A HEALTH CHECK THAT COULD NOT WARN, AND THAT IS WORSE THAN
+    NONE. `deliverable_now` was `state != snoozed` and nothing here ever read
+    `snooze_until`, so it reported **0** right up to the cycle that sends the
+    email. `ias.SNOOZE_MAX_MINUTES` is a hard 30-day ceiling `--snooze-days`
+    cannot exceed, so the muzzle on the rows armed 2026-08-06 expires
+    **2026-09-05 — the product's launch date** — and on the first cycle past it
+    `record_trigger` re-arms, records a fire, returns True and delivers.
+    Measured against the real `catalog_addresses()`: **27 of the 31 fire on that
+    first cycle** (only `macd`, `bb` and the two `sar` events stay quiet), each
+    one an AlertBell + a Resend email + a post to the ADMIN Discord.
+
+    ⛔ SO BOTH NUMBERS NOW COME FROM `ias.snooze_active`, THE SAME PREDICATE THE
+    SERVICE ENFORCES WITH. A tool that decided "muzzled" its own way is two
+    answers to one question, which is how this got missed in the first place.
     """
     rows = soak_rows()
     active = {a["id"] for a in ias.list_active()}
     visible = [a for a in rows if a["id"] in active]
-    deliverable = [a for a in rows if a["state"] != ias.STATE_SNOOZED]
+    # ⚠️ NOT `state != snoozed`. A row whose window has CLOSED is deliverable on
+    # the next cycle no matter what its state column still says.
+    deliverable = [a for a in rows if not ias.snooze_active(a)]
     addresses = {a["indicator"] for a in rows}
     expected = {s["address"] for s in catalog_addresses()}
+    horizon = time.time() + EXPIRY_WARN_DAYS * 86400
+    expiring = [a for a in rows
+                if ias.snooze_active(a) and not ias.snooze_active(a, horizon)]
+    untils = [int(a["snooze_until"]) for a in rows if a["snooze_until"] is not None]
     return {
         "armed": len(rows),
         "visible_to_shadow": len(visible),
         "deliverable_now": len(deliverable),
+        "expiring_within_days": EXPIRY_WARN_DAYS,
+        "expiring_soon": len(expiring),
+        "muzzle_expires_at": min(untils) if untils else None,
+        "muzzle_expires_in_days": (
+            round((min(untils) - time.time()) / 86400, 2) if untils else None),
         "addresses_covered": len(addresses & expected),
         "addresses_expected": len(expected),
         "missing": sorted(expected - addresses),
@@ -247,6 +280,14 @@ def main(argv=None) -> int:
         if out["armed"] and out["missing"]:
             print(f"REFUSED: {len(out['missing'])} catalog addresses unarmed",
                   file=sys.stderr)
+            return 1
+        # ⛔ THE COUNTDOWN IS ITSELF A FAILURE, AND IT HAS TO BE LOUD BEFORE THE
+        # EMAILS, NOT AFTER. Re-running `--arm` re-snoozes every row and is
+        # idempotent, so this is one command to clear — but only if it is said.
+        if out["armed"] and out["expiring_soon"]:
+            print(f"REFUSED: {out['expiring_soon']} soak rows lose their muzzle "
+                  f"in {out['muzzle_expires_in_days']} days — re-run --arm (it "
+                  f"is idempotent) or --disarm", file=sys.stderr)
             return 1
         return 0
     p.print_help()
