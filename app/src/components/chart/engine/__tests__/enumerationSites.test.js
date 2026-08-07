@@ -1024,8 +1024,51 @@ const RETIRED_BY_B4_ALERTS = [
  *  is typed out.
  *
  *  ⚠️ THE PYTHON SCAN'S FOUND-SET DID NOT MOVE. Task 8 touches one `api/` file
- *  and only its `SCHEMA_VERSION` cross-assert; it names no indicator. Both
- *  whole-set literals below are re-measured, not assumed. */
+ *  and only its `SCHEMA_VERSION` cross-assert; it names no indicator.
+ *
+ *  ⛔⭐⭐ PHASE D TASK 15 — THE CLOSING GATE — AND THE SENTENCE ABOVE THIS ONE
+ *  WAS FALSE WHEN IT SAID "BOTH WHOLE-SET LITERALS BELOW". There was only ONE.
+ *  Measured at the close: the JS scan pins its whole found set with `toEqual`
+ *  — *"a DECISION, not a DIFF"*, which is how the ledger's writer finds out a
+ *  module joined it — and the PYTHON scan pinned nothing of the kind. It
+ *  asserted only `found ⊆ ledger` and `keep ⊆ found`, and those two together
+ *  permit the set to GROW silently by any file that happens to be ledgered.
+ *  So the two halves of one control were not the same control, and the header
+ *  that described them as one had been true of neither for two phases. **The
+ *  claim is made TRUE rather than deleted** — the Python whole-set literal is
+ *  below, beside the JS one, measured on the merged tree at the close.
+ *
+ *  ⭐⭐⭐ AND THE COUNT DID NOT MOVE ACROSS THE REST OF PHASE D. `SITE_COUNT`
+ *  10, histogram `{keep: 10}`. Both scans were RE-RUN at the close on the
+ *  merged tree rather than inherited (849 JS files walked → 4 found; 805 Python
+ *  files walked → 4 found), because Tasks 9-16 added a builder sheet, a
+ *  concierge box, five `engine/ast/` modules, a user-definition store, a router
+ *  and a fourth address partition — and *"a task that reported no ledger delta
+ *  from memory would have been asserting from memory"* is this file's own
+ *  standard, set at Task 8 when the scan disagreed with a brief.
+ *
+ *  ⚠️ AND THE MARGIN WAS MEASURED, NOT ASSUMED, because a four-id threshold is
+ *  only as good as what sits just under it. **The Python tree has ZERO files
+ *  naming 2 or 3 ids** — nothing is one id short of being seen, including
+ *  `alert_user_series.py`, the fourth partition Task 12 added. The JS tree has
+ *  exactly two (`ChartDrawingOverlay.jsx`, `indicators.js`, 2 each). A blind
+ *  spot you have not measured is not the same as one you do not have.
+ *
+ *  ⛔ NO `D` FATE WAS EVER OPENED, AND THAT IS DELIBERATE. Phase C emptied its
+ *  `C` bucket at its own closing task; D never created a bucket it had nothing
+ *  to spend. **A phase that mints a fate letter it never retires leaves a
+ *  control to rot** — the `C` rows are the worked example, and B5 Task 13
+ *  deleted two `phase` rows for the same reason. Every row here is `keep`, so
+ *  a fate permutation is the IDENTITY and the sorted-pair literal below is
+ *  carrying the whole anti-permutation claim by itself.
+ *
+ *  ⭐ `_INDICATOR_ALIASES` WAS RE-DECIDED, NOT CITED. Phase C Task 15 fated it
+ *  `keep` on a measurement; D changes nothing about the resolver, so the fate
+ *  should stand — and *"should"* is not a measurement, so it was re-taken at
+ *  the close: **11 phrases, 2 redundant (`macd`, `rsi` — identity rows), 9
+ *  load-bearing**, seven targets, `ma50`/`ma200` still not registry ids at all
+ *  (the registry holds 17 definitions), and the resolver still literally
+ *  `_INDICATOR_ALIASES.get(raw, raw.replace(" ", ""))`. The fate stands. */
 const SITE_COUNT = 10
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
@@ -1992,6 +2035,38 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'Either it is a new enumeration site (add it, and raise SITE_COUNT), or it reads ' +
       'the registry and the scan is over-matching (say which, in the ledger).',
     ).toEqual([])
+
+    // ⛔⭐⭐ PHASE D TASK 15 — THE WHOLE-SET PIN, ADDED BECAUSE THE LEDGER'S OWN
+    // HEADER CLAIMED IT WAS ALREADY HERE AND IT WAS NOT.
+    //
+    // The JS half above pins its found set with a `toEqual` and says why: it is
+    // *"a DECISION, not a DIFF"*. A new module that hand-lists four ids fails
+    // BOTH that literal and the unledgered filter; ledgering it silences the
+    // filter and leaves the literal red, **which is how the ledger's one writer
+    // per phase finds out.**
+    //
+    // This half had only the two SUBSET checks — `found ⊆ ledger` (above) and
+    // `keep ⊆ found` (below). Neither can see the set GROW: a new Python module
+    // that hand-lists four ids AND is added to the ledger in the same commit
+    // satisfies both, silently. That is precisely the "a site arrived and
+    // nobody's count noticed" shape this file exists to produce, surviving in
+    // the half of the control that was written second.
+    //
+    // ⚠️ IT IS A DECISION, NOT A DIFF — same as the JS literal. If a module
+    // deliberately joins or leaves the four-id set, move this literal and say
+    // which, in the ledger. If it moved and nobody meant it to, the scan or the
+    // tree changed and that is the finding.
+    expect(found,
+      'the PYTHON discovery scan sees a different set of files than it saw at the close of ' +
+      'Phase D. This is the half of the control that used to be a subset check, so a set that ' +
+      'GREW by a ledgered file passed here silently until 2026-08-07. Move this literal ' +
+      'deliberately or find out what changed.',
+    ).toEqual([
+      'api/services/alert_series.py',
+      'api/services/indicator_alert_evaluator.py',
+      'api/services/indicator_compute.py',
+      'api/services/voice_client_action_tools.py',
+    ])
 
     // …and the scan must not go quietly empty. ⛔ THE FLOOR IS DERIVED FROM
     // `keep`, NEVER FROM THE `C` ROWS: BOTH Python `C` rows retire in this

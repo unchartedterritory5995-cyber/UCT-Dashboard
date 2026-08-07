@@ -1,6 +1,6 @@
 # Decision: the repaint badge is assigned by a machine linter, and the linter is not allowed to make an exception for us
 
-**Status:** 🔴 **OPEN — MEASURED 2026-08-07: the machine linter DISAGREES with `ichimoku`'s shipped badge on the `chikou` plot, and the badge has not moved. AWAITING AN OWNER DECISION (§3.1, §3.2).**
+**Status:** 🔴 **OPEN — MEASURED 2026-08-07 (the linter ran: 42 plots, `decided 1`, and the one it could read DISAGREES with the shipped badge) and RULED 2026-08-07. MEASURED, RULED and STILL OPEN are three different facts (§3.1, §3.2, §4.1).** The owner delegated the question (*"about the ichimoku, i have no idea. you decide."*) and the decision is taken: **the machine linter's `preview-repaints` reading for `ichimoku.chikou` is ACCEPTED** (§3.2, §4.1). **The badge has NOT moved**, because the owner's ruling is **PER-PLOT** (§4) and **nothing in shipped source renders a per-plot badge** — measured, §4.1. ⚠️ **`OPEN` here is a claim about the CODE, not about the decision**: this header is read as a biconditional against `nativeRegistry.js`, and `OPEN` means exactly *"the badge is still the shared default that no definition overrides and no plot carries."* That is true. It stops being true on the commit that ships the per-plot badge surface — and not before.
 
 **Date opened:** 2026-08-06 · **Phase:** D · **Applied:** — · **Record of the measurement:** §10
 
@@ -231,6 +231,74 @@ decision:**
 A uniform column is indistinguishable from an unset column, and today it *is* an
 unset column. The first `repaints` in the catalogue is not a defect being
 admitted — it is the moment the other badges start meaning something.
+
+## 4.1 The ruling — 2026-08-07, at Phase D's close
+
+**The owner delegated it and the decision is taken: `ichimoku.chikou` is
+`preview-repaints`.** Not `non-repainting` (which is what ships), and not
+`repaints` (which is what §4's table above wrote before the linter existed).
+
+**Why `preview-repaints` and not `repaints`.** `compute_ichimoku_raw` writes bar
+`i`'s close to index `i − kijun_period`, pinned by
+`TRAILING_PAD = {("ichimoku_9_26_52", "chikou"): 26}`. The shift is **known and
+finite**: the point at a historical index is *final the moment bar `i+26`
+closes*. That is a sentence a badge can carry, and it is a different claim from
+`repaints`, which this vocabulary reserves for a window that is **unknown or
+declared unbounded**. It is also the only reading in which **all three
+vocabulary values are reachable** — and this record's own test is *"a vocabulary
+value nothing can emit is a value that does not exist."*
+
+**Why the shipped badge is not merely imprecise but wrong.** The badge is
+rendered to users in two places — the library dialog's row badge
+(`indicatorCatalog.js` → `IndicatorLibraryDialog.jsx`) and the chip-about
+popover on the chart itself (`StockChart.jsx`). A trader reading
+`non-repainting` on `ichimoku` is being told the line will not move under them.
+One of its five lines will. **Honest beats flattering**, and this is the exact
+axis the brand is sold on.
+
+### Why the badge did not move in the commit that took the decision
+
+⛔ **Because the ruling is PER-PLOT and there is nothing to render it into.**
+This is a measurement, not a hesitation. Taken at Phase D's close, over all of
+`app/src` and `api/`:
+
+| question | measured |
+|---|---|
+| what reads a **per-plot** `repaint`? | **nothing** — zero consumers in shipped source |
+| what reads `meta.repaint`? | exactly two: `indicatorCatalog.js:97` → `IndicatorLibraryDialog.jsx:161`, and `StockChart.jsx:10803` |
+| what granularity do both read at? | **per DEFINITION** |
+| does `validatePlot` reject an unknown `plots[]` field? | no — a `plots[].repaint` would be **accepted and ignored** |
+
+So the two available moves are both refused, and §4 above already refused them
+in the owner's own words — *"a per-definition badge cannot express this without
+lying in one direction or the other"*:
+
+* **badge the `chikou` PLOT** → schema-legal, silently ignored by every surface.
+  A badge no trader ever sees is not a badge; it would resolve this record's
+  header while changing nothing a user is told.
+* **badge the `ichimoku` DEFINITION `preview-repaints`** → visible, but it
+  slanders `tenkan`, `kijun`, `spanA` and `spanB`, which the linter has not read
+  and which are clean by construction. It also contradicts §4's ruling on
+  granularity, which is the owner's, not a task's to overturn.
+
+**So the scheduled work is the render surface**, and naming it is the
+deliverable: a per-plot badge needs (1) a `plots[].repaint` field in
+`defSchema`'s plot validation, (2) a consumer in `indicatorCatalog` that rolls
+per-plot badges up to a row, and (3) a decision about what the definition-level
+badge says when its plots disagree. None of those is a Phase D deliverable and
+none should be smuggled into a closing gate.
+
+⚠️ **The ALERT half of this finding is NOT here, and that is deliberate.**
+`ichimoku.chikou` can never fire on a closed bar, so at Phase C's cutover its
+armed rows must stay armed and surface as `needs_attention` with a
+`state_detail` rather than going quiet. That is **Phase C Task 8's**, at the
+cutover, and Phase D neither implemented it nor may. Recorded as
+decided-and-scheduled in spec §11, row **D-A6**.
+
+⛔ **And the badge is still not a thing a task may edit to make a rail green.**
+The biconditional in `enumerationSites.test.js` says so in its own failure
+message, and it is right: a disagreement between the linter and a shipped badge
+is a **finding**, and the finding survived — which was obligation #7 all along.
 
 ## 5. What the linter must be able to PROVE
 
