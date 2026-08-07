@@ -254,7 +254,10 @@
    values in each row; both use this fixed-gap wrapper so their spacing + right edge
    line up identically. Reported rows show a % surprise (colored up/down); pending
    rows show the estimate (regular text color). */
-.valCols { display: flex; align-items: baseline; gap: 16px; flex: 0 0 auto; margin-left: auto; }
+/* align-items: center so a 1-line header (EPS once its "(est)" drops) re-centers
+   vertically against the always-2-line "Impl. / Move" header instead of hugging
+   the top. Row values are single-line, so centering leaves them unchanged. */
+.valCols { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; margin-left: auto; }
 .epsCol, .revCol, .imCol {
   flex: 0 0 auto;
   width: 5em;
