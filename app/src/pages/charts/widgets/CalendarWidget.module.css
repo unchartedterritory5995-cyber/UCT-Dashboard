@@ -254,7 +254,10 @@
    values in each row; both use this fixed-gap wrapper so their spacing + right edge
    line up identically. Reported rows show a % surprise (colored up/down); pending
    rows show the estimate (regular text color). */
-.valCols { display: flex; align-items: baseline; gap: 16px; flex: 0 0 auto; margin-left: auto; }
+/* align-items: center so a 1-line header (EPS once its "(est)" drops) re-centers
+   vertically against the always-2-line "Impl. / Move" header instead of hugging
+   the top. Row values are single-line, so centering leaves them unchanged. */
+.valCols { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; margin-left: auto; }
 .epsCol, .revCol, .imCol {
   flex: 0 0 auto;
   width: 5em;
@@ -266,10 +269,12 @@
   white-space: nowrap;
   overflow: hidden;
 }
-/* Implied move — wide enough for the "Impl. Move" header (values are short, e.g. "14%").
+/* Implied move — the header stacks "Impl." over "Move", so the column is narrow.
    Right-aligned like EPS / REV so the values hug the column's right edge and the gap
-   between every column is even (a centered value floated too far from EPS). */
-.imCol { width: 6.4em; text-align: right; }
+   between every column is even. */
+.imCol { width: 3.6em; text-align: right; }
+/* Two-line "Impl. / Move" header — tight leading so the stack stays compact. */
+.sectionHead .imCol { line-height: 1.15; }
 .sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;

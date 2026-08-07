@@ -37,10 +37,16 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
   const livePx = pickFreshPrice(barHdr[sym], q)
 
   // ── Regular-hours readout (the original number) ──
-  // Pre-market → the PREVIOUS session's change (prev_change); today hasn't started.
-  // Otherwise prefer the feed's SERVER-computed regular change_pct (which reads the
-  // real move, not the 0.00% that (live − prevClose) shows on weekends/after-hours),
-  // and only fall back to the subtraction when the feed lacks a change_pct.
+  // The regular number must stay FROZEN at the last completed regular session's
+  // change and never move with pre/post trading — only the shaded ext box does.
+  //   • Pre-market: once Massive's `day` aggregate rolls to the new date, its
+  //     change_pct tracks the LIVE pre-market move (QQQ read +0.93% pre-open). The
+  //     honest last-session number is `prev_change_pct` (prevDay close vs the close
+  //     before it), so pre-market uses that.
+  //   • Post-market / overnight: the session hasn't rolled, so change_pct still IS
+  //     the just-closed regular session's change — use it (and it updates live in
+  //     RTH). This is NOT the (live − prevClose) subtraction that reads 0.00% after
+  //     hours; change_pct is the server-computed day-close-vs-prev-close move.
   let regAbs = null, regPct = null
   if (isPre && q.prev_change_pct != null && Number.isFinite(q.prev_change_pct)) {
     regPct = q.prev_change_pct
@@ -65,7 +71,7 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
     if (ref != null && ref > 0 && extPx != null && extPx > 0) {
       extAbs = extPx - ref
       extPct = (extAbs / ref) * 100
-      extLabel = isPre ? 'Pre' : 'AH'
+      extLabel = isPre ? 'Pre' : 'Post'
     }
   }
 

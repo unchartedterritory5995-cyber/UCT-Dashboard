@@ -68,9 +68,30 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
 } from './chart/engine/paneLayout'
-import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
-import { engineChips } from './chart/engine/readout'
+// ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
+// readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
+// strip is its second caller after `IndicatorSettingsDialog`;
+// `engine/__tests__/controlDoorCensus.test.js` ledgers this file BY NAME with the
+// reason, and went red the moment the names appeared.
+// ⭐ chart-UX-walls TASK 6 — `addInstance` joins them, for the chip menu's
+// Duplicate row. It shipped at Task 1 with ZERO call sites and the census
+// asserted that zero rather than assuming it; this is the caller it was built for.
+import {
+  setIndicatorEnabled, isIndicatorEnabled, findInstance,
+  setInstanceHidden, removeInstance, withInstances, addInstance,
+} from './chart/engine/instanceControls'
+// ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
+// walks BINDINGS and `planBindings` drops a hidden instance, so a hidden
+// indicator had no chip — and a chip you cannot see is one you cannot un-hide
+// from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
+// valued half, so there is still exactly one formatting pipeline.
+import { legendChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
+import IndicatorChip from './chart/legend/IndicatorChip'
+import chipStyles from './chart/legend/IndicatorChip.module.css'
+import { chipMenuItems } from './chart/legend/chipMenu'
+import ContextPopover from './mobile/ContextPopover'
+import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
 import { useIsPaid } from '../context/AuthContext'
@@ -92,6 +113,50 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
+
+/** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
+ *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
+ *  starts middle-truncating labels.
+ *
+ *  ⚠️ THE SPEC'S FOUR IS PER PANE AND THE SHIPPED LEGEND IS ONE BOX FOR THE
+ *  WHOLE CHART (controller ruling: per-pane placement is out of scope). So the
+ *  tail is FOLDED, not dropped — `chipStyles.chipFolded` takes it out of the
+ *  layout and out of the accessibility tree, the `+N` button brings it back, and
+ *  the chips stay mounted. See that class's comment for the two reasons. */
+const CHIP_COLLAPSE_AT = 4
+
+/**
+ * One `chipMenu` row → one `ContextPopover` row.
+ *
+ * ⛔ THE ICON IS A `UIcon` NAME IN `chipMenu.js` AND A `UIcon` ELEMENT HERE, and
+ * that split is deliberate: `chipMenu.js` is pure (no React, so it can be driven
+ * against the real placement resolver in a plain unit test), while
+ * `ContextPopover` renders `it.icon` VERBATIM — its own doc example passes an
+ * emoji, which this codebase does not do (`UIcon` is the single source of
+ * iconography). The name crosses the boundary; the element is built here.
+ *
+ * ⛔ AND A REFUSED ROW SHOWS ITS REASON. `chipMenu`'s `disabled` is a SENTENCE,
+ * not a boolean, precisely so the user is told why "Move to → Volume pane" is
+ * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
+ * label node as-is, so the reason rides along beside it.
+ */
+function chipMenuRowToPopoverRow(it) {
+  if (it.separator) return it
+  const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
+  if (!it.disabled) return { ...it, icon }
+  return {
+    ...it,
+    icon,
+    label: (
+      <>
+        <span>{it.label}</span>
+        <span style={{ display: 'block', fontSize: 10.5, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
+          {it.disabled}
+        </span>
+      </>
+    ),
+  }
+}
 
 // ⛔ `LEGACY_CHIP_ORDER` STOOD HERE AND IS DELETED (B5 Task 6). It was the order
 // the LEGACY lane's chips appeared in, derived from the registry so that a chart
@@ -982,6 +1047,30 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   rafRef.current = requestAnimationFrame(step)
 }
 
+/**
+ * The FIRST LIVE instance of a definition, or null.
+ *
+ * The right-click region menu is keyed by `defId` — a pane belongs to a
+ * definition, `orderedPaneKeys` dedupes by `def.id` — but the settings dialog is
+ * per INSTANCE, so the menu row has to resolve one. First-live matches what
+ * `indicatorRegistry.liveInstanceFor` already does for the generated settings
+ * rows, so the two surfaces open on the same copy.
+ *
+ * ⛔ LIVENESS IS ASKED OF `findInstance`, NEVER RE-DERIVED. A tombstone is an
+ * element of `indicatorInstances` with a matching `defId`; taking it would open
+ * the dialog on an indicator that is not on the chart. `isLiveInstance` is
+ * module-private to `instanceControls`, and `findInstance` returning null for a
+ * tombstone is exactly the same question asked through the exported door.
+ */
+function firstLiveInstanceId(cs, defId) {
+  const list = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
+  for (const i of list) {
+    if (!i || typeof i !== 'object' || i.defId !== defId) continue
+    if (findInstance(cs, i.instanceId)) return i.instanceId
+  }
+  return null
+}
+
 export default function StockChart({
   sym,
   tf,
@@ -1545,6 +1634,30 @@ export default function StockChart({
   // (earningsEvents itself is derived AFTER filteredBars is declared — see below.)
   const [earningsPopup, setEarningsPopup] = useState(null)
 
+  // The INSTANCE whose settings dialog is open (null = closed). One instance id,
+  // never a defId: "RSI(7) settings" and "RSI(14) settings" are two different
+  // forms over one definition, and the write door has addressed instances since
+  // Task 1. Task 4's chip gear sets this too.
+  const [settingsInstanceId, setSettingsInstanceId] = useState(null)
+
+  // ── chart-UX-walls TASK 4 — THE CHIP MENU ────────────────────────────────
+  //
+  // `{instanceId, anchor:{x,y}}` while a chip's ContextPopover is open, else null.
+  // Anchored per chip because the popover is per INSTANCE: with two RSIs on the
+  // chart, "which one did you right-click" is the only thing that distinguishes
+  // Hide from Hide.
+  const [chipMenu, setChipMenu] = useState(null)
+  // Which PAGE of that one popover is showing: null = the six rows, 'move' = the
+  // three placement targets. ⛔ A PAGE, NOT A NESTED MENU — `ContextPopover`
+  // renders a flat list and IGNORES an `it.submenu`, so a "Move to ▸" row handed
+  // to it verbatim would render as a live button that does nothing at all. That
+  // is the exact defect this task exists to remove, one layer up.
+  const [chipPage, setChipPage] = useState(null)
+  // The instance whose ABOUT page the same popover is showing (spec §6's About
+  // row). A second PAGE of one popover rather than a second popover: the text is
+  // `def.meta.description`, which every definition already declares.
+  const [chipAbout, setChipAbout] = useState(null)
+
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
   // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
@@ -1987,6 +2100,9 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  // The `+N` fold, expanded in place. False on every mount on purpose: a strip
+  // that reopens itself is a strip the user closed for nothing.
+  const [chipsExpanded, setChipsExpanded] = useState(false)
   const legendHoveringRef = useRef(false)
   // True while a SYNCED (external) crosshair is applied to this chart. The
   // always-show-legend refreshers below must stand down for it exactly as they
@@ -2002,6 +2118,22 @@ export default function StockChart({
   // gain use. computeLatestCrosshair prefers this so the legend's price / change
   // match the theme tracker instead of the laggy Finnhub feed.
   const liveTickRef = useRef(null)
+  /**
+   * The chips for the LAST bar — no crosshair, so no `seriesData`.
+   *
+   * ⚠️ `engineInstancesRef` is declared BELOW this function, and that is safe:
+   * `latestChips` is only ever CALLED from effects and handlers, long after
+   * every `useRef` in the component body has run. Do not "fix" it by moving the
+   * ref — the declaration order below it is what the rest of the file depends on.
+   */
+  const latestChips = () => {
+    try {
+      const engine = engineRef.current
+      if (!engine) return EMPTY_CHIPS
+      const chips = legendChips(engine.binder.bindings(), null, engineRegistry, engineInstancesRef.current)
+      return chips.length ? chips : EMPTY_CHIPS
+    } catch { return EMPTY_CHIPS }
+  }
   // Build the legend payload for the LATEST bar (used when the cursor is off the
   // chart and alwaysShowLegend is on). Reads live refs; safe to call from effects.
   const computeLatestCrosshair = () => {
@@ -2104,12 +2236,21 @@ export default function StockChart({
       dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
-      // ⚠️ NO INDICATOR CHIPS, WHICH IS WHAT THE SHIPPED LEGEND DID TOO. This is
-      // the OFF-CHART legend (`alwaysShowLegend` with the cursor away), and the
-      // nine `crosshairData.<indicator>` fields it replaced were all hard `null`
-      // here — so the always-on legend has never printed an indicator value.
-      // Frozen + shared so the 500 ms refresher allocates nothing per tick.
-      overlays, chips: EMPTY_CHIPS, compare: null,
+      // ⭐ THE CHIPS THE OFF-CURSOR LEGEND NOW PRINTS. This line read
+      // `chips: EMPTY_CHIPS` with a comment saying "the always-on legend has
+      // never printed an indicator value" — which was true, and was Wall 1's
+      // display half in one field: `alwaysShowLegend` ships on 12 ChartPane
+      // mount modules and on `/r/chart`, and the OHLCV half of this same box
+      // already prints the last bar off-cursor, so a blank indicator row
+      // disagreed with the row directly above it.
+      //
+      // `legendChips` walks the INSTANCE list (not the bindings) so a hidden
+      // instance still gets a chip to un-hide from, and takes its value from
+      // `binding.lastValue`, the binder's own record of the final point it set.
+      // Wrapped inside `latestChips` because a disposed binder throwing here
+      // would take the legend down; EMPTY_CHIPS is the honest fallback, and it
+      // is still the frozen shared one when there is nothing to print.
+      overlays, chips: latestChips(), compare: null,
     }
   }
   const crosshairSubRef = useRef(null)
@@ -2228,6 +2369,75 @@ export default function StockChart({
     setPref('chart_settings', JSON.stringify(persisted))
   }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
 
+  // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
+  //
+  // ⭐ ONE WRITER. Every chip action routes at `instanceControls` — the same
+  // module the right-click doors, the four keyboard chords, the generated
+  // settings rows, the library dialog and the voice bus already share. A REFUSED
+  // write returns the settings object BY IDENTITY (a dead instance id, an illegal
+  // value), so the guard below is `!==` and nothing persists.
+  //
+  // ⛔ THE IDENTITY GUARD IS NOT AN OPTIMISATION. `handleUpdateChartSettings`
+  // WRITES THE GLOBAL PREF. Persisting `cs` back over itself on a refused write
+  // would stamp `preset: 'custom'` on a user who never successfully changed
+  // anything — and on a grid cell it would flush the whole blob through
+  // `onSettingsPersist` for a no-op.
+  const writeInstance = useCallback((next) => {
+    if (next !== cs) handleUpdateChartSettings({ ...next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
+
+  const handleChipHidden = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    writeInstance(setInstanceHidden(cs, instanceId, !inst.hidden, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⛔ `removeInstance`, NOT `setIndicatorEnabled(defId, false)`. The second one
+  // TOMBSTONES EVERY LIVE INSTANCE OF THE DEFINITION (`instanceControls:225`), so
+  // × on one of two RSIs would delete both — silently, and identically to the
+  // correct behaviour while only one exists. See the report: that substitution
+  // SURVIVES today's tests and its kill belongs to the task that ships a second
+  // instance.
+  const handleChipRemove = useCallback((instanceId) => {
+    writeInstance(removeInstance(cs, instanceId, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⭐ chart-UX-walls TASK 6 — DUPLICATE. The first caller `addInstance` has ever
+  // had, and the reason `handleChipRemove` above can finally be told apart from
+  // `setIndicatorEnabled(defId, false)`: until a user could produce two instances
+  // of one definition, the two were byte-identical.
+  //
+  // ⛔ THE DEF ID IS RESOLVED FROM THE INSTANCE, NOT TAKEN FROM THE CHIP. The chip
+  // carries a `defId` and it would work today, but the instance is what has to
+  // still EXIST for a duplicate to mean anything: `findInstance` refuses a dead or
+  // tombstoned id, and without it a stale menu (a chip whose × another surface
+  // already fired) would silently mint a fresh RSI the user never asked for.
+  const handleChipDuplicate = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    writeInstance(addInstance(cs, inst.defId, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⛔ NO RAW `{...cs, indicatorInstances}` HERE. `withInstances` is the writer's
+  // own list-setter: it re-sorts by definition stack order and stamps
+  // `preset: 'custom'`, and a hand-spread list would silently drop the sort — the
+  // panes and the legend read that ONE list and would stop agreeing.
+  //
+  // ⛔ AND IT REFUSES BY IDENTITY, exactly like every other door: a dead instance
+  // id, or a target this instance cannot resolve, returns `cs` and persists
+  // nothing. `chipMenu.moveTargetRefusal` is what stops such a row being offered
+  // at all; this is the belt behind it.
+  const handleChipMove = useCallback((instanceId, target) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    if ((inst.placement && inst.placement.target) === target) return
+    const list = (cs.indicatorInstances || []).map(i => (
+      i && i.instanceId === instanceId
+        ? { ...i, placement: { ...(i.placement || {}), target } }
+        : i))
+    writeInstance(withInstances(cs, list, engineRegistry))
+  }, [cs, writeInstance])
+
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
   const handleToggleExtended = useCallback((val) => {
@@ -2241,6 +2451,45 @@ export default function StockChart({
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
+
+  // ⭐ chart-UX-walls TASK 4 — "Add alert on <label>…", from the chip AND from the
+  // right-click region menu, through the SAME popover the 🔔 button opens.
+  //
+  // ⛔ ONE POPOVER, NOT A SECOND MOUNT. `ChartToolbar` owns `IndicatorAlertPopover`
+  // (it is the surface that knows the symbol and the read-only gate), so this is
+  // an imperative call onto the existing one, exactly like `openIndicatorLibrary`
+  // and `openSettings` above. A second mount would be a second alert form that
+  // could disagree with the first about which chart's instances it is offering.
+  //
+  // It returns FALSE when there is no toolbar or no symbol, and the caller turns
+  // that into a DISABLED row rather than a live one that opens nothing.
+  const chipAlertsRefusal = showDrawingTools && sym
+    ? undefined
+    : 'this chart has no alert form (read-only mount)'
+  const handleChipAlerts = useCallback((instanceId, plotKey) => {
+    try { toolbarRef.current?.openAlerts({ instanceId, plotKey }) } catch { /* noop */ }
+  }, [])
+
+  const handleChipMenu = useCallback((chip, anchor) => {
+    setChipPage(null)
+    setChipAbout(null)
+    setChipMenu({ chip, anchor })
+  }, [])
+
+  /** The chip's four handlers, or NULL on a read-only mount.
+   *
+   * ⛔ THE SAME GATE THE REGION MENU'S `<label> settings…` ROW USES, and for the
+   * same reason it gives: a mount with no drawing tools (Model Book, a grid cell,
+   * the `/r/chart` export route) renders no toolbar and is not the surface a user
+   * edits their chart on. `IndicatorChip` renders NO control at all when it gets
+   * no handlers, so those surfaces keep exactly the inert chip Task 3 shipped —
+   * and the export route keeps a legend with no buttons in it. */
+  const chipHandlers = useMemo(() => (showDrawingTools ? {
+    onToggleHidden: handleChipHidden,
+    onOpenSettings: setSettingsInstanceId,
+    onRemove: handleChipRemove,
+    onMenu: handleChipMenu,
+  } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu])
   const buildRegionSections = useCallback((region, clickPrice) => {
     const setCs = (path, value) => {
       const next = { ...cs }
@@ -2429,9 +2678,41 @@ export default function StockChart({
       // Indicators submenu, the toolbar strip and the legend take. One label,
       // four surfaces, one source.
       const label = labelFor(key)
+      // ⭐ "<label> settings…" NOW OPENS THE PER-INSTANCE DIALOG, not the global
+      // five-tab modal. A menu row that named ONE indicator and opened a
+      // chart-wide surface (Price Style / Canvas / Indicators / Header / Markers)
+      // was the third of spec §6's missing containers.
+      //
+      // ⛔ THE READ-ONLY GATE IS UNCHANGED — it is `settingsLink`'s, reused: a
+      // mount with no drawing tools (Model Book, a grid cell) renders no toolbar
+      // and persists nothing, so it gets no settings row at all rather than one
+      // that writes nowhere. And with no LIVE instance to scope to (a definition
+      // drawing only through the legacy projection) the row falls back to the
+      // global surface rather than opening a dialog on nothing.
+      const instId = firstLiveInstanceId(cs, key)
+      const settingsRow = (showDrawingTools && instId)
+        ? [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }]
+        : settingsLink('i-set', `${label} settings…`)
+      // ⭐ chart-UX-walls TASK 4 — the region menu's own alert door, beside
+      // `Hide <label>` and `<label> settings…`. It opens the SAME popover the 🔔
+      // button and the chip's Alerts row open (`toolbarRef.openAlerts`), scoped to
+      // the same live instance the settings row resolved — so right-clicking the
+      // RSI pane offers an RSI alert rather than whatever the catalog lists first.
+      //
+      // ⛔ SAME READ-ONLY GATE AS THE ROW ABOVE IT, and for the same reason: with
+      // no toolbar there is no popover, and a row that opens nothing is the defect
+      // class this phase retires rather than a smaller version of it.
+      const alertRow = (showDrawingTools && instId)
+        ? [{
+            id: 'i-alert',
+            label: `Add alert on ${label}…`,
+            onSelect: () => { try { toolbarRef.current?.openAlerts({ instanceId: instId }) } catch { /* noop */ } },
+          }]
+        : []
       secs.push({ id: 'region', title: label, items: [
         { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
-        ...settingsLink('i-set', `${label} settings…`),
+        ...settingsRow,
+        ...alertRow,
       ] })
     } else if (region.type === 'overlay') {
       const ov = resolvedOverlays?.[region.index]
@@ -8583,10 +8864,16 @@ export default function StockChart({
       //
       // Wrapped, because this runs on the rAF flush: a disposed binder throwing
       // here would take the whole legend down mid-hover.
+      //
+      // ⭐ AND IT IS `legendChips`, NOT `engineChips` (chart-UX-walls Task 3), so
+      // the hovering legend and the OFF-CURSOR legend produce the same rows. The
+      // difference is the hidden instance: `planBindings` drops it, so walking
+      // the bindings printed nothing for it and the only way back from "Hide"
+      // was the settings modal.
       let chips = EMPTY_CHIPS
       try {
         const engine = engineRef.current
-          ? engineChips(engineRef.current.binder.bindings(), param.seriesData,
+          ? legendChips(engineRef.current.binder.bindings(), param.seriesData,
               engineRegistry, engineInstancesRef.current)
           : EMPTY_CHIPS
         if (engine.length) chips = engine
@@ -10210,6 +10497,110 @@ export default function StockChart({
           onClose={() => setEarningsPopup(null)}
         />
       )}
+      {/* Spec §6's settings form, scoped to ONE instance. `Sheet` portals it to
+          <body>, so its position in this tree is irrelevant to layout.
+
+          ⚠️ NO `preset: 'custom'` STAMP HERE, and that is deliberate rather than
+          an omission. Every door the dialog writes through — `setInstanceInput`,
+          `setInstanceHidden`, `withInstances` — already marks the blob custom
+          (`instanceControls.withInstances`). Re-stamping it in the mount would
+          make Cancel restore a blob that differs from the one the dialog opened
+          with by exactly that key, which is the byte-equality this task's whole
+          gate rests on. Identity, not deep equality: a REFUSED write comes back
+          as `cs` itself and must not persist. */}
+      {settingsInstanceId && (
+        <IndicatorSettingsDialog
+          open
+          instanceId={settingsInstanceId}
+          settings={cs}
+          registry={engineRegistry}
+          onChange={(next) => { if (next !== cs) handleUpdateChartSettings(next) }}
+          onClose={() => setSettingsInstanceId(null)}
+        />
+      )}
+      {/* ─── chart-UX-walls TASK 4 — THE CHIP MENU (spec §6) ──────────────────
+          Tap / right-click / long-press a chip → Settings · Hide · Move · Alerts
+          · About · Remove. ONE shipped primitive, unmodified: `ContextPopover` is
+          already a bottom sheet on touch and an anchored menu on desktop, with
+          44px rows, outside-click and Escape (`mobile/ContextPopover`).
+
+          ⛔ MOUNTED OUTSIDE THE LEGEND, AND THAT IS NOT THE CONTRADICTION IT
+          LOOKS LIKE. Task 3's invariant is that a CHIP stays inside the legend
+          container, because the export route hides `[class*="legend" i]` and a
+          chip outside it would appear in every branded newsletter screenshot. A
+          MENU is not part of the export frame at all — it only exists while a
+          user is pointing at something — and `ContextPopover` portals to
+          `<body>` regardless, so its position in this tree is inert.
+
+          ⛔ AND IT IS RESOLVED FROM `cs` AT RENDER, not from the snapshot: the
+          Move submenu's tick has to follow the placement the user just chose. */}
+      {chipMenu && (() => {
+        const c = chipMenu.chip
+        const def = engineRegistry.getDefinition(c.defId)
+        const inst = findInstance(cs, c.instanceId)
+        const close = () => { setChipMenu(null); setChipPage(null) }
+        const items = chipMenuItems(
+          { ...c, placementTarget: inst && inst.placement && inst.placement.target },
+          def,
+          {
+            onSettings: (id) => { close(); setSettingsInstanceId(id) },
+            onToggleHidden: (id) => { close(); handleChipHidden(id) },
+            onMove: (id, t) => { close(); handleChipMove(id, t) },
+            onDuplicate: (id) => { close(); handleChipDuplicate(id) },
+            onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
+            onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
+            onRemove: (id) => { close(); handleChipRemove(id) },
+          },
+          { alertsRefusal: chipAlertsRefusal },
+        )
+        const move = items.find((i) => i.key === 'move')
+        const page = (chipPage === 'move' && move && !move.disabled)
+          ? [
+              { key: '_back', label: c.label, icon: 'collapse', keepOpen: true,
+                onClick: () => setChipPage(null) },
+              { separator: true },
+              ...move.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
+            ]
+          : items.map((it) => (it.key === 'move' && !it.disabled
+              ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
+              : it))
+        return (
+          <ContextPopover
+            open
+            onClose={close}
+            anchor={chipMenu.anchor}
+            title={c.label}
+            width={260}
+            items={page.map(chipMenuRowToPopoverRow)}
+          />
+        )
+      })()}
+      {/* ⭐ ABOUT — a second PAGE of the same popover, spec §6's sixth row. The
+          text is `def.meta.description`, which every definition already declares,
+          so this needs no new data and no new fetch. */}
+      {chipAbout && (() => {
+        const def = engineRegistry.getDefinition(chipAbout.chip.defId)
+        const meta = (def && def.meta) || {}
+        return (
+          <ContextPopover
+            open
+            onClose={() => setChipAbout(null)}
+            anchor={chipAbout.anchor}
+            title={meta.name || chipAbout.chip.defId}
+            width={280}
+          >
+            <div style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
+              {meta.description || 'This indicator declares no description.'}
+              {meta.repaint && (
+                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>
+                  {String(meta.repaint).replace(/-/g, ' ')}
+                  {meta.category ? ` · ${meta.category}` : ''}
+                </div>
+              )}
+            </div>
+          </ContextPopover>
+        )
+      })()}
       {enabledComparisons.length > 0 && (
         <div className={styles.comparisonLegend}>
           <span className={styles.legendLabel}>vs {sym}:</span>
@@ -10477,12 +10868,33 @@ export default function StockChart({
         // and a signed-percentage format (`AAPL +1.23%`) that no `legend` block
         // can express. It is appended AFTER the indicator chips, which is where
         // it shipped.
-        const legChips = [
-          ...(crosshairData.chips || EMPTY_CHIPS).map(c => [`${c.defId}::${c.plotKey}`, c.color, c.text]),
-          ...((crosshairData.compare != null && compareSymbol)
-            ? [['cmp', '#fb923c', `${compareSymbol.toUpperCase()} ${crosshairData.compare > 0 ? '+' : ''}${crosshairData.compare.toFixed(2)}%`]]
-            : []),
-        ]
+        //
+        // ⭐ ONE ROW PER CHIP, AND THE ROW IS A COMPONENT NOW rather than a bare
+        // `<span>`: it carries its own hidden state today and Task 4's hover
+        // controls tomorrow. It renders INSIDE this container and that is an
+        // invariant, not a preference — `ChartRender.jsx` hides
+        // `[class*="legend" i]` from the export, so a chip rendered as a SIBLING
+        // would appear in every branded newsletter screenshot and move all 46
+        // pixel-parity baselines at once.
+        //
+        // `+N` COLLAPSE (spec §7): past `CHIP_COLLAPSE_AT` the tail is FOLDED —
+        // it keeps its DOM node and loses its box — and one `+N` button expands
+        // it in place. The spec's four is per PANE; the shipped legend is one box
+        // for the whole chart, so the threshold is over the strip and the tail is
+        // folded rather than dropped. See `CHIP_COLLAPSE_AT`.
+        // ⛔ THE THREE BRANCHES INLINE THE STRIP, AND THE DUPLICATION IS THE
+        // POINT. The first draft hoisted it into `renderChips()` / `moreButton`
+        // consts — and `parityGateBlindness.test.js` immediately refused, because
+        // the JSX then sits LEXICALLY OUTSIDE the legend element and no static
+        // proof of containment is possible any more. A helper const is exactly
+        // where a chip could later drift out of the legend without any gate
+        // seeing it, and the export CSS is the only thing keeping the strip out
+        // of every branded newsletter screenshot. Only these three values are
+        // shared; the elements themselves stay inside the box that hides them.
+        const indChips = crosshairData.chips || EMPTY_CHIPS
+        const overflow = !chipsExpanded && indChips.length > CHIP_COLLAPSE_AT
+        const foldedFrom = overflow ? CHIP_COLLAPSE_AT : indChips.length
+        const moreCount = indChips.length - CHIP_COLLAPSE_AT
         return (
         <div
           ref={legendRef}
@@ -10515,9 +10927,25 @@ export default function StockChart({
                 {crosshairData.volume != null && (
                   <span className={styles.legendLabel} style={legBase}>Vol <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
                 )}
-                {legChips.map(([key, color, text]) => (
-                  <span key={key} style={{ color }}>{text}</span>
+                {indChips.map((c, i) => (
+                  <IndicatorChip
+                    key={`${c.instanceId}::${c.plotKey}`}
+                    chip={c}
+                    className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+                    {...chipHandlers}
+                  />
                 ))}
+                {overflow && (
+                  <button type="button" className={chipStyles.chipMore}
+                    onClick={() => setChipsExpanded(true)}
+                    aria-label={`Show ${moreCount} more indicators`}
+                  >+{moreCount}</button>
+                )}
+                {crosshairData.compare != null && compareSymbol && (
+                  <span style={{ color: '#fb923c' }}>
+                    {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+                  </span>
+                )}
                 {crosshairData.overlays.map((ov, i) => (
                   <span key={'ov' + i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
                 ))}
@@ -10543,9 +10971,25 @@ export default function StockChart({
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
                 <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
               ])}
-              {legChips.map(([key, color, text]) => (
-                <span key={key} className={styles.vlFull} style={{ color }}>{text}</span>
+              {indChips.map((c, i) => (
+                <IndicatorChip
+                  key={`${c.instanceId}::${c.plotKey}`}
+                  chip={c}
+                  className={`${styles.vlFull}${i >= foldedFrom ? ' ' + chipStyles.chipFolded : ''}`}
+                  {...chipHandlers}
+                />
               ))}
+              {overflow && (
+                <button type="button" className={chipStyles.chipMore}
+                  onClick={() => setChipsExpanded(true)}
+                  aria-label={`Show ${moreCount} more indicators`}
+                >+{moreCount}</button>
+              )}
+              {crosshairData.compare != null && compareSymbol && (
+                <span style={{ color: '#fb923c' }}>
+                  {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+                </span>
+              )}
             </>
           ) : (
           <>
@@ -10573,9 +11017,25 @@ export default function StockChart({
           {crosshairData.overlays.map((ov, i) => (
             <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
-          {legChips.map(([key, color, text]) => (
-            <span key={key} style={{ color }}>{text}</span>
+          {indChips.map((c, i) => (
+            <IndicatorChip
+              key={`${c.instanceId}::${c.plotKey}`}
+              chip={c}
+              className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+              {...chipHandlers}
+            />
           ))}
+          {overflow && (
+            <button type="button" className={chipStyles.chipMore}
+              onClick={() => setChipsExpanded(true)}
+              aria-label={`Show ${moreCount} more indicators`}
+            >+{moreCount}</button>
+          )}
+          {crosshairData.compare != null && compareSymbol && (
+            <span style={{ color: '#fb923c' }}>
+              {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+            </span>
+          )}
           </>
           )}
         </div>

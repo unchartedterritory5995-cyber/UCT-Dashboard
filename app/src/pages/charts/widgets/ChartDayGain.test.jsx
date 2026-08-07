@@ -32,22 +32,24 @@ describe('ChartDayGain', () => {
     expect(screen.getByText(/\+9\.66 \(\+11\.63%\)/)).toBeInTheDocument()
   })
 
-  it('pre-market: regular number shows the PREVIOUS session change; a Pre box shows the pre-market move', () => {
-    // Regular readout = yesterday's regular change (prev_change). Ext box = ext_price
-    // (250) vs prev_close (200) = +25%. Regular hours have not started.
+  it('pre-market: regular number FREEZES at the last session change, ignoring the live pre-market move', () => {
+    // change_pct here is the LIVE pre-market move (Massive's day aggregate has rolled
+    // to the new date) — the regular readout must IGNORE it and show prev_change_pct,
+    // the last completed regular session's change. Ext box = ext_price (250) vs
+    // prev_close (200) = +25%.
     useRealtimePrices.mockReturnValue({
       prices: { DDOG: {
         price: 200, prev_close: 200, ext_price: 250, ext_session: 'pre_market',
-        change_pct: 0, prev_change: -4.5, prev_change_pct: -2.2,
+        change_pct: 5.0, prev_change: -4.5, prev_change_pct: -2.2,
       } },
     })
     render(<ChartDayGain sym="DDOG" />)
-    expect(screen.getByText(/-4\.50 \(-2\.20%\)/)).toBeInTheDocument()   // regular = prev session
+    expect(screen.getByText(/-4\.50 \(-2\.20%\)/)).toBeInTheDocument()   // last session, NOT +5%
     expect(screen.getByText('Pre')).toBeInTheDocument()
     expect(screen.getByText(/\+50\.00 \(\+25\.00%\)/)).toBeInTheDocument() // ext box
   })
 
-  it('after-hours: regular number is today\'s frozen change; an AH box shows the after-hours move vs the 4pm close', () => {
+  it('after-hours: regular number is today\'s frozen change; a Post box shows the after-hours move vs the 4pm close', () => {
     useRealtimePrices.mockReturnValue({
       prices: { DDOG: {
         price: 220, prev_close: 200, day_close: 220, ext_price: 209,
@@ -56,7 +58,7 @@ describe('ChartDayGain', () => {
     })
     render(<ChartDayGain sym="DDOG" />)
     expect(screen.getByText(/\+20\.00 \(\+10\.00%\)/)).toBeInTheDocument()  // regular (frozen)
-    expect(screen.getByText('AH')).toBeInTheDocument()
+    expect(screen.getByText('Post')).toBeInTheDocument()
     expect(screen.getByText(/-11\.00 \(-5\.00%\)/)).toBeInTheDocument()     // ext box: 209 vs 220
   })
 

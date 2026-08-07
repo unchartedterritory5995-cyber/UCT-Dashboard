@@ -712,6 +712,12 @@ function ChartToolbar({
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
+  // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
+  // the legend chip's "Add alert…" row opened this popover, else null (the 🔔
+  // button, which names no indicator). The popover resolves it to a served
+  // ADDRESS itself; this is the only state that had to exist here, and it lives
+  // beside `alertPopoverOpen` because the popover is mounted here.
+  const [alertInitial, setAlertInitial] = useState(null)
   const colorRef = useRef(null)
   const widthRef = useRef(null)
   const fontRef = useRef(null)
@@ -736,7 +742,19 @@ function ChartToolbar({
       setLibraryOpen(true)
       return true
     },
-  }), [canManageIndicators])
+    // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
+    // right-click **Add alert on <label>…** row, reach THIS popover rather than
+    // mounting a second one. ⚠️ IT RETURNS `false` WHEN THERE IS NO SYMBOL, for
+    // the same reason `openIndicatorLibrary` returns false on a read-only mount:
+    // the 🔔 button is `disabled` without one and the popover renders nothing, so
+    // a row that reported success would be a row that opened nothing.
+    openAlerts: (initialFor = null) => {
+      if (!currentSym) return false
+      setAlertInitial(initialFor)
+      setAlertPopoverOpen(true)
+      return true
+    },
+  }), [canManageIndicators, currentSym])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -985,7 +1003,7 @@ function ChartToolbar({
         <div ref={alertRef} className={styles.compareContainer}>
           <button
             className={`${styles.btn} ${alertPopoverOpen ? styles.active : ''}`}
-            onClick={() => setAlertPopoverOpen(o => !o)}
+            onClick={() => { setAlertInitial(null); setAlertPopoverOpen(o => !o) }}
             title={currentSym ? 'Indicator alerts' : 'Select a symbol to set alerts'}
             aria-label="Indicator alerts"
             disabled={!currentSym}
@@ -997,6 +1015,7 @@ function ChartToolbar({
               sym={currentSym}
               onClose={() => setAlertPopoverOpen(false)}
               chartInstances={chartInstances}
+              initial={alertInitial}
             />
           )}
         </div>

@@ -28,7 +28,7 @@ python tools/alert_replay.py --diff --mode-a forming --mode-b closed   # EVERY D
 | `listDefinitions()` | **17** — 16 `NATIVE_DEFS` + 1 `SERVER_DEFS` (`rsLine`) |
 | definition ids | `rsi macd bb vwap stoch atr sar ichimoku mfi cci williamsR adx obv donchian avwap atrBands rsLine` |
 | `compute.kind` in the shipped registry | `{native: 16, server: 1}` — **zero `ast`, zero `script`** |
-| enumeration ledger | `SITE_COUNT = 8`, `expect(counts).toEqual({ keep: 8 })`, **`C` bucket empty** |
+| enumeration ledger | **de-literalled 2026-08-06 by Task 1** — the count and the partition are asserted in `enumerationSites.test.js` (*"holds N live sites…"* + *"every B4 region is retired…"*) and were **not** restated here, because Task 1 moved both and this row went stale the same day it was written. `C` bucket empty. |
 | alert addresses | **31**, across **16** catalog groups (28 `INDICATOR_FUNCS` in 14 groups + 2 `EVENT_FUNCS` in `sar` + 1 `PRICE_FUNCS` in `close`) |
 | frozen fire log | **685,193** (re-frozen after the daily-VWAP unit fix; was 691,195) |
 | golden fixtures | **22** files in `tests/fixtures/indicators/`, read by **both** lanes at `relTol` 1e-9 |

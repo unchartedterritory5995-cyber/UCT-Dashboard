@@ -79,43 +79,96 @@ if (typeof globalThis !== 'undefined' && typeof globalThis.ResizeObserver === 'u
   }
 }
 
-// Canvas 2D context — jsdom has none, so `getContext('2d')` returns null and
-// any real ECharts/zrender render dies on `clearRect of null`.
+// ── HTMLCanvasElement.getContext('2d') ────────────────────────────────────
 //
-// The reason this is UNCONDITIONAL matters. Several chart-engine tests assign
-// `HTMLCanvasElement.prototype.getContext` at MODULE scope and never restore
-// it, so a file that runs later in the same vitest worker inherits a foreign
-// context whose lifetime already ended. That is what made
-// Calendar.realModal's enrichment test fail only in the full run and pass 3/3
-// alone — a scheduling-dependent flake, not a timing one.
+// 🔴 THE FLAKE THIS EXISTS TO KILL. jsdom ships NO canvas implementation, so
+// `getContext('2d')` returns `null`. ECharts/zrender do not check: `initContext`
+// does `this.ctx.dpr = …` and `doClear` does `ctx.clearRect(…)`, both on `null`.
 //
-// setupFiles runs per test FILE, so assigning here hands every file a clean
-// default and undoes any pollution the previous file left behind. Files that
-// install their own fake still do so afterwards and still win inside their own
-// file, so nothing they assert changes.
-const _stubCtx2d = () => {
-  const noop = () => {}
-  return {
-    canvas: null,
-    clearRect: noop, fillRect: noop, strokeRect: noop, beginPath: noop, closePath: noop,
-    moveTo: noop, lineTo: noop, bezierCurveTo: noop, quadraticCurveTo: noop, arc: noop,
-    arcTo: noop, ellipse: noop, rect: noop, fill: noop, stroke: noop, clip: noop,
-    save: noop, restore: noop, scale: noop, rotate: noop, translate: noop,
-    transform: noop, setTransform: noop, resetTransform: noop,
-    drawImage: noop, putImageData: noop, setLineDash: noop, getLineDash: () => [],
-    fillText: noop, strokeText: noop,
-    measureText: () => ({ width: 0, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0 }),
-    createLinearGradient: () => ({ addColorStop: noop }),
-    createRadialGradient: () => ({ addColorStop: noop }),
-    createPattern: () => null,
-    getImageData: (_x, _y, w = 1, h = 1) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h }),
-    createImageData: (w = 1, h = 1) => ({ data: new Uint8ClampedArray(Math.max(1, w * h * 4)), width: w, height: h }),
-    isPointInPath: () => false, isPointInStroke: () => false,
-  }
-}
+// It is a FLAKE rather than a hard failure because those two calls come off a
+// requestAnimationFrame loop (`ECharts._onframe` ← `Animation.Eventful.trigger`)
+// and off `dispose()`. If the test finishes and tears down before the frame
+// fires, nothing throws; if the box is loaded and the frame lands mid-test, the
+// throw surfaces as an unhandled error and fails whatever test happened to be
+// running. Measured on `Calendar.realModal.test.jsx`: 5/5 red on a busy box,
+// then 2/6 red on an idle one, always the same two TypeErrors —
+//   `Cannot set properties of null (setting 'dpr')`
+//   `Cannot read properties of null (reading 'clearRect')`
+// and always attributed to whichever test was in flight, which is what made it
+// read as a Calendar bug for two days running. It is neither: it is a MISSING
+// BROWSER API, exactly like the four shims above.
+//
+// ⛔ INSTALLED UNCONDITIONALLY, AND THAT IS A MEASURED DECISION RATHER THAN THE
+// LAZY ONE. The four shims above use an `if (!window.matchMedia)` probe because
+// those APIs might genuinely be present. The first draft of this one copied that
+// idiom — `document.createElement('canvas').getContext('2d')` — and it cost
+// **one `Not implemented: HTMLCanvasElement's getContext()` line per test file**,
+// measured at exactly 514 for 514 files, because the probe IS the call jsdom
+// complains about. Trading 514 lines of real, every-run noise for a
+// `canvas`-package install nobody has done is the wrong side of that trade, so
+// the precondition is written down instead of tested for:
+//
+//   ⚠️ IF THE OPTIONAL `canvas` npm PACKAGE IS EVER ADDED, DELETE THIS BLOCK.
+//   It would shadow the real implementation with a stub that draws nothing.
+//
+// Per-file mocks still win regardless: the chart suites assign
+// `HTMLCanvasElement.prototype.getContext` in their own `beforeAll`, which runs
+// after this module. And after this shim, jsdom's stub is never reached at all —
+// which is why the noise count above is a clean zero, not merely lower.
+//
+// ⚠️ WHY A PROXY AND NOT A LITERAL. A hand-listed stub is a list that goes
+// stale: any 2D method it forgot throws "is not a function", which is the same
+// class of failure one layer down. Unknown METHODS answer a no-op; assignments
+// (`fillStyle`, `dpr`, `lineWidth` …) are stored and read back, because a
+// renderer that writes a value and reads it again must not see a function.
+// Only the members whose RETURN VALUE is actually consumed are spelled out.
 if (typeof HTMLCanvasElement !== 'undefined') {
-  HTMLCanvasElement.prototype.getContext = function getContext(type) {
-    return type === '2d' ? _stubCtx2d() : null
+  {
+    const makeCtx2d = (canvas) => {
+      const noop = () => {}
+      const store = {
+        canvas,
+        measureText: (t) => ({
+          width: String(t ?? '').length * 6,
+          actualBoundingBoxAscent: 8,
+          actualBoundingBoxDescent: 2,
+        }),
+        createLinearGradient: () => ({ addColorStop: noop }),
+        createRadialGradient: () => ({ addColorStop: noop }),
+        createConicGradient: () => ({ addColorStop: noop }),
+        createPattern: () => null,
+        getImageData: (x, y, w = 1, h = 1) => ({
+          data: new Uint8ClampedArray(Math.max(1, (w | 0) * (h | 0) * 4)),
+          width: w | 0 || 1, height: h | 0 || 1,
+        }),
+        createImageData: (w = 1, h = 1) => ({
+          data: new Uint8ClampedArray(Math.max(1, (w | 0) * (h | 0) * 4)),
+          width: w | 0 || 1, height: h | 0 || 1,
+        }),
+        getLineDash: () => [],
+        isPointInPath: () => false,
+        isPointInStroke: () => false,
+        getContextAttributes: () => ({ alpha: true }),
+        getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+      }
+      return new Proxy(store, {
+        get(target, prop) {
+          if (prop in target) return target[prop]
+          return noop            // an unknown 2D method — never a missing function
+        },
+        set(target, prop, value) { target[prop] = value; return true },
+        has() { return true },
+      })
+    }
+
+    HTMLCanvasElement.prototype.getContext = function getContext(type) {
+      // 2D only. WebGL callers must still see `null` and take their fallback —
+      // handing them a fake context would make them render into nothing while
+      // believing they had a GPU.
+      if (type != null && String(type).toLowerCase() !== '2d') return null
+      if (!this.__uctCtx2d) this.__uctCtx2d = makeCtx2d(this)
+      return this.__uctCtx2d     // cached per element: zrender compares identity
+    }
   }
 }
 
