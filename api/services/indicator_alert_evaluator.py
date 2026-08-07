@@ -1419,7 +1419,153 @@ def _delivery_failed(outcome: Any) -> bool:
     return False
 
 
-def _dispatch_delivery(alert: dict, value: float) -> None:
+# ─── SPEC §6: ONE FORMATTING PIPELINE, ACROSS THE LANGUAGE BOUNDARY ──────────
+#
+# ⭐ THE NUMBER IN THE EMAIL IS PRINTED TO THE PRECISION THE CHIP DECLARES.
+# `readout.chipsFrom` renders `${label} ${value.toFixed(decimals)}` where
+# `decimals` is the plot's own `legend.decimals` in
+# `app/src/components/chart/engine/nativeRegistry.js`, falling back to
+# `readout.DEFAULT_DECIMALS` (2). Spec §6 asks for ONE pipeline driving the
+# Style-tab precision, the chip and the readout; a notification that invents its
+# own `:.2f` is the second pipeline that section forbids, and it is visible: the
+# chart says `RSI 71.3` while the email says `71.34`.
+#
+# ⛔ THE TABLE IS A MIRROR, AND THE MIRROR IS A RAIL — the `ADDRESS_REVS`
+# precedent in `alert_rev_migration.py`, for the same reason and in the same
+# shape. `test_the_python_decimals_table_matches_the_JS_registry` PARSES the
+# registry, derives `legend.decimals` per plot, maps every alert address onto its
+# plot and fails if the two lanes disagree. So a `legend.decimals` edit in the
+# registry goes RED here, which is the moment somebody is supposed to come and
+# decide whether the alert lane's number moves with it.
+#
+# Only the exceptions are listed, exactly as `ADDRESS_REVS` lists only the
+# non-default revisions. Everything else prints `NOTIFICATION_DEFAULT_DECIMALS`,
+# which IS `readout.DEFAULT_DECIMALS` — so an address whose plot declares no chip
+# (`adx.plusDI`, the `sar` events, the hidden band edges) and an address with no
+# chart definition at all (`bb`, `price_vs_ma`, `close`) still get the number the
+# legend would have printed rather than a third answer.
+NOTIFICATION_DEFAULT_DECIMALS = 2
+
+ALERT_VALUE_DECIMALS: dict[str, int] = {
+    # 0-100 / -100-0 oscillators — one decimal, the `rsi` family.
+    "rsi": 1,
+    "stoch": 1,
+    "stoch.d": 1,
+    "williams_r": 1,
+    "cci": 1,
+    "mfi": 1,
+    "adx.adx": 1,
+    # Small-magnitude series that need the last places to say anything at all.
+    "macd": 4,
+    "macd.signal": 4,
+    "atr": 4,
+    # A cumulative share count. Controller ruling, Task 2.
+    "obv": 0,
+}
+
+
+def value_decimals(address: str) -> int:
+    """How many decimals the LEGEND prints for this address's plot."""
+    return ALERT_VALUE_DECIMALS.get(address, NOTIFICATION_DEFAULT_DECIMALS)
+
+
+def format_alert_value(address: str, value: Any) -> Optional[str]:
+    """One number → the string the chip would show for it, or ``None``.
+
+    ⚠️ THE THRESHOLD GOES THROUGH HERE TOO. It is a level on the same scale as
+    the value, and printing the two at different precisions in one sentence is
+    the same defect at a smaller size ("crossed 70.00 — 71.3").
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        return f"{float(value):.{value_decimals(address)}f}"
+    except (ValueError, OverflowError):
+        return None
+
+
+def _tf_label(tf: Optional[str]) -> str:
+    """The timeframe as the SURFACE spells it — `"5"` → `"5m"`.
+
+    ⛔ THROUGH `ledger_timeframe`, WHICH IS THE ONE TABLE. A second
+    `{"5": "5m", …}` literal here is how the ledger and the notification end up
+    calling one bar two things. The ledger door RAISES on a code it has no label
+    for, because an append-only key column may not be guessed at; a notification
+    may not raise for the same reason `_bar_close_text` is optional, so the code
+    itself is the fallback.
+    """
+    try:
+        return ledger_timeframe(tf or "")
+    except Exception:
+        return str(tf or "").strip() or "?"
+
+
+def _bar_close_text(tf: Optional[str], bar_time: Any) -> Optional[str]:
+    """WHEN the bar behind this fire stopped being able to change, in ET.
+
+    ⛔ THE ZONE IS RESOLVED PER INSTANT through `indicator_compute._et_zone()`,
+    never a module-load offset — the trap `_et_midnight_epoch` and
+    `closed_bar_index` already document, which is right for half the year and an
+    hour wrong for the other half depending on when the process booted.
+
+    Intraday timeframes name the CLOSE INSTANT (`09:35:00 ET`); calendar
+    timeframes name the bar's own ET DATE, because a daily bar's close instant is
+    the NEXT ET midnight and "2026-08-06 00:00:00 ET" is a worse answer to
+    "which bar" than "2026-08-05".
+
+    ``None`` whenever the bar cannot be identified — no `bar_time`, an encoding
+    this lane does not understand, or a box with no IANA database. A caller that
+    raised here would be an alert the member never receives, which is strictly
+    worse than one that does not name its bar.
+    """
+    if bar_time is None:
+        return None
+    import datetime as _dt
+    from api.services import indicator_compute as _ic
+    code = str(tf or "").strip().upper()
+    try:
+        zone = _ic._et_zone()
+    except Exception:
+        return None
+    if code in _TF_MINUTES:
+        close_at = bar_close_epoch(bar_time, code)
+        if close_at is None:
+            return None
+        try:
+            return _dt.datetime.fromtimestamp(close_at, zone).strftime("%H:%M:%S") + " ET"
+        except (OverflowError, OSError, ValueError):
+            return None
+    day = _bar_calendar_date(bar_time)
+    if day is None:
+        return None
+    return f"{day.isoformat()} ET"
+
+
+def _fire_bar_time(bars: list[dict], index: int) -> Any:
+    """The `t` of the bar a fire is ABOUT — or ``None`` if it cannot be a key.
+
+    ⛔ VALIDATED BY THE FIRED LOG'S OWN NORMALISER, NOT BY A SECOND COPY OF ITS
+    RULE. `fire_key` calls `_norm_bar_time` and that function RAISES on an
+    encoding it cannot key on; raising here would propagate through
+    `record_trigger` into the cycle's per-alert handler, and the member would
+    lose the alert because one bar carried a malformed timestamp. Asking the same
+    function first is the only way to be sure the answer and the guard agree.
+    """
+    if not bars or not 0 <= index < len(bars):
+        return None
+    t = (bars[index] or {}).get("t")
+    if t is None:
+        return None
+    try:
+        from api.services import alert_fired_log as _afl
+        _afl._norm_bar_time(t)
+    except Exception:
+        return None
+    return t
+
+
+def _dispatch_delivery(alert: dict, value: float, *,
+                       bar_time: Any = None) -> None:
     """Send the alert through the multi-channel watchlist delivery hook.
 
     Uses ``watchlist_alert_service.deliver_alert_payload`` — exposed as a
@@ -1440,6 +1586,13 @@ def _dispatch_delivery(alert: dict, value: float) -> None:
     find the row unclaimed and both send. Releasing is safe for the exact reason
     moving is not: it happens only when nothing was sent, so a retry can only
     re-send something the member never received.
+
+    ``bar_time`` is the `t` of the bar the decision was made on, KEYWORD-ONLY and
+    OPTIONAL: it is what lets the message say *which* bar, and a caller that
+    cannot identify one still gets the alert delivered. ⚠️ A test stub replacing
+    this function must accept it (`lambda alert, value, **kw`) — the old arity
+    raises inside `_run_one_cycle`'s per-alert handler, which logs and counts an
+    error, so the delivery silently stops while every assertion stays green.
     """
     fire_id = None
     try:
@@ -1453,14 +1606,42 @@ def _dispatch_delivery(alert: dict, value: float) -> None:
     try:
         from api.services import watchlist_alert_service as wls
         sym = alert.get("sym", "")
-        indicator = (alert.get("indicator") or "").upper()
+        # ⭐ SPEC §8 — THE NOTIFICATION NAMES THE INSTANCE, FROM THE FUNCTION THE
+        # ALERT ROW ALREADY USES. This read `(alert.get("indicator") or "").upper()`,
+        # so a plot alert emailed `ADX.PLUSDI` and two RSI alerts one keystroke
+        # apart sent BYTE-IDENTICAL mail — measured before the fix: both rendered
+        # `SPY RSI cross above 70.00 (now: 71.34) on 5`. `instance_label` derives
+        # its knobs from `alert_series.address_inputs`, i.e. from the column
+        # function that CONSUMES them, so it can never name a parameter the
+        # compute ignores.
+        #
+        # ⛔ THE EXPRESSION IS `indicator_alert_service._with_instance_label`'s,
+        # CHARACTER FOR CHARACTER. That function is what puts `instance_label` on
+        # the popover row (`IndicatorAlertPopover.jsx:464`); resolving the address
+        # or parsing the params differently here would be a second spelling of the
+        # same name, which is the defect one level up.
+        address = resolve_address(alert.get("indicator"))
+        label = instance_label(address, _parse_params(alert))
         condition = (alert.get("condition") or "").replace("_", " ")
         threshold = alert.get("threshold")
-        thr_str = f"{threshold:.2f}" if isinstance(threshold, (int, float)) else "—"
-        val_str = f"{value:.2f}" if isinstance(value, (int, float)) else str(value)
-        title = f"{sym} {indicator} alert"
+        thr_str = format_alert_value(address, threshold)
+        val_str = format_alert_value(address, value)
+        if val_str is None:
+            val_str = str(value)
+        # ⛔ THE BAR IS THE RECEIPT. Without it the member is told "something
+        # happened at 09:41:03" and cannot put the number back on a chart. It is
+        # OPTIONAL because the bar is not always identifiable (an encoding this
+        # lane cannot read, a box with no IANA database): a notification that
+        # raised here would be an alert nobody receives, which is worse than one
+        # that does not name its bar.
+        when = _bar_close_text(alert.get("tf"), bar_time)
+        title = f"{sym} {label} alert"
         message = (
-            f"{sym} {indicator} {condition} {thr_str} (now: {val_str}) on {alert.get('tf', '')}"
+            f"{sym} {label} {condition}"
+            + (f" {thr_str}" if thr_str is not None else "")
+            + f" — {val_str}"
+            + (f" at {when}" if when else "")
+            + f" ({_tf_label(alert.get('tf'))} bar)"
         )
         outcome = wls.deliver_alert_payload(
             user_id=alert["user_id"],
@@ -1470,10 +1651,12 @@ def _dispatch_delivery(alert: dict, value: float) -> None:
             source="indicator_alert",
             extra_data={
                 "indicator": alert.get("indicator"),
+                "instance_label": label,
                 "condition": alert.get("condition"),
                 "threshold": threshold,
                 "value": value,
                 "tf": alert.get("tf"),
+                "bar_time": bar_time,
                 "alert_id": alert.get("id"),
             },
         )
@@ -1580,8 +1763,31 @@ def _run_one_cycle() -> dict[str, Any]:
                 summary["evaluated"] += 1
                 if triggered:
                     summary["triggered"] += 1
-                    ias.record_trigger(alert["id"], last_value=value)
-                    _dispatch_delivery(alert, value)
+                    # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
+                    # `bar_time`, NULL on every row of `indicator_alert_fires`
+                    # until this line existed.
+                    #
+                    # ⛔ THE FORMING LANE JUDGES THE NEWEST BAR, SO THAT IS THE
+                    # BAR IT NAMES. `_evaluate_one` computes the whole column and
+                    # reads its last computable value, and `prev` is the previous
+                    # POLL's number — so the bar under judgement is `bars[-1]`,
+                    # whatever the clock says about whether it has closed.
+                    #
+                    # ⚠️ TASK 8 (THE CLOSED-BAR CUTOVER) CHANGES EXACTLY ONE
+                    # THING HERE: `_evaluate_one_closed` already RETURNS the
+                    # index it judged, so the flip is
+                    # `value, triggered, judged_index = _evaluate_one_closed(...)`
+                    # and this assignment goes away. It is written as a named
+                    # index rather than inlined as `bars[-1]["t"]` so that the
+                    # swap is one line and cannot be overlooked — a receipt that
+                    # named the FORMING bar while the value came from the CLOSED
+                    # one would be a wrong receipt in the lane built to make
+                    # receipts trustworthy.
+                    judged_index = len(bars) - 1
+                    bar_time = _fire_bar_time(bars, judged_index)
+                    ias.record_trigger(alert["id"], last_value=value,
+                                       bar_time=bar_time)
+                    _dispatch_delivery(alert, value, bar_time=bar_time)
                 else:
                     ias.record_evaluation(alert["id"], last_value=value)
             except Exception:
