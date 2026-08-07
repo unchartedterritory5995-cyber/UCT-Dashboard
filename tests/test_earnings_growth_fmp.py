@@ -209,3 +209,90 @@ class TestTheBackfillIsWiredIntoFundamentals:
         out = f.get_fundamentals("PANW")
         assert out["revenue_growth_pct"] == 31.0        # payload survived
         assert out["earnings_growth_pct"] is None
+
+
+class TestARetiredSymbolIsRefused:
+    """FMP keeps answering for a symbol that no longer trades.
+
+    Block renamed SQ -> XYZ. yfinance returns nothing for SQ, so the backfill
+    fired and handed SQ a confident EPS rating built on filings made under a
+    dead symbol -- turning "no rating" into "a wrong-looking rating".
+
+    A staleness check does NOT catch this, which is why the guard asks FMP
+    directly. Measured 2026-08-06: SQ and XYZ both report latest period
+    2026-06-30 accepted 2026-08-05 -- the SAME current filings -- and differ
+    only in `isActivelyTrading` (False vs True).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear(self):
+        for k in ("fmp_eg::DEAD", "fmp_active::DEAD", "fmp_eg::LIVE",
+                  "fmp_active::LIVE", "fmp_eg::UNK", "fmp_active::UNK"):
+            cache.invalidate(k)
+        yield
+
+    def _provider(self, monkeypatch, *, active, rows=None):
+        rows = rows if rows is not None else _rows(200, 150, 120, 110, 100)
+        calls = []
+
+        def stub(path, params, timeout=10):
+            calls.append(path)
+            if "profile" in path:
+                return [{"isActivelyTrading": active}] if active is not None else []
+            return rows
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        return calls
+
+    def test_a_retired_symbol_gets_no_figure(self, monkeypatch):
+        self._provider(monkeypatch, active=False)
+        assert eg.earnings_growth_pct("DEAD") is None
+
+    def test_it_does_not_even_fetch_the_income_statement(self, monkeypatch):
+        """Refusing after paying for the data would still be correct, but the
+        point is that the symbol is disqualified before it is priced."""
+        calls = self._provider(monkeypatch, active=False)
+        eg.earnings_growth_pct("DEAD")
+        assert not any("income-statement" in c for c in calls), calls
+
+    def test_a_live_symbol_is_unaffected(self, monkeypatch):
+        self._provider(monkeypatch, active=True)
+        assert eg.earnings_growth_pct("LIVE") == 100.0
+
+    def test_an_UNKNOWN_active_flag_fails_OPEN(self, monkeypatch):
+        """None is not False. A profile outage must not silently delete
+        earnings-growth coverage for the whole universe -- the guard exists
+        for a provider that positively says 'retired', nothing weaker."""
+        self._provider(monkeypatch, active=None)
+        assert eg.earnings_growth_pct("UNK") == 100.0
+
+    def test_the_flag_itself_distinguishes_all_three_states(self, monkeypatch):
+        self._provider(monkeypatch, active=True)
+        assert eg.is_actively_trading("LIVE") is True
+        cache.invalidate("fmp_active::DEAD")
+        self._provider(monkeypatch, active=False)
+        assert eg.is_actively_trading("DEAD") is False
+        cache.invalidate("fmp_active::UNK")
+        self._provider(monkeypatch, active=None)
+        assert eg.is_actively_trading("UNK") is None
+
+    def test_a_non_boolean_flag_is_treated_as_unknown_not_falsy(self, monkeypatch):
+        """A provider returning "" or 0 must not be read as 'retired' — that
+        would silently disqualify live symbols."""
+        def stub(path, params, timeout=10):
+            if "profile" in path:
+                return [{"isActivelyTrading": ""}]
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", stub)
+        assert eg.is_actively_trading("UNK") is None
+        assert eg.earnings_growth_pct("UNK") == 100.0
+
+    def test_a_profile_exception_never_escapes(self, monkeypatch):
+        def boom(path, params, timeout=10):
+            if "profile" in path:
+                raise RuntimeError("profile down")
+            return _rows(200, 150, 120, 110, 100)
+
+        monkeypatch.setattr(ee, "_fmp_get", boom)
+        assert eg.earnings_growth_pct("UNK") == 100.0    # fails open
