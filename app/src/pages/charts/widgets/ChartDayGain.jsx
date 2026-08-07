@@ -37,16 +37,14 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
   const livePx = pickFreshPrice(barHdr[sym], q)
 
   // ── Regular-hours readout (the original number) ──
-  // Pre-market → the PREVIOUS session's change (prev_change); today hasn't started.
-  // Otherwise prefer the feed's SERVER-computed regular change_pct (which reads the
-  // real move, not the 0.00% that (live − prevClose) shows on weekends/after-hours),
-  // and only fall back to the subtraction when the feed lacks a change_pct.
+  // The feed's SERVER-computed `change_pct` IS the last completed regular session's
+  // change: it's derived from day_close vs prev_close, so in pre/post/overnight it
+  // already holds the last 4pm close's move (and updates live during RTH). It is
+  // NOT the (live − prevClose) subtraction that shows a spurious 0.00% after hours.
+  // (`prev_change_pct` was a redundant pre-market special-case that arrives as a
+  // broken 0.0 and, taken first, made the readout flash 0.00% — dropped.)
   let regAbs = null, regPct = null
-  if (isPre && q.prev_change_pct != null && Number.isFinite(q.prev_change_pct)) {
-    regPct = q.prev_change_pct
-    regAbs = (q.prev_change != null && Number.isFinite(q.prev_change)) ? q.prev_change
-      : (prevClose != null && prevClose !== 0 ? (prevClose * regPct) / 100 : null)
-  } else if (q.change_pct != null && Number.isFinite(q.change_pct)) {
+  if (q.change_pct != null && Number.isFinite(q.change_pct)) {
     regPct = q.change_pct
     regAbs = (q.change != null && Number.isFinite(q.change)) ? q.change
       : (prevClose != null && prevClose !== 0 ? (prevClose * regPct) / 100 : null)
@@ -65,7 +63,7 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
     if (ref != null && ref > 0 && extPx != null && extPx > 0) {
       extAbs = extPx - ref
       extPct = (extAbs / ref) * 100
-      extLabel = isPre ? 'Pre' : 'AH'
+      extLabel = isPre ? 'Pre' : 'Post'
     }
   }
 

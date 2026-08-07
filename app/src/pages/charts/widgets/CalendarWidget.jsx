@@ -146,7 +146,11 @@ function EarningsSection({ title, iconName, cls, items, imMap, mcapMap, onSelect
   const [showAll, setShowAll] = useState(false)
   // Default order: market cap, biggest first. Clicking the section title reverses it.
   const [sort, setSort] = useState({ by: 'mcap', dir: 'desc' })
-  const est = useMemo(() => !items.some(c => c.eps_act != null || c.rev_act != null), [items])
+  // Show "(est)" whenever ANY name in the section is still estimate-only (not yet
+  // reported) — a section that's mostly pre-report but has one early actual (e.g. a
+  // pre-market list where a single name printed) is still an estimates column. Only
+  // a FULLY-reported section drops the tag.
+  const est = useMemo(() => items.some(c => c.eps_act == null && c.rev_act == null), [items])
   const sorted = useMemo(() => {
     const arr = [...items]
     if (sort.by === 'mcap') {

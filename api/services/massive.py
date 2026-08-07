@@ -489,6 +489,10 @@ def _detect_session() -> str:
     if now.weekday() >= 5:
         return "post_market"
     hour_min = now.hour * 100 + now.minute
+    # The overnight window (midnight–4:00am) is still the JUST-CLOSED post-market,
+    # not the next day's pre-market — pre-market doesn't begin until 4:00am ET.
+    if hour_min < 400:
+        return "post_market"
     if hour_min < 930:
         return "pre_market"
     if hour_min >= 1600:
