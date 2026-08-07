@@ -94,6 +94,7 @@ from api.routers import modelbook as modelbook_router
 from api.routers import news_catalysts as news_catalysts_router
 from api.routers import stock_brief as stock_brief_router
 from api.routers import charts_layouts as charts_layouts_router
+from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
 from api.routers import ai_search as ai_search_router
@@ -1359,6 +1360,16 @@ async def lifespan(app: FastAPI):
         print("[startup] charts_layouts.db initialized")
     except Exception as e:
         print(f"[startup] charts_layouts init failed (non-fatal): {e}")
+
+    # Initialize user_definitions.db schema unconditionally (same pattern). It is
+    # its OWN file rather than a `chart_settings` key because `mergeChartSettings`
+    # is a hard allow-list that DESTROYS an unknown top-level key on every read.
+    try:
+        from api.services import user_definitions
+        user_definitions._init_db()
+        print("[startup] user_definitions.db initialized")
+    except Exception as e:
+        print(f"[startup] user_definitions init failed (non-fatal): {e}")
 
     # Initialize education.db schema unconditionally (same pattern as above).
     # The Educational Videos page fires /api/education/videos on load; without a
@@ -4591,6 +4602,7 @@ app.include_router(modelbook_router.router)
 app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
+app.include_router(user_definitions_router.router)  # /api/user-definitions/* — Phase D
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)
