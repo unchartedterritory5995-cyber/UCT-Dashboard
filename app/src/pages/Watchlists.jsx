@@ -349,7 +349,19 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null }) {
+  // SCANNER mode: render an externally-supplied symbol list (from a scan) as a
+  // READ-ONLY single list — the full table (columns, resize-drag, right-click column
+  // menu, sort, flag-star, live prices) but no add/remove/reorder/notes (membership
+  // comes from the scan). Callers pass pickList="__scan__" + scanSymbols=[...].
+  const scanMode = Array.isArray(scanSymbols)
+  const scanWl = useMemo(
+    () => (scanMode
+      ? { id: '__scan__', name: pickName || 'Scan',
+          items: scanSymbols.map(s => ({ id: `__scan__:${s}`, sym: String(s).toUpperCase() })) }
+      : null),
+    [scanMode, scanSymbols, pickName],
+  )
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
@@ -617,6 +629,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Collect all visible tickers for live prices
   const allTickers = useMemo(() => {
     const tickers = []
+    if (scanMode) { (scanWl?.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }); return tickers }
     if (activeTab === 'mine' && expandedLists.has('flagged')) {
       tickers.push(...flagged)
     }
@@ -634,7 +647,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
     }
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists])
+  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists, scanMode, scanWl])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // Mirror the chart: when a StockChart of the same ticker is open, its published
@@ -1659,7 +1672,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             My Lists / Community tabs. */}
         {pickList ? (
           <div className={styles.pickHeader}>
-            <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">‹ Lists</button>
+            <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">{backLabel || '‹ Lists'}</button>
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               {/* Add a symbol — only on lists you own (community lists aren't yours).
@@ -1737,8 +1750,29 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
           {columnHeader}
 
+          {/* ── SCANNER mode — the scan's symbols as a read-only single list ── */}
+          {scanMode && (() => {
+            const items = scanWl.items
+            let sortedItems = sortAndFilterItems(items)
+            if (colSort) {
+              const order = applyColSort(sortedItems.map(i => i.sym))
+              sortedItems = order.map(s => sortedItems.find(i => i.sym === s)).filter(Boolean)
+            }
+            return (
+              <div className={styles.wlItems}>
+                {sortedItems.length === 0
+                  ? <div className={styles.wlEmpty}>{items.length === 0 ? 'No matches yet.' : 'No matches.'}</div>
+                  : sortedItems.map(item => (
+                    <React.Fragment key={item.id}>
+                      {renderTickerRow({ sym: item.sym, name: item.name, isOwner: false, wlId: null })}
+                    </React.Fragment>
+                  ))}
+              </div>
+            )
+          })()}
+
           {/* ── My Lists tab — Flagged pinned at top + tag groups + user lists ── */}
-          {activeTab === 'mine' && (
+          {!scanMode && activeTab === 'mine' && (
             <>
               {(!pickList || pickList === 'flagged') && renderFlaggedGroup()}
               {!pickList && TAG_COLORS.map(tc => {

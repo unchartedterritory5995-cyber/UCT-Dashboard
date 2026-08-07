@@ -1,19 +1,15 @@
-// Read-only results table for a selected preset scan. Live-polls the scan endpoint
-// and renders qualifiers in a watchlist-style table (colors/canvas/text via the
-// shared watchlist settings vars). Clicking a row publishes the ticker to this
+// Results view for a selected preset scan. Fetches the scan's qualifying symbols
+// (live, all day) and renders them through the REAL watchlist table in read-only
+// "scan" mode — so the list behaves exactly like the watchlist widget (all 18
+// columns, drag-to-resize gridlines, right-click column menu, sort, flag-star,
+// live prices, per-widget appearance) EXCEPT you can't add/remove/reorder symbols
+// (membership comes from the scan). Clicking a row publishes the ticker to this
 // widget's color group so a paired chart follows.
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useCallback, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
-import usePreferences from '../../../hooks/usePreferences'
+import Watchlists from '../../Watchlists'
+import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
-import UIcon from '../../../components/ui/UIcon'
-import CompanyLogo from '../../../components/CompanyLogo'
-import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
-import {
-  WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme,
-} from '../../watchlist/watchlistSettings'
-import { menuThemeVars } from '../../../utils/dividerColor'
-import styles from './ScannerResults.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
 
@@ -22,32 +18,18 @@ const SCAN_ENDPOINTS = {
   'highest-volume-1y': '/api/scans/highest-volume-1y',
 }
 
-function fmtVol(v) {
-  if (v == null) return '—'
-  if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B'
-  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
-  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K'
-  return String(v)
-}
-
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
-  const { prefs } = usePreferences()
-  const { setGroupSym } = useWorkspace() || {}
-  const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(prefs?.theme)),
-    [settingsOverride, prefs],
+  const { groupSyms, setGroupSym } = useWorkspace() || {}
+  // Stable per-instance key for the wrapped watchlist table (arrow-nav / active id).
+  const widgetId = useId()
+
+  // Scoped sym context: a row click / selection routes into THIS widget's color
+  // group (not Group A), so a paired chart follows — same wiring as WatchlistWidget.
+  const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
+  const scopedSymContext = useMemo(
+    () => ({ sym: color ? groupSyms?.[color] : null, setSym }),
+    [groupSyms, color, setSym],
   )
-  const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
-  const showLogos = wlSettings.showLogos !== false
-  const menuVars = useMemo(() => {
-    const canvas = wlSettings.bgMode === 'gradient' ? (wlSettings.bgGradient?.top || wlSettings.bg) : wlSettings.bg
-    return menuThemeVars(canvas) || {}
-  }, [wlSettings])
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [gearEl, setGearEl] = useState(null)
-  const [rootEl, setRootEl] = useState(null)
-  const patchSettings = useCallback((patch) => onSettingsPersist?.({ ...wlSettings, ...patch }), [wlSettings, onSettingsPersist])
-  const resetSettings = useCallback(() => onSettingsPersist?.({ ...WATCHLIST_DEFAULTS }), [onSettingsPersist])
 
   const url = SCAN_ENDPOINTS[scanKey] || null
   // Live all day: poll every 30s (the server recomputes at most ~once/min).
@@ -56,76 +38,24 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
     dedupingInterval: 15_000,
     revalidateOnFocus: false,
   })
-  const results = data?.results || []
-  const computing = data?.status === 'computing'
-
-  const onRow = useCallback((sym) => { if (setGroupSym && color) setGroupSym(color, sym) }, [setGroupSym, color])
+  // Stable symbol array keyed by CONTENT, so an identical 30s poll doesn't rebuild
+  // the whole table (the scan endpoint returns a fresh object each poll).
+  const symKey = (data?.results || []).map(r => r.sym).join(',')
+  const symbols = useMemo(() => (symKey ? symKey.split(',') : []), [symKey])
 
   return (
-    <div className={styles.root} ref={setRootEl} style={wlStyle}>
-      {settingsOpen && onSettingsPersist && (
-        <WatchlistSettingsPanel
-          settings={wlSettings}
-          onChange={patchSettings}
-          onReset={resetSettings}
-          onClose={() => setSettingsOpen(false)}
-          gearEl={gearEl}
-          hostEl={rootEl}
-          themeVars={menuVars}
-        />
-      )}
-      <div className={styles.header}>
-        <button type="button" className={styles.back} onClick={onExit} title="Back to scanners">‹ Scanners</button>
-        <div className={styles.title}>{scanName || 'Scan'}</div>
-        {url && !computing && <div className={styles.count}>{results.length}</div>}
-        <button
-          type="button"
-          ref={setGearEl}
-          className={styles.gearBtn}
-          onClick={() => setSettingsOpen(o => !o)}
-          title="Scanner settings"
-          aria-label="Scanner settings"
-        ><UIcon name="gear" size={13} /></button>
-      </div>
-
-      {!url ? (
-        <div className={styles.msg}>Unknown scan.</div>
-      ) : (
-        <>
-          <div className={styles.colHead}>
-            <span className={styles.cSym}>Symbol</span>
-            <span className={styles.cNum}>Price</span>
-            <span className={styles.cNum}>% Chg</span>
-            <span className={styles.cNum}>Volume</span>
-            <span className={styles.cNum}>× 1Y</span>
-          </div>
-          <div className={styles.body}>
-            {!data ? (
-              <div className={styles.msg}>Loading…</div>
-            ) : computing ? (
-              <div className={styles.msg}>Building the 1-year volume baseline…<br />This takes a few seconds the first time.</div>
-            ) : results.length === 0 ? (
-              <div className={styles.msg}>No stocks at a 1-year volume high yet today.<br />The list fills in as volume builds through the session.</div>
-            ) : results.map(r => {
-              const up = (r.change_pct ?? 0) >= 0
-              return (
-                <button key={r.sym} type="button" className={styles.row} onClick={() => onRow(r.sym)} title={`Prior 1Y high: ${fmtVol(r.ref_max)}`}>
-                  <span className={styles.cSym}>
-                    {showLogos && <span className={styles.logo}><CompanyLogo sym={r.sym} size={16} round /></span>}
-                    <span className={styles.sym}>{r.sym}</span>
-                  </span>
-                  <span className={styles.cNum}>{r.price != null ? Number(r.price).toFixed(2) : '—'}</span>
-                  <span className={`${styles.cNum} ${up ? styles.up : styles.down}`}>
-                    {r.change_pct != null ? `${up ? '+' : ''}${r.change_pct.toFixed(2)}%` : '—'}
-                  </span>
-                  <span className={styles.cNum}>{fmtVol(r.volume)}</span>
-                  <span className={`${styles.cNum} ${styles.ratio}`}>{r.ratio != null ? `${r.ratio.toFixed(2)}×` : '—'}</span>
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
+    <ChartsSymContext.Provider value={scopedSymContext}>
+      <Watchlists
+        embedded
+        pickList="__scan__"
+        scanSymbols={symbols}
+        pickName={scanName || 'Scan'}
+        backLabel="‹ Scanners"
+        onExitPick={onExit}
+        settingsOverride={settingsOverride}
+        onSettingsPersist={onSettingsPersist}
+        widgetKey={widgetId}
+      />
+    </ChartsSymContext.Provider>
   )
 }

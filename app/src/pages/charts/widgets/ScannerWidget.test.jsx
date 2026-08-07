@@ -7,6 +7,9 @@ vi.mock('../../../hooks/usePreferences', () => ({
   default: () => ({ prefs: {}, setPref: vi.fn() }),
   parsePref: (_v, d) => d,
 }))
+// These picker tests never open a scan, so stub the heavy Watchlists table that
+// ScannerResults pulls in (keeps the test focused + fast).
+vi.mock('../../Watchlists', () => ({ default: () => null }))
 
 test('renders the scanner picker (title + preset section)', () => {
   render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
