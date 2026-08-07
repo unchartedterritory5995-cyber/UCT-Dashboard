@@ -323,9 +323,10 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'dcr') return (
       <span key="dcr" className={styles.metaCell}>{dcr != null ? `${dcr.toFixed(0)}%` : '—'}</span>
     )
-    // Relative volume: today's live volume vs the 20-session average, as a % (200% = 2x).
+    // Relative volume: today's live volume vs the 20-session average, as a multiple
+    // (2.0x = twice the average). Value is stored ×100 (sort-compatible); shown /100.
     if (key === 'rvol') return (
-      <span key="rvol" className={styles.metaCell}>{rvol != null ? `${Math.round(rvol)}%` : '—'}</span>
+      <span key="rvol" className={styles.metaCell}>{rvol != null ? `${(rvol / 100).toFixed(1)}x` : '—'}</span>
     )
     // Fundamentals text columns (left-aligned, ellipsized, full value on hover).
     if (key === 'sector') return <span key="sector" className={styles.textCell} title={sector || ''}>{sector || '—'}</span>

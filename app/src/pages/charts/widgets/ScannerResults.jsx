@@ -24,6 +24,27 @@ const SCANNER_DEFAULT_COLS = {
   sort: { key: 'rvol', dir: 'desc' },
 }
 
+// One-time migration: anyone who opened the scanner BEFORE RVOL existed has a saved
+// column layout (SCANNER_COLS_KEY) that predates it, so the RVOL default never
+// applied. Seed RVOL into their order + apply the RVOL sort ONCE (idempotent via a
+// flag), preserving any other saved column state. A later user change persists over
+// it and the flag prevents re-adding. Runs at module load — before any scanner
+// renders + reads its config.
+const _RVOL_MIGRATION_FLAG = `${SCANNER_COLS_KEY}.rvol1`
+try {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem(_RVOL_MIGRATION_FLAG)) {
+    let cfg = {}
+    try { cfg = JSON.parse(localStorage.getItem(SCANNER_COLS_KEY)) || {} } catch { cfg = {} }
+    if (!cfg || typeof cfg !== 'object') cfg = {}
+    const order = Array.isArray(cfg.order) && cfg.order.length ? cfg.order : [...SCANNER_DEFAULT_COLS.order]
+    const nextOrder = order.includes('rvol') ? order : [...order, 'rvol']
+    localStorage.setItem(SCANNER_COLS_KEY, JSON.stringify({
+      ...cfg, order: nextOrder, sort: cfg.sort || SCANNER_DEFAULT_COLS.sort,
+    }))
+    localStorage.setItem(_RVOL_MIGRATION_FLAG, '1')
+  }
+} catch { /* ignore */ }
+
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
 const SCAN_ENDPOINTS = {
   'highest-volume-1y': '/api/scans/highest-volume-1y',
