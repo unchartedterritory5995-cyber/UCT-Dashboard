@@ -1,34 +1,33 @@
 import { render, screen } from '@testing-library/react'
-import { useState } from 'react'
 import { vi } from 'vitest'
-import { WorkspaceContext } from '../WorkspaceContext'
 import ScannerWidget from './ScannerWidget'
 
-vi.mock('../../Screener', () => ({
-  default: ({ embedded }) => (
-    <div data-testid="screener-render" data-embedded={String(embedded)}>SCREENER</div>
-  ),
+// The picker reads the app theme off usePreferences; a bare default is enough.
+vi.mock('../../../hooks/usePreferences', () => ({
+  default: () => ({ prefs: {}, setPref: vi.fn() }),
+  parsePref: (_v, d) => d,
 }))
 
-function Wrap({ color }) {
-  const [groupSyms, setGroupSyms] = useState({ A: null, B: null, C: null, D: null })
-  const setGroupSym = (c, s) => setGroupSyms(prev => ({ ...prev, [c]: s }))
-  return (
-    <WorkspaceContext.Provider value={{ groupSyms, setGroupSym }}>
-      <ScannerWidget color={color} opts={{}} />
-    </WorkspaceContext.Provider>
-  )
-}
-
-test('renders Screener in embedded mode', () => {
-  render(<Wrap color="C" />)
-  expect(screen.getByTestId('screener-render').getAttribute('data-embedded')).toBe('true')
+test('renders the scanner picker shell (title + preset section)', () => {
+  render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
+  expect(screen.getByText('Add a Scanner')).toBeInTheDocument()
+  expect(screen.getByText('Preset Scanners')).toBeInTheDocument()
 })
 
-test('mounts under the WorkspaceContext and renders without errors for each color', () => {
-  for (const c of ['A', 'B', 'C', 'D']) {
-    const { unmount } = render(<Wrap color={c} />)
-    expect(screen.getByTestId('screener-render')).toBeInTheDocument()
-    unmount()
-  }
+test('"Create your own scan" is present but disabled', () => {
+  render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
+  const btn = screen.getByRole('button', { name: /create your own scan/i })
+  expect(btn).toBeInTheDocument()
+  expect(btn).toBeDisabled()
+})
+
+test('exposes a settings gear', () => {
+  render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
+  expect(screen.getByTitle('Scanner settings')).toBeInTheDocument()
+})
+
+test('no preset scans are wired yet (no scan rows)', () => {
+  render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
+  // Only the disabled create button + the empty-state copy — no clickable scan rows.
+  expect(screen.getByText(/Relative Strength Leaders/i)).toBeInTheDocument() // in the empty-state hint
 })

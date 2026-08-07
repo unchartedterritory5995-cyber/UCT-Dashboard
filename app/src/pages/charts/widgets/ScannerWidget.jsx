@@ -1,72 +1,34 @@
-import { useMemo, useState, useRef, useCallback } from 'react'
-import Screener from '../../Screener'
-import { ChartsSymContext } from '../ChartsSymContext'
-import { useWorkspace } from '../WorkspaceContext'
-import usePreferences, { parsePref } from '../../../hooks/usePreferences'
-import { menuThemeVars } from '../../../utils/dividerColor'
-import UIcon from '../../../components/ui/UIcon'
-import NewsSettingsPanel from './NewsSettingsPanel'
-import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme } from './basicWidgetSettings'
-import styles from './ScannerWidget.module.css'
+import { useCallback } from 'react'
+import ScannerPicker from './ScannerPicker'
 
-const KEY = 'scanner_settings'
-
-export default function ScannerWidget({ color }) {
-  const { groupSyms, setGroupSym } = useWorkspace()
-  // Scoped context: routes any wrapped useChartsSym calls into THIS
-  // widget's color group, not Group A.
-  const scopedSymContext = useMemo(() => ({
-    sym: groupSyms[color],
-    setSym: (s) => setGroupSym(color, s),
-  }), [groupSyms, color, setGroupSym])
-
-  // ── Basic appearance settings (⚙): canvas + text color. Uncustomized → the
-  // DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text). ──
-  const { prefs, setPref } = usePreferences()
-  const settings = useMemo(
-    () => mergeBasicWidgetSettings(parsePref(prefs?.[KEY], null) ?? basicDefaultsForTheme(prefs?.theme)),
-    [prefs],
+// The Scanner widget: open a scan (e.g. "Relative Strength Leaders") and load its
+// results into the SAME watchlist-style table — identical columns, tint/weight,
+// resize-drag, column presets, and ⚙ settings (it reuses the watchlist machinery).
+//
+// For now the widget is the PICKER SHELL: a "Preset Scanners" section (empty until
+// we add scans) and a disabled "Create your own scan" (until the custom scan-builder
+// lands). Per-widget appearance lives in `opts.settings` (a watchlist-settings blob),
+// so each scanner owns its canvas/colors/text and one widget's look never touches
+// another — same isolation model as the watchlist and chart widgets.
+export default function ScannerWidget({ opts, onOptsChange }) {
+  const settingsOverride = opts?.settings || null
+  const persistSettings = useCallback(
+    (next) => onOptsChange?.({ ...(opts || {}), settings: next }),
+    [opts, onOptsChange],
   )
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const gearRef = useRef(null)
-  const rootRef = useRef(null)
-  const rootStyle = useMemo(() => {
-    const v = basicWidgetStyleVars(settings)
-    return v['--basic-canvas'] ? { ...v, background: v['--basic-canvas'] } : v
-  }, [settings])
-  const patchSettings = useCallback((patch) => setPref(KEY, JSON.stringify({ ...settings, ...patch })), [settings, setPref])
-  const resetSettings = useCallback(() => setPref(KEY, JSON.stringify(basicDefaultsForTheme(prefs?.theme))), [setPref, prefs])
-  const menuVars = useMemo(() => {
-    const canvas = settings.bgMode === 'gradient' ? (settings.bgGradient?.top || settings.bg) : settings.bg
-    return menuThemeVars(canvas) || {}
-  }, [settings])
+  // Picking a scan persists a `scanKey` into the widget's opts. No preset scans
+  // exist yet, so this stays on the picker; once scans land, a chosen scan will
+  // render the watchlist-style results table here (Watchlists embedded).
+  const pickScan = useCallback(
+    (sel) => onOptsChange?.({ ...(opts || {}), scanKey: sel?.key || null, scanName: sel?.name || null }),
+    [opts, onOptsChange],
+  )
 
   return (
-    <div ref={rootRef} className={styles.root} style={rootStyle}>
-      {settingsOpen && (
-        <NewsSettingsPanel
-          title="Scanner Settings"
-          showPerf={false}
-          settings={settings}
-          onChange={patchSettings}
-          onReset={resetSettings}
-          onClose={() => setSettingsOpen(false)}
-          gearEl={gearRef.current}
-          hostEl={rootRef.current}
-          themeVars={menuVars}
-        />
-      )}
-      <button
-        ref={gearRef}
-        type="button"
-        className={styles.gearBtn}
-        onClick={() => setSettingsOpen(o => !o)}
-        title="Scanner settings"
-        aria-label="Scanner settings"
-      ><UIcon name="gear" size={13} /></button>
-      <ChartsSymContext.Provider value={scopedSymContext}>
-        <Screener embedded />
-      </ChartsSymContext.Provider>
-    </div>
+    <ScannerPicker
+      onPick={pickScan}
+      settingsOverride={settingsOverride}
+      onSettingsPersist={persistSettings}
+    />
   )
 }
