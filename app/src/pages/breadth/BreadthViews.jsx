@@ -6,6 +6,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { HM_METRICS, PCTILE_KEYS, FFILL_KEYS } from './heatmapMetrics'
 import useBreadthViews from './useBreadthViews'
+import { drillTarget } from './liveDrill'
 import { normalizeMetric, pickSignals } from './views/breadthViewShared'
 import BreadthSignalStrip from './views/BreadthSignalStrip'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
@@ -78,14 +79,22 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
     return out
   }, [rows])
 
-  // On the live row the per-metric stock lists don't exist yet — the collector
-  // builds them with the row at 4:15. Dropping `drillKey` is what turns every
-  // view's own `clickable = !!m.drillKey` off, so the tiles stop offering a
-  // click that would 404, without eight view components each needing to know.
+  // The live row's lists now exist — `/live/drill` serves them from the same
+  // masks that produced the counts. What is still NOT drillable live is a
+  // CARRIED metric with no session to attribute its names to, so `drillTarget`
+  // decides per metric and `drillKey` is dropped only where it says no. Same
+  // decision the monitor table makes, from the same module, so the two surfaces
+  // cannot disagree about a cell.
   const visibleMetrics = useMemo(() => {
     const shown = ALL_METRICS.filter(m => views.visibleKeys.has(m.key))
-    return isLiveRow ? shown.map(({ drillKey, ...m }) => m) : shown
-  }, [ALL_METRICS, views.visibleKeys, isLiveRow])
+    if (!isLiveRow) return shown
+    return shown.map(m => {
+      if (drillTarget(currentRow, m, live)) return m
+      const stripped = { ...m }
+      delete stripped.drillKey
+      return stripped
+    })
+  }, [ALL_METRICS, views.visibleKeys, isLiveRow, currentRow, live])
   const visibleKeys = useMemo(() => new Set(visibleMetrics.map(m => m.key)), [visibleMetrics])
   const normalize = useMemo(
     () => (metric, row) => normalizeMetric(metric, row, pctileByKey),
@@ -101,11 +110,18 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
   const signalMetric  = useMemo(() => visibleMetrics.find(m => m.key === signals.signalKey) ?? null, [visibleMetrics, signals.signalKey])
   const notableMetric = useMemo(() => visibleMetrics.find(m => m.key === signals.notableKey) ?? null, [visibleMetrics, signals.notableKey])
 
-  // Views call onDrill(metric); Breadth's openDrill expects (date, metric). Bridge
-  // here so view components stay date-agnostic.
+  // Views call onDrill(metric); Breadth's openDrill expects (row, metric, live).
+  // Bridge here so view components stay row-agnostic.
+  //
+  // The refusal below is deliberately NOT `if (!isLiveRow)` any more, but it is
+  // still a refusal: a view that ignores `drillKey` and drills anything it can
+  // click would otherwise open a carried metric's list with no date to caption
+  // it. `drillTarget` returning null is the same answer, checked twice.
   const drill = useMemo(
-    () => (metric) => { if (!isLiveRow) onDrill(currentRow?.date, metric) },
-    [onDrill, currentRow, isLiveRow],
+    () => (metric) => {
+      if (drillTarget(currentRow, metric, live)) onDrill(currentRow, metric, live)
+    },
+    [onDrill, currentRow, live],
   )
 
   if (!currentRow) return null

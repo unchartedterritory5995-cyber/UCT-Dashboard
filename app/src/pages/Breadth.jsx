@@ -11,7 +11,8 @@ import { useAuth } from '../context/AuthContext'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
-import { useLiveBreadth } from '../hooks/useLiveBreadth'
+import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
+import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -383,7 +384,11 @@ function DrillModal({ drill, latestDate, onClose }) {
   // bar that qualified it — UNLESS this is the most recent snapshot (its day is
   // already the live/rightmost candle, no need to flag it). Daily TF only; a
   // daily date won't match intraday/weekly bar times, so it simply no-ops there.
-  const highlightDay = drill.date && drill.date !== latestDate ? drill.date : null
+  const highlightDay = !drill.live && drill.date && drill.date !== latestDate ? drill.date : null
+  // A live list is a moment inside an unfinished session, not a settled day —
+  // stamping it with a date would read as final. Same helper the row's own
+  // stamp uses, so the two can't drift apart.
+  const whenLabel = drill.live ? `LIVE · ${formatLiveClock(drill.asOf)}` : drill.date
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
@@ -496,7 +501,7 @@ function DrillModal({ drill, latestDate, onClose }) {
               {drill.items && <span className={styles.drillCount}> ({drill.items.length.toLocaleString()} stocks)</span>}
             </div>
             <div className={styles.drillSubRow}>
-              <span className={styles.drillSub}>{drill.date}</span>
+              <span className={styles.drillSub}>{whenLabel}</span>
               {items.length > 0 && (
                 <GroupControls
                   viewMode={viewMode}
@@ -517,7 +522,7 @@ function DrillModal({ drill, latestDate, onClose }) {
             {!drill.items ? (
               <SkeletonTable rows={5} cols={3} />
             ) : items.length === 0 ? (
-              <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
+              <div className={styles.drillEmpty}>No stocks matched this filter {drill.live ? 'right now' : `on ${drill.date}`}.</div>
             ) : (
               <>
               {grouped && <GroupSummaryStrip summary={summary} dimension={dimension} onPick={jumpToGroup} />}
@@ -914,9 +919,15 @@ export default function Breadth() {
   const [drill, setDrill] = useState(null)
   // drill = { date, label, items: [{t,pct}] | null }
 
-  const openDrill = useCallback((date, col) => {
-    setDrill({ date, label: col.label, items: null })
-    fetch(`/api/breadth-monitor/${date}/drill/${col.drillKey}`)
+  // Takes the ROW, not a date: only the row knows whether it is the live one,
+  // and `drillTarget` needs that to pick between the live endpoint, the dated
+  // one, and the session a carried metric came from.
+  const openDrill = useCallback((row, col, live = null) => {
+    const target = drillTarget(row, col, live)
+    if (!target) return
+    setDrill({ date: target.date, label: col.label, live: target.live,
+               asOf: target.live ? live?.asOf ?? null : null, items: null })
+    fetch(target.url)
       .then(r => r.json())
       .then(data => setDrill(prev => prev ? { ...prev, items: data.items ?? [] } : null))
       .catch(() => setDrill(prev => prev ? { ...prev, items: [] } : null))
@@ -1268,9 +1279,11 @@ export default function Breadth() {
                       const isStaleAaii = AAII_KEYS.has(col.key) &&
                         row.aaii_survey_date &&
                         row.aaii_survey_date !== row.date
-                      // Intraday there are no per-metric stock lists to open —
-                      // the collector builds those with the row at 4:15.
-                      const isDrillable = !!col.drillKey && !row._live
+                      // A live cell drills what was MEASURED live; a carried one
+                      // drills the session its number came from. `drillTarget`
+                      // owns that choice so the tiles below make it identically.
+                      const drillTo = drillTarget(row, col, liveBreadth)
+                      const isDrillable = !!drillTo
                       // A number carried from last night is not a live reading,
                       // and one that reconciles to ~8% should not look like one
                       // that reconciles to a point.
@@ -1292,7 +1305,7 @@ export default function Breadth() {
                                   : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
                                     : isDrillable ? 'Click to see stocks' : undefined
                           }
-                          onClick={isDrillable ? () => openDrill(row.date, col) : undefined}
+                          onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
                         >
                           {fmtCell(col, val)}
                         </td>
