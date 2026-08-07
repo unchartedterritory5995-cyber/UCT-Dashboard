@@ -255,7 +255,7 @@
    line up identically. Reported rows show a % surprise (colored up/down); pending
    rows show the estimate (regular text color). */
 .valCols { display: flex; align-items: baseline; gap: 16px; flex: 0 0 auto; margin-left: auto; }
-.epsCol, .revCol {
+.epsCol, .revCol, .imCol {
   flex: 0 0 auto;
   width: 5em;
   /* font-size fixed off the widget's --cal-fs (NOT the parent) so the header labels
@@ -266,13 +266,23 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.sectionHead .epsCol, .sectionHead .revCol {
+/* Implied move — the header stacks "Impl." over "Move", so the column is narrow.
+   Right-aligned like EPS / REV so the values hug the column's right edge and the gap
+   between every column is even. */
+.imCol { width: 3.6em; text-align: right; }
+/* Two-line "Impl. / Move" header — tight leading so the stack stays compact. */
+.sectionHead .imCol { line-height: 1.15; }
+.sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;
   color: var(--cal-chrome, var(--text-muted, #8b8674));
 }
-.estTag { font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
-.earnRow .epsCol, .earnRow .revCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
+/* The longer "Impl. Move" label drops the header letter-spacing so it never clips. */
+.sectionHead .imCol { letter-spacing: 0; }
+/* "(est)" sits on its own line directly under the EPS / REV header label. */
+.estTag { display: block; margin-top: 1px; font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
+/* IM values always ride the settings text color (never the up/down surprise colors). */
+.earnRow .epsCol, .earnRow .revCol, .earnRow .imCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
 .earnRow .epsCol.pos, .earnRow .revCol.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }
 .earnRow .epsCol.neg, .earnRow .revCol.neg { color: var(--cal-neg, var(--ut-red-bright, #ff5b5b)); }
 
@@ -344,7 +354,7 @@
    column only drops on a very thin widget (root = .widgetBody container). */
 @container (max-width: 340px) { .earnCompany { display: none; } }
 @container (max-width: 220px) {
-  .revCol { display: none; }
+  .revCol, .imCol { display: none; }
   .valCols { gap: 0; }
   .econStats { gap: 7px; }
 }

@@ -126,13 +126,38 @@ function clusterDarkPoolPrintsForOverlay(prints, { zonePct = 0.02 } = {}) {
       zones.push(current);
     }
   }
+  // Sortable numeric key from a M/D/YYYY (or M/D) dark-pool date → YYYYMMDD.
+  const _dnum = x => {
+    const parts = String(x?.dateRaw ?? x?.date ?? "").split("/");
+    if (parts.length < 2) return 0;
+    const m = parseInt(parts[0], 10) || 0, day = parseInt(parts[1], 10) || 0;
+    const y = parts.length >= 3 ? (parseInt(parts[2], 10) || 0) : 0;
+    return y * 10000 + m * 100 + day;
+  };
   return zones.map(z => {
     if (z._members.length === 1) {
       const { _members, priceLow, priceHigh, ...single } = z;
       return single;
     }
     const { _members, ...out } = z;
-    return { ...out, _isCluster: true, _clusterCount: _members.length };
+    // Label a merged zone by its MOST RECENT print, not the first (lowest-price)
+    // member the zone object was seeded from. Otherwise a multi-day cluster shows
+    // the OLDEST date and reads as if it's missing the newest prints — they're
+    // actually summed in. (2026-08-06: SNDK's $830M zone spanned 8/3–8/6 but its
+    // tooltip said "Aug 3", hiding the 8/6 print folded inside.)
+    const latest = _members.reduce((a, b) => (_dnum(b) > _dnum(a) ? b : a), _members[0]);
+    return {
+      ...out,
+      date: latest.date ?? out.date,
+      dateLong: latest.dateLong ?? out.dateLong,
+      dateRaw: latest.dateRaw ?? out.dateRaw,
+      // Inherit LATEST if any member is the newest print, so a merged zone
+      // containing today's print is flagged rather than reading as an old zone.
+      isLatest: _members.some(m => m?.isLatest) || out.isLatest || false,
+      _isCluster: true,
+      _clusterCount: _members.length,
+      _latestDate: latest.dateLong ?? latest.date,
+    };
   });
 }
 

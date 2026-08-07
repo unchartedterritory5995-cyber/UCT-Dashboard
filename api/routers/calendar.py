@@ -2921,6 +2921,38 @@ def get_enrichment(date_str: str | None = Query(None, alias="date")):
     return _compute_enrichment_for_date(target)
 
 
+@router.get("/api/calendar/implied-moves")
+def get_implied_moves(date_str: str | None = Query(None, alias="date")):
+    """{SYM: pct} — the HONEST pre-report implied move for each reporter on `date`.
+
+    Reads the nightly pre-report snapshot store, NOT the live options chain. That
+    matters because once a name reports, its live straddle IV-crushes and the
+    /enrichment `expected_move` reads far too low (e.g. DDOG's ~13.7% earnings
+    move collapses to ~3.4% the morning after). The store captured the straddle
+    the night before, so it holds the real move — and it's an instant indexed
+    read available for past days too (a live chain has no expired past expiries).
+    Powers the Calendar widget's "Impl. Move" column.
+    """
+    import re as _re
+    if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+        return {}
+    target = date_str or _today_et().isoformat()
+    ck = f"calendar_implied_moves_{target}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    from api.services import implied_store
+    try:
+        out = implied_store.get_implied_for_date(target)
+    except Exception:                                    # noqa: BLE001
+        return {}
+    # Past days are settled; today/future keep gaining reporters as the nightly
+    # capture lands, so cache them briefly.
+    is_past = target < _today_et().isoformat()
+    cache.set(ck, out, ttl=(6 * 3600) if is_past else 300)
+    return out
+
+
 @router.get("/api/calendar/enrichment-batch")
 def get_enrichment_batch(dates: str | None = None):
     """Batch enrichment for a whole week in ONE request. `dates` = comma-separated

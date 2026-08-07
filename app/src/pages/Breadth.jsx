@@ -215,8 +215,12 @@ export const COLS = [
   { key: 'new_20d_lows', label: '20D Lo', group: G.HIGHS,
     rowColorFn: row => pairedDnColor(row.new_20d_highs, row.new_20d_lows),
     drillKey: 'new_20d_lows_list' },
+  // Tiers re-derived 2026-08-06. new_ath used to be a 251-bar window over a
+  // one-year frame — new_52w_highs by another name — and these thresholds were
+  // calibrated on those inflated counts. The collector now sources a real
+  // all-time high, which measures ~0.59x the old value on the live universe.
   { key: 'new_ath', label: 'ATH', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '',
+    colorFn: v => v == null ? '' : v > 120 ? 'g3' : v > 60 ? 'g2' : v > 25 ? 'g1' : '',
     drillKey: 'new_ath_list' },
   { key: 'hvc_52w', label: 'HVC', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 100 ? 'g3' : v > 40 ? 'g2' : v > 15 ? 'g1' : '',

@@ -10741,7 +10741,9 @@ export default function StockChart({
             fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
           }}>
             <div style={{ fontWeight: 700, color: '#c9a84c', fontSize: 12, marginBottom: 5 }}>
-              🟡 Dark Pool Print{dpHover.bar.isLatest ? ' · LATEST' : ''}
+              🟡 {dpHover.bar._isCluster
+                    ? `Dark Pool Zone · ${dpHover.bar._clusterCount} prints`
+                    : 'Dark Pool Print'}{dpHover.bar.isLatest ? ' · LATEST' : ''}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px' }}>
               <span style={{ color: '#706b5e' }}>Date</span>
