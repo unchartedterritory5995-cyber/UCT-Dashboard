@@ -1,6 +1,6 @@
 # Decision: the repaint badge is assigned by a machine linter, and the linter is not allowed to make an exception for us
 
-**Status:** 🟡 **OPEN — every shipped native wears `non-repainting` from a shared DEFAULT that no native overrides, and one of them writes a forming bar's value to a historical index.**
+**Status:** 🔴 **OPEN — MEASURED 2026-08-07: the machine linter DISAGREES with `ichimoku`'s shipped badge on the `chikou` plot, and the badge has not moved. AWAITING AN OWNER DECISION (§3.1, §3.2).**
 
 **Date opened:** 2026-08-06 · **Phase:** D · **Applied:** — · **Record of the measurement:** §10
 
@@ -98,6 +98,112 @@ reader could argue `preview-repaints` is the precise one here. **That argument i
 handed to Task 7 as an open question (§8), not settled by silence**, because a
 vocabulary value nothing can ever emit is a value that does not exist, and today
 `preview-repaints` is emitted by nothing at all.
+
+## 3.1 The measurement — 2026-08-07, by machine, over the shipped catalogue
+
+⛔ **THIS IS THE RECEIPT, AND IT LIVES IN THE REPO ON PURPOSE.** `.superpowers/`
+is gitignored, so a number that lives only there does not exist. The block below
+is **machine-readable and machine-checked in both directions**: the linter
+rebuilds it from the shipped definitions on every run and compares, so a new
+disagreement cannot arrive silently **and a recorded one cannot be quietly
+resolved either**. Deleting a `disagreement` line here fails exactly as loudly as
+adding one.
+
+```
+LINTER-MEASUREMENT-V1
+definitions 17
+plots 42
+decided 1
+undecidable-hand-written 41
+verdict ichimoku.chikou preview-repaints forward=26
+disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
+```
+
+**Read `decided 1` before reading anything else.** Every shipped definition today
+is hand-written JS or Python, and spec §11 explicitly forbids static analysis of
+hand-written JS — so the linter **cannot assign 41 of the 42 plot badges at all**,
+and it says so per plot rather than reporting a clean answer it did not earn.
+*"The linter agreed with every shipped badge"* is therefore a sentence this
+measurement makes **unwriteable**: the truth is that it could read one plot of
+forty-two, and the one it could read disagrees.
+
+The one decided row is not decided by reading `computeIchimoku`. It is decided by
+a fact that was **already pinned before this task existed** and was handed in from
+outside: `tests/test_indicator_golden.py`'s `TRAILING_PAD`, whose own comment says
+*"change the back-shift and this goes red with the two numbers in hand."* The
+Python lane reads that declaration; the JS lane **measures the artefact the
+declaration describes** (the trailing null run in the committed golden fixture),
+and the two agree on a number neither of them typed. A hand-copied `26` would be a
+second declaration of one fact and would rot the day the pad moved.
+
+⚠️ **What the linter is BLIND to, stated rather than discovered later.** It reads
+what the manifest *declares* a function's window to be. A compute whose real
+window is wider than its declaration would be branded on the declaration and the
+linter would be wrong — and no analysis of the *tree* can see that, because the
+tree does not contain the compute. That is a manifest-integrity question and it
+belongs to the conformance lane, which runs both interpreters against the same
+tree. It is exactly why the one native verdict above rests on a pinned external
+fact instead of on a reading of the native's source.
+
+## 3.2 D-1 answered: the linter emits `preview-repaints` for `chikou`, and here is why
+
+**Chosen: `preview-repaints`.** Not as a softening — as the only one of the three
+the machine can *prove*, and the one that keeps the other two meaning something.
+
+The linter decides a trichotomy on one number, the tree's **forward reach**:
+
+| forward reach | verdict | the sentence it licenses |
+|---|---|---|
+| `0` | `non-repainting` | every bar this output depends on is at or before its own index |
+| a known finite `k > 0` | `preview-repaints` | it moves while bars `i+1 … i+k` form, and is **final the moment bar `i+k` closes** |
+| unknown, or declared unbounded | `repaints` | **no bar after which the value is guaranteed final** |
+
+`chikou`'s forward reach is exactly `26`, and `26` is a number the badge can put
+in a sentence. That is the whole difference: `preview-repaints` can name the bar
+after which the value settles, and `repaints` cannot.
+
+**Three reasons this is the right call and not a hedge:**
+
+1. **It is what §3 above already says is true.** `chikou` is known-late, not
+   revised-after-final. A linter that called it `repaints` would be recording
+   something the record itself says is inaccurate, on the one axis the brand is
+   sold on.
+2. **It makes all three values reachable, which is the record's own test.** §3
+   warns that *"a vocabulary value nothing can ever emit is a value that does not
+   exist"*. Brand every forward reference `repaints` and `preview-repaints` is
+   that value; brand every forward reference `preview-repaints` and `repaints`
+   becomes it. Under the trichotomy above, `repaints` is reached by a **declared
+   unbounded** window and by the **fail-closed** branch, `preview-repaints` by a
+   **bounded** one, and the corpus carries hand-derived cases for all three and
+   asserts it.
+3. **It costs the claim nothing.** Both values say *not `non-repainting`*, which
+   is the load-bearing half. `ichimoku` is still the one indicator in the
+   catalogue that a machine says does not qualify for the clean badge, which is
+   precisely the owner's stated reasoning: *"one indicator visibly marked
+   [repainting] is what makes the other sixteen credible."*
+
+🔴 **AND THE RESIDUAL DISAGREEMENT IS RECORDED RATHER THAN ARGUED AWAY. The owner
+ruled `repaints` (§4); the machine measures `preview-repaints`.** They agree on
+everything that matters and differ on precision. **That is an owner decision, not
+an implementer's**, and it is deliberately left standing:
+
+- take the machine's word and `chikou` reads **`preview-repaints`** — the more
+  precise claim, and the first thing in the catalogue ever to emit that value;
+- keep the ruling and `chikou` reads **`repaints`** — the blunter claim, which
+  costs the badge some accuracy and buys it some plainness with a burned reader.
+
+**No badge moved either way.** Task 7 measures; §2 forbids it from re-badging, and
+the enumeration ledger's biconditional would fail this record's own header if it
+tried.
+
+⚠️ **AND THIS QUESTION MUST GO TO THE OWNER TOGETHER WITH PHASE C's, BECAUSE THEY
+ARE ABOUT THE SAME COLUMN.** Phase C measured that `ichimoku.chikou` *can never
+fire closed-bar* — its 26-bar trailing pad makes the confirmed bar's value `None`,
+so a user's Chikou alert stops permanently at the Phase C cutover
+(`tests/fixtures/alerts/fire_diff_declared.json` carries that row and calls it
+*"the one row of this diff a user will report as 'my Chikou alert broke'"*). One
+column, two findings, one message: the badge question and the alert question have
+the same answer shape and should not be asked a week apart.
 
 ## 4. The owner ruling — 2026-08-06 — PER-PLOT badges
 

@@ -103,7 +103,27 @@ import { serverColumnsFor } from './serverCompute'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
-/** Every native is a `native`-lane, non-repainting, free-tier indicator today. */
+/** Every native WAS declared here as a `native`-lane, non-repainting, free-tier
+ *  indicator. The repaint half of that sentence is now PAST TENSE, and it was
+ *  falsified by measurement rather than by opinion.
+ *
+ *  🔴 `repaint: 'non-repainting'` BELOW IS A SHARED DEFAULT, NOT AN AUDIT. It sits
+ *  before the `...meta` spread, so every native inherits it and no native
+ *  overrides it — a uniform column, which is indistinguishable from an unset one.
+ *  Phase D's machine linter measured the catalogue on 2026-08-07 and DISAGREES
+ *  with one plot of one definition: `ichimoku`'s `chikou` writes bar `i`'s close
+ *  to index `i - 26`, so the point drawn at a historical index moves while the
+ *  newest bar forms. The measurement, the reasoning and the owner question are in
+ *  `docs/decisions/2026-08-06-machine-repaint-linter.md` (§3.1, §3.2).
+ *
+ *  ⛔ THE VALUE HAS NOT MOVED, AND MOVING IT IS NOT THE RESPONSE TO READING THIS.
+ *  A disagreement between the linter and a shipped badge is a FINDING FOR THE
+ *  OWNER (record §2). Editing it fails three separate rails on purpose.
+ *
+ *  ⏳ The TIER half of the original sentence is still live here and is falsified
+ *  separately (the owner's "everything is paid" ruling) — that half is Task 14's
+ *  and this comment is left standing for it to rewrite in the commit that does
+ *  it, rather than deleted now. */
 const nativeDef = (id, fn, meta, placement, inputs, plots) => ({
   schemaVersion: SCHEMA_VERSION,
   id,
