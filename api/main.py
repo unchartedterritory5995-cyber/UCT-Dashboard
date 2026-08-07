@@ -2766,6 +2766,65 @@ async def lifespan(app: FastAPI):
         except Exception as _e_sweep:
             print(f"[startup] indicator alert silence sweep skip: {_e_sweep}")
 
+        # -- Indicator alerts: THE ARMED SET PULLS ITS OWN BARS ---------------
+        # ⭐ MEASURED ON THIS POD, 2026-08-07 09:56 ET, 26 MINUTES AFTER THE OPEN,
+        # WITH 31 ALERTS ARMED:
+        #
+        #     GROUP SPY/5  alerts=31  newest_bar_ET=2026-08-07 09:15  stale=41.1 min
+        #
+        # Thirty-one live alerts deciding against a PRE-MARKET bar.
+        # `_fetch_bars_for_alert` reads `bars_sqlite` directly and therefore
+        # inherits NONE of `/api/bars`' freshness logic (`_needs_fresh`,
+        # `_is_cold_stale_intraday`, the synchronous first-paint delta). The
+        # store is freshened by an on-demand chart view or the worker's R2
+        # merge -- and in COMING SOON mode nobody opens a chart. So the alert
+        # lane depended on somebody else's chart traffic to have data from this
+        # hour, which for an alerts product is the wrong dependency direction.
+        #
+        # This job turns it around: the ARMED groups pull their own bars,
+        # through `bars_fetch`'s own delta functions and `bars_sqlite.put_bars`.
+        # No second fetcher, no new SQL, no new staleness rule.
+        #
+        # ⛔ ON THE BACKGROUNDSCHEDULER, NOT THE EVENT LOOP. This pod is ONE
+        # uvicorn process; the 2026-07-01 outage was anyio-threadpool
+        # exhaustion. A BackgroundScheduler job costs one of APScheduler's OWN
+        # ten worker slots and ZERO anyio slots, and `max_instances=1` means a
+        # slow sweep queues behind itself instead of fanning out. The module
+        # additionally REFUSES to run if it ever finds a running event loop in
+        # the calling thread, so a future wrong call site costs a log line.
+        #
+        # Bounded by construction: only `list_active()` groups (ONE today),
+        # capped at MAX_GROUPS per sweep stalest-first, <=MAX_WORKERS in flight,
+        # fetch starts paced >=MIN_GAP apart, whole sweep under DEADLINE_SECONDS.
+        # An unpaced sweep once 429'd on its FIRST call, engaged a 20s shared
+        # cooldown and then raced through everything empty reporting success --
+        # so an empty read here is never written, never counted as a refresh and
+        # never stamps the success clock, which is what makes the next sweep
+        # retry THROUGH a cooldown instead of past it.
+        #
+        # 60s to match the evaluator's own interval, so the bars are never more
+        # than one cycle behind what the alert lane is about to read.
+        # NOT market-hours-gated here on purpose: `_needs_fresh` is already
+        # session- and holiday-aware and returns False overnight and at weekends
+        # once the last session is covered, so this job self-gates to zero
+        # upstream calls off-market. A second calendar would be a second thing
+        # to keep in sync with NYSE.
+        #
+        # Kill switch: ALERT_BARS_REFRESH_ENABLED=0 (default ON -- a flag that
+        # defaulted off would not have fixed anything, and setting a Railway
+        # variable auto-redeploys).
+        try:
+            from api.services import alert_bars_freshness as _alert_bars
+            _scheduler.add_job(
+                _alert_bars.run_scheduled_sweep,
+                trigger=IntervalTrigger(seconds=60),
+                id="alert_bars_freshness", max_instances=1,
+                coalesce=True, replace_existing=True, misfire_grace_time=30)
+            print("[startup] alert bars freshness scheduled (every 60s, armed "
+                  "groups only)")
+        except Exception as _e_abf:
+            print(f"[startup] alert bars freshness job skip: {_e_abf}")
+
         # -- Dark pool: nightly Massive ingest (2026-07-24) --------------------
         # Replaces the manual BBS CSV loop (download -> app/public -> redeploy).
         # 19:20 ET weekdays: after the 19:00 window close, so the full session
