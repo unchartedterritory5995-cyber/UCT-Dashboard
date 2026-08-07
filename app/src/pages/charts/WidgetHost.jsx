@@ -44,7 +44,7 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
     case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'watchlist': return <WatchlistWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'themes':    return <ThemesWidget    color={key} opts={opts} />
-    case 'scanner':   return <ScannerWidget   color={key} opts={opts} />
+    case 'scanner':   return <ScannerWidget   color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'fundamentals': return <FundamentalsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'breadth':   return <BreadthWidget opts={opts} onOptsChange={onOptsChange} />
     case 'aisearch':  return <AiSearchWidget color={key} />
