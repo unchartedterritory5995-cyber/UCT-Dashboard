@@ -50,6 +50,18 @@ import math
 from collections.abc import Sequence
 from typing import Any, Callable, Iterable
 
+# ⚠️ TWO SCHEMA-VERSION CONSTANTS EXIST, AND THEY CAN DISAGREE. This one is what
+# `/api/signature/definitions` PUBLISHES; `defSchema.SCHEMA_VERSION` in the chart
+# engine is what the client VALIDATES against, and `validateDefinition` refuses
+# any definition whose `schemaVersion` is not EXACTLY its own ("this client
+# cannot safely interpret another schema major"). So a one-sided bump does not
+# produce an error — it takes the entire server lane off every chart while the
+# server keeps serving and the client keeps starting.
+#
+# ⛔ THE TWO MOVE TOGETHER, IN ONE COMMIT.
+# `tests/test_signature_rules.py::test_the_server_lane_publishes_the_SAME_schema_version_the_client_validates`
+# reads the JS constant OUT OF ITS SOURCE (never re-typed — a Python copy would
+# be a third authority) and fails if they differ. Added Phase D Task 8.
 SCHEMA_VERSION = 1
 
 # ── The ledger vocabulary, frozen ───────────────────────────────────────────

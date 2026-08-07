@@ -11,19 +11,30 @@
 //      MACD's masked head and SAR's `isUptrend` third field.
 
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { parse as parseJs } from 'acorn'
 import {
   NATIVE_DEFS,
   CARVED_OUT_INDICATOR_KEYS,
   MACD_HEAD_MASK,
   SERVER_DEFS,
+  AST_DEFS,
   getDefinition,
   listDefinitions,
   computeFor,
   columnKeys,
   hasAnyFinite,
   registerDefinitions,
+  registerUserDefinitions,
 } from './nativeRegistry'
-import { validateDefinition, COMPUTE_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES } from './defSchema'
+import {
+  validateDefinition, COMPUTE_KINDS, SUPPORTED_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES,
+  SCHEMA_VERSION as SCHEMA_VERSION_JS,
+} from './defSchema'
+import { SHIPPED_DEF_IDS, REGISTRY_SIZES, REGISTRY_LANES, idsByLane } from './registrySizes'
+import { parseFormula, astHash } from './ast/parse'
+import { DEFAULT_BUDGET } from './ast/budget'
 import { migrateLegacyToInstances } from './instances'
 // ⚠️ FROM `flipState`, NOT `StockChart`. `StockChart.jsx` re-exports this set
 // (`:66`) and the B3 plan's snippet imports it from there — but flipState is
@@ -84,6 +95,30 @@ const TOO_SHORT = {
 
 const BARS = makeBars(300)
 
+/** The repo root, found by walking up. Under this environment's vite transform
+ *  the module URL is an `http:` one, so building a path from it throws "The URL
+ *  must be of scheme file" (measured here, not assumed), and `process.cwd()` is
+ *  `app/` for the documented runner and the repo root for some editors. Walking
+ *  finds both and THROWS BY NAME if neither. Same helper, same reason, as
+ *  `ast/lint.test.js`'s and the ledger's. */
+const ROOT = (() => {
+  let dir = process.cwd()
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(dir, 'app', 'src', 'components', 'StockChart.jsx'))) return dir
+    const up = path.dirname(dir)
+    if (up === dir) break
+    dir = up
+  }
+  throw new Error(`nativeRegistry.test.js: could not find the repo root from ${process.cwd()}`)
+})()
+
+/** ⚠️ CRLF NORMALISED AT THE DOOR — `core.autocrlf` is on in this checkout, so a
+ *  multi-line anchor written with newline escapes matches zero times unless the
+ *  carriage returns are stripped first. That has cost this programme a
+ *  measurement already. */
+const readSrc = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\r\n').join('\n')
+const ENGINE_REL = 'app/src/components/chart/engine'
+
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
@@ -137,10 +172,14 @@ describe('native registry — membership', () => {
   it('getDefinition returns null for an unknown id and the def for a known one', () => {
     expect(getDefinition('nope')).toBe(null)
     expect(getDefinition('rsi').id).toBe('rsi')
-    // 16 natives + 1 server definition. The two lanes are DIFFERENT sizes now,
-    // which is the whole reason `listDefinitions()` had to become a union.
-    expect(NATIVE_DEFS.length + SERVER_DEFS.length).toBe(listDefinitions().length)
-    expect(NATIVE_DEFS.length).toBe(16)
+    // The lanes are DIFFERENT sizes, which is the whole reason
+    // `listDefinitions()` had to become a union — of THREE lanes since Phase D
+    // Task 8.
+    expect(NATIVE_DEFS.length + SERVER_DEFS.length + AST_DEFS.length).toBe(listDefinitions().length)
+    // ⭐ THE INTEGER USED TO BE TYPED HERE (`toBe(16)`). It is now read from the
+    // one hand-written manifest — see `registrySizes.js`'s header for the §A5
+    // measurement that made thirty-three of these a problem worth solving.
+    expect(NATIVE_DEFS.length).toBe(REGISTRY_SIZES.native)
   })
 })
 
@@ -506,7 +545,10 @@ describe('the volumeProfile carve-out is a DECISION, not a gap (B3 carry #3)', (
     // ⭐ AND SIXTEEN BECAME SEVENTEEN AT PHASE C TASK 13, on the OTHER lane:
     // `rsLine` is `compute.kind: 'server'`, so it grew the definitions side
     // again without touching the settings blob or the carve-out.
-    expect(listDefinitions()).toHaveLength(17)
+    // ⭐ AND SEVENTEEN STAYED SEVENTEEN AT PHASE D TASK 8, which added a THIRD
+    // LANE and registered nothing on it — the number is no longer typed here at
+    // all, it is read from `registrySizes.js`'s manifest.
+    expect(listDefinitions()).toHaveLength(REGISTRY_SIZES.total)
     // ⭐ B5 TASK 9: the arithmetic used to be 14 + 1 = 15, where 15 was the
     // settings blob's own section count. The blob enumerates ONLY the carve-out
     // now — the other fourteen are folded into `indicatorInstances` — so the
@@ -679,5 +721,301 @@ describe('the MACD head-mask was DROPPED, and stays dropped (B3/A5, decision MAC
     for (const other of listDefinitions().filter(d => d.id !== 'macd')) {
       expect(other.version, `${other.id} should not have been bumped`).toBe(1)
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE D TASK 8 — ONE MANIFEST, ONE EQUALITY, AND THE THIRD LANE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** An `ast` definition for `source`, built THROUGH the one parser. */
+const astDef = (source, over = {}) => {
+  const parsed = parseFormula(source)
+  if (!parsed.ok) throw new Error(`astDef fixture does not parse: ${source} — ${parsed.error}`)
+  const compute = { kind: 'ast', fn: astHash(parsed.ast), rev: 1, ast: parsed.ast, source }
+  return {
+    schemaVersion: SCHEMA_VERSION_JS, id: 'myFormula', version: 1,
+    compute: { ...compute, ...(over.compute || {}) },
+    meta: {
+      name: 'My formula', shortName: 'F', category: 'Custom', tier: 'free',
+      repaint: 'non-repainting', ...(over.meta || {}),
+    },
+    placement: { target: 'pane', pane: { height: 0.15 } },
+    inputs: [{ key: 'color', type: 'color', label: 'Colour', default: 'token:info' }],
+    plots: over.plots || [{ key: 'out', label: 'F', style: 'line', color: '$color', width: 1, role: 'primary' }],
+    ...(over.events ? { events: over.events } : {}),
+  }
+}
+
+describe('⭐⭐ THE registry manifest — every definition, by lane, BY NAME', () => {
+  // 🔴 THIS ONE EQUALITY IS WHAT THIRTY-THREE HAND-TYPED ASSERTIONS COLLAPSED
+  // INTO, and it is a STRENGTHENING rather than a shortening. Plan §A5 measured
+  // "2 definitions cost 33 assertions across 12 files"; C Task 10 then watched
+  // 28 tests across 13 files fail on `defs.length === 16` when the registry
+  // moved to 17. Every one of those was a COUNT, and a count is satisfied by:
+  //
+  //   * a RENAME — `williamsR` → `williams` keeps the count at seventeen;
+  //   * a LANE MOVE — a native re-declared `server` keeps the TOTAL at seventeen
+  //     and quietly changes which lane fetches it;
+  //   * a SWAP — one definition deleted and another added in the same commit.
+  //
+  // None of those is expressible as a number, and all three are expressible as a
+  // list. So the collapse replaces N integers with ONE ordered, lane-partitioned
+  // list of ids — and the integers that survive elsewhere are all read from that
+  // list's lengths rather than typed.
+  it('the registry equals the shipped manifest — ordered, partitioned, by name', () => {
+    expect(idsByLane(listDefinitions())).toEqual(SHIPPED_DEF_IDS)
+  })
+
+  it('…and it is NOT vacuous: the manifest is written down, not derived', () => {
+    // `registrySizes.js` imports NOTHING. A manifest computed from
+    // `listDefinitions()` would be true by construction and could never fail —
+    // the same reasoning `CARVED_OUT_INDICATOR_KEYS` gives one file over. Proven
+    // by AST over the module's own source, not by grep: an `import` in a comment
+    // is not an import, and a grep cannot tell the difference.
+    const src = readSrc(`${ENGINE_REL}/registrySizes.js`)
+    const tree = parseJs(src, { ecmaVersion: 'latest', sourceType: 'module' })
+    const imports = tree.body.filter(n => n.type === 'ImportDeclaration').map(n => n.source.value)
+    expect(imports, 'registrySizes.js derives from something — the manifest checks nothing').toEqual([])
+    // …and the positive control for that scan: the SAME scan over this registry
+    // finds the imports that are really there.
+    const regSrc = readSrc(`${ENGINE_REL}/nativeRegistry.js`)
+    const regImports = parseJs(regSrc, { ecmaVersion: 'latest', sourceType: 'module' })
+      .body.filter(n => n.type === 'ImportDeclaration').map(n => n.source.value)
+    expect(regImports, 'the import scan finds nothing anywhere — it is broken, not selective')
+      .toContain('./defSchema')
+  })
+
+  it('…and every REGISTRY_SIZES value DERIVES — no numeric literal survives in it', () => {
+    // ⛔ THE ONE PROPERTY NO BEHAVIOURAL TEST CAN SEE. `total: 17` and
+    // `total: a + b + c` are the same number today and stay the same number
+    // until the exact moment a definition lands — which is the moment the
+    // hardcoded one starts lying, silently, in the file whose entire job is to
+    // be the place the number lives. Same class as Phase D Task 7's M4 (a
+    // hand-copied `26` against a read `TRAILING_PAD`): only a scan over the
+    // source can tell them apart.
+    const src = readSrc(`${ENGINE_REL}/registrySizes.js`)
+    const tree = parseJs(src, { ecmaVersion: 'latest', sourceType: 'module' })
+    let sizesObject = null
+    const visit = (node) => {
+      if (!node || typeof node !== 'object') return
+      if (Array.isArray(node)) { node.forEach(visit); return }
+      if (node.type === 'VariableDeclarator' && node.id.type === 'Identifier'
+          && node.id.name === 'REGISTRY_SIZES') {
+        // `Object.freeze({...})` — the object literal is the call's argument.
+        const init = node.init
+        sizesObject = init && init.type === 'CallExpression' ? init.arguments[0] : init
+      }
+      for (const k of Object.keys(node)) {
+        if (k === 'type' || k === 'start' || k === 'end') continue
+        visit(node[k])
+      }
+    }
+    visit(tree.body)
+    expect(sizesObject && sizesObject.type, 'REGISTRY_SIZES is not an object literal any more')
+      .toBe('ObjectExpression')
+
+    const literals = []
+    const derived = []
+    for (const prop of sizesObject.properties) {
+      const name = prop.key.name || prop.key.value
+      const valueSrc = src.slice(prop.value.start, prop.value.end)
+      if (prop.value.type === 'Literal' && typeof prop.value.value === 'number') {
+        literals.push(`${name}: ${valueSrc}`)
+      }
+      if (/SHIPPED_DEF_IDS/.test(valueSrc)) derived.push(name)
+    }
+    expect(literals,
+      'a REGISTRY_SIZES value is a hand-typed integer. That is the literal thirty-three '
+      + 'assertions just stopped being — a table that does not derive is a literal wearing '
+      + 'a table\'s name.').toEqual([])
+    // …and the scan is SELECTING, not merely finding nothing: every one of the
+    // four values really does read the manifest.
+    expect(derived.sort(), 'a REGISTRY_SIZES value does not read SHIPPED_DEF_IDS at all')
+      .toEqual(['ast', 'native', 'server', 'total'])
+  })
+
+  it('…and the sizes agree with the manifest, the lanes and the registry', () => {
+    // The brief's two arithmetic rails. Neither is a tautology under this design:
+    // `REGISTRY_SIZES` is DECLARED (from the hand-written manifest) and
+    // `listDefinitions()` is the actual registry, so the second line is the
+    // registry proving the declaration.
+    expect(REGISTRY_SIZES.total).toBe(REGISTRY_SIZES.native + REGISTRY_SIZES.server + REGISTRY_SIZES.ast)
+    expect(listDefinitions().length).toBe(REGISTRY_SIZES.total)
+    for (const lane of REGISTRY_LANES) {
+      expect(REGISTRY_SIZES[lane], `${lane}: size and manifest disagree`)
+        .toBe(SHIPPED_DEF_IDS[lane].length)
+    }
+    // ⛔ AND THE LANES ARE THE SUPPORTED KINDS. `registrySizes.js` re-types that
+    // list on purpose (importing it would make the manifest derive from the
+    // thing it exists to check); this is the assertion that pays for the copy.
+    expect(REGISTRY_LANES).toEqual([...SUPPORTED_KINDS])
+    // …and the third lane is EMPTY, which is a claim: Task 8 built the lane and
+    // registered nothing on it.
+    expect(REGISTRY_SIZES.ast).toBe(0)
+    expect(AST_DEFS).toEqual([])
+  })
+
+  it('`idsByLane` files an UNKNOWN lane under its own name rather than dropping it', () => {
+    // The partition helper's own failure mode. Dropping an off-lane definition
+    // would make the manifest equality pass while a `script` definition sat in
+    // the registry; a default bucket would file it under a lane it is not on.
+    const out = idsByLane([
+      { id: 'a', compute: { kind: 'native' } },
+      { id: 'b', compute: { kind: 'script' } },
+      { id: 'c' },
+    ])
+    expect(out).toEqual({
+      native: ['a'], server: [], ast: [], script: ['b'], '<no compute.kind>': ['c'],
+    })
+  })
+})
+
+describe('`supportedKinds` is a FILTER now, not a sentence (Phase D Task 8)', () => {
+  it('a definition of an UNSUPPORTED kind is LISTED but refuses to RENDER', () => {
+    // Spec §3.1: catalog fetch filters by client `supportedKinds`; and §5: premium
+    // entries stay LISTED for merchandising even when locked. So "cannot run" and
+    // "must not appear" are different, and conflating them would hide the whole
+    // server lane from a client that simply has an older bundle.
+    const d = astDef('sma(close, 20)')
+    d.compute = { kind: 'script', fn: 'x', rev: 1 }
+    const res = registerUserDefinitions([d])
+    expect(res.defs.map(x => x.id)).toEqual([])
+    expect(res.errors.join('\n')).toMatch(/kind "script" is declared but this client cannot run it/)
+    // ⛔ AND IT IS NOT A VALIDATION FAILURE. The same definition is well-formed —
+    // the refusal has to read "cannot run", not "malformed", or a client one
+    // version behind stops describing a lane instead of greying it out.
+    expect(validateDefinition(d).ok, 'an unsupported kind was reported as INVALID').toBe(true)
+  })
+
+  it('…and the three supported lanes all register through the same door', () => {
+    // The positive control: a filter that refuses everything would satisfy the
+    // case above. `native` and `server` are taken from the SHIPPED registry, so
+    // this cannot pass on a fixture that happens to be shaped right.
+    const native = NATIVE_DEFS[0]
+    const server = SERVER_DEFS[0]
+    const ast = astDef('sma(close, 20)')
+    const res = registerUserDefinitions([native, server, ast])
+    expect(res.errors, JSON.stringify(res.errors)).toEqual([])
+    expect(res.defs.map(d => d.compute.kind).sort()).toEqual(['ast', 'native', 'server'])
+  })
+})
+
+describe('the `ast` lane REGISTERS, and the three gates it registers through', () => {
+  it('an ast definition registers and COMPUTES a real column', () => {
+    const res = registerUserDefinitions([astDef('sma(close, 20)')])
+    expect(res.errors, JSON.stringify(res.errors)).toEqual([])
+    const [def] = res.defs
+    const cols = computeFor(def, BARS, {})
+    expect(Object.keys(cols)).toEqual(['out'])
+    expect(cols.out.length).toBe(BARS.length)
+    expect(hasAnyFinite(cols.out), 'the ast lane computed nothing').toBe(true)
+    // …and it really is the FORMULA's answer, not a copy of close: the 20-bar
+    // warmup is NaN and the first computable bar is the mean of the first 20.
+    expect(Number.isNaN(cols.out[18])).toBe(true)
+    const mean = BARS.slice(0, 20).reduce((s, b) => s + b.c, 0) / 20
+    expect(cols.out[19]).toBeCloseTo(mean, 9)
+  })
+
+  it('⛔ the `ast` branch is BEFORE the NATIVE_COMPUTE lookup — the ORDERING is the rail', () => {
+    // ⭐ THE MUTATION THIS CASE EXISTS FOR: move the `ast` branch BELOW the
+    // `NATIVE_COMPUTE[def.compute.fn]` lookup. An ast definition's `compute.fn`
+    // is a 71-character `sha256:…` string, so the lookup misses and the throw
+    // fires FIRST — the lane registers, validates, budgets and lints, and then
+    // can never draw. It is an ordering fact, and this asserts the ordering
+    // rather than a value: the SAME definition must not reach the throw.
+    const [def] = registerUserDefinitions([astDef('ema(close, 9)')]).defs
+    expect(def.compute.fn).toMatch(/^sha256:/)
+    expect(Object.keys(computeFor(def, BARS, {}))).toEqual(['out'])
+    expect(() => computeFor(def, BARS, {}), 'the ast lane fell through to the native lookup')
+      .not.toThrow()
+
+    // ⚠️ AND THE THROW IS INTACT — C Task 13 shipped this assertion when it added
+    // the server lane, and a THIRD lane is exactly where a `return {}` fallback
+    // gets added by accident. This case is NOT killed by the ordering mutation,
+    // which is what makes it the control rather than a duplicate.
+    expect(() => computeFor({ ...def, compute: { kind: 'native', fn: def.compute.fn } }, BARS, {}))
+      .toThrow(/no native compute registered/)
+  })
+
+  it('GATE 1 — one formula is ONE series: a second data plot is refused', () => {
+    // `interpret` returns a single column. A definition declaring two data plots
+    // would fill one and leave the other permanently NaN — `hasAnyFinite` false,
+    // nothing drawn, no error anywhere. Invisible, which is why it is refused.
+    const d = astDef('sma(close, 20)', {
+      plots: [
+        { key: 'out', label: 'F', style: 'line', color: '$color', width: 1, role: 'primary' },
+        { key: 'other', label: 'G', style: 'line', color: '$color', width: 1, role: 'secondary' },
+      ],
+    })
+    const res = registerUserDefinitions([d])
+    expect(res.defs).toEqual([])
+    expect(res.errors.join('\n')).toMatch(/computes ONE column/)
+    // …and an `hlines` GUIDE is not a data plot, so it stays legal.
+    const withGuide = astDef('sma(close, 20)', {
+      plots: [
+        { key: 'out', label: 'F', style: 'line', color: '$color', width: 1, role: 'primary' },
+        { key: 'zero', label: '0', style: 'hlines', levels: [0], color: '$color', width: 1, role: 'context' },
+      ],
+    })
+    expect(registerUserDefinitions([withGuide]).errors).toEqual([])
+  })
+
+  it('GATE 1b — an ast definition that declares an EVENT is refused BY THE EXISTING DOOR', () => {
+    // ⛔ NO SECOND GUARD WAS ADDED FOR THIS, AND THAT IS THE POINT. `computeFor`
+    // reads the ast lane's column key off `def.plots`, never off `columnKeys`
+    // (which is the union of plots AND events) — so an ast definition's event
+    // simply never comes back, and `validateEventColumns` refuses it by name at
+    // the door it was built for. A refusal from the right door, measured.
+    const d = astDef('sma(close, 20)', { events: [{ key: 'fired', label: 'Fired' }] })
+    const res = registerUserDefinitions([d])
+    expect(res.defs).toEqual([])
+    expect(res.errors.join('\n')).toMatch(/"fired" returned no column/)
+  })
+
+  it('GATE 2 — the BUDGET refuses at registration, and names the cap that fired', () => {
+    // Task 6's UX half. `checkBudget` at registration is a message an author sees
+    // while typing; `assertBudget` inside `interpret` is the safety half that
+    // throws at compute. Registration-only lets a definition registered under one
+    // budget run forever under a later, smaller one.
+    const deep = `sma(${'sma('.repeat(0)}close, ${DEFAULT_BUDGET.maxLookback + 10})`
+    const res = registerUserDefinitions([astDef(deep)])
+    expect(res.defs).toEqual([])
+    expect(res.errors.join('\n')).toMatch(/exceeds the lookback budget/)
+    expect(res.errors.join('\n')).toMatch(/budget:lookback/)
+    // ⛔ THE DOOR IS NAMED, NOT INFERRED. A tree the budget cannot even MEASURE
+    // is refused by the guard that stopped it — `resolve:function` here — and not
+    // reported as "over budget", which is the wrong-door defect this branch has
+    // now found four separate times.
+    const bogus = { type: 'call', name: 'nope', args: [{ type: 'series', name: 'close' }] }
+    const d = astDef('sma(close, 20)')
+    d.compute.ast = bogus
+    d.compute.fn = astHash(bogus)
+    d.compute.source = 'nope(close)'
+    const r2 = registerUserDefinitions([d])
+    expect(r2.defs).toEqual([])
+    expect(r2.errors.join('\n')).toMatch(/resolve:function/)
+    expect(r2.errors.join('\n'), 'a resolve refusal was reported as a budget refusal')
+      .not.toMatch(/exceeds the .* budget/)
+  })
+
+  it('GATE 3 — the repaint badge must BE the measurement, in both directions', () => {
+    // ⭐ THE ONE LANE WHERE THE BADGE IS DECIDABLE. Spec §11 forbids static
+    // analysis of hand-written computes, so all seventeen shipped definitions
+    // are `undecidable-hand-written` and their badges are unauditable claims. An
+    // ast definition's compute IS a tree this repo can read.
+    const over = astDef('sma(close, 20)', { meta: { repaint: 'repaints' } })
+    const res = registerUserDefinitions([over])
+    expect(res.defs, 'a false badge registered').toEqual([])
+    expect(res.errors.join('\n')).toMatch(/the linter MEASURES "non-repainting"/)
+    // ⛔ UNDER-CLAIMING IS AS FALSE AS OVER-CLAIMING — a user reads the badge and
+    // makes a decision on it, so `repaints` on maths that does not is refused too.
+    // (That IS the case above: `sma` is clean and the declaration said it repaints.)
+    const missing = astDef('sma(close, 20)')
+    delete missing.meta.repaint
+    expect(registerUserDefinitions([missing]).errors.join('\n')).toMatch(/meta\.repaint — required/)
+    // …and the honest one registers, which is what stops this being a gate that
+    // refuses everything.
+    expect(registerUserDefinitions([astDef('sma(close, 20)')]).errors).toEqual([])
   })
 })

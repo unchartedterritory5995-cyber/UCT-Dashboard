@@ -9,6 +9,7 @@ import { CHART_DEFAULTS, mergeChartSettings } from './chartDefaults'
 import { ENGINE_OWNED } from './engine/flipState'
 import { setIndicatorEnabled, setIndicatorInput } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
+import { REGISTRY_SIZES } from './engine/registrySizes'
 // ⛔ THE BADGE VOCABULARY IS IMPORTED, NOT RETYPED. Three strings written down
 // twice is the `williams_r`/`williamsR` shape that `_CASE_COLUMNS` exists to
 // survive, and a badge vocabulary is a worse place for it than a column name.
@@ -543,7 +544,9 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
       engineRegistry.listDefinitions().map(d => [d.id, d.inputs.map(i => i.key)])))
     // …and that map is not empty, so `greyed` being `{}` above is the
     // short-circuit doing its job rather than the predicate having stopped.
-    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(17)   // 14 + avwap/atrBands + rsLine
+    // ⭐ THE INTEGER USED TO BE TYPED HERE. `registrySizes.js` is the one place
+    // a registry count lives now — see its header for the §A5 measurement.
+    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(REGISTRY_SIZES.total)
   })
 })
 
@@ -565,8 +568,9 @@ describe('the library needs a sentence per indicator, and the schema already all
   })
 
   it('and adding them did not break registration — every definition still validates', () => {
-    // 14 + Task 14's avwap/atrBands + Task 13's server-lane rsLine
-    expect(engineRegistry.listDefinitions().length).toBe(17)
+    // ⭐ THE INTEGER USED TO BE TYPED HERE. `registrySizes.js` is the one place
+    // a registry count lives now — see its header for the §A5 measurement.
+    expect(engineRegistry.listDefinitions().length).toBe(REGISTRY_SIZES.total)
     for (const d of engineRegistry.listDefinitions()) {
       // ⛔ `premium` FOR THE SERVER LANE, AND IT IS NOT A LOOSENING. `rsLine`
       // is served by `/api/signature/columns`, which declares

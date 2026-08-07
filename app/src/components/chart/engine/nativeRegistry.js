@@ -78,7 +78,20 @@ import {
   validateSourceReferents,
   isEventColumnValue,
   SCHEMA_VERSION,
+  SUPPORTED_KINDS,
 } from './defSchema'
+// ⭐ THE THIRD LANE'S FOUR PIECES, WIRED HERE AT PHASE D TASK 8. Until this
+// commit `interpret`, `checkBudget` and `lintRepaint` were shipped and had NO
+// caller in the product — deliberately, each task landing its piece pure and
+// unwired. This module is where they stop being unwired: `computeFor` runs
+// `interpret`, and `registerUserDefinitions` runs the other two. That makes them
+// reachable from `StockChart.jsx`'s module graph rather than only from a test,
+// which is a fact `__tests__/enumerationSites.test.js` asserts by walking
+// IMPORTS rather than by grepping for a name (a plain substring search for these
+// on this branch returned ten matches and every one was prose in a comment).
+import { interpret } from './ast/interpret'
+import { checkBudget } from './ast/budget'
+import { lintRepaint } from './ast/lint'
 import {
   computeRSI,
   computeMACD,
@@ -1018,6 +1031,54 @@ function maskMacdHead(columns) {
  */
 const COLUMN_HOLDS = MACD_HEAD_MASK ? { macd: maskMacdHead } : {}
 
+/**
+ * The ONE data-bearing plot key an `ast` definition declares.
+ *
+ * ⛔ READ OFF `def.plots`, NOT `columnKeys(def)`, AND THE DIFFERENCE IS LOAD-
+ * BEARING. `columnKeys` is the union of plots and EVENTS. If this read that
+ * union, an `ast` definition that declared an event would compute its event key
+ * instead of its plot — a column with the wrong name, full of the right numbers.
+ * Reading the plots means an `ast` definition's events simply never come back,
+ * and `validateEventColumns` — which already refuses a definition whose event
+ * names no returned column — refuses it BY NAME at registration. One guard, at
+ * the door it was built for, rather than a second one bolted on here.
+ */
+function astPlotKey(def) {
+  const plots = Array.isArray(def?.plots) ? def.plots : []
+  const keys = plots
+    .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
+    .map(p => p.key)
+  return keys
+}
+
+/**
+ * Compute an `ast` definition: ONE formula, ONE column.
+ *
+ * `interpret` returns a single `Float64Array` of `bars.length` — the columnar
+ * contract already, with no adaptation to do — so the only question this
+ * function answers is WHICH KEY it goes under, and there can be exactly one
+ * answer. `registerUserDefinitions` refuses a definition that declares more
+ * than one data plot; this throw is the backstop for a definition that reached
+ * `computeFor` without passing through that door.
+ *
+ * ⛔ IT DOES NOT CATCH. `interpret` throws `TableRefusal` for anything the table
+ * refuses and a plain `RangeError` for a tree that overflows; relabelling either
+ * as "computed nothing" is the wrong-door defect this phase has now found four
+ * times. A refusal must reach the caller as the refusal it is.
+ */
+function astColumnsFor(def, bars, inputs) {
+  const keys = astPlotKey(def)
+  if (keys.length !== 1) {
+    throw new Error(
+      `computeFor: an "ast" definition computes ONE column and definition ` +
+      `${JSON.stringify(def?.id)} declares ${keys.length} data-bearing plots ` +
+      `(${keys.join(', ') || 'none'}). One formula is one series; a second plot would be a ` +
+      `key nothing ever fills.`,
+    )
+  }
+  return { [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget) }
+}
+
 /** Merge a caller's inputs over the definition's declared defaults. */
 function resolveInputs(def, inputs) {
   const out = {}
@@ -1113,6 +1174,18 @@ export function hasAnyFinite(col) {
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'server') {
     return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
+  }
+  // ⭐ THE AST LANE (Phase D Task 8), DISPATCHED ON THE KIND AND **BEFORE** THE
+  // `NATIVE_COMPUTE` LOOKUP — exactly where Task 13 put the server lane, and for
+  // the same reason one level sharper. An `ast` definition's `compute.fn` is its
+  // `astHash`: a 71-character `sha256:…` string that has no entry in
+  // `NATIVE_COMPUTE` and never will. Placed AFTER the lookup, the throw below
+  // fires first and an `ast` definition can never draw — a lane that registers,
+  // validates, budgets and lints, and then renders nothing. The throw is right
+  // for a native that lost its function and wrong for a definition that never
+  // had one.
+  if (def?.compute?.kind === 'ast') {
+    return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs))
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
@@ -1284,6 +1357,170 @@ export function registerDefinitions(rawDefs) {
   return { defs, errors }
 }
 
+/**
+ * The `ast` lane's REGISTRATION-TIME gates — the three questions
+ * `validateDefinition` cannot answer about a formula.
+ *
+ * `defSchema` already asked the three it CAN (the tree is canonical, the source
+ * parses back to it, the handle is the hash). Those are pure facts about one
+ * definition. These three are not:
+ *
+ *   1. ONE FORMULA IS ONE SERIES. `interpret` returns a single column, so a
+ *      definition declaring two data plots would fill one and leave the other
+ *      permanently NaN — `hasAnyFinite` false, nothing drawn, no error anywhere.
+ *      Invisible, which is why it is refused rather than tolerated. (Its EVENTS
+ *      are refused by `validateEventColumns`, which already runs and already
+ *      says "returned no column" by name — no second guard is added here.)
+ *
+ *   2. THE BUDGET. `checkBudget` is the UX half of Task 6's pair: an author gets
+ *      a MESSAGE at registration, where `assertBudget` inside `interpret` is the
+ *      safety half that throws at compute. Both exist because registration-only
+ *      lets a definition registered under one budget run forever under a later,
+ *      smaller one, and compute-only turns an authoring mistake into a chart
+ *      that draws sometimes.
+ *
+ *   3. THE REPAINT BADGE MUST BE THE MEASUREMENT. ⭐ THIS IS THE ONE LANE WHERE
+ *      IT IS DECIDABLE. Spec §11 forbids static analysis of hand-written JS, so
+ *      all seventeen shipped definitions are `undecidable-hand-written` and their
+ *      badges are declarations nobody can check. An `ast` definition's compute IS
+ *      a tree this repo can read, so the badge stops being a claim and becomes an
+ *      answer — and a declaration that disagrees with the answer is refused in
+ *      BOTH directions. Under-claiming (`repaints` on maths that does not) is as
+ *      false as over-claiming, and a badge a user reads is a decision they make.
+ *
+ * ⛔ EVERY REFUSAL NAMES THE DOOR THAT DECIDED IT. `checkBudget` can raise a
+ * `TableRefusal` from ANOTHER guard (`maxLookback` resolves functions and
+ * arities on its way), and reporting that as "over budget" would be the
+ * wrong-door defect this branch has now found four separate times. The guard on
+ * the refusal is what gets printed, never the function that happened to be on
+ * the stack.
+ *
+ * @returns {string[]} errors, empty when the definition can run here.
+ */
+function validateAstLane(def) {
+  const errors = []
+  const dataPlots = astPlotKey(def)
+  if (dataPlots.length !== 1) {
+    errors.push(
+      `plots: an "ast" definition computes ONE column — one formula is one series — so it must ` +
+      `declare exactly one data-bearing plot, and this one declares ${dataPlots.length} ` +
+      `(${dataPlots.join(', ') || 'none'}). A second plot is a key nothing ever fills: it draws ` +
+      `nothing, reports nothing, and looks exactly like a warmup pad.`,
+    )
+    return errors
+  }
+
+  const ast = def.compute.ast
+  let budget
+  try {
+    budget = checkBudget(ast, def.compute.budget)
+  } catch (err) {
+    errors.push(
+      `compute.ast: refused at registration by ${JSON.stringify(err && err.guard ? err.guard : 'an unnamed guard')} ` +
+      `— ${err && err.message ? err.message : String(err)}`,
+    )
+    return errors
+  }
+  if (!budget.ok) {
+    errors.push(
+      `compute.budget: ${budget.error} (guard ${JSON.stringify(budget.guard)}). Measured ` +
+      `${JSON.stringify(budget.measured)} against caps ${JSON.stringify(budget.caps)}.`,
+    )
+    return errors
+  }
+
+  let verdict
+  try {
+    verdict = lintRepaint(ast)
+  } catch (err) {
+    errors.push(
+      `compute.ast: the repaint linter could not read this tree ` +
+      `(${err && err.message ? err.message : String(err)})`,
+    )
+    return errors
+  }
+  // ⚠️ THESE TWO MESSAGES DELIBERATELY DO NOT WRITE THE FIELD FOLLOWED BY A
+  // COLON, WHICH IS THIS FILE'S USUAL `path: problem` house style. The ledger's
+  // repaint biconditional counts `repaint\s*:` occurrences in this module's
+  // COMMENT-STRIPPED source to know how many places DECLARE the badge — and a
+  // string is not stripped, so an error message written in house style is
+  // counted as a declaration. It caught these two on their first run (2 → 4).
+  // The rail is right and the messages moved: an em dash says the same thing and
+  // is not a declaration.
+  if (def.meta.repaint === undefined) {
+    errors.push(
+      `meta.repaint — required on the "ast" lane, because this is the one lane where the badge is ` +
+      `DECIDABLE (spec §11 forbids analysing hand-written computes, so every other definition's ` +
+      `badge is an unauditable claim). The linter measures ${JSON.stringify(verdict.mode)} for ` +
+      `this formula; declare it.`,
+    )
+  } else if (def.meta.repaint !== verdict.mode) {
+    errors.push(
+      `meta.repaint — declared ${JSON.stringify(def.meta.repaint)} but the linter MEASURES ` +
+      `${JSON.stringify(verdict.mode)} (forward=${verdict.forward}) — ${verdict.reasons.join('; ')}. ` +
+      `A badge is a truth claim a user makes decisions on; on a lane where it can be computed, a ` +
+      `declaration that disagrees is refused in BOTH directions, because under-claiming is as ` +
+      `false as over-claiming.`,
+    )
+  }
+  return errors
+}
+
+/**
+ * Register definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
+ *
+ * ⭐ THE SENTENCE `defSchema.js` HAS CARRIED SINCE B1 — *"the registry's
+ * `supportedKinds` filter decides what a given client will actually run"* — and
+ * the filter it named did not exist. Measured 2026-08-06: repo-wide, in
+ * `app/src` and `api/` alike, `supportedKinds` appeared exactly twice, in that
+ * comment and in spec §3.1, and as an IDENTIFIER zero times. This function is
+ * the filter, and `defSchema.SUPPORTED_KINDS` is the list it reads.
+ *
+ * ⛔ AN UNSUPPORTED KIND IS LISTED, NOT DELETED. It comes back in `errors` with
+ * a "cannot run it" sentence and NOT in `defs` — which is a refusal to RENDER,
+ * not a refusal to EXIST. Spec §3.1 has the catalog fetch filter by client
+ * `supportedKinds` and §5 keeps premium entries listed while locked; a client
+ * that treated "I cannot run this" as "this is malformed" would drop the entire
+ * server lane the moment its bundle fell a version behind, and the user would
+ * see indicators vanish rather than grey out.
+ *
+ * ⚠️ IT IS A SUPERSET OF `registerDefinitions`, NOT A REPLACEMENT FOR IT. The
+ * natives below still go through the three-pass version directly: they are
+ * authored in this repo, every one is on a supported lane by construction, and a
+ * lane filter on them could only ever be a no-op that made the import path
+ * harder to read.
+ *
+ * @returns {{defs: object[], errors: string[]}}
+ */
+export function registerUserDefinitions(rawDefs) {
+  const base = registerDefinitions(rawDefs)
+  const errors = [...base.errors]
+  const defs = []
+
+  for (const def of base.defs) {
+    const kind = def.compute.kind
+    if (!SUPPORTED_KINDS.includes(kind)) {
+      errors.push(
+        `${def.id}: compute.kind ${JSON.stringify(kind)} is declared but this client cannot run it ` +
+        `— it is a DECLARED kind (defSchema.COMPUTE_KINDS) and an UNSUPPORTED one ` +
+        `(defSchema.SUPPORTED_KINDS: ${SUPPORTED_KINDS.join(', ')}). The definition stays ` +
+        `listable and describable; it will not be rendered here.`,
+      )
+      continue
+    }
+    if (kind === 'ast') {
+      const laneErrors = validateAstLane(def)
+      if (laneErrors.length) {
+        errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
+        continue
+      }
+    }
+    defs.push(def)
+  }
+
+  return { defs, errors }
+}
+
 const _registered = registerDefinitions(RAW_DEFS)
 if (_registered.errors.length) {
   // The natives are authored in this repo, so an invalid one can only ever be a
@@ -1370,6 +1607,27 @@ if (_serverRegistered.errors.length) {
 export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 
 /**
+ * AST-lane definitions shipped in this repo — **deliberately none**.
+ *
+ * ⭐ TASK 8 BUILDS THE LANE AND REGISTERS NOTHING ON IT, AND THE EMPTY ARRAY IS
+ * THE DELIVERABLE'S SHAPE, not an oversight. An `ast` definition is a USER's
+ * formula: it arrives from the builder or the concierge, through
+ * `registerUserDefinitions`, and is stored per user. A repo-authored one would
+ * be a native wearing a formula — the same maths this file already computes in
+ * `NATIVE_COMPUTE`, on a lane with a budget and an interpreter between it and
+ * the screen, for no gain.
+ *
+ * ⛔ WHY IT EXISTS AT ALL RATHER THAN `listDefinitions()` STAYING A TWO-LANE
+ * UNION: so the third lane is a partition with a NAME and a size that DERIVES.
+ * `registrySizes.js` reads `{native, server, ast}` and a rail asserts the whole
+ * catalogue equals a hand-written manifest, by lane, by name. With no `ast`
+ * entry in that partition the manifest could not say "and zero on the third
+ * lane" — and "zero" is a claim worth being able to break: the day this array
+ * gains a member, the manifest is what says so out loud.
+ */
+export const AST_DEFS = Object.freeze([])
+
+/**
  * The `CHART_DEFAULTS.indicators` keys that deliberately have NO definition.
  *
  * ⛔ B3 DECISION, 2026-08-02, recorded so it is not re-litigated: `volumeProfile`
@@ -1407,7 +1665,7 @@ export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']
 /** ⭐ ONE INDEX ACROSS BOTH LANES. `getDefinition` is what `instances.js` and the
  *  binder resolve through, so a server definition missing from here would be an
  *  instance the chart drops on the floor — visible as nothing at all. */
-const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS].map(d => [d.id, d]))
+const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS].map(d => [d.id, d]))
 
 /** @returns {object|null} the definition, or null when nothing is registered under `defId`. */
 export function getDefinition(defId) {
@@ -1417,13 +1675,18 @@ export function getDefinition(defId) {
 /**
  * @returns {object[]} every registered definition — BOTH LANES.
  *
- * ⭐ 16 NATIVE + 1 SERVER = 17 (Phase C Task 13). This used to be
- * `[...NATIVE_DEFS]`, and the union is the one line Task 14 handed back. A
- * caller that wants only the natives asks `NATIVE_DEFS`; a caller enumerating
- * "what indicators exist" must see both, because a definition invisible to this
- * list is invisible to the catalog, the settings migration and the alert
- * addressing alike.
+ * ⭐ 16 NATIVE + 1 SERVER + 0 AST = 17 (Phase C Task 13; the third lane joined at
+ * Phase D Task 8 and is empty). This used to be `[...NATIVE_DEFS]`, and the
+ * union is the one line Task 14 handed back. A caller that wants only the
+ * natives asks `NATIVE_DEFS`; a caller enumerating "what indicators exist" must
+ * see all three, because a definition invisible to this list is invisible to the
+ * catalog, the settings migration and the alert addressing alike.
+ *
+ * ⛔ AND THE NUMBER IS NOT WRITTEN DOWN HERE. `registrySizes.js` holds the one
+ * hand-written manifest of what ships, by lane, by name; a count typed into a
+ * comment is a count that rots, and this one already did — it read "16 NATIVE +
+ * 1 SERVER" through a phase that added a lane.
  */
 export function listDefinitions() {
-  return [...NATIVE_DEFS, ...SERVER_DEFS]
+  return [...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS]
 }

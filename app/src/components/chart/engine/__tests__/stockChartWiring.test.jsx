@@ -5,6 +5,11 @@ import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 // THE legend read, shared with `legendFromDefinitions.test.jsx` — see the note
 // where `settledLegend` is wrapped below.
 import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED } from './legendProbe'
+// ⭐ PHASE D TASK 8 — the one place a registry count lives. See the loop-counter
+// note far below for why this is NOT the tautology the literal was guarding
+// against: `REGISTRY_SIZES` is a hand-written manifest's arithmetic, not the set
+// the loop iterated.
+import { REGISTRY_SIZES } from '../registrySizes'
 
 // ─── The wiring test (Task 7) ───────────────────────────────────────────────
 //
@@ -3974,9 +3979,20 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // `avwap` and `atrBands` are the first definitions that never had one.
     // ⭐ STILL 16 AT PHASE C TASK 13, AND THAT IS THE POINT: the registry grew to
     // seventeen and this number did NOT, because the seventeenth is on the server
-    // lane and has no legacy toggle to be reached from. Written as a literal so
-    // "the set went empty" and "a native slipped into the exclusion" both fail.
-    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(16)
+    // lane and has no legacy toggle to be reached from.
+    //
+    // ⭐ PHASE D TASK 8 — THE LITERAL BECOMES `REGISTRY_SIZES.native`, AND THE
+    // WARNING ABOVE STILL HOLDS. The objection was to `ENGINE_OWNED.size`: that
+    // IS the set the loop iterated, so comparing the counter to it is a tautology
+    // that survives the set being emptied. `REGISTRY_SIZES.native` is not that —
+    // it is the length of a HAND-WRITTEN manifest in `registrySizes.js` that the
+    // registry has to prove it matches, one file over. So "the set went empty"
+    // still fails, "a native slipped into the exclusion" still fails, and the
+    // number now also SAYS WHY it is sixteen: this loop draws from a legacy
+    // toggle, and the native lane is exactly the set of definitions that have
+    // one. A third-lane definition would break it, correctly — somebody has to
+    // decide what a legacy toggle means for a user's own formula.
+    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(REGISTRY_SIZES.native)
   })
 
   it('the binder is handed the LAYOUT\'S OWN band map, and the bands follow the INSTANCE LIST', () => {

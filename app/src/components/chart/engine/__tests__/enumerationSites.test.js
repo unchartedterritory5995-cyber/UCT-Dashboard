@@ -7,6 +7,7 @@ import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
+import { REGISTRY_SIZES } from '../registrySizes'
 import { stripComments, stripPyComments } from './sourceScan'
 
 // ─── THE ENUMERATION LEDGER ─────────────────────────────────────────────────
@@ -483,6 +484,28 @@ const LEDGER = [
     anchor: '"functions"', fate: 'keep' },
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
+  // ⛔⭐⭐ ADDED BY PHASE D TASK 8, AND THE DISCOVERY SCAN FOUND IT BEFORE THE
+  // TASK DID. `registrySizes.js` is the one place a registry COUNT lives, and
+  // the reason it holds a hand-written list of every definition id — rather than
+  // deriving one from `listDefinitions()` — is that a derived manifest is true by
+  // construction and can never fail. That is the same argument
+  // `CARVED_OUT_INDICATOR_KEYS` already makes one file over, and it has the same
+  // consequence: a real, deliberate, sixteen-id enumeration in shipped source.
+  //
+  // ⚠️ SO THIS IS A GENUINE NEW SITE, NOT AN OVER-MATCH. The task's brief said
+  // *"adding a lane adds no enumeration by itself, but verify that by running the
+  // scans, not by assuming it"* — the scan was run, it flagged this file by name
+  // on the first attempt, and `SITE_COUNT` goes 9 → 10. A task that had reported
+  // "no ledger delta" here would have been asserting from memory.
+  //
+  // ⚠️ AND ITS FATE IS `keep`, WHICH IS A CLAIM ABOUT WHAT IT IS FOR. This list
+  // is not a catalogue anything reads to DO work — nothing in the product
+  // imports this module — it is the assertion target that the registry has to
+  // prove it matches. A future phase that "removes the duplication" by deriving
+  // it has removed the rail, not the duplication.
+  { file: 'app/src/components/chart/engine/registrySizes.js',
+    region: 'SHIPPED_DEF_IDS — the hand-written manifest the registry must equal',
+    anchor: 'export const SHIPPED_DEF_IDS', fate: 'keep' },
   // ⛔⭐⭐ ADDED BY B5 TASK 12, AND ADDING IT IS THE HONEST HALF OF A RETIREMENT.
   // Flip C deleted `paneMargins.PANES`, whose three facts went three ways — but
   // one of them, the STACK ORDER, is a list of ids and a list of ids has to be
@@ -986,8 +1009,24 @@ const RETIRED_BY_B4_ALERTS = [
  *  asserted as whole-set literals below rather than left to a subset check. This
  *  task adds a ledger ROW; it changes nothing either scan can see. (Re-measured
  *  at Task 3: `engine/ast/parse.js` names no indicator id, so the JS scan's
- *  three-file set is unchanged by the new directory.) */
-const SITE_COUNT = 9
+ *  three-file set is unchanged by the new directory.)
+ *
+ *  ⭐⭐⭐ 9 → 10 AT PHASE D TASK 8, AND THE SCAN FOUND THE SITE BEFORE THE TASK
+ *  DID. `{keep: 10}`. The new row is `engine/registrySizes.js`, which holds the
+ *  hand-written manifest of every shipped definition id — the thing thirty-three
+ *  scattered count assertions collapsed INTO. Its brief predicted no ledger
+ *  delta ("adding a lane adds no enumeration by itself") and instructed the task
+ *  to run the scans rather than assume; the JS discovery scan flagged the file by
+ *  name on its first run, so the prediction was wrong and the instruction was
+ *  right. This is the FIRST time on this branch that the JS scan's found-set has
+ *  moved, and it moves for a file that genuinely hand-lists sixteen ids on
+ *  purpose — a derived manifest could never fail, which is exactly why this one
+ *  is typed out.
+ *
+ *  ⚠️ THE PYTHON SCAN'S FOUND-SET DID NOT MOVE. Task 8 touches one `api/` file
+ *  and only its `SCHEMA_VERSION` cross-assert; it names no indicator. Both
+ *  whole-set literals below are re-measured, not assumed. */
+const SITE_COUNT = 10
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1155,7 +1194,10 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // assertions still fail on different things (a fate TYPO makes a sixth
     // bucket, which only this whole-object `toEqual` refuses; a re-fate to a NEW
     // letter fails both, and only the mapping names WHICH ROW moved).
-    expect(counts).toEqual({ keep: 9 })
+    // ⭐⭐⭐ `{keep: 9}` → `{keep: 10}` AT PHASE D TASK 8. `registrySizes.js`
+    // joins as a `keep`, and the blind spot above is unchanged: with every row
+    // `keep`, a fate swap is still the identity.
+    expect(counts).toEqual({ keep: 10 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1225,13 +1267,20 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'CANNOT make: swapping two sites\' fates leaves every count identical and passes there. ' +
       'If a fate really moved, regenerate this literal from LEDGER rather than editing a row by ' +
       'hand, and move the histogram in the same commit.',
-    // ⭐⭐⭐ REGENERATED AT PHASE D TASK 1, NOT EDITED. The nine rows below are
-    // the verbatim stdout of a throwaway case that ran `LEDGER.map(...).sort(...)`
+    // ⭐⭐⭐ REGENERATED AT PHASE D TASK 1, NOT EDITED. The rows below are the
+    // verbatim stdout of a throwaway case that ran `LEDGER.map(...).sort(...)`
     // inside this module and printed it — the same two lines the assertion above
     // computes, so the literal cannot disagree with the generator by a character
     // it was typed with. Recorded in the task report; the printer was deleted in
     // the same commit, because a case whose whole body is a `console.log` is a
     // case that will one day be read as a gate.
+    //
+    // ⭐⭐⭐ REGENERATED AGAIN AT PHASE D TASK 8, BY THE SAME METHOD AND FOR THE
+    // SAME REASON — nine rows became ten (`registrySizes.js`), and the tenth was
+    // pasted from that printer's stdout rather than typed into sorted position by
+    // eye. The mechanical tell survives: every pair is `["…","keep"]` with NO
+    // space after the comma, which is `JSON.stringify`'s format and not the
+    // surrounding file's style.
     ).toEqual([
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
@@ -1240,6 +1289,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
       ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays","keep"],
       ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE","keep"],
+      ["app/src/components/chart/engine/registrySizes.js::SHIPPED_DEF_IDS — the hand-written manifest the registry must equal","keep"],
       ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once","keep"],
       ["tools/chart_parity_cases.json::the parity case list","keep"],
     ])
@@ -1561,7 +1611,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const wide = mergeChartSettings(JSON.parse(JSON.stringify({ settingsVersion: 2, indicators: all })))
     expect(Object.keys(wide.indicators)).toEqual(['volumeProfile'])
     expect(Object.keys(all), 'the fixture named nothing — the destruction above is vacuous')
-      .toHaveLength(17)
+      .toHaveLength(REGISTRY_SIZES.total)
     // …and the frozen capture writes the same one key, through the wrapper.
     const frozen = JSON.parse(uctDefaultChartSettings())
     expect(Object.keys(frozen.indicators)).toEqual(['volumeProfile'])
@@ -1651,7 +1701,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // every chart while leaving this file's `[]` above perfectly green.
   it('⛔ …and every definition still resolves a compute — the exports are NOT dead', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(REGISTRY_SIZES.total)
     // THE SERVER LANE IS SKIPPED HERE AND ONLY HERE. This case is about the
     // `compute*` EXPORTS not being dead; a `compute.kind: 'server'` definition has
     // no export to be dead, its columns are FETCHED, and `computeFor` correctly
@@ -1781,9 +1831,17 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'the JS discovery scan sees a different set of files than it saw at the start of ' +
       'Phase C. If a module was added to or removed from the four-id set deliberately, ' +
       'move this literal and say which; if not, the scan itself changed.',
+    // ⭐⭐⭐ AND IT MOVED, FOR THE FIRST TIME ON THIS BRANCH, AT PHASE D TASK 8.
+    // `engine/registrySizes.js` joins the set: it hand-lists all sixteen native
+    // ids on purpose, because a manifest derived from `listDefinitions()` would
+    // be true by construction and could never disagree with the registry. That
+    // is a real enumeration site, it is ledgered as one, and `SITE_COUNT` went
+    // 9 → 10 in the same commit. The task's brief predicted no delta here; the
+    // scan disagreed on its first run, which is what running it is for.
     ).toEqual([
       'app/src/components/chart/engine/instances.js',
       'app/src/components/chart/engine/nativeRegistry.js',
+      'app/src/components/chart/engine/registrySizes.js',
       'app/src/components/chart/keyboardShortcuts.js',
     ])
 
@@ -1853,11 +1911,19 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // rather than from the settings blob, because a blob-derived id list would
     // have collapsed to ONE id at this task and made the whole scan unable to
     // flag anything at all, silently.
+    // ⭐ AND IT MOVED 3 → 4 AT PHASE D TASK 8, WHICH IS THE FIRST TIME THIS FLOOR
+    // HAS GONE UP. `registrySizes.js` is a `keep` row under `app/src` with a
+    // `.js` extension, so it joins the set the discovery scan MUST be able to see
+    // forever — and that is the honest direction for it to move: the paragraph
+    // above worried that a one-element floor was weak, and this is a fourth
+    // independent file the scan has to keep finding.
+    //
     // BY NAME and NON-ZERO, both. A count alone would go green the day the last
     // `keep` row is renamed; the names are what make the collapse loud.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
       .toEqual(['app/src/components/chart/engine/instances.js',
         'app/src/components/chart/engine/nativeRegistry.js',
+        'app/src/components/chart/engine/registrySizes.js',
         'app/src/components/chart/keyboardShortcuts.js'])
     expect(keepWalkable.length).toBeGreaterThan(0)
     expect(keepWalkable.filter(f => !found.includes(f)),
@@ -2994,7 +3060,7 @@ describe('the surviving enumeration is the registry, and it has to stay complete
   // real merge — for every definition there is.
   it('every definition is REACHABLE from a v1 blob that names it', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(REGISTRY_SIZES.total)
     const unreachable = []
     for (const def of defs) {
       const blob = JSON.stringify({ indicators: { [def.id]: { enabled: true } } })
