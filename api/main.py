@@ -4490,6 +4490,8 @@ app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
 app.include_router(screener.router)
+from api.routers import scans as scans_router
+app.include_router(scans_router.router)
 # DEPRECATED 2026-06-02 -- Model Book is no longer a trade log (rebuilt as a
 # curated library of top stocks; see api/routers/modelbook.py). The /api/trades
 # endpoints + data/trades.json are kept as a rollback backup; schedule a manual

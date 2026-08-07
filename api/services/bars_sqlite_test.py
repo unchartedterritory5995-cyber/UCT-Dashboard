@@ -387,3 +387,29 @@ def test_bump_db_epoch_replaces_thread_local_connection_object(tmp_path, monkeyp
     )
     # The new connection still works
     assert c2.execute("SELECT v FROM t WHERE k=1").fetchone() == ("before",)
+
+
+def test_volume_scan_helpers(tmp_path, monkeypatch):
+    """avg_daily_volume + max_daily_volume_in_range (RVOL + 1-year-scan reference)."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bs = _reload_bars_sqlite()
+    bs.init_db()
+    bars = [
+        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 1, "v": 100},
+        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 1, "v": 300},
+        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 1, "v": 200},
+    ]
+    bs.put_bars("AAA", "D", bars, date_tf=True)
+
+    # Average over the 3 completed sessions (before 2026-07-01) = 200.
+    assert bs.avg_daily_volume(["AAA"], sessions=20, before_ymd=20260701) == {"AAA": 200}
+    # before_ymd excludes today-and-later bars: only 2026-06-01 counts -> 100.
+    assert bs.avg_daily_volume(["AAA"], sessions=20, before_ymd=20260602) == {"AAA": 100}
+    # Trailing-year max over the range = 300.
+    assert bs.max_daily_volume_in_range(20260101, 20260701, 2) == {"AAA": 300}
+    # min_sessions gate: only 1 session in this narrower range -> excluded.
+    assert bs.max_daily_volume_in_range(20260603, 20260701, 2) == {}
+    # recent_first_trade: earliest daily bar is 2026-06-01 -> in-window when the
+    # window opens before it, excluded when it opens after.
+    assert bs.recent_first_trade(20260101) == {"AAA": 20260601}
+    assert bs.recent_first_trade(20260701) == {}

@@ -2418,6 +2418,13 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <span>Incremental auto-push (perf - fixes open-time alert lag)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
+                 title="Run the heavy dashboard curated scan in a separate process (off the GIL) so it stops starving the WS + auto-push. Same classification, just faster; any failure falls back in-process. Flip off to revert instantly.">
+            <input type="checkbox"
+              checked={thresholds.scan_offload ?? false}
+              onChange={e => setPath(["scan_offload"], e.target.checked)} />
+            <span>Offload dashboard scan (perf - fixes feed wedge + alert lag)</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
                  title="Clean directional flow only: drop bid-side sells contaminated by earlier ask-buying on the same contract (likely profit-take / mixed, not clean conviction) from the directional tiers — they surface as neutral 'Not Clean'. Clean writes and ask-side buys are kept.">
             <input type="checkbox"
               checked={thresholds.close_detector_enabled ?? false}

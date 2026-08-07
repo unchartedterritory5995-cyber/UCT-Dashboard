@@ -86,6 +86,22 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
     with ThreadPoolExecutor(max_workers=6) as ex:
         for sym, val in ex.map(_one, syms):
             out[sym] = val
+
+    # 20-session average daily volume — for the RVOL column (live volume / this avg).
+    # One bounded batch of tiny indexed reads; today's evolving bar is excluded.
+    try:
+        from api.services import bars_sqlite
+        import datetime as _dt
+        try:
+            import zoneinfo
+            _today = int(_dt.datetime.now(zoneinfo.ZoneInfo("America/New_York")).strftime("%Y%m%d"))
+        except Exception:
+            _today = None
+        avg = bars_sqlite.avg_daily_volume(list(out.keys()), sessions=20, before_ymd=_today)
+    except Exception:
+        avg = {}
+    for sym in out:
+        out[sym]["avg_vol_20d"] = avg.get(sym)
     return out
 
 
